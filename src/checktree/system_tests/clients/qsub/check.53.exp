@@ -288,3 +288,30 @@ proc check_option_v {} {
    set_error 0 ok
 }
 
+proc invalid_job_has_valid_account_string {option} {
+   set ret {}
+
+   lappend ret "test\ntest"
+   lappend ret "test\ttest"
+   lappend ret "test\rtest"
+   lappend ret "test:test"
+
+   return $ret
+}
+
+proc valid_job_has_valid_account_string {option} {
+   set ret {}
+
+   lappend ret "blahblah"
+   lappend ret "blah!blah"
+   lappend ret "blah,blah"
+   lappend ret "blah;blah"
+   lappend ret "blah.blah"
+   lappend ret "blahöblah"
+   lappend ret "blah=blah"
+   lappend ret "blah%blah"
+   lappend ret "blah|blah"
+   lappend ret "\"blahblah\""
+
+   return $ret
+}

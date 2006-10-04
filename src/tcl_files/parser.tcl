@@ -534,12 +534,12 @@ proc process_named_record {input output delimiter {index ""} {id ""}
    set out(index) ""
 
    # loop over all relevant lines
-   for { set i $head_line } { $i < $num_lines } { incr i } {
+   for {set i $head_line} {$i < $num_lines} {incr i} {
       set line [lindex $tmp $i]
       set line [string trim $line]
      
       # record or input end?
-      if { [string match $delimiter $line] == 1 || $i == $last_line } {
+      if {[string match $delimiter $line] == 1 || $i == $last_line} {
          # eval index and filter records according to parameter id
          set idxlen [llength $index]
          set idx ""
@@ -557,8 +557,8 @@ proc process_named_record {input output delimiter {index ""} {id ""}
          }
         
          # merge record to output array
-         if { $parse_record } {
-            if { [lsearch -exact $out(index) $idx] == -1} {
+         if {$parse_record} {
+            if {[lsearch -exact $out(index) $idx] == -1} {
                lappend out(index) $idx
             }
             foreach k [array names record] {
@@ -575,17 +575,15 @@ proc process_named_record {input output delimiter {index ""} {id ""}
 
          unset record      
       } else {
-         # read record element 
-
-         if { $field_delimiter == "" } {
-            set idx [string trim [lindex $line 0]]
-            set value [string trim [lrange $line 1 end]]
+         # read record element
+         if {$field_delimiter == ""} {
+            set pos [string first " " $line]
          } else {
-            set helplist [split $line $field_delimiter]
-            set helplist2 [lrange $helplist 1 end]
-            set idx   [string trim [lindex $helplist 0]]
-            set value [string trim [join $helplist2 $field_delimiter]]
+            set pos [string first $field_delimiter $line]
          }
+         set idx   [string trim [string range $line 0 [expr $pos - 1]]]
+         set value [string trim [string range $line [expr $pos + 1] end]]
+
          # replace or set contents
          if {[info exists rep($idx,$value)]} {
             set record($idx) $rep($idx,$value)

@@ -430,3 +430,44 @@ proc check_option_sync_ww {} {
    set_error 0 "ok"
 }
 
+proc invalid_job_has_valid_account_string {option} {
+   set ret {}
+
+   lappend ret "test\ntest"
+   lappend ret "test\ttest"
+   lappend ret "test\rtest"
+   lappend ret "test/test"
+   lappend ret "test:test"
+   lappend ret "test@test"
+   lappend ret "test\\test"
+   lappend ret "test*test"
+   lappend ret "test?test"
+
+   if {$option == "-N"} {
+      lappend ret "1test"
+   }
+
+   return $ret
+}
+
+proc valid_job_has_valid_account_string {option} {
+   set ret {}
+
+   lappend ret "test"
+   lappend ret "test test"
+   lappend ret "test!test"
+   lappend ret "test,test"
+   lappend ret "test;test"
+   lappend ret "test.test"
+   lappend ret "testäöüßtest"
+   lappend ret "test=test"
+   lappend ret "test%test"
+   lappend ret "test|test"
+   lappend ret "\"test\""
+
+   if {$option == "-A"} {
+      lappend ret "1test"
+   }
+
+   return $ret
+}

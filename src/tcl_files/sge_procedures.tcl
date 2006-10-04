@@ -549,6 +549,7 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     {user ""}                 - user who shall call command
 #     {exit_var prg_exit_state} - variable for returning command exit code
 #     {timeout 60}              - timeout for command execution
+#     {cd_dir ""}               - directory to start command in
 #     {sub_path "bin"}          - component of binary path, e.g. "bin" or "utilbin"
 #
 #  RESULT
@@ -559,7 +560,7 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     sge_procedures/start_sge_utilbin()
 #     remote_procedures/start_remote_prog()
 #*******************************************************************************
-proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {sub_path "bin"}} {
+proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""} {sub_path "bin"}} {
    global ts_config CHECK_OUTPUT CHECK_USER
 
    upvar $exit_var exit_state
@@ -577,8 +578,16 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
    set binary "$ts_config(product_root)/$sub_path/$arch/$bin"
 
    debug_puts "executing $binary $args\nas user $user on host $host"
+
    # Add " around $args if there are more the 1 args....
-   set result [start_remote_prog $host $user $binary "$args" exit_state $timeout]
+   if {$cd_dir == ""} {
+      set result [start_remote_prog $host $user $binary "$args" exit_state $timeout]
+   } else {
+      # TODO: we should pass cd_dir to start_remote_prog as a parameter,
+      #       shall be passed through to open_remote_spawn_process and from there to write_script_file.
+      #       Then the cd call can be done in the generated script.
+      set result [start_remote_prog $host $user "cd" "$cd_dir ; $binary $args" exit_state $timeout]
+   }
 
    return $result
 }
@@ -600,6 +609,8 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
 #     {host ""}                 - host on which to start command
 #     {user ""}                 - user who shall start command
 #     {exit_var prg_exit_state} - variable for returning command exit code
+#     {timeout 60}              - timeout for command execution
+#     {cd_dir ""}               - directory to start command in
 #
 #  RESULT
 #     Output of called command.
@@ -608,10 +619,10 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
 #  SEE ALSO
 #     sge_procedures/start_sge_bin()
 #*******************************************************************************
-proc start_sge_utilbin {bin args {host ""} {user ""} {exit_var prg_exit_state}} {
+proc start_sge_utilbin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""}} {
    upvar $exit_var exit_state
 
-   return [start_sge_bin $bin $args $host $user exit_state 60 "utilbin"]
+   return [start_sge_bin $bin $args $host $user exit_state $timeout $cd_dir "utilbin"]
 }
 
 #****** sge_procedures/start_source_bin() *****************************************
@@ -4434,8 +4445,8 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
 #
 #  INPUTS
 #     args                - a string of qsub arguments/parameters
-#     {do_error_check 1}  - if 1 (default): add global erros (add_proc_error)
-#                           if not 1: do not add errors
+#     {raise_error 1}     - if 1 (default): add global errors (add_proc_error)
+#                           if 0: do not add errors
 #     {submit_timeout 30} - timeout (default is 30 sec.)
 #     {host ""}           - host on which to execute qsub (default $CHECK_HOST)
 #     {user ""}           - user who shall submit job (default $CHECK_USER)
@@ -4446,11 +4457,9 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
 #     This procedure returns:
 #     
 #     jobid   of array or job if submit was successfull (value > 1)
-#        -1   on timeout error
+#        -1   general error
 #        -2   if usage was printed on -help or commandfile argument
 #        -3   if usage was printed NOT on -help or commandfile argument
-#        -4   if verify output was printed on -verify argument
-#        -5   if verify output was NOT printed on -verfiy argument
 #        -6   job could not be scheduled, try later
 #        -7   has to much tasks - error
 #        -8   unknown resource - error
@@ -4473,553 +4482,181 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
 #
 #  SEE ALSO
 #     sge_procedures/delete_job()
-#     check/add_proc_error()
+#     sge_procedures/submit_job_parse_job_id()
 #*******************************
-proc submit_job { args {do_error_check 1} {submit_timeout 60} {host ""} {user ""} { cd_dir ""} { show_args 1 } } {
-  global ts_config
-  global CHECK_HOST CHECK_ARCH CHECK_OUTPUT CHECK_USER
-  global CHECK_DEBUG_LEVEL
+proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} { cd_dir ""} { show_args 1 }} {
+   global ts_config CHECK_OUTPUT
 
-  set return_value " "
+   # we first want to parse errors first, then the positive messages, 
+   # as e.g. an immediate job might be correctly submitted, but then cannot be scheduled
+   set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -12 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33"
+   append messages(index) " 0 1 2"
 
-  if {$host == ""} {
-    set host $ts_config(master_host)
-  }
-
-  if {$user == ""} {
-    set user $CHECK_USER
-  }
-
-  set arch [resolve_arch $host]
-
-  if { $ts_config(gridengine_version) == 53 } {
-     set JOB_SUBMITTED       [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOB_USS] "*" "*" "*"]
-     set JOB_SUBMITTED_DUMMY [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOB_USS] "__JOB_ID__" "__JOB_NAME__" "__JOB_ARG__"]
-     set SUCCESSFULLY        [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_U] "*"]
-     set UNKNOWN_RESOURCE2   [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SCHEDD_JOBREQUESTSUNKOWNRESOURCE] ]
-     set JOBALREADYEXISTS [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_JOBALREADYEXISTS_U] "*"]
-     set NAMETOOLONG         "blah blah blah no NAMETOOLONG in 5.3"
-     set INVALID_JOB_REQUEST "blah blah blah no INVALID_JOB_REQUEST in 5.3"
-     set UNKNOWN_QUEUE [translate_macro MSG_JOB_QUNKNOWN_S "*"]
-     set POSITIVE_PRIO "blah blah blah no POSITIVE_PRIO in 5.3"
-  } else {
-     # 6.0 and higher
-     set JOB_SUBMITTED       [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QSUB_YOURJOBHASBEENSUBMITTED_SS] "*" "*"]
-     set JOB_SUBMITTED_DUMMY [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QSUB_YOURJOBHASBEENSUBMITTED_SS] "__JOB_ID__" "__JOB_NAME__"]
-     set SUCCESSFULLY        [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_S] "*"]
-     set UNKNOWN_RESOURCE2 [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SCHEDD_JOBREQUESTSUNKOWNRESOURCE_S] ]
-     set NAMETOOLONG         [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_NAMETOOLONG_I] "*"]
-     set JOBALREADYEXISTS [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_JOBALREADYEXISTS_S] "*"]
-     set INVALID_JOB_REQUEST [translate $CHECK_HOST 1 0 0 [sge_macro MSG_INVALIDJOB_REQUEST_S] "*"]
-     set UNKNOWN_QUEUE [translate_macro MSG_QREF_QUNKNOWN_S "*"]
-     if {$ts_config(gridengine_version) == 60} {
-        set POSITIVE_PRIO "blah blah blah no POSITIVE_PRIO in 6.0"
-     } else {
-        # 6.5 and higher
-        set POSITIVE_PRIO [translate_macro MSG_JOB_NONADMINPRIO]
-     }
-  }
-
-  set INVALID_PRIORITY [translate_macro MSG_PARSE_INVALIDPRIORITYMUSTBEINNEG1023TO1024]
-  set WRONG_TYPE          [translate $CHECK_HOST 1 0 0 [sge_macro MSG_CPLX_WRONGTYPE_SSS] "*" "*" "*"]
-  set ERROR_OPENING       [translate $CHECK_HOST 1 0 0 [sge_macro MSG_FILE_ERROROPENINGXY_SS] "*" "*"]
-  set NOT_ALLOWED_WARNING [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_NOTINANYQ_S] "*" ]
-  set NO_DEADLINE_USER    [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_NODEADLINEUSER_S] $user ]
-
-
-  set JOB_ARRAY_SUBMITTED       [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS] "*" "*" "*" "*" "*" "*" ]
-  set JOB_ARRAY_SUBMITTED_DUMMY [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS] "__JOB_ID__" "" "" "" "__JOB_NAME__" "__JOB_ARG__"]
-
-
-  set TRY_LATER           [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QSUB_YOURQSUBREQUESTCOULDNOTBESCHEDULEDDTRYLATER]]
-  set USAGE               [translate $CHECK_HOST 1 0 0 [sge_macro MSG_GDI_USAGE_USAGESTRING] ]
-
+   # success messages:
    if { $ts_config(gridengine_version) == 53 } {
-      set UNAMBIGUOUSNESS [translate $CHECK_HOST 1 0 0   [sge_macro MSG_JOB_MOD_JOBNAMEVIOLATESJOBNET_SSUU] "*" "*" "*" "*" ]
-      set NON_AMBIGUOUS   [translate $CHECK_HOST 1 0 0   [sge_macro MSG_JOB_MOD_JOBNETPREDECESSAMBIGUOUS_SUU] "*" "*" "*" ]
+      set messages(1)      "*[translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_U "*"]*"
    } else {
-      # JG: TODO: jobnet handling completely changed - what are the messages?
-      set UNAMBIGUOUSNESS "a?sjfas?kjfa?jf"
-      set NON_AMBIGUOUS   "aajapsoidfupoijpoaisdfup9"
+      # 6.0 and higher
+      set messages(1)      "*[translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_S "*"]*"
    }
-  set UNKNOWN_OPTION  [translate $CHECK_HOST 1 0 0   [sge_macro MSG_ANSWER_UNKOWNOPTIONX_S] "*" ]
-  set NO_ACC_TO_PRJ1  [translate $CHECK_HOST 1 0 0   [sge_macro MSG_SGETEXT_NO_ACCESS2PRJ4USER_SS] "*" "*"]
-  set NO_ACC_TO_PRJ2  [translate $CHECK_HOST 1 0 0   [sge_macro MSG_STREE_USERTNOACCESS2PRJ_SS] "*" "*"]
-  set NOT_ALLOWED1    [translate $CHECK_HOST 1 0 0   [sge_macro MSG_JOB_NOPERMS_SS] "*" "*"]
-  set NOT_ALLOWED2    [translate $CHECK_HOST 1 0 0   [sge_macro MSG_JOB_PRJNOSUBMITPERMS_S] "*" ]
-  set NOT_REQUESTABLE [translate $CHECK_HOST 1 0 0   [sge_macro MSG_SGETEXT_RESOURCE_NOT_REQUESTABLE_S] "*" ]
-  set CAN_T_RESOLVE   [translate $CHECK_HOST 1 0 0   [sge_macro MSG_SGETEXT_CANTRESOLVEHOST_S] "*" ]
-  set UNKNOWN_RESOURCE1 [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWN_RESOURCE_S] "*" ]
-  set TO_MUCH_TASKS [translate $CHECK_HOST 1 0 0     [sge_macro MSG_JOB_MORETASKSTHAN_U] "*" ]
-  set WARNING_OPTION_ALREADY_SET [translate $CHECK_HOST 1 0 0 [sge_macro MSG_PARSE_XOPTIONALREADYSETOVERWRITINGSETING_S] "*"]
-  set ONLY_ONE_RANGE [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QCONF_ONLYONERANGE]]
-  set PARSE_DUPLICATEHOSTINFILESPEC [translate $CHECK_HOST 1 0 0 [sge_macro MSG_PARSE_DUPLICATEHOSTINFILESPEC]] 
-  set GDI_NEGATIVSTEP [translate $CHECK_HOST 1 0 0 [sge_macro MSG_GDI_NEGATIVSTEP]] 
-  set GDI_INITIALPORTIONSTRINGNODECIMAL_S [translate $CHECK_HOST 0 0 0 [sge_macro MSG_GDI_INITIALPORTIONSTRINGNODECIMAL_S] "*" ] 
 
+   set messages(0)      "*[translate_macro MSG_JOB_SUBMITJOB_USS "*" "*" "*"]*"
+   set messages(2)      "*[translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS "*" "*" "*" "*" "*" "*" ]*"
 
-  set help_translation  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_GDI_KEYSTR_COLON]]
-  set COLON_NOT_ALLOWED [translate $CHECK_HOST 1 0 0 [sge_macro MSG_GDI_KEYSTR_MIDCHAR_SC] "$help_translation" ":"]
+   # failure messages:
+   if { $ts_config(gridengine_version) == 53 } {
+      set messages(-14)    "*[translate_macro MSG_JOB_MOD_JOBNETPREDECESSAMBIGUOUS_SUU "*" "*" "*"]*"
+      set messages(-15)    "*[translate_macro MSG_JOB_MOD_JOBNAMEVIOLATESJOBNET_SSUU "*" "*" "*" "*"]*"
+      set messages(-24)    "blah blah blah no NAMETOOLONG in 5.3"
+      set messages(-25)    "*[translate_macro MSG_JOB_JOBALREADYEXISTS_U "*"]*"
+      set messages(-26)    "blah blah blah no INVALID_JOB_REQUEST in 5.3"
+      set messages(-28)    "*[translate_macro MSG_JOB_QUNKNOWN_S "*"]*"
+      set messages(-29)    "blah blah blah no POSITIVE_PRIO in 5.3"
+   } else {
+      # 6.0 and higher
+      set messages(-14)   "TODO: jobnet handling changed, old message NON_AMBIGUOUS"
+      set messages(-15)   "TODO: jobnet handling changed, old message UNAMBIGUOUSNESS"
+      set messages(-24)    "*[translate_macro MSG_JOB_NAMETOOLONG_I "*"]*"
+      set messages(-25)    "*[translate_macro MSG_JOB_JOBALREADYEXISTS_S "*"]*"
+      set messages(-26)    "*[translate_macro MSG_INVALIDJOB_REQUEST_S "*"]*"
+      set messages(-28)    "*[translate_macro MSG_QREF_QUNKNOWN_S "*"]*"
 
-  append USAGE " qsub"
-
-  if { $show_args == 1 } {
-     puts $CHECK_OUTPUT "job submit args:\n$args"
-  }
-  # spawn process
-  set program "$ts_config(product_root)/bin/$arch/qsub"
-  if { $cd_dir != "" } {
-     set id [ open_remote_spawn_process "$host" "$user" "cd" "$cd_dir;$program $args" ]
-     puts $CHECK_OUTPUT "cd to $cd_dir"
-  } else {
-     set id [ open_remote_spawn_process "$host" "$user" "$program" "$args" ]
-  }
-  set sp_id [ lindex $id 1 ]
-
-  set timeout $submit_timeout
-  set do_again 1
-
-
-  log_user 0  ;# debug log_user 0
-  if { $CHECK_DEBUG_LEVEL != 0 } {
-     log_user 1
-  }
-
-  while { $do_again == 1 } {
-     set timeout $submit_timeout
-
-     set do_again 0
-     expect {
-          -i $sp_id full_buffer {
-             set return_value -1    
-             add_proc_error "submit_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-          }
-          -i $sp_id timeout {
-             puts $CHECK_OUTPUT "submit_job - timeout(1)"
-             add_proc_error "submit_job" "-1" "got timeout(1) error"
-             set return_value -1 
-          }
-          -i $sp_id eof {
-             puts $CHECK_OUTPUT "submit_job - end of file unexpected"
-             set return_value -1
-          }
-          -i $sp_id -- $NOT_ALLOWED_WARNING {
-             puts $CHECK_OUTPUT "got warning: job can't run in any queue" 
-             set outtext $expect_out(0,string) 
-             puts $CHECK_OUTPUT "string is: \"$outtext\""
-             set do_again 1
-          }
-          -i $sp_id -- $WARNING_OPTION_ALREADY_SET {
-             puts $CHECK_OUTPUT "got warning: option has already been set" 
-             set outtext $expect_out(0,string) 
-             puts $CHECK_OUTPUT "string is: \"$outtext\""
-             set do_again 1
-          }
-          -i $sp_id -- $JOB_SUBMITTED {
-             set job_id_pos [ string first "__JOB_ID__" $JOB_SUBMITTED_DUMMY ]
-             set job_name_pos [ string first "__JOB_NAME__" $JOB_SUBMITTED_DUMMY ]
-             if { $job_id_pos > $job_name_pos } {
-                add_proc_error "submit_job" "-1" "locale switches parameter for qsub string! This is not supported yet"
-             }
-             incr job_id_pos -1
-             set job_id_prefix [ string range $JOB_SUBMITTED_DUMMY 0 $job_id_pos ]
-             set job_id_prefix_length [ string length $job_id_prefix]
+      if {$ts_config(gridengine_version) == 60} {
+         set messages(-29)    "blah blah blah no POSITIVE_PRIO in 6.0"
+      } else {
+         # 6.5 and higher
+         set messages(-29)    "*[translate_macro MSG_JOB_NONADMINPRIO]*"
+      }
+   }
    
-             set outtext $expect_out(0,string) 
-#             puts $CHECK_OUTPUT "string is: \"$outtext\""
-   #          puts $CHECK_OUTPUT "dummy  is: \"$JOB_SUBMITTED_DUMMY\""
-             set id_pos [ string first $job_id_prefix $outtext]
-             incr id_pos $job_id_prefix_length
-             set submitjob_jobid [string range $outtext $id_pos end]
-             set space_pos [ string first " " $submitjob_jobid ]
-             set submitjob_jobid [string range $submitjob_jobid 0 $space_pos ]
-             set submitjob_jobid [string trim $submitjob_jobid]
-             if {[string first "." $submitjob_jobid] >= 0} {
-                puts $CHECK_OUTPUT "This is a job array"
-                set new_jobid [lindex [split $submitjob_jobid "."] 0]
-                puts $CHECK_OUTPUT "Array has ID $new_jobid"
-                set submitjob_jobid $new_jobid 
-             }
-   
-   # try to figure out more
-             set timeout 30
-             expect {
-                -i $sp_id full_buffer {
-                   set return_value -1
-                   add_proc_error "submit_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-                }
-                -i $sp_id timeout {
-                   puts $CHECK_OUTPUT "submit_job - timeout(2)"
-                   set return_value -1 
-                }
-                -i $sp_id "_exit_status_" {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id eof {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id $SUCCESSFULLY  {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id $TRY_LATER {
-                   set return_value -6
-                }
-                
-             }       
-   
-          }
-          -i $sp_id -- $JOB_ARRAY_SUBMITTED {
-             set job_id_pos [ string first "__JOB_ID__" $JOB_ARRAY_SUBMITTED_DUMMY ]
-             set job_name_pos [ string first "__JOB_NAME__" $JOB_ARRAY_SUBMITTED_DUMMY ]
-             set job_arg_pos [ string first "__JOB_ARG__" $JOB_ARRAY_SUBMITTED_DUMMY ]
-             if { $job_id_pos > $job_name_pos || $job_id_pos > $job_arg_pos } {
-                add_proc_error "submit_job" "-1" "locale switches parameter for qsub string! This is not supported yet"
-             }
-             incr job_id_pos -1
-             set job_id_prefix [ string range $JOB_ARRAY_SUBMITTED_DUMMY 0 $job_id_pos ]
-             set job_id_prefix_length [ string length $job_id_prefix]
-   
-             set outtext $expect_out(0,string) 
-   #          puts $CHECK_OUTPUT "string is: \"$outtext\""
-   #          puts $CHECK_OUTPUT "dummy  is: \"$JOB_ARRAY_SUBMITTED_DUMMY\""
-             set id_pos [ string first $job_id_prefix $outtext]
-             incr id_pos $job_id_prefix_length
-             set submitjob_jobid [string range $outtext $id_pos end]
-             set space_pos [ string first " " $submitjob_jobid ]
-             set submitjob_jobid [string range $submitjob_jobid 0 $space_pos ]
-             set submitjob_jobid [string trim $submitjob_jobid]
-             if {[string first "." $submitjob_jobid] >= 0} {
-                puts $CHECK_OUTPUT "This is a job array"
-                set new_jobid [lindex [split $submitjob_jobid "."] 0]
-                puts $CHECK_OUTPUT "Array has ID $new_jobid"
-                set submitjob_jobid $new_jobid 
-             }
-   
-   # try to figure out more
-             set timeout 30
-             expect {
-                -i $sp_id full_buffer {
-                   set return_value -1
-                   add_proc_error "submit_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-                }
-                -i $sp_id timeout {
-                   puts $CHECK_OUTPUT "submit_job - timeout(3)"
-                   set return_value -1 
-                }
-                -i $sp_id "_exit_status_" {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id eof {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id $SUCCESSFULLY  {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id $TRY_LATER {
-                   set return_value -6
-                }
-                
-             }       
-   
-          }
-          
-          
-          -i $sp_id -- "job*has been submitted" {
-             
-             set outtext $expect_out(0,string) 
-             set submitjob_jobid [lindex $outtext 1];
-             if {[string first "." $submitjob_jobid] >= 0} {
-                puts $CHECK_OUTPUT "This is a job array"
-                set new_jobid [lindex [split $submitjob_jobid "."] 0]
-                puts $CHECK_OUTPUT "Array has ID $new_jobid"
-                set submitjob_jobid $new_jobid 
-             }
-   
-   # try to figure out more
-             set timeout 30
-             expect {
-                -i $sp_id full_buffer {
-                   set return_value -1
-                   add_proc_error "submit_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-                }
-                -i $sp_id timeout {
-                   puts $CHECK_OUTPUT "submit_job - timeout(4)"
-                   set return_value -1 
-                }
-                -i $sp_id "_exit_status_" {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id eof {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id "successfully scheduled" {
-                   puts $CHECK_OUTPUT "job submit returned ID: $submitjob_jobid"
-                   set return_value $submitjob_jobid 
-                }
-                -i $sp_id "try again later" {
-                   set return_value -6
-                }
-                
-             }       
-   
-          }
-   
-          -i $sp_id "usage: qsub" {
-             puts $CHECK_OUTPUT "got usage ..."
-             if {([string first "help" $args] >= 0 ) || ([string first "commandfile" $args] >= 0)} {
-                set return_value -2 
-             } else { 
-                set return_value -3
-             }
-          } 
-          -i $sp_id $USAGE {
-             puts $CHECK_OUTPUT "got usage ..."
-             if {([string first "help" $args] >= 0 ) || ([string first "commandfile" $args] >= 0)} {
-                set return_value -2 
-             } else { 
-                set return_value -3
-             }
-          } 
-   
-          -i $sp_id "job_number" {
-            if {[string first "verify" $args] >= 0 } {
-               set return_value -4
-            } else {
-               set return_value -5
-            } 
-          }
-          -i $sp_id $TO_MUCH_TASKS {
-             set return_value -7
-          }
-          -i $sp_id "submit a job with more than" {
-             set return_value -7
-          }
-          -i $sp_id $UNKNOWN_RESOURCE1 {
-             set return_value -8
-          }
-          -i $sp_id $UNKNOWN_RESOURCE2 {
-             set return_value -8
-          }
-          -i $sp_id "unknown resource" {
-             set return_value -8
-          }
-          -i $sp_id $CAN_T_RESOLVE {
-             set return_value -9
-          }
-          -i $sp_id "can't resolve hostname" {
-             set return_value -9
-          }
-          -i $sp_id $NOT_REQUESTABLE {
-             set return_value -10
-          }
-          -i $sp_id "configured as non requestable" {
-             set return_value -10
-          }
-          
-          -i $sp_id $NOT_ALLOWED1 {
-             set return_value -11
-          }       
-          -i $sp_id $NOT_ALLOWED2 {
-             set return_value -11
-          }       
-          -i $sp_id "not allowed to submit jobs" {
-             set return_value -11
-          }
-          -i $sp_id $NO_ACC_TO_PRJ1 {
-             puts $CHECK_OUTPUT "got string(2): \"$expect_out(0,string)\""
-             set return_value -12
-          }
-          -i $sp_id $NO_ACC_TO_PRJ2 {
-         
-             set return_value -12
-          }
-          -i $sp_id "no access to project" {
-             set return_value -12
-          }
-          -i $sp_id $UNKNOWN_OPTION {
-             set return_value -13
-          }
-          -i $sp_id "Unknown option" {
-             set return_value -13
-          }
-          -i $sp_id $NON_AMBIGUOUS {
-             set return_value -14
-          }
-          -i $sp_id "non-ambiguous jobnet predecessor" {
-             set return_value -14
-          }
-          -i $sp_id $UNAMBIGUOUSNESS {
-             set return_value -15
-          }
-          -i $sp_id "using job name \"*\" for*violates reference unambiguousness" {
-             set return_value -15
-          }
-          -i $sp_id $ERROR_OPENING {
-             set return_value -16
-          }
-          -i $sp_id $COLON_NOT_ALLOWED {
-             set return_value -17
-          }
-          -i $sp_id $ONLY_ONE_RANGE {
-             set return_value -18
-          }
-          -i $sp_id "$PARSE_DUPLICATEHOSTINFILESPEC" { 
-             set return_value -19
-          }
-          -i $sp_id "two files are specified for the same host" { 
-             set return_value -19
-          }
-         
-          -i $sp_id $GDI_NEGATIVSTEP { 
-             set return_value -20
-          }
+   set messages(-3)     "*[translate_macro MSG_GDI_USAGE_USAGESTRING] qsub*"
+   set messages(-6)     "*[translate_macro MSG_QSUB_YOURQSUBREQUESTCOULDNOTBESCHEDULEDDTRYLATER]*"
+   set messages(-7)     "*[translate_macro MSG_JOB_MORETASKSTHAN_U "*"]*"
+   set messages(-8)     "*[translate_macro MSG_SGETEXT_UNKNOWN_RESOURCE_S "*"]*"
+   set messages(-9)     "*[translate_macro MSG_SGETEXT_CANTRESOLVEHOST_S "*"]*"
+   set messages(-10)    "*[translate_macro MSG_SGETEXT_RESOURCE_NOT_REQUESTABLE_S "*"]*"
+   set messages(-11)    "*[translate_macro MSG_JOB_NOPERMS_SS "*" "*"]*"
+   set messages(-12)    "*[translate_macro MSG_SGETEXT_NO_ACCESS2PRJ4USER_SS "*" "*"]*"
+   set messages(-13)    "*[translate_macro MSG_ANSWER_UNKOWNOPTIONX_S "*"]*"
+   set messages(-16)    "*[translate_macro MSG_FILE_ERROROPENINGXY_SS "*" "*"]*"
+   set messages(-17)    "*[translate_macro MSG_GDI_KEYSTR_MIDCHAR_SC [translate_macro MSG_GDI_KEYSTR_COLON] ":"]*"
+   set messages(-18)    "*[translate_macro MSG_QCONF_ONLYONERANGE]*"
+   set messages(-19)    "*[translate_macro MSG_PARSE_DUPLICATEHOSTINFILESPEC]*"
+   set messages(-20)    "*[translate_macro MSG_GDI_NEGATIVSTEP]*"
+   set messages(-21)    "*[translate_macro MSG_GDI_INITIALPORTIONSTRINGNODECIMAL_S "*"] *"
+   set messages(-22)    "*[translate_macro MSG_JOB_NODEADLINEUSER_S $user]*"
+   set messages(-23)    "*[translate_macro MSG_CPLX_WRONGTYPE_SSS "*" "*" "*"]*"
+   set messages(-27)    "*[translate_macro MSG_PARSE_INVALIDPRIORITYMUSTBEINNEG1023TO1024]*"
+   set messages(-30)    "*[translate_macro MSG_GDI_KEYSTR_MIDCHAR_SC "*" "*"]*"
+   set messages(-31)    "*[translate_macro MSG_ANSWER_INVALIDOPTIONARGX_S "*"]*"
+   set messages(-32)    "*[translate_macro MSG_JOB_PRJNOSUBMITPERMS_S "*"]*"
+   set messages(-33)    "*[translate_macro MSG_STREE_USERTNOACCESS2PRJ_SS "*" "*"]*"
 
-          -i $sp_id $GDI_INITIALPORTIONSTRINGNODECIMAL_S { 
-             set return_value -21
-          }
-          -i $sp_id $NO_DEADLINE_USER {
-             set return_value -22
-          }
-          -i $sp_id $WRONG_TYPE {
-             set return_value -23
-          }
-          -i $sp_id $NAMETOOLONG {
-             set return_value -24
-          }
-          -i $sp_id $JOBALREADYEXISTS {
-             set return_value -25
-          }
-          -i $sp_id $INVALID_JOB_REQUEST {
-             set return_value -26
-          }
-          -i $sp_id $INVALID_PRIORITY {
-             set return_value -27
-          }
-          -i $sp_id $UNKNOWN_QUEUE {
-             set return_value -28
-          }
-          -i $sp_id -- $POSITIVE_PRIO {
-             set return_value -29
-          }
-        }
-     }
- 
-     # close spawned process 
+   if {$show_args == 1} {
+      puts $CHECK_OUTPUT "job submit args:\n$args"
+   }
 
-     if { $do_error_check == 1 } {
-        close_spawn_process $id
-     } else {
-        close_spawn_process $id 1
-     }
-   
-     if {$do_error_check == 1} { 
-       switch -- $return_value {
-          "-1"  { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-2"  { add_proc_error "submit_job" 0  [get_submit_error $return_value]  }
-          "-3"  { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-4"  { add_proc_error "submit_job" 0  [get_submit_error $return_value]  }
-          "-5"  { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-6"  { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-7"  { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-8"  { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-9"  { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-10" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-11" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-12" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-13" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-14" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-15" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-16" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-17" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-18" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-19" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-20" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-21" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-22" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-23" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-24" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-25" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-26" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-27" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-28" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
-          "-29" { add_proc_error "submit_job" -1 [get_submit_error $return_value]  }
+   set output [start_sge_bin "qsub" $args $host $user prg_exit_state $submit_timeout $cd_dir]
 
-          default { add_proc_error "submit_job" 0 "job $return_value submitted - ok" }
-       }
-     }
-     if { $return_value <= 0 && $do_error_check != 1 } {
-        puts $CHECK_OUTPUT "submit_job returned error: [get_submit_error $return_value]"
-     }
-     puts $CHECK_OUTPUT "submit job: returning job id: $return_value"
-     return $return_value
+   set ret [handle_sge_errors "submit_job" "qsub $args" $output messages $raise_error]
+
+   # some special handling
+   switch -exact -- $ret {
+      0 -
+      1 -
+      2 {
+         set ret_code [submit_job_parse_job_id output $ret $messages($ret)]
+      }
+
+      -3 {
+         if {[string first "help" $args] >= 0 || [string first "commandfile" $args] >= 0} {
+            set ret_code -2
+         }
+      }
+
+      default {
+         set ret_code $ret
+      }
+   }
+
+   # return job id or error code
+   return $ret_code
 }
 
-
-
-#****** sge_procedures/get_submit_error() **************************************
+#****** sge_procedures/submit_job_parse_job_id() *******************************
 #  NAME
-#     get_submit_error() -- resolve negative error value from submit_job()
+#     submit_job_parse_job_id() -- parse job id from qsub output
 #
 #  SYNOPSIS
-#     get_submit_error { error_id } 
+#     submit_job_parse_job_id { output_var type message } 
 #
 #  FUNCTION
-#     This procedure is used to get an error text from an negative return
-#     value of the submit_job() procedure.
+#     Analyzes qsub output and parsed the job id from this output.
+#     The qsub output may contain additional warning messages.
 #
 #  INPUTS
-#     error_id - negative return value from submit_job() call
+#     output_var - qsub output (pass by reference)
+#     type       - 0: sequential job
+#                  1: array job
+#                  2: immediate job
+#     message    - expected job submission message
 #
 #  RESULT
-#     Error text
+#     the job id, or -1 on error
 #
 #  SEE ALSO
 #     sge_procedures/submit_job()
 #*******************************************************************************
-proc get_submit_error { error_id } {
-  global ts_config
-   switch -- $error_id {
-      "-1"  { return "timeout error" }
-      "-2"  { return "usage was printed on -help or commandfile argument - ok" }
-      "-3"  { return "usage was printed NOT on -help or commandfile argument - error" }
-      "-4"  { return "verify output was printed on -verify argument - ok" }
-      "-5"  { return "verify output was NOT printed on -verfiy argument - error" }
-      "-6"  { return "job could not be scheduled, try later - error" }
-      "-7"  { return "has to much tasks - error" }
-      "-8"  { return "unknown resource - error" }
-      "-9"  { return "can't resolve hostname - error" }
-      "-10" { return "resource not requestable - error" }
-      "-11" { return "not allowed to submit jobs - error" }
-      "-12" { return "no acces to project - error" }
-      "-13" { return "Unkown option - error" }
-      "-14" { return "non-ambiguous jobnet predecessor - error" }
-      "-15" { return "job violates reference unambiguousness - error" }
-      "-16" { return "error opening file - error" }
-      "-17" { return "colon not allowed in account string - error" }
-      "-18" { return "-t option only allows one range specification" } 
-      "-19" { return "two files are specified for the same host" }
-      "-20" { return "negative step in range is not allowed" }
-      "-21" { return "-t step of range must be a decimal number" }
-      "-22" { return "user is not in access list deadlineusers" }
-      "-23" { return "wrong type for submit -l option" }
-      "-24" { return "the job name (-N option) is too long" }
-      "-25" { return "duplicate job id found - issue 2028?" }
-      "-26" { return "general job verification error?" }
-      "-27" { return "invalid priority given with -p switch" }
-      "-28" { return "unknown queue requested" }
-      "-29" { return "positive priority requested as non operator" }
+proc submit_job_parse_job_id {output_var type message} {
+   global ts_config CHECK_OUTPUT
 
-      default { return "unknown error" }
+   upvar $output_var output
+
+   set ret -1
+
+   # we need to determine the position of the job id in the output message
+   switch -exact -- $type {
+      0 {
+         set JOB_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOB_USS "__JOB_ID__" "__JOB_NAME__" "__JOB_ARG__"]
+         set pos [lsearch -exact $JOB_SUBMITTED_DUMMY "__JOB_ID__"]
+      }
+      1 {
+         if {$ts_config(gridengine_version) == 53} {
+            set JOB_IMMEDIATE_DUMMY [translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_U "__JOB_ID__"]
+         } else {
+            # 6.0 and higher
+            set JOB_IMMEDIATE_DUMMY [translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_S "__JOB_ID__"]
+         }
+         set pos [lsearch -exact $JOB_IMMEDIATE_DUMMY "__JOB_ID__"]
+      }
+      2 {
+         set JOB_ARRAY_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS "__JOB_ID__" "" "" "" "__JOB_NAME__" "__JOB_ARG__"]
+         set pos [lsearch -exact $JOB_ARRAY_SUBMITTED_DUMMY "__JOB_ID__.-:"]
+      }
    }
+
+   # output might contain multiple lines, e.g. with additional warning messages
+   # we have to find the right one
+   foreach line [split $output "\n"] {
+      if {[string match $message $line]} {
+         # read job id from line
+         set help [lindex $line $pos]
+         # strip possibly contained array task info
+         set ret [lindex [split $help "."] 0]
+         break
+      }
+   }
+
+   # we didn't find the expected job start message in qsub output
+   # should never happen, as message has been matched before by handle_sge_errors
+   if {$ret == -1} {
+      add_proc_error "submit_job_parse_job_id" -1 "couldn't find qsub success message\n$message\nin qsub output\n$output"
+   }
+
+   return $ret
 }
+
+
 
 #                                                             max. column:     |
 #****** sge_procedures/get_grppid_of_job() ******

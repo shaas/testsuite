@@ -1016,17 +1016,29 @@ proc check_option_A {} {
 
    # first clean up output directory:  
    setup_output_directory
+  
+   # positive tests
+   foreach string [valid_job_has_valid_account_string "-A"] {
+      set option "-A '$string'"
+      set jobargs "$option $default_args"
+    
+      set job_id [qsub_submit_check $jobargs 0]
 
-   set option "-A blahblah"
-   set jobargs "$option $default_args"
- 
-   set job_id [qsub_submit_check $jobargs 0]
-
-   if {$job_id > 0} {
-      get_qacct $job_id
-      if {$qacct_info(account) != "blahblah"} {
-         add_proc_error -1 "check_option_A" "account string requested with -A option missing in accounting record"
+      if {$job_id > 0} {
+         get_qacct $job_id
+         set acct_string $qacct_info(account)
+         if {$acct_string != $string} {
+            add_proc_error -1 "check_option_A" "account string requested with -A option missing in accounting record:\nexpected $string, but accounting record contains $acct_string\nfor job $job_id"
+         }
       }
+   }
+
+   # negative tests
+   foreach string [invalid_job_has_valid_account_string "-A"] {
+      set option "-A '$string'"
+      set jobargs "$option $default_args"
+    
+      set job_id [qsub_submit_check $jobargs 1]
    }
 
    set_error 0 ok
@@ -1769,6 +1781,14 @@ proc check_option_now_yes {} {
    }
  
    set_error -1 "timeout while waiting for job accounting"
+
+   # negative test: expect job not to be scheduled
+   # disable all queues
+   #set result [submit_job $jobargs 0]
+   #if {$result != -6} {
+   #   add_proc_error "qsub_option_now_yes" -1 "qsub -now yes should have failed with all queues disabled"
+   #}
+   # enable all queues
 }
 
 #                                                             max. column:     |
@@ -1901,15 +1921,28 @@ proc check_option_N {} {
    # first clean up output directory:  
    setup_output_directory
 
-   set option "-N leeper_job"
-   set jobargs "$option $default_args"
-   set job_id [qsub_submit_check $jobargs 0]
+   # positive tests
+   foreach string [valid_job_has_valid_account_string "-N"] {
+      set option "-N '$string'"
+      set jobargs "$option $default_args"
+    
+      set job_id [qsub_submit_check $jobargs 0]
 
-   if {$job_id > 0} {
-      get_qacct $job_id
-      if {$qacct_info(jobname) != "leeper_job"} {
-         add_proc_error -1 "check_option_N" "job name specified by -N switch missing in accounting record"
+      if {$job_id > 0} {
+         get_qacct $job_id
+         set acct_string $qacct_info(jobname)
+         if {$acct_string != $string} {
+            add_proc_error -1 "check_option_N" "job name string requested with -N option missing in accounting record:\nexpected $string, but accounting record contains $acct_string\nfor job $job_id"
+         }
       }
+   }
+
+   # negative tests
+   foreach string [invalid_job_has_valid_account_string "-N"] {
+      set option "-N '$string'"
+      set jobargs "$option $default_args"
+    
+      set job_id [qsub_submit_check $jobargs 1]
    }
 
    set_error 0 ok
@@ -2428,6 +2461,12 @@ proc check_option_t {} {
    # first clean up output directory:  
    setup_output_directory
 
+   # positive tests
+   set option "-t 2-8:2"
+   set jobargs "$option $default_args"
+   qsub_submit_check $jobargs 0 "" "" 8
+ 
+   # negative test:
    set option "-t 1-2:-1"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 1
@@ -2436,10 +2475,10 @@ proc check_option_t {} {
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 1
 
-   set option "-t 2-8:2"
+   set option "-t 1-500000"
    set jobargs "$option $default_args"
-   qsub_submit_check $jobargs 0 "" "" 8
-  
+   qsub_submit_check $jobargs 1
+
    set_error 0 ok
 }
 
@@ -2481,12 +2520,21 @@ proc check_option_verify {} {
 
    set option "-verify"
    set jobargs "$option $default_args"
-  
-   set result [submit_job $jobargs 0]  
-   puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
 
-   if { $result != -4 } {
-      add_proc_error "check_option_verify" -1 "no verify output on -verify command"
+   # cannot use submit_job - it would fail on -verify
+   set output [start_sge_bin "qsub" $jobargs]
+   
+   # expect certain output:
+   set found 0
+   foreach line [split $output "\n"] {
+      if {[string match "job_number:*unassigned*" $line]} {
+         set found 1
+         break
+      }
+   }
+
+   if {!$found} {
+      add_proc_error "check_option_verify" -1 "no verify output on -verify command:\n$output"
    }
 
    set_error 0 ok

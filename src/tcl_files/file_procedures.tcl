@@ -2379,24 +2379,24 @@ proc delete_file { filename { do_wait_for_file 1 } } {
    }
 
    set deleted_file 0 
-   if { [string length $filename ] > 10 } {
+   if {[string length $filename ] > 10} {
       debug_puts "delete_file - moving \"$filename\" to trash folder ..."
-      set new_name [ file tail $filename ] 
-      set catch_return [ catch { 
-         eval exec "mv $filename $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" 
-      } result ] 
-      if { $catch_return != 0 } {
+      set new_name [file tail $filename] 
+      set catch_return [catch { 
+         file rename $filename $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]
+      } result] 
+      if {$catch_return != 0} {
          puts $CHECK_OUTPUT "delete_file - mv error:\n$result"
          puts $CHECK_OUTPUT "delete_file - try to copy the file"
-         set catch_return [ catch { 
-            eval exec "cp $filename $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" 
-         } result ] 
-         if { $catch_return != 0 } {
+         set catch_return [catch { 
+            file copy $filename $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]
+         } result] 
+         if {$catch_return != 0} {
            puts $CHECK_OUTPUT "could not mv/cp file \"$filename\" to trash folder"
            add_proc_error "delete_file" "-1" "could not mv/cp file \"$filename\" to trash folder"
          } else {
            puts $CHECK_OUTPUT "copy ok - deleting file \"$filename\""
-           set catch_return [ catch { eval exec "rm $filename" } result ] 
+           set catch_return [catch {file delete -force $filename} result] 
            if { $catch_return != 0 } {
               puts $CHECK_OUTPUT "could not remove file \"$filename\""
               puts $CHECK_OUTPUT "$result"
@@ -2409,7 +2409,7 @@ proc delete_file { filename { do_wait_for_file 1 } } {
       } else {
         set deleted_file 1
       }
-      if { $deleted_file == 1 } {
+      if {$deleted_file == 1} {
          wait_for_file "$filename" "200" "1" ;# wait for file do disappear in filesystem!
       }
    } else {

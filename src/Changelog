@@ -1,2 +1,11 @@
+JG-2006-10-04-0: Bugfix:    - Fixed consumable_resources test.
+                            - qacct parsing failed for account strings 
+                              containing double quotes or semicolons.
+                            - delete_file failed for file names containing
+                              semicolons or space characters.
+                 Enhancem.: Improved qsub test.
+                            Cleanup (rewrite) of submit_job.
+                 Review:    RD
+
 JG-2006-09-26-0: CVS        moved testsuite repository from gridengine project 
                             to testsuite subproject.

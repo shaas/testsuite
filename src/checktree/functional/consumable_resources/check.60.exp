@@ -1012,7 +1012,6 @@ proc consumable_resources_test {} {
       # setup load script
       get_config execd_config_a_host $host_a
 
-            
       catch {  eval exec "rm $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT $output
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh" } output
@@ -1039,9 +1038,9 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
-         puts $CHECK_OUTPUT "waiting for test1=6 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hl:test1=6 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test1=6*" $test_grep] } {
+         if { [string match "*hl:test1=6*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test1 is set to value 6 - ok"
             set ok 1
             break
@@ -1051,7 +1050,7 @@ proc consumable_resources_test {} {
       }
 
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=6 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test1=6 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
@@ -1070,9 +1069,9 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
-         puts $CHECK_OUTPUT "waiting for test1=3 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hl:test1=3 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test1=3*" $test_grep] } {
+         if { [string match "*hl:test1=3*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test1 is set to value 3 - ok"
             set ok 1
             break
@@ -1082,7 +1081,7 @@ proc consumable_resources_test {} {
       }
 
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=3 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test1=3 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
@@ -1187,9 +1186,9 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
-         puts $CHECK_OUTPUT "waiting for test1=6 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hl:test1=6 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test1=6*" $test_grep] } {
+         if { [string match "*hl:test1=6*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test1 is set to value 6 - ok"
             set ok 1
             break
@@ -1198,7 +1197,7 @@ proc consumable_resources_test {} {
          incr retries -1
       }
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=6 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test1=6 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
@@ -1211,9 +1210,9 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test2" } test_grep
-         puts $CHECK_OUTPUT "waiting for test2=3 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hl:test2=3 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test2=3*" $test_grep] } {
+         if { [string match "*hl:test2=3*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test2 is set to value 3 - ok"
             set ok 1
             break
@@ -1222,7 +1221,7 @@ proc consumable_resources_test {} {
          incr retries -1
       }
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test2=3 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test2=3 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test2" } test_grep
