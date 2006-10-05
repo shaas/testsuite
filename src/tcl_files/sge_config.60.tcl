@@ -55,6 +55,7 @@ proc bootstrap_sge_config {} {
             #puts $CHECK_OUTPUT "skipping comment"
          }
       }
+      close $f
    } else {
       puts $CHECK_OUTPUT "initializing sge_config from default values"
       set sge_config(admin_user)        "$CHECK_USER"

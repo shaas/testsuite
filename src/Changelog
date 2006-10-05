@@ -1,3 +1,7 @@
+JG-2006-10-05-0: Bugfix:    Fixed filedescriptor leak when reading the bootstrap
+                            file.
+                 Review:    RD
+
 JG-2006-10-04-0: Bugfix:    - Fixed consumable_resources test.
                             - qacct parsing failed for account strings 
                               containing double quotes or semicolons.
