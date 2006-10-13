@@ -1,3 +1,9 @@
+JG-2006-10-13-0: Bugfix:    wait_for_enter silently failed when file permissions
+                            were incorrect.
+                            This caused testsuite to go into an endless loop, if
+                            you didn't have a configuration yet.
+                 Review:    PJ
+
 JG-2006-10-05-0: Bugfix:    Fixed filedescriptor leak when reading the bootstrap
                             file.
                  Review:    RD

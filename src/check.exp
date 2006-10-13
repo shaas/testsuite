@@ -5921,42 +5921,53 @@ proc print_menu_header {} {
 #****** check/wait_for_enter() ******
 # 
 #  NAME
-#     wait_for_enter -- ??? 
+#     wait_for_enter -- wait for the user to press any keys
 #
 #  SYNOPSIS
-#     wait_for_enter { } 
+#     wait_for_enter {{no_text 0} {second_try 0}} 
 #
 #  FUNCTION
-#     ??? 
+#     Wait for the user to press enter.
+#     If the user entered text before enter, this text will be returned.
 #
 #  INPUTS
+#      {no_text 0} - 0: will output "press enter" before waiting
+#                    1: output nothing
 #
 #  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
+#     The string the user entered, or "", if he just pressed enter.
 #*******************************
-proc wait_for_enter { {no_text 0} } {
+proc wait_for_enter {{no_text 0} {second_try 0}} {
    global CHECK_OUTPUT CHECK_TESTSUITE_ROOT CHECK_SCRIPT_FILE_DIR
    flush $CHECK_OUTPUT
 
-   if { $no_text == 0 } {
+   # output some message
+   if {$no_text == 0} {
       puts "\npress enter..."
    }
+
+   # wait for the user to press enter
+   set wait_script "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/wait_for_enter.sh"
    set output ""
-   set en_result [ catch {
-      set output [eval exec "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/wait_for_enter.sh"]
-   } catch_output ]
+   set en_result [catch {
+      set output [eval exec $wait_script]
+   } catch_output]
+
+   # if wait_for_enter.sh cannot be executed (e.g. due to incorrect file permissions),
+   # exit testsuite.
+   # For example netbeans checkout will not set the correct file permissions (strip the x flag).
+   if {$en_result != 0} {
+      if {$second_try} {
+         # if we already tried to fix the problem, but it still fails: exit
+         puts "error executing $wait_script"
+         exit 1
+      } else {
+         # try to fix file permissions and retry wait_for_enter
+         file attributes $wait_script -permissions 00755
+         return [wait_for_enter $no_text 1]
+      }
+   }
+
    return [string trim $output]
 }
 
