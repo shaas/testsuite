@@ -1263,7 +1263,7 @@ proc setup_win_user_passwd {user} {
       }
 
       -i $sp_id "password:" {
-         send -i $sp_id "[get_passwd $user]\n"
+         ts_send $sp_id "[get_passwd $user]\n" $ts_config(master_host) 1
          exp_continue
       }
       -i $sp_id "Password changed" {

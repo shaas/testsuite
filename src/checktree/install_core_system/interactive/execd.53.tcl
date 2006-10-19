@@ -303,7 +303,7 @@ proc install_execd {} {
                     puts "press RETURN"
                     set anykey [wait_for_enter 1]
                }
-               send -i $sp_id "$ANSWER_YES\n"
+               ts_send $sp_id "$ANSWER_YES\n"
                continue;
             }
 
@@ -313,7 +313,7 @@ proc install_execd {} {
                    puts "press RETURN"
                    set anykey [wait_for_enter 1]
                }
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue;
             }
 
@@ -323,7 +323,7 @@ proc install_execd {} {
                    puts "press RETURN"
                    set anykey [wait_for_enter 1]
                }
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue;
             }
 
@@ -348,7 +348,7 @@ proc install_execd {} {
                        puts "press RETURN"
                        set anykey [wait_for_enter 1]
                   }
-                  send -i $sp_id "\n"
+                  ts_send $sp_id "\n"
                   continue;
                } else {
                   set_error "-1" "install_execd - host $exec_host: tried to install not as root"
@@ -364,7 +364,7 @@ proc install_execd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "$ANSWER_NO\n"
+               ts_send $sp_id "$ANSWER_NO\n"
                continue;
             }
 
@@ -375,7 +375,7 @@ proc install_execd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "$ANSWER_YES\n"
+               ts_send $sp_id "$ANSWER_YES\n"
                continue;
             }
 
@@ -401,7 +401,7 @@ proc install_execd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "n\n"
+               ts_send $sp_id "n\n"
                continue;
             }
 
@@ -412,7 +412,7 @@ proc install_execd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "$ANSWER_NO\n"
+               ts_send $sp_id "$ANSWER_NO\n"
                continue;
             }
 
@@ -448,7 +448,7 @@ proc install_execd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue;
             }
 

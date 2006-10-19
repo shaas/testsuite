@@ -33,7 +33,7 @@
 
 global ts_host_config               ;# new testsuite host configuration array
 global actual_ts_host_config_version      ;# actual host config version number
-set    actual_ts_host_config_version "1.8"
+set    actual_ts_host_config_version "1.9"
 
 if {![info exists ts_host_config]} {
    # ts_host_config defaults
@@ -68,8 +68,6 @@ if {![info exists ts_host_config]} {
    set ts_host_config($parameter,setup_func) "host_config_$parameter"
    set ts_host_config($parameter,onchange)   "install"
    set ts_host_config($parameter,pos)        3
-
-
 }
 
 #****** config/host/host_config_hostlist() *******************************************
@@ -99,81 +97,81 @@ proc host_config_hostlist { only_check name config_array } {
 
    set description   $config($name,desc)
 
-   if { $only_check == 0 } {
-       set not_ready 1
-       while { $not_ready } {
-          clear_screen
-          puts $CHECK_OUTPUT "----------------------------------------------------------"
-          puts $CHECK_OUTPUT "Global host configuration setup"
-          puts $CHECK_OUTPUT "----------------------------------------------------------"
-          puts $CHECK_OUTPUT "\n    hosts configured: [llength $config(hostlist)]"
-          host_config_hostlist_show_hosts config
-          puts $CHECK_OUTPUT "\n\n(1)  add host"
-          puts $CHECK_OUTPUT "(2)  edit host"
-          puts $CHECK_OUTPUT "(3)  delete host"
-          puts $CHECK_OUTPUT "(4)  try nslookup scan"
-          puts $CHECK_OUTPUT "(10) exit setup"
-          puts -nonewline $CHECK_OUTPUT "> "
-          set input [ wait_for_enter 1]
-          switch -- $input {
-             1 {
-                set result [host_config_hostlist_add_host config]
-                if { $result != 0 } {
-                   wait_for_enter
-                }
-             }
-             2 {
-                set result [host_config_hostlist_edit_host config]
-                if { $result != 0 } {
-                   wait_for_enter
-                }
-             }
-             3 {
+   if {$only_check == 0} {
+      set not_ready 1
+      while {$not_ready} {
+         clear_screen
+         puts $CHECK_OUTPUT "----------------------------------------------------------"
+         puts $CHECK_OUTPUT "Global host configuration setup"
+         puts $CHECK_OUTPUT "----------------------------------------------------------"
+         puts $CHECK_OUTPUT "\n    hosts configured: [llength $config(hostlist)]"
+         host_config_hostlist_show_hosts config
+         puts $CHECK_OUTPUT "\n\n(1)  add host"
+         puts $CHECK_OUTPUT "(2)  edit host"
+         puts $CHECK_OUTPUT "(3)  delete host"
+         puts $CHECK_OUTPUT "(4)  try nslookup scan"
+         puts $CHECK_OUTPUT "(10) exit setup"
+         puts -nonewline $CHECK_OUTPUT "> "
+         set input [ wait_for_enter 1]
+         switch -- $input {
+            1 {
+               set result [host_config_hostlist_add_host config]
+               if { $result != 0 } {
+                  wait_for_enter
+               }
+            }
+            2 {
+               set result [host_config_hostlist_edit_host config]
+               if { $result != 0 } {
+                  wait_for_enter
+               }
+            }
+            3 {
                set result [host_config_hostlist_delete_host config]
-                if { $result != 0 } {
-                   wait_for_enter
-                }
-             }
-             10 {
-                set not_ready 0
-             }
-             4 {
-                set result [ start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $CHECK_HOST prg_exit_state 60 0 "" 1 0 ]
-                if { $prg_exit_state == 0 } {
-                   set pos1 [ string first $CHECK_HOST $result ]
-                   set ip [string range $result $pos1 end]
-                   set pos1 [ string first ":" $ip ]
-                   incr pos1 1
-                   set ip [string range $ip $pos1 end]
-                   set pos1 [ string last "." $ip ]
-                   incr pos1 -1
-                   set ip [string range $ip 0 $pos1 ]
-                   set ip [string trim $ip]
-                   puts $CHECK_OUTPUT "ip: $ip"
+               if { $result != 0 } {
+                  wait_for_enter
+               }
+            }
+            10 {
+               set not_ready 0
+            }
+            4 {
+               set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $CHECK_HOST prg_exit_state 60 0 "" 1 0]
+               if {$prg_exit_state == 0} {
+                  set pos1 [string first $CHECK_HOST $result]
+                  set ip [string range $result $pos1 end]
+                  set pos1 [string first ":" $ip]
+                  incr pos1 1
+                  set ip [string range $ip $pos1 end]
+                  set pos1 [string last "." $ip]
+                  incr pos1 -1
+                  set ip [string range $ip 0 $pos1]
+                  set ip [string trim $ip]
+                  puts $CHECK_OUTPUT "ip: $ip"
 
-                   for { set i 1 } { $i <= 254 } { incr i 1 } {
-                       set ip_run "$ip.$i"
-                       puts -nonewline $CHECK_OUTPUT "\r$ip_run"
-                       set result [ start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $ip_run prg_exit_state 25 0 "" 1 0 ]
-                       set pos1 [ string first "Name:" $result ]   
-                       if { $pos1 >= 0 } {
-                          incr pos1 5
-                          set name [ string range $result $pos1 end ]
-                          set pos1 [ string first "." $name ]
-                          incr pos1 -1
-                          set name [ string range $name 0 $pos1 ]
-                          set name [ string trim $name ]
-                          puts $CHECK_OUTPUT "\nHost: $name"
-                          set result [host_config_hostlist_add_host config $name]
-                       }
-                   }
-                } 
+                  for {set i 1} {$i <= 254} {incr i 1} {
+                     set ip_run "$ip.$i"
+                     puts -nonewline $CHECK_OUTPUT "\r$ip_run"
+                     set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $ip_run prg_exit_state 25 0 "" 1 0]
+                     set pos1 [string first "Name:" $result]   
+                     if {$pos1 >= 0} {
+                        incr pos1 5
+                        set name [string range $result $pos1 end]
+                        set pos1 [string first "." $name]
+                        incr pos1 -1
+                        set name [string range $name 0 $pos1]
+                        set name [string trim $name]
+                        puts $CHECK_OUTPUT "\nHost: $name"
+                        set result [host_config_hostlist_add_host config $name]
+                     }
+                  }
+               }
 
-                wait_for_enter
-             }
-          } 
-       }
-   } 
+               wait_for_enter
+            }
+         } 
+      }
+   }
 
    # check host configuration
    debug_puts "host_config_hostlist:"
@@ -183,7 +181,6 @@ proc host_config_hostlist { only_check name config_array } {
 
    return $config(hostlist)
 }
-
 
 
 #****** config_host/host_config_NFS-ROOT2NOBODY() ******************************
@@ -218,11 +215,11 @@ proc host_config_NFS-ROOT2NOBODY { only_check name config_array } {
    set description   $config($name,desc)
    set value $actual_value
 
-   if { $actual_value == "" } {
+   if {$actual_value == ""} {
       set value $default_value
    }
 
-   if { $only_check == 0 } {
+   if {$only_check == 0} {
        puts $CHECK_OUTPUT "" 
        puts $CHECK_OUTPUT "Please specify a NFS shared directory where the root"
        puts $CHECK_OUTPUT "user is mapped to user nobody or press >RETURN< to"
@@ -230,7 +227,7 @@ proc host_config_NFS-ROOT2NOBODY { only_check name config_array } {
        puts $CHECK_OUTPUT "(default: $value)"
        puts -nonewline $CHECK_OUTPUT "> "
        set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
+      if {[string length $input] > 0} {
          set value $input 
       } else {
          puts $CHECK_OUTPUT "using default value"
@@ -238,7 +235,7 @@ proc host_config_NFS-ROOT2NOBODY { only_check name config_array } {
    } 
 
    if {!$fast_setup} {
-      if { ![file isdirectory $value] } {
+      if {![file isdirectory $value]} {
          puts $CHECK_OUTPUT " Directory \"$value\" not found"
          return -1
       }
@@ -280,11 +277,11 @@ proc host_config_NFS-ROOT2ROOT { only_check name config_array } {
    set description   $config($name,desc)
    set value $actual_value
 
-   if { $actual_value == "" } {
+   if {$actual_value == ""} {
       set value $default_value
    }
 
-   if { $only_check == 0 } {
+   if {$only_check == 0} {
        puts $CHECK_OUTPUT "" 
        puts $CHECK_OUTPUT "Please specify a NFS shared directory where the root"
        puts $CHECK_OUTPUT "user is NOT mapped to user nobody and has r/w access"
@@ -292,7 +289,7 @@ proc host_config_NFS-ROOT2ROOT { only_check name config_array } {
        puts $CHECK_OUTPUT "(default: $value)"
        puts -nonewline $CHECK_OUTPUT "> "
        set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
+      if {[string length $input] > 0} {
          set value $input 
       } else {
          puts $CHECK_OUTPUT "using default value"
@@ -300,7 +297,7 @@ proc host_config_NFS-ROOT2ROOT { only_check name config_array } {
    } 
 
    if {!$fast_setup} {
-      if { ![file isdirectory $value] } {
+      if {![file isdirectory $value]} {
          puts $CHECK_OUTPUT " Directory \"$value\" not found"
          return -1
       }
@@ -338,13 +335,13 @@ proc host_config_hostlist_show_hosts {array_name} {
    set hostlist [lsort -dictionary $config(hostlist)]
 
    puts $CHECK_OUTPUT "\nHost list:\n"
-   if {[llength $hostlist] == 0 } {
+   if {[llength $hostlist] == 0} {
       puts $CHECK_OUTPUT "no hosts defined"
    }
 
    set max_length 0
    foreach host $hostlist {
-      if { [string length $host] > $max_length } {
+      if {[string length $host] > $max_length} {
          set max_length [string length $host]
       }
    }  
@@ -355,8 +352,8 @@ proc host_config_hostlist_show_hosts {array_name} {
       incr index 1 
 
       set space ""
-      for { set i 0 } { $i < [ expr ( $max_length - [ string length $host ]  ) ] } { incr i 1 } {  
-          append space " "
+      for {set i 0} {$i < [expr ($max_length - [string length $host])]} {incr i 1} {  
+         append space " "
       }
       set c_comp 0
       set j_comp 0
@@ -378,7 +375,7 @@ proc host_config_hostlist_show_hosts {array_name} {
 
       set conf_arch [host_conf_get_arch $host config]
 
-      if { $index <= 9 } {
+      if {$index <= 9} {
          puts $CHECK_OUTPUT "    $index) $host $space ($conf_arch) $comp_host"
       } else {
          puts $CHECK_OUTPUT "   $index) $host $space ($conf_arch) $comp_host"
@@ -410,7 +407,7 @@ proc host_config_hostlist_show_hosts {array_name} {
 #  SEE ALSO
 #     check/host_config_hostlist_show_hosts()
 #*******************************************************************************
-proc host_config_hostlist_show_compile_hosts { array_name save_array } {
+proc host_config_hostlist_show_compile_hosts {array_name save_array} {
    global ts_config CHECK_OUTPUT
    upvar $array_name config
    upvar $save_array back
@@ -451,7 +448,7 @@ proc host_config_hostlist_show_compile_hosts { array_name save_array } {
          set back($index,host) $host 
 
          set arch_length [string length $arch]
-         if { $index <= 9 } {
+         if {$index <= 9} {
             puts $CHECK_OUTPUT "    $index) $arch [get_spaces [expr ( $max_arch_length - $arch_length ) ]] ($host)"
          } else {
             puts $CHECK_OUTPUT "   $index) $arch [get_spaces [expr ( $max_arch_length - $arch_length ) ]] ($host)" 
@@ -480,13 +477,13 @@ proc host_config_hostlist_show_compile_hosts { array_name save_array } {
 #     check/setup_host_config()
 #     check/verify_host_config()
 #*******************************************************************************
-proc host_config_hostlist_add_host { array_name { have_host "" } } {
+proc host_config_hostlist_add_host {array_name {have_host ""}} {
    global ts_config CHECK_OUTPUT
    global CHECK_USER
 
    upvar $array_name config
   
-   if { $have_host == "" } {
+   if {$have_host == ""} {
       clear_screen
       puts $CHECK_OUTPUT "\nAdd host to global host configuration"
       puts $CHECK_OUTPUT "====================================="
@@ -501,36 +498,36 @@ proc host_config_hostlist_add_host { array_name { have_host "" } } {
       set new_host $have_host
    }
 
-   if { [ string length $new_host ] == 0 } {
+   if {[string length $new_host] == 0} {
       puts $CHECK_OUTPUT "no hostname entered"
       return -1
    }
      
-   if { [ lsearch $config(hostlist) $new_host ] >= 0 } {
+   if {[lsearch $config(hostlist) $new_host] >= 0} {
       puts $CHECK_OUTPUT "host \"$new_host\" is already in list"
       return -1
    }
 
    set time [timestamp]
-   set result [ start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state 12 0 "" 1 0 ]
-   if { $prg_exit_state != 0 } {
-      if { $have_host == "" } {
+   set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state 12 0 "" 1 0]
+   if {$prg_exit_state != 0} {
+      if {$have_host == ""} {
 
          puts $CHECK_OUTPUT "connect timeout error\nPlease enter a timeout value > 12 or press return to abort"
          set result [ wait_for_enter 1 ]
-         if { [ string length $result] == 0  || $result < 12 } {
+         if {[string length $result] == 0  || $result < 12} {
             puts $CHECK_OUTPUT "aborting ..."
             return -1
          }
-         set result [ start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state $result 0 "" 1 0 ]
+         set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state $result 0 "" 1 0]
       }
    }
 
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       puts $CHECK_OUTPUT "rlogin to host $new_host doesn't work correctly"
       return -1
    }
-   if { [ string first "hello $new_host" $result ] < 0 } {
+   if {[string first "hello $new_host" $result] < 0} {
       puts $CHECK_OUTPUT "$result"
       puts $CHECK_OUTPUT "echo \"hello $new_host\" doesn't work"
       return -1
@@ -540,36 +537,36 @@ proc host_config_hostlist_add_host { array_name { have_host "" } } {
    lappend config(hostlist) $new_host
 
    
-   set expect_bin [ start_remote_prog $new_host $CHECK_USER "which" "expect" prg_exit_state 12 0 "" 1 0 ]
-   if { $prg_exit_state != 0 } {
+   set expect_bin [start_remote_prog $new_host $CHECK_USER "which" "expect" prg_exit_state 12 0 "" 1 0]
+   if {$prg_exit_state != 0} {
       set expect_bin "" 
    } 
-   set vim_bin [ start_remote_prog $new_host $CHECK_USER "which" "vim" prg_exit_state 12 0 "" 1 0 ]
-   if { $prg_exit_state != 0 } {
+   set vim_bin [start_remote_prog $new_host $CHECK_USER "which" "vim" prg_exit_state 12 0 "" 1 0]
+   if {$prg_exit_state != 0} {
       set vim_bin  "" 
    }
-   set tar_bin [ start_remote_prog $new_host $CHECK_USER "which" "tar" prg_exit_state 12 0 "" 1 0 ]
-   if { $prg_exit_state != 0 } {
+   set tar_bin [start_remote_prog $new_host $CHECK_USER "which" "tar" prg_exit_state 12 0 "" 1 0]
+   if {$prg_exit_state != 0} {
       set tar_bin "" 
    }
-   set gzip_bin [ start_remote_prog $new_host $CHECK_USER "which" "gzip" prg_exit_state 12 0 "" 1 0 ]
-   if { $prg_exit_state != 0 } {
+   set gzip_bin [start_remote_prog $new_host $CHECK_USER "which" "gzip" prg_exit_state 12 0 "" 1 0]
+   if {$prg_exit_state != 0} {
       set gzip_bin "" 
    }
-   set ssh_bin [ start_remote_prog $new_host $CHECK_USER "which" "ssh" prg_exit_state 12 0 "" 1 0 ]
-   if { $prg_exit_state != 0 } {
+   set ssh_bin [start_remote_prog $new_host $CHECK_USER "which" "ssh" prg_exit_state 12 0 "" 1 0]
+   if {$prg_exit_state != 0} {
       set ssh_bin "" 
    }
 
-   set java_bin [ start_remote_prog $new_host $CHECK_USER "which" "java" prg_exit_state 12 0 "" 1 0 ]
-   if { $prg_exit_state != 0 } {
+   set java_bin [start_remote_prog $new_host $CHECK_USER "which" "java" prg_exit_state 12 0 "" 1 0]
+   if {$prg_exit_state != 0} {
       set java_bin "" 
    }
 
    set myenv(EN_QUIET) "1"
-   set java15_bin [ start_remote_prog $new_host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 myenv 1 0 ]
+   set java15_bin [start_remote_prog $new_host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 myenv 1 0]
 
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       set java15_bin "" 
    }
 
@@ -599,8 +596,9 @@ proc host_config_hostlist_add_host { array_name { have_host "" } } {
    set config($new_host,ja_locale)     ""
    set config($new_host,zh_locale)     ""
    set config($new_host,zones)         ""
+   set config($new_host,send_speed)    0.001
 
-   if { $have_host == "" } {
+   if {$have_host == ""} {
       host_config_hostlist_edit_host config $new_host
    }
       
@@ -626,7 +624,7 @@ proc host_config_hostlist_add_host { array_name { have_host "" } } {
 #     check/setup_host_config()
 #     check/verify_host_config()
 #*******************************************************************************
-proc host_config_hostlist_edit_host { array_name { has_host "" } } {
+proc host_config_hostlist_edit_host {array_name {has_host ""}} {
    global ts_config ts_host_config CHECK_OUTPUT
    global CHECK_USER 
 
@@ -634,11 +632,11 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
 
    set goto 0
 
-   if { $has_host != "" } {
+   if {$has_host != ""} {
       set goto $has_host
    } 
 
-   while { 1 } {
+   while {1} {
       clear_screen
       puts $CHECK_OUTPUT "\nEdit host in global host configuration"
       puts $CHECK_OUTPUT "======================================"
@@ -647,7 +645,7 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
 
       puts $CHECK_OUTPUT "\n"
       puts -nonewline $CHECK_OUTPUT "Please enter hostname/number or return to exit: "
-      if { $goto == 0 } {
+      if {$goto == 0} {
          set host [wait_for_enter 1]
          set goto $host
       } else {
@@ -700,6 +698,7 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
       } else {
          puts $CHECK_OUTPUT "   java_compile  : not a java compile host"
       }
+      puts $CHECK_OUTPUT "   send_speed    : $config($host,send_speed)"
       puts $CHECK_OUTPUT "   compile_time  : $config($host,compile_time)"
       puts $CHECK_OUTPUT "   response_time : $config($host,response_time)"
 
@@ -708,8 +707,8 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
    
       puts $CHECK_OUTPUT "\n"
       puts -nonewline $CHECK_OUTPUT "Please enter category to edit or hit return to exit > "
-      set input [ wait_for_enter 1]
-      if { [ string length $input ] == 0 } {
+      set input [wait_for_enter 1]
+      if {[string length $input] == 0 } {
          set goto 0
          continue
       }
@@ -753,7 +752,8 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
             set islocale 1
          }
 
-         "processors" {
+         "processors" -
+         "send_speed" {
             set input_type "simple"
          }
    
@@ -832,9 +832,9 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
       }
 
       # check for valid file name
-      if { $isfile } {
-         set result [ start_remote_prog $host $CHECK_USER "ls" "$value" prg_exit_state 12 0 "" 1 0 ]
-         if { $prg_exit_state != 0 } {
+      if {$isfile} {
+         set result [start_remote_prog $host $CHECK_USER "ls" "$value" prg_exit_state 12 0 "" 1 0]
+         if {$prg_exit_state != 0} {
             puts $CHECK_OUTPUT $result
             puts $CHECK_OUTPUT "file $value not found on host $host"
             wait_for_enter
@@ -843,9 +843,9 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
       }
       
       # check for valid directory name
-      if { $isdir } {
-         set result [ start_remote_prog $host $CHECK_USER "cd" "$value" prg_exit_state 12 0 "" 1 0 ]
-         if { $prg_exit_state != 0 } {
+      if {$isdir} {
+         set result [start_remote_prog $host $CHECK_USER "cd" "$value" prg_exit_state 12 0 "" 1 0]
+         if {$prg_exit_state != 0} {
             puts $CHECK_OUTPUT $result
             puts $CHECK_OUTPUT "can't cd to directory $value on host $host"
             wait_for_enter
@@ -854,7 +854,7 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
       }
 
       # locale test
-      if { $islocale == 1 } {
+      if {$islocale == 1} {
          set mem_it $ts_host_config($host,$input)
          set mem_l10n $ts_config(l10n_test_locale)
        
@@ -866,7 +866,7 @@ proc host_config_hostlist_edit_host { array_name { has_host "" } } {
          set ts_host_config($host,$input) $mem_it
          set ts_config(l10n_test_locale) mem_l10n
 
-         if { $test_result != 0 } {
+         if {$test_result != 0} {
             puts $CHECK_OUTPUT "l10n errors" 
             wait_for_enter
             continue
@@ -905,7 +905,7 @@ proc host_config_hostlist_delete_host { array_name } {
 
    upvar $array_name config
 
-   while { 1 } {
+   while {1} {
 
       clear_screen
       puts $CHECK_OUTPUT "\nDelete host from global host configuration"
@@ -918,11 +918,11 @@ proc host_config_hostlist_delete_host { array_name } {
       puts -nonewline $CHECK_OUTPUT "Please enter hostname/number or return to exit: "
       set host [wait_for_enter 1]
  
-      if { [ string length $host ] == 0 } {
+      if {[string length $host] == 0} {
          break
       }
      
-      if { [string is integer $host] } {
+      if {[string is integer $host]} {
          incr host -1
          set host [lindex $hostlist $host]
       }
@@ -961,6 +961,7 @@ proc host_config_hostlist_delete_host { array_name } {
       } else {
          puts $CHECK_OUTPUT "   compile_java  : not a java compile host"
       }
+      puts $CHECK_OUTPUT "   send_speed    : $config($host,send_speed)"
       puts $CHECK_OUTPUT "   compile_time  : $config($host,compile_time)"
       puts $CHECK_OUTPUT "   response_time : $config($host,response_time)"
 
@@ -968,13 +969,13 @@ proc host_config_hostlist_delete_host { array_name } {
    
       puts $CHECK_OUTPUT "\n"
       puts -nonewline $CHECK_OUTPUT "Delete this host? (y/n): "
-      set input [ wait_for_enter 1]
-      if { [ string length $input ] == 0 } {
+      set input [wait_for_enter 1]
+      if {[string length $input] == 0} {
          continue
       }
 
  
-      if { [ string compare $input "y"] == 0 } {
+      if {[string compare $input "y"] == 0} {
          set index [lsearch $config(hostlist) $host]
          set config(hostlist) [lreplace $config(hostlist) $index $index]
          unset config($host,arch,53)
@@ -999,6 +1000,7 @@ proc host_config_hostlist_delete_host { array_name } {
          unset config($host,java_compile,53)
          unset config($host,java_compile,60)
          unset config($host,java_compile,65)
+         unset config($host,send_speed)
          unset config($host,compile_time)
          unset config($host,response_time)
          continue
@@ -1034,9 +1036,8 @@ proc host_config_hostlist_delete_host { array_name } {
 #     check/verify_host_config()
 #     check/verify_user_config()
 #     check/verify_config()
-#     
 #*******************************************************************************
-proc verify_host_config { config_array only_check parameter_error_list { force 0 }} {
+proc verify_host_config {config_array only_check parameter_error_list {force 0}} {
    global CHECK_OUTPUT actual_ts_host_config_version be_quiet
    upvar $config_array config
    upvar $parameter_error_list error_list
@@ -1064,16 +1065,17 @@ proc verify_host_config { config_array only_check parameter_error_list { force 0
    set max_pos [get_configuration_element_count config]
 
    set uninitalized ""
-   if { $be_quiet == 0 } { 
+   if {$be_quiet == 0} { 
       puts $CHECK_OUTPUT ""
    }
-   for { set param 1 } { $param <= $max_pos } { incr param 1 } {
-      set par [ get_configuration_element_name_on_pos config $param ]
-      if { $be_quiet == 0 } { 
+
+   for {set param 1} {$param <= $max_pos} {incr param 1} {
+      set par [get_configuration_element_name_on_pos config $param]
+      if {$be_quiet == 0} { 
          puts -nonewline $CHECK_OUTPUT "      $config($par,desc) ..."
          flush $CHECK_OUTPUT
       }
-      if { $config($par) == "" || $force != 0 } {
+      if {$config($par) == "" || $force != 0} {
          debug_puts "not initialized or forced!"
          lappend uninitalized $param
          if { $only_check != 0 } {
@@ -1084,23 +1086,23 @@ proc verify_host_config { config_array only_check parameter_error_list { force 0
          set procedure_name  $config($par,setup_func)
          set default_value   $config($par,default)
          set description     $config($par,desc)
-         if { [string length $procedure_name] == 0 } {
+         if {[string length $procedure_name] == 0} {
              debug_puts "no procedure defined"
          } else {
-            if { [info procs $procedure_name ] != $procedure_name } {
+            if {[info procs $procedure_name] != $procedure_name} {
                puts $CHECK_OUTPUT "error\n"
                puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
                puts $CHECK_OUTPUT "   ======="
                lappend uninitalized $param
 
-               if { $only_check == 0 } { 
+               if {$only_check == 0} { 
                   wait_for_enter 
                }
             } else {
                # call procedure only_check == 1
                debug_puts "starting >$procedure_name< (verify mode) ..."
-               set value [ $procedure_name 1 $par config ]
-               if { $value == -1 } {
+               set value [$procedure_name 1 $par config]
+               if {$value == -1} {
                   incr errors 1
                   lappend error_list $par 
                   lappend uninitalized $param
@@ -1113,11 +1115,11 @@ proc verify_host_config { config_array only_check parameter_error_list { force 0
             }
          }
       }
-      if { $be_quiet == 0 } { 
+      if {$be_quiet == 0} { 
          puts $CHECK_OUTPUT "\r      $config($par,desc) ... ok"   
       }
    }
-   if { [set count [llength $uninitalized]] != 0 && $only_check == 0 } {
+   if {[set count [llength $uninitalized]] != 0 && $only_check == 0} {
       puts $CHECK_OUTPUT "$count parameters are not initialized!"
       puts $CHECK_OUTPUT "Entering setup procedures ..."
       
@@ -1132,46 +1134,46 @@ proc verify_host_config { config_array only_check parameter_error_list { force 0
          puts $CHECK_OUTPUT "----------------------------------------------------------"
          debug_puts "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
          set use_default 0
-         if { [string length $procedure_name] == 0 } {
+         if {[string length $procedure_name] == 0} {
             puts $CHECK_OUTPUT "no procedure defined"
             set use_default 1
          } else {
-            if { [info procs $procedure_name ] != $procedure_name } {
+            if {[info procs $procedure_name] != $procedure_name} {
                puts $CHECK_OUTPUT ""
                puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
                puts $CHECK_OUTPUT "   ======="
-               if { $only_check == 0 } { wait_for_enter }
+               if {$only_check == 0} {wait_for_enter}
                set use_default 1
             }
          } 
 
-         if { $use_default != 0 } {
+         if {$use_default != 0} {
             # check again if we have value ( force flag) 
-            if { $config($p_name) == "" } {
+            if {$config($p_name) == ""} {
                # we have no setup procedure
-               if { $default_value != "" } {
+               if {$default_value != ""} {
                   puts $CHECK_OUTPUT "using default value: \"$default_value\"" 
                   set config($p_name) $default_value 
                } else {
                   puts $CHECK_OUTPUT "No setup procedure and no default value found!!!"
-                  if { $only_check == 0 } {
+                  if {$only_check == 0} {
                      puts -nonewline $CHECK_OUTPUT "Please enter value for parameter \"$p_name\": "
                      set value [wait_for_enter 1]
                      puts $CHECK_OUTPUT "using value: \"$value\"" 
                      set config($p_name) $value
-                  } 
+                  }
                }
             }
          } else {
             # call setup procedure ...
             debug_puts "starting >$procedure_name< (setup mode) ..."
-            set value [ $procedure_name 0 $p_name config ]
-            if { $value != -1 } {
+            set value [$procedure_name 0 $p_name config]
+            if {$value != -1} {
                puts $CHECK_OUTPUT "using value: \"$value\"" 
                set config($p_name) $value
             }
          }
-         if { $config($p_name) == "" } {
+         if {$config($p_name) == ""} {
             puts $CHECK_OUTPUT "" 
             puts $CHECK_OUTPUT "-->WARNING: no value for \"$p_name\" !!!"
             puts $CHECK_OUTPUT "   ======="
@@ -2205,4 +2207,14 @@ proc host_conf_get_java_compile_host {{raise_error 1}} {
    }
 
    return $compile_host
+}
+
+proc host_conf_get_send_speed {host} {
+   global ts_host_config
+
+   if {$host != "" && [info exists ts_host_config($host,send_speed)]} {
+      return $ts_host_config($host,send_speed)
+   } else {
+      return 0.01
+   }
 }

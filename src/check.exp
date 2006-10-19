@@ -2255,7 +2255,6 @@ proc update_ts_host_config_version { filename } {
          wait_for_enter
          return
       }
-      return 0
    }
 
    if {$ts_host_config(version) == "1.3"} {
@@ -2273,7 +2272,6 @@ proc update_ts_host_config_version { filename } {
          wait_for_enter
          return
       }
-      return 0
    }
 
    if {$ts_host_config(version) == "1.4"} {
@@ -2325,7 +2323,6 @@ proc update_ts_host_config_version { filename } {
          wait_for_enter
          return
       }
-      return 0
    }
 
    if {$ts_host_config(version) == "1.5"} {
@@ -2361,7 +2358,6 @@ proc update_ts_host_config_version { filename } {
          wait_for_enter
          return
       }
-      return 0
    }
 
    if {$ts_host_config(version) == "1.6"} {
@@ -2392,10 +2388,9 @@ proc update_ts_host_config_version { filename } {
          wait_for_enter
          return
       }
-      return 0
    }
 
-   if {$ts_host_config(version) == "1.7" && $actual_ts_host_config_version == "1.8"} {
+   if {$ts_host_config(version) == "1.7"} {
       puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.7 to 1.8 ..."
 
       foreach host $ts_host_config(hostlist) {
@@ -2405,6 +2400,24 @@ proc update_ts_host_config_version { filename } {
          set ts_host_config($host,java_compile,65) 0
       }
       set ts_host_config(version) "1.8"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if {[save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if {$ts_host_config(version) == "1.8"} {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.8 to 1.9 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         # we now expect send speed property - use a pretty slow default
+         set ts_host_config($host,send_speed) 0.001
+      }
+      set ts_host_config(version) "1.9"
      
       show_config ts_host_config
       wait_for_enter
@@ -7050,10 +7063,10 @@ proc install_binaries { do_only_install arch_list a_report } {
             report_task_add_message report $task_nr "testsuite - compile_source buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "Base directory:" {
-             send -i $sp_id "y\n"
+             ts_send $sp_id "y\n"
          }
          -i $sp_id "overriding mode" {
-             send -i $sp_id "y\n"
+             ts_send $sp_id "y\n"
          }
          -i $sp_id "_exit_status_" {
             set done 1

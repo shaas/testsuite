@@ -217,7 +217,7 @@ proc issue_1451_uninstall_execd {} {
                puts "-->testsuite: press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id $input
+            ts_send $sp_id $input
             continue
          } 
 
@@ -227,7 +227,7 @@ proc issue_1451_uninstall_execd {} {
                  puts "-->testsuite: press RETURN"
                  set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 
@@ -238,7 +238,7 @@ proc issue_1451_uninstall_execd {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 
@@ -249,7 +249,7 @@ proc issue_1451_uninstall_execd {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "n\n"
+            ts_send $sp_id "n\n"
             break 
          }
 
@@ -260,7 +260,7 @@ proc issue_1451_uninstall_execd {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id ""
+            ts_send $sp_id ""
             break 
          }
 
@@ -271,7 +271,7 @@ proc issue_1451_uninstall_execd {} {
                  set anykey [wait_for_enter 1]
             }
 
-            send -i $sp_id ""
+            ts_send $sp_id ""
             add_proc_error "uninstall_execd" "-1" "uninstall_execd test failed!"
             break
          }

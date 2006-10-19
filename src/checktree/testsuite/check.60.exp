@@ -185,6 +185,8 @@ proc ts_performance_test_test {} {
 
       puts $CHECK_OUTPUT ""
       puts $CHECK_OUTPUT "starting performance test ..."
+      set total_runs 0
+      set total_result 0
       foreach user $user_list {
          foreach host $host_list {
             puts -nonewline $CHECK_OUTPUT [format "%-${max_user_len}s on %-${max_host_len}s: " $user $host]
@@ -205,11 +207,17 @@ proc ts_performance_test_test {} {
             }
             set result_array($user,$host) $result
             puts $CHECK_OUTPUT [format "average execution time: %5s ms" $result]
+
+            incr total_runs
+            incr total_result $result
          }
       }
       
       puts $CHECK_OUTPUT ""
       puts $CHECK_OUTPUT [print_xy_array $user_list $host_list result_array]
+      puts $CHECK_OUTPUT ""
+      puts $CHECK_OUTPUT "total average: [expr $total_result / $total_runs]"
+      puts $CHECK_OUTPUT ""
       puts $CHECK_OUTPUT ""
    }
 

@@ -978,11 +978,11 @@ proc run_throughput_test {} {
                   "SUBMITTER*" {
                      puts $CHECK_OUTPUT "submitter started on host $host_name"
                      puts $CHECK_OUTPUT "setting options for submitter on host $host_name: $submit_options"
-                     send -i $spawn_id "OPTIONS $submit_options\n"
+                     ts_send $spawn_id "OPTIONS $submit_options\n"
                   }
                   "OPTIONS OK*" {
                      puts $CHECK_OUTPUT "setting submit script for submitter on host $host_name: $submit_script"
-                     send -i $spawn_id "SCRIPT $submit_script\n"
+                     ts_send $spawn_id "SCRIPT $submit_script\n"
                   }
                   "SCRIPT OK*" {
                      incr num_submitters 1
@@ -996,19 +996,19 @@ proc run_throughput_test {} {
                   "PROCESS INFO STARTED" {
                      puts $CHECK_OUTPUT "process monitor for qmaster and schedd started"
                      puts $CHECK_OUTPUT "setting ps interval to $ps_interval"
-                     send -i $spawn_id "INTERVAL $ps_interval\n"
+                     ts_send $spawn_id "INTERVAL $ps_interval\n"
                   }
                   "PROCESS INFO INTERVAL OK" {
                      puts $CHECK_OUTPUT "initialize qmaster monitoring"
-                     send -i $spawn_id "PROCESS $qmaster_pid qmaster\n"
+                     ts_send $spawn_id "PROCESS $qmaster_pid qmaster\n"
                   }
                   "PROCESS INFO PROCESS qmaster OK" {
                      puts $CHECK_OUTPUT "initialize schedd monitoring"
-                     send -i $spawn_id "PROCESS $schedd_pid schedd\n"
+                     ts_send $spawn_id "PROCESS $schedd_pid schedd\n"
                   }
                   "PROCESS INFO PROCESS schedd OK" {
                      puts $CHECK_OUTPUT "starting process monitoring"
-                     send -i $spawn_id "START\n"
+                     ts_send $spawn_id "START\n"
                   }
                   "PROCESS INFO START OK" {
                      set monitor_ok 1
@@ -1029,11 +1029,11 @@ proc run_throughput_test {} {
                   "QSTAT STARTED" {
                      puts $CHECK_OUTPUT "qstat monitor started"
                      puts $CHECK_OUTPUT "setting qstat interval to $qstat_interval ms"
-                     send -i $spawn_id "INTERVAL $qstat_interval\n"
+                     ts_send $spawn_id "INTERVAL $qstat_interval\n"
                   }
                   "QSTAT INTERVAL OK" {
                      puts $CHECK_OUTPUT "starting qstat monitoring"
-                     send -i $spawn_id "START\n"
+                     ts_send $spawn_id "START\n"
                   }
                   "QSTAT START OK" {
                      puts $CHECK_OUTPUT "qstat monitor running"
@@ -1157,6 +1157,8 @@ proc run_throughput_test {} {
          set sent_commands($sub_host) "$send_id $next_submit_command"
 
          # send submit command
+         # JG: TODO: May we use ts_send here instead of send?
+         #           Will it have impact on performance?
          set spawn_id $host_spawn_map($sub_host)
          send -i $spawn_id "$next_submit_command\n"
 
@@ -1533,12 +1535,12 @@ proc run_throughput_test {} {
          set result(test_run_time) $time_now
          save_current_system_status results_list result
       }
-   } 
+   }
    log_user 1
 
    # make submitters quit
    foreach elem $remote_spawn_list {
-      send -i [lindex $elem 1] "QUIT\n"
+      ts_send [lindex $elem 1] "QUIT\n"
    }
    after 1000
 

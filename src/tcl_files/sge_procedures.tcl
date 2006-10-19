@@ -955,7 +955,7 @@ proc submit_error_job { jobargs } {
 #     job id (>= 1) or -1 on error
 #
 #*******************************************************************************
-proc submit_wait_type_job { job_type host user {variable qacct_info} } {
+proc submit_wait_type_job {job_type host user {variable qacct_info}} {
    global ts_config CHECK_OUTPUT
    global CHECK_PRODUCT_ROOT CHECK_HOST CHECK_DEBUG_LEVEL CHECK_USER
    global CHECK_DISPLAY_OUTPUT CHECK_SCRIPT_FILE_DIR
@@ -1052,7 +1052,7 @@ proc submit_wait_type_job { job_type host user {variable qacct_info} } {
                         }
                      }
                   } else {
-                     send -i $sp_id "\n$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n"
+                     ts_send $sp_id "\n$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n" $host
                   }
 
                   if { $max_timeouts <= 0 } {
@@ -1062,7 +1062,7 @@ proc submit_wait_type_job { job_type host user {variable qacct_info} } {
                }
                -i $sp_id "ts_shell_response*\n" {
                   puts $CHECK_OUTPUT "found matching shell response text! Sending exit ..."
-                  send -i $sp_id "exit\n"
+                  ts_send $sp_id "exit\n" $host
                }
 
                -i $sp_id eof {
@@ -1208,7 +1208,7 @@ proc submit_wait_type_job { job_type host user {variable qacct_info} } {
                }
 
                -i $sp_id "login:" {
-                  send -i $sp_id "$user\n"
+                  ts_send $sp_id "$user\n" $host 1
                }
 
                -i $sp_id "assword" { 

@@ -195,7 +195,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 
@@ -206,7 +206,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 
@@ -217,7 +217,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 
@@ -229,7 +229,7 @@ proc install_bdb_rpc {} {
                puts "-->testsuite: press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id $input
+            ts_send $sp_id $input
             continue
          }
 
@@ -241,7 +241,7 @@ proc install_bdb_rpc {} {
                puts "-->testsuite: press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id $input
+            ts_send $sp_id $input
             continue
          }
 
@@ -253,7 +253,7 @@ proc install_bdb_rpc {} {
                puts "-->testsuite: press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id $input
+            ts_send $sp_id $input
             continue
          } 
 
@@ -265,7 +265,7 @@ proc install_bdb_rpc {} {
                set anykey [wait_for_enter 1]
             }
 
-            send -i $sp_id "$spooldir\n"
+            ts_send $sp_id "$spooldir\n"
             continue
          }
 
@@ -276,7 +276,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "$ANSWER_YES\n"
+            ts_send $sp_id "$ANSWER_YES\n"
             continue
          }
 
@@ -288,7 +288,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 
@@ -299,7 +299,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 
@@ -310,7 +310,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "$ANSWER_NO\n"
+            ts_send $sp_id "$ANSWER_NO\n"
             continue
          }
 
@@ -321,7 +321,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "$ANSWER_NO\n"
+            ts_send $sp_id "$ANSWER_NO\n"
             continue
          }
 
@@ -357,7 +357,7 @@ proc install_bdb_rpc {} {
                  set anykey [wait_for_enter 1]
             }
   
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
 

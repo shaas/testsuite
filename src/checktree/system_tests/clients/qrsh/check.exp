@@ -1353,17 +1353,17 @@ proc qrsh_qsub_gid {} {
             continue
          }
          -i $sp_id default {
-            send -i $sp_id "\003"
+            ts_send $sp_id "\003"
             close_spawn_process $tail_id
             add_proc_error "qrsh_qsub_gid" -1 "setting execd_params to USE_QSUB_GID=true failed on host $host"
             continue
          }
          -i $sp_id $USING_FOR {
-            send -i $sp_id "\003"
+            ts_send $sp_id "\003"
             close_spawn_process $tail_id
          }
          -i $sp_id "using*USE_QSUB_GID=true*\n" {
-            send -i $sp_id "\003"
+            ts_send $sp_id "\003"
             close_spawn_process $tail_id
          }
       }
@@ -1408,16 +1408,16 @@ proc qrsh_qsub_gid {} {
             continue
          }
          -i $sp_id timeout {
-            send -i $sp_id "\003"
+            ts_send $sp_id "\003"
             add_proc_error "qrsh_qsub_gid" -1 "clearing execd_params from USE_QSUB_GID=true failed on host $host"
             close_spawn_process $tail_id
             continue
          }
          -i $sp_id $FINISHED_JOBS {
-            send -i $sp_id "\003"
+            ts_send $sp_id "\003"
          }
          -i $sp_id "using*finished_jobs*" {
-            send -i $sp_id "\003"
+            ts_send $sp_id "\003"
          }
       }
 
@@ -1801,8 +1801,8 @@ proc qrsh_sigterm_running_job {} {
    }
 
    # now terminate the connection
-   send -i $sp_id "\003"
-   send -i $sp_id "\003"
+   ts_send $sp_id "\003"
+   ts_send $sp_id "\003"
    sleep 10
    close_spawn_process $qrsh_id
 
@@ -1859,8 +1859,8 @@ proc qrsh_sigterm_pending_job {} {
    }
   
    # now terminate the connection
-   send -i $sp_id "\003"
-   send -i $sp_id "\003"
+   ts_send $sp_id "\003"
+   ts_send $sp_id "\003"
    close_spawn_process $qrsh_id
 
    wait_for_end_of_all_jobs 15

@@ -288,14 +288,14 @@ proc qtcsh_spawn { { option "" } { command "hostname" } } {
 
    if { "$qtcsh_command_tcsh" != "" } {
       puts $CHECK_OUTPUT "testsuite send -> $qtcsh_command_tcsh\\n" 
-      send -i $qtcsh_sp_id "$qtcsh_command_tcsh\n"
+      ts_send $qtcsh_sp_id "$qtcsh_command_tcsh\n"
    }
    if { "$option" != "" } {
       puts $CHECK_OUTPUT "testsuite send -> qrshmode $option\\n" 
-      send -i $qtcsh_sp_id -- "qrshmode $option\n"
+      ts_send $qtcsh_sp_id "qrshmode $option\n"
    }
    puts $CHECK_OUTPUT "testsuite send -> $command; echo _command_finished_\\n" 
-   send -i $qtcsh_sp_id "$command; echo \"AA\${?}AA\"\n"
+   ts_send $qtcsh_sp_id "$command; echo \"AA\${?}AA\"\n"
 
 
    # Now, depending on the result, we set our last output
@@ -347,12 +347,12 @@ proc qtcsh_spawn { { option "" } { command "hostname" } } {
               if { [string match "*AA0AA*" $line] } {
                  set found_finished 1
                  puts $CHECK_OUTPUT "finished without error"
-                 send -i $qtcsh_sp_id "exit\n"
+                 ts_send $qtcsh_sp_id "exit\n"
               } 
               if { [string match "*AA1AA*" $line] } {
                  set found_finished 1
                  puts $CHECK_OUTPUT "finished with error"
-                 send -i $qtcsh_sp_id "exit\n"
+                 ts_send $qtcsh_sp_id "exit\n"
               } 
 
 

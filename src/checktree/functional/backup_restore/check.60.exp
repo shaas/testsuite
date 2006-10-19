@@ -105,37 +105,37 @@ proc backup_restore_setup {} {
       expect {
          -i $sp_id "Please enter your SGE_ROOT directory." {
             puts $CHECK_OUTPUT "\n --> testsuite: sending $ts_config(product_root)"
-            send -i $sp_id "$ts_config(product_root)\n"
+            ts_send $sp_id "$ts_config(product_root)\n"
             continue
          }
          -i $sp_id "Please enter your SGE_CELL name.*" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending $ts_config(cell)"
-            send -i $sp_id "$ts_config(cell)\n"
+            ts_send $sp_id "$ts_config(cell)\n"
             continue;
          }
          -i $sp_id "Where do you want to save the backupfiles?" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<"
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue;
          }
          -i $sp_id "Shall the backup function create a compressed tarpackage with your files?" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<"
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue;
          }
          -i $sp_id "Please enter a filename for your backupfile.*" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<"
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue;
          }
          -i $sp_id "Do you want to overwrite the existing backup directory?" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending y<"
-            send -i $sp_id "y\n"
+            ts_send $sp_id "y\n"
             continue;
          }
          -i $sp_id "Are all settings right" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending y<"
-            send -i $sp_id "y\n"
+            ts_send $sp_id "y\n"
             continue;
          }
          
@@ -201,37 +201,37 @@ proc backup_restore_setup {} {
       expect {
          -i $sp_id "Hit, <ENTER> to continue!" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<"
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue
          }
          -i $sp_id "Please enter your SGE_ROOT directory." {
             puts $CHECK_OUTPUT "\n --> testsuite: sending $ts_config(product_root)"
-            send -i $sp_id "$ts_config(product_root)\n"
+            ts_send $sp_id "$ts_config(product_root)\n"
             continue;
          }
          -i $sp_id "Please enter your SGE_CELL name.*" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending $ts_config(cell)"
-            send -i $sp_id "$ts_config(cell)\n"
+            ts_send $sp_id "$ts_config(cell)\n"
             continue;
          }
          -i $sp_id "Is your backupfile in tar.gz*" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<"
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue;
          }
          -i $sp_id "Please enter the full path and name of your backup file." {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<"
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue;
          }
          -i $sp_id "If this is correct hit *" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<"
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
             continue;
          }
          -i $sp_id "Are all settings right" {
             puts $CHECK_OUTPUT "\n --> testsuite: sending y<"
-            send -i $sp_id "y\n"
+            ts_send $sp_id "y\n"
             continue;
          }
          

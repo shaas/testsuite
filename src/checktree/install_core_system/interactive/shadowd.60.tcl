@@ -65,7 +65,7 @@ proc install_shadowd {} {
    global check_use_installed_system CHECK_ARCH
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
-   global CHECK_COMMD_PORT CHECK_CORE_MASTER
+   global CHECK_COMMD_PORT
    global CHECK_MAIN_RESULTS_DIR CHECK_SUBMIT_ONLY_HOSTS
 
    set CORE_INSTALLED "" 
@@ -80,7 +80,7 @@ proc install_shadowd {} {
          set feature_install_options "-csp"
          set my_csp_host_list $CHECK_CORE_SHADOWD
          foreach shadow_host $my_csp_host_list {
-            if { $shadow_host == $CHECK_CORE_MASTER } {
+            if { $shadow_host == $ts_config(master_host) } {
                continue
             }
             copy_certificates $shadow_host
@@ -205,7 +205,7 @@ proc install_shadowd {} {
                   puts "-->testsuite: press RETURN"
                   set anykey [wait_for_enter 1]
                }
-               send -i $sp_id $input
+               ts_send $sp_id $input
                continue
             } 
 
@@ -216,7 +216,7 @@ proc install_shadowd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue
             }
 
@@ -227,7 +227,7 @@ proc install_shadowd {} {
                   set anykey [wait_for_enter 1]
                }
 
-               send -i $sp_id "$ANSWER_YES\n"
+               ts_send $sp_id "$ANSWER_YES\n"
                continue
             }
 
@@ -238,7 +238,7 @@ proc install_shadowd {} {
                    puts "press RETURN"
                    set anykey [wait_for_enter 1]
                }
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue
             }
 
@@ -250,7 +250,7 @@ proc install_shadowd {} {
                        puts "press RETURN"
                        set anykey [wait_for_enter 1]
                   }
-                  send -i $sp_id "\n"
+                  ts_send $sp_id "\n"
                   continue
                } else {
                   set_error "-1" "install_shadowd - host $shadow_host: tried to install not as root"
@@ -266,7 +266,7 @@ proc install_shadowd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "$ANSWER_NO\n"
+               ts_send $sp_id "$ANSWER_NO\n"
                continue
             }
 
@@ -294,7 +294,7 @@ proc install_shadowd {} {
                     puts "-->testsuite: press RETURN"
                     set anykey [wait_for_enter 1]
                }
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue
             }
 
@@ -320,7 +320,7 @@ proc install_shadowd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue
             }
 
@@ -331,7 +331,7 @@ proc install_shadowd {} {
                     set anykey [wait_for_enter 1]
                }
      
-               send -i $sp_id "\n"
+               ts_send $sp_id "\n"
                continue
             }
 

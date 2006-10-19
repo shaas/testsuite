@@ -420,7 +420,7 @@ proc large_cluster_monitoring {tail_id first_sched_var total_sched_var index} {
       }
    }
 
-   send -i $sp_id "\003";# send CTRL-C to terminate tail -f
+   ts_send $sp_id "\003";# send CTRL-C to terminate tail -f
    close_spawn_process $tail_id
 
    puts $CHECK_OUTPUT ""

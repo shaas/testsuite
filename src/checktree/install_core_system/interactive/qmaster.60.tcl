@@ -63,7 +63,7 @@
 proc install_qmaster {} {
  global ts_config
  global CHECK_USER check_errstr 
- global CHECK_CORE_MASTER CORE_INSTALLED CORE_INSTALLED CHECK_OUTPUT 
+ global CORE_INSTALLED CORE_INSTALLED CHECK_OUTPUT 
  global CHECK_TESTSUITE_ROOT env CHECK_COMMD_PORT local_master_spool_set
  global check_use_installed_system CHECK_ADMIN_USER_SYSTEM CHECK_DEFAULT_DOMAIN
  global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS CHECK_COMMD_PORT
@@ -71,14 +71,14 @@ proc install_qmaster {} {
  global CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_REPORT_EMAIL_TO CHECK_DNS_DOMAINNAME
  global CHECK_PROTOCOL_DIR
 
- puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $CHECK_CORE_MASTER ..."
+ puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
 
  if { $check_use_installed_system != 0 } {
-    set_error "0" "install_qmaster - no need to install qmaster on host $CHECK_CORE_MASTER - noinst parameter is set"
-    puts "no need to install qmaster on host $CHECK_CORE_MASTER, noinst parameter is set"
+    set_error "0" "install_qmaster - no need to install qmaster on host $ts_config(master_host) - noinst parameter is set"
+    puts "no need to install qmaster on host $ts_config(master_host), noinst parameter is set"
     set CORE_INSTALLED "" 
     if {[startup_qmaster] == 0} {
-      lappend CORE_INSTALLED $CHECK_CORE_MASTER
+      lappend CORE_INSTALLED $ts_config(master_host)
       write_install_list
     }
     return
@@ -108,72 +108,72 @@ proc install_qmaster {} {
    # install_qmaster will ask us about this
    set have_windows_host [host_conf_have_windows]
 
- set HIT_RETURN_TO_CONTINUE       [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
- set CURRENT_GRID_ROOT_DIRECTORY  [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
- set CELL_NAME_FOR_QMASTER        [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
- set VERIFY_FILE_PERMISSIONS1      [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS1] ]
- set VERIFY_FILE_PERMISSIONS2      [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS2] ]
- set WILL_NOT_VERIFY_FILE_PERMISSIONS [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_WILL_NOT_VERIFY_FILE_PERMISSIONS] ]
- set DO_NOT_VERIFY_FILE_PERMISSIONS [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_DO_NOT_VERIFY_FILE_PERMISSIONS] ]
- set NOT_COMPILED_IN_SECURE_MODE  [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_NOT_COMPILED_IN_SECURE_MODE] ] 
- set ENTER_HOSTS                  [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_HOSTS] ]
- set MASTER_INSTALLATION_COMPLETE [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_MASTER_INSTALLATION_COMPLETE] ]
- set ENTER_A_RANGE                [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_A_RANGE] ]
- set PREVIOUS_SCREEN              [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_PREVIOUS_SCREEN] ]
- set FILE_FOR_HOSTLIST            [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_FILE_FOR_HOSTLIST] ]
- set FINISHED_ADDING_HOSTS        [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_FINISHED_ADDING_HOSTS] ]
- set FILENAME_FOR_HOSTLIST        [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_FILENAME_FOR_HOSTLIST] ]
- set CREATE_NEW_CONFIGURATION     [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CREATE_NEW_CONFIGURATION] ]
- set INSTALL_SCRIPT               [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
- set ANSWER_YES                   [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
- set ANSWER_NO                    [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ANSWER_NO] ]
- set ENTER_DEFAULT_DOMAIN         [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_DEFAULT_DOMAIN] ]
- set CONFIGURE_DEFAULT_DOMAIN     [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CONFIGURE_DEFAULT_DOMAIN] ] 
- set PKGADD_QUESTION              [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_PKGADD_QUESTION] ]
- set MESSAGES_LOGGING             [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_MESSAGES_LOGGING] ]
- set OTHER_SPOOL_DIR              [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_OTHER_SPOOL_DIR] ]
- set OTHER_USER_ID_THAN_ROOT      [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_OTHER_USER_ID_THAN_ROOT] ]
- set INSTALL_AS_ADMIN_USER        [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_INSTALL_AS_ADMIN_USER] "$CHECK_USER" ]
- set ADMIN_USER_ACCOUNT           [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ADMIN_USER_ACCOUNT] "$CHECK_USER\r\n" ]
- set USE_CONFIGURATION_PARAMS     [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_USE_CONFIGURATION_PARAMS] ]
- set INSTALL_GE_NOT_AS_ROOT       [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_INSTALL_GE_NOT_AS_ROOT] ]
- set IF_NOT_OK_STOP_INSTALLATION  [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_IF_NOT_OK_STOP_INSTALLATION] ]
- set DNS_DOMAIN_QUESTION          [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ] 
- set ENTER_SPOOL_DIR   [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_SPOOL_DIR] "*"]
- set USING_GID_RANGE_HIT_RETURN   [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_USING_GID_RANGE_HIT_RETURN] "*"]
- set CREATING_ALL_QUEUE_HOSTGROUP [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ALL_QUEUE_HOSTGROUP] ]
- set EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER           [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER]]
- set EXECD_SPOOLING_DIR_NOROOT           [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT] "*"]
- set EXECD_SPOOLING_DIR_DEFAULT   [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_DEFAULT] "*"]
- set ENTER_ADMIN_MAIL             [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_ADMIN_MAIL] "*"]
- set SHOW_CONFIGURATION           [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_SHOW_CONFIGURATION] "*" "*"]
- set ACCEPT_CONFIGURATION         [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ACCEPT_CONFIGURATION] ]
- set INSTALL_STARTUP_SCRIPT       [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_INSTALL_STARTUP_SCRIPT] ]
- set ENTER_SCHEDLUER_SETUP        [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_SCHEDLUER_SETUP] ]
- set DELETE_DB_SPOOL_DIR          [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_DELETE_DB_SPOOL_DIR] ]
- set CELL_NAME_EXISTS             [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CELL_NAME_EXISTS] ]
- set CELL_NAME_OVERWRITE          [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CELL_NAME_OVERWRITE] ]
- set ADD_SHADOWHOST_ASK           [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ADD_SHADOWHOST_ASK] ]
- set ADD_SHADOWHOST_FROM_FILE_ASK [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ADD_SHADOWHOST_FROM_FILE_ASK] ]
- set WE_CONFIGURE_WITH_X_SETTINGS [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_WE_CONFIGURE_WITH_X_SETTINGS] "*" ]
+ set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
+ set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
+ set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
+ set VERIFY_FILE_PERMISSIONS1      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS1] ]
+ set VERIFY_FILE_PERMISSIONS2      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS2] ]
+ set WILL_NOT_VERIFY_FILE_PERMISSIONS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_WILL_NOT_VERIFY_FILE_PERMISSIONS] ]
+ set DO_NOT_VERIFY_FILE_PERMISSIONS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DO_NOT_VERIFY_FILE_PERMISSIONS] ]
+ set NOT_COMPILED_IN_SECURE_MODE  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_NOT_COMPILED_IN_SECURE_MODE] ] 
+ set ENTER_HOSTS                  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_HOSTS] ]
+ set MASTER_INSTALLATION_COMPLETE [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_MASTER_INSTALLATION_COMPLETE] ]
+ set ENTER_A_RANGE                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_A_RANGE] ]
+ set PREVIOUS_SCREEN              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_PREVIOUS_SCREEN] ]
+ set FILE_FOR_HOSTLIST            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_FILE_FOR_HOSTLIST] ]
+ set FINISHED_ADDING_HOSTS        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_FINISHED_ADDING_HOSTS] ]
+ set FILENAME_FOR_HOSTLIST        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_FILENAME_FOR_HOSTLIST] ]
+ set CREATE_NEW_CONFIGURATION     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CREATE_NEW_CONFIGURATION] ]
+ set INSTALL_SCRIPT               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
+ set ANSWER_YES                   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
+ set ANSWER_NO                    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ANSWER_NO] ]
+ set ENTER_DEFAULT_DOMAIN         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_DEFAULT_DOMAIN] ]
+ set CONFIGURE_DEFAULT_DOMAIN     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CONFIGURE_DEFAULT_DOMAIN] ] 
+ set PKGADD_QUESTION              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_PKGADD_QUESTION] ]
+ set MESSAGES_LOGGING             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_MESSAGES_LOGGING] ]
+ set OTHER_SPOOL_DIR              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_OTHER_SPOOL_DIR] ]
+ set OTHER_USER_ID_THAN_ROOT      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_OTHER_USER_ID_THAN_ROOT] ]
+ set INSTALL_AS_ADMIN_USER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_AS_ADMIN_USER] "$CHECK_USER" ]
+ set ADMIN_USER_ACCOUNT           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ADMIN_USER_ACCOUNT] "$CHECK_USER\r\n" ]
+ set USE_CONFIGURATION_PARAMS     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_USE_CONFIGURATION_PARAMS] ]
+ set INSTALL_GE_NOT_AS_ROOT       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_GE_NOT_AS_ROOT] ]
+ set IF_NOT_OK_STOP_INSTALLATION  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_IF_NOT_OK_STOP_INSTALLATION] ]
+ set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ] 
+ set ENTER_SPOOL_DIR   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SPOOL_DIR] "*"]
+ set USING_GID_RANGE_HIT_RETURN   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_USING_GID_RANGE_HIT_RETURN] "*"]
+ set CREATING_ALL_QUEUE_HOSTGROUP [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ALL_QUEUE_HOSTGROUP] ]
+ set EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER]]
+ set EXECD_SPOOLING_DIR_NOROOT           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT] "*"]
+ set EXECD_SPOOLING_DIR_DEFAULT   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_DEFAULT] "*"]
+ set ENTER_ADMIN_MAIL             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_ADMIN_MAIL] "*"]
+ set SHOW_CONFIGURATION           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SHOW_CONFIGURATION] "*" "*"]
+ set ACCEPT_CONFIGURATION         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ACCEPT_CONFIGURATION] ]
+ set INSTALL_STARTUP_SCRIPT       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_STARTUP_SCRIPT] ]
+ set ENTER_SCHEDLUER_SETUP        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SCHEDLUER_SETUP] ]
+ set DELETE_DB_SPOOL_DIR          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DELETE_DB_SPOOL_DIR] ]
+ set CELL_NAME_EXISTS             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_EXISTS] ]
+ set CELL_NAME_OVERWRITE          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_OVERWRITE] ]
+ set ADD_SHADOWHOST_ASK           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ADD_SHADOWHOST_ASK] ]
+ set ADD_SHADOWHOST_FROM_FILE_ASK [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ADD_SHADOWHOST_FROM_FILE_ASK] ]
+ set WE_CONFIGURE_WITH_X_SETTINGS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_WE_CONFIGURE_WITH_X_SETTINGS] "*" ]
 
 # dynamic spooling
- set CHOOSE_SPOOLING_METHOD [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD]]
+ set CHOOSE_SPOOLING_METHOD [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD]]
 
 # berkeley db
- set DATABASE_LOCAL_SPOOLING     [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_DATABASE_LOCAL_SPOOLING]]
- set ENTER_DATABASE_SERVER       [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_DATABASE_SERVER] "*"]
- set ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING    [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING] "*"]
- set ENTER_DATABASE_SERVER_DIRECTORY    [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_ENTER_SERVER_DATABASE_DIRECTORY] "*"]
- set DATABASE_DIR_NOT_ON_LOCAL_FS [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_DATABASE_DIR_NOT_ON_LOCAL_FS] "*"]
- set STARTUP_RPC_SERVER [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_STARTUP_RPC_SERVER]]
- set DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS]]
+ set DATABASE_LOCAL_SPOOLING     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DATABASE_LOCAL_SPOOLING]]
+ set ENTER_DATABASE_SERVER       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_DATABASE_SERVER] "*"]
+ set ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING] "*"]
+ set ENTER_DATABASE_SERVER_DIRECTORY    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SERVER_DATABASE_DIRECTORY] "*"]
+ set DATABASE_DIR_NOT_ON_LOCAL_FS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DATABASE_DIR_NOT_ON_LOCAL_FS] "*"]
+ set STARTUP_RPC_SERVER [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_STARTUP_RPC_SERVER]]
+ set DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS]]
 
  # csp
- set CSP_COPY_CERTS [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CSP_COPY_CERTS]]
- set CSP_COPY_CMD [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CSP_COPY_CMD]]
- set CSP_COPY_FAILED [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CSP_COPY_FAILED]]
- set CSP_COPY_RSH_FAILED [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CSP_COPY_RSH_FAILED]]
+ set CSP_COPY_CERTS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_CERTS]]
+ set CSP_COPY_CMD [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_CMD]]
+ set CSP_COPY_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_FAILED]]
+ set CSP_COPY_RSH_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_RSH_FAILED]]
 
  # windows
  set WINDOWS_SUPPORT              [translate_macro DISTINST_WINDOWS_SUPPORT]
@@ -190,10 +190,10 @@ proc install_qmaster {} {
  }
 
  if { $CHECK_ADMIN_USER_SYSTEM == 0 } {
-    set id [open_remote_spawn_process "$CHECK_CORE_MASTER" "root"  "cd $$prod_type_var;./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "cd $$prod_type_var;./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
  } else {
     puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-    set id [open_remote_spawn_process "$CHECK_CORE_MASTER" "$CHECK_USER"  "cd $$prod_type_var;./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "cd $$prod_type_var;./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
  }
  set sp_id [ lindex $id 1 ] 
 
@@ -277,7 +277,7 @@ proc install_qmaster {} {
        }
 
        -i $sp_id $DNS_DOMAIN_QUESTION {
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -287,7 +287,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "y\n"
+          ts_send $sp_id "y\n"
           continue
        }
 
@@ -297,7 +297,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "DE\n"
+          ts_send $sp_id "DE\n"
           continue
        }
 
@@ -307,7 +307,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "Bavaria\n"
+          ts_send $sp_id "Bavaria\n"
           continue
        }
  
@@ -317,7 +317,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "Regensburg\n"
+          ts_send $sp_id "Regensburg\n"
           continue
        }
 
@@ -327,7 +327,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "Sun Microsystems\n"
+          ts_send $sp_id "Sun Microsystems\n"
           continue
        }
 
@@ -337,7 +337,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "Testsystem at port $CHECK_COMMD_PORT\n"
+          ts_send $sp_id "Testsystem at port $CHECK_COMMD_PORT\n"
           continue
        }
 
@@ -352,7 +352,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$CA_admin_mail\n"
+          ts_send $sp_id "$CA_admin_mail\n"
           continue
        }
 
@@ -362,7 +362,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "y\n"
+          ts_send $sp_id "y\n"
           continue
        }
 
@@ -372,7 +372,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_YES\n"
+          ts_send $sp_id "$ANSWER_YES\n"
           continue
        }
 
@@ -382,7 +382,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_YES\n"
+          ts_send $sp_id "$ANSWER_YES\n"
           continue
        }
 
@@ -392,7 +392,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
@@ -402,7 +402,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_YES\n"
+          ts_send $sp_id "$ANSWER_YES\n"
           continue
        }
 
@@ -417,7 +417,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$input\n"
+          ts_send $sp_id "$input\n"
           continue
        }
        -i $sp_id $VERIFY_FILE_PERMISSIONS2 { 
@@ -431,7 +431,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$input\n"
+          ts_send $sp_id "$input\n"
           continue
        }
 
@@ -442,7 +442,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
       }
 
@@ -452,7 +452,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
@@ -462,7 +462,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -473,7 +473,7 @@ proc install_qmaster {} {
                   puts "press RETURN"
                   set anykey [wait_for_enter 1]
              }
-             send -i $sp_id "\n"
+             ts_send $sp_id "\n"
              continue
           } else {
              set_error "-1" "install_qmaster - tried to install not as root"
@@ -488,7 +488,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
@@ -503,7 +503,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$answer\n"
+          ts_send $sp_id "$answer\n"
           continue
        }
 
@@ -514,7 +514,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$answer\n"
+          ts_send $sp_id "$answer\n"
           continue
        }
 
@@ -524,7 +524,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -534,12 +534,12 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
        -i $sp_id $OTHER_SPOOL_DIR {
-          set spooldir [get_local_spool_dir $CHECK_CORE_MASTER qmaster]
+          set spooldir [get_local_spool_dir $ts_config(master_host) qmaster]
           if { $spooldir != "" } {
             set answer $ANSWER_YES
           } else {
@@ -550,7 +550,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$answer\n"
+          ts_send $sp_id "$answer\n"
           continue
        }
 
@@ -561,7 +561,7 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
 
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -572,13 +572,13 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
 
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
        -i $sp_id $ENTER_SPOOL_DIR {
           puts $CHECK_OUTPUT "\n"
-          set spooldir [get_local_spool_dir $CHECK_CORE_MASTER qmaster]
+          set spooldir [get_local_spool_dir $ts_config(master_host) qmaster]
           if { $spooldir != "" } {
             # use local spool dir
             puts $CHECK_OUTPUT "\n -->testsuite: sending >$spooldir<"
@@ -586,7 +586,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "$spooldir\n"
+            ts_send $sp_id "$spooldir\n"
             set local_master_spool_set 1
           } else {
             # use default spool dir
@@ -595,14 +595,14 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
           }
           continue
        }       
        
        -i $sp_id $EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER {
           puts $CHECK_OUTPUT "\n"
-          set spooldir [get_local_spool_dir $CHECK_CORE_MASTER execd 0]
+          set spooldir [get_local_spool_dir $ts_config(master_host) execd 0]
           if { $spooldir != "" } {
             # use local spool dir
             puts $CHECK_OUTPUT "\n -->testsuite: sending >$spooldir<"
@@ -610,7 +610,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "$spooldir\n"
+            ts_send $sp_id "$spooldir\n"
             set local_execd_spool_set 1
           } else {
             # use default spool dir
@@ -619,14 +619,14 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
           }
           continue
         }
 
        -i $sp_id $EXECD_SPOOLING_DIR_NOROOT {
           puts $CHECK_OUTPUT "\n"
-          set spooldir [get_local_spool_dir $CHECK_CORE_MASTER execd 0]
+          set spooldir [get_local_spool_dir $ts_config(master_host) execd 0]
           if { $spooldir != "" } {
             # use local spool dir
             puts $CHECK_OUTPUT "\n -->testsuite: sending >$spooldir<"
@@ -634,7 +634,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "$spooldir\n"
+            ts_send $sp_id "$spooldir\n"
             set local_execd_spool_set 1
           } else {
             # use default spool dir
@@ -643,7 +643,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
           }
           continue
        }
@@ -654,7 +654,7 @@ proc install_qmaster {} {
                puts "(2)press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
@@ -664,7 +664,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$CHECK_DEFAULT_DOMAIN\n"
+          ts_send $sp_id "$CHECK_DEFAULT_DOMAIN\n"
           continue
        }
 
@@ -674,7 +674,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
@@ -684,7 +684,7 @@ proc install_qmaster {} {
                puts "(3)press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_YES\n"
+          ts_send $sp_id "$ANSWER_YES\n"
           continue
        }
 
@@ -694,7 +694,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "${host_file_name}\n"
+          ts_send $sp_id "${host_file_name}\n"
           continue
        }
    
@@ -704,7 +704,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
    
@@ -715,7 +715,7 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
 
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -727,7 +727,7 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
 
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
   
@@ -739,13 +739,13 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
 
-          send -i $sp_id "${myrange}\n"
+          ts_send $sp_id "${myrange}\n"
           continue
        }
 
        -i $sp_id $MASTER_INSTALLATION_COMPLETE {
           read_install_list
-          lappend CORE_INSTALLED $CHECK_CORE_MASTER
+          lappend CORE_INSTALLED $ts_config(master_host)
           write_install_list
           set_error "0" "install_qmaster - no errors"
           set do_stop 1
@@ -756,7 +756,7 @@ proc install_qmaster {} {
           if {[coverage_enabled]} {
              sleep 1
              # inst_sge expects a RETURN
-             send -i $sp_id "\n"
+             ts_send $sp_id "\n"
              sleep 5
           }
           continue
@@ -765,12 +765,12 @@ proc install_qmaster {} {
        -i $sp_id $ENTER_HOSTS {
          if {$hostcount >= [llength $admin_hosts]} {
              puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(8)"
-             send -i $sp_id "\n"
+             ts_send $sp_id "\n"
          } else {
             set admin_host [lindex $admin_hosts $hostcount]
             incr hostcount
             puts $CHECK_OUTPUT "\n -->testsuite: sending >${admin_host}<"
-            send -i $sp_id "$admin_host\n"
+            ts_send $sp_id "$admin_host\n"
          }
          continue
        }
@@ -786,7 +786,7 @@ proc install_qmaster {} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$admin_mail\n"
+          ts_send $sp_id "$admin_mail\n"
           continue
        }
 
@@ -798,7 +798,7 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
 
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
@@ -810,7 +810,7 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
 
-          send -i $sp_id "$ANSWER_NO\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 
@@ -825,7 +825,7 @@ proc install_qmaster {} {
             puts "press RETURN"
             set anykey [wait_for_enter 1]
          }
-         send -i $sp_id "$spooling_method\n"
+         ts_send $sp_id "$spooling_method\n"
          continue
       }
 
@@ -846,7 +846,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id $input
+          ts_send $sp_id $input
           continue
        }
 
@@ -857,7 +857,7 @@ proc install_qmaster {} {
             set anykey [wait_for_enter 1]
          }
 
-         send -i $sp_id "$ts_config(bdb_server)\n"
+         ts_send $sp_id "$ts_config(bdb_server)\n"
          continue
       }
 
@@ -867,7 +867,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_YES\n"
+          ts_send $sp_id "$ANSWER_YES\n"
           continue
        }
 
@@ -878,7 +878,7 @@ proc install_qmaster {} {
             set anykey [wait_for_enter 1]
          }
 
-         send -i $sp_id "\n"
+         ts_send $sp_id "\n"
          continue
       }
 
@@ -894,7 +894,7 @@ proc install_qmaster {} {
             puts "press RETURN"
             set anykey [wait_for_enter 1]
          }
-         send -i $sp_id "$spooldir\n"
+         ts_send $sp_id "$spooldir\n"
          continue
       }
    
@@ -907,14 +907,14 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
-            send -i $sp_id "\n"
+            ts_send $sp_id "\n"
          } else {
             puts $CHECK_OUTPUT "\n -->testsuite: sending >$spooldir<"
             if {$do_log_output == 1} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             } 
-            send -i $sp_id "$spooldir\n"
+            ts_send $sp_id "$spooldir\n"
          }
          continue
       }
@@ -926,7 +926,7 @@ proc install_qmaster {} {
       }
 
       -i $sp_id $STARTUP_RPC_SERVER {
-         send -i $sp_id "\n"
+         ts_send $sp_id "\n"
          continue
       }
 
@@ -947,7 +947,7 @@ proc install_qmaster {} {
             set anykey [wait_for_enter 1]
          }
 
-         send -i $sp_id "\n"
+         ts_send $sp_id "\n"
          continue
       }
 
@@ -959,7 +959,7 @@ proc install_qmaster {} {
             set anykey [wait_for_enter 1]
          }
 
-         send -i $sp_id "\n"
+         ts_send $sp_id "\n"
          continue
       }
 
@@ -971,7 +971,7 @@ proc install_qmaster {} {
             puts "press RETURN"
             set anykey [wait_for_enter 1]
          }
-         send -i $sp_id "\n"
+         ts_send $sp_id "\n"
          continue
       }
       
@@ -992,7 +992,7 @@ proc install_qmaster {} {
   #          set anykey [wait_for_enter 1]
   #       }
 
-  #       send -i $sp_id "\n"
+  #       ts_send $sp_id "\n"
   #       continue;
   #    }
 
@@ -1007,7 +1007,7 @@ proc install_qmaster {} {
                gets stdin anykey
           }
 
-          send -i $sp_id " "
+          ts_send $sp_id " "
           continue
        }
 
@@ -1046,7 +1046,7 @@ proc install_qmaster {} {
                puts "-->testsuite: press RETURN (USING_GID_RANGE_HIT_RETURN)"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -1056,7 +1056,7 @@ proc install_qmaster {} {
                puts "-->testsuite: press RETURN (HIT_RETURN_TO_CONTINUE)"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
      
@@ -1066,7 +1066,7 @@ proc install_qmaster {} {
                puts "-->testsuite: press RETURN (CURRENT_GRID_ROOT_DIRECTORY)"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -1078,7 +1078,7 @@ proc install_qmaster {} {
                puts "-->testsuite: press RETURN (CELL_NAME_FOR_QMASTER)"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id $input
+          ts_send $sp_id $input
           continue
        }
 
@@ -1088,7 +1088,7 @@ proc install_qmaster {} {
                puts "-->testsuite: press RETURN (WE_CONFIGURE_WITH_X_SETTINGS)"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "\n"
+          ts_send $sp_id "\n"
           continue
        }
 
@@ -1105,7 +1105,7 @@ proc install_qmaster {} {
             puts "press RETURN"
             set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$answer\n"
+          ts_send $sp_id "$answer\n"
           continue
        }
        -i $sp_id $CSP_COPY_CMD {
@@ -1114,7 +1114,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id "$ANSWER_YES\n"
+          ts_send $sp_id "$ANSWER_YES\n"
           continue
        }
        -i $sp_id $CSP_COPY_FAILED {
@@ -1123,7 +1123,6 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id ""
           add_proc_error "csp_copy_failure" "-3" "We received a failure during copy of certificates. This appears, when the\nrcp/scp command fails!"
           continue
        }
@@ -1133,7 +1132,6 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          send -i $sp_id ""
           add_proc_error "rsh_failure" "-3" "We received a rsh/ssh failure. This error happends, if the rsh/ssh connection\nto any executio host was not possible, due to the missing permissions for user\nroot to connect via rsh/ssh without entering a password. This warning shows,\nthat the tested error handling code is working. To prevent this warning make\nsure the you qmaster host allows rsh/ssh connction for root without asking for\na password." 
           continue
        }

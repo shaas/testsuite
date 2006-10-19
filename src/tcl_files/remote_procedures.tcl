@@ -54,6 +54,33 @@ set rlogin_max_open_connections [expr ($descriptors - 15) / 3]
 puts "    * rlogin_max_open_connections = $rlogin_max_open_connections"
 puts "    *********************************************"
 
+proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
+   set catch_return [catch {
+      if {$passwd} {
+         set send_human {.05 .1 1 .01 1}
+         send -i $spawn_id -h -- $message
+      } else {
+         # if no hostname is passed, try to figure it out from spawn_id
+         if {$host == ""} {
+            set host [get_spawn_id_hostname $spawn_id]
+         }
+
+         # get host specific send delay
+         set delay [host_conf_get_send_speed $host]
+         if {$delay > 0.0} {
+            set send_slow "1 $delay"
+            send -i $spawn_id -s -- $message
+         } else {
+            send -i $spawn_id -- $message
+         }
+      }
+   } catch_output]
+
+   if {$catch_return != 0} {
+      add_proc_error "ts_send" -1 "send failed:\n$catch_output" $raise_error
+   }
+}
+
 # procedures
 #                                                             max. column:     |
 #****** remote_procedures/setup_qping_dump() ***********************************
@@ -1330,7 +1357,7 @@ proc open_remote_spawn_process { hostname
                      if {$num_tries < 77} {
                         puts -nonewline $CHECK_OUTPUT "."
                         flush $CHECK_OUTPUT
-                        send -i $spawn_id -- "\n"
+                        ts_send $spawn_id "\n" $hostname
                      }
                      increase_timeout
                      exp_continue
@@ -1344,20 +1371,20 @@ proc open_remote_spawn_process { hostname
                      add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
                   } else {
-                     send -i $spawn_id -- "$passwd\n"
+                     ts_send $spawn_id "$passwd\n" $hostname 1
                      exp_continue
                   }
                }
                -i $spawn_id "The authenticity of host*" {
-                  send -i $spawn_id -- "yes\n"
+                  ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id "Are you sure you want to continue connecting (yes/no)?*" {
-                  send -i $spawn_id -- "yes\n"
+                  ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id "Please type 'yes' or 'no'*" {
-                  send -i $spawn_id -- "yes\n"
+                  ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id "in.rlogind: Forkpty: Permission denied." {
@@ -1389,7 +1416,7 @@ proc open_remote_spawn_process { hostname
          set catch_return [catch {
             set num_tries $nr_of_tries
             # try to start the shell_start_output.sh script
-            send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n"
+            ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n" $hostname
             set timeout 2
             expect {
                -i $spawn_id eof {
@@ -1404,13 +1431,13 @@ proc open_remote_spawn_process { hostname
                   incr num_tries -1
                   if {$num_tries > 0} {
                      # try to restart the shell_start_output.sh script
-                     send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n"
+                     ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n" $hostname
                      increase_timeout
                      exp_continue
                   } else {
                      # final timeout
                      add_proc_error "open_remote_spawn_process (shell_response)" -2 "${error_info}\ntimeout" $raise_error
-                     send -i $spawn_id -- "\003" ;# send CTRL+C to stop poss. running processes
+                     ts_send $spawn_id "\003" $hostname ;# send CTRL+C to stop poss. running processes
                      set connect_errors 1
                   }
                   
@@ -1420,20 +1447,20 @@ proc open_remote_spawn_process { hostname
                      add_proc_error "open_remote_spawn_process (shell_response)" -2 "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
                   } else {
-                     send -i $spawn_id -- "$passwd\n"
+                     ts_send $spawn_id "$passwd\n" $hostname 1
                      exp_continue
                   }
                }
                -i $spawn_id "The authenticity of host*" {
-                  send -i $spawn_id -- "yes\n"
+                  ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id "Are you sure you want to continue connecting (yes/no)?*" {
-                  send -i $spawn_id -- "yes\n"
+                  ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id "Please type 'yes' or 'no'*" {
-                  send -i $spawn_id -- "yes\n"
+                  ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id "ts_shell_response*\n" {
@@ -1465,7 +1492,7 @@ proc open_remote_spawn_process { hostname
       # now we know that we have a connection and can start a shell script
       # try to check login id
       set catch_return [ catch {
-         send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n"
+         ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
          set num_tries $nr_of_tries
          set timeout 2
          expect {
@@ -1480,13 +1507,13 @@ proc open_remote_spawn_process { hostname
             -i $spawn_id timeout {
                incr num_tries -1
                if {$num_tries > 0} {
-                  send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n"
+                  ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
                   increase_timeout
                   exp_continue
                } else {
                   # final timeout
                   add_proc_error "open_remote_spawn_process (identity)" -2 "${error_info}\nshell doesn't start or runs not as user $CHECK_USER on host $hostname"  $raise_error
-                  send -i $spawn_id -- "\003" ;# send CTRL+C to stop poss. running processes
+                  ts_send $spawn_id "\003" $hostname ;# send CTRL+C to stop poss. running processes
                   set connect_errors 1
                }
              }
@@ -1521,15 +1548,15 @@ proc open_remote_spawn_process { hostname
          set catch_return [ catch {
             if {[have_ssh_access]} {
                debug_puts "have ssh root access - switching to $real_user"
-               send -i $spawn_id -- "su - $real_user\n"
+               ts_send $spawn_id "su - $real_user\n" $hostname
             } else {
                # we had rlogin access and are CHECK_USER
                if {$real_user == "root"} {
                   debug_puts "switching to root user"
-                  send -i $spawn_id -- "su - root\n"
+                  ts_send $spawn_id "su - root\n" $hostname
                } else {
                   debug_puts "switching to $real_user user"
-                  send -i $spawn_id -- "su - root -c 'su - $real_user'\n" 
+                  ts_send $spawn_id "su - root -c 'su - $real_user'\n"  $hostname
                }
             }
             incr nr_of_shells 1
@@ -1553,8 +1580,7 @@ proc open_remote_spawn_process { hostname
                   -i $spawn_id "assword:" {
                      after 500
                      log_user 0
-                     set send_slow "1 .1"
-                     send -i $spawn_id -s -- "[get_root_passwd]\n"
+                     ts_send $spawn_id "[get_root_passwd]\n" $hostname 1
                      debug_puts "root password sent" 
                      if {$CHECK_DEBUG_LEVEL != 0} {
                         log_user 1
@@ -1577,7 +1603,7 @@ proc open_remote_spawn_process { hostname
          # now we should have the id of the target user
          # check login id
          set catch_return [catch {
-            send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n"
+            ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
             set num_tries $nr_of_tries
             set timeout 2
             expect {
@@ -1592,13 +1618,13 @@ proc open_remote_spawn_process { hostname
                -i $spawn_id timeout {
                   incr num_tries -1
                   if {$num_tries > 0} {
-                     send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n"
+                     ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
                      increase_timeout
                      exp_continue
                   } else {
                      # final timeout
                      add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nshell doesn't start or runs not as user $real_user on host $hostname"  $raise_error
-                     send -i $spawn_id -- "\003" ;# send CTRL+C to stop poss. still running processes
+                     ts_send $spawn_id "\003" $hostname ;# send CTRL+C to stop poss. still running processes
                      set connect_errors 1
                   }
                }
@@ -1637,8 +1663,8 @@ proc open_remote_spawn_process { hostname
 
       # autocorrection and autologout might make problems
       set catch_return [catch {
-         send -i $spawn_id -- "unset autologout\n"
-         send -i $spawn_id -- "unset correct\n"
+         ts_send $spawn_id "unset autologout\n" $hostname
+         ts_send $spawn_id "unset correct\n" $hostname
          # JG: TODO: what if the target user has a sh/ksh/bash?
       } catch_error_message]
       if {$catch_return == 1} {
@@ -1655,7 +1681,7 @@ proc open_remote_spawn_process { hostname
    if {$re_use_script == 0} {
       set catch_return [catch {
          debug_puts "checking remote file access ..."
-         send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/file_check.sh $script_name\n"
+         ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/file_check.sh $script_name\n" $hostname
          set connect_errors 0
          set num_tries $nr_of_tries
          set timeout 2
@@ -1671,7 +1697,7 @@ proc open_remote_spawn_process { hostname
             -i $spawn_id timeout {
                incr num_tries -1
                if {$num_tries > 0} {
-                  send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/file_check.sh $script_name\n"
+                  ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/file_check.sh $script_name\n" $hostname
                   increase_timeout
                   exp_continue
                } else {
@@ -1711,7 +1737,7 @@ proc open_remote_spawn_process { hostname
    # now start the commmand and set the connection to busy
    debug_puts "\"$hostname\"($user): starting command: $exec_command $exec_arguments"
    set catch_return [catch {
-      send -i $spawn_id -- "$script_name\n"
+      ts_send $spawn_id "$script_name\n" $hostname
       set_spawn_process_in_use $spawn_id
    } catch_error_message]
    if {$catch_return == 1} {
@@ -2333,6 +2359,16 @@ proc get_spawn_id_rlogin_session {spawn_id back_var} {
    return 1 
 }
 
+proc get_spawn_id_hostname {spawn_id} {
+   global rlogin_spawn_session_buffer
+
+   if {[info exists rlogin_spawn_session_buffer($spawn_id,hostname)]} {
+      return $rlogin_spawn_session_buffer($spawn_id,hostname)
+   } else {
+      return ""
+   }
+}
+
 #****** remote_procedures/close_open_rlogin_sessions() *************************
 #  NAME
 #     close_open_rlogin_sessions() -- close all open rlogin sessions
@@ -2418,17 +2454,18 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
    # perform the following test:
    # - start the check_identity.sh script
    # - wait for correct output
+   # - expect that sends may fail, pass raise_error = 0 to ts_send
    set connection_ok 0
    set catch_return [catch {
-      send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n"
+      ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname) 0 0
       set num_tries 15
       set timeout 2
       expect {
          -i $spawn_id full_buffer {
-            add_proc_error "check_rlogin_session" -2 "buffer overflow" $raise_error
+            add_proc_error "check_rlogin_session" -3 "buffer overflow" $raise_error
          }
          -i $spawn_id eof {
-            add_proc_error "check_rlogin_session" -2 "unexpected eof" $raise_error
+            add_proc_error "check_rlogin_session" -3 "unexpected eof" $raise_error
          }
          -i $spawn_id timeout {
             incr num_tries -1
@@ -2437,11 +2474,11 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
                   puts -nonewline $CHECK_OUTPUT "." 
                   flush $CHECK_OUTPUT
                }
-               send -i $spawn_id -- "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n"
+               ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname) 0 0
                increase_timeout
                exp_continue
             } else {
-               add_proc_error "check_rlogin_session" -2 "timeout waiting for shell response" $raise_error
+               add_proc_error "check_rlogin_session" -3 "timeout waiting for shell response" $raise_error
             }
          }
          -i $spawn_id "__ my id is ->*${real_user}*\n" {
@@ -2451,7 +2488,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
       }
    } catch_error_message]
    if { $catch_return == 1 } {
-      add_proc_error "check_rlogin_session" -2 "$catch_error_message" $raise_error
+      add_proc_error "check_rlogin_session" -3 "$catch_error_message" $raise_error
    }
 
    # are we done?
@@ -2467,7 +2504,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
 
       # unregister connection
       del_open_spawn_rlogin_session $spawn_id
-      close_spawn_process "$pid $spawn_id $nr_of_shells"
+      close_spawn_process "$pid $spawn_id $nr_of_shells" 1 ;# don't check exit state
    }
 
    return 0 ;# error
@@ -2628,7 +2665,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
       # stop still remaining running processes and wait for shell prompt
       set catch_return [catch {
          debug_puts "close_spawn_process: sending CTRL-C"
-         send -i $spawn_id -- "\003" ;# CTRL-C
+         ts_send $spawn_id "\003" $con_data(hostname) ;# CTRL-C
          set timeout 2
          set num_tries 10
          expect {
@@ -2644,7 +2681,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
                incr num_tries -1
                if {$num_tries > 0} {
                   debug_puts "close_spawn_process: sending CTRL-C"
-                  send -i $spawn_id -- "\003" ;# CTRL-C
+                  ts_send $spawn_id "\003" $con_data(hostname) ;# CTRL-C
                   increase_timeout
                   exp_continue
                } else {
@@ -2671,13 +2708,16 @@ proc close_spawn_process {id {check_exit_state 0}} {
    }
 
    # we have shells to close (by sending exit)
+   # at this point, we might have a bad rlogin session,
+   # e.g. passed from check_rlogin_session.
+   # expect ts_send to fail - pass raise_error = 0
    if {$nr_of_shells > 0} {
       debug_puts "nr of open shells: $nr_of_shells"
       debug_puts "-->sending $nr_of_shells exit(s) to shell on id $spawn_id"
 
       set catch_return [catch {
          # send CTRL-C to stop poss. still running processes
-         send -i $spawn_id -- "\003"
+         ts_send $spawn_id "\003" "" 0 0
          
          # wait for CTRL-C to take effect
          set timeout 5
@@ -2699,7 +2739,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
          }
 
          # now we try to close the shells with "exit"
-         send -i $spawn_id -- "exit\n"
+         ts_send $spawn_id "exit\n" "" 0 0
          expect {
             -i $spawn_id full_buffer {
                add_proc_error "close_spawn_process (exit)" "-2" "buffer overflow"
@@ -2719,7 +2759,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
 
                # if we still have open shells, send "exit"
                if {$nr_of_shells > 0} {
-                  send -i $spawn_id -- "exit\n"
+                  ts_send $spawn_id "exit\n" "" 0 0
                   exp_continue
                } else {
                   debug_puts "all shells exited - ok"

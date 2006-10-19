@@ -281,7 +281,6 @@ proc reschedule_submit_jobs {} {
 
    
    # send qmod -r to each job
-  
    puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
    set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string" } output ]
    
@@ -418,7 +417,6 @@ proc reschedule_checkpointing {} {
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
    
    # send qmod -r to each job
-  
    puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
    set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string" } output ]
    
@@ -512,7 +510,6 @@ proc reschedule_checkpointing_forced {} {
 
    
    # send qmod -r to each job
-  
    puts $CHECK_OUTPUT "sending qmod -f -r to jobs $jobs_string"   
    set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -f -r $jobs_string" } output ]
    
@@ -640,7 +637,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
           add_proc_error "reschedule_qsh_qlogin_qrsh_qrlogin" -1 "qlogin error, expected login:, received $result"
       }
      
-      send -i $qlogin_spawn_id -- "$CHECK_USER\n"
+      ts_send $qlogin_spawn_id "$CHECK_USER\n" $CHECK_HOST 1
       set timeout 5
       expect {
          -i $qlogin_spawn_id eof { 
@@ -706,7 +703,6 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
 
    # send qmod -r to each job
-  
    puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
    set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string" } output ]
    puts $CHECK_OUTPUT $output
@@ -730,7 +726,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    close_spawn_process $qrsh_id2 1
    close_spawn_process $qsh_id 1
    if { $qlogin_id != -1 } {
-      send -i $qlogin_spawn_id -- "\003"
+      ts_send $qlogin_spawn_id -- "\003"
       close_spawn_process $qlogin_id 1
    }
 

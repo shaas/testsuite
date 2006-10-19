@@ -1,3 +1,10 @@
+JG-2006-10-19-0: Enhancem.: Added per host setting of a send speed used by 
+                            testsuite to send text to spawned shells.
+                            On some operation systems, a user's login shell 
+                            (esp. bash) dumps core, when testsuite sends at full
+                            speed.
+                 Review:    CR
+
 JG-2006-10-13-0: Bugfix:    wait_for_enter silently failed when file permissions
                             were incorrect.
                             This caused testsuite to go into an endless loop, if
