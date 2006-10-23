@@ -1,3 +1,12 @@
+JG-2006-10-23-0: Enhancem.: Allow to pass the current working directory to 
+                            functions 
+                            - create_shell_script
+                            - open_remote_spawn_process
+                            - start_remote_prog
+                            - start_sge_bin
+                            Fixed qconf test (qconf_add_show_delete_stnode).
+                 Review:    RD
+
 JG-2006-10-19-0: Enhancem.: Added per host setting of a send speed used by 
                             testsuite to send text to spawned shells.
                             On some operation systems, a user's login shell 

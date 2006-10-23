@@ -1017,7 +1017,7 @@ proc set_passwd {user root_host win_host} {
 
                # try to connect to host and execute "id"
                puts $CHECK_OUTPUT "--> testing $user access to host $host ..."
-               set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" 1 1 1 0]
+               set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" "" 1 1 1 0]
                puts $CHECK_OUTPUT "--> id as $user output:\n$result"
 
                # on error: allow reentering of passwd, or
@@ -1338,7 +1338,7 @@ proc send_mail { address cc subject body } {
   } else {
      set mail_args "-s \"$new_subject\" \"$address\" < \"$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp\""
   }
-  set mail_output [ start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" 1 0 ]
+  set mail_output [start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
 
   if { $prg_exit_state != 0 } {
      puts $CHECK_OUTPUT "--> send_mail - could not send mail:\n$mail_output"
@@ -1351,7 +1351,7 @@ proc send_mail { address cc subject body } {
         } else {
            set mail_args "-s \"max mail count reached\" \"$address\" < \"$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp\""
         }
-        start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" 1 0 
+        start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
         set CHECK_ENABLE_MAIL 0
      }  
   }
@@ -1658,7 +1658,6 @@ proc get_local_hostname {} {
 #     check/setup2()
 #*******************************************************************************
 proc check_executable_files {  } {
-
    global CHECK_TESTSUITE_ROOT CHECK_OUTPUT CHECK_SOURCE_DIR
 
    set filelist ""
@@ -2367,7 +2366,7 @@ proc update_ts_host_config_version { filename } {
          # convert the java home string to a version dependent one
          puts -nonewline " ... "
          set myenv(EN_QUIET) "1"
-         set java15_bin [ start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 myenv 1 0 ]
+         set java15_bin [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 "" myenv 1 0]
          if { $prg_exit_state != 0 } {
             set java15_bin "" 
          }
@@ -6719,7 +6718,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
    set compile_arch_list ""
    foreach chost $compile_hosts {
       puts $CHECK_OUTPUT "\n-> checking architecture for host $chost ..."
-      set output [ start_remote_prog $chost $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./aimk -no-mk" prg_exit_state 60 0 "" 1 0 ]
+      set output [ start_remote_prog $chost $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./aimk -no-mk" prg_exit_state 60 0 "" "" 1 0 ]
       puts $CHECK_OUTPUT "return state: $prg_exit_state"
       if { $prg_exit_state != 0 } {
          report_add_message report "error starting \"aimk -no-mk\" on host $chost"
@@ -6966,7 +6965,7 @@ proc build_distribution { arch_list } {
 
       puts $CHECK_OUTPUT "starting mk_dist $args $arch_list"
       # start mk_dist
-      set open_spawn [ open_remote_spawn_process $CHECK_HOST $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./scripts/mk_dist $args $arch_list" ]
+      set open_spawn [open_remote_spawn_process $CHECK_HOST $CHECK_USER "./scripts/mk_dist" "$args $arch_list" 0 $CHECK_SOURCE_DIR]
       set sp_id [ lindex $open_spawn 1 ]
       set timeout -1
       set done 0
@@ -7002,7 +7001,6 @@ proc install_binaries { do_only_install arch_list a_report } {
    set task_nr [ report_create_task report "install_binaries" $CHECK_HOST ]
    
    # install to $CHECK_PRODUCT_ROOT
-   set var_name "SGE_ROOT"
    if { $ts_config(gridengine_version) == 53 } {
       if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0 } {
          set link_name "myinst"
@@ -7012,7 +7010,6 @@ proc install_binaries { do_only_install arch_list a_report } {
          set sgeee_param ""
       }
    }
-   report_task_add_message report $task_nr "\nusing environment variable \"$var_name\""
 
    # copy pos. host_aliases file to trash_
    if { [ file isfile "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases"] == 1 } {
@@ -7048,11 +7045,12 @@ proc install_binaries { do_only_install arch_list a_report } {
 
  
    report_task_add_message report $task_nr "\ninstalling product binaries"
-   
+  
+   set inst_env(SGE_ROOT) $ts_config(product_root)
    if { $ts_config(gridengine_version) == 53 } {
-      set open_spawn [ open_remote_spawn_process $CHECK_HOST $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; $var_name=$CHECK_PRODUCT_ROOT ; export $var_name ; ./$link_name $sgeee_param $CHECK_DIST_INSTALL_OPTIONS $arch_list" ]
+      set open_spawn [open_remote_spawn_process $CHECK_HOST $CHECK_USER "./$link_name" "$sgeee_param $CHECK_DIST_INSTALL_OPTIONS $arch_list" 0 $CHECK_SOURCE_DIR inst_env]
    } else {
-      set open_spawn [ open_remote_spawn_process $CHECK_HOST $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; $var_name=$CHECK_PRODUCT_ROOT ; export $var_name ; ./scripts/distinst -local -noexit $CHECK_DIST_INSTALL_OPTIONS $arch_list" ]
+      set open_spawn [open_remote_spawn_process $CHECK_HOST $CHECK_USER "./scripts/distinst" "-local -noexit $CHECK_DIST_INSTALL_OPTIONS $arch_list" 0 $CHECK_SOURCE_DIR inst_env]
    }
    set sp_id [ lindex $open_spawn 1 ]
    set timeout -1
@@ -7196,7 +7194,7 @@ proc compile_with_aimk { host_list a_report task_name { aimk_options "" }  } {
       set par2 "-DDAILY_BUILD_NUMBER=$build_number $my_compile_options"
       
       puts $CHECK_OUTPUT "$prog $par1 '$par2'"
-      set open_spawn [ open_remote_spawn_process $elem $CHECK_USER $prog "$par1 '$par2'" 0 "" 0 ]
+      set open_spawn [open_remote_spawn_process $elem $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0]
       set spawn_id [lindex $open_spawn 1]
       
       set host_array($spawn_id,host) $elem
@@ -7418,7 +7416,7 @@ proc update_source { a_report } {
          report_task_add_message report $task_nr "$tries. cvs update try ..."
          report_task_add_message report $task_nr "updating gridengine directory $CHECK_SOURCE_DIR/.. on host $CHECK_SOURCE_HOSTNAME ..."
          
-         set open_spawn [ open_remote_spawn_process $CHECK_SOURCE_HOSTNAME $CHECK_USER "cd" "$CHECK_SOURCE_DIR/.. ; cvs -q -z 9 update -dP"]
+         set open_spawn [open_remote_spawn_process $CHECK_SOURCE_HOSTNAME $CHECK_USER "cvs" "-q -z 9 update -dP" 0 "$CHECK_SOURCE_DIR/.."]
          set spawn_list [lindex $open_spawn 1]
          
          set frame_work_script_update 0
@@ -7586,7 +7584,7 @@ proc compile_depend { compile_hosts a_report } {
    
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting scripts/zerodepend on host $depend_host_name ..."
-   set output [ start_remote_prog $depend_host_name $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; scripts/zerodepend" prg_exit_state 60 0 "" 1 0 ]
+   set output [start_remote_prog $depend_host_name $CHECK_USER "scripts/zerodepend" "" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "return state: $prg_exit_state"
    report_task_add_message report $task_nr "------------------------------------------"
@@ -7607,7 +7605,7 @@ proc compile_depend { compile_hosts a_report } {
    set my_compile_options [get_compile_options_string]
    report_task_add_message report $task_nr "-> starting aimk -only-depend on host $depend_host_name ..."
 
-   set output [ start_remote_prog $depend_host_name $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./aimk -only-depend" prg_exit_state 60 0 "" 1 0 ]
+   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "-only-depend" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0 ]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "return state: $prg_exit_state"
    report_task_add_message report $task_nr "------------------------------------------"
@@ -7625,7 +7623,7 @@ proc compile_depend { compile_hosts a_report } {
    set task_nr [report_create_task report "depend" $depend_host_name]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting aimk $my_compile_options depend on host $depend_host_name ..."
-   set output [ start_remote_prog $depend_host_name $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./aimk $my_compile_options depend" prg_exit_state 60 0 "" 1 0 ]
+   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "$my_compile_options depend" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "return state: $prg_exit_state"
    report_task_add_message report $task_nr "------------------------------------------"

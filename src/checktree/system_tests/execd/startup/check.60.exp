@@ -226,7 +226,7 @@ proc startup_execd_test1 {} {
 #      set remote_arch [ resolve_arch $hostname ]
 #
 #      set execd_envirnoment(SGE_EXECD_PORT) $reserved_execd_port
-#      set output [start_remote_prog "$hostname" "root" "$ts_config(product_root)/bin/$remote_arch/sge_execd" ""  prg_exit_state 60 0 execd_envirnoment ]
+#      set output [start_remote_prog "$hostname" "root" "$ts_config(product_root)/bin/$remote_arch/sge_execd" ""  prg_exit_state 60 0 "" execd_envirnoment]
 #      set end_time [timestamp]
 #
 #      set run_time [ expr ( $end_time - $start_time ) ]

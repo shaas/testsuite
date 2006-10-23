@@ -447,7 +447,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    puts $test_file "set terminal gif" 
    flush $test_file
    close $test_file
-   set result [start_remote_prog $CHECK_HOST $CHECK_USER gnuplot $test_file_name prg_exit_state 60 0 "" 1 0 0]
+   set result [start_remote_prog $CHECK_HOST $CHECK_USER gnuplot $test_file_name prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state != 0 } {
       puts $CHECK_OUTPUT "gnuplot does not support gif terminal, using png terminal ..."
       set terminal_type "png"
@@ -476,7 +476,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    }
    close $cmd_file
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_USER gnuplot $command_file prg_exit_state 60 0 "" 1 0 0]
+   set result [start_remote_prog $CHECK_HOST $CHECK_USER gnuplot $command_file prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state == 0 } {
       return $data(output_file)
    } else {
@@ -1589,6 +1589,7 @@ proc del_job_files { jobid job_output_directory expected_file_count } {
 #     host                       - host on which the script will run
 #     exec_command               - command to execute
 #     exec_arguments             - command parameters
+#     {cd_dir ""}                - change into this directory before executing command
 #     {envlist ""}               - array with environment settings to export
 #     { script_path "/bin/sh" }  - path to script binary (default "/bin/sh")
 #     { no_setup 0 }             - if 0 (default): full testsuite framework script
@@ -1612,16 +1613,17 @@ proc del_job_files { jobid job_output_directory expected_file_count } {
 #     file_procedures/get_dir_names
 #     file_procedures/create_path_aliasing_file()
 #*******************************************************************************
-proc create_shell_script { scriptfile 
-                           host 
-                           exec_command 
-                           exec_arguments 
-                           { envlist ""} 
-                           { script_path "/bin/sh" } 
-                           { no_setup 0 } 
-                           { source_settings_file 1 } 
-                           { set_shared_lib_path 1 }
-                           { without_start_output 0 }
+proc create_shell_script { scriptfile
+                           host
+                           exec_command
+                           exec_arguments
+                           {cd_dir ""}
+                           {envlist ""}
+                           {script_path "/bin/sh"}
+                           {no_setup 0}
+                           {source_settings_file 1}
+                           {set_shared_lib_path 1}
+                           {without_start_output 0}
                          } {
    global ts_config
    global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
@@ -1708,6 +1710,13 @@ proc create_shell_script { scriptfile
 #      puts $script "SGE_LONG_QNAMES=40"
 #      puts $script "export SGE_LONG_QNAMES"
 
+      # change directory, if requested
+      if {$cd_dir != ""} {
+         puts $script "# change into working directory"
+         puts $script "cd $cd_dir"
+         puts $script ""
+      }
+
       set user_env_names [array names users_env]
       if { [llength $user_env_names] > 0 } {
          puts $script "# setting users environment variables"
@@ -1718,6 +1727,7 @@ proc create_shell_script { scriptfile
             puts $script "export ${u_env}"
          }
       }
+
       if { $without_start_output == 0 } {
          puts $script "echo \"_start_mark_:(\$?)\""
       }
@@ -1781,7 +1791,7 @@ proc get_file_content { host user file { file_a "file_array" } } {
 
    set program "cat"
    set program_arg $file
-   set output [ start_remote_prog $host $user $program $program_arg]
+   set output [start_remote_prog $host $user $program $program_arg]
    set lcounter 0
    if { $prg_exit_state != 0 } {
       add_proc_error "get_file_content" -1 "\'cat\' returned error: $output"
@@ -2030,7 +2040,7 @@ proc check_local_spool_directories { { do_delete 0 } } {
          set my_spool_dir "no_spool_dir_defined"
       }
       puts $CHECK_OUTPUT "checking testsuite spool root dir ($my_spool_dir) ..."
-      set result [start_remote_prog $host "root" "du" "-k -s $my_spool_dir/" prg_exit_state 120 ]
+      set result [start_remote_prog $host "root" "du" "-k -s $my_spool_dir/" prg_exit_state 120]
       puts $CHECK_OUTPUT $result
       set testsuite($host,spooldir_size) [lindex $result 0]
       set testsuite($host,spooldir_size,state) $prg_exit_state
@@ -2159,7 +2169,7 @@ proc cleanup_spool_dir_for_host {hostname topleveldir subdir} {
 # return 0 if not
 # return 1 if is directory
 proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
-  start_remote_prog $hostname "ts_def_con2" "cd" "$dir" prg_exit_state 60 0 "" 1 0 1 1 $win_local_user
+  start_remote_prog $hostname "ts_def_con2" "cd" "$dir" prg_exit_state 60 0 "" "" 1 0 1 1 $win_local_user
   if { $prg_exit_state == 0 } {
      return 1  
   }
@@ -2167,7 +2177,7 @@ proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
 }
 
 proc remote_file_mkdir {hostname dir {win_local_user 0}} {
-  start_remote_prog $hostname "ts_def_con2" "mkdir" "-p $dir" prg_exit_state 60 0 "" 1 0 1 1 $win_local_user
+  start_remote_prog $hostname "ts_def_con2" "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 1 1 $win_local_user
 }
 
 proc check_for_core_files {hostname path} {
@@ -2181,7 +2191,7 @@ proc check_for_core_files {hostname path} {
    }
 
    # try to find core files in path
-   set core_files [start_remote_prog $hostname "ts_def_con2" "find" "$path -name core -print" prg_exit_state 60 0 "" 1 0 1 1 1]
+   set core_files [start_remote_prog $hostname "ts_def_con2" "find" "$path -name core -print" prg_exit_state 60 0 "" "" 1 0 1 1 1]
    if { $prg_exit_state != 0 } {
       add_proc_error "check_for_core_files" -1 "find core files in directory $path on host $hostname failed: $core_files"
    } else {
@@ -2200,7 +2210,7 @@ proc check_for_core_files {hostname path} {
             }
 
             # get file info of core file
-            set core_info [start_remote_prog $hostname "root" "file" "$core" prg_exit_state 60 0 "" 1 0 1]
+            set core_info [start_remote_prog $hostname "root" "file" "$core" prg_exit_state 60 0 "" "" 1 0 1]
             if {$prg_exit_state != 0} {
                add_proc_error "check_for_core_files" -1 "determining file type of core file $core on host $hostname failed: $core_info"
             } else {
@@ -2209,7 +2219,7 @@ proc check_for_core_files {hostname path} {
 
             # chown core to $CHECK_USER.
             puts $CHECK_OUTPUT "changing owner of core file $core to $CHECK_USER"
-            set output [start_remote_prog $hostname "root" "chown" "$CHECK_USER $core" prg_exit_state 60 0 "" 1 0 1]
+            set output [start_remote_prog $hostname "root" "chown" "$CHECK_USER $core" prg_exit_state 60 0 "" "" 1 0 1]
             if {$prg_exit_state != 0} {
                add_proc_error "check_for_core_files" -1 "changing owner of core file $core on host $hostname failed: $output"
             }
@@ -2244,18 +2254,18 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
       set new_name [file tail $path] 
 
       # we move the directory as CHECK_USER (admin user)
-      start_remote_prog $hostname "ts_def_con2" "mv" "$path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" 1 0 1 1 $win_local_user
+      start_remote_prog $hostname "ts_def_con2" "mv" "$path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "delete_directory - mv error"
          puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
-         start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" 1 0 1 1 $win_local_user
+         start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder"
             add_proc_error "remote_delete_directory" -1 "$hostname: could not mv/cp directory \"$path\" to trash folder"
             set return_value -1
          } else { 
             puts $CHECK_OUTPUT "copy ok -  removing directory"
-            start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" 1 0 1 1 $win_local_user
+            start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
             if { $prg_exit_state != 0 } {
                puts $CHECK_OUTPUT "could not remove directory \"$path\""
                add_proc_error "remote_delete_directory" -1 "$hostname: could not remove directory \"$path\""
@@ -2520,7 +2530,7 @@ proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} 
    set my_mytimeout [ expr ( [timestamp] + $mytimeout ) ] 
 
    while { $is_ok == 0 } {
-      set output [ start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" 0]
+      set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0]
       if { $to_go_away == 0 } {
          if { $prg_exit_state == 0 } {
             set is_ok 1
@@ -2583,7 +2593,7 @@ proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} 
 proc is_remote_file { hostname user path } {
    global CHECK_OUTPUT
 
-   set output [ start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" 0]
+   set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0]
    if { $prg_exit_state == 0 } {
       puts $CHECK_OUTPUT "found file: $hostname:$path"
       return 1;
@@ -2625,7 +2635,7 @@ proc delete_remote_file {hostname user path {win_local_user 0}} {
 
    if { [is_remote_file $hostname $user $path ] } {
       puts $CHECK_OUTPUT "deleting file $path on host $hostname ..."
-      set output [ start_remote_prog $hostname $user "rm" "$path" prg_exit_state 60 0 "" 0 0 0 1 $win_local_user]
+      set output [start_remote_prog $hostname $user "rm" "$path" prg_exit_state 60 0 "" "" 0 0 0 1 $win_local_user]
       puts $CHECK_OUTPUT $output
       wait_for_remote_file $hostname $user $path 60 1 1
    }
@@ -2687,7 +2697,7 @@ proc delete_directory { path } {
          set file_attributes [file attributes $path/$dir]
          if { [string match "*owner $CHECK_USER*" $file_attributes] != 1 } {
             puts $CHECK_OUTPUT "directory $path/$dir not owned by user $CHECK_USER"
-            start_remote_prog $CHECK_HOST "root" chown "-R $CHECK_USER $path/$dir" prg_exit_state 60 0 "" 1 0 0
+            start_remote_prog $CHECK_HOST "root" chown "-R $CHECK_USER $path/$dir" prg_exit_state 60 0 "" "" 1 0 0
             if { $prg_exit_state == 0 } {
                puts $CHECK_OUTPUT "set directory owner to $CHECK_USER"
             } else {
@@ -2704,7 +2714,7 @@ proc delete_directory { path } {
          set file_attributes [file attributes $file]
          if { [string match "*owner $CHECK_USER*" $file_attributes] != 1 } {
             puts $CHECK_OUTPUT "$file not owned by user $CHECK_USER"
-            start_remote_prog $CHECK_HOST "root" chown "$CHECK_USER $file" prg_exit_state 60 0 "" 1 0 0
+            start_remote_prog $CHECK_HOST "root" chown "$CHECK_USER $file" prg_exit_state 60 0 "" "" 1 0 0
             if { $prg_exit_state == 0 } {
                puts $CHECK_OUTPUT "set file owner to $CHECK_USER"
             } else {
@@ -2783,7 +2793,7 @@ proc init_logfile_wait { hostname logfile  } {
    global CHECK_OUTPUT
    global file_procedure_logfile_wait_sp_id
 
-   set sid [ open_remote_spawn_process $hostname "ts_def_con" "tail" "-f $logfile"]
+   set sid [open_remote_spawn_process $hostname "ts_def_con" "tail" "-f $logfile"]
    set sp_id [lindex $sid 1]
    set timeout 5
    puts $CHECK_OUTPUT "spawn id: $sp_id"

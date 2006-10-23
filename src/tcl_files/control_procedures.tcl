@@ -287,7 +287,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 
    debug_puts "using EDITOR=$vi_env(EDITOR)"
    # start program (e.g. qconf)
-   set id [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $prog_binary "$prog_args" 0 vi_env]
+   set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER $prog_binary "$prog_args" 0 "" vi_env]
    set sp_id [ lindex $id 1 ] 
    if {$CHECK_DEBUG_LEVEL != 0} {
       log_user 1
@@ -950,7 +950,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "solaris" -
       "sol-sparc" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-e -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"s=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"args=_____args\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-e -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"s=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"args=_____args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args"
          set pid_pos     0
          set gid_pos     1
@@ -967,7 +967,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "darwin-ppc" -
       "darwin-x86" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-awwx -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"state=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"command=_____args\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-awwx -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"state=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"command=_____args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args"
          set pid_pos     0
          set gid_pos     1
@@ -983,7 +983,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "osf4" -
       "tru64" { 
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid ppid uid state stime vsz time args\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid ppid uid state stime vsz time args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "   PID   PGID   PPID        UID {S   } {STIME   }   VSZ        TIME COMMAND"
          set pid_pos     0
          set gid_pos     1
@@ -999,7 +999,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "irix6" -
       "irix65" { 
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid,pgid,ppid,uid=LONGUID,state,stime,vsz,time,args\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid,pgid,ppid,uid=LONGUID,state,stime,vsz,time,args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "  PID  PGID  PPID LONGUID S    STIME {VSZ   }        TIME COMMAND"
          set pid_pos     0
          set gid_pos     1
@@ -1015,7 +1015,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "aix43" -
       "aix51" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid=BIG_AIX_PGID ppid=BIG_AIX_PPID uid=BIG_AIX_UID stat=AIXSTATE started vsz=BIG_AIX_VSZ time args\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid=BIG_AIX_PGID ppid=BIG_AIX_PPID uid=BIG_AIX_UID stat=AIXSTATE started vsz=BIG_AIX_VSZ time args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "  PID BIG_AIX_PGID BIG_AIX_PPID BIG_AIX_UID AIXSTATE  STARTED BIG_AIX_VSZ        TIME COMMAND"
          set pid_pos     0
          set gid_pos     1
@@ -1032,7 +1032,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "aix42"   {
          set myenvironment(COLUMNS) "500"
 
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid=BIG_AIX_PGID ppid=BIG_AIX_PPID uid=BIG_AIX_UID stat=AIXSTATE started vsz=BIG_AIX_VSZ time args\"" prg_exit_state 60 0 myenvironment ]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid=BIG_AIX_PGID ppid=BIG_AIX_PPID uid=BIG_AIX_UID stat=AIXSTATE started vsz=BIG_AIX_VSZ time args\"" prg_exit_state 60 0 "" myenvironment ]
          set index_names "  PID BIG_AIX_PGID BIG_AIX_PPID BIG_AIX_UID AIXSTATE  STARTED BIG_AIX_VSZ        TIME COMMAND"
          set pid_pos     0
          set gid_pos     1
@@ -1049,7 +1049,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "hp10" -
       "hp11" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efl" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efl" prg_exit_state 60 0 "" myenvironment]
          set index_names "  F S      UID   PID  PPID  C PRI NI     ADDR   SZ    WCHAN    STIME {TTY   }    TIME COMD"
          set pid_pos     3
          set gid_pos     -1
@@ -1065,7 +1065,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "hp11-64" {
          set myenvironment(COLUMNS) "500"
          set myenvironment(UNIX95)  ""
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid gid ppid uid state stime vsz time args\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid gid ppid uid state stime vsz time args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "  PID        GID  PPID        UID S    STIME     VSZ     TIME COMMAND"
          set pid_pos     0
          set gid_pos     1
@@ -1090,7 +1090,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       "lx24-sparc64" - 
       "lx26-sparc64" {
          set myenvironment(COLUMNS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-weo \"pid pgid ppid uid=BIGGERUID s stime vsz time args\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-weo \"pid pgid ppid uid=BIGGERUID s stime vsz time args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "  PID  PGID  PPID BIGGERUID S STIME   VSZ     TIME COMMAND"
          set pid_pos     0
          set gid_pos     1
@@ -1109,7 +1109,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
          if { $additional_run == 0 } {
             # this is the first ps without any size position
             set myenvironment(COLUMNS) "500"
-            set result [start_remote_prog "$host" "$CHECK_USER" "ps" "xajw" prg_exit_state 60 0 myenvironment]  
+            set result [start_remote_prog "$host" "$CHECK_USER" "ps" "xajw" prg_exit_state 60 0 "" myenvironment]
             #                   0     1    2      3   4    5      6   7     8     9  
             set index_names " PPID   PID  PGID   SID TTY TPGID  STAT  UID   TIME COMMAND"
             set pid_pos     1
@@ -1125,7 +1125,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
          if { $additional_run == 1 } {
             # this is the first ps without any size position
             set myenvironment(COLUMNS) "500"
-            set result [start_remote_prog "$host" "$CHECK_USER" "ps" "waux" prg_exit_state 60 0 myenvironment]  
+            set result [start_remote_prog "$host" "$CHECK_USER" "ps" "waux" prg_exit_state 60 0 "" myenvironment]
             #                   0       1    2    3     4      5   6   7    8       9   10
             set index_names "{USER    }   PID %CPU %MEM  SIZE   RSS TTY STAT START   TIME COMMAND"
             set pid_pos     1
@@ -1142,7 +1142,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
 
       "win32-x86" {
          set myenvironment(COLUMS) "500"
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efo pid,group=\"GROUPNAMEGROUPNAMEGROUPNAME\",ppid,user=\"FULLUSERNAMEFULLUSERNAMEFULLUSERNAME\",state,stime,vsz,time,comm=\"COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND\"" prg_exit_state 60 0 myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efo pid,group=\"GROUPNAMEGROUPNAMEGROUPNAME\",ppid,user=\"FULLUSERNAMEFULLUSERNAMEFULLUSERNAME\",state,stime,vsz,time,comm=\"COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "   PID GROUPNAMEGROUPNAMEGROUPNAME   PPID FULLUSERNAMEFULLUSERNAMEFULLUSERNAME STATE       STIME    VSZ     TIME COMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMANDCOMMAND"
          set pid_pos     0
          set gid_pos     1
@@ -1542,7 +1542,7 @@ proc resolve_arch {{node "none"} {use_source_arch 0}} {
    }
 
    # try to retrieve architecture
-   set result [start_remote_prog $host $CHECK_USER $arch_script "" prg_exit_state 60 0 "" 1 0 0]
+   set result [start_remote_prog $host $CHECK_USER $arch_script "" prg_exit_state 60 0 "" "" 1 0 0]
    if {$prg_exit_state != 0} {
       return "unknown"
    }
@@ -1645,7 +1645,7 @@ proc resolve_build_arch { host } {
      return $build_arch_cache($host)
   }
 
-  set result [ start_remote_prog $host $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./aimk -no-mk" prg_exit_state 60 0 "" 1 0]
+  set result [start_remote_prog $host $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./aimk -no-mk" prg_exit_state 60 0 "" "" 1 0]
  
   set result [split $result "\n"]
   set result [join $result ""]
@@ -1742,7 +1742,7 @@ proc resolve_host { name { long 0 } } {
 
    set remote_arch [ resolve_arch $ts_config(master_host) ]
 
-   set result [ start_remote_prog $ts_config(master_host) "ts_def_con_translate" "$ts_config(product_root)/utilbin/$remote_arch/gethostbyname" "-aname $name" prg_exit_state 60 0 "" 0 ]
+   set result [start_remote_prog $ts_config(master_host) "ts_def_con_translate" "$ts_config(product_root)/utilbin/$remote_arch/gethostbyname" "-aname $name" prg_exit_state 60 0 "" "" 0]
 
   if { $prg_exit_state != 0 } {
      puts $CHECK_OUTPUT "proc resolve_host - gethostbyname error or file \"$ts_config(product_root)/utilbin/$remote_arch/gethostbyname\" not found: \n$result"

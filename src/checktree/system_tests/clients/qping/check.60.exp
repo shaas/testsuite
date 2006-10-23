@@ -198,7 +198,7 @@ proc qping_issue_1810 {} {
       puts "qping path: $CHECK_OUTPUT $qping_path"
 
       set qping_env(SGE_QPING_OUTPUT_FORMAT) "s:12"
-      set id [ open_remote_spawn_process "$host" "root" $qping_path "-dump $host $ts_config(commd_port) qmaster 1" 0 qping_env ]
+      set id [open_remote_spawn_process "$host" "root" $qping_path "-dump $host $ts_config(commd_port) qmaster 1" 0 "" qping_env]
       set sp_id [ lindex $id 1 ]
       set timeout 15
       set sirm_received 0

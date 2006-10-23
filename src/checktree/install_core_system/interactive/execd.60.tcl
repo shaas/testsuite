@@ -141,7 +141,7 @@ proc install_execd {} {
          puts $CHECK_OUTPUT "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
          if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
             set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-            set result [start_remote_prog $ts_config(master_host) "root" "cp" "$arguments" prg_exit_state 60 0 "" 1 1 1 1 1] 
+            set result [start_remote_prog $ts_config(master_host) "root" "cp" "$arguments" prg_exit_state 60 0 "" "" 1 1 1 1 1] 
             puts $CHECK_OUTPUT "result: $result"
             puts $CHECK_OUTPUT "copy exit state: $prg_exit_state" 
          } else {
@@ -177,19 +177,16 @@ proc install_execd {} {
       # windows
       set WINDOWS_HELPER_SERVICE       [translate_macro DISTINST_EXECD_WINDOWS_HELPER_SERVICE]
       
-      cd "$ts_config(product_root)"
+      puts $CHECK_OUTPUT "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options"
 
-      set prod_type_var "SGE_ROOT"
-  
-      if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-         set id [open_remote_spawn_process "$exec_host" "root"  "cd $$prod_type_var;./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
+      if {$CHECK_ADMIN_USER_SYSTEM == 0} {
+         set id [open_remote_spawn_process "$exec_host" "root"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 1 15 1 1 1]
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set id [open_remote_spawn_process "$exec_host" "$CHECK_USER"  "cd $$prod_type_var;./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
+         set id [open_remote_spawn_process "$exec_host" "$CHECK_USER"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 1 15 1 1 1]
       }
 
       log_user 1
-      puts $CHECK_OUTPUT "cd $$prod_type_var;./install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options"
 
       set sp_id [ lindex $id 1 ] 
 

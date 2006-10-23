@@ -182,22 +182,21 @@ proc install_qmaster {} {
 
  cd "$ts_config(product_root)"
 
- set prod_type_var "SGE_ROOT"
-
  set feature_install_options ""
  if { $ts_config(product_feature) == "csp" } {
     append feature_install_options "-csp"
  }
 
+ puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"
+
  if { $CHECK_ADMIN_USER_SYSTEM == 0 } {
-    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "cd $$prod_type_var;./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 1 15 1 1 1]
  } else {
     puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-    set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "cd $$prod_type_var;./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 "" 1 15 1 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 1 15 1 1 1]
  }
  set sp_id [ lindex $id 1 ] 
 
- puts $CHECK_OUTPUT "cd $$prod_type_var;./install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"
 
  set hostcount 0
  set do_log_output 0 ;# _LOG

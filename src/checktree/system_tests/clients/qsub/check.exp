@@ -257,11 +257,13 @@ proc check_submit {} {
    
    # submit from every architecture
    foreach host $ts_config(unique_arch_nodes) {
+      puts $CHECK_OUTPUT "--> submit on host $host"
       qsub_submit_check $default_args 0 "" $host
    }
 
    # submit to every architecture
    foreach host $ts_config(unique_arch_nodes) {
+      puts $CHECK_OUTPUT "--> submit to host $host"
       qsub_submit_check "-l h=${host} $default_args" 0
    }
 

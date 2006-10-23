@@ -171,8 +171,8 @@ proc drmaa_check {} {
 
             # unset SGE_ROOT and try test_drmaa -h
             puts "starting single threaded test test_drmaa -h without SGE_ROOT"
-            set test_output [ start_remote_prog $host $CHECK_USER "unset" "SGE_ROOT\n$binary_path/test_drmaa -h" \
-                  prg_exit_state 500 0 "" 0 1]
+            set test_output [start_remote_prog $host $CHECK_USER "unset" "SGE_ROOT\n$binary_path/test_drmaa -h" \
+                  prg_exit_state 500 0 "" "" 0 1]
             if { $prg_exit_state == 0 } {
                add_proc_error drmaa_check -1 "test_drmaa -h without SGE_ROOT must exit with unequal 0 at host $host"
                break
@@ -315,7 +315,7 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
    }
 
    puts $CHECK_OUTPUT "$binary_path/test_drmaa $test_name $arguments"
-   set test_output [ start_remote_prog $host $user $binary_path/test_drmaa "$test_name $arguments" prg_exit_state 500 ]
+   set test_output [start_remote_prog $host $user $binary_path/test_drmaa "$test_name $arguments" prg_exit_state 500]
 
    puts $CHECK_OUTPUT "exit status was $prg_exit_state"
    puts $CHECK_OUTPUT "output was\n$test_output"

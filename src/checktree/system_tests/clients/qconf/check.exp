@@ -1653,6 +1653,10 @@ proc qconf_add_show_delete_stnode {} {
 
    set project "mytestproject"
 
+   # Submit a dummy job to make sure we have a user list
+   # (user will be automatically created)
+   submit_job "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1"
+
    # Add users
    # Some of them might already exist - in this case we call mod_user
    get_user_list current_user_list

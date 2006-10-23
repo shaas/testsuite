@@ -486,7 +486,7 @@ proc suspend_queue { qname } {
   
   # spawn process
   set program "$ts_config(product_root)/bin/$CHECK_ARCH/qmod"
-  set sid [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-s $qname" ]
+  set sid [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-s $qname"]
   set sp_id [ lindex $sid 1 ]
   set result -1	
 
@@ -565,7 +565,7 @@ proc unsuspend_queue { queue } {
 
   # spawn process
   set program "$ts_config(product_root)/bin/$CHECK_ARCH/qmod"
-  set sid [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-us $queue" ]     
+  set sid [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-us $queue"]
   set sp_id [ lindex $sid 1 ]
   set result -1	
   log_user 0 

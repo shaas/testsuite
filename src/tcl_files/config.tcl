@@ -1101,7 +1101,7 @@ proc config_use_ssh { only_check name config_array } {
    }
 
    if {!$fast_setup} {
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"hello $CHECK_HOST\"" prg_exit_state 60 0 "" 1 0 ]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"hello $CHECK_HOST\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "rlogin/ssh to host $CHECK_HOST doesn't work correctly"
          return -1
@@ -1269,7 +1269,7 @@ proc config_source_cvs_hostname { only_check name config_array } {
 
    if {!$fast_setup} {
       set host $value
-      set result [ start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" 1 0 ]
+      set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
          return -1
@@ -1279,7 +1279,7 @@ proc config_source_cvs_hostname { only_check name config_array } {
          puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
          return -1
       }
-      set result [ start_remote_prog $host $CHECK_USER "which" "cvs" prg_exit_state 60 0 "" 1 0 ]
+      set result [start_remote_prog $host $CHECK_USER "which" "cvs" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT $result
          puts $CHECK_OUTPUT "cvs not found on host $host. Please enhance your PATH envirnoment"
@@ -1342,7 +1342,7 @@ proc config_source_cvs_release {only_check name config_array} {
    if {$actual_value == ""} {
       set value $default_value
       if {$default_value == ""} {
-         set result [start_remote_prog $CHECK_SOURCE_HOSTNAME $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" 1 0]
+         set result [start_remote_prog $CHECK_SOURCE_HOSTNAME $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
          set result [string trim $result]
          if {$prg_exit_state == 0} {
             if {[string first "T" $result] == 0} {
@@ -1369,7 +1369,7 @@ proc config_source_cvs_release {only_check name config_array} {
    } 
 
    if {!$fast_setup} {
-      set result [start_remote_prog $CHECK_SOURCE_HOSTNAME $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" 1 0]
+      set result [start_remote_prog $CHECK_SOURCE_HOSTNAME $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
       set result [string trim $result]
       if {$prg_exit_state == 0} {
          if {[string compare $result "T$value"] != 0 && [string compare $result "N$value"] != 0} {
@@ -2681,7 +2681,7 @@ proc config_dns_domain { only_check name config_array } {
    debug_puts "local host   : $CHECK_HOST"   
 
    if {!$fast_setup} {
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"hello $CHECK_HOST\"" prg_exit_state 60 0 "" 1 0 ]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"hello $CHECK_HOST\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "rlogin to host $CHECK_HOST doesn't work correctly"
          return -1
@@ -2696,7 +2696,7 @@ proc config_dns_domain { only_check name config_array } {
       set host "$CHECK_HOST.$value"
       debug_puts "hostname with dns domain: \"$host\""
 
-      set result [ start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" 1 0 ]
+      set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
          return -1
@@ -2779,7 +2779,7 @@ proc config_dns_for_install_script { only_check name config_array } {
          set host "$CHECK_HOST.$value"
          debug_puts "hostname with dns domain: \"$host\""
       
-         set result [ start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" 1 0 ]
+         set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
             return -1
@@ -2915,7 +2915,7 @@ proc config_mailx_host { only_check name config_array } {
       # only check domain if not none
       if { [string compare "none" $value] != 0 } {
          set host $value
-         set result [ start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" 1 0 ]
+         set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
             return -1
@@ -2925,7 +2925,7 @@ proc config_mailx_host { only_check name config_array } {
             puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
             return -1
          }
-         set result [ start_remote_prog $host $CHECK_USER "which" $config(mail_application) prg_exit_state 60 0 "" 1 0 ]
+         set result [start_remote_prog $host $CHECK_USER "which" $config(mail_application) prg_exit_state 60 0 "" "" 1 0]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT $result
             puts $CHECK_OUTPUT "$config(mail_application) not found on host $host. Please enhance your PATH envirnoment"

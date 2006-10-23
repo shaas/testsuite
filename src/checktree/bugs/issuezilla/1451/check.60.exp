@@ -169,15 +169,11 @@ proc issue_1451_uninstall_execd {} {
    set EXECD_UNINST_ERROR_CASE      [translate $check_execd 0 1 0 [sge_macro DISTINST_EXECD_UNINST_ERROR_CASE] ]
    set CHECK_AGAIN                  [translate $check_execd 0 1 0 [sge_macro DISTINST_CHECK_AGAIN] ]
 
-   cd "$ts_config(product_root)"
-
-   set prod_type_var "SGE_ROOT"
-   
    puts $CHECK_OUTPUT "Trying to uninstall execution host: $check_execd"
-   set id [open_remote_spawn_process "$check_execd" "root"  "cd $$prod_type_var;./inst_sge" "-ux -host \"$check_execd\"" ]
+   puts $CHECK_OUTPUT "inst_sge -ux -host $check_execd"
+   set id [open_remote_spawn_process "$check_execd" "root"  "./inst_sge" "-ux -host \"$check_execd\"" 0 $ts_config(product_root)]
 
    log_user 1
-   puts $CHECK_OUTPUT "cd $$prod_type_var;./inst_sge -ux -host $check_execd"
 
    set sp_id [ lindex $id 1 ] 
 

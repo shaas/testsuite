@@ -136,7 +136,7 @@ proc host_config_hostlist { only_check name config_array } {
                set not_ready 0
             }
             4 {
-               set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $CHECK_HOST prg_exit_state 60 0 "" 1 0]
+               set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $CHECK_HOST prg_exit_state 60 0 "" "" 1 0]
                if {$prg_exit_state == 0} {
                   set pos1 [string first $CHECK_HOST $result]
                   set ip [string range $result $pos1 end]
@@ -152,7 +152,7 @@ proc host_config_hostlist { only_check name config_array } {
                   for {set i 1} {$i <= 254} {incr i 1} {
                      set ip_run "$ip.$i"
                      puts -nonewline $CHECK_OUTPUT "\r$ip_run"
-                     set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $ip_run prg_exit_state 25 0 "" 1 0]
+                     set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $ip_run prg_exit_state 25 0 "" "" 1 0]
                      set pos1 [string first "Name:" $result]   
                      if {$pos1 >= 0} {
                         incr pos1 5
@@ -509,7 +509,7 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
    }
 
    set time [timestamp]
-   set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state 12 0 "" 1 0]
+   set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       if {$have_host == ""} {
 
@@ -519,7 +519,7 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
             puts $CHECK_OUTPUT "aborting ..."
             return -1
          }
-         set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state $result 0 "" 1 0]
+         set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state $result 0 "" "" 1 0]
       }
    }
 
@@ -537,34 +537,34 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
    lappend config(hostlist) $new_host
 
    
-   set expect_bin [start_remote_prog $new_host $CHECK_USER "which" "expect" prg_exit_state 12 0 "" 1 0]
+   set expect_bin [start_remote_prog $new_host $CHECK_USER "which" "expect" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set expect_bin "" 
    } 
-   set vim_bin [start_remote_prog $new_host $CHECK_USER "which" "vim" prg_exit_state 12 0 "" 1 0]
+   set vim_bin [start_remote_prog $new_host $CHECK_USER "which" "vim" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set vim_bin  "" 
    }
-   set tar_bin [start_remote_prog $new_host $CHECK_USER "which" "tar" prg_exit_state 12 0 "" 1 0]
+   set tar_bin [start_remote_prog $new_host $CHECK_USER "which" "tar" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set tar_bin "" 
    }
-   set gzip_bin [start_remote_prog $new_host $CHECK_USER "which" "gzip" prg_exit_state 12 0 "" 1 0]
+   set gzip_bin [start_remote_prog $new_host $CHECK_USER "which" "gzip" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set gzip_bin "" 
    }
-   set ssh_bin [start_remote_prog $new_host $CHECK_USER "which" "ssh" prg_exit_state 12 0 "" 1 0]
+   set ssh_bin [start_remote_prog $new_host $CHECK_USER "which" "ssh" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set ssh_bin "" 
    }
 
-   set java_bin [start_remote_prog $new_host $CHECK_USER "which" "java" prg_exit_state 12 0 "" 1 0]
+   set java_bin [start_remote_prog $new_host $CHECK_USER "which" "java" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set java_bin "" 
    }
 
    set myenv(EN_QUIET) "1"
-   set java15_bin [start_remote_prog $new_host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 myenv 1 0]
+   set java15_bin [start_remote_prog $new_host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 "" myenv 1 0]
 
    if {$prg_exit_state != 0} {
       set java15_bin "" 
@@ -815,7 +815,7 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
             if { [llength $value] != 0 } {
                set host_error 0
                foreach zone $value {
-                  set result [ start_remote_prog $zone $CHECK_USER "id" "" prg_exit_state 12 0 "" 1 0 ]
+                  set result [start_remote_prog $zone $CHECK_USER "id" "" prg_exit_state 12 0 "" "" 1 0]
                   if { $prg_exit_state != 0 } {
                      puts $CHECK_OUTPUT $result
                      puts $CHECK_OUTPUT "can't connect to zone $zone"
@@ -833,7 +833,7 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
 
       # check for valid file name
       if {$isfile} {
-         set result [start_remote_prog $host $CHECK_USER "ls" "$value" prg_exit_state 12 0 "" 1 0]
+         set result [start_remote_prog $host $CHECK_USER "ls" "$value" prg_exit_state 12 0 "" "" 1 0]
          if {$prg_exit_state != 0} {
             puts $CHECK_OUTPUT $result
             puts $CHECK_OUTPUT "file $value not found on host $host"
@@ -844,7 +844,7 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
       
       # check for valid directory name
       if {$isdir} {
-         set result [start_remote_prog $host $CHECK_USER "cd" "$value" prg_exit_state 12 0 "" 1 0]
+         set result [start_remote_prog $host $CHECK_USER "cd" "$value" prg_exit_state 12 0 "" "" 1 0]
          if {$prg_exit_state != 0} {
             puts $CHECK_OUTPUT $result
             puts $CHECK_OUTPUT "can't cd to directory $value on host $host"
@@ -1514,10 +1514,16 @@ proc host_conf_get_unused_host {{raise_error 1}} {
    # get a list of all hosts referenced in the cluster
    set cluster_hosts [host_conf_get_cluster_hosts]
 
-   # get a list of all configured hosts having one of the installed architectures
+   # get a list of all available architectures
    set archs [host_conf_get_archs $cluster_hosts]
-   set installed_hosts [host_conf_get_arch_hosts $archs]
+   if {$ts_config(add_compile_archs) != "none"} {
+      append archs " $ts_config(add_compile_archs)"
+   }
+   set archs [lsort -unique $archs]
 
+   # now search a host having an installed architecture
+   # and not being part of our cluster
+   set installed_hosts [host_conf_get_arch_hosts $archs]
    foreach host $installed_hosts {
       if {[lsearch -exact $cluster_hosts $host] == -1} {
          set ret $host

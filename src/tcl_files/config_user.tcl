@@ -152,7 +152,7 @@ proc user_config_first_foreign_user { only_check name config_array } {
          }
       }
       
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$value" prg_exit_state 60 0 "" 1 0]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "id $value returns error. User $value not existing?"
          return -1
@@ -230,7 +230,7 @@ proc user_config_second_foreign_user { only_check name config_array } {
             return -1
          }
       }
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$value" prg_exit_state 60 0 "" 1 0]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "id $value returns error. User $value not existing?"
          return -1
@@ -330,14 +330,14 @@ proc user_config_first_foreign_group { only_check name config_array } {
       set group1 [lindex $value 0]
       set group2 [lindex $value 1]
       
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" 1 0]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
       debug_puts $result
       if { [string first $group1 $result ] < 0 } {
          puts $CHECK_OUTPUT "first testsuite user ($CHECK_FIRST_FOREIGN_SYSTEM_USER) has not \"$group1\" as main group"
          return -1
       }
 
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "groups" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" 1 0]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "groups" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
       debug_puts $result
       if { $prg_exit_state == 0 } {
          if { [string first $group2 $result] < 0 } { 
@@ -430,7 +430,7 @@ proc user_config_second_foreign_group { only_check name config_array } {
          }
       }
 
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$CHECK_SECOND_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" 1 0]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$CHECK_SECOND_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
       debug_puts $result
       if { [string first $value $result ] < 0 && $do_nomain == 0 } {
          puts $CHECK_OUTPUT "second testsuite user ($CHECK_SECOND_FOREIGN_SYSTEM_USER) has not \"$value\" as main group"

@@ -311,7 +311,7 @@ proc qmaster_monitoring_dynamic_qping {} {
    set qping_host $ts_config(master_host)
    set qping_arch [resolve_arch $qping_host]
    puts $CHECK_OUTPUT "starting qping monitor on host $qping_host"
-   set id [ open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1"]      
+   set id [open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1"]
    
    # wait for monitoring messages - no such messages may show up
    qmaster_monitoring_monitor $id NONE 1
@@ -527,7 +527,7 @@ proc qmaster_monitoring_restart_qping {} {
    set qping_host $ts_config(master_host)
    set qping_arch [resolve_arch $qping_host]
    puts $CHECK_OUTPUT "starting qping monitor on host $qping_host"
-   set id [ open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1"]  
+   set id [open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1"]
       
    # enable some monitoring level
    set global_conf(qmaster_params) "MONITOR_TIME=0:0:1"

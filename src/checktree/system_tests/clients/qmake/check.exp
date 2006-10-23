@@ -174,7 +174,7 @@ proc qmake_submit {slots target {variables ""}} {
 
    puts $CHECK_OUTPUT "cd $CHECK_ACTUAL_TEST_PATH"
    puts $CHECK_OUTPUT "$ts_config(master_host)($CHECK_USER) submitting qmake $arguments"
-   set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "cd" "$CHECK_ACTUAL_TEST_PATH ; qmake $arguments"]
+   set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "qmake" "$arguments" 0 $CHECK_ACTUAL_TEST_PATH]
    set sp_id [lindex $id 1]
    set done 0
    while {!$done} {

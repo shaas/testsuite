@@ -220,7 +220,7 @@ proc test_job_run {id_string job_id} {
    global ts_config CHECK_OUTPUT
 
    if {$job_id < 1} {
-     add_proc_error "test_job_run" -1 "wrong job id: $job_id, id_string: $id_string\n[get_submit_error $job_id]" 
+     add_proc_error "test_job_run" -1 "$id_string, qsub failed with error code $job_id"
    } else {
       wait_for_jobpending $job_id "leeper" 60 1
 

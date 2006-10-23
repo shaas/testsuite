@@ -113,7 +113,7 @@ proc setup_qping_dump { log_array  } {
    set qping_env(SGE_QPING_OUTPUT_FORMAT) "s:1 s:2 s:3 s:4 s:5 s:6 s:7 s:8 s:9 s:10 s:11 s:12 s:13 s:14 s:15"
 
    if { $ts_config(gridengine_version) >= 60 } {
-      set sid [open_remote_spawn_process $master_host "root" $qping_binary $qping_arguments 0 qping_env]
+      set sid [open_remote_spawn_process $master_host "root" $qping_binary $qping_arguments 0 "" qping_env]
       set sp_id [lindex $sid 1]
    } else {
       set sid   "unsupported version < 60"
@@ -430,7 +430,7 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
    debug_puts "remote_args: $remote_args"
    log_user 1
 
-   set result [ start_remote_prog "$host" "$user" "$tcl_prog" "$remote_args" prg_exit_state 600 0 "" 1 0 1]
+   set result [start_remote_prog "$host" "$user" "$tcl_prog" "$remote_args" prg_exit_state 600 0 "" "" 1 0 1]
    if { [string first "Error in procedure" $result] >= 0 } {
       add_proc_error "start_remote_tcl_prog" -2 "error in $tcl_file, proc $tcl_procedure $tcl_procargs"
    }
@@ -466,7 +466,8 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
 #     {mytimeout 60}            - problem timeout (for connection building)
 #     {background 0}            - if not 0 -> start remote prog in background
 #                                 this will always take 15 seconds 
-#     {envlist}                 - array with environment settings to export
+#     {cd_dir ""}               - directory to cd to before executing command
+#     {envlist ""}              - array with environment settings to export
 #                                 before starting program
 #     { do_file_check 1 }       - internal parameter for file existence check
 #                                 if 0: don't do a file existence check
@@ -497,6 +498,7 @@ proc start_remote_prog { hostname
                          {exit_var prg_exit_state} 
                          {mytimeout 60} 
                          {background 0} 
+                         {cd_dir ""}
                          {envlist ""}
                          {do_file_check 1} 
                          {source_settings_file 1} 
@@ -526,7 +528,7 @@ proc start_remote_prog { hostname
    }
 
    # open connection
-   set id [open_remote_spawn_process "$hostname" "$user" "$exec_command" "$exec_arguments" $background users_env $source_settings_file 15 $set_shared_lib_path $raise_error $win_local_user]
+   set id [open_remote_spawn_process "$hostname" "$user" "$exec_command" "$exec_arguments" $background $cd_dir users_env $source_settings_file 15 $set_shared_lib_path $raise_error $win_local_user]
    if {$id == ""} {
       add_proc_error "start_remote_prog" -1 "got no spawn id" $raise_error
       set back_exit_state -255
@@ -752,7 +754,7 @@ proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" }
    set command "/usr/lib/sendmail"
    set arguments "-B 8BITMIME -t < $mail_file"
 
-   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER $command $arguments prg_exit_state 60 0 "" 1 0]
+   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER $command $arguments prg_exit_state 60 0 "" "" 1 0]
    if { $prg_exit_state != 0 } {
       puts $CHECK_OUTPUT "=================================="
       puts $CHECK_OUTPUT "COULD NOT SEND MAIL:\n$result"
@@ -1116,6 +1118,7 @@ proc map_special_users {hostname user win_local_user} {
 #                                   if 2:
 #                                      wait 30 seconds after starting 
 #                                      background process
+#     {cd_dir ""}                -  directory in which to execute the command
 #     {envlist ""}               -  array with environment settings to export
 #                                   before starting program
 #     { source_settings_file 1 } -  if 1 (default):
@@ -1161,14 +1164,15 @@ proc map_special_users {hostname user win_local_user} {
 #     remote_procedures/close_spawn_id()
 #     remote_procedures/map_special_users()
 #*******************************************************************************
-proc open_remote_spawn_process { hostname 
-                                 user 
-                                 exec_command 
-                                 exec_arguments 
-                                 {background 0} 
-                                 {envlist ""} 
-                                 {source_settings_file 1} 
-                                 {nr_of_tries 15} 
+proc open_remote_spawn_process { hostname
+                                 user
+                                 exec_command
+                                 exec_arguments
+                                 {background 0}
+                                 {cd_dir ""}
+                                 {envlist ""}
+                                 {source_settings_file 1}
+                                 {nr_of_tries 15}
                                  {set_shared_lib_path 1}
                                  {raise_error 1}
                                  {win_local_user 0}
@@ -1222,7 +1226,7 @@ proc open_remote_spawn_process { hostname
    # if the same script is executed multiple times, don't recreate it
    set re_use_script 0
    # we check for a combination of all parameters
-   set spawn_command_arguments "$hostname$user$exec_command$exec_arguments$background$envlist$source_settings_file$set_shared_lib_path$win_local_user"
+   set spawn_command_arguments "$hostname$user$exec_command$exec_arguments$background$cd_dir$envlist$source_settings_file$set_shared_lib_path$win_local_user"
    if {[info exists last_spawn_command_arguments]} {
       # compare last command with this command
       if {[string compare $spawn_command_arguments $last_spawn_command_arguments] == 0} {
@@ -1243,7 +1247,7 @@ proc open_remote_spawn_process { hostname
    } else {
       set command_name [file tail $exec_command]
       set script_name [get_tmp_file_name $hostname $command_name "sh"]
-      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path
+      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path
       debug_puts "created $script_name"
 
       # remember name of script file for use in the next call to open_remote_spawn_process

@@ -92,11 +92,8 @@ proc backup_restore_setup {} {
       }
    }
    
-   cd "$ts_config(product_root)"
-   set prod_type_var "SGE_ROOT"
-
    # Backup Database
-   set id [ open_remote_spawn_process "$remote_host" "$CHECK_USER" "cd" "$$prod_type_var;./inst_sge -bup" ]
+   set id [open_remote_spawn_process "$remote_host" "$CHECK_USER" "./inst_sge" "-bup" 0 $ts_config(product_root)]
    set sp_id [ lindex $id 1 ]
 
    while {1} {
@@ -189,7 +186,7 @@ proc backup_restore_setup {} {
    puts $CHECK_OUTPUT [ start_remote_prog "$remote_host" "$CHECK_USER" "mv" "$ts_config(product_root)/$ts_config(cell) $ts_config(product_root)/$ts_config(cell)_backup" ]
 
    # restore from backup 
-   set id [ open_remote_spawn_process "$remote_host" "$CHECK_USER" "cd" "$$prod_type_var;./inst_sge -rst" ]
+   set id [open_remote_spawn_process "$remote_host" "$CHECK_USER" "./inst_sge" "-rst" 0 $ts_config(product_root)]
    set sp_id [ lindex $id 1 ]
 
    log_user 1

@@ -135,20 +135,17 @@ proc install_shadowd {} {
       set INSTALL_AS_ADMIN_USER        [translate $shadow_host 0 1 0 [sge_macro DISTINST_INSTALL_AS_ADMIN_USER] "$CHECK_USER" ]
 
 
-      cd "$ts_config(product_root)"
+      puts $CHECK_OUTPUT "inst_sge -sm"
 
-      set prod_type_var "SGE_ROOT"
-  
       if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-         set id [open_remote_spawn_process "$shadow_host" "root"  "cd $$prod_type_var;./inst_sge" "-sm" 0 "" 1 15 1 1 1]
+         set id [open_remote_spawn_process "$shadow_host" "root"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 1 1 1]
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set id [open_remote_spawn_process "$shadow_host" "$CHECK_USER"  "cd $$prod_type_var;./inst_sge" "-sm" 0 "" 1 15 1 1 1]
+         set id [open_remote_spawn_process "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 1 1 1]
       }
 
 
       log_user 1
-      puts $CHECK_OUTPUT "cd $$prod_type_var;./inst_sge -sm"
 
       set sp_id [ lindex $id 1 ] 
 

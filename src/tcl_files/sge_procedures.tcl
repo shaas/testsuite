@@ -496,11 +496,11 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 
    set program "$ts_config(product_root)/bin/$CHECK_ARCH/qconf"
    set program_arg "-sconf $hostname" 
-   set output [ start_remote_prog $CHECK_HOST $CHECK_USER $program $program_arg]
+   set output [start_remote_prog $CHECK_HOST $CHECK_USER $program $program_arg]
    if { [string first "execd_spool_dir" $output ] < 0 } {
       set program "$ts_config(product_root)/bin/$CHECK_ARCH/qconf"
       set program_arg "-sconf global" 
-      set output [ start_remote_prog $CHECK_HOST $CHECK_USER $program $program_arg]
+      set output [start_remote_prog $CHECK_HOST $CHECK_USER $program $program_arg]
    }
 
    set output [ split $output "\n" ]
@@ -580,14 +580,7 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
    debug_puts "executing $binary $args\nas user $user on host $host"
 
    # Add " around $args if there are more the 1 args....
-   if {$cd_dir == ""} {
-      set result [start_remote_prog $host $user $binary "$args" exit_state $timeout]
-   } else {
-      # TODO: we should pass cd_dir to start_remote_prog as a parameter,
-      #       shall be passed through to open_remote_spawn_process and from there to write_script_file.
-      #       Then the cd call can be done in the generated script.
-      set result [start_remote_prog $host $user "cd" "$cd_dir ; $binary $args" exit_state $timeout]
-   }
+   set result [start_remote_prog $host $user $binary "$args" exit_state $timeout 0 $cd_dir]
 
    return $result
 }
@@ -678,7 +671,7 @@ proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {t
 
    debug_puts "executing $binary $args\nas user $user on host $host"
    # Add " around $args if there are more the 1 args....
-   set result [start_remote_prog $host $user $binary "$args" exit_state $timeout $background $env_var]
+   set result [start_remote_prog $host $user $binary "$args" exit_state $timeout $background "" $env_var]
 
    return $result
 }
@@ -984,7 +977,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
 
       "qrlogin" { ;# without command (qrsh without command)
          puts $CHECK_OUTPUT "starting qrsh $remote_host_arg as user $user on host $CHECK_HOST ..."
-         set sid [open_remote_spawn_process $CHECK_HOST $user qrsh "$remote_host_arg"]
+         set sid [open_remote_spawn_process $CHECK_HOST $user "qrsh" "$remote_host_arg"]
          set sp_id [lindex $sid 1]
          set timeout 1
          set my_tries 60
@@ -1100,7 +1093,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
       }
 
       "qrsh" { ;# with sleeper job
-         set sid [open_remote_spawn_process $CHECK_HOST $user qrsh "$remote_host_arg $job_argument"]
+         set sid [open_remote_spawn_process $CHECK_HOST $user "qrsh" "$remote_host_arg $job_argument"]
          set sp_id [lindex $sid 1]
          set timeout 1
          set max_timeouts 15
@@ -1164,7 +1157,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
 
       "qlogin" {
          puts $CHECK_OUTPUT "starting qlogin $remote_host_arg ..."
-         set sid [open_remote_spawn_process $CHECK_HOST $user qlogin "$remote_host_arg"]
+         set sid [open_remote_spawn_process $CHECK_HOST $user "qlogin" "$remote_host_arg"]
          set sp_id [lindex $sid 1]
          set timeout 1
          set max_timeouts 15
@@ -1251,7 +1244,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          
          set my_qsh_env(DISPLAY) $CHECK_DISPLAY_OUTPUT
          set abort_count 60
-         set sid [open_remote_spawn_process $CHECK_HOST $user qsh "$remote_host_arg -now yes" 0 my_qsh_env]
+         set sid [open_remote_spawn_process $CHECK_HOST $user "qsh" "$remote_host_arg -now yes" 0 "" my_qsh_env]
          set sp_id [lindex $sid 1]
          set timeout 1
          set done 0
@@ -1321,7 +1314,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          set my_tight_env(SGE_TASK_ID) 1
 
          puts $CHECK_OUTPUT "starting qrsh -inherit $host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 80 ..."
-         set sid [open_remote_spawn_process $CHECK_HOST $user qrsh "-inherit $host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15" 0 my_tight_env]
+         set sid [open_remote_spawn_process $CHECK_HOST $user "qrsh" "-inherit $host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15" 0 "" my_tight_env]
          set sp_id [lindex $sid 1]
          set timeout 1
          set max_timeouts 30
@@ -2598,7 +2591,7 @@ proc mod_user { change_array { from_file 0 } } {
   set ALREADY_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*"]
 
   if { $from_file != 0 } {
-     set orginal_settings [ start_remote_prog $CHECK_HOST $CHECK_USER "qconf" "-suser $chgar(name)" ]
+     set orginal_settings [start_remote_prog $CHECK_HOST $CHECK_USER "qconf" "-suser $chgar(name)"]
      if { $prg_exit_state != 0 } {
         add_proc_error "mod_user" -1 "\"error modify user [set chgar(name)]\""
         return -100
@@ -2702,7 +2695,7 @@ proc del_pe { mype_name } {
   set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $mype_name "*" ]
 
   log_user 0 
-  set id [ open_remote_spawn_process $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dp $mype_name"]
+  set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dp $mype_name"]
 
   set sp_id [ lindex $id 1 ]
 
@@ -2773,7 +2766,7 @@ proc del_calendar { mycal_name } {
   set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $mycal_name "*" ]
 
   log_user 0
-  set id [ open_remote_spawn_process $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dcal $mycal_name"]
+  set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dcal $mycal_name"]
 
   set sp_id [ lindex $id 1 ]
   set timeout 30 
@@ -3228,7 +3221,7 @@ proc soft_execd_shutdown { host } {
    set tries 0
    while { $tries <= 8 } {   
       incr tries 1
-      set result [ start_remote_prog $CHECK_CORE_MASTER $CHECK_USER $ts_config(product_root)/bin/$CHECK_ARCH/qconf "-ke $host" ]
+      set result [start_remote_prog $CHECK_CORE_MASTER $CHECK_USER $ts_config(product_root)/bin/$CHECK_ARCH/qconf "-ke $host"]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "qconf -ke $host returned $prg_exit_state, hard killing execd"
          shutdown_system_daemon $host execd
@@ -4116,9 +4109,9 @@ proc suspend_job { id {force 0} {error_check 1}} {
    log_user 0 
 	set program "$ts_config(product_root)/bin/$CHECK_ARCH/qmod"
    if {$force} {
-      set sid [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-f -s $id"  ]     
+      set sid [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-f -s $id"]
    } else {
-      set sid [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-s $id"  ]     
+      set sid [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-s $id"]
    }
 
    set sp_id [ lindex $sid 1 ]
@@ -4210,7 +4203,7 @@ proc unsuspend_job { job } {
   log_user 0 
   # spawn process
   set program "$ts_config(product_root)/bin/$CHECK_ARCH/qmod"
-  set sid [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-us $job" ]
+  set sid [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-us $job"]
   set sp_id [ lindex $sid 1 ]
   set timeout 30
   set result -1	
@@ -4346,7 +4339,7 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
             set args "-u '*'"
          }
       }
-      set id [ open_remote_spawn_process $CHECK_HOST $CHECK_USER "$program" "$args $jobid" ]
+      set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER "$program" "$args $jobid"]
       set sp_id [ lindex $id 1 ]
       set timeout 60 	
       log_user 1
@@ -4484,7 +4477,7 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
 #     sge_procedures/delete_job()
 #     sge_procedures/submit_job_parse_job_id()
 #*******************************
-proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} { cd_dir ""} { show_args 1 }} {
+proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1}} {
    global ts_config CHECK_OUTPUT
 
    # we first want to parse errors first, then the positive messages, 
@@ -5738,7 +5731,7 @@ proc hold_job { jobid } {
    # spawn process
    log_user 0
    set program "$ts_config(product_root)/bin/$CHECK_ARCH/qhold"
-   set id [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "$jobid" ]
+   set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "$jobid"]
 
    set sp_id [ lindex $id 1 ]
    set timeout 30
@@ -5808,7 +5801,7 @@ proc release_job { jobid } {
    set MODIFIED_HOLD_ARRAY [ translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_MOD_JATASK_SUU] "*" "*" "*"]
 
    set program "$ts_config(product_root)/bin/$CHECK_ARCH/qrls"
-   set id [ open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "$jobid" ]
+   set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "$jobid"]
 
    set sp_id [ lindex $id 1 ]
    set timeout 30
@@ -6001,12 +5994,11 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
    puts $CHECK_OUTPUT "starting up qmaster $schedd_message on host \"$start_host\" as user \"$startup_user\""
    set arch [resolve_arch $start_host]
 
-   if { $master_debug != 0 } {
+   if {$master_debug != 0} {
       puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-      start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 ""
+      start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
    } else {
-      start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_qmaster" ";sleep 2" prg_exit_state 60 0 envlist
-
+      start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_qmaster" ";sleep 2" prg_exit_state 60 0 "" envlist
    }
 
    if {$and_scheduler} {
@@ -6014,10 +6006,10 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       if { $schedd_debug != 0 } {
          puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
          puts $CHECK_OUTPUT "starting schedd as $startup_user" 
-         start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 ""
+         start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
       } else {
          puts $CHECK_OUTPUT "starting schedd as $startup_user" 
-         set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 envlist]
+         set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
          puts $CHECK_OUTPUT $result
       }
    }
@@ -6074,7 +6066,7 @@ proc startup_scheduler {} {
 
    if { $schedd_debug != 0 } {
       puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-      start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$CHECK_CORE_MASTER \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 ""
+      start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$CHECK_CORE_MASTER \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2
    } else {
       start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" ""
    }
@@ -6133,7 +6125,7 @@ proc startup_execd_raw { hostname {envlist ""}} {
 
    set my_environment(COMMD_HOST) $CHECK_CORE_MASTER
 
-   set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/bin/$remote_arch/sge_execd" "-nostart-commd" prg_exit_state 60 0 my_environment 1 1 1]
+   set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/bin/$remote_arch/sge_execd" "-nostart-commd" prg_exit_state 60 0 "" my_environment 1 1 1]
 
    set ALREADY_RUNNING [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_COMMPROC_ALREADY_STARTED_S] "*"]
 
@@ -6192,13 +6184,13 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
    set running 0
 
 
-   set qmaster_pid [ start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/qmaster.pid" ]
+   set qmaster_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/qmaster.pid"]
    set qmaster_pid [ string trim $qmaster_pid ]
    if { $prg_exit_state != 0 } {
       set qmaster_pid -1
    }
 
-   set scheduler_pid [ start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid" ]
+   set scheduler_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid"]
    set scheduler_pid [ string trim $scheduler_pid ]
    if { $prg_exit_state != 0 } {
       set scheduler_pid -1
@@ -6445,7 +6437,7 @@ proc get_scheduler_pid { hostname qmaster_spool_dir } {
    global CHECK_USER 
 
    set scheduler_pid -1
-   set scheduler_pid [ start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid" ]
+   set scheduler_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid"]
    set scheduler_pid [ string trim $scheduler_pid ]
    if { $prg_exit_state != 0 } {
       set scheduler_pid -1
@@ -6495,7 +6487,7 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
 
    set qmaster_pid -1
 
-   set qmaster_pid [ start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/qmaster.pid" ]
+   set qmaster_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/qmaster.pid"]
    set qmaster_pid [ string trim $qmaster_pid ]
    if { $prg_exit_state != 0 } {
       set qmaster_pid -1
@@ -6871,7 +6863,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
                      }
                   }
                   puts $CHECK_OUTPUT "killing (SIG_TERM) process(es) $kill_pid_ids on host $host, kill user is $kill_user"
-                  puts $CHECK_OUTPUT [ start_remote_prog $host $kill_user kill $kill_pid_ids ]
+                  puts $CHECK_OUTPUT [start_remote_prog $host $kill_user kill $kill_pid_ids]
 
                   set sig_term_wait_timeout 30
                   while { [is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name] == 0 } {
@@ -6885,7 +6877,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
                }
                if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
                    puts $CHECK_OUTPUT "killing (SIG_KILL) process $ps_info(pid,$elem) on host $host, kill user is $kill_user"
-                   puts $CHECK_OUTPUT [ start_remote_prog $host $kill_user kill "-9 $ps_info(pid,$elem)" ]
+                   puts $CHECK_OUTPUT [start_remote_prog $host $kill_user kill "-9 $ps_info(pid,$elem)"]
                    after 1000
                    if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
                        puts $CHECK_OUTPUT "pid:$ps_info(pid,$elem) kill failed (host: $host)"
@@ -6965,7 +6957,7 @@ proc shutdown_core_system { { only_hooks 0 } } {
 
    set result ""
    set do_ps_kill 0
-   set result [ start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-ks -ke all" ]
+   set result [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-ks -ke all"]
 
    puts $CHECK_OUTPUT "qconf -ke all -ks returned $prg_exit_state"
    if { $prg_exit_state == 0 } {
@@ -6983,7 +6975,7 @@ proc shutdown_core_system { { only_hooks 0 } } {
 
    set result ""
    set do_ps_kill 0
-   set result [ start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-km" ]
+   set result [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-km"]
 
    puts $CHECK_OUTPUT "qconf -km returned $prg_exit_state"
    if { $prg_exit_state == 0 } {
@@ -7004,9 +6996,9 @@ proc shutdown_core_system { { only_hooks 0 } } {
       foreach elem $ts_config(execd_nodes) { 
           puts $CHECK_OUTPUT "killing commd on host $elem"
           if { $do_it_as_root == 0 } { 
-             set result [ start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "$ts_config(product_root)/bin/$CHECK_ARCH/sgecommdcntl" "-U -k -host $elem"  ]
+             set result [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "$ts_config(product_root)/bin/$CHECK_ARCH/sgecommdcntl" "-U -k -host $elem"]
           } else {
-             set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "$ts_config(product_root)/bin/$CHECK_ARCH/sgecommdcntl" "-k -host $elem"  ]
+             set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "$ts_config(product_root)/bin/$CHECK_ARCH/sgecommdcntl" "-k -host $elem"]
           } 
           if { $prg_exit_state == 0 } {
              puts $CHECK_OUTPUT $result
@@ -7019,7 +7011,7 @@ proc shutdown_core_system { { only_hooks 0 } } {
                    set_root_passwd 
                 }
                 if { $CHECK_ADMIN_USER_SYSTEM != 1 } {
-                   set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "$ts_config(product_root)/bin/$CHECK_ARCH/sgecommdcntl" "-k -host $elem"  ]
+                   set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "$ts_config(product_root)/bin/$CHECK_ARCH/sgecommdcntl" "-k -host $elem"]
                 }
              }
              if { $prg_exit_state == 0 } {
@@ -7431,27 +7423,27 @@ proc copy_certificates { host } {
       }
 
       puts $CHECK_OUTPUT "removing existing tar file \"$TAR_FILE\" ..."
-      set result [ start_remote_prog "$ts_config(master_host)" "root" "rm" "$TAR_FILE" ]
+      set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$TAR_FILE"]
       puts $CHECK_OUTPUT $result
 
       puts $CHECK_OUTPUT "taring Certificate Authority (CA) directory into \"$TAR_FILE\""
       set tar_bin [get_binary_path $ts_config(master_host) "tar"]
       set remote_command_param "$CA_ROOT_DIR; ${tar_bin} -cpvf $TAR_FILE ./port${ts_config(commd_port)}/*"
-      set result [ start_remote_prog "$ts_config(master_host)" "root" "cd" "$remote_command_param" ]
+      set result [start_remote_prog "$ts_config(master_host)" "root" "cd" "$remote_command_param"]
       puts $CHECK_OUTPUT $result
 
       if { $prg_exit_state != 0 } {
          add_proc_error "copy_certificates" -2 "could not tar Certificate Authority (CA) directory into \"$TAR_FILE\""
       } else {
          puts $CHECK_OUTPUT "copy tar file \"$TAR_FILE\"\nto \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
-         set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "cp" "$TAR_FILE $ts_config(results_dir)/port${ts_config(commd_port)}.tar" prg_exit_state 300 ]
+         set result [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "cp" "$TAR_FILE $ts_config(results_dir)/port${ts_config(commd_port)}.tar" prg_exit_state 300]
          puts $CHECK_OUTPUT $result
                     
          # tar file will be on nfs - wait for it to be visible
          wait_for_remote_file $host "root" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar"
                     
          puts $CHECK_OUTPUT "copy tar file \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\"\nto \"$TAR_FILE\" on host $host as root user ..."
-         set result [ start_remote_prog "$host" "root" "cp" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar $TAR_FILE" prg_exit_state 300 ]
+         set result [start_remote_prog "$host" "root" "cp" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar $TAR_FILE" prg_exit_state 300]
          puts $CHECK_OUTPUT $result
 
          set tar_bin [get_binary_path $host "tar"]
@@ -7459,26 +7451,26 @@ proc copy_certificates { host } {
          puts $CHECK_OUTPUT "untaring Certificate Authority (CA) directory in \"$CA_ROOT_DIR\""
          start_remote_prog "$host" "root" "cd" "$CA_ROOT_DIR" 
          if { $prg_exit_state != 0 } { 
-            set result [ start_remote_prog "$host" "root" "mkdir" "-p $CA_ROOT_DIR" ]
+            set result [start_remote_prog "$host" "root" "mkdir" "-p $CA_ROOT_DIR"]
          }   
 
-         set result [ start_remote_prog "$host" "root" "cd" "$CA_ROOT_DIR; ${tar_bin} $UNTAR_OPTS $TAR_FILE" prg_exit_state 300 ]
+         set result [start_remote_prog "$host" "root" "cd" "$CA_ROOT_DIR; ${tar_bin} $UNTAR_OPTS $TAR_FILE" prg_exit_state 300]
          puts $CHECK_OUTPUT $result
          if { $prg_exit_state != 0 } {
             add_proc_error "copy_certificates" -2 "could not untar \"$TAR_FILE\" on host $host;\ntar-bin:$tar_bin"
          } 
 
          puts $CHECK_OUTPUT "removing tar file \"$TAR_FILE\" on host $host ..."
-         set result [ start_remote_prog "$host" "root" "rm" "$TAR_FILE" ]
+         set result [start_remote_prog "$host" "root" "rm" "$TAR_FILE"]
          puts $CHECK_OUTPUT $result
 
          puts $CHECK_OUTPUT "removing tar file \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
-         set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar" ]
+         set result [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar"]
          puts $CHECK_OUTPUT $result
       }
                 
       puts $CHECK_OUTPUT "removing tar file \"$TAR_FILE\" ..."
-      set result [ start_remote_prog "$ts_config(master_host)" "root" "rm" "$TAR_FILE" ]
+      set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$TAR_FILE"]
       puts $CHECK_OUTPUT $result
 
       # on windows, we have to correct the file permissions
