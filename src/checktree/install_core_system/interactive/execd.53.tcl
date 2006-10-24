@@ -226,13 +226,12 @@ proc install_execd {} {
          set id [open_remote_spawn_process "$exec_host" "root"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root)]
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set id [open_remote_spawn_process "$exec_host" "$CHECK_USER"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root)]
+         set id [open_remote_spawn_process "$exec_host" "ts_def_con_install"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root)]
       }
-
 
       log_user 1
 
-      set sp_id [ lindex $id 1 ] 
+      set sp_id [lindex $id 1] 
 
       set timeout 300
      
@@ -326,7 +325,7 @@ proc install_execd {} {
                set spooldir [get_local_spool_dir $exec_host execd]
                puts $CHECK_OUTPUT "spooldir on host $exec_host is $spooldir"
 
-               if { $spooldir != "" } {
+               if {$spooldir != ""} {
                   set params(execd_spool_dir) $spooldir
                   set_config params $exec_host
                   set local_execd_spool_set 1 

@@ -271,13 +271,11 @@ proc report_create_task { report name host } {
 #     ???/???
 #*******************************************************************************
 proc report_task_add_message { report task_nr message } {
-   global CHECK_OUTPUT
    
    upvar $report report_array
    
    puts $report_array(task_$task_nr,file) $message
    flush $report_array(task_$task_nr,file)
-   puts $CHECK_OUTPUT $message
 }
 
 #****** report_procedures/report_finish_task() **************************************************

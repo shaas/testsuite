@@ -96,10 +96,15 @@ proc add_prj {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
       }
       set tmpfile [dump_array_to_tmpfile old_config]
       set result [start_sge_bin "qconf" "-Aprj $tmpfile" $on_host $as_user]
-      set messages(index) {0 -2}
-      set messages(0) $ADDED
-      set messages(-2) $ALREADY_EXISTS
-      set ret [handle_sge_errors "add_prj" "qconf -Aprj" $result messages $raise_error]
+      # SGE 5.3 doesn't output anything on success
+      if {$ts_config(gridengine_version) == 53 && $prg_exit_state == 0} {
+         set ret 0
+      } else {
+         set messages(index) {0 -2}
+         set messages(0) $ADDED
+         set messages(-2) $ALREADY_EXISTS
+         set ret [handle_sge_errors "add_prj" "qconf -Aprj" $result messages $raise_error]
+      }
    } else {
       set vi_commands [build_vi_command chgar]
 

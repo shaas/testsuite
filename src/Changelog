@@ -1,3 +1,8 @@
+JG-2006-10-24-0: Enhancem.: Clearer output for testsuite compile.
+                            Improved testsuite table output.
+                 Bugfix:    Fixed SGE(EE) 5.3 installation.
+                 Review:    RD
+
 JG-2006-10-23-0: Enhancem.: Allow to pass the current working directory to 
                             functions 
                             - create_shell_script

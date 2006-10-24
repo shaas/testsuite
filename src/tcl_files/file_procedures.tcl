@@ -250,32 +250,35 @@ proc get_tmp_file_name { { hostname "" } { type "default" } { file_ext "tmp" } {
 #     print_xy_array() -- print out an tcl x-y array
 #
 #  SYNOPSIS
-#     print_xy_array { x_values y_values xy_data_array } 
+#     print_xy_array { columns rows data_array } 
 #
 #  FUNCTION
 #     This function can be used to format data like: 
 #
-#     set x_values "sgetest1 sgetest2 root cr114091"
-#     set y_values "es-ergb01-01 balrog"
+#     set columns "sgetest1 sgetest2 root cr114091"
+#     set rows "es-ergb01-01 balrog"
 #
-#                  | sgetest1 | sgetest2 |     root | cr114091 | 
-#     -------------|----------|----------|----------|----------|
-#     es-ergb01-01 |      639 |      639 |      739 |      639 | 
-#     balrog       |     1409 |     1409 |     1659 |     1869 | 
+#                  | sgetest1 | sgetest2 |     root | cr114091 
+#     -------------+----------+----------+----------+----------
+#     es-ergb01-01 |      639 |      639 |      739 |      639 
+#     balrog       |     1409 |     1409 |     1659 |     1869 
 #
 #
 #  INPUTS
-#     x_values      - x value list
-#     y_values      - y value list 
-#     xy_data_array - array with data for e.g. $data($x,$y) 
+#     columns      - x value list
+#     rows          - y value list 
+#     data_array - array with data for e.g. $data($x,$y)
+#     {empty_cell ""}
+#     {column_len_var ""}
+#     {index_len_var ""}
 #
 #  EXAMPLE
-#     set x_values "sgetest1 sgetest2 root cr114091"
-#     set y_values "es-ergb01-01 balrog"
+#     set columns "sgetest1 sgetest2 root cr114091"
+#     set rows "es-ergb01-01 balrog"
 #     set data(sgetest1,es-ergb01-01) 639
 #     ...
 #     ...
-#     puts [print_xy_array $x_values $y_values data]
+#     puts [print_xy_array $columns $rows data]
 #
 #  RESULT
 #     string containing the xy_array data
@@ -283,61 +286,92 @@ proc get_tmp_file_name { { hostname "" } { type "default" } { file_ext "tmp" } {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc print_xy_array { x_values y_values xy_data_array {empty_cell ""}} {
-   upvar $xy_data_array result_array
+proc print_xy_array {columns rows data_array {empty_cell ""} {column_len_var ""} {index_len_var ""}} {
+   upvar $data_array result_array
 
-   # calculate max. x/y string length
-   set max_x_values_len 0
-   set max_y_values_len 0
+   # if requested, keep column sizes persistent over multiple calls
+   if {$column_len_var != ""} {
+      upvar $column_len_var max_column_len
+   }
+   if {$index_len_var != ""} {
+      upvar $index_len_var max_index_len
+   }
 
-   foreach x $x_values {
-      if { $max_x_values_len < [string length $x] } {
-         set max_x_values_len [string length $x]
+   # calculate max width of first column (index column)
+   if {![info exists max_index_len]} {
+      set max_index_len 0
+   }
+   foreach row $rows {
+      set len [string length $row]
+      if {$max_index_len < $len} {
+         set max_index_len $len
       }
    }
 
-   foreach y $y_values {
-      if { $max_y_values_len < [string length $y] } {
-         set max_y_values_len [string length $y]
+   # calculate max width of data columns
+   # store width per column
+   foreach col $columns {
+      # minimum width is width of column header
+      if {![info exists max_column_len($col)]} {
+         set max_column_len($col) [string length $col]
+      }
+
+      # now look at the data in this column
+      foreach row $rows {
+         if {[info exists result_array($col,$row)]} { 
+            set len [string length $result_array($col,$row)]
+            if {$max_column_len($col) < $len} {
+               set max_column_len($col) $len
+            }
+         }
       }
    }
 
+   # initialize output string
    set output_text ""
-   append output_text [format "%-${max_y_values_len}s | " ""]
-   foreach x $x_values {
-      append output_text [format "%${max_x_values_len}s | " $x]
+
+   # output first line (header)
+   append output_text [format "%-${max_index_len}s" ""]
+   foreach col $columns {
+      append output_text " | "
+      set len $max_column_len($col)
+      append output_text [format "%-${len}s" $col]
    }
    append output_text "\n"
 
-   set line_length [expr ( $max_y_values_len + 1)]
-   for {set i 0} {$i < $line_length } {incr i 1} {
+   # output separating line between header and data 
+   # - for index row
+   set len [expr $max_index_len + 1]
+   for {set i 0} {$i < $len} {incr i} {
       append output_text "-"
    }
-   append output_text "|"
-   
-   set line_length [expr ( [llength $x_values] * ($max_x_values_len + 3) )]
-   for {set i 1} {$i <= $line_length } {incr i 1} {
-      set fill_sign "-"
-      if { [ expr ( $i % ( $max_x_values_len + 3 ) ) ] == 0 } {
-         set fill_sign "|"
+  
+   # - for data rows
+   foreach col $columns {
+      append output_text "+"
+      set len [expr $max_column_len($col) + 2]
+      for {set i 0} {$i < $len} {incr i} {
+         append output_text "-"
       }
-      append output_text $fill_sign
    }
-
    append output_text "\n"
 
-   foreach y $y_values {
-      append output_text [format "%-${max_y_values_len}s | " $y]
-      foreach x $x_values {
-         if {[info exists result_array($x,$y)]} {
-            set data $result_array($x,$y)
+   # output data
+   foreach row $rows {
+      append output_text [format "%-${max_index_len}s" $row]
+      foreach col $columns {
+         append output_text " | "
+         if {[info exists result_array($col,$row)]} {
+            set data $result_array($col,$row)
          } else {
             set data $empty_cell
          }
-         append output_text [format "%${max_x_values_len}s | " $data]
+         set len $max_column_len($col)
+         append output_text [format "%-${len}s" $data]
       }
       append output_text "\n"
    }
+
    return $output_text
 }
 

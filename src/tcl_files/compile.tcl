@@ -243,3 +243,637 @@ proc compile_search_compile_host {arch} {
    return "none"
 }
 
+#
+#                                                             max. column:     |
+#
+#****** check/compile_source() ******
+#  NAME
+#     compile_source() -- ??? 
+#
+#  SYNOPSIS
+#     compile_source { } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************
+#
+proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
+   global ts_config ts_host_config
+   global CHECK_SOURCE_DIR CHECK_OUTPUT CHECK_SOURCE_HOSTNAME
+   global CHECK_TESTSUITE_ROOT CHECK_SCRIPT_FILE_DIR CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
+   global CHECK_HTML_DIRECTORY
+   global CHECK_DEFAULTS_FILE CHECK_SOURCE_CVS_RELEASE do_not_update check_name
+   global CHECK_DIST_INSTALL_OPTIONS CHECK_JOB_OUTPUT_DIR
+   global CHECK_CORE_EXECD CHECK_PROTOCOL_DIR CHECK_USER CHECK_HOST check_do_clean_compile
+
+   # settings for mail
+   set check_name "compile_source"
+   set CHECK_CUR_PROC_NAME "compile_source"
+   if { $do_only_hooks == 0 } {
+      set NFS_sleep_time 20
+   } else {
+      set NFS_sleep_time 0
+   }
+
+   array set report {}
+   report_create "Compiling source" report
+   
+   report_write_html report
+   
+   set error_count 0
+   set cvs_change_log ""
+
+   # if we configured to install precompiled packages - stop
+   if { $ts_config(package_directory) != "none" && 
+        ($ts_config(package_type) == "tar" || $ts_config(package_type) == "zip") } {
+           
+      report_add_message report "will not compile but use precompiled packages\n"
+      report_add_message report "set package_directory to \"none\" or set package_type to \"create_tar\"\n"
+      report_add_message report "if compilation (and package creation) should be done"
+      
+      report_finish report -1
+      
+      return -1
+   }
+
+   # compile hosts required for master, exec, shadow, submit_only, bdb_server hosts
+   set compile_hosts [compile_host_list]
+
+   # add compile hosts for additional compile archs
+   if {$ts_config(add_compile_archs) != "none"} {
+      foreach arch $ts_config(add_compile_archs) {
+         lappend compile_hosts [compile_search_compile_host $arch]
+      }
+   }
+
+   # eliminate duplicates
+   set compile_hosts [compile_unify_host_list $compile_hosts]
+
+   # check source directory
+   if { ( [ string compare $CHECK_SOURCE_DIR "unknown" ] == 0 ) || ( [ string compare $CHECK_SOURCE_DIR "" ] == 0 ) } {
+      report_add_message report "source directory unknown - check defaults file"
+      report_finish report -1 
+      return -1
+   }
+
+   # check compile host
+   if { ( [ string compare $CHECK_SOURCE_HOSTNAME "unknown" ] == 0 ) || ( [ string compare $CHECK_SOURCE_HOSTNAME "" ] == 0  ) } {          
+      report_add_message report "host for cvs checkout unknown - check defaults file"
+      report_finish report -1
+      return -1
+   }
+
+   # check compile hosts
+   if { ( [ string compare $compile_hosts "unknown" ] == 0 ) || ([ string compare $compile_hosts "" ] == 0) } {
+      report_add_message report "host list to compile for unknown - check defaults file"
+      report_finish report -1
+      return -1
+   }
+
+   # figure out the compile archs
+   set compile_arch_list ""
+   foreach chost $compile_hosts {
+      puts $CHECK_OUTPUT "\n-> checking architecture for host $chost ..."
+      set output [start_remote_prog $chost $CHECK_USER "./aimk" "-no-mk" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
+      puts $CHECK_OUTPUT "return state: $prg_exit_state"
+      if { $prg_exit_state != 0 } {
+         report_add_message report "error starting \"aimk -no-mk\" on host $chost"
+         report_finish report -1
+         return -1
+      }
+      puts $CHECK_OUTPUT "host $chost will build [string trim $output] binaries"
+      lappend compile_arch_list $output
+   }
+
+   # check if compile hosts are unique per arch
+   foreach elem $compile_arch_list {
+     set found 0
+     set hostarch ""
+     foreach host $compile_arch_list {
+        if { [ string compare $host $elem ] == 0 }  {
+           incr found 1
+           set hostarch $host
+        }
+     }
+     if { $found != 1 } {
+        report_add_message report "two compile hosts have the same architecture -> error"
+        report_finish report -1
+        return -1
+     }
+   }
+
+   # create protocol directory
+   if {[file isdirectory "$CHECK_PROTOCOL_DIR"] != 1} {
+      set catch_return [ catch {  file mkdir "$CHECK_PROTOCOL_DIR" } ]
+      if { $catch_return != 0 } {
+        report_add_message report "could not create directory \"$CHECK_PROTOCOL_DIR\""
+        report_finish report -1
+        return -1
+      } 
+   }
+
+   # shutdown possibly running system
+   shutdown_core_system $do_only_hooks
+
+   # update sources
+   if { $do_only_install != 1 } {
+      set res [update_source report]      
+      if { $res == 1 } {
+         # after an update, do an aimk clean
+         if { $do_only_hooks == 0 } {
+            compile_with_aimk $compile_hosts report "compile_clean" "clean"
+         } else {
+            puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+         }
+         # execute all registered compile_clean hooks of the checktree
+         set res [exec_compile_clean_hooks $compile_hosts report]
+         if { $res < 0 } {
+            report_add_message report "exec_compile_clean_hooks returned fatal error"
+         } elseif { $res > 0 } {
+            report_add_message report "$res compile_clean hooks are failed\n"
+         } else {
+            report_add_message report "All compile_clean hooks successfully executed\n"
+         }
+      
+         # give NFS some rest after (probably massive) deletes
+         sleep $NFS_sleep_time
+
+         # after an update, delete macro messages file to have it updated
+         set macro_messages_file [get_macro_messages_file_name]
+         puts $CHECK_OUTPUT "deleting macro messages file after update!"
+         puts $CHECK_OUTPUT "file: $macro_messages_file"
+         if { [ file isfile $macro_messages_file] } {
+            file delete $macro_messages_file
+         }
+         update_macro_messages_list
+      } elseif { $res < 0 } {
+         incr error_count
+      }
+   }
+
+   if { $error_count == 0 && $check_do_clean_compile == 1 } {
+      if { $do_only_hooks == 0 } {
+         compile_with_aimk $compile_hosts report "compile_clean" "clean"
+      } else {
+         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+      }
+      # execute all registered compile_hooks of the checktree
+      set res [exec_compile_clean_hooks $compile_hosts report]
+      if { $res < 0 } {
+         report_add_message report "exec_compile_clean_hooks returned fatal error"
+      } elseif { $res > 0 } {
+         report_add_message report "$res compile_clean hooks are failed\n"
+      } else {
+         report_add_message report "All compile_clean hooks successfully executed\n"
+      }
+
+      # give NFS some rest after (probably massive) deletes
+      sleep $NFS_sleep_time
+
+   }
+
+   if { $error_count > 0 } {
+      puts $CHECK_OUTPUT "Skip compile due to previous errors\n"
+   } elseif { $do_only_install != 1 } {
+      if { $do_only_hooks == 0 } {
+         if { [compile_depend $compile_hosts report] != 0 } {
+            incr error_count
+         } 
+      } else {
+         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+      }
+      if { $error_count == 0 } {
+         # depend was successfull - sleep a bit so let nfs settle down
+         sleep $NFS_sleep_time
+
+         # start build process
+         if { $do_only_hooks == 0 } {
+            if {[compile_with_aimk $compile_hosts report "compile"] != 0} {
+               incr error_count
+            }
+         } else {
+            puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+         }
+         if { $error_count == 0 } {
+            # new all registered compile_hooks of the checktree
+            set res [exec_compile_hooks $compile_hosts report]
+            if { $res < 0 } {
+               puts $CHECK_OUTPUT "exec_compile_hooks returned fatal error\n"
+               incr error_count
+            } elseif { $res > 0 } {
+               puts $CHECK_OUTPUT "$res compile hooks are failed\n"
+               incr error_count
+            } else {
+               puts $CHECK_OUTPUT "All compile hooks successfully executed\n"
+            }
+         }
+      }
+   } else {
+      puts $CHECK_OUTPUT "Skip compile, I am on do_install mode\n"
+   }
+
+   # install to $CHECK_PRODUCT_ROOT
+   if { $error_count == 0 } {
+      report_add_message report "Installing binaries ...."
+      report_write_html report
+     
+      # We need to evaluate the architectures to install.
+      # We might have cached architecture strings from an old
+      # $SGE_ROOT/util/arch. Clear the cache and resolve 
+      # architecture names using dist/util/arch script.
+      resolve_arch_clear_cache
+      set arch_list {}
+      set compiled_mail_architectures ""
+      puts -nonewline $CHECK_OUTPUT "\narchitectures: "
+      foreach elem $compile_hosts {
+         set output [resolve_arch $elem 1]
+         lappend arch_list $output 
+         puts -nonewline $CHECK_OUTPUT "$output "
+         append compiled_mail_architectures "\n$elem ($output)"
+      }
+      puts ""
+      
+      if { $do_only_hooks == 0 } {
+         if { [ install_binaries $do_only_install $arch_list report] != 0 } {
+            report_add_message report "install_binaries failed\n"
+            incr error_count
+         } 
+      } else {
+         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+      }
+      if { $error_count == 0 } {
+         # new all registered compile_hooks of the checktree
+         set res [exec_install_binaries_hooks $arch_list report]
+         if { $res < 0 } {
+            report_add_message report "exec_install_binaries_hooks returned fatal error\n"
+            incr error_count
+         } elseif { $res > 0 } {
+            report_add_message report "$res install_binaries hooks are failed\n"
+            incr error_count
+         } else {
+            report_add_message report "All install_binaries hooks successfully executed\n"
+         }
+      }
+   } else {
+      report_add_message report "Skip installation due to previous error\n"
+   }
+
+   if { $error_count > 0 } {
+      report_add_message report "Error occured during compilation or pre-installation of binaries"
+      report_finish report -1 
+      return -1
+   }
+   
+   report_add_message report "Successfully compiled and pre-installed following architectures:"
+   report_add_message report "${compiled_mail_architectures}\n"
+   
+   report_add_message report "init_core_system check will install the $CHECK_PRODUCT_TYPE execd at:"
+   foreach elem $CHECK_CORE_EXECD {
+      set host_arch [ resolve_arch $elem ]
+      report_add_message report "$elem ($host_arch)"
+   }
+   if { [string compare $cvs_change_log "" ] != 0 } {
+      report_clear_messages report
+      report_add_message report "$mail_body \n\n Update output:\n$cvs_change_log\n\n"
+   }
+   
+   report_finish report 0
+
+   # try to resolve hostnames in settings file
+   set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
+   if { $catch_return != 0 } { 
+        puts "could not copy defaults file"
+        return -1
+   }
+
+   # if required, build distribution
+   build_distribution $arch_list
+   
+   return 0
+}
+
+#****** check/compile_with_aimk() **************************************************
+#  NAME
+#    compile_with_aimk() -- compile with aimk
+#
+#  SYNOPSIS
+#    compile_with_aimk { host_list report task_name { aimk_options "" } } 
+#
+#  FUNCTION
+#     Start the aimk parallel on some hosts
+#
+#  INPUTS
+#    host_list --  list of host where aimk should be started
+#    a_report    --  the report object
+#    task_name --  name of the task in the report object
+#    aimk_options -- aimk options
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
+   global CHECK_OUTPUT CHECK_USER
+   global CHECK_TESTSUITE_ROOT CHECK_SCRIPT_FILE_DIR CHECK_SOURCE_DIR
+   global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
+   global do_only_install
+   
+   upvar $a_report report
+
+   set my_compile_options [get_compile_options_string]
+   if { [string length $aimk_options] > 0 } {
+      append my_compile_options " $aimk_options"
+   }
+   
+   set num 0
+   array set host_array {}
+   
+   set cvs_tag "maintrunk"
+   if {[file isfile "${CHECK_SOURCE_DIR}/CVS/Tag"]} {
+      set cvs_tag "no_tag_dir" 
+      set tag_state [catch {eval exec "cat ${CHECK_SOURCE_DIR}/CVS/Tag"} cvs_tag]
+   }
+
+   # we'll pass a build number into aimk to distinguish our binaries
+   # from official builds.
+   set build_number [get_build_number]
+
+   set table_row 2
+   set status_rows {}
+   set status_cols {status file}
+   foreach elem $host_list {
+      # we have to make sure that the build number is compiled into 
+      # the object code (therefore delete the appropriate object module).
+      delete_build_number_object $elem $build_number
+
+      # start build jobs
+      puts $CHECK_OUTPUT "-> starting $task_name on host $elem ..."
+
+      set prog "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/remotecompile.sh"
+      set par1 "$CHECK_SOURCE_DIR"
+      set par2 "-DDAILY_BUILD_NUMBER=$build_number $my_compile_options"
+      
+      puts $CHECK_OUTPUT "$prog $par1 '$par2'"
+      set open_spawn [open_remote_spawn_process $elem $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0]
+      set spawn_id [lindex $open_spawn 1]
+      
+      set host_array($spawn_id,host) $elem
+      set host_array($spawn_id,task_nr) [report_create_task report $task_name $elem]      
+      set host_array($spawn_id,open_spawn) $open_spawn 
+      lappend spawn_list $spawn_id
+
+      # initialize fancy compile output
+      lappend status_rows $elem
+      set status_array(file,$elem)     "unknown"
+      set status_array(status,$elem)   "running"
+      incr num 1
+   }  
+  
+   puts $CHECK_OUTPUT "now waiting for end of compile ..." 
+   set status_updated 1
+   set status_time 0
+   set timeout 300
+   set done_count 0
+   log_user 0
+
+   set org_spawn_list $spawn_list
+   
+   while {[llength $spawn_list] > 0} {
+      if {[info exists spawn_id]} {
+         unset spawn_id
+      }
+      
+      set now [timestamp]
+      if {$status_updated && $status_time < $now} {
+         set status_time $now
+         set status_updated 0
+
+         # output compile status
+         set status_output [print_xy_array $status_cols $status_rows status_array status_max_column_len status_max_index_len]
+         clear_screen
+         puts $CHECK_OUTPUT "================================================================================"
+         puts $CHECK_OUTPUT "open compile connections:\n"
+         puts $CHECK_OUTPUT $status_output
+         puts $CHECK_OUTPUT "================================================================================"
+      }
+
+      expect {
+         -i $spawn_list full_buffer {
+         }
+         -i $spawn_list timeout {
+            set spawn_id $expect_out(spawn_id)
+            set host $host_array($spawn_id,host)
+            set line $expect_out(0,string)
+            
+            report_task_add_message report $host_array($spawn_id,task_nr) "got timeout for host \"$host\""
+            set host_array($spawn_id,bad_compile) 1
+            
+            close_spawn_process $host_array($spawn_id,open_spawn)
+            set host_array($spawn_id,open_spawn) "--"
+            set index [lsearch -exact $spawn_list $spawn_id]
+            set spawn_list [lreplace $spawn_list $index $index]
+
+            set status_array(file,$host)   "-"
+            set status_array(status,$host) "timeout"
+            set status_updated 1
+         }
+         -i $spawn_list eof {
+            set spawn_id $expect_out(spawn_id)
+            set host $host_array($spawn_id,host)
+            set line $expect_out(0,string)
+            
+            report_task_add_message report $host_array($spawn_id,task_nr) "got eof for host \"$host\""
+            set host_array($spawn_id,bad_compile) 1
+            
+            close_spawn_process $host_array($spawn_id,open_spawn)
+            set host_array($spawn_id,open_spawn) "--"
+            set index [lsearch -exact $spawn_list $spawn_id]
+            set spawn_list [lreplace $spawn_list $index $index]
+
+            set status_array(file,$host)   "-"
+            set status_array(status,$host) "eof"
+            set status_updated 1
+         }
+         -i $spawn_list "remotecompile * aimk compile error" {
+            set spawn_id $expect_out(spawn_id)
+            set host $host_array($spawn_id,host)
+            set line $expect_out(0,string)
+            
+            
+            report_task_add_message report $host_array($spawn_id,task_nr) $line
+            set host_array($spawn_id,bad_compile) 1
+            
+            close_spawn_process $host_array($spawn_id,open_spawn)
+            set host_array($spawn_id,open_spawn) "--"
+            set index [lsearch -exact $spawn_list $spawn_id]
+            set spawn_list [lreplace $spawn_list $index $index]
+
+            set status_array(file,$host)   "-"
+            set status_array(status,$host) "compile error"
+            set status_updated 1
+         }
+         -i $spawn_list "remotecompile * aimk no errors" {
+            set spawn_id $expect_out(spawn_id)
+            set host $host_array($spawn_id,host)
+            set line $expect_out(0,string)
+
+            report_task_add_message report $host_array($spawn_id,task_nr) $line
+            set host_array($spawn_id,bad_compile) 0
+            
+            close_spawn_process $host_array($spawn_id,open_spawn)
+            set host_array($spawn_id,open_spawn) "--"
+            set index [lsearch -exact $spawn_list $spawn_id]
+            set spawn_list [lreplace $spawn_list $index $index]
+
+            set status_array(file,$host)   "-"
+            set status_array(status,$host) "finished"
+            set status_updated 1
+         }
+         -i $spawn_list "*\n" {
+            set spawn_id $expect_out(spawn_id)
+            set host $host_array($spawn_id,host)
+            set line [split $expect_out(0,string)]
+
+            report_task_add_message report $host_array($spawn_id,task_nr) $line
+
+            # look for output in the form "<compiler> .... -o target ..."
+            #                          or "<compiler> .... -c ...."
+            if {[llength $line] > 0} {
+               set command [lindex $line 0]
+
+               switch -exact $command {
+                  "cc" -
+                  "gcc" -
+                  "xlc" -
+                  "xlc_r" -
+                  "insure" -
+                  "cl.exe" {
+                     set pos [lsearch -exact $line "-o"]
+                     if {$pos > 0 && [llength $line] > [expr $pos + 1]} {
+                        set status_array(file,$host) [lindex $line [expr $pos + 1]]
+                        set status_updated 1
+                     } else {
+                        set pos [lsearch -glob $line "*.c"]
+                        if {$pos > 0 && [llength $line] > $pos} {
+                           set status_array(file,$host) [file tail [lindex $line $pos]]
+                           set status_updated 1
+                        }
+                     }
+                  }
+                  "ar" {
+                     if {[llength $line] > 2} {
+                        set status_array(file,$host) [lindex $line 2]
+                        set status_updated 1
+                     }
+                  }
+                  default {
+                     #set status_array(file,$host)   "(?)"
+                     #set status_updated 1
+#   puts $CHECK_OUTPUT "---> unknown <--- $line"
+                  }
+               }
+            }
+         }
+      }
+   }
+   log_user 1
+   
+   set compile_error 0
+   foreach spawn_id $org_spawn_list {
+      if {$host_array($spawn_id,bad_compile) != 0} {
+         puts $CHECK_OUTPUT "\n=============\ncompile error on host $host_array($spawn_id,host):\n=============\n"
+         report_finish_task report $host_array($spawn_id,task_nr) 1
+         set compile_error 1
+      } else {
+         report_finish_task report $host_array($spawn_id,task_nr) 0
+      }
+   }
+
+   return $compile_error
+}
+
+#****** check/get_build_number() ***********************************************
+#  NAME
+#     get_build_number() -- create a build number
+#
+#  SYNOPSIS
+#     get_build_number { } 
+#
+#  FUNCTION
+#     Creates a build number.
+#     Currently, we use the date (formatted as yyyymmdd) as build number.
+#
+#  INPUTS
+#
+#  RESULT
+#     build number
+#*******************************************************************************
+proc get_build_number {} {
+   set build [clock format [clock seconds] -format "%Y%m%d" -gmt 1]
+   return $build
+}
+
+#****** check/delete_build_number_object() *************************************
+#  NAME
+#     delete_build_number_object() -- delete object code containing build num
+#
+#  SYNOPSIS
+#     delete_build_number_object { host build } 
+#
+#  FUNCTION
+#     The function deletes the object code file from the build directory
+#     which has the build number compiled in.
+#
+#     Currently this is the file sge_feature.o.
+#
+#     As we use the date as build number, the file is only deleted - and
+#     therefore will be rebuilt with a new build number - when it has been
+#     created or modified earlier than today.
+#
+#  INPUTS
+#     host  - the host for whose architecture the object module will be deleted
+#     build - the build number
+#*******************************************************************************
+proc delete_build_number_object {host build} {
+   global ts_config
+
+   set arch [resolve_build_arch $host]
+   set filename "$ts_config(source_dir)/$arch/sge_feature.o"
+
+   # only delete the file, if it is older than 00:00 today
+   if {[file exists $filename]} {
+      set midnight [clock scan $build -gmt 1]
+      if {[file mtime $filename] < $midnight} {
+         file delete $filename
+      }
+   }
+}
+
