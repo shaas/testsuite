@@ -57,7 +57,14 @@ puts "    *********************************************"
 proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
    set catch_return [catch {
       if {$passwd} {
-         set send_human {.05 .1 1 .01 1}
+         #set send_human {default word variability min max}
+         #   default      Average default interarrival time, in seconds
+         #   word         Average interarrival time at word endings, in seconds
+         #   variability  Measure of variability of interarrival times (.1 = very variable; 10 = very invariable)
+         #   min          Minimum arrival time
+         #   max          Maximum arrival time
+
+         set send_human {.2 .2 1 .1 .4}
          send -i $spawn_id -h -- "${message}"
       } else {
          # if no hostname is passed, try to figure it out from spawn_id
