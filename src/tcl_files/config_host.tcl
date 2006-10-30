@@ -2215,8 +2215,11 @@ proc host_conf_get_java_compile_host {{raise_error 1}} {
    return $compile_host
 }
 
-proc host_conf_get_send_speed {host} {
+proc host_conf_get_send_speed {host_in} {
    global ts_host_config
+
+   # remove domain part of hostname
+   set host [lindex [split $host_in "."] 0]
 
    if {$host != "" && [info exists ts_host_config($host,send_speed)]} {
       return $ts_host_config($host,send_speed)

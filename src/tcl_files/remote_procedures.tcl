@@ -58,7 +58,7 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
    set catch_return [catch {
       if {$passwd} {
          set send_human {.05 .1 1 .01 1}
-         send -i $spawn_id -h -- $message
+         send -i $spawn_id -h -- "${message}"
       } else {
          # if no hostname is passed, try to figure it out from spawn_id
          if {$host == ""} {
@@ -69,9 +69,9 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
          set delay [host_conf_get_send_speed $host]
          if {$delay > 0.0} {
             set send_slow "1 $delay"
-            send -i $spawn_id -s -- $message
+            send -i $spawn_id -s -- "${message}"
          } else {
-            send -i $spawn_id -- $message
+            send -i $spawn_id "${message}"
          }
       }
    } catch_output]
@@ -615,7 +615,6 @@ proc start_remote_prog { hostname
    }
    debug_puts "starting command done!"
 
-   close_spawn_process $id
 
    # parse output: cut leading sequence 
    set found_start [string first "_start_mark_" $output]
@@ -645,6 +644,7 @@ proc start_remote_prog { hostname
    }
 
    debug_puts "E X I T   S T A T E   of remote prog: $exit_status"
+   close_spawn_process $id
     
    if { $CHECK_DEBUG_LEVEL == 2 } {
       wait_for_enter
@@ -2668,8 +2668,10 @@ proc close_spawn_process {id {check_exit_state 0}} {
 
       # stop still remaining running processes and wait for shell prompt
       set catch_return [catch {
-         debug_puts "close_spawn_process: sending CTRL-C"
-         ts_send $spawn_id "\003" $con_data(hostname) ;# CTRL-C
+         # first check the shell by expecting the shell prompt when
+         # sending just a ENTER
+         # if this is not working, send CTRL-C
+         ts_send $spawn_id "\n"
          set timeout 2
          set num_tries 10
          expect {
