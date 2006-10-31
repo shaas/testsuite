@@ -1,3 +1,9 @@
+CR-2006-10-31-1: Bugfix:    - fixed problem introduced with CR-2006-10-30-0:
+                              some procedures (setup_qping_dump, etc.) expected
+                              the CTRL-C when closing the connection
+                            - added new member to con_data structure: real_user
+                 Review:    RD
+
 CR-2006-10-31-0: Cleanup:   - setting CHECK_ACT_LEVEL to an info message if
                               used in the global setup/cleanup callbacks
                  Review:    RD

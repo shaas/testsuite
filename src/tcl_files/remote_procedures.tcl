@@ -120,7 +120,9 @@ proc setup_qping_dump { log_array  } {
    set qping_env(SGE_QPING_OUTPUT_FORMAT) "s:1 s:2 s:3 s:4 s:5 s:6 s:7 s:8 s:9 s:10 s:11 s:12 s:13 s:14 s:15"
 
    if { $ts_config(gridengine_version) >= 60 } {
+      puts $CHECK_OUTPUT "starting remote qping process ..."
       set sid [open_remote_spawn_process $master_host "root" $qping_binary $qping_arguments 0 "" qping_env]
+      puts $CHECK_OUTPUT "remote qping process started!"
       set sp_id [lindex $sid 1]
    } else {
       set sid   "unsupported version < 60"
@@ -1684,7 +1686,7 @@ proc open_remote_spawn_process { hostname
          return ""
       }
       # store the connection
-      add_open_spawn_rlogin_session $hostname $user $win_local_user $spawn_id $pid $nr_of_shells
+      add_open_spawn_rlogin_session $hostname $user $win_local_user $spawn_id $pid $nr_of_shells $real_user
    } ;# opening new connection
 
    # If we call the command for the first time, make sure it is available on the remote machine
@@ -2026,7 +2028,7 @@ proc dump_spawn_rlogin_sessions {{do_output 1}} {
 #     remote_procedures/del_open_spawn_rlogin_session
 #     remote_procedures/remove_oldest_spawn_rlogin_session()
 #*******************************************************************************
-proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr_of_shells} {
+proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr_of_shells real_user} {
    global CHECK_OUTPUT rlogin_spawn_session_buffer rlogin_spawn_session_idx
    global do_close_rlogin rlogin_max_open_connections 
 
@@ -2052,6 +2054,7 @@ proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr
    set rlogin_spawn_session_buffer($spawn_id,pid)                 $pid
    set rlogin_spawn_session_buffer($spawn_id,hostname)            $hostname
    set rlogin_spawn_session_buffer($spawn_id,user)                $user
+   set rlogin_spawn_session_buffer($spawn_id,real_user)           $real_user
    set rlogin_spawn_session_buffer($spawn_id,win_local_user)      $win_local_user
    set rlogin_spawn_session_buffer($spawn_id,ltime)               [timestamp]
    set rlogin_spawn_session_buffer($spawn_id,nr_shells)           $nr_of_shells
@@ -2175,6 +2178,7 @@ proc get_open_spawn_rlogin_session {hostname user win_local_user back_var} {
    set back(pid)            $rlogin_spawn_session_buffer($spawn_id,pid)
    set back(hostname)       $rlogin_spawn_session_buffer($spawn_id,hostname)
    set back(user)           $rlogin_spawn_session_buffer($spawn_id,user)
+   set back(real_user)      $rlogin_spawn_session_buffer($spawn_id,real_user)
    set back(win_local_user) $rlogin_spawn_session_buffer($spawn_id,win_local_user)
    set back(ltime)          $rlogin_spawn_session_buffer($spawn_id,ltime)
    set back(nr_shells)      $rlogin_spawn_session_buffer($spawn_id,nr_shells)
@@ -2183,6 +2187,7 @@ proc get_open_spawn_rlogin_session {hostname user win_local_user back_var} {
    debug_puts "pid       :      $back(pid)"
    debug_puts "hostname  :      $back(hostname)"
    debug_puts "user      :      $back(user)"
+   debug_puts "real_user :      $back(real_user)"
    debug_puts "win_local_user : $back(win_local_user)"
    debug_puts "ltime     :      $back(ltime)"
    debug_puts "nr_shells :      $back(nr_shells)"
@@ -2227,6 +2232,7 @@ proc del_open_spawn_rlogin_session {spawn_id} {
       unset rlogin_spawn_session_buffer($spawn_id,pid)
       unset rlogin_spawn_session_buffer($spawn_id,hostname)
       unset rlogin_spawn_session_buffer($spawn_id,user)
+      unset rlogin_spawn_session_buffer($spawn_id,real_user)
       unset rlogin_spawn_session_buffer($spawn_id,win_local_user)
       unset rlogin_spawn_session_buffer($spawn_id,ltime)
       unset rlogin_spawn_session_buffer($spawn_id,nr_shells)
@@ -2355,6 +2361,7 @@ proc get_spawn_id_rlogin_session {spawn_id back_var} {
    set back(pid)            $rlogin_spawn_session_buffer($spawn_id,pid)
    set back(hostname)       $rlogin_spawn_session_buffer($spawn_id,hostname)
    set back(user)           $rlogin_spawn_session_buffer($spawn_id,user)
+   set back(real_user)      $rlogin_spawn_session_buffer($spawn_id,real_user)
    set back(win_local_user) $rlogin_spawn_session_buffer($spawn_id,win_local_user)
    set back(ltime)          $rlogin_spawn_session_buffer($spawn_id,ltime)
    set back(nr_shells)      $rlogin_spawn_session_buffer($spawn_id,nr_shells)
@@ -2363,6 +2370,7 @@ proc get_spawn_id_rlogin_session {spawn_id back_var} {
    debug_puts "pid            : $back(pid)"
    debug_puts "hostname       : $back(hostname)"
    debug_puts "user           : $back(user)"
+   debug_puts "real_user      : $back(real_user)"
    debug_puts "win_local_user : $back(win_local_user)"
    debug_puts "ltime          : $back(ltime)"
    debug_puts "nr_shells      : $back(nr_shells)"
@@ -2635,8 +2643,8 @@ proc is_spawn_process_in_use {spawn_id} {
 #     remote_procedures/start_remote_prog
 #*******************************
 proc close_spawn_process {id {check_exit_state 0}} {
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
-   global CHECK_SHELL_PROMPT
+   global CHECK_OUTPUT CHECK_DEBUG_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_SHELL_PROMPT CHECK_TESTSUITE_ROOT
  
    set pid      [lindex $id 0]
    set spawn_id [lindex $id 1]
@@ -2678,7 +2686,8 @@ proc close_spawn_process {id {check_exit_state 0}} {
          # first check the shell by expecting the shell prompt when
          # sending just a ENTER
          # if this is not working, send CTRL-C
-         ts_send $spawn_id "\n"
+         debug_puts "real user of connection is \"$con_data(real_user)\""
+         ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname)
          set timeout 2
          set num_tries 10
          expect {
@@ -2695,14 +2704,15 @@ proc close_spawn_process {id {check_exit_state 0}} {
                if {$num_tries > 0} {
                   debug_puts "close_spawn_process: sending CTRL-C"
                   ts_send $spawn_id "\003" $con_data(hostname) ;# CTRL-C
+                  ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname)
                   increase_timeout
                   exp_continue
                } else {
                   add_proc_error "close_spawn_process (regular close)" -2 "timeout waiting for shell prompt"
                }
             }
-            -i $spawn_id -re $CHECK_SHELL_PROMPT {
-               debug_puts "got shell prompt"
+            -i $spawn_id "__ my id is ->*${con_data(real_user)}*\n" {
+               debug_puts "logged in as ${con_data(real_user)} - fine"
                set do_return -1
             }
          }
