@@ -768,36 +768,38 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
             #                          or "<compiler> .... -c ...."
             if {[llength $line] > 0} {
                set command [lindex $line 0]
-
-               switch -exact $command {
-                  "cc" -
-                  "gcc" -
-                  "xlc" -
-                  "xlc_r" -
-                  "insure" -
-                  "cl.exe" {
-                     set pos [lsearch -exact $line "-o"]
-                     if {$pos > 0 && [llength $line] > [expr $pos + 1]} {
-                        set status_array(file,$host) [lindex $line [expr $pos + 1]]
-                        set status_updated 1
-                     } else {
-                        set pos [lsearch -glob $line "*.c"]
-                        if {$pos > 0 && [llength $line] > $pos} {
-                           set status_array(file,$host) [file tail [lindex $line $pos]]
+               # puts $CHECK_OUTPUT "line: $line"
+               catch {
+                  switch -exact $command {
+                     "cc" -
+                     "gcc" -
+                     "xlc" -
+                     "xlc_r" -
+                     "insure" -
+                     "cl.exe" {
+                        set pos [lsearch -exact $line "-o"]
+                        if {$pos > 0 && [llength $line] > [expr $pos + 1]} {
+                           set status_array(file,$host) [lindex $line [expr $pos + 1]]
+                           set status_updated 1
+                        } else {
+                           set pos [lsearch -glob $line "*.c"]
+                           if {$pos > 0 && [llength $line] > $pos} {
+                              set status_array(file,$host) [file tail [lindex $line $pos]]
+                              set status_updated 1
+                           }
+                        }
+                     }
+                     "ar" {
+                        if {[llength $line] > 2} {
+                           set status_array(file,$host) [lindex $line 2]
                            set status_updated 1
                         }
                      }
-                  }
-                  "ar" {
-                     if {[llength $line] > 2} {
-                        set status_array(file,$host) [lindex $line 2]
-                        set status_updated 1
+                     default {
+                        #set status_array(file,$host)   "(?)"
+                        #set status_updated 1
+                        #   puts $CHECK_OUTPUT "---> unknown <--- $line"
                      }
-                  }
-                  default {
-                     #set status_array(file,$host)   "(?)"
-                     #set status_updated 1
-#   puts $CHECK_OUTPUT "---> unknown <--- $line"
                   }
                }
             }
