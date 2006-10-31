@@ -96,11 +96,19 @@ set check_needs           ""
 set check_setup_function ts_performance_test_setup
 set check_cleanup_function ts_performance_test_cleanup
 
+set check_setup_level_function ts_performance_test_setup2
+set check_cleanup_level_function ts_performance_test_cleanup2
 
 
 # define test's procedure order
 set check_functions "ts_performance_test_test"
 
+
+global ts_performance_test_dummy_act_level_counter
+set ts_performance_test_dummy_act_level_counter 0
+
+global ts_performance_test_dummy_act_level_counter2
+set ts_performance_test_dummy_act_level_counter2 0
 
 global ts_performance_test_test_hosts
 global ts_performance_test_saved_slot_count
@@ -131,19 +139,57 @@ proc ts_performance_test_init_level {} {
 
 
 proc ts_performance_test_setup  {} {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
 
+   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
    puts $CHECK_OUTPUT "this is a dummy setup function"
 
    set_error 0 "ok"
 }
 
+proc ts_performance_test_setup2  {} {
+   global CHECK_OUTPUT ts_config 
+   global CHECK_ACT_LEVEL
+   global ts_performance_test_dummy_act_level_counter2
+
+   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   if { $CHECK_ACT_LEVEL != $ts_performance_test_dummy_act_level_counter2 } {
+      add_proc_error "ts_performance_test_setup" -1 "CHECK_ACT_LEVEL is not set correctly"
+   }
+
+   incr ts_performance_test_dummy_act_level_counter2 1
+
+
+   puts $CHECK_OUTPUT "this is a dummy level setup function"
+
+   set_error 0 "ok"
+}
+
+
 proc ts_performance_test_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
 
 #   delete_all_jobs
 #   wait_for_end_of_all_jobs 60
    puts $CHECK_OUTPUT "this is a dummy cleanup function"
+
+   set_error 0 "ok"
+}
+
+
+proc ts_performance_test_cleanup2  {} {
+   global CHECK_OUTPUT CHECK_ACT_LEVEL CHECK_ACT_LEVEL 
+   global ts_config ts_performance_test_dummy_act_level_counter
+   if { $CHECK_ACT_LEVEL != $ts_performance_test_dummy_act_level_counter } {
+      puts $CHECK_OUTPUT "CHECK_ACT_LEVEL is not set correctly"
+   }
+   incr ts_performance_test_dummy_act_level_counter 1
+
+
+#   delete_all_jobs
+#   wait_for_end_of_all_jobs 60
+   puts $CHECK_OUTPUT "this is a dummy level cleanup function"
 
    set_error 0 "ok"
 }

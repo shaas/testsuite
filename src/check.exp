@@ -4660,7 +4660,7 @@ proc delete_temp_script_files { } {
 #
 #*******************************************************************************
 proc execute_setup_cleanup_function {func_name type} {
-   global CHECK_OUTPUT CHECK_CUR_PROC_RESULTS
+   global CHECK_OUTPUT CHECK_CUR_PROC_RESULTS CHECK_ACT_LEVEL
 
    set ret 1
 
@@ -4688,7 +4688,20 @@ proc execute_setup_cleanup_function {func_name type} {
    if {$ret == 1} {
       puts $CHECK_OUTPUT "starting $type function $func_name"
       set CHECK_CUR_PROC_NAME $func_name
+
+      set act_level_value $CHECK_ACT_LEVEL
+
+      if { $type == "setup" || $type == "cleanup" } {
+         set act_level_value $CHECK_ACT_LEVEL
+         set CHECK_ACT_LEVEL "\n"
+         append CHECK_ACT_LEVEL "==========================================================================\n"
+         append CHECK_ACT_LEVEL "* using CHECK_ACT_LEVEL not supported for global setup/cleanup function! *\n"
+         append CHECK_ACT_LEVEL "==========================================================================\n"
+      }
       set catch_return [ catch { $func_name } catch_message ]
+
+      set CHECK_ACT_LEVEL $act_level_value
+
       # catch returnes an error - may be a TCL error
       if { $catch_return != 0 } {
          add_proc_error "run_test" "-2" "$type function \"$func_name\" failed:\n$catch_message" 
