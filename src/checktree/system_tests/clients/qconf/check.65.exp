@@ -36,17 +36,45 @@
 global check_functions 
 
 # define test's procedure order
-lappend check_functions "qconf_modify_lirs"; # modify limitation rule set
+lappend check_functions "qconf_add_lirs";           # add limitation rule set
+lappend check_functions "qconf_modify_lirs";        # modify limitation rule set
+lappend check_functions "qconf_modifyreplace_lirs"; # modify/replace limitation rule set
+lappend check_functions "qconf_remove_lirs";        # delete limitation rule set
+lappend check_functions "qconf_dynamic_limit";      # add a dynamic limit
 
-proc qconf_modify_lirs {} {
-   global ts_config env
+global lirs_name_fast
+global lirs_name_cli
+
+proc qconf_add_lirs {} {
+   global ts_config env lirs_name_fast lirs_name_cli
    global CHECK_OUTPUT CHECK_USER
 
-   # Save the initial values if necessary
-   get_lirs old_values
+   set lirs_name_fast "qconf_lirs_fast"
+   set lirs_name_cli "qconf_lirs_cli"
+
+   set rules ""
+   lappend rules "to slots=10"
+
+   # Add limitation rule sets fast
+   set lirs_charray($lirs_name_fast,limit) "$rules"
+   set result [add_lirs lirs_charray]
+
+   # Add limitation rule set from CLI
+   unset lirs_charray
+   set lirs_charray($lirs_name_cli,limit) "$rules"
+   set result [add_lirs lirs_charray 0]
+
+   set_error 0 "ok"
+}
+
+proc qconf_modify_lirs {} {
+   global ts_config env lirs_name_fast lirs_name_cli
+   global CHECK_OUTPUT CHECK_USER
+
+   get_lirs_list old_lirs
+   set old_lirs_count [llength $old_lirs]
 
    # Modify limitation rule sets fast
-   set lirs_name "mytestlirs"
    set rules     ""
    lappend rules "users * projects * hosts * pes * queues * to arch=sol-sparc64"
    lappend rules "users * projects * hosts * pes * queues * to arch=sol-amd64"
@@ -56,24 +84,137 @@ proc qconf_modify_lirs {} {
    lappend rules "users * to arch=sol-amd64"
    lappend rules "to arch=sol-amd64"
 
-   set new_lirs_charray($lirs_name,limit) "$rules"
-   set result0 [mod_lirs new_lirs_charray "$lirs_name"]
+   set new_lirs_charray($lirs_name_fast,limit) "$rules"
+   set result [mod_lirs new_lirs_charray "$lirs_name_fast"]
 
-   puts $CHECK_OUTPUT "result is $result0"
+   puts $CHECK_OUTPUT "fast result is:\n $result"
+
+   get_lirs_list result
+   set new_lirs_count [llength $result]
+
+   if { $old_lirs_count != $new_lirs_count } {
+      add_proc_error "qconf_modify_lirs" -1 "modify fast replaced wrongly all limitation rule sets"
+   }
 
    # Modify from CLI
-   # RD: TODO
+   unset new_lirs_charray
+   set new_lirs_charray($lirs_name_cli,limit) "$rules"
+   set result [mod_lirs new_lirs_charray "$lirs_name_cli" 0]
 
-   # Modify lirs fast wrongly
-   # RD: TODO
+   puts $CHECK_OUTPUT "cli result is:\n $result"
 
-   # Modify from CLI wrongly
-   # RD: TODO
+   get_lirs_list result
+   set new_lirs_count [llength $result]
 
-   # Now restore the old values
-   puts $CHECK_OUTPUT "Restoring old limitation rule sets ...\n"
-   set result2 [mod_lirs old_values ""]
+   if { $old_lirs_count != $new_lirs_count } {
+      add_proc_error "qconf_modify_lirs" -1 "modify cli replaced wrongly all limitation rule sets"
+   }
+
+   # Modify unknown lirs
+   unset new_lirs_charray
+   set new_lirs_charray("unknown_lirs",limit) "$rules"
+   set result [mod_lirs new_lirs_charray "unknown_lirs" 1 "" "" 0]
+   if { $result == 0 } {
+      add_proc_error "qconf_modify_lirs" -1 "no error was reported for modifing unknown lirs"
+   }
 
    set_error 0 "ok"
 }
 
+proc qconf_modifyreplace_lirs {} {
+   global ts_config env
+   global CHECK_OUTPUT CHECK_USER
+
+   get_lirs old_lirs_config
+
+   get_lirs_list result
+   set old_lirs_count [llength $result]
+
+   set lirs_name "qconf_modifyreplace_lirs"
+
+   set rules     ""
+   lappend rules "to arch=sol-amd64"
+   set new_lirs_charray($lirs_name,limit) "$rules"
+
+   # Replace from CLI
+   set result [mod_lirs new_lirs_charray "" 0]
+
+   get_lirs_list result
+   set new_lirs_count [llength $result]
+
+   if { $old_lirs_count == $new_lirs_count } {
+      add_proc_error "qconf_modify_lirs" -1 "modify replace fast doesn't replaced all limitation rule sets"
+   }
+
+   # Replace limitation rule sets fast
+   set result [mod_lirs old_lirs_config ""]
+
+   get_lirs_list result
+   set new_lirs_count [llength $result]
+
+   if { $old_lirs_count != $new_lirs_count } {
+      add_proc_error "qconf_modify_lirs" -1 "modify replace cli doesn't replaced all limitation rule sets"
+   }
+
+   set_error 0 "ok"
+}
+
+proc qconf_remove_lirs {} {
+   global ts_config env lirs_name_fast lirs_name_cli
+   global CHECK_OUTPUT CHECK_USER
+  
+   # delete lirs the first time, should be OK 
+   puts $CHECK_OUTPUT "deleting limitation rule set \"$lirs_name_fast\""
+   del_lirs $lirs_name_fast
+   puts $CHECK_OUTPUT "deleting limitation rule set \"$lirs_name_cli\""
+   del_lirs $lirs_name_cli
+
+   # delete lirs the second time, should be not OK
+   puts $CHECK_OUTPUT "deleting limitation rule set \"$lirs_name_fast\" the second time"
+   set result [del_lirs $lirs_name_fast "" "" 0]
+   if {$result == 0} {
+      add_proc_error "qconf_remove_lirs" -1 "qconf -dlrs shows no error for invalid rule set"
+   }
+
+   set_error 0 "ok"
+}
+
+proc qconf_dynamic_limit {} {
+   global ts_config env
+   global CHECK_OUTPUT CHECK_USER
+
+   set lirs_name "dynamic_lirs"
+
+   set rules ""
+   lappend rules "hosts `*` to slots=\$num_proc*2"
+
+   # Add limitation rule sets with dynamic limit
+   set lirs_charray($lirs_name,limit) "$rules"
+   set result [add_lirs lirs_charray]
+
+   # Try to add invalid dynamic limit (1)
+   set rules ""
+   lappend rules "hosts * to slots=\$num_proc*2"
+
+   unset lirs_charray
+   set lirs_charray($lirs_name,limit) "$rules"
+   set result [mod_lirs lirs_charray "$lirs_name" 1 "" "" 0]
+   if { $result == 0 } {
+      add_proc_error "qconf_modify_lirs" -1 "invalid dynamic limit was accepted (1)"
+   }
+
+   # Try to add invalid dynamic limit (2)
+   set rules ""
+   lappend rules "hosts `*` to slots=\$arch*2"
+
+   unset lirs_charray
+   set lirs_charray($lirs_name,limit) "$rules"
+   set result [mod_lirs lirs_charray "$lirs_name" 1 "" "" 0]
+   if { $result == 0 } {
+      add_proc_error "qconf_modify_lirs" -1 "invalid dynamic limit was accepted (2)"
+   }
+
+   del_lirs $lirs_name
+   
+   set_error 0 "ok"
+}

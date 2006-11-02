@@ -76,13 +76,13 @@ proc dump_lirs_array_to_tmpfile { change_array } {
    global ts_config CHECK_OUTPUT
 
    upvar $change_array chgar
-
+   set tmpfile ""
 
    if [info exists chgar] {
       set old_name ""
       set first "true"
 
-      set tmpfile [ get_tmp_file_name ]
+      set tmpfile [get_tmp_file_name]
       set file [open $tmpfile "w"]
 
       foreach elem [lsort [array names chgar]] {
@@ -113,6 +113,8 @@ proc dump_lirs_array_to_tmpfile { change_array } {
 
       puts $file "\}"
       close $file
+   } else {
+      puts $CHECK_OUTPUT "WARNING: got not charray!"
    }
 
    return $tmpfile
@@ -165,11 +167,11 @@ proc build_vi_command { change_array {current_array no_current_array_has_been_pa
    upvar $change_array  chgar
    upvar $current_array curar
 
-   set vi_commands "" 
-
    if {![info exists chgar]} {
       return ""
    }
+
+   set vi_commands "" 
 
    if {[info exists curar]} {
       # compare the new values to old ones
@@ -207,6 +209,59 @@ proc build_vi_command { change_array {current_array no_current_array_has_been_pa
             set newVal1 [split $newVal {/}]
             set newVal [join $newVal1 {\/}]
             lappend vi_commands ":%s/^$elem .*$/$elem  $newVal/\n"
+         }
+      }
+   }
+
+   return $vi_commands
+}
+
+# take a lirs array and build vi comand to set new values
+proc build_lirs_vi_array { change_array } {
+   global CHECK_OUTPUT
+   upvar $change_array chgar
+
+   if {![info exists chgar]} {
+      return ""
+   }
+
+   set vi_commands ""
+
+   set old_name ""
+   set first "true"
+
+   foreach elem [lsort [array names chgar]] {
+      set help [split $elem ","]
+      set name [lindex $help 0]
+      set field [lindex $help 1]
+      set newVal $chgar($elem)
+
+      if { $old_name != $name } {
+         # new rule set
+         set old_name $name
+
+         # go to the next ruleset and set the name
+         lappend vi_commands "/name\n"
+         lappend vi_commands ":s/name.*/name  $name\n"
+      }
+      if { $newVal != "" } {
+         # this will quote any / to \/ (or vi - search and replace)
+         set newVal1 [split $newVal {/}]
+         set newVal [join $newVal1 {\/}]
+         if { $field == "limit" } {
+            # delete all rules in this rule set 
+            lappend vi_commands "/limit\n"
+            lappend vi_commands "d?\}?-1\n"
+
+            set rules ""
+            foreach limit $newVal {
+               # build new rule set string
+               set rules "$rules limit $limit\n"
+            }
+            # add new rule sets
+            lappend vi_commands "I$rules\n[format "%c" 27]"
+         } else {
+            lappend vi_commands ":s/$elem.*$/$elem  $newVal/\n"
          }
       }
    }
@@ -355,7 +410,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    
    
    set timeout 1
-   # wait for vi to startup and go to first line
+   # wait for vi to startup and go to last line
    send -s -i $sp_id -- "G"
    set timeout_count 0
 
@@ -441,7 +496,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       set com_length [ string length $elem ]
       set com_sent 0
       send -s -i $sp_id -- "$elem"
-      send -s -i $sp_id -- "G"
+      send -s -i $sp_id -- ""
       set timeout 1
       expect {
          -i $sp_id full_buffer {
@@ -463,12 +518,12 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
             if { $timeout_count > 15 } {
                set error 2
             } else {
-               send -s -i $sp_id -- "G"
+               send -s -i $sp_id -- ""
                exp_continue
             }
          }
 
-         -i $sp_id "100%" {
+         -i $sp_id "%" {
          }
       }
       flush $CHECK_OUTPUT

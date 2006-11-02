@@ -965,6 +965,5 @@ proc get_queue_list {{output_var result} {on_host ""} {as_user ""} {raise_error 
    upvar $output_var out
 
    return [get_qconf_list "get_queue_list" "-sql" out $on_host $as_user $raise_error]
-
 }
 

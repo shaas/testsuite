@@ -4904,62 +4904,62 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    }
 
    if { $immediate_return == 0 } {
-  for {set level 0} { $level <= $check_highest_level} {incr level 1} {
-     if {[is_level_enabled $level] == -1 } {
-        continue
-     } 
-     set my_current_runlevel $level
-     if { [string compare $check_init_level_procedure "--" ] != 0 } { 
-         set CHECK_ACT_LEVEL $level
-         if { [$check_init_level_procedure ]  != 0 } { 
-            continue 
-         }
-     }
-     puts $CHECK_OUTPUT "\n----------------------------------------------"
-     puts $CHECK_OUTPUT "-> enter check level $level"
+     for {set level 0} { $level <= $check_highest_level} {incr level 1} {
+        if {[is_level_enabled $level] == -1 } {
+           continue
+        } 
+        set my_current_runlevel $level
+        if { [string compare $check_init_level_procedure "--" ] != 0 } { 
+            set CHECK_ACT_LEVEL $level
+            if { [$check_init_level_procedure ]  != 0 } { 
+               continue 
+            }
+        }
+        puts $CHECK_OUTPUT "\n----------------------------------------------"
+        puts $CHECK_OUTPUT "-> enter check level $level"
 
-     if { $do_only_one_test == 0 } {
-        set back [run_test_level $path $runcompleted $level]
-        debug_puts "level $level return value: $back"
-        incr no_level_calls 1
-     } else {
-        set back [run_test_level $path $runcompleted $level 0 ]
-        debug_puts "level $level return value of test $run_single_test: $back"
-        incr no_level_calls 1
-     }
+        if { $do_only_one_test == 0 } {
+           set back [run_test_level $path $runcompleted $level]
+           debug_puts "level $level return value: $back"
+           incr no_level_calls 1
+        } else {
+           set back [run_test_level $path $runcompleted $level 0 ]
+           debug_puts "level $level return value of test $run_single_test: $back"
+           incr no_level_calls 1
+        }
 
-     if { [string first "unknown" $CHECK_GROUP] >= 0 } {
-         add_proc_error "run_test" -1 "CHECK_GROUP set to unknown, test was $path in level $level"
-     }
+        if { [string first "unknown" $CHECK_GROUP] >= 0 } {
+            add_proc_error "run_test" -1 "CHECK_GROUP set to unknown, test was $path in level $level"
+        }
 
-     if {$back == -101  } { 
-        incr nr_errors 1
-        debug_puts "--> TCL ERROR in check $path in level $level <--"
-        set immediate_return -101
-        break
-     }
-     if {$back == -1} {
-        incr nr_errors 1     ;# we had an error
-        debug_puts "--> ERROR in check $path in level $level <--"
-        set immediate_return -1
-        break
-     }
-     if {$back == -2} {
-        incr nr_warnings 1     ;# check can not run
-        debug_puts "--> check $path in level $level: can't start test <--"
-     }
-     if {$back == 0} {
-        set do_send_mail 1  ;# a successfull test run
-        incr nr_new_done 1
-        debug_puts "no errors"
-     } 
+        if {$back == -101  } { 
+           incr nr_errors 1
+           debug_puts "--> TCL ERROR in check $path in level $level <--"
+           set immediate_return -101
+           break
+        }
+        if {$back == -1} {
+           incr nr_errors 1     ;# we had an error
+           debug_puts "--> ERROR in check $path in level $level <--"
+           set immediate_return -1
+           break
+        }
+        if {$back == -2} {
+           incr nr_warnings 1     ;# check can not run
+           debug_puts "--> check $path in level $level: can't start test <--"
+        }
+        if {$back == 0} {
+           set do_send_mail 1  ;# a successfull test run
+           incr nr_new_done 1
+           debug_puts "no errors"
+        } 
 
-     if {$back == 1} {
-        debug_puts "check already done"
-        incr nr_already_done 1
+        if {$back == 1} {
+           debug_puts "check already done"
+           incr nr_already_done 1
+        }
+        debug_puts "calls=$no_level_calls, already done=$nr_already_done"
      }
-     debug_puts "calls=$no_level_calls, already done=$nr_already_done"
-  }
    }
 
    # if we have a specific cleanup function: execute it

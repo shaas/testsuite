@@ -31,4 +31,4 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-lappend check_functions "setup_limitationrulesobjects"
+# lappend check_functions "setup_limitationrulesobjects"

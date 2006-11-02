@@ -1,3 +1,8 @@
+RD-2006-11-02-0: Enhancm.   - added qlimit test
+                            - enhanced pe_ranges, resource_reservation for limitation
+                              rule sets
+                            - throughput test reports now correct qmaster host
+
 JG-2006-11-01-0: Enhancem.: Made all calls to open_remote_spawn_process and
                             start_remote_prog make use of the cd_dir option
                             added with JG-2006-10-23-0.

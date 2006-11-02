@@ -50,8 +50,9 @@ set check_init_level_procedure "resource_reservation_init_level"
 # define test's name and run level descriptions
 set check_name            "resource_reservation"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   0
+set check_highest_level   1 
 set check_description(0)  "check resource reservation"
+set check_description(1)  "check resource reservation with limitation rule sets"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -60,19 +61,30 @@ set check_needs           "init_core_system"
 set check_setup_function resource_reservation_setup
 set check_cleanup_function resource_reservation_cleanup
 
+# per level setup and cleanup functions
+set check_setup_level_function resource_reservation_level_setup
+set check_cleanup_level_function resource_reservation_level_cleanup
+
 # define test's procedure order
 set check_functions ""
 lappend check_functions "resource_reservation_basic"
-
 
 proc resource_reservation_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
    global CHECK_OUTPUT
- 
-   switch -exact -- $CHECK_ACT_LEVEL {
+
+
+   switch -- $CHECK_ACT_LEVEL {
       "0" {
-         return 0 ;# Tests resource_reservation
+         return 0;      # Tests resource_reservation
+      }
+      "1" {
+         if {$ts_config(gridengine_version) >= 65} {
+            return 0;   # Tests resource_reservation with limitation rule sets
+         } else {
+            return -1;
+         }
       }
    }
 
@@ -95,8 +107,12 @@ proc resource_reservation_setup {} {
    global binary_path
    global CHECK_OUTPUT
    global CHECK_SOURCE_DIR
+   global CHECK_ACT_LEVEL
 
-   puts $CHECK_OUTPUT "rr-startup" 
+   puts $CHECK_OUTPUT "resource_reservation_setup" 
+
+   set rr_queue_name               "rr_queue.q"
+   set rr_host [lindex $ts_config(execd_nodes) 0]
  
    # Setup the scheduler
    set schedconf(schedule_interval)          "0:0:05"
@@ -123,81 +139,35 @@ proc resource_reservation_setup {} {
    
    puts $CHECK_OUTPUT "Scheduler configured"
 
-  # Save original complexes
+   # Save original complexes
    get_complex urgency_org_complexes
    set rr_h_vmem_complex $urgency_org_complexes(h_vmem)
- 
-  # set complex attributes
+
+   # set complex attributes
    set tmp_complex(license)   "lic        INT      <=    YES         YES        0       100"
    set tmp_complex(license2)  "lic2       double   <=    YES         YES        0       100"   
    set tmp_complex(h_vmem)    "h_vmem     MEMORY   <=    YES         YES        100M    0.0000001"
    set tmp_complex(myslots)   "ms         INT      <=    YES         YES        0       100"
-   
+
    set result [ set_complex tmp_complex ]
-   
-#   if { $result == -1} {
-#      puts $CHECK_OUTPUT "complex attributes added"
-#   } else {
-#      if { $result == -2 } {
-#         puts $CHECK_OUTPUT "complex attributes modified"
-#      } else {
-#         set_error -1 "setup of complex definition failed"
-#         return -1
-#      }
-#   }
 
-  # setup needed pe
-   set pe(pe_name)           "round_robin"
-   set pe(slots)             "5"
-   set pe(allocation_rule)   "\$round_robin"
-   add_pe pe
 
-   set pe(pe_name)           "fill_up"
-   set pe(slots)             "5"
-   set pe(allocation_rule)   "\$fill_up"
-   add_pe pe
-
-   set pe(pe_name)           "pe_slots"
-   set pe(slots)             "5"
-   set pe(allocation_rule)   "\$pe_slots"
-   add_pe pe   
-
-  # setup the rr test queue
-   set rr_queue_name               "rr_queue.q"
-   set queue_conf(slots)            "5"
-   set queue_conf(load_thresholds)  "NONE"
-   set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
-   set queue_conf(complex_values)   "myslots=5"
-
-   puts $CHECK_OUTPUT "Add queue $rr_queue_name"
-   
-   add_queue $rr_queue_name "@allhosts" queue_conf 1
-
-  # enable / disable queues needed for the test
+   # enable / disable queues needed for the test
    set queue_list {}
    foreach host $ts_config(execd_nodes) {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    disable_queue $queue_list   
 
-   set rr_host [lindex $ts_config(execd_nodes) 0]
-
-   set queue_list {}
-   foreach host [lrange $ts_config(execd_nodes) 1 end] {
-      lappend queue_list [get_queue_instance "rr_queue.q" $host]
-   }
-   disable_queue $queue_list  
-
 #-----  
   
-  # set global variable  
+   # set global variable  
    set my_host_config(complex_values) "license=5,license2=5"
    set_exechost my_host_config "global"
 
-  # set host variable 
+   # set host variable 
    set my_host_config(complex_values) "h_vmem=5G"
    set_exechost my_host_config $rr_host
-
 
    set binary_arch "[resolve_arch $rr_host]"
 
@@ -207,7 +177,94 @@ proc resource_reservation_setup {} {
   
    puts $CHECK_OUTPUT "host is $rr_host has arch $compile_arch_mt mt bin path $binary_path"
 
-  # done
+   # done
+   set_error 0 "setup OK"
+   return 0
+}
+
+proc resource_reservation_level_setup {} {
+
+   global rr_queue_name rr_h_vmem_complex 
+   global rr_host
+   global ts_config
+   global binary_path
+   global CHECK_OUTPUT
+   global CHECK_SOURCE_DIR
+   global CHECK_ACT_LEVEL
+
+   if { $CHECK_ACT_LEVEL == 0 } {
+      # setup needed pe
+      set pe(pe_name)           "round_robin"
+      set pe(slots)             "5"
+      set pe(allocation_rule)   "\$round_robin"
+      add_pe pe
+
+      set pe(pe_name)           "fill_up"
+      set pe(slots)             "5"
+      set pe(allocation_rule)   "\$fill_up"
+      add_pe pe
+
+      set pe(pe_name)           "pe_slots"
+      set pe(slots)             "5"
+      set pe(allocation_rule)   "\$pe_slots"
+      add_pe pe   
+
+      # setup the rr test queue
+      set queue_conf(slots)            "5"
+      set queue_conf(load_thresholds)  "NONE"
+      set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
+      set queue_conf(complex_values)   "myslots=5"
+   } 
+
+   if { $CHECK_ACT_LEVEL == 1 } {
+      # setup needed pe
+      set pe(pe_name)           "round_robin"
+      set pe(slots)             "100"
+      set pe(allocation_rule)   "\$round_robin"
+      add_pe pe
+
+      set pe(pe_name)           "fill_up"
+      set pe(slots)             "100"
+      set pe(allocation_rule)   "\$fill_up"
+      add_pe pe
+
+      set pe(pe_name)           "pe_slots"
+      set pe(slots)             "100"
+      set pe(allocation_rule)   "\$pe_slots"
+      add_pe pe
+
+      # setup the rr test queue
+      set queue_conf(slots)            "100"
+      set queue_conf(load_thresholds)  "NONE"
+      set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
+      set queue_conf(complex_values)   "myslots=100"
+     
+      # setup needed limitation rule sets
+      set lirs_name              "no_pe"
+      set rules                  ""
+      lappend rules                  "pes !* to myslots=5"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "pe"
+      set rules                  ""
+      lappend rules              "pes * to slots=5"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+ 
+      add_lirs lirs_charray
+   }
+
+   puts $CHECK_OUTPUT "Add queue $rr_queue_name"
+   add_queue $rr_queue_name "@allhosts" queue_conf 1
+ 
+   set queue_list {}
+   foreach host [lrange $ts_config(execd_nodes) 1 end] {
+      lappend queue_list [get_queue_instance $rr_queue_name $host]
+   }
+   disable_queue $queue_list  
+
+   # done
    set_error 0 "setup OK"
    return 0
 }
@@ -221,49 +278,73 @@ proc resource_reservation_cleanup {  } {
    global CHECK_OUTPUT
    global CHECK_SOURCE_DIR
 
-  # remove jobs
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60
-   
-  # reset the scheduler configuration
+   # reset the scheduler configuration
    reset_schedd_config
    
-  # del queue 
-   del_queue $rr_queue_name "@allhosts" 0 1
- 
-  # remove PEs
-   del_pe        "round_robin"
-   del_pe        "fill_up"
-   del_pe        "pe_slots"
- 
-  # set global variable  
+   # set global variable  
    set my_host_config(complex_values) "NONE"
    set_exechost my_host_config "global"
 
-  # set host variable 
-   
+   # set host variable 
    set my_host_config(complex_values) "NONE"
    set_exechost my_host_config $rr_host
  
-  # remove complex attributes
+   # remove complex attributes
    set tmp_complex(license)   ""
    set tmp_complex(license2)  ""
    set tmp_complex(h_vmem)   $rr_h_vmem_complex
    set tmp_complex(myslots)   ""
    puts $CHECK_OUTPUT "result from set_comples: [set_complex tmp_complex]"
 
-  # enable queues
-   set queue_list {}
-   foreach host $ts_config(execd_nodes) {
+   # enable queues
+    set queue_list {}
+    foreach host $ts_config(execd_nodes) {
       lappend queue_list [get_queue_instance "all.q" $host]
+    }
+    enable_queue $queue_list
+
+    set_error 0 "clean OK"
+}
+
+proc resource_reservation_level_cleanup {} {
+
+   global rr_queue_name rr_h_vmem_complex 
+   global rr_host
+   global ts_config
+   global binary_path
+   global CHECK_OUTPUT
+   global CHECK_SOURCE_DIR
+   global CHECK_ACT_LEVEL
+
+   puts $CHECK_OUTPUT "resource_reservation_level_cleanup"
+
+   # remove jobs
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   # del queue 
+   del_queue $rr_queue_name "@allhosts" 0 1
+ 
+   # remove PEs
+   del_pe        "round_robin"
+   del_pe        "fill_up"
+   del_pe        "pe_slots"
+
+   # Delete limitation rule sets
+   if {$ts_config(gridengine_version) >= 65} {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
    }
-   enable_queue $queue_list   
-   
+
+   # done
    set_error 0 "clean OK"
 }
 
 # -------- local test procedures: initialization ------------------------------
-
 
 proc get_job_descriptions { test1 test2 } {
    global job_desc
@@ -346,7 +427,6 @@ proc drmaa_test { test_name arguments } {
    global CHECK_OUTPUT CHECK_USER
    global binary_path
    global rr_host
-   global rr_host
 
    set user $CHECK_USER
 
@@ -359,14 +439,11 @@ proc drmaa_test { test_name arguments } {
    if { $prg_exit_state != 0 } {
       add_proc_error drmaa_check -1 "$binary_path/test_drmaa $test_name $arguments failed at host $rr_host"
    }
-
-#   wait_for_enter
 }
-
 
 proc resource_reservation_basic { } {
    global job_desc
-   
+
    get_job_descriptions "license" "backfill"
    drmaa_test "" $job_desc 
    get_job_descriptions "memory" "backfill"
@@ -379,7 +456,6 @@ proc resource_reservation_basic { } {
    drmaa_test "" $job_desc 
    get_job_descriptions "pe_slots" "backfill"
    drmaa_test "" $job_desc 
-  
    get_job_descriptions "array" "backfill"
    drmaa_test "" $job_desc 
   
@@ -395,11 +471,8 @@ proc resource_reservation_basic { } {
    drmaa_test "" $job_desc 
    get_job_descriptions "pe_slots" "reservation"
    drmaa_test "" $job_desc 
-
-    get_job_descriptions "array" "reservation"
+   get_job_descriptions "array" "reservation"
    drmaa_test "" $job_desc 
 
-
    set_error 0 "clean OK"
-
 }

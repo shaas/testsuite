@@ -124,7 +124,7 @@ proc get_hostgroup_tree {group {output_var result} {on_host ""} {as_user ""} {ra
 #     raise_error - do add_proc_error in case of errors
 #
 #  RESULT
-#     Returncode for get_calendar function:
+#     Returncode for get_hostgroup_tree function:
 #      -1: "wrong_hostgroup" does not exist
 #     -99: other error
 #

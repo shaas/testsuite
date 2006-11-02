@@ -159,7 +159,6 @@ proc add_queue { qname hostlist change_array {fast_add 1} } {
 
    # localize messages
    # JG: TODO: object name is taken from c_gdi object structure - not I18Ned!!
-   set QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
    set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "cluster queue" $qname]
    set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" $qname "cluster queue" ]
 

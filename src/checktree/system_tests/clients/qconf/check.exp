@@ -187,7 +187,7 @@ proc qconf_setup {} {
    puts $CHECK_OUTPUT "Create userlist qconf_userlist ...\n"
    add_access_list $CHECK_USER qconf_userlist
 
-   puts $CHECK_OUTPUT "Save existing  scheduler config ...\n"
+   puts $CHECK_OUTPUT "Save existing scheduler config ...\n"
    get_schedd_config qconf_sched_config
 
    set_error 0 ""
@@ -261,6 +261,15 @@ proc qconf_cleanup {} {
    puts $CHECK_OUTPUT "Set scheduler to original config ...\n"
    set result [mod_schedd_config qconf_sched_config]
 
+   # Re-set limitation rule sets
+   if {$ts_config(gridengine_version) >= 65} {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
+   }
 
    set_error 0 ""
 }
@@ -1440,7 +1449,7 @@ proc qconf_add_show_mod_del_queue {} {
 
    # Now do positive test on qconf -sql
    puts $CHECK_OUTPUT "Positive test of qconf -sql ...\n"
-   set result2 [get_queue_list ]
+   set result2 [get_queue_list]
 
    if { ( $result2 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -sql succeded"

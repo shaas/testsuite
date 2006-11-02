@@ -55,6 +55,7 @@ set check_name            "pe_ranges"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   1
 set check_description(0)  "test pe-ranges"
+set check_description(1)  "test pe-ranges with limitation rule sets"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -66,15 +67,20 @@ set check_cleanup_function pe_ranges_cleanup
 # define test's procedure order
 set check_functions "pe_ranges_test"
 
-
 global pe_ranges_test_hosts
 global pe_ranges_saved_slot_count
 
 proc pe_ranges_init_level {} {
-   global CHECK_ACT_LEVEL
+   global CHECK_ACT_LEVEL ts_config
 
    if { $CHECK_ACT_LEVEL == 0 } {
-      return  0
+      return 0 
+   } elseif { $CHECK_ACT_LEVEL == 1 } {
+      if {$ts_config(gridengine_version) >= 65} {
+         return 0
+      } else {
+         return -1
+      }
    }
 
    return -1  ;# no other level 
@@ -156,6 +162,16 @@ proc pe_ranges_cleanup  {} {
    # restore complex
    set_complex consumable_complex_backup
 
+   # Delete limitation rule sets
+   if {$ts_config(gridengine_version) >= 65} {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
+   }
+
    set_error 0 "ok"
 }
 
@@ -233,68 +249,83 @@ proc pe_ranges_test {} {
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 
-   if { $CHECK_ACT_LEVEL == 0 } {
+   # case a)
+   #        test auto select pe range alg.
+   puts $CHECK_OUTPUT "\ncase a)"
 
-      # case a)
-      #        test auto select pe range alg.
-      puts $CHECK_OUTPUT "\ncase a)"
+   # create test1 complex
+   set test1_complex(test1) "t1 INT <= YES YES 0 1000"
+   set_complex test1_complex
 
-      # create test1 complex
-      set test1_complex(test1) "t1 INT <= YES YES 0 1000"
-      set_complex test1_complex
-   
-      # get original global host coniguration
-      get_exechost orig_global_host global
-   
+   # get original global host coniguration
+   get_exechost orig_global_host global
+
+   if { $CHECK_ACT_LEVEL == 0} {
       # modify complex_values of global host
       set global_host(complex_values) "test1=6"
       set_exechost global_host global
-  
-      set schedconf(params) "pe_range_alg=auto"
-      set result [ set_schedd_config schedconf ]
-
-      pe_ranges_test1
-
-      # case b)
-      #          test hightest pe-range match alg.
-      puts $CHECK_OUTPUT "\ncase b)"
-      set schedconf(params) "pe_range_alg=highest"
-      set result [ set_schedd_config schedconf ]
-  
-      pe_ranges_test1
-
-      # case c)
-      #          test bin pe-range match alg.
-      puts $CHECK_OUTPUT "\ncase c)"
-
-      set schedconf(params) "pe_range_alg=bin"
-      set result [ set_schedd_config schedconf ]
-  
-      pe_ranges_test1
-
-      # case d)
-      #         test least pe-range match alg.
-      puts $CHECK_OUTPUT "\ncase d)"
-      
-      set schedconf(params) "pe_range_alg=least"
-      set result [ set_schedd_config schedconf ]
-  
-      pe_ranges_test1
-
-      #clean up
-      set queue_settings(load_thresholds) "np_load_avg=11.75"
-      mod_queue "res.q" $pe_ranges_test_hosts queue_settings
-      
-      set global_host(complex_values) $orig_global_host(complex_values)
+   } else {
+      # modify complex_values of global host
+      set global_host(complex_values) "test1=1000"
       set_exechost global_host global
-      
-      set test1_complex(test1) ""
-      set_complex test1_complex
-      puts $CHECK_OUTPUT "done"
 
-      
+      # add limitation rule set
+      set lirs_name              "pe_ranges_test"
+      set rules                  ""
+      lappend rules              "to test1=6"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      add_lirs lirs_charray
    }
-     
+
+   set schedconf(params) "pe_range_alg=auto"
+   set result [ set_schedd_config schedconf ]
+
+   pe_ranges_test1
+
+   # case b)
+   #          test hightest pe-range match alg.
+   puts $CHECK_OUTPUT "\ncase b)"
+   set schedconf(params) "pe_range_alg=highest"
+   set result [ set_schedd_config schedconf ]
+
+   pe_ranges_test1
+
+   # case c)
+   #          test bin pe-range match alg.
+   puts $CHECK_OUTPUT "\ncase c)"
+
+   set schedconf(params) "pe_range_alg=bin"
+   set result [ set_schedd_config schedconf ]
+
+   pe_ranges_test1
+
+   # case d)
+   #         test least pe-range match alg.
+   puts $CHECK_OUTPUT "\ncase d)"
+   
+   set schedconf(params) "pe_range_alg=least"
+   set result [ set_schedd_config schedconf ]
+
+   pe_ranges_test1
+
+   #clean up
+   set queue_settings(load_thresholds) "np_load_avg=11.75"
+   mod_queue "res.q" $pe_ranges_test_hosts queue_settings
+   
+   set global_host(complex_values) $orig_global_host(complex_values)
+   set_exechost global_host global
+   
+   set test1_complex(test1) ""
+   set_complex test1_complex
+
+   if { $CHECK_ACT_LEVEL == 1} {
+      del_lirs $lirs_name
+   }
+
+   puts $CHECK_OUTPUT "done"
+
    set_error 0 "ok"
 }
 
