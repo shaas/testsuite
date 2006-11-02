@@ -2215,15 +2215,51 @@ proc host_conf_get_java_compile_host {{raise_error 1}} {
    return $compile_host
 }
 
+#****** config_host/host_conf_get_send_speed() *********************************
+#  NAME
+#     host_conf_get_send_speed() -- get send speed for a certain host
+#
+#  SYNOPSIS
+#     host_conf_get_send_speed {host} 
+#
+#  FUNCTION
+#     Returns the send speed configured for a given host in the testsuite 
+#     host configuration.
+#
+#     If the given hostname is a Solaris zone, the send speed configured
+#     for the physical host is returned.
+#
+#     If the host is not (yet) known, e.g. while it is added to the host config,
+#     a default value of 0.001 is returned.
+#
+#  INPUTS
+#     host - name of the host or zone
+#            if "" is given as hostname, the default value will be returned
+#
+#  RESULT
+#     send_speed configured in host configuration, or default 0.001
+#     Meant to set as "send_slow" before calls to "send -s".
+#
+#  SEE ALSO
+#     remote_procedures/ts_send()
+#*******************************************************************************
 proc host_conf_get_send_speed {host_in} {
    global ts_host_config
+
+   # if we don' know the host: return default
+   if {$host_in == ""} {
+      return 0.001
+   }
 
    # remove domain part of hostname
    set host [lindex [split $host_in "."] 0]
 
-   if {$host != "" && [info exists ts_host_config($host,send_speed)]} {
+   # resolve node (poss. zone) to physical host
+   set host [node_get_host $host]
+   if {[info exists ts_host_config($host,send_speed)]} {
       return $ts_host_config($host,send_speed)
-   } else {
-      return 0.01
    }
+
+   # don't know the host yet (e.g. when adding a new host): return default
+   return 0.001
 }

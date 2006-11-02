@@ -1645,7 +1645,7 @@ proc resolve_build_arch { host } {
      return $build_arch_cache($host)
   }
 
-  set result [start_remote_prog $host $CHECK_USER "cd" "$CHECK_SOURCE_DIR ; ./aimk -no-mk" prg_exit_state 60 0 "" "" 1 0]
+  set result [start_remote_prog $host $CHECK_USER "./aimk" "-no-mk" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
  
   set result [split $result "\n"]
   set result [join $result ""]

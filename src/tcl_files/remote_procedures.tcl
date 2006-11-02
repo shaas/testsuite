@@ -54,8 +54,36 @@ set rlogin_max_open_connections [expr ($descriptors - 15) / 3]
 puts "    * rlogin_max_open_connections = $rlogin_max_open_connections"
 puts "    *********************************************"
 
+#****** remote_procedures/ts_send() ********************************************
+#  NAME
+#     ts_send() -- send to a spawned process (spawn_id)
+#
+#  SYNOPSIS
+#     ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} 
+#
+#  FUNCTION
+#     Sends data to a spawned process.
+#     Calls the expect function send, with some optional parameters:
+#     1. Sends are slowed down, when the send_slow parameter of a host in the
+#        testsuite host configuration is set != 0
+#     2. Human like typing, when the paramter passwd is != 0.
+#        Some operating systems will reject password input, when it is sent
+#        at full speed.
+#
+#  INPUTS
+#     spawn_id        - spawn id to send to
+#     message         - the message to send
+#     {host ""}       - optional - host associated with spawn_id
+#     {passwd 0}      - optional - do human like send
+#     {raise_error 1} - optional - raise error condition on errors
+#
+#  SEE ALSO
+#     remote_procedures/open_remote_spawn_process()
+#*******************************************************************************
 proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
+   # we catch errors - spawn_id might be broken
    set catch_return [catch {
+      # human like send (usually for password entry)
       if {$passwd} {
          #set send_human {default word variability min max}
          #   default      Average default interarrival time, in seconds
@@ -492,12 +520,6 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
 #  EXAMPLE
 #     set envlist(COLUMNS) 500
 #     start_remote_prog "ahost" "auser" "ls" "-la" "prg_exit_state" "60" "0" "envlist"
-#
-#  NOTES
-#     The exec_arguments parameter can be used to start more commands:
-#
-#     start_remote_prog "ahost" "auser" "cd" "/tmp ; ls -la"
-#
 #*******************************
 #
 proc start_remote_prog { hostname
@@ -2378,6 +2400,28 @@ proc get_spawn_id_rlogin_session {spawn_id back_var} {
    return 1 
 }
 
+#****** remote_procedures/get_spawn_id_hostname() ******************************
+#  NAME
+#     get_spawn_id_hostname() -- get host associated with spawn_id
+#
+#  SYNOPSIS
+#     get_spawn_id_hostname { spawn_id } 
+#
+#  FUNCTION
+#     Get the name of the host to which a spawned process (rlogin) had been
+#     opened.
+#     If this information is not (yet) known (e.g. while opening the connection),
+#     an empty string ("") is returned.
+#
+#  INPUTS
+#     spawn_id - spawn id of the connection
+#
+#  RESULT
+#     hostname, or ""
+#
+#  SEE ALSO
+#     remote_procedures/ts_send()
+#*******************************************************************************
 proc get_spawn_id_hostname {spawn_id} {
    global rlogin_spawn_session_buffer
 

@@ -6158,7 +6158,7 @@ proc prepare_packages { } {
          set help [ string first ".gz" $file ]
          incr help -1
          set file_no_gz [string range $file 0 $help]
-         set result [ start_remote_prog $CHECK_HOST $CHECK_USER "cd" "$CHECK_PRODUCT_ROOT ; tar -xvf $CHECK_PRODUCT_ROOT/$file_no_gz" ]
+         set result [start_remote_prog $CHECK_HOST $CHECK_USER "tar" "-xvf $file_no_gz" prg_exit_state 60 0 $ts_config(product_root)]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT $result
          }
@@ -6342,7 +6342,7 @@ proc prepare_packages { } {
       set user_key "unknown"
       foreach pkg $package_names {
          puts -nonewline $CHECK_OUTPUT "Checking if package \"$pkg\" is already installed on host \"$CHECK_HOST\" ... "
-         set output [ start_remote_prog $CHECK_HOST "root" "pkginfo" "$pkg" ]
+         set output [start_remote_prog $CHECK_HOST "root" "pkginfo" "$pkg"]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT "not installed"
          } else {
@@ -6354,7 +6354,7 @@ proc prepare_packages { } {
             }
             if { $user_key == "yes" } {
                puts $CHECK_OUTPUT "removing package \"$pkg\" ..."
-               set output [ start_remote_prog $CHECK_HOST "root" "pkgrm" "-n $pkg" ]
+               set output [start_remote_prog $CHECK_HOST "root" "pkgrm" "-n $pkg"]
                puts $CHECK_OUTPUT $output
                if { $prg_exit_state != 0 } {
                   puts $CHECK_OUTPUT "error uninstalling package \"$pkg\""

@@ -150,25 +150,22 @@ proc install_execd {} {
       }
 
 
-      cd "$ts_config(product_root)"
-
-      set prod_type_var "SGE_ROOT"
       set my_timeout 500
       set exit_val 0
       set autoconfig_file $ts_config(product_root)/autoinst_config_$exec_host.conf
      
       write_autoinst_config $autoconfig_file $exec_host 0ß
   
-      if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-         set output [start_remote_prog "$exec_host" "root"  "cd" "$$prod_type_var;./install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote" "exit_val" ]
+      puts $CHECK_OUTPUT "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf -noremote"
+      if {$CHECK_ADMIN_USER_SYSTEM == 0} {
+         set output [start_remote_prog "$exec_host" "root"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote" exit_val 60 0 $ts_config(product_root)]
 
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set output [start_remote_prog "$exec_host" "$CHECK_USER"  "cd" "$$prod_type_var;./install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote" "exit_val" ]
+         set output [start_remote_prog "$exec_host" "$CHECK_USER"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote" exit_val 60 0 $ts_config(product_root)]
       }
 
       log_user 1
-      puts $CHECK_OUTPUT "cd $$prod_type_var;./install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf -noremote"
 
       #set CHECK_DEBUG_LEVEL 2
       set do_log_output 0 ;# 1 _LOG

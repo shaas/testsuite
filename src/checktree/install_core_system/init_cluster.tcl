@@ -114,7 +114,7 @@ proc make_user_cert {} {
          flush $script
          close $script
         
-         set result [ start_remote_prog "$ts_config(master_host)" "root" "cd" "$ts_config(product_root) ; util/sgeCA/sge_ca -usercert $CHECK_MAIN_RESULTS_DIR/user_file.txt" ]
+         set result [ start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-usercert $CHECK_MAIN_RESULTS_DIR/user_file.txt" prg_exit_state 60 0 $ts_config(product_root)]
          puts $CHECK_OUTPUT $result
       
          puts $CHECK_OUTPUT "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
@@ -1055,7 +1055,7 @@ proc setup_check_user_permissions {} {
      foreach host $ts_config(execd_nodes) {
         set execd_spooldir [get_execd_spool_dir $host]
         puts $CHECK_OUTPUT "checking execd spool directory on $host (user=$user): \"$execd_spooldir\""
-        set output [ start_remote_prog "$host" "$user" "cd" "$execd_spooldir" ]
+        set output [start_remote_prog "$host" "$user" "cd" "$execd_spooldir"]
         if { $prg_exit_state != 0 } {
            set_error -1 "user $user has no read//exec permission to \"$execd_spooldir\" on host $host: $output"
         }

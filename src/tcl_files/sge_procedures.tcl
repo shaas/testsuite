@@ -7454,7 +7454,7 @@ proc copy_certificates { host } {
             set result [start_remote_prog "$host" "root" "mkdir" "-p $CA_ROOT_DIR"]
          }   
 
-         set result [start_remote_prog "$host" "root" "cd" "$CA_ROOT_DIR; ${tar_bin} $UNTAR_OPTS $TAR_FILE" prg_exit_state 300]
+         set result [start_remote_prog "$host" "root" $tar_bin "$UNTAR_OPTS $TAR_FILE" prg_exit_state 300 0 $CA_ROOT_DIR]
          puts $CHECK_OUTPUT $result
          if { $prg_exit_state != 0 } {
             add_proc_error "copy_certificates" -2 "could not untar \"$TAR_FILE\" on host $host;\ntar-bin:$tar_bin"

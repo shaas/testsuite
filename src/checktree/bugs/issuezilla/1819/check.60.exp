@@ -151,14 +151,13 @@ proc auto_backup_do_backup {} {
    global auto_backup_test_hosts check_description CHECK_ARCH CHECK_USER
    global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
 
-   set prod_type_var "SGE_ROOT"
    set my_timeout 500
    set exit_val 0
 
    if { $ts_config(bdb_server) == "none" } {
-      set output [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "cd" "$$prod_type_var; ./inst_sge -bup -auto $ts_config(product_root)/autobackup_config.conf" "exit_val" $my_timeout ]
+      set output [start_remote_prog $CHECK_CORE_MASTER $CHECK_USER "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    } else {
-      set output [start_remote_prog "$ts_config(bdb_server)" "$CHECK_USER" "cd" "$$prod_type_var; ./inst_sge -bup -auto $ts_config(product_root)/autobackup_config.conf" "exit_val" $my_timeout ]
+      set output [start_remote_prog $ts_config(bdb_server) $CHECK_USER "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    }
 
    if { $exit_val == 0 } {

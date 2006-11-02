@@ -258,19 +258,27 @@ proc get_tmp_file_name { { hostname "" } { type "default" } { file_ext "tmp" } {
 #     set columns "sgetest1 sgetest2 root cr114091"
 #     set rows "es-ergb01-01 balrog"
 #
-#                  | sgetest1 | sgetest2 |     root | cr114091 
+#                  | sgetest1 | sgetest2 | root | cr114091 
 #     -------------+----------+----------+----------+----------
-#     es-ergb01-01 |      639 |      639 |      739 |      639 
-#     balrog       |     1409 |     1409 |     1659 |     1869 
+#     es-ergb01-01 |      639 |      639 |  739 |      639 
+#     balrog       |     1409 |     1409 | 1659 |     1869 
 #
+#     The widths of the columns are adjusted according to the widths of the
+#     header and data cells.
+#
+#     By specifying variables for the parametes column_len_var and 
+#     index_len_var, column widths can reused in multiple subsequent calls
+#     of print_xy_array.
 #
 #  INPUTS
-#     columns      - x value list
-#     rows          - y value list 
-#     data_array - array with data for e.g. $data($x,$y)
-#     {empty_cell ""}
-#     {column_len_var ""}
-#     {index_len_var ""}
+#     columns              - x value list
+#     rows                 - y value list 
+#     data_array           - array with data for e.g. $data($col,$row)
+#     {empty_cell ""}      - value to print for empty cells 
+#                            (no value given in data_array)
+#     {column_len_var ""}  - variable to store maximum column length
+#     {index_len_var ""}   - variable to store maximum length of 
+#                            index (first) column
 #
 #  EXAMPLE
 #     set columns "sgetest1 sgetest2 root cr114091"
@@ -281,10 +289,7 @@ proc get_tmp_file_name { { hostname "" } { type "default" } { file_ext "tmp" } {
 #     puts [print_xy_array $columns $rows data]
 #
 #  RESULT
-#     string containing the xy_array data
-#
-#  SEE ALSO
-#     ???/???
+#     string containing the formatted table
 #*******************************************************************************
 proc print_xy_array {columns rows data_array {empty_cell ""} {column_len_var ""} {index_len_var ""}} {
    upvar $data_array result_array

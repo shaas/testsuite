@@ -728,7 +728,9 @@ proc translate_all_macros {} {
         puts $CHECK_OUTPUT "macro: >$macro_messages_list($i,macro)<"
         puts $CHECK_OUTPUT "file : >$macro_messages_list($i,file)<"
         lappend not_localized $i
-        set back [ start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $CHECK_SOURCE_DIR ; grep $macro_messages_list($i,macro) \$C \$H\"" ] 
+        # JG: TODO: This depends on environment variables C and H being set!
+        #           There should be better solutions, e.g. using find.
+        set back [start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $CHECK_SOURCE_DIR ; grep $macro_messages_list($i,macro) \$C \$H\""] 
         puts $back
         if { [ string first "\.c:" $back ] >= 0 } {
            puts $CHECK_OUTPUT "used in C file !!!"

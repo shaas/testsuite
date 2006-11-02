@@ -101,10 +101,6 @@ proc install_qmaster {} {
    }
    close $f
 
-   cd "$ts_config(product_root)"
-
-   set prod_type_var "SGE_ROOT"
-
    set feature_install_options ""
    if { $ts_config(product_feature) == "csp" } {
       append feature_install_options "-csp"
@@ -113,15 +109,15 @@ proc install_qmaster {} {
    set my_timeout 500
    set exit_val 0
 
+   puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-    set output [start_remote_prog "$CHECK_CORE_MASTER" "root"  "cd" "$$prod_type_var;./install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" "exit_val" $my_timeout ]
+    set output [start_remote_prog "$CHECK_CORE_MASTER" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    } else {
     puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-    set output [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER"  "cd" "$$prod_type_var;./install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" "exit_val" $my_timeout ]
+    set output [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    }
 
    log_user 1
-   puts $CHECK_OUTPUT "cd $$prod_type_var;./install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
 
    set hostcount 0
 

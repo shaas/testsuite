@@ -138,7 +138,7 @@ proc path_alias_setup {} {
          foreach elem $ts_config(unique_arch_nodes) {
             set counter 60
             while { $counter > 0 } {
-               set result [start_remote_prog $elem $CHECK_USER "cat" "${file_name}"]
+               set result [start_remote_prog $elem $CHECK_USER "cat" $file_name]
                incr counter -1
                if {  $prg_exit_state != 0 } {
                   break;
@@ -171,7 +171,7 @@ proc path_alias_setup {} {
    foreach elem $ts_config(unique_arch_nodes) {
       set counter 60
       while { $counter > 0 } {
-         set result [start_remote_prog $elem $CHECK_USER "cat" "${file_name}"]
+         set result [start_remote_prog $elem $CHECK_USER "cat" $file_name]
          incr counter -1
          if { $prg_exit_state == 0 } {
             break;
@@ -226,22 +226,20 @@ proc path_alias_main {} {
       puts $CHECK_OUTPUT "submitting job(s) for host $elem"
 
       puts $CHECK_OUTPUT "qsub ..."
-      set script_name "$PATH_ALIAS_OUTPUT1/global_qsub_alias_$elem.sh"
-      set command     "qsub -cwd -l h=${elem}"
+      set args     "-cwd -l h=${elem} $job_script"
 
-      start_remote_prog $elem $CHECK_USER "cd" "$PATH_ALIAS_OUTPUT1 ; $command $job_script" 
+      start_remote_prog $elem $CHECK_USER "qsub" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1
 
       puts $CHECK_OUTPUT "qrsh ..."
 
-      set script_name "$PATH_ALIAS_OUTPUT1/global_qrsh_alias_$elem.sh"
-      set command     "qrsh -cwd -l h=${elem} \"pwd\""
+      set args "-cwd -l h=${elem} \"pwd\""
 
-      set output [start_remote_prog $elem $CHECK_USER "cd" "$PATH_ALIAS_OUTPUT1 ; $command " ]
-      set output [ split $output "\n" ]
-      set output [ lindex $output 0 ]
-      set output [ split $output "\r" ]
-      set output [ lindex $output 0 ]
-      if { [ string first "$PATH_ALIAS_OUTPUT2" $output ] < 0 } {
+      set output [start_remote_prog $elem $CHECK_USER "qrsh" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1]
+      set output [split $output "\n"]
+      set output [lindex $output 0]
+      set output [split $output "\r"]
+      set output [lindex $output 0]
+      if {[string first "$PATH_ALIAS_OUTPUT2" $output] < 0} {
          add_proc_error "path_alias_main" -1 "host: $elem\nqrsh -cwd directory is\n\"$output\"\n instead of \n\"$PATH_ALIAS_OUTPUT2\""
       }
 
@@ -250,9 +248,9 @@ proc path_alias_main {} {
       set command     "> qsh_pwd_output_$elem.txt ; sleep 10"
       create_shell_script $pwd_script $elem "pwd" "$command " "" "" "/bin/sh" 0 1 1 1
 
-      set command     "qsh -cwd -l h=${elem} -- -e $pwd_script"
+      set args "-cwd -l h=${elem} -- -e $pwd_script"
 
-      set output [start_remote_prog $elem $CHECK_USER "cd" "$PATH_ALIAS_OUTPUT1 ; $command" ]
+      set output [start_remote_prog $elem $CHECK_USER "qsh" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1]
       puts $CHECK_OUTPUT $output
    }
  

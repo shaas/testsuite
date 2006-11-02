@@ -407,7 +407,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
          if { $res < 0 } {
             report_add_message report "exec_compile_clean_hooks returned fatal error"
          } elseif { $res > 0 } {
-            report_add_message report "$res compile_clean hooks are failed\n"
+            report_add_message report "$res compile_clean hooks failed\n"
          } else {
             report_add_message report "All compile_clean hooks successfully executed\n"
          }
@@ -439,7 +439,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
       if { $res < 0 } {
          report_add_message report "exec_compile_clean_hooks returned fatal error"
       } elseif { $res > 0 } {
-         report_add_message report "$res compile_clean hooks are failed\n"
+         report_add_message report "$res compile_clean hooks failed\n"
       } else {
          report_add_message report "All compile_clean hooks successfully executed\n"
       }
@@ -478,7 +478,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
                puts $CHECK_OUTPUT "exec_compile_hooks returned fatal error\n"
                incr error_count
             } elseif { $res > 0 } {
-               puts $CHECK_OUTPUT "$res compile hooks are failed\n"
+               puts $CHECK_OUTPUT "$res compile hooks failed\n"
                incr error_count
             } else {
                puts $CHECK_OUTPUT "All compile hooks successfully executed\n"
@@ -525,7 +525,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
             report_add_message report "exec_install_binaries_hooks returned fatal error\n"
             incr error_count
          } elseif { $res > 0 } {
-            report_add_message report "$res install_binaries hooks are failed\n"
+            report_add_message report "$res install_binaries hooks failed\n"
             incr error_count
          } else {
             report_add_message report "All install_binaries hooks successfully executed\n"
@@ -769,37 +769,35 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
             if {[llength $line] > 0} {
                set command [lindex $line 0]
                # puts $CHECK_OUTPUT "line: $line"
-               catch {
-                  switch -exact $command {
-                     "cc" -
-                     "gcc" -
-                     "xlc" -
-                     "xlc_r" -
-                     "insure" -
-                     "cl.exe" {
-                        set pos [lsearch -exact $line "-o"]
-                        if {$pos > 0 && [llength $line] > [expr $pos + 1]} {
-                           set status_array(file,$host) [lindex $line [expr $pos + 1]]
-                           set status_updated 1
-                        } else {
-                           set pos [lsearch -glob $line "*.c"]
-                           if {$pos > 0 && [llength $line] > $pos} {
-                              set status_array(file,$host) [file tail [lindex $line $pos]]
-                              set status_updated 1
-                           }
-                        }
-                     }
-                     "ar" {
-                        if {[llength $line] > 2} {
-                           set status_array(file,$host) [lindex $line 2]
+               switch -exact -- $command {
+                  "cc" -
+                  "gcc" -
+                  "xlc" -
+                  "xlc_r" -
+                  "insure" -
+                  "cl.exe" {
+                     set pos [lsearch -exact $line "-o"]
+                     if {$pos > 0 && [llength $line] > [expr $pos + 1]} {
+                        set status_array(file,$host) [lindex $line [expr $pos + 1]]
+                        set status_updated 1
+                     } else {
+                        set pos [lsearch -glob $line "*.c"]
+                        if {$pos > 0 && [llength $line] > $pos} {
+                           set status_array(file,$host) [file tail [lindex $line $pos]]
                            set status_updated 1
                         }
                      }
-                     default {
-                        #set status_array(file,$host)   "(?)"
-                        #set status_updated 1
-                        #   puts $CHECK_OUTPUT "---> unknown <--- $line"
+                  }
+                  "ar" {
+                     if {[llength $line] > 2} {
+                        set status_array(file,$host) [lindex $line 2]
+                        set status_updated 1
                      }
+                  }
+                  default {
+                     #set status_array(file,$host)   "(?)"
+                     #set status_updated 1
+                     #   puts $CHECK_OUTPUT "---> unknown <--- $line"
                   }
                }
             }

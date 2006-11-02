@@ -98,51 +98,51 @@ proc install_execd {} {
              set CA_ROOT_DIR "/var/sgeCA/"
 
              puts $CHECK_OUTPUT "removing poss. existing tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-             set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar" ]
+             set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
              puts $CHECK_OUTPUT $result
 
              puts $CHECK_OUTPUT "taring Certificate Authority (CA) directory into \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\""
              set tar_bin [get_binary_path $CHECK_CORE_MASTER "tar"]
              set remote_command_param "$CA_ROOT_DIR; ${tar_bin} -cvf port${CHECK_COMMD_PORT}.tar ./port${CHECK_COMMD_PORT}/*"
-             set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "cd" "$remote_command_param" ]
+             set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "cd" "$remote_command_param"]
              puts $CHECK_OUTPUT $result
 
              if { $prg_exit_state != 0 } {
                  add_proc_error "install_execd" -2 "could not tar Certificate Authority (CA) directory into \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\""
              } else {
                  puts $CHECK_OUTPUT "changing permissions for tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-                 set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "chmod" "700 $CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar" ]
+                 set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "chmod" "700 $CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
                  puts $CHECK_OUTPUT $result
                  if { $prg_exit_state != 0 } {
                     add_proc_error "install_execd" -2 "could not change file permissions for \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\""
                  } else {
                     puts $CHECK_OUTPUT "copy tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\"\nto \"$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-                    set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "cp" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar $CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar" ]
+                    set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "cp" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar $CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar"]
                     puts $CHECK_OUTPUT $result
                     
                     puts $CHECK_OUTPUT "copy tar file \"$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar\"\nto \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" on host $exec_host ..."
-                    set result [ start_remote_prog "$exec_host" "root" "cp" "$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar $CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar" ]
+                    set result [start_remote_prog "$exec_host" "root" "cp" "$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar $CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
                     puts $CHECK_OUTPUT $result
 
                     set tar_bin [get_binary_path $exec_host "tar"]
 
                     puts $CHECK_OUTPUT "untaring Certificate Authority (CA) directory in \"$CA_ROOT_DIR\""
                     start_remote_prog "$exec_host" "root" "cd" "$CA_ROOT_DIR" 
-                    if { $prg_exit_state != 0 } { 
-                       set result [ start_remote_prog "$exec_host" "root" "mkdir" "$CA_ROOT_DIR" ]
+                    if {$prg_exit_state != 0} { 
+                       set result [start_remote_prog "$exec_host" "root" "mkdir" "$CA_ROOT_DIR"]
                     }   
-                    set result [ start_remote_prog "$exec_host" "root" "cd" "$CA_ROOT_DIR; ${tar_bin} -xvf port${CHECK_COMMD_PORT}.tar" ]
+                    set result [start_remote_prog "$exec_host" "root" $tar_bin "-xvf port${CHECK_COMMD_PORT}.tar" 60 0 $CA_ROOT_DIR]
                     puts $CHECK_OUTPUT $result
                     if { $prg_exit_state != 0 } {
                        add_proc_error "install_execd" -2 "could not untar \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" on host $exec_host;\ntar-bin:$tar_bin"
                     } 
 
                     puts $CHECK_OUTPUT "removing tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" on host $exec_host ..."
-                    set result [ start_remote_prog "$exec_host" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar" ]
+                    set result [start_remote_prog "$exec_host" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
                     puts $CHECK_OUTPUT $result
 
                     puts $CHECK_OUTPUT "removing tar file \"$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-                    set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar" ]
+                    set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar"]
                     puts $CHECK_OUTPUT $result
 
                  }
@@ -150,7 +150,7 @@ proc install_execd {} {
              }
              
              puts $CHECK_OUTPUT "removing existing tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-             set result [ start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar" ]
+             set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
              puts $CHECK_OUTPUT $result
          } else {
             puts $CHECK_OUTPUT "can not copy this files as user $CHECK_USER"
@@ -196,7 +196,7 @@ proc install_execd {} {
          puts $CHECK_OUTPUT "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
          if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
             set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-            set result [ start_remote_prog "$exec_host" "root" "cp" "$arguments" ] 
+            set result [start_remote_prog "$exec_host" "root" "cp" "$arguments"]
             puts $CHECK_OUTPUT "result: $result"
             puts $CHECK_OUTPUT "copy exit state: $prg_exit_state" 
          } else {

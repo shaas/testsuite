@@ -467,31 +467,31 @@ proc error_states_job_output {} {
    puts $CHECK_OUTPUT "test_file:      $test_file"
    puts $CHECK_OUTPUT "test_local_dir: $test_local_dir"
 
-   set result [ start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "mkdir" $test_dir ]
+   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "mkdir" $test_dir]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error creating directory $test_dir"
    }
 
-   set result [ start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "touch" $test_file ]
+   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "touch" $test_file]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error creating file $test_file"
    }
 
-   set result [ start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "700 $test_dir" ]
+   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "700 $test_dir"]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error chmod $test_dir"
    }
 
-   set result [ start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "600 $test_file" ]
+   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "600 $test_file"]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error chmod $test_file"
    }
 
-   set result [ start_remote_prog $CHECK_HOST $CHECK_USER "mkdir" $test_local_dir ]
+   set result [start_remote_prog $CHECK_HOST $CHECK_USER "mkdir" $test_local_dir]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error creating directory $test_local_dir"
@@ -531,7 +531,7 @@ proc error_states_job_output {} {
    } else {
       # error queue
       set error_run_queue "[lindex $CHECK_CORE_EXECD 1].q"
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "cd" "$test_local_dir ; qsub -cwd -q $error_run_queue $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/error.sh" ]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_run_queue $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/error.sh" prg_exit_state 60 0 $test_local_dir]
       puts $CHECK_OUTPUT $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1
@@ -539,32 +539,32 @@ proc error_states_job_output {} {
       delete_job $job_id
 
       #no error queue
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "cd" "$test_local_dir ; qsub -cwd -q $error_states_check_queue $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/error.sh" ]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_states_check_queue $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/error.sh" prg_exit_state 60 0 $test_local_dir]
       puts $CHECK_OUTPUT $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1
       wait_for_jobstart $job_id "leeper" 60
       wait_for_jobend $job_id "leeper" 60
       
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "cat" $test_local_dir/Sleeper.o${job_id} ]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "cat" $test_local_dir/Sleeper.o${job_id}]
       puts $CHECK_OUTPUT "job output file: $result"
       if { [string first "here is the error" $result] < 0 } {
          add_proc_error "error_states_job_output" -1 "wrong or no job output"
       }
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "cat" $test_local_dir/Sleeper.e${job_id} ]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "cat" $test_local_dir/Sleeper.e${job_id}]
       puts $CHECK_OUTPUT "job error file: $result"
       if { [string first "biNnN" $result] < 0 } {
          add_proc_error "error_states_job_output" -1 "wrong or no job error output"
       }
    }
 
-   set result [ start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "rmdir" $test_dir ]
+   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "rmdir" $test_dir]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error deleting directory $test_dir"
    }
 
-   set result [ start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "rm" $test_file ]
+   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "rm" $test_file]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error deleting file $test_file"

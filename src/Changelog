@@ -1,3 +1,11 @@
+JG-2006-11-01-0: Enhancem.: Made all calls to open_remote_spawn_process and
+                            start_remote_prog make use of the cd_dir option
+                            added with JG-2006-10-23-0.
+                            For Solaris zones, use master zones send_speed, see
+                            JG-2006-10-19-0.
+                            Cleanup. Added some missing ADOC headers.
+                 Review:    RD
+
 AA-2006-10-31-0: Bugfix:    o catch block for aimk -java option, output beginning
                               with - are interpreted as options
                  Review:    CR

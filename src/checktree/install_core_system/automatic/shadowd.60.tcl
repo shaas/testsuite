@@ -111,22 +111,19 @@ proc install_shadowd {} {
 
       set remote_arch [resolve_arch $shadow_host]    
 
-      cd "$ts_config(product_root)"
-
-      set prod_type_var "SGE_ROOT"
       set my_timeout 500
       set exit_val 0
   
-      if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-         set output [start_remote_prog "$shadow_host" "root"  "cd" "$$prod_type_var;./inst_sge -sm -auto $ts_config(product_root)/autoinst_config.conf" "exit_val" $my_timeout ]
+      puts $CHECK_OUTPUT "inst_sge -sm"
+      if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
+         set output [start_remote_prog "$shadow_host" "root"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set output [start_remote_prog "$shadow_host" "$CHECK_USER"  "cd" "$$prod_type_var;./inst_sge -sm -auto $ts_config(product_root)/autoinst_config.conf" "exit_val" $my_timeout ]
+         set output [start_remote_prog "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
       }
 
 
       log_user 1
-      puts $CHECK_OUTPUT "cd $$prod_type_var;./inst_sge -sm"
 
       set do_log_output 0 ;# 1 _LOG
       if { $CHECK_DEBUG_LEVEL == 2 } {
