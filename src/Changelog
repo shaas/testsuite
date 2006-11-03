@@ -1,7 +1,12 @@
+JG-2006-11-03-0: Bugfix:    Fixed negative tests (from non cluster host) with
+                            CSP systems.
+                 Review:    AA
+
 RD-2006-11-02-0: Enhancm.   - added qlimit test
-                            - enhanced pe_ranges, resource_reservation for limitation
-                              rule sets
+                            - enhanced pe_ranges, resource_reservation for 
+                              limitation rule sets
                             - throughput test reports now correct qmaster host
+                 Review:    JG
 
 JG-2006-11-01-0: Enhancem.: Made all calls to open_remote_spawn_process and
                             start_remote_prog make use of the cd_dir option
@@ -11,8 +16,8 @@ JG-2006-11-01-0: Enhancem.: Made all calls to open_remote_spawn_process and
                             Cleanup. Added some missing ADOC headers.
                  Review:    RD
 
-AA-2006-10-31-0: Bugfix:    o catch block for aimk -java option, output beginning
-                              with - are interpreted as options
+AA-2006-10-31-0: Bugfix:    o catch block for aimk -java option, output 
+                              beginning with - are interpreted as options
                  Review:    CR
 
 CR-2006-10-31-1: Bugfix:    - fixed problem introduced with CR-2006-10-30-0:

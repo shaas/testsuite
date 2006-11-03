@@ -750,7 +750,8 @@ proc get_sge_error_generic {messages_var} {
 #        - 200-299: permission specific error messages
 #
 #     List of error codes:
-#        -100: sge_qmaster cannot be contacted
+#        -100: CSP certificate expired or invalid (or not existing)
+#        -120: qmaster cannot be contacted
 #
 #        -200: host executing command is no admin or submit host
 #        -201: host executing command is no admin host
@@ -835,7 +836,6 @@ proc get_sge_error {procedure command result {raise_error 1}} {
 #     check/add_proc_error()
 #     sge_procedures/get_sge_error()
 #*******************************************************************************
-
 proc handle_sge_errors {procedure command result messages_var {raise_error 1} {prg_exit_state ""}} {
    upvar $messages_var messages
 
@@ -890,6 +890,68 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
    }
 
    return $ret
+}
+
+#****** sge_procedures/check_for_non_cluster_host_error() **********************
+#  NAME
+#     check_for_non_cluster_host_error() -- validate host related error code
+#
+#  SYNOPSIS
+#     check_for_non_cluster_host_error { errno access } 
+#
+#  FUNCTION
+#     For certain SGE operations, host privileges are needed, e.g. modifying
+#     an exec host object requires admin host privileges.
+#
+#     This function has a look at an error code (returned from a SGE command),
+#     and validates it according to certain privileges.
+#     
+#     Privileges are "admin" (for admin host), "submit" (for submit host),
+#     and "any" (submit or admin host).
+#
+#     Special handling for CSP: In csp mode, on a non cluster host, 
+#     no certificates are installed. Therefore establishing a connection to 
+#     qmaster will fail, even before qmaster could check the host privileges.
+#
+#  INPUTS
+#     errno  - return code from handle_sge_errors
+#     access - "admin", "submit", or "any"
+#
+#  RESULT
+#     1, if the error code is the expected one, else 0
+#
+#  SEE ALSO
+#     sge_procedures/handle_sge_error()
+#*******************************************************************************
+proc check_for_non_cluster_host_error {errno access} {
+   global ts_config
+
+   # in csp mode, a non cluster host will get csp error
+   if {$ts_config(product_feature) == "csp" && $errno == -100} {
+      return 1
+   }
+
+   # look for error code specific to certain host properties missing
+   switch -exact $access {
+      "submit" {
+         if {$errno == -202} {
+            return 1
+         }
+      }
+      "admin" {
+         if {$errno == -201} {
+            return 1
+         }
+      }
+      "any" {
+         if {$errno == -200} {
+            return 1
+         }
+      }
+   }
+
+   # error code didn't match scenario
+   return 0
 }
 
 #****** sge_procedures/submit_error_job() **************************************
