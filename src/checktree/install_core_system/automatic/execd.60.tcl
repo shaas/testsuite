@@ -76,24 +76,24 @@ proc install_execd {} {
 
    set_error "0" "install_execd - no errors"
 
-   set catch_result [ catch { eval exec "cat $ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2" } INST_VERSION ]
+   set catch_result [catch {eval exec "cat $ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2"} INST_VERSION]
    puts $CHECK_OUTPUT "inst_sge version: $INST_VERSION"
 
-   if {! $check_use_installed_system} {
+   if {!$check_use_installed_system} {
       set feature_install_options ""
       foreach elem $CHECK_SUBMIT_ONLY_HOSTS {
          puts $CHECK_OUTPUT "do a qconf -as $elem ..."
-         catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-as $elem" } result
+         catch {eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-as $elem"} result
          puts $CHECK_OUTPUT $result
       }
-      if { $ts_config(product_feature) == "csp" } {
+      if {$ts_config(product_feature) == "csp"} {
          set feature_install_options "-csp"
          set my_csp_host_list $ts_config(execd_nodes)
          foreach elem $CHECK_SUBMIT_ONLY_HOSTS {
-           lappend my_csp_host_list $elem
+            lappend my_csp_host_list $elem
          }
          foreach exec_host $my_csp_host_list {
-            if { $exec_host == $CHECK_CORE_MASTER } {
+            if {$exec_host == $CHECK_CORE_MASTER} {
                continue;
             }
             copy_certificates $exec_host
@@ -102,17 +102,16 @@ proc install_execd {} {
    }
  
    foreach exec_host $ts_config(execd_nodes) {
-
       puts $CHECK_OUTPUT "installing execd on host $exec_host ($ts_config(product_type) system) ..."
-      if {[lsearch $ts_config(execd_nodes) $exec_host] == -1 } {
+      if {[lsearch $ts_config(execd_nodes) $exec_host] == -1} {
          set_error "-1" "install_execd - host $exec_host is not in execd list"
          return 
       }
 #      wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
-      if { $check_use_installed_system != 0 } {
+      if {$check_use_installed_system != 0} {
          set_error "0" "install_execd - no need to install execd on hosts \"$ts_config(execd_nodes)\" - noinst parameter is set"
          puts "no need to install execd on hosts \"$ts_config(execd_nodes)\", noinst parameter is set"
-         if {[startup_execd $exec_host] == 0 } {
+         if {[startup_execd $exec_host] == 0} {
             lappend CORE_INSTALLED $exec_host
             write_install_list
             continue
@@ -128,16 +127,16 @@ proc install_execd {} {
       }
 
       set remote_arch [resolve_arch $exec_host]    
-      set sensor_file [ get_loadsensor_path $exec_host ]
-      if { [string compare $sensor_file ""] != 0  } {
+      set sensor_file [get_loadsensor_path $exec_host]
+      if {[string compare $sensor_file ""] != 0} {
          puts $CHECK_OUTPUT "installing load sensor:"
          puts $CHECK_OUTPUT "======================="
          puts $CHECK_OUTPUT "architecture: $remote_arch"
          puts $CHECK_OUTPUT "sensor file:  $sensor_file"
          puts $CHECK_OUTPUT "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-         if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
+         if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
             set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-            set result [ start_remote_prog $ts_config(master_host) "root" "cp" "$arguments" ] 
+            set result [start_remote_prog $ts_config(master_host) "root" "cp" "$arguments"] 
             puts $CHECK_OUTPUT "result: $result"
             puts $CHECK_OUTPUT "copy exit state: $prg_exit_state" 
          } else {
@@ -154,7 +153,7 @@ proc install_execd {} {
       set exit_val 0
       set autoconfig_file $ts_config(product_root)/autoinst_config_$exec_host.conf
      
-      write_autoinst_config $autoconfig_file $exec_host 0ß
+      write_autoinst_config $autoconfig_file $exec_host 0
   
       puts $CHECK_OUTPUT "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf -noremote"
       if {$CHECK_ADMIN_USER_SYSTEM == 0} {
@@ -169,21 +168,20 @@ proc install_execd {} {
 
       #set CHECK_DEBUG_LEVEL 2
       set do_log_output 0 ;# 1 _LOG
-      if { $CHECK_DEBUG_LEVEL == 2 } {
+      if {$CHECK_DEBUG_LEVEL == 2} {
          set do_log_output 1
       }
 
-      if { $exit_val == 0 } {
+      if {$exit_val == 0} {
          set_error 0 "ok"
          lappend CORE_INSTALLED $exec_host
          write_install_list
          continue
-      } else { 
+      } else {
          set_error "-1" "install failed"
          add_proc_error "install_execd" "-1" "$output"
       }
    }
    return
 }
-
 

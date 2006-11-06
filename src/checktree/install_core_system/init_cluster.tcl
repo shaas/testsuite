@@ -87,9 +87,9 @@ proc kill_running_system {} {
 
 
 proc reread_bootstrap {} {
-  # install_qmaster has written the bootstrap or the configuration file
-  bootstrap_sge_config
-  set_error "0" "install_qmaster - no errors"
+   # install_qmaster has written the bootstrap or the configuration file
+   bootstrap_sge_config
+   set_error "0" "install_qmaster - no errors"
 }
 
 

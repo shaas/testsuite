@@ -1,3 +1,8 @@
+JG-2006-11-06-0: Bugfix:    issue_1330 check removed spooling database during
+                            execd installation, when local bdb spooling was 
+                            configured. This caused subsequent tests to fail.
+                 Review:    RD
+
 JG-2006-11-03-0: Bugfix:    Fixed negative tests (from non cluster host) with
                             CSP systems.
                  Review:    AA

@@ -70,24 +70,24 @@ proc install_qmaster {} {
 
    puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $CHECK_CORE_MASTER ..."
 
-   if { $check_use_installed_system != 0 } {
-    set_error "0" "install_qmaster - no need to install qmaster on host $CHECK_CORE_MASTER - noinst parameter is set"
-    puts "no need to install qmaster on host $CHECK_CORE_MASTER, noinst parameter is set"
-    set CORE_INSTALLED "" 
-    if {[startup_qmaster] == 0} {
-      lappend CORE_INSTALLED $CHECK_CORE_MASTER
-      write_install_list
-    }
-    return
+   if {$check_use_installed_system != 0} {
+      set_error "0" "install_qmaster - no need to install qmaster on host $CHECK_CORE_MASTER - noinst parameter is set"
+      puts "no need to install qmaster on host $CHECK_CORE_MASTER, noinst parameter is set"
+      set CORE_INSTALLED "" 
+      if {[startup_qmaster] == 0} {
+         lappend CORE_INSTALLED $CHECK_CORE_MASTER
+         write_install_list
+      }
+      return
    }
 
    set CORE_INSTALLED ""
    write_install_list
 
    set_error "0" "inst_sge - no errors"
-   if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-    set_error "-1" "inst_sge - inst_sge file not found"
-    return
+   if {![file isfile "$ts_config(product_root)/inst_sge"]} {
+      set_error "-1" "inst_sge - inst_sge file not found"
+      return
    }
 
    #dump hostlist to file
@@ -102,7 +102,7 @@ proc install_qmaster {} {
    close $f
 
    set feature_install_options ""
-   if { $ts_config(product_feature) == "csp" } {
+   if {$ts_config(product_feature) == "csp"} {
       append feature_install_options "-csp"
    }
 
@@ -110,39 +110,35 @@ proc install_qmaster {} {
    set exit_val 0
 
    puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
-   if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-    set output [start_remote_prog "$CHECK_CORE_MASTER" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+   if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
+      set output [start_remote_prog "$CHECK_CORE_MASTER" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    } else {
-    puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-    set output [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+      puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
+      set output [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    }
 
    log_user 1
 
    set hostcount 0
 
-
    set do_log_output 0;# _LOG
-   if { $CHECK_DEBUG_LEVEL == 2 } {
-   set do_log_output  1 ;# 1
-
+   if {$CHECK_DEBUG_LEVEL == 2} {
+      set do_log_output  1 ;# 1
    }
 
-   if { $exit_val == 0 } {
-    set_error "0" "ok"
-    lappend CORE_INSTALLED $CHECK_CORE_MASTER
-    write_install_list
-    return
+   if {$exit_val == 0} {
+      set_error "0" "ok"
+      lappend CORE_INSTALLED $CHECK_CORE_MASTER
+      write_install_list
+      return
    } else { 
-    set_error "-2" "install failed"
-    add_proc_error "install_qmaster" "-2" "$output"
-    return
+      set_error "-2" "install failed"
+      add_proc_error "install_qmaster" "-2" "$output"
+      return
    }
-
 }
 
-proc write_autoinst_config { filename host { do_cleanup 1 } } {
-
+proc write_autoinst_config {filename host {do_cleanup 1}} {
    global ts_config CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT local_execd_spool_set
 
    set execd_port [expr $ts_config(commd_port) + 1]
@@ -151,10 +147,13 @@ proc write_autoinst_config { filename host { do_cleanup 1 } } {
    set bdb_server $ts_config(bdb_server)
    if {$bdb_server == "none"} {
       set db_dir [get_bdb_spooldir $ts_config(master_host) 1]
+
       # deleting berkeley db spool dir. autoinstall will stop, if
       # bdb spooldir exists.
-      if {[file isdirectory "$db_dir"] == 1} {
-         delete_directory "$db_dir"
+      if {$do_cleanup} {
+         if {[file isdirectory "$db_dir"] == 1} {
+            delete_directory "$db_dir"
+         }
       }
    } else {
       # in this case, the berkeley db rpc server spool dir will be removed,
@@ -175,8 +174,8 @@ proc write_autoinst_config { filename host { do_cleanup 1 } } {
    puts $fdo "SGE_EXECD_PORT=\"$execd_port\""
    puts $fdo "CELL_NAME=\"$ts_config(cell)\""
    puts $fdo "ADMIN_USER=\"$CHECK_USER\""
-   set spooldir [get_local_spool_dir $host qmaster $do_cleanup ]
-   if { $spooldir != "" } {
+   set spooldir [get_local_spool_dir $host qmaster $do_cleanup]
+   if {$spooldir != ""} {
       puts $fdo "QMASTER_SPOOL_DIR=\"$spooldir\""
    } else {
       puts $fdo "QMASTER_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool/qmaster\""
@@ -189,8 +188,8 @@ proc write_autoinst_config { filename host { do_cleanup 1 } } {
    puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
    puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
    puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
-   set spooldir [get_local_spool_dir $host execd 0 ]
-   if { $spooldir != "" } {
+   set spooldir [get_local_spool_dir $host execd 0]
+   if {$spooldir != ""} {
       puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\""
    } else {
       puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"\""
@@ -251,7 +250,6 @@ proc write_autoinst_config { filename host { do_cleanup 1 } } {
 #     ???/???
 #*******************************
 proc create_autoinst_config {} {
-
    global ts_config
    global CHECK_USER check_errstr 
    global CHECK_CORE_MASTER CORE_INSTALLED CHECK_OUTPUT 
@@ -259,13 +257,14 @@ proc create_autoinst_config {} {
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
 
-   if { [file isfile "$ts_config(product_root)/autoinst_config.conf"] == 1} {
-      set catch_result [ catch { eval exec "rm -f $ts_config(product_root)/autoinst_config.conf" } ]
+   set config_file "$ts_config(product_root)/autoinst_config.conf"
+
+   if {[file isfile $config_file] == 1} {
+      file delete -force $config_file
    }
 
    puts $CHECK_OUTPUT "creating automatic install config file ..."
-   write_autoinst_config  $ts_config(product_root)/autoinst_config.conf $ts_config(master_host) 1
+   write_autoinst_config $config_file $ts_config(master_host) 1
    puts $CHECK_OUTPUT "automatic install config file successfully created ..."
    set_error "0" "inst_sge - no errors"
-
-} 
+}

@@ -73,14 +73,14 @@ proc install_shadowd {} {
 
    set_error "0" "inst_sge -sm - no errors"
 
-   if {! $check_use_installed_system} {
+   if {!$check_use_installed_system} {
       set feature_install_options ""
 
-      if { $ts_config(product_feature) == "csp" } {
+      if {$ts_config(product_feature) == "csp"} {
          set feature_install_options "-csp"
          set my_csp_host_list $CHECK_CORE_SHADOWD
          foreach shadow_host $my_csp_host_list {
-            if { $shadow_host == $CHECK_CORE_MASTER } {
+            if {$shadow_host == $CHECK_CORE_MASTER} {
                continue;
             }
             copy_certificates $shadow_host
@@ -89,12 +89,11 @@ proc install_shadowd {} {
    }
  
    foreach shadow_host $CHECK_CORE_SHADOWD {
-
       puts $CHECK_OUTPUT "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
-      if { $check_use_installed_system != 0 } {
+      if {$check_use_installed_system != 0} {
          set_error "0" "install_shadowd - no need to install shadowd on host \"$shadow_host\" - noinst parameter is set"
          puts "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
-         if {[startup_shadowd $shadow_host] == 0 } {
+         if {[startup_shadowd $shadow_host] == 0} {
             lappend CORE_INSTALLED $shadow_host
             write_install_list
             continue
@@ -122,25 +121,23 @@ proc install_shadowd {} {
          set output [start_remote_prog "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
       }
 
-
       log_user 1
 
       set do_log_output 0 ;# 1 _LOG
-      if { $CHECK_DEBUG_LEVEL == 2 } {
+      if {$CHECK_DEBUG_LEVEL == 2} {
          set do_log_output 1
       }
 
-      if { $exit_val == 0 } {
-       set_error "0" "ok"
-       lappend CORE_INSTALLED $shadow_host
-       write_install_list
-       return
+      if {$exit_val == 0} {
+         set_error "0" "ok"
+         lappend CORE_INSTALLED $shadow_host
+         write_install_list
+         return
       } else { 
-       set_error "-2" "install failed"
-       add_proc_error "install shadowd" "-2" "$output"
-       return
+         set_error "-2" "install failed"
+         add_proc_error "install shadowd" "-2" "$output"
+         return
       }
    }
 }
-
 
