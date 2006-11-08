@@ -6398,7 +6398,8 @@ proc shutdown_scheduler {hostname qmaster_spool_dir} {
 #     qmaster_spool_dir - ??? 
 #
 #  RESULT
-#     ??? 
+#     1, if it is alive
+#     0, if it is not alive
 #
 #  EXAMPLE
 #     ??? 

@@ -1,3 +1,6 @@
+JG-2006-11-08-0: Enhancem.: new check system_tests/scheduler/reconnect.
+                 Review:    AH
+
 JG-2006-11-06-0: Bugfix:    issue_1330 check removed spooling database during
                             execd installation, when local bdb spooling was 
                             configured. This caused subsequent tests to fail.
@@ -7,7 +10,7 @@ JG-2006-11-03-0: Bugfix:    Fixed negative tests (from non cluster host) with
                             CSP systems.
                  Review:    AA
 
-RD-2006-11-02-0: Enhancm.   - added qlimit test
+RD-2006-11-02-0: Enhancem.  - added qlimit test
                             - enhanced pe_ranges, resource_reservation for 
                               limitation rule sets
                             - throughput test reports now correct qmaster host
