@@ -7005,12 +7005,13 @@ proc update_source { a_report } {
 #  SEE ALSO
 #*******************************************************************************
 proc compile_depend { compile_hosts a_report } {
-   
-   global ts_host_config CHECK_USER CHECK_SOURCE_DIR
-   global CHECK_OUTPUT
+   global ts_host_config CHECK_OUTPUT
+   global CHECK_USER CHECK_SOURCE_DIR
    
    upvar $a_report report
-  
+ 
+   puts $CHECK_OUTPUT "building dependencies"
+ 
    # we prefer building the dependencies on a sol-sparc64 host
    # to avoid automounter issues like having a heading /tmp_mnt in paths
    set depend_host_name [lindex $compile_hosts 0] 

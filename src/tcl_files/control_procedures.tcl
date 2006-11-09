@@ -996,14 +996,8 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
 
    #puts "arch on host $host is $host_arch"
    
-   switch -- $host_arch {
-      "solaris64" - 
-      "sol-sparc64" - 
-      "sol-amd64" -
-      "solaris86" -
-      "sol-x86" -
-      "solaris" -
-      "sol-sparc" {
+   switch -glob -- $host_arch {
+      "sol*" {
          set myenvironment(COLUMNS) "500"
          set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-e -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"s=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"args=_____args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args"
@@ -1018,9 +1012,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
          set command_pos 8
       }
      
-      "darwin" -
-      "darwin-ppc" -
-      "darwin-x86" {
+      "darwi*" {
          set myenvironment(COLUMNS) "500"
          set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-awwx -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"state=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"command=_____args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args"
@@ -1134,16 +1126,11 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       }
      
       "glinux" -
-      "lx24-x86" -
-      "lx26-x86" - 
-      "lx24-ia64" -
-      "lx26-ia64" - 
-      "lx24-amd64" - 
-      "lx26-amd64" -
-      "lx24-sparc" - 
-      "lx26-sparc" -
-      "lx24-sparc64" - 
-      "lx26-sparc64" {
+      "lx2?-x86" - 
+      "lx2?-ia64" - 
+      "lx2?-amd64" -
+      "lx2?-sparc" -
+      "lx2?-sparc64" {
          set myenvironment(COLUMNS) "500"
          set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-weo \"pid pgid ppid uid=BIGGERUID s stime vsz time args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "  PID  PGID  PPID BIGGERUID S STIME   VSZ     TIME COMMAND"
@@ -1210,6 +1197,20 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
          set command_pos 8
       }
 
+      "nbsd-*" {
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-axww -o \"pid=_____pid pgid=_____pgid ppid=_____ppid uid=_____uid state=_____s stime=_____stime vsz=_____vsz time=_____time args=_____args\"" prg_exit_state 60 0 "" myenvironment]
+         set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args"
+         set pid_pos     0
+         set gid_pos     1
+         set ppid_pos    2
+         set uid_pos     3
+         set state_pos   4
+         set stime_pos   5
+         set vsz_pos     6
+         set time_pos    7
+         set command_pos 8
+      }
+	
       default { 
          add_proc_error "get_ps_info" "-1" "unknown architecture"
          set prg_exit_state 1

@@ -2748,6 +2748,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
                if {$num_tries > 0} {
                   debug_puts "close_spawn_process: sending CTRL-C"
                   ts_send $spawn_id "\003" $con_data(hostname) ;# CTRL-C
+                  ts_send $spawn_id "\n" $con_data(hostname)
                   ts_send $spawn_id "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname)
                   increase_timeout
                   exp_continue

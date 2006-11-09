@@ -162,11 +162,11 @@ proc get_compile_options_string { } {
 
    set options $ts_config(aimk_compile_options)
 
-   if { $options == "none" } {
+   if {$options == "none"} {
       set options ""
    }
 
-   if { $options != "" } {
+   if {$options != ""} {
       puts $CHECK_OUTPUT "compile options are: \"$options\""
    }
 
@@ -453,7 +453,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
       puts $CHECK_OUTPUT "Skip compile due to previous errors\n"
    } elseif { $do_only_install != 1 } {
       if { $do_only_hooks == 0 } {
-         if { [compile_depend $compile_hosts report] != 0 } {
+         if {[compile_depend $compile_hosts report] != 0} {
             incr error_count
          } 
       } else {
@@ -680,7 +680,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
          set status_output [print_xy_array $status_cols $status_rows status_array status_max_column_len status_max_index_len]
          clear_screen
          puts $CHECK_OUTPUT "================================================================================"
-         puts $CHECK_OUTPUT "open compile connections:\n"
+         puts $CHECK_OUTPUT "open compile connections (aimk $my_compile_options):\n"
          puts $CHECK_OUTPUT $status_output
          puts $CHECK_OUTPUT "================================================================================"
       }

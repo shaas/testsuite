@@ -1,3 +1,7 @@
+JG-2006-11-09-0: Enhancem.: Allow testing of NetBSD systems.
+                            Cleanup.
+                 Review:    RD
+
 JG-2006-11-08-0: Enhancem.: new check system_tests/scheduler/reconnect.
                  Review:    AH
 
