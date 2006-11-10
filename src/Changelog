@@ -1,3 +1,9 @@
+RD-2006-11-10-0: Enhancem.: Enhanced tests for limitation rule sets
+                            - added new test
+                              system_tests/scheduler/resource_quota
+                            - added Xattr test in clients/qconf
+                            - added lirs runlevel in qmaster/complex
+
 JG-2006-11-10-0: Bugfix:    fixed system_tests/scheduler/reconnect for maintrunk
                             clusters (get_qconf_list now returns empty list in 
                             case of qconf error).

@@ -41,13 +41,14 @@ lappend check_functions "qconf_modify_lirs";        # modify limitation rule set
 lappend check_functions "qconf_modifyreplace_lirs"; # modify/replace limitation rule set
 lappend check_functions "qconf_remove_lirs";        # delete limitation rule set
 lappend check_functions "qconf_dynamic_limit";      # add a dynamic limit
+lappend check_functions "qconf_rqs_Xattr";          # resource quota set Xattr
 
 global lirs_name_fast
 global lirs_name_cli
 
 proc qconf_add_lirs {} {
    global ts_config env lirs_name_fast lirs_name_cli
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    set lirs_name_fast "qconf_lirs_fast"
    set lirs_name_cli "qconf_lirs_cli"
@@ -64,12 +65,29 @@ proc qconf_add_lirs {} {
    set lirs_charray($lirs_name_cli,limit) "$rules"
    set result [add_lirs lirs_charray 0]
 
+   # try to create resource quota set with insufficient permissions
+   # - as non admin user
+   # - from non admin host
+   set lirs_name "non_admin_user_lirs"
+   set rules ""
+   lappend rules "to slots=10"
+
+   set ret [add_lirs lirs_charray  1 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
+   if {$ret != -210} {
+      add_proc_error "qconf_add_lirs" -1 "qconf -Alrs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      del_lirs $lirs_name
+   }
+   set non_cluster_host [host_conf_get_unused_host]
+   set ret [add_lirs lirs_charray  1 $non_cluster_host "" 0]
+   if {![check_for_non_cluster_host_error $ret "any"]} {
+      add_proc_error "qconf_add_lirs" -1 "qconf -Alrs should have failed on host $non_cluster_host"
+   }
    set_error 0 "ok"
 }
 
 proc qconf_modify_lirs {} {
    global ts_config env lirs_name_fast lirs_name_cli
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    get_lirs_list old_lirs
    set old_lirs_count [llength $old_lirs]
@@ -87,8 +105,6 @@ proc qconf_modify_lirs {} {
    set new_lirs_charray($lirs_name_fast,limit) "$rules"
    set result [mod_lirs new_lirs_charray "$lirs_name_fast"]
 
-   puts $CHECK_OUTPUT "fast result is:\n $result"
-
    get_lirs_list result
    set new_lirs_count [llength $result]
 
@@ -100,8 +116,6 @@ proc qconf_modify_lirs {} {
    unset new_lirs_charray
    set new_lirs_charray($lirs_name_cli,limit) "$rules"
    set result [mod_lirs new_lirs_charray "$lirs_name_cli" 0]
-
-   puts $CHECK_OUTPUT "cli result is:\n $result"
 
    get_lirs_list result
    set new_lirs_count [llength $result]
@@ -118,12 +132,28 @@ proc qconf_modify_lirs {} {
       add_proc_error "qconf_modify_lirs" -1 "no error was reported for modifing unknown lirs"
    }
 
+   # try to modify resource quota set with insufficient permissions
+   # - as non admin user
+   # - from non admin host
+   unset new_lirs_charray
+   set rules ""
+   lappend rules "to slots=10"
+   set new_lirs_charray($lirs_name_fast,limit) "$rules"
+   set ret [mod_lirs new_lirs_charray "$lirs_name_fast" 1 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
+   if {$ret != -210} {
+      add_proc_error "qconf_modify_lirs" -1 "qconf -Mlrs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   }
+   set non_cluster_host [host_conf_get_unused_host]
+   set ret [mod_lirs new_lirs_charray "$lirs_name_fast" 1 $non_cluster_host "" 0]
+   if {![check_for_non_cluster_host_error $ret "any"]} {
+      add_proc_error "qconf_modify_lirs" -1 "qconf -Mlrs should have failed on host $non_cluster_host"
+   }
    set_error 0 "ok"
 }
 
 proc qconf_modifyreplace_lirs {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    get_lirs old_lirs_config
 
@@ -143,7 +173,7 @@ proc qconf_modifyreplace_lirs {} {
    set new_lirs_count [llength $result]
 
    if { $old_lirs_count == $new_lirs_count } {
-      add_proc_error "qconf_modify_lirs" -1 "modify replace fast doesn't replaced all limitation rule sets"
+      add_proc_error "qconf_modifyreplace_lirs" -1 "modify replace fast doesn't replaced all limitation rule sets"
    }
 
    # Replace limitation rule sets fast
@@ -153,7 +183,20 @@ proc qconf_modifyreplace_lirs {} {
    set new_lirs_count [llength $result]
 
    if { $old_lirs_count != $new_lirs_count } {
-      add_proc_error "qconf_modify_lirs" -1 "modify replace cli doesn't replaced all limitation rule sets"
+      add_proc_error "qconf_modifyreplace_lirs" -1 "modify replace cli doesn't replaced all limitation rule sets"
+   }
+
+   # try to replace resource quota set with insufficient permissions
+   # - as non admin user
+   # - from non admin host
+   set ret [mod_lirs old_lirs_config "" 1 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
+   if {$ret != -210} {
+      add_proc_error "qconf_modifyreplace_lirs" -1 "qconf -Mlrs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   }
+   set non_cluster_host [host_conf_get_unused_host]
+   set ret [mod_lirs old_lirs_config "" 1 $non_cluster_host "" 0]
+   if {![check_for_non_cluster_host_error $ret "any"]} {
+      add_proc_error "qconf_modifyreplace_lirs" -1 "qconf -Mlrs should have failed on host $non_cluster_host"
    }
 
    set_error 0 "ok"
@@ -161,8 +204,21 @@ proc qconf_modifyreplace_lirs {} {
 
 proc qconf_remove_lirs {} {
    global ts_config env lirs_name_fast lirs_name_cli
-   global CHECK_OUTPUT CHECK_USER
-  
+   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+
+   # try to delete resource quota set with insufficient permissions
+   # - as non admin user
+   # - from non admin host
+   set ret [del_lirs $lirs_name_fast "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
+   if {$ret != -210} {
+      add_proc_error "qconf_remove_lirs" -1 "qconf -dlrs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   }
+   set non_cluster_host [host_conf_get_unused_host]
+   set ret [del_lirs $lirs_name_fast $non_cluster_host "" 0]
+   if {![check_for_non_cluster_host_error $ret "admin"]} {
+      add_proc_error "qconf_remove_lirs" -1 "qconf -dlrs should have failed on host $non_cluster_host"
+   }
+
    # delete lirs the first time, should be OK 
    puts $CHECK_OUTPUT "deleting limitation rule set \"$lirs_name_fast\""
    del_lirs $lirs_name_fast
@@ -198,9 +254,9 @@ proc qconf_dynamic_limit {} {
 
    unset lirs_charray
    set lirs_charray($lirs_name,limit) "$rules"
-   set result [mod_lirs lirs_charray "$lirs_name" 1 "" "" 0]
-   if { $result == 0 } {
-      add_proc_error "qconf_modify_lirs" -1 "invalid dynamic limit was accepted (1)"
+   set ret [mod_lirs lirs_charray "$lirs_name" 1 "" "" 0]
+   if { $ret == 0 } {
+      add_proc_error "qconf_dynamic_limit" -1 "invalid dynamic limit was accepted (1)"
    }
 
    # Try to add invalid dynamic limit (2)
@@ -209,12 +265,81 @@ proc qconf_dynamic_limit {} {
 
    unset lirs_charray
    set lirs_charray($lirs_name,limit) "$rules"
-   set result [mod_lirs lirs_charray "$lirs_name" 1 "" "" 0]
-   if { $result == 0 } {
-      add_proc_error "qconf_modify_lirs" -1 "invalid dynamic limit was accepted (2)"
+   set ret [mod_lirs lirs_charray "$lirs_name" 1 "" "" 0]
+   if { $ret == 0 } {
+      add_proc_error "qconf_dynamic_limit" -1 "invalid dynamic limit was accepted (2)"
    }
 
    del_lirs $lirs_name
    
+   set_error 0 "ok"
+}
+
+proc qconf_rqs_Xattr {} {
+   global ts_config CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+
+   # setup two resource quota sets
+   set lirs_name1 "qconf_rqs_Xattr1"
+   set lirs_name2 "qconf_rqs_Xattr2"
+   set object_name "limitation_ruleset"
+   set rules ""
+   lappend rules "name rule_1 users $CHECK_USER to slots=0"
+   lappend rules "name rule_2 users $CHECK_FIRST_FOREIGN_SYSTEM_USER to slots=0"
+   lappend rules "name rule_3 to slots=0"
+
+   set lirs_charray($lirs_name1,description) "none"
+   set lirs_charray($lirs_name1,enabled) "false"
+   set lirs_charray($lirs_name1,limit) "$rules"
+   set lirs_charray($lirs_name2,description) "none"
+   set lirs_charray($lirs_name2,enabled) "false"
+   set lirs_charray($lirs_name2,limit) "$rules"
+
+   set result [add_lirs lirs_charray]
+
+   # test mattr for name
+   set result [mod_attr "$object_name" "name" "bla" "$lirs_name1" 0 "" "" 0]
+   if { $result != -2 } {
+      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name name bla $lirs_name1 should have failed"
+   }
+
+   # test mattr for enabled
+   set result [mod_attr "$object_name" "enabled" "true" "$lirs_name1" 0]
+   get_lirs modified_lirs
+   if { $modified_lirs($lirs_name1,enabled) == "FALSE" || $modified_lirs($lirs_name2,enabled) == "TRUE" } {
+      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name enabled true $lirs_name1 failed"
+   }
+
+   # test mattr for description
+   set descr "qconf xattr test description"
+   set result [mod_attr "$object_name" "description" "\"$descr\"" "$lirs_name2" 0]
+   get_lirs modified_lirs
+   if { $modified_lirs($lirs_name1,description) == $descr || $modified_lirs($lirs_name2,description) != $descr } {
+      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name description \"$descr\" $lirs_name1 failed"
+   }
+
+   # test mattr for limit
+   set result [mod_attr "$object_name" "limit" "slots=100" "$lirs_name2/3" 0]
+   get_lirs modified_lirs
+   set org_value [lindex $lirs_charray($lirs_name2,limit) 2]
+   set new_value [lindex $modified_lirs($lirs_name2,limit) 2]
+   if { $org_value == $new_value } {
+      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name limit slots=3 $lirs_name1/3 failed"
+   }
+
+   # test aattr for limit
+   set result [add_attr "$object_name" "limit" "arch=bla" "$lirs_name1/rule_2" 0]
+   get_lirs modified_lirs
+   set org_value [lindex $lirs_charray($lirs_name1,limit) 1]
+   set new_value [lindex $modified_lirs($lirs_name1,limit) 1]
+   if { $org_value == $new_value } {
+      add_proc_error "qconf_rqs_Xattr" -1 "qconf -aattr $object_name limit arch=bla $lirs_name1/rule_2 failed"
+   }
+
+   # rattr/dattr are not lirs specific and need to be tested generally for all objects
+   
+   # cleanup
+   del_lirs $lirs_name1
+   del_lirs $lirs_name2
+
    set_error 0 "ok"
 }

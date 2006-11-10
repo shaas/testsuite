@@ -195,7 +195,7 @@ proc consumable_resources_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 
-proc consumable_resources_setup  {} {
+proc consumable_resources_setup {} {
    global ts_config
    global consumable_resources_test_hosts
    global consumable_resources_saved_slot_count
@@ -1014,9 +1014,8 @@ proc consumable_resources_test {} {
 
       catch {  eval exec "rm $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT $output
-      catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh" } output
+      catch { eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT $output
-
 
       set load_sensor_script_path "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh"
       if { [info exists execd_config_a_host(load_sensor)] } {
@@ -1089,8 +1088,6 @@ proc consumable_resources_test {} {
          add_proc_error "consumable_resources_test" -1 "qconf -se doesn't show test1=3 load value"
       }
 
-      
-
       # restore execd config
       set_config execd_config_a_host $host_a
 
@@ -1105,15 +1102,21 @@ proc consumable_resources_test {} {
 
       set test_grep "test1" 
       set retries 45
-      while { [string match "*test1*" $test_grep] && $retries > 0 } {
+      set ok 0
+      while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
          puts $CHECK_OUTPUT "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          puts $CHECK_OUTPUT "$test_grep"
+         if { [string match "*test1*" $test_grep] == 0 } {
+            puts $CHECK_OUTPUT "resource test1 disappeared!"
+            set ok 1
+            break
+         }
+         after 5000
          incr retries -1
-         sleep 5
       }
 
-      if { [string match "*test1*" $test_grep] } {
+      if { $ok != 1 } {
          add_proc_error "consumable_resources_test" -1 "load sensor report test1 does not disappear"
       }
       
@@ -1163,8 +1166,6 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT $output
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test2_3_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link3.sh" } output
       puts $CHECK_OUTPUT $output
-
-
 
       set load_sensor_script_path "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link6.sh,$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link3.sh"
       if { [info exists execd_config_a_host(load_sensor)] } {

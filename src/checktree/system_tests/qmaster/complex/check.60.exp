@@ -102,8 +102,9 @@ set check_init_level_procedure "complex_init_level"
 # define test's name and run level descriptions
 set check_name            "complex"
 set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_highest_level  0
+set check_highest_level  1
 set check_description(0)  "Test complex attributes and loadsensor"
+set check_description(1)  "Test complex attributes and loadsensor and limitation rule sets"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -124,7 +125,6 @@ lappend check_functions "issue_1847"
 global complex_host
 global complex_old_config
 
-
 proc complex_init_level {} {
    global ts_config CHECK_OUTPUT
    global CHECK_ACT_LEVEL
@@ -136,6 +136,13 @@ proc complex_init_level {} {
       "0" { 
          return 0
       }
+      "1" {
+         if {$ts_config(gridengine_version) >= 65} {
+            return 0
+         } else {
+            return -1
+         }
+      }
    }
 
    return -1  ;# no other level else
@@ -144,10 +151,10 @@ proc complex_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 
-proc complex_setup  {} {
+proc complex_setup {} {
    global ts_config CHECK_OUTPUT CHECK_USER CHECK_ACT_LEVEL
    global complex_host
-   global complex_old_config complex_global_host_backup complex_host_backup
+   global complex_global_host_backup complex_host_backup
 
    # create new complex attributes
    #           name            short  type    op.   requ.  cons. default  urgency
@@ -158,34 +165,13 @@ proc complex_setup  {} {
    set complex(test_bool)     "tb     BOOL      ==    YES    NO    0        0"
    set complex(test_string)   "ts     STRING    ==    YES    NO    none     0"
    set complex(test_cstring)  "tc     CSTRING   ==    YES    NO    none     0"
-   set complex(test_restring) "tr     RESTRING  ==   YES    NO    none     0"
+   set complex(test_restring) "tr     RESTRING  ==    YES    NO    none     0"
    set complex(test_hostname) "th     HOST      ==    YES    NO    none     0"
    set_complex complex
 
    # backup global and specific host
    get_exechost complex_global_host_backup "global"
    get_exechost complex_host_backup $complex_host
-
-   # we install a loadsensor delivering the above complex attributes
-   # backup host config and make sure, load_sensor gets deleted at restore
-   get_config complex_old_config $complex_host
-   if {![info exists complex_old_config(load_sensor)]} {
-      set complex_old_config(load_sensor) "" 
-   }
-
-   # our load sensor needs a file in $SGE_ROOT
-   set filename "$ts_config(product_root)/testsuite_dns_domain"
-   set fout [open $filename "w"]
-   puts $fout $ts_config(dns_domain)
-   close $fout
-   wait_for_remote_file $complex_host $CHECK_USER $filename 
-
-   # install loadsensor
-   set new_config(load_sensor) "$ts_config(testsuite_root_dir)/scripts/loadsensor.sh"
-   set_config new_config $complex_host
-
-   # wait for loadsensor to have effect
-   sleep 40
 
    # create a test queue
    set queue(slots)           10
@@ -206,27 +192,18 @@ proc complex_setup  {} {
    set_error 0 "ok"
 }
 
-proc complex_cleanup  {} {
+proc complex_cleanup {} {
    global ts_config CHECK_OUTPUT
-   global complex_host complex_old_config complex_global_host_backup complex_host_backup
+   global complex_host complex_global_host_backup complex_host_backup
 
    # cleanup
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
-   # reset host complex, stop loadsensor
-   puts $CHECK_OUTPUT "resetting configuration for host $complex_host"
-   set_config complex_old_config $complex_host
-
-   # wait for loadsensor to be down
-   sleep 120
-
    # reset global and specific host setup
    set_exechost complex_global_host_backup "global"
    set_exechost complex_host_backup $complex_host
 
-   # delete a file the loadsensor script was using
-   delete_file "$ts_config(product_root)/testsuite_dns_domain"
 
    # delete the test queue
    del_queue "complex" $complex_host  0 1
@@ -253,53 +230,93 @@ proc complex_cleanup  {} {
    }
    enable_queue $queue_list
 
+   # Delete limitation rule sets
+   if {$ts_config(gridengine_version) >= 65} {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
+   }
+
    set_error 0 "ok"
 }
 
-
 proc complex_loadsensor_test {} {
-   global ts_config CHECK_OUTPUT
-   global complex_host check_highest_level
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_ACT_LEVEL
+   global complex_host
 
-   set check_highest_level 0
-
-   get_qconf_se_info $complex_host
-   if { [string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0 } {
-      add_proc_error "complex_loadsensor_test" "-1" "no test_string load value reported"
-   }
-   if { [string first "test_hostname=" $qconf_se_info(load_values) ] < 0 } {
-      add_proc_error "complex_loadsensor_test" "-1" "no test_hostname load value reported"
-   }
-   if { [string first "test_double=55.55" $qconf_se_info(load_values) ] < 0 } {
-      add_proc_error "complex_loadsensor_test" "-1" "no test_double load value reported"
-   }
-   if { [string first "test_memory=123456789" $qconf_se_info(load_values) ] < 0 } {
-      add_proc_error "complex_loadsensor_test" "-1" "no test_memory load value reported"
-   }
-   if { [string first "test_integer=123456" $qconf_se_info(load_values) ] < 0 } {
-      add_proc_error "complex_loadsensor_test" "-1" "no test_integer load value reported"
-   }
-
-   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
-   set job_ids ""
-   lappend job_ids [submit_job "-l test_string=TEST_ARCH $jobargs 30"]
-   lappend job_ids [submit_job "-l test_hostname=$complex_host $jobargs 35"]
-   set not_requestable_job [submit_job "-l test_double=55.55 $jobargs 60" 0 ]
-   if { $not_requestable_job != -10 } {
-       add_proc_error "complex_loadsensor_test" -1 "resource test_double should not be requestable"
-   }
-   lappend job_ids [submit_job "-l test_memory=123321 $jobargs 40"]
-   lappend job_ids [submit_job "-l test_integer=123456 $jobargs 45"]
- 
-   foreach elem $job_ids {
-      if { $elem >= 0 } {  
-         wait_for_jobstart $elem "Sleeper" 60
+   if { $CHECK_ACT_LEVEL == 0 } {
+      # we install a loadsensor delivering the above complex attributes
+      # backup host config and make sure, load_sensor gets deleted at restore
+      get_config complex_old_config $complex_host
+      if {![info exists complex_old_config(load_sensor)]} {
+         set complex_old_config(load_sensor) "" 
       }
-   }
-   foreach elem $job_ids {
-      if { $elem >= 0 } {  
-         wait_for_jobend $elem "Sleeper" 60
+
+      # our load sensor needs a file in $SGE_ROOT
+      set filename "$ts_config(product_root)/testsuite_dns_domain"
+      set fout [open $filename "w"]
+      puts $fout $ts_config(dns_domain)
+      close $fout
+      wait_for_remote_file $complex_host $CHECK_USER $filename 
+
+      # install loadsensor
+      set new_config(load_sensor) "$ts_config(testsuite_root_dir)/scripts/loadsensor.sh"
+      set_config new_config $complex_host
+
+      # wait for loadsensor to have effect
+      sleep 50
+
+      get_qconf_se_info $complex_host
+      if { [string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0 } {
+         add_proc_error "complex_loadsensor_test" "-1" "no test_string load value reported"
       }
+      if { [string first "test_hostname=" $qconf_se_info(load_values) ] < 0 } {
+         add_proc_error "complex_loadsensor_test" "-1" "no test_hostname load value reported"
+      }
+      if { [string first "test_double=55.55" $qconf_se_info(load_values) ] < 0 } {
+         add_proc_error "complex_loadsensor_test" "-1" "no test_double load value reported"
+      }
+      if { [string first "test_memory=123456789" $qconf_se_info(load_values) ] < 0 } {
+         add_proc_error "complex_loadsensor_test" "-1" "no test_memory load value reported"
+      }
+      if { [string first "test_integer=123456" $qconf_se_info(load_values) ] < 0 } {
+         add_proc_error "complex_loadsensor_test" "-1" "no test_integer load value reported"
+      }
+
+      set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
+      set job_ids ""
+      lappend job_ids [submit_job "-l test_string=TEST_ARCH $jobargs 30"]
+      lappend job_ids [submit_job "-l test_hostname=$complex_host $jobargs 35"]
+      set not_requestable_job [submit_job "-l test_double=55.55 $jobargs 60" 0 ]
+      if { $not_requestable_job != -10 } {
+          add_proc_error "complex_loadsensor_test" -1 "resource test_double should not be requestable"
+      }
+      lappend job_ids [submit_job "-l test_memory=123321 $jobargs 40"]
+      lappend job_ids [submit_job "-l test_integer=123456 $jobargs 45"]
+    
+      foreach elem $job_ids {
+         if { $elem >= 0 } {  
+            wait_for_jobstart $elem "Sleeper" 60
+         }
+      }
+      foreach elem $job_ids {
+         if { $elem >= 0 } {  
+            wait_for_jobend $elem "Sleeper" 60
+         }
+      }
+
+      # reset host complex, stop loadsensor
+      puts $CHECK_OUTPUT "resetting configuration for host $complex_host"
+      set_config complex_old_config $complex_host
+
+      # wait for loadsensor to be down
+      sleep 120
+   
+      # delete a file the loadsensor script was using
+      delete_file "$ts_config(product_root)/testsuite_dns_domain"
    }
 
    set_error 0 "ok"
@@ -312,10 +329,9 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
    # Once the qsub bug is resolved, these parts of the code will be removed.
    # Namely, where we invoke add_proc_error with value -3.
    
-   global ts_config CHECK_OUTPUT check_highest_level
+   global ts_config CHECK_OUTPUT
 
-   set check_highest_level 0
-   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 20"
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
    set job_args   "-o /dev/null -j y -l $variable=$value"
    set job_id [submit_job "$job_args $job_script" $submittable]
    
@@ -371,19 +387,68 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
 }
 
 proc complex_global_host {} {
-   global ts_config CHECK_OUTPUT check_highest_level
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
 
-   set check_highest_level 0
-   # set all test attributes in global host
-   set config(complex_values)    "test_integer=1"
-   append config(complex_values) ",td=10.0"
-   append config(complex_values) ",tt=0:10:0"
-   append config(complex_values) ",tm=100M"
-   append config(complex_values) ",tb=TRUE"
-   append config(complex_values) ",tc=GLobaL"
-   append config(complex_values) ",tr=global"
-   set_exechost config "global"
+   if { $CHECK_ACT_LEVEL == 0 } {
+      # set all test attributes in global host
+      set config(complex_values)    "test_integer=1"
+      append config(complex_values) ",td=10.0"
+      append config(complex_values) ",tt=0:10:0"
+      append config(complex_values) ",tm=100M"
+      append config(complex_values) ",tb=TRUE"
+      append config(complex_values) ",tc=GLobaL"
+      append config(complex_values) ",tr=global"
+      set_exechost config "global"
+   } elseif { $CHECK_ACT_LEVEL == 1 } {
+      # set all test attributes in global host
+      set config(complex_values)    "test_integer=100"
+      append config(complex_values) ",td=10.0"
+      append config(complex_values) ",tt=1:00:0"
+      append config(complex_values) ",tm=1000M"
+      append config(complex_values) ",tb=TRUE"
+      append config(complex_values) ",tc=GLobaL"
+      append config(complex_values) ",tr=global"
+      set_exechost config "global"
+
+      # set all tests attributes in limitation rule sets
+      set lirs_name              "test_integer"
+      set rules                  ""
+      lappend rules                  "to test_integer=1"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_time"
+      set rules                  ""
+      lappend rules              "to tt=0:10:0"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_memory"
+      set rules                  ""
+      lappend rules              "to tm=100M"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_boolean"
+      set rules                  ""
+      lappend rules              "to tb=TRUE"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_cstring"
+      set rules                  ""
+      lappend rules              "to tc=GLobaL"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_restring"
+      set rules                  ""
+      lappend rules              "to tr=global"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
  
+      add_lirs lirs_charray
+   }
 
    #               scenario variable       value     submittable pending  runnable
    complex_run_job "global" "ti"           1         1           0
@@ -550,12 +615,23 @@ proc complex_global_host {} {
    complex_run_job "global" "test_restring"           "\"glo*al\|lo\[c\]al\""  1        0
    complex_run_job "global" "test_restring"           "\"?glo*al\|lo\[c\]al\""  1   1 1
 #
+
    set config(complex_values) "tr=global\*test"  
    set_exechost config "global"
+   if { $CHECK_ACT_LEVEL == 1 } {
+      unset lirs_charray
+      set lirs_name              "test_restring"
+      set rules                  ""
+      lappend rules              "to tr=global\*test"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+ 
+      mod_lirs lirs_charray "test_restring"
+   }
 #
-   complex_run_job "global" "tr"           "global*test"  1           0  
-   complex_run_job "global" "tr"           "global\?test"  1           0   
-   complex_run_job "global" "tr"           "globaltest"  1           1   1
+   complex_run_job "global" "tr"                      "global*test"  1           0  
+   complex_run_job "global" "tr"                      "global\?test"  1           0   
+   complex_run_job "global" "tr"                      "globaltest"  1           1   1
 #
    complex_run_job "global" "test_restring"           "global*test"  1           0  
    complex_run_job "global" "test_restring"           "global\*test"  1           0 
@@ -563,10 +639,20 @@ proc complex_global_host {} {
 #
    set config(complex_values) "tr=global\?test"  
    set_exechost config "global"
+   if { $CHECK_ACT_LEVEL == 1 } {
+      unset lirs_charray
+      set lirs_name              "test_restring"
+      set rules                  ""
+      lappend rules              "to tr=global\?test"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+ 
+      mod_lirs lirs_charray "test_restring"
+   }
 #
-   complex_run_job "global" "tr"           "global*test"  1           0  
-   complex_run_job "global" "tr"           "global\?test"  1           0  
-   complex_run_job "global" "tr"           "globaltest"  1           1 
+   complex_run_job "global" "tr"                      "global*test"  1           0  
+   complex_run_job "global" "tr"                      "global\?test"  1           0  
+   complex_run_job "global" "tr"                      "globaltest"  1           1 
 #
    complex_run_job "global" "test_restring"           "global*test"  1           0 
    complex_run_job "global" "test_restring"           "global\?test"  1           0  
@@ -575,29 +661,93 @@ proc complex_global_host {} {
    # cleanup
    set config(complex_values) "NONE"
    set_exechost config "global"
-  
+
+   if { $CHECK_ACT_LEVEL == 1 } {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
+   }
+
    set_error 0 "ok"
 }
 
 proc complex_host {} {
-   global ts_config CHECK_OUTPUT
-   global complex_host check_highest_level
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global complex_host
 
-   set check_highest_level 0
-   # set a consumable in global host, to be overwritten by specific host
-   set config(complex_values)    "test_integer=1"
-   append config(complex_values) ",ts=global"
-   set_exechost config "global"
+   if { $CHECK_ACT_LEVEL == 0 } {
+      # set a consumable in global host, to be overwritten by specific host
+      set config(complex_values)    "test_integer=1"
+      append config(complex_values) ",ts=global"
+      set_exechost config "global"
 
-   # set host specific complexes
-   set config(complex_values)    "ti=2"
-   append config(complex_values) ",td=10"
-   append config(complex_values) ",tt=600"
-   append config(complex_values) ",tm=104857600"
-   append config(complex_values) ",tb=FALSE"
-   append config(complex_values) ",ts=host"
-   append config(complex_values) ",th=$ts_config(master_host)"
-   set_exechost config $complex_host
+      # set host specific complexes
+      set config(complex_values)    "ti=2"
+      append config(complex_values) ",td=10"
+      append config(complex_values) ",tt=600"
+      append config(complex_values) ",tm=104857600"
+      append config(complex_values) ",tb=FALSE"
+      append config(complex_values) ",ts=host"
+      append config(complex_values) ",th=$ts_config(master_host)"
+      set_exechost config $complex_host
+   } elseif { $CHECK_ACT_LEVEL == 1 } {
+      # set a consumable in global host, to be overwritten by specific host
+      set config(complex_values)    "test_integer=100"
+      append config(complex_values) ",ts=global"
+      set_exechost config "global"
+
+      # set host specific complexes
+      set config(complex_values)    "ti=80"
+      append config(complex_values) ",td=10"
+      append config(complex_values) ",tt=1600"
+      append config(complex_values) ",tm=154857600"
+      append config(complex_values) ",tb=FALSE"
+      append config(complex_values) ",ts=host"
+      append config(complex_values) ",th=$ts_config(master_host)"
+      set_exechost config $complex_host
+
+      # set all tests attributes in limitation rule sets
+      set lirs_name              "test_integer"
+      set rules                  ""
+      lappend rules                  "hosts $complex_host to test_integer=1"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_time"
+      set rules                  ""
+      lappend rules              "hosts $complex_host to tt=600"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_memory"
+      set rules                  ""
+      lappend rules              "hosts $complex_host to tm=104857600"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_boolean"
+      set rules                  ""
+      lappend rules              "hosts $complex_host to tb=FALSE"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_string"
+      set rules                  ""
+      lappend rules              "hosts $complex_host to ts=host"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_host"
+      set rules                  ""
+      lappend rules              "hosts $complex_host to th=$ts_config(master_host)"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+ 
+      add_lirs lirs_charray
+   }
 
    #               szenario variable       value     submittable pending
    complex_run_job "host"   "ti"           1         1           0
@@ -630,31 +780,93 @@ proc complex_host {} {
    set_exechost config "global"
    set_exechost config $complex_host
 
+   if { $CHECK_ACT_LEVEL == 1 } {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
+   }
+
    set_error 0 "ok"
 }
 
 proc complex_queue {} {
-   global ts_config CHECK_OUTPUT
-   global complex_host check_highest_level
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global complex_host
 
-   set check_highest_level 0
-   # set a consumable in global host, to be overwritten by specific host
-   set config(complex_values)    "test_integer=3"
-   append config(complex_values) ",ts=global"
-   set_exechost config "global"
+   if { $CHECK_ACT_LEVEL == 0 } {
+      # set a consumable in global host, to be overwritten by specific host
+      set config(complex_values)    "test_integer=3"
+      append config(complex_values) ",ts=global"
+      set_exechost config "global"
 
-   # set host specific complexes
-   set config(complex_values)    "ti=2"
-   append config(complex_values) ",ts=host"
-   set_exechost config $complex_host
+      # set host specific complexes
+      set config(complex_values)    "ti=2"
+      append config(complex_values) ",ts=host"
+      set_exechost config $complex_host
 
-   set config(complex_values)    "ti=1"
-   append config(complex_values) ",td=-10"
-   append config(complex_values) ",tt=0:10:0"
-   append config(complex_values) ",tm=102400K"
-   append config(complex_values) ",tb=1"
-   append config(complex_values) ",ts=queue"
-   mqattr "complex_values" $config(complex_values) [get_queue_instance "complex" $complex_host]
+      set config(complex_values)    "ti=1"
+      append config(complex_values) ",td=-10"
+      append config(complex_values) ",tt=0:10:0"
+      append config(complex_values) ",tm=102400K"
+      append config(complex_values) ",tb=1"
+      append config(complex_values) ",ts=queue"
+      mqattr "complex_values" $config(complex_values) [get_queue_instance "complex" $complex_host]
+   } elseif { $CHECK_ACT_LEVEL == 1 } {
+      # set a consumable in global host, to be overwritten by specific host
+      set config(complex_values)    "test_integer=100"
+      append config(complex_values) ",ts=global"
+      set_exechost config "global"
+
+      # set host specific complexes
+      set config(complex_values)    "ti=80"
+      append config(complex_values) ",ts=global"
+      set_exechost config $complex_host
+
+      set config(complex_values)    "ti=70"
+      append config(complex_values) ",td=-10"
+      append config(complex_values) ",tt=1:00:0"
+      append config(complex_values) ",tm=152400K"
+      append config(complex_values) ",tb=1"
+      append config(complex_values) ",ts=global"
+      mqattr "complex_values" $config(complex_values) [get_queue_instance "complex" $complex_host]
+
+      # set all tests attributes in limitation rule sets
+      set lirs_name              "test_integer"
+      set rules                  ""
+      lappend rules                  "queues complex to test_integer=1"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_time"
+      set rules                  ""
+      lappend rules              "queues complex to tt=0:10:0"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_memory"
+      set rules                  ""
+      lappend rules              "queues complex to tm=102400K"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_string"
+      set rules                  ""
+      lappend rules              "queues complex to ts=xxx"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      set lirs_name              "test_boolean"
+      set rules                  ""
+      lappend rules              "queues complex to tb=1"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "true"
+
+      add_lirs lirs_charray
+   }
+   
 
    #               szenario variable       value     submittable pending
    complex_run_job "queue"  "ti"           1         1           0
@@ -683,6 +895,15 @@ proc complex_queue {} {
    set_exechost config $complex_host
    mqattr "complex_values" "NONE" [get_queue_instance "complex" $complex_host]
 
+   if { $CHECK_ACT_LEVEL == 1 } {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
+   }
+
    set_error 0 "ok"
 }
 
@@ -709,17 +930,20 @@ proc complex_test_rattr { value } {
 }
 
 proc issue_1847 {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
    global complex_host
-   complex_test_rattr "tt=x"
-   complex_test_rattr "ti=x"
-   complex_test_rattr "td=x"
-   complex_test_rattr "tb=x"
-   complex_test_rattr "tb=null"
 
-   # cleanup
-   mqattr "complex_values" "NONE" [get_queue_instance "complex" $complex_host]
-   mhattr "complex_values" "NONE" $complex_host
+   if { $CHECK_ACT_LEVEL == 0 } {
+      complex_test_rattr "tt=x"
+      complex_test_rattr "ti=x"
+      complex_test_rattr "td=x"
+      complex_test_rattr "tb=x"
+      complex_test_rattr "tb=null"
+
+      # cleanup
+      mqattr "complex_values" "NONE" [get_queue_instance "complex" $complex_host]
+      mhattr "complex_values" "NONE" $complex_host
+   }
 
    set_error 0 "ok"
 }

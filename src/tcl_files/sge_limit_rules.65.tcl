@@ -123,7 +123,7 @@ proc get_lirs_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1
 #     Returncode for the get_lirs function:
 #
 #*******************************************************************************
-proc get_lirs_error {result lirs raise_error } {
+proc get_lirs_error {result lirs raise_error} {
 
    # recognize certain error messages and return special return code
    set messages(index) "-1"
@@ -163,11 +163,6 @@ proc add_lirs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 
 
    upvar $change_array chgar
 
-   # localize messages
-   # JG: TODO: object name is taken from c_gdi object structure - not I18Ned!!
-   set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "limitation rule" ]
-   set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "limitation rule" "*"]
-
    set lirs_names ""
    set old_name ""
 
@@ -189,14 +184,18 @@ proc add_lirs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 
       set tmpfile [dump_lirs_array_to_tmpfile chgar]
       set result [start_sge_bin "qconf" "-Alrs $tmpfile" $on_host $as_user ]
 
-      if { [string match "*$ADDED*" $result ] } {
-         set result 0
-      } else {
-         add_proc_error "add_lirs" "-1" "qconf error or binary not found (error: $result)" $raise_error
-         set result -2
-      }
+      set messages(index) "-1 0"
+      set messages(-1) [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "limitation rule" "*"]
+      set messages(0)  [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "limitation rule"]
+
+      set result [handle_sge_errors "add_lirs" "qconf -Alrs $tmpfile" $result messages $raise_error]
    } else {
    # Use vi
+      # localize messages
+      # JG: TODO: object name is taken from c_gdi object structure - not I18Ned!!
+      set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "limitation rule"]
+      set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "limitation rule" "*"]
+
       set vi_commands [build_lirs_vi_array chgar]
 
       set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-alrs $lirs_names" $vi_commands $ADDED $ALREADY_EXISTS]
@@ -236,35 +235,36 @@ proc mod_lirs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {ra
    
    upvar $change_array chgar
 
-   set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "limitation rule" ]
-   set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "limitation rule" ]
-   set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
-
-
    # Modify lirs from file?
    if { $fast_add } {
       set tmpfile [dump_lirs_array_to_tmpfile chgar]
       set result [start_sge_bin "qconf" "-Mlrs $tmpfile $name" $on_host $as_user]
 
-      if { [string match "*$MODIFIED*" $result ] || [string match "*$ADDED*" $result ]} {
-         set result 0
-      } else {
-         add_proc_error "mod_lirs" "-1" "qconf error or binary not found (error: $result)" $raise_error
-         set result -2
-      }
+      set messages(index) "-1 0 1"
+      set messages(-1) [translate_macro MSG_FILE_NOTCHANGED]
+      set messages(0) [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "limitation rule"]
+      set messages(1) [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "limitation rule"]
+
+      set ret [handle_sge_errors "mod_lirs" "qconf -Mlrs $tmpfile $name" $result messages $raise_error]
    } else {
       # Use vi
+      set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "limitation rule"]
+      set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "limitation rule"]
+      set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
+
       set vi_commands [build_lirs_vi_array chgar]
 
       if { $name != "" } {
-         set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mlrs $name" $vi_commands $MODIFIED $ADDED $NOT_MODIFIED]
+         set ret [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mlrs $name" $vi_commands $MODIFIED $ADDED $NOT_MODIFIED]
       } else {
-         set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mlrs $name" $vi_commands $ADDED $MODIFIED $NOT_MODIFIED]
+         set ret [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mlrs $name" $vi_commands $ADDED $MODIFIED $NOT_MODIFIED]
       }
-      if { $result != 0 } {
+      if { $ret != 0 } {
          add_proc_error "mod_lirs" -1 "could not modify limitation rule set (error: $result)" $raise_error
       }
    }
+
+   return $ret
 }
 
 #****** sge_limit_rules.65/del_lirs() ******************************************

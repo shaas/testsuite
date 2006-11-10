@@ -1970,7 +1970,7 @@ proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
       set old_values(xyz) "abc"
    }
 
-   set vi_commands [build_vi_command chgar old_values]
+  set vi_commands [build_vi_command chgar old_values]
   
   set GIDRANGE [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CONFIG_CONF_GIDRANGELESSTHANNOTALLOWED_I] "*"]
 
@@ -3730,8 +3730,9 @@ proc mod_attr_file_error {result object attribute tmpfile target raise_error} {
 proc mod_attr_error {result object attribute value target raise_error} {
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1"
+   set messages(index) "-1 -2"
    set messages(-1) [translate_macro MSG_PARSE_BAD_ATTR_ARGS_SS $attribute $value]
+   set messages(-2) [translate_macro MSG_QCONF_CANTCHANGEOBJECTNAME_SS "qconf" $attribute]
 
    set ret 0
    # now evaluate return code and raise errors

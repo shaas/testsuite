@@ -68,7 +68,6 @@ set check_cleanup_function pe_ranges_cleanup
 set check_functions "pe_ranges_test"
 
 global pe_ranges_test_hosts
-global pe_ranges_saved_slot_count
 
 proc pe_ranges_init_level {} {
    global CHECK_ACT_LEVEL ts_config
@@ -95,7 +94,6 @@ proc pe_ranges_init_level {} {
 proc pe_ranges_setup  {} {
    global ts_config
    global pe_ranges_test_hosts
-   global pe_ranges_saved_slot_count
    global consumable_complex_backup
    global CHECK_OUTPUT
 
@@ -103,7 +101,6 @@ proc pe_ranges_setup  {} {
    get_complex consumable_complex_backup
 
    set pe_ranges_test_hosts {}
-   set pe_ranges_saved_slot_count ""
    set execd_count 0
    foreach host $ts_config(execd_nodes) {
       if { $execd_count < 2 } {
@@ -139,7 +136,6 @@ proc pe_ranges_setup  {} {
 proc pe_ranges_cleanup  {} {
    global CHECK_OUTPUT ts_config
    global pe_ranges_test_hosts
-   global pe_ranges_saved_slot_count
    global consumable_complex_backup
 
    delete_all_jobs
@@ -151,7 +147,7 @@ proc pe_ranges_cleanup  {} {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    enable_queue $queue_list
-   puts $CHECK_OUTPUT "disabled $queue_list"
+   puts $CHECK_OUTPUT "enabled $queue_list"
 
 
    set qname "res.q"
