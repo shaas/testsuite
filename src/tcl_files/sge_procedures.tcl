@@ -7794,6 +7794,7 @@ proc get_qconf_list {procedure option output_var {on_host ""} {as_user ""} {rais
    if {$prg_exit_state == 0} {
       parse_multiline_list result out
    } else {
+      set out {}
       set ret [get_sge_error $procedure "qconf $option" $result $raise_error]
    }
 

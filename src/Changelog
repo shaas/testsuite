@@ -1,3 +1,8 @@
+JG-2006-11-10-0: Bugfix:    fixed system_tests/scheduler/reconnect for maintrunk
+                            clusters (get_qconf_list now returns empty list in 
+                            case of qconf error).
+                 Review:    RD
+
 JG-2006-11-09-0: Enhancem.: Allow testing of NetBSD systems.
                             Cleanup.
                  Review:    RD
