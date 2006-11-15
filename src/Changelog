@@ -1,3 +1,6 @@
+HP-2006-11-15-0: Bugfix:    Renamed file backslash_space_queue19. to
+                            backslash_space_queue19
+
 RD-2006-11-10-0: Enhancem.: Enhanced tests for limitation rule sets
                             - added new test
                               system_tests/scheduler/resource_quota
