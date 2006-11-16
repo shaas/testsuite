@@ -5105,12 +5105,17 @@ proc get_extended_job_info {jobid {variable job_info} { do_replace_NA 1 } } {
    if {[info exists jobinfo]} {
       unset jobinfo
    }
+   if {$ts_config(gridengine_version) >= 65} {
+      set qstat_options "-u '*'"
+   } else {
+      set qstat_options ""
+   }
 
    if {$ts_config(product_type) == "sgeee" } {
-      set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" -ext} result]
+      set result [start_sge_bin "qstat" "$qstat_options -ext" "" "" exit_code ]
       set ext 1
    } else {
-      set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" } result]
+      set result [start_sge_bin "qstat" "$qstat_options" "" "" exit_code ]
       set ext 0
    }
 
@@ -5377,8 +5382,11 @@ proc is_job_running { jobid jobname } {
       set check_job_name 1
    }
    set arch [resolve_arch $ts_config(master_host)]
-   set qstat "$ts_config(product_root)/bin/$arch/qstat"
-   set result [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat "-f" catch_state]
+   if {$ts_config(gridengine_version) >= 65} {
+      set result [start_sge_bin "qstat" "-u '*' -f" "" "" catch_state ]
+   } else {
+      set result [start_sge_bin "qstat" "-f" "" "" catch_state ]
+   } 
 
    set mytime [timestamp]
    if { $mytime == $check_timestamp } {

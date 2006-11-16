@@ -1,3 +1,8 @@
+RD-2006-11-16-0: Enhancem.: - enhanced clients/qlimit test
+                            - fixed scheduler/resource_quota test
+                            - disabled warnings in scheduler/tickets test
+                 Review:    JG 
+
 HP-2006-11-15-0: Bugfix:    Renamed file backslash_space_queue19. to
                             backslash_space_queue19
 

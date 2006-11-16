@@ -707,7 +707,7 @@ proc process_output_array {input output names {id ""} {rules rules}} {
             set idx ""
          }
       } else {
-         set idx "$in($i,0),"
+         set idx "$in($i,0)"
       }
 
       if { [lsearch -exact $out(index) $idx] == -1} {
@@ -715,7 +715,11 @@ proc process_output_array {input output names {id ""} {rules rules}} {
       }
 
       for { set j 0 } { $j < $in(cols) } { incr j } {
-         set ridx "$idx$nam($j)"
+         if { $idx == "" } {
+            set ridx "$nam($j)"
+         } else {
+            set ridx "$idx,$nam($j)"
+         }
 
          if {[info exists out($ridx)] && [info exists rul($j)]} {
             set out($ridx) [eval $rul($j) \"$out($ridx)\" \"$in($i,$j)\"]
@@ -3075,15 +3079,17 @@ proc parse_lirs_record {input_var output_var} {
          # end of new ruleset
          set name ""
       } else {
-         set id [lindex $elem 0]
-         set value [lrange $elem 1 end]
+         set pos [string first " " $elem]
+         set id   [string trim [string range $elem 0 [expr $pos - 1]]]
+         set value [string trim [string range $elem [expr $pos + 1] end]]
+
          if { $id == "name"} {
             set name $value
          } elseif { $name != "" } {
             if { $id == "limit" } {
-               lappend out($name,$id) $value 
+               lappend out($name,$id) $value
             } else {
-               set out($name,$id) $value 
+               set out($name,$id) $value
             }
          } else {
             add_proc_error "parse_lirs_record" -1 "parse error limitation rule set"

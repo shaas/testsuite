@@ -66,6 +66,8 @@ set check_cleanup_function qlimit_cleanup
 # define test's procedure order
 set check_functions ""
 lappend check_functions "qlimit_help"                   ;# print this help
+lappend check_functions "qlimit_option_u"
+lappend check_functions "qlimit_option_l"
 
 proc qlimit_init_level {} {
    global CHECK_ACT_LEVEL
@@ -80,19 +82,69 @@ proc qlimit_init_level {} {
 }
 
 proc qlimit_setup {} {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT ts_config complex_global_host_backup
+
+   set lirs_name1 "qlimit_test1"
+   set lirs_name2 "qlimit_test2"
+
+   # create new complex attributes
+   #           name            short  type    op.   requ.  cons. default  urgency
+   set complex(test_time)     "tt     TIME      <=    YES    NO    0:0:0    0"
+   set complex(test_memory)   "tm     MEMORY    <=    YES    NO    0        0"
+   set_complex complex
+
+   # backup global and specific host
+   get_exechost complex_global_host_backup "global"
+
+   append config(complex_values) "tt=1:0:0"
+   append config(complex_values) ",tm=1000M"
+   set_exechost config "global"
+
+   # Set per user limitation rule sets 
+   set rules ""
+   lappend rules "users `*` to slots=10"
+   set lirs_charray($lirs_name1,limit) "$rules"
+   set lirs_charray($lirs_name1,enabled) "true"
+
+   # Set for all user limitation rule sets 
+   unset rules
+   set rules ""
+   lappend rules "users * to slots=10"
+   set lirs_charray($lirs_name2,limit) "$rules"
+   set lirs_charray($lirs_name2,enabled) "true"
+
+   # Add both limitation rule sets
+   set result [add_lirs lirs_charray]
 
    set_error 0 "ok"
 }
 
 proc qlimit_cleanup {} {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT ts_config complex_global_host_backup
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 20
+
+   # reset global and specific host setup
+   set_exechost complex_global_host_backup "global"
+
+   # delete our test complex attributes
+   set complex(test_time)     ""
+   set complex(test_memory)   ""
+   set_complex complex
+
+   if {[get_lirs_list lirs_names "" "" 0] == 0} {
+      foreach elem $lirs_names {
+         puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+         del_lirs $elem
+      }
+   }
 
    set_error 0 "ok"
 }
 
 proc qlimit_help {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
+   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
 
    set qlimit_help_lines 10
 
@@ -121,6 +173,109 @@ proc qlimit_help {} {
    if {$nr_of_lines != $qlimit_help_lines} {
       add_proc_error "qlimit_help" -1 "help output has $nr_of_lines, but expected are $qlimit_help_lines lines:\n$output"
    }
+
+   set_error 0 "ok"
+}
+
+proc qlimit_option_u {} {
+   global ts_config CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+
+   puts $CHECK_OUTPUT "checking qlimit -u option ..."
+
+   set job_options "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+
+   # Submit 2 jobs for CHECK_USER
+   set job_id1 [submit_job "$job_options"]
+   set job_id2 [submit_job "$job_options"]
+   trigger_scheduling
+   wait_for_jobstart $job_id1 "leeper" 20
+   wait_for_jobstart $job_id2 "leeper" 20
+
+   # Count qlimit rules for * and CHECK_USER (should be two)
+   qlimit_count_entries "qlimit_option_u" "-u $CHECK_USER" 2
+   qlimit_count_entries "qlimit_option_u" "-u '*'" 2
+   qlimit_count_entries "qlimit_option_u" "" 2
+
+   # Submit 2 more jobs for CHECK_FIRST_FOREIGN_SYSTEM_USER
+   set job_id1 [submit_job "$job_options" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   set job_id2 [submit_job "$job_options" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   trigger_scheduling
+   wait_for_jobstart $job_id1 "leeper" 20
+   wait_for_jobstart $job_id2 "leeper" 20
+
+   # Count qlimit rules for * (should be 3) and CHECK_USER (should be two)
+   # and CHECK_FIRST_FOREIGN_SYSTEM_USER (should be 2)
+   qlimit_count_entries "qlimit_option_u" "-u '*'" 3
+   qlimit_count_entries "qlimit_option_u" "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER" 3
+   qlimit_count_entries "qlimit_option_u" "-u $CHECK_USER" 2
+   qlimit_count_entries "qlimit_option_u" "" 2
+   qlimit_count_entries "qlimit_option_u" "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER" 2
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 20
+
+   set_error 0 "ok"
+}
+
+proc qlimit_count_entries { func_name qlimit_options expected_entries } {
+   global ts_config CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT "\nrunning qlimit $qlimit_options"
+   set result [start_sge_bin "qlimit" "$qlimit_options" "" "" exit_code]
+   puts $CHECK_OUTPUT $result
+   if {$exit_code == 0} {
+      set tmp [split $result "\n"]
+      set nr_entries [llength $tmp]
+
+      # Remove \n from the end
+      incr nr_entries -1
+
+      # Two lines are the header header
+      if {$tmp > 0} {
+         incr nr_entries -2
+      }
+
+      puts $CHECK_OUTPUT "number of entries: $nr_entries"
+      if {$nr_entries != $expected_entries} {
+         add_proc_error "$func_name" -1 "qlimit $qlimit_options broken, got $nr_entries but expected $expected_entries"
+      }
+   } else {
+      add_proc_error "$func_name" -1 "qlimit $qlimit_options exit status not 0"
+   }
+}
+
+proc qlimit_option_l {} {
+   global ts_config CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT "checking qlimit -l option ..."
+
+   set job_options "-o /dev/null -j y -l tm=900M,tt=0:50:0 $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+
+   # Set per user limitation rule sets 
+   set lirs_name "option_l"
+   set rules ""
+   lappend rules "users rd141302 hosts `*` to tm=1000M,tt=1:0:0"
+   set lirs_charray($lirs_name,limit) "$rules"
+   set lirs_charray($lirs_name,enabled) "true"
+   add_lirs lirs_charray
+   
+   set job_id [submit_job "$job_options"]
+   trigger_scheduling
+   wait_for_jobstart $job_id "leeper" 20
+
+   # two rules from default rule sets and two from test specific rule set
+   qlimit_count_entries "qlimit_option_l" "" 4
+
+   qlimit_count_entries "qlimit_option_l" "-l tm" 1
+   qlimit_count_entries "qlimit_option_l" "-l tt" 1
+   qlimit_count_entries "qlimit_option_l" "-l tm,tt" 2
+   qlimit_count_entries "qlimit_option_l" "-l tm,tt,slots" 4
+
+   #Cleanup
+   del_lirs $lirs_name
+   
+   delete_all_jobs
+   wait_for_end_of_all_jobs 20
 
    set_error 0 "ok"
 }

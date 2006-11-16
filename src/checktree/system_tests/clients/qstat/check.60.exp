@@ -189,62 +189,6 @@ proc qstat_init_level {} {
    return -1
 }
 
-#                                                             max. column:     |
-#****** qstat/get_numb_proc() ******
-# 
-#  NAME
-#     get_numb_proc -- ??? 
-#
-#  SYNOPSIS
-#     get_numb_proc { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc get_numb_proc {} {
-  global CHECK_PRODUCT_ROOT ts_config CHECK_USER
-  set result ""
-  
-  set check_host [lindex $ts_config(execd_nodes) 0]
-  set check_arch [resolve_arch $check_host]
-  set loadcheck_binary $ts_config(product_root)/utilbin/$check_arch/loadcheck
-  set result [start_remote_prog $check_host $CHECK_USER $loadcheck_binary "" ]
-
-#
-#Original output of loadcheck looks like this:
-#>loadcheck 
-#arch            irix6
-#num_proc        1
-  
-  # split each line as listelement
-  set help [split $result "\n"]
-
-  foreach elem $help {
-     if {[string compare [lindex $elem 0] "num_proc"] == 0} {
-        set numproc [lindex $elem 1]
-     }
-  }
-
-  return $numproc    
-}
-
 #****** check/qstat_count_jobs() ***********************************************
 #  NAME
 #     qstat_count_jobs() -- count the jobs of the qstat output with the
@@ -264,22 +208,18 @@ proc get_numb_proc {} {
 #*******************************************************************************
 proc qstat_count_jobs { func_name qstat_options expected_jobs } {
    global ts_config CHECK_OUTPUT CHECK_USER
-   set arch [ resolve_arch $ts_config(master_host) ]
    
    puts $CHECK_OUTPUT "\nrunning qstat $qstat_options"
-   set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qstat" "$qstat_options" exit_code ]
+   set result [start_sge_bin "qstat" "$qstat_options" "" "" exit_code]
    puts $CHECK_OUTPUT $result
    if { $exit_code == 0 } {
       if { [info exists jobinfo] } {
          unset jobinfo
       }  
-      parse_qstat result jobinfo "" 0
-      set shown_jobs [ split $jobinfo(index) "," ]
+      parse_qstat result jobinfo
+      set shown_jobs $jobinfo(index)
       set nr_jobs [llength $shown_jobs]
-      # parse_qstat add always a "<jobid>,". Split then returns <jobnr>+1 so we need to adjust the nr of jobs. 
-      if { $nr_jobs > 0 } {
-         incr nr_jobs -1
-      }
+
       puts $CHECK_OUTPUT "number of jobs: $nr_jobs"
       if { $nr_jobs != $expected_jobs } {
          add_proc_error "$func_name" -1 "qstat $qstat_options broken, got $nr_jobs but expected $expected_jobs"
@@ -329,10 +269,7 @@ proc check_core_queues {} {
 
   set result ""
 
-  set check_arch [resolve_arch $check_host]
-  set qstat_binary $ts_config(product_root)/bin/$check_arch/qstat
-
-  set result [start_remote_prog $check_host $CHECK_USER $qstat_binary "-f -q all.q"]
+  set result [start_sge_bin "qstat" "-f -q all.q"]
 #
 #Original output of qstat -f looks like this:
 #>qstat -f
@@ -388,7 +325,7 @@ proc check_core_queues {} {
   }
 
   # check if slots for host $check_host are correct (needs successfully tested "loadcheck" check)
-  set numofproc [get_numb_proc]
+  set numofproc [node_get_processors $check_host]
   set queue_name "all.q@[resolve_host $check_host 1]"
   puts $CHECK_OUTPUT "got $numofproc slots"
   if { [lindex $slots [lsearch $qnames $queue_name] ] != [expr ( $numofproc * 10 )] } {
@@ -569,8 +506,10 @@ proc qstat_option_U {} {
   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
   lappend job_id_list $job_id
   
-  qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 4
+  qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_USER" 4
+  qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 3 
 
+  qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_FIRST_FOREIGN_SYSTEM_USER" 0
   qstat_count_jobs "qstat_option_U" "-U $CHECK_FIRST_FOREIGN_SYSTEM_USER" 0
 
   delete_all_jobs

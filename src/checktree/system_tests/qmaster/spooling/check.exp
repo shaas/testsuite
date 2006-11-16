@@ -67,14 +67,15 @@ set check_cleanup_function "qmaster_spooling_cleanup"
 # define test's procedure order
 set check_functions ""
 lappend check_functions "qmaster_spooling_prj_restart"
+lappend check_functions "qmaster_spooling_lirs_restart"
 
 proc qmaster_spooling_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
       "0" { 
-         return 0    
-      } 
+         return 0
+      }
    }
 
    return -1
@@ -82,7 +83,7 @@ proc qmaster_spooling_init_level {} {
 
 # -------- local test procedures -----------------------------------------------
 
-proc qmaster_spooling_setup  {} {
+proc qmaster_spooling_setup {} {
    set_error 0 "ok"
 }
 
@@ -109,7 +110,7 @@ proc cmp_config { conf_a conf_b fields check} {
          } else {
             # error - fields differ
             if { [string compare $a($field) $b($field)] != 0 } {
-               add_proc_error "$check" -1 "attribute $field differs between original object ($a($field)) and reread object ($b($field))"
+               add_proc_error "$check" -1 "attribute field differs between original object:\n old ($a($field))\n new ($b($field))"
             }
          }
       }
@@ -118,8 +119,7 @@ proc cmp_config { conf_a conf_b fields check} {
 
 # check if spooled projects are still available after qmaster restart
 proc qmaster_spooling_prj_restart {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global ts_config CHECK_OUTPUT
 
    if {$ts_config(product_type) != "sgeee"} {
       add_proc_error qmaster_spooling_prj_restart -3 "this can only run in sgeee clusters"
@@ -132,8 +132,8 @@ proc qmaster_spooling_prj_restart {} {
       set config(acl)  "deadlineusers"
       set config(xacl)  "defaultdepartment"
 
-# JG: TODO: make add_prj and get_prj return info if it was successfull.
-#           use this information and do some status output
+      # JG: TODO: make add_prj and get_prj return info if it was successfull.
+      #           use this information and do some status output
       add_prj config
 
       shutdown_and_restart_qmaster
@@ -148,7 +148,50 @@ proc qmaster_spooling_prj_restart {} {
    set_error 0 "ok"
 }
 
-proc qmaster_spooling_cleanup  {} {
+
+# check if spooled lirs are still available after qmaster restart
+proc qmaster_spooling_lirs_restart {} {
+   global ts_config CHECK_OUTPUT
+
+   if {$ts_config(gridengine_version) >= 65} {
+      set lirs_name "test_spooling"
+
+      set rules ""
+      lappend rules "users `*` to slots=10"
+      lappend rules "hosts `*` to slots=10"
+      lappend rules "queues `!*` to slots=10"
+      lappend rules "hosts !* to slots=10,arch=sol-sparc64"
+      lappend rules "pes pe1,pe2,pe3 to slots=10,arch=sol-sparc64"
+      lappend rules "hosts `*` to slots=\$num_proc*2+\$num_proc*1"
+      set lirs_charray($lirs_name,limit)   "$rules"
+      set lirs_charray($lirs_name,enabled) "TRUE"
+      set lirs_charray($lirs_name,description) "test description for spooling \?+-:"
+      add_lirs lirs_charray
+
+      shutdown_and_restart_qmaster
+
+      get_lirs new_charray "$lirs_name"
+
+      set check_fields [array names lirs_charray]
+      cmp_config lirs_charray new_charray $check_fields "qmaster_spooling_lirs_restart"
+
+      del_lirs "$lirs_name"
+   }
+
    set_error 0 "ok"
 }
 
+proc qmaster_spooling_cleanup {} {
+   global CHECK_OUTPUT ts_config
+
+   if {$ts_config(gridengine_version) >= 65} {
+      if {[get_lirs_list lirs_names "" "" 0] == 0} {
+         foreach elem $lirs_names {
+            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
+            del_lirs $elem
+         }
+      }
+   }
+
+   set_error 0 "ok"
+}

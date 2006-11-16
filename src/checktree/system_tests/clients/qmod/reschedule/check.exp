@@ -645,7 +645,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
              add_proc_error "reschedule_qsh_qlogin_qrsh_qrlogin" -1 "qlogin unexpected eof"
          }
          -i $qlogin_spawn_id timeout {
-             puts $CHECK_OUTPUT "got timeout"
+             puts $CHECK_OUTPUT "success, got timeout"
          }
       }
       set result ""
@@ -689,7 +689,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
          }
       }
       set ru_jobs [ llength $jobs ]
-      puts $CHECK_OUTPUT "found $ru_jobs jobs"
+      puts $CHECK_OUTPUT "found ($ru_jobs/$no_jobs) jobs"
       unset job_info
       after 1000
       set now [timestamp]
