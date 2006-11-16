@@ -393,6 +393,7 @@ proc tight_integration_monitor {id started_var finished_var jobid_var info_var {
                         append unexpected_output "\n"
                      }
                      append unexpected_output $line
+                     set ret "unexpected job output"
                   }
                }
             }
@@ -402,8 +403,7 @@ proc tight_integration_monitor {id started_var finished_var jobid_var info_var {
 
    # send unexpected output
    if {$unexpected_output != ""} {
-      add_proc_error tight_integration_monitor -3 "unexpected job output $unexpected_output"
-      #set ret "error"
+      add_proc_error tight_integration_monitor -3 "unexpected job output:\n---\n$unexpected_output\n---\nPlease check our \".*\" login scripts for output lines!"
    }
 
    return $ret
@@ -425,7 +425,8 @@ proc tight_integration_job_finished {job_state} {
       "task running" -
       "task finished" -
       "master started" -
-      "master submitted" {
+      "master submitted" -
+      "unexpected job output" {
          set job_finished 0
       }
 

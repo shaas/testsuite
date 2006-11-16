@@ -1,3 +1,7 @@
+CR-2006-11-16-0: Bugfix:    - fixed error in thight_integration check when
+                              unexpected output from login scripts is printed
+                 Review:    RD
+
 RD-2006-11-16-0: Enhancem.: - enhanced clients/qlimit test
                             - fixed scheduler/resource_quota test
                             - disabled warnings in scheduler/tickets test
