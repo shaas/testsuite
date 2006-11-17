@@ -1,3 +1,6 @@
+RD-2006-11-17-0: Cleanup:   renamed limitation rule sets to resource quota sets
+                 Review:    AA
+
 CR-2006-11-16-0: Bugfix:    - fixed error in thight_integration check when
                               unexpected output from login scripts is printed
                  Review:    RD

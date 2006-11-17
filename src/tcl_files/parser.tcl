@@ -3059,7 +3059,7 @@ proc qstat_g_c_plain_parse { output  } {
    set_error 0 "ok"
 }
 
-proc parse_lirs_record {input_var output_var} {
+proc parse_rqs_record {input_var output_var} {
    global CHECK_OUTPUT
    upvar $input_var  in
    upvar $output_var out
@@ -3092,7 +3092,7 @@ proc parse_lirs_record {input_var output_var} {
                set out($name,$id) $value
             }
          } else {
-            add_proc_error "parse_lirs_record" -1 "parse error limitation rule set"
+            add_proc_error "parse_rqs_record" -1 "parse error resource quota set"
             break;
          }
       }

@@ -67,7 +67,7 @@ set check_cleanup_function "qmaster_spooling_cleanup"
 # define test's procedure order
 set check_functions ""
 lappend check_functions "qmaster_spooling_prj_restart"
-lappend check_functions "qmaster_spooling_lirs_restart"
+lappend check_functions "qmaster_spooling_rqs_restart"
 
 proc qmaster_spooling_init_level {} {
    global CHECK_ACT_LEVEL
@@ -149,12 +149,12 @@ proc qmaster_spooling_prj_restart {} {
 }
 
 
-# check if spooled lirs are still available after qmaster restart
-proc qmaster_spooling_lirs_restart {} {
+# check if spooled rqs are still available after qmaster restart
+proc qmaster_spooling_rqs_restart {} {
    global ts_config CHECK_OUTPUT
 
    if {$ts_config(gridengine_version) >= 65} {
-      set lirs_name "test_spooling"
+      set rqs_name "test_spooling"
 
       set rules ""
       lappend rules "users `*` to slots=10"
@@ -163,19 +163,19 @@ proc qmaster_spooling_lirs_restart {} {
       lappend rules "hosts !* to slots=10,arch=sol-sparc64"
       lappend rules "pes pe1,pe2,pe3 to slots=10,arch=sol-sparc64"
       lappend rules "hosts `*` to slots=\$num_proc*2+\$num_proc*1"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "TRUE"
-      set lirs_charray($lirs_name,description) "test description for spooling \?+-:"
-      add_lirs lirs_charray
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "TRUE"
+      set rqs_charray($rqs_name,description) "test description for spooling \?+-:"
+      add_rqs rqs_charray
 
       shutdown_and_restart_qmaster
 
-      get_lirs new_charray "$lirs_name"
+      get_rqs new_charray "$rqs_name"
 
-      set check_fields [array names lirs_charray]
-      cmp_config lirs_charray new_charray $check_fields "qmaster_spooling_lirs_restart"
+      set check_fields [array names rqs_charray]
+      cmp_config rqs_charray new_charray $check_fields "qmaster_spooling_rqs_restart"
 
-      del_lirs "$lirs_name"
+      del_rqs "$rqs_name"
    }
 
    set_error 0 "ok"
@@ -185,10 +185,10 @@ proc qmaster_spooling_cleanup {} {
    global CHECK_OUTPUT ts_config
 
    if {$ts_config(gridengine_version) >= 65} {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }

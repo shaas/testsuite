@@ -52,7 +52,7 @@ set check_name            "resource_reservation"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   1 
 set check_description(0)  "check resource reservation"
-set check_description(1)  "check resource reservation with limitation rule sets"
+set check_description(1)  "check resource reservation with resource quota sets"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -81,7 +81,7 @@ proc resource_reservation_init_level {} {
       }
       "1" {
          if {$ts_config(gridengine_version) >= 65} {
-            return 0;   # Tests resource_reservation with limitation rule sets
+            return 0;   # Tests resource_reservation with resource quota sets
          } else {
             return -1;
          }
@@ -239,20 +239,20 @@ proc resource_reservation_level_setup {} {
       set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
       set queue_conf(complex_values)   "myslots=100"
      
-      # setup needed limitation rule sets
-      set lirs_name              "no_pe"
+      # setup needed resource quota sets
+      set rqs_name              "no_pe"
       set rules                  ""
       lappend rules                  "pes !* to myslots=5"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "pe"
+      set rqs_name              "pe"
       set rules                  ""
       lappend rules              "pes * to slots=5"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
  
-      add_lirs lirs_charray
+      add_rqs rqs_charray
    }
 
    puts $CHECK_OUTPUT "Add queue $rr_queue_name"
@@ -330,12 +330,12 @@ proc resource_reservation_level_cleanup {} {
    del_pe        "fill_up"
    del_pe        "pe_slots"
 
-   # Delete limitation rule sets
+   # Delete resource quota sets
    if {$ts_config(gridengine_version) >= 65} {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }

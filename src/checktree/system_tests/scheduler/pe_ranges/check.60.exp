@@ -55,7 +55,7 @@ set check_name            "pe_ranges"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   1
 set check_description(0)  "test pe-ranges"
-set check_description(1)  "test pe-ranges with limitation rule sets"
+set check_description(1)  "test pe-ranges with resource quota sets"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -158,12 +158,12 @@ proc pe_ranges_cleanup  {} {
    # restore complex
    set_complex consumable_complex_backup
 
-   # Delete limitation rule sets
+   # Delete resource quota sets
    if {$ts_config(gridengine_version) >= 65} {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }
@@ -265,14 +265,14 @@ proc pe_ranges_test {} {
       set global_host(complex_values) "test1=1000"
       set_exechost global_host global
 
-      # add limitation rule set
-      set lirs_name              "pe_ranges_test"
+      # add resource quota set
+      set rqs_name              "pe_ranges_test"
       set rules                  ""
       lappend rules              "to test1=6"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      add_lirs lirs_charray
+      add_rqs rqs_charray
    }
 
    set schedconf(params) "pe_range_alg=auto"
@@ -317,7 +317,7 @@ proc pe_ranges_test {} {
    set_complex test1_complex
 
    if { $CHECK_ACT_LEVEL == 1} {
-      del_lirs $lirs_name
+      del_rqs $rqs_name
    }
 
    puts $CHECK_OUTPUT "done"

@@ -261,12 +261,12 @@ proc qconf_cleanup {} {
    puts $CHECK_OUTPUT "Set scheduler to original config ...\n"
    set result [mod_schedd_config qconf_sched_config]
 
-   # Re-set limitation rule sets
+   # Re-set resource quota sets
    if {$ts_config(gridengine_version) >= 65} {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }

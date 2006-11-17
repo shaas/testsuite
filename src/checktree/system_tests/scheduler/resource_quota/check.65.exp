@@ -116,10 +116,10 @@ proc resource_quota_cleanup  {} {
 
    del_queue $resource_quota_test_qname $resource_quota_test_host 0 1
 
-   if {[get_lirs_list lirs_names "" "" 0] == 0} {
-      foreach elem $lirs_names {
-         puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-         del_lirs $elem
+   if {[get_rqs_list rqs_names "" "" 0] == 0} {
+      foreach elem $rqs_names {
+         puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+         del_rqs $elem
       }
    }
 
@@ -133,7 +133,7 @@ proc resource_quota_dynamic_limit {} {
 
    set job_options "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
 
-   set lirs_name "dynamic_lirs"
+   set rqs_name "dynamic_rqs"
    set host_num_proc [node_get_processors $resource_quota_test_host]
    set max_slots [expr $host_num_proc * 2]
 
@@ -142,10 +142,10 @@ proc resource_quota_dynamic_limit {} {
    set rules ""
    lappend rules "users $CHECK_USER hosts `*` queues $resource_quota_test_qname to slots=\$num_proc*2"
 
-   # Add limitation rule sets with dynamic limit
-   set lirs_charray($lirs_name,limit) "$rules"
-   set lirs_charray($lirs_name,enabled) "true"
-   set result [add_lirs lirs_charray]
+   # Add resource quota sets with dynamic limit
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set result [add_rqs rqs_charray]
 
    # fill up the queue with the maximal amount of jobs
    for {set act_job 0} {$act_job < $max_slots} {incr act_job 1} {

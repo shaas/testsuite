@@ -72,7 +72,7 @@ proc dump_array_to_tmpfile { change_array } {
    return $tmpfile
 }
 
-proc dump_lirs_array_to_tmpfile { change_array } {
+proc dump_rqs_array_to_tmpfile { change_array } {
    global ts_config CHECK_OUTPUT
 
    upvar $change_array chgar
@@ -92,7 +92,7 @@ proc dump_lirs_array_to_tmpfile { change_array } {
          set value $chgar($elem)
 
          if { $old_name != $name} {
-            # new lirs
+            # new rqs
             set old_name $name
             if { $first == "false" } {
                puts $file "\}"
@@ -216,8 +216,8 @@ proc build_vi_command { change_array {current_array no_current_array_has_been_pa
    return $vi_commands
 }
 
-# take a lirs array and build vi comand to set new values
-proc build_lirs_vi_array { change_array } {
+# take a rqs array and build vi comand to set new values
+proc build_rqs_vi_array { change_array } {
    global CHECK_OUTPUT
    upvar $change_array chgar
 

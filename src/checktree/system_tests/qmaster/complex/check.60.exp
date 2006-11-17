@@ -104,7 +104,7 @@ set check_name            "complex"
 set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_highest_level  1
 set check_description(0)  "Test complex attributes and loadsensor"
-set check_description(1)  "Test complex attributes and loadsensor and limitation rule sets"
+set check_description(1)  "Test complex attributes and loadsensor and resource quota sets"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -230,12 +230,12 @@ proc complex_cleanup {} {
    }
    enable_queue $queue_list
 
-   # Delete limitation rule sets
+   # Delete resource quota sets
    if {$ts_config(gridengine_version) >= 65} {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }
@@ -410,44 +410,44 @@ proc complex_global_host {} {
       append config(complex_values) ",tr=global"
       set_exechost config "global"
 
-      # set all tests attributes in limitation rule sets
-      set lirs_name              "test_integer"
+      # set all tests attributes in resource quota sets
+      set rqs_name              "test_integer"
       set rules                  ""
       lappend rules                  "to test_integer=1"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_time"
+      set rqs_name              "test_time"
       set rules                  ""
       lappend rules              "to tt=0:10:0"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_memory"
+      set rqs_name              "test_memory"
       set rules                  ""
       lappend rules              "to tm=100M"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_boolean"
+      set rqs_name              "test_boolean"
       set rules                  ""
       lappend rules              "to tb=TRUE"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_cstring"
+      set rqs_name              "test_cstring"
       set rules                  ""
       lappend rules              "to tc=GLobaL"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_restring"
+      set rqs_name              "test_restring"
       set rules                  ""
       lappend rules              "to tr=global"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
  
-      add_lirs lirs_charray
+      add_rqs rqs_charray
    }
 
    #               scenario variable       value     submittable pending  runnable
@@ -619,14 +619,14 @@ proc complex_global_host {} {
    set config(complex_values) "tr=global\*test"  
    set_exechost config "global"
    if { $CHECK_ACT_LEVEL == 1 } {
-      unset lirs_charray
-      set lirs_name              "test_restring"
+      unset rqs_charray
+      set rqs_name              "test_restring"
       set rules                  ""
       lappend rules              "to tr=global\*test"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
  
-      mod_lirs lirs_charray "test_restring"
+      mod_rqs rqs_charray "test_restring"
    }
 #
    complex_run_job "global" "tr"                      "global*test"  1           0  
@@ -640,14 +640,14 @@ proc complex_global_host {} {
    set config(complex_values) "tr=global\?test"  
    set_exechost config "global"
    if { $CHECK_ACT_LEVEL == 1 } {
-      unset lirs_charray
-      set lirs_name              "test_restring"
+      unset rqs_charray
+      set rqs_name              "test_restring"
       set rules                  ""
       lappend rules              "to tr=global\?test"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
  
-      mod_lirs lirs_charray "test_restring"
+      mod_rqs rqs_charray "test_restring"
    }
 #
    complex_run_job "global" "tr"                      "global*test"  1           0  
@@ -663,10 +663,10 @@ proc complex_global_host {} {
    set_exechost config "global"
 
    if { $CHECK_ACT_LEVEL == 1 } {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }
@@ -709,44 +709,44 @@ proc complex_host {} {
       append config(complex_values) ",th=$ts_config(master_host)"
       set_exechost config $complex_host
 
-      # set all tests attributes in limitation rule sets
-      set lirs_name              "test_integer"
+      # set all tests attributes in resource quota sets
+      set rqs_name              "test_integer"
       set rules                  ""
       lappend rules                  "hosts $complex_host to test_integer=1"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_time"
+      set rqs_name              "test_time"
       set rules                  ""
       lappend rules              "hosts $complex_host to tt=600"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_memory"
+      set rqs_name              "test_memory"
       set rules                  ""
       lappend rules              "hosts $complex_host to tm=104857600"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_boolean"
+      set rqs_name              "test_boolean"
       set rules                  ""
       lappend rules              "hosts $complex_host to tb=FALSE"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_string"
+      set rqs_name              "test_string"
       set rules                  ""
       lappend rules              "hosts $complex_host to ts=host"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_host"
+      set rqs_name              "test_host"
       set rules                  ""
       lappend rules              "hosts $complex_host to th=$ts_config(master_host)"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
  
-      add_lirs lirs_charray
+      add_rqs rqs_charray
    }
 
    #               szenario variable       value     submittable pending
@@ -781,10 +781,10 @@ proc complex_host {} {
    set_exechost config $complex_host
 
    if { $CHECK_ACT_LEVEL == 1 } {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }
@@ -833,38 +833,38 @@ proc complex_queue {} {
       append config(complex_values) ",ts=global"
       mqattr "complex_values" $config(complex_values) [get_queue_instance "complex" $complex_host]
 
-      # set all tests attributes in limitation rule sets
-      set lirs_name              "test_integer"
+      # set all tests attributes in resource quota sets
+      set rqs_name              "test_integer"
       set rules                  ""
       lappend rules                  "queues complex to test_integer=1"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_time"
+      set rqs_name              "test_time"
       set rules                  ""
       lappend rules              "queues complex to tt=0:10:0"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_memory"
+      set rqs_name              "test_memory"
       set rules                  ""
       lappend rules              "queues complex to tm=102400K"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_string"
+      set rqs_name              "test_string"
       set rules                  ""
       lappend rules              "queues complex to ts=xxx"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      set lirs_name              "test_boolean"
+      set rqs_name              "test_boolean"
       set rules                  ""
       lappend rules              "queues complex to tb=1"
-      set lirs_charray($lirs_name,limit)   "$rules"
-      set lirs_charray($lirs_name,enabled) "true"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
 
-      add_lirs lirs_charray
+      add_rqs rqs_charray
    }
    
 
@@ -896,10 +896,10 @@ proc complex_queue {} {
    mqattr "complex_values" "NONE" [get_queue_instance "complex" $complex_host]
 
    if { $CHECK_ACT_LEVEL == 1 } {
-      if {[get_lirs_list lirs_names "" "" 0] == 0} {
-         foreach elem $lirs_names {
-            puts $CHECK_OUTPUT "Removing limitation rule sets $elem ...\n"
-            del_lirs $elem
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
          }
       }
    }
