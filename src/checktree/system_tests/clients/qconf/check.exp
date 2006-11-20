@@ -1497,54 +1497,53 @@ proc qconf_add_show_mod_del_queue {} {
    # Now clear queue "qconf_queue.q"
    set new_queue(qname) "qconf_queue.q"
    set new_queue(projects) "none"
-   puts $CHECK_OUTPUT "Clearing queue qconf_queue.q ...\n"
+   puts $CHECK_OUTPUT "Clearing queue qconf_queue.q ... - "
    set result3 [clear_queue "qconf_queue.q"]
 
    if { ( $result3 == 0 ) } {
-      puts $CHECK_OUTPUT "qconf -cq qconf_queue.q succeded"
+      puts $CHECK_OUTPUT "OK\n"
    } else {
-      puts $CHECK_OUTPUT "result is $result3"
+      puts $CHECK_OUTPUT "failed\n"
    }
    
    # Now try to clear it again!
-   puts $CHECK_OUTPUT "Clearing queue qconf_queue.q again...\n"
+   puts $CHECK_OUTPUT "Clearing queue qconf_queue.q again... - "
    set result4 [clear_queue "qconf_queue.q"]
 
    if { ( $result4 == 0 ) } {
-      puts $CHECK_OUTPUT "qconf -cq qconf_queue.q again succeded"
+      puts $CHECK_OUTPUT "OK\n"
    } else {
-      puts $CHECK_OUTPUT "result is $result4"
+      puts $CHECK_OUTPUT "failed\n"
    }
 
    #  Now try to clear a non-existing queue, "wrong_queue.q"
-   puts $CHECK_OUTPUT "Negative test of qconf -cq wrong_queue.q ...\n"
+   puts $CHECK_OUTPUT "Negative test of qconf -cq wrong_queue.q ... - "
    set result5 [clear_queue "wrong_queue.q" result $host $CHECK_USER 0]
 
    if { ( $result5 == -1 ) } {
-      puts $CHECK_OUTPUT "qconf -cq qconf_queue.q succeded"
+      puts $CHECK_OUTPUT "OK\n"
    } else {
-      # See IZ 1976 for why this returns wrongly 0
-      puts $CHECK_OUTPUT "result is $result5"
+      puts $CHECK_OUTPUT "failed (IZ 1976)\n"
    }
 
    # Now delete queue "qconf_queue.q"
-   puts $CHECK_OUTPUT "Positive test of qconf -dq qconf_queue.q...\n"
+   puts $CHECK_OUTPUT "Positive test of qconf -dq qconf_queue.q... -"
    set result4 [del_queue  "qconf_queue.q" $host 1]
 
    if { ( $result4  == 0 )} {
-      puts $CHECK_OUTPUT "qconf -dq qconf_queue.q succeded"
+      puts $CHECK_OUTPUT "OK\n"
    } else {
-      puts $CHECK_OUTPUT "result is $result4"
+      puts $CHECK_OUTPUT "failed\n"
    }
 
    # Now try to clear a non-existant queue
-   puts $CHECK_OUTPUT "Negative test of qconf -cq qconf_queue.q...\n"
-   set result5 [clear_queue "qconf_queue.q"]
+   puts $CHECK_OUTPUT "Negative test of qconf -cq qconf_queue.q... - "
+   set result5 [clear_queue "qconf_queue.q" result $host $CHECK_USER 0]
 
-   if { ( $result5 == 0 ) } {
-      puts $CHECK_OUTPUT "qconf -cq qconf_queue.q again succeded"
+   if { ( $result5 == -1 ) } {
+      puts $CHECK_OUTPUT "OK\n"
    } else {
-      puts $CHECK_OUTPUT "result is $result5"
+      puts $CHECK_OUTPUT "failed (IZ 1976)\n"
    }
 
    set_error 0 "ok"

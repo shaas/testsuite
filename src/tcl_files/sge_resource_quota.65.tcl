@@ -185,16 +185,16 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
       set result [start_sge_bin "qconf" "-Arqs $tmpfile" $on_host $as_user ]
 
       set messages(index) "-1 0"
-      set messages(-1) [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "resource quota" "*"]
-      set messages(0)  [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "resource quota"]
+      set messages(-1) [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "resource quota set" "*"]
+      set messages(0)  [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "resource quota set"]
 
       set result [handle_sge_errors "add_rqs" "qconf -Arqs $tmpfile" $result messages $raise_error]
    } else {
    # Use vi
       # localize messages
       # JG: TODO: object name is taken from c_gdi object structure - not I18Ned!!
-      set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "resource quota"]
-      set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "resource quota" "*"]
+      set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "resource quota set"]
+      set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "resource quota set" "*"]
 
       set vi_commands [build_rqs_vi_array chgar]
 
@@ -242,14 +242,14 @@ proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {rai
 
       set messages(index) "-1 0 1"
       set messages(-1) [translate_macro MSG_FILE_NOTCHANGED]
-      set messages(0) [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "resource quota"]
-      set messages(1) [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "resource quota"]
+      set messages(0) [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "resource quota set"]
+      set messages(1) [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "resource quota set"]
 
       set ret [handle_sge_errors "mod_rqs" "qconf -Mrqs $tmpfile $name" $result messages $raise_error]
    } else {
       # Use vi
-      set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "resource quota"]
-      set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "resource quota"]
+      set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "resource quota set"]
+      set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "resource quota set"]
       set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
 
       set vi_commands [build_rqs_vi_array chgar]

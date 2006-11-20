@@ -1,3 +1,7 @@
+RD-2006-11-20-0: Bugfix:    fixed some issues introduced by resource quota
+                            renaming
+                 Review:    AA
+
 RD-2006-11-17-0: Cleanup:   renamed limitation rule sets to resource quota sets
                  Review:    AA
 
