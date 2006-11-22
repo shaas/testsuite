@@ -1,3 +1,6 @@
+CR-2006-11-22-0: Bugfix:    fixed consumable_resources test
+                 Review:    RD
+
 RD-2006-11-20-0: Bugfix:    fixed some issues introduced by resource quota
                             renaming
                  Review:    AA
