@@ -109,24 +109,33 @@ proc compile_check_compile_hosts {host_list} {
 proc compile_host_list {} {
    global ts_config ts_host_config
    global CHECK_OUTPUT
-   
+  
+   # build host list according to cluster requirements
    set host_list [concat $ts_config(master_host) $ts_config(execd_hosts) \
                          $ts_config(shadowd_hosts) $ts_config(submit_only_hosts) \
                          $ts_config(bdb_server) \
                          [checktree_get_required_hosts]]
-   
 
+   # beginning with SGE 6.5 we also build java code.
+   # add the java build host to the host list
+   if {$ts_config(gridengine_version) >= 65} {
+      lappend host_list [host_conf_get_java_compile_host]
+   }
+
+   # remove duplicates from host_list
    set host_list [compile_unify_host_list $host_list]
 
+   # find the compile hosts by architecture
    foreach host $host_list {
       set arch [host_conf_get_arch $host]
       if {$arch == ""} {
-         add_proc_error "compile_host_list" -1 "Can't not determine the architecture of host $host"
+         add_proc_error "compile_host_list" -1 "Cannot determine the architecture of host $host"
          return ""
       }
-      if { ! [info exists compile_host($arch)] } {
+      if {![info exists compile_host($arch)]} {
          set c_host [compile_search_compile_host $arch]
          if {$c_host == "none"} {
+            add_proc_error "compile_host_list" -1 "Cannot determine a compile host for architecture $arch" 
             return ""
          } else {
             set compile_host($arch) $c_host
@@ -135,6 +144,18 @@ proc compile_host_list {} {
       }
    }
 
+   # the java compile host may not duplicate the build host for it's architecture, 
+   # it must be also a c build host
+   # so it must be contained in the build host list
+   if {$ts_config(gridengine_version) >= 65} {
+      set jc_host [host_conf_get_java_compile_host]
+      set jc_arch [host_conf_get_arch $jc_host]
+
+      if {$compile_host($jc_arch) != $jc_host} {
+         add_proc_error "compile_host_list" -1 "the java compile host ($jc_host) has architecture $jc_arch\nbut compile host for architecture $jc_arch is $compile_host($jc_arch).\nJava and C compile must be done on the same host"
+         return ""
+      }
+   }
 
    return [lsort -dictionary $compile_host(list)]
 }
@@ -392,19 +413,23 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
    # shutdown possibly running system
    shutdown_core_system $do_only_hooks
 
+   # for building java code, we need a build_testsuite.properties file
+   # create it before update, clean, depend
+   compile_create_java_properties
+
    # update sources
-   if { $do_only_install != 1 } {
+   if {$do_only_install != 1} {
       set res [update_source report]      
-      if { $res == 1 } {
+      if {$res == 1} {
          # after an update, do an aimk clean
-         if { $do_only_hooks == 0 } {
+         if {$do_only_hooks == 0} {
             compile_with_aimk $compile_hosts report "compile_clean" "clean"
          } else {
             puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
          }
          # execute all registered compile_clean hooks of the checktree
          set res [exec_compile_clean_hooks $compile_hosts report]
-         if { $res < 0 } {
+         if {$res < 0} {
             report_add_message report "exec_compile_clean_hooks returned fatal error"
          } elseif { $res > 0 } {
             report_add_message report "$res compile_clean hooks failed\n"
@@ -419,26 +444,26 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
          set macro_messages_file [get_macro_messages_file_name]
          puts $CHECK_OUTPUT "deleting macro messages file after update!"
          puts $CHECK_OUTPUT "file: $macro_messages_file"
-         if { [ file isfile $macro_messages_file] } {
+         if {[file isfile $macro_messages_file]} {
             file delete $macro_messages_file
          }
          update_macro_messages_list
-      } elseif { $res < 0 } {
+      } elseif {$res < 0} {
          incr error_count
       }
    }
 
-   if { $error_count == 0 && $check_do_clean_compile == 1 } {
-      if { $do_only_hooks == 0 } {
+   if {$error_count == 0 && $check_do_clean_compile == 1} {
+      if {$do_only_hooks == 0} {
          compile_with_aimk $compile_hosts report "compile_clean" "clean"
       } else {
          puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
       }
       # execute all registered compile_hooks of the checktree
       set res [exec_compile_clean_hooks $compile_hosts report]
-      if { $res < 0 } {
+      if {$res < 0} {
          report_add_message report "exec_compile_clean_hooks returned fatal error"
-      } elseif { $res > 0 } {
+      } elseif {$res > 0} {
          report_add_message report "$res compile_clean hooks failed\n"
       } else {
          report_add_message report "All compile_clean hooks successfully executed\n"
@@ -446,32 +471,31 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
 
       # give NFS some rest after (probably massive) deletes
       sleep $NFS_sleep_time
-
    }
 
-   if { $error_count > 0 } {
+   if {$error_count > 0} {
       puts $CHECK_OUTPUT "Skip compile due to previous errors\n"
-   } elseif { $do_only_install != 1 } {
-      if { $do_only_hooks == 0 } {
+   } elseif {$do_only_install != 1} {
+      if {$do_only_hooks == 0} {
          if {[compile_depend $compile_hosts report] != 0} {
             incr error_count
          } 
       } else {
          puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
       }
-      if { $error_count == 0 } {
+      if {$error_count == 0} {
          # depend was successfull - sleep a bit so let nfs settle down
          sleep $NFS_sleep_time
 
          # start build process
-         if { $do_only_hooks == 0 } {
+         if {$do_only_hooks == 0} {
             if {[compile_with_aimk $compile_hosts report "compile"] != 0} {
                incr error_count
             }
          } else {
             puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
          }
-         if { $error_count == 0 } {
+         if {$error_count == 0} {
             # new all registered compile_hooks of the checktree
             set res [exec_compile_hooks $compile_hosts report]
             if { $res < 0 } {
@@ -489,8 +513,11 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
       puts $CHECK_OUTPUT "Skip compile, I am on do_install mode\n"
    }
 
+   # delete the build_testsuite.properties
+   compile_delete_java_properties
+
    # install to $CHECK_PRODUCT_ROOT
-   if { $error_count == 0 } {
+   if {$error_count == 0} {
       report_add_message report "Installing binaries ...."
       report_write_html report
      
@@ -760,7 +787,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
          -i $spawn_list "*\n" {
             set spawn_id $expect_out(spawn_id)
             set host $host_array($spawn_id,host)
-            set line [split $expect_out(0,string)]
+            set line [split [string trim $expect_out(0,string)]]
 
             report_task_add_message report $host_array($spawn_id,task_nr) $line
 
@@ -779,11 +806,13 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
                      set pos [lsearch -exact $line "-o"]
                      if {$pos > 0 && [llength $line] > [expr $pos + 1]} {
                         set status_array(file,$host) [lindex $line [expr $pos + 1]]
+                        set status_array(status,$host) "running"
                         set status_updated 1
                      } else {
                         set pos [lsearch -glob $line "*.c"]
                         if {$pos > 0 && [llength $line] > $pos} {
                            set status_array(file,$host) [file tail [lindex $line $pos]]
+                           set status_array(status,$host) "running"
                            set status_updated 1
                         }
                      }
@@ -791,6 +820,19 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
                   "ar" {
                      if {[llength $line] > 2} {
                         set status_array(file,$host) [lindex $line 2]
+                        set status_array(status,$host) "running"
+                        set status_updated 1
+                     }
+                  }
+                  "\[java\]" {
+                     puts $CHECK_OUTPUT $line
+                     if {[lsearch -exact $line "jar.wait:"] >= 0} {
+                        set status_array(file,$host) "java"
+                        set status_array(status,$host) "waiting"
+                        set status_updated 1
+                     } else {
+                        set status_array(file,$host) "java"
+                        set status_array(status,$host) "running"
                         set status_updated 1
                      }
                   }
@@ -877,3 +919,27 @@ proc delete_build_number_object {host build} {
    }
 }
 
+proc compile_create_java_properties {} {
+   global ts_config CHECK_OUTPUT
+
+   if {$ts_config(gridengine_version) >= 65} {
+      set properties_file "$ts_config(source_dir)/build_testsuite.properties"
+      puts $CHECK_OUTPUT "creating $properties_file"
+      set f [open $properties_file "w"]
+      puts $f "java.buildhost=[host_conf_get_java_compile_host]"
+      puts $f "sge.root=$ts_config(product_root)"
+      close $f
+   }
+}
+
+proc compile_delete_java_properties {} {
+   global ts_config CHECK_OUTPUT
+
+   if {$ts_config(gridengine_version) >= 65} {
+      set properties_file "$ts_config(source_dir)/build_testsuite.properties"
+      if {[file isfile $properties_file]} {
+         puts $CHECK_OUTPUT "deleting $properties_file"
+         file delete $properties_file
+      }
+   }
+}

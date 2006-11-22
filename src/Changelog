@@ -1,3 +1,10 @@
+JG-2006-11-23-0: Enhancem.: For compiling java sources, create the file
+                            build_testsuite.properties containing build host
+                            and sge_root directory.
+                 Bugfix:    qconf test needs root access, but didn't request it.
+                 Cleanup:   bugs/issuezilla/1270.
+                 Review:    AA
+
 CR-2006-11-22-0: Bugfix:    fixed consumable_resources test
                  Review:    RD
 

@@ -45,6 +45,8 @@ global check_root_access_needs
 global env
 global check_category
 
+set check_root_access_needs "yes"
+
 # define a level initialization procedure:
 set check_init_level_procedure "qconf_init_level"
 

@@ -72,13 +72,11 @@ proc issue_1270_setup  {} {
 }
 
 proc issue_1270_run  {} {
-   global ts_config CHECK_USER
+   global ts_config CHECK_OUTPUT
 
-   set up_arch [resolve_build_arch_installed_libs $ts_config(master_host)]
-   set client_binary $ts_config(source_dir)/$up_arch/test_drmaa_sync
    set client_args "$ts_config(product_root)/examples/jobs/sleeper.sh"
 
-   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $client_binary $client_args prg_exit_state 600]
+   set output [start_source_bin "test_drmaa_sync" $client_args "" "" prg_exit_state 600]
 
    if { $prg_exit_state <= 0 } {
       add_proc_error "issue_1270_run" "-1" "drmaa_synchronize() did not ignore new jobs:\n$output"
@@ -90,6 +88,8 @@ proc issue_1270_run  {} {
 proc issue_1270_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 60
+
+   # TODO: delete the output file $HOME/DRMAA_JOB
 
    set_error 0 "ok"
 }
