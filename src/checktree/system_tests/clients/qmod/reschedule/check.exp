@@ -620,11 +620,11 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    set no_jobs 4
    set result ""
    set my_timeout [timestamp]
-   incr my_timeout 60
-   while { [ string first "login:" $result] < 0 } {
-      after 2000
+   incr my_timeout 30
+   while { [ string first "login" $result] < 0 && [string first "assword" $result] < 0 } {
+      after 1000
       catch { eval exec "cat $qlogin_out_file" } result
-      puts $CHECK_OUTPUT $result
+      puts $CHECK_OUTPUT "qlogin output:\n$result"
       if { $my_timeout < [timestamp] } {
          break;
       } 
@@ -672,7 +672,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    set ru_jobs 0
    while { $ru_jobs != $no_jobs } {
       get_extended_job_info ""
-      set running_jobs [ split $job_info(index) "," ]
+      set running_jobs $job_info(index)
       set jobs ""
       set jobs_string ""
       set job_names "" 

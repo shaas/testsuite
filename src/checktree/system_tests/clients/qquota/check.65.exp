@@ -245,7 +245,7 @@ proc qquota_count_entries { func_name qquota_options expected_entries } {
 }
 
 proc qquota_option_l {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    puts $CHECK_OUTPUT "checking qquota -l option ..."
 
@@ -254,7 +254,7 @@ proc qquota_option_l {} {
    # Set per user resource quota sets 
    set rqs_name "option_l"
    set rules ""
-   lappend rules "users rd141302 hosts `*` to tm=1000M,tt=1:0:0"
+   lappend rules "users $CHECK_USER hosts `*` to tm=1000M,tt=1:0:0"
    set rqs_charray($rqs_name,limit) "$rules"
    set rqs_charray($rqs_name,enabled) "true"
    add_rqs rqs_charray
@@ -273,7 +273,6 @@ proc qquota_option_l {} {
 
    #Cleanup
    del_rqs $rqs_name
-   
    delete_all_jobs
    wait_for_end_of_all_jobs 20
 

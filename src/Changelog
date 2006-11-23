@@ -1,3 +1,6 @@
+CR-2006-11-23-1: Bugfix:    Fixed some testsuite tests:
+                 Review:    RD
+
 JG-2006-11-23-0: Enhancem.: For compiling java sources, create the file
                             build_testsuite.properties containing build host
                             and sge_root directory.

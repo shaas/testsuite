@@ -1466,7 +1466,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
 
    # if job is now still running or pending, the job had problems => error
    if { [is_job_running $job_id "" ] != -1 } {
-      add_proc_error "submit_wait_type_job" -1 "job still registered! Skipping test for \"$job_type\" job to host \"$host\" as user \"$user\". XWindow DISPLAY=$CHECK_DISPLAY_OUTPUT."
+      add_proc_error "submit_wait_type_job" -1 "job still registered! Skipping test for \"$job_type\" job to host \"$host\" as user \"$user\".\nXWindow DISPLAY=$CHECK_DISPLAY_OUTPUT\nPLEASE check that user $user can open an xterm on your display!!!"
       return -1
    }
    
@@ -4988,13 +4988,19 @@ proc get_job_info { jobid } {
 #*******************************
 proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
   global ts_config
-   global CHECK_ARCH CHECK_OUTPUT
+   global CHECK_ARCH CHECK_OUTPUT CHECK_USER
 
+   # some tests need this done via catch/exec because there is no additional user
+   # who can run this in an open connetion.
    if {$ts_config(gridengine_version) == 53} {
       set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" } result ]
-   } else {
+   } elseif {$ts_config(gridengine_version) == 60} {
       set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-g" "t" } result ]
+   } else {
+      # ts_config gridengine_version 65
+      set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-u" "*" "-g" "t" } result ]
    }
+
    if { $catch_return != 0 } {
       add_proc_error "get_standard_job_info" -1 "qstat error or binary not found"
       return ""

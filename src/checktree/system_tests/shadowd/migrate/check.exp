@@ -101,16 +101,11 @@ proc shadowd_migrate_init_level {} {
 
 proc shadowd_migrate_setup  {} {
    global CHECK_OUTPUT ts_config
-   set nr_shadowds [llength $ts_config(shadowd_hosts)]
-   if { $nr_shadowds < 2 } {
-      add_proc_error "shadowd_migrate_setup" -3 "Need 2 configured shadowd hosts. Can't run this test."
-   }
    set_error 0 "ok"
 }
 
 proc shadowd_migrate_cleanup  {} {
    global CHECK_OUTPUT ts_config
-
    set_error 0 "ok"
 }
 
@@ -589,7 +584,13 @@ proc shadowd_migrate_test {} {
             add_proc_error "shadowd_migrate_test" -1 "can't delete act_qmaster file $act_qmaster_file"
          }
       }
+   } else { 
+      if { $CHECK_ACT_LEVEL != 9 && $CHECK_ACT_LEVEL == 8 } {
+         # minimize warning emails by only warning in level 8
+         add_proc_error "shadowd_migrate_setup" -3 "Need 2 configured shadowd hosts. Can't run this test in level 0-8."
+      }
    }
+
    if { $CHECK_ACT_LEVEL == 9 } {
       foreach host $ts_config(execd_nodes) {
          puts $CHECK_OUTPUT "\ntesting heartbeat incrementation on host $host ..."
@@ -634,7 +635,7 @@ proc shadowd_migrate_test {} {
             }
              
             set cat_output [start_remote_prog $host $CHECK_USER cat $heartbeat_file]
-            puts $CHECK_OUTPUT "cat: $cat_output"
+            puts $CHECK_OUTPUT "cat: \"$cat_output\""
             if { $cat_output != $heart_beat } {
                add_proc_error "shadowd_migrate_test" -1 "$host: heartbeat file content != test_heartbeat_binary output"
                break

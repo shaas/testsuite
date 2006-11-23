@@ -121,7 +121,7 @@ proc qtcsh_init_level {} {
 
    switch -- $CHECK_ACT_LEVEL {
      0 { 
-       return 0 
+       return 0
      }
      1 { 
        return 0
@@ -420,7 +420,8 @@ proc qtcsh_local_command { { option "" } { command "hostname"} } {
 
    # Now test qtcsh with command_string
    set result [ start_remote_prog $hostname $CHECK_USER "true" "$qtcsh_program $command_string" ]
-   #puts $CHECK_OUTPUT $result
+   # puts $CHECK_OUTPUT "command ($hostname, $CHECK_USER): $qtcsh_program $command_string"
+   # puts $CHECK_OUTPUT "result: $result"
 
    set qtcsh_evaluate_result [qtcsh_evaluate "$result" "$option" "$command" "" ]
 
