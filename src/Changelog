@@ -1,3 +1,8 @@
+CR-2006-11-23-2: Cleanup:   modified migrate test to always to the heartbeat
+                            test in runlevel 0 - report exactly one warning
+                            if no second shadowd is set for other levels
+                 Review:    RD
+
 CR-2006-11-23-1: Bugfix:    Fixed some testsuite tests:
                  Review:    RD
 

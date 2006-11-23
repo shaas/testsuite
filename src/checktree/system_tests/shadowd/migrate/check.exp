@@ -55,16 +55,16 @@ set check_init_level_procedure "shadowd_migrate_init_level"
 set check_name            "shadowd_migrate"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   9
-set check_description(0)  "test shadowd functionality"
-set check_description(1)  "test simple shadowd functionality"
-set check_description(2)  "test sgemaster -migrate command"
-set check_description(3)  "start qmaster without act_qmaster file"
-set check_description(4)  "start qmaster with empty act_qmaster file"
-set check_description(5)  "start qmaster with unresolvable host in act_qmaster file"
-set check_description(6)  "start qmaster with resolvable foreign host in act_qmaster file without running qmaster"
-set check_description(7)  "start qmaster with resolvable foreign host in act_qmaster file with running qmaster"
-set check_description(8)  "start qmaster with own ip adress in act_qmaster file"
-set check_description(9)  "test heartbeat file writing"
+set check_description(0)  "test heartbeat file writing"
+set check_description(1)  "test shadowd functionality"
+set check_description(2)  "test simple shadowd functionality"
+set check_description(3)  "test sgemaster -migrate command"
+set check_description(4)  "start qmaster without act_qmaster file"
+set check_description(5)  "start qmaster with empty act_qmaster file"
+set check_description(6)  "start qmaster with unresolvable host in act_qmaster file"
+set check_description(7)  "start qmaster with resolvable foreign host in act_qmaster file without running qmaster"
+set check_description(8)  "start qmaster with resolvable foreign host in act_qmaster file with running qmaster"
+set check_description(9)  "start qmaster with own ip adress in act_qmaster file"
 
 
 # define test's dependencies
@@ -86,10 +86,20 @@ global shadowd_migrate_saved_slot_count
 proc shadowd_migrate_init_level {} {
    global CHECK_ACT_LEVEL CHECK_OUTPUT
    global ts_config
+   set nr_shadowds [llength $ts_config(shadowd_hosts)]
 
-   if { $CHECK_ACT_LEVEL >= 0 && $CHECK_ACT_LEVEL <= 9} {
+   if { $CHECK_ACT_LEVEL == 0} {
       return 0
    }
+
+   if { $nr_shadowds < 2 && $CHECK_ACT_LEVEL > 1 } {
+      return -1
+   }
+
+   if { $CHECK_ACT_LEVEL <= 9 } {
+      return 0
+   }
+
    return -1  ;# no other level 
 }
 
@@ -115,8 +125,11 @@ proc shadowd_migrate_test {} {
    global CHECK_USER file_procedure_logfile_wait_sp_id
 
    set nr_shadowds [llength $ts_config(shadowd_hosts)]
+   if { $nr_shadowds < 2 && $CHECK_ACT_LEVEL > 0 } {
+      add_proc_error "shadowd_migrate_setup" -3 "Need 2 configured shadowd hosts. Can't run this test in level 1-9."
+   }
 
-   if { $nr_shadowds >= 2 } {
+   if { $nr_shadowds >= 2 && $CHECK_ACT_LEVEL > 0 } {
       set heartbeat_file [get_qmaster_spool_dir]/heartbeat
       set qmaster_lock_file [get_qmaster_spool_dir]/lock
       set qmaster_messages_file [get_qmaster_spool_dir]/messages
@@ -198,7 +211,7 @@ proc shadowd_migrate_test {} {
       puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
       puts $CHECK_OUTPUT "------------------------------------------------------------"
 
-      if { $CHECK_ACT_LEVEL == 0 } {
+      if { $CHECK_ACT_LEVEL == 1 } {
          set CONTROLED_SHUTDOWN [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SHADOWD_CONTROLLEDSHUTDOWN_SU] "*" "100" ]
 
          puts $CHECK_OUTPUT "restarting qmaster and shadowds with SGE_TEST_HEARTBEAT_TIMEOUT=600"
@@ -321,7 +334,7 @@ proc shadowd_migrate_test {} {
          wait_for_load_from_all_queues 120
       }
 
-      if { $CHECK_ACT_LEVEL == 1 } {
+      if { $CHECK_ACT_LEVEL == 2 } {
          puts $CHECK_OUTPUT "shutting down qmaster ..."
          
          if { [is_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file] } {
@@ -373,7 +386,7 @@ proc shadowd_migrate_test {} {
          wait_for_load_from_all_queues 120
       }
 
-      if { $CHECK_ACT_LEVEL == 2 } {
+      if { $CHECK_ACT_LEVEL == 3 } {
 
          set migrate_host ""
          foreach host $ts_config(shadowd_hosts) {
@@ -418,11 +431,11 @@ proc shadowd_migrate_test {} {
          }
       }
 
-      if { $CHECK_ACT_LEVEL == 3 ||
-           $CHECK_ACT_LEVEL == 4 ||
+      if { $CHECK_ACT_LEVEL == 4 ||
            $CHECK_ACT_LEVEL == 5 ||
            $CHECK_ACT_LEVEL == 6 ||
-           $CHECK_ACT_LEVEL == 8} {
+           $CHECK_ACT_LEVEL == 7 ||
+           $CHECK_ACT_LEVEL == 9} {
 
          # shut down qmaster
          shutdown_system_daemon $ts_config(master_host) "qmaster"
@@ -444,7 +457,7 @@ proc shadowd_migrate_test {} {
             add_proc_error "shadowd_migrate_test" -1 "can't delete act_qmaster file $act_qmaster_file"
          }
 
-         if { $CHECK_ACT_LEVEL == 4 } {
+         if { $CHECK_ACT_LEVEL == 5 } {
             # create empty act_qmaster file
             puts $CHECK_OUTPUT "touching $act_qmaster_file ..."
             set result [start_remote_prog $ts_config(master_host) $CHECK_USER "touch" $act_qmaster_file]
@@ -455,7 +468,7 @@ proc shadowd_migrate_test {} {
             }
          }
 
-         if { $CHECK_ACT_LEVEL == 5 } {
+         if { $CHECK_ACT_LEVEL == 6 } {
             puts $CHECK_OUTPUT "writing unresolvable host into $act_qmaster_file ..."
             set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" " trulla > $act_qmaster_file"]
             puts $CHECK_OUTPUT $result
@@ -470,7 +483,7 @@ proc shadowd_migrate_test {} {
          }
 
 
-         if { $CHECK_ACT_LEVEL == 6 } {
+         if { $CHECK_ACT_LEVEL == 7 } {
             set new_act_master [lindex $ts_config(shadowd_hosts) 0]
             if { $new_act_master == $ts_config(master_host) } {
                set new_act_master [lindex $ts_config(shadowd_hosts) 1]
@@ -489,7 +502,7 @@ proc shadowd_migrate_test {} {
             puts $CHECK_OUTPUT "act_qmaster_file: \"$result\""
          }
 
-         if { $CHECK_ACT_LEVEL == 8 } {
+         if { $CHECK_ACT_LEVEL == 9 } {
             set arch [resolve_arch $ts_config(master_host)]
             set gethostname_binary $ts_config(product_root)/utilbin/${arch}/gethostname
             set output [start_remote_prog $ts_config(master_host) $CHECK_USER $gethostname_binary ""]
@@ -540,7 +553,7 @@ proc shadowd_migrate_test {} {
 
       }
 
-      if { $CHECK_ACT_LEVEL == 7 } {
+      if { $CHECK_ACT_LEVEL == 8 } {
          
          set wrong_started_qmaster [lindex $ts_config(shadowd_hosts) 0]
          if { $wrong_started_qmaster == $ts_config(master_host) } {
@@ -584,14 +597,9 @@ proc shadowd_migrate_test {} {
             add_proc_error "shadowd_migrate_test" -1 "can't delete act_qmaster file $act_qmaster_file"
          }
       }
-   } else { 
-      if { $CHECK_ACT_LEVEL != 9 && $CHECK_ACT_LEVEL == 8 } {
-         # minimize warning emails by only warning in level 8
-         add_proc_error "shadowd_migrate_setup" -3 "Need 2 configured shadowd hosts. Can't run this test in level 0-8."
-      }
    }
 
-   if { $CHECK_ACT_LEVEL == 9 } {
+   if { $CHECK_ACT_LEVEL == 0 } {
       foreach host $ts_config(execd_nodes) {
          puts $CHECK_OUTPUT "\ntesting heartbeat incrementation on host $host ..."
       
