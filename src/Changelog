@@ -1,3 +1,5 @@
+AA-2006-11-23-0: Enhancem:  move of arco testsuite checktree to testsuite subproject
+                
 CR-2006-11-23-2: Cleanup:   modified migrate test to always to the heartbeat
                             test in runlevel 0 - report exactly one warning
                             if no second shadowd is set for other levels

@@ -1,0 +1,280 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# global variables ... (defined in main check routine, but you can use it)
+#
+# global CHECK_ACT_PATH          ;# actual checkpath
+# gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
+# global CHECK_USER              ;# user who start test
+# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
+# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+
+global check_name check_description check_needs check_functions check_errno check_errstr 
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "yes"
+set check_name                 "arcorun_commandline"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "Test the arcorun command line options"
+set check_needs                "arco_install"                  
+set check_init_level_procedure "arcorun_commandline_init_level"
+set check_functions            ""   
+set check_highest_level        0
+
+set check_setup_function "arcorun_commandline_setup"
+set check_cleanup_function "arcorun_commandline_cleanup"
+
+lappend check_functions "arcorun_commandline_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global CHECK_PROTOCOL_DIR
+global arcorun_output_dir  
+
+set arcorun_output_dir $CHECK_PROTOCOL_DIR/arcorun 
+
+proc arcorun_commandline_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL < 4 } {
+     return 0
+  }
+  return -1
+}
+
+#****** check/arcorun_commandline_setup() ************************************************
+#  NAME
+#    arcorun__commandline_setup() -- setup procedure for the arcrun test
+#
+#  SYNOPSIS
+#    arcorun__commandline_setup { } 
+#
+#  FUNCTION
+#     o sets the owner of the queries and results back to $CHECK_USER
+#     o create the arco run output diretory ($CHECK_PROTOCOL_DIR/arcorun)
+#
+#  INPUTS
+#
+#*******************************************************************************
+proc arcorun_commandline_setup {} {
+   
+   global CHECK_USER arcorun_output_dir arco_config
+   
+   start_remote_prog $arco_config(swc_host) $CHECK_USER "mkdir" "-p $arcorun_output_dir"
+   if { $prg_exit_state != 0 } {
+      add_proc_error "arcorun_commandline_setup" -1 "Can not create directory $arcorun_output_dir"
+      return -1
+   }
+   
+   start_remote_prog $arco_config(swc_host) $CHECK_USER "rm" "-f $arcorun_output_dir/*"
+   if { $prg_exit_state != 0 } {
+      add_proc_error "arcorun_commandline_setup" -3 "Can not clean directory $arcorun_output_dir"
+      return -1
+   }
+   
+   return 0
+}
+
+#****** check/arcorun_commandline_cleanup() ************************************************
+#  NAME
+#    arcorun_commandline_cleanup() -- clean up procedure for the arcrun test
+#
+#  SYNOPSIS
+#    arcorun_commandline_cleanup { } 
+#
+#  FUNCTION
+#     o sets the owner of the queries and results back to noaccess
+#     o cleans the arco run output diretory ($CHECK_PROTOCOL_DIR/arcorun)
+#
+#  INPUTS
+#
+#*******************************************************************************
+proc arcorun_commandline_cleanup {} {
+   global arcorun_output_dir CHECK_USER arco_config
+   
+   start_remote_prog $arco_config(swc_host) $CHECK_USER "rm" "-r $arcorun_output_dir"
+   if { $prg_exit_state != 0 } {
+      add_proc_error "arcorun_setup" -1 "Can not clean directory $arcorun_output_dir"
+      return -1
+   }
+   
+   return 0
+}
+
+#****** check/arcorun_commandline_check() **********************************************
+#  NAME
+#    arcorun_commandline_check() -- checks the command line options of the arcorun util
+#
+#  SYNOPSIS
+#    arcorun_commandline_check { } 
+#
+#  FUNCTION
+#     checks the command line options of the arcorun util
+#
+#  INPUTS
+#
+#*******************************************************************************
+proc arcorun_commandline_check {} {
+   global CHECK_ACT_LEVEL arcorun_output_dir
+   set_error 0 "ok"
+   
+   set test_dir $arcorun_output_dir/arcorun_cli_check
+   set test_file $arcorun_output_dir/arcorun_cli_check/blubber
+   
+   
+   if { $CHECK_ACT_LEVEL != 0 } {
+      return 0
+   }
+   
+   set testcases {}
+   lappend testcases { ""                      "ArcoRun.illegalArgumentCount"  }
+   lappend testcases { "-c"                    "ArcoRun.arcoConfFileisMissing" }
+   lappend testcases { "-d"                    "ArcoRun.debugLevelIsMissing"   }
+   lappend testcases { "-d blubber"            "ArcoRun.invalidLogLevel"       }
+   lappend testcases { "-o"                    "ArcoRun.outputFileMissing"     }
+   lappend testcases { "-f blubber"            "ArcoRun.unknownOutputFormat"   }
+   lappend testcases { "-lb"                   "ArcoRun.missingLateBindingParameter" }
+   lappend testcases { "-lb blubber"           "ArcoRun.invalidLateBindingParameter" }
+   lappend testcases { "-lbfile"               "ArcoRun.missingLateBindingFile" }
+   lappend testcases { "-lbfile $test_file"    "ArcoRun.latebindingIOError" }
+   lappend testcase  { "-n"                    "ArcoRun.missingResultName" }
+   lappend testcase  { "-blubber"              "ArcoRun.unknownOption" }
+   lappend testcase  { "-o xml"                "ArcoRun.missingQueryName" }
+   lappend testcase  { "-o html"               "ArcoRun.missingOutputForHTML" }
+   lappend testcase  { "-o html -f $test_file" "ArcoRun.invalidOutputForHTML" }
+   lappend testcase  { "__blubber__"           "ArcoRun.queryNotFound" }
+   lappend testcase  { "Job Log"               "ArcoRun.missingLatebinding" }
+   
+   
+   foreach testcase $testcases {
+      set args [lindex $testcase 0]
+      set msg  [lindex $testcase 1]
+      
+      set res [arcorun_exec "$args" output]
+      if { $res == 0 } {
+         add_proc_error "arcorun_cli_check" -1 "Invalid exit state ($args)"
+      }
+      if { [string first $msg $output] >= 0 } {
+         add_proc_error "arcorun_cli_check" -1 "Error message '$msg' is not translated"
+      }
+
+   }
+   return 0
+}
+
+
+
+
+
+
+#****** check/arcorun_default_queries() **************************************************
+#  NAME
+#    arcorun_default_queries() -- Execute all default queries with arcorun
+#
+#  SYNOPSIS
+#    arcorun_default_queries { } 
+#
+#  FUNCTION
+#     This method executes all default queries of the ARCo web application
+#
+#*******************************************************************************
+proc arcorun_default_queries {} {
+   global CHECK_OUTPUT CHECK_ACT_LEVEL arcorun_output_dir
+   
+   set_error 0 "ok"
+   
+   set add_args ""
+   
+   switch -- $CHECK_ACT_LEVEL {
+      0 { ;# xml output no additional params necessary
+         set output_format "xml"
+      }
+      1 { ;# csv output
+        set add_args "-f csv"
+         set output_format "csv"
+      }
+      2 { ;# html output
+        set output_format "html"
+        set add_args "-f html -o $arcorun_output_dir"        
+      }
+      3 { ;# pdf output
+        set output_format "pdf"
+        set add_args "-f pdf"
+      }
+   }
+   puts $CHECK_OUTPUT "Test $output_format output of arcorun"
+   
+   set queries {}
+   lappend queries { "Statistics" }
+   lappend queries { "Average Job Turnaround Time" }
+   lappend queries { "Accounting per Department"  }
+   lappend queries { "Accounting per User" }
+   lappend queries { "Number of Jobs completed" }
+   lappend queries { "Average Job Wait Time"  }
+   lappend queries { "Host Load" }
+   lappend queries { "Accounting per Project" }
+   lappend queries { "Queue Consumables" "-lb variable=slots" }
+   lappend queries { "Job Log" "-lb job_number=1" }
+   
+   set error_count 0
+   foreach query_spec $queries {
+      set query [lindex $query_spec 0]
+      
+      set args "$add_args"
+      set len  [llength $query_spec]
+      for {set i 1} { $i < $len  } {incr i 1} {
+         append args " [lindex $query_spec $i]"
+      }
+      puts $CHECK_OUTPUT "Execute query $query ($args)"
+      set res [arcorun_exec "$args '$query'" output]
+      if { $res != 0 } {
+         add_proc_error "arcorun_default_queries" -1 "Query $query failed:\n $output"
+         incr error_count 1
+      }
+   }
+
+   if { $error_count > 0 } {
+      return -1
+   } else {
+      return 0
+   }
+}
+
+
+
+

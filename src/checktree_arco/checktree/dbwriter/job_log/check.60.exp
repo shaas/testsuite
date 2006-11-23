@@ -1,0 +1,272 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name        
+global check_category    
+global check_description 
+global check_needs       
+global check_functions 
+global check_errno 
+global check_errstr 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "arco_dbwriter_job_log_init_level"
+
+# define test's name and run level descriptions
+set check_name            "arco_dbwriter_job_log"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   1
+set check_description(0)  "test the import of job log information"
+set check_description(1)  "test the import of the accouting information"
+set check_description(2)  ""
+set check_description(3)  ""
+set check_description(4)  ""
+set check_description(5)  ""
+set check_description(6)  ""
+set check_description(7)  ""
+set check_description(8)  ""
+
+
+# define test's dependencies
+set check_needs           "init_core_system arco_install" 
+
+# setup and cleanup functions
+set check_setup_function arco_dbwriter_job_log_setup
+set check_cleanup_function arco_dbwriter_job_log_cleanup
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "arco_dbwriter_job_log_execute"
+
+proc arco_dbwriter_job_log_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      }
+      "1" { 
+         return 0
+      }
+      default {
+         return -1
+      }
+   }
+   return -1  ;# no other level 
+}
+
+# -------- local test procedures: initialization------------------------------
+
+
+proc arco_dbwriter_job_log_setup  {} {
+   global CHECK_OUTPUT ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_ACT_LEVEL
+   global sqlutil_id sqlutil_sp_id
+   global arco_dbwriter_job_log_org_config
+   
+   set_error 0 "ok"
+   
+   
+   set sqlutil_id ""
+   
+   if { [get_dbwriter_status 0] != 0 } {
+      if {[startup_dbwriter] != 0 } {
+         add_proc_error "arco_dbwriter_job_log_setup" -1 "Can not start dbwriter"
+         return -1
+      }
+   }
+   
+   puts $CHECK_OUTPUT "Create sqlutil as $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   set sqlutil_id [sqlutil_create $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if { $sqlutil_id == "-1" } {
+      add_sql_error "arco_dbwriter_job_log_setup" -1 "Can not create sqlutil"
+      set sqlutil_id ""
+      return -1
+   }   
+   set sqlutil_sp_id [ lindex $sqlutil_id 1 ]
+
+   if { [ sqlutil_connect $sqlutil_sp_id] != 0 } {
+      add_sql_error "arco_dbwriter_job_log_setup" -1 "Can not connect to database"
+      close_spawn_process $sqlutil_id;
+      set sqlutil_id ""
+      return -2
+   }
+   
+   puts $CHECK_OUTPUT "sqlutil created ($sqlutil_id)"
+   
+   # setup reporting params (enable job_log)
+   array set arco_dbwriter_job_log_org_config {}
+   get_config arco_dbwriter_job_log_org_config
+   
+   
+   return 0
+}
+
+
+
+proc arco_dbwriter_job_log_cleanup  {} {
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global sqlutil_id sqlutil_sp_id
+   global arco_dbwriter_job_log_org_config
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   if { $sqlutil_id != "" } {
+      close_spawn_process $sqlutil_id;
+   }
+   set sqlutil_id ""
+   set sqlutil_sp_id ""
+   
+   set_config arco_dbwriter_job_log_org_config
+   if { [set_config config] != 0 } {
+      add_proc_error "arco_dbwriter_job_log_cleanup" -1 "Can not reset configuration"
+      return -1
+   }
+   
+   set_error 0 "ok"
+}
+
+
+
+proc arco_dbwriter_job_log_execute {} {
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global check_description
+   global sqlutil_sp_id
+   
+   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   
+   set_error 0 "ok"
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         set joblog "true"
+      }
+      "1" {
+         set joblog "false"
+      }
+      default {
+         add_proc_error "arco_dbwriter_job_log_execute" -1 "Invalid runlevel $CHECK_ACT_LEVEL"
+         return -1
+      }
+   }
+   
+   array set config {}
+   get_config config
+   set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=$joblog sharelog=00:10:00"
+   
+   set_config config
+   if { [set_config config] != 0 } {
+      add_proc_error "arco_dbwriter_job_log_setup" -1 "Can not set reporting_params"
+      return -1
+   }
+   
+   
+   if { [arco_clean_database] < 0 } {
+      add_sql_error "arco_dbwriter_job_log_reusesetup" -1 "Can not clean arco database"
+      return -1
+   }
+
+   set jobs  {}
+   
+   lappend jobs { j_job_name     "simple_job"
+                  args           "-o /dev/null -e /dev/null $SGE_ROOT/examples/jobs/sleeper.sh 5"
+                  sge_job_count  1
+   }
+   
+   lappend jobs { j_job_name     "array_job"
+                  args           "-o /dev/null -e /dev/null -t 1-10 $SGE_ROOT/examples/jobs/sleeper.sh 5"
+                  sge_job_count  10
+   }
+               
+
+   foreach jobdef $jobs {
+      array set job {}    ;# Reset the job array
+      array set job $jobdef
+      
+      if { [arco_job_run job] != 0 } {
+         return -1
+      }
+      
+      if { [arco_query_job $sqlutil_sp_id job $job(sge_job_count)] < 0 } {
+         return -1
+      }
+      
+      if { [arco_query_job_usage $sqlutil_sp_id job]  < 0 } {
+         return -1
+      }
+      
+      # check the job usage values
+      for { set task_index 0 } { $task_index < $job(task_count) } { incr task_index } {
+         set task(j_job_number)  $job($task_index,j_job_number)
+         set task(j_task_number) $job($task_index,j_task_number)
+         set task(j_job_name)    $job($task_index,j_job_name)
+         
+         if { $job(task_count) > 1 && $task(j_task_number) == "-1" } {
+            # the task with task_number -1 does not have a usage record
+            continue
+         }
+         if { [info exists job($task_index,ju_ru_wallclock)] } {
+            set wallclock  $job($task_index,ju_ru_wallclock)
+            if { $wallclock < 5 || $wallclock > 15 } {
+               add_proc_error "arco_dbwriter_job_log_execute" -1  "Got invalid wallclock time for job [arco_job_to_string task] ($wallclock, expected was a value between 5 und 15"
+            }
+         } else {
+            add_proc_error "arco_dbwriter_job_log_execute" -1  "Got no wallclock time for job [arco_job_to_string task]"
+         }
+         if { [info exists job($task_index,ju_exit_status)] } {
+            if { $job($task_index,ju_exit_status) != 0 } {
+               add_proc_error "arco_dbwriter_job_log_execute" -1  "Got invalid exit status for job [arco_job_to_string task] ($job($task_index,ju_exit_status), expected was 0"
+            }
+         } else {
+            add_proc_error "arco_dbwriter_job_log_execute" -1  "Got no exit status for job [arco_job_to_string task]"
+         }
+      }
+      
+      if { $CHECK_ACT_LEVEL == 0 } {
+         if { [arco_query_job_log $sqlutil_sp_id job] != 0 } {
+            return -1
+         }
+      }
+   }   
+   return 0
+}
+
+

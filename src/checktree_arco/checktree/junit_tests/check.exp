@@ -1,0 +1,172 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# global variables ... (defined in main check routine, but you can use it)
+#
+# global CHECK_ACT_PATH          ;# actual checkpath
+# gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
+# global CHECK_USER              ;# user who start test
+# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
+# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+
+global check_name check_description check_needs check_functions check_errno check_errstr 
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "yes"
+set check_name                 "arco_junit"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "executes the ARCo junit tests"
+set check_needs                "arco_install"                         ;# dependencies of this check (name of other check)
+set check_init_level_procedure "arco_junit_init_level"
+set check_functions            ""                                     ;# functions to call (in order)
+
+set check_setup_level_function "arco_junit_setup_level"
+set check_cleanup_level_function "arco_junit_cleanup_level"
+
+lappend check_functions "arco_junit_check"
+
+
+proc arco_junit_init_level {} {
+  global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1  ;# no other level else
+}
+
+proc arco_junit_setup_level {} {
+   shutdown_dbwriter
+   # clean the arco database (drop all objects)
+   arco_clean_database 1
+   set_error 0 "ok"
+}
+
+proc arco_junit_cleanup_level {} {
+   #arco_clean_database
+   startup_dbwriter
+   set_error 0 "ok"
+}
+
+proc arco_junit_check {} {
+   global CHECK_HOST CHECK_USER
+   global CHECK_PROTOCOL_DIR arco_config ts_config
+   
+   array set report {}   
+   report_create "ARCO_junit_tests" report 0 0
+   
+   #  Write the configuration file for the tests
+   #  Use the template from arco_source dir
+   set cmd "sed"
+
+   set cmd_args ""
+   set jdbc_driver ""
+   set jdbc_url    ""
+   set db_name     [get_database_name]
+   set write_user  [get_arco_write_user]
+   set write_user_pw secret
+   set read_user   [get_arco_read_user]
+   set read_user_pw secret
+   set file_name   $CHECK_PROTOCOL_DIR/arco_junit_config.xml
+   
+   switch -- $arco_config(database_type) {
+      "postgres" { 
+           set jdbc_driver "org.postgresql.Driver"
+           set jdbc_url    "jdbc:postgresql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
+           set db_def      "database/postgres/dbdefinition.xml"
+           set db_schema   "public"
+      }
+      "oracle"   { 
+           set jdbc_driver "oracle.jdbc.driver.OracleDriver" 
+           set jdbc_url    "jdbc:oracle:thin:@${arco_config(database_host)}:${arco_config(database_port)}:$db_name"
+           set db_def      "database/oracle/dbdefinition.xml"
+           set db_schema   $write_user
+      }
+      default    {
+         add_proc_error "arco_junit_check" -1 "Unkown database type $arco_config(database_type)"
+         set_error -1 "Error"
+         return 0
+      }
+   }
+   
+   append cmd_args " -e 's%@@JDBC_DRIVER@@%${jdbc_driver}%g'"
+   append cmd_args " -e 's%@@JDBC_URL@@%${jdbc_url}%g'"
+   append cmd_args " -e 's%@@JDBC_USER@@%${write_user}%g'"
+   append cmd_args " -e 's%@@JDBC_PASSWORD@@%${write_user_pw}%g'"
+   
+   append cmd_args " -e 's%@@READONLY_USER@@%${read_user}%g'"
+   append cmd_args " -e 's%@@SCHEMA@@%${db_schema}%g'"
+   append cmd_args " -e 's%@@DB_DEFINITION_FILE@@%${db_def}%g'"
+   
+   append cmd_args " $arco_config(arco_source_dir)/dbwriter/test/DBWriterTestConfig.xml.template"
+   append cmd_args " > $file_name"
+
+   report_add_message report "Creating junit config file $file_name"
+   
+   report_add_message report "$cmd $cmd_args"
+   set output [start_remote_prog $CHECK_HOST $CHECK_USER $cmd "$cmd_args"]
+   if { $prg_exit_state != 0 } {
+      report_add_message report "sed of DBWriterTestConfig.xml.template failed, exit state $prg_exit_state"
+      report_add_message report "$output"
+      report_finish report -1
+      add_proc_error "arco_junit_check" -1 "sed of DBWriterTestConfig.xml.template failed"
+      set_error -1 "Error"
+      return -1
+   }
+   
+   set ant_options "-Ddbwriter.test.config_file=$file_name"
+   append ant_options " -Duse.classpath.from.sge.root=true"
+   append ant_options " -Dsge.root=$ts_config(product_root)"
+   
+   set res [arco_build $CHECK_HOST "test" report $ant_options 120 ]
+   
+   if { $res != 0 } {
+      report_add_message report "ARCo junit tests failed"
+      report_finish report -1
+      set_error "-1" "ARCo junit tests failed"
+      return -1
+   } else {
+      report_add_message report "ARCo junit successfully executed"
+      report_finish report 0
+      set_error "0" "OK"
+      return 0
+   }
+}
+
