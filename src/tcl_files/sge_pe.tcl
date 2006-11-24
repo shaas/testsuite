@@ -258,7 +258,7 @@ proc set_pe {pe_obj change_array} {
 #
 #  INPUTS
 #     mype_name - name of parallel environment to delete
-#
+#     {raise_error 1} - optional raise errors if set
 #  RESULT
 #     0  - ok
 #     <0 - error
@@ -266,7 +266,7 @@ proc set_pe {pe_obj change_array} {
 #  SEE ALSO
 #     sge_procedures/add_pe()
 #*******************************
-proc del_pe {pe_name} {
+proc del_pe {pe_name {raise_error 1} } {
    global ts_config
    global CHECK_USER
 
@@ -277,7 +277,7 @@ proc del_pe {pe_name} {
 
    set output [start_sge_bin "qconf" "-dp $pe_name"]
 
-   set ret [handle_sge_errors "del_pe" "qconf -dp $pe_name" $output messages]
+   set ret [handle_sge_errors "del_pe" "qconf -dp $pe_name" $output messages $raise_error]
    return $ret
 }
 

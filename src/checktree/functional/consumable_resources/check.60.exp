@@ -259,7 +259,10 @@ proc consumable_resources_cleanup  {} {
    set qname "res.q"
    del_queue $qname $consumable_resources_test_hosts  0 1
 
-   del_pe        "round_robin"
+   if { [del_pe "round_robin" 0] } {
+      after 5000
+      del_pe "round_robin"
+   }
 
    # restore complex
    set_complex consumable_complex_backup
@@ -1013,7 +1016,7 @@ proc consumable_resources_test {} {
       get_config execd_config_a_host $host_a
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh
-      after 1000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
       catch { eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT "created link output: $output"
       wait_for_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh
@@ -1058,7 +1061,7 @@ proc consumable_resources_test {} {
       }
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh
-      after 1000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test1_3_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT "created link output: $output"
       wait_for_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link.sh
@@ -1157,14 +1160,16 @@ proc consumable_resources_test {} {
 
             
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link6.sh
-      after 1000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link6.sh" } output
       puts $CHECK_OUTPUT "ln -s output: $output"
+      wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link6.sh
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link3.sh
-      after 1000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_test2_3_loadsensor.sh $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link3.sh" } output
       puts $CHECK_OUTPUT "ln -s output: $output"
+      wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link3.sh
 
       set load_sensor_script_path "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link6.sh,$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/resource_loadsensor_link3.sh"
       if { [info exists execd_config_a_host(load_sensor)] } {
