@@ -415,7 +415,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
 
    # for building java code, we need a build_testsuite.properties file
    # create it before update, clean, depend
-   compile_create_java_properties
+   compile_create_java_properties $compile_hosts
 
    # update sources
    if {$do_only_install != 1} {
@@ -919,8 +919,23 @@ proc delete_build_number_object {host build} {
    }
 }
 
-proc compile_create_java_properties {} {
-   global ts_config CHECK_OUTPUT
+#****** compile/compile_create_java_properties() *******************************
+#  NAME
+#     compile_create_java_properties() -- create java properites file for 65 builds
+#
+#  SYNOPSIS
+#     compile_create_java_properties { compile_hosts } 
+#
+#  FUNCTION
+#     create and check availablity of the properties file on the specified compile
+#     hosts
+#
+#  INPUTS
+#     compile_hosts - list of compile hosts
+#
+#*******************************************************************************
+proc compile_create_java_properties { compile_hosts } {
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    if {$ts_config(gridengine_version) >= 65} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
@@ -929,9 +944,27 @@ proc compile_create_java_properties {} {
       puts $f "java.buildhost=[host_conf_get_java_compile_host]"
       puts $f "sge.root=$ts_config(product_root)"
       close $f
+ 
+      foreach host $compile_hosts {
+         puts $CHECK_OUTPUT "waiting for $properties_file on host $host ..."
+         wait_for_remote_file $host $CHECK_USER $properties_file
+      }
    }
 }
 
+#****** compile/compile_delete_java_properties() *******************************
+#  NAME
+#     compile_delete_java_properties() -- delete testsuite properties file
+#
+#  SYNOPSIS
+#     compile_delete_java_properties { } 
+#
+#  FUNCTION
+#     delete the generated testsuite properties file
+#
+#  INPUTS
+#
+#*******************************************************************************
 proc compile_delete_java_properties {} {
    global ts_config CHECK_OUTPUT
 

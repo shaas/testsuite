@@ -1,3 +1,7 @@
+CR-2006-11-24-1: Cleanup:   added adoc headers and test remotely the availability
+                            of the testsuite java properties file for 65
+                            versiont testing
+
 CR-2006-11-24-0: Enhancem:  del_pe now supports raise_error 
                  Review:    RD
 
