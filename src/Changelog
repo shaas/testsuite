@@ -1,3 +1,8 @@
+HP-2006-11-27-0: Bugfix:    All keys from /var/sgeCA where moved away for this
+                            test, now only the key for this particular test 
+                            is moved away.
+                 Changed:   sytem_tests/windows/sgepasswd
+
 JG-2006-11-27-0: Bugfix:    The checktree_arco was moved to this project from
                             wrong ARCo branch (V60_ARCO_BRANCH, should have been
                             maintrunk).

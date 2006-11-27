@@ -100,12 +100,12 @@ proc sgepasswd_setup {} {
       set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd /tmp/sgepasswd_$actual_time"]
    }
 
-   #check if there are cerificate directories and save them
-   set exist [glob -nocomplain -type d /var/sgeCA]
+   #check if there is cerificate directory for this installation and save it
+   set exist [glob -nocomplain -type d /var/sgeCA/$ts_config(commd_port)]
    if {$exist != {} } {
       set file_exists(var_sgeCA) "1"
       #save existing directory
-      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f /var/sgeCA /tmp/sgeCA_$actual_time"]
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f /var/sgeCA/$ts_config(commd_port) /tmp/sgeCA_$ts_config(commd_port)_$actual_time"]
    }
 
    set exist [glob -nocomplain -type d $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA]
@@ -163,13 +163,13 @@ proc sgepasswd_cleanup {} {
    global actual_time
 
    #clean up certificate directories
-   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  /var/sgeCA"]
+   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  /var/sgeCA/$ts_config(commd_port)"]
    set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA"]
 
    #restore saved directories
    if { $file_exists(var_sgeCA) !=  "0" } {
       #restore /var/sgeCA directory
-      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/sgeCA_$actual_time /var/sgeCA"]
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/sgeCA_$ts_config(commd_port)_$actual_time /var/sgeCA"]
    }
    if { $file_exists(common_sgeCA) !=  "0" } {
       #restore $SGE_ROOT/$(cell)/common/sgeCA directory
