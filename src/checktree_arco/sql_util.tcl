@@ -139,7 +139,7 @@ proc sqlutil_create { { user "" } } {
       set user $CHECK_USER
    }
    
-   set cmd "$ts_host_config($CHECK_HOST,java)"
+   set cmd [get_binary_path $CHECK_HOST "java"]
    set args "com.sun.grid.util.SQLUtil"
 
    set sql_utilenv(CLASSPATH) [get_sqlutil_classpath]
@@ -150,7 +150,7 @@ proc sqlutil_create { { user "" } } {
       log_user 1
    }
    
-   set id [open_remote_spawn_process $CHECK_HOST $user "$cmd" "$args" 0 sql_utilenv]
+   set id [open_remote_spawn_process $CHECK_HOST $user "$cmd" "$args" 0 "" sql_utilenv]
    set sp_id [ lindex $id 1 ]
    
    set error_count 0

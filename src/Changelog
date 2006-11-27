@@ -1,3 +1,7 @@
+JG-2006-11-27-0: Bugfix:    The checktree_arco was moved to this project from
+                            wrong ARCo branch (V60_ARCO_BRANCH, should have been
+                            maintrunk).
+
 RM-2006-11-27-0: Enhancem.: added test for sgepasswd binary for bugfix 6472859
                             system_tests/windows/sgepasswd
                  Review:    HP
@@ -5,14 +9,15 @@ RM-2006-11-27-0: Enhancem.: added test for sgepasswd binary for bugfix 6472859
 CR-2006-11-24-2: Enhancem.: added test for issue 2122/6497217
                  Review:    RD
 
-CR-2006-11-24-1: Cleanup:   added adoc headers and test remotely the availability
-                            of the testsuite java properties file for 65
-                            versiont testing
+CR-2006-11-24-1: Cleanup:   added adoc headers and test remotely the 
+                            availability of the testsuite java properties file 
+                            for 65 version testing
 
 CR-2006-11-24-0: Enhancem:  del_pe now supports raise_error 
                  Review:    RD
 
-AA-2006-11-23-0: Enhancem:  move of arco testsuite checktree to testsuite subproject
+AA-2006-11-23-0: Enhancem:  move of arco testsuite checktree to testsuite 
+                            subproject
                 
 CR-2006-11-23-2: Cleanup:   modified migrate test to always to the heartbeat
                             test in runlevel 0 - report exactly one warning

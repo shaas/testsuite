@@ -51,7 +51,8 @@ set check_root_access_needs    "yes"
 set check_name                 "arco_junit"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_description(0)       "executes the ARCo junit tests"
-set check_needs                "arco_install"                         ;# dependencies of this check (name of other check)
+#set check_needs                "arco_install"                         ;# dependencies of this check (name of other check)
+set check_needs                ""                         ;# dependencies of this check (name of other check)
 set check_init_level_procedure "arco_junit_init_level"
 set check_functions            ""                                     ;# functions to call (in order)
 

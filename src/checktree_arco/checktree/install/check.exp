@@ -87,16 +87,16 @@ proc install_dbwriter {} {
    puts $CHECK_OUTPUT "install dbwriter on host $arco_config(dbwriter_host) ..."
    
    set_error "0" "install_dbwriter - no errors"
-   if { [file isfile "$ts_config(product_root)/dbwriter/inst_dbwriter"] != 1 } {
+   if {[file isfile "$ts_config(product_root)/dbwriter/inst_dbwriter"] != 1} {
       add_proc_error "install_dbwriter" -1 "dbwriter install script not found"
       return -1
    }
    
-   if { $arco_config(jdbc_driver) != "NONE" } {
+   if {$arco_config(jdbc_driver) != "NONE"} {
       # copy the jdbc driver
       set args "$arco_config(jdbc_driver) $ts_config(product_root)/dbwriter/lib"
       start_remote_prog "$arco_config(dbwriter_host)" $CHECK_USER "cp" $args
-      if { $prg_exit_state != 0 } {
+      if {$prg_exit_state != 0} {
          add_proc_error "install_dbwriter" -1 "copy jdbc driver failed"
          return -1
       }
@@ -106,13 +106,11 @@ proc install_dbwriter {} {
    set CURRENT_GRID_ROOT_DIRECTORY  [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
    set CELL_NAME_FOR_QMASTER        [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
    
-   set cmd "cd $ts_config(product_root)/dbwriter;./inst_dbwriter"
-   set args ""
-   set id [open_remote_spawn_process "$arco_config(dbwriter_host)" "root"  "$cmd" "$args" ]
+   puts $CHECK_OUTPUT "inst_dbwriter"
+   set id [open_remote_spawn_process "$arco_config(dbwriter_host)" "root"  "./inst_dbwriter" "" 0 "$ts_config(product_root)/dbwriter"]
    set sp_id [ lindex $id 1 ]
    
    log_user 1
-   puts $CHECK_OUTPUT "$cmd $args"
    
     set error_count 0
     while { $error_count == 0 } {
@@ -303,17 +301,17 @@ proc install_reporting {} {
    puts $CHECK_OUTPUT "install reporting module on host $arco_config(swc_host) ..."
    
    set_error "0" "install_reporting - no errors"
-   if { [file isfile "$ts_config(product_root)/reporting/inst_reporting"] != 1 } {
+   if {[file isfile "$ts_config(product_root)/reporting/inst_reporting"] != 1} {
       add_proc_error "install_reporting" -1 "reporting install script not found"
       set_error -1 "Error"
       return -1
    }
    
-   if { $arco_config(jdbc_driver) != "NONE" } {
+   if {$arco_config(jdbc_driver) != "NONE"} {
       # copy the jdbc driver
       set args "$arco_config(jdbc_driver) $ts_config(product_root)/reporting/WEB-INF/lib"
       start_remote_prog "$arco_config(dbwriter_host)" $CHECK_USER "cp" "$args"
-      if { $prg_exit_state != 0 } {
+      if {$prg_exit_state != 0} {
          add_proc_error "install_reporting" -1 "copy jdbc driver failed"
          return -1
       }
@@ -332,7 +330,7 @@ proc install_reporting {} {
     # We do not clean the arco spool dir, because the owner in noaccess
     set spool_dir [get_local_spool_dir $arco_config(swc_host) arco 0]
     
-    if { $spool_dir == "" } {
+    if {$spool_dir == ""} {
        add_proc_error "install_reporting" -1 "Can not get local spool dir for host $arco_config(swc_host)"
        return -1
     }
@@ -345,13 +343,11 @@ proc install_reporting {} {
    # no we can cleanup the spool directory
    set spool_dir [get_local_spool_dir $arco_config(swc_host) arco 1]
    
-   set cmd "cd $ts_config(product_root)/reporting;./inst_reporting"
-   set args ""
-   set id [open_remote_spawn_process "$arco_config(swc_host)" "root"  "$cmd" "$args" ]
+   puts $CHECK_OUTPUT "inst_reporting"
+   set id [open_remote_spawn_process "$arco_config(swc_host)" "root"  "./inst_reporting" "" 0 $ts_config(product_root)/reporting]
    set sp_id [ lindex $id 1 ]
    
    log_user 1
-   puts $CHECK_OUTPUT "$cmd $args"
    
     set error_count 0
     

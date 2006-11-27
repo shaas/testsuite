@@ -150,21 +150,32 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
    
    upvar $a_report report
    
-   set build_host [lindex $compile_hosts 0]
+   set build_host [host_conf_get_java_compile_host]
    
    set task_nr [report_create_task report "arco_build_$target" $build_host]
    
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting arco build.sh $target on host $build_host ..."
-   
+  
+   # setup private properties file defining SGE_ROOT and source directory
+   set private_properties [open "$arco_config(arco_source_dir)/build_private.properties" "w"]
+   puts $private_properties "sge.root=$ts_config(product_root)"
+   puts $private_properties "sge.srcdir=$ts_config(source_dir)"
+   close $private_properties
+ 
+   # setup environment
    set env(JAVA_HOME) [get_java_home_for_host $build_host]
    set env(ARCH)      [resolve_arch $build_host]
    
-   if { [string length ant_options] > 0 } {
+   if {[string length ant_options] > 0} {
       set env(ANT_OPTS) "$ant_options"
    }
 
-   set open_spawn [open_remote_spawn_process $build_host $CHECK_USER "cd" "$arco_config(arco_source_dir); ./build.sh -emma $target" 0 env]
+   if {[coverage_enabled "emma"]} {
+      set open_spawn [open_remote_spawn_process $build_host $CHECK_USER "./build.sh" "-emma $target" 0 $arco_config(arco_source_dir) env]
+   } else {
+      set open_spawn [open_remote_spawn_process $build_host $CHECK_USER "./build.sh" "$target" 0 $arco_config(arco_source_dir) env]
+   }
    set spawn_list [lindex $open_spawn 1]
    set timeout $arco_build_timeout
    set error -1
@@ -961,27 +972,29 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
 
    # pass special environment variables to sgedbwriter
    # to allow code coverage analysis with EMMA
-   parse_properties_file properties "$arco_config(arco_source_dir)/build.properties"
-   parse_properties_file properties "$arco_config(arco_source_dir)/build_private.properties" 1
-   set dbwriter_env(DBWRITER_JVMARGS) "-Demma.coverage.out.file=$arco_config(arco_source_dir)/arco/dbwriter/coverage/dbwriter.emma -Demma.coverage.out.merge=true"
-   set dbwriter_env(DBWRITER_CLASSPATH) "$properties(emma.dir)/emma.jar"
+   if {[coverage_enabled "emma"]} {
+      parse_properties_file properties "$arco_config(arco_source_dir)/build.properties"
+      parse_properties_file properties "$arco_config(arco_source_dir)/build_private.properties" 1
+      set dbwriter_env(DBWRITER_JVMARGS) "-Demma.coverage.out.file=$arco_config(arco_source_dir)/arco/dbwriter/coverage/dbwriter.emma -Demma.coverage.out.merge=true"
+      set dbwriter_env(DBWRITER_CLASSPATH) "$properties(emma.dir)/emma.jar"
+   }
 
    set prog "$ts_config(product_root)/$ts_config(cell)/common/sgedbwriter"
    
-   if { [wait_for_remote_file "$hostname" "$CHECK_USER" "$prog"] == 0 } {   
+   if {[wait_for_remote_file "$hostname" "$CHECK_USER" "$prog"] == 0} {   
       set args ""
-      if { $debugmode == 1 } {
+      if {$debugmode == 1} {
          append args "-debug_port 8000 -debug "
       }
       append args "start"
       
-      start_remote_prog "$hostname" "$CHECK_USER" "$prog" $args prg_exit_state 60 0 dbwriter_env
+      start_remote_prog "$hostname" "$CHECK_USER" "$prog" $args prg_exit_state 60 0 "" dbwriter_env
       
-      if { $debugmode == 1 } {
+      if {$debugmode == 1} {
         puts $CHECK_OUTPUT "dbwriter has been started in debug mode"
         puts $CHECK_OUTPUT "Please connect with a jpda debugger to $hostname (Port 8000)!"
         wait_for_enter
-      } elseif { $prg_exit_state != 0 } {
+      } elseif {$prg_exit_state != 0} {
          add_proc_error "startup_dbwriter" -1 "startup of dbwriter failed (exit code $prg_exit_state)"
       }
       return $prg_exit_state;
@@ -1484,7 +1497,7 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
    if { $swc_host == "" } {
       set swc_host $arco_config(swc_host)
    }
-   set output [start_remote_prog $swc_host $CHECK_USER  "/usr/sbin/smcwebserver" "-V" ]
+   set output [start_remote_prog $swc_host $CHECK_USER  "/usr/sbin/smcwebserver" "-V"]
    
    if { $prg_exit_state != 0 } {
        puts $CHECK_OUTPUT "------------------------------------------------------------------"
