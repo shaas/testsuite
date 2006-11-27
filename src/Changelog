@@ -1,3 +1,7 @@
+RM-2006-11-27-0: Enhancem.: added test for sgepasswd binary for bugfix 6472859
+                            system_tests/windows/sgepasswd
+                 Review:    HP
+
 CR-2006-11-24-2: Enhancem.: added test for issue 2122/6497217
                  Review:    RD
 

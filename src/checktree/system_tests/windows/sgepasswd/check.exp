@@ -1,0 +1,288 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions check_errno check_errstr row
+global check_category
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+set check_init_level_procedure "sgepasswd_init_level"
+set check_name         "sgepasswd"
+set check_category     "COMPATIBILITY SYSTEM L10N VERIFIED"
+
+set check_description(0)  "checking if sgepasswd file is correct"
+set check_needs        "init_core_system"  ;# dependencies of this check (name of other check)
+
+# setup and cleanup functions
+set check_setup_function "sgepasswd_setup"
+set check_cleanup_function "sgepasswd_cleanup"
+
+# array with information about existing files/directories
+global file_exists
+set file_exists(sgepasswd) "0"
+set file_exists(var_sgeCA) "0"
+set file_exists(common_sgeCA) "0"
+
+#timestamp use to create unique temporary files/directories
+global actual_time
+set actual_time [timestamp]
+
+# define test's procedure order
+set check_functions    "" 
+lappend check_functions    "sgepasswd_6472859"
+
+
+
+
+proc sgepasswd_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level else
+}
+
+ 
+
+proc sgepasswd_setup {} {
+   global ts_config
+   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_ACTUAL_TEST_PATH 
+   global log_user
+   global file_exists 
+   global actual_time
+   
+   #switch on output of called programs for debug
+   if { $CHECK_DEBUG_LEVEL != 0 } {
+       set log_user 1
+   }
+
+   #check if sgepasswd file is present and save it
+   set exist [glob -nocomplain $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd]
+   if {$exist != {} } {
+      set file_exists(sgepasswd) "1"
+      #save existing file
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd /tmp/sgepasswd_$actual_time"]
+   }
+
+   #check if there are cerificate directories and save them
+   set exist [glob -nocomplain -type d /var/sgeCA]
+   if {$exist != {} } {
+      set file_exists(var_sgeCA) "1"
+      #save existing directory
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f /var/sgeCA /tmp/sgeCA_$actual_time"]
+   }
+
+   set exist [glob -nocomplain -type d $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA]
+   if {$exist != {} } {
+      set file_exists(common_sgeCA) "1"
+      #save existing directory
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA /tmp/GE_sgeCA_$actual_time"]
+   }
+
+
+   #create new certificates for testing SGEPASSWD
+   set id [open_remote_spawn_process $ts_config(master_host) "root" "$CHECK_PRODUCT_ROOT/util/sgeCA/sge_ca" "-init"]
+   set sp_id [lindex $id 1]
+   set timeout 10
+      expect {
+         -i $sp_id "*Hit <RETURN>" {
+            ts_send $sp_id "\n"
+            set timeout 10 
+            exp_continue
+            }
+         #entering some test values
+         -i $sp_id  "*Please enter" {
+            ts_send $sp_id "tt\n"
+            set timeout 10 
+            exp_continue
+            }
+         -i $sp_id  "*Do you want to use these data " {
+            ts_send $sp_id "\n"
+            set timeout 10 
+            exp_continue
+            }
+         -i $sp_id  "*Do you want to recreate " {
+            ts_send $sp_id "\n"
+            set timeout 10
+            exp_continue
+            }
+         -i $sp_id  eof {
+            close_spawn_process $id
+            }
+         -i $sp_id  timeout {
+            close_spawn_process $id
+            }
+      }
+   puts $CHECK_OUTPUT "Check_setup function finished"
+   close_spawn_process $id
+   set_error 0 "ok"        
+}
+
+proc sgepasswd_cleanup {} {
+
+   global ts_config
+   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_ACTUAL_TEST_PATH CHECK_USER
+   global log_user
+   global file_exists
+   global actual_time
+
+   #clean up certificate directories
+   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  /var/sgeCA"]
+   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA"]
+
+   #restore saved directories
+   if { $file_exists(var_sgeCA) !=  "0" } {
+      #restore /var/sgeCA directory
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/sgeCA_$actual_time /var/sgeCA"]
+   }
+   if { $file_exists(common_sgeCA) !=  "0" } {
+      #restore $SGE_ROOT/$(cell)/common/sgeCA directory
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/GE_sgeCA_$actual_time $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA"]
+   }
+
+
+   #clean up sgepasswd file
+   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+
+   if { $file_exists(sgepasswd) !=  "0" } {
+   #restore sgepasswd file
+   set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/sgepasswd_$actual_time $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+   }
+
+   #switch off debug mode 
+   if { $CHECK_DEBUG_LEVEL != 0 } {
+      set log_user 0 
+   }
+
+   puts $CHECK_OUTPUT "Clean up function finished"
+   set_error 0 "ok"
+}
+
+#                                                             max. column:     |
+#****** sgepasswd_6472859() ******
+# 
+#  NAME
+#     sgepasswd_6472859
+#
+#     Tests the sgepasswd call with corrupted SGEPASSWD file which causes 
+#     a segmentation fault in N1GE 6.0.
+#
+#  SYNOPSIS
+#     sgepasswd_6472859 {} 
+#
+#  FUNCTION
+#     sgepasswd_6472859 
+#
+#  NOTES
+#     Tests the sgepasswd call with corrupted SGEPASSWD file which causes 
+#     a segmentation fault in N1GE 6.0. 
+#
+#  BUGS
+#       CR 6472859 
+#
+#*******************************
+proc sgepasswd_6472859 {} {
+   global ts_config
+   global CHECK_OUTPUT CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_ACTUAL_TEST_PATH 
+
+   #read sgepasswd filenames that will be used in test
+   set files [glob -nocomplain $CHECK_ACTUAL_TEST_PATH/test_files/*.test]
+   if { $files == {} } {
+      #if no files are present for test, test ends
+      set_error 0 "OK"
+   }
+
+   foreach filename $files {
+      #clean sgepasswd file before copying new test file
+      set id [start_remote_prog $ts_config(master_host) "root" "rm" "-f  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+      
+      #copy new test file
+      set id [start_remote_prog $ts_config(master_host) "root" "cp" "-f  $filename $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+
+      #get only name of file for notifications 
+      set name [file tail $filename]
+      puts $CHECK_OUTPUT "Testing file: $name ..."
+ 
+      #run sgepasswd program and test it
+      set id [open_remote_spawn_process $ts_config(master_host) "root" "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/sgepasswd" "root"]
+      set sp_id [lindex $id 1]
+      set timeout 10
+
+      #process sgepasswd program
+      expect {
+         -i $sp_id "New password" {
+            ts_send $sp_id "test\n"
+            set timeout 10 
+            exp_continue
+            }
+         -i $sp_id  "Re-enter new password" {
+            ts_send $sp_id "test\n"
+            set timeout 10 
+            exp_continue
+            } 
+         -i $sp_id  "Password changed" { 
+            puts $CHECK_OUTPUT "Password changed for file: $name"
+            close_spawn_process $id 
+            }
+         -i $sp_id  "sgepasswd: sgepasswd file corrupted" {
+            puts $CHECK_OUTPUT "Password not changed (corrupted file) for file: $name" 
+            close_spawn_process $id
+            }
+          #Segmentation fault should not appear if test is going to pass
+         -i $sp_id  "*Segmentation Fault" {
+            close_spawn_process $id
+            set_error -1 "Test failed - Segmentation fault with test file $name " 
+            }
+         -i $sp_id  eof {
+            puts $CHECK_OUTPUT "expect eof"
+            close_spawn_process $id
+            }
+         -i $sp_id  timeout {
+            puts $CHECK_OUTPUT "expect timeout"
+            close_spawn_process $id
+            }
+      }
+   puts $CHECK_OUTPUT "Test file: $name completed"
+   close_spawn_process $id
+
+   #close foreach
+   }
+   puts $CHECK_OUTPUT "Test finished successfully"
+   set_error 0 "ok"
+}
