@@ -78,7 +78,12 @@ proc sgepasswd_init_level {} {
    return -1  ;# no other level else
 }
 
- 
+
+# saving the existing keys and creating new ones in sgepasswd_setup() (and
+# the corresponding restoring of keys in sgepasswd_cleanup()) was neccessary
+# in a not well working environment - it shouldn't be neccessary in a good 
+# working one and should be replaced by dependency to the install_core_test 
+# then.
 
 proc sgepasswd_setup {} {
    global ts_config

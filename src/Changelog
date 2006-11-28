@@ -1,3 +1,6 @@
+HP-2006-11-28-0: Enhancem.: Added comment
+                 Changed:   system_tests/windows/sgepasswd
+
 HP-2006-11-27-0: Bugfix:    All keys from /var/sgeCA where moved away for this
                             test, now only the key for this particular test 
                             is moved away.
