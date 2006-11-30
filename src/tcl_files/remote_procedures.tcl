@@ -39,11 +39,12 @@ global rlogin_max_open_connections
 set rlogin_max_open_connections 20
 global last_shell_script_file last_spawn_command_arguments
 
-global CHECK_SHELL_PROMPT
+global CHECK_SHELL_PROMPT CHECK_LOGIN_LINE
 # initialize prompt handling, see expect manpage
 #set CHECK_SHELL_PROMPT "(%|#|\\$|>) $"
 #set CHECK_SHELL_PROMPT "\[A-Za-z>$%\]*"
 set CHECK_SHELL_PROMPT "\[A-Za-z\]*\[#>$%\]*"
+set CHECK_LOGIN_LINE "\[A-Za-z\]*\n"
 
 set descriptors [exec "/bin/sh" "-c" "ulimit -n"]
 puts "    *********************************************"
@@ -92,7 +93,7 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
          #   min          Minimum arrival time
          #   max          Maximum arrival time
 
-         set send_human {.2 .2 1 .1 .4}
+         set send_human {.05 .1 1 .01 1}
          send -i $spawn_id -h -- "${message}"
       } else {
          # if no hostname is passed, try to figure it out from spawn_id
@@ -1211,7 +1212,7 @@ proc open_remote_spawn_process { hostname
 
    global CHECK_OUTPUT CHECK_HOST CHECK_USER CHECK_TESTSUITE_ROOT CHECK_SCRIPT_FILE_DIR
    global CHECK_EXPECT_MATCH_MAX_BUFFER CHECK_DEBUG_LEVEL
-   global CHECK_SHELL_PROMPT
+   global CHECK_LOGIN_LINE
    global last_shell_script_file last_spawn_command_arguments
 
    debug_puts "open_remote_spawn_process on host \"$hostname\""
@@ -1237,7 +1238,8 @@ proc open_remote_spawn_process { hostname
 
    # if command shall be started as other user than CHECK_USER
    # we need root access
-   if {$real_user != $CHECK_USER} {
+   # unless the target host is windows - here we need each user's password
+   if {$real_user != $CHECK_USER && [host_conf_get_arch $hostname] != "win32-x86"} {
       if {[have_root_passwd] == -1} {
          add_proc_error "open_remote_spawn_process" -2 "${error_info}\nroot access required" $raise_error
          return "" 
@@ -1343,7 +1345,8 @@ proc open_remote_spawn_process { hostname
          #
          # on windows hosts, login as root and su - <user> doesn't work.
          # here we connect as target user and answer the passwd question
-         if {[host_conf_get_arch $hostname] == "win32-x86"} {
+         # for connections as CHECK_USER, we don't expect a password question
+         if {[host_conf_get_arch $hostname] == "win32-x86" && $real_user != $CHECK_USER} {
             set passwd [get_passwd $real_user]
          }
 
@@ -1374,6 +1377,7 @@ proc open_remote_spawn_process { hostname
 
          # wait for shell to start
          set connect_errors 0
+         set password_sent 0
          set catch_return [catch {
             set num_tries $nr_of_tries
             set timeout 2
@@ -1407,6 +1411,7 @@ proc open_remote_spawn_process { hostname
                      set connect_errors 1
                   } else {
                      ts_send $spawn_id "$passwd\n" $hostname 1
+                     set password_sent 1
                      exp_continue
                   }
                }
@@ -1429,9 +1434,15 @@ proc open_remote_spawn_process { hostname
                   sleep 10
                   continue
                }
-               -i $spawn_id -re $CHECK_SHELL_PROMPT {
+               -i $spawn_id $CHECK_LOGIN_LINE {
                   # recognized shell prompt - now we can continue / leave this expect loop
-                  debug_puts "recognized shell prompt"
+                  # on interix (when we have a password to send), do not leave the loop,
+                  # but wait for password prompt. After the password has been sent,
+                  # and we got some linefeed, leave the loop
+                  debug_puts "recognized login output"
+                  if {$passwd != "" && !$password_sent} {
+                     exp_continue
+                  }
                }
             }
          } catch_error_message]
@@ -2310,7 +2321,13 @@ proc is_spawn_id_rlogin_session {spawn_id} {
 proc get_open_rlogin_sessions {} {
    global rlogin_spawn_session_buffer
 
-   return [lsort -dictionary $rlogin_spawn_session_buffer(index)]
+   set ret {}
+
+   if {[info exists rlogin_spawn_session_buffer(index)]} {
+      set ret [lsort -dictionary $rlogin_spawn_session_buffer(index)]
+   }
+
+   return $ret
 }
 
 #

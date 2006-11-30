@@ -942,7 +942,6 @@ proc compile_create_java_properties { compile_hosts } {
       puts $CHECK_OUTPUT "creating $properties_file"
       set f [open $properties_file "w"]
       puts $f "java.buildhost=[host_conf_get_java_compile_host]"
-      puts $f "sge.root=$ts_config(product_root)"
       close $f
  
       foreach host $compile_hosts {

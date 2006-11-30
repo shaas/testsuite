@@ -1,3 +1,10 @@
+JG-2006-11-30-0: Bugfix:    - open_remote_spawn_process failed on some interix
+                              version.
+                            - commandline switch close_rlogin was broken
+                 Enhancem.: sge.root propterty is no longer needed in 
+                            build_testsuite.properties for java build
+                 Review:    RD
+
 HP-2006-11-28-0: Enhancem.: Added comment
                  Changed:   system_tests/windows/sgepasswd
 
