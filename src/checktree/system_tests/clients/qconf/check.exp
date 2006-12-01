@@ -2678,9 +2678,11 @@ proc qconf_create_modify_sharetree {} {
       add_proc_error "qconf_create_modify_sharetree" -1 "qconf -Mstree should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
-   set ret [stree_buffer_commit stree $non_cluster_host "" 0]
-   if {![check_for_non_cluster_host_error $ret "admin"]} {
-      add_proc_error "qconf_create_modify_sharetree" -1 "qconf -Mstree should have failed on host $non_cluster_host"
+   if {$non_cluster_host != ""} {
+      set ret [stree_buffer_commit stree $non_cluster_host "" 0]
+      if {![check_for_non_cluster_host_error $ret "admin"]} {
+         add_proc_error "qconf_create_modify_sharetree" -1 "qconf -Mstree should have failed on host $non_cluster_host"
+      }
    }
 
    # delete a sharetree created due to errors in the permission check
@@ -2733,12 +2735,14 @@ proc qconf_del_sharetree {} {
    stree_buffer_commit stree
    set ret [del_sharetree "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
    if {$ret != -210} {
-      add_proc_error "qconf_create_modify_sharetree" -1 "qconf -Mstree should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      add_proc_error "qconf_create_modify_sharetree" -1 "qconf -dstree should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
-   set ret [del_sharetree $non_cluster_host "" 0]
-   if {![check_for_non_cluster_host_error $ret "admin"]} {
-      add_proc_error "qconf_create_modify_sharetree" -1 "qconf -Mstree should have failed on host $non_cluster_host"
+   if {$non_cluster_host != ""} {
+      set ret [del_sharetree $non_cluster_host "" 0]
+      if {![check_for_non_cluster_host_error $ret "admin"]} {
+         add_proc_error "qconf_create_modify_sharetree" -1 "qconf -dstree should have failed on host $non_cluster_host"
+      }
    }
 
    # delete the sharetree
@@ -2817,9 +2821,11 @@ proc qconf_add_project {} {
    #if {$ret != -201} {
    #   add_proc_error "qconf_add_project" -1 "qconf -aprj should have failed on host $non_cluster_host"
    #}
-   set ret [add_prj project 1 $non_cluster_host "" 0]
-   if {![check_for_non_cluster_host_error $ret "admin"]} {
-      add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed on host $non_cluster_host"
+   if {$non_cluster_host != ""} {
+      set ret [add_prj project 1 $non_cluster_host "" 0]
+      if {![check_for_non_cluster_host_error $ret "admin"]} {
+         add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed on host $non_cluster_host"
+      }
    }
 
    set_error 0 "ok"

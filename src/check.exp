@@ -670,7 +670,7 @@ set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
 #  SEE ALSO
 #     check/set_error
 #*******************************
-proc add_proc_error { proc_name result text {raise_error 1}} {
+proc add_proc_error {proc_name result text {raise_error 1}} {
    global CHECK_CUR_PROC_ERRORS CHECK_CUR_PROC_RESULTS CHECK_CUR_PROC_NAME CHECK_OUTPUT check_name
    global add_proc_error_avoid_recursive_call
 

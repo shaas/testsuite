@@ -1,3 +1,8 @@
+JG-2006-12-01-0: Bugfix:    qconf test failed if no "non_cluster_host" is 
+                            available.
+                            qrsh test failed on NetBSD and Interix.
+                 Review:    RD
+
 JG-2006-11-30-0: Bugfix:    - open_remote_spawn_process failed on some interix
                               version.
                             - commandline switch close_rlogin was broken

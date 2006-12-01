@@ -78,9 +78,11 @@ proc qconf_add_rqs {} {
       del_rqs $rqs_name
    }
    set non_cluster_host [host_conf_get_unused_host]
-   set ret [add_rqs rqs_charray  1 $non_cluster_host "" 0]
-   if {![check_for_non_cluster_host_error $ret "any"]} {
-      add_proc_error "qconf_add_rqs" -1 "qconf -Arqs should have failed on host $non_cluster_host"
+   if {$non_cluster_host != ""} {
+      set ret [add_rqs rqs_charray  1 $non_cluster_host "" 0]
+      if {![check_for_non_cluster_host_error $ret "any"]} {
+         add_proc_error "qconf_add_rqs" -1 "qconf -Arqs should have failed on host $non_cluster_host"
+      }
    }
    set_error 0 "ok"
 }
@@ -144,9 +146,11 @@ proc qconf_modify_rqs {} {
       add_proc_error "qconf_modify_rqs" -1 "qconf -Mrqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
-   set ret [mod_rqs new_rqs_charray "$rqs_name_fast" 1 $non_cluster_host "" 0]
-   if {![check_for_non_cluster_host_error $ret "any"]} {
-      add_proc_error "qconf_modify_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
+   if {$non_cluster_host != ""} {
+      set ret [mod_rqs new_rqs_charray "$rqs_name_fast" 1 $non_cluster_host "" 0]
+      if {![check_for_non_cluster_host_error $ret "any"]} {
+         add_proc_error "qconf_modify_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
+      }
    }
    set_error 0 "ok"
 }
@@ -194,9 +198,11 @@ proc qconf_modifyreplace_rqs {} {
       add_proc_error "qconf_modifyreplace_rqs" -1 "qconf -Mrqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
-   set ret [mod_rqs old_rqs_config "" 1 $non_cluster_host "" 0]
-   if {![check_for_non_cluster_host_error $ret "any"]} {
-      add_proc_error "qconf_modifyreplace_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
+   if {$non_cluster_host != ""} {
+      set ret [mod_rqs old_rqs_config "" 1 $non_cluster_host "" 0]
+      if {![check_for_non_cluster_host_error $ret "any"]} {
+         add_proc_error "qconf_modifyreplace_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
+      }
    }
 
    set_error 0 "ok"
@@ -214,9 +220,11 @@ proc qconf_remove_rqs {} {
       add_proc_error "qconf_remove_rqs" -1 "qconf -drqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
-   set ret [del_rqs $rqs_name_fast $non_cluster_host "" 0]
-   if {![check_for_non_cluster_host_error $ret "admin"]} {
-      add_proc_error "qconf_remove_rqs" -1 "qconf -drqs should have failed on host $non_cluster_host"
+   if {$non_cluster_host != ""} {
+      set ret [del_rqs $rqs_name_fast $non_cluster_host "" 0]
+      if {![check_for_non_cluster_host_error $ret "admin"]} {
+         add_proc_error "qconf_remove_rqs" -1 "qconf -drqs should have failed on host $non_cluster_host"
+      }
    }
 
    # delete rqs the first time, should be OK 

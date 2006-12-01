@@ -2263,3 +2263,81 @@ proc host_conf_get_send_speed {host_in} {
    # don't know the host yet (e.g. when adding a new host): return default
    return 0.001
 }
+
+#****** config_host/host_has_newgrp() ******************************************
+#  NAME
+#     host_has_newgrp() -- does host have newgrp
+#
+#  SYNOPSIS
+#     host_has_newgrp {host {raise_error 1}} 
+#
+#  FUNCTION
+#     Evaluate if a given host has a newgrp command.
+#     On certain architectures (e.g. windows, netbsd), newgrp is not available.
+#
+#  INPUTS
+#     host            - host on which we'd like to execute newgrp
+#     {raise_error 1} - raise an unsupported warning, if no newgrp is available?
+#
+#  RESULT
+#     0 - no newgrp is available
+#     1 - newgrp is available
+#*******************************************************************************
+proc host_has_newgrp {host {raise_error 1}} {
+   set ret 1
+
+   set arch [resolve_arch $host]
+   switch -exact $arch {
+      "nbsd-i386" -
+      "win32-x86" {
+         add_proc_error "host_has_newgrp" -3 "host $host ($arch) doesn't support newgrp" $raise_error
+         set ret 0
+      }
+   }
+
+   return $ret
+}
+
+#****** config_host/host_get_id_a_command() ************************************
+#  NAME
+#     host_get_id_a_command() -- return the id command for a host
+#
+#  SYNOPSIS
+#     host_get_id_a_command { host } 
+#
+#  FUNCTION
+#     Returns the id -a equivalent for the given host.
+#     This is either "id -a", or "id", depending on hosts architecture.
+#
+#  INPUTS
+#     host - host for which we need a valid id -a command
+#
+#  RESULT
+#     The command.
+#
+#  EXAMPLE
+#     host_get_id_a_command a_linux_host will return "/usr/bin/id -a"
+#     host_get_id_a_command a_netbsd_host will return "/usr/bin/id"
+#*******************************************************************************
+proc host_get_id_a_command {host} {
+   set arch [resolve_arch $host]
+
+   switch -exact $arch {
+      "aix42" -
+      "aix43" -
+      "darwin" -
+      "darwin-ppc" -
+      "darwin-x86" -
+      "nbsd-i386" -
+      "osf4" -
+      "tru64" -
+      "win32-x86" {
+         set ret "/usr/bin/id"
+      }
+      default {
+         set ret "/usr/bin/id -a"
+      }
+   }
+
+   return $ret
+}

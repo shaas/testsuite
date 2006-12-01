@@ -1246,53 +1246,42 @@ proc qrsh_qsub_gid {} {
    global QSUB_GID_USER QSUB_GID_GROUPS CHECK_SECOND_FOREIGN_SYSTEM_USER
    global qrsh_hostlist qrsh_submithost
 
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
+   if {[have_root_passwd] == -1} {
+      add_proc_error "qrsh_qsub_gid" -3 "root access required"
+      set_error 0 ok
       return
    } 
-
-   if { $ts_config(gridengine_version) == 53 } {
-      set USING_FOR     [translate $CHECK_HOST 1 0 0 [sge_macro MSG_GDI_USING_SS] "*USE_QSUB_GID=true*" "*"]
-      set FINISHED_JOBS [translate $CHECK_HOST 1 0 0 [sge_macro MSG_GDI_USING_SS] "*finished_jobs*" "*"]
-   } else {
-      set USING_FOR     [translate $CHECK_HOST 1 0 0 [sge_macro MSG_CONF_USING_SS] "*USE_QSUB_GID=true*" "*"]
-      set FINISHED_JOBS [translate $CHECK_HOST 1 0 0 [sge_macro MSG_CONF_USING_SS] "*finished_jobs*" "*"]
+   if {![host_has_newgrp $qrsh_submithost 0]} {
+      add_proc_error "qrsh_qsub_gid" -3 "cannot run this test:\nqrsh submithost $qrsh_submithost doesn't have the newgrp command"
+      set_error 0 ok
+      return
    }
+
+   if {$ts_config(gridengine_version) == 53 } {
+      set USING_FOR     [translate_macro MSG_GDI_USING_SS "*USE_QSUB_GID=true*" "*"]
+      set FINISHED_JOBS [translate_macro MSG_GDI_USING_SS "*finished_jobs*" "*"]
+   } else {
+      set USING_FOR     [translate_macro MSG_CONF_USING_SS "*USE_QSUB_GID=true*" "*"]
+      set FINISHED_JOBS [translate_macro MSG_CONF_USING_SS "*finished_jobs*" "*"]
+   }
+
+   set submit_host_arch [resolve_arch $qrsh_submithost]
 
    puts $CHECK_OUTPUT "check if qsub gid is propagated to qrsh job"
 
    foreach host $qrsh_hostlist {
-      if {[resolve_arch $host] == "win32-x86"} {
-         add_proc_error "qrsh_qsub_gid" -3 "qrsh_qsub_gid test not supported on windows execution host $host"
-         continue
-      }
-
       puts $CHECK_OUTPUT "using host $host"
       # dump commandfile to file
       set f [open $CHECK_PROTOCOL_DIR/qrsh.sh w]
-      switch -exact [resolve_arch $host] {
-         "aix42" -
-         "aix43" -
-         "darwin" -
-         "darwin-ppc" -
-         "darwin-x86" -
-         "osf4" -
-         "tru64" -
-         "win32-x86" {
-            puts $f "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -l hostname=$host /usr/bin/id"
-         }
-         default {
-            puts $f "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -l hostname=$host /usr/bin/id -a"
-         }   
-      }   
+      set id_command [host_get_id_a_command $host]
+      puts $f "$CHECK_PRODUCT_ROOT/bin/$submit_host_arch/qrsh -l hostname=$host $id_command"
       close $f
 
       file attributes "$CHECK_PROTOCOL_DIR/qrsh.sh" -permissions 00755
       wait_for_remote_file $host $QSUB_GID_USER $CHECK_PROTOCOL_DIR/qrsh.sh
 
-
       # call qsub_gid.sh, gid must be primary gid
-      set output [start_remote_prog "$qrsh_submithost" $QSUB_GID_USER $CHECK_ACTUAL_TEST_PATH/qsub_gid.sh "[lindex $QSUB_GID_GROUPS 1] $CHECK_PROTOCOL_DIR/qrsh.sh"]
+      set output [start_remote_prog $qrsh_submithost $QSUB_GID_USER "$CHECK_ACTUAL_TEST_PATH/qsub_gid.sh" "[lindex $QSUB_GID_GROUPS 1] $CHECK_PROTOCOL_DIR/qrsh.sh"]
       set group [lindex $QSUB_GID_GROUPS 0]
       if {[check_qsub_gid_output $output $group] == 0} {
          add_proc_error "qrsh_qsub_gid" -1 "qrsh job on host $host was executed with wrong gid, should be $group, output of qrsh job was $output"
@@ -1366,7 +1355,7 @@ proc qrsh_qsub_gid {} {
       }
 
       # call qsub_gid.sh, gid must be secondary gid
-      set output [start_remote_prog "$qrsh_submithost" $QSUB_GID_USER $CHECK_ACTUAL_TEST_PATH/qsub_gid.sh "[lindex $QSUB_GID_GROUPS 1] $CHECK_PROTOCOL_DIR/qrsh.sh"]
+      set output [start_remote_prog $qrsh_submithost $QSUB_GID_USER "$CHECK_ACTUAL_TEST_PATH/qsub_gid.sh" "[lindex $QSUB_GID_GROUPS 1] $CHECK_PROTOCOL_DIR/qrsh.sh"]
       set group [lindex $QSUB_GID_GROUPS 1]
       if {[check_qsub_gid_output $output $group] == 0} {
          add_proc_error "qrsh_qsub_gid" -1 "qrsh job on host $host was executed with wrong gid, should be $group, output of qrsh job was $output"
