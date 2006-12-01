@@ -35,6 +35,7 @@ global check_functions
 
 lappend check_functions "qacct_issue1720"
 lappend check_functions "qacct_issue1686"
+lappend check_functions "qacct_issue2127"
 
 proc qacct_issue1686 {} {
    global ts_config
@@ -53,6 +54,21 @@ proc qacct_issue1720 {} {
    set output [start_sge_bin qacct "-h unresolvable_host_xyz"]
    if {$prg_exit_state != 0} {
       add_proc_error "qacct_issue1720" -1 "qacct tried to resolve unknown hostname:\n$output"
+   }
+   set_error 0 "ok"
+}
+
+proc qacct_issue2127 {} {
+   global CHECK_HOST CHECK_ARCH
+
+   set output [start_sge_bin qacct "-l h=$CHECK_HOST"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "qacct_issue2127" -1 "qacct -l h=$CHECK_HOST output:\n$output"
+   }
+
+   set output [start_sge_bin qacct "-l a=$CHECK_ARCH"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "qacct_issue2127" -1 "qacct -l a=$CHECK_ARCH output:\n$output"
    }
 
    set_error 0 "ok"
