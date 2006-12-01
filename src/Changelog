@@ -1,3 +1,7 @@
+JG-2006-12-01-1: Enhancem.: Build libdrmaa.jar with SGE 6.0.
+                 Issue:     73
+                 Review:    RD
+
 RD-2006-12-01-0: Enhancem:  Added test for qacct -l h=<hostname> dump core
                  Review:    JG
 

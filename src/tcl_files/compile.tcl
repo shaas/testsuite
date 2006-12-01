@@ -116,9 +116,10 @@ proc compile_host_list {} {
                          $ts_config(bdb_server) \
                          [checktree_get_required_hosts]]
 
-   # beginning with SGE 6.5 we also build java code.
-   # add the java build host to the host list
-   if {$ts_config(gridengine_version) >= 65} {
+   # For SGE 6.0 we build the drmaa.jar on the java build host.
+   # Beginning with SGE 6.5 we build java code on all platforms.
+   # Add the java build host to the host list.
+   if {$ts_config(gridengine_version) >= 60} {
       lappend host_list [host_conf_get_java_compile_host]
    }
 
@@ -144,10 +145,10 @@ proc compile_host_list {} {
       }
    }
 
-   # the java compile host may not duplicate the build host for it's architecture, 
-   # it must be also a c build host
-   # so it must be contained in the build host list
-   if {$ts_config(gridengine_version) >= 65} {
+   # The java compile host may not duplicate the build host for it's architecture, 
+   # it must be also a c build host,
+   # so it must be contained in the build host list.
+   if {$ts_config(gridengine_version) >= 60} {
       set jc_host [host_conf_get_java_compile_host]
       set jc_arch [host_conf_get_arch $jc_host]
 
@@ -174,9 +175,6 @@ proc compile_host_list {} {
 #
 #  RESULT
 #     string containing compile options
-#
-#  SEE ALSO
-#     ???/???
 #*******************************************************************************
 proc get_compile_options_string { } {
    global ts_config CHECK_OUTPUT
@@ -628,7 +626,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
 #     ???/???
 #*******************************************************************************
 proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
-   global CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_TESTSUITE_ROOT CHECK_SCRIPT_FILE_DIR CHECK_SOURCE_DIR
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
    global do_only_install
@@ -656,33 +654,40 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    set table_row 2
    set status_rows {}
    set status_cols {status file}
-   foreach elem $host_list {
+   set java_compile_host [host_conf_get_java_compile_host]
+   foreach host $host_list {
       # we have to make sure that the build number is compiled into 
       # the object code (therefore delete the appropriate object module).
-      delete_build_number_object $elem $build_number
+      delete_build_number_object $host $build_number
 
       # start build jobs
-      puts $CHECK_OUTPUT "-> starting $task_name on host $elem ..."
+      puts $CHECK_OUTPUT "-> starting $task_name on host $host ..."
 
       set prog "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/remotecompile.sh"
       set par1 "$CHECK_SOURCE_DIR"
       set par2 "-DDAILY_BUILD_NUMBER=$build_number $my_compile_options"
+
+      # For SGE 6.0, we want to build the drmaa.jar.
+      # We do so by using the -java aimk option on the java build host
+      if {$ts_config(gridengine_version) == 60 && $host == $java_compile_host} {
+         set par2 "-java $par2"
+      }
       
       puts $CHECK_OUTPUT "$prog $par1 '$par2'"
-      set open_spawn [open_remote_spawn_process $elem $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0]
+      set open_spawn [open_remote_spawn_process $host $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0]
       set spawn_id [lindex $open_spawn 1]
       
-      set host_array($spawn_id,host) $elem
-      set host_array($spawn_id,task_nr) [report_create_task report $task_name $elem]      
+      set host_array($spawn_id,host) $host
+      set host_array($spawn_id,task_nr) [report_create_task report $task_name $host]      
       set host_array($spawn_id,open_spawn) $open_spawn 
       lappend spawn_list $spawn_id
 
       # initialize fancy compile output
-      lappend status_rows $elem
-      set status_array(file,$elem)     "unknown"
-      set status_array(status,$elem)   "running"
+      lappend status_rows $host
+      set status_array(file,$host)     "unknown"
+      set status_array(status,$host)   "running"
       incr num 1
-   }  
+   }
   
    puts $CHECK_OUTPUT "now waiting for end of compile ..." 
    set status_updated 1
@@ -927,8 +932,9 @@ proc delete_build_number_object {host build} {
 #     compile_create_java_properties { compile_hosts } 
 #
 #  FUNCTION
-#     create and check availablity of the properties file on the specified compile
-#     hosts
+#     Create and check availablity of the properties file on the specified compile
+#     hosts.
+#     This is only needed with SGE >= 6.5 (where we build jgdi).
 #
 #  INPUTS
 #     compile_hosts - list of compile hosts
@@ -959,7 +965,8 @@ proc compile_create_java_properties { compile_hosts } {
 #     compile_delete_java_properties { } 
 #
 #  FUNCTION
-#     delete the generated testsuite properties file
+#     Delete the generated testsuite properties file.
+#     This is only needed with SGE >= 6.5 (where we build jgdi).
 #
 #  INPUTS
 #
