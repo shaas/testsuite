@@ -1,3 +1,9 @@
+CR-2006-12-04-0: Enhancem.: Added test for "hostname resolving should not
+                            be case sensitive"
+                 Issue:     1905
+                 BT:        6353558
+                 Review:    RD
+
 JG-2006-12-01-1: Enhancem.: Build libdrmaa.jar with SGE 6.0.
                  Issue:     73
                  Review:    RD
