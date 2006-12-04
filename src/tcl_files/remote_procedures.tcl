@@ -1346,7 +1346,7 @@ proc open_remote_spawn_process { hostname
          # on windows hosts, login as root and su - <user> doesn't work.
          # here we connect as target user and answer the passwd question
          # for connections as CHECK_USER, we don't expect a password question
-         if {[host_conf_get_arch $hostname] == "win32-x86" && $real_user != $CHECK_USER} {
+         if {[host_conf_get_arch $hostname] == "win32-x86" && $connect_full_user != $CHECK_USER} {
             set passwd [get_passwd $real_user]
          }
 
