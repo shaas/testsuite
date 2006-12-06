@@ -60,5 +60,4 @@
 #     ???/???
 #*******************************
 proc install_bdb_rpc {} {
-   set_error "0" "inst_sge -db - no errors"
 }

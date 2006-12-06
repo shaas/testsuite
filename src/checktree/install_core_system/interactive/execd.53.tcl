@@ -71,8 +71,6 @@ proc install_execd {} {
    set CORE_INSTALLED "" 
    read_install_list
 
-   set_error "0" "install_execd - no errors"
-
    set feature_install_options ""
    if { $ts_config(product_feature) == "csp" } {
          set feature_install_options "-csp"
@@ -164,12 +162,11 @@ proc install_execd {} {
    foreach exec_host $ts_config(execd_nodes) {
       puts $CHECK_OUTPUT "installing execd on host $exec_host ($ts_config(product_type) system) ..."
       if {[lsearch $ts_config(execd_nodes) $exec_host] == -1 } {
-         set_error "-1" "install_execd - host $exec_host is not in execd list"
+         add_proc_error "install_execd" "-1" "host $exec_host is not in execd list"
          return 
       }
 #      wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
       if { $check_use_installed_system != 0 } {
-         set_error "0" "install_execd - no need to install execd on hosts \"$ts_config(execd_nodes)\" - noinst parameter is set"
          puts "no need to install execd on hosts \"$ts_config(execd_nodes)\", noinst parameter is set"
          if {[startup_execd $exec_host] == 0 } {
             lappend CORE_INSTALLED $exec_host
@@ -182,7 +179,7 @@ proc install_execd {} {
       }
 
       if {[file isfile "$ts_config(product_root)/install_execd"] != 1} {
-         set_error "-1" "install_execd - install_execd file not found"
+         add_proc_error "install_execd" "-1" "install_execd file not found"
          return
       }
 
@@ -254,37 +251,37 @@ proc install_execd {} {
          log_user 1 
          expect {
             -i $sp_id full_buffer {
-               set_error "-1" "install_execd - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               add_proc_error "install_execd" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                close_spawn_process $id; 
                return;
             }
 
             -i $sp_id eof {
-               set_error "-1" "install_execd - unexpeced eof";
+               add_proc_error "install_execd" "-1" "unexpeced eof";
                close_spawn_process $id
                set do_stop 1
             }
 
             -i $sp_id "coredump" {
-               set_error "-2" "install_execd - coredump on host $exec_host";
+               add_proc_error "install_execd" "-2" "coredump on host $exec_host";
                close_spawn_process $id
                set do_stop 1
             }
 
             -i $sp_id timeout { 
-               set_error "-1" "install_execd - timeout while waiting for output"; 
+               add_proc_error "install_execd" "-1" "timeout while waiting for output"; 
                close_spawn_process $id;
                set do_stop 1
             }
 
             -i $sp_id "orry" { 
-               set_error "-1" "install_execd - wrong root password"
+               add_proc_error "install_execd" "-1" "wrong root password"
                close_spawn_process $id; 
                return;
             }
 
             -i $sp_id "The installation of the execution daemon will abort now" {
-               set_error "-1" "install_execd - installation error"
+               add_proc_error "install_execd" "-1" "installation error"
                close_spawn_process $id; 
                return;
             }
@@ -344,7 +341,7 @@ proc install_execd {} {
                   ts_send $sp_id "\n"
                   continue;
                } else {
-                  set_error "-1" "install_execd - host $exec_host: tried to install not as root"
+                  add_proc_error "install_execd" "-1" "host $exec_host: tried to install not as root"
                   close_spawn_process $id; 
                   return;
                }
@@ -382,7 +379,7 @@ proc install_execd {} {
             }
 
             -i $sp_id "There is still no service for" {
-               set_error "-1" "install_execd - no TCP/IP service available";
+               add_proc_error "install_execd" "-1" "no TCP/IP service available";
                close_spawn_process $id
                set do_stop 1
             }
@@ -410,18 +407,18 @@ proc install_execd {} {
             }
 
             -i $sp_id "Error:" {
-               set_error "-1" "install_execd - $expect_out(0,string)"
+               add_proc_error "install_execd" "-1" "$expect_out(0,string)"
                close_spawn_process $id; 
                return;
             }
             -i $sp_id "can't resolve hostname*\n" {
-               set_error "-1" "install_execd - $expect_out(0,string)"
+               add_proc_error "install_execd" "-1" "$expect_out(0,string)"
                close_spawn_process $id; 
                return;
             }            
   
             -i $sp_id "error:\n" {
-               set_error "-1" "install_execd - $expect_out(0,string)"
+               add_proc_error "install_execd" "-1" "$expect_out(0,string)"
                close_spawn_process $id; 
                return;
             }
@@ -446,7 +443,7 @@ proc install_execd {} {
             }
 
             -i $sp_id default {
-               set_error "-1" "install_execd - undefined behaiviour: $expect_out(buffer)"
+               add_proc_error "install_execd" "-1" "undefined behaiviour: $expect_out(buffer)"
                close_spawn_process $id; 
                return;
             }

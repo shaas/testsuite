@@ -71,7 +71,6 @@ proc install_qmaster {} {
    puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $CHECK_CORE_MASTER ..."
 
    if {$check_use_installed_system != 0} {
-      set_error "0" "install_qmaster - no need to install qmaster on host $CHECK_CORE_MASTER - noinst parameter is set"
       puts "no need to install qmaster on host $CHECK_CORE_MASTER, noinst parameter is set"
       set CORE_INSTALLED "" 
       if {[startup_qmaster] == 0} {
@@ -84,9 +83,8 @@ proc install_qmaster {} {
    set CORE_INSTALLED ""
    write_install_list
 
-   set_error "0" "inst_sge - no errors"
    if {![file isfile "$ts_config(product_root)/inst_sge"]} {
-      set_error "-1" "inst_sge - inst_sge file not found"
+      add_proc_error "install_qmaster" "-1" "inst_sge - inst_sge file not found"
       return
    }
 
@@ -127,13 +125,11 @@ proc install_qmaster {} {
    }
 
    if {$exit_val == 0} {
-      set_error "0" "ok"
       lappend CORE_INSTALLED $CHECK_CORE_MASTER
       write_install_list
       return
    } else { 
-      set_error "-2" "install failed"
-      add_proc_error "install_qmaster" "-2" "$output"
+      add_proc_error "install_qmaster" "-2" "install failed:\n$output"
       return
    }
 }
@@ -266,5 +262,4 @@ proc create_autoinst_config {} {
    puts $CHECK_OUTPUT "creating automatic install config file ..."
    write_autoinst_config $config_file $ts_config(master_host) 1
    puts $CHECK_OUTPUT "automatic install config file successfully created ..."
-   set_error "0" "inst_sge - no errors"
 }

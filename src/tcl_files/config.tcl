@@ -945,8 +945,6 @@ proc config_results_dir { only_check name config_array } {
    global CHECK_RESULT_DIR 
    global CHECK_BAD_RESULT_DIR 
    global CHECK_REPORT_FILE 
-   global CHECK_CORE_RESULT_DIR 
-   global CHECK_CORE_BAD_RESULT_DIR 
    global CHECK_HOST
    global fast_setup
 
@@ -1012,15 +1010,7 @@ proc config_results_dir { only_check name config_array } {
    set CHECK_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$CHECK_HOST.completed"
    set CHECK_BAD_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$CHECK_HOST.uncompleted"
    set CHECK_REPORT_FILE "$CHECK_MAIN_RESULTS_DIR/$CHECK_HOST.report"
-   set CHECK_CORE_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/core.completed"
-   set CHECK_CORE_BAD_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/core.uncompleted"
  
-   if {[file isdirectory "$CHECK_CORE_RESULT_DIR"] != 1} {
-        file mkdir "$CHECK_CORE_RESULT_DIR"
-   }
-   if {[file isdirectory "$CHECK_CORE_BAD_RESULT_DIR"] != 1} {
-        file mkdir "$CHECK_CORE_BAD_RESULT_DIR"
-   }
    if {[file isdirectory "$CHECK_RESULT_DIR"] != 1} {
         file mkdir "$CHECK_RESULT_DIR"
    }

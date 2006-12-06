@@ -228,12 +228,8 @@ set CHECK_TESTSUITE_INSTALL_MODE "manual" ;# sets the install mode. allowed are:
 global CHECK_TESTSUITE_ROOT        ;# path to TESTSUITE directory
 global CHECK_CHECKTREE_ROOT        ;# path where checktree lies
 
-# never touch these dirs: begin
 global CHECK_RESULT_DIR            ;# check result directory            
 global CHECK_BAD_RESULT_DIR        ;# check rusult directory for failed checkes
-global CHECK_CORE_RESULT_DIR       ;# check result core system directory
-global CHECK_CORE_BAD_RESULT_DIR   ;# check result directory for failed core system checkes
-# never touch these dirs : end
 
 # this is for new tests:
 global CHECK_PROTOCOL_DIR          ;# directory for test protocols, logs etc.
@@ -370,9 +366,9 @@ global check_category              ;# check category name array (z.b. COMPATIBIL
 global check_description           ;# description of actual check module (append more levels as list)
 global check_needs                 ;# dependencies of this check (name of other check)
 global check_functions             ;# functions to call (in order)
-global check_init_level_procedure   ;# name of procedure to call before starting level run
-global check_errno                ;# 0 -> OK , != 0 means error (-2 = break test , -1 failure )
-global check_errstr                 ;# short error description in text form   
+global check_init_level_procedure  ;# name of procedure to call before starting level run
+global check_errno                 ;# list of errors that were raised for a certain test
+global check_errstr                ;# short error descriptions in text form for check_errno
 global check_highest_level         ;# here a check can define his check levels count 0 ...
 
 # for global procedures
@@ -390,17 +386,16 @@ global CHECK_CONFIG_DIR            ;# global configuration testsuite directory
 global CHECK_DEFAULTS_FILE         ;# default settings save file
 global CHECK_DO_SETUP              ;# flag: do setup option called ?
 global CHECK_CUR_PROC_NAME         ;# name of current running test procedure
-global CHECK_CUR_PROC_ERRORS       ;# list of procedure errors   ({error text} {error text} ... )
-global CHECK_CUR_PROC_RESULTS      ;# list of procedure results  (0 -1 -2 0 ...)
-global CHECK_ENABLED_RUNLEVELS      ;# enabled runlevels
-global CHECK_ENABLED_CATEGORIES     ;# enabled categories
+set    CHECK_CUR_PROC_NAME "initializing"
+
+global CHECK_ENABLED_RUNLEVELS     ;# enabled runlevels
+global CHECK_ENABLED_CATEGORIES    ;# enabled categories
 global CHECK_ACT_PATH              ;# actual checkpath (while switching in menu mode)
 global arch_cache                  ;# cache for architecture names (lower case) e.g. solaris64
 global pe_for_version_check_result ;# cache for pe/checkpnt version
 global build_arch_cache            ;# cache for architecture names (upper case) e.g. SOLARIS64
 global l10n_raw_cache              ;# chche for l10n translation strings
 global l10n_install_cache          ;# cache for l10n installation script strings
-global set_error_proc_called       ;# flag
 global have_ssh_access_state       ;# global variable for have_ssh_access procedure (remember state)
 global check_timestamp             ;# for use in is_job_running
 global CHECK_SGE_DEBUG_LEVEL       ;# SGE_DEBUG_LEVEL for starting qmaster and scheduler in debug mode
@@ -668,11 +663,14 @@ set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
 #     no result
 #
 #  SEE ALSO
-#     check/set_error
 #*******************************
 proc add_proc_error {proc_name result text {raise_error 1}} {
-   global CHECK_CUR_PROC_ERRORS CHECK_CUR_PROC_RESULTS CHECK_CUR_PROC_NAME CHECK_OUTPUT check_name
+   global CHECK_CUR_PROC_NAME CHECK_OUTPUT check_name
    global add_proc_error_avoid_recursive_call
+   global check_errno check_errstr
+
+   # trim text message
+   set text [string trim $text]
 
    # There are cases where we intentionally make a command fail,
    # e.g. calling get_exechost for a non execution host.
@@ -700,18 +698,30 @@ proc add_proc_error {proc_name result text {raise_error 1}} {
       return
    }
 
+   # result >= 0 means ok
+   # lots of such calls come from (deprecated) set_error calls
+   if {$result >= 0} {
+      return
+   }
+
    # avoid recursive call
    set add_proc_error_avoid_recursive_call 1
 
-   lappend CHECK_CUR_PROC_RESULTS $result
-   set new_error ""
-   lappend new_error "$proc_name|$check_name|$CHECK_CUR_PROC_NAME|$text"
-   lappend CHECK_CUR_PROC_ERRORS $new_error
+   set new_error "$proc_name|$check_name|$CHECK_CUR_PROC_NAME|$text"
 
-   if { $check_name != "setup" } {
+   # store the list of errors that occured during the run of a test
+   if {![info exists check_errno($CHECK_CUR_PROC_NAME)]} {
+      set check_errno($CHECK_CUR_PROC_NAME) {}
+      set check_errstr($CHECK_CUR_PROC_NAME) {}
+   }
+   lappend check_errno($CHECK_CUR_PROC_NAME) $result
+   lappend check_errstr($CHECK_CUR_PROC_NAME) $new_error
+
+
+   if {$check_name != "setup"} {
       show_proc_error $result $new_error
    } else {
-      puts $CHECK_OUTPUT [ create_error_message $new_error ]
+      puts $CHECK_OUTPUT [create_error_message $new_error]
    }
 
    # now we are through, allow further calls of add_proc_error
@@ -1361,8 +1371,6 @@ proc send_mail { address cc subject body } {
 
 
 
-# This procedure simply sets the global variables check_errno 
-# and check_errstr to the given parameters. It 
 #                                                             max. column:     |
 #****** check/set_error() ******
 # 
@@ -1373,6 +1381,8 @@ proc send_mail { address cc subject body } {
 #     set_error { erno errtext } 
 #
 #  FUNCTION
+#     *** deprecated ***
+#
 #     This procedure simply sets the global variables check_errno and 
 #     check_errstr to the given parameters. Beyond it the procedure 
 #     add_proc_error is called in order to append the errors to the global error 
@@ -1395,27 +1405,17 @@ proc send_mail { address cc subject body } {
 #  SEE ALSO
 #     check/add_proc_error
 #*******************************
-proc set_error {erno errtext} {
-  global check_errno 
-  global check_errstr CHECK_CUR_PROC_RESULTS
-  global set_error_proc_called
+proc set_error {errno errtext} {
+   global CHECK_OUTPUT CHECK_CUR_PROC_NAME
 
-  set set_error_proc_called 1
-  set check_errno $erno
-  set check_errstr $errtext
+   puts $CHECK_OUTPUT "-------------------------------------------------------------------"
+   puts $CHECK_OUTPUT "deprecated function set_error called from \"$CHECK_CUR_PROC_NAME\""
+   puts $CHECK_OUTPUT "use add_proc_error to report errors, remove calls \"set_error 0 ...\""
+   puts $CHECK_OUTPUT "-------------------------------------------------------------------"
 
-  add_proc_error "set_error" $erno $errtext
+   add_proc_error "set_error" $errno $errtext
 
-  if { $check_errno == 0 } {
-    foreach element $CHECK_CUR_PROC_RESULTS {
-      if { $element != 0 && $element != -3 } {   ;# there was a former error in this test !!
-         set check_errno -1
-         set check_errstr "error!"
-      }
-    }
-  }
-
-  return $erno
+   return $errno
 }
 
 #****** check/get_testsuite_root_dir_from_file() *******************************
@@ -3171,7 +3171,7 @@ proc get_checktree_dir_names { path { only_basename 0 } } {
 #     ???/???
 #*******************************
 proc validate_needs {needs} {
-  global CHECK_RESULT_DIR CHECK_CORE_RESULT_DIR CHECK_OUTPUT
+  global CHECK_RESULT_DIR CHECK_OUTPUT
 
   if {$needs == ""} {
      return 0;
@@ -3184,14 +3184,12 @@ proc validate_needs {needs} {
     set result_files ""
     set core_result_files ""
     catch { set result_files [glob "$CHECK_RESULT_DIR/$elem.res.*"] }
-    catch { set core_result_files [glob "$CHECK_CORE_RESULT_DIR/$elem.res.*"] }
 
-    debug_puts $result_files $core_result_files
+    debug_puts $result_files
 
     debug_puts " validate_needs: matching files in $CHECK_RESULT_DIR: $result_files"
-    debug_puts " validate_needs: matching files in $CHECK_CORE_RESULT_DIR: $core_result_files"
 
-    if {([file isfile [lindex $result_files 0]] != 1) && ([file isfile [lindex $core_result_files 0]] != 1 )} {
+    if {![file isfile [lindex $result_files 0]]} {
        debug_puts " validate_needs: need to run check $elem.";
        incr uncomplete 1; 
     }
@@ -3203,7 +3201,6 @@ proc validate_needs {needs} {
   return -1;
 }
 
-# delete result in CHECK_RESULT_DIR
 #                                                             max. column:     |
 #****** check/delete_result() ******
 # 
@@ -3237,164 +3234,195 @@ proc validate_needs {needs} {
 #     ???/???
 #*******************************
 proc delete_result {path runtime level} {
-  global check_name check_description check_needs check_functions check_errno check_errstr CHECK_RESULT_DIR CHECK_BAD_RESULT_DIR
-  global CHECK_CORE_RESULT_DIR CHECK_CORE_BAD_RESULT_DIR CHECK_OUTPUT check_highest_level
-
-  if { [is_level_enabled $level] == -1 } { 
-     debug_puts "\n--> delete_result - info: test level $level not activated, aborting\n"
-     return   ;# level not enabled
-  }
-
-  if { [is_category_enabled $path] == -1 } { 
-     debug_puts "\n--> delete_result - info: category not activated, aborting\n"
-     return  
-  }
-  
-  
-
-  set good_dir $CHECK_CORE_RESULT_DIR
-  set bad_dir $CHECK_CORE_BAD_RESULT_DIR
-
-  if {[string compare $check_name "init_core_system"] != 0} {
-    set good_dir $CHECK_RESULT_DIR
-    set bad_dir $CHECK_BAD_RESULT_DIR
-  }
-
-  debug_puts "saving results for $check_name (level $level)..."
-  debug_puts $good_dir
-  debug_puts $bad_dir
-
-  set myfile "$good_dir/$check_name.res.$level" 
-  if {[file isfile $myfile] == 1} {
-    delete_file $myfile
-  }
-
-  set data ""
-
-  lappend data $path
-  lappend data $check_name;
-  lappend data $check_description($level)
- 
-  lappend data $check_needs
-
-
-
-  if { [ info exists check_functions ] } {
-     if { [ string length $check_functions ] < 1 } {
-        lappend data "{-> no check_function name <-}"
-     } else {
-        lappend data $check_functions
-     } 
-  } else {
-     lappend data "{-> no check_function name <-}"
-  }
-  
-
-  lappend data $check_errno
- 
-  lappend data $check_errstr
-  lappend data $runtime
-  lappend data [exec date]
-  lappend data $check_highest_level
-
-  set output [open "$bad_dir/$check_name.res.$level" "w"]  
-  puts $output "$data"
-  close $output 
+   save_result $path $runtime $level 0
 }
 
+#****** check/clear_all_check_errors() *****************************************
+#  NAME
+#     clear_all_check_errors() -- clear errors for one specific check
+#
+#  SYNOPSIS
+#     clear_all_check_errors { check_name } 
+#
+#  FUNCTION
+#     The testsuite framework stores all errors showing up while running 
+#     a specific test.
+#     Before starting a test, the error information will be cleared 
+#     with this function.
+#
+#  INPUTS
+#     check_name - name of the current check
+#*******************************************************************************
+proc clear_all_check_errors {check_name} {
+   global CHECK_OUTPUT
+   global check_errno check_errstr
 
+   if {[info exists check_errno]} {
+      unset check_errno
+      unset check_errstr
+   }
 
-# save results in CHECK_RESULT_DIR
+   set functions [get_all_check_functions]
+   foreach function $functions {
+      set check_errno($function) {}
+      set check_errstr($function) {}
+      lappend check_errno($function) 0
+      lappend check_errstr($function) "any|$check_name|any|was never running"
+   }
+}
+
+#****** check/get_all_check_functions() ****************************************
+#  NAME
+#     get_all_check_functions() -- get list of all check functions
+#
+#  SYNOPSIS
+#     get_all_check_functions { } 
+#
+#  FUNCTION
+#     Returns a list of all functions being part of a specific test.
+#     This is:
+#        - the setup and cleanup functions
+#        - the setup and cleanup per level functions
+#        - the check functions
+#
+#  RESULT
+#     List of function names.
+#*******************************************************************************
+proc get_all_check_functions {} {
+   global check_functions
+   global check_setup_function check_cleanup_function 
+   global check_setup_level_function check_cleanup_level_function
+
+   set functions {}
+
+   if {[info exists check_setup_function] && $check_setup_function != ""} {
+      lappend functions $check_setup_function
+   }
+   if {[info exists check_setup_level_function] && $check_setup_level_function != ""} {
+      lappend functions $check_setup_level_function
+   }
+
+   if {[info exists check_functions]} {
+      foreach function $check_functions {
+         lappend functions $function
+      }
+   }
+
+   if {[info exists check_cleanup_level_function] && $check_cleanup_level_function != ""} {
+      lappend functions $check_cleanup_level_function
+   }
+   if {[info exists check_cleanup_function] && $check_cleanup_function != ""} {
+      lappend functions $check_cleanup_function
+   }
+
+   return $functions
+}
+
 #                                                             max. column:     |
 #****** check/save_result() ******
-# 
 #  NAME
-#     save_result -- ??? 
+#     save_result -- save result of a check run
 #
 #  SYNOPSIS
 #     save_result { path runtime level } 
 #
 #  FUNCTION
-#     ??? 
+#     Saves the result of a run of a certain check in a certain runlevel
+#     to a file.
+#     Results of finished checks are stored in the directory 
+#     <results_dir>/<host>.completed, unfinished (failed or not yet run) in
+#     <results_dir>/<host>.uncompleted.
 #
 #  INPUTS
-#     path    - ??? 
-#     runtime - ??? 
-#     level   - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
+#     path    - path of the check to save
+#     runtime - runtime of check
+#     level   - the runlevel
+#     save_finished - has the check finished, or not?
 #*******************************
-proc save_result {path runtime level} {
-  global check_name check_description check_needs check_functions check_errno check_errstr CHECK_RESULT_DIR CHECK_BAD_RESULT_DIR
- 
-  global CHECK_CORE_RESULT_DIR CHECK_CORE_BAD_RESULT_DIR CHECK_OUTPUT check_highest_level
+proc save_result {path runtime level {save_finished 1}} {
+   global check_name check_description check_needs check_errno check_errstr 
+   global CHECK_RESULT_DIR CHECK_BAD_RESULT_DIR
+   global CHECK_OUTPUT check_highest_level
 
-  if { [is_level_enabled $level] == -1 } { 
-     puts $CHECK_OUTPUT "\n--> save_result - error: test level $level not activated\n"
-     return   ;# level not enabled
-  }
+   # only for supported levels
+   if {[is_level_enabled $level] == -1} {
+      debug_puts "\n--> save_result - info: test level $level not activated, aborting\n"
+      return
+   }
 
-
-  set good_dir $CHECK_CORE_RESULT_DIR
-  set bad_dir $CHECK_CORE_BAD_RESULT_DIR
-
-  if {[string compare $check_name "init_core_system"] != 0} {
-    set good_dir $CHECK_RESULT_DIR
-    set bad_dir $CHECK_BAD_RESULT_DIR
-  } 
-
-  puts "saving results for $check_name (level $level) ..."
-  puts $good_dir
-  puts $bad_dir
+   # only for activated categories
+   if {[is_category_enabled $path] == -1} {
+     debug_puts "\n--> save_result - info: category not activated, aborting\n"
+     return
+   }
   
-  set data ""
-  lappend data $path
-  lappend data $check_name;
-  lappend data $check_description($level)
- 
-  lappend data $check_needs
-  lappend data $check_functions
-  lappend data $check_errno
- 
-  lappend data $check_errstr
-  lappend data $runtime
-  lappend data [exec date]
-  lappend data $check_highest_level
+   set good_dir $CHECK_RESULT_DIR
+   set bad_dir  $CHECK_BAD_RESULT_DIR
 
-  set output [open "$good_dir/$check_name.res.$level" "w"]  
-  puts $output "$data"
-  close $output
+   debug_puts "saving results for $check_name (level $level)..."
+   debug_puts $good_dir
+   debug_puts $bad_dir
 
-  if {[file isfile "$bad_dir/$check_name.res.$level"] == 1} {
-    delete_file "$bad_dir/$check_name.res.$level"
-    puts $CHECK_OUTPUT "\nset state of \"$check_name\" for level $level to completed !"
-  }
+   # decide, which in which directory to store, in which to delete
+   if {$save_finished} {
+      set save_dir   $good_dir
+      set delete_dir $bad_dir
+   } else {
+      set save_dir   $bad_dir
+      set delete_dir $good_dir
+   }
 
+   # build a test description
+   set data {}
+   lappend data $path
+   lappend data $check_name;
+   lappend data $check_description($level)
+   lappend data $check_needs
+
+   # dump data per check_function
+   set functions [get_all_check_functions]
+   set errno_list {}
+   set errstr_list {}
+   foreach function $functions {
+      if {[info exists check_errno($function)]} {
+         lappend errno_list $check_errno($function)
+         lappend errstr_list $check_errstr($function)
+      } else {
+         lappend errno_list {}
+         lappend errstr_list {}
+      }
+   }
+
+   lappend data $functions
+   lappend data $errno_list
+   lappend data $errstr_list
+
+   lappend data $runtime
+   lappend data [clock format [clock seconds]]
+   lappend data $check_highest_level
+
+   # dump test description to result file
+   set output [open "$save_dir/$check_name.res.$level" "w"]  
+   puts $output "$data"
+   close $output
+
+   # delete the other one
+   if {[file isfile "$delete_dir/$check_name.res.$level"] == 1} {
+      delete_file "$delete_dir/$check_name.res.$level"
+   }
 } 
 
 proc get_check_name {path} {
    global ts_checktree
    
    set name ""
-   if { [info exists ts_checktree($path)] } {
+   if {[info exists ts_checktree($path)]} {
       set nr $ts_checktree($path)
-      if { $ts_checktree($nr,test_available) == 1 } {
+      if {$ts_checktree($nr,test_available) == 1} {
          set name $ts_checktree($nr,check_name)
       }
    }
+
    return $name
 }
 
@@ -3405,12 +3433,12 @@ proc get_check_levels { path } {
 
    set saved_level $CHECK_ACT_LEVEL
    set levels {}
-   if { [info exists ts_checktree($path)] } {
+   if {[info exists ts_checktree($path)]} {
       set nr $ts_checktree($path)
-      if { $ts_checktree($nr,check_highest_level) > 0 && $ts_checktree($nr,check_init_level_procedure) != "--" } {
+      if {$ts_checktree($nr,check_highest_level) > 0 && $ts_checktree($nr,check_init_level_procedure) != "--"} {
          for {set i 0} {$i <= $ts_checktree($nr,check_highest_level)} {incr i 1} {
             set CHECK_ACT_LEVEL $i
-            if { [$ts_checktree($nr,check_init_level_procedure)] != 0 } { 
+            if {[$ts_checktree($nr,check_init_level_procedure)] != 0} { 
                continue 
             }
             lappend levels $CHECK_ACT_LEVEL
@@ -3429,10 +3457,11 @@ proc get_checktree_levels { path } {
    global ts_checktree
 
    set levels {}
-   if { [info exists ts_checktree($path)] } {
+   if {[info exists ts_checktree($path)]} {
       set nr $ts_checktree($path)
-      return $ts_checktree($nr,check_levels)
+      set levels $ts_checktree($nr,check_levels)
    }
+
    return $levels
 }
 
@@ -3514,8 +3543,8 @@ proc get_test_result {filename} {
 #     ???/???
 #*******************************
 proc create_report {file goodbad} {
-  global CHECK_RESULT_DIR CHECK_BAD_RESULT_DIR CHECK_CORE_RESULT_DIR
-  global CHECK_CORE_BAD_RESULT_DIR CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT
+  global CHECK_RESULT_DIR CHECK_BAD_RESULT_DIR
+  global CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT
 
 
   set output [open $file "WRONLY APPEND CREAT"]
@@ -3525,11 +3554,9 @@ proc create_report {file goodbad} {
   puts $output " Version: $CHECK_PRODUCT_VERSION_NUMBER"
   puts $output " Installed in: $CHECK_PRODUCT_ROOT"
   if {$goodbad == 0} { 
-     set total1 [ print_results $CHECK_CORE_RESULT_DIR $output ]
-     set total2 [ print_results $CHECK_RESULT_DIR $output ]
-     puts $output "\nTotal number of test functions: [expr ($total1 + $total2) ]"
+     set total [print_results $CHECK_RESULT_DIR $output]
+     puts $output "\nTotal number of test functions: $total"
   } else {
-     print_results $CHECK_CORE_BAD_RESULT_DIR $output
      print_results $CHECK_BAD_RESULT_DIR $output
   }
 
@@ -3751,59 +3778,52 @@ proc is_category_enabled { path } {
    return -1
 }
 
-proc delete_tests {path { only_if_not_there 0 } } {
-  global check_errno check_errstr check_functions validate_needs check_name
-  global CHECK_OUTPUT check_highest_level check_name check_description
-  global check_init_level_procedure CHECK_ACT_LEVEL CHECK_OUTPUT
-  global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
+proc delete_tests {path {only_if_not_there 0}} {
+   global check_errno check_errstr check_functions validate_needs check_name
+   global CHECK_OUTPUT check_highest_level check_name check_description
+   global check_init_level_procedure CHECK_ACT_LEVEL CHECK_OUTPUT
+   global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
+   global check_setup_function check_cleanup_function 
+   global check_setup_level_function check_cleanup_level_function
 
+   set old_check_name $check_name
+   set selected_tests [get_tests_from_checktree $path]
 
-  set old_check_name $check_name
-  set selected_tests [get_tests_from_checktree $path]
-  foreach elem $selected_tests {
-       set check_highest_level 0
-       set check_errstr ""
-       set check_errno ""
-       set check_name ""
-       set check_init_level_procedure "--"
+   foreach elem $selected_tests {
+      set check_highest_level 0
+      set check_name ""
+      set check_init_level_procedure "--"
 
-       if {[ts_source $elem/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT]} {
-          set check_errstr ""
-          set check_errno ""
-          if { [ info exists check_functions ] } {
-             foreach element $check_functions {
-                lappend check_errstr "was never running" 
-                lappend check_errno "-1"
-             }
-          } else {
-             puts $CHECK_OUTPUT "no check_functions variable available!!"
-             sleep 5
-          }
-          debug_puts "sourced \"$elem/$CHECK_INFORMATION_FILE.$CHECK_INFORMATION_EXT\""
+      if {[ts_source $elem/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT]} {
+         debug_puts "sourced \"$elem/$CHECK_INFORMATION_FILE.$CHECK_INFORMATION_EXT\""
 
-          set do_delete 1
-          if {$only_if_not_there == 1 } { 
-             set result [ validate_needs $check_name ]
-             if { $result == 0 } {
-                set do_delete 0
-             }
-          }
+         # clear all errno/errstr per check_function
+         clear_all_check_errors $check_name
 
-          if {$do_delete == 1} {
-             for {set i 0} {$i <= $check_highest_level} {incr i 1} {
-                if { [string compare $check_init_level_procedure "--" ] != 0 } {
-                   set CHECK_ACT_LEVEL $i
-                   if { [$check_init_level_procedure]  == 0 } { 
-                      delete_result $elem 0 $i
-                   } 
-                } else {
-                   delete_result $elem 0 $i
-                }
-             }
-          }
-       }
-  }
-  set check_name $old_check_name
+         set do_delete 1
+         if {$only_if_not_there == 1} {
+            set result [validate_needs $check_name]
+            if {$result == 0} {
+               set do_delete 0
+            }
+         }
+
+         if {$do_delete == 1} {
+            for {set i 0} {$i <= $check_highest_level} {incr i 1} {
+               if {[string compare $check_init_level_procedure "--"] != 0} {
+                  set CHECK_ACT_LEVEL $i
+                  if {[$check_init_level_procedure] == 0} {
+                     delete_result $elem 0 $i
+                  }
+               } else {
+                  delete_result $elem 0 $i
+               }
+            }
+         }
+      }
+   }
+
+   set check_name $old_check_name
 }
 
 
@@ -3838,288 +3858,220 @@ proc delete_tests {path { only_if_not_there 0 } } {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc run_tests { path runcompleted } {
-    global CHECK_OUTPUT CHECK_HOST check_errstr CHECK_RESULT_DIR
-    global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_MAX_ERROR_MAILS CHECK_CORE_RESULT_DIR
-    global CHECK_CHECKTREE_ROOT CHECK_ACT_PATH check_use_installed_system ts_config
-    global check_reinit_on_tcl_error CHECK_CORE_MASTER CHECK_PRODUCT_ROOT CHECK_ARCH
+proc run_tests {path runcompleted} {
+   global CHECK_OUTPUT CHECK_HOST check_errstr CHECK_RESULT_DIR
+   global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_MAX_ERROR_MAILS
+   global CHECK_CHECKTREE_ROOT CHECK_ACT_PATH check_use_installed_system ts_config
+   global check_reinit_on_tcl_error CHECK_CORE_MASTER CHECK_PRODUCT_ROOT CHECK_ARCH
 
-    set CHECK_MAILS_SENT 0  ;# clear mail counter
+   set CHECK_MAILS_SENT 0  ;# clear mail counter
  
-    set check_directories [get_tests_from_checktree $path]
+   set check_directories [get_tests_from_checktree $path]
 
-    if { $runcompleted == 1 } {
-       delete_tests $path
-    }
-    set checks_to_do ""
-    foreach elem $check_directories {
-       if { [is_category_enabled $elem ] == 0 } {
-           set test_name [get_check_name $elem] 
-           set tests_runlevels [get_checktree_levels $elem]
-           foreach tests_runlevel $tests_runlevels {
-              if { $runcompleted == 0 } {
-                 if { ( [file isfile "$CHECK_RESULT_DIR/$test_name.res.$tests_runlevel"] == 1) } {
-                    continue
-                 }
-                 if { ( [file isfile "$CHECK_CORE_RESULT_DIR/$test_name.res.$tests_runlevel"] == 1) } {
-                    continue
-                 }
-              }
-              lappend checks_to_do $elem
-              break
-           }
-       }
-    }
-    set checks_to_do [lsort -dictionary $checks_to_do]
-    if {[llength $checks_to_do] == 0} {
-       return
-    }
+   if {$runcompleted == 1} {
+      delete_tests $path
+   }
 
-    # check if root password is needed
-    foreach elem $checks_to_do {
-        debug_puts "checking whether test in directory $elem needs root access ..."
-        if { ([check_root_access $elem ] == 0) && ([have_root_passwd] == -1 ) } {
-            puts $CHECK_OUTPUT "test in directory $elem needs root access ..."
-            set_root_passwd
-        }
-    }
-
-    set stop 0
-    set pass_no 1
-    set last_to_do -1
-    set check_ok_name     ""
-    set check_ok_state    "" 
-    set check_ok_date     ""
-    set check_ok_pass     ""
-#        set check_ok_text     ""
-    set check_error_name  ""
-    set check_error_state ""
-    set check_error_date  ""
-    set check_error_pass  ""
-#        set check_error_text  ""
-    set check_missing_dep ""
-    set check_warning_name ""
-    set check_warning_state ""
-    set check_warning_date ""
-    set check_warning_pass ""
-    set check_missing_dep ""
-#        set check_warning_text ""
-
-    while { $stop == 0 } {
-       set todo [ llength $checks_to_do ]
-       puts $CHECK_OUTPUT "---PASS${pass_no}----------------------------------------"
-       puts $CHECK_OUTPUT "   Nr. of tests remaining: $todo"
-       puts $CHECK_OUTPUT "------------------------------------------------" 
-
-       # start tests
-       foreach check $checks_to_do {
-          set test_result [ run_test $check $runcompleted ]
-
-          switch -- $test_result {
-                   0 { 
-                        # test OK
-                        lappend check_ok_name  $check
-                        lappend check_ok_state $test_result
-                        lappend check_ok_date  [ exec date ]
-                        lappend check_ok_pass  $pass_no 
-#                            foreach err_message $check_errstr {
-#                               lappend check_ok_text("$check") "{$err_message}"
-#                            }
-
-                     }
-                  -2 { 
-                        # dependencies - try again
-                        lappend check_missing_dep  $check
-                     }
-                  -3 {
-                        # impossible / unusefull to run this test
-                        lappend check_warning_name $check 
-                        lappend check_warning_state $test_result
-                        lappend check_warning_date [ exec date ]
-                        lappend check_warning_pass  $pass_no 
-                        foreach err_message $check_errstr {
-                           if { [info exists check_warning_text("$check") ] } {
-                              lappend check_warning_text("$check") "{$err_message}"
-                           } else {
-                              set check_warning_text("$check") "{$err_message}"
-                           }
-                        }
-                     }
-                   1 { 
-                        # test was already done in an earlier run
-                        # no action
-                        puts $CHECK_OUTPUT "run_tests - check already done"
-                     }
-
-                   2 {  
-                        # test has no valid test in this run level
-                        # no action
-                        puts $CHECK_OUTPUT "test does not support actual runlevel"
-                     }
-                -101 {
-                        # check failed due to tcl error
-                        lappend check_error_name  $check
-                        lappend check_error_state $test_result
-                        lappend check_error_date  [ exec date ]
-                        lappend check_error_pass  $pass_no 
-                                
-                        foreach err_message $check_errstr {
-                           if { [info exists check_error_text("$check") ] } {
-                              lappend check_error_text("$check") "{$err_message}"
-                           } else {
-                              set check_error_text("$check") "{$err_message}"
-                           }
-                        }
- 
-                        if { $check_reinit_on_tcl_error == 1 } {
-                           # reinit system
-                           puts $CHECK_OUTPUT "deleting all jobs"
-                           delete_all_jobs
-                           wait_for_end_of_all_jobs 15
-
-                           set save_installed_value $check_use_installed_system
-                           set save_CHECK_ACT_PATH $CHECK_ACT_PATH
-                           set check_use_installed_system 1
-                           set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system"  
-                           close_open_rlogin_sessions 1  ;# session reset (if defect)
-                           if { [run_test $CHECK_ACT_PATH 1] != 0 } {
-                              set check_use_installed_system 0
-                              set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system" 
-                              run_test $CHECK_ACT_PATH 1
-                           }
-                           set CHECK_ACT_PATH $save_CHECK_ACT_PATH
-                           set check_use_installed_system $save_installed_value
-                        }
-                     }
-
-             default {
-                        # check failed
-                        lappend check_error_name  $check
-                        lappend check_error_state $test_result
-                        lappend check_error_date  [ exec date ]
-                        lappend check_error_pass  $pass_no 
-                                
-                        foreach err_message $check_errstr {
-                           if { [info exists check_error_text("$check") ] } {
-                              lappend check_error_text("$check") "{$err_message}"
-                           } else {
-                              set check_error_text("$check") "{$err_message}"
-                           }
-                        }
-                        if { $check_reinit_on_tcl_error == 1 } {
-                           # reinit system
-                           # reinit system
-                           puts $CHECK_OUTPUT "deleting all jobs"
-                           delete_all_jobs
-                           wait_for_end_of_all_jobs 15
-
-                           set save_installed_value $check_use_installed_system
-                           set save_CHECK_ACT_PATH $CHECK_ACT_PATH
-                           set check_use_installed_system 1
-                           set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system"  
-                           close_open_rlogin_sessions 1  ;# session reset (if defect)
-                           if { [run_test $CHECK_ACT_PATH 1] != 0 } {
-                              set check_use_installed_system 0
-                              set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system" 
-                              run_test $CHECK_ACT_PATH 1
-                           }
-                           set CHECK_ACT_PATH $save_CHECK_ACT_PATH
-                           set check_use_installed_system $save_installed_value
-                       }
-                     }
-          }
-       }
-
-       if { [llength $check_missing_dep] > 0 } {
-          # missing dependencies , run again
-          set checks_to_do $check_missing_dep
-          incr pass_no 1
-          if { $todo == $last_to_do } {
-             set stop 1
-          } else {
-             puts $CHECK_OUTPUT "restarting test with missing dependencies ..."
-             set check_missing_dep ""
-          } 
-          set last_to_do $todo
-       } else {
-          # all done
-          set stop 1
-       } 
-    }  ;# while stop == 0
-
-    puts $CHECK_OUTPUT "Number of completed tests     : [llength $check_ok_name]"  
-    puts $CHECK_OUTPUT "Number of failed tests        : [llength $check_error_name]"  
-    puts $CHECK_OUTPUT "Number of unsupported tests   : [llength $check_warning_name]"
-    puts $CHECK_OUTPUT "Number of dependencies errors : [llength $check_missing_dep]"
-
-
-    set mail_body "Testsuite run on host $CHECK_HOST complete\n\n"
-
-
-    # dependencies errors
-    if { [llength $check_missing_dep ] > 0 } { 
-       append mail_body "missing dependencies:\n"
-       append mail_body "=====================\n\n"
-       foreach elem $check_missing_dep {
-          append mail_body "check [get_check_name $elem] in directory\n$elem\n" 
-       } 
-       append mail_body "\n"
-    }
-    # tests ok
-
-    append mail_body "completed tests:\n"
-    append mail_body "================\n\n"
-    for {set index 0} {$index < [llength $check_ok_name]} {incr index 1} {
-        append mail_body "Date: [ lindex $check_ok_date $index ]\n" 
-        append mail_body "Test: [ lindex $check_ok_name $index ]\n"
-        append mail_body "Info: Pass[lindex $check_ok_pass $index], State: [lindex $check_ok_state $index]\n\n"
-    }
-    set nr_complete [llength $check_ok_name] 
-    append mail_body "Number of completed tests: $nr_complete"        
-
-    # tests failed
-    append mail_body "\n\nfailed tests:\n"
-    append mail_body "=============\n"
-    for {set index 0} {$index < [llength $check_error_name]} {incr index 1} {
-        append mail_body "Date: [ lindex $check_error_date $index ]\n" 
-        append mail_body "Test: [ lindex $check_error_name $index ]\n"
-        append mail_body "Info: Pass[lindex $check_error_pass $index], State: [lindex $check_error_state $index]\n\n"
-        foreach err_message $check_error_text("[ lindex $check_error_name $index ]") {
-            foreach sm $err_message {
-               set error_output [ create_error_message $sm ]
-               append mail_body $error_output
+   # create list of checks to run
+   set checks_to_do {}
+   foreach elem $check_directories {
+      if {[is_category_enabled $elem] == 0} {
+         set test_name [get_check_name $elem] 
+         set tests_runlevels [get_checktree_levels $elem]
+         foreach tests_runlevel $tests_runlevels {
+            if {$runcompleted == 0} {
+               if {[file isfile "$CHECK_RESULT_DIR/$test_name.res.$tests_runlevel"]} {
+                  continue
+               }
             }
-        }
-    }
-    set nr_failed [llength $check_error_name]
-    append mail_body "Number of failed tests: $nr_failed"  
+            lappend checks_to_do $elem
+            break
+         }
+      }
+   }
+   set checks_to_do [lsort -dictionary $checks_to_do]
+   if {[llength $checks_to_do] == 0} {
+      return
+   }
 
-    # test run not usefull (warning)
-    append mail_body "\n\nunsupported tests:\n"
-    append mail_body "==================\n"
-    for {set index 0} {$index < [llength $check_warning_name]} {incr index 1} {
-        append mail_body "Date: [ lindex $check_warning_date $index ]\n" 
-        append mail_body "Test: [ lindex $check_warning_name $index ]\n"
-        append mail_body "Info: Pass[lindex $check_warning_pass $index], State: [lindex $check_warning_state $index]\n\n"
-        if { [info exists check_warning_text("[ lindex $check_warning_name $index ]")] } {
-           foreach err_message $check_warning_text("[ lindex $check_warning_name $index ]") {
-              foreach sm $err_message {
-                 set error_output [ create_error_message $sm ]
-                 append mail_body $error_output
-              }
-           }
-        }
-    }
-    set nr_unsupported [llength $check_warning_name]
-    append mail_body "Number of unsupported tests: $nr_unsupported"  
-    if { [llength $check_missing_dep ] > 0 } {
-       set mail_subject "testsuite run complete - ok:$nr_complete;failed:$nr_failed;unsup.:$nr_unsupported;depend:[llength $check_missing_dep]"
-    } else {
-       set mail_subject "testsuite run complete - ok:$nr_complete;failed:$nr_failed;unsup.:$nr_unsupported"
-    }
-    mail_report "$mail_subject" $mail_body
-  
+   # check if root password is needed
+   foreach elem $checks_to_do {
+      debug_puts "checking whether test in directory $elem needs root access ..."
+      if {[check_root_access $elem] == 0 && [have_root_passwd] == -1} {
+         puts $CHECK_OUTPUT "test in directory $elem needs root access ..."
+         set_root_passwd
+      }
+   }
 
+   # now run the checks
+   set stop 0
+   set pass_no 1
+   set last_to_do -1
+   set check_ok_name     ""
+   set check_ok_state    "" 
+   set check_ok_date     ""
+   set check_ok_pass     ""
+   set check_error_name  ""
+   set check_error_state ""
+   set check_error_date  ""
+   set check_error_pass  ""
+   set check_missing_dep ""
+   set check_warning_name ""
+   set check_warning_state ""
+   set check_warning_date ""
+   set check_warning_pass ""
+   set check_missing_dep ""
+
+   # we'll probably need multiple passes due to dependencies
+   while {$stop == 0} {
+      set todo [llength $checks_to_do]
+      puts $CHECK_OUTPUT "---PASS${pass_no}----------------------------------------"
+      puts $CHECK_OUTPUT "   Nr. of tests remaining: $todo"
+      puts $CHECK_OUTPUT "------------------------------------------------" 
+
+      # run all checks
+      foreach check $checks_to_do {
+         # run an individual check
+         set test_result [run_test $check $runcompleted]
+
+         switch -- $test_result {
+            0 {
+               # test OK
+               lappend check_ok_name  $check
+               lappend check_ok_state $test_result
+               lappend check_ok_date  [clock format [clock seconds]]
+               lappend check_ok_pass  $pass_no
+            }
+            -2 {
+               # dependencies - try again
+               lappend check_missing_dep $check
+            }
+            -3 {
+               # impossible / unusefull to run this test
+               lappend check_warning_name  $check
+               lappend check_warning_state $test_result
+               lappend check_warning_date  [clock format [clock seconds]]
+               lappend check_warning_pass  $pass_no
+            }
+            1 {
+               # test was already done in an earlier run
+               # no action
+               puts $CHECK_OUTPUT "run_tests - check already done"
+            }
+
+            2 {
+               # test has no valid test in this run level
+               # no action
+               puts $CHECK_OUTPUT "test does not support actual runlevel"
+            }
+            -101 - 
+            default {
+               # -101: check failed due to tcl error
+               # default: check failed for other reasons (e.g. add_proc_error)
+               lappend check_error_name  $check
+               lappend check_error_state $test_result
+               lappend check_error_date  [clock format [clock seconds]]
+               lappend check_error_pass  $pass_no
+ 
+               if {$check_reinit_on_tcl_error == 1} {
+                  # reinit system
+                  puts $CHECK_OUTPUT "deleting all jobs"
+                  delete_all_jobs
+                  wait_for_end_of_all_jobs 15
+
+                  set save_installed_value $check_use_installed_system
+                  set save_CHECK_ACT_PATH $CHECK_ACT_PATH
+                  set check_use_installed_system 1
+                  set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system"  
+                  close_open_rlogin_sessions 1  ;# session reset (if defect)
+                  if { [run_test $CHECK_ACT_PATH 1] != 0 } {
+                     set check_use_installed_system 0
+                     set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system" 
+                     run_test $CHECK_ACT_PATH 1
+                  }
+                  set CHECK_ACT_PATH $save_CHECK_ACT_PATH
+                  set check_use_installed_system $save_installed_value
+               }
+            }
+         }
+      }
+
+      if {[llength $check_missing_dep] > 0} {
+         # missing dependencies, run again
+         set checks_to_do $check_missing_dep
+         incr pass_no
+         if { $todo == $last_to_do } {
+            set stop 1
+         } else {
+            puts $CHECK_OUTPUT "restarting test with missing dependencies ..."
+            set check_missing_dep ""
+         }
+         set last_to_do $todo
+      } else {
+         # all done
+         set stop 1
+      }
+   }  ;# while stop == 0
+
+   puts $CHECK_OUTPUT "Number of completed tests     : [llength $check_ok_name]"
+   puts $CHECK_OUTPUT "Number of failed tests        : [llength $check_error_name]"
+   puts $CHECK_OUTPUT "Number of unsupported tests   : [llength $check_warning_name]"
+   puts $CHECK_OUTPUT "Number of dependencies errors : [llength $check_missing_dep]"
+
+   set mail_body "Testsuite run on host $CHECK_HOST complete\n\n"
+
+   # dependencies errors
+   if {[llength $check_missing_dep] > 0} {
+      append mail_body "missing dependencies:\n"
+      append mail_body "=====================\n\n"
+      foreach elem $check_missing_dep {
+         append mail_body "check [get_check_name $elem] in directory\n$elem\n"
+      }
+      append mail_body "\n"
+   }
+
+   # tests ok
+   append mail_body "completed tests:\n"
+   append mail_body "================\n\n"
+   for {set index 0} {$index < [llength $check_ok_name]} {incr index 1} {
+      append mail_body "Date: [lindex $check_ok_date $index]\n"
+      append mail_body "Test: [lindex $check_ok_name $index]\n"
+      append mail_body "Info: Pass[lindex $check_ok_pass $index], State: [lindex $check_ok_state $index]\n\n"
+   }
+   set nr_complete [llength $check_ok_name]
+   append mail_body "Number of completed tests: $nr_complete"
+
+   # tests failed
+   append mail_body "\n\nfailed tests:\n"
+   append mail_body "=============\n"
+   for {set index 0} {$index < [llength $check_error_name]} {incr index 1} {
+      append mail_body "Date: [lindex $check_error_date $index]\n"
+      append mail_body "Test: [lindex $check_error_name $index]\n"
+      append mail_body "Info: Pass[lindex $check_error_pass $index], State: [lindex $check_error_state $index]\n\n"
+   }
+   set nr_failed [llength $check_error_name]
+   append mail_body "Number of failed tests: $nr_failed"
+
+   # test run not usefull (warning)
+   append mail_body "\n\nunsupported tests:\n"
+   append mail_body "==================\n"
+   for {set index 0} {$index < [llength $check_warning_name]} {incr index 1} {
+      append mail_body "Date: [lindex $check_warning_date $index]\n"
+      append mail_body "Test: [lindex $check_warning_name $index]\n"
+      append mail_body "Info: Pass[lindex $check_warning_pass $index], State: [lindex $check_warning_state $index]\n\n"
+   }
+   set nr_unsupported [llength $check_warning_name]
+   append mail_body "Number of unsupported tests: $nr_unsupported"
+
+   # mail subject
+   if {[llength $check_missing_dep ] > 0} {
+      set mail_subject "testsuite run complete - ok:$nr_complete;failed:$nr_failed;unsup.:$nr_unsupported;depend:[llength $check_missing_dep]"
+   } else {
+      set mail_subject "testsuite run complete - ok:$nr_complete;failed:$nr_failed;unsup.:$nr_unsupported"
+   }
+
+   # do send mail
+   mail_report "$mail_subject" $mail_body
 }
 
 
@@ -4342,28 +4294,23 @@ proc unlock_testsuite {} {
 #*******************************
 proc run_test_level {path runcompleted level {do_save 1}} {
    global check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
-   global CHECK_CORE_RESULT_DIR check_errstr CHECK_OUTPUT check_description check_functions check_errno 
-   global CHECK_CUR_PROC_NAME CHECK_CUR_PROC_RESULTS CHECK_CUR_PROC_ERRORS
+   global check_errstr CHECK_OUTPUT check_description check_functions check_errno 
+   global CHECK_CUR_PROC_NAME
    global CHECK_CURRENT_WORKING_DIR check_init_level_procedure CHECK_ACT_LEVEL
-   global set_error_proc_called errorInfo CHECK_CORE_MASTER
+   global errorInfo CHECK_CORE_MASTER
    global check_setup_level_function check_cleanup_level_function
    
    # do not run already completed tests
    debug_puts "runcompleted is $runcompleted"
-   if { $runcompleted == 0 } {
-     if { ( [file isfile "$CHECK_RESULT_DIR/$check_name.res.$level"] == 1) } {
-        return 1 
-     }
-     if { ( [file isfile "$CHECK_CORE_RESULT_DIR/$check_name.res.$level"] == 1) } {
-        return 1 
-     }
-   }  
-
+   if {$runcompleted == 0} {
+      if {[file isfile "$CHECK_RESULT_DIR/$check_name.res.$level"]} {
+         return 1
+      }
+   }
 
    # get lock  
    delete_temp_script_files
    lock_testsuite
-
  
    set CHECK_ACT_LEVEL $level
    puts $CHECK_OUTPUT "starting test functions (runlevel is $CHECK_ACT_LEVEL)..."
@@ -4374,207 +4321,117 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    #           or call it here and return if it doesn't return 0
    # CR:       This must be done, because a test can be started for a
    #           specified runlevel
-   if {[info exists check_init_level_procedure] == 1 } {
-       if {[ string compare $check_init_level_procedure "--"] != 0 } {
-          puts $CHECK_OUTPUT "\ncalling init level function \"$check_init_level_procedure\" ..."
-          $check_init_level_procedure
-       }
+   if {[info exists check_init_level_procedure]} {
+      if {[string compare $check_init_level_procedure "--"] != 0} {
+         puts $CHECK_OUTPUT "\ncalling init level function \"$check_init_level_procedure\" ..."
+         $check_init_level_procedure
+      }
    }
-
  
    # call all check functions 
-   set check_errno "-1"
-   set check_errstr "was never running"
+   clear_all_check_errors $check_name
    set start_time [clock seconds]
-   set was_error 0
-   set was_unsupported 0
-   set complete_errstr ""
-   set complete_errno ""
    set catch_return 0
 
    # unless we are in install - check if system is running
-   if { [ string compare $check_name "init_core_system" ] != 0 && 
-        [ string compare $check_needs "" ] != 0 } {
-      if { [is_scheduler_alive $CHECK_CORE_MASTER [get_qmaster_spool_dir]] != 1 } {
+   if {[string compare $check_name "init_core_system"] != 0 &&
+       [string compare $check_needs "" ] != 0} {
+      if {[is_scheduler_alive $CHECK_CORE_MASTER [get_qmaster_spool_dir]] != 1} {
          add_proc_error "run_test_level" -1 "scheduler is not alive"
       }
       wait_for_load_from_all_queues 60
    }
 
-   if { [info exists check_functions] } {
+   # only continue, if we have check_functions at all
+   if {![info exists check_functions] || [llength $check_functions] == 0} {
+      add_proc_error "run_test_level" -1 "check $check_name doesn't have any check_functions"
+   } else {
       # if we have a level specific setup function: execute it
-      set setup_error 0
       set setup_ret [execute_setup_cleanup_function $check_setup_level_function "setup_level"]
-      if {!$setup_ret} {
-         set setup_error 1
-      }
 
-      if { ! $setup_error } {
-      foreach elem $check_functions {
-         puts $CHECK_OUTPUT "\n>>>>>>>>>>>>>>>>>>>>>>"
-         puts $CHECK_OUTPUT "$elem"    
-         puts $CHECK_OUTPUT "runlevel: [get_run_level_name $level]($level)"
-         puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>"
+      # if we had a setup error, don't execute the test,
+      # but continue with the cleanup function
+      if {$setup_ret} {
+         foreach elem $check_functions {
+            puts $CHECK_OUTPUT "\n>>>>>>>>>>>>>>>>>>>>>>"
+            puts $CHECK_OUTPUT "$elem"    
+            puts $CHECK_OUTPUT "runlevel: [get_run_level_name $level]($level)"
+            puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>"
 
-         set check_errno "-1"
-         set check_errstr "was never running"
-         set was_empty 0
- 
-         # set public procedure error state to "no error"
-         set check_cur_proc_result "0"
-         set check_cur_proc_error "ok"
-         set CHECK_CUR_PROC_ERRORS ""
-         set CHECK_CUR_PROC_RESULTS "" 
-         set CHECK_CUR_PROC_NAME $elem
-         set set_error_proc_called 0  
+            # set public procedure error state to "no error"
+            set check_cur_proc_result "0"
+            set check_cur_proc_error "ok"
+            set CHECK_CUR_PROC_NAME $elem
 
-         # this starts the test procedure
-         set catch_return [ catch { $elem } errMsg ]
-         if { $catch_return != 0 } {
-            puts $CHECK_OUTPUT $errMsg
-            add_proc_error "run_test_level" "-2" "catch returns not 0\n${errMsg}\n${errorInfo}" 
-            set_error -2 "tcl error"
-         } 
-         
-         # examine public procedure error states
-         set myindex 0
-         set procedure_error_text ""
-         set procedure_errno ""
-         foreach element $CHECK_CUR_PROC_RESULTS {
-            if { $element != 0 } {
-               # we got an error: append it to the check_xxx lists
-               lappend procedure_error_text [lindex $CHECK_CUR_PROC_ERRORS $myindex]
-               lappend procedure_errno $element 
+            # this starts the test procedure
+            set catch_return [catch {$elem} errMsg]
+            if {$catch_return != 0} {
+               puts $CHECK_OUTPUT $errMsg
+               add_proc_error "run_test_level" "-2" "TCL Error\n${errMsg}\n${errorInfo}" 
+            } 
+            
+            # shall we stop testing due to error conditions?
+            # for some reason, we stop at error code -2 (warning);
+            # on -1, we continue
+            if {[info exists check_errno($elem)] && [lsearch -exact $check_errno($elem) "-2"] >= 0} {
+               break;
             }
-            incr myindex 1
-         }        
-
-         if { $set_error_proc_called == 0 } {
-             lappend procedure_error_text "{$elem|no \"set_error\" call on procedure return|$check_name|run_test_level}"
-             lappend procedure_errno "-1"
-             set was_empty 1
-         }
- 
-         flush $CHECK_OUTPUT  
-      
-         set stop 0 
-         if { [ llength $procedure_errno ] == 0 } {
-            lappend procedure_error_text "{$elem|$check_errstr|$check_name|run_test_level}"
-            lappend procedure_errno $check_errno
-            set was_empty 1
-         }
-         set cur_check_errno [ lindex $procedure_errno [ expr ( [ llength $procedure_errno] - 1 ) ] ]
-         debug_puts "cur_check_errno = \"$cur_check_errno\""
-         set cur_check_err_text  [ lindex $procedure_error_text [ expr ( [ llength $procedure_error_text] - 1 ) ] ]
-
-
-         if {$cur_check_errno != 0} {
-            incr was_error 1
-
-            debug_puts "DEBUG: cur_errno = $cur_check_errno"           
- 
-            if { $was_empty == 1  } { 
-               show_proc_error $cur_check_errno $cur_check_err_text
-            }
-
-            if {$cur_check_errno == -2 } {    ;# hard error dedected run no more test functions
-              set stop 1   ;# stop with this test or not ?
-            }
-
-            if {$cur_check_errno == -3 } {    ;# test not possible for this host (no error)
-              set was_unsupported 1
-              incr was_error -1
-
-              puts $CHECK_OUTPUT "U N S U P P O R T E D   test \"$check_name\" in run level $level, procedure $elem !"
-            }
-         } else {
-            debug_puts "status: $check_errstr"
-         }
-
-         set myindex 0
-         foreach element $procedure_errno {
-            if { $element != 0 } {
-               lappend complete_errstr [lindex $procedure_error_text $myindex]
-               lappend complete_errno  $element
-            }
-            incr myindex 1
-         }
-         if {$stop == 1} {
-           break;
-         }
-      }
-      
-      if { [llength $check_functions] == 0 } {   
-         set no_func_error "{none|check_functions list has length 0 ( level: $level)|$check_name|run_test_level}"
-         lappend complete_errstr "$no_func_error"
-         lappend complete_errno -1
-         show_proc_error -1 "$no_func_error"
-         set was_error 1
-      }
+         };# foreach check_function
       }
 
       # if we have a level specific cleanup function: execute it
-      set cleanup_ret [execute_setup_cleanup_function $check_cleanup_level_function "cleanup_level"]
-      if {!$cleanup_ret} {
-         set was_error 1
-      }
-
-      if { $setup_error } {
-         set was_error 1
-      }
-
-      if { $catch_return != 0 } {
-         set check_errstr $complete_errstr
-         set check_errno $complete_errno
-         puts $CHECK_OUTPUT "T C L   E R R O R   running test \"$check_name\" in run level $level !"
-         set end_time [clock seconds]
-         unlock_testsuite
-         return -101 
-      }
-
-      if { $was_unsupported == 1 && $was_error == 0 } {
-         set check_errstr $complete_errstr
-         set check_errno $complete_errno
-         puts $CHECK_OUTPUT "U N S U P P O R T E D   test \"$check_name\" in run level $level !"
-         set end_time [clock seconds]
-         if { $do_save == 1 } {  
-             save_result $path [expr ($end_time - $start_time)] $level
-         }
-         unlock_testsuite
-         return -2
-      }
-
-      if {$was_error == 0} {
-         set check_errstr $complete_errstr
-         set check_errno $complete_errno
-         puts $CHECK_OUTPUT "S U C C E S S F U L L Y performed \"$check_name\" in run level $level !"
-         set end_time [clock seconds]
-         if { $do_save == 1 } {      
-            save_result $path [expr ($end_time - $start_time)] $level
-         }
-         unlock_testsuite
-         return 0
-      } 
-   } else {
-     set no_func_error "{none|check_functions variable not found (level: $level)|$check_name|run_test_level}"
-     lappend complete_errstr "$no_func_error"
-     lappend complete_errno -1
-     show_proc_error -1 "$no_func_error"
+      execute_setup_cleanup_function $check_cleanup_level_function "cleanup_level"
    }
- 
-   # check function does not exist or had an error
-   
-   set check_errstr $complete_errstr
-   set check_errno $complete_errno
 
+   # examine public procedure error states
+   set was_error 0
+   set was_unsupported 0
+   if {[info exists check_errno]} {
+      foreach function [array names check_errno] {
+         if {[info exists check_errno($function)]} {
+            foreach error $check_errno($function) {
+               if {$error != 0} {
+                  if {$error == -1} {
+                     incr was_error
+                  } elseif {$error == -2} {
+                     incr was_error
+                  } elseif {$error == -3} {
+                     incr was_unsupported
+                  }
+               }
+            }
+         }
+      }
+   }
 
    set end_time [clock seconds]
-   if { $do_save == 1 } {   
-      delete_result $path [expr ($end_time - $start_time)] $level
+   set duration [expr $end_time - $start_time]
+
+   # evaluate check status
+   set finished 1
+   if {$catch_return != 0} {
+      puts $CHECK_OUTPUT "T C L   E R R O R   running test \"$check_name\" in run level $level !"
+      set finished 0
+      set ret -101 
+   } elseif {$was_error > 0} {
+      puts $CHECK_OUTPUT "\ncheck \"$check_name\" F A I L E D  in run level $level !"
+      set finished 0
+      set ret -1
+   } elseif {$was_unsupported > 0} {
+      puts $CHECK_OUTPUT "U N S U P P O R T E D   test \"$check_name\" in run level $level !"
+      set ret -2
+   } else {
+      puts $CHECK_OUTPUT "S U C C E S S F U L L Y performed \"$check_name\" in run level $level !"
+      set ret 0
    }
-   puts $CHECK_OUTPUT "\ncheck \"$check_name\" F A I L E D  in run level $level !"
+
+   if {$do_save} {
+      save_result $path $duration $level $finished
+   }
+
    unlock_testsuite
-   return -1
+
+   return $ret
 }
 
 
@@ -4660,7 +4517,8 @@ proc delete_temp_script_files { } {
 #
 #*******************************************************************************
 proc execute_setup_cleanup_function {func_name type} {
-   global CHECK_OUTPUT CHECK_CUR_PROC_RESULTS CHECK_ACT_LEVEL
+   global CHECK_OUTPUT CHECK_ACT_LEVEL
+   global CHECK_CUR_PROC_NAME
 
    set ret 1
 
@@ -4670,18 +4528,14 @@ proc execute_setup_cleanup_function {func_name type} {
    }
 
    if {$ret == 1} {
+      # register the function for error handling
+      set CHECK_CUR_PROC_NAME $func_name
+   
       # check, if the function exists
       if { [info procs $func_name] != $func_name } {
          set ret 0
          add_proc_error "execute_setup_cleanup_function" -2 "$type procedure \"$func_name\" doesn't exist"
       }
-   }
-
-   # remember the number of stored results (errors) for this check
-   # if it increases during execution of func_name, we will treat this as an error
-   set num_proc_results 0
-   if {[info exists CHECK_CUR_PROC_RESULTS]} {
-      set num_proc_results [llength $CHECK_CUR_PROC_RESULTS]
    }
 
    # execute the setup/cleanup function
@@ -4717,19 +4571,12 @@ proc execute_setup_cleanup_function {func_name type} {
 
    # check if error occured during execution of the setup/cleanup function
    if {$ret == 1} {
-      set new_proc_results 0
-      if {[info exists CHECK_CUR_PROC_RESULTS]} {
-         set new_proc_results [llength $CHECK_CUR_PROC_RESULTS]
-      }
-      # CHECK_CUR_PROC_RESULTS contains error codes as well as OK status (0)
+      # check_errno contains error codes as well as OK status (0)
       # search for entries != 0, if found, treat as error
-      if {$num_proc_results < $new_proc_results} {
-         for {set i $num_proc_results} {$i < $new_proc_results} {incr i} {
-            set proc_result [lindex $CHECK_CUR_PROC_RESULTS $i]
-            if {$proc_result != 0} {
-               set ret 0
-               break
-            }
+      foreach elem $check_errno($func_name) {
+         if {$elem != 0} {
+            set ret 0
+            break
          }
       }
    }
@@ -4772,114 +4619,99 @@ proc execute_setup_cleanup_function {func_name type} {
 #*******************************
 proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } } {
    global ts_config  
+   global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
+   global check_errstr CHECK_OUTPUT check_description check_functions check_errno 
+   global CHECK_CUR_PROC_NAME check_root_access_needs
+   global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
+   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT CHECK_TESTSUITE_ROOT
+   global check_category CHECK_GROUP
+   global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
 
-  global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
-  global CHECK_CORE_RESULT_DIR check_errstr CHECK_OUTPUT check_description check_functions check_errno 
-  global CHECK_CUR_PROC_NAME CHECK_CUR_PROC_RESULTS CHECK_CUR_PROC_ERRORS check_root_access_needs
-  global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
-  global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT CHECK_TESTSUITE_ROOT
-  global check_category CHECK_GROUP
-  global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
+   cd $CHECK_CURRENT_WORKING_DIR
 
-  cd $CHECK_CURRENT_WORKING_DIR
+   set do_only_one_test 0
 
-  set do_only_one_test 0
+   set CHECK_ACTUAL_TEST_PATH $path
 
-  set CHECK_ACTUAL_TEST_PATH $path
+   set check_name          ""
+   set check_category      ""
+   set check_needs         ""
+   set check_functions     ""
+   set check_setup_function ""
+   set check_cleanup_function ""
+   set check_setup_level_function ""
+   set check_cleanup_level_function ""
+   set check_highest_level 0
+   set check_init_level_procedure "--"
+   set check_root_access_needs   "no" 
 
-  set check_name          ""
-  set check_category      ""
-  set check_needs         ""
-  set check_functions     ""
-  set check_setup_function ""
-  set check_cleanup_function ""
-  set check_setup_level_function ""
-  set check_cleanup_level_function ""
-  set check_highest_level 0
-  set check_init_level_procedure "--"
-  set check_root_access_needs   "no" 
+   ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT
+   if {[string compare $run_single_test "all"] != 0} {
+      set do_only_one_test 1
+      puts $CHECK_OUTPUT "running only test \"$run_single_test\""
+      set check_functions "$run_single_test"
+   }
 
-  ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT
-  if { [string compare $run_single_test "all"] != 0 } {
-     set do_only_one_test 1
-     puts $CHECK_OUTPUT "running only test \"$run_single_test\""
-     set check_functions "$run_single_test"
-  }
+   if {[string compare -nocase "yes" $check_root_access_needs] == 0 && [have_root_passwd] == -1} {
+      puts $CHECK_OUTPUT "test needs root access ..."
+      set_root_passwd
+   }
 
-  if { ( [string compare -nocase "yes" $check_root_access_needs] == 0) && ([have_root_passwd] == -1 ) } {
-     puts $CHECK_OUTPUT "test needs root access ..."
-     set_root_passwd
-  }
+   puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+   puts $CHECK_OUTPUT ">>> $check_name"
+   puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+   debug_puts "file: $path/check.exp"
 
-  # first check the dependencies
-  
-  puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  puts $CHECK_OUTPUT ">>> $check_name"
-  puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  debug_puts "file: $path/check.exp"
-
-
-  set result [validate_needs $check_needs]
-
-  debug_puts "needs returned $result"
-  debug_puts "highest level of test is $check_highest_level"
-
-  if { $result != 0 } {
-     puts $CHECK_OUTPUT "dependencies ($check_needs) not fulfilled! Stop!"
-     set check_errstr ""
-     set check_errno ""
-     foreach elem $check_functions {
-        lappend check_errstr "{run_test|dependencies not fulfilled!|$check_name|run_test}"
-        lappend check_errno "-1"
-     }
-
-     for {set level 0} {$level <= $check_highest_level} {incr level 1} {
-       if { [string compare $check_init_level_procedure "--" ] != 0 } { 
-         set CHECK_ACT_LEVEL $level
-         if { [$check_init_level_procedure ]  == 0 } { 
-            delete_result $path 0 $level 
+   # first check the dependencies
+   # if dependencies are not fulfilled, we mark the test as not yet run
+   set result [validate_needs $check_needs]
+   debug_puts "needs returned $result"
+   debug_puts "highest level of test is $check_highest_level"
+   if {$result != 0} {
+      puts $CHECK_OUTPUT "dependencies ($check_needs) not fulfilled! Stop!"
+      clear_all_check_errors $check_name
+      for {set level 0} {$level <= $check_highest_level} {incr level 1} {
+         if {[string compare $check_init_level_procedure "--"] != 0} { 
+            set CHECK_ACT_LEVEL $level
+            if {[$check_init_level_procedure ] == 0} { 
+               delete_result $path 0 $level
+            }
+         } else {
+            delete_result $path 0 $level
          }
-       } else { 
-         delete_result $path 0 $level
-       }
-     }
-     return -2  ;# dependencies not fulfilled
-  }
+      }
+      return -2  ;# dependencies not fulfilled
+   }
 
-  set nr_errors 0
-  set nr_warnings 0
-  set nr_already_done 0
-  set nr_new_done 0
-  set my_current_runlevel 0
-  set do_send_mail 0
-  set no_level_calls 0 
-  set no_of_test_runs 0
-
+   set nr_errors 0
+   set nr_warnings 0
+   set nr_already_done 0
+   set nr_new_done 0
+   set my_current_runlevel 0
+   set do_send_mail 0
+   set no_level_calls 0 
+   set no_of_test_runs 0
    set immediate_return 0
 
    # check if this test is enabled for the actual runlevel, test is already done, ...
-   for {set level 0} { $level <= $check_highest_level} {incr level 1} {
-
+   for {set level 0} {$level <= $check_highest_level} {incr level 1} {
       # check if this is a global enabled level
-      if {[is_level_enabled $level] == -1 } {
+      if {[is_level_enabled $level] == -1} {
          continue
-      } 
+      }
 
       # check test's init level procedure return value
-      if { [string compare $check_init_level_procedure "--" ] != 0 } { 
+      if {[string compare $check_init_level_procedure "--"] != 0} {
          set CHECK_ACT_LEVEL $level
-         if { [$check_init_level_procedure ]  != 0 } { 
+         if {[$check_init_level_procedure] != 0} {
             continue 
          }
       }
 
       # check if test was already running
-      if { $runcompleted == 0 } {
-         if { ( [file isfile "$CHECK_RESULT_DIR/$check_name.res.$level"] == 1) } {
+      if {$runcompleted == 0} {
+         if {[file isfile "$CHECK_RESULT_DIR/$check_name.res.$level"]} {
             continue 
-         }
-         if { ( [file isfile "$CHECK_CORE_RESULT_DIR/$check_name.res.$level"] == 1) } {
-            continue  
          }
       }
       incr no_of_test_runs 1
@@ -4887,7 +4719,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
    if { $no_of_test_runs == 0 } {
       # no active runlevel for this check, return 2
-      return 2 
+      return 2
    }
 
    # check the number of busy rlogin sessions
@@ -4898,68 +4730,77 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       add_proc_error "run_test" -3 "We have $num_busy_sessions_before_check busy rlogin sessions before starting test $check_name ($path).\nThis may indicate a problem (missing close_spawn_session call in previous check).\n\n$session_info"
    }
 
+   # start a setup function for this check - should it exist
    set setup_ret [execute_setup_cleanup_function $check_setup_function "setup"]
    if {!$setup_ret} {
       set immediate_return -1
    }
 
-   if { $immediate_return == 0 } {
-     for {set level 0} { $level <= $check_highest_level} {incr level 1} {
-        if {[is_level_enabled $level] == -1 } {
-           continue
-        } 
-        set my_current_runlevel $level
-        if { [string compare $check_init_level_procedure "--" ] != 0 } { 
+   if {$immediate_return == 0} {
+      for {set level 0} {$level <= $check_highest_level} {incr level 1} {
+         if {[is_level_enabled $level] == -1} {
+            continue
+         }
+         set my_current_runlevel $level
+         if {[string compare $check_init_level_procedure "--"] != 0} {
             set CHECK_ACT_LEVEL $level
-            if { [$check_init_level_procedure ]  != 0 } { 
-               continue 
+            if {[$check_init_level_procedure] != 0} {
+               continue
             }
-        }
-        puts $CHECK_OUTPUT "\n----------------------------------------------"
-        puts $CHECK_OUTPUT "-> enter check level $level"
+         }
+         puts $CHECK_OUTPUT "\n----------------------------------------------"
+         puts $CHECK_OUTPUT "-> enter check level $level"
 
-        if { $do_only_one_test == 0 } {
-           set back [run_test_level $path $runcompleted $level]
-           debug_puts "level $level return value: $back"
-           incr no_level_calls 1
-        } else {
-           set back [run_test_level $path $runcompleted $level 0 ]
-           debug_puts "level $level return value of test $run_single_test: $back"
-           incr no_level_calls 1
-        }
+         if {$do_only_one_test == 0} {
+            set back [run_test_level $path $runcompleted $level]
+            debug_puts "level $level return value: $back"
+            incr no_level_calls 1
+         } else {
+            set back [run_test_level $path $runcompleted $level 0]
+            debug_puts "level $level return value of test $run_single_test: $back"
+            incr no_level_calls 1
+         }
 
-        if { [string first "unknown" $CHECK_GROUP] >= 0 } {
+         if {[string first "unknown" $CHECK_GROUP] >= 0} {
             add_proc_error "run_test" -1 "CHECK_GROUP set to unknown, test was $path in level $level"
-        }
+         }
+        
+         # now we are back from executing one runlevel - evaluate the result
+         if {$back == -101} {
+            incr nr_errors 1
+            debug_puts "--> TCL ERROR in check $path in level $level <--"
+            set immediate_return -101
+            break
+         }
 
-        if {$back == -101  } { 
-           incr nr_errors 1
-           debug_puts "--> TCL ERROR in check $path in level $level <--"
-           set immediate_return -101
-           break
-        }
-        if {$back == -1} {
-           incr nr_errors 1     ;# we had an error
-           debug_puts "--> ERROR in check $path in level $level <--"
-           set immediate_return -1
-           break
-        }
-        if {$back == -2} {
-           incr nr_warnings 1     ;# check can not run
-           debug_puts "--> check $path in level $level: can't start test <--"
-        }
-        if {$back == 0} {
-           set do_send_mail 1  ;# a successfull test run
-           incr nr_new_done 1
-           debug_puts "no errors"
-        } 
+         # there were errors
+         if {$back == -1} {
+            incr nr_errors 1
+            debug_puts "--> ERROR in check $path in level $level <--"
+            set immediate_return -1
+            break
+         }
 
-        if {$back == 1} {
-           debug_puts "check already done"
-           incr nr_already_done 1
-        }
-        debug_puts "calls=$no_level_calls, already done=$nr_already_done"
-     }
+         # there were warnings
+         if {$back == -2} {
+            incr nr_warnings 1
+            debug_puts "--> check $path in level $level: can't start test <--"
+         }
+
+         # test succeeded
+         if {$back == 0} {
+            set do_send_mail 1
+            incr nr_new_done 1
+            debug_puts "no errors"
+         }
+
+         # test had already run
+         if {$back == 1} {
+            debug_puts "check already done"
+            incr nr_already_done 1
+         }
+         debug_puts "calls=$no_level_calls, already done=$nr_already_done"
+      }
    }
 
    # if we have a specific cleanup function: execute it
@@ -4978,44 +4819,45 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       incr nr_errors
    }
 
-   if { $immediate_return != 0 } {
+   if {$immediate_return != 0} {
       return $immediate_return
    }
 
-  if { $nr_already_done == $no_level_calls } {
-     return 1  ;# was done time before
-  }
+   if {$nr_already_done == $no_level_calls} {
+      return 1  ;# was done time before
+   }
   
-  if { $send_mail_report != 1 } {
-     set do_send_mail 0
-  }
+   if {$send_mail_report != 1} {
+      set do_send_mail 0
+   }
 
-  if { $nr_errors == 0 && $nr_warnings == 0 } {
-     if { $do_send_mail == 1 } {
-        set mail_body "Successfully performed check $check_name in directory\n$path\n"
-        set mail_body "${mail_body}Date: [ exec date ]\n\n"
-        set mail_body "${mail_body}product type:     $CHECK_PRODUCT_TYPE\n"
-        set mail_body "${mail_body}product feature:  $ts_config(product_feature)\n"
-        set mail_body "${mail_body}product version:  $CHECK_PRODUCT_VERSION_NUMBER\n"
-        set mail_body "${mail_body}product root:     $CHECK_PRODUCT_ROOT\n"
-        set mail_body "${mail_body}cell:             $ts_config(cell)\n"
-        set mail_body "${mail_body}runlevel:         [get_run_level_name $my_current_runlevel]\n"
-        set mail_body "${mail_body}max. runlevel:    [get_run_level_name $check_highest_level]\n"
-        set mail_body "${mail_body}dependencies:     $check_needs\n"
-        set mail_body "${mail_body}check functions:  \n"
-        foreach elem $check_functions {
-           set mail_body "${mail_body}                   $elem\n"
-        } 
-        set mail_body "${mail_body}init level proc:  $check_init_level_procedure\n"
-        mail_report "testsuite success - $check_name" $mail_body
-     }
-     return 0
-  } else {
-     if { $nr_errors == 0 } {
-        return -3 ;# we had warnings
-     }
-     return -1
-  }
+   # when the tests succeeded, we usually send a mail
+   if {$nr_errors == 0 && $nr_warnings == 0} {
+      if {$do_send_mail == 1} {
+         set mail_body "Successfully performed check $check_name in directory\n$path\n"
+         append mail_body "Date: [ exec date ]\n\n"
+         append mail_body "product type:     $CHECK_PRODUCT_TYPE\n"
+         append mail_body "product feature:  $ts_config(product_feature)\n"
+         append mail_body "product version:  $CHECK_PRODUCT_VERSION_NUMBER\n"
+         append mail_body "product root:     $CHECK_PRODUCT_ROOT\n"
+         append mail_body "cell:             $ts_config(cell)\n"
+         append mail_body "runlevel:         [get_run_level_name $my_current_runlevel]\n"
+         append mail_body "max. runlevel:    [get_run_level_name $check_highest_level]\n"
+         append mail_body "dependencies:     $check_needs\n"
+         append mail_body "check functions:  \n"
+         foreach elem $check_functions {
+            append mail_body "                   $elem\n"
+         }
+         append mail_body "init level proc:  $check_init_level_procedure\n"
+         mail_report "testsuite success - $check_name" $mail_body
+      }
+      return 0
+   } else {
+      if { $nr_errors == 0 } {
+         return -3 ;# we had warnings
+      }
+      return -1
+   }
 }
 
 #                                                             max. column:     |
@@ -5049,7 +4891,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 #*******************************
 proc clean_up_globals {} {
   global check_init_level_procedure check_name check_description check_highest_level
-  global check_needs check_functions check_errno check_errstr check_category
+  global check_needs check_functions check_category
  
   if { [ info exists check_category ] } {
      unset check_category 
@@ -5064,8 +4906,6 @@ proc clean_up_globals {} {
   set check_needs       ""          ;# dependencies of this check (name of other check)
   set check_functions   ""          ;# functions to call (in order)
   set check_init_level_procedure "--"   ;# name of procedure to call before starting level run
-  set check_errno      -1          ;# 0 -> OK , != 0 means error (-2 = break test , -1 failure )
-  set check_errstr       ""          ;# short error description in text form  
   set check_highest_level 0        ;# here a check can define his check levels count 0 ... 
 }
 
@@ -5102,7 +4942,7 @@ proc clean_up_globals {} {
 #     ???/???
 #*******************************
 proc show_test {path full} {
-  global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_errno check_needs check_highest_level 
+  global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_needs check_highest_level 
   global check_init_level_procedure CHECK_ACT_LEVEL check_category
 
   clean_up_globals  
@@ -5808,7 +5648,7 @@ proc clear_screen {} {
 proc print_menu_header {} {
   global CHECK_ACT_PATH CHECK_RESULT_DIR 
   global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_HOST CHECK_BAD_RESULT_DIR 
-  global CHECK_CORE_RESULT_DIR CHECK_CORE_BAD_RESULT_DIR CHECK_MAIN_RESULTS_DIR 
+  global CHECK_MAIN_RESULTS_DIR 
   global CHECK_ENABLED_RUNLEVELS CHECK_PRODUCT_VERSION_NUMBER
   global CHECK_ENABLED_CATEGORIES CHECK_USER CHECK_GROUP
   global ts_config ts_checktree
@@ -5842,12 +5682,10 @@ proc print_menu_header {} {
            foreach tests_runlevel $tests_runlevels {
               if { [ is_level_enabled $tests_runlevel ] == 0 } {
                  set state_text "done"
-                 if { ( [file isfile "$CHECK_RESULT_DIR/$global_test_name.res.$tests_runlevel"] != 1) } {
-                    if { ( [file isfile "$CHECK_CORE_RESULT_DIR/$global_test_name.res.$tests_runlevel"] != 1) } {
-                       set run_test_ok 1
-                       incr time_count [get_run_level_time $tests_runlevel] 
-                       set state_text "on"
-                    }
+                 if {![file isfile "$CHECK_RESULT_DIR/$global_test_name.res.$tests_runlevel"]} {
+                    set run_test_ok 1
+                    incr time_count [get_run_level_time $tests_runlevel] 
+                    set state_text "on"
                  }
               } else {
                  set state_text "off"
@@ -7348,7 +7186,7 @@ proc menu {} {
    global ts_config
   global CHECK_ACT_PATH CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT CHECK_RESULT_DIR 
   global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_HOST CHECK_BAD_RESULT_DIR 
-  global CHECK_CORE_RESULT_DIR CHECK_CORE_BAD_RESULT_DIR CHECK_MAIN_RESULTS_DIR 
+  global CHECK_MAIN_RESULTS_DIR 
   global CHECK_ENABLED_RUNLEVELS CHECK_PRODUCT_VERSION_NUMBER CHECK_SETUP_NAMES
   global daemon_debug CHECK_DEBUG_LEVEL CHECK_DEFAULTS_FILE CHECK_DO_SETUP
   global CHECK_PACKAGE_DIRECTORY CHECK_SETUP_CHANGES CHECK_PACKAGE_TYPE
@@ -7553,13 +7391,14 @@ proc menu {} {
           } 
           exit 0; 
         }
-    "5" { set total1 [print_results $CHECK_CORE_RESULT_DIR stdout]
-          set total2 [print_results $CHECK_RESULT_DIR stdout]
-          puts stdout "Total number of test functions: [expr ($total1 + $total2) ]"
+    "5" {
+          set total [print_results $CHECK_RESULT_DIR stdout]
+          puts stdout "Total number of test functions: $total"
           wait_for_enter
         }
-    "6" { print_results $CHECK_CORE_BAD_RESULT_DIR stdout
-          print_results $CHECK_BAD_RESULT_DIR stdout
+    "6" {
+          set total [print_results $CHECK_BAD_RESULT_DIR stdout]
+          puts stdout "Total number of test functions: $total"
           wait_for_enter
         }
     "7" { delete_tests $CHECK_ACT_PATH

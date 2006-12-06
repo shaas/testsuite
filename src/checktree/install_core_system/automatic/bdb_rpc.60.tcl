@@ -70,8 +70,6 @@ proc install_bdb_rpc {} {
 
    read_install_list
 
-   set_error "0" "inst_sge -db - no errors"
-
    if { $ts_config(bdb_server) == "none" } {
       puts $CHECK_OUTPUT "there is no rpc server configured - returning"
       return
@@ -80,9 +78,8 @@ proc install_bdb_rpc {} {
    set bdb_host $ts_config(bdb_server)
    puts $CHECK_OUTPUT "installing BDB RPC Server on host $bdb_host ($ts_config(product_type) system) ..."
    if { $check_use_installed_system != 0 } {
-      set_error "0" "install_bdb_rpc - no need to install BDB RPC Server on hosts \"$ts_config(bdb_server)\" - noinst parameter is set"
       puts "no need to install BDB RPC Server on hosts \"$ts_config(bdb_server)\", noinst parameter is set"
-      if {[startup_bdb_rpc $bdb_host] == 0 } {
+      if {[startup_bdb_rpc $bdb_host] == 0} {
          lappend CORE_INSTALLED $bdb_host
          write_install_list
       } else {
@@ -92,7 +89,7 @@ proc install_bdb_rpc {} {
    }
 
    if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-      set_error "-1" "install_bdb_rpc - inst_sge file not found"
+      add_proc_error "install_bdb_rpc" "-1" "inst_sge file not found"
       return
    }
 
@@ -165,25 +162,25 @@ proc install_bdb_rpc {} {
       log_user 1 
       expect {
          -i $sp_id full_buffer {
-            set_error "-1" "inst_sge -db - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            add_proc_error "inst_sge_db" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             close_spawn_process $id; 
             return;
          }
 
          -i $sp_id eof {
-            set_error "-1" "inst_sge -db - unexpeced eof";
+            add_proc_error "inst_sge_db" "-1" "unexpeced eof";
             set do_stop 1
             continue
          }
 
          -i $sp_id "coredump" {
-            set_error "-2" "inst_sge -db - coredump on host $bdb_host";
+            add_proc_error "inst_sge_db" "-2" "coredump on host $bdb_host";
             set do_stop 1
             continue
          }
 
          -i $sp_id timeout { 
-            set_error "-1" "inst_sge -db - timeout while waiting for output"; 
+            add_proc_error "inst_sge_db" "-1" "timeout while waiting for output"; 
             set do_stop 1
             continue
          }
@@ -326,18 +323,18 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id "Error:" {
-            set_error "-1" "install_bdb_rpc - $expect_out(0,string)"
+            add_proc_error "inst_sge_db" "-1" "$expect_out(0,string)"
             close_spawn_process $id; 
             return
          }
          -i $sp_id "can't resolve hostname*\n" {
-            set_error "-1" "install_bdb_rpc - $expect_out(0,string)"
+            add_proc_error "inst_sge_db" "-1" "$expect_out(0,string)"
             close_spawn_process $id; 
             return
          }            
 
          -i $sp_id "error:\n" {
-            set_error "-1" "install_bdb_rpc - $expect_out(0,string)"
+            add_proc_error "inst_sge_db" "-1" "$expect_out(0,string)"
             close_spawn_process $id; 
             return
          }
@@ -362,7 +359,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id default {
-            set_error "-1" "inst_sge -db - undefined behaviour: $expect_out(buffer)"
+            add_proc_error "inst_sge_db" "-1" "undefined behaviour: $expect_out(buffer)"
             close_spawn_process $id; 
             return
          }

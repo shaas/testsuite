@@ -2449,7 +2449,7 @@ proc add_access_list { user_array list_name } {
 #    } elseif { $result == 1 } {
 #       puts $CHECK_OUTPUT "user codtest1 did not exist on the access list deadlineusers"
 #    } else {
-#       set_error -1 "Can not delete user codtest1 from access list deadlineusers"
+#       add_proc_error "example" -1 "Can not delete user codtest1 from access list deadlineusers"
 #    }
 # 
 #  SEE ALSO
@@ -3100,7 +3100,7 @@ proc master_queue_of { job_id {qlist {}}} {
 #*******************************
 proc wait_for_load_from_all_queues { seconds } {
   global ts_config
-   global check_errno check_errstr CHECK_ARCH CHECK_OUTPUT
+   global CHECK_ARCH CHECK_OUTPUT
 
    set time [timestamp]
 
@@ -3323,7 +3323,7 @@ proc soft_execd_shutdown { host } {
 #*******************************************************************************
 proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
   global ts_config
-   global check_errno check_errstr CHECK_ARCH CHECK_OUTPUT
+   global CHECK_ARCH CHECK_OUTPUT
 
    set time [timestamp]
 
@@ -3429,7 +3429,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #
 proc wait_for_end_of_all_jobs { seconds } {
   global ts_config
-   global check_errno check_errstr CHECK_ARCH CHECK_OUTPUT
+   global CHECK_ARCH CHECK_OUTPUT
 
    set time [timestamp]
 
@@ -5095,7 +5095,6 @@ proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
 #        add_proc_error "testproc" -1 "get_extended_jobinfo failed for job $job_id on host $host"
 #     }
 #     ...
-#     set_error 0 "ok"
 #  }
 #
 #  SEE ALSO

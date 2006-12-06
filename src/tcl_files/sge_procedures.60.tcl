@@ -570,7 +570,6 @@ proc startup_bdb_rpc { hostname } {
 #        add_proc_error "testproc" -1 "get_urgency_job_info failed for job $job_id on host $host"
 #     }
 #     ...
-#     set_error 0 "ok"
 #  }
 #
 #  SEE ALSO

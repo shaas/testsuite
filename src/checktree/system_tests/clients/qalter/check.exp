@@ -41,7 +41,7 @@ global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr 
+global check_name check_description check_needs check_functions
 global check_category
 global check_root_access_needs
 set check_root_access_needs "yes"
@@ -93,8 +93,6 @@ lappend check_functions "qalter_w"
 lappend check_functions "qalter_a"
 lappend check_functions "qalter_t"
 
-set check_errno       "-1"                         ;# 0 -> OK , != 0 means error 
-set check_errstr      "was never running"        ;# string for error description
 global submitresult
 global normal_job_id
 global hold_job_A

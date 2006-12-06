@@ -64,7 +64,6 @@ proc install_shadowd {} {
 
    puts $CHECK_OUTPUT "no shadowd installation for SGE(EE) 5.3"
 
-   set_error 0 "install_shadowd not for 5.3"
+   add_proc_error "install_shadowd" -3 "shadowd installation not supported not for SGE(EE) 5.3"
 }
-
 

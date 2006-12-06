@@ -74,8 +74,6 @@ proc install_execd {} {
  
    read_install_list
 
-   set_error "0" "install_execd - no errors"
-
    set catch_result [catch {eval exec "cat $ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2"} INST_VERSION]
    puts $CHECK_OUTPUT "inst_sge version: $INST_VERSION"
 
@@ -104,12 +102,11 @@ proc install_execd {} {
    foreach exec_host $ts_config(execd_nodes) {
       puts $CHECK_OUTPUT "installing execd on host $exec_host ($ts_config(product_type) system) ..."
       if {[lsearch $ts_config(execd_nodes) $exec_host] == -1} {
-         set_error "-1" "install_execd - host $exec_host is not in execd list"
+         add_proc_error "install_execd" "-1" "host $exec_host is not in execd list"
          return 
       }
 #      wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
       if {$check_use_installed_system != 0} {
-         set_error "0" "install_execd - no need to install execd on hosts \"$ts_config(execd_nodes)\" - noinst parameter is set"
          puts "no need to install execd on hosts \"$ts_config(execd_nodes)\", noinst parameter is set"
          if {[startup_execd $exec_host] == 0} {
             lappend CORE_INSTALLED $exec_host
@@ -122,7 +119,7 @@ proc install_execd {} {
       }
 
       if {[file isfile "$ts_config(product_root)/install_execd"] != 1} {
-         set_error "-1" "install_execd - install_execd file not found"
+         add_proc_error "install_execd" "-1" "install_execd file not found"
          return
       }
 
@@ -173,13 +170,11 @@ proc install_execd {} {
       }
 
       if {$exit_val == 0} {
-         set_error 0 "ok"
          lappend CORE_INSTALLED $exec_host
          write_install_list
          continue
       } else {
-         set_error "-1" "install failed"
-         add_proc_error "install_execd" "-1" "$output"
+         add_proc_error "install_execd" "-1" "install failed:\n$output"
       }
    }
    return

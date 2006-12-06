@@ -37,7 +37,6 @@ proc kill_running_system {} {
    puts $CHECK_OUTPUT "check_all_system_times returned $result"
    if { $result != 0 } {
       add_proc_error "kill_running_system" -2 "skipping install_core_system"
-      set_error 0 "ok"
       return
    }
 
@@ -45,8 +44,6 @@ proc kill_running_system {} {
    write_install_list
 
    shutdown_core_system
-
-   set_error "0" "kill_running_system - this is not a 'real' test (only try to shutdown $ts_config(product_type) system)"
 
    if { $check_use_installed_system == 0 } { 
       # if this is master remove default dir (but not the licence file)
@@ -89,7 +86,6 @@ proc kill_running_system {} {
 proc reread_bootstrap {} {
    # install_qmaster has written the bootstrap or the configuration file
    bootstrap_sge_config
-   set_error "0" "install_qmaster - no errors"
 }
 
 
@@ -124,14 +120,12 @@ proc make_user_cert {} {
         puts $CHECK_OUTPUT "no csp feature enabled"
      }
    }
-
-   set_error 0 "ok"
 }
 
 
-proc cleanup_system { } {
+proc cleanup_system {} {
    global ts_config
-   global CHECK_ARCH env check_errno
+   global CHECK_ARCH env
    global check_use_installed_system CHECK_OUTPUT CHECK_USER
 
 #puts "press RETURN"
@@ -140,7 +134,6 @@ proc cleanup_system { } {
    set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" } result ]
    if { $catch_return != 0 } {
       add_proc_error "cleanup_system" -2 "error connecting qmaster: $result"
-      set_error -2 "error connecting qmaster"
       return
    }
     
@@ -262,11 +255,8 @@ proc cleanup_system { } {
   
   # execute the clean hooks of all checktrees
   if { [ exec_checktree_clean_hooks ] != 0 } {
-     set_error 1 "exec_checktree_clean_hooks reported an error"
+     add_proc_error "cleanup_system" -3 "exec_checktree_clean_hooks reported an error"
   }
-  
-  
-  set_error 0 "ok"
 }
 
 
@@ -301,14 +291,13 @@ proc cleanup_system { } {
 #*******************************
 proc setup_queues {} {
    global ts_config
-   global CHECK_ARCH env check_errno
+   global CHECK_ARCH env
    global check_use_installed_system CHECK_OUTPUT CHECK_USER
 
    # check if qmaster can be accessed
    set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" } result ]
    if { $catch_return != 0 } {
       add_proc_error "setup_queues" -2 "error connecting qmaster: $result"
-      set_error -2 "error connecting qmaster"
       return
    }
 
@@ -319,17 +308,14 @@ proc setup_queues {} {
    set result [mod_queue "all.q" "" new_values]
    switch -- $result { 
       -1 {
-         set_error -1 "setup_queues - modify queue ${hostname}.q - got timeout"
-      }
-      0 {
-         set_error 0 "setup_queues - no errors"
+         add_proc_error "setup_queues" -1 "modify queue ${hostname}.q - got timeout"
       }
       -100 {
-         set_error -1 "setup_queues - could not modify queue"
+         add_proc_error "setup_queues" -1 "could not modify queue"
       } 
    }
 
-   if { $check_errno == 0} {
+   if {$result == 0} {
       # for each individual queue set the slots attribute
       foreach hostname $ts_config(execd_nodes) {
          unset new_values
@@ -337,7 +323,7 @@ proc setup_queues {} {
          set slots_tmp [node_get_processors $hostname]
 
          if { $slots_tmp <= 0 } {
-            set_error -2 "no slots for execd $hostname"
+            add_proc_error "setup_queues" -2 "no slots for execd $hostname"
             return
          }
 
@@ -347,22 +333,18 @@ proc setup_queues {} {
          set result [mod_queue "all.q" $hostname new_values]
          switch -- $result { 
             -1 {
-               set_error -1 "setup_queues - modify queue ${hostname}.q - got timeout"
-            }
-            0 {
-               set_error 0 "setup_queues - no errors"
+               add_proc_error "setup_queues" -1 "modify queue ${hostname}.q - got timeout"
             }
             -100 {
-               set_error -1 "setup_queues - could not modify queue"
+               add_proc_error "setup_queues" -1 "could not modify queue"
             } 
          }
       }
    }
 
    # wait until all hosts are up
-   if { $check_errno == 0 } {
+   if {$result == 0} {
       wait_for_load_from_all_queues 300 
-      set_error 0 "ok"
    }
 }
 
@@ -401,8 +383,6 @@ proc setup_testcheckpointobject {} {
    set change(ckpt_name)  "testcheckpointobject"
    add_checkpointobj change
    assign_queues_with_ckpt_object "all.q" "" "testcheckpointobject"
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -550,8 +530,6 @@ proc setup_conf {} {
 
      add_proc_error "setup_conf" -1 "config parameter count new/old configuration error"
   }
-
-  set_error 0 "ok"
 }
 
 #****** check/setup_execd_conf() ***********************************************
@@ -687,8 +665,6 @@ proc setup_execd_conf {} {
      # now set the new config
      set_config tmp_config $host
   }
-
-  set_error 0 "ok"
 }
 
 
@@ -724,20 +700,18 @@ proc setup_execd_conf {} {
 #     ???/???
 #*******************************
 proc setup_mytestproject {} {
-   global ts_config
-  global CHECK_ARCH env check_errno
+   global ts_config CHECK_OUTPUT
+  global check_arch env
  
 
   if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-     set_error 0 "setup_mytestproject - not possible for sge systems"
+      puts $CHECK_OUTPUT "not supported on sge systems"
      return
   }
 
   # setup project "mytestproject"
   set prj_setup(name) "mytestproject"
   set result [ add_prj prj_setup ] 
-
-  set_error 0 "ok"  
 }
 
 
@@ -779,8 +753,6 @@ proc setup_mytestpe {} {
    add_pe change
 
    assign_queues_with_pe_object "all.q" "" "mytestpe"
-
-   set_error 0 "ok"
 }
 
 
@@ -819,8 +791,6 @@ proc setup_deadlineuser {} {
   global CHECK_ARCH CHECK_USER
 
   add_access_list $CHECK_USER deadlineusers
-
-  set_error 0 "ok"
 }
 
 
@@ -855,7 +825,7 @@ proc setup_deadlineuser {} {
 #*******************************
 proc setup_schedconf {} {
    global ts_config
-  global CHECK_ARCH env check_errno CHECK_USER
+  global CHECK_ARCH env CHECK_USER
   global CHECK_OUTPUT
 
   # always create global complex list if not existing
@@ -909,7 +879,6 @@ proc setup_schedconf {} {
   } else {
      add_proc_error "setup_schedconf" -1 "parameter count new/old scheduler configuration error"
   }
-  set_error 0 "ok"
 }
 
 
@@ -945,7 +914,7 @@ proc setup_schedconf {} {
 #*******************************
 proc setup_default_calendars {} {
    global ts_config
-  global CHECK_ARCH env check_errno CHECK_USER
+  global CHECK_ARCH env CHECK_USER
 
 
   set calendar_param(calendar_name)          "always_suspend"              ;# always in calendar suspend
@@ -954,7 +923,7 @@ proc setup_default_calendars {} {
 
   set result [ add_calendar calendar_param ]
   if { $result != 0 } {
-     set_error -1 "setup_default_calendards: result of add_default_calendars: $result"
+     add_proc_error "setup_default_calendars" -1 "result of add_default_calendars: $result"
      return
   }
 
@@ -964,11 +933,9 @@ proc setup_default_calendars {} {
 
   set result [add_calendar calendar_param]
   if { $result != 0 } {
-     set_error -1 "setup_default_calendars: result of add_calendar: $result"
+     add_proc_error "setup_default_calendars" -1 "result of add_calendar: $result"
      return
   }
- 
-  set_error 0 "setup_default_calendars - no errors" 
 }
 
 #                                                             max. column:     |
@@ -1008,7 +975,6 @@ proc setup_check_user_permissions {} {
    global check_use_installed_system 
 
    if {$check_use_installed_system} {
-      set_error 0 "ok"
       return
    }
 
@@ -1026,11 +992,11 @@ proc setup_check_user_permissions {} {
         puts $CHECK_OUTPUT "checking execd spool directory on $host (user=$user): \"$execd_spooldir\""
         set output [start_remote_prog "$host" "$user" "cd" "$execd_spooldir"]
         if { $prg_exit_state != 0 } {
-           set_error -1 "user $user has no read//exec permission to \"$execd_spooldir\" on host $host: $output"
+           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$execd_spooldir\" on host $host: $output"
         }
         set output [ start_remote_prog "$host" "$user" "cd" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR" ]
         if { $prg_exit_state != 0 } {
-           set_error -1 "user $user has no read//exec permission to \"$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR\" on host $host: $output"
+           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR\" on host $host: $output"
         }
      }
   }
@@ -1042,12 +1008,11 @@ proc setup_check_user_permissions {} {
       set output [ start_remote_prog "$ts_config(master_host)" "$user" "cd" "$master_spooldir"  ]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "--> E R R O R - user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
-         set_error -1 "user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
+         add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
       }
   }
   puts "runtime: [ expr ( [timestamp] - $time ) ]"
   get_version_info
-  set_error 0 "ok"
 }
 
 
@@ -1058,7 +1023,6 @@ proc setup_check_messages_files {} {
    global check_use_installed_system 
 
    if {$check_use_installed_system} {
-      set_error 0 "ok"
       return
    }
 
@@ -1093,7 +1057,6 @@ proc setup_check_messages_files {} {
          puts $CHECK_OUTPUT $file_array($i)
       }
    }
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1127,7 +1090,7 @@ proc setup_check_messages_files {} {
 #*******************************
 proc setup_inhouse_cluster {} {
    global ts_config
-  global CHECK_ARCH env check_errno CHECK_USER
+  global CHECK_ARCH env CHECK_USER
   global CHECK_OUTPUT
 
   # reset_schedd_config has global error reporting
@@ -1135,8 +1098,6 @@ proc setup_inhouse_cluster {} {
     puts $CHECK_OUTPUT "executing postinstall procedure for inhouse cluster"
     inhouse_cluster_post_install
   }
-
-  set_error 0 "ok"
 }
 
 #****** init_cluster/setup_win_users() *****************************************
@@ -1169,8 +1130,6 @@ proc setup_win_users {} {
          setup_win_user_passwd $user
       }
    }
-
-   set_error 0 "ok"
 }
 
 #****** init_cluster/setup_win_user_passwd() ***********************************

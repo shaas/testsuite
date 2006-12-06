@@ -60,11 +60,7 @@
 #     ???/???
 #*******************************
 proc install_shadowd {} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "no shadowd installation for SGE(EE) 5.3"
-
-   set_error 0 "install_shadowd not for 5.3"
+   add_proc_error "install_shadowd" -3 "no shadowd installation for SGE(EE) 5.3"
 }
 
 

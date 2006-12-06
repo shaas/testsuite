@@ -71,8 +71,6 @@ proc install_shadowd {} {
    set CORE_INSTALLED "" 
    read_install_list
 
-   set_error "0" "inst_sge -sm - no errors"
-
    if {!$check_use_installed_system} {
       set feature_install_options ""
 
@@ -91,8 +89,7 @@ proc install_shadowd {} {
    foreach shadow_host $CHECK_CORE_SHADOWD {
       puts $CHECK_OUTPUT "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
       if {$check_use_installed_system != 0} {
-         set_error "0" "install_shadowd - no need to install shadowd on host \"$shadow_host\" - noinst parameter is set"
-         puts "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
+         puts $CHECK_OUTPUT "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
          if {[startup_shadowd $shadow_host] == 0} {
             lappend CORE_INSTALLED $shadow_host
             write_install_list
@@ -104,7 +101,7 @@ proc install_shadowd {} {
       }
 
       if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-         set_error "-1" "install_shadowd - inst_sge file not found"
+         add_proc_error "install_shadowd" "-1" "inst_sge file not found"
          return
       }
 
@@ -129,13 +126,11 @@ proc install_shadowd {} {
       }
 
       if {$exit_val == 0} {
-         set_error "0" "ok"
          lappend CORE_INSTALLED $shadow_host
          write_install_list
          return
       } else { 
-         set_error "-2" "install failed"
-         add_proc_error "install shadowd" "-2" "$output"
+         add_proc_error "install_shadowd" "-2" "install failed:\n$output"
          return
       }
    }

@@ -110,10 +110,6 @@ proc qstat_xml_parse { output {param ""} } {
    set node121 [$node12 firstChild]  ; # <qname/>
 
    set result2 [qstat_xml_jobid $node121 $jobparam output_xml]
-
-
-   set_error 0 "ok"
-
 }
 
 
@@ -168,10 +164,6 @@ proc qstat_j_xml_parse { output  } {
    set node [$root firstChild]   ; # <qmaster_response/>
 
    set result1 [qstat_j_xml_jobid $node output_xml]
-
-
-   set_error 0 "ok"
-
 }
 
  
@@ -230,10 +222,6 @@ proc qstat_j_JOB_NAME_xml_parse { output {param ""} } {
    set node1 [$node firstChild]  ; # <qmaster_response/>
 
    set result1 [qstat_j_JOB_NAME_xml_jobid $node1 output_xml]
-
-
-   set_error 0 "ok"
-
 }
 
 #                                                             max. column:     |
@@ -317,9 +305,6 @@ proc qstat_f_xml_parse { output {param ""} } {
    set node121 [$node12 firstChild]  ; # <qname/>
 
    set result2 [qstat_xml_jobid $node121 $jobparam output_xml]
-   
-   set_error 0 "ok"
-
 }
 
  
@@ -387,9 +372,6 @@ proc qstat_F_xml_parse { output {params ""} } {
    set node121 [$node12 firstChild]  ; # <qname/>
 
    set result2 [qstat_xml_jobid $node121 full output_xml]
-   
-   set_error 0 "ok"
-
 }
 
 
@@ -502,9 +484,6 @@ proc qstat_j_xml_jobid { node1  output} {
       set node13111 $node31
       
   }
- 
-  set_error 0 "ok"
-
 }
 
 
@@ -862,9 +841,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
        }
 
     }
-
-   set_error 0 "ok"
-
 }
 
 
@@ -1323,9 +1299,6 @@ proc qstat_xml_queue { node1 output {param ""} } {
       set result222 [qstat_xml_jobid $node222 $jobparam output_xml_qstat]
 
     }
-
-   set_error 0 "ok"
-
 }
 
 #                                                             max. column:     |
@@ -1477,9 +1450,6 @@ proc qstat_F_xml_queue { node1 output {params ""} } {
       set result222 [qstat_xml_jobid $node223 full output_xml_qstat]
 
    }
-
-   set_error 0 "ok"
-
 }
 
 
@@ -1530,9 +1500,6 @@ proc qstat_g_c_xml_parse { output } {
    #set node1 [$node firstChild]  ; # 
 
    set result1 [qstat_g_c_xml_queue $node output_xml]
-   
-   set_error 0 "ok"
-
 }
 
 #                                                             max. column:     |
@@ -1631,9 +1598,6 @@ proc qstat_g_c_xml_queue { node output } {
       }
 
    }
-
-   set_error 0 "ok"
-
 }
 
  
@@ -1700,8 +1664,5 @@ proc qstat_ext_xml_parse { output } {
    set job_type2 "extpending"
    set result2 [qstat_xml_jobid $node121 $job_type2 output_xml]
    #puts $CHECK_OUTPUT "second calling job_type is  $job_type2 ... \n"
-
-   set_error 0 "ok"
-
 }
 

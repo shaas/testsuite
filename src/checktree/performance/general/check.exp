@@ -71,8 +71,6 @@ lappend check_functions       "setup_schedd_params"   ;# set FLUSH_FINISH_SEC an
 lappend check_functions       "do_perform_test"
 lappend check_functions       "cleanup_queues"
 lappend check_functions       "cleanup_schedd_params"
-set check_errno              "-1"                    ;# 0 -> OK , != 0 means error
-set check_errstr               "was never running"     ;# string for error description
 set check_highest_level       400
 
 global last_job

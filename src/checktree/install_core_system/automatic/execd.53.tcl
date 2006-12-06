@@ -60,5 +60,5 @@
 #     ???/???
 #*******************************
 proc install_execd {} {
-   set_error "-3" "install_execd - unsupported test, no autoinstall available!"
+   add_proc_error "install_execd" "-3" "unsupported test, no autoinstall available!"
 }

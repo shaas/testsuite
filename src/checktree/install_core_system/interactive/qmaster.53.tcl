@@ -74,7 +74,6 @@ proc install_qmaster {} {
  puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
 
  if { $check_use_installed_system != 0 } {
-    set_error "0" "install_qmaster - no need to install qmaster on host $ts_config(master_host) - noinst parameter is set"
     puts "no need to install qmaster on host $ts_config(master_host), noinst parameter is set"
     set CORE_INSTALLED "" 
     if {[startup_qmaster] == 0} {
@@ -87,9 +86,8 @@ proc install_qmaster {} {
  set CORE_INSTALLED ""
  write_install_list
 
- set_error "0" "install_qmaster - no errors"
  if {[file isfile "$ts_config(product_root)/install_qmaster"] != 1} {
-    set_error "-1" "install_qmaster - install_qmaster file not found"
+    add_proc_error "install_qmaster" "-1" "install_qmaster file not found"
     return
  }
 
@@ -173,43 +171,43 @@ proc install_qmaster {} {
        flush stdout
        flush $CHECK_OUTPUT 
        -i $sp_id full_buffer {
-          set_error "-1" "install_qmaster - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+          add_proc_error "install_qmaster" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
           close_spawn_process $id; 
           return;
        }   
 
        -i $sp_id eof { 
-          set_error "-1" "install_qmaster - unexpected eof"; 
+          add_proc_error "install_qmaster" "-1" "unexpected eof"; 
           close_spawn_process $id;
           return;  
        }
 
        -i $sp_id "coredump" {
-          set_error "-2" "install_qmaster - coredump";
+          add_proc_error "install_qmaster" "-2" "coredump";
           close_spawn_process $id
           return
        }
 
        -i $sp_id timeout { 
-          set_error "-1" "install_qmaster - timeout while waiting for output"; 
+          add_proc_error "install_qmaster" "-1" "timeout while waiting for output"; 
           close_spawn_process $id;
           return;  
        }
 
        -i $sp_id "orry" { 
-          set_error "-1" "install_qmaster - wrong root password"
+          add_proc_error "install_qmaster" "-1" "wrong root password"
           close_spawn_process $id;
           return;
        }
 
        -i $sp_id "issing" { 
-          set_error "-1" "install_qmaster - missing binary error"
+          add_proc_error "install_qmaster" "-1" "missing binary error"
           close_spawn_process $id;
           return;
        }
 
        -i $sp_id "xit." {
-          set_error "-1" "install_qmaster - installation failed"
+          add_proc_error "install_qmaster" "-1" "installation failed"
           close_spawn_process $id; 
           return;
        }
@@ -221,7 +219,7 @@ proc install_qmaster {} {
           
           puts $CHECK_OUTPUT "\n -->testsuite: admin user is \"$real_admin_user\""
           if { [string compare $real_admin_user $CHECK_USER] != 0 } {
-             set_error "-1" "install_qmaster - admin user \"$real_admin_user\" is different from CHECK_USER \"$CHECK_USER\"" 
+             add_proc_error "install_qmaster" "-1" "admin user \"$real_admin_user\" is different from CHECK_USER \"$CHECK_USER\"" 
              close_spawn_process $id;
              return;
           }
@@ -370,7 +368,7 @@ proc install_qmaster {} {
              ts_send $sp_id "\n"
              continue;
           } else {
-             set_error "-1" "install_qmaster - tried to install not as root"
+             add_proc_error "install_qmaster" "-1" "tried to install not as root"
              close_spawn_process $id; 
              return;
           }
@@ -552,7 +550,6 @@ proc install_qmaster {} {
           read_install_list
           lappend CORE_INSTALLED $ts_config(master_host)
           write_install_list
-          set_error "0" "install_qmaster - no errors"
           close_spawn_process $id;
           return; 
        }
@@ -582,31 +579,31 @@ proc install_qmaster {} {
        }
 
        -i $sp_id "Error:" {
-          set_error "-1" "install_qmaster - $expect_out(0,string)"
+          add_proc_error "install_qmaster" "-1" "$expect_out(0,string)"
           close_spawn_process $id;
           return;
        }
 
        -i $sp_id $NOT_COMPILED_IN_SECURE_MODE {
-          set_error "-2" "install_qmaster - sge_qmaster binary is not compiled in secure mode"
+          add_proc_error "install_qmaster" "-2" "sge_qmaster binary is not compiled in secure mode"
           close_spawn_process $id;
           return;
        }
 
        -i $sp_id "ommand failed*\n" {
-          set_error "-1" "install_qmaster - $expect_out(0,string)"
+          add_proc_error "install_qmaster" "-1" "$expect_out(0,string)"
           close_spawn_process $id;
           return;
        }
 
        -i $sp_id "can't resolve hostname*\n" {
-          set_error "-1" "install_qmaster - $expect_out(0,string)"
+          add_proc_error "install_qmaster" "-1" "$expect_out(0,string)"
           close_spawn_process $id; 
           return;
        }     
    
        -i $sp_id "error:\n" {
-          set_error "-1" "install_qmaster - $expect_out(0,string)"
+          add_proc_error "install_qmaster" "-1" "$expect_out(0,string)"
           continue;
        }
    
@@ -631,7 +628,7 @@ proc install_qmaster {} {
        }
 
        -i $sp_id default {
-          set_error "-1" "install_qmaster - undefined behaviour: $expect_out(buffer)"
+          add_proc_error "install_qmaster" "-1" "undefined behaviour: $expect_out(buffer)"
           close_spawn_process $id; 
           return;
        }
@@ -639,9 +636,3 @@ proc install_qmaster {} {
   }
 }
 
-proc install_shadowd {} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "no shadowd installation for 5.3 system yet"
-   set_error "0" "install_shadowd - not yet implemented"
-}

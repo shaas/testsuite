@@ -61,5 +61,5 @@
 #     ???/???
 #*******************************
 proc install_qmaster {} {
- set_error "-3" "install_qmaster - unsupported test no autoinstall available!"
+   add_proc_error "install_qmaster" "-3" "unsupported test no autoinstall available!"
 }

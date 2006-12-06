@@ -71,8 +71,6 @@ proc install_shadowd {} {
    set CORE_INSTALLED "" 
    read_install_list
 
-   set_error "0" "inst_sge -sm - no errors"
-
    if {! $check_use_installed_system} {
       set feature_install_options ""
 
@@ -92,12 +90,11 @@ proc install_shadowd {} {
 
       puts $CHECK_OUTPUT "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
       if {[lsearch $CHECK_CORE_SHADOWD $shadow_host] == -1 } {
-         set_error "-1" "inst_sge -sm - host $shadow_host is not in shadowd list"
+         add_proc_error "install_shadowd" "-1" "host $shadow_host is not in shadowd list"
          return 
       }
 #      wait_for_remote_file $shadow_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
       if { $check_use_installed_system != 0 } {
-         set_error "0" "install_shadowd - no need to install shadowd on hosts \"$CHECK_CORE_SHADOWD\" - noinst parameter is set"
          puts "no need to install shadowd on hosts \"$CHECK_CORE_SHADOWD\", noinst parameter is set"
          if {[startup_shadowd $shadow_host] == 0 } {
             lappend CORE_INSTALLED $shadow_host
@@ -110,7 +107,7 @@ proc install_shadowd {} {
       }
 
       if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-         set_error "-1" "install_shadowd - inst_sge file not found"
+         add_proc_error "install_shadowd" "-1" "inst_sge file not found"
          return
       }
 
@@ -170,25 +167,25 @@ proc install_shadowd {} {
          log_user 1 
          expect {
             -i $sp_id full_buffer {
-               set_error "-1" "install_shadowd - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               add_proc_error "install_shadowd" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                close_spawn_process $id
                return
             }
 
             -i $sp_id eof {
-               set_error "-1" "install_shadowd - unexpeced eof"
+               add_proc_error "install_shadowd" "-1" "unexpeced eof"
                set do_stop 1
                continue
             }
 
             -i $sp_id "coredump" {
-               set_error "-2" "install_shadowd - coredump on host $shadow_host"
+               add_proc_error "install_shadowd" "-2" "coredump on host $shadow_host"
                set do_stop 1
                continue
             }
 
             -i $sp_id timeout { 
-               set_error "-1" "install_shadowd - timeout while waiting for output" 
+               add_proc_error "install_shadowd" "-1" "timeout while waiting for output" 
                set do_stop 1
                continue
             }
@@ -250,7 +247,7 @@ proc install_shadowd {} {
                   ts_send $sp_id "\n"
                   continue
                } else {
-                  set_error "-1" "install_shadowd - host $shadow_host: tried to install not as root"
+                  add_proc_error "install_shadowd" "-1" "host $shadow_host: tried to install not as root"
                   close_spawn_process $id 
                   return
                }
@@ -269,18 +266,18 @@ proc install_shadowd {} {
 
 
             -i $sp_id "Error:" {
-               set_error "-1" "install_shadowd - $expect_out(0,string)"
+               add_proc_error "install_shadowd" "-1" "$expect_out(0,string)"
                close_spawn_process $id 
                return
             }
             -i $sp_id "can't resolve hostname*\n" {
-               set_error "-1" "install_shadowd - $expect_out(0,string)"
+               add_proc_error "install_shadowd" "-1" "$expect_out(0,string)"
                close_spawn_process $id 
                return
             }            
   
             -i $sp_id "error:\n" {
-               set_error "-1" "install_shadowd - $expect_out(0,string)"
+               add_proc_error "install_shadowd" "-1" "$expect_out(0,string)"
                close_spawn_process $id 
                return
             }
@@ -333,7 +330,7 @@ proc install_shadowd {} {
             }
 
             -i $sp_id default {
-               set_error "-1" "install_shadowd - undefined behaiviour: $expect_out(buffer)"
+               add_proc_error "install_shadowd" "-1" "undefined behaiviour: $expect_out(buffer)"
                close_spawn_process $id 
                return
             }

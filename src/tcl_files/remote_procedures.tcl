@@ -844,16 +844,9 @@ proc sendmail_wrapper { address cc subject body } {
    return 0
 }
 
-proc create_error_message { error_array} {
+proc create_error_message {err_string} {
   global CHECK_OUTPUT
-  set catch_return [catch {
-  set err_string [lindex $error_array 0]
-  #set err_string $error_array
-  } ]
-  if { $catch_return == 1 } {
-     set err_string "catch error: error reading error_array"
-  }
-  
+
   set err_complete  [split $err_string "|"]
   set err_procedure [lindex $err_complete 0]
   set err_checkname [lindex $err_complete 1]
@@ -881,8 +874,8 @@ proc create_error_message { error_array} {
 
 
 
-proc show_proc_error { result new_error } {
-   global CHECK_CUR_PROC_ERRORS CHECK_CUR_PROC_RESULTS CHECK_CUR_PROC_NAME CHECK_OUTPUT check_name CHECK_TESTSUITE_ROOT
+proc show_proc_error {result new_error} {
+   global CHECK_OUTPUT check_name CHECK_TESTSUITE_ROOT
    global CHECK_ARCH CHECK_HOST CHECK_PRODUCT_ROOT CHECK_ACT_LEVEL CHECK_CORE_MASTER CHECK_CORE_EXECD
    global CHECK_SEND_ERROR_MAILS ts_config
 
@@ -895,7 +888,7 @@ proc show_proc_error { result new_error } {
       puts $CHECK_OUTPUT "$category"
       puts $CHECK_OUTPUT "runlevel    : \"[get_run_level_name $CHECK_ACT_LEVEL]\", ($CHECK_ACT_LEVEL)"
       puts $CHECK_OUTPUT ""
-      set error_output [ create_error_message $new_error ]
+      set error_output [create_error_message $new_error]
       puts $CHECK_OUTPUT $error_output 
       puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 

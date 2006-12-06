@@ -179,11 +179,6 @@ proc del_prj { prj_name } {
    global ts_config
    global CHECK_USER
 
-   if {$ts_config(product_type) == "sge"} {
-      set_error -1 "del_prj - not possible for sge systems"
-      return -1
-   }
-
    set messages(index) "0"
    set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $prj_name "*"]
 

@@ -1577,9 +1577,6 @@ proc qstat_plain_parse { output  {params ""} } {
    set result [start_sge_bin "qstat" "$params"]
 
    parse_qstat result  qstat_output
-
-   set_error 0 "ok"
-
 }
 
 #                                                             max. column:     |
@@ -1695,9 +1692,6 @@ proc qstat_urg_plain_parse { output  } {
       }
          
    }
-   
-   set_error 0 "ok"
-
  }
 
 
@@ -1827,9 +1821,6 @@ proc qstat_f_urg_plain_parse { output {param ""} } {
         }
       }   
    }
-   
-   set_error 0 "ok"
-
 }
  
  
@@ -1933,10 +1924,7 @@ proc qstat_pri_plain_parse { output  } {
          
          
    }
-   
-   set_error 0 "ok"
-
- }
+}
 
 
 #                                                             max. column:     |
@@ -2123,10 +2111,7 @@ proc qstat_j_ERROR_plain_parse { output  } {
       }   
          
    }
-   
-   set_error 0 "ok"
-
- }
+}
 
 
 
@@ -2207,9 +2192,6 @@ proc qstat_j_plain_parse { output  } {
   
 
    }
-
-   set_error 0 "ok"
-
 }
 
 
@@ -2332,9 +2314,6 @@ proc qstat_r_plain_parse { output  } {
          }   
      }
    }
-
-   set_error 0 "ok"
-
 }
 
 
@@ -2471,10 +2450,6 @@ proc qstat_f_r_plain_parse { output } {
       }                           
 
    }
-
-
-   set_error 0 "ok"
-
 }
 
 
@@ -2578,9 +2553,6 @@ proc qstat_f_plain_parse { output {param ""} } {
        }
 
    }
-   
-   set_error 0 "ok"
-
 }
 
 
@@ -2657,8 +2629,6 @@ proc qstat_g_c_plain_parse { output  } {
                     
          
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** parser/qstat_special_parse() ******
@@ -2857,9 +2827,6 @@ proc qstat_ext_plain_parse { output {param ""} } {
      }
    
    }
-
-   set_error 0 "ok"
-
 }
 
  
@@ -2975,9 +2942,6 @@ proc qstat_F_plain_parse {  output {params ""} } {
      }
 
   }
-
-   set_error 0 "ok"
-
 }
 
 
@@ -3055,8 +3019,6 @@ proc qstat_g_c_plain_parse { output  } {
                     
          
    }
-
-   set_error 0 "ok"
 }
 
 proc parse_rqs_record {input_var output_var} {
@@ -3097,7 +3059,6 @@ proc parse_rqs_record {input_var output_var} {
          }
       }
    }
-   set_error 0 "ok"
 }
 
 #****** parser/test_parse_qstat() **********************************************
