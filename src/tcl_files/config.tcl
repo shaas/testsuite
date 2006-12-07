@@ -1043,7 +1043,7 @@ proc config_results_dir { only_check name config_array } {
 #     check/setup2()
 #     check/verify_config()
 #*******************************************************************************
-proc config_use_ssh { only_check name config_array } {
+proc config_use_ssh {only_check name config_array} {
    global CHECK_OUTPUT 
    global CHECK_USE_SSH
    global CHECK_USER
@@ -1055,11 +1055,11 @@ proc config_use_ssh { only_check name config_array } {
    set default_value $config($name,default)
    set description   $config($name,desc)
    set value $actual_value
-   if { $actual_value == "" } {
+   if {$actual_value == ""} {
       set value $default_value
    }
 
-   if { $only_check == 0 } {
+   if {$only_check == 0} {
       # do setup  
       puts $CHECK_OUTPUT "" 
       puts $CHECK_OUTPUT "Please enter \"yes\" if testsuite should use secure shell to connect to the"
@@ -1068,22 +1068,22 @@ proc config_use_ssh { only_check name config_array } {
       puts $CHECK_OUTPUT "hosts. The root user should not get any password question when using ssh."
       puts $CHECK_OUTPUT "(default: $value)"
       puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
+      set input [wait_for_enter 1]
+      if { [string length $input] > 0 } {
          set value $input 
       } else {
          puts $CHECK_OUTPUT "using default value"
       }
    }
 
-   set local_host [ gethostname ]
-   if { $local_host == "unknown" } {
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
       puts $CHECK_OUTPUT "Could not get local host name" 
       return -1
    }
    set CHECK_HOST $local_host
 
-   if { $value == "yes" } {
+   if {$value == "yes"} {
       set CHECK_USE_SSH 1
    } else {
       set value "none"

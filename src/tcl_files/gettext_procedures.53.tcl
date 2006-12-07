@@ -103,7 +103,7 @@ proc sge_macro { macro_name {raise_error 1} } {
 
    # macro nowhere found
    if {$raise_error} {
-      if { $value == -1 } {
+      if {$value == -1} {
          set macro_messages_file [get_macro_messages_file_name]
          add_proc_error "sge_macro" -3 "could not find macro \"$macro_name\" in source code!!!\ndeleting macro messages file:\n$macro_messages_file"
          if { [ file isfile $macro_messages_file] } {

@@ -403,7 +403,7 @@ proc install_qmaster {} {
           continue
        }
 
-       -i $sp_id $VERIFY_FILE_PERMISSIONS1 {
+       -i $sp_id -- $VERIFY_FILE_PERMISSIONS1 {
          if { $ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar" } {
             set input "$ANSWER_YES"
          } else {
@@ -417,7 +417,7 @@ proc install_qmaster {} {
           ts_send $sp_id "$input\n"
           continue
        }
-       -i $sp_id $VERIFY_FILE_PERMISSIONS2 { 
+       -i $sp_id -- $VERIFY_FILE_PERMISSIONS2 { 
          if { $ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar" } {
             set input "$ANSWER_NO"
          } else {
@@ -463,7 +463,7 @@ proc install_qmaster {} {
           continue
        }
 
-       -i $sp_id $IF_NOT_OK_STOP_INSTALLATION {
+       -i $sp_id -- $IF_NOT_OK_STOP_INSTALLATION {
           if { $CHECK_ADMIN_USER_SYSTEM != 0 } {
              puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(2)"
              if {$do_log_output == 1} {
@@ -1013,7 +1013,7 @@ proc install_qmaster {} {
           return
        }
 
-       -i $sp_id $NOT_COMPILED_IN_SECURE_MODE {
+       -i $sp_id -- $NOT_COMPILED_IN_SECURE_MODE {
           add_proc_error "install_qmaster" "-2" "sge_qmaster binary is not compiled in secure mode"
           close_spawn_process $id
           return

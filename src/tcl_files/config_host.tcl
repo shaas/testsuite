@@ -1787,6 +1787,18 @@ proc host_conf_get_arch {host {config_var ""}} {
       set ret $config($host,arch,$ts_config(gridengine_version))
    }
 
+   # before the 6.0u4, we had no sol-amd64 port, but used the sol-x86 binaries
+   if {$ts_config(gridengine_version) == 60 && $ret == "sol-amd64"} {
+      switch -exact $ts_config(source_cvs_release) {
+         "V60_TAG" -
+         "V60u1_TAG" -
+         "V60u2_TAG" -
+         "V60u3_TAG" {
+            set ret "sol-x86"
+         }
+      }
+   }
+
    return $ret
 }
 

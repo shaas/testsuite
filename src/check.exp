@@ -4573,10 +4573,12 @@ proc execute_setup_cleanup_function {func_name type} {
    if {$ret == 1} {
       # check_errno contains error codes as well as OK status (0)
       # search for entries != 0, if found, treat as error
-      foreach elem $check_errno($func_name) {
-         if {$elem != 0} {
-            set ret 0
-            break
+      if {[info exists check_errno($func_name)]} {
+         foreach elem $check_errno($func_name) {
+            if {$elem != 0} {
+               set ret 0
+               break
+            }
          }
       }
    }

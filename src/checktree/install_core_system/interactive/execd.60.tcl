@@ -78,7 +78,10 @@ proc install_execd {} {
    # if yes, we'll have to copy the certificates, regardless of csp mode or not
    set have_windows_host [host_conf_have_windows]
 
-   set catch_result [ catch { eval exec "cat $ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2" } INST_VERSION ]
+   set catch_result [catch {eval exec "cat $ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2"} script_version]
+   if {$catch_result == 0} {
+      set INST_VERSION $script_version
+   }
    puts $CHECK_OUTPUT "inst_sge version: $INST_VERSION"
 
    if {!$check_use_installed_system} {
@@ -152,8 +155,9 @@ proc install_execd {} {
 
       set HIT_RETURN_TO_CONTINUE       [translate $exec_host 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
       set EXECD_INSTALL_COMPLETE       [translate $exec_host 0 1 0 [sge_macro DISTINST_EXECD_INSTALL_COMPLETE] ]
-      set PREVIOUS_SCREEN              [translate $exec_host 0 1 0 [sge_macro DISTINST_PREVIOUS_SCREEN ] ]
-      set CELL_NAME_FOR_EXECD          [translate $exec_host 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_EXECD ] "*"]
+      set PREVIOUS_SCREEN              [translate $exec_host 0 1 0 [sge_macro DISTINST_PREVIOUS_SCREEN] ]
+      set CELL_NAME_FOR_EXECD          [translate $exec_host 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_EXECD] "*"]
+      set CELL_NAME_FOR_EXECD_2        [translate $exec_host 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_EXECD_2]]
       set ANSWER_YES                   [translate $exec_host 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
       set ANSWER_NO                    [translate $exec_host 0 1 0 [sge_macro DISTINST_ANSWER_NO] ]
       set ADD_DEFAULT_QUEUE_INSTANCE   [translate $exec_host 0 1 0 [sge_macro DISTINST_ADD_DEFAULT_QUEUE_INSTANCE] ]
@@ -327,6 +331,18 @@ proc install_execd {} {
                continue
             } 
 
+            -i $sp_id $CELL_NAME_FOR_EXECD_2 {
+               puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
+               set input "$ts_config(cell)\n"
+
+               if {$do_log_output == 1} {
+                  puts "-->testsuite: press RETURN"
+                  set anykey [wait_for_enter 1]
+               }
+               ts_send $sp_id $input
+               continue
+            } 
+
             -i $sp_id $MESSAGES_LOGGING {
                puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
                if {$do_log_output == 1} {
@@ -339,7 +355,7 @@ proc install_execd {} {
 
 
 
-            -i $sp_id $IF_NOT_OK_STOP_INSTALLATION {
+            -i $sp_id -- $IF_NOT_OK_STOP_INSTALLATION {
                if { $CHECK_ADMIN_USER_SYSTEM != 0 } {
                   puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
                   if {$do_log_output == 1} {

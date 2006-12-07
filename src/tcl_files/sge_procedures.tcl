@@ -1954,15 +1954,15 @@ proc get_config { change_array {host global}} {
 #     sge_procedures/get_config()
 #*******************************
 proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
-  global ts_config
-  global env CHECK_ARCH CHECK_OUTPUT
-  global CHECK_CORE_MASTER CHECK_USER
+   global ts_config
+   global env CHECK_ARCH CHECK_OUTPUT
+   global CHECK_CORE_MASTER CHECK_USER
 
    upvar $change_array chgar
    set values [array names chgar]
 
    # get old config - we want to compare it to new one
-   if { $do_add == 0 } {
+   if {$do_add == 0} {
       set qconf_cmd "-mconf"
       get_config old_values $host
    } else {
@@ -1970,31 +1970,40 @@ proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
       set old_values(xyz) "abc"
    }
 
-  set vi_commands [build_vi_command chgar old_values]
+   set vi_commands [build_vi_command chgar old_values]
   
-  set GIDRANGE [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CONFIG_CONF_GIDRANGELESSTHANNOTALLOWED_I] "*"]
+   set GIDRANGE [translate_macro MSG_CONFIG_CONF_GIDRANGELESSTHANNOTALLOWED_I "*"]
+   set EDIT_FAILED [translate_macro MSG_PARSE_EDITFAILED]
 
-  set EDIT_FAILED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_PARSE_EDITFAILED]]
+   if { $ts_config(gridengine_version) == 53 } {
+      set MODIFIED [translate_macro MSG_SGETEXT_CONFIG_MODIFIEDINLIST_SSS $CHECK_USER "*" "*"]
+      set ADDED    [translate_macro MSG_SGETEXT_CONFIG_ADDEDTOLIST_SSS $CHECK_USER "*" "*"]
 
-  if { $ts_config(gridengine_version) == 53 } {
-     set MODIFIED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_CONFIG_MODIFIEDINLIST_SSS] $CHECK_USER "*" "*"]
-     set ADDED    [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_CONFIG_ADDEDTOLIST_SSS] $CHECK_USER "*" "*"]
-     set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE ]
-  } else {
-     set MODIFIED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
-     set ADDED    [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-     set EFFECT   [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS] "execd_spool_dir"]
-     set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE $EFFECT]
-  }
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE]
+   } else {
+      set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
 
-  if { ($ignore_error == 1) && ($result == -4) } {
-     # ignore error -4 
-  } else {
-    if { ($result != 0) && ($result != -3) && ($result != -5) }  {
-      add_proc_error "set_config" -1 "could not add or modify configuration for host $host ($result)"
-    }
-  }
-  return $result
+      # early N1GE 6.0 versions don't have MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS
+      set EFFECT_DEFINE [sge_macro MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS 0]
+      if {$EFFECT_DEFINE == -1} {
+         set EFFECT "this N1GE doesn't have MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS"
+      } else {
+         set EFFECT [translate $CHECK_CORE_MASTER 1 0 0 $EFFECT_DEFINE "execd_spool_dir"]
+      }
+
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE $EFFECT]
+   }
+
+   if {$ignore_error == 1 && $result == -4} {
+      # ignore error -4 
+   } else {
+      if {$result != 0 && $result != -3 && $result != -5}  {
+         add_proc_error "set_config" -1 "could not add or modify configuration for host $host ($result)"
+      }
+   }
+
+   return $result
 }
 
 #****** set_config_and_propagate() *********************************************

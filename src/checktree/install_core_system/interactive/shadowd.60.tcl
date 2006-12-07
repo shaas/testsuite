@@ -237,7 +237,7 @@ proc install_shadowd {} {
             }
 
 
-            -i $sp_id $IF_NOT_OK_STOP_INSTALLATION {
+            -i $sp_id -- $IF_NOT_OK_STOP_INSTALLATION {
                if { $CHECK_ADMIN_USER_SYSTEM != 0 } {
                   puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
                   if {$do_log_output == 1} {
@@ -327,6 +327,13 @@ proc install_shadowd {} {
      
                ts_send $sp_id "\n"
                continue
+            }
+
+            -i $sp_id "_exit_status_:(0)" {
+               # N1GE 6.0 shadowd installation just stops after starting the shadowd
+               # without further notice. Let's hope inst_sge -sm doesn't exit 0 in 
+               # case of errors - we wouldn't recognize them!
+               set do_stop 1
             }
 
             -i $sp_id default {
