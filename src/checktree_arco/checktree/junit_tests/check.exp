@@ -105,16 +105,18 @@ proc arco_junit_check {} {
    set write_user_pw secret
    set read_user   [get_arco_read_user]
    set read_user_pw secret
-   set file_name   $CHECK_PROTOCOL_DIR/arco_junit_config.xml
+   set file_name   $CHECK_PROTOCOL_DIR/arco_junit_config.properties
    
    switch -- $arco_config(database_type) {
       "postgres" { 
+           set identifier "postgres"
            set jdbc_driver "org.postgresql.Driver"
            set jdbc_url    "jdbc:postgresql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
            set db_def      "database/postgres/dbdefinition.xml"
            set db_schema   "public"
       }
       "oracle"   { 
+           set identifier "oracle"
            set jdbc_driver "oracle.jdbc.driver.OracleDriver" 
            set jdbc_url    "jdbc:oracle:thin:@${arco_config(database_host)}:${arco_config(database_port)}:$db_name"
            set db_def      "database/oracle/dbdefinition.xml"
@@ -127,6 +129,7 @@ proc arco_junit_check {} {
       }
    }
    
+   append cmd_args " -e 's%@@IDENTIFIER@@%${identifier}%g'"
    append cmd_args " -e 's%@@JDBC_DRIVER@@%${jdbc_driver}%g'"
    append cmd_args " -e 's%@@JDBC_URL@@%${jdbc_url}%g'"
    append cmd_args " -e 's%@@JDBC_USER@@%${write_user}%g'"
@@ -136,7 +139,7 @@ proc arco_junit_check {} {
    append cmd_args " -e 's%@@SCHEMA@@%${db_schema}%g'"
    append cmd_args " -e 's%@@DB_DEFINITION_FILE@@%${db_def}%g'"
    
-   append cmd_args " $arco_config(arco_source_dir)/dbwriter/test/DBWriterTestConfig.xml.template"
+   append cmd_args " $arco_config(arco_source_dir)/dbwriter/test/DBWriterTestConfig.properties.template"
    append cmd_args " > $file_name"
 
    report_add_message report "Creating junit config file $file_name"
@@ -144,10 +147,10 @@ proc arco_junit_check {} {
    report_add_message report "$cmd $cmd_args"
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $cmd "$cmd_args"]
    if { $prg_exit_state != 0 } {
-      report_add_message report "sed of DBWriterTestConfig.xml.template failed, exit state $prg_exit_state"
+      report_add_message report "sed of DBWriterTestConfig.properties.template failed, exit state $prg_exit_state"
       report_add_message report "$output"
       report_finish report -1
-      add_proc_error "arco_junit_check" -1 "sed of DBWriterTestConfig.xml.template failed"
+      add_proc_error "arco_junit_check" -1 "sed of DBWriterTestConfig.properties.template failed"
       set_error -1 "Error"
       return -1
    }
