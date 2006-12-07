@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -106,7 +104,6 @@ proc issue_440_set_parameters {} {
       }
       puts $CHECK_OUTPUT "testing with MAX_KBYTE=$issue_440_MAX_KBYTE"
    }
-   set_error 0 "ok"
 }
 
 proc issue_440_check_qsub {} {
@@ -200,8 +197,6 @@ proc issue_440_check_qsub {} {
    if { $back != 3 } {
       add_proc_error "issue_440_check_qsub" -1 "are_master_and_scheduler_running returns $backafter submit on host $check_440_host"
    }   
-
-   set_error 0 "ok"
 }
 
 proc issue_440_check_qrsh {} {
@@ -281,8 +276,6 @@ proc issue_440_check_qrsh {} {
    if { $back != 3 } {
       add_proc_error "issue_440_check_qrsh" -1 "are_master_and_scheduler_running returns $back after submit on host $check_440_host"
    }   
-
-   set_error 0 "ok"
 }
 
 proc issue_440_cleanup  {} {
@@ -295,7 +288,6 @@ proc issue_440_cleanup  {} {
    wait_for_jobend $jobid "leeper" 60 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-   set_error 0 "ok"
 }
 
 

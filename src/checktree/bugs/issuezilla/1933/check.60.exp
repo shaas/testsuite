@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global env
@@ -84,8 +82,6 @@ proc issue_1933_setup  {} {
    puts $CHECK_OUTPUT "add $queue_name"
    set q_param(prolog) "invalid_prolog"
    add_queue $queue_name "@allhosts" q_param
-
-   set_error 0 "ok"
 }
 
 proc issue_1933_cleanup  {} {
@@ -96,8 +92,6 @@ proc issue_1933_cleanup  {} {
    puts $CHECK_OUTPUT "delete $queue_name"
    del_queue $queue_name "@allhosts" 1 1
    start_remote_prog $host $CHECK_USER qmod "-cq all.q" exit_state 30
-
-   set_error 0 "ok"
 }
 
 
@@ -146,8 +140,6 @@ proc issue_1933_test {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 

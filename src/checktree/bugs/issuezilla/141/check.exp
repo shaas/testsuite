@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -160,9 +158,7 @@ proc issue_141_check {} {
       }
    }
 
-   if { $error_mail_output != "" } {
-      
-
+   if {$error_mail_output != ""} {
       set mail_text "\nqdel output information:\n $qdel_output"
       append mail_text $error_mail_output
       add_proc_error "issue_141_check" -1 $mail_text
@@ -171,16 +167,10 @@ proc issue_141_check {} {
    }
 
    wait_for_jobend $job_id "Sleeper" 300 0 1
-
-   set_error 0 "ok"
 }
 
 proc issue_141_cleanup  {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 120
-
-   set_error 0 "ok"
 }
-
-
 

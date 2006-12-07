@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 global stree tmp_name
@@ -115,8 +115,6 @@ proc issue_1874_setup  {} {
    close $f
    # create sharetree
    set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "qconf" "-Mstree $tmp_name"]
-
-   set_error 0 "ok"
 }
 
 proc issue_1874_cleanup  {} {
@@ -130,8 +128,6 @@ proc issue_1874_cleanup  {} {
    set result [ del_user "1874_usr2" ]
    # remove project 
    set result [ del_prj "1874_prj1" ]
-
-   set_error 0 "ok"
 }
 
 proc create_stree1_1874 {} {
@@ -190,6 +186,4 @@ proc issue_1874_run  {} {
    if { $result != 0 } {
       add_proc_error "issue_1874_run" -1 "qconf failed: issue might 1874 exists"
    }
-
-   set_error 0 "ok"
 }

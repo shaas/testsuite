@@ -96,8 +96,6 @@ proc issue_1977_setup  {} {
    # modify complex values of all.q
    set queue_settings(complex_values) "t=true"
    mod_queue "all.q" "" queue_settings
-
-   set_error 0 "ok"
 }
 
 proc issue_1977_cleanup  {} {
@@ -116,8 +114,6 @@ proc issue_1977_cleanup  {} {
 
    # restore complex
    set_complex consumable_complex_backup
-
-   set_error 0 "ok"
 }
 
 proc issue_1977 {} {
@@ -138,6 +134,4 @@ proc issue_1977 {} {
    if { [ string match "*$qinstance*" $output ] == 1 } {
       add_proc_error "issue_1977" -1 "qselect -l broken"
    } 
-
-   set_error 0 "ok"
 }

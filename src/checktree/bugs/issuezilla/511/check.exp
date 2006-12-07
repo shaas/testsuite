@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -91,8 +89,6 @@ proc issue_511_setup  {} {
 
    set my_schedd_conf(maxujobs) "4"
    set_schedd_config my_schedd_conf 
-
-   set_error 0 "ok"
 }
 
 
@@ -175,8 +171,6 @@ proc issue_511_check {} {
                      "qstat -j output is not correct for last pending job: expected \"$expected_output\" but received \"$qstatoutput\""
       return
    }
-
-   set_error 0 "ok"
 }
 
 proc issue_511_cleanup  {} {
@@ -188,6 +182,5 @@ proc issue_511_cleanup  {} {
 
    # Restore schedd config
    set_schedd_config stored_schedd_conf
-   set_error 0 "ok"
 }
 

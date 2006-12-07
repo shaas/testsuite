@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 
 set check_init_level_procedure "issue_1270_init_level"
@@ -67,8 +67,6 @@ proc issue_1270_init_level {} {
 proc issue_1270_setup  {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-
-   set_error 0 "ok"
 }
 
 proc issue_1270_run  {} {
@@ -81,8 +79,6 @@ proc issue_1270_run  {} {
    if { $prg_exit_state <= 0 } {
       add_proc_error "issue_1270_run" "-1" "drmaa_synchronize() did not ignore new jobs:\n$output"
    }
-
-   set_error 0 "ok"
 }
 
 proc issue_1270_cleanup {} {
@@ -90,6 +86,4 @@ proc issue_1270_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    # TODO: delete the output file $HOME/DRMAA_JOB
-
-   set_error 0 "ok"
 }

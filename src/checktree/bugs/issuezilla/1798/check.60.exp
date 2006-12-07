@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -86,8 +84,6 @@ proc issue_1798_init_level {} {
 
 proc issue_1798_setup  {} {
    global CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
-
-   set_error 0 "ok"
 }
 
 proc issue_1798_cleanup  {} {
@@ -104,9 +100,6 @@ proc issue_1798_cleanup  {} {
    if { $catch_return != 0 } {
       add_proc_error "issue_1798_test" -1 "qconf -dattr error"
    }
-
-
-   set_error 0 "ok"
 }
 
 proc issue_1798_test {} {
@@ -132,12 +125,8 @@ proc issue_1798_test {} {
       eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -mattr exechost complex_values = global"
    } result ]
    if { $catch_return != 1 } {
-      add_proc_error "issue_1798_test" -2 "error: qconf -mattr exechost compl
-ex_values = global caused core of master"
-      set_error -2 "IZ 1798 is present"
+      add_proc_error "issue_1798_test" -2 "error: qconf -mattr exechost complex_values = global caused core of master"
       return -2
    }
-
-   set_error 0 "ok"
 }
 

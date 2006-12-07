@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 set check_init_level_procedure "issue_1715_init_level"
@@ -71,7 +71,6 @@ proc issue_1715_run  {} {
 
    if { [string match $qmaster_arch "lx24*" ] == 1  } {
       add_proc_error ssue_1715 -3 "test cannot kill qmaster on lx24 because of defect threading library - testsuite will block and never quit"
-      set_error 0 "ok"
       return
 
    }
@@ -90,7 +89,6 @@ proc issue_1715_run  {} {
    if { [ string match $output $INVALIDHOST ] == 0 } {
       add_proc_error "issue_1715" -1 "issue 1715 still exists, qconf -aattr queue slots \"\[=1\]\" <queue>  crashes qmaster"
    }
-   set_error 0 "ok"
 }
 
 proc issue_1715_cleanup {} {

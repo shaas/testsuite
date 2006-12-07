@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -73,25 +73,17 @@ proc issue_1291_run  {} {
    set INVALID_AT_QDEL [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_XISINVALIDJOBTASKID_S] "*" ]
    set INVALID_AT_QMASTER [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_SPECIFYUSERORJID] ]
 
-   set errno 0
-   set errstr "ok"
-   
    # Test
    set result [start_sge_bin "qdel" "$name" ]
    if { $result == "" } {
-      set errno -1
-      set errstr "qdel exited with exit code $prg_exit_state and didn't do any output"
+      add_proc_error "issue_1291_run" -1 "qdel exited with exit code $prg_exit_state and didn't do any output"
    } else {
       if { ! [string match "*${INVALID_AT_QDEL}*" $result] } {
          if { [string match "*${INVALID_AT_QMASTER}*" $result] } {
-            set errno -1
-            set errstr "qdel allows $name as a valid job id, but qmaster rejects it.\nqdel output: $result"
+            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id, but qmaster rejects it.\nqdel output: $result"
          } else {
-            set errno -1 
-            set errstr "qdel allows $name as a valid job id.\nqdel output: $result\nexpected output: $INVALID_AT_QDEL"
+            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id.\nqdel output: $result\nexpected output: $INVALID_AT_QDEL"
          }
       }
    }
-
-   set_error $errno $errstr
 }

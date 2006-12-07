@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -108,14 +106,14 @@ proc issue_1760_check {} {
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-sconf $CHECK_HOST | tail +2 > /tmp/$issue_1760_fake_host" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to show configuration for $CHECK_HOST: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to show configuration for $CHECK_HOST: $output"
       return -1
    }
 
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-Aconf /tmp/$issue_1760_fake_host" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to add configuration for fake host: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to add configuration for fake host: $output"
       return -1
    }
 
@@ -126,14 +124,14 @@ proc issue_1760_check {} {
    set output [start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"group_name $issue_1760_group\nhostlist $CHECK_HOST $issue_1760_fake_host\n\" > /tmp/hg_issue1760.$pid" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to write hostgroup file: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to write hostgroup file: $output"
       return -1
    }
 
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-Ahgrp /tmp/hg_issue1760.$pid" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to add hostgroup: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to add hostgroup: $output"
       return -1
    }
 
@@ -159,7 +157,7 @@ proc issue_1760_check {} {
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-aattr queue slots \"\[$issue_1760_fake_host=1\]\" $issue_1760_qname" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to add 'slots' entry for fake host: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to add 'slots' entry for fake host: $output"
       return -1
    }
 
@@ -172,7 +170,7 @@ proc issue_1760_check {} {
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dq $issue_1760_qname" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to remove queue -- issue 1760 still exists: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to remove queue -- issue 1760 still exists: $output"
       return -1
    }
 
@@ -182,7 +180,7 @@ proc issue_1760_check {} {
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dhgrp $issue_1760_group" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to remove hostgroup -- issue 1760 still exists: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to remove hostgroup -- issue 1760 still exists: $output"
       return -1
    }
 
@@ -192,12 +190,11 @@ proc issue_1760_check {} {
    set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dconf $issue_1760_fake_host" result]
 
    if {$result != 0} {
-      set_error -1 "Unable to remove host configuration -- issue 1760 still exists: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to remove host configuration -- issue 1760 still exists: $output"
       return -1
    }
 
    set issue_1760_milestone 0
-   set_error 0 "ok"
 }
 
 proc issue_1760_cleanup {} {
@@ -241,6 +238,4 @@ proc issue_1760_cleanup {} {
       # Restart qmaster without envlist set
       startup_qmaster 0
    }
-
-   set_error 0 "ok"
 }

@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -115,8 +115,6 @@ proc issue_1104_run {} {
 
       file delete "$ts_config(product_root)/tmp"
    }
-
-   set_error 0 "ok"
 }
 
 

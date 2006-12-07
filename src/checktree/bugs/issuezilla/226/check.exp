@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -95,8 +93,6 @@ proc issue_226_check {} {
    # value blow 100 should be rejected
    set my_cluster_conf(gid_range) "99"
    set_config my_cluster_conf "global" "0" "1"
-
-   set_error 0 "ok"
 }
 
 proc issue_226_setup  {} {
@@ -104,8 +100,6 @@ proc issue_226_setup  {} {
 
    # get configuration
    get_config stored_configuration
-
-   set_error 0 "ok"
 }
 
 proc issue_226_cleanup  {} {
@@ -115,9 +109,5 @@ proc issue_226_cleanup  {} {
    if {[info exists stored_configuration]} {
       set_config stored_configuration
    }
- 
-   set_error 0 "ok"
 }
-
-
 

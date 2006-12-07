@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -145,8 +143,6 @@ proc issue_126_setup  {} {
    if { ($result != 0)  } {
       add_proc_error "issue_126_setup" "-1" "Could not add queue q2"
    }
-
-   set_error 0 "ok"
 }
 
 proc issue_126_check {} {
@@ -338,7 +334,6 @@ proc issue_126_check {} {
    #
    wait_for_end_of_all_jobs "10"
    set error_output ""
-   set_error 0 "ok"
 }
 
 proc issue_126_cleanup  {} {
@@ -354,8 +349,6 @@ proc issue_126_cleanup  {} {
                         "Could not delete queue $queue: $result"
       }
    }
-
-   set_error 0 "ok"
 }
 
 

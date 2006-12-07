@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -96,8 +94,6 @@ proc issue_2028_setup  {} {
 
    # restart qmaster
    startup_qmaster 0
-
-   set_error 0 "ok"
 }
 
 proc issue_2028_cleanup  {} {
@@ -121,8 +117,6 @@ proc issue_2028_cleanup  {} {
 
    # restart qmaster
    startup_qmaster 0
-
-   set_error 0 "ok"
 }
 
 proc issue_2028_submit {scenario {jobcount 5}} {
@@ -172,8 +166,6 @@ proc issue_2028_test {} {
 
    # submit some jobs - must be successfull
    set id_list2 [issue_2028_submit "after wraparound and qmaster restart"]
-
-   set_error 0 "ok"
 }
 
 

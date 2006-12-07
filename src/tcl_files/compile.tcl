@@ -692,7 +692,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    puts $CHECK_OUTPUT "now waiting for end of compile ..." 
    set status_updated 1
    set status_time 0
-   set timeout 300
+   set timeout 900
    set done_count 0
    log_user 0
 

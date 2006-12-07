@@ -49,8 +49,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -130,8 +128,6 @@ proc issue_1803_setup {} {
 
    # wait some time for config to be known at exec hosts
    sleep 15
-
-   set_error 0 "ok"
 }
 
 proc issue_1803_cleanup {} {
@@ -150,8 +146,6 @@ proc issue_1803_cleanup {} {
    mod_queue all.q "" my_conf
 
    switch_to_admin_user_system
-
-   set_error 0 "ok"
 }
 
 
@@ -255,7 +249,7 @@ proc issue_1803_test {} {
                      set expected_argument2        "epilog"
                      set expected_argument3        ""
                   } else {
-                     set_error -1 "shepherd forked more than 3 (epilog, job, prolog) times"
+                     add_proc_error "issue_1803_test" -1 "shepherd forked more than 3 (epilog, job, prolog) times"
                   }
                
                   puts $CHECK_OUTPUT "binary:    \"$binary\""
@@ -264,16 +258,16 @@ proc issue_1803_test {} {
                   puts $CHECK_OUTPUT "argument3: \"$argument3\""
 
                   if { $binary != $expected_binary } {
-                     set_error -1 "$add_error expected $expected_binary, but shepherd executed $binary"
+                     add_proc_error "issue_1803_test" -1 "$add_error expected $expected_binary, but shepherd executed $binary"
                   }
                   if { $argument1 != $expected_argument1 } {
-                     set_error -1 "$add_error expected arg1 = $expected_argument1, but arg1 = $argument1"
+                     add_proc_error "issue_1803_test" -1 "$add_error expected arg1 = $expected_argument1, but arg1 = $argument1"
                   }
                   if { $argument2 != $expected_argument2 } {
-                     set_error -1 "$add_error expected arg2 = $expected_argument2, but arg2 = $argument2"
+                     add_proc_error "issue_1803_test" -1 "$add_error expected arg2 = $expected_argument2, but arg2 = $argument2"
                   }
                   if { $argument3 != $expected_argument3 } {
-                     set_error -1 "$add_error expected arg3 = $expected_argument3, but arg3 = $argument3"
+                     add_proc_error "issue_1803_test" -1 "$add_error expected arg3 = $expected_argument3, but arg3 = $argument3"
                   }
                   set counter [ expr ($counter + 1) ]
                }   
@@ -281,8 +275,6 @@ proc issue_1803_test {} {
          }
       }
    }
- 
-   set_error 0 "ok"
 }
 
 

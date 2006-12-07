@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 
 set check_init_level_procedure "issue_1848_init_level"
@@ -124,8 +124,6 @@ proc issue_1848_setup  {} {
 
    set myconfig(loglevel)         "log_warning"
    set_config myconfig
-   
-   set_error 0 "ok"
 }
 
 proc issue_1848_cleanup {} {
@@ -143,8 +141,6 @@ proc issue_1848_cleanup {} {
 
    set myconfig(loglevel)         "log_info"
    set_config myconfig
-
-   set_error 0 "ok"
 }
 
 
@@ -225,9 +221,7 @@ proc issue_1848_run {} {
    puts $CHECK_OUTPUT "done waiting messages: $count"
 
    if {$count != 0} {
-      set_error -1 "errors were generated"
-   } else {
-      set_error 0 "ok"
+      add_proc_error "issue_1848_run" -1 "errors were generated"
    }
 }
 

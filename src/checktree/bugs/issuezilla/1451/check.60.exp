@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -115,7 +113,6 @@ proc execd_uninstall_setup  {} {
          break;
       }
    }
-   set_error 0 "ok"
 }
 
 proc execd_uninstall_cleanup  {} {
@@ -130,7 +127,6 @@ proc execd_uninstall_cleanup  {} {
       set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER "qmod" "-us all.q"] 
       puts $CHECK_OUTPUT $output
    }
-   set_error 0 "ok"
 }
 
 
@@ -148,7 +144,6 @@ proc issue_1451_uninstall_execd {} {
  
    if { $check_execd == "unknown" } {
       add_proc_error "uninstall_execd" -2 "not host for uninstallation found"
-      set_error "0" ok
       return
    }
 
@@ -156,7 +151,7 @@ proc issue_1451_uninstall_execd {} {
 
  
    if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-      set_error "-1" "inst_sge - inst_sge file not found"
+      add_proc_error "issue_1451_uninstall_execd" -1 "inst_sge - inst_sge file not found"
       return
    }
 
@@ -279,6 +274,5 @@ proc issue_1451_uninstall_execd {} {
       }
    }  ;# while 1
    close_spawn_process $id;
-   set_error "0" "uninstall_execd - no errors"
    return
 }

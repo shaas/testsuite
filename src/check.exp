@@ -4557,15 +4557,9 @@ proc execute_setup_cleanup_function {func_name type} {
       set CHECK_ACT_LEVEL $act_level_value
 
       # catch returnes an error - may be a TCL error
-      if { $catch_return != 0 } {
+      if {$catch_return != 0} {
          add_proc_error "run_test" "-2" "$type function \"$func_name\" failed:\n$catch_message" 
          set ret 0
-      } else {
-         # function returns not 0 - setup/cleanup function failed
-         if { $catch_message != 0 } {
-            add_proc_error "run_test" "-2" "setup function \"$func_name\" didn't return 0:\n$catch_message"
-            set ret 0
-         }
       }
    }
 

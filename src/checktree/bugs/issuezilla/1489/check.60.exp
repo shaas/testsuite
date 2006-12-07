@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -115,7 +113,6 @@ proc issue_1489_setup {} {
    
    delete_file $issue_1489_lck_file 0
    delete_file $issue_1489_log_file 0
-   set_error 0 "ok"
 }
 
 proc issue_1489_cleanup  {} {
@@ -132,8 +129,6 @@ proc issue_1489_cleanup  {} {
 
    delete_file $issue_1489_lck_file 0
    delete_file $issue_1489_log_file 0
-
-   set_error 0 "ok"
 }
 
 proc issue_1489_run {} {
@@ -148,7 +143,7 @@ proc issue_1489_run {} {
    
    set my_job [ submit_job "-q iz_1489  $option $CHECK_ACTUAL_TEST_PATH/infinity.sh $issue_1489_lck_file" ]
    if {$my_job < 0 } {
-     set_error 1 "submit job failed"
+     add_proc_error "issue_1489_run" -1 "submit job failed"
      return
    }
    
@@ -161,14 +156,14 @@ proc issue_1489_run {} {
    if { $res == 0 } {
       puts $CHECK_OUTPUT "lock file $issue_1489_lck_file has been created, job $my_job is running"
    } else {   
-      set_error 1 "lock file $issue_1489_lck_file has not been created, job $my_job has not started"
+      add_proc_error "issue_1489_run" -1 "lock file $issue_1489_lck_file has not been created, job $my_job has not started"
       return
    }
    
    set del_result [ delete_job $my_job ]
    
    if { $del_result != 0 } {
-     set_error -1 "qdel of job $my_job failed"
+      add_proc_error "issue_1489_run" -1 "qdel of job $my_job failed"
       return
    }
    
@@ -179,11 +174,9 @@ proc issue_1489_run {} {
    if { $res == 0 } {
       puts $CHECK_OUTPUT "lock file $issue_1489_lck_file has been deleted, job $my_job gots the TERM signal"
    } else {
-      set_error 1 "lock file $issue_1489_lck_file has not been deleted, job $my_job did not get the TERM signal"
+      add_proc_error "issue_1489_run" -1 "lock file $issue_1489_lck_file has not been deleted, job $my_job did not get the TERM signal"
       return
    }
-   
-   set_error 0 "ok"
 }
 
 

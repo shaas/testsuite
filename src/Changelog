@@ -1,4 +1,9 @@
-JG-2006-12-08-0: Bugfix:    Fixed a TCL error introduced by JG-2006-12-06-0.
+JG-2006-12-07-1: Bugfix:    Fixed error handling for setup/cleanup functions.
+                            Compile timeout was too low for jgdi build.
+                 Cleanup:   Removed globals and set_error from bugs/issuezilla
+                            checks.
+
+JG-2006-12-07-0: Bugfix:    Fixed a TCL error introduced by JG-2006-12-06-0.
                             Fixed installation of SGE 6.0, 6.0u1, 6.0u2, ...
                  Review:    RD
 

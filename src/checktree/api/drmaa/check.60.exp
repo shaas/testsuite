@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -121,8 +119,6 @@ proc drmaa_setup {} {
    set_config new_config
 
    # setup file staging scripts
-
-   set_error 0 "ok"
 }
 
 # undo what we've done in drmaa_setup
@@ -139,8 +135,6 @@ proc drmaa_cleanup  {} {
    foreach host $ts_config(unique_arch_nodes) {
       drmaa_redirect_lib "0.95" $host
    }
-
-   set_error 0 "ok"
 }
 
 # here the actual test is done
@@ -277,8 +271,6 @@ proc drmaa_check {} {
          } 
       } 
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |

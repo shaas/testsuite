@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -70,7 +70,6 @@ proc issue_1768_init_level {} {
 
 proc issue_1768_setup {} {
    append_to_qtask_file "issue1768 -N \"two words\" -N \"three . words\""
-   set_error 0 "ok"
 }
 
 proc issue_1768_cleanup {} {
@@ -78,7 +77,6 @@ proc issue_1768_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    restore_qtask_file
-   set_error 0 "ok"
 }
 
 proc issue_1768_run  {} {
@@ -104,6 +102,4 @@ proc issue_1768_run  {} {
          }
       }   
    }
-
-   set_error 0 "ok"
 }

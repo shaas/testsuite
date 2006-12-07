@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -115,17 +113,11 @@ proc issue_140_check {} {
    if { $back != 3 } {
       add_proc_error "issue_140_cleanup" -1 "are_master_and_scheduler_running returns $back"
    }   
-
-   set_error 0 "ok"
 }
 
 proc issue_140_cleanup  {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER ts_config 
    delete_all_jobs
    wait_for_end_of_all_jobs 60 
-
-   set_error 0 "ok"
 }
-
-
 

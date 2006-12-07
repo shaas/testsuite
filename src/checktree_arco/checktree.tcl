@@ -873,7 +873,7 @@ proc config_arco_dbwriter_interval { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please the dbwriter interval in seconds, or press >RETURN<"
+   set help_text {  "Please enter the dbwriter interval in seconds, or press >RETURN<"
                     "to use the default value."  }
                     
    # TODO set global variables
@@ -885,7 +885,7 @@ proc config_jdbc_driver { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please the path to the JDBC driver or press >RETURN<"
+   set help_text {  "Please enter the path to the JDBC driver or press >RETURN<"
                     "to use the default value."  }
      
    return [ config_generic $only_check $name config $help_text ]

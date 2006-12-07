@@ -39,8 +39,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -96,7 +94,6 @@ proc auto_backup_init_level {} {
 
 proc auto_backup_setup  {} {
    global CHECK_OUTPUT ts_config
-   set_error 0 "ok"
 }
 
 proc auto_backup_cleanup  {} {
@@ -114,8 +111,6 @@ proc auto_backup_cleanup  {} {
          puts $CHECK_OUTPUT $dir
       }
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -142,7 +137,6 @@ proc auto_backup_create_config {} {
    close $fdo
 
    puts $CHECK_OUTPUT "automatic backup config file successfully created ..."
-   set_error 0 "ok"
 }
 
 
@@ -160,12 +154,7 @@ proc auto_backup_do_backup {} {
       set output [start_remote_prog $ts_config(bdb_server) $CHECK_USER "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    }
 
-   if { $exit_val == 0 } {
-    set_error "0" "ok"
-    return
-   } else { 
-    set_error "-2" "autobackup failed"
-    add_proc_error "autobackup" "-2" "$output"
-    return
+   if {$exit_val != 0} {
+      add_proc_error "auto_backup_do_backup" "-2" "$output"
    }
 }

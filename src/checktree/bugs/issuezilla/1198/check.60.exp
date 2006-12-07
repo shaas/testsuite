@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -93,10 +93,7 @@ proc issue_1198_run  {} {
 
    if {$catch_result != 0} {
       add_proc_error "issue_1198_run" "-1" "qconf failed to hide slots for queue ${queue}@${test_host}: $result"
-      set_error -1 "Issue 1198: qconf displays slots in complex values list"
       return
-   } else {
-      set_error 0 "ok"
    }
 
    puts $CHECK_OUTPUT "Looking for slots in ${queue}@${hostgroup} complex values list"
@@ -105,8 +102,5 @@ proc issue_1198_run  {} {
 
    if {$catch_result != 0} {
       add_proc_error "issue_1198_run" "-1" "qconf failed to hide slots for queue ${queue}@${hostgroup}: $result"
-      set_error -1 "Issue 1198: qconf displays slots in complex values list"
-   } else {
-      set_error 0 "ok"
    }
 }

@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 global stree tmp_name
@@ -94,10 +94,6 @@ proc issue_1877_setup  {} {
 
    set new_values(terminate_method) "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30 0"
    mod_queue "all.q" "" new_values
-
-#   wait_for_enter
-
-   set_error 0 "ok"
 }
 
 proc issue_1877_cleanup  {} {
@@ -105,8 +101,6 @@ proc issue_1877_cleanup  {} {
 
    set new_values(terminate_method) "NONE"
    mod_queue "all.q" "" new_values
-
-   set_error 0 "ok"
 }
 
 proc issue_1877_run  {} {
@@ -131,6 +125,4 @@ proc issue_1877_run  {} {
    if { $nowtime < $mytime } {
       add_proc_error "issue_1877_run" -1 "issue 1877 is present"
    }
-
-   set_error 0 "ok"
 }

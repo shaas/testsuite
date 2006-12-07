@@ -38,8 +38,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -97,8 +95,6 @@ proc issue_1972_setup  {} {
    puts $CHECK_OUTPUT "...adding idle complex"
    set host_complex(idle) "idle BOOL == FORCED NO FALSE 0"
    set_complex host_complex 
-
-   set_error 0 "ok"
 }
 
 proc issue_1972_cleanup  {} {
@@ -109,8 +105,6 @@ proc issue_1972_cleanup  {} {
    puts $CHECK_OUTPUT "...deleting idle complex"
    set host_complex(idle) ""
    set_complex host_complex 
-
-   set_error 0 "ok"
 }
 
 
@@ -123,25 +117,23 @@ proc issue_1972_test1 {} {
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 
-      puts $CHECK_OUTPUT "...submitting job"
-      submit_job $arguments
-      submit_job $arguments
-      submit_job $arguments
-      submit_job $arguments
-      submit_job $arguments
+   puts $CHECK_OUTPUT "...submitting job"
+   submit_job $arguments
+   submit_job $arguments
+   submit_job $arguments
+   submit_job $arguments
+   submit_job $arguments
 
-      trigger_scheduling
-      sleep 2
+   trigger_scheduling
+   sleep 2
 
-      puts $CHECK_OUTPUT "this is the test for runlevel $CHECK_ACT_LEVEL"
-      set result [start_sge_bin qstat "-j"]
+   puts $CHECK_OUTPUT "this is the test for runlevel $CHECK_ACT_LEVEL"
+   set result [start_sge_bin qstat "-j"]
 
-      if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "the qstat -j command failed."
-         add_proc_error "issue_1972_test" -1 "qstat -j command failed"
-      }
-
-   set_error 0 "ok"
+   if { $prg_exit_state != 0 } {
+      puts $CHECK_OUTPUT "the qstat -j command failed."
+      add_proc_error "issue_1972_test" -1 "qstat -j command failed"
+   }
 }
 
 

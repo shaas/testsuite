@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -54,7 +54,7 @@ set check_highest_level       0
 proc issue_1529_init_level {} {
    global CHECK_ACT_LEVEL ts_config
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
       "0"  {
          return 0
@@ -73,6 +73,4 @@ proc issue_1529_run  {} {
    if { $prg_exit_state != 0 } {
       add_proc_error "issue_1529_run" "-1" "DRMAA failed to accept non-binary job:\n$output"
    }
-
-   set_error 0 "ok"
 }

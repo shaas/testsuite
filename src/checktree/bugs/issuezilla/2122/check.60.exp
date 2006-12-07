@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -93,8 +91,6 @@ proc sge_strdup_test_test1 {} {
    if { [string first "\"\"" $output] < 0 } {
       add_proc_error "sge_strdup_test_test1" -1 "issue 2122 found" 
    }
-   
-   set_error 0 "ok"
 }
 
 

@@ -51,7 +51,6 @@
 #
 # 7) you can add any function name to check_functions (all function (no paramters allowed) are started 
 #    within each runlevel number
-#    PLEASE finish each check_function with a set_error() function call
 #    PLEASE use add_proc_error() to submit errors
 #    add_proc_error() is used in many testsuite standard functions, so not every 
 #    function call must check the return state.
@@ -160,8 +159,6 @@ proc __TESTSUITE_TEST_NAME_setup  {} {
    global CHECK_OUTPUT ts_config
 
    puts $CHECK_OUTPUT "this is a dummy setup function"
-
-   set_error 0 "ok"
 }
 
 proc __TESTSUITE_TEST_NAME_cleanup  {} {
@@ -170,8 +167,6 @@ proc __TESTSUITE_TEST_NAME_cleanup  {} {
 #   delete_all_jobs
 #   wait_for_end_of_all_jobs 60
    puts $CHECK_OUTPUT "this is a dummy cleanup function"
-
-   set_error 0 "ok"
 }
 
 
@@ -192,7 +187,6 @@ proc __TESTSUITE_TEST_NAME_test1 {} {
     # this would be a error:
     # add_proc_error "__TESTSUITE_TEST_NAME_test" -1 "this is a dummy error"
    }
-   set_error 0 "ok"
 }
 
 

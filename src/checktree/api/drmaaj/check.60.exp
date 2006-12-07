@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -172,8 +170,6 @@ proc drmaaj_check {} {
          add_proc_error drmaa_check -1 "DRMAA-J jUnit test suite failed at host $host:\n$test_output"
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc drmaaj_setup {} {
@@ -190,8 +186,6 @@ proc drmaaj_setup {} {
    set new_config(qmaster_params) "FORBID_RESCHEDULE=TRUE,FORBID_APPERROR=TRUE"
    set new_config(delegated_file_staging) "true"
    set_config new_config
-
-   set_error 0 "ok"
 }
 
 # undo what we've done in drmaa_setup
@@ -208,6 +202,4 @@ proc drmaaj_cleanup  {} {
    foreach host $ts_config(unique_arch_nodes) {
       drmaa_redirect_lib "0.95" $host
    }
-
-   set_error 0 "ok"
 }

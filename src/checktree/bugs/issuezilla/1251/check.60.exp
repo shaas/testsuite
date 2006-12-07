@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 global prj_count node_count stree tmp_name
@@ -77,8 +77,6 @@ proc issue_1251_setup {} {
 
    # delete a possibly existing sharetree
    del_sharetree
-
-   set_error 0 "ok"
 }
 
 proc issue_1251_cleanup {} {
@@ -91,8 +89,6 @@ proc issue_1251_cleanup {} {
    foreach project $project_names {
       del_prj $project
    }
-
-   set_error 0 "ok"
 }
 
 proc issue_1251_run  {} {
@@ -119,9 +115,6 @@ proc issue_1251_run  {} {
 
    if {$catch_result != 0} {
       add_proc_error "issue_1251_run" "-1" "qconf failed to display share tree: $result"
-      set_error -1 "Issue 1251: qconf -sstree unable to display large share tree"
-   } else {
-      set_error 0 "ok"
    }
 }
 

@@ -38,8 +38,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -92,8 +90,6 @@ proc issue_2022_setup  {} {
 
    puts $CHECK_OUTPUT "backing up scheduler configuration"
    get_schedd_config issue_2022_schedd_config
-
-   set_error 0 "ok"
 }
 
 proc issue_2022_cleanup  {} {
@@ -102,8 +98,6 @@ proc issue_2022_cleanup  {} {
 
    puts $CHECK_OUTPUT "restoring up scheduler configuration"
    set_schedd_config issue_2022_schedd_config
-
-   set_error 0 "ok"
 }
 
 
@@ -113,7 +107,5 @@ proc issue_2022_test {} {
    foreach profile "inst_schedd_high.conf inst_schedd_max.conf inst_schedd_normal.conf" {
       set_schedd_config_from_file "$ts_config(product_root)/util/install_modules/$profile"
    }
-
-   set_error 0 "ok"
 }
 

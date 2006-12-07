@@ -38,8 +38,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -97,8 +95,6 @@ proc issue_1802_setup  {} {
 #   if {[string match "*csp*" $ts_config(product_feature)] == 1 } {
 #      puts $CHECK_OUTPUT "setup ..."
 #   }
-
-   set_error 0 "ok"
 }
 
 proc issue_1802_cleanup  {} {
@@ -136,7 +132,6 @@ proc issue_1802_cleanup  {} {
          }
       }
    }
-   set_error 0 "ok"
 }
 
 
@@ -182,7 +177,6 @@ proc issue_1802_test {} {
          puts $CHECK_OUTPUT "exit state of qstat: $prg_exit_state"
          if { $prg_exit_state == 0 } {
             add_proc_error "issue_1802_test" -1 "qstat exit state is $prg_exit_state, should be != 0\n$output"
-            set_error 0 "ok"
             return 
          }
 
@@ -215,7 +209,6 @@ proc issue_1802_test {} {
          }
       }
    }
-   set_error 0 "ok"
 }
 
 

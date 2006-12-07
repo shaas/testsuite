@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -87,15 +85,11 @@ proc issue_1640_init_level {} {
 proc issue_1640_setup  {} {
    global CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
    global num_queues complex_backup
-
-   set_error 0 "ok"
 }
 
 proc issue_1640_cleanup  {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
    global num_queues complex_backup
-
-   set_error 0 "ok"
 }
 
 proc issue_1640_test {} {
@@ -132,7 +126,5 @@ proc issue_1640_test {} {
                      "IZ 1640 is present: qconf gets confused by shortcuts"
       return
    }
-
-   set_error 0 "ok"
 }
 

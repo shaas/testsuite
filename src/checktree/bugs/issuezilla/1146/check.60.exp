@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 set check_init_level_procedure "issue_1146_init_level"
@@ -82,6 +82,4 @@ proc issue_1146_run  {} {
    set vi_commands [build_vi_command qparam]
 
    handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aq" $vi_commands $INVALID
-
-   set_error 0 "ok"
 }

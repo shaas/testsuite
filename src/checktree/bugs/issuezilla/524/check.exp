@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -109,8 +107,6 @@ proc issue_524_check {} {
    } 
 
    wait_for_end_of_all_jobs 60
-
-   set_error 0 "ok"
 }
 
 proc issue_524_cleanup  {} {
@@ -118,7 +114,5 @@ proc issue_524_cleanup  {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-
-   set_error 0 "ok"
 }
 

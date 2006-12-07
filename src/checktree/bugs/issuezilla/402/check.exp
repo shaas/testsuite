@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -108,16 +106,12 @@ proc issue_402_check {} {
    } 
    wait_for_jobstart $job_id $job_name 300
    wait_for_jobend $job_id $job_name 20
- 
-   set_error 0 "ok"
 }
 
 proc issue_402_cleanup  {} {
    global CHECK_OUTPUT
 
    delete_all_jobs
-
-   set_error 0 "ok"
 }
 
 

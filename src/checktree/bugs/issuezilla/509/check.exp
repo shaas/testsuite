@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -94,15 +92,11 @@ proc issue_509_check {} {
    if { ( [ string compare "$job_id1" "-18" ] == -1 ) } {
       add_proc_error "issue_509_check" "-1" "qsub command did not fail"
    }
-
-   set_error 0 "ok"
 }
 
 proc issue_509_cleanup  {} {
    global CHECK_OUTPUT
 
    delete_all_jobs
-
-   set_error 0 "ok"
 }
 

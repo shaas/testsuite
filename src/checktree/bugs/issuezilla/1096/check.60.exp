@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -79,7 +79,6 @@ proc issue_1096_shutdown_master {} {
    } else {
       shutdown_core_system
    }
-   set_error 0 "ok"
 }
 proc issue_1096_run {} {
    global ts_config  CHECK_OUTPUT CHECK_USER
@@ -130,7 +129,6 @@ proc issue_1096_run {} {
          shutdown_system_daemon $act_host qmaster 0
       }
    }
-   set_error 0 "ok"
 }
 
 
@@ -141,5 +139,4 @@ proc issue_1096_cleanup {} {
    } else {
       startup_core_system
    }
-   set_error 0 "ok"
 }

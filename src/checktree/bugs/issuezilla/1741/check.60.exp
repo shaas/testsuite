@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 global stree tmp_name
@@ -108,8 +108,6 @@ proc issue_1741_setup  {} {
    set queue_settings(subordinate_list) "b.q=1"
    set qname "a.q"
    add_queue $qname $CHECK_HOST queue_settings
-
-   set_error 0 "ok"
 }
 
 proc issue_1741_cleanup  {} {
@@ -125,8 +123,6 @@ proc issue_1741_cleanup  {} {
 
    set qname "b.q"
    del_queue $qname $CHECK_HOST  0 1
-
-   set_error 0 "ok"
 }
 
 proc issue_1741_run  {} {
@@ -144,6 +140,4 @@ proc issue_1741_run  {} {
    shutdown_and_restart_qmaster
 
    wait_for_queue_state "b.q@${CHECK_HOST}" "S" 60
-
-   set_error 0 "ok"
 }

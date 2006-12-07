@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -73,8 +73,6 @@ proc issue_1126_shutdown_master {} {
    global ts_config
 
    shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
-
-   set_error 0 "ok"
 }
 
 proc issue_1126_run  {} {
@@ -202,9 +200,6 @@ proc issue_1126_run  {} {
    close_spawn_process $client_sid
 
    sleep 5
-
-
-   set_error 0 "ok"
 }
 
 
@@ -212,14 +207,5 @@ proc issue_1126_restart_master {} {
    global ts_config 
 
    startup_qmaster
-   set_error 0 "ok"
 }
-
-
-
-
-
-
-
-
 

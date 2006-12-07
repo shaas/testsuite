@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -104,8 +102,6 @@ proc issue_1334_setup {} {
 
    delete_file $issue_1334_job_stdout_file 0
    delete_file $issue_1334_job_stderr_file 0
-   
-   set_error 0 "ok"
 }
 
 proc issue_1334_cleanup  {} {
@@ -122,8 +118,6 @@ proc issue_1334_cleanup  {} {
    # delete the job stdout and stderr file
    delete_file $issue_1334_job_stdout_file 0
    delete_file $issue_1334_job_stderr_file 0
-   
-   set_error 0 "ok"
 }
 
 proc issue_1334_run {} {
@@ -140,13 +134,13 @@ proc issue_1334_run {} {
    #
    set my_job [ submit_job "-q iz_1334  $option -shell n -b y /bin/true" ]
    if {$my_job < 0 } {
-     set_error 1 "submit job failed"
+     add_proc_error "issue_1334_run" -1 "submit job failed"
      return
    }
  
    # wait until job ran through
    if {[wait_for_jobend $my_job "" 60 0]} {
-      set_error 1 "job was not running"
+      add_proc_error "issue_1334_run" -1 "job was not running"
       return
    }
   
@@ -154,7 +148,7 @@ proc issue_1334_run {} {
    set res [ wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120 ]
    
    if { $res != 0 } {
-      set_error 1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
+      add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
       return
    }
    
@@ -164,7 +158,7 @@ proc issue_1334_run {} {
    #
    set output [start_remote_prog $CHECK_HOST $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
    if { [string match "*SGE_STARTER_SHELL_PATH*" $output] != 1 } {
-      set_error 1 "jobstarter was not invoked (1)"
+      add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (1)"
       return
    }
    
@@ -178,13 +172,13 @@ proc issue_1334_run {} {
    #
    set my_job [submit_job "-q iz_1334  $option -shell y -b y /bin/true"]
    if {$my_job < 0 } {
-     set_error 1 "submit job failed"
+     add_proc_error "issue_1334_run" -1 "submit job failed"
      return
    }
    
    # wait until job ran through
    if {[wait_for_jobend $my_job "" 60 0]} {
-      set_error 1 "job was not running"
+      add_proc_error "issue_1334_run" -1 "job was not running"
       return
    }
   
@@ -192,7 +186,7 @@ proc issue_1334_run {} {
    set res [ wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120 ]
    
    if { $res != 0 } {
-      set_error 1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
+      add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
       return
    }
 
@@ -202,15 +196,13 @@ proc issue_1334_run {} {
    #
    set output [start_remote_prog $CHECK_HOST $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
    if { [string match "*SGE_STARTER_SHELL_PATH*" $output] != 1 } {
-      set_error 1 "jobstarter was not invoked (2)"
+      add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (2)"
       return
    }
    puts $CHECK_OUTPUT "content of job output file $issue_1334_job_stdout_file:\n$output\n"
 
    delete_file $issue_1334_job_stdout_file
    delete_file $issue_1334_job_stderr_file
-   
-   set_error 0 "ok"
 }
 
 

@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -130,15 +128,11 @@ proc issue_478_check {} {
    delete_job $job_id3 "1"
    delete_job $job_id2 "1"
    delete_job $job_id1 "1"
-
-   set_error 0 "ok"
 }
 
 proc issue_478_cleanup  {} {
    global CHECK_OUTPUT
 
    delete_all_jobs
-
-   set_error 0 "ok"
 }
 

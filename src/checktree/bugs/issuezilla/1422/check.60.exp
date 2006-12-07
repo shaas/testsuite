@@ -68,8 +68,6 @@ proc issue_1422_init_level {} {
 
 proc issue_1422_setup  {} {
    delete_session_directory
-
-   set_error 0 "ok"
 }
 
 proc issue_1422_run  {} {
@@ -84,18 +82,13 @@ proc issue_1422_run  {} {
      catch { eval exec "/bin/ls -lR $session_directory | wc -l" } result2
 
      if { $result1 != $result2 } {
-        set_error -1 "qsub did not clean up the session directory"
-        return;
+        add_proc_error "issue_1422_run" -1 "qsub did not clean up the session directory"
      }
    }
-
-   set_error 0 "no errors"
 }
 
 proc issue_1422_cleanup {} {
    delete_session_directory
-
-   set_error 0 "ok"
 }
 
 proc delete_session_directory {} {

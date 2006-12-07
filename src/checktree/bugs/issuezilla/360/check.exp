@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -86,20 +84,14 @@ proc issue_360_init_level {} {
 proc issue_360_setup  {} {
    global CHECK_OUTPUT 
    global CHECK_CORE_MASTER
-
-   set_error 0 "ok"
 }
 
 
 proc issue_360_check {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
-
-   set_error 0 "ok"
 }
 
 proc issue_360_cleanup  {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
-
-   set_error 0 "ok"
 }
 

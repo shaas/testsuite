@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -105,8 +103,6 @@ proc issue_1473_setup  {} {
    if {$ret != 0} {
       add_proc_error issue_1473_setup -1 "backing up complex failed: $output"
    }
-
-   set_error 0 "ok"
 }
 
 proc issue_1473_cleanup  {} {
@@ -122,8 +118,6 @@ proc issue_1473_cleanup  {} {
    # restore old complex
    puts $CHECK_OUTPUT "restoring complex from $complex_backup"
    modify_complex_from_file $complex_backup
-
-   set_error 0 "ok"
 }
 
 proc modify_complex_from_file {filename {time_var dummy}} {
@@ -175,8 +169,6 @@ proc modify_complex_from_file {filename {time_var dummy}} {
       puts $CHECK_OUTPUT "modified $changed complex entries"
       # JG: TODO: we could check the number of changed complex attributes
    }
-
-   set_error 0 "ok"
 }
 
 proc issue_1473_do_qconf {message filename} {
@@ -198,8 +190,6 @@ proc issue_1473_add {} {
 
    set add_file "$CHECK_ACTUAL_TEST_PATH/add_complex.txt"
    issue_1473_do_qconf "adding complex entries" $add_file
-
-   set_error 0 "ok"
 }
 
 proc issue_1473_mod {} {
@@ -207,8 +197,6 @@ proc issue_1473_mod {} {
 
    set mod_file "$CHECK_ACTUAL_TEST_PATH/mod_complex.txt"
    issue_1473_do_qconf "modifying complex entries" $mod_file
-
-   set_error 0 "ok"
 }
 
 proc issue_1473_del {} {
@@ -216,7 +204,5 @@ proc issue_1473_del {} {
    global complex_backup
 
    issue_1473_do_qconf "deleting complex entries" $complex_backup
-
-   set_error 0 "ok"
 }
 

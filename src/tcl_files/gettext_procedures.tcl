@@ -986,7 +986,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
    set msg_text [replace_string $msg_text "PAR_6" $par6]
 
    if {[string first "-" $msg_text] >= 0} {
-      puts $CHECK_OUTPUT "ATTENTION, translated message contains dashes\nuse the -- option on expect pattern line\n$msg_txt"
+      puts $CHECK_OUTPUT "ATTENTION, translated message contains dashes\nuse the -- option on expect pattern line\n$msg_text"
    }
 
    return $msg_text
