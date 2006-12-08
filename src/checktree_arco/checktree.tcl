@@ -618,6 +618,7 @@ proc arco_config_upgrade_1_2 { config_array } {
    }
 }
 
+
 #                                                             
 #****** arco/config_generic ****************************************************
 #  NAME
@@ -924,6 +925,17 @@ proc config_swc_host {only_check name config_array} {
    }
 
    return $swc_host
+}
+
+proc config_java_home { only_check name config_array } {
+   
+   upvar $config_array config
+   
+   set help_text {  "Please enter the JAVA_HOME path or press >RETURN<"
+                    "to use the default value."  }
+     
+   return [ config_generic $only_check $name config $help_text ]
+   
 }
 
 #****** checktree/startup_dbwriter() **************************************************

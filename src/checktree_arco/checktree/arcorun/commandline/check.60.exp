@@ -151,7 +151,6 @@ proc arcorun_commandline_cleanup {} {
 #*******************************************************************************
 proc arcorun_commandline_check {} {
    global CHECK_ACT_LEVEL arcorun_output_dir
-   set_error 0 "ok"
    
    set test_dir $arcorun_output_dir/arcorun_cli_check
    set test_file $arcorun_output_dir/arcorun_cli_check/blubber
@@ -215,8 +214,6 @@ proc arcorun_commandline_check {} {
 #*******************************************************************************
 proc arcorun_default_queries {} {
    global CHECK_OUTPUT CHECK_ACT_LEVEL arcorun_output_dir
-   
-   set_error 0 "ok"
    
    set add_args ""
    

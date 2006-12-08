@@ -78,15 +78,12 @@ proc install_dbwriter {} {
    global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL 
    global ts_config arco_config ts_host_config
    
-   set_error 0 "ok"
-   
    if {[get_dbwriter_status 0] == 0} {
       shutdown_dbwriter
    }
    
    puts $CHECK_OUTPUT "install dbwriter on host $arco_config(dbwriter_host) ..."
    
-   set_error "0" "install_dbwriter - no errors"
    if {[file isfile "$ts_config(product_root)/dbwriter/inst_dbwriter"] != 1} {
       add_proc_error "install_dbwriter" -1 "dbwriter install script not found"
       return -1
@@ -300,10 +297,8 @@ proc install_reporting {} {
    
    puts $CHECK_OUTPUT "install reporting module on host $arco_config(swc_host) ..."
    
-   set_error "0" "install_reporting - no errors"
    if {[file isfile "$ts_config(product_root)/reporting/inst_reporting"] != 1} {
       add_proc_error "install_reporting" -1 "reporting install script not found"
-      set_error -1 "Error"
       return -1
    }
    
@@ -377,7 +372,7 @@ proc install_reporting {} {
              break
           }
           -i $sp_id "coredump" {
-             set_error "-2" "install_reporting - coredump"
+             add_proc_error "install_reporting" "-2" "install_reporting - coredump"
              incr error_count 1
              break
           }
@@ -454,7 +449,7 @@ proc install_reporting {} {
              continue
           }
           -i $sp_id "Do you want to repeat database connection setup? (y/n) * >>" {
-             set_error "-2" "inst_dbwriter could not setup the database connection"
+             add_proc_error "install_reporting" "-2" "inst_dbwriter could not setup the database connection"
              incr error_count 1
              break
           }
@@ -474,7 +469,7 @@ proc install_reporting {} {
              send_to_spawn_id $sp_id "y"
              continue
           }
-          -i $sp_id "Should the N1GE reporting module * be unregistered? (y/n) * >> " {
+          -i $sp_id "Should the ARCo reporting module * be unregistered? (y/n) * >> " {
              send_to_spawn_id $sp_id "y"
              continue
           }
@@ -483,7 +478,7 @@ proc install_reporting {} {
              send_to_spawn_id $sp_id "y"
              continue
           }
-          -i $sp_id "N1GE ARCo reporting successfully installed" {
+          -i $sp_id "ARCo reporting successfully installed" {
              break
           }
           -i $sp_id "Error:" {
@@ -512,8 +507,6 @@ proc install_reporting {} {
 
    close_spawn_process $id 
 
-   set_error 0 "ok" ;# Old Load
-   
    return $error_count
 }
 
@@ -621,7 +614,6 @@ proc oracle_init_arco_db {} {
    }
    
    close_spawn_process $id 
-   set_error "0" "arco db initialized"
    return 0
 }
 
@@ -730,6 +722,5 @@ proc postgres_init_arco_db {} {
    }
    
    close_spawn_process $id
-   set_error "0" "arco db initialized"
    return 0
 }

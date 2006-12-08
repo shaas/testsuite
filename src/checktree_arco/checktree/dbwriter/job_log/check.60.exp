@@ -97,12 +97,8 @@ proc arco_dbwriter_job_log_init_level {} {
 
 proc arco_dbwriter_job_log_setup  {} {
    global CHECK_OUTPUT ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
-   global CHECK_ACT_LEVEL
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_org_config
-   
-   set_error 0 "ok"
-   
    
    set sqlutil_id ""
    
@@ -142,7 +138,7 @@ proc arco_dbwriter_job_log_setup  {} {
 
 
 proc arco_dbwriter_job_log_cleanup  {} {
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global CHECK_OUTPUT ts_config
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_org_config
 
@@ -161,7 +157,6 @@ proc arco_dbwriter_job_log_cleanup  {} {
       return -1
    }
    
-   set_error 0 "ok"
 }
 
 
@@ -173,8 +168,6 @@ proc arco_dbwriter_job_log_execute {} {
    
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
    
-   set_error 0 "ok"
-
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          set joblog "true"

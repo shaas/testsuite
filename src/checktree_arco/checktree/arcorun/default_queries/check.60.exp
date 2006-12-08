@@ -163,8 +163,6 @@ proc arcorun_default_queries_cleanup {} {
 proc arcorun_default_queries_check {} {
    global CHECK_OUTPUT CHECK_ACT_LEVEL arcorun_output_dir
    
-   set_error 0 "ok"
-   
    set add_args ""
    
    switch -- $CHECK_ACT_LEVEL {

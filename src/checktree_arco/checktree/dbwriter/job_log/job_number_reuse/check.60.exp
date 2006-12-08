@@ -101,8 +101,6 @@ proc arco_dbwriter_job_log_reuse_setup  {} {
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_reuseorg_config
    
-   set_error 0 "ok"
-   
    set sqlutil_id ""
    
    puts $CHECK_OUTPUT "Create sqlutil as $CHECK_FIRST_FOREIGN_SYSTEM_USER"
@@ -151,7 +149,6 @@ proc arco_dbwriter_job_log_reuse_cleanup  {} {
       return -1
    }
    
-   set_error 0 "ok"
 }
 
 # -------- local test procedures: test methods ---------------------------------
@@ -180,8 +177,6 @@ proc arco_dbwriter_job_log_reuse_execute {} {
    
    global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
    global sqlutil_id sqlutil_sp_id
-   
-   set_error 0 "ok"
    
    switch -- $CHECK_ACT_LEVEL {
       "0" {

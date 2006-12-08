@@ -79,8 +79,9 @@ proc arcorun_exec { args output { timeout 60 } } {
    
    set swc_host $arco_config(swc_host)
    set arco_run_cmd "$ts_config(product_root)/$ts_config(cell)/arco/reporting/arcorun"
-   
-   set my_output [start_remote_prog $swc_host $CHECK_USER $arco_run_cmd "$args" prg_exit_state $timeout]
+   set my_env(JAVA_HOME) [get_java_home_for_host $swc_host] 
+
+   set my_output [start_remote_prog $swc_host $CHECK_USER $arco_run_cmd "$args" prg_exit_state $timeout 0 "" my_env]
    return $prg_exit_state
 }
 

@@ -77,13 +77,11 @@ proc arco_junit_setup_level {} {
    shutdown_dbwriter
    # clean the arco database (drop all objects)
    arco_clean_database 1
-   set_error 0 "ok"
 }
 
 proc arco_junit_cleanup_level {} {
    #arco_clean_database
    startup_dbwriter
-   set_error 0 "ok"
 }
 
 proc arco_junit_check {} {
@@ -124,7 +122,6 @@ proc arco_junit_check {} {
       }
       default    {
          add_proc_error "arco_junit_check" -1 "Unkown database type $arco_config(database_type)"
-         set_error -1 "Error"
          return 0
       }
    }
@@ -151,7 +148,6 @@ proc arco_junit_check {} {
       report_add_message report "$output"
       report_finish report -1
       add_proc_error "arco_junit_check" -1 "sed of DBWriterTestConfig.properties.template failed"
-      set_error -1 "Error"
       return -1
    }
    
@@ -164,12 +160,11 @@ proc arco_junit_check {} {
    if { $res != 0 } {
       report_add_message report "ARCo junit tests failed"
       report_finish report -1
-      set_error "-1" "ARCo junit tests failed"
+      add_proc_error "arco_junit_check" "-1" "ARCo junit tests failed"
       return -1
    } else {
       report_add_message report "ARCo junit successfully executed"
       report_finish report 0
-      set_error "0" "OK"
       return 0
    }
 }
