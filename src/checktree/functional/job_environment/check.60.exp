@@ -135,8 +135,6 @@ proc job_environment_amount_uninherited {} {
    if {$errors != ""} {
       add_proc_error "job_environment_amount_uninherited" -1 [string trim $errors]
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -260,8 +258,6 @@ proc job_environment_INHERIT_ENV {} {
    if {$errors != ""} {
       add_proc_error "job_environment_INHERIT_ENV" -1 [string trim $errors]
    }
-
-   set_error 0 "ok"
 }
 
 #****** job_environment_SET_LIB_PATH() *****************************************
@@ -354,8 +350,6 @@ proc job_environment_SET_LIB_PATH {} {
       append errors "\nThe expected execd lib path is \"$job_environment_libpath\""
       add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
    }
-
-   set_error 0 "ok"
 }
 
 ####### job_environment_cleanup_60() ###########################################

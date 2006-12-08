@@ -44,8 +44,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -138,8 +136,6 @@ proc subordinate_setup  {} {
    set queue_settings(subordinate_list) "res1.q=1"
    set_queue $qname "" queue_settings
    puts $CHECK_OUTPUT "mod queue $qname for hosts $subordinate_test_hosts"
-   
-   set_error 0 "ok"
 }
 
 proc subordinate_cleanup  {} {
@@ -170,8 +166,6 @@ proc subordinate_cleanup  {} {
 
    # restore complex
    set_complex consumable_complex_backup
-
-   set_error 0 "ok"
 }
 
 proc subordinate_submit_jobs_and_wait { job_arguments job_count run_job_count job_arguments2 case { schedd_info "" } { queue_state "" } { schedd_info_err "" } } {
@@ -271,6 +265,4 @@ proc subordinate_test {} {
       set run_job_count 2
       subordinate_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a" $RUNATHOST
    }
-   
-   set_error 0 "ok"
 }

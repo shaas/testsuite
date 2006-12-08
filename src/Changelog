@@ -1,3 +1,5 @@
+JG-2006-12-08-0: Cleanup:   Removed globals and set_error from functional checks.
+
 JG-2006-12-07-1: Bugfix:    Fixed error handling for setup/cleanup functions.
                             Compile timeout was too low for jgdi build.
                  Cleanup:   Removed globals and set_error from bugs/issuezilla

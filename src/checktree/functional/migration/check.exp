@@ -88,8 +88,6 @@ proc migration_setup {} {
    setup_queues
    setup_pe
    setup_checkpointing
-
-   set_error 0 ok
 }
 
 proc migration_cleanup {} {
@@ -99,8 +97,6 @@ proc migration_cleanup {} {
    clean_up_checkpointing
    clean_up_pe
    clean_up_queues
-
-   set_error 0 ok
 }
 proc calendardisable_queue { queue_list } {
    global CHECK_PRODUCT_ROOT CHECK_ARCH
@@ -146,8 +142,6 @@ proc start_checkpoint_job {} {
    set result [ submit_job $jobargs 1 30 "" "" $CHECK_ACTUAL_TEST_PATH ]
    set checkpoint_job_id $result 
    set result [ wait_for_jobstart $checkpoint_job_id "DEMO" 300]
-
-   set_error 0 "ok"  
 }
 
 proc check_slave_migration {} {
@@ -181,8 +175,6 @@ proc check_slave_migration {} {
 
    # wait for restart  
    wait_for_jobstart $checkpoint_job_id "DEMO" 120
-
-   set_error 0 "ok"  
 }
 
 
@@ -248,8 +240,6 @@ proc check_calendardisable_migration_on_slavequeue_suspend {} {
   
    # wait for restart  
    wait_for_jobstart $checkpoint_job_id "DEMO" 300
- 
-   set_error 0 "check_calendardisable_migration_on_slavequeue_suspend  - no errors"  
 }
 
 #                                                             max. column:     |
@@ -317,8 +307,6 @@ proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
   
    # wait for restart  
    wait_for_jobstart $checkpoint_job_id "DEMO" 300
- 
-   set_error 0 "check_calendardisable_migration_on_slavequeue_threshold_suspend  - no errors"  
 }
 
 
@@ -383,8 +371,6 @@ proc check_master_migration {} {
 
    # wait for restart  
    wait_for_jobstart $checkpoint_job_id "DEMO" 300
-
-   set_error 0 "check_master_migration  - no errors"  
 }
 
 
@@ -448,8 +434,6 @@ proc check_calendarsuspend_master_migration {} {
    
    # wait for restart  
    wait_for_jobstart $checkpoint_job_id "DEMO" 300
-
-   set_error 0 "check_calendarsuspend_master_migration  - no errors"  
 }
 
 
@@ -516,8 +500,6 @@ proc check_calendarsuspend_slave_migration {} {
 
    # wait for restart  
    wait_for_jobstart $checkpoint_job_id "DEMO" 300
-
-   set_error 0 "check_calendarsuspend_slave_migration  - no errors"  
 }
 
 
@@ -560,7 +542,7 @@ proc clean_up_checkpoint_job {} {
 
 
    if { $checkpoint_job_id < 0 } {
-      set_error -1 "cleanup_checkpoint_job - no checkpoint job started" 
+      add_proc_error "clean_up_checkpoint_job" -1 "no checkpoint job started" 
       return
    }
 
@@ -571,7 +553,7 @@ proc clean_up_checkpoint_job {} {
    set result [ delete_job $checkpoint_job_id 1]
    
    if { $result != 0 } {
-      set_error -1 "cleanup_checkpoint_job - could not delete job $checkpoint_job_id" 
+      add_proc_error "clean_up_checkpoint_job" -1 "could not delete job $checkpoint_job_id" 
       return
    }
 
@@ -580,8 +562,6 @@ proc clean_up_checkpoint_job {} {
    foreach elem $files { 
       delete_file $elem
    }
-
-   set_error 0 "cleanup_checkpoint_job - no errors" 
 }
 
 #                                                             max. column:     |
@@ -633,7 +613,7 @@ proc setup_checkpointing {} {
 
   set result [ add_checkpointobj "ckpt_param" ]
   if { $result != 0 } {
-     set_error -1 "setup_checkpointing - could not add checkpoint ENV $migration_ckpt_name (result of add_checkpointobj: $result)"
+     add_proc_error "setup_checkpointing" -1 "could not add checkpoint ENV $migration_ckpt_name (result of add_checkpointobj: $result)"
      return
   }
  
@@ -642,9 +622,6 @@ proc setup_checkpointing {} {
    set ckpt_queue_list {}
    lappend ckpt_queue_list [get_queue_instance $q1 $checkpoint_host1]
    lappend ckpt_queue_list [get_queue_instance $q2 $checkpoint_host2]
-  
-
-   set_error 0 "setup_checkpointing - no errors" 
 }
 
 #                                                             max. column:     |
@@ -693,10 +670,8 @@ proc clean_up_checkpointing {} {
   }
 
   if { $error != 0 } {
-     set_error -1 "clean_up_checkpointing - could not delete pe(s) $not_deleted"
+     add_proc_error "clean_up_checkpointing" -1 "could not delete pe(s) $not_deleted"
   }
-
-  set_error 0 "clean_up_checkpointing - no errors"
 }
 
 
@@ -714,8 +689,8 @@ proc clean_up_checkpointing {} {
 proc check_test_dependencies { } {
    global ts_config
 
-   if { [ llength $ts_config(execd_nodes) ] < 2 } {
-     set_error -3 "setup_queues - need 2 execution daemons"
+   if {[llength $ts_config(execd_nodes)] < 2} {
+     add_proc_error "check_test_dependencies" -3 "need 2 execution daemons"
      return 1
    }
    return 0
@@ -772,14 +747,12 @@ proc setup_pe {} {
 
   set result [ add_pe pe_param ]
   if { $result != 0 } {
-     set_error -1 "setup_pe - could not add PE $migration_pe_name (result of add_pe: $result)"
+     add_proc_error "setup_pe" -1 "could not add PE $migration_pe_name (result of add_pe: $result)"
      return
   }
   
   assign_queues_with_pe_object $q1 $checkpoint_host1 $migration_pe_name
   assign_queues_with_pe_object $q2 $checkpoint_host2 $migration_pe_name
-
-  set_error 0 "setup_pe - no errors" 
 }
 
 
@@ -829,10 +802,8 @@ proc clean_up_pe {} {
   }
 
   if { $error != 0 } {
-     set_error -1 "clean_up_pe - could not delete pe(s) $not_deleted"
+     add_proc_error "clean_up_pe" -1 "could not delete pe(s) $not_deleted"
   }
-
-  set_error 0 "clean_up_pe - no errors"
 }
 
 #                                                             max. column:     |
@@ -886,14 +857,14 @@ proc setup_queues {} {
   lappend all_queue_list [get_queue_instance $q1 $checkpoint_host1]
   set result [ add_queue $q1 $checkpoint_host1 q_param ]
   if { ($result != 0)  } {
-     set_error -1 "setup_queues - could not add queue $q1"
+     add_proc_error "setup_queues" -1 "could not add queue $q1"
      return
   }
 
   lappend all_queue_list [get_queue_instance $q3 $checkpoint_host1]
   set result [ add_queue $q3 $checkpoint_host1 q_param ]
   if { $result != 0  } {
-     set_error -1 "setup_queues - could not add queue $q3"
+     add_proc_error "setup_queues" -1 "could not add queue $q3"
      return
   }
 
@@ -901,18 +872,16 @@ proc setup_queues {} {
   lappend all_queue_list [get_queue_instance $q2 $checkpoint_host2]
   set result [ add_queue $q2 $checkpoint_host2 q_param ]
   if { $result != 0  } {
-     set_error -1 "setup_queues - could not add queue $q2"
+     add_proc_error "setup_queues" -1 "could not add queue $q2"
      return
   }
   
   lappend all_queue_list [get_queue_instance $q4 $checkpoint_host2]
   set result [ add_queue $q4 $checkpoint_host2 q_param ]
   if { $result != 0  } {
-     set_error -1 "setup_queues - could not add queue $q4"
+     add_proc_error "setup_queues" -1 "could not add queue $q4"
      return
   } 
-
-  set_error 0 "setup_queues - no errors"
 }
 
 #                                                             max. column:     |
@@ -976,8 +945,6 @@ proc clean_up_queues {} {
   }
 
   if { $error != 0 } {
-     set_error -1 "clean_up_queues - could not delete queue(s) $not_deleted"
+     add_proc_error "clean_up_queues" -1 "could not delete queue(s) $not_deleted"
   }
-
-  set_error 0 "clean_up_queues - no errors"
 }

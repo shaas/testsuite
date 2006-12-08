@@ -73,8 +73,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -184,8 +182,6 @@ proc usage_setup  {} {
    # set memory limits
    set queue_conf(h_vmem) "500M"
    add_queue "usage.q" "@allhosts" queue_conf
-
-   set_error 0 "ok"
 }
 
 proc usage_cleanup  {} {
@@ -210,8 +206,6 @@ proc usage_cleanup  {} {
    del_pe tight
    del_pe loose1
    del_pe loose2
-
-   set_error 0 "ok"
 }
 
 # -------- local test procedures: utilities --------------------------
@@ -488,8 +482,6 @@ proc usage_single {} {
 
       usage_monitor_check $id "usage_single" 1
    }
-
-   set_error 0 "ok"
 }
 
 proc usage_tight {} {
@@ -512,8 +504,6 @@ proc usage_tight {} {
          usage_monitor_check $id "usage_tight" 5
       }
    }
-   
-   set_error 0 "ok"
 }
 
 proc usage_loose {pe expected_slots} {
@@ -531,18 +521,12 @@ proc usage_loose {pe expected_slots} {
 
       usage_monitor_check $id "usage_loose" $expected_slots
    }
-
-   set_error 0 "ok"
 }
 
 proc usage_loose1 {} {
    usage_loose loose1 5
-
-   set_error 0 "ok"
 }
 
 proc usage_loose2 {} {
    usage_loose loose2 4
-
-   set_error 0 "ok"
 }

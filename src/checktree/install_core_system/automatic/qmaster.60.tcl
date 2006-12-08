@@ -62,7 +62,7 @@
 #*******************************
 proc install_qmaster {} {
    global ts_config
-   global CHECK_USER check_errstr 
+   global CHECK_USER
    global CHECK_CORE_MASTER CORE_INSTALLED CHECK_OUTPUT 
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
@@ -247,7 +247,7 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
 #*******************************
 proc create_autoinst_config {} {
    global ts_config
-   global CHECK_USER check_errstr 
+   global CHECK_USER
    global CHECK_CORE_MASTER CORE_INSTALLED CHECK_OUTPUT 
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 

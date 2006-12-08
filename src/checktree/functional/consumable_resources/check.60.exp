@@ -113,8 +113,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -235,8 +233,6 @@ proc consumable_resources_setup {} {
    set qname "res.q"
    add_queue $qname $consumable_resources_test_hosts queue_settings
    puts $CHECK_OUTPUT "added queue $qname for hosts $consumable_resources_test_hosts"
-
-   set_error 0 "ok"
 }
 
 proc consumable_resources_cleanup  {} {
@@ -266,8 +262,6 @@ proc consumable_resources_cleanup  {} {
 
    # restore complex
    set_complex consumable_complex_backup
-
-   set_error 0 "ok"
 }
 
 # Issue: 1306, Bugster: 6287862 - qhost -l for complexes broken
@@ -1289,8 +1283,6 @@ proc consumable_resources_test {} {
 
       puts $CHECK_OUTPUT "done"
    }
-   
-   set_error 0 "ok"
 }
 
 

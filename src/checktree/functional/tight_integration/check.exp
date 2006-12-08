@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -210,7 +208,6 @@ proc tight_integration_check_messages { mode1 mode2 } {
 
 proc tight_integration_init_messages_check {} {
    tight_integration_parse_execd_messages startup
-   set_error 0 "ok"
 }
 
 proc tight_integration_messages_check {} {
@@ -233,8 +230,6 @@ proc tight_integration_messages_check {} {
 
    puts $CHECK_OUTPUT "compare error messages ..."
    tight_integration_check_messages startup cleanup
-   
-   set_error 0 ok
 }
 
 proc tight_integration_setup  {} {
@@ -271,8 +266,6 @@ if {0} {
 
    # assign queue with pe
    assign_queues_with_pe_object tight.q "" tight
-
-   set_error 0 "ok"
 }
 
 proc tight_integration_cleanup  {} {
@@ -284,8 +277,6 @@ proc tight_integration_cleanup  {} {
    unassign_queues_with_pe_object tight
    del_pe tight
    del_queue tight.q "" 0 1
-
-   set_error 0 "ok"
 }
 
 # -------- local test procedures: utilities --------------------------
@@ -492,9 +483,6 @@ proc tight_integration_function {} {
    close_spawn_process $id
 
    wait_for_jobend $jobid tightf 60 0 1
-
-
-   set_error 0 "ok"
 }
 
 # check if qmaster is killed on reschedule
@@ -508,13 +496,11 @@ proc tight_integration_iz_1916 {} {
 
    if { $CHECK_ACT_LEVEL != 0 } {
       add_proc_error "tight_integration_iz_1916" -3 "rescheduling not supported for qrsh"
-      set_error 0 "ok"
       return
    }
 
    if {$ts_config(gridengine_version) == 53} {
       add_proc_error "tight_integration_iz_1916" -3 "iz 1916 does not run in 5.3 systems"
-      set_error 0 "ok"
       return
    }
 
@@ -552,7 +538,6 @@ proc tight_integration_iz_1916 {} {
       set timeout_error 0
       if {![get_qstat_j_info $jobid]} {
          add_proc_error test_name -1 "job terminated abnormally"
-         set_error -1 "failed"
       } else {
          # get online usage
          foreach name [array names qstat_j_info] {
@@ -588,10 +573,7 @@ proc tight_integration_iz_1916 {} {
    puts $CHECK_OUTPUT "qmod returns $result"
    if { $prg_exit_state != 0 } {
       add_proc_error "tight_integration_iz_1916" -1 "found the bug 1916"
-      set_error -1 "failed"
       startup_qmaster 0 "" ""
-   } else {
-      set_error 0 "ok"
    }
 
    delete_job $jobid 1
@@ -613,14 +595,12 @@ proc tight_integration_iz_575 {} {
 
    if {$ts_config(gridengine_version) == 53} {
       add_proc_error "tight_integration_iz_575" -3 "iz 575 does not run in 5.3 systems"
-      set_error 0 "ok"
       return
    }
 
    # set wallclock limit on all slave queues
    if {[llength $ts_config(execd_nodes)] < 2} {
       add_proc_error "tight_integration_iz_575" -3 "iz 575 test needs at least 2 execution hosts"
-      set_error 0 "ok"
       return
    }
 
@@ -660,8 +640,6 @@ proc tight_integration_iz_575 {} {
    # reset queue runtime limit
    set queue_conf(h_rt) "INFINITY"
    set_queue "tight.q" "$host_list" queue_conf
-
-   set_error 0 "ok"
 }
 
 # check NSLOTS, NHOSTS, NQUEUES for tasks
@@ -688,9 +666,6 @@ proc tight_integration_iz_578 {} {
    close_spawn_process $id
 
    wait_for_jobend $jobid tightf 60 0 1
-
-
-   set_error 0 "ok"
 }
 
 # master task killed -> job has to be deleted
@@ -733,8 +708,6 @@ proc tight_integration_master_killed {} {
    close_spawn_process $id
 
    wait_for_jobend $jobid tightf 60 0 1
-
-   set_error 0 "ok"
 }
 
 # slave task killed -> job has to be deleted
@@ -779,8 +752,6 @@ proc tight_integration_slave_killed {} {
    close_spawn_process $id
 
    wait_for_jobend $jobid tightf 60 0 1
-
-   set_error 0 "ok"
 }
 
 proc tight_integration_massive {} {
@@ -805,7 +776,6 @@ proc tight_integration_massive {} {
       # check if test can run at all in this cluster
       if {$total_slots < [expr $massive_slots + 1]} {
          add_proc_error tight_integration_massive -3 "test cannot run massive parallel job with $massive_slots tasks + the master task - cluster only has $total_slots slots"
-         set_error 0 "ok"
          return
       }
 
@@ -833,6 +803,4 @@ proc tight_integration_massive {} {
 
       wait_for_jobend $jobid tightm 300 0 1
    }
-
-   set_error 0 "ok"
 }

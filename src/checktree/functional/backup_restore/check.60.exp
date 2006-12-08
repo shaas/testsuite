@@ -138,22 +138,22 @@ proc backup_restore_setup {} {
          
          # Errors
          -i $sp_id timeout {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id;
             return;
          }
          -i $sp_id "ommand failed*\n" {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id;
             return;
          }
         -i $sp_id "No such file or directory*\n" {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id;
             return;
          }
          -i $sp_id "error:\n" {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id
             return
          }
@@ -234,27 +234,27 @@ proc backup_restore_setup {} {
          
          # Errors
          -i $sp_id timeout {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id;
             return;
          }
          -i $sp_id "ommand failed*\n" {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id;
             return;
          }
          -i $sp_id "No such file or directory*\n" {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id;
             return;
          }
          -i $sp_id "error:\n" {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id
             return;
          }
          -i $sp_id "does not exist*" {
-            set_error "-1" "backup_restore_setup - $expect_out(0,string)"
+            add_proc_error "backup_restore_setup" "-1" "$expect_out(0,string)"
             close_spawn_process $id
             return
          }
@@ -275,7 +275,6 @@ proc backup_restore_setup {} {
    startup_core_system  
    
    wait_for_load_from_all_queues 60
-   set_error 0 "ok"
 }
 
 proc backup_restore_cleanup {} {
@@ -328,5 +327,4 @@ proc backup_restore_cleanup {} {
          puts $CHECK_OUTPUT [ start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $ts_config(product_root)/spooling_backup" ]
        }
    }
-   set_error 0 "ok"
 }

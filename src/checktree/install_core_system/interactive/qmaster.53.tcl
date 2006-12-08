@@ -62,7 +62,7 @@
 #*******************************
 proc install_qmaster {} {
    global ts_config
- global CHECK_USER check_errstr 
+ global CHECK_USER
  global CORE_INSTALLED CORE_INSTALLED CHECK_OUTPUT 
  global CHECK_TESTSUITE_ROOT env CHECK_COMMD_PORT local_master_spool_set
  global check_use_installed_system CHECK_ADMIN_USER_SYSTEM CHECK_DEFAULT_DOMAIN
