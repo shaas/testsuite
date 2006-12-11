@@ -1,3 +1,7 @@
+AH-2006-12-11-0: Enhancem.: New test to ensure Dtrace monitor works on 
+                            S10 machines
+                 Review:    RD
+
 AA-2006-12-08-0: Cleanup:   arco_checktree fixes
 
 JG-2006-12-08-0: Cleanup:   Removed globals and set_error from functional checks.
