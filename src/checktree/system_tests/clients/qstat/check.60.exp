@@ -257,7 +257,7 @@ proc qstat_count_jobs { func_name qstat_options expected_jobs } {
 #     ???/???
 #*******************************
 proc check_core_queues {} {
-  global check_errno check_errstr CHECK_PRODUCT_ROOT CHECK_CORE_EXECD CHECK_OUTPUT
+  global CHECK_PRODUCT_ROOT CHECK_CORE_EXECD CHECK_OUTPUT
   global ts_config CHECK_USER
 
   set check_host [lindex $ts_config(execd_nodes) 0]
@@ -317,7 +317,7 @@ proc check_core_queues {} {
 
   # check if number of queues matches core system queue count
   if {[llength $CHECK_CORE_EXECD] != $qcount} {
-     set_error -1 "check_core_queues - queue count doesn't match (number of queues should be [llength $CHECK_CORE_EXECD])"
+     add_proc_error "check_core_queues" -1 "queue count doesn't match (number of queues should be [llength $CHECK_CORE_EXECD])"
      return
   }
 
@@ -326,7 +326,7 @@ proc check_core_queues {} {
   set queue_name "all.q@[resolve_host $check_host 1]"
   puts $CHECK_OUTPUT "got $numofproc slots"
   if { [lindex $slots [lsearch $qnames $queue_name] ] != [expr ( $numofproc * 10 )] } {
-     set_error -1 "check_core_queues - queue $queue_name shoud have [expr ( $numofproc * 10 )] slots) (cpu count * 10)"
+     add_proc_error "check_core_queues" -1 "queue $queue_name shoud have [expr ( $numofproc * 10 )] slots) (cpu count * 10)"
      return
   } 
 
@@ -334,16 +334,13 @@ proc check_core_queues {} {
   set ind 0
   foreach elem $load {
     if {$elem >= 99} {
-       set_error -1 "check_core_queues - queue [lindex $qnames $ind] has load > 99"
+       add_proc_error "check_core_queues" -1 "queue [lindex $qnames $ind] has load > 99"
        return
     }
     incr ind 1
   }
 
   puts $CHECK_OUTPUT "check_core_queues\n- number of queues: $qcount\n- qnames: $qnames\n- slots: $slots\n- load: $load"
-
-  # ok - no errors, very very nice ;-) 
-  set_error 0 "check_core_queues - no errors"
 }
 
 proc qstat_option_l {} {
@@ -374,8 +371,6 @@ proc qstat_option_l {} {
    qstat_count_jobs "qstat_option_l" "-l arch=undefined_arch" 0 
 
   delete_all_jobs
-
-  set_error 0 "ok"
 }
 
 proc qstat_option_q {} {
@@ -404,8 +399,6 @@ proc qstat_option_q {} {
   delete_all_jobs
  
   wait_for_end_of_all_jobs 60
-
-  set_error 0 "ok"
 }
 
 
@@ -467,8 +460,6 @@ proc qstat_option_pe {} {
 
    del_queue test1.q $hostname 0 1
    del_queue test2.q $hostname 0 1
-
-   set_error 0 "ok"
 }
 
 
@@ -514,8 +505,6 @@ proc qstat_option_U {} {
   wait_for_end_of_all_jobs 60
 
   del_queue test.q $hostname 0 1
-
-  set_error 0 "ok"
   
   
   
@@ -600,7 +589,6 @@ proc qstat_option_s {} {
   #TODO test critical states & combinations
 
   delete_all_jobs
-  set_error 0 "ok"
 }
 
 proc qstat_issue1800 {} {
@@ -630,7 +618,6 @@ proc qstat_issue1800 {} {
   qstat_count_jobs "qstat_issue1800" "-s ho" 1 
 
   delete_all_jobs
-  set_error 0 "ok"
 }
 
 
@@ -660,7 +647,6 @@ proc qstat_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -722,10 +708,8 @@ proc qstat_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_plain_xml_comparison" -1 "error in plain, XML qstat"
    }
    
    delete_all_jobs
@@ -759,7 +743,6 @@ proc qstat_ne_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -822,10 +805,8 @@ proc qstat_ne_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -ne"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_ne_plain_xml_comparison" -1 "error in plain, XML qstat -ne"
    }
    
    delete_all_jobs
@@ -857,7 +838,6 @@ proc qstat_j_ERROR_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -923,10 +903,8 @@ proc qstat_j_ERROR_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -j ERROR"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_j_ERROR_plain_xml_comparison" -1 "error in plain, XML qstat -j ERROR"
    }
    
    delete_all_jobs
@@ -958,12 +936,10 @@ proc qstat_j_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
        
 		puts $CHECK_OUTPUT "skipping this test, as qstat -j is broken. See IZ 2076, 2077, 2079 \n" 
-      set_error 0 "ok"      
       return
 		
       set hostname [lindex $ts_config(execd_nodes) 0]
@@ -1024,14 +1000,11 @@ proc qstat_j_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -j "
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_j_plain_xml_comparison" -1 "error in plain, XML qstat -j "
    }
    
    delete_all_jobs
-   
 }
 
 #
@@ -1058,7 +1031,6 @@ proc qstat_r_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -1134,14 +1106,11 @@ proc qstat_r_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -r"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_r_plain_xml_comparison" -1 "error in plain, XML qstat -r"
    }
    
    delete_all_jobs
-   
 }
  
 #
@@ -1168,7 +1137,6 @@ proc qstat_f_r_plain_xml_comparison {} {
 
    if { ($tdom_present == "0") } {
       puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-      set_error 0 "ok"      
       return 
    }
 
@@ -1271,14 +1239,11 @@ proc qstat_f_r_plain_xml_comparison {} {
       }   
    }
       
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -f -r"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_f_r_plain_xml_comparison" -1 "error in plain, XML qstat -f -r"
    }
    
    delete_all_jobs
-   
 }
  
 
@@ -1308,7 +1273,6 @@ proc qstat_urg_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -1367,14 +1331,11 @@ proc qstat_urg_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -urg"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_urg_plain_xml_comparison" -1 "error in plain, XML qstat -urg"
    }
    
    delete_all_jobs
-   
 }
 
 #
@@ -1401,7 +1362,6 @@ proc qstat_f_urg_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -1492,14 +1452,11 @@ proc qstat_f_urg_plain_xml_comparison {} {
       }   
    }
          
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -f -urg"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_f_urg_plain_xml_comparison" -1 "error in plain, XML qstat -f -urg"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -1526,7 +1483,6 @@ proc qstat_pri_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -1593,14 +1549,11 @@ proc qstat_pri_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -pri"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_pri_plain_xml_comparison" -1 "error in plain, XML qstat -pri"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -1628,7 +1581,6 @@ proc qstat_l_q_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -1698,14 +1650,11 @@ proc qstat_l_q_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -l q=all.q"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_l_q_plain_xml_comparison" -1 "error in plain, XML qstat -l q=all.q"
    }
    
    delete_all_jobs
-   
 }
 
 #****** qstat/qstat_ext_plain_xml_comparison() ***********************************************
@@ -1731,7 +1680,6 @@ proc qstat_ext_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -1808,10 +1756,8 @@ proc qstat_ext_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -ext"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_ext_plain_xml_comparison" -1 "error in plain, XML qstat -ext"
    }
    
    delete_all_jobs
@@ -1843,7 +1789,6 @@ proc qstat_f_ext_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -1945,10 +1890,8 @@ proc qstat_f_ext_plain_xml_comparison {} {
       }   
    }
    
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -f -ext"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_f_ext_plain_xml_comparison" -1 "error in plain, XML qstat -f -ext"
    }
    
    delete_all_jobs
@@ -1983,7 +1926,6 @@ proc qstat_f_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2073,15 +2015,12 @@ proc qstat_f_plain_xml_comparison {} {
       }   
    }
    
-   if { $error_flag == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "error in plain, XML qstat -f"
+   if { $error_flag != 0 } {
+      add_proc_error "qstat_f_plain_xml_comparison" -1 "error in plain, XML qstat -f"
    }
 
    # Delete all jobs
    delete_all_jobs
-
 }
 
 
@@ -2112,7 +2051,6 @@ proc qstat_explain_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2202,15 +2140,12 @@ proc qstat_explain_plain_xml_comparison {} {
       }   
    }
    
-   if { $error_flag == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "error in plain, XML qstat -explain E"
+   if { $error_flag != 0 } {
+      add_proc_error "qstat_explain_plain_xml_comparison" -1 "error in plain, XML qstat -explain E"
    }
 
    # Delete all jobs
    delete_all_jobs
-
 }
 
 
@@ -2242,7 +2177,6 @@ proc qstat_f_q_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2332,15 +2266,12 @@ proc qstat_f_q_plain_xml_comparison {} {
       }   
    }
    
-   if { $error_flag == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "error in plain, XML qstat -f -q all.q"
+   if { $error_flag != 0 } {
+      add_proc_error "qstat_f_q_plain_xml_comparison" -1 "error in plain, XML qstat -f -q all.q"
    }
 
    # Delete all jobs
    delete_all_jobs
-
 }
 
 
@@ -2371,13 +2302,10 @@ proc qstat_f_qs_plain_xml_comparison {} {
 
    if { ($tdom_present == "0") } {
       puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-      set_error 0 "ok"      
       return 
    }
 
    puts $CHECK_OUTPUT "skipping this test, as qstat -f -qs E is broken. See IZ 2073 ...\n" 
-
-   set_error 0 "ok"
 
 }
 
@@ -2407,7 +2335,6 @@ proc qstat_f_ne_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2470,15 +2397,12 @@ proc qstat_f_ne_plain_xml_comparison {} {
       }
       
       
-   if { $error_flag == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "error in plain, XML qstat -f -ne"
+   if { $error_flag != 0 } {
+      add_proc_error "qstat_f_ne_plain_xml_comparison" -1 "error in plain, XML qstat -f -ne"
    }
 
    # Delete all jobs
    delete_all_jobs
-
 }
 
 
@@ -2507,7 +2431,6 @@ proc qstat_F_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2606,15 +2529,12 @@ proc qstat_F_plain_xml_comparison {} {
       }   
    }
    
-   if { $error_flag == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "error in plain, XML qstat -F"
+   if { $error_flag != 0 } {
+      add_proc_error "qstat_F_plain_xml_comparison" -1 "error in plain, XML qstat -F"
    }
 
    # Delete all jobs
    delete_all_jobs
-
 }
 
 
@@ -2643,7 +2563,6 @@ proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2744,15 +2663,12 @@ proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
       }   
    }
    
-   if { $error_flag == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "error in plain, XML qstat -F rerun,h_vmem"
+   if { $error_flag != 0 } {
+      add_proc_error "qstat_F_rerun_h_vmem_plain_xml_comparison" -1 "error in plain, XML qstat -F rerun,h_vmem"
    }
 
    # Delete all jobs
    delete_all_jobs
-
 }
 
 
@@ -2779,7 +2695,6 @@ proc qstat_g_c_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2841,14 +2756,11 @@ proc qstat_g_c_plain_xml_comparison {} {
             
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -g c"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_g_c_plain_xml_comparison" -1 "error in plain, XML qstat -g c"
    }
    
    delete_all_jobs
-   
 }
 
 #****** qstat/qstat_g_d_plain_xml_comparison() ***********************************************
@@ -2874,7 +2786,6 @@ proc qstat_g_d_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -2944,14 +2855,11 @@ proc qstat_g_d_plain_xml_comparison {} {
             
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -g d"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_g_d_plain_xml_comparison" -1 "error in plain, XML qstat -g d"
    }
    
    delete_all_jobs
-   
 }
 
 #****** qstat/qstat_g_t_plain_xml_comparison() ***********************************************
@@ -2977,7 +2885,6 @@ proc qstat_g_t_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3052,14 +2959,11 @@ proc qstat_g_t_plain_xml_comparison {} {
             
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -g t"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_g_t_plain_xml_comparison" -1 "error in plain, XML qstat -g t"
    }
    
    delete_all_jobs
-   
 }
 
 #****** qstat/qstat_s_a_plain_xml_comparison() ***********************************************
@@ -3085,7 +2989,6 @@ proc qstat_s_a_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3145,14 +3048,11 @@ proc qstat_s_a_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -s a"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_s_a_plain_xml_comparison" -1 "error in plain, XML qstat -s a"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -3179,7 +3079,6 @@ proc qstat_s_p_plain_xml_comparison {} {
  
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3240,14 +3139,11 @@ proc qstat_s_p_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -s p"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_s_p_plain_xml_comparison" -1 "error in plain, XML qstat -s p"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -3276,7 +3172,6 @@ proc qstat_s_r_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3339,14 +3234,11 @@ proc qstat_s_r_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -s r"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_s_r_plain_xml_comparison" -1 "error in plain, XML qstat -s r"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -3374,7 +3266,6 @@ proc qstat_s_s_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3440,14 +3331,11 @@ proc qstat_s_s_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -s s"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_s_s_plain_xml_comparison" -1 "error in plain, XML qstat -s s"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -3475,7 +3363,6 @@ proc qstat_s_z_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3540,14 +3427,11 @@ proc qstat_s_z_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -s z"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_s_z_plain_xml_comparison" -1 "error in plain, XML qstat -s z"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -3575,7 +3459,6 @@ proc qstat_s_hs_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3641,14 +3524,11 @@ proc qstat_s_hs_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -s hs"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_s_hs_plain_xml_comparison" -1 "error in plain, XML qstat -s hs"
    }
    
    delete_all_jobs
-   
 }
 
 
@@ -3676,7 +3556,6 @@ proc qstat_s_hu_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3740,14 +3619,11 @@ proc qstat_s_hu_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -s hu"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_s_hu_plain_xml_comparison" -1 "error in plain, XML qstat -s hu"
    }
    
    delete_all_jobs
-   
 }
 
 #****** qstat/qstat_u_valid_plain_xml_comparison() ***********************************************
@@ -3773,7 +3649,6 @@ proc qstat_u_valid_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3834,14 +3709,11 @@ proc qstat_u_valid_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -u $CHECK_USER"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_u_valid_plain_xml_comparison" -1 "error in plain, XML qstat -u $CHECK_USER"
    }
    
    delete_all_jobs
-   
 }
 
 #****** qstat/qstat_u_invalid_plain_xml_comparison() ***********************************************
@@ -3867,7 +3739,6 @@ proc qstat_u_invalid_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -3930,14 +3801,11 @@ proc qstat_u_invalid_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -u wrong_user"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_u_invalid_plain_xml_comparison" -1 "error in plain, XML qstat -u wrong_user"
    }
    
    delete_all_jobs
-   
 }
 
 #****** qstat/qstat_U_valid_plain_xml_comparison() ***********************************************
@@ -3963,7 +3831,6 @@ proc qstat_U_valid_plain_xml_comparison {} {
 
       if { ($tdom_present == "0") } {
          puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
-         set_error 0 "ok"      
          return 
       }
 
@@ -4024,12 +3891,9 @@ proc qstat_U_valid_plain_xml_comparison {} {
             } 
          }
       }
-   if { $error_flag == 0 } {  
-      set_error 0 "ok"      
-   } else {
-      set_error -1 "error in plain, XML qstat -U $CHECK_USER"
+   if { $error_flag != 0 } {  
+      add_proc_error "qstat_U_valid_plain_xml_comparison" -1 "error in plain, XML qstat -U $CHECK_USER"
    }
    
    delete_all_jobs
-   
 }

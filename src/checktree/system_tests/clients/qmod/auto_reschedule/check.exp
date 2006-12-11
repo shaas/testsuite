@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -264,8 +262,6 @@ proc auto_reschedule_setup {} {
 
    wait_for_jobend $job_id1 "Sleeper" 60
    wait_for_jobend $job_id2 "Sleeper" 60
-
-   set_error 0 "ok"
 }
 
 proc auto_reschedule_unknown_check_master {} {
@@ -336,8 +332,6 @@ proc auto_reschedule_unknown_check_master {} {
    
    wait_for_jobend $job_id1 "Sleeper" 200 0
    wait_for_jobend $job_id2 "Sleeper" 200 0
-
-   set_error 0 "ok"
 }
 
 proc auto_reschedule_unknown_check {} {
@@ -415,8 +409,6 @@ proc auto_reschedule_unknown_check {} {
    
    wait_for_jobend $job_id1 "Sleeper" 200 0
    wait_for_jobend $job_id2 "Sleeper" 200 0
-
-   set_error 0 "ok"
 }
 
 proc auto_reschedule_cleanup {} {
@@ -468,6 +460,4 @@ proc auto_reschedule_cleanup {} {
    close_spawn_process $tail_id
 
    wait_for_load_from_all_queues 200 
-
-   set_error 0 "ok"
 }

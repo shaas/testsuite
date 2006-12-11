@@ -37,8 +37,6 @@ global check_name
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -191,8 +189,6 @@ proc qconf_setup {} {
 
    puts $CHECK_OUTPUT "Save existing scheduler config ...\n"
    get_schedd_config qconf_sched_config
-
-   set_error 0 ""
 }
 
 
@@ -272,8 +268,6 @@ proc qconf_cleanup {} {
          }
       }
    }
-
-   set_error 0 ""
 }
 
 proc qconf_auser {} {
@@ -289,9 +283,6 @@ proc qconf_auser {} {
       if { [string first "mytestproject" $output] < 0  } {
          add_proc_error "qconf_auser" -1 "error showing user qconf_test_user"
       }
-      set_error 0 "ok"
-   } else {
-      set_error 0 "not tested for sge system"
    }
 }
 
@@ -306,9 +297,6 @@ proc qconf_duser {} {
       if { [string first "mytestproject" $output] >= 0  } {
          add_proc_error "qconf_auser" -1 "error user qconf_test_user should have been deleted"
       }
-      set_error 0 "ok"
-   } else {
-      set_error 0 "not tested for sge system"
    }
 }
 
@@ -327,9 +315,6 @@ proc qconf_Auser {} {
          add_proc_error "qconf_auser" -1 "error showing user qconf_test_user"
       }
       del_user "qconf_test_user"
-      set_error 0 "ok"
-   } else {
-      set_error 0 "not tested for sge system"
    }
 }
 
@@ -359,11 +344,6 @@ proc qconf_muser {} {
 
       # now delete user
       del_user "qconf_test_user"
-
-
-      set_error 0 "ok"
-   } else {
-      set_error 0 "not tested for sge system"
    }
 }
 
@@ -392,11 +372,6 @@ proc qconf_Muser {} {
 
       # now delete user
       del_user "qconf_test_user"
-
-
-      set_error 0 "ok"
-   } else {
-      set_error 0 "not tested for sge system"
    }
 }
 
@@ -452,8 +427,6 @@ proc qconf_addqueues {} {
       }
       incr count 1
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -497,8 +470,6 @@ proc qconf_removequeues {} {
      puts $CHECK_OUTPUT "deleting queue \"$queue\""
      del_queue $queue $test_host 0 1
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -645,7 +616,7 @@ proc qconf_aattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -aattr queue qtype PARALLEL $queue_names" 
    } output ]
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_aattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
    check_queue_conf $queue_names qtype "BATCH INTERACTIVE PARALLEL"
@@ -658,7 +629,7 @@ proc qconf_aattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -aattr queue load_thresholds \"mem_free=1M\" $queue_names" 
    } output ]
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_aattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
    check_queue_conf $queue_names load_thresholds "np_load_avg=7.00,mem_free=1M"
@@ -671,7 +642,7 @@ proc qconf_aattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -aattr exechost user_lists \"deadlineusers\" $ts_config(execd_nodes)" 
    } output ]
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_aattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
    check_exec_conf $ts_config(execd_nodes) user_lists "deadlineusers"
@@ -681,12 +652,10 @@ proc qconf_aattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -aattr exechost user_lists \"defaultdepartment\" $ts_config(execd_nodes)" 
    } output ]
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_aattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
    check_exec_conf $ts_config(execd_nodes) user_lists "deadlineusers defaultdepartment"
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -731,7 +700,7 @@ proc qconf_Aattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -Aattr queue $CHECK_ACTUAL_TEST_PATH/Aattr_file_queue_wrong_syntax  $queue_names" 
    } output ]
    if {$result != 1} {
-      set_error -1 "exit state is not 1 (used wrong file syntax format)"
+      add_proc_error "qconf_Aattr_check" -1 "exit state is not 1 (used wrong file syntax format)"
    }
    
    set result [ catch { 
@@ -739,13 +708,11 @@ proc qconf_Aattr_check {} {
    } output ]
 
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_Aattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
    check_queue_conf $queue_names qtype "BATCH INTERACTIVE PARALLEL"
    check_queue_conf $queue_names load_thresholds "np_load_avg=7.00,mem_free=1M"
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -786,7 +753,7 @@ proc qconf_rattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -rattr exechost user_lists \"NONE\" $ts_config(execd_nodes)" 
    } output ]
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_rattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
 
@@ -797,7 +764,7 @@ proc qconf_rattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -rattr queue qtype \"BATCH INTERACTIVE\" $queue_names" 
    } output ]
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_rattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
    check_queue_conf $queue_names qtype "BATCH INTERACTIVE"
@@ -807,14 +774,10 @@ proc qconf_rattr_check {} {
        eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -rattr queue load_thresholds \"np_load_avg=7.00\" $queue_names" 
    } output ]
    if {$result != 0} {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qconf_rattr_check" -1 "exit state is not 0"
    }          
    puts $CHECK_OUTPUT $output
    check_queue_conf $queue_names load_thresholds "np_load_avg=7.00"
-
-
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -870,9 +833,6 @@ proc qconf_segfault {} {
    } else {
       set output [start_remote_prog $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-de localhost"]
    }
-
-
-   set_error 0 "ok"
 }
 
 proc qconf_se {} {
@@ -914,8 +874,6 @@ proc qconf_se {} {
          add_proc_error "qconf_se" -3 "qconf -se called on $non_cluster_host (non submit/admin host) should have failed\nknown issue 1889"
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc qconf_sel {} {
@@ -940,8 +898,6 @@ proc qconf_sel {} {
          add_proc_error "qconf_sel" -3 "qconf -sel called on $non_cluster_host (non submit/admin host) should have failed\nknown issue 1889"
       }
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -989,8 +945,6 @@ proc qconf_scal_check {} {
       puts $CHECK_OUTPUT "result is $result1"
 
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1023,8 +977,6 @@ proc qconf_scall_check {} {
       puts $CHECK_OUTPUT "result is $result0"
 
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1059,8 +1011,6 @@ proc qconf_sconfl_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1093,8 +1043,6 @@ proc qconf_sds_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                      max. column:     |
@@ -1127,8 +1075,6 @@ proc qconf_secl_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 
 #                                               max. column:     | #
@@ -1158,8 +1104,6 @@ proc qconf_sep_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qconf/qconf_sm_check() ******
@@ -1190,8 +1134,6 @@ proc qconf_sm_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qconf/qconf_so_check() ******
@@ -1221,8 +1163,6 @@ proc qconf_so_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1253,8 +1193,6 @@ proc qconf_ss_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qconf/qconf_sss_check() ******
@@ -1285,8 +1223,6 @@ proc qconf_sss_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qconf/qconf_sul_check() ******
@@ -1317,8 +1253,6 @@ proc qconf_sul_check {} {
       add_proc_error "qconf_sul_check" -1 "qconf -sul failed"
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qconf/qconf_sprjl_check() ******
@@ -1349,8 +1283,6 @@ proc qconf_sprjl_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qconf/qconf_add_delete_manager() ******
@@ -1413,8 +1345,6 @@ proc qconf_add_delete_manager {} {
    } else {
       puts $CHECK_OUTPUT "result is $result3"
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -1547,9 +1477,6 @@ proc qconf_add_show_mod_del_queue {} {
    } else {
       puts $CHECK_OUTPUT "failed (IZ 1976)\n"
    }
-
-   set_error 0 "ok"
-
 }
 #                                                             max. column:     |
 #****** qconf/qconf_add_show_delete_host() ******
@@ -1631,9 +1558,6 @@ proc qconf_add_show_delete_host {} {
    } else {
       puts $CHECK_OUTPUT "result is $result6"
    }
-
-   set_error 0 "ok"
-
 }
 
 #                                                             max. column:     |
@@ -1763,9 +1687,6 @@ proc qconf_add_show_delete_stnode {} {
    del_user $CHECK_USER
    puts $CHECK_OUTPUT "Now  delete user $CHECK_FIRST_FOREIGN_SYSTEM_USER from  userlist ... \n"
    del_user $CHECK_FIRST_FOREIGN_SYSTEM_USER
-
-   set_error 0 "ok"
-
 }
 
 
@@ -1798,7 +1719,7 @@ proc qconf_event_client {} {
    set event_client_bin $CHECK_SOURCE_DIR/$up_arch/qevent
 
    if { [file isfile $event_client_bin] != 1 } {
-      set_error -3 "could not open event client binary: $event_client_bin"
+      add_proc_error "qconf_event_client" -3 "could not open event client binary: $event_client_bin"
       return -3
    }
    puts $CHECK_OUTPUT "using event client: $event_client_bin"
@@ -1812,7 +1733,7 @@ proc qconf_event_client {} {
    puts $CHECK_OUTPUT "Show event client with -secl option ..."
    set result0 [get_event_client_list ]
 
-   if { ( $result0 == 0 ) } {
+   if {$result0 == 0} {
       puts $CHECK_OUTPUT "qconf -secl succeded"
    } else {
       puts $CHECK_OUTPUT "result is $result0"
@@ -1822,7 +1743,7 @@ proc qconf_event_client {} {
 
    set result1 [del_event_client_list "" $event_client_id]
 
-   if { ( $result1 == 0 ) } {
+   if {$result1 == 0} {
       puts $CHECK_OUTPUT "qconf -kec $event_client_id succeded"
    } else {
       puts $CHECK_OUTPUT "result is $result1"
@@ -1839,15 +1760,13 @@ proc qconf_event_client {} {
 
    set result2 [del_event_client_list "all" ""]
 
-   if { ( $result2 == 0 ) } {
+   if {$result2 == 0} {
       puts $CHECK_OUTPUT "qconf -kec all succeded"
    } else {
       puts $CHECK_OUTPUT "result is $result2"
    }
 
    close_spawn_process $event_client_sid1
-   
-   set_error 0 "ok"
 }
 
 #****** qconf/qconf_add_delete_modify_calendar() ******
@@ -1940,9 +1859,6 @@ proc qconf_add_delete_modify_calendar {} {
    } else {
       puts $CHECK_OUTPUT "result is $result3"
    }
-
-   set_error 0 "ok"
-
 }
 
 #****** qconf/qconf_add_delete_modify_replace_attr() ******
@@ -2152,9 +2068,6 @@ proc qconf_add_delete_modify_replace_attr {} {
    } else {
       puts $CHECK_OUTPUT "result is $result4"
    }
-
-   set_error 0 "ok"
-
 }
 
 #****** qconf/qconf_modify_checkpoint() ******
@@ -2268,8 +2181,6 @@ proc qconf_modify_checkpoint {} {
    } else {
       puts $CHECK_OUTPUT "result is $result8"
    }
-
-   set_error 0 "ok"
 }
 
 #****** qconf/qconf_modify_exechost() ******
@@ -2358,8 +2269,6 @@ proc qconf_modify_exechost {} {
   # Now delete project qconf_test_prj
    puts $CHECK_OUTPUT "Delete project $my_project ...\n"
    set result [del_project $my_project]
-
-   set_error 0 "ok"
 }
 
 #****** qconf/qconf_modify_project() ******
@@ -2438,8 +2347,6 @@ proc qconf_modify_project {} {
    } else {
       puts $CHECK_OUTPUT "result is $result4"
    }
-
-   set_error 0 "ok"
 }
 
 #****** qconf/qconf_modify_userlist() ******
@@ -2520,8 +2427,6 @@ proc qconf_modify_userlist {} {
       # See IZ 1983 on why this does not fail as expected
       puts $CHECK_OUTPUT "result is $result3"
    }
-
-   set_error 0 "ok"
 }
 
 #****** qconf/qconf_modify_sched_conf() ******
@@ -2588,8 +2493,6 @@ proc qconf_modify_sched_conf {} {
       # See IZ 1975 on why this does not fail as expected
       puts $CHECK_OUTPUT "result is $result4"
    }
-
-   set_error 0 "ok"
 }
 
 #****** qconf/qconf_issue_2023() ******
@@ -2622,8 +2525,6 @@ proc qconf_issue_2023 {} {
       add_proc_error "qconf_issue_2023" -1 "rejects configuration, when attribute value ends with a space character"
       puts $CHECK_OUTPUT "result is $result1"
    }
-
-   set_error 0 "ok"
 }
 
 #****** check/qconf_create_modify_sharetree() **********************************
@@ -2687,8 +2588,6 @@ proc qconf_create_modify_sharetree {} {
 
    # delete a sharetree created due to errors in the permission check
    del_sharetree
-
-   set_error 0 "ok"
 }
 
 #****** check/qconf_del_sharetree() ********************************************
@@ -2747,8 +2646,6 @@ proc qconf_del_sharetree {} {
 
    # delete the sharetree
    del_sharetree
-
-   set_error 0 "ok"
 }
 
 #****** check/qconf_add_project() **********************************************
@@ -2827,7 +2724,5 @@ proc qconf_add_project {} {
          add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed on host $non_cluster_host"
       }
    }
-
-   set_error 0 "ok"
 }
 

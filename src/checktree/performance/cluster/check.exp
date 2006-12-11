@@ -34,7 +34,7 @@
 
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 
 set check_init_level_procedure "cluster_perf_init_level"
@@ -210,8 +210,6 @@ proc cluster_perf_setup {} {
       lappend host_list $elem
    }
    disable_queue $dis_list 
- 
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |
@@ -257,8 +255,6 @@ proc cluster_perf_cleanup {} {
    enable_queue $en_list 
    reset_schedd_config
    set_config stored_configuration
-
-   set_error 0 "no errors"
 }
 
 
@@ -381,9 +377,6 @@ proc cluster_perf_make_analysis {} {
       }
    } 
    close $file_p
- 
-
-   set_error 0 "ok"
 }
 
 proc cluster_perf_do_perform_test {} {
@@ -538,8 +531,6 @@ proc cluster_perf_do_perform_test {} {
    } 
 
    sleep 2
-   set_error 0 "ok"
-   return
 }
 
 

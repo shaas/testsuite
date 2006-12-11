@@ -38,8 +38,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -96,8 +94,6 @@ proc qacct_setup  {} {
       set new_config(reporting_params) "accounting_flush_time=00:00:00"
       set_config new_config
    }
-
-   set_error 0 "ok"
 }
 
 proc qacct_cleanup  {} {
@@ -111,8 +107,6 @@ proc qacct_cleanup  {} {
       set new_config(reporting_params) $qacct_reporting_backup
       set_config new_config
    }
-
-   set_error 0 "ok"
 }
 
 # --------------- test procedures for both 5.3 and 6.x
@@ -125,17 +119,14 @@ proc qacct_basic {} {
    # submit job
    set job_id [submit_job "-o /dev/null -j y -N qacct_test $ts_config(product_root)/examples/jobs/sleeper.sh 10"]
    if {$job_id < 0} {
-      set_error 0 "ok"
       return
    }
 
    # wait for job end - now accounting should be written
    if {[wait_for_jobstart $job_id "" 60 1 1] != 0} {
-      set_error 0 "ok"
       return
    }
    if {[wait_for_jobend $job_id "" 60 1] != 0} {
-      set_error 0 "ok"
       return
    }
 
@@ -165,8 +156,6 @@ proc qacct_basic {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc qacct_unknown_job_id {} {
@@ -179,6 +168,4 @@ proc qacct_unknown_job_id {} {
    if {[get_qacct $job_id qacct_info "" "" 0] == 0} {
       add_proc_error "qacct_unknown_job_id" -1 "qacct didn't fail on unknown job id"
    }
-
-   set_error 0 "ok"
 }

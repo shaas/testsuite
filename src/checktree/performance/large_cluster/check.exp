@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -595,15 +593,13 @@ proc large_cluster_throughput {} {
          set_queue $elem change_array
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc large_cluster_usersort {} {  
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_PRODUCT_TYPE
 
    if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0 } {
-      set_error -3 "not available for sgeee system"
+      add_proc_error "large_cluster_usersort" -3 "not available for sgeee system"
       return
    }
 
@@ -618,15 +614,11 @@ proc large_cluster_usersort {} {
 
    # restore configuration
    set_schedd_config schedd_config
-
-   set_error 0 "ok"
 }
 
 proc large_cluster_jobs {} {
    # run test in default environment
    large_cluster_process_jobs job
-
-   set_error 0 "ok"
 }
 
 proc large_cluster_size {size} {
@@ -794,7 +786,7 @@ proc large_cluster_sharetree {} {
    global project_list
 
    if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] != 0 } {
-      set_error -3 "not available for sge system"
+      add_proc_error "large_cluster_sharetree" -3 "not available for sge system"
       return
    }
 
@@ -856,8 +848,6 @@ proc large_cluster_sharetree {} {
 
    # write statistics to file
    large_cluster_write_statistics stree $LARGE_CLUSTER_POLICIES_PROJECTS start_time end_time start_cpu end_cpu mem first_sched total_sched job_runtime
-
-   set_error 0 "ok"
 }
 
 proc large_cluster_update_schedd_pid {} {
@@ -1086,15 +1076,13 @@ proc large_cluster_remove_default {} {
       }
    }
    puts ""
-
-   set_error 0 "ok"
 }
 
 proc large_cluster_cleanup {} {
    global CHECK_ACTUAL_TEST_PATH CHECK_CHECKTREE_ROOT CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_ACT_LEVEL
    global LARGE_CLUSTER_HOST_PREFIX CHECK_PRODUCT_TYPE 
-   global check_highest_level check_needs check_name check_errstr
-   global check_description check_functions check_errno check_init_level_procedure check_use_installed_system
+   global check_highest_level check_needs check_name
+   global check_description check_functions check_init_level_procedure check_use_installed_system
 
    # dump html code
    large_cluster_create_html
@@ -1116,7 +1104,7 @@ proc large_cluster_cleanup {} {
    }
 
    # backup check variables
-   foreach var "check_needs check_name check_errstr check_description check_functions check_errno check_init_level_procedure check_use_installed_system CHECK_ACTUAL_TEST_PATH check_highest_level" {
+   foreach var "check_needs check_name check_description check_functions check_init_level_procedure check_use_installed_system CHECK_ACTUAL_TEST_PATH check_highest_level" {
       upvar 0 $var value
       if {[array exists value]} {
          foreach i [array names value] {
@@ -1134,7 +1122,7 @@ proc large_cluster_cleanup {} {
    run_test $CHECK_ACT_PATH 1
 
    # restore check variables
-   foreach var "check_needs check_name check_errstr check_description check_functions check_errno check_init_level_procedure check_use_installed_system CHECK_ACTUAL_TEST_PATH check_highest_level" {
+   foreach var "check_needs check_name check_description check_functions check_init_level_procedure check_use_installed_system CHECK_ACTUAL_TEST_PATH check_highest_level" {
       upvar 0 $var variable
       upvar 0 large_cluster_backup_${var} value
       if {[array exists value]} {
@@ -1156,8 +1144,6 @@ proc large_cluster_cleanup {} {
       }
    }
    puts ""
-
-   set_error 0 "ok"
 }
 
 proc large_cluster_global {} {
@@ -1168,7 +1154,6 @@ proc large_cluster_global {} {
    large_cluster_statistics dummy1 dummy2 mem dummy3 global
    set line "[expr ($CHECK_ACT_LEVEL - 300 + 1) * $LARGE_CLUSTER_HOSTS_PER_HOST]\t$mem(qmaster,global)\t$mem(schedd,global)"
    large_cluster_write_file global memory $line
-   set_error 0 "ok"
 }
 
 #=========================================
@@ -1447,8 +1432,6 @@ proc large_cluster_create_html {} {
    puts $output "</BODY>"
    puts $output "</HTML>"
    close $output
-
-   set_error 0 "ok"
 }
 
 

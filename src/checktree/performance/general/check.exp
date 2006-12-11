@@ -43,7 +43,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 
 set check_init_level_procedure "general_perf_init_level"
@@ -151,8 +151,6 @@ proc setup_queues {} {
       set change_array(slots) "1" 
       set_queue "$elem.q" "change_array"
    }
-
-   set_error 0 "no errors"
 }
 
 proc setup_schedd_params {} {
@@ -161,7 +159,6 @@ proc setup_schedd_params {} {
    get_config stored_configuration
    set default_array(schedd_params)   "$stored_configuration(schedd_params),FLUSH_SUBMIT_SEC=0,FLUSH_FINISH_SEC=0"
    set_config default_array
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |
@@ -203,15 +200,12 @@ proc cleanup_queues {} {
       set_queue "$elem.q" "change_array"
       incr i 1
    }
-
-   set_error 0 "no errors"
 }
 
 proc cleanup_schedd_params {} {
    global stored_configuration
 
    set_config stored_configuration
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |
@@ -345,7 +339,7 @@ proc performance_test {job_count_loops job_run_loops} {
       
          set result [ submit_jobs $cur_job_count $cur_job_time ]
          if {$result < 0 } {
-              set_error -1 "sub_01 - error in job submit"
+              add_proc_error "performance_test" -1 "sub_01 - error in job submit"
               close $output
               return
            }
@@ -400,7 +394,6 @@ proc performance_test {job_count_loops job_run_loops} {
          }
    }   ;# jobtime
    close $output
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |

@@ -70,14 +70,13 @@ proc qmod_verify {} {
   
    set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -verify -s $test_queue" } output ]
    if {$result != 0} {
-     set_error -1 "exit state of \"qmod -verify -s $test_queue\" is not 0"
+     add_proc_error "qmod_verify" -1 "exit state of \"qmod -verify -s $test_queue\" is not 0"
    }            
    
    set state [ get_queue_state $test_queue ] 
    if { [ string compare $state "" ] != 0  } {
-      set_error -1 "queue $test_queue is not in original state"
+      add_proc_error "qmod_verify" -1 "queue $test_queue is not in original state"
    }
-   set_error 0 "ok"
 }
 
 

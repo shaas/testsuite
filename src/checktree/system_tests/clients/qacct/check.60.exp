@@ -46,8 +46,6 @@ proc qacct_issue1686 {} {
    if {[string first "testuser1defaultdepartment" $result] > 0} {
       add_proc_error "qacct_issue1686" -1 "detected issue 1686:\n$output" 
    } 
-
-   set_error 0 "ok"
 }
 
 proc qacct_issue1720 {} {
@@ -55,7 +53,6 @@ proc qacct_issue1720 {} {
    if {$prg_exit_state != 0} {
       add_proc_error "qacct_issue1720" -1 "qacct tried to resolve unknown hostname:\n$output"
    }
-   set_error 0 "ok"
 }
 
 proc qacct_issue2127 {} {
@@ -70,6 +67,4 @@ proc qacct_issue2127 {} {
    if {$prg_exit_state != 0} {
       add_proc_error "qacct_issue2127" -1 "qacct -l a=$CHECK_ARCH output:\n$output"
    }
-
-   set_error 0 "ok"
 }

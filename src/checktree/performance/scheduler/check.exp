@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 
 set check_init_level_procedure "scheduler_perf_init_level"
@@ -226,7 +226,6 @@ proc scheduler_setup {} {
 
       }
    }
-   set_error 0 "ok"
 }
 
 
@@ -289,7 +288,7 @@ proc scheduler_measurement { repeat_count job_count } {
 
                   if { [ string compare "in" [lindex $schedd_string 1 ]] != 0 } {
                       close_spawn_process $schedd_messages_sid
-                      set_error -1 "format error for orders (1)"
+                      add_proc_error "scheduler_measurement" -1 "format error for orders (1)"
                       return -1
                    }
                    set schedd_time [ lindex $schedd_string 2 ]  ;# this is wall clock time 
@@ -306,7 +305,7 @@ proc scheduler_measurement { repeat_count job_count } {
                    }
                    if { [ string compare "orders," [lindex $schedd_string $s_index ]] != 0 } {
                       close_spawn_process $schedd_messages_sid
-                      set_error -1 "format error for orders (2)"
+                      add_proc_error "scheduler_measurement" -1 "format error for orders (2)"
                       return -1
                    }
                    incr s_index -1
@@ -437,8 +436,6 @@ proc scheduler_test_run {} {
         generate_all_gif_files $data_file
      }
    }
-
-   set_error 0 "ok"
 }
 
 proc show_all_schedd_test_data {  } {
@@ -701,9 +698,6 @@ proc scheduler_cleanup {} {
 
 
    }
-
-   set_error 0 "ok"
-
 }
 
 

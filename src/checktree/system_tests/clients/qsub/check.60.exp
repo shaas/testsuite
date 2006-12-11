@@ -36,7 +36,7 @@ lappend check_functions "check_option_sync_t"
 lappend check_functions "check_option_sync_ww"
 
 proc check_qhold_jobname {} {
-   global check_errno CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
+   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    # first clean up output directory:  
@@ -177,8 +177,6 @@ proc check_qhold_jobname {} {
    wait_for_jobend $hold_job1 "FIRST" 60
 
    puts $CHECK_OUTPUT "done."   
-
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |
@@ -225,7 +223,6 @@ proc check_option_v {} {
 
    if { $result < 0 } {
       add_proc_error "check_option_v" -1 "could not submit job"
-      set_error 0 ok
       return
    }
 
@@ -247,13 +244,11 @@ proc check_option_v {} {
          if { $back != 2 } {
             add_proc_error "check_option_v" -1 "job $result did not produce error and output file\njobargs: $jobargs"
          }
-         set_error 0 ok
          return
       }
    }
  
    add_proc_error "check_option_v" -1 "timeout while waiting for job accounting"
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -304,12 +299,10 @@ proc check_option_sync {} {
    if {$errorType == "CHILDSTATUS"} {
       set errorStatus [lindex $errorCode 2]
       if {$errorStatus != 5} {
-         set_error -1 "qsub did not exit with correct exit code: $result"
-      } else {
-         set_error 0 "no error"
+         add_proc_error "check_option_sync" -1 "qsub did not exit with correct exit code: $result"
       }
    } else {
-      set_error -1 "qsub terminated abnormally"
+      add_proc_error "check_option_sync" -1 "qsub terminated abnormally"
    }
 }
 
@@ -361,12 +354,10 @@ proc check_option_sync_t {} {
    if {$errorType == "CHILDSTATUS"} {
       set errorStatus [lindex $errorCode 2]
       if {$errorStatus != 5} {
-         set_error -1 "qsub did not exit with correct exit code: $result"
-      } else {
-         set_error 0 "no error"
+         add_proc_error "check_option_sync_t" -1 "qsub did not exit with correct exit code: $result"
       }
    } else {
-      set_error -1 "qsub terminated abnormally"
+      add_proc_error "check_option_sync_t" -1 "qsub terminated abnormally"
    }
 }
 
@@ -426,8 +417,6 @@ proc check_option_sync_ww {} {
    }
 
    delete_all_jobs
-
-   set_error 0 "ok"
 }
 
 proc invalid_job_has_valid_account_string {option} {

@@ -80,9 +80,7 @@ proc qalter_qs_args {} {
 
    # evaluate result
    if {$qalterresult != 0} {
-      set_error -1 "qalter $option $job_id failed:\n$qalteroutput"
-   } else {
-      set_error 0 "qalter $option $job_id succeeded:\n$qalteroutput"
+      add_proc_error "qalter_qs_args" -1 "qalter $option $job_id failed:\n$qalteroutput"
    }
 }
 

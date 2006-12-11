@@ -93,7 +93,6 @@ proc qconf_backslash_default_space_check {} {
       puts $CHECK_OUTPUT $output
       if { [regexp $ADDED $output match groupname] == 0 } {
          add_proc_error "qconf_backslash_default_space_check" -1 "error parsing file \"$group\" in qconf_backslash_default_space_check ($output)"
-         set_error 0 "ok" ;# is ok add_proc_error already has reported the error
          return
       }
       lappend required_groups $groupname
@@ -153,8 +152,6 @@ proc qconf_backslash_default_space_check {} {
    foreach group "$added_groups $required_groups" {
       start_remote_prog $master_host $CHECK_USER "qconf" "-dhgrp $group"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -198,7 +195,6 @@ proc qconf_backslash_default_comma_check {} {
       puts $CHECK_OUTPUT "output is \"$output\""
       if { [regexp $ADDED $output match userlistname] == 0 } {
          add_proc_error "qconf_backslash_default_comma_check" -1 "error parsing file \"$userlist\" in qconf_backslash_comma_check\n(output: $output)"
-         set_error 0 "ok" ;# is ok add_proc_error already has reported the error
          return
       }
       puts $CHECK_OUTPUT "added userlist $userlistname"
@@ -231,8 +227,6 @@ proc qconf_backslash_default_comma_check {} {
          continue
       }
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -278,7 +272,6 @@ proc qconf_backslash_custom_space_check {} {
 
       if { [regexp $ADDED $output match username] == 0 } {
          add_proc_error "qconf_backslash_custom_space_check" -1 "error parsing file \"$user\" in qconf_backslash_custom_space_check"
-         set_error 0 "ok" ;# is ok add_proc_error already has reported the error
          return
       }
 
@@ -340,8 +333,6 @@ proc qconf_backslash_custom_space_check {} {
    foreach user $required_users {
       start_remote_prog $master_host $CHECK_USER "qconf" "-dul $user"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -386,7 +377,6 @@ proc qconf_backslash_custom_comma_check {} {
 
       if { [regexp $ADDED $output match username] == 0 } {
          add_proc_error "qconf_backslash_custom_comma_check" -1 "error parsing file \"$user\" in qconf_backslash_custom_space_check"
-         set_error 0 "ok" ;# is ok add_proc_error already has reported the error
          return
       }
 
@@ -449,8 +439,6 @@ proc qconf_backslash_custom_comma_check {} {
    foreach user $required_users {
       start_remote_prog $master_host $CHECK_USER "qconf" "-dul $user"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -645,8 +633,6 @@ proc qconf_backslash_space_output_check {} {
    if {$failed} {
       add_proc_error "qconf_backslash_space_output_check" "-1" "error printing hostgroup in qconf_backslash_space_output_check -- failed for $failures"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -876,8 +862,6 @@ proc qconf_backslash_comma_output_check {} {
    if {$failed} {
       add_proc_error "qconf_backslash_comma_output_check" "-1" "error printing hostgroup in qconf_backslash_comma_output_check -- failed for $failures"
    }
-
-   set_error 0 "ok"
 }
 
 #****** check.60/check_double_output() *****************************************
@@ -891,7 +875,7 @@ proc qconf_backslash_comma_output_check {} {
 #     Search in string2 for a sequence of characters that exactly match multiple
 #     times the characters in string1.
 #
-#     The function sets the variable set_error if no string was found and if
+#     The function raises an error if no string was found and if
 #     the string was found 2 times.
 #
 #  INPUTS
@@ -906,10 +890,10 @@ proc check_double_output { string1 string2 } {
    if { $index > 0 } {
       set string2 [ string range "$string2" 0 $index ] 
       if { [ string first "$string1" "$string2" ] >= 0 } {
-         set_error "-1" "detected issue 1767\n$string1 printed 2 or more times" 
+         add_proc_error "check_double_output" -1 "detected issue 1767\n$string1 printed 2 or more times" 
       } 
    } elseif { $index < 0 } {
-      set_error "-1" "qconf doesn't reject invalid values"
+      add_proc_error "check_double_output" -1 "qconf doesn't reject invalid values"
    }
 }
 
@@ -966,8 +950,6 @@ proc qconf_issue1767 {} {
    puts $CHECK_OUTPUT $result
    set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -Mp $tmp_file1  } result ]
    check_double_output $REJECTED $result
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1009,8 +991,6 @@ proc qconf_shgrp_tree_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result1"
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qconf/qconf_shgrp_resolved_check() ******
@@ -1051,8 +1031,6 @@ proc qconf_shgrp_resolved_check {} {
    } else {
       puts $CHECK_OUTPUT "result is $result1"
    }
-
-   set_error 0 "ok"
 }
 #****** qconf/check.60.exp/qconf_modify_hostgroup() ******
 #  NAME
@@ -1123,8 +1101,6 @@ proc qconf_modify_hostgroup {} {
    } else {
       puts $CHECK_OUTPUT "result is $result21"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1207,9 +1183,6 @@ proc qconf_purge_queue {} {
    } else {
       puts $CHECK_OUTPUT "result is $result4"
    }
-
-   set_error 0 "ok"
-
 }
 
 #                                                             max. column:     |
@@ -1292,7 +1265,5 @@ proc qconf_de_check {} {
    puts $CHECK_OUTPUT $result
 
    puts $CHECK_OUTPUT "added execd $execd to cluster"
-
-   set_error 0 "ok"
 }
 

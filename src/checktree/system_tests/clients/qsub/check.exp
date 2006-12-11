@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr 
+global check_name check_description check_needs check_functions
 global check_category
 global check_highest_level check_init_level_procedure
 global ts_config
@@ -266,15 +266,13 @@ proc check_submit {} {
       puts $CHECK_OUTPUT "--> submit to host $host"
       qsub_submit_check "-l h=${host} $default_args" 0
    }
-
-   set_error 0 "ok"
 }
 
 
 proc qsub_starter_method {} {
    global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global check_errno job_output_dir
-   global check_errstr CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global job_output_dir
+   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
    global actual_host
    global default_q_args default_h_args
 
@@ -359,8 +357,6 @@ proc qsub_starter_method {} {
    # unset starter method
    set change_array(starter_method) "none"
    mod_queue all.q "" change_array
-
-   set_error 0 "ok"
 }
 
 
@@ -457,7 +453,7 @@ proc setup_output_directory {} {
 #     ???/???
 #*******************************
 proc check_hold {} {
-   global check_errno CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
+   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
    global default_args
 
    set ok 1
@@ -469,7 +465,6 @@ proc check_hold {} {
    set result [submit_job $jobargs] 
    if {$result < 0} {
       add_proc_error "check_hold" -1 "error submitting job \"$jobargs\"\nerror $result"
-      set_error 0 ok ; return
    }
  
    # wait for job to get in pending state 
@@ -517,8 +512,6 @@ proc check_hold {} {
    if {! $ok && $result > 0} {
       delete_job $result
    }
-
-   set_error 0 "ok"
 }
 #                                                             max. column:     |
 #****** qsub/check_start_time() ******
@@ -551,8 +544,8 @@ proc check_hold {} {
 #*******************************
 proc check_start_time {} {
    global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global check_errno job_output_dir
-   global check_errstr CHECK_OUTPUT actual_host
+   global job_output_dir
+   global CHECK_OUTPUT actual_host
 
    # first clean up output directory:  
    setup_output_directory
@@ -605,7 +598,6 @@ proc check_start_time {} {
    set result [submit_job $jobargs] 
    if {$result < 0} {
       add_proc_error "check_start_time" -1 "error submitting job \"$jobargs\"\nerror $result"
-      set_error 0 ok ; return
    }
 
    # wait for job to get in pending state
@@ -654,8 +646,6 @@ proc check_start_time {} {
    if {! $ok && $result > 0} {
       delete_job $result
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -692,12 +682,11 @@ proc check_start_time {} {
 proc check_deadline {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global check_errno actual_host
-   global check_errstr CHECK_OUTPUT job_output_dir
+   global actual_host
+   global CHECK_OUTPUT job_output_dir
 
    if {$ts_config(product_type) == "sge"} {
       add_proc_error "check_deadline" -3 "not possible in sge system"
-      set_error 0 ok
       return
    }
 
@@ -817,12 +806,10 @@ proc check_deadline {} {
       }     
       
       if { ([was_job_running $result 0] != -1) } {
-         set_error 0 ok
          set back [ del_job_files $result $job_output_dir 2 ] 
          if { $back != 2 } {
             add_proc_error "check_deadline" -1 "job $result did not produce error and output file"
          }
-         set_error 0 ok
          return
       }       
  
@@ -849,19 +836,16 @@ proc check_deadline {} {
          # use dlcontr in case of 6.0
          if { ($run_time < 90) && ($job_tickets > [expr ($max_tickets / 2) ]  ) } {
             add_proc_error "check_deadline" -1 "check_deadline - job shouldn't have so much tickets until yet"
-            set_error 0 ok
             return 
          }
          
          if { ($run_time > 200) && ($job_tickets < [expr ($max_tickets / 2) ] ) } {
             add_proc_error "check_deadline" -1 "check_deadline - job should have more tickets at this point of time"  
-            set_error 0 ok
             return 
          }
 
          if { ($run_time > 400) && ($job_tickets < $max_tickets ) } {
             add_proc_error "check_deadline" -1 "check_deadline - job should have all tickets now"
-            set_error 0 ok
             return   
          }
           
@@ -876,8 +860,6 @@ proc check_deadline {} {
    if { $back != 2 } {
       add_proc_error "check_deadline" -1 "job $result did not produce error and output file"
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -925,40 +907,40 @@ proc check_option_ac {} {
 
    if { $result < 0 } {
       add_proc_error "check_option_ac" -1 "error submitting job \"$jobargs\"\nerror $result"
-      set_error 0 ok ; return
+      return
    }
 
    set qstatoutput [start_sge_bin "qstat" "-j $result"]
 
    if {$prg_exit_state != 0} {
       add_proc_error "check_option_ac" -1 "error executing qstat -j $result"
-      set_error 0 ok ; return
+      return
    }
 
    if {[regexp {context:([^\r\n]+\r?\n)} $qstatoutput match vars] != 1} {
       add_proc_error "check_option_ac" -1 "qsub $option - qsub error: context variables were not set"
-      set_error 0 ok ; return
+      return
    }
 
    puts $CHECK_OUTPUT "context variables: $vars"
 
    if {[regexp {[ \t,]myvar1=test 1[,\r\n]} $vars match] != 1} {
       add_proc_error "check_option_ac" -1 "qsub $option - qsub error: command-line context variable was not set"
-      set_error 0 ok ; return
+      return
    } elseif {[regexp {[ \t,]myvar2=test 2[,\r\n]} $vars match] != 1} {
       add_proc_error "check_option_ac" -1 "qsub $option - qsub error: command-line context variable was not set"
-      set_error 0 ok ; return
+      return
    } elseif {[regexp {[ \t,]myvar3=test 3[,\r\n]} $vars match] != 1} {
       add_proc_error "check_option_ac" -1 "qsub $option - qsub error: inline context variable was not set"
-      set_error 0 ok ; return
+      return
    } elseif {[regexp {[ \t,]myvar4=test 4[,\r\n]} $vars match] != 1} {
       if {[regexp {[ \t,]myvar4='test 4'[,\r\n]} $vars match] == 1} {
          add_proc_error "check_option_ac" -3 "qsub $option - qsub error: issue IZ1850 encountered"
-         set_error 0 ok ; return
+         return
       }
 
       add_proc_error "check_option_ac" -1 "qsub $option - qsub error: inline context variable was not set"
-      set_error 0 ok ; return
+      return
    }
 
    set time [expr ([timestamp] + 300)] 
@@ -970,16 +952,12 @@ proc check_option_ac {} {
          set back [ del_job_files $result $job_output_dir 2 ] 
          if { $back != 2 } {
             add_proc_error "check_option_ac" -1 "job $result did not produce error and output file\njobargs: $jobargs"
-            set_error 0 ok ; return
-         } else {
-            set_error 0 ok
             return
          }
       }
    }
  
    add_proc_error "check_option_ac" -1 "timeout while waiting for job accounting"
-   set_error 0 ok
 }
 
 
@@ -1042,8 +1020,6 @@ proc check_option_A {} {
     
       set job_id [qsub_submit_check $jobargs 1]
    }
-
-   set_error 0 ok
 }
 
 
@@ -1093,8 +1069,6 @@ proc check_option_clear {} {
          add_proc_error -1 "check_option_A" "-clear option didn't earlier -A option"
       }
    }
-
-   set_error 0 ok
 }
 
 
@@ -1138,8 +1112,6 @@ proc check_option_c {} {
    set option "-c n"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1181,8 +1153,6 @@ proc check_option_ckpt {} {
    set option "-ckpt testcheckpointobject"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1224,8 +1194,6 @@ proc check_option_cwd {} {
    set option "-cwd"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1267,8 +1235,6 @@ proc check_option_C {} {
    set option "-C TESTPREFIX"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1310,8 +1276,6 @@ proc check_option_dc {} {
    set option "-dc myvar,myvar2"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1352,8 +1316,6 @@ proc check_option_e {} {
 
    # we submit just with default args - they contain the -e option
    qsub_submit_check $default_args 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1395,8 +1357,6 @@ proc check_option_hard {} {
    set option "-hard"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1438,8 +1398,6 @@ proc check_option_help {} {
    set option "-help"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 1
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1488,8 +1446,6 @@ proc check_option_hold_jid {} {
       set jobargs "$option $default_args"
       qsub_submit_check $jobargs 0
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1531,8 +1487,6 @@ proc check_option_j_y {} {
    set option "-j y"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0 "" "" 1
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1574,8 +1528,6 @@ proc check_option_j_n {} {
    set option "-j n"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1617,8 +1569,6 @@ proc check_option_l {} {
    # the default_h_args contain -l h=...
    set jobargs "$default_h_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1660,8 +1610,6 @@ proc check_option_m {} {
    set option "-m beas"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1703,8 +1651,6 @@ proc check_option_notify {} {
    set option "-notify"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1761,7 +1707,7 @@ proc check_option_now_yes {} {
    puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
 
    if { $result < 0 } {
-      set_error -1 "could not submit job\n -> return value of submit_job: $result"
+      add_proc_error "check_option_now_yes" -1 "could not submit job\n -> return value of submit_job: $result"
       return
    }
 
@@ -1773,16 +1719,15 @@ proc check_option_now_yes {} {
       if {$back != -1} {
          set back [ del_job_files $result $job_output_dir 2 ] 
          if { $back != 2 } {
-            set_error -1 "job $result did not produce error and output file\njobargs: $jobargs"
+            add_proc_error "check_option_now_yes" -1 "job $result did not produce error and output file\njobargs: $jobargs"
             return
          } else {
-            set_error 0 "no error"
             return
          }
       }
    }
  
-   set_error -1 "timeout while waiting for job accounting"
+   add_proc_error "check_option_now_yes" -1 "timeout while waiting for job accounting"
 
    # negative test: expect job not to be scheduled
    # disable all queues
@@ -1832,8 +1777,6 @@ proc check_option_now_no {} {
    set option "-now no"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1873,7 +1816,6 @@ proc check_option_M {} {
    # can't run the check, if no email address has been configured
    if {[string compare $CHECK_REPORT_EMAIL_TO "none"] == 0} {
       add_proc_error "check_option_M" -3 "no email address configured - can't run qsub -M check"  
-      set_error 0 ok
       return
    }
 
@@ -1883,8 +1825,6 @@ proc check_option_M {} {
    set option "-M $CHECK_REPORT_EMAIL_TO"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -1946,8 +1886,6 @@ proc check_option_N {} {
     
       set job_id [qsub_submit_check $jobargs 1]
    }
-
-   set_error 0 ok
 }
 
 
@@ -1989,8 +1927,6 @@ proc check_option_o {} {
 
    # the default args already contain a -o option
    qsub_submit_check $default_args 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2039,8 +1975,6 @@ proc check_option_P {} {
          add_proc_error -1 "check_option_P" "project specified by -P switch missing in accounting record"
       }
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2103,8 +2037,6 @@ proc check_option_p {} {
    } else {
       qsub_submit_check "-p 1 $default_args" 1 $CHECK_FIRST_FOREIGN_SYSTEM_USER
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2156,8 +2088,6 @@ proc check_option_pe {} {
          add_proc_error -1 "check_option_pe" "slots incorrect in accounting record"
       }
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2208,8 +2138,6 @@ proc check_option_q {} {
       qsub_submit_check "-q *@${actual_host} $default_args" 0
       qsub_submit_check "-q *@@allhosts $default_args" 0
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2251,8 +2179,6 @@ proc check_option_r_y {} {
    set option "-r y"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2294,8 +2220,6 @@ proc check_option_r_n {} {
    set option "-r n"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2337,8 +2261,6 @@ proc check_option_sc {} {
    set option "-sc myvar=test3"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2380,8 +2302,6 @@ proc check_option_soft {} {
    set option "-soft"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2423,8 +2343,6 @@ proc check_option_S {} {
    set option "-S /bin/sh"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2480,8 +2398,6 @@ proc check_option_t {} {
    set option "-t 1-500000"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 1
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2538,8 +2454,6 @@ proc check_option_verify {} {
    if {!$found} {
       add_proc_error "check_option_verify" -1 "no verify output on -verify command:\n$output"
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2581,8 +2495,6 @@ proc check_option_V {} {
    set option "-V"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2627,8 +2539,6 @@ proc check_option_w {} {
 
    # negative test: -w e -q <invalid queue> has to be rejected
    qsub_submit_check "-q blah $jobargs" 1
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2675,8 +2585,6 @@ proc check_option_@ {} {
    if { $result != -2 } {
       add_proc_error "check_option_@" -1 "no help output on -@ commandfile option"
    }
-
-   set_error 0 ok
 }
 
 #                                                             max. column:     |
@@ -2756,7 +2664,6 @@ proc check_huge_script {} {
       if { $result < 0 } {
          add_proc_error "check_huge_script" -1 "could not submit job (result: $result)"
          close $protocol
-         set_error 0 ok
          return
       } else {
          set sched_start [clock seconds]
@@ -2778,13 +2685,11 @@ proc check_huge_script {} {
       if { $back != 2 } {
          add_proc_error "check_huge_script" -1 "job $result did not produce error and output file\njobargs: $jobargs"
          close $protocol
-         set_error 0 ok
          return
       }
    }
 
    close $protocol
-   set_error 0 "ok"
 }
 
 proc qsub_setup {} {
@@ -2830,8 +2735,6 @@ proc qsub_setup {} {
       set my_schedd_conf(flush_submit_sec) "1"
       set_schedd_config my_schedd_conf 
    }
-
-   set_error 0 "ok"
 }
 
 proc qsub_cleanup {} {
@@ -2845,6 +2748,4 @@ proc qsub_cleanup {} {
       reset_schedd_config
    }
    set_config stored_configuration
-   
-   set_error 0 "ok"
 }

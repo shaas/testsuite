@@ -127,7 +127,7 @@
 #           Verifies the scheduler decisions regarding sharetree policy.
 #
 #***************************************************************************
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -705,8 +705,6 @@ proc throughput_setup {} {
    if { $functional_policy } {
       throughput_setup_functional_policy
    }
-
-   set_error 0 "ok"
 }
 
 proc throughput_cleanup {} {
@@ -755,8 +753,6 @@ proc throughput_cleanup {} {
    enable_queue $queue_list
 
    del_queue interactive "@allhosts" 0 1
-   
-   set_error 0 "ok"
 }
 
 proc get_event_client_time { string  } {
@@ -801,7 +797,7 @@ proc run_throughput_test {} {
    set up_arch [resolve_build_arch $ts_config(master_host)]
    set event_client_bin $CHECK_SOURCE_DIR/$up_arch/qevent
    if { [file isfile $event_client_bin] != 1 } {
-      set_error -3 "could not open event client binary: $event_client_bin"
+      add_proc_error "run_throughput_test" -3 "could not open event client binary: $event_client_bin"
       return -3
    }
    puts $CHECK_OUTPUT "using event client: $event_client_bin"
@@ -1084,7 +1080,7 @@ proc run_throughput_test {} {
           }
           close_spawn_process $event_client_sid
           close_spawn_process $schedd_messages_sid
-          set_error -1 "could not enable all host connections"
+          add_proc_error "run_throughput_test" -1 "could not enable all host connections"
           return -1
        }
    }
@@ -1454,7 +1450,7 @@ proc run_throughput_test {} {
                         }
                         close_spawn_process $event_client_sid
                         close_spawn_process $schedd_messages_sid
-                        set_error -1 "format error for orders (1)"
+                        add_proc_error "run_throughput_test" -1 "format error for orders (1)"
                         return -1
                      }
                      set schedd_time [ lindex $schedd_string 2 ]   ;# this is wall clock time
@@ -1478,7 +1474,7 @@ proc run_throughput_test {} {
                         }
                         close_spawn_process $event_client_sid
                         close_spawn_process $schedd_messages_sid
-                        set_error -1 "format error for orders (2)"
+                        add_proc_error "run_throughput_test" -1 "format error for orders (2)"
                         return -1
                      }
                      incr s_index -1
@@ -1568,8 +1564,6 @@ proc run_throughput_test {} {
    if { ! $error } {
       create_reports results_list job_data schedd_data monitoring qstat_data qping_data event_data
    }
-
-   set_error 0 "ok"
 }
 
 proc get_submit_id_from_job_id { job_array_name job_id } {

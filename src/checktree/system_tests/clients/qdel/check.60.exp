@@ -165,13 +165,10 @@ proc qdel_delete_by_job_name {} {
    set delete_by_job_name_return [delete_by_job_name]
    #puts $CHECK_OUTPUT "return from delete_by_job_name is $delete_by_job_name_return"
 
-   if { $delete_by_job_name_return == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "Extended case 1 of qdel failed"
+   if {$delete_by_job_name_return != 0} {
+      add_proc_error "qdel_delete_by_job_name" -1 "Extended case 1 of qdel failed"
    }
    delete_all_jobs
-
 }
 
 #                                                             max. column:     |
@@ -212,14 +209,10 @@ proc qdel_delete_by_job_wildcard {} {
    global CHECK_OUTPUT check_highest_level
 
    set delete_by_job_wildcard_return [delete_by_job_name "test_j*"]
-   #puts $CHECK_OUTPUT "return from delete_by_job_name is $delete_by_job_wildcard_return"
 
-   if { $delete_by_job_wildcard_return == 0 } {
-      set_error 0 "ok"
-   } else {
-      set_error -1 "Extended case 2 of qdel failed"
+   if {$delete_by_job_wildcard_return != 0} {
+      add_proc_error "qdel_delete_by_job_wildcard" -1 "Extended case 2 of qdel failed"
    }
    delete_all_jobs
-
 }
 

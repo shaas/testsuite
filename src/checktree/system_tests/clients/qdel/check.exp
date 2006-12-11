@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -143,7 +141,6 @@ proc qdel_setup {} {
    set q_param(slots)                 "50"
 
    add_queue $queue [lindex $ts_config(execd_nodes) 0] q_param
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -191,8 +188,6 @@ proc qdel_cleanup {} {
       set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -c [get_queue_instance all.q $hostname]" } output ]
       puts $CHECK_OUTPUT $output
    }
-
-   set_error 0 "ok"
 }
 
 proc qdel_submit_delete_when_transfered {} {
@@ -237,8 +232,6 @@ proc qdel_submit_delete_when_transfered {} {
       set output [start_sge_bin "qmod" "-c $qinstance"]
       puts $CHECK_OUTPUT $output
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -561,7 +554,6 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
    }
 
    delete_all_jobs
-   set_error 0 "ok"
 }
 
 #*******************************
@@ -611,9 +603,8 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
    (  [string first [concat "$string2" [lindex $delete_list 4] "$string3" ] $result1] >= 0 ) &&
    (  [string first [concat "$string1" [lindex $delete_list 5] ] $result1] >= 0 )  ||
    (  [string first [concat "$string2" [lindex $delete_list 5] "$string3" ] $result1] >= 0 ) } {
-       set_error 0 "ok"
    } else {
-       set_error -1  "Case 3) deletion of tasks 5 - 10 failed"
+       add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 5 - 10 failed"
        puts "the OR string is [concat "registered the job-array task " [lindex $delete_list 0] "for deletion" ] "
        puts $CHECK_OUTPUT  "result is $result1"
    }
@@ -636,9 +627,8 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
    (  [string first [concat "$string2" [lindex $delete_list 0] "$string3" ] $result1] >= 0 ) &&
    (  [string first [concat "$string1" [lindex $wait_list_delete 1] ] $result2] >= 0 ) ||
    (  [string first [concat "$string2" [lindex $delete_list 1] "$string3" ] $result1] >= 0 ) } {
-      set_error 0 "ok"
    } else {
-      set_error -1  "Case 3) deletion of tasks 2 - 3 failed"
+      add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 2 - 3 failed"
       puts $CHECK_OUTPUT  "result is $result2"
    }
 
@@ -662,9 +652,8 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
    (  [string first [concat "$string1" [lindex $delete_list_2_5 2]  ] $result3] >= 0 ) ||
    (  [string first [concat "$string2" [lindex $delete_list_2_5 2] "$string3" ] $result3] >= 0 ) ||
    (  [string first "$string4 \"$array_job_list\" $string5 \"5\"$string6"  $result3] >= 0 ) } { 
-      set_error 0 "ok"
    } else {
-      set_error -1  "Case 3) deletion of tasks 2 - 5 failed"
+      add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 2 - 5 failed"
       puts $CHECK_OUTPUT "My string is [concat "registered the job-array task " [lindex $delete_list_2_5 2] "for deletion" ] "
       puts $CHECK_OUTPUT  "result is $result3"
    }
@@ -677,9 +666,8 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
 
    if { ( [string first "$string4 \"$array_job_list\" $string5 \"6\" $string6"  $result4] >= 0 ) &&
    (  [string first "$string4 \"$array_job_list\" $string5 \"7\" $string6"  $result4] >= 0 ) } { 
-      set_error 0 "ok"
    } else {
-      set_error -1  "Case 3) deletion of tasks 6 - 7 failed"
+      add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 6 - 7 failed"
       puts $CHECK_OUTPUT  "My string is [concat "$string4" \"$array_job_list\" " $string5" \"6\" $string6"] "
       puts $CHECK_OUTPUT  "result is $result4"
    }
@@ -749,9 +737,8 @@ proc qdel_iz_125_case_4 { { user "" } { additional_job_args "" }} {
    ( [string first [concat "$string1" [lindex $job_id_list 1]] $result5] >= 0 ) &&
    ( [string first [concat "$string1" [lindex $job_id_list 2]] $result5] >= 0 ) &&
    ( [string first [concat "$string1" [lindex $job_id_list 3]] $result5] >= 0 ) } {
-      set_error 0 "ok"
       } else {
-      set_error -1 "Case 4) deletion of pe tasks failed"
+      add_proc_error "qdel_iz_125_case_4" -1 "Case 4) deletion of pe tasks failed"
       puts $CHECK_OUTPUT  "result is $result5"
    }
 
@@ -850,10 +837,9 @@ proc qdel_iz_125_case_5 { { user "" } { additional_job_args "" }} {
    ( [string first [concat "$string2" [lindex $job_id_list_1000 90] "$string3"] $result6] >= 0 ) ||
    ( [string first [concat "$string4" [lindex $job_id_list_1000 90] "$string5"] $result6] >= 0 ) ||
    ( [string first [concat "$string6" [lindex $job_id_list_1000 90] "$string7"] $result6] >= 0 ) } { 
-      set_error 0 "ok"
    } else {
       puts $CHECK_OUTPUT  "Case 5) deletion of 1000 tasks failed"
-      set_error -1 "result for 1000 qdel's is $result6"
+      add_proc_error "qdel_iz_125_case_5" -1 "result for 1000 qdel's is $result6"
    }
 
    # Clean up the queues
@@ -924,9 +910,8 @@ proc qdel_delete_task_range {} {
 
    if { ( [ string first "$string1"  $result11 ] < 0 ) ||
         ( [ string first [concat "$string2" [lindex $job_id_10 0]] $result11 ] >=0  ) } {
-      set_error 0 "ok"
    } else {
-      set_error -1 "Case 6) of the iz_125 tests was not ok"
+      add_proc_error "qdel_delete_task_range" -1 "Case 6) of the iz_125 tests was not ok"
       puts $CHECK_OUTPUT "job range is  $job_range"
       puts $CHECK_OUTPUT "result of job range deletion is $result11"
       puts $CHECK_OUTPUT "My string is [concat "$string2" [lindex $job_id_10 0]]"
@@ -978,17 +963,15 @@ proc qdel_delete_job_0 {} {
    puts $CHECK_OUTPUT "qdel exit state: $state"  
  
    if {$state != 1 } {
-      set_error -1 "exit state is not 1"
+      add_proc_error "qdel_delete_job" -1 "exit state is not 1"
    }
 
    set output_length [string length $output]
    puts $CHECK_OUTPUT "output length: $output_length"
 
    if {$output_length < 10 } {
-      set_error -1 "possible wrong output - please check output manually"
+      add_proc_error "qdel_delete_job" -1 "possible wrong output - please check output manually"
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -1036,13 +1019,13 @@ proc qdel_help {} {
    puts $CHECK_OUTPUT "qdel exit state: $prg_exit_state"
 
    if {$prg_exit_state != 0} {
-      set_error -1 "exit state is not 0"
+      add_proc_error "qdel_help" -1 "exit state is not 0"
    }
 
    set output [string trim $output]
 
    if {[string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0} {
-      set_error -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
+      add_proc_error "qdel_help" -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
    } 
  
    set lines [split $output "\n"]
@@ -1053,8 +1036,6 @@ proc qdel_help {} {
    if {$nr_of_lines != $qdel_help_lines} {
       add_proc_error "qdel_help" -1 "help output has $nr_of_lines, but expected are $qdel_help_lines lines:\n$output"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1105,7 +1086,7 @@ proc qdel_job_task_list {} {
 
     # Errorhandling not functional yet because qdel returns always 0 it doesn't matter if the job exists or not
     if { $result != 0 } {
-       set_error -1 "qdel_job_task_list: Could not delete jobs (exit status: $result) "
+       add_proc_error "qdel_job_task_list" -1 "could not delete jobs (exit status: $result) "
     }
 
     set time [timestamp]
@@ -1119,13 +1100,12 @@ proc qdel_job_task_list {} {
        }
 
        if {$jobs_deleted == 0} {
-          set_error 0 "no error"
           return
        }
 
        set runtime [expr ( [timestamp] - $time ) ]
        if { $runtime >= 300 } {
-          set_error -1 "timeout while waiting for end of testjobs $job_list"
+          add_proc_error "qdel_job_task_list" -1 "timeout while waiting for end of testjobs $job_list"
           break  
        }
     }    
@@ -1219,7 +1199,7 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
  
 
   if { $result != 0 } {
-     set_error -1 "exit state is not 0"
+     add_proc_error "qdel_delete_unknown_jobid_proc" -1 "exit state is not 0"
   } 
 
   set nr_of_jobs [llength $job_list]
@@ -1230,7 +1210,7 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
   puts $CHECK_OUTPUT "nr_of_output_lines = $nr_of_output_lines"
 
   if { $nr_of_jobs != $nr_of_output_lines } {
-     set_error -1 "nr of jobs doesn't match output lines"
+     add_proc_error "qdel_delete_unknown_jobid_proc" -1 "nr of jobs doesn't match output lines"
   }
 
   set last_job_output [ lindex $qd_out [ expr ( $nr_of_output_lines - 1 ) ] ]
@@ -1247,12 +1227,10 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
   puts $CHECK_OUTPUT "should be:       \"$default_output\""
 
   if { [ string compare $default_output $last_job_output  ] != 0 } {
-     set_error -1 "deleting of not existing job produces wrong output (\"$last_job_output\")"
+     add_proc_error "qdel_delete_unknown_jobid_proc" -1 "deleting of not existing job produces wrong output (\"$last_job_output\")"
   } else {
      puts $CHECK_OUTPUT "ok"
   }
-
-  set_error 0 "ok"
 }
 
 
@@ -1300,17 +1278,15 @@ proc qdel_delete_negative_jobid {} {
    puts $CHECK_OUTPUT "qdel exit state: $state"  
  
    if {$state != 1 } {
-      set_error -1 "exit state is not 1"
+      add_proc_error "qdel_delete_negative_jobid" -1 "exit state is not 1"
    }
 
    set output_length [string length $output]
    puts $CHECK_OUTPUT "output length: $output_length"
 
    if {$output_length < 10 } {
-      set_error -1 "possible wrong output - please check output manually"
+      add_proc_error "qdel_delete_negative_jobid" -1 "possible wrong output - please check output manually"
    }
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1372,7 +1348,7 @@ proc qdel_all {} {
    puts $CHECK_OUTPUT "qdel_result = $result"
    puts $CHECK_OUTPUT "qdel_output = $qdel_output" 
    if { $result != 0 } {
-       set_error -1 "qdel_job_task_list: Could not delete jobs $job_list_user1 (exit status: $result) "
+       add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $result) "
    }
 
    set time [timestamp] 
@@ -1391,7 +1367,7 @@ proc qdel_all {} {
 
        set runtime [expr ( [timestamp] - $time ) ]
        if { $runtime >= 60 } {
-          set_error -1 "timeout while waiting for end of testjobs $job_list_user1"
+          add_proc_error "qdel_all" -1 "timeout while waiting for end of testjobs $job_list_user1"
           break  
        }
        puts -nonewline $CHECK_OUTPUT "."
@@ -1404,7 +1380,7 @@ proc qdel_all {} {
    foreach job_id $job_list_user2 {
           set result [ is_job_running $job_id "qdel_check" ]
           if {$result == -1} {
-             set_error -1 "(3) jobs of different user deleted" 
+             add_proc_error "qdel_all" -1 "(3) jobs of different user deleted" 
           }
    } 
   
@@ -1432,7 +1408,7 @@ proc qdel_all {} {
 
        set runtime [expr ( [timestamp] - $time ) ]
        if { $runtime >= 60 } {
-          set_error -1 "timeout while waiting for end of testjobs $job_list_user2"
+          add_proc_error "qdel_all" -1 "timeout while waiting for end of testjobs $job_list_user2"
           break  
        }
        puts -nonewline $CHECK_OUTPUT "."
@@ -1444,7 +1420,7 @@ proc qdel_all {} {
    foreach job_id $job_list_user1 {
           set result [ is_job_running $job_id "qdel_check" ]
           if {$result == -1} {
-             set_error -1 "(4) jobs of different user deleted" 
+             add_proc_error "qdel_all" -1 "(4) jobs of different user deleted" 
           }
    } 
 
@@ -1453,7 +1429,7 @@ proc qdel_all {} {
    puts $CHECK_OUTPUT "qdel_result = $result"
    puts $CHECK_OUTPUT "qdel_output = $qdel_output" 
    if { $result != 0 } {
-       set_error -1 "qdel_job_task_list: Could not delete jobs $job_list_user1 (exit status: $result) "
+       add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $result) "
    }
 
    set time [timestamp] 
@@ -1472,16 +1448,13 @@ proc qdel_all {} {
 
        set runtime [expr ( [timestamp] - $time ) ]
        if { $runtime >= 60 } {
-          set_error -1 "timeout while waiting for end of testjobs $job_list_user1"
+          add_proc_error "qdel_all" -1 "timeout while waiting for end of testjobs $job_list_user1"
           break  
        }
        sleep 1
        puts -nonewline $CHECK_OUTPUT "."
        flush $CHECK_OUTPUT
    }   
-
-
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |
@@ -1520,7 +1493,7 @@ proc qdel_uall {} {
    global CHECK_HOST
 
    if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
+      add_proc_error "qdel_uall" -3 "root access required"
       return
    } 
    
@@ -1558,7 +1531,7 @@ proc qdel_uall {} {
    foreach job_id $all_jobs {
           set result [ is_job_running $job_id "qdel_check" ]
           if {$result == -1} {
-             set_error -1 "(5) jobs of different user deleted" 
+             add_proc_error "qdel_uall" -1 "(5) jobs of different user deleted" 
           }
    } 
 
@@ -1583,12 +1556,11 @@ proc qdel_uall {} {
 
        set runtime [expr ( [timestamp] - $time ) ]
        if { $runtime >= 300 } {
-          set_error -1 "timeout while waiting for end of testjobs $all_jobs"
+          add_proc_error "qdel_uall" -1 "timeout while waiting for end of testjobs $all_jobs"
           break  
        }
        sleep 1
    }   
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |
@@ -1625,7 +1597,7 @@ proc qdel_user_list {} {
    global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_HOST
    global CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_PRODUCT_ROOT CHECK_ARCH
    if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
+      add_proc_error "qdel_user_list" -3 "root access required"
       return
    } 
 
@@ -1662,7 +1634,7 @@ proc qdel_user_list {} {
    foreach job_id $all_jobs {
           set result [ is_job_running $job_id "qdel_check" ]
           if {$result == -1} {
-             set_error -1 "(1) jobs of different user deleted" 
+             add_proc_error "qdel_user_list" -1 "(1) jobs of different user deleted" 
           }
    } 
 
@@ -1673,7 +1645,7 @@ proc qdel_user_list {} {
 
    # now test if his jobs are deleted
    if { [ are_jobs_deleted $job_list_user2] != 0 } {
-      set_error -1 "(1) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER are deleted"
+      add_proc_error "qdel_user_list" -1 "(1) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER are deleted"
    } 
 
    # submit new jobs for user 2
@@ -1691,7 +1663,7 @@ proc qdel_user_list {} {
 
    # now test if his jobs are deleted
    if { [ are_jobs_deleted $job_list_user2] != 0 } {
-      set_error -1 "(2) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+      add_proc_error "qdel_user_list" -1 "(2) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
    } 
    # now test if the jobs of user1 and user3 are still here
    set all_jobs "$job_list_user1 $job_list_user3"
@@ -1700,7 +1672,7 @@ proc qdel_user_list {} {
           set result [ is_job_running $job_id "qdel_check" ]
           if {$result == -1} {
              puts $CHECK_OUTPUT "job $job_id is not running"
-             set_error -1 "(2) jobs of different user deleted" 
+             add_proc_error "qdel_user_list" -1 "(2) jobs of different user deleted" 
           }
    }  
 
@@ -1717,7 +1689,7 @@ proc qdel_user_list {} {
    puts $CHECK_OUTPUT "qdel_result = $result"
    puts $CHECK_OUTPUT "qdel_output = $qdel_output" 
    if { $result != 0 } {
-       set_error -1 "Could not delete jobs $job_list_user1 (exit status: $result)"
+       add_proc_error "qdel_user_list" -1 "Could not delete jobs $job_list_user1 (exit status: $result)"
    }
 
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3" 
@@ -1731,9 +1703,7 @@ proc qdel_user_list {} {
       } 
    }
    if { $was_error != 0 } {
-      set_error -1 "not all jobs are deleted ($all_jobs)"
-   } else {
-      set_error 0 "no errors"
+      add_proc_error "qdel_user_list" -1 "not all jobs are deleted ($all_jobs)"
    }
 }
 
@@ -1773,7 +1743,7 @@ proc qdel_force {} {
    global CHECK_HOST pending_state CHECK_PRODUCT_TYPE CHECK_COMMD_PORT
 
    if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
+      add_proc_error "qdel_force" -3 "root access required"
       return
    } 
 
@@ -1808,7 +1778,7 @@ proc qdel_force {} {
    foreach job_id $all_jobs {
        set result [ is_job_running $job_id "qdel_check" ]
        if {$result == -1} {
-          set_error -1 "jobs $all_jobs should still be in the queueing system" 
+          add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system" 
        }
    }  
 
@@ -1819,7 +1789,7 @@ proc qdel_force {} {
    puts $CHECK_OUTPUT "qdel_output = $qdel_output"
 
    if { $result != 0 } {
-      set_error -1 "exit state is not 0"
+      add_proc_error "qdel_force" -1 "exit state is not 0"
    }    
 
    # delete the jobs of user 2 as user 2 without -f switch
@@ -1835,7 +1805,7 @@ proc qdel_force {} {
       foreach job_id $all_jobs {
           set result [ is_job_running $job_id "qdel_check" ]
           if {$result == -1} {
-             set_error -1 "jobs $all_jobs should still be in the queueing system" 
+             add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system" 
           }
       }
      
@@ -1845,7 +1815,7 @@ proc qdel_force {} {
 
    # wait for deletion of the jobs
    if { [ are_jobs_deleted $all_jobs] != 0 } {
-       set_error -1 "(3) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+       add_proc_error "qdel_force" -1 "(3) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
    } 
 
    if {$pending_state != 0} { 
@@ -1872,7 +1842,7 @@ proc qdel_force {} {
    foreach job_id $all_jobs {
       set result [ is_job_running $job_id "qdel_check" ]
       if {$result == -1} {
-         set_error -1 "jobs $all_jobs should still be in the queueing system" 
+         add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system" 
       }
    }  
 
@@ -1883,7 +1853,7 @@ proc qdel_force {} {
    puts $CHECK_OUTPUT "qdel_output = $qdel_output"
 
    if { $result != 0 } {
-      set_error -1 "exit state is not 0"
+      add_proc_error "qdel_force" -1 "exit state is not 0"
    }    
 
    # delete the jobs of user 2 as user 2 with -f switch
@@ -1892,13 +1862,13 @@ proc qdel_force {} {
 
    # wait for deletion of the jobs of user 1 (manager)
    if { [ are_jobs_deleted $job_list_user1] != 0 } {
-       set_error -1 "(4) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+       add_proc_error "qdel_force" -1 "(4) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
    } 
 
    if {$pending_state != 0} {
       # wait for deletion of the jobs of user 2 (submit user)
       if { [ are_jobs_deleted $job_list_user2] != 0 } {
-          set_error -1 "(5) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+          add_proc_error "qdel_force" -1 "(5) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
       }  
    } else {
       puts $CHECK_OUTPUT "running jobs of user $CHECK_FIRST_FOREIGN_SYSTEM_USER must still be in the queue"
@@ -1908,7 +1878,7 @@ proc qdel_force {} {
       foreach job_id $job_list_user2 {
           set result [ is_job_running $job_id "qdel_check" ]
           if {$result == -1} {
-             set_error -1 "jobs $all_jobs should still be in the queueing system" 
+             add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system" 
           }
       }
       
@@ -1923,7 +1893,7 @@ proc qdel_force {} {
 
       # wait for deletion of the jobs of user 2 (submit user) (now it must go)
       if { [ are_jobs_deleted $job_list_user2] != 0 } {
-          set_error -1 "(6) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted (ENABLE_FORCED_QDEL is not working)"
+          add_proc_error "qdel_force" -1 "(6) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted (ENABLE_FORCED_QDEL is not working)"
       }  
 
    } 
@@ -1935,8 +1905,6 @@ proc qdel_force {} {
    # now restart execd
    startup_execd $test_host
    wait_for_load_from_all_queues 300
-
-   set_error 0 "no errors"
 }
 
 # ------------------------------------------

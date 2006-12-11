@@ -84,7 +84,6 @@ proc qconf_add_rqs {} {
          add_proc_error "qconf_add_rqs" -1 "qconf -Arqs should have failed on host $non_cluster_host"
       }
    }
-   set_error 0 "ok"
 }
 
 proc qconf_modify_rqs {} {
@@ -152,7 +151,6 @@ proc qconf_modify_rqs {} {
          add_proc_error "qconf_modify_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
       }
    }
-   set_error 0 "ok"
 }
 
 proc qconf_modifyreplace_rqs {} {
@@ -204,8 +202,6 @@ proc qconf_modifyreplace_rqs {} {
          add_proc_error "qconf_modifyreplace_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc qconf_remove_rqs {} {
@@ -239,8 +235,6 @@ proc qconf_remove_rqs {} {
    if {$result == 0} {
       add_proc_error "qconf_remove_rqs" -1 "qconf -drqs shows no error for invalid rule set"
    }
-
-   set_error 0 "ok"
 }
 
 proc qconf_dynamic_limit {} {
@@ -279,8 +273,6 @@ proc qconf_dynamic_limit {} {
    }
 
    del_rqs $rqs_name
-   
-   set_error 0 "ok"
 }
 
 proc qconf_rqs_Xattr {} {
@@ -348,6 +340,4 @@ proc qconf_rqs_Xattr {} {
    # cleanup
    del_rqs $rqs_name1
    del_rqs $rqs_name2
-
-   set_error 0 "ok"
 }

@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category check_root_access_needs
 
 set check_init_level_procedure "commlib_perf_init_level"
@@ -80,8 +80,6 @@ proc cl_throughput_shutdown_sge {} {
 
    set cl_throughput_ge_version [get_version_info] 
    shutdown_core_system
-
-   set_error 0 "ok"
 }
 
 proc cl_throughput_start_clients { host count user binary args} {
@@ -618,8 +616,6 @@ proc cl_throughput_analyze {} {
       cl_throughput_plot_test_history history $history_index "local" $cl_throughput_prot_output_dir
       cl_throughput_plot_test_history history $history_index "remote" $cl_throughput_prot_output_dir
    }
-
-   set_error 0 "ok"
 }
 
 proc cl_throughput_run  {} {
@@ -768,8 +764,6 @@ proc cl_throughput_run  {} {
    set prot_output_file "${cl_throughput_prot_output_dir}/[timestamp].data"
    puts $CHECK_OUTPUT "output file is\n$prot_output_file"
    spool_array_to_file $prot_output_file "data" data
-
-   set_error 0 "ok"
 }
 
 
@@ -777,7 +771,6 @@ proc cl_throughput_cleanup {} {
    global ts_config 
 
    startup_core_system
-   set_error 0 "ok"
 }
 
 

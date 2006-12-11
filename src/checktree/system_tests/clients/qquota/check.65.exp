@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -115,8 +113,6 @@ proc qquota_setup {} {
 
    # Add both resource quota sets
    set result [add_rqs rqs_charray]
-
-   set_error 0 "ok"
 }
 
 proc qquota_cleanup {} {
@@ -139,8 +135,6 @@ proc qquota_cleanup {} {
          del_rqs $elem
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc qquota_help {} {
@@ -156,13 +150,13 @@ proc qquota_help {} {
    puts $CHECK_OUTPUT "qquota exit state: $prg_exit_state"
 
    if {$prg_exit_state != 0} {
-      set_error -1 "exit state is not 0"
+      add_proc_error "qquota_help" -1 "exit state is not 0"
    }
 
    set output [string trim $output]
 
    if {[string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0} {
-      set_error -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
+      add_proc_error "qquota_help" -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
    } 
  
    set lines [split $output "\n"]
@@ -173,8 +167,6 @@ proc qquota_help {} {
    if {$nr_of_lines != $qquota_help_lines} {
       add_proc_error "qquota_help" -1 "help output has $nr_of_lines, but expected are $qquota_help_lines lines:\n$output"
    }
-
-   set_error 0 "ok"
 }
 
 proc qquota_option_u {} {
@@ -213,8 +205,6 @@ proc qquota_option_u {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 20
-
-   set_error 0 "ok"
 }
 
 proc qquota_count_entries { func_name qquota_options expected_entries } {
@@ -275,6 +265,4 @@ proc qquota_option_l {} {
    del_rqs $rqs_name
    delete_all_jobs
    wait_for_end_of_all_jobs 20
-
-   set_error 0 "ok"
 }

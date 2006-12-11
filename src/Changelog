@@ -1,3 +1,6 @@
+JG-2006-12-11-0: Cleanup:   Removed globals and set_error from performance checks and
+                            system_tests/clients.
+
 AH-2006-12-11-0: Enhancem.: New test to ensure Dtrace monitor works on 
                             S10 machines
                  Review:    RD

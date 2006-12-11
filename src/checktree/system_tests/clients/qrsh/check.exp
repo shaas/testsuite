@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -148,13 +146,6 @@ proc qrsh_function {} {
    global CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
-
-
    puts $CHECK_OUTPUT "qrsh functional test"
    foreach host $qrsh_hostlist {
       set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh \
@@ -191,8 +182,6 @@ proc qrsh_function {} {
    }
    
    wait_for_end_of_all_jobs 30 
-
-   set_error 0 "ok"
 }
 
 
@@ -200,13 +189,6 @@ proc qrsh_h {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH 
    global CHECK_USER
    global qrsh_submithost
-
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
-
 
    puts $CHECK_OUTPUT "qrsh -h functional test"
 
@@ -291,8 +273,6 @@ proc qrsh_h {} {
    close_spawn_process $qrsh_id
 
    wait_for_end_of_all_jobs 30 
-
-   set_error 0 "ok"
 }
 
 
@@ -300,13 +280,6 @@ proc qrsh_hold_jid {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH 
    global CHECK_USER
    global qrsh_submithost
-
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
-
 
    puts $CHECK_OUTPUT "qrsh -hold_jid functional test"
 
@@ -387,9 +360,6 @@ proc qrsh_hold_jid {} {
    close_spawn_process $qrsh_id
 
    wait_for_end_of_all_jobs 30 
-
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -424,13 +394,6 @@ proc qrsh_hold_jid {} {
 proc qrsh_alltoall {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER CHECK_ACTUAL_TEST_PATH
    global qrsh_hostlist
-
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
-
 
    puts $CHECK_OUTPUT "qrsh from each host to all hosts"
 
@@ -475,9 +438,6 @@ proc qrsh_alltoall {} {
    }
 
    wait_for_end_of_all_jobs 30 
-
-
-   set_error 0 "ok"
 }
 
 
@@ -542,8 +502,6 @@ proc qrsh_starter_method {} {
    # unset starter method
    set change_array(starter_method) "none"
    mod_queue "all.q" "" change_array
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -580,12 +538,6 @@ proc qrsh_accounting {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_PRODUCT_TYPE
    global CHECK_HOST CHECK_USER
    global qrsh_hostlist qrsh_submithost
-
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
 
    puts $CHECK_OUTPUT "qrsh accounting test"
    if { $ts_config(gridengine_version) == 53 } {
@@ -699,8 +651,6 @@ proc qrsh_accounting {} {
    }
 
    wait_for_end_of_all_jobs 30 
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -736,11 +686,6 @@ proc qrsh_suspend {} {
    global ts_config
    global CHECK_OUTPUT CHECK_ARCH
    global qrsh_hostlist qrsh_submithost
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
 
    puts $CHECK_OUTPUT "check if a process started by qrsh can be (un)suspended using qmod"
 
@@ -867,9 +812,6 @@ proc qrsh_suspend {} {
    }
 
    wait_for_end_of_all_jobs 30 
-
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -905,12 +847,6 @@ proc qrsh_delete {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_ACTUAL_TEST_PATH
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
    global qrsh_hostlist qrsh_submithost
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
-
 
    puts $CHECK_OUTPUT "check if all processes of a qrsh job are finished after qdel"
 
@@ -980,8 +916,6 @@ proc qrsh_delete {} {
    }
  
    wait_for_end_of_all_jobs 30 
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1017,12 +951,6 @@ proc qrsh_terminate {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_ACTUAL_TEST_PATH
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_COMMD_PORT
    global qrsh_hostlist qrsh_submithost
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
-
 
    puts $CHECK_OUTPUT "check if terminate method for a qrsh job gets right job_pid"
 
@@ -1154,9 +1082,6 @@ proc qrsh_terminate {} {
    mod_queue "all.q" "" change_array
 
    wait_for_end_of_all_jobs 30 
-
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1192,11 +1117,6 @@ proc qrsh_terminate {} {
 #*******************************
 proc check_qsub_gid_output {output check_group} {
    global CHECK_OUTPUT
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
 
    set substring [string range $output [string first "gid=" $output] end]
    set group [string trim [string range $substring [string first "(" $substring] [string first ")" $substring]] "()"]
@@ -1246,14 +1166,8 @@ proc qrsh_qsub_gid {} {
    global QSUB_GID_USER QSUB_GID_GROUPS CHECK_SECOND_FOREIGN_SYSTEM_USER
    global qrsh_hostlist qrsh_submithost
 
-   if {[have_root_passwd] == -1} {
-      add_proc_error "qrsh_qsub_gid" -3 "root access required"
-      set_error 0 ok
-      return
-   } 
    if {![host_has_newgrp $qrsh_submithost 0]} {
       add_proc_error "qrsh_qsub_gid" -3 "cannot run this test:\nqrsh submithost $qrsh_submithost doesn't have the newgrp command"
-      set_error 0 ok
       return
    }
 
@@ -1408,7 +1322,6 @@ proc qrsh_qsub_gid {} {
    }
 
    wait_for_end_of_all_jobs 30 
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1445,11 +1358,6 @@ proc qrsh_batch {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
    global CHECK_HOST CHECK_USER
    global qrsh_hostlist qrsh_submithost
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
 
    puts $CHECK_OUTPUT "check qrsh in immediate and batch mode (-now yes / no)"
    set COULD_NOT_BE_SCHEDULED [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QSH_REQUESTCANTBESCHEDULEDTRYLATER_S] "*" ]
@@ -1609,8 +1517,6 @@ proc qrsh_batch {} {
    }
 
    wait_for_end_of_all_jobs 30 
-
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -1646,12 +1552,6 @@ proc qrsh_limits {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_ACTUAL_TEST_PATH
    global CHECK_USER
    global qrsh_hostlist qrsh_submithost
-
-   if { [have_root_passwd] == -1 } {
-      set_error -3 "root access required"
-      return
-   } 
-
 
    puts $CHECK_OUTPUT "check if limits are propagated to qrsh jobs"
    set limit_in 10
@@ -1699,7 +1599,6 @@ proc qrsh_limits {} {
    }
 
    wait_for_end_of_all_jobs 30 
-   set_error 0 "ok"
 }
 
 proc qrsh_reservation {} {
@@ -1711,7 +1610,6 @@ proc qrsh_reservation {} {
       add_proc_error "qrsh_reservation" -1 "qrsh -R y failed - see Issue: 1306"
    }
    wait_for_end_of_all_jobs 30 
-   set_error 0 "ok"
 }
 
 proc qrsh_env {} {
@@ -1742,7 +1640,6 @@ proc qrsh_env {} {
    }
 
    wait_for_end_of_all_jobs 30 
-   set_error 0 "ok"
 }
 
 #****** qrsh/qrsh_limits() ******
@@ -1801,8 +1698,6 @@ proc qrsh_sigterm_running_job {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-
-   set_error 0 "ok"
 }
 
 #****** qrsh/qrsh_limits() ******
@@ -1856,8 +1751,6 @@ proc qrsh_sigterm_pending_job {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-
-   set_error 0 "ok"
 }
 
 

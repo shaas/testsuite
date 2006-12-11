@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -134,8 +132,6 @@ proc qmake_setup  {} {
 
    # assign pe with queue
    assign_queues_with_pe_object qmake.q "" make
-
-   set_error 0 "ok"
 }
 
 proc qmake_cleanup  {} {
@@ -157,8 +153,6 @@ proc qmake_cleanup  {} {
 
    # delete queue
    del_queue qmake.q "" 0 1
-
-   set_error 0 "ok"
 }
 
 proc qmake_submit {slots target {variables ""}} {
@@ -351,8 +345,6 @@ proc qmake_sequential {} {
    set id [qmake_submit 1 link]
    qmake_monitor qmake_sequential $id check_vars
    qmake_close_channel $id
-
-   set_error 0 "ok"
 }
 
 proc qmake_parallel {} {
@@ -362,8 +354,6 @@ proc qmake_parallel {} {
    set id [qmake_submit 4 link]
    qmake_monitor qmake_parallel $id check_vars 1
    qmake_close_channel $id
-
-   set_error 0 "ok"
 }
 
 proc qmake_flags {} {
@@ -374,8 +364,6 @@ proc qmake_flags {} {
    set id [qmake_submit 1 variables "QMAKE_TEST=test"]
    qmake_monitor qmake_flags $id check_vars
    qmake_close_channel $id
-
-   set_error 0 "ok"
 }
 
 proc qmake_recursive {} {
@@ -385,8 +373,6 @@ proc qmake_recursive {} {
    set id [qmake_submit 4 recursive]
    qmake_monitor qmake_recursive $id check_vars 1
    qmake_close_channel $id
-
-   set_error 0 "ok"
 }
 
 proc qmake_rreq {} {
@@ -401,7 +387,5 @@ proc qmake_rreq {} {
       qmake_monitor qmake_recursive $id check_vars
       qmake_close_channel $id
    }
-
-   set_error 0 "ok"
 }
 

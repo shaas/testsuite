@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -179,7 +177,6 @@ proc qtcsh_init_level {} {
 #     ???/???
 #*******************************
 proc qtcsh_setup {} {
-   set_error 0 "ok"
 }
 
 #****** qtcsh/qtcsh_cleanup() ******
@@ -599,6 +596,7 @@ proc qtask_local_global { } {
       return -1
    }
 }
+
 #****** qtcsh/qtcsh_command_line_test() ******
 #
 #  NAME
@@ -643,8 +641,6 @@ proc qtcsh_command_line_test {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc qtcsh_spawn_test {} {
@@ -672,6 +668,4 @@ proc qtcsh_spawn_test {} {
         }
       }
    }
-
-   set_error 0 "ok"
 }

@@ -76,7 +76,7 @@ proc check_option_qs_args {} {
    puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
 
    if { $result < 0 } {
-      set_error -1 "could not submit job"
+      add_proc_error "check_option_qs_args" -1 "could not submit job"
       return
    }
 
@@ -88,20 +88,19 @@ proc check_option_qs_args {} {
       if {$back != -1} {
          set back [ del_job_files $result $job_output_dir 2 ] 
          if { $back != 2 } {
-            set_error -1 "job $result did not produce error and output file\njobargs: $jobargs"
+            add_proc_error "check_option_qs_args" -1 "job $result did not produce error and output file\njobargs: $jobargs"
             return
          } else {
-            set_error 0 "no error"
             return
          }
       }
    }
  
-   set_error -1 "timeout while waiting for job accounting"
+   add_proc_error "check_option_qs_args" -1 "timeout while waiting for job accounting"
 }
 
 proc check_qhold_jobname {} {
- global check_errno CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
+ global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
  global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    # first clean up output directory:  
@@ -270,8 +269,6 @@ proc check_qhold_jobname {} {
    wait_for_jobend $hold_job1 "FIRST" 60
 
    puts $CHECK_OUTPUT "done."   
-
-   set_error 0 "no errors"
 }
 
 proc check_option_v {} {
@@ -284,8 +281,6 @@ proc check_option_v {} {
    set option "-v DISPLAY"
    set jobargs "$option -l h=${actual_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5" 
    qsub_submit_check $jobargs 0
-
-   set_error 0 ok
 }
 
 proc invalid_job_has_valid_account_string {option} {

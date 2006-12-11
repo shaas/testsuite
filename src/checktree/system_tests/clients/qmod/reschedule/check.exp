@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -206,8 +204,6 @@ proc reschedule_setup {} {
       assign_queues_with_pe_object $rerun_queue $rerun_host $new_peobj(pe_name)
       assign_queues_with_pe_object $rerun_queue2 $no_rerun_host $new_peobj(pe_name)
    } 
-
-   set_error 0 "ok"
 }
 
 
@@ -352,7 +348,6 @@ proc reschedule_submit_jobs {} {
       delete_job $elem
       wait_for_jobend $elem "Sleeper" 60 0
    }
-   set_error 0 "ok"
 }
 
 #
@@ -471,8 +466,6 @@ proc reschedule_checkpointing {} {
       delete_job $elem
       wait_for_jobend $elem "Sleeper" 60 0
    }
- 
-   set_error 0 "ok"
 }
 
 proc reschedule_checkpointing_forced {} {
@@ -565,8 +558,6 @@ proc reschedule_checkpointing_forced {} {
       delete_job $elem
       wait_for_jobend $elem "Sleeper" 60 0
    }
- 
-   set_error 0 "ok"
 }
 
 
@@ -729,8 +720,6 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
       ts_send $qlogin_spawn_id -- "\003"
       close_spawn_process $qlogin_id 1
    }
-
-   set_error 0 "ok"
 }
 
 #
@@ -772,7 +761,6 @@ proc reschedule_pe_jobs {} {
 
    if { $ts_config(gridengine_version) == 53 } {
       add_proc_error reschedule_pe_jobs -3 "test would fail in 5.3 systems, as queue names are truncated in qstat output\nWould have to call qstat -f to figure out master and slave queues"
-      set_error 0 "unsupported"
       return
    }
 
@@ -914,7 +902,6 @@ proc reschedule_pe_jobs {} {
 
        wait_for_jobend $job "Sleeper" 60 0
    }
-   set_error 0 "ok"
 }
 
 #
@@ -991,8 +978,6 @@ proc reschedule_deleted_job {} {
    wait_for_load_from_all_queues 200 
 
    wait_for_jobend $job_id "Sleeper" 200 0
-   
-   set_error 0 "ok"
 }
 
 #
@@ -1055,6 +1040,4 @@ proc reschedule_cleanup {} {
       puts $host
       enable_queue [get_queue_instance all.q $host]
    }
-   
-   set_error 0 "ok"
 }

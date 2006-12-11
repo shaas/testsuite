@@ -91,7 +91,6 @@ lappend check_functions "qalter_verify"
 lappend check_functions "qalter_V"
 lappend check_functions "qalter_w"
 lappend check_functions "qalter_a"
-lappend check_functions "qalter_t"
 
 global submitresult
 global normal_job_id
@@ -154,8 +153,8 @@ proc qalter_cleanup {} {
 proc run_dummy_jobs {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global CHECK_OUTPUT check_errno hold_job_D hold_job_U
-   global check_errstr normal_job_id hold_job_A hold_job_B hold_job_C hold_job_T
+   global CHECK_OUTPUT hold_job_D hold_job_U
+   global normal_job_id hold_job_A hold_job_B hold_job_C hold_job_T
    global ts_user_config nonadmin_user nonadmin_hold_job
 
    set queue [get_queue_instance all.q [lindex $ts_config(execd_nodes) 0]]
@@ -163,13 +162,13 @@ proc run_dummy_jobs {} {
    # This jobs has to be long enough to survive the starting of the next jobs
    set submitresult [ submit_job "-o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 90" ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
 
    # wait for job to run
    if { [wait_for_jobstart $submitresult "leeper" 200] != 0 } {
-      set_error -1 "job $submitresult does not start"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult does not start"
       delete_all_jobs
       return 
    }
@@ -178,13 +177,13 @@ proc run_dummy_jobs {} {
 
    set submitresult [ submit_job "-h -o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15" ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
    
    # wait for job to get in pending state
    if { [wait_for_jobpending $submitresult "leeper" 200 ] != 0 } {
-      set_error -1 "job $submitresult is not in pending state"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -192,13 +191,13 @@ proc run_dummy_jobs {} {
 
    set submitresult [ submit_job "-h -o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15" ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
    
    # wait for job to get in pending state
    if { [wait_for_jobpending $submitresult "leeper" 200 ] != 0 } {
-      set_error -1 "job $submitresult is not in pending state"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -206,13 +205,13 @@ proc run_dummy_jobs {} {
     
    set submitresult [ submit_job "-h -o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15 " ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
    
    # wait for job to get in pending state
    if { [wait_for_jobpending $submitresult "leeper" 200 ] != 0 } {
-      set_error -1 "job $submitresult is not in pending state"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -220,13 +219,13 @@ proc run_dummy_jobs {} {
     
    set submitresult [ submit_job "-h -o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15 " ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
    
    # wait for job to get in pending state
    if { [wait_for_jobpending $submitresult "leeper" 200 ] != 0 } {
-      set_error -1 "job $submitresult is not in pending state"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -234,13 +233,13 @@ proc run_dummy_jobs {} {
 
    set submitresult [ submit_job "-h -t 1-4 -o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15 " ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
    
    # wait for job to get in pending state
    if { [wait_for_jobpending $submitresult "leeper" 200 ] != 0 } {
-      set_error -1 "job $submitresult is not in pending state"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -249,13 +248,13 @@ proc run_dummy_jobs {} {
 
    set submitresult [ submit_job "-h -t 1-4 -o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15 " ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
    
    # wait for job to get in pending state
    if { [wait_for_jobpending $submitresult "leeper" 200 ] != 0 } {
-      set_error -1 "job $submitresult is not in pending state"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -268,13 +267,13 @@ proc run_dummy_jobs {} {
    set submitresult [ submit_job "-h -t 1-4 -o /dev/null -e /dev/null -q $queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15 " \
                       1  60 "" $nonadmin_user  ]
    if {$submitresult < 0 } {
-     set_error -1 "failure"
+     add_proc_error "run_dummy_jobs" -1 "failure"
      return
    }
    
    # wait for job to get in pending state
    if { [wait_for_jobpending $submitresult "leeper" 200 ] != 0 } {
-      set_error -1 "job $submitresult is not in pending state"
+      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -283,8 +282,6 @@ proc run_dummy_jobs {} {
 
    # Restore submitresult for legacy tests
    set submitresult $normal_job_id
-
-   set_error 0 "no errors"
 }
 
 #                                                             max. column:     |
@@ -319,24 +316,23 @@ proc run_dummy_jobs {} {
 proc start_testjob {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno job_output_dir CHECK_JOB_OUTPUT_DIR
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global job_output_dir CHECK_JOB_OUTPUT_DIR
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
    set queue [get_queue_instance "all.q" [lindex $ts_config(execd_nodes) 0]]
 
    set job_output_dir "$CHECK_JOB_OUTPUT_DIR" 
    set submitresult [ submit_job "-h -q $queue -e $job_output_dir -o $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15" ]
    if {$submitresult < 0 } {
-     set_error -1 "start_testjob - failure"
+     add_proc_error "start_testjob" -1 "start_testjob - failure"
      return
    }
    # wait for job to get in pending state 
    if { [wait_for_jobpending $submitresult "leeper" 200] != 0 } {
-      set_error -1 "start_testjob - job $submitresult is not in pending state"
+      add_proc_error "start_testjob" -1 "start_testjob - job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
-   set_error 0 "start_testjob - no errors"
 }
 
 #                                                             max. column:     |
@@ -375,29 +371,26 @@ proc qalter_ac {} {
    set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $normal_job_id" } qalteroutput ]
 
    if {$qalterresult == 1} {
-      set_error -1 "qalter $option - $qalteroutput"
+      add_proc_error "qalter_ac" -1 "qalter $option - $qalteroutput"
       return
    }
 
    set qstatresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -j $normal_job_id" } qstatoutput ]
 
    if {$qstatresult == 1} {
-      set_error -1 "qalter $option - qstat error: $qstatoutput"
+      add_proc_error "qalter_ac" -1 "qalter $option - qstat error: $qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\n} $qstatoutput context vars] != 1} {
-      set_error -1 "qalter $option - qalter error: context variables were not set"
+      add_proc_error "qalter_ac" -1 "qalter $option - qalter error: context variables were not set"
       return
    }
 
    if {$vars != "myvar=test,myvar2='test2a,test2b',myvar3=\"test3a,test3b\""} {
-      set_error -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      add_proc_error "qalter_ac" -1 "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
-
-   set_error 0 "qalter $option - no errors"
-   return
 }
 
 #                                                             max. column:     |
@@ -431,16 +424,13 @@ proc qalter_ac {} {
 #*******************************
 proc qalter_A {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-A blahblah"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_A" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -474,16 +464,13 @@ proc qalter_A {} {
 #*******************************
 proc qalter_c {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-c n -ckpt testcheckpointobject"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_c" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -517,16 +504,13 @@ proc qalter_c {} {
 #*******************************
 proc qalter_ckpt {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-ckpt testcheckpointobject"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_ckpt" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -560,16 +544,13 @@ proc qalter_ckpt {} {
 #*******************************
 proc qalter_clear {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-clear"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_clear" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -603,16 +584,13 @@ proc qalter_clear {} {
 #*******************************
 proc qalter_cwd {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-cwd"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_cwd" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
    
 #                                                             max. column:     |
@@ -646,32 +624,31 @@ proc qalter_cwd {} {
 #*******************************
 proc qalter_dc {} {
    global CHECK_PRODUCT_ROOT CHECK_ARCH normal_job_id
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
    # Test delete with double-quoted list
    set option "-dc myvar3"
    set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $normal_job_id" } qalteroutput ]
 
    if {$qalterresult == 1} {
-      set_error -1 "qalter $option - $qalteroutput"
+      add_proc_error "qalter_dc" -1 "qalter $option - $qalteroutput"
       return
    }
 
    set qstatresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -j $normal_job_id" } qstatoutput ]
 
    if {$qstatresult == 1} {
-      set_error -1 "qalter $option - qstat error: $qstatoutput"
+      add_proc_error "qalter_dc" -1 "qalter $option - qstat error: $qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\n} $qstatoutput context vars] != 1} {
-      set_error -1 "qalter $option - qalter error: context variables were not set"
+      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables were not set"
       return
    }
 
    if {$vars != "myvar=test,myvar2='test2a,test2b'"} {
-      set_error -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
 
@@ -680,24 +657,24 @@ proc qalter_dc {} {
    set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $normal_job_id" } qalteroutput ]
 
    if {$qalterresult == 1} {
-      set_error -1 "qalter $option - $qalteroutput"
+      add_proc_error "qalter_dc" -1 "qalter $option - $qalteroutput"
       return
    }
 
    set qstatresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -j $normal_job_id" } qstatoutput ]
 
    if {$qstatresult == 1} {
-      set_error -1 "qalter $option - qstat error: $qstatoutput"
+      add_proc_error "qalter_dc" -1 "qalter $option - qstat error: $qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\n} $qstatoutput context vars] != 1} {
-      set_error -1 "qalter $option - qalter error: context variables were not set"
+      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables were not set"
       return
    }
 
    if {$vars != "myvar=test"} {
-      set_error -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
 
@@ -706,24 +683,21 @@ proc qalter_dc {} {
    set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $normal_job_id" } qalteroutput ]
 
    if {$qalterresult == 1} {
-      set_error -1 "qalter $option - $qalteroutput"
+      add_proc_error "qalter_dc" -1 "qalter $option - $qalteroutput"
       return
    }
 
    set qstatresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -j $normal_job_id" } qstatoutput ]
 
    if {$qstatresult == 1} {
-      set_error -1 "qalter $option - qstat error: $qstatoutput"
+      add_proc_error "qalter_dc" -1 "qalter $option - qstat error: $qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\n} $qstatoutput context vars] == 1} {
-      set_error -1 "qalter $option - qalter error: context variables were not deleted"
+      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables were not deleted"
       return
    }
-
-   set_error 0 "qalter $option - no errors"
-   return
 }
 
 #                                                             max. column:     |
@@ -757,16 +731,14 @@ proc qalter_dc {} {
 #*******************************
 proc qalter_e {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno job_output_dir
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global job_output_dir
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-e $job_output_dir"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_e" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -801,19 +773,17 @@ proc qalter_e {} {
 proc qalter_hard {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno CHECK_OUTPUT
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
    set queue [get_queue_instance "all.q" [lindex $ts_config(execd_nodes) 0]]
   set option "-hard -q $queue"
   puts $CHECK_OUTPUT "calling: qalter $option $submitresult"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_hard" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -854,44 +824,40 @@ proc qalter_hold {} {
   puts $CHECK_OUTPUT "calling: qalter $option $hold_job_A"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $hold_job_A" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_hold" -1 "qalter $option - $qalteroutput"
     return
   }
 
   if { [ release_job $hold_job_A ] != 0 } {
-     set_error -1 "could not release job $hold_job_A"
+     add_proc_error "qalter_hold" -1 "could not release job $hold_job_A"
      return
   }
 
   # wait for job to run
   if { [wait_for_jobstart $hold_job_A "leeper" 200 0] != -1 } {
-     set_error -1 "job $hold_job_A should not start yet"
+     add_proc_error "qalter_hold" -1 "job $hold_job_A should not start yet"
       delete_all_jobs
      return 
   }
 
   # release job B 
   if { [ release_job $hold_job_B ] != 0 } {
-     set_error -1 "could not release job $hold_job_B"
+     add_proc_error "qalter_hold" -1 "could not release job $hold_job_B"
      return
   }
 
   # release job C
   if { [ release_job $hold_job_C ] != 0 } {
-     set_error -1 "could not release job $hold_job_C"
+     add_proc_error "qalter_hold" -1 "could not release job $hold_job_C"
      return
   }
 
   # wait for job A to run 
   if { [wait_for_jobstart $hold_job_A "leeper" 200] != 0 } {
-     set_error -1 "job $hold_job_A does not run"
+     add_proc_error "qalter_hold" -1 "job $hold_job_A does not run"
       delete_all_jobs
      return 
   }
-
-
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -925,16 +891,13 @@ proc qalter_hold {} {
 #*******************************
 proc qalter_j {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-j y"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_j" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -969,16 +932,13 @@ proc qalter_j {} {
 proc qalter_l {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-l h=[lindex $ts_config(execd_nodes) 0]"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_l" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1012,16 +972,13 @@ proc qalter_l {} {
 #*******************************
 proc qalter_m {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-m beas"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_m" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1055,16 +1012,13 @@ proc qalter_m {} {
 #*******************************
 proc qalter_notify {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-notify"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_notify" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1098,8 +1052,8 @@ proc qalter_notify {} {
 #*******************************
 proc qalter_M {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno CHECK_REPORT_EMAIL_TO
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_REPORT_EMAIL_TO
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
   if { [ string compare $CHECK_REPORT_EMAIL_TO "none" ] == 0 } {
       add_proc_error "qalter_M" -1 "no email address specified"  
@@ -1109,11 +1063,9 @@ proc qalter_M {} {
   set option "-M $CHECK_REPORT_EMAIL_TO"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_M" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1147,16 +1099,13 @@ proc qalter_M {} {
 #*******************************
 proc qalter_N {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-N Sleeper_job"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_N" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1190,16 +1139,14 @@ proc qalter_N {} {
 #*******************************
 proc qalter_o {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno job_output_dir
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global job_output_dir
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-o $job_output_dir"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_o" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1233,20 +1180,18 @@ proc qalter_o {} {
 #*******************************
 proc qalter_P {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-  global check_errno CHECK_PRODUCT_TYPE
-  global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+  global CHECK_PRODUCT_TYPE
+  global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-P mytestproject"
   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0} {
     set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
     if {$qalterresult == 1} {
-      set_error -1 "qalter $option - $qalteroutput"
+      add_proc_error "qalter_P" -1 "qalter $option - $qalteroutput"
       return
     }
-    set_error 0 "qalter $option - no errors"
-    return
   } else {
     # not possible for sge systems!
-    set_error 0 "qalter $option - Not possible for Codine-System"
+    add_proc_error "qalter_P" -3 "qalter $option - Not possible for Codine-System"
     return
   }
 }
@@ -1282,16 +1227,13 @@ proc qalter_P {} {
 #*******************************
 proc qalter_p {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-p 1024"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_p" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1325,17 +1267,14 @@ proc qalter_p {} {
 #*******************************
 proc qalter_pe {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-pe mytestpe 1-3"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_pe" -1 "qalter $option - $qalteroutput"
     
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1370,17 +1309,14 @@ proc qalter_pe {} {
 proc qalter_q {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
   set option "-q [get_queue_instance all.q [lindex $ts_config(execd_nodes) 0]]"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_q" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1414,16 +1350,13 @@ proc qalter_q {} {
 #*******************************
 proc qalter_ry {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-r y"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_ry" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1457,16 +1390,13 @@ proc qalter_ry {} {
 #*******************************
 proc qalter_rn {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-r n"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_rn" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1500,37 +1430,33 @@ proc qalter_rn {} {
 #*******************************
 proc qalter_sc {} {
    global CHECK_PRODUCT_ROOT CHECK_ARCH hold_job_D
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
    set option "-ac myvar=test4 -sc myvar=test,myvar2='test2a,test2b',myvar3=\"test3a,test3b\""
    # At this point, hold_job_D is the only single job still hanging around
    set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $hold_job_D" } qalteroutput ]
 
    if {$qalterresult == 1} {
-      set_error -1 "qalter $option - $qalteroutput"
+      add_proc_error "qalter_sc" -1 "qalter $option - $qalteroutput"
       return
    }
 
    set qstatresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -j $hold_job_D" } qstatoutput ]
 
    if {$qstatresult == 1} {
-      set_error -1 "qalter $option - qstat error: $qstatoutput"
+      add_proc_error "qalter_sc" -1 "qalter $option - qstat error: $qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\n} $qstatoutput context vars] != 1} {
-      set_error -1 "qalter $option - qalter error: context variables were not set"
+      add_proc_error "qalter_sc" -1 "qalter $option - qalter error: context variables were not set"
       return
    }
 
    if {$vars != "myvar=test,myvar2='test2a,test2b',myvar3=\"test3a,test3b\""} {
-      set_error -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      add_proc_error "qalter_sc" -1 "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
-
-   set_error 0 "qalter $option - no errors"
-   return
 }
 
 #                                                             max. column:     |
@@ -1565,18 +1491,15 @@ proc qalter_sc {} {
 proc qalter_soft {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
    set queue [get_queue_instance "all.q" [lindex $ts_config(execd_nodes) 0]]
   set option "-soft -q $queue"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_soft" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1610,16 +1533,13 @@ proc qalter_soft {} {
 #*******************************
 proc qalter_S {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-S /bin/sh"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_S" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1653,16 +1573,13 @@ proc qalter_S {} {
 #*******************************
 proc qalter_v {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-v DISPLAY"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_v" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1696,16 +1613,13 @@ proc qalter_v {} {
 #*******************************
 proc qalter_verify {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-verify"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_verify" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1739,16 +1653,13 @@ proc qalter_verify {} {
 #*******************************
 proc qalter_V {} {
   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
   set option "-V"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_V" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1783,18 +1694,15 @@ proc qalter_V {} {
 proc qalter_w {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno 
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
    set queue [get_queue_instance "all.q" [lindex $ts_config(execd_nodes) 0]]
   set option "-w e -q $queue"
   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $submitresult" } qalteroutput ]
   if {$qalterresult == 1} {
-    set_error -1 "qalter $option - $qalteroutput"
+    add_proc_error "qalter_w" -1 "qalter $option - $qalteroutput"
     return
   }
-  set_error 0 "qalter $option - no errors"
-  return
 }
 
 #                                                             max. column:     |
@@ -1828,15 +1736,15 @@ proc qalter_w {} {
 #*******************************
 proc qalter_a {} {
    global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult ts_config
-   global check_errno job_output_dir CHECK_OUTPUT
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global job_output_dir CHECK_OUTPUT
+   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
    set queue [get_queue_instance "all.q" [lindex $ts_config(execd_nodes) 0]]
    set job_id [ submit_job "-h -q $queue -e $job_output_dir -o $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15" ]
 
    if {$job_id < 0 } {
      del_job_files $job_id $job_output_dir 2
-     set_error -1 "failure"
+     add_proc_error "qalter_a" -1 "failure"
      return
    }
 
@@ -1888,7 +1796,7 @@ proc qalter_a {} {
 
    set qalterresult [eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $job_id"]
    if {$qalterresult == 1} {
-     set_error -1 "qalter $option - couldn't change starttime"
+     add_proc_error "qalter_a" -1 "qalter $option - couldn't change starttime"
      return
    }
    
@@ -1908,7 +1816,7 @@ proc qalter_a {} {
    set time [timestamp]
    if { [wait_for_jobstart $job_id "leeper" $wait_time 0] != -1 } {
       puts $CHECK_OUTPUT "qalter $option - time left: [expr ($wait_time - [expr ( [timestamp] - $time)] ) ]"
-      set_error -1 "qalter $option - job should not run until yet"
+      add_proc_error "qalter_a" -1 "qalter $option - job should not run until yet"
       delete_all_jobs
       return 
    } 
@@ -1916,84 +1824,21 @@ proc qalter_a {} {
    # wait for job to start
    puts $CHECK_OUTPUT "qalter $option - ok now the job should start"
    if { [wait_for_jobstart $job_id "leeper" 300] == -1 } {
-      set_error -1 "qalter $option - job doesn't start"
+      add_proc_error "qalter_a" -1 "qalter $option - job doesn't start"
       del_job_files $job_id $job_output_dir 2
       return 
    } 
  
    # wait for end of job
    if { [wait_for_jobend $job_id "leeper" 300] == -1 } {
-      set_error -1 "qalter $option - job doesn't stop"
+      add_proc_error "qalter_a" -1 "qalter $option - job doesn't stop"
       del_job_files $job_id $job_output_dir 2
       return 
    } 
   
    set back [del_job_files $job_id $job_output_dir 2 ]  
    if { $back != 2 } {
-        set_error -1 "qalter $option - can't delete Jobfile $job_id"
-   } else {
-        set_error 0 "qalter $option - no errors"
-   }
-}
-
-#                                                             max. column:     |
-#****** qalter/qalter_t() ******
-# 
-#  NAME
-#     qalter_w -- test -t option for altering array jobs
-#
-#  SYNOPSIS
-#     qalter_w { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc qalter_t {} {
-   global ts_config
-   global CHECK_PRODUCT_ROOT CHECK_ARCH submitresult
-   global check_errno hold_job_T
-   global check_errstr  CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
-
-   if { $ts_config(gridengine_version) == 53 } {
-      set_error 0 "qalter -t not available for SGE(EE) 5.3"
-   } else {
-      set option "-h n"
-      set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $hold_job_T -t 1-4" } qalteroutput ]
-      if {$qalterresult == 1} {
-         set_error -1 "qalter $option - $qalteroutput"
-         return
-      }
-
-      # Test invalid uses
-      set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option $hold_job_T -t 1-4 -t 1-4" } qalteroutput ]
-      if {$qalterresult == 0} {
-         set_error -1 "qalter $option - allowed invalid -t switch"
-         return
-      }
-
-      set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $option -t 1-4 $hold_job_T -t 1-4" } qalteroutput ]
-      if {$qalterresult == 0} {
-         set_error -1 "qalter $option - allowed invalid -t switch"
-         return
-      }
-      set_error 0 "qalter $option - no errors"
+        add_proc_error "qalter_a" -1 "qalter $option - can't delete Jobfile $job_id"
    }
 }
 
