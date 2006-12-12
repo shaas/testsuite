@@ -86,8 +86,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -188,8 +186,6 @@ proc complex_setup {} {
    # enable immediate scheduling to speed up test
    set schedd_conf(flush_submit_sec) 1
    set_schedd_config schedd_conf
-
-   set_error 0 "ok"
 }
 
 proc complex_cleanup {} {
@@ -239,8 +235,6 @@ proc complex_cleanup {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc complex_loadsensor_test {} {
@@ -318,8 +312,6 @@ proc complex_loadsensor_test {} {
       # delete a file the loadsensor script was using
       delete_file "$ts_config(product_root)/testsuite_dns_domain"
    }
-
-   set_error 0 "ok"
 }
 
 proc complex_run_job {scenario variable value submittable pending { runnable "0" } } {
@@ -670,8 +662,6 @@ proc complex_global_host {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc complex_host {} {
@@ -788,8 +778,6 @@ proc complex_host {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc complex_queue {} {
@@ -903,8 +891,6 @@ proc complex_queue {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc complex_test_rattr { value } {
@@ -944,6 +930,4 @@ proc issue_1847 {} {
       mqattr "complex_values" "NONE" [get_queue_instance "complex" $complex_host]
       mhattr "complex_values" "NONE" $complex_host
    }
-
-   set_error 0 "ok"
 }

@@ -38,8 +38,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -120,8 +118,6 @@ proc soft_requests_setup  {} {
    set qname "res.q"
    add_queue $qname $soft_requests_test_hosts queue_settings
    puts $CHECK_OUTPUT "added queue $qname for hosts $soft_requests_test_hosts"
-
-   set_error 0 "ok"
 }
 
 proc soft_requests_cleanup  {} {
@@ -152,8 +148,6 @@ proc soft_requests_cleanup  {} {
 
    # restore complex
    set_complex consumable_complex_backup
-
-   set_error 0 "ok"
 }
 
 proc soft_requests_submit_pejobs_and_wait { request host_list } {
@@ -432,8 +426,6 @@ proc soft_requests_test {} {
 
       puts $CHECK_OUTPUT "done"
    }
-     
-   set_error 0 "ok"
 }
 
 

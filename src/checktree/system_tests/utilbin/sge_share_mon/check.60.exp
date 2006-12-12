@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -130,8 +128,6 @@ proc sge_share_mon_setup  {} {
       stree_buffer_add_node stree "/mytestproject/$CHECK_USER" 50
       stree_buffer_commit stree
    }
-
-   set_error 0 "ok"
 }
 
 proc sge_share_mon_cleanup  {} {
@@ -152,8 +148,6 @@ proc sge_share_mon_cleanup  {} {
       # makes sure, sge_schedd knows about deletion of users and sharetree
       trigger_scheduling
    }
-
-   set_error 0 "ok"
 }
 
 #****** sge_share_mon/share_mon_sharetree_check_node() ******************************
@@ -279,8 +273,6 @@ proc share_mon_sharetree {} {
       share_mon_sharetree_check_node sharetree "/mytestproject/default/$CHECK_FIRST_FOREIGN_SYSTEM_USER" 1 40
       share_mon_sharetree_check_node sharetree "/mytestproject/default/$CHECK_SECOND_FOREIGN_SYSTEM_USER" 1 40
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -314,8 +306,6 @@ proc share_mon_permissions {} {
    if {![check_for_non_cluster_host_error $result "any"]} {
       add_proc_error "share_mon_permissions" -1 "sge_share_mon request should have been rejected from non cluster host $non_cluster_host"
    }
-
-   set_error 0 "ok"
 }
 
 

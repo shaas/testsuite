@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -104,8 +102,6 @@ proc error_states_setup  {} {
    set error_states_check_queue "[lindex $CHECK_CORE_EXECD 0 ].q"
    puts $CHECK_OUTPUT "saving configuration for queue $error_states_check_queue"
    get_queue $error_states_check_queue error_states_qconfig
-
-   set_error 0 "ok"
 }
 
 
@@ -157,8 +153,6 @@ proc error_states_prolog {} {
 
    set my_conf(prolog) "NONE"
    set_queue $error_states_check_queue my_conf 
-
-   set_error 0 "ok"
 }
 
 proc error_states_epilog {} {
@@ -216,9 +210,6 @@ proc error_states_epilog {} {
 
    set my_conf(epilog) "NONE"
    set_queue $error_states_check_queue my_conf 
-
-
-   set_error 0 "ok"
 }
 
 
@@ -233,8 +224,6 @@ proc error_states_no_job_shell {} {
    wait_for_job_state $job_id "E" 60
 
    delete_job $job_id
-
-   set_error 0 "ok"
 }
 
 proc error_states_no_default_queue_shell {} {
@@ -277,9 +266,6 @@ proc error_states_no_default_queue_shell {} {
    wait_for_jobend $job_id "exit" 60 
    set my_conf(shell_start_mode) $org_conf(shell_start_mode)
    set_queue $error_states_check_queue my_conf
-
-
-   set_error 0 "ok"
 }
 
 proc error_states_no_unix_shell_script {} {
@@ -308,8 +294,6 @@ proc error_states_no_unix_shell_script {} {
 
    set my_conf(shell_start_mode) $org_conf(shell_start_mode)
    set_queue $error_states_check_queue my_conf
-
-   set_error 0 "ok"
 }
 
 proc error_states_wrong_pe {} {
@@ -429,9 +413,6 @@ proc error_states_wrong_pe {} {
    del_pe "wrong_stop_pe"
    del_pe "error_start_pe"
    del_pe "error_stop_pe"
-
-
-   set_error 0 "ok"
 }
 
 proc error_states_submit_error_script {} {
@@ -450,7 +431,6 @@ proc error_states_submit_error_script {} {
    if { $qacct_info(exit_status) == 0 } {
       add_proc_error "error_states_submit_error_script" -1 "job should have not 0 as exit_status"
    } 
-   set_error 0 "ok"
 }
 
 proc error_states_job_output {} {
@@ -571,8 +551,6 @@ proc error_states_job_output {} {
    }
 
    delete_directory $test_local_dir
- 
-   set_error 0 "ok"
 }
 
 proc error_states_cleanup  {} {
@@ -592,9 +570,5 @@ proc error_states_cleanup  {} {
 
    puts $CHECK_OUTPUT "restoring configuration for queue $error_states_check_queue"
    set_queue $error_states_check_queue error_states_qconfig
-
-   set_error 0 "ok"
 }
-
-
 

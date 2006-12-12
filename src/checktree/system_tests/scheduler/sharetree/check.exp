@@ -40,8 +40,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -301,8 +299,8 @@ proc share_tree_setup  {} {
    global CHECK_HOST 
    global sharetree_stored_configuration test_queue test_host
 
-   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] != 0 } {
-      set_error -3 "not available for sge system"
+   if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] != 0} {
+      add_proc_error "share_tree_setup" -3 "not available for sge system"
       return 
    }
     
@@ -359,8 +357,6 @@ proc share_tree_setup  {} {
    set my_config(usage_weight_list)    "cpu=1,mem=0,io=0"
    set my_config(halftime)             "10"
    set_schedd_config my_config
-
-   set_error 0 "ok"
 }
 
 proc get_project_member { prj1 prj2 prj3 job_id } {
@@ -395,8 +391,8 @@ proc share_tree_test {} {
    global prj1_id_list prj2_id_list prj3_id_list
    global test_queue
 
-   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] != 0 } {
-      set_error -3 "not available for sge system"
+   if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] != 0} {
+      add_proc_error "share_tree_test" -3 "not available for sge system"
       return 
    }
    
@@ -578,9 +574,6 @@ proc share_tree_test {} {
          file delete $CHECK_PROTOCOL_DIR/$job
       }
    }
-
-   set_error 0 "ok" 
-
 }
 
 
@@ -627,8 +620,6 @@ proc share_tree_cleanup  {} {
   del_prj "project3"
 
   set_config sharetree_stored_configuration
-
-  set_error 0 "ok"
 }
 
 
@@ -662,6 +653,4 @@ proc issue_751 {} {
   if { $exit_state != 0 } {
       add_proc_error "issue_751" $error_level "Issue 751: qconf -sstnode Root broken$additional_message"
   }
-
-  set_error 0 "ok"
 }

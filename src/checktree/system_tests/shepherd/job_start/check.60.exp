@@ -57,8 +57,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -156,8 +154,6 @@ proc job_start_setup  {} {
    set pe(job_is_first_task)  FALSE
    add_pe pe
    assign_queues_with_pe_object all.q "" tight_job_start
-
-   set_error 0 "ok"
 }
 
 proc job_start_cleanup  {} {
@@ -176,9 +172,6 @@ proc job_start_cleanup  {} {
 
 
    switch_to_admin_user_system
-
-
-   set_error 0 "ok"
 }
 
 
@@ -194,21 +187,21 @@ proc job_start_test {} {
    # First select user system for the runlevel
    if { $CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 100 } {
       if { [switch_to_admin_user_system] != 0 } {
-         set_error -3 "can't run test shepherd/job_start for admin user system"
+         add_proc_error "job_start_test" -3 "can't run test shepherd/job_start for admin user system"
          return
       }
    }
 
    if { $CHECK_ACT_LEVEL == 1 || $CHECK_ACT_LEVEL == 101 } {    
       if { [switch_to_root_user_system ] != 0 } {
-         set_error -3 "can't run test shepherd/job_start for root user system"
+         add_proc_error "job_start_test" -3 "can't run test shepherd/job_start for root user system"
          return
       }
    }
 
    if { $CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 102 } {
       if { [switch_to_normal_user_system ] != 0 } {
-         set_error -3 "can't run test shepherd/job_start for normal user system"
+         add_proc_error "job_start_test" -3 "can't run test shepherd/job_start for normal user system"
          return
       }
    }
@@ -248,13 +241,11 @@ proc job_start_test {} {
          set spool_dir [get_execd_spooldir $host $spool_type]
          if { $spool_dir == "" } {
             add_proc_error "job_start_test" -1 "can't get spool dir type \"$spool_type\" for host $host"
-            set_error 0 "ok" ;# only for testsuite (add_proc_error already added error
             return
          }
          puts $CHECK_OUTPUT "   $host: setting spool dir $spool_dir ..."
          if { [switch_execd_spool_dir $host $spool_type 1] != 0 } {
             add_proc_error "job_start_test" -1 "can't set execd spool dir type \"$spool_type\" for host $host"
-            set_error 0 "ok" ;# only for testsuite (add_proc_error already added error
             return
          }
       }
@@ -984,8 +975,6 @@ proc job_start_test {} {
          }  ;# jobt
       }
    }
-
-   set_error 0 "ok"
 }
 
 

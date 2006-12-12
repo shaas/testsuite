@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -109,9 +107,6 @@ proc deadline_calculation_setup {  } {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    disable_queue $queue_list   
-   
-   set_error 0 "setup OK"
-
 }
 
 proc deadline_calculation_cleanup {  } {
@@ -129,8 +124,6 @@ proc deadline_calculation_cleanup {  } {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    enable_queue $queue_list   
-   
-   set_error 0 "clean OK"
 }
 
 proc deadline_test_permission { } {
@@ -139,7 +132,7 @@ proc deadline_test_permission { } {
 
 
    if { $CHECK_ACT_LEVEL != 2 } {
-      set_error 0 "Skip permission test for run level $CHECK_ACT_LEVEL"
+      puts $CHECK_OUTPUT "Skip permission test for run level $CHECK_ACT_LEVEL"
       return 0
    }
    
@@ -154,7 +147,6 @@ proc deadline_test_permission { } {
    
    set result [ submit_job $job_args 0 60 "" $non_deadline_user ]
    if { $result == -22 } {
-      set_error 0 "OK"
       set result 0
    } elseif { $result == 0 } {
       add_proc_error "deadline_test_permission" -1 "user $non_deadline_user can submit jobs with deadline, despite it is not in the deadlineusers group"
@@ -175,7 +167,7 @@ proc deadline_test_permission { } {
 }
 
 proc deadline_jobs_test {} {
- 
+   global ts_config CHECK_OUTPUT
    global deadline_job_name
    global CHECK_ACT_LEVEL
    
@@ -195,7 +187,7 @@ proc deadline_jobs_test {} {
          set deadlines  "0 0 0 0 0 0 0 0 0 -10"
       }
       default {
-         set_error 0 "deadline_jobs_test skipped in run level $CHECK_ACT_LEVEL"
+         puts $CHECK_OUTPUT "deadline_jobs_test skipped in run level $CHECK_ACT_LEVEL"
          return 0 
       }      
    }
@@ -228,9 +220,6 @@ proc deadline_jobs_test {} {
    
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-   
-   set_error 0 "OK"
-   
 }
 
 proc deadline_calc_deadline { deadline } {

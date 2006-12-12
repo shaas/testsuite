@@ -101,8 +101,6 @@ proc display_win_gui_setup  {} {
       set new_config(reporting_params) "accounting_flush_time=00:00:00"
       set_config new_config
    }
-
-   set_error 0 "ok"
 }
 
 proc display_win_gui_cleanup  {} {
@@ -116,8 +114,6 @@ proc display_win_gui_cleanup  {} {
       set new_config(reporting_params) $qacct_reporting_backup
       set_config new_config
    }
-
-   set_error 0 "ok"
 }
 
 # --------------- test procedures for 6.x
@@ -239,8 +235,6 @@ proc display_win_gui {} {
             "error starting N1 Grid Engine Helper Service"
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc start_SGE_Helper_Service {} {

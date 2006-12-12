@@ -33,40 +33,12 @@
 
 
 
-# Template for testsuite check
-# 
-# 1) replace the following symbols by your test specific names
-#    o ts_performance_test   name of your test (e.g. consumable_test)
-#    o 
-#
-# 2) set check_root_access_needs to "yes" or "no" (if you need root access)
-#
-# 3) set check_category
-#
-# 4) set check_highest_level ( e.g.: runlevel "short" has reserved values from 0 to 99 ) 
-#
-# 5) set check_needs (e.g.: "init_core_system" this means that this test is not 
-#    started without succesfull run of "init_core_system" test
-# 6) implement the default functions (e.g.: ts_performance_test_init_level)
-#
-# 7) you can add any function name to check_functions (all function (no paramters allowed) are started 
-#    within each runlevel number
-#    PLEASE finish each check_function with a set_error() function call
-#    PLEASE use add_proc_error() to submit errors
-#    add_proc_error() is used in many testsuite standard functions, so not every 
-#    function call must check the return state.
-# 
-
-
-
 # define global variable in this namespace
 global check_name 
 global check_category 
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -84,9 +56,6 @@ set check_highest_level   2
 set check_description(2)  "dummy test"
 set check_description(1)  "test testsuite average execution time on each cluster host"
 set check_description(0)  "test system time on each cluster daemon host"
-
-
-
 
 
 # define test's dependencies
@@ -143,8 +112,6 @@ proc ts_performance_test_setup  {} {
 
    puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
    puts $CHECK_OUTPUT "this is a dummy setup function"
-
-   set_error 0 "ok"
 }
 
 proc ts_performance_test_setup2  {} {
@@ -161,8 +128,6 @@ proc ts_performance_test_setup2  {} {
 
 
    puts $CHECK_OUTPUT "this is a dummy level setup function"
-
-   set_error 0 "ok"
 }
 
 
@@ -173,8 +138,6 @@ proc ts_performance_test_cleanup  {} {
 #   delete_all_jobs
 #   wait_for_end_of_all_jobs 60
    puts $CHECK_OUTPUT "this is a dummy cleanup function"
-
-   set_error 0 "ok"
 }
 
 
@@ -190,8 +153,6 @@ proc ts_performance_test_cleanup2  {} {
 #   delete_all_jobs
 #   wait_for_end_of_all_jobs 60
    puts $CHECK_OUTPUT "this is a dummy level cleanup function"
-
-   set_error 0 "ok"
 }
 
 
@@ -275,8 +236,6 @@ proc ts_performance_test_test {} {
       dump_spawn_rlogin_sessions
 #      reset_schedd_config
    }
-
-   set_error 0 "ok"
 }
 
 

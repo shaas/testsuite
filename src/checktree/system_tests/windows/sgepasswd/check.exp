@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr row
+global check_name check_description check_needs check_functions row
 global check_category
 global check_init_level_procedure
 global check_root_access_needs
@@ -156,7 +156,6 @@ proc sgepasswd_setup {} {
       }
    puts $CHECK_OUTPUT "Check_setup function finished"
    close_spawn_process $id
-   set_error 0 "ok"        
 }
 
 proc sgepasswd_cleanup {} {
@@ -196,7 +195,6 @@ proc sgepasswd_cleanup {} {
    }
 
    puts $CHECK_OUTPUT "Clean up function finished"
-   set_error 0 "ok"
 }
 
 #                                                             max. column:     |
@@ -230,7 +228,6 @@ proc sgepasswd_6472859 {} {
    set files [glob -nocomplain $CHECK_ACTUAL_TEST_PATH/test_files/*.test]
    if { $files == {} } {
       #if no files are present for test, test ends
-      set_error 0 "OK"
    }
 
    foreach filename $files {
@@ -272,7 +269,7 @@ proc sgepasswd_6472859 {} {
           #Segmentation fault should not appear if test is going to pass
          -i $sp_id  "*Segmentation Fault" {
             close_spawn_process $id
-            set_error -1 "Test failed - Segmentation fault with test file $name " 
+            add_proc_error "sgepasswd_6472859" -1 "Test failed - Segmentation fault with test file $name " 
             }
          -i $sp_id  eof {
             puts $CHECK_OUTPUT "expect eof"
@@ -289,5 +286,4 @@ proc sgepasswd_6472859 {} {
    #close foreach
    }
    puts $CHECK_OUTPUT "Test finished successfully"
-   set_error 0 "ok"
 }

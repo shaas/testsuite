@@ -38,8 +38,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -99,7 +97,6 @@ proc host_aliases_test_setup  {} {
    } else {
       set have_host_aliases "false"
    }
-   set_error 0 "ok"
 }
 
 proc host_aliases_test_cleanup  {} {
@@ -114,7 +111,6 @@ proc host_aliases_test_cleanup  {} {
    } else {
       delete_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
    }
-   set_error 0 "ok"
 }
 
 proc parse_gethostbyname_output { output {result host_name_array}} {
@@ -190,8 +186,6 @@ proc host_aliases_test_test1 {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 

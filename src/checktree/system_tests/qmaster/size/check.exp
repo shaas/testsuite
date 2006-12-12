@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr 
+global check_name check_description check_needs check_functions
 global check_category
 global check_root_access_needs
 global check_highest_level
@@ -266,7 +266,6 @@ proc qmaster_size_setup {} {
    
    wait_for_load_from_all_queues 300
    set time_start [clock seconds]
-   set_error 0 "ok"
 }
 
 
@@ -315,7 +314,7 @@ proc init_ps {} {
    puts $CHECK_OUTPUT "schedd  pid: $schedd_pid "
 
    if { $qmaster_pid == "" || $schedd_pid == ""} {
-      set_error 1 "could not evaluate pid of qmaster and schedd"
+      add_proc_error "init_ps" 1 "could not evaluate pid of qmaster and schedd"
       return
    }
   
@@ -368,7 +367,7 @@ proc init_ps {} {
          set size_unit pages
       }
       default {
-         set_error -2 "this check has never been ported to architecture $CHECK_ARCH"
+         add_proc_error "init_ps" -2 "this check has never been ported to architecture $CHECK_ARCH"
          return
       }
    }
@@ -377,15 +376,13 @@ proc init_ps {} {
    set result [catch {set size [get_size master]} output]
 
    if { $result != 0 } {
-      set_error 3 "executing ps command\n$cmd_ps(master)\nfailed\n$output"
+      add_proc_error "init_ps" -3 "executing ps command\n$cmd_ps(master)\nfailed\n$output"
       return
    }
    
    # everything ok
    puts $cmd_ps(master)
    puts $cmd_ps(schedd)
-
-   set_error 0 "initializing ps command ok, \ninitial size of qmaster is $size $size_unit"
 }
 
 #                                                             max. column:     |
@@ -643,14 +640,13 @@ proc output_monitor_result {start_size end_size} {
    if { $start_size < $end_size } {
       set message "size of qmaster increased from $start_size $size_unit to $end_size $size_unit"
       puts $CHECK_OUTPUT $message
-      set_error $MONITOR_SIZE_ERROR $message
+      add_proc_error "output_monitor_result" $MONITOR_SIZE_ERROR $message
    } else {
       if { $start_size == $end_size } {
          set message "size of qmaster remained $end_size $size_unit"
       } else {
          set message "size of qmaster reduced from $start_size $size_unit to $end_size $size_unit"
       }
-      set_error 0 $message
    }
 }
 
@@ -706,8 +702,6 @@ proc monitor {text duration interval commands} {
       }
 
       output_monitor_result $start_size $size
-   } else {
-      set_error 0 "monitoring requested for 0 secs - nothing to do"
    }
 }
 
@@ -1216,8 +1210,6 @@ proc check_size_config {} {
    set_schedd_config schedd_conf
 
    monitor_size [get_job_count] "set initial parameters"
-
-   set_error 0 "set schedule_interval to $schedule_interval"
 }
 
 #                                                             max. column:     |
@@ -1256,8 +1248,6 @@ proc check_size_config_zombies {} {
    set_config default_array
 
    monitor_size [get_job_count] "set finished jobs to $NUM_ZOMBIES"
-
-   set_error 0 "set number of finished jobs to $NUM_ZOMBIES"
 }
 
 #                                                             max. column:     |
@@ -1302,6 +1292,4 @@ proc qmaster_size_cleanup {} {
    del_queue interactive "" 0 1
 
    monitor_size [get_job_count] "reset initial parameters"
-
-   set_error 0 "ok"
 }

@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -166,9 +164,6 @@ proc project_access_lists_setup {} {
    if { [string first "unknown" $CHECK_GROUP] >= 0 } {
       add_proc_error "project_access_lists_setup" -1 "CHECK_GROUP set to unknown"
    }
-
-
-   set_error 0 "ok"
 }
 
 proc project_access_lists_cleanup {} {
@@ -210,8 +205,6 @@ proc project_access_lists_cleanup {} {
    del_access_list "userB_group"  ;# B
    del_access_list "userA_name"   ;# C
    del_access_list "userB_name"   ;# D
-
-   set_error 0 "ok"
 }
 
 
@@ -542,8 +535,6 @@ proc project_access_lists_global_host {} {
    set my_global_host(xprojects) "NONE"
    set my_global_host(projects)  "NONE"
    set_exechost my_global_host "global"
-
-   set_error 0 "ok"
 }
 
 proc project_access_lists_exec_host {} {
@@ -637,8 +628,6 @@ proc project_access_lists_exec_host {} {
    set my_local_host(xprojects) "NONE"
    set my_local_host(projects)  "NONE"
    set_exechost my_local_host $project_access_lists_host
-
-   set_error 0 "ok"
 }
 
 proc project_access_lists_queue {} {
@@ -733,9 +722,6 @@ proc project_access_lists_queue {} {
    set my_queue_conf(xprojects) "NONE"
    set my_queue_conf(projects)  "NONE"
    mod_queue "prjacc" $project_access_lists_host my_queue_conf
-     
-
-   set_error 0 "ok"
 }
 
 proc project_access_lists_cluster_config {} {
@@ -830,9 +816,6 @@ proc project_access_lists_cluster_config {} {
    set my_cluster_conf(xprojects) "NONE"
    set my_cluster_conf(projects)  "NONE"
    set_config my_cluster_conf
-     
-
-   set_error 0 "ok"
 
 }
 
@@ -967,7 +950,5 @@ proc project_access_lists_project {} {
    add_prj my_project
    run_user_denied_jobs "group/user case 4" "$jobargs" 0 0 0 0
    del_prj "access_test_project"
-
-   set_error 0 "ok"
 }
 

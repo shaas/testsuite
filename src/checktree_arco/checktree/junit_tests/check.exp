@@ -42,7 +42,7 @@
 # source version dependent parts of the installation
 global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
 
-global check_name check_description check_needs check_functions check_errno check_errstr 
+global check_name check_description check_needs check_functions
 global check_root_access_needs check_category      
 global check_use_installed_system check_init_level_procedure
 

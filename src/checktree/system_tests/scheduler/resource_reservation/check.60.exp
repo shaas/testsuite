@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -100,7 +98,6 @@ global binary_path
 global job_desc
 
 proc resource_reservation_setup {} {
-
    global rr_queue_name rr_h_vmem_complex 
    global rr_host
    global ts_config
@@ -132,9 +129,9 @@ proc resource_reservation_setup {} {
    set schedconf(load_adjustment_decay_time) "0:0:00"
 
    set result [ set_schedd_config schedconf ]
-   if { $result != 0 } {
-      set_error -1 "setup of scheduler for overwrite ticket test failed"
-      return -1
+   if {$result != 0} {
+      add_proc_error "resource_reservation_setup" -1 "setup of scheduler for overwrite ticket test failed"
+      return
    }
    
    puts $CHECK_OUTPUT "Scheduler configured"
@@ -176,10 +173,6 @@ proc resource_reservation_setup {} {
    set binary_path "$CHECK_SOURCE_DIR/$compile_arch_mt"
   
    puts $CHECK_OUTPUT "host is $rr_host has arch $compile_arch_mt mt bin path $binary_path"
-
-   # done
-   set_error 0 "setup OK"
-   return 0
 }
 
 proc resource_reservation_level_setup {} {
@@ -263,10 +256,6 @@ proc resource_reservation_level_setup {} {
       lappend queue_list [get_queue_instance $rr_queue_name $host]
    }
    disable_queue $queue_list  
-
-   # done
-   set_error 0 "setup OK"
-   return 0
 }
 
 proc resource_reservation_cleanup {  } {
@@ -302,8 +291,6 @@ proc resource_reservation_cleanup {  } {
       lappend queue_list [get_queue_instance "all.q" $host]
     }
     enable_queue $queue_list
-
-    set_error 0 "clean OK"
 }
 
 proc resource_reservation_level_cleanup {} {
@@ -339,9 +326,6 @@ proc resource_reservation_level_cleanup {} {
          }
       }
    }
-
-   # done
-   set_error 0 "clean OK"
 }
 
 # -------- local test procedures: initialization ------------------------------
@@ -473,6 +457,4 @@ proc resource_reservation_basic { } {
    drmaa_test "" $job_desc 
    get_job_descriptions "array" "reservation"
    drmaa_test "" $job_desc 
-
-   set_error 0 "clean OK"
 }

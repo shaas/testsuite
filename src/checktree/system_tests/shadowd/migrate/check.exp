@@ -39,8 +39,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -111,12 +109,10 @@ proc shadowd_migrate_init_level {} {
 
 proc shadowd_migrate_setup  {} {
    global CHECK_OUTPUT ts_config
-   set_error 0 "ok"
 }
 
 proc shadowd_migrate_cleanup  {} {
    global CHECK_OUTPUT ts_config
-   set_error 0 "ok"
 }
 
 
@@ -140,7 +136,7 @@ proc shadowd_migrate_test {} {
 
       set result [start_remote_prog [lindex $ts_config(shadowd_hosts) 0] $CHECK_USER "cat" $heartbeat_file]
       if { $prg_exit_state != 0 } {
-         set_error -3 "no nfs shared qmaster spool directory? Cat failed - > Skipping this test (1)!\nresult: $result"
+         add_proc_error "shadowd_migrate_test" -3 "no nfs shared qmaster spool directory? Cat failed - > Skipping this test (1)!\nresult: $result"
          return;
       } 
 
@@ -150,7 +146,7 @@ proc shadowd_migrate_test {} {
 
       set result [start_remote_prog [lindex $ts_config(shadowd_hosts) 1] $CHECK_USER "cat" $heartbeat_file]
       if { $prg_exit_state != 0 } {
-         set_error -3 "no nfs shared qmaster spool directory? Cat failed - > Skipping this test (2)!\nresult: $result"
+         add_proc_error "shadowd_migrate_test" -3 "no nfs shared qmaster spool directory? Cat failed - > Skipping this test (2)!\nresult: $result"
          return;
       }
 
@@ -161,7 +157,7 @@ proc shadowd_migrate_test {} {
       set heart_diff [expr ( $heartbeat2 - $heartbeat1 ) ]
       if { $heart_diff > 1 || $heart_diff < -1 } {
          add_proc_error "shadowd_migrate_test" -3 "heartbeat file diff error ($heartbeat1,$heartbeat2). heart_diff=$heart_diff"
-         set_error -3 "no nfs shared qmaster spool directory found. Skipping this test"
+         add_proc_error "shadowd_migrate_test" -3 "no nfs shared qmaster spool directory found. Skipping this test"
          return;
       }
 
@@ -203,7 +199,6 @@ proc shadowd_migrate_test {} {
 
       if {! $spooling_ok} {
          add_proc_error "shadowd_migrate_test" -3 "Spooling database is not shared between master and shadow hosts"
-         set_error 0 ok
          return
       }
 
@@ -397,7 +392,6 @@ proc shadowd_migrate_test {} {
 
          if { $migrate_host == "" } {
             add_proc_error "shadowd_migrate_test" -1 "can't find migrate host"
-            set_error 0 "ok"
             return
          }
 
@@ -655,8 +649,6 @@ proc shadowd_migrate_test {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }
 
 

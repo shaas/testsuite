@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -84,7 +82,6 @@ proc qmaster_spooling_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc qmaster_spooling_setup {} {
-   set_error 0 "ok"
 }
 
 # JG: TODO: move to sge_procedures
@@ -144,8 +141,6 @@ proc qmaster_spooling_prj_restart {} {
 
       del_prj "spool_prj"
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -177,8 +172,6 @@ proc qmaster_spooling_rqs_restart {} {
 
       del_rqs "$rqs_name"
    }
-
-   set_error 0 "ok"
 }
 
 proc qmaster_spooling_cleanup {} {
@@ -192,6 +185,4 @@ proc qmaster_spooling_cleanup {} {
          }
       }
    }
-
-   set_error 0 "ok"
 }

@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -161,9 +159,6 @@ proc urgency_calculation_setup {  } {
    }
    
    assign_queues_with_pe_object $urgency_queue_name $ts_config(master_host) $urgency_pe_name   
-   
-   set_error 0 "setup OK"
-   return 0
 }
 
 proc urgency_calculation_cleanup {  } {
@@ -203,9 +198,6 @@ proc urgency_calculation_cleanup {  } {
    if { $result < -4 } {
       add_proc_error "urgency_calculation_cleanup" -1 "reset of slots complex failed ($result)"
    }
-   
-   set_error 0 "clean OK"
-   return 0
 }
 
 
@@ -296,9 +288,6 @@ proc urgency_calculation { } {
    if { $result != 0 } {
       return -1
    }
-   
-   set_error 0 "OK"
-   return 0
 }
 
 proc urgency_check_values { jobs job_count value_names } {

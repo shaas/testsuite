@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_name check_description check_needs check_functions check_errno check_errstr check_highest_level
+global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
 
@@ -68,7 +68,6 @@ proc commlib_issues_init_level {} {
 
 proc commlib_issues_setup {} {
    shutdown_core_system
-   set_error 0 "ok"
 }
 
 proc commlib_issues_run  {} {
@@ -181,13 +180,10 @@ proc commlib_issues_run  {} {
    }
    close_spawn_process $server_sid
    close_spawn_process $client_sid
-
-   set_error 0 "ok"
 }
 
 proc commlib_issues_cleanup {} {
    startup_core_system
-   set_error 0 "ok"
 }
 
 

@@ -40,8 +40,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -137,8 +135,6 @@ proc scheduler_queue_requests_setup  {} {
          assign_queues_with_pe_object $queue_name "" "pe_$j"
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc scheduler_queue_requests_cleanup  {} {
@@ -162,8 +158,6 @@ proc scheduler_queue_requests_cleanup  {} {
    for {set i 0} {$i < $queue_count} {incr i} {
       del_queue [scheduler_queue_requests_get_qname $i] "@allhosts" 0 1
    }
-
-   set_error 0 "ok"
 }
 
 proc scheduler_queue_requests_sched_time {} {
@@ -315,8 +309,6 @@ proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
 
    # delete the job and wait until it leaves qmaster - we want to delete the queues!
    delete_job $job_id 1
-
-   set_error 0 "ok"
 }
 
 

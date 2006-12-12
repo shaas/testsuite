@@ -158,7 +158,4 @@ proc check_numb_proc {} {
          add_proc_error "check_numb_proc" -1 "num_proc=$num_proc doesn't match $num_expected expected processors on host $host"
       }
    }
-
-   # ok - no errors, very very nice ;-) 
-   set_error 0 "check_numb_proc - no errors"
 }

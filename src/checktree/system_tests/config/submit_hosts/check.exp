@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -112,7 +110,6 @@ proc submit_hosts_setup {} {
    }
 
    puts $CHECK_OUTPUT "done"
-   set_error 0 "ok"
 }
 
 proc submit_hosts_cleanup {} {
@@ -137,7 +134,6 @@ proc submit_hosts_cleanup {} {
       file delete $CHECK_JOB_OUTPUT_DIR/rsh_${submit_host}.sh
        
    }
-   set_error 0 "ok"
 }
 
 
@@ -153,8 +149,8 @@ proc submit_hosts_test {} {
    global CHECK_HOST
    
 
-   if {[ llength $CHECK_SUBMIT_ONLY_HOSTS ] <= 0 } {
-      set_error -3 "No submit hosts specified in test configuration file - run setup option"
+   if {[llength $CHECK_SUBMIT_ONLY_HOSTS] <= 0} {
+      add_proc_error "submit_hosts_test" -3 "No submit hosts specified in test configuration file - run setup option"
       return
    }
 
@@ -267,8 +263,6 @@ proc submit_hosts_test {} {
 
    }
    wait_for_end_of_all_jobs 120
-
-   set_error 0 "ok"
 }
 
 

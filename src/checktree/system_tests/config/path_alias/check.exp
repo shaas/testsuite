@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -203,8 +201,6 @@ proc path_alias_setup {} {
 
    delete_file "$CHECK_PROTOCOL_DIR/test1.txt"
    delete_file "$CHECK_PROTOCOL_DIR/test2.txt"
-
-   set_error 0 "ok"
 }
 
 proc path_alias_main {} {
@@ -289,8 +285,6 @@ proc path_alias_main {} {
       #puts $CHECK_OUTPUT "deleting $elem"
       file delete $PATH_ALIAS_OUTPUT2/$elem
    }
-   
-   set_error 0 "ok"
 }
 
 proc path_alias_cleanup {} {
@@ -301,7 +295,6 @@ proc path_alias_cleanup {} {
    global CHECK_OUTPUT
    global CHECK_PRODUCT_ROOT
    global env
-
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -331,7 +324,7 @@ proc path_alias_cleanup {} {
       file delete $file_name
       puts $CHECK_OUTPUT "deleting $file_name"
       if { [ file isfile "$file_name" ] == 1 } {
-         set_error -1 "could not delete file $file_name"
+         add_proc_error "path_alias_cleanup" -1 "could not delete file $file_name"
          return 
       }
 
@@ -340,8 +333,5 @@ proc path_alias_cleanup {} {
          file rename "$file_name.sav" "$file_name"
       }
    }
-
-
-   set_error 0 "ok"
 }
 

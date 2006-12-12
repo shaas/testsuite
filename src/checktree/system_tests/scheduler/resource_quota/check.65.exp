@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -100,8 +98,6 @@ proc resource_quota_setup  {} {
    set queue_settings(load_thresholds) "np_load_avg=11.75"
    add_queue $resource_quota_test_qname $resource_quota_test_host queue_settings
    puts $CHECK_OUTPUT "added queue $resource_quota_test_qname for hosts $resource_quota_test_host"
-
-   set_error 0 "ok"
 }
 
 proc resource_quota_cleanup  {} {
@@ -122,8 +118,6 @@ proc resource_quota_cleanup  {} {
          del_rqs $elem
       }
    }
-
-   set_error 0 "ok"
 }
 
 proc resource_quota_dynamic_limit {} {
@@ -169,6 +163,4 @@ proc resource_quota_dynamic_limit {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 20
-
-   set_error 0 "ok"
 }

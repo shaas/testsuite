@@ -52,8 +52,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -116,8 +114,6 @@ proc qmaster_monitoring_setup  {} {
    # backup global config - we'll change it
    puts $CHECK_OUTPUT "backup global config"
    get_config global_config
-
-   set_error 0 "ok"
 }
 
 proc qmaster_monitoring_cleanup  {} {
@@ -126,8 +122,6 @@ proc qmaster_monitoring_cleanup  {} {
 
    puts $CHECK_OUTPUT "reset global config"
    set_config global_config
-
-   set_error 0 "ok"
 }
 
 
@@ -382,8 +376,6 @@ proc qmaster_monitoring_dynamic_qping {} {
    
    # stop the tail -f
    close_spawn_process $id
-
-   set_error 0 "ok"
 }
 
 proc qmaster_monitoring_dynamic {} {
@@ -470,8 +462,6 @@ proc qmaster_monitoring_dynamic {} {
 
    # stop the tail -f
    close_spawn_process $id
-
-   set_error 0 "ok"
 }
 
 
@@ -513,8 +503,6 @@ proc qmaster_monitoring_restart {} {
    
    # stop the tail -f
    close_spawn_process $id
-
-   set_error 0 "ok"
 }
 
 proc qmaster_monitoring_restart_qping {} {
@@ -556,7 +544,5 @@ proc qmaster_monitoring_restart_qping {} {
 
    # stop the tail -f
    close_spawn_process $id
-
-   set_error 0 "ok"
 }
 

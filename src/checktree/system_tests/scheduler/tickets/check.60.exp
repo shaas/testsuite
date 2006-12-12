@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -112,7 +110,7 @@ proc ticket_calculation_setup {  } {
    
    set result [ set_schedd_config schedconf ]
    if { $result != 0 } {
-      set_error -1 "setup of scheduler for overwrite ticket test failed"
+      add_proc_error "ticket_calculation_setup" -1 "setup of scheduler for overwrite ticket test failed"
       return -1
    }
    
@@ -131,9 +129,6 @@ proc ticket_calculation_setup {  } {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    disable_queue $queue_list   
-   
-   set_error 0 "setup OK"
-
 }
 
 proc tight_calculation_cleanup {  } {
@@ -154,8 +149,6 @@ proc tight_calculation_cleanup {  } {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    enable_queue $queue_list   
-   
-   set_error 0 "clean OK"
 }
 
 
@@ -192,7 +185,7 @@ proc ticket_for_jobs { } {
       set shares   "0.06 0.20 0.12 0.15 0.19 0.12 0.27 0.09 0.36 0.07"
       
    } else {
-      set_error -1 "Unsupported CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
+      add_proc_error "ticket_for_jobs" -1 "Unsupported CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
       return -1
    }
    
@@ -209,7 +202,6 @@ proc ticket_for_jobs { } {
    if { $result != 0 } {
       return -1
    }
-   set_error 0 "OK"
 }
 
 proc ticket_for_departments { } {
@@ -277,7 +269,7 @@ proc ticket_for_departments { } {
 
       set result [ add_userset dep_conf ]
       if { $result != 0 } {
-         set_error -1 "Can not add deparment $departments($i,name)"
+         add_proc_error "ticket_for_departments" -1 "Can not add department $departments($i,name)"
          # remove the previously added departments
          for { set ii 0 } { $ii <= $i } { incr ii 1 } {
             del_access_list $departments($ii,name)
@@ -316,7 +308,6 @@ proc ticket_for_departments { } {
       return -1
    }
    
-   set_error 0 "OK"
    return 0
 }
 
@@ -351,7 +342,7 @@ proc ticket_for_projects { } {
       set oticket_incr 0
       set fshare_incr 1000
    } else {
-      set_error -1 "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
+      add_proc_error "ticket_for_projects" -1 "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
       return -1
    }
    
@@ -413,7 +404,6 @@ proc ticket_for_projects { } {
       return -1
    }
    
-   set_error 0 "OK"
    return 0
 }
 
@@ -455,7 +445,7 @@ proc ticket_for_users { } {
       set users(1,fshare) 2000
       set users(2,fshare) 3000
    } else {
-      set_error -1 "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
+      add_proc_error "ticket_for_users" -1 "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
       return -1
    }
    
@@ -466,7 +456,7 @@ proc ticket_for_users { } {
       
       set result [ mod_user user_conf ]
       if { $result != 0 } {
-         set_error -1 "Can not modify user $users($i,name)"
+         add_proc_error "ticket_for_users" -1 "Can not modify user $users($i,name)"
          # reset the user settings
          for {set ii 0} {$ii < $i} { incr ii 1 } {
             set user_conf(name)    $users($ii,name)
@@ -511,7 +501,6 @@ proc ticket_for_users { } {
       return -1
    }
    
-   set_error 0 "OK"
    return 0
 }
 

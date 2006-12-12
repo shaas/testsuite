@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -95,13 +93,6 @@ proc job_state_handling_init_level {} {
 
 
 proc job_state_handling_setup  {} {
-   global CHECK_OUTPUT
-   global CHECK_PRODUCT_TYPE
-   global CHECK_ARCH
-   global CHECK_PRODUCT_ROOT
-
-
-   set_error 0 "ok"
 }
 
 proc job_state_handling_hold_pending_running_finished {} {
@@ -200,8 +191,6 @@ proc job_state_handling_hold_pending_running_finished {} {
    if { [ string first $result $back ] < 0 } {
       add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not in accouting file" 
    }
-
-   set_error 0 "ok"
 }
 
 
@@ -290,8 +279,6 @@ proc job_state_handling_error_timehold_jobhold {} {
       add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $waitjob_job state not \"Eqw\": $job_state"
    }
    delete_job $error_job
-
-   set_error 0 "ok"
 }
 
 proc job_state_handling_max_aj_instances {} {
@@ -391,8 +378,6 @@ proc job_state_handling_max_aj_instances {} {
    }
    set new_config(max_aj_instances) $old_config(max_aj_instances)
    set_config new_config
-   
-   set_error 0 "ok"
 }
 
 proc job_state_handling_max_aj_tasks {} {
@@ -494,8 +479,6 @@ proc job_state_handling_max_aj_tasks {} {
    }
    set new_config(max_aj_tasks) $old_config(max_aj_tasks)
    set_config new_config
-   
-   set_error 0 "ok"
 }
 
 proc job_state_handling_cleanup  {} {
@@ -507,9 +490,5 @@ proc job_state_handling_cleanup  {} {
    puts $CHECK_OUTPUT "do qdel -uall"
    set catch_result [delete_all_jobs]
    puts $CHECK_OUTPUT $catch_result
-
-   set_error 0 "ok"
 }
-
-
 

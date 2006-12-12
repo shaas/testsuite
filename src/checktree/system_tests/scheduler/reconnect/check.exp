@@ -40,8 +40,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -91,8 +89,6 @@ proc schedd_reconnect_cleanup  {} {
 
    # wait for load reports to proceed with next test
    wait_for_load_from_all_queues 120
-
-   set_error 0 "ok"
 }
 
 
@@ -129,6 +125,4 @@ proc schedd_reconnect_test {} {
       }
 
    }
-  
-   set_error 0 "ok"
 }

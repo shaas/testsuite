@@ -37,8 +37,6 @@ global check_category
 global check_description 
 global check_needs
 global check_functions 
-global check_errno 
-global check_errstr 
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
@@ -253,7 +251,6 @@ proc file_parsing_N_option {} {
 #  command-line overwrites embedded script options
 #  emmbedded script overwrites sge_definition file
 #
-   set_error 0 "ok"
 }
 
 proc file_parsing_long_option_verify {back long case} {
@@ -409,14 +406,11 @@ proc file_parsing_long_option {} {
 #  command-line overwrites embedded script options
 #  emmbedded script overwrites sge_definition file
 #
-   set_error 0 "ok"
 }
 
 
 proc file_parsing_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 60
-
-   set_error 0 "ok"
 }
 
