@@ -799,7 +799,7 @@ proc config_database_write_user { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of the user which has write permissions on the datbase, or press >RETURN<"
+   set help_text {  "Please enter the name of the user which has write permissions on the database, or press >RETURN<"
                     "to use the default value." }
                     
    # TODO set global variables
@@ -811,7 +811,7 @@ proc config_database_read_user { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of the user which has read permissions on the datbase, or press >RETURN<"
+   set help_text {  "Please enter the name of the user which has read permissions on the database, or press >RETURN<"
                     "to use the default value." }
                     
    # TODO set global variables
@@ -823,7 +823,7 @@ proc config_database_write_pw { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the password of the user which has write permissions on the datbase, or press >RETURN<"
+   set help_text {  "Please enter the password of the user which has write permissions on the database, or press >RETURN<"
                     "to use the default value." }
                     
    # TODO set global variables
@@ -835,7 +835,7 @@ proc config_database_read_pw { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the password of the user which has read permissions on the datbase, or press >RETURN<"
+   set help_text {  "Please enter the password of the user which has read permissions on the database, or press >RETURN<"
                     "to use the default value." }
                     
    # TODO set global variables
