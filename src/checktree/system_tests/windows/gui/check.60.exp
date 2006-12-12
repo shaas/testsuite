@@ -31,7 +31,7 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-# CR 6428621: add a reserved complex value to control displaying Windows GUIs
+# Tests for SGE_Helper_Service.exe
 
 # define global variable in this namespace
 global check_name
@@ -42,31 +42,33 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
+global SGE_Helper_Service_was_running
+global host
 
 set check_root_access_needs "yes"
 
 # define a level initialization procedure:
-set check_init_level_procedure "display_win_gui_init_level"
+set check_init_level_procedure "SGE_Helper_Service_init_level"
 
 # define test's name and run level descriptions
-set check_name            "display_win_gui"
-set check_category        "SYSTEM"
+set check_name            "SGE_Helper_Service"
+set check_category        "SYSTEM VERIFIED"
 set check_highest_level   0
-set check_description(0)  "test display_win_gui functionality"
+set check_description(0)  "test SGE_Helper_Service functionality"
 
 # define test's dependencies
-set check_needs "init_core_system qsub qacct" 
+#set check_needs "init_core_system qsub qacct" 
 
 # setup and cleanup functions
-set check_setup_function   display_win_gui_setup
-set check_cleanup_function display_win_gui_cleanup
-
+set check_setup_function   SGE_Helper_Service_setup
+set check_cleanup_function SGE_Helper_Service_cleanup
 
 # define test's procedure order
 set check_functions ""
-lappend check_functions "display_win_gui"
+lappend check_functions "service_error_handling"
 
-proc display_win_gui_init_level {} {
+
+proc SGE_Helper_Service_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
@@ -75,227 +77,237 @@ proc display_win_gui_init_level {} {
       }
    }
 
-   return -1  ;# no other level 
+   return -1  # no other level 
 }
 
 
 # -------- local test procedures: initialization------------------------------
-proc display_win_gui_setup  {} {
+proc SGE_Helper_Service_setup {} {
    global ts_config CHECK_OUTPUT
    global qacct_reporting_backup
+   global SGE_Helper_Service_was_running
+   global host
 
    set host [host_conf_get_windows_exec_host]
 
    if {$host == ""} {
       # no windows execution host in cluster, test not possible
-      puts "no windows execution host!"
-      add_proc_error "display_win_gui" -1 "no windows execution host"
+      puts $CHECK_OUTPUT "no windows execution host!"
+      add_proc_error "SGE_Helper_Service" -3 "no windows execution host"
+      return
    }
 
-   puts "using $host as test host"
+   puts $CHECK_OUTPUT "using $host as test host"
 
    # set the accounting_flush_time to 0 to speedup writing of accounting info
-   if {$ts_config(gridengine_version) != 53} {
-      get_config old_config
-      set qacct_reporting_backup $old_config(reporting_params)
-      set new_config(reporting_params) "accounting_flush_time=00:00:00"
-      set_config new_config
-   }
+   get_config old_config
+   set qacct_reporting_backup $old_config(reporting_params)
+   set new_config(reporting_params) "accounting_flush_time=00:00:00"
+   set_config new_config
+
+   # start or stop SGE_Helper_Service
+   set SGE_Helper_Service_was_running [is_SGE_Helper_Service_running $host]
 }
 
-proc display_win_gui_cleanup  {} {
+proc SGE_Helper_Service_cleanup  {} {
    global ts_config CHECK_OUTPUT
    global qacct_reporting_backup
+   global SGE_Helper_Service_was_running
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
-   if {$ts_config(gridengine_version) != 53} {
-      set new_config(reporting_params) $qacct_reporting_backup
-      set_config new_config
-   }
-}
+   set new_config(reporting_params) $qacct_reporting_backup
+   set_config new_config
 
-# --------------- test procedures for 6.x
-proc display_win_gui {} {
-   global ts_config CHECK_OUTPUT
-   global CHECK_USER
-   set host [host_conf_get_windows_exec_host]
-
-   set requests "dwg=true display_win_gui=true dwg=false\
-                 display_win_gui=false a=win32-x86\
-                 dwg=true display_win_gui=true dwg=false\
-                 display_win_gui=false a=win32-x86"
-
-   set expected {57 57 x x 0 x x 0 0 0}
-
-   #        \Service| running     stopped
-   # request \__ __ |
-   #   dwg         \|
-   # ------------------------------------------
-   #   true         |   57        not scheduled
-   #   false        |not sched    0 
-   #   none         |   0         0 
-   #   
-   #     ^
-   #     |
-   #    Request in short (dwg) and long (display_win_gui) form
-   #
-   # This table is the exit_status matrix of GUI_test.exe, showing the expected
-   # exit stati depending on the requested values for "display_win_gui" complex
-   # variable and depending on if the "N1 Grid Engine Helper Service" is running
-   # or stopped on the exec host.
-   # The variables "requests" and "expected" express this matrix, too.
-   # "expected" is first the left column (true and false each requested in
-   # short (dwg) and long (display_win_gui) form), then the right column.
-   # "x" means "don't expect any exit status, this job will never be scheduled"
-   #
-   # The exit status 57 of GUI_test.exe means that it was able to display it's
-   # GUI on the visible desktop. 0 means that it wasn't able to display it.
-
-   set SGE_Helper_Servcie_was_running [is_SGE_Helper_Service_running $host]
-
-   # make sure that the "N1 Grid Engine Helper Service" runs on the exec host.
-   if {[start_SGE_Helper_Service] != 0} {
-      add_proc_error "display_win_gui" -1 \
-         "error starting N1 Grid Engine Helper Service"
-   }
-   
-   # do all submits according to the table above and check "failed" and
-   # "exit_status" from qacct.
-   set i 0
-
-   foreach request $requests {
-      if {$i == 5} {
-         # stop the "N1 Grid Engine Helper Service" for the second half
-         # of the submits.
-
-         if {[stop_SGE_Helper_Service] != 0} {
-            add_proc_error "display_win_gui" -1 \
-               "error stopping N1 Grid Engine Helper Service"
-         }
+   if {$SGE_Helper_Service_was_running == 0} {
+      # stop "N1 Grid Engine Helper Service" again on the exec host.
+      if {[stop_SGE_Helper_Service] != 0} {
+         add_proc_error "service_error_handling" -1 \
+            "error stopping N1 Grid Engine Helper Service"
       }
-
-      # submit job
-      puts ""
-      set job_id [submit_job "-l $request -l h=$host -b y -shell no\
-                  $ts_config(source_dir)/WIN32_X86/GUI_test.exe"]
-
-      if {$job_id < 0} {
-         add_proc_error "display_win_gui" -1 "error submitting job" 
-      }
-
-      # wait for job end - now accounting should be written
-      set ret [wait_for_jobstart $job_id "" 30 0 1]
-      if {$ret == -1} {
-         if {[lindex $expected $i] == "x"} {
-            # in this case, it's expected that the job is not scheduled
-            puts "expected that this job doesn't get scheduled, and it\
-                  wasn't scheduled. deleting it."
-            delete_all_jobs
-            wait_for_job_end 60
-         } else {
-            add_proc_error "display_win_gui" -1 \
-               "job was not scheduled to exec host"
-         }
-      }
-
-      # if job ought be scheduled, wait for jobend and analyze accounting data.
-      if {[lindex $expected $i] != "x" } {
-         if {[wait_for_jobend $job_id "" 30 1] != 0} {
-            add_proc_error -1 "job didn't end within timeout"
-         }
-
-         # get accounting
-         if {[get_qacct $job_id] == 0} {
-            # check if job failed
-            if {[string index $qacct_info(failed) 0] != "0" } {
-               add_proc_error -1 "job failed, $qacct_info(failed)"
-            }
-
-            # read job exit_status from accounting record
-            if {$qacct_info(exit_status) != [lindex $expected $i]} {
-               add_proc_error "display_win_gui" -1 \
-                  "incorrect job exit status, expected 0, but got\
-                  $qacct_info(exit_status)"
-            }
-            puts "exit_status expected: [lindex $expected $i], exit_status\
-                  read from qacct: $qacct_info(exit_status)"
-         } else {
-            add_proc_error "display_win_gui" -1 \
-               "field exit_status is missing in qacct output."
-         }
-      }
-      incr i
-   }
-   if {$SGE_Helper_Servcie_was_running == 1} {
-      # start "N1 Grid Engine Helper Service" again on the exec host.
+   } else {
+      # start "N1 Grid Engine Helper Service" again on the exec host
       if {[start_SGE_Helper_Service] != 0} {
-         add_proc_error "display_win_gui" -1 \
+         add_proc_error "service_error_handling" -1 \
             "error starting N1 Grid Engine Helper Service"
       }
    }
 }
 
+#****** service_error_handling() **********************************************
+#
+#  NAME
+#     service_error_handling() -- tests correct error handling of 
+#                                 SGE_Helper_Service
+#
+#  SYNOPSIS
+#     service_error_handling { } 
+#
+#  FUNCTION
+#     Tests correct handling of errors for jobs with display_win_gui=true
+#     requirement in SGE_Helper_Service and in sge_shepherd.
+#     Also tests CR 6464927: Failed Windows GUI jobs are reported as 
+#     finished successfully.
+#
+#     This is the test for Grid Engine version 6.0, there is another
+#     version for higher Grid Engine versions.
+#
+#  RESULT
+#     int 0 - test succeeded
+#        -1 - test failed
+#
+#  SEE ALSO
+#******************************************************************************
+proc service_error_handling { } {
+   global ts_config 
+   global host
+   set queue "all.q"
+
+   # Submit jobs that should display their GUI on the Windows execution host.
+   # 1. The host must be set into error state when
+   #    SGE_Helper_Service.exe is not running
+   # 2. The job must be set into error state when
+   #    a) the job binary doesn't exist
+   #    b) the job binary is not executable
+
+   # 1. The host must be set into error state when
+   #    SGE_Helper_Service.exe is not running
+
+   # make sure that the "N1 Grid Engine Helper Service" doesn't run
+   # on the exec host.
+   if {[stop_SGE_Helper_Service] != 0} {
+      add_proc_error "service_error_handling" -1 \
+         "error stopping N1 Grid Engine Helper Service"
+   }
+
+   set submit_command [get_display_win_gui_parameter]
+   set submit_command "$submit_command -q $queue -l h=$host -b y\
+                      -shell no /dev/fs/C/WINDOWS/notepad.exe"
+
+   set ret [submit_job_expect_failure $submit_command "queue_error"]
+   if {$ret != 0} {
+      return $ret
+   }
+
+
+   # 2) the job must be set into error state when
+   #    a) the job binary doesn't exist
+
+   # make sure that the "N1 Grid Engine Helper Service" runs
+   # on the exec host.
+   if {[start_SGE_Helper_Service] != 0} {
+      add_proc_error "service_error_handling" -1 \
+         "error starting N1 Grid Engine Helper Service"
+   }
+
+   set submit_command [get_display_win_gui_parameter]
+   set submit_command "$submit_command -q $queue -l h=$host -b y\
+                       -shell no /dev/fs/C/WINDOWS/troet.bla"
+
+   set ret [submit_job_expect_failure $submit_command "job_error"]
+   if {$ret != 0} {
+      return $ret
+   }
+
+
+   # 2) the job must be set into error state when
+   #    b) the job binary is not executable
+
+   set submit_command [get_display_win_gui_parameter]
+   set submit_command "$submit_command -q $queue -l h=$host -b y -shell no \
+                       $ts_config(product_root)/examples/jobs/sleeper.sh 10"
+
+   set ret [submit_job_expect_failure $submit_command "job_error"]
+   return $ret
+}
+
+# Tools for testing SGE_Helper_Service
+
+#****** get_display_win_gui_parameter() ****************************************
+#  NAME
+#     get_display_win_gui_parameter() -- returns the qsub parameter to start
+#                                        Windows jobs that display their GUI on
+#                                        the visible screen.
+#
+#  SYNOPSIS
+#     get_display_win_gui_parameter { }
+#
+#  FUNCTION
+#     Returns the qsub parameter to start Windows jobs that display their GUI
+#     on the visible screen.
+#
+#  RESULT
+#     string - the qsub parameter
+#
+#  SEE ALSO
+#*******************************************************************************
+proc get_display_win_gui_parameter {} {
+   return "-v SGE_GUI_MODE=TRUE"
+}
+
+#****** start_SGE_Helper_Service() *********************************************
+#  NAME
+#     start_SGE_Helper_Service() -- starts the SGE_Helper_Service on the
+#                                   Windows host
+#
+#  SYNOPSIS
+#     start_SGE_Helper_Service { }
+#
+#  FUNCTION
+#     Starts the SGE_Helper_Service on the Windows host
+#
+#  RESULT
+#     0 if the SGE_Helper_Service was started,
+#     1 if it there is no Windows execution host,
+#     2 if the SGE_Helper_Service was not started.
+#
+#  SEE ALSO
+#*******************************************************************************
 proc start_SGE_Helper_Service {} {
-   puts ""
-   puts "starting N1 Grid Engine Helper Service"
+   global CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT ""
+   puts $CHECK_OUTPUT "starting N1 Grid Engine Helper Service"
    
    set ret [control_SGE_Helper_Service 1]
    if {$ret == 0} {
-      puts "N1 Grid Engine Helper Service is running"
+      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is running"
    } else {
-      puts "N1 Grid Engine Helper Service is not running! Test failed!"
+      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is not running! Test failed!"
    }
    return $ret
 }
 
-proc stop_SGE_Helper_Service {} {
-   puts ""
-   puts "stopping N1 Grid Engine Helper Service"
-   set ret [control_SGE_Helper_Service 0]
-   if {$ret == 0} {
-      puts "N1 Grid Engine Helper Service is stopped"
-   } else {
-      puts "N1 Grid Engine Helper Service is not stopped! Test failed!"
-   }
-   return $ret
-}
-
-#****** is_SGE_Helper_Service_running() ****************************************
+#****** stop_SGE_Helper_Service() **********************************************
 #  NAME
-#     is_SGE_Helper_Service_running() -- check if SGE_Helper_Service.exe is
-#                                        running on the execution host
+#     stop_SGE_Helper_Service() -- stops the SGE_Helper_Service on the
+#                                  Windows host
 #
 #  SYNOPSIS
-#     is_SGE_Helper_Service_running {host}
+#     stops_SGE_Helper_Service { }
 #
 #  FUNCTION
-#     Checks if the SGE_Helper_Service is running on the execution host.
-#
-#  INPUTS
-#     host             - execution host that is to check
+#     Stops the SGE_Helper_Service on the Windows host
 #
 #  RESULT
-#     0 if the SGE_Helper_Service is not running,
-#     1 if it is running.
+#     0 if the SGE_Helper_Service was stopped,
+#     1 if it there is no Windows execution host,
+#     2 if the SGE_Helper_Service was not stopped.
 #
 #  SEE ALSO
-#     config/get_exechost()
 #*******************************************************************************
-proc is_SGE_Helper_Service_running {host} {
-   set ret 0
-   if {[get_exechost exec_host $host] == 0} {
-      set load $exec_host(load_values)
-      set lines [split $load ","]
-      foreach line $lines {
-         set words [split $line "="]
-         if {[lindex $words 0] == "display_win_gui"} {
-            if {[lindex $words 1] == 1} {
-               set ret 1
-            }
-         }
-      }
+proc stop_SGE_Helper_Service {} {
+   global CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT ""
+   puts $CHECK_OUTPUT "stopping N1 Grid Engine Helper Service"
+   set ret [control_SGE_Helper_Service 0]
+   if {$ret == 0} {
+      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is stopped"
+   } else {
+      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is not stopped! \
+                          Test failed!"
    }
    return $ret
 }
@@ -325,7 +337,7 @@ proc is_SGE_Helper_Service_running {host} {
 #     config_host/host_conf_get_windows_exec_host()
 #*******************************************************************************
 proc control_SGE_Helper_Service {start} {
-   set host [host_conf_get_windows_exec_host]
+   global host
 
    if {$host == ""} {
       return 1
@@ -357,4 +369,135 @@ proc control_SGE_Helper_Service {start} {
       set ret 2
    }
    return $ret
+}
+
+#****** is_SGE_Helper_Service_running() ****************************************
+#  NAME
+#     is_SGE_Helper_Service_running() -- check if SGE_Helper_Service.exe is
+#                                        running on the execution host
+#
+#  SYNOPSIS
+#     is_SGE_Helper_Service_running {host}
+#
+#  FUNCTION
+#     Checks if the SGE_Helper_Service is running on the execution host.
+#
+#  INPUTS
+#     host             - execution host that is to check
+#
+#  RESULT
+#     0 if the SGE_Helper_Service is not running,
+#     1 if it is running.
+#
+#  SEE ALSO
+#*******************************************************************************
+proc is_SGE_Helper_Service_running {host} {
+   set ret 0
+
+   set helper_service [ps_grep "SGE_Helper_Service.exe" $host]
+
+   if {[llength $helper_service] == 1} {
+      set ret 1
+   }
+   return $ret
+}
+#****** submit_job_expect_failure() ********************************************
+#  NAME
+#     submit_job_expect_failure() -- starts a job that is expected to fail and
+#                                    waits until it fails.
+#
+#  SYNOPSIS
+#     submit_job_expect_failure { submit_command expected_failure }
+#
+#  FUNCTION
+#     Starts a job that is expected to fail and waits until it fails.
+#
+#  INPUTS
+#     submit_command   - the command line for qsub, without qsub
+#     expected_failure - "queue_error" or "job_error"
+#
+#  RESULT
+#     0 if the job was started successfully and the expected error occured
+#    -1 else
+#
+#  SEE ALSO
+#*******************************************************************************
+proc submit_job_expect_failure {submit_command expected_failure} {
+   global CHECK_OUTPUT
+   global host
+   set    queue "all.q"
+
+   # submit job
+   puts $CHECK_OUTPUT ""
+   set job_id [submit_job $submit_command]
+
+   if {$job_id < 0} {
+      add_proc_error "service_error_handling" -1 "error submitting job" 
+      return -1
+   }
+
+   # job is submitted, wait for job start
+   if {[wait_for_jobstart $job_id "" 30 0 1] != 0} {
+      add_proc_error "service_error_handling" -1 \
+         "job was not scheduled to exec host"
+      return -1
+   }
+
+   # wait for expected failure
+   if {[string compare $expected_failure "queue_error"] == 0} {
+      # check if queue is in error state
+      set seconds 120
+      set time [timestamp]
+      while {1} {
+         # look if queue instance is in error state
+         set queue_state [get_queue_state "$queue@$host"]
+         if {[ string compare $queue_state "E" ] == 0} {
+            puts $CHECK_OUTPUT "Queue was set in error state, test was successful."
+            break
+         }
+
+         set runtime [expr [timestamp] - $time]
+         if {$runtime >= $seconds} {
+            add_proc_error "service_error_handling" -1 \
+               "timeout waiting for queue \"$queue@$host\" going to error \
+               state due to job \"$job_id\""
+            return -1
+         }
+         after 1000
+      }
+   } elseif {[string compare $expected_failure "job_error"] == 0} {
+      # check if job is in error state
+      puts $CHECK_OUTPUT "Waiting for failure of job $job_id"
+      set seconds 60
+      set time [timestamp]
+      while {1} {
+         # look if job is in error state
+         set job_state [get_job_state $job_id]
+         if {[string compare $job_state "Eqw"] == 0} {
+            puts $CHECK_OUTPUT "Job $job_id failed. Test was successful."
+            break
+         }
+
+         set runtime [expr [timestamp] - $time]
+         if {$runtime >= $seconds} {
+            add_proc_error "service_error_handling" -1 \
+               "timeout waiting for job \"$job_id\" going to error state"
+            return -1
+         }
+         after 1000
+      }
+   } else {
+      add_proc_error "service_error_handling" -1 \
+         "invalid value for parameter expected_failure"
+   }
+
+   # delete job
+   delete_job $job_id
+
+   # clear error state from queue
+   puts $CHECK_OUTPUT "do a qmod -c \"*\" ..."
+   set output [start_sge_bin "qmod" "-c \"*\""]
+   puts $CHECK_OUTPUT $output
+
+   return 0
 }
