@@ -1,0 +1,76 @@
+#!/usr/pkg/bin/expect
+
+# list of deprecated symbols (variables, procedures)
+set deprecated "check_errno check_errstr set_error"
+
+# build a list of files to analyze (.tcl and .exp)
+set files ""
+set subdirs [glob -nocomplain -directory . -types d . * */* */*/* */*/*/* */*/*/*/* */*/*/*/*/*]
+puts "searching for code in [llength $subdirs] directories"
+
+foreach dir $subdirs {
+   if {[string first "CVS" $dir] == -1 } {
+      append files [glob -nocomplain -- "$dir/*.tcl"]
+      append files " "
+      append files [glob -nocomplain -- "$dir/*.exp"]
+      append files " "
+   }
+}
+
+set files [lsort -dictionary $files]
+puts "analyzing [llength $files] files"
+
+# analyze all files, store results
+set max_filename 10
+foreach file $files {
+   # don't analyze this script
+   if {[file tail $file] == "find_deprecated.exp"} {
+      continue
+   }
+
+   # grep for all deprecated, store result
+   set result($file) 0
+   foreach dep $deprecated {
+      set catch_return [catch {exec grep $dep $file} catch_output]
+      if {$catch_return == 0} {
+         set hits [llength [split $catch_output "\n"]]
+      } else {
+         set hits 0
+      }
+      set result($file,$dep) $hits
+      incr result($file) $hits
+   }
+
+   # calculate the max file name length of affected files
+   if {$result($file) > 0} {
+      # get max file name
+      set len [string length $file]
+      if {$len > $max_filename} {
+         set max_filename $len
+      }
+   }
+}
+
+# output
+puts ""
+# header line
+puts [format "%-${max_filename}s %3s %s" "file" "num" "hits"]
+
+# one line for all affected files
+foreach file $files {
+   # don't analyze this script
+   if {[file tail $file] == "find_deprecated.exp"} {
+      continue
+   }
+
+   if {$result($file) > 0} {
+      puts -nonewline [format "%-${max_filename}s %3d " $file $result($file)]
+      foreach dep $deprecated {
+         if {$result($file,$dep) > 0} {
+            puts -nonewline $dep
+            puts -nonewline " "
+         }
+      }
+      puts ""
+   }
+}
