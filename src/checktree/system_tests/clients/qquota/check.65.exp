@@ -140,7 +140,7 @@ proc qquota_cleanup {} {
 proc qquota_help {} {
    global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
 
-   set qquota_help_lines 10
+   set qquota_help_lines 22
 
    set output [start_sge_bin "qquota" "-help"]
 
