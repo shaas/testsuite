@@ -57,7 +57,7 @@ set check_highest_level   0
 set check_description(0)  "test SGE_Helper_Service functionality"
 
 # define test's dependencies
-#set check_needs "init_core_system qsub qacct" 
+set check_needs "init_core_system qsub qacct" 
 
 # setup and cleanup functions
 set check_setup_function   SGE_Helper_Service_setup
