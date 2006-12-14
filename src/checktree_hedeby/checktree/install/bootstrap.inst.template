@@ -1,0 +1,57 @@
+#
+# Wizard Statefile created: Tue Oct 10 14:32:52 CEST 2006
+#              Wizard path: /tools/testsuite/grm/./haithabu.class
+#
+
+#
+# Install Wizard Statefile section for Haithabu
+#
+#
+[STATE_BEGIN Haithabu e665f60b683b23d60d6ebfbdfa656120e9dc4252]
+grm.install.bootstrap = true
+grm.install.executor = false
+grm.install.resource.provider = false
+grm.install.service.container = false
+grm.install.os.provisioner = false
+grm.install.os.dispatcher = false
+grm.system.name = @@@GRM_SYSTEM@@@
+grm.admin.user = @@@GRM_ADMIN@@@
+grm.dist.dir = @@@GRM_DIST@@@
+grm.spool.dir = @@@GRM_VAR@@@
+grm.etc.dir = /etc/grm/svcmgmt/
+grm.shared.dir = @@@GRM_SHARED@@
+grm.sge.dist.dir = @@@SGE_ROOT@@@
+StandardInstall = True
+com.sun.install.panels.LocalePanel.locales = 
+64Bit = 
+defaultInstallDirectory = /tools/testsuite/grm
+currentInstallDirectory = /tools/testsuite/grm
+com.sun.install.panels.ComponentPanel.selectedcomponents = 
+grm.executor.id.config = executor
+grm.executor.shutdowtimeout.config = 60
+grm.executor.keepfiles.config = false
+grm.executor.cps.config = 3
+grm.executor.mps.config = 10
+grm.executor.idletimeout.config = 60
+grm.security.causername.config = grmAdmin
+grm.security.capassword.config = grmPasswd
+grm.osp.id.config = osp
+grm.osp.lookupinterval.config = 10
+grm.sc.id.config = ServiceContainer
+grm.sc.shutdowntime.config = 10
+grm.sc.adaptername.config = sa1
+grm.sc.adapterclassname.config = com.sun.grid.grm.service.impl.n1ge.N1geAdapterImpl
+grm.sc.adapterclasspath.config = /lib/
+grm.sc.conn.sgeroot.config = /opt/sge/
+grm.sc.conn.sgecell.config = default
+grm.sc.conn.sgemasterport.config = 536
+grm.sc.conn.sgeexecdport.config = 537
+grm.sc.sla.sgeattribute.config = arch
+grm.sc.sla.sgevalue.config = sol-sparc64
+grm.sc.sla.minvalue.config = 4
+grm.sc.sla.urgency.config = 30
+grm.rc.startcomp = false
+grm.rc.install.classic = false
+grm.rc.install.typical = false
+com.sun.install.panels.DesktopPanel.desktop = 
+[STATE_DONE Haithabu e665f60b683b23d60d6ebfbdfa656120e9dc4252]
