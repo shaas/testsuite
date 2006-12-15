@@ -42,6 +42,7 @@ lappend check_functions "qconf_modifyreplace_rqs"; # modify/replace resource quo
 lappend check_functions "qconf_remove_rqs";        # delete resource quota set
 lappend check_functions "qconf_dynamic_limit";      # add a dynamic limit
 lappend check_functions "qconf_rqs_Xattr";          # resource quota set Xattr
+lappend check_functions "qconf_rqs_rattr_qmaster_dump"; # verify error handling
 
 global rqs_name_fast
 global rqs_name_cli
@@ -340,4 +341,37 @@ proc qconf_rqs_Xattr {} {
    # cleanup
    del_rqs $rqs_name1
    del_rqs $rqs_name2
+}
+
+proc qconf_rqs_rattr_qmaster_dump {} {
+   global ts_config env
+   global CHECK_OUTPUT CHECK_USER
+
+   set object_name "resource_quota"
+
+   set rqs_name "qconf_rqs_Xattr_qmaster_dump"
+   set rules ""
+   lappend rules "hosts `*` to slots=\$num_proc*2"
+
+   set rqs_charray($rqs_name,enabled) "true"
+   set rqs_charray($rqs_name,limit) "$rules"
+
+   set result [add_rqs rqs_charray]
+
+   set job_options "-o /dev/null -j y -t 1:10 $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+   set job_id [submit_job "$job_options"]
+   trigger_scheduling
+   wait_for_jobstart $job_id "leeper" 20
+
+   after 2000
+   set result [mod_attr "$object_name" "limit" "slots=\$num_proc" "$rqs_name" 0 "" "" 0]
+   after 2000
+   if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
+      add_proc_error "qconf_rqs_rattr_qmaster_dump" -1 "modattr with invalid rule name crashed qmaster"
+      startup_qmaster 0
+   }
+
+   delete_job $job_id
+
+   del_rqs $rqs_name
 }

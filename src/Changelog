@@ -1,3 +1,6 @@
+RD-2006-12-15-0: Enhancem:  Added test for resource quota xattr qmaster crash
+                 Review:    JG 
+
 JG-2006-12-15-1: Bugfix:    system_tests/clients/common/setup failed on SGE 6.0.
 
 JG-2006-12-15-0: Enhancem.: Added check system_tests/clients/common/setup 
