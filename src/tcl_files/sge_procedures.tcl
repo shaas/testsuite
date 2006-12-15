@@ -729,11 +729,11 @@ proc get_sge_error_generic {messages_var} {
 
    # file io problems
    lappend messages(index) -300
-   set bootstrap "$ts_config(product_root)/$ts_config(cell)/bootstrap"
+   set bootstrap "$ts_config(product_root)/$ts_config(cell)/common/bootstrap"
    set messages(-300) "*[translate_macro MSG_FILE_FOPENFAILED_SS $bootstrap "*"]"
 
    lappend messages(index) -301
-   set act_qmaster "$ts_config(product_root)/$ts_config(cell)/act_qmaster"
+   set act_qmaster "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
    set messages(-301) "*[translate_macro MSG_FILE_FOPENFAILED_SS $act_qmaster "*"]"
 
    lappend messages(index) -900
