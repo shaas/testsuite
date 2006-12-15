@@ -709,6 +709,8 @@ proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {t
 #     sge_procedures/get_sge_error()
 #*******************************************************************************
 proc get_sge_error_generic {messages_var} {
+   global ts_config 
+
    upvar $messages_var messages
 
    # messages indicating insufficient host privileges
@@ -724,6 +726,20 @@ proc get_sge_error_generic {messages_var} {
    lappend messages(index) -211
    set messages(-210) "*[translate_macro MSG_SGETEXT_MUSTBEMANAGER_S "*"]"
    set messages(-211) "*[translate_macro MSG_SGETEXT_MUSTBEOPERATOR_S "*"]"
+
+   # file io problems
+   lappend messages(index) -300
+   set bootstrap "$ts_config(product_root)/$ts_config(cell)/bootstrap"
+   set messages(-300) "*[translate_macro MSG_FILE_FOPENFAILED_SS $bootstrap "*"]"
+
+   lappend messages(index) -301
+   set act_qmaster "$ts_config(product_root)/$ts_config(cell)/act_qmaster"
+   set messages(-301) "*[translate_macro MSG_FILE_FOPENFAILED_SS $act_qmaster "*"]"
+
+   lappend messages(index) -900
+   lappend messages(index) -901
+   set messages(-900) "*?egmentation ?ault*"
+   set messages(-901) "*?ore ?umped*"
 
    get_sge_error_generic_vdep messages
 }
@@ -748,6 +764,8 @@ proc get_sge_error_generic {messages_var} {
 #     Error codes are grouped by error situation:
 #        - 100-199: communication errors
 #        - 200-299: permission specific error messages
+#        - 300-399: file io problems
+#        - 900-999: other errors
 #
 #     List of error codes:
 #        -100: CSP certificate expired or invalid (or not existing)
@@ -758,6 +776,11 @@ proc get_sge_error_generic {messages_var} {
 #        -202: host executing command is no submit host
 #        -210: user executing command is no manager
 #        -210: user executing command is no operator
+#
+#        -300: cannot open bootstrap file
+#        -301: cannot open act_qmaster file
+#        -900: Segmentation fault
+#        -901: core dumped
 #
 #  INPUTS
 #     procedure       - name of the calling procedure (for error message)
@@ -2152,9 +2175,8 @@ proc compare_complex {a b} {
 #     change_array(resource_capability_factor)  "0.000000"
 #*******************************
 proc add_exechost { change_array {fast_add 1} } {
-  global ts_config
+  global ts_config CHECK_OUTPUT
   global env CHECK_ARCH
-  global CHECK_OUTPUT CHECK_TESTSUITE_ROOT 
   global CHECK_CORE_MASTER
 
   upvar $change_array chgar
@@ -2182,11 +2204,11 @@ proc add_exechost { change_array {fast_add 1} } {
         set default_array($elem) $value
      }
 
-     if {[file isdirectory "$CHECK_TESTSUITE_ROOT/testsuite_trash"] != 1} {
-        file mkdir "$CHECK_TESTSUITE_ROOT/testsuite_trash"
+     if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
+        file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
      }
 
-     set tmpfile "$CHECK_TESTSUITE_ROOT/testsuite_trash/tmpfile"
+     set tmpfile "$ts_config(testsuite_root_dir)/testsuite_trash/tmpfile"
      set file [open $tmpfile "w"]
      set values [array names default_array]
      foreach elem $values {
@@ -6045,10 +6067,9 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
 #     sge_procedures/startup_shadowd()
 #*******************************************************************************
 proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
-   global ts_config
-   global CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM CHECK_USER
-   global CHECK_SCRIPT_FILE_DIR CHECK_TESTSUITE_ROOT CHECK_DEBUG_LEVEL
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM
+   global CHECK_SCRIPT_FILE_DIR CHECK_DEBUG_LEVEL
    global schedd_debug master_debug CHECK_DISPLAY_OUTPUT CHECK_SGE_DEBUG_LEVEL
 
    if {$env_list != ""} {
@@ -6081,7 +6102,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
 
    if {$master_debug != 0} {
       puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-      start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
+      start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
    } else {
       start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_qmaster" ";sleep 2" prg_exit_state 60 0 "" envlist
    }
@@ -6091,7 +6112,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       if { $schedd_debug != 0 } {
          puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
          puts $CHECK_OUTPUT "starting schedd as $startup_user" 
-         start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
+         start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
       } else {
          puts $CHECK_OUTPUT "starting schedd as $startup_user" 
          set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
@@ -6130,10 +6151,9 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
 #     ???/???
 #*******************************************************************************
 proc startup_scheduler {} {
-  global ts_config
-   global CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM CHECK_USER
-   global CHECK_SCRIPT_FILE_DIR CHECK_TESTSUITE_ROOT CHECK_DEBUG_LEVEL
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM
+   global CHECK_SCRIPT_FILE_DIR CHECK_DEBUG_LEVEL
    global schedd_debug CHECK_DISPLAY_OUTPUT CHECK_SGE_DEBUG_LEVEL
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
@@ -6151,7 +6171,7 @@ proc startup_scheduler {} {
 
    if { $schedd_debug != 0 } {
       puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-      start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$CHECK_CORE_MASTER \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2
+      start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$CHECK_CORE_MASTER \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2
    } else {
       start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" ""
    }
@@ -7439,32 +7459,6 @@ proc submit_with_method {submit_method options script args tail_host} {
 
    puts $CHECK_OUTPUT "submitted job, sid = $sid"
    return $sid
-}
-
-# main
-if { [info exists argc ] != 0 } {
-   set TS_ROOT ""
-   set procedure ""
-   for { set i 0 } { $i < $argc } { incr i } {
-      if {$i == 0} { set TS_ROOT [lindex $argv $i] }
-      if {$i == 1} { set procedure [lindex $argv $i] }
-   }
-   if { $argc == 0 } {
-      puts "usage:\n$module_name <CHECK_TESTSUITE_ROOT> <proc> no_main <testsuite params>"
-      puts "options:"
-      puts "CHECK_TESTSUITE_ROOT -  path to TESTSUITE directory"
-      puts "proc                 -  procedure from this file with parameters"
-      puts "no_main              -  used to source testsuite file (check.exp)"
-      puts "testsuite params     -  any testsuite command option (from file check.exp)"
-      puts "                        testsuite params: file <path>/defaults.sav is needed"
-   } else {
-      #source "$TS_ROOT/check.exp"
-      puts $CHECK_OUTPUT "master host is $CHECK_CORE_MASTER"
-      puts $CHECK_OUTPUT "calling \"$procedure\" ..."
-      set result [ eval $procedure ]
-      puts $result 
-      flush $CHECK_OUTPUT
-   }
 }
 
 #****** sge_procedures/copy_certificates() **********************************

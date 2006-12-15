@@ -1,0 +1,141 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "client_setup_init_level"
+
+# define test's name and run level descriptions
+set check_name            "client_setup"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "test setup (startup) of clients in certain error situations"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function client_setup_setup
+set check_cleanup_function client_setup_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "client_setup_test"
+
+proc client_setup_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+
+# -------- local test procedures: initialization------------------------------
+
+
+proc client_setup_setup {} {
+   global ts_config CHECK_OUTPUT
+   global did_shutdown
+
+   set did_shutdown 0
+}
+
+proc client_setup_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global did_shutdown
+
+   if {$did_shutdown} {
+      startup_qmaster 0
+   }
+}
+
+proc client_setup_do_test {scenario expected_error} {
+   global ts_config CHECK_OUTPUT
+
+   set commands(index)      "qsub qstat qhost qconf"
+#   set commands(index)      "qacct qalter qconf qdel qhold qhost qlogin qmake qmod qmon qping qquota qresub qrls qrsh qselect qsh qstat qsub qtcsh sgepasswd"
+   set commands(qsub,args)  "$ts_config(product_root)/examples/jobs/sleeper.sh"
+   set commands(qstat,args) ""
+   set commands(qhost,args) ""
+   set commands(qconf,args) "-sel"
+
+   foreach command $commands(index) {
+      set output [start_sge_bin $command $commands($command,args)]
+      set messages(index) ""
+      set ret [handle_sge_errors "client_setup_do_test" "$command $commands($command,args)" $output messages 0 $prg_exit_state]
+
+      if {$ret != $expected_error} {
+         add_proc_error "client_setup_do_test" -1 "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output"
+      }
+   }
+}
+
+proc client_setup_test {} {
+   global ts_config CHECK_OUTPUT
+   global did_shutdown
+
+   # test clients with non existing bootstrap file
+   set config_file "$ts_config(product_root)/$ts_config(cell)/common/bootstrap"
+   file rename $config_file "$config_file.bak"
+   client_setup_do_test "no bootstrap file" -300
+   file rename "$config_file.bak" $config_file
+
+   # test clients with non existing act_qmaster file
+   set config_file "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
+   file rename $config_file "$config_file.bak"
+   client_setup_do_test "no act_qmaster file" -301
+   file rename "$config_file.bak" $config_file
+
+   # test clients with qmaster down
+   shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
+   set did_shutdown 1
+   client_setup_do_test "qmaster down" -120
+}
+
