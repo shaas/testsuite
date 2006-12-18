@@ -134,7 +134,7 @@ proc resource_quota_dynamic_limit {} {
    puts $CHECK_OUTPUT "testing dynamic limit on host $resource_quota_test_host with num_proc=$host_num_proc"
 
    set rules ""
-   lappend rules "users $CHECK_USER hosts `*` queues $resource_quota_test_qname to slots=\$num_proc*2"
+   lappend rules "users $CHECK_USER hosts {*} queues $resource_quota_test_qname to slots=\$num_proc*2"
 
    # Add resource quota sets with dynamic limit
    set rqs_charray($rqs_name,limit) "$rules"

@@ -245,7 +245,7 @@ proc qconf_dynamic_limit {} {
    set rqs_name "dynamic_rqs"
 
    set rules ""
-   lappend rules "hosts `*` to slots=\$num_proc*2"
+   lappend rules "hosts {*} to slots=\$num_proc*2"
 
    # Add resource quota sets with dynamic limit
    set rqs_charray($rqs_name,limit) "$rules"
@@ -264,7 +264,7 @@ proc qconf_dynamic_limit {} {
 
    # Try to add invalid dynamic limit (2)
    set rules ""
-   lappend rules "hosts `*` to slots=\$arch*2"
+   lappend rules "hosts {*} to slots=\$arch*2"
 
    unset rqs_charray
    set rqs_charray($rqs_name,limit) "$rules"
@@ -351,7 +351,7 @@ proc qconf_rqs_rattr_qmaster_dump {} {
 
    set rqs_name "qconf_rqs_Xattr_qmaster_dump"
    set rules ""
-   lappend rules "hosts `*` to slots=\$num_proc*2"
+   lappend rules "hosts {*} to slots=\$num_proc*2"
 
    set rqs_charray($rqs_name,enabled) "true"
    set rqs_charray($rqs_name,limit) "$rules"

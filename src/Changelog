@@ -1,3 +1,6 @@
+RD-2006-12-18-0: Cleanup:   Changed resource quota expanded list format
+                 Review:    JG
+
 RD-2006-12-15-0: Enhancem:  Added test for resource quota xattr qmaster crash
                  Review:    JG 
 

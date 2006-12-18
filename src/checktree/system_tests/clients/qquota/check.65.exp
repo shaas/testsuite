@@ -100,7 +100,7 @@ proc qquota_setup {} {
 
    # Set per user resource quota sets 
    set rules ""
-   lappend rules "users `*` to slots=10"
+   lappend rules "users {*} to slots=10"
    set rqs_charray($rqs_name1,limit) "$rules"
    set rqs_charray($rqs_name1,enabled) "true"
 
@@ -244,7 +244,7 @@ proc qquota_option_l {} {
    # Set per user resource quota sets 
    set rqs_name "option_l"
    set rules ""
-   lappend rules "users $CHECK_USER hosts `*` to tm=1000M,tt=1:0:0"
+   lappend rules "users $CHECK_USER hosts {*} to tm=1000M,tt=1:0:0"
    set rqs_charray($rqs_name,limit) "$rules"
    set rqs_charray($rqs_name,enabled) "true"
    add_rqs rqs_charray
