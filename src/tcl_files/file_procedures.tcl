@@ -2641,6 +2641,43 @@ proc is_remote_file { hostname user path } {
    return 0;
 }
 
+#****** path_procedures/is_remote_path() ***************************************
+#  NAME
+#     is_remote_path() -- check if path exists on remote host
+#
+#  SYNOPSIS
+#     is_remote_path { hostname user path } 
+#
+#  FUNCTION
+#     This function is starting an ls command on the remote host as specified
+#     user. If the exit status of the ls $path is 0 the function returns 1.
+#
+#  INPUTS
+#     hostname - remote host name
+#     user     - user who should start the ls
+#     path     - full path name of path
+#
+#  RESULT
+#     1 - path found
+#     0 - path not found
+#
+#  SEE ALSO
+#     path_procedures/wait_for_path()
+#     path_procedures/wait_for_remote_path()
+#*******************************************************************************
+proc is_remote_path { hostname user path } {
+   global CHECK_OUTPUT
+
+   set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0]
+   if { $prg_exit_state == 0 } {
+      puts $CHECK_OUTPUT "found path: $hostname:$path"
+      return 1;
+   } 
+   puts $CHECK_OUTPUT "path not found: $hostname:$path"
+   return 0;
+}
+
+
 
 #****** file_procedures/delete_remote_file() ***********************************
 #  NAME

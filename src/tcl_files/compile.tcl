@@ -674,7 +674,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
       }
       
       puts $CHECK_OUTPUT "$prog $par1 '$par2'"
-      set open_spawn [open_remote_spawn_process $host $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0]
+      set open_spawn [open_remote_spawn_process $host $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0 15 0]
       set spawn_id [lindex $open_spawn 1]
       
       set host_array($spawn_id,host) $host
