@@ -1467,7 +1467,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
    }
 
    if { $job_id == 0 } {
-      add_proc_error "submit_wait_type_job" -1 "could not submit \"$job_type\" job to host \"$host\" as user \"$user\". XWindow DISPLAY=$CHECK_DISPLAY_OUTPUT."
+      add_proc_error "submit_wait_type_job" -1 "could not submit \"$job_type\" job to host \"$host\" as user \"$user\". XWindow DISPLAY=$CHECK_DISPLAY_OUTPUT.\nPlease be informed that this test only works if your display is shared to other users/hosts!!!"
       return -1
    }
 
