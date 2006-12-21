@@ -2353,3 +2353,19 @@ proc host_get_id_a_command {host} {
 
    return $ret
 }
+
+proc host_conf_get_best_exec_hosts {{num_hosts 1}} {
+   global ts_config CHECK_OUTPUT
+
+   if {[llength $ts_config(execd_nodes)] < $num_hosts} {
+      add_proc_error "host_conf_get_test_exec_hosts" -1 "our cluster doesn't have the requested $num_hosts hosts"
+      return {}
+   }
+
+   set hosts {}
+   for {set i 0} {$i < $num_hosts} {incr i} {
+      lappend hosts [lindex $ts_config(execd_nodes) $i]
+   }
+
+   return $hosts
+}

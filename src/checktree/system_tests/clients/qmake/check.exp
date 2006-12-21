@@ -76,10 +76,6 @@ proc qmake_init_level {} {
    global CHECK_ACT_LEVEL
    global qmake_options pe_options
 
-#if { $CHECK_ACT_LEVEL != 0 } {
-#   return -1
-#}
-
    set arch [resolve_arch $ts_config(master_host)]
 
    switch -- $CHECK_ACT_LEVEL {
@@ -102,7 +98,7 @@ proc qmake_init_level {} {
          set pe_options ""
          return 0
       }
-  } 
+  }
 
   return -1  ;# no other level else
 }
@@ -225,6 +221,7 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
    set sp_id [lindex $id 1]
 
    set done 0
+   log_user 1
    while {!$done} {
       set timeout 60
       expect_user {

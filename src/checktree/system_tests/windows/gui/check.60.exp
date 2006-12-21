@@ -71,6 +71,10 @@ lappend check_functions "service_error_handling"
 proc SGE_Helper_Service_init_level {} {
    global CHECK_ACT_LEVEL
 
+   if {![host_conf_have_windows]} {
+      return -1
+   }
+
    switch -- $CHECK_ACT_LEVEL {
       "0" { 
          return 0
@@ -92,8 +96,7 @@ proc SGE_Helper_Service_setup {} {
 
    if {$host == ""} {
       # no windows execution host in cluster, test not possible
-      puts $CHECK_OUTPUT "no windows execution host!"
-      add_proc_error "SGE_Helper_Service" -3 "no windows execution host"
+      add_proc_error "SGE_Helper_Service" -1 "no windows execution host"
       return
    }
 

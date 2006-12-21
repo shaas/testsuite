@@ -13,10 +13,10 @@ rreq:
 	SGE_RREQ="-v QMAKE_TEST=rreq" ./echo_variable.sh QMAKE_TEST
 
 compile_1:
-	echo "compiling 1" ; sleep 5 ; echo "done compiling 1"
+	echo "compiling 1" ; sleep 15 ; echo "done compiling 1"
 
 compile_2:
-	echo "compiling 2" ; sleep 10 ; echo "done compiling 2"
+	echo "compiling 2" ; sleep 20 ; echo "done compiling 2"
 
 link: variables compile_1 compile_2
 	echo "linking" ; sleep 2 ; echo "done linking"

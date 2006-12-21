@@ -1,3 +1,9 @@
+JG-2006-12-21-2: Bugfix:    qmake test failed when test hosts had significantly
+                            different speed.
+                            system_tests/windows/gui failed in clusters without
+                            windows host
+                            fixed unstable system_tests/qmaster/reporting
+
 JG-2006-12-21-1: Bugfix:    Fixed qsub check_option_ac test. Cleanup.
 
 RH-2006-12-21-0: Enhancem.: First version of hedeby checktree using
