@@ -2920,26 +2920,26 @@ proc del_calendar { mycal_name } {
 #     check/add_proc_error()
 #*******************************
 proc was_job_running {jobid {do_errorcheck 1} } {
-  global ts_config
-  global CHECK_ARCH check_timestamp CHECK_OUTPUT
+  global ts_config CHECK_OUTPUT
+  global check_timestamp
 # returns
 # -1 on error
 # qacct in listform else
 
   set mytime [timestamp]
 
-  if { $mytime == $check_timestamp } {
+  if {$mytime == $check_timestamp} {
      puts $CHECK_OUTPUT "was_job_running - waiting for job ..."
      after 1000
   }
   set check_timestamp $mytime
 
-  set catch_state [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qacct" "-j" "$jobid" } result ]
+  set result [start_sge_bin "qacct" "-j $jobid"]
   
-  if { $catch_state != 0 } {
-      if {$do_errorcheck == 1 } { 
-            puts $CHECK_OUTPUT "debug: $result"
-            add_proc_error "was_job_running" -1 "job \"($jobid)\" not found"
+  if {$prg_exit_state != 0} {
+      if {$do_errorcheck == 1} { 
+         puts $CHECK_OUTPUT "debug: $result"
+         add_proc_error "was_job_running" -1 "job \"($jobid)\" not found"
       }
       return -1
   }

@@ -1570,16 +1570,16 @@ proc create_html_text { content { center 0 } } {
 #  SEE ALSO
 #     file_procedures/get_dir_names
 #*******************************
-proc del_job_files { jobid job_output_directory expected_file_count } {
+proc del_job_files {jobid job_output_directory expected_file_count} {
    global CHECK_OUTPUT
 
    set del_job_count 0
 
-   set end_time [ expr ( [timestamp] + 120 ) ]   ;# timeout after 120 seconds
+   set end_time [expr [timestamp] + 120]   ;# timeout after 120 seconds
 
-   while { [timestamp] < $end_time } {
-      set files [ glob -nocomplain $job_output_directory/*e${jobid} $job_output_directory/*o${jobid} $job_output_directory/*${jobid}.* ]
-      if { [llength $files] >= $expected_file_count } {
+   while {[timestamp] < $end_time} {
+      set files [glob -nocomplain $job_output_directory/*e${jobid} $job_output_directory/*o${jobid} $job_output_directory/*${jobid}.*]
+      if {[llength $files] >= $expected_file_count} {
          break
       }
       puts $CHECK_OUTPUT "------------------------------------------------------------------"
@@ -1587,23 +1587,23 @@ proc del_job_files { jobid job_output_directory expected_file_count } {
       puts $CHECK_OUTPUT "files found: [llength $files]"
       puts $CHECK_OUTPUT "file list  : \"$files\""
       after 500
-   }   
-   # ok delete the list 
+   }
 
+   # ok delete the list 
    puts $CHECK_OUTPUT "job \"$jobid\" has written [llength $files] files"
 
-   if { [ llength $files ] >= 1 } {
-     if { [ string length $job_output_directory  ] > 5 } {
+   if {[llength $files] >= 1} {
+      if {[string length $job_output_directory] > 5} {
+         foreach name $files {
+            delete_file $name
+            debug_puts "del_job_files - file: $name"
+            incr del_job_count
+         }
+      } else {
+         add_proc_error "del_job_files" -1 "job output directory name should have at least 5 characters"
+      }
+   }
 
-        foreach name $files {
-           delete_file $name
-           debug_puts "del_job_files - file: $name" 
-           incr del_job_count 1 
-        }
-     } else {
-        add_proc_error "del_job_files" -1 "job output directory name should have at least 5 characters"
-     }
-   } 
    return $del_job_count
 }
 

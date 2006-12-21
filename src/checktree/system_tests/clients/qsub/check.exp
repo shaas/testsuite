@@ -61,13 +61,13 @@ set check_init_level_procedure "qsub_init_level"
 set check_name         "qsub"
 set check_category     "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_needs        "init_core_system"       ;# dependencies of this check (name of other check)
-set check_functions    ""
 
 # setup and cleanup functions
 set check_setup_function "qsub_setup"
 set check_cleanup_function "qsub_cleanup"
 
 # define test's procedure order
+set check_functions {}
 lappend check_functions "check_submit"
 lappend check_functions "qsub_starter_method"
 lappend check_functions "check_start_time"  
@@ -903,9 +903,8 @@ proc check_option_ac {} {
    set jobargs "$option -l h=${actual_host} -o $job_output_dir -e $job_output_dir $CHECK_ACTUAL_TEST_PATH/sleeper.sh 60" 
   
    set result [submit_job $jobargs 0]  
-   puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
 
-   if { $result < 0 } {
+   if {$result < 0} {
       add_proc_error "check_option_ac" -1 "error submitting job \"$jobargs\"\nerror $result"
       return
    }
@@ -943,17 +942,17 @@ proc check_option_ac {} {
       return
    }
 
-   set time [expr ([timestamp] + 300)] 
+   set time [expr [timestamp] + 300] 
 
    while {[timestamp] < $time}  {
       sleep 1
-      set back [was_job_running $result 0] 
+      set back [was_job_running $result 0]
       if {$back != -1} {
-         set back [ del_job_files $result $job_output_dir 2 ] 
-         if { $back != 2 } {
+         set back [del_job_files $result $job_output_dir 2]
+         if {$back != 2} {
             add_proc_error "check_option_ac" -1 "job $result did not produce error and output file\njobargs: $jobargs"
-            return
          }
+         return
       }
    }
  
