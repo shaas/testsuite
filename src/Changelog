@@ -1,3 +1,5 @@
+CR-2006-12-21-0: Enhancem.: o new test for IZ 2128
+
 CR-2006-12-18-0: Bugfix:    o fixed bug for compiling
                             o added new procedure is_remote_path()
 

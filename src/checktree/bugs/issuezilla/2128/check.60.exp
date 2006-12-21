@@ -1,0 +1,178 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_errno 
+global check_errstr 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "xauthority_issue_init_level"
+
+# define test's name and run level descriptions
+set check_name            "xauthority_issue"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   1
+set check_description(0)  "check if XAUTHORITY is set in job"
+set check_description(1)  "do qsh on each host"
+
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function xauthority_issue_setup
+set check_cleanup_function xauthority_issue_cleanup
+
+
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "xauthority_issue_test1"
+
+global xauthority_issue_test_hosts
+
+proc xauthority_issue_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      } 
+      "1" { 
+         return 0
+      } 
+
+   } 
+   return -1  ;# no other level 
+}
+
+
+
+
+# -------- local test procedures: initialization------------------------------
+
+
+proc xauthority_issue_setup  {} {
+   global CHECK_OUTPUT ts_config xauthority_issue_test_hosts
+
+   set xauthority_issue_test_hosts $ts_config(execd_nodes)
+
+   set mytestenv(XAUTHORITY) "test"
+   set mytestenv(MY_OWN_TESTSUITE_ENVIRONMENT) "env_test"
+
+   foreach host $xauthority_issue_test_hosts {
+      shutdown_system_daemon $host execd
+      startup_execd $host mytestenv
+   }
+   wait_for_load_from_all_queues 60
+}
+
+proc xauthority_issue_cleanup  {} {
+   global CHECK_OUTPUT ts_config xauthority_issue_test_hosts
+
+   foreach host $xauthority_issue_test_hosts {
+      shutdown_system_daemon $host execd
+      startup_execd $host
+   }
+   wait_for_load_from_all_queues 60
+}
+
+
+proc xauthority_issue_test1 {} {
+   global xauthority_issue_test_hosts check_description CHECK_ARCH
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global ts_user_config
+
+
+   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+
+   if { $CHECK_ACT_LEVEL == 0 } {
+      set error_text ""
+      set success_text ""
+      foreach host $xauthority_issue_test_hosts {
+
+         set ok "true"
+         puts $CHECK_OUTPUT "checking for correct test setup on host $host ..."
+         set output [start_sge_bin "qrsh" "-q all.q@$host env | grep MY_OWN_TESTSUITE_ENVIRONMENT" $ts_config(master_host)]
+         if { [string match "*MY_OWN_TESTSUITE_ENVIRONMENT*" $output] } {
+            puts $CHECK_OUTPUT "test is setup correctly!"
+         } else {
+            append error_text "host: $host\n"
+            append error_text "===========\n"
+            append error_text "in qrsh job output on host $host was no MY_OWN_TESTSUITE_ENVIRONMENT env set!"
+            set ok "false"
+
+            # get additional information
+            set output [start_sge_bin "qrsh" "-q all.q@$host hostname" $ts_config(master_host)]
+            append error_text "info: qrsh -q all.q@$host hostname returned:\n$output"
+         }
+
+         puts $CHECK_OUTPUT "checking for XAUTHORITY set in job environment on host $host ..."
+         set output [start_sge_bin "qrsh" "-q all.q@$host env | grep XAUTHORITY" $ts_config(master_host)]
+         if { [string match "*XAUTHORITY*" $output] } {
+            append error_text "host: $host\n"
+            append error_text "===========\n"
+            append error_text "found XAUTHORITY environment setting in qrsh job output on host $host! issue 2128 detected!"
+            append error_text "qrsh output:\n$output\n"
+            set ok "false"
+         }
+         if { $ok == "true" } {
+            append success_text "test was ok for host $host\n"
+         }
+      }
+      if { $error_text != "" } {
+         add_proc_error "xauthority_issue_test1" -1 "$error_text\n$success_text"
+      }
+   }
+
+   if { $CHECK_ACT_LEVEL == 1 } {
+      foreach host $xauthority_issue_test_hosts {
+         submit_wait_type_job "qsh" $host $ts_user_config(second_foreign_user)
+      }
+   }
+}
+
+
