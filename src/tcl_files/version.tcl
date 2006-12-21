@@ -140,8 +140,6 @@ proc get_version_info {} {
    global sge_config
    global CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT CHECK_ARCH
    global CHECK_PRODUCT_TYPE CHECK_OUTPUT
-   global CHECK_CHECKTREE_ROOT
- 
 
    if { [info exists CHECK_PRODUCT_ROOT] != 1 } {
       set CHECK_PRODUCT_VERSION_NUMBER "system not running"

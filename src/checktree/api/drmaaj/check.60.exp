@@ -88,7 +88,7 @@ proc drmaaj_init_level {} {
 # here the actual test is done
 proc drmaaj_check {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_TESTSUITE_ROOT CHECK_ACTUAL_TEST_PATH
+   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
    global CHECK_HOST CHECK_ARCH CHECK_USER CHECK_SCRIPT_FILE_DIR CHECK_ACT_LEVEL
 
    puts $CHECK_OUTPUT "arch is $CHECK_ARCH"
@@ -99,7 +99,7 @@ proc drmaaj_check {} {
    set needed_files ""
    lappend needed_files $ts_config(product_root)/lib/drmaa.jar
    lappend needed_files $ts_config(source_dir)/CLASSES/drmaa-test.jar
-   lappend needed_files $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/suspendable_sleeper.sh
+   lappend needed_files $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/suspendable_sleeper.sh
    set missing_files ""
 
    foreach file $needed_files {
@@ -150,7 +150,7 @@ proc drmaaj_check {} {
       }
 
       set compile_arch_mt "[resolve_build_arch $host]"
-      set classpath "$ts_config(product_root)/lib/drmaa.jar:$ts_config(source_dir)/CLASSES/drmaa-test.jar:$CHECK_TESTSUITE_ROOT/lib/junit.jar"
+      set classpath "$ts_config(product_root)/lib/drmaa.jar:$ts_config(source_dir)/CLASSES/drmaa-test.jar:$ts_config(testsuite_root_dir)/lib/junit.jar"
       puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt with classpath $classpath"
 
       set options [build_java_env_list]

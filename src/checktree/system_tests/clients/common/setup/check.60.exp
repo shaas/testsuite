@@ -99,12 +99,29 @@ proc client_setup_cleanup {} {
 proc client_setup_do_test {scenario expected_error} {
    global ts_config CHECK_OUTPUT
 
-   set commands(index)      "qsub qstat qhost qconf"
-#   set commands(index)      "qacct qalter qconf qdel qhold qhost qlogin qmake qmod qmon qping qquota qresub qrls qrsh qselect qsh qstat qsub qtcsh sgepasswd"
-   set commands(qsub,args)  "$ts_config(product_root)/examples/jobs/sleeper.sh"
-   set commands(qstat,args) ""
-   set commands(qhost,args) ""
+   # client list:
+   # all clients, except
+   # qacct - it doesn't depend on these files or a running qmaster
+   # qmake - it is not linked against SGE code, but calls qrsh
+   # qping - it does not rely on the tested mechanisms
+   # qtcsh - is a shell - would need shell runtime checks
+   # sgepasswd - doesn't rely on act_qmaster
+   set commands(index)      "qalter qconf qdel qhold qhost qlogin qmod qquota qresub qrls qrsh qselect qsh qstat qsub"
+   set commands(qalter,args) "-o /dev/null 1"
    set commands(qconf,args) "-sel"
+   set commands(qdel,args) "1"
+   set commands(qhold,args) "-h u 1"
+   set commands(qhost,args) ""
+   set commands(qlogin,args) ""
+   set commands(qmod,args) "-s 1"
+   set commands(qquota,args) ""
+   set commands(qresub,args) "1"
+   set commands(qrls,args) "-h u 1"
+   set commands(qrsh,args) ""
+   set commands(qselect,args) ""
+   set commands(qsh,args) ""
+   set commands(qstat,args) ""
+   set commands(qsub,args)  "$ts_config(product_root)/examples/jobs/sleeper.sh"
 
    foreach command $commands(index) {
       set output [start_sge_bin $command $commands($command,args)]

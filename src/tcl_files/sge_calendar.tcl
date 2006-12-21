@@ -207,9 +207,9 @@ proc get_calender_list { {on_host ""} {as_user ""} {raise_error 1}} {
 #     sge_procedures/get_qconf_list()
 #*******************************
 proc add_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global ts_config CHECK_TESTSUITE_ROOT
+  global ts_config CHECK_OUTPUT CHECK_USER
   global env CHECK_ARCH open_spawn_buffer
-  global CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT
+  global CHECK_CORE_MASTER
 
   upvar $change_array chgar
 
@@ -365,9 +365,9 @@ proc add_calender_error {result tmpfile calendar raise_error} {
 #     sge_procedures/get_qconf_list()
 #*******************************
 proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global ts_config CHECK_TESTSUITE_ROOT
+  global ts_config CHECK_USER CHECK_OUTPUT
   global env CHECK_ARCH open_spawn_buffer
-  global CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT
+  global CHECK_CORE_MASTER
 
   upvar $change_array chgar
 

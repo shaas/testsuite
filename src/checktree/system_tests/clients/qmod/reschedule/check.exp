@@ -63,12 +63,12 @@ set check_cleanup_level_function "reschedule_cleanup"
 
 # define test's procedure order
 set check_functions ""
-lappend check_functions "reschedule_submit_jobs"
-lappend check_functions "reschedule_checkpointing"
-lappend check_functions "reschedule_checkpointing_forced"
+#lappend check_functions "reschedule_submit_jobs"
+#lappend check_functions "reschedule_checkpointing"
+#lappend check_functions "reschedule_checkpointing_forced"
 lappend check_functions "reschedule_qsh_qlogin_qrsh_qrlogin"
-lappend check_functions "reschedule_pe_jobs"
-lappend check_functions "reschedule_deleted_job"
+#lappend check_functions "reschedule_pe_jobs"
+#lappend check_functions "reschedule_deleted_job"
 
 # -------- local test procedures -----------------------------------------------
 global rerun_queue rerun_queue2
@@ -598,33 +598,33 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SCRIPT_FILE_DIR CHECK_CORE_EXECD CHECK_HOST
 
    # JG: TODO: use open_remote_spawn_process - we could run out of filehandles here
-   set qrsh_id    [ open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host]" ]
-   set qrsh_id2   [ open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host] sleep 10000" ]
-   set qsh_id     [ open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qsh -now no -q [get_queue_instance $rerun_queue $rerun_host]" ]
+   set qrsh_id    [open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
+   set qrsh_id2   [open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host] sleep 10000"]
+   set qsh_id     [open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
      
-   set qlogin_out_file [get_tmp_file_name "" "qlogin" "txt" ]
+   set qlogin_out_file [get_tmp_file_name "" "qlogin" "txt"]
 
    puts $CHECK_OUTPUT "try to $CHECK_SCRIPT_FILE_DIR/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
 
-   set qlogin_id  [ open_spawn_process "$CHECK_SCRIPT_FILE_DIR/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]" ]
+   set qlogin_id  [open_spawn_process "$CHECK_SCRIPT_FILE_DIR/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
    set qlogin_spawn_id [lindex $qlogin_id 1]
    set no_jobs 4
    set result ""
    set my_timeout [timestamp]
    incr my_timeout 30
-   while { [ string first "login" $result] < 0 && [string first "assword" $result] < 0 } {
+   while {[string first "login" $result] < 0 && [string first "assword" $result] < 0} {
       after 1000
-      catch { eval exec "cat $qlogin_out_file" } result
+      catch {eval exec "cat $qlogin_out_file"} result
       puts $CHECK_OUTPUT "qlogin output:\n$result"
-      if { $my_timeout < [timestamp] } {
-         break;
+      if {$my_timeout < [timestamp]} {
+         break
       } 
    }
 
    # on some systems (Solaris 10), telnet doesn't present a login, but tries 
    # to login current user first
-   if { [ string first "assword:" $result ] < 0 } {
-      if { [ string first "login:" $result] < 0 } {
+   if {[string first "assword:" $result] < 0} {
+      if {[string first "login:" $result] < 0} {
           add_proc_error "reschedule_qsh_qlogin_qrsh_qrlogin" -1 "qlogin error, expected login:, received $result"
       }
      
@@ -645,41 +645,39 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    set my_timeout [timestamp]
    incr my_timeout 120
    set timeout 0
-   while { [ string first "assword:" $result] < 0 } {     
+   while {[string first "assword:" $result] < 0} {     
       sleep 2
-      catch { eval exec "cat $qlogin_out_file" } result
+      catch {eval exec "cat $qlogin_out_file"} result
       puts $CHECK_OUTPUT $result
-      if { $my_timeout < [timestamp] } {
+      if {$my_timeout < [timestamp]} {
          add_proc_error "reschedule_qsh_qlogin_qrsh_qrlogin" -1 "timeout waiting for qlogin password question"
          break;
       } 
    }
 
-   if { [ string first "closed" $result] >= 0 } {
+   if {[string first "closed" $result] >= 0} {
        add_proc_error "reschedule_qsh_qlogin_qrsh_qrlogin" -1 "qlogin error, connection closed"
    }
 
-   set end_time [expr ( [timestamp] + 60 )]
+   set end_time [expr [timestamp] + 60]
    set ru_jobs 0
-   while { $ru_jobs != $no_jobs } {
+   while {$ru_jobs != $no_jobs} {
       get_extended_job_info ""
       set running_jobs $job_info(index)
       set jobs ""
       set jobs_string ""
       set job_names "" 
       foreach elem $running_jobs {
-         set jobid [ string trim $elem ]
-         if { $jobid >= 0 } {
+         set jobid [string trim $elem]
+         if {$jobid >= 0} {
             puts $CHECK_OUTPUT $job_info($jobid,queue)
-#            if { [ string first [string trim $job_info($jobid,queue)] $rerun_queue ] >= 0 } {
-               lappend jobs $jobid
-               append jobs_string "$jobid "
-               lappend job_names "$job_info($jobid,name)"
-#            }
+            lappend jobs $jobid
+            append jobs_string "$jobid "
+            lappend job_names "$job_info($jobid,name)"
             puts $CHECK_OUTPUT "job: $jobid, name: $job_info($jobid,name), $job_info($jobid,queue)"
          }
       }
-      set ru_jobs [ llength $jobs ]
+      set ru_jobs [llength $jobs]
       puts $CHECK_OUTPUT "found ($ru_jobs/$no_jobs) jobs"
       unset job_info
       after 1000
@@ -695,7 +693,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
 
    # send qmod -r to each job
    puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string" } output ]
+   set result [catch {eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string"} output]
    puts $CHECK_OUTPUT $output
     
    puts $CHECK_OUTPUT "jobs $jobs_string should still run ..."
@@ -711,13 +709,12 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    foreach elem $jobs_string {
       delete_job $elem
    }
-   puts $CHECK_OUTPUT "closing jobs"
 
+   puts $CHECK_OUTPUT "closing jobs"
    close_spawn_process $qrsh_id 1
    close_spawn_process $qrsh_id2 1
    close_spawn_process $qsh_id 1
-   if { $qlogin_id != -1 } {
-      ts_send $qlogin_spawn_id -- "\003"
+   if {$qlogin_id != -1} {
       close_spawn_process $qlogin_id 1
    }
 }

@@ -2,7 +2,6 @@
 # expect script 
 # global variables ... (defined in main check routine, but you can use it)
 #
-# global CHECK_CHECKTREE_ROOT              ;# path where checktree lies
 # global CHECK_ACT_PATH          ;# actual checkpath
 # global CHECK_PRODUCT_ROOT  ;# path to sge/sgeee system
 # global CHECK_PRODUCT_TYPE       ;# "sgeee" or "sge"         

@@ -72,10 +72,10 @@ lappend check_functions "qdel_delete_by_job_wildcard"            ;# Add another 
 #     ???/???
 #*******************************
 proc delete_by_job_name { { delete_name "test_job" } { testjob_count "10" } } {
-
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state CHECK_TESTSUITE_ROOT
-   global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
-   global queue CHECK_HOST CHECK_USER actual_host
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_PRODUCT_ROOT queue hold_state pending_state
+   global CHECK_ARCH CHECK_HOST
+   global queue actual_host
 
    set hostname [lindex $ts_config(execd_nodes) 0]
    set arch [resolve_arch $hostname]

@@ -904,10 +904,10 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
 
       if {$prg_exit_state != ""} {
          if {$prg_exit_state == 0 && $ret < 0} {
-            add_proc_error $procedure -3 "qconf returned 0 while reporting the error message:\n$result"
+            add_proc_error $procedure -3 "$command returned 0 while reporting the error message:\n$result"
          }
          if {$prg_exit_state != 0 && $ret >= 0} {
-            add_proc_error $procedure -3 "qconf returned error state while its output reports success:\n$result"
+            add_proc_error $procedure -3 "$command returned error state while its output reports success:\n$result"
          }
       }
    }

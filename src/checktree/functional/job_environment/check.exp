@@ -204,13 +204,14 @@ proc job_environment_parse_env_test_output { file array } {
 #     job_environment_parse_env_test_output()
 ################################################################################
 proc job_environment_qsub_job { jobname array arguments } {
-   global CHECK_TESTSUITE_ROOT CHECK_PROTOCOL_DIR CHECK_SCRIPT_FILE_DIR
-   global queue CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
+   global CHECK_PROTOCOL_DIR CHECK_SCRIPT_FILE_DIR
+   global queue
    upvar $array job_env_array
 
    set ret 1
    puts $CHECK_OUTPUT "job environment should be written to $CHECK_PROTOCOL_DIR"
-   set job_id [submit_job "$arguments -q $queue $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR"]
+   set job_id [submit_job "$arguments -q $queue $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR"]
 
    if {$job_id <= 0} {
       set ret 0
@@ -256,12 +257,12 @@ proc job_environment_qsub_job { jobname array arguments } {
 #     job_environment_parse_env_test_output()
 ################################################################################
 proc job_environment_qresub_job { jobname array arguments } {
-   global CHECK_TESTSUITE_ROOT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
-   global CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
+   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
    global queue
 
    upvar $array job_env_array
-   set job_id [ submit_job "$arguments -q $queue -h $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR" ]
+   set job_id [ submit_job "$arguments -q $queue -h $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR" ]
    
    catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qresub" "$job_id" } result
    puts $CHECK_OUTPUT $result
@@ -296,12 +297,12 @@ proc job_environment_qresub_job { jobname array arguments } {
 #     job_environment_parse_env_test_output()
 ################################################################################
 proc job_environment_qalter_job { jobname array qsub_args qalter_args } {
-   global CHECK_TESTSUITE_ROOT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
-   global CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
+   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
    global queue
 
    upvar $array job_env_array
-   set job_id [ submit_job "$qsub_args -q $queue -h $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR" ]
+   set job_id [ submit_job "$qsub_args -q $queue -h $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR" ]
    catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter" $qalter_args $job_id } result
    puts $CHECK_OUTPUT $result
    catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrls" $job_id } result
@@ -333,13 +334,13 @@ proc job_environment_qalter_job { jobname array qsub_args qalter_args } {
 #     job_environment_parse_env_test_output()
 ################################################################################
 proc job_environment_qrsh_job { array arguments } {
-   global CHECK_TESTSUITE_ROOT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH 
-   global CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR
+   global ts_config CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR
+   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH 
    global queue
 
    upvar $array job_env_array
    
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh" "$arguments -q $queue" $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR } result
+   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh" "$arguments -q $queue" $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR } result
    puts $CHECK_OUTPUT $result
    job_environment_parse_env_test_output $CHECK_PROTOCOL_DIR/job_env.out job_env_array
 }
@@ -366,8 +367,9 @@ proc job_environment_qrsh_job { array arguments } {
 #     job_environment_parse_env_test_output()
 ################################################################################
 proc job_environment_qsh_job { array arguments } {
-   global CHECK_TESTSUITE_ROOT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
-   global CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR
+   global ts_config CHECK_OUTPUT
+   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
+   global CHECK_SCRIPT_FILE_DIR
    global queue job_environment_exec_host
 
    upvar $array job_env_array
@@ -376,7 +378,7 @@ proc job_environment_qsh_job { array arguments } {
    set script_name "$CHECK_PROTOCOL_DIR/qsh.sh"
    set f [open $script_name "w" "0755"]
    puts $f "#!/bin/sh"
-   puts $f "exec $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR"
+   puts $f "exec $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR"
    close $f
 
    # wait for host to appear on the remote host
@@ -639,7 +641,7 @@ proc job_environment_check_env_value { env_name should_be is_name } {
 #     0 -> ok   1 -> error
 #*******************************************************************************
 proc job_environment_JOB_NAME {{stand_alone 1}} {
-   global CHECK_OUTPUT CHECK_TESTSUITE_ROOT CHECK_PROTOCOL_DIR
+   global ts_config CHECK_OUTPUT CHECK_PROTOCOL_DIR
   
    if {$stand_alone == 1} {
       puts $CHECK_OUTPUT "Testing presence of job env vars with execd_params=none"

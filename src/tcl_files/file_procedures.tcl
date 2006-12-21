@@ -427,8 +427,8 @@ proc print_xy_array {columns rows data_array {empty_cell ""} {column_len_var ""}
 #
 #*******************************************************************************
 proc create_gnuplot_xy_gif { data_array_name row_array_name } {
-
-   global CHECK_HOST CHECK_USER CHECK_OUTPUT CHECK_TESTSUITE_ROOT
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_HOST
 
    upvar $data_array_name data
    upvar $row_array_name rows
@@ -521,7 +521,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    } else {
       puts $CHECK_OUTPUT $result
       add_proc_error "create_gnuplot_xy_gif" -3 "error starting gnuplot:\n$result"
-      catch { file copy $CHECK_TESTSUITE_ROOT/images/no_gnuplot.gif $data(output_file) }
+      catch { file copy $ts_config(testsuite_root_dir)/images/no_gnuplot.gif $data(output_file) }
 
       return $data(output_file)
    }
@@ -1880,13 +1880,13 @@ proc get_file_content { host user file { file_a "file_array" } } {
 #  SEE ALSO
 #     file_procedures/get_dir_names
 #*******************************
-proc get_binary_path { nodename binary } {
+proc get_binary_path {nodename binary} {
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
    global ts_host_config
 
    set hostname [node_get_host $nodename]
 
-   if { [ info exists ts_host_config($hostname,$binary) ] } {
+   if {[info exists ts_host_config($hostname,$binary)]} {
       return $ts_host_config($hostname,$binary)
    } 
 
@@ -2268,15 +2268,15 @@ proc check_for_core_files {hostname path} {
 }
 
 proc remote_delete_directory {hostname path {win_local_user 0}} { 
-   global CHECK_OUTPUT CHECK_TESTSUITE_ROOT
+   global ts_config CHECK_OUTPUT
 
    set return_value -1
    
    # we move data to a trash directory instead of deleting them immediately
    # create the trash directory, if it does not yet exist
    puts $CHECK_OUTPUT "$hostname -> path to delete: \"$path\""
-   if {[file isdirectory "$CHECK_TESTSUITE_ROOT/testsuite_trash"] != 1} {
-      file mkdir "$CHECK_TESTSUITE_ROOT/testsuite_trash"
+   if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
+      file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
    }
 
    # verify if directory is visible on the remote machine
@@ -2293,11 +2293,11 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
       set new_name [file tail $path] 
 
       # we move the directory as CHECK_USER (admin user)
-      start_remote_prog $hostname "ts_def_con2" "mv" "$path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
+      start_remote_prog $hostname "ts_def_con2" "mv" "$path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "delete_directory - mv error"
          puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
-         start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
+         start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder"
             add_proc_error "remote_delete_directory" -1 "$hostname: could not mv/cp directory \"$path\" to trash folder"
@@ -2338,7 +2338,7 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
 #
 #  FUNCTION
 #     This procedure will delete every file added to the file 
-#     $CHECK_TESTSUITE_ROOT/.testsuite_delete on the startup of a testrun 
+#     $ts_config(testsuite_root_dir)/.testsuite_delete on the startup of a testrun 
 #
 #  INPUTS
 #     filename - full path file name of file to add to 
@@ -2360,9 +2360,9 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
 #     file_procedures/delete_directory
 #*******************************
 proc delete_file_at_startup { filename } {
-   global CHECK_OUTPUT CHECK_TESTSUITE_ROOT
+   global ts_config CHECK_OUTPUT
 
-   set del_file_name "$CHECK_TESTSUITE_ROOT/.testsuite_delete"
+   set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
    if {[file isfile $del_file_name] != 1} {
        set del_file [ open $del_file_name "w" ]
    } else {
@@ -2406,7 +2406,7 @@ proc delete_file_at_startup { filename } {
 #     file_procedures/delete_directory
 #*******************************
 proc delete_file { filename { do_wait_for_file 1 } } {
-   global CHECK_OUTPUT CHECK_TESTSUITE_ROOT
+   global ts_config CHECK_OUTPUT
 
    if { $do_wait_for_file == 1 } {
       wait_for_file "$filename" 60 0 0 ;# wait for file, no error reporting!
@@ -2417,8 +2417,8 @@ proc delete_file { filename { do_wait_for_file 1 } } {
       }
    }
 
-   if {[file isdirectory "$CHECK_TESTSUITE_ROOT/testsuite_trash"] != 1} {
-      file mkdir "$CHECK_TESTSUITE_ROOT/testsuite_trash"
+   if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
+      file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
    }
 
    if {[file isfile "$filename"] != 1} {
@@ -2432,13 +2432,13 @@ proc delete_file { filename { do_wait_for_file 1 } } {
       debug_puts "delete_file - moving \"$filename\" to trash folder ..."
       set new_name [file tail $filename] 
       set catch_return [catch { 
-         file rename $filename $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]
+         file rename $filename $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]
       } result] 
       if {$catch_return != 0} {
          puts $CHECK_OUTPUT "delete_file - mv error:\n$result"
          puts $CHECK_OUTPUT "delete_file - try to copy the file"
          set catch_return [catch { 
-            file copy $filename $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]
+            file copy $filename $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]
          } result] 
          if {$catch_return != 0} {
            puts $CHECK_OUTPUT "could not mv/cp file \"$filename\" to trash folder"
@@ -2750,12 +2750,13 @@ proc delete_remote_file {hostname user path {win_local_user 0}} {
 #*******************************
 
 proc delete_directory { path } { 
-   global CHECK_OUTPUT CHECK_TESTSUITE_ROOT CHECK_USER CHECK_HOST
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_HOST
 
    set return_value -1
    puts $CHECK_OUTPUT "path to delete: \"$path\""
-   if {[file isdirectory "$CHECK_TESTSUITE_ROOT/testsuite_trash"] != 1} {
-      file mkdir "$CHECK_TESTSUITE_ROOT/testsuite_trash"
+   if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
+      file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
    }
 
    if {[file isdirectory "$path"] != 1} {
@@ -2801,14 +2802,14 @@ proc delete_directory { path } {
       puts $CHECK_OUTPUT "delete_directory - moving \"$path\" to trash folder ..."
       set new_name [ file tail $path ] 
       set catch_return [ catch { 
-         eval exec "mv $path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" 
+         eval exec "mv $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
       } result ] 
       if { $catch_return != 0 } {
          puts $CHECK_OUTPUT "delete_directory - mv error:\n$result"
          puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
          
          set catch_return [ catch { 
-            eval exec "cp -r $path $CHECK_TESTSUITE_ROOT/testsuite_trash/$new_name.[timestamp]" 
+            eval exec "cp -r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
          } result ] 
          if { $catch_return != 0 } {
             puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder!"
@@ -3166,33 +3167,6 @@ proc create_path_aliasing_file { filename data elements} {
    puts $CHECK_OUTPUT "closing file"
 }
 
-
-#if { [info exists argc ] != 0 } {
-#   set TS_ROOT ""
-#   set procedure ""
-#   for { set i 0 } { $i < $argc } { incr i } {
-#      if {$i == 0} { set TS_ROOT [lindex $argv $i] }
-#      if {$i == 1} { set procedure [lindex $argv $i] }
-#   }
-#   if { $argc == 0 } {
-#      puts "usage:\nfile_procedures.tcl <CHECK_TESTSUITE_ROOT> <proc> no_main <testsuite params>"
-#      puts "options:"
-#      puts "CHECK_TESTSUITE_ROOT -  path to TESTSUITE directory"
-#      puts "proc                 -  procedure from this file with parameters"
-#      puts "no_main              -  used to source testsuite file (check.exp)"
-#      puts "testsuite params     -  any testsuite command option (from file check.exp)"
-#      puts "                        testsuite params: file <path>/defaults.sav is needed"
-#   } else {
-#      source "$TS_ROOT/check.exp"
-#      if { $be_quiet == 0 } {
-#          puts $CHECK_OUTPUT "master host is $CHECK_CORE_MASTER"
-#          puts $CHECK_OUTPUT "calling \"$procedure\" ..."
-#      }
-#      set result [ eval $procedure ]
-#      puts $result 
-#      flush $CHECK_OUTPUT
-#   }
-#} 
 
 # do we have access to a tty?
 # returns true, if the $CHECK_OUTPUT is stdout and we have access to a tty

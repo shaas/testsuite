@@ -225,9 +225,6 @@ global CHECK_TESTSUITE_INSTALL_MODE
 set CHECK_TESTSUITE_INSTALL_MODE "manual" ;# sets the install mode. allowed are: automatic and manual
  
 # path/file variables
-global CHECK_TESTSUITE_ROOT        ;# path to TESTSUITE directory
-global CHECK_CHECKTREE_ROOT        ;# path where checktree lies
-
 global CHECK_RESULT_DIR            ;# check result directory            
 global CHECK_BAD_RESULT_DIR        ;# check rusult directory for failed checkes
 
@@ -617,8 +614,6 @@ proc get_current_working_dir { } {
 set CHECK_CURRENT_WORKING_DIR [get_current_working_dir]
 set CHECK_DEFAULTS_FILE    "$CHECK_CURRENT_WORKING_DIR/defaults.sav"
 
-set CHECK_TESTSUITE_ROOT "$CHECK_CURRENT_WORKING_DIR"
-set CHECK_CHECKTREE_ROOT "$CHECK_CURRENT_WORKING_DIR/checktree"
 set CHECK_MAIN_RESULTS_DIR "$CHECK_CURRENT_WORKING_DIR/results"
 set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
 
@@ -678,6 +673,7 @@ proc add_proc_error {proc_name result text {raise_error 1}} {
    # but just see the error output.
    if {!$raise_error} {
       puts $CHECK_OUTPUT "----------------------------------------------------------------"
+      puts $CHECK_OUTPUT "!!   The following message is an *expected* error condition   !!"
       puts $CHECK_OUTPUT $text  
       puts $CHECK_OUTPUT "----------------------------------------------------------------"
       return
@@ -1089,8 +1085,8 @@ proc get_passwd {user} {
 proc get_setup_change_state {} {
    global CHECK_OUTPUT CHECK_SETUP_CHANGES CHECK_SETUP_NAMES
    global CHECK_SETTINGS_VERSION CHECK_CURRENT_SETTINGS_VERSION
-   global CHECK_CHECKTREE_ROOT CHECK_CORE_MASTER CHECK_CORE_EXECD
-   global CHECK_SUBMIT_ONLY_HOSTS CHECK_COMMD_PORT CHECK_TESTSUITE_ROOT
+   global CHECK_CORE_MASTER CHECK_CORE_EXECD
+   global CHECK_SUBMIT_ONLY_HOSTS CHECK_COMMD_PORT
    global CHECK_MAIN_RESULTS_DIR CHECK_PRODUCT_TYPE 
    global CHECK_PRODUCT_ROOT CHECK_DEFAULTS_FILE
    global CHECK_SOURCE_DIR CHECK_SOURCE_HOSTNAME
@@ -1288,7 +1284,7 @@ proc mail_report { subject body } {
 #*******************************
 proc send_mail { address cc subject body } {
    global ts_config
-  global CHECK_TESTSUITE_ROOT CHECK_MAILX_HOST CHECK_OUTPUT
+  global CHECK_MAILX_HOST CHECK_OUTPUT
   global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_USER CHECK_MAX_ERROR_MAILS
   global write_mail_to_file CHECK_MAIL_OUTPUT_FILE CHECK_ENABLE_MAIL
 
@@ -1322,31 +1318,32 @@ proc send_mail { address cc subject body } {
   }
 
 
-  file delete "$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp" 
+   set tmp_mailfile "$ts_config(testsuite_root_dir)/mailbody_testsuite_tmp"
+  file delete $tmp_mailfile 
 
-  set output_file [ open "$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp" "w"]
+  set output_file [ open $tmp_mailfile "w"]
   puts $output_file $body
   flush $output_file
   close $output_file
 
   set file_size 0
    while { $file_size == 0 } {
-      catch { set file_size [file size "$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp"]}
+      catch { set file_size [file size $tmp_mailfile]}
       if { $file_size == 0 } { 
-         puts $CHECK_OUTPUT "--> file size of \"$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp\": $file_size ; waiting for filesize > 0"
+         puts $CHECK_OUTPUT "--> file size of \"$tmp_mailfile\": $file_size ; waiting for filesize > 0"
          sleep 1
       }
    }
 
 
 
-  catch { exec "touch" "$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp" } result
-  catch { exec "chmod" "0755" "$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp" } result
+  catch { exec "touch" $tmp_mailfile } result
+  catch { exec "chmod" "0755" $tmp_mailfile } result
 
   if { [string compare $cc "none"] != 0 } {
-     set mail_args "-s \"$new_subject\" -c \"$cc\" \"$address\" < \"$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp\""
+     set mail_args "-s \"$new_subject\" -c \"$cc\" \"$address\" < \"$tmp_mailfile\""
   } else {
-     set mail_args "-s \"$new_subject\" \"$address\" < \"$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp\""
+     set mail_args "-s \"$new_subject\" \"$address\" < \"$tmp_mailfile\""
   }
   set mail_output [start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
 
@@ -1357,15 +1354,16 @@ proc send_mail { address cc subject body } {
      incr CHECK_MAILS_SENT 1
      if { $CHECK_MAILS_SENT == $CHECK_MAX_ERROR_MAILS } {
         if { [string compare $cc "none"] != 0 } {
-           set mail_args "-s \"max mail count reached\" -c \"$cc\" \"$address\" < \"$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp\""
+           set mail_args "-s \"max mail count reached\" -c \"$cc\" \"$address\" < \"$tmp_mailfile\""
         } else {
-           set mail_args "-s \"max mail count reached\" \"$address\" < \"$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp\""
+           set mail_args "-s \"max mail count reached\" \"$address\" < \"$tmp_mailfile\""
         }
         start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
         set CHECK_ENABLE_MAIL 0
      }  
   }
-  file delete "$CHECK_TESTSUITE_ROOT/mailbody_testsuite_tmp" 
+
+  file delete $tmp_mailfile 
 }
 
 
@@ -1428,7 +1426,7 @@ proc set_error {errno errtext} {
 #  FUNCTION
 #     This procedure greps for the testsuite configuration in the given file.
 #     It only returns the testsuite root directory. This function is used
-#     to setup the CHECK_TESTSUITE_ROOT variable before sourcing the
+#     to setup the ts_config(testsuite_root_dir) variable before sourcing the
 #     file procedures script in the tcl_directory.
 #
 #  INPUTS
@@ -1501,7 +1499,7 @@ proc get_testsuite_root_dir_from_file { filename } {
 #*******************************
 proc edit_defaults {} {
   global CHECK_OUTPUT CHECK_DEFAULTS_FILE CHECK_HOST CHECK_CONFIG_DIR
-  global CHECK_TESTSUITE_ROOT CHECK_SCRIPT_FILE_DIR
+  global CHECK_SCRIPT_FILE_DIR
   global env
 
   load_defaults
@@ -1658,56 +1656,57 @@ proc get_local_hostname {} {
 #     check/setup2()
 #*******************************************************************************
 proc check_executable_files {  } {
-   global CHECK_TESTSUITE_ROOT CHECK_OUTPUT CHECK_SOURCE_DIR
+   global ts_config CHECK_OUTPUT CHECK_SOURCE_DIR
 
+   set scripts_dir "$ts_config(testsuite_root_dir)/scripts"
    set filelist ""
-   set shell_filelist [get_file_names "$CHECK_TESTSUITE_ROOT/scripts" "*.sh"]
-   set cshell_filelist [get_file_names "$CHECK_TESTSUITE_ROOT/scripts" "*.csh"]
-   set tcl_filelist [get_file_names "$CHECK_TESTSUITE_ROOT/scripts" "*.tcl"]
+   set shell_filelist [get_file_names $scripts_dir "*.sh"]
+   set cshell_filelist [get_file_names $scripts_dir "*.csh"]
+   set tcl_filelist [get_file_names $scripts_dir "*.tcl"]
    
    foreach file $shell_filelist {
-      lappend filelist "$CHECK_TESTSUITE_ROOT/scripts/$file"
+      lappend filelist "$scripts_dir/$file"
    }
    foreach file $cshell_filelist {
-      lappend filelist "$CHECK_TESTSUITE_ROOT/scripts/$file"
+      lappend filelist "$scripts_dir/$file"
    }
    foreach file $tcl_filelist {
-      lappend filelist "$CHECK_TESTSUITE_ROOT/scripts/$file"
+      lappend filelist "$scripts_dir/$file"
    }
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/bugs/issuezilla/126/sleep.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/bugs/issuezilla/1334/jobstarter.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/bugs/issuezilla/1489/infinity.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/bugs/issuezilla/1489/termtest.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/bugs/issuezilla/1556/1556.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/functional/migration/checkpt_job.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/functional/migration/migrate.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qmake/echo_variable.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qmod/general/qmod_job.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qrsh/qsub_gid.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qrsh/sleep_pid.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qrsh/starter.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qrsh/terminate.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qrsh/trap.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qrsh/ulimit.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qsub/starter.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qsub/sleeper.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qtcsh/qtask_global.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/clients/qtcsh/qtask_local.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/qmaster/size/pminiworm.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/qmaster/size/flood_sleeper.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/qmaster/size/qstat.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/qmaster/size/redir_stderr.sh"
-   lappend filelist "$CHECK_TESTSUITE_ROOT/checktree/system_tests/qmaster/size/sge_start.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/aimk"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/array_submitter.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/env-tester.csh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/jobnet_submitter.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/pminiworm.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/simple.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/sleeper.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/step_A_array_submitter.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/step_B_array_submitter.sh"
-   lappend filelist "$CHECK_SOURCE_DIR/dist/examples/jobs/worker.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/126/sleep.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/1334/jobstarter.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/1489/infinity.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/1489/termtest.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/1556/1556.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/functional/migration/checkpt_job.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/functional/migration/migrate.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qmake/echo_variable.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qmod/general/qmod_job.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/qsub_gid.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/sleep_pid.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/starter.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/terminate.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/trap.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/ulimit.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qsub/starter.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qsub/sleeper.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qtcsh/qtask_global.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qtcsh/qtask_local.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/pminiworm.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/flood_sleeper.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/qstat.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/redir_stderr.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/qmaster/size/sge_start.sh"
+   lappend filelist "$ts_config(source_dir)/aimk"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/array_submitter.sh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/env-tester.csh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/jobnet_submitter.sh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/pminiworm.sh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/simple.sh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/sleeper.sh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/step_A_array_submitter.sh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/step_B_array_submitter.sh"
+   lappend filelist "$ts_config(source_dir)/dist/examples/jobs/worker.sh"
    
    set change_files ""
 
@@ -2581,9 +2580,7 @@ proc setup2 { } {
    global CHECK_PRODUCT_VERSION_NUMBER
    global CHECK_PRODUCT_ROOT
    global CHECK_COMMD_PORT
-   global CHECK_TESTSUITE_ROOT
    global CHECK_CONFIG_DIR
-   global CHECK_CHECKTREE_ROOT
    global CHECK_MAIN_RESULTS_DIR
    global CHECK_JOB_OUTPUT_DIR
    global CHECK_PROTOCOL_DIR
@@ -2758,7 +2755,7 @@ proc setup2 { } {
 #*******************************************************************************
 proc enhanced_setup {} {
    global ts_config
-   global CHECK_CHECKTREE_ROOT CHECK_ENABLED_RUNLEVELS
+   global CHECK_ENABLED_RUNLEVELS
    global CHECK_ENABLED_CATEGORIES CHECK_OUTPUT check_name
    global be_quiet CHECK_PACKAGE_DIRECTORY
    global env CHECK_COMMD_PORT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST
@@ -2801,7 +2798,7 @@ proc enhanced_setup {} {
    set CHECK_ENABLED_RUNLEVELS "0" ;# 100 200 300 400" ;# max level is 400
    # JG: changed default categories to VERIFIED, reset to SYSTEM, once we get
    #     rid of the VERFIED category (when all tests are verified).
-   set CHECK_ENABLED_CATEGORIES "VERIFIED" ;# [get_categories $CHECK_CHECKTREE_ROOT ]
+   set CHECK_ENABLED_CATEGORIES "VERIFIED"
 
    puts "   checking testsuite results directories ..."
 
@@ -3861,7 +3858,7 @@ proc delete_tests {path {only_if_not_there 0}} {
 proc run_tests {path runcompleted} {
    global CHECK_OUTPUT CHECK_HOST check_errstr CHECK_RESULT_DIR
    global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_MAX_ERROR_MAILS
-   global CHECK_CHECKTREE_ROOT CHECK_ACT_PATH check_use_installed_system ts_config
+   global CHECK_ACT_PATH check_use_installed_system ts_config
    global check_reinit_on_tcl_error CHECK_CORE_MASTER CHECK_PRODUCT_ROOT CHECK_ARCH
 
    set CHECK_MAILS_SENT 0  ;# clear mail counter
@@ -3982,11 +3979,11 @@ proc run_tests {path runcompleted} {
                   set save_installed_value $check_use_installed_system
                   set save_CHECK_ACT_PATH $CHECK_ACT_PATH
                   set check_use_installed_system 1
-                  set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system"  
+                  set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
                   close_open_rlogin_sessions 1  ;# session reset (if defect)
                   if { [run_test $CHECK_ACT_PATH 1] != 0 } {
                      set check_use_installed_system 0
-                     set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system" 
+                     set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system" 
                      run_test $CHECK_ACT_PATH 1
                   }
                   set CHECK_ACT_PATH $save_CHECK_ACT_PATH
@@ -4105,36 +4102,37 @@ proc run_tests {path runcompleted} {
 #     ???/???
 #*******************************
 proc lock_testsuite {} {
-    global CHECK_TESTSUITE_ROOT CHECK_OUTPUT CHECK_HOST CHECK_USER CHECK_MAIN_RESULTS_DIR
-    global CHECK_SCRIPT_FILE_DIR CHECK_TESTSUITE_LOCKFILE
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_HOST CHECK_MAIN_RESULTS_DIR
+   global CHECK_SCRIPT_FILE_DIR CHECK_TESTSUITE_LOCKFILE
 
     set pid [getpid]
     
     debug_puts "-> lock_testsuite: pid=$pid host=$CHECK_HOST user=$CHECK_USER"
 
     set result 0
-    set time [ expr ( [timestamp] + 60 ) ] 
-    while { $result  != 10 } {
+    set time [expr [timestamp] + 60]
+    while {$result != 10} {
        puts $CHECK_OUTPUT "waiting for lock ..."
-       set result [ catch {  
-           eval exec "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $CHECK_HOST $CHECK_USER"
-       } ]
-       puts $CHECK_OUTPUT "lock.sh returned $result"
+       set result [catch {
+           eval exec "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $CHECK_HOST $CHECK_USER"
+       } catch_output]
+       puts $CHECK_OUTPUT "lock.sh returned $result: $catch_output"
        set file_size 0
-       catch { set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
-       if { $file_size == 0 } {
-           puts $CHECK_OUTPUT "file size is 0, deleteing lockfile..."
+       catch {set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
+       if {$file_size == 0} {
+           puts $CHECK_OUTPUT "file size is 0, deleting lockfile..."
            sleep 60  ;# wait for NFS to update file
            unlock_testsuite
            sleep 60  ;# wait for NFS to update file
-           return [ lock_testsuite ]  
+           return [lock_testsuite]  
        }
-       if { $result != 10 } {
+       if {$result != 10} {
           puts $CHECK_OUTPUT "checking lockfile owner process ..."
           set data ""
           catch {
-              set input [ open "$CHECK_TESTSUITE_LOCKFILE" "r" ]
-              gets $input data 
+              set input [open "$CHECK_TESTSUITE_LOCKFILE" "r"]
+              gets $input data
               close $input
           }
           set owner_pid  [lindex $data 0]
@@ -4142,7 +4140,7 @@ proc lock_testsuite {} {
           set owner_user [lindex $data 2]
 
           debug_puts "testsuite is locked by user $owner_user, process $owner_pid on host $owner_host!"
-          if { ([lindex $data 0] == $pid ) && ([lindex $data 1] == $CHECK_HOST ) && ([lindex $data 2] == $CHECK_USER) } {
+          if {[lindex $data 0] == $pid && [lindex $data 1] == $CHECK_HOST && [lindex $data 2] == $CHECK_USER} {
               debug_puts "thats me, so we have the lock"
               set result 10
               continue
@@ -4153,29 +4151,29 @@ proc lock_testsuite {} {
           if { $ps_info($owner_pid,error) == 0 } {
              puts $CHECK_OUTPUT "process exists, command is \n-----\n\"$ps_info($owner_pid,string)\"\n-----"
           } else {
-             puts $CHECK_OUTPUT "process doesn't exist -> unlock_testsuite ..." 
-             unlock_testsuite 
+             puts $CHECK_OUTPUT "process doesn't exist -> unlock_testsuite ..."
+             unlock_testsuite
           }
        }
     }
     debug_puts "new lockfile written! Testing for correct lock ..."
 
-    set time [ expr ( [timestamp] + 60 ) ] 
-    set tries 0 
+    set time [expr [timestamp] + 60]
+    set tries 0
     set ok 0
     set failed 0
     set file_size 0
     while {$ok != 1} {
        sleep 1
        catch { set input [ open $CHECK_TESTSUITE_LOCKFILE "r" ]
-               gets $input data 
-               close $input } 
+               gets $input data
+               close $input }
  
        debug_puts "pid  [lindex $data 0] == $pid"
        debug_puts "host [lindex $data 1] == $CHECK_HOST"
        debug_puts "user [lindex $data 2] == $CHECK_USER"
  
-       if { ([lindex $data 0] == $pid ) && ([lindex $data 1] == $CHECK_HOST ) && ([lindex $data 2] == $CHECK_USER) } {
+       if {[lindex $data 0] == $pid && [lindex $data 1] == $CHECK_HOST && [lindex $data 2] == $CHECK_USER} {
           incr tries 1
           if {$tries >= 2} {
              set ok 1
@@ -4183,26 +4181,25 @@ proc lock_testsuite {} {
        }
        debug_puts "waiting to get lock"
 
-       catch { set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
+       catch {set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
        debug_puts "file size is: $file_size"
 
-       if { [timestamp] > $time } {
+       if {[timestamp] > $time} {
           set failed 1
           set ok 1
-       }      
+       }
     }
 
     if {$failed == 1} {
         puts $CHECK_OUTPUT "no success! Try again ..."
         if { $file_size == 0 } {
-           debug_puts "file size is zero, deleteing lockfile..."
+           debug_puts "file size is zero, deleting lockfile..."
            unlock_testsuite
         }
-        return [ lock_testsuite ] 
-    } 
+        return [lock_testsuite]
+    }
 
-    debug_puts "lock success!" 
-
+    debug_puts "lock success!"
 }
 
 #                                                             max. column:     |
@@ -4235,7 +4232,7 @@ proc lock_testsuite {} {
 #     ???/???
 #*******************************
 proc unlock_testsuite {} {
-    global CHECK_TESTSUITE_ROOT CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR CHECK_TESTSUITE_LOCKFILE
+    global CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR CHECK_TESTSUITE_LOCKFILE
 
     if {[file isfile $CHECK_TESTSUITE_LOCKFILE] == 1 } {
         puts $CHECK_OUTPUT "removing lockfile \"$CHECK_TESTSUITE_LOCKFILE\"" 
@@ -4480,9 +4477,9 @@ proc check_root_access {path} {
 }
 
 proc delete_temp_script_files { } {
-  global CHECK_TESTSUITE_ROOT CHECK_OUTPUT
+  global ts_config CHECK_OUTPUT
 
-  set del_file_name "$CHECK_TESTSUITE_ROOT/.testsuite_delete"
+  set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
   if { [ file isfile $del_file_name ] == 1 } {
      set del_file [ open $del_file_name "r" ]
      while { [gets $del_file line] >= 0 } {
@@ -4619,7 +4616,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    global check_errstr CHECK_OUTPUT check_description check_functions check_errno 
    global CHECK_CUR_PROC_NAME check_root_access_needs
    global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT CHECK_TESTSUITE_ROOT
+   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT
    global check_category CHECK_GROUP
    global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
 
@@ -5022,7 +5019,7 @@ proc show_test {path full} {
 #     ???/???
 #*******************************
 proc select_runlevel {} {
-     global CHECK_ENABLED_RUNLEVELS CHECK_ENABLED_CATEGORIES CHECK_CHECKTREE_ROOT
+     global CHECK_ENABLED_RUNLEVELS CHECK_ENABLED_CATEGORIES
 
      set data ""
      set my_cats [get_checktree_categories "root"]
@@ -5126,7 +5123,7 @@ proc check_display {} {
 
 
 proc set_command_line_options {} {
-     global CHECK_ENABLED_RUNLEVELS CHECK_ENABLED_CATEGORIES CHECK_CHECKTREE_ROOT 
+     global CHECK_ENABLED_RUNLEVELS CHECK_ENABLED_CATEGORIES
      global CHECK_SGE_DEBUG_LEVEL check_use_installed_system
      global master_debug schedd_debug do_not_update CHECK_DISPLAY_OUTPUT daemon_debug
      set data ""
@@ -5797,7 +5794,7 @@ proc print_menu_header {} {
 #     The string the user entered, or "", if he just pressed enter.
 #*******************************
 proc wait_for_enter {{no_text 0} {second_try 0}} {
-   global CHECK_OUTPUT CHECK_TESTSUITE_ROOT CHECK_SCRIPT_FILE_DIR
+   global ts_config CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR
    flush $CHECK_OUTPUT
 
    # output some message
@@ -5806,7 +5803,7 @@ proc wait_for_enter {{no_text 0} {second_try 0}} {
    }
 
    # wait for the user to press enter
-   set wait_script "$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/wait_for_enter.sh"
+   set wait_script "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/wait_for_enter.sh"
    set output ""
    set en_result [catch {
       set output [eval exec $wait_script]
@@ -6758,7 +6755,7 @@ proc update_source { a_report } {
                      if { [ string first "testsuite/tcl_files" $elem ] >= 0 && [string range $elem 0 0] != "M" } {
                         set testsuite_update 1
                      }
-                  } 
+                  }
                }
                exp_continue
             }
@@ -6951,7 +6948,7 @@ proc compile_depend { compile_hosts a_report } {
 #*******************************
 proc run_all_at_starttime {} {
 
-   global CHECK_ACT_PATH CHECK_REPORT_FILE CHECK_CHECKTREE_ROOT
+   global CHECK_ACT_PATH CHECK_REPORT_FILE
 
    set start_time 0
    set should_we_compile 0
@@ -6993,7 +6990,7 @@ proc run_all_at_starttime {} {
          exit -1
       }
       set saved_path $CHECK_ACT_PATH
-      set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system"
+      set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"
       set back [ run_test $CHECK_ACT_PATH 1 ]
       if { $back != 0 } {
          puts "error in test install_core_system - stop"
@@ -7592,8 +7589,8 @@ proc source_tcl_files {} {
 #*******************************
 proc build_java_env_list {} {
    global CHECK_USER CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST CHECK_TESTSUITE_ROOT CHECK_CURRENT_WORKING_DIR
-   global CHECK_SCRIPT_FILE_DIR CHECK_CHECKTREE_ROOT
+   global CHECK_HOST CHECK_CURRENT_WORKING_DIR
+   global CHECK_SCRIPT_FILE_DIR
    global CHECK_PRODUCT_VERSION_NUMBER
    global env ts_config
 
@@ -7602,10 +7599,10 @@ proc build_java_env_list {} {
    set env_list "$env_list -Dgets.sge_root=\"$CHECK_PRODUCT_ROOT\""
    set env_list "$env_list -Dgets.arch=\"$CHECK_ARCH\""
    set env_list "$env_list -Dgets.hostname=\"$CHECK_HOST\""
-   set env_list "$env_list -Dgets.gets_root=\"$CHECK_TESTSUITE_ROOT\""
+   set env_list "$env_list -Dgets.gets_root=\"$ts_config(testsuite_root_dir)\""
    set env_list "$env_list -Dgets.cwd=\"$CHECK_CURRENT_WORKING_DIR\""
-   set env_list "$env_list -Dgets.scripts_dir=\"$CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR\""
-   set env_list "$env_list -Dgets.checktree_root=\"$CHECK_CHECKTREE_ROOT\""
+   set env_list "$env_list -Dgets.scripts_dir=\"$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR\""
+   set env_list "$env_list -Dgets.checktree_root=\"$ts_config(checktree_root_dir)\""
    set env_list "$env_list -Dgets.pid=\"[getpid]\""
    set env_list "$env_list -Dgets.home_dir=\"$env(HOME)\""
    set env_list "$env_list -Dgets.version=\"$CHECK_PRODUCT_VERSION_NUMBER\""
@@ -7943,7 +7940,7 @@ for { set i 0 } { $i < $argc } { incr i } {
          puts $CHECK_OUTPUT "used check parameter without runlevel or checkname"
          setup2
          set mail_body "$mail_body product version is [get_version_info]\n"
-         set mail_body "$mail_body testsuite root directory is \"$CHECK_TESTSUITE_ROOT\"\n"
+         set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
          set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
          set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
@@ -7961,7 +7958,7 @@ for { set i 0 } { $i < $argc } { incr i } {
          puts $CHECK_OUTPUT "used all parameter without runlevel"
          setup2
          set mail_body "$mail_body product version is [get_version_info]\n"
-         set mail_body "$mail_body testsuite root directory is \"$CHECK_TESTSUITE_ROOT\"\n"
+         set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
          set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
          set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
@@ -7980,7 +7977,7 @@ for { set i 0 } { $i < $argc } { incr i } {
          puts $CHECK_OUTPUT "used category parameter without category list"
          setup2
          set mail_body "$mail_body product version is [get_version_info]\n"
-         set mail_body "$mail_body testsuite root directory is \"$CHECK_TESTSUITE_ROOT\"\n"
+         set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
          set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
          set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
@@ -8050,7 +8047,7 @@ set CHECK_ACT_PATH "root"
 
 
 set mail_body "$mail_body product version is [get_version_info]\n"
-set mail_body "$mail_body testsuite root directory is \"$CHECK_TESTSUITE_ROOT\"\n"
+set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
 set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
 set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
 set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
@@ -8091,7 +8088,7 @@ if { $do_one_test } {
    if { [string first "/" $do_one_test_name] == 0 || [string first "\\" $do_one_test_name] == 0 } {
       set CHECK_ACT_PATH "$do_one_test_name"
    } else {
-      set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/$do_one_test_name"
+      set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/$do_one_test_name"
    }
    set dirs [ get_dir_names $CHECK_ACT_PATH ]
    set files [get_file_names $CHECK_ACT_PATH ]
@@ -8136,7 +8133,7 @@ if { $do_all } {
 if { $do_install } {
    # ts_checktree ok
    puts "installing core system on host $CHECK_HOST ..."
-   set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system"  
+   set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
    run_test $CHECK_ACT_PATH 1
    exit 0 
 }
@@ -8150,7 +8147,7 @@ if { $do_kill } {
 if { $do_only_reset_config == 1 } {
   set result 1
   # ts_checktree ok
-  set CHECK_ACT_PATH "$CHECK_CHECKTREE_ROOT/install_core_system"
+  set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"
   run_test $CHECK_ACT_PATH 1 "setup_queues" 0
   run_test $CHECK_ACT_PATH 1 "setup_testcheckpointobject" 0
   run_test $CHECK_ACT_PATH 1 "setup_conf" 0

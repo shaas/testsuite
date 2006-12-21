@@ -381,10 +381,10 @@ proc get_project_member { prj1 prj2 prj3 job_id } {
 
 
 proc share_tree_test {} {
+   global ts_config CHECK_OUTPUT
    global CHECK_PRODUCT_ROOT
-   global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE 
-   global CHECK_ARCH CHECK_TESTSUITE_ROOT
+   global CHECK_ARCH
    global share_tree_job_counter CHECK_PROTOCOL_DIR
    global CHECK_SCRIPT_FILE_DIR
    global share_tree_percentage_variation
@@ -405,9 +405,9 @@ proc share_tree_test {} {
    set prj3_id_list ""
    set counter $share_tree_job_counter
    while { $counter > 0 } {
-      lappend prj1_id_list [ submit_job "-e /dev/null -o /dev/null -P project1 $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/sleeper.sh 5 $CHECK_PROTOCOL_DIR"]
-      lappend prj2_id_list [ submit_job "-e /dev/null -o /dev/null -P project2 $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/sleeper.sh 5 $CHECK_PROTOCOL_DIR"]
-      set last_job [ submit_job "-e /dev/null -o /dev/null -P project3 $CHECK_TESTSUITE_ROOT/$CHECK_SCRIPT_FILE_DIR/sleeper.sh 5 $CHECK_PROTOCOL_DIR"]
+      lappend prj1_id_list [ submit_job "-e /dev/null -o /dev/null -P project1 $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/sleeper.sh 5 $CHECK_PROTOCOL_DIR"]
+      lappend prj2_id_list [ submit_job "-e /dev/null -o /dev/null -P project2 $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/sleeper.sh 5 $CHECK_PROTOCOL_DIR"]
+      set last_job [ submit_job "-e /dev/null -o /dev/null -P project3 $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/sleeper.sh 5 $CHECK_PROTOCOL_DIR"]
       lappend prj3_id_list $last_job      
       incr counter -1
    }

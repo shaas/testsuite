@@ -73,7 +73,6 @@ proc backup_restore_setup {} {
    global CHECK_OUTPUT 
    global CHECK_USER
    global CHECK_PRODUCT_ROOT
-   global CHECK_TESTSUITE_ROOT 
    global CHECK_CORE_MASTER
 
    set spooling_method $ts_config(spooling_method)

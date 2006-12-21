@@ -330,9 +330,9 @@ proc are_jobs_deleted { job_list } {
 #     ???/???
 #*******************************
 proc submit_testjobs { { user "" } { additional_job_args "" } {testjob_count "4" } {array_job ""} {check_job_state 1}} {
-   global ts_config
-  global CHECK_PRODUCT_ROOT queue hold_state pending_state CHECK_TESTSUITE_ROOT 
-  global CHECK_OUTPUT CHECK_USER CHECK_ARCH CHECK_HOST ts_config
+   global ts_config CHECK_OUTPUT CHECK_USER
+  global CHECK_PRODUCT_ROOT queue hold_state pending_state
+  global CHECK_ARCH CHECK_HOST ts_config
 
   set joblist ""
   set year [exec date "+%Y"] 
@@ -445,9 +445,10 @@ proc submit_testjobs { { user "" } { additional_job_args "" } {testjob_count "4"
 #     ???/???
 #*******************************
 proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state CHECK_TESTSUITE_ROOT
-   global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
-   global queue CHECK_HOST CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_PRODUCT_ROOT queue hold_state pending_state
+   global CHECK_ARCH CHECK_HOST ts_config
+   global queue
   
    set hostname $ts_config(master_host) 
    set arch [resolve_arch $hostname]
@@ -560,7 +561,7 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
 proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
 
 
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state CHECK_TESTSUITE_ROOT
+   global CHECK_PRODUCT_ROOT queue hold_state pending_state
    global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
    global queue CHECK_HOST CHECK_USER
 
@@ -679,7 +680,7 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
 #*******************************
 proc qdel_iz_125_case_4 { { user "" } { additional_job_args "" }} {
 
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state CHECK_TESTSUITE_ROOT
+   global CHECK_PRODUCT_ROOT queue hold_state pending_state
    global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
    global queue CHECK_HOST CHECK_USER
 
@@ -757,10 +758,10 @@ proc qdel_iz_125_case_4 { { user "" } { additional_job_args "" }} {
 #*******************************
 
 proc qdel_iz_125_case_5 { { user "" } { additional_job_args "" }} {
-
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state CHECK_TESTSUITE_ROOT
-   global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
-   global queue CHECK_HOST CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_PRODUCT_ROOT queue hold_state pending_state
+   global CHECK_ARCH
+   global queue CHECK_HOST
 
    set hostname  [lindex $ts_config(execd_nodes) 0]
    set arch [resolve_arch $hostname]
@@ -876,10 +877,10 @@ proc qdel_iz_125_case_5 { { user "" } { additional_job_args "" }} {
 #     ???/???
 #*******************************
 proc qdel_delete_task_range {} {
-
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state CHECK_TESTSUITE_ROOT
-   global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
-   global queue CHECK_HOST CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_PRODUCT_ROOT queue hold_state pending_state
+   global CHECK_ARCH CHECK_HOST
+   global queue
 
    set hostname  [lindex $ts_config(execd_nodes) 0]
    set arch [resolve_arch $hostname]

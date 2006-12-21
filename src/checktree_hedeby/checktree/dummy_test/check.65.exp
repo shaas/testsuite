@@ -42,7 +42,7 @@
 
 # source version dependent parts of the installation
 global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
-global check_name check_description check_needs check_functions check_errno check_errstr 
+global check_name check_description check_needs check_functions
 global check_root_access_needs check_category      
 global check_use_installed_system check_init_level_procedure
 
@@ -77,19 +77,16 @@ proc dummy_test_setup {} {
    global CHECK_USER CHECK_OUTPUT
 
    puts $CHECK_OUTPUT "doing setup ..."
-   return 0
-   
 }
 
 proc dummy_test_cleanup {} {
    global CHECK_USER CHECK_OUTPUT
+
    puts $CHECK_OUTPUT "doing cleanup ..."
-   return 0
 }
 
 proc dummy_test_check {} {
    global CHECK_OUTPUT
-   set_error 0 "ok"
    
    puts $CHECK_OUTPUT "doing test ..."
 }

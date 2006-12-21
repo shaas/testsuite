@@ -498,7 +498,7 @@ proc modify_setup2 {} {
    global ts_checktree ts_config ts_host_config ts_user_config CHECK_ACT_LEVEL
    global CHECK_OUTPUT CHECK_PACKAGE_DIRECTORY check_name
 
-   global CHECK_CORE_EXECD CHECK_CORE_MASTER CHECK_PRODUCT_ROOT CHECK_CHECKTREE_ROOT
+   global CHECK_CORE_EXECD CHECK_CORE_MASTER CHECK_PRODUCT_ROOT
 
 
    lock_testsuite
@@ -615,7 +615,7 @@ proc modify_setup2 {} {
       set CHECK_CORE_MASTER $old_master
       set CHECK_PRODUCT_ROOT $old_root
       shutdown_core_system
-      delete_tests $CHECK_CHECKTREE_ROOT/install_core_system
+      delete_tests $ts_config(checktree_root_dir)/install_core_system
       set CHECK_CORE_EXECD $new_exed
       set CHECK_CORE_MASTER $new_master
       set CHECK_PRODUCT_ROOT $new_root
@@ -661,7 +661,6 @@ proc modify_setup2 {} {
 #*******************************************************************************
 proc config_testsuite_root_dir { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_ROOT
    global CHECK_TESTSUITE_LOCKFILE
    global CHECK_USER
    global CHECK_GROUP
@@ -716,17 +715,16 @@ proc config_testsuite_root_dir { only_check name config_array } {
    }
 
    # set global variables to value
-   set CHECK_TESTSUITE_ROOT $value
    set CHECK_TESTSUITE_LOCKFILE "$value/testsuite_lockfile"
 
    if {[catch {set CHECK_USER [set env(USER)] }] != 0} {
-      set CHECK_USER [file attributes $CHECK_TESTSUITE_ROOT/check.exp -owner]
+      set CHECK_USER [file attributes $value/check.exp -owner]
       puts $CHECK_OUTPUT "\nNo USER is set!\n(default: $CHECK_USER)\n"
       set env(USER) $CHECK_USER
    } 
 
    if {[catch {set CHECK_GROUP [set env(GROUP)] }] != 0} {
-      set CHECK_GROUP [file attributes $CHECK_TESTSUITE_ROOT/check.exp -group]
+      set CHECK_GROUP [file attributes $value/check.exp -group]
       puts $CHECK_OUTPUT "\nNo GROUP is set!\n(default: $CHECK_GROUP)\n"
       set env(GROUP) $CHECK_GROUP
    }
@@ -757,9 +755,7 @@ proc config_testsuite_root_dir { only_check name config_array } {
 #*******************************************************************************
 proc config_checktree_root_dir { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_ROOT
    global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_CHECKTREE_ROOT
    global CHECK_USER CHECK_HOST
    global CHECK_GROUP
    global env fast_setup
@@ -774,7 +770,7 @@ proc config_checktree_root_dir { only_check name config_array } {
    if { $actual_value == "" } {
       set value $default_value
       if { $default_value == "" } { 
-         set value $CHECK_TESTSUITE_ROOT/checktree
+         set value $config(testsuite_root_dir)/checktree
       }
    }
 
@@ -822,9 +818,6 @@ proc config_checktree_root_dir { only_check name config_array } {
       }
    }
 
-   # set global variables to value
-   set CHECK_CHECKTREE_ROOT $value
-
    return $value
 }
 
@@ -832,9 +825,7 @@ proc config_checktree_root_dir { only_check name config_array } {
 
 proc config_additional_checktree_dirs { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_ROOT
    global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_CHECKTREE_ROOT
    global CHECK_USER CHECK_HOST
    global CHECK_GROUP
    global env fast_setup
@@ -938,7 +929,6 @@ proc config_additional_checktree_dirs { only_check name config_array } {
 #*******************************************************************************
 proc config_results_dir { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_ROOT
    global CHECK_MAIN_RESULTS_DIR
    global CHECK_PROTOCOL_DIR
    global CHECK_JOB_OUTPUT_DIR
@@ -957,7 +947,7 @@ proc config_results_dir { only_check name config_array } {
    if { $actual_value == "" } {
       set value $default_value
       if { $default_value == "" } {
-         set value $CHECK_TESTSUITE_ROOT/results
+         set value $config(testsuite_root_dir)/results
       }
    }
 
@@ -1128,7 +1118,6 @@ proc config_use_ssh {only_check name config_array} {
 #*******************************************************************************
 proc config_source_dir { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_ROOT
    global CHECK_SOURCE_DIR
    global CHECK_ARCH
    global fast_setup
@@ -1141,8 +1130,8 @@ proc config_source_dir { only_check name config_array } {
    if { $actual_value == "" } {
       set value $default_value
       if { $default_value == "" } {
-         set pos [ string first "/testsuite" $CHECK_TESTSUITE_ROOT ]
-         set value [string range $CHECK_TESTSUITE_ROOT 0 $pos]
+         set pos [string first "/testsuite" $config(testsuite_root_dir)]
+         set value [string range $config(testsuite_root_dir) 0 $pos]
          append value "source"
       }
    }

@@ -140,7 +140,6 @@ proc prepare_file_and_start_job { request_file_name option_parameter job_script 
 
 proc file_parsing_N_option {} {
    global CHECK_OUTPUT
-   global CHECK_TESTSUITE_ROOT
    global file_parsing_single_test
    global file_parsing_cluster_request_file
    global file_parsing_home_request_file
@@ -262,9 +261,7 @@ proc file_parsing_long_option_verify {back long case} {
 }
 
 proc file_parsing_long_option {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_USER
-   global CHECK_TESTSUITE_ROOT
+   global ts_config CHECK_OUTPUT CHECK_USER
    global file_parsing_single_test
    global file_parsing_cluster_request_file
    global file_parsing_home_request_file

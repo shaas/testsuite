@@ -1,7 +1,9 @@
 #!/usr/pkg/bin/expect
 
 # list of deprecated symbols (variables, procedures)
-set deprecated "check_errno check_errstr set_error"
+set deprecated {check_errno check_errstr set_error}
+lappend deprecated "CHECK_TESTSUITE_ROOT"
+lappend deprecated "CHECK_CHECKTREE_ROOT"
 
 # build a list of files to analyze (.tcl and .exp)
 set files ""

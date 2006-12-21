@@ -972,9 +972,9 @@ proc qrsh_terminate {} {
       set timeout 60
       set done 0
       set error 0
-      set sp_id [ lindex $qrsh_id 1 ] 
+      set sp_id [lindex $qrsh_id 1] 
 
-      while { $done == 0 } {
+      while {$done == 0} {
          expect {
             -i $sp_id full_buffer {
                add_proc_error "qrsh_terminate" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
@@ -1002,12 +1002,12 @@ proc qrsh_terminate {} {
          }
       }
 
-      if { $error == 1 } {
+      if {$error == 1} {
          close_spawn_process $qrsh_id
          continue
       }
 
-      if { [info exists job_pid] && [info exists job_id] } {
+      if {[info exists job_pid] && [info exists job_id]} {
          get_ps_info $job_pid $host
          # qdel 
          delete_job $job_id
@@ -1022,7 +1022,7 @@ proc qrsh_terminate {} {
                puts $CHECK_OUTPUT "waiting for terminate method"
             }
          }   
-        
+
          # wait for terminate method to finish
          sleep 2
          # check contents of terminate.out
@@ -1034,10 +1034,10 @@ proc qrsh_terminate {} {
                add_proc_error "qrsh_terminate" -1 "error reading from terminate method output file on host $host"
             } else {
                # t_job_pid should be ppid of job_pid
-               if { ! [info exists ps_info($job_pid,ppid)] } {
+               if {![info exists ps_info($job_pid,ppid)]} {
                   add_proc_error "qrsh_terminate" -1 "info about ppid of pid $job_pid not available on host $host"
-               } else {   
-                  if { $ps_info($job_pid,ppid) != $t_job_pid} {
+               } else {
+                  if {$ps_info($job_pid,ppid) != $t_job_pid} {
                      add_proc_error "qrsh_terminate" -1 "wrong job_pid passed to terminate method for job $job_id on host $host, should be $ps_info($job_pid,ppid) but is $t_job_pid"
                   }
                }
@@ -1049,9 +1049,9 @@ proc qrsh_terminate {} {
             add_proc_error "qrsh_terminate" -1 "process of deleted job $job_pid on host $host is still running"
          }
       }
-      
+
       set done 0
-      while { $done == 0 } {
+      while {$done == 0} {
          set timeout 60
          expect {
             -i $sp_id full_buffer {
