@@ -1,3 +1,36 @@
+#!/vol2/TCL_TK/glinux/bin/tclsh
+# expect script 
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
 
 global ts_checktree, hedeby_config
 global CHECK_OUTPUT
@@ -17,7 +50,7 @@ set ts_checktree($hedeby_checktree_nr,setup_hooks_0_init_func)    hedeby_init_co
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_verify_func)  hedeby_verify_config
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_save_func)    hedeby_save_configuration
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_filename)     $ACT_CHECKTREE/hedeby_defaults.sav
-set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.1"
+set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.0"
 
 set ts_checktree($hedeby_checktree_nr,checktree_clean_hooks_0)  "hedeby_clean"
 set ts_checktree($hedeby_checktree_nr,compile_hooks_0)        "hedeby_compile"
@@ -27,25 +60,99 @@ set ts_checktree($hedeby_checktree_nr,install_binary_hooks_0) "hedeby_install_bi
 set ts_checktree($hedeby_checktree_nr,required_hosts_hook)    "hedeby_get_required_hosts"
 set ts_checktree($hedeby_checktree_nr,passwd_hook)    "hedeby_get_required_passwords"
 
-set ts_checktree($hedeby_checktree_nr,shutdown_hooks_0)       "shutdown_hedeby"
-set ts_checktree($hedeby_checktree_nr,startup_hooks_0)       "startup_hedeby"
+set ts_checktree($hedeby_checktree_nr,shutdown_hooks_0)       "hedeby_shutdown"
+set ts_checktree($hedeby_checktree_nr,startup_hooks_0)       "hedeby_startup"
 
 
-proc startup_hedeby { { hostname "--" } { debugmode "0" } } {
-   global ts_config hedeby_config CHECK_USER CHECK_OUTPUT
- 
-   puts $CHECK_OUTPUT "----------------------------------"
-   puts $CHECK_OUTPUT "startup_hedeby: NOT IMPLEMENTED!"
-   puts $CHECK_OUTPUT "----------------------------------"
+proc hedeby_startup { { hostname "--" } { debugmode "0" } } {
+   return [hedeby_gstat $hostname start root]
+}
+
+proc hedeby_get_system_name {} {
+   global ts_config
+   return "testsuite_$ts_config(commd_port)"
+}
+
+proc hedeby_shutdown { { hostname "--" } }  {
+   if { [hedeby_gstat $hostname "shutdown" root] != 0 } {
+      return -1
+   }
    return 0
 }
 
-proc shutdown_hedeby { { hostname "--" } } {
-   global ts_config hedeby_config CHECK_USER CHECK_OUTPUT
-   puts $CHECK_OUTPUT "-----------------------------------"
-   puts $CHECK_OUTPUT "shutdown_hedeby: NOT IMPLEMENTED!"
-   puts $CHECK_OUTPUT "-----------------------------------"
-   return 0
+
+
+proc hedeby_gstat { hostname gstat_args { user "--" } } {
+   return [hedeby_run_cli $hostname "gstat" $gstat_args $user]
+}
+
+proc hedeby_gconf { hostname gconf_args { user "--" } } {
+   return [hedeby_run_cli $hostname "gconf" $gconf_args $user]
+}
+
+proc hedeby_run_cli { hostname cmd cmd_args { user "--" } } {
+   
+   global CHECK_OUTPUT CHECK_HOST CHECK_USER hedeby_config
+
+   if { $cmd == "gconf" } {
+      set cmd "$hedeby_config(dist)/bin/gconf"
+   } elseif { $cmd == "gstat" } {
+      set cmd "$hedeby_config(dist)/bin/gstat"
+   } else {
+      add_proc_error "hedeby_run_cli" -1 "unknown cli command \"$cmd\""
+      return -1
+   }
+   set local_cmd_args  "--system "
+   append local_cmd_args [hedeby_get_system_name]
+   append local_cmd_args " -p SYSTEM "
+   append local_cmd_args $cmd_args
+   
+   if { $hostname == "--" } {
+      set hostname $CHECK_HOST
+   }
+   
+   if { $user == "--" } {
+      set user $CHECK_USER
+   }
+   
+   set open_spawn [ open_remote_spawn_process $hostname $user "$cmd" "$local_cmd_args"]   
+   set spawn_list [lindex $open_spawn 1]
+   set timeout 60
+   set result -1
+   set output ""
+   set error_count 0
+   expect {
+      -i $spawn_list full_buffer {
+         add_proc_error "hedeby_run_cli" -1 "full_buffer error \"$hostname\""
+      }
+      -i $spawn_list timeout {
+         add_proc_error "hedeby_run_cli" -1 "got timeout for host \"$hostname\""
+      }
+      -i $spawn_list eof {
+         add_proc_error "hedeby_run_cli" -1 "got eof \"$hostname\""
+      }
+      -i $spawn_list "_exit_status_:(*)" {
+         set result [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]         
+      }
+      -i $spawn_list -re {^ERROR:.*?\n} {
+         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         incr error_count
+         exp_continue
+      }
+      -i $spawn_list -re {^.*?\n} {
+         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         exp_continue
+      }
+      
+   }
+
+   close_spawn_process $open_spawn
+   
+   if { $error_count > 0 } {
+      return -1
+   }
+   return $result
+   
 }
 
 
@@ -77,7 +184,29 @@ proc shutdown_hedeby { { hostname "--" } } {
 #*******************************************************************************
 proc hedeby_compile { compile_hosts a_report } {
    upvar $a_report report
-   return [hedeby_build $compile_hosts "dist" report]
+   
+   
+   
+   set java_build_host [host_conf_get_java_compile_host]
+   
+   foreach build_host $compile_hosts {
+      if { $build_host != $java_build_host } {
+         set ret [hedeby_build $build_host "native.build" report]
+         if { $ret != 0 } {
+            add_proc_error "hedeby_compile" -1 "Native build on $build_host failed"
+            return -1
+         }
+      }
+   }
+   
+   set ret [hedeby_build $java_build_host "tar" report]
+   if { $ret != 0 } {
+      add_proc_error "hedeby_compile" -1 "Java compile run failed (return code $ret)"
+      return -1
+   }
+   
+   
+   return 0
 }
 
 
@@ -145,7 +274,7 @@ proc hedeby_compile_clean { compile_hosts a_report } {
 #     starts the hedeby build script
 #
 #  INPUTS
-#    compile_hosts -- list of compile hosts
+#    build_host -- the  build hosts
 #    target        -- the ant target
 #    a_report      -- the report object
 #
@@ -161,33 +290,38 @@ proc hedeby_compile_clean { compile_hosts a_report } {
 #
 #  SEE ALSO
 #*******************************************************************************
-proc hedeby_build { compile_hosts target a_report { ant_options "" } { hedeby_build_timeout 60 } } {
+proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build_timeout 300 } } {
    global CHECK_OUTPUT CHECK_USER
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
    global ts_config ts_host_config hedeby_config
    
    upvar $a_report report
    
-   set build_host [lindex $compile_hosts 0]
-   
    set task_nr [report_create_task report "hedeby_build_$target" $build_host]
    
    report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "-> starting hedeby build.sh $target on host $build_host ..."
+   report_task_add_message report $task_nr "-> starting hedeby ant $target on host $build_host ..."
    
    set env(JAVA_HOME) [get_java15_home_for_host $build_host]
+   
+   if { $env(JAVA_HOME) == "" } {
+      report_task_add_message report $task_nr "Error: hededy build requires java15. It is not available on host $build_host"
+      report_finish_task report $task_nr -1
+      return -1
+   }
+   
    set env(ARCH)      [resolve_arch $build_host]
+   
 
    report_task_add_message report $task_nr "using JAVA_HOME = $env(JAVA_HOME)"
    report_task_add_message report $task_nr "using ARCH = $env(ARCH)"
 
-   
    if { [string length ant_options] > 0 } {
       set env(ANT_OPTS) "$ant_options"
       report_task_add_message report $task_nr "using ANT_OPTS = $env(ANT_OPTS)"
    }
 
-   set open_spawn [ open_remote_spawn_process $build_host $CHECK_USER "cd" "$hedeby_config(hedeby_source_dir); ant $target" 0 env]
+   set open_spawn [ open_remote_spawn_process $build_host $CHECK_USER "ant" "-q $target" 0 "$hedeby_config(hedeby_source_dir)" env]
    set spawn_list [lindex $open_spawn 1]
    set timeout $hedeby_build_timeout
    set error -1
@@ -312,16 +446,6 @@ proc config_hedeby_source_dir { only_check name config_array } {
    return [ config_generic $only_check $name config $help_text ]
 }
 
-proc config_n1sm_install_dir { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the path to the directory where the Haithabu packages should be installed or press >RETURN<"
-                    "to use the default value." }
-                    
-   return [ config_generic $only_check $name config $help_text ]
-}
-
 proc hedeby_config_dist { only_check name config_array } {
    
    upvar $config_array config
@@ -359,25 +483,6 @@ proc hedeby_config_executors { only_check name config_array } {
    return [ config_generic $only_check $name config $help_text ]
 }
 
-proc config_n1sm_host { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of the N1 System Administrator host, or press >RETURN<"
-                    "to use the default value." }
-                    
-   return [ config_generic $only_check $name config $help_text ]
-}
-
-proc config_n1sm_user { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of the user on N1 System Administrator host, or press >RETURN<"
-                    "to use the default value." }
-                    
-   return [ config_generic $only_check $name config $help_text ]
-}
 
 
 proc hedeby_init_config { config_array } {
@@ -389,7 +494,7 @@ proc hedeby_init_config { config_array } {
    set ts_pos 1
    set parameter "version"
    set config($parameter)            "1.0"
-   set config($parameter,desc)       "Haithabu configuration setup"
+   set config($parameter,desc)       "Hedeby configuration setup"
    set config($parameter,default)    "1.0"
    set config($parameter,setup_func) ""
    set config($parameter,onchange)   "stop"
@@ -398,112 +503,56 @@ proc hedeby_init_config { config_array } {
 
    set parameter "hedeby_source_dir"
    set config($parameter)            ""
-   set config($parameter,desc)       "Path to Haithabu source directory"
+   set config($parameter,desc)       "Path to Hedeby source directory"
    set config($parameter,default)    ""
    set config($parameter,setup_func) "config_$parameter"
    set config($parameter,onchange)   "stop"
    set config($parameter,pos)        $ts_pos
    incr ts_pos 1
 
-   set parameter "n1sm_host"
+   set parameter "dist"
    set config($parameter)            ""
-   set config($parameter,desc)       "N1 System Manager host"
+   set config($parameter,desc)       "Hedeby dist directory"
    set config($parameter,default)    ""
-   set config($parameter,setup_func) "config_$parameter"
+   set config($parameter,setup_func) "hedeby_config_$parameter"
    set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
+   set config($parameter,pos) $ts_pos
    incr ts_pos 1
-
-   set parameter "n1sm_user"
+      
+   set parameter "shared"
    set config($parameter)            ""
-   set config($parameter,desc)       "N1 System Manager user"
+   set config($parameter,desc)       "Hedeby shared directory"
    set config($parameter,default)    ""
-   set config($parameter,setup_func) "config_$parameter"
+   set config($parameter,setup_func) "hedeby_config_$parameter"
    set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
+   set config($parameter,pos) $ts_pos
    incr ts_pos 1
-
-   set parameter "n1sm_install_dir"
+      
+   set parameter "master"
    set config($parameter)            ""
-   set config($parameter,desc)       "N1 System Manager install directory"
+   set config($parameter,desc)       "Hedeby master host"
    set config($parameter,default)    ""
-   set config($parameter,setup_func) "config_$parameter"
+   set config($parameter,setup_func) "hedeby_config_$parameter"
    set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
+   set config($parameter,pos) $ts_pos
    incr ts_pos 1
-   
-   hedeby_config_upgrade_1_1 config
-}
-
-proc hedeby_config_upgrade_1_1 { config_array } {
-   
-   upvar $config_array config
-
-   if { $config(version) == "1.0" } {
-      global CHECK_HOST CHECK_OUTPUT   
-   
-      puts $CHECK_OUTPUT "Upgrade to version 1.1"
-      # insert new parameter after hedeby_source_dir parameter
-      set insert_pos $config(hedeby_source_dir,pos)
-      incr insert_pos 1
       
-      # move positions of following parameters
-      set names [array names config "*,pos"]
-      foreach name $names {
-         if { $config($name) >= $insert_pos } {
-            set config($name) [ expr ( $config($name) + 3 ) ]
-         }
-      }
-   
-      set parameter "dist"
-      set config($parameter)            ""
-      set config($parameter,desc)       "GRM dist directory"
-      set config($parameter,default)    ""
-      set config($parameter,setup_func) "hedeby_config_$parameter"
-      set config($parameter,onchange)   "install"
-      set config($parameter,pos) $insert_pos
-      incr insert_pos
-      
-      set parameter "shared"
-      set config($parameter)            ""
-      set config($parameter,desc)       "GRM shared directory"
-      set config($parameter,default)    ""
-      set config($parameter,setup_func) "hedeby_config_$parameter"
-      set config($parameter,onchange)   "install"
-      set config($parameter,pos) $insert_pos
-      incr insert_pos
-      
-      set parameter "master"
-      set config($parameter)            ""
-      set config($parameter,desc)       "GRM master host"
-      set config($parameter,default)    ""
-      set config($parameter,setup_func) "hedeby_config_$parameter"
-      set config($parameter,onchange)   "install"
-      set config($parameter,pos) $insert_pos
-      incr insert_pos
-      
-      set parameter "executors"
-      set config($parameter)            ""
-      set config($parameter,desc)       "GRM executor hosts"
-      set config($parameter,default)    ""
-      set config($parameter,setup_func) "hedeby_config_$parameter"
-      set config($parameter,onchange)   "install"
-      set config($parameter,pos) $insert_pos
-      incr insert_pos
-   
-      # now we have a configuration version 1.1
-      set config(version) "1.1"
-   }
+   set parameter "executors"
+   set config($parameter)            ""
+   set config($parameter,desc)       "GRM executor hosts"
+   set config($parameter,default)    ""
+   set config($parameter,setup_func) "hedeby_config_$parameter"
+   set config($parameter,onchange)   "install"
+   set config($parameter,pos) $ts_pos
+   incr ts_pos 1
 }
 
 
-proc hedeby_verify_config {config_array only_check parameter_error_list} {
+proc hedeby_verify_config { config_array only_check parameter_error_list } {
    global ts_checktree hedeby_checktree_nr CHECK_OUTPUT
    upvar $config_array config
    upvar $parameter_error_list param_error_list
    
-   hedeby_config_upgrade_1_1 config
-
    return [verify_config2 config $only_check param_error_list $ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)]   
 }
 
@@ -511,8 +560,11 @@ proc hedeby_verify_config {config_array only_check parameter_error_list} {
 proc hedeby_get_required_hosts {} {
    global hedeby_config CHECK_OUTPUT
    set res {}
-#   lappend res $arco_config(dbwriter_host)
-#   lappend res $arco_config(swc_host)
+   
+   lappend res $hedeby_config(master)
+   foreach host $hedeby_config(executors) {
+      lappend res $host
+   }
    
    puts $CHECK_OUTPUT "Required hosts for hedeby: $res"
    return $res
@@ -522,48 +574,54 @@ proc hedeby_get_required_passwords {} {
    global hedeby_config CHECK_OUTPUT
    global hedeby_passwd CHECK_HOST CHECK_USER CHECK_SHELL_PROMPT
 
-   puts "\npress return to skipp password setting (will cause errors for some tests)!\n"
-   puts "user $hedeby_config(n1sm_user)'s password on host \"$hedeby_config(n1sm_host)\": "
-   stty -echo
-   set passwd [wait_for_enter 1]
-   stty echo
-   set hedeby_passwd($hedeby_config(n1sm_user),$hedeby_config(n1sm_host)) $passwd
-   if {$passwd == ""} {
-      puts "entering passwords skipped!"
-      return 0
-   }
-
-   set id [open_remote_spawn_process "$CHECK_HOST" "$CHECK_USER" "ssh" "$hedeby_config(n1sm_user)@$hedeby_config(n1sm_host)" ]
-   set sp_id [ lindex $id 1 ]
-
-   set exit_state [do_ssh_login sp_id "n1sm_user" "n1sm_host"]
-   set timeout 60
-   puts $CHECK_OUTPUT "login exit state: $exit_state"  
-   if { $exit_state == 0 } {
-      set exit_state -1
-      send -i $sp_id -- "exit\n"
-
-      expect {
-         -i $sp_id "_exit_status_:*\n" {
-               set exit_state [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
-               puts $CHECK_OUTPUT "exit state is: \"$exit_state\""
-            }
-      }
-   }
-   close_spawn_process $id
-   return $exit_state
+   # TODO , may be we need passwords for the hedeby admin user
+   return 0
 }
 
+#****** checktree/hedeby_install_binaries() ************************************
+#  NAME
+#    hedeby_install_binaries() -- Installs the hedeby binaries
+#
+#  SYNOPSIS
+#    hedeby_install_binaries { arch_list a_report } 
+#
+#  FUNCTION
+#     Installs the hedeby binaries
+#
+#  INPUTS
+#    arch_list --  list of archicteures
+#    a_report  --  report handler
+#
+#  RESULT
+#     0 -- binaries installed
+#     1 -- error, reason has been reported in report handler
+#
+#*******************************************************************************
 proc hedeby_install_binaries { arch_list a_report } {
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST
+   global CHECK_OUTPUT CHECK_USER CHECK_HOST CHECK_SOURCE_HOSTNAME
    global ts_config ts_host_config hedeby_config CHECK_SHELL_PROMPT
 
    upvar $a_report report
    set task_nr [ report_create_task report "install_hedeby_binaries" $CHECK_HOST ]
 
+   # ---------------------------------------------------------------------------
+   # get CVS tag, it is part of the tarball
+   # ---------------------------------------------------------------------------
+   set result [start_remote_prog $CHECK_SOURCE_HOSTNAME $CHECK_USER "cat" "$hedeby_config(hedeby_source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
+   set result [string trim $result]
+   if {$prg_exit_state == 0} {
+      if {[string first "T" $result] == 0} {
+         set cvstag [string range $result 1 end]
+      } else {
+         set cvstag "maintrunk"
+      }
+   } else {
+      set cvstag "maintrunk"
+   }
+   
    set tar $ts_host_config($CHECK_HOST,tar)
-   set tar_args "-xvzf $hedeby_config(hedeby_source_dir)/dist/hedeby.tar.gz"
-   set inst_user "root"
+   set tar_args "-xvzf $hedeby_config(hedeby_source_dir)/dist/hedeby_${cvstag}.tar.gz"
+   set inst_user "$CHECK_USER"
    
    set output [start_remote_prog $CHECK_HOST "$inst_user" "cd" "$hedeby_config(dist) ; $tar $tar_args"]
    if { $prg_exit_state != 0 } {
@@ -576,284 +634,9 @@ proc hedeby_install_binaries { arch_list a_report } {
       return -1
    }
    
-   set output [start_remote_prog $CHECK_HOST "$inst_user" "cp" "$hedeby_config(hedeby_source_dir)/dist/hedeby.class $hedeby_config(dist)"]
-   if { $prg_exit_state != 0 } {
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "return state: $prg_exit_state"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "output:\n$output"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_finish_task report $task_nr -1
-      return -1
-   }
-   
-   set output [start_remote_prog $CHECK_HOST "$inst_user" "cd" "$hedeby_config(dist)/bin; ln -f -s gconf gstat"]
-   if { $prg_exit_state != 0 } {
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "return state: $prg_exit_state"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "output:\n$output"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_finish_task report $task_nr -1
-      return -1
-   }
-   
    report_finish_task report $task_nr 0
    return 0
 }
 
-proc hedeby_install_binaries_org { arch_list a_report } {
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST
-   global ts_config ts_host_config hedeby_config CHECK_SHELL_PROMPT
-
-   upvar $a_report report
-   set task_nr [ report_create_task report "install_hedeby_binaries" $CHECK_HOST ]
-   puts $CHECK_OUTPUT "------------------------------------------"
-   puts $CHECK_OUTPUT "hedeby_install_binaries: NOT FULL IMPLEMENTED"
-   puts $CHECK_OUTPUT "------------------------------------------"
-
-   report_task_add_message report $task_nr "hedeby_install_binaries"
-
-   set tar $ts_host_config($CHECK_HOST,tar)
-   set tar_args "-cvf $hedeby_config(hedeby_source_dir)/testsuite/hedeby.tar ./util/* ./config/* ./build/*"
-   # puts $CHECK_OUTPUT "doing: $tar $tar_args"
-
-   report_task_add_message report $task_nr ""
-   report_task_add_message report $task_nr "-> generate tarball from hedeby source dir:"
-   report_task_add_message report $task_nr "$tar $tar_args"
-
-   delete_file $hedeby_config(hedeby_source_dir)/testsuite/hedeby.tar 0
-   delete_file $hedeby_config(hedeby_source_dir)/testsuite/hedeby.tar.gz 0
-
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "cd" "$hedeby_config(hedeby_source_dir) ; $tar $tar_args"]
-   if { $prg_exit_state != 0 } {
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "return state: $prg_exit_state"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "output:\n$output"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_finish_task report $task_nr -1
-      return -1
-   }
-
-   set gzip "gzip"
-   set gzip_args "$hedeby_config(hedeby_source_dir)/testsuite/hedeby.tar"
-
-   report_task_add_message report $task_nr ""
-   report_task_add_message report $task_nr "-> gzip tarball:"
-   report_task_add_message report $task_nr "$gzip $gzip_args"
-
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "$gzip" "$gzip_args"]
-   if { $prg_exit_state != 0 } {
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "return state: $prg_exit_state"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "output:\n$output"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_finish_task report $task_nr -1
-      return -1
-   }
-
-   report_task_add_message report $task_nr ""
-   report_task_add_message report $task_nr "-> sftp file transfer as  $hedeby_config(n1sm_user)@$hedeby_config(n1sm_host):"
-   
-   report_task_add_message report $task_nr "copy files to $hedeby_config(n1sm_install_dir) on host $hedeby_config(n1sm_host)"
 
 
-   set id [open_remote_spawn_process "$CHECK_HOST" "$CHECK_USER" "sftp" "$hedeby_config(n1sm_user)@$hedeby_config(n1sm_host)" ]
-   set sp_id [ lindex $id 1 ]
-
-   set exit_state [do_sftp_login sp_id "n1sm_user" "n1sm_host"]
-   set timeout 60
-   if { $exit_state == 0 } {
-      set exit_state -1
-      
-      set timeout_error 0
-      send -i $sp_id -- "cd $hedeby_config(n1sm_install_dir)\n"
-      expect {
-         -i $sp_id $CHECK_SHELL_PROMPT {
-            puts $CHECK_OUTPUT "got shell prompt"
-         }
-         -i $sp_id timeout {
-            set timeout_error 1
-            send -i $sp_id -- "exit\n"
-         }
-      }
-
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "put $hedeby_config(hedeby_source_dir)/testsuite/hedeby.tar.gz\n"
-         expect {
-            -i $sp_id "sftp>" {
-               puts $CHECK_OUTPUT "got shell prompt"
-            }
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-         }
-      }
-
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "exit\n"
-         expect {
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-            -i $sp_id "_exit_status_:*\n" {
-               set exit_state [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
-               puts $CHECK_OUTPUT "exit state is: \"$exit_state\""
-            }
-         }
-      }
-
-      if { $timeout_error != 0 } {
-         puts $CHECK_OUTPUT "got timeout error"
-         set exit_state -255
-      }
-   }
-   close_spawn_process $id
-
-   if { $exit_state != 0 } {
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "return state: $exit_state"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "output:\n$output"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_finish_task report $task_nr -1
-      return -1
-   }
-
-   delete_file $hedeby_config(hedeby_source_dir)/testsuite/hedeby.tar 0
-   delete_file $hedeby_config(hedeby_source_dir)/testsuite/hedeby.tar.gz 0
-
-
-
-   set id [open_remote_spawn_process "$CHECK_HOST" "$CHECK_USER" "ssh" "$hedeby_config(n1sm_user)@$hedeby_config(n1sm_host)" ]
-   set sp_id [ lindex $id 1 ]
-
-   set exit_state [do_ssh_login sp_id "n1sm_user" "n1sm_host"]
-   set timeout 60
-
-   if { $exit_state == 0 } {
-      set exit_state -1
-      set timeout_error 0
-      send -i $sp_id -- "cd $hedeby_config(n1sm_install_dir)\n"
-      expect {
-         -i $sp_id $CHECK_SHELL_PROMPT {
-            puts $CHECK_OUTPUT "got shell prompt"
-         }
-         -i $sp_id timeout {
-            set timeout_error 1
-            send -i $sp_id -- "exit\n"
-         }
-      }
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "gunzip hedeby.tar.gz\n"
-         expect {
-            -i $sp_id $CHECK_SHELL_PROMPT {
-               puts $CHECK_OUTPUT "got shell prompt"
-            }
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-         }
-      }
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "rm -rf $hedeby_config(n1sm_install_dir)/util/*\n"
-         expect {
-            -i $sp_id $CHECK_SHELL_PROMPT {
-               puts $CHECK_OUTPUT "got shell prompt"
-            }
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-         }
-      }
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "rm -rf $hedeby_config(n1sm_install_dir)/config/*\n"
-         expect {
-            -i $sp_id $CHECK_SHELL_PROMPT {
-               puts $CHECK_OUTPUT "got shell prompt"
-            }
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-         }
-      }
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "rm -rf $hedeby_config(n1sm_install_dir)/build/*\n"
-         expect {
-            -i $sp_id $CHECK_SHELL_PROMPT {
-               puts $CHECK_OUTPUT "got shell prompt"
-            }
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-         }
-      }
-      
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "tar -xf hedeby.tar\n"
-         expect {
-            -i $sp_id $CHECK_SHELL_PROMPT {
-               puts $CHECK_OUTPUT "got shell prompt"
-            }
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-         }
-      }
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "rm hedeby.tar\n"
-         expect {
-            -i $sp_id $CHECK_SHELL_PROMPT {
-               puts $CHECK_OUTPUT "got shell prompt"
-            }
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-         }
-      }
-
-      if { $timeout_error == 0 } {
-         send -i $sp_id -- "exit\n"
-         expect {
-            -i $sp_id timeout {
-               set timeout_error 1
-               send -i $sp_id -- "exit\n"
-            }
-            -i $sp_id "_exit_status_:*\n" {
-               set exit_state [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
-               puts $CHECK_OUTPUT "exit state is: \"$exit_state\""
-            }
-         }
-      }
-
-      if { $timeout_error != 0 } {
-         puts $CHECK_OUTPUT "got timeout error"
-         set exit_state -255
-      }
-   }
-   close_spawn_process $id
-   if { $exit_state != 0 } {
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "return state: $exit_state"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_task_add_message report $task_nr "output:\n$output"
-      report_task_add_message report $task_nr "------------------------------------------"
-      report_finish_task report $task_nr -1
-      return -1
-   }
-
-
-
-   report_finish_task report $task_nr 0
-   return 0
-}

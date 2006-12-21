@@ -1,0 +1,70 @@
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+AVAILABLE_JVMS=jvm0
+COMPONENT_INSTALL_LIST=BOOTSTRAP
+SECURITY_ADMINUSER=@@@CHECK_USER@@@
+SECURITY_ADMINUSER_LIST=root|@@@CHECK_USER@@@
+grm.admin.user=@@@CHECK_USER@@@
+grm.dist.dir=@@@GRM_DIST@@@
+grm.etc.dir=@@@GRM_ETC@@@
+grm.executor.cps.config=3
+grm.executor.id.config=executor
+grm.executor.idletimeout.config=60
+grm.executor.keepfiles.config=false
+grm.executor.mps.config=10
+grm.executor.shutdowtimeout.config=60
+grm.install.remote.security=false
+grm.preference.type=SYSTEM
+grm.rc.install.classic=false
+grm.rc.install.typical=false
+grm.rp.config.id=rp
+grm.rp.config.polling.period=1
+grm.rp.config.spool.dir=@@@GRM_VAR@@@/spool/rp
+grm.rp.config.usage=1
+grm.rp.jvm=jvm0
+grm.security.auth.ca.jvm=jvm0
+grm.security.auth.method=SYSTEM
+grm.security.ca.admin.mail.config=bla@hupe.com
+grm.security.ca.countrycode.config=de
+grm.security.ca.location.config=Regensburg
+grm.security.ca.orga.unit.config=Gridengine Engineering
+grm.security.ca.organisation.config=Sun Microsystem
+grm.security.ca.state.config=Bayern
+grm.sge.dist.dir=@@@SGE_ROOT@@@
+grm.shared.dir=@@@GRM_SHARED@@@
+grm.spool.dir=@@@GRM_VAR@@@
+grm.system.name=@@@GRM_SYSTEM_NAME@@@
+jvm[jvm0].adminuser=@@@CHECK_USER@@@
+jvm[jvm0].port=0
+sc.sla.minvalue=3
+sc.sla.urgency=30
+system.install.mode=new.system

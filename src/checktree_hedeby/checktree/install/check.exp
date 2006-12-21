@@ -48,19 +48,17 @@ global check_root_access_needs check_category
 global check_use_installed_system check_init_level_procedure
 
 # This file shows some check spezific things
-set check_root_access_needs  "yes"
-set check_name          "hedeby_install"
-set check_category      "INSTALL COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_description(0)   "install a hedeby system and start it up"
-set check_needs         "init_core_system";# dependencies of this check (name of other check)
-set check_highest_level  0 ;# 0 for usual tests
+set check_root_access_needs      "yes"
+set check_name                   "hedeby_install"
+set check_category              "INSTALL COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)        "install a hedeby system and start it up"
+set check_needs                 "init_core_system";# dependencies of this check (name of other check)
+set check_highest_level         0 ;# 0 for usual tests
 set check_init_level_procedure "hedeby_install_init_level"
-set check_functions     ""                              ;# functions to call (in order)
+set check_functions            ""     ;# functions to call (in order)
 
-lappend check_functions "hedeby_install_bootstrap"
-lappend check_functions "install_hedeby" ;# install Haithabu 
-lappend check_functions "install_hedeby_shell" ;# install Haithabu via shell
-
+lappend check_functions "hedeby_install_master"
+lappend check_functions "hedeby_install_executors"
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
 
@@ -72,23 +70,26 @@ proc hedeby_install_init_level {} {
          return 0
       }
    }
-
    return -1
 }
 
+proc hedeby_create_ctx { ctx } {
+   
+   upvar local_ctx
+}
 
-proc create_template { template target } {
+proc create_template { hostname template target } {
    
    global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL CHECK_HOST
    global ts_config hedeby_config ts_host_config
 
-   set p(GRM_SYSTEM) "${CHECK_USER}_${ts_config(commd_port)}"
-   set p(GRM_ADMIN)  "$CHECK_USER"
-   set p(GRM_DIST)   "$hedeby_config(dist)"
-   set p(GRM_VAR)    "/var/grm"
-   set p(GRM_ETC)    "/etc/grm/svcmgmt"
-   set p(GRM_SHARED) "$hedeby_config(shared)"
-   set p(SGE_ROOT)   "$ts_config(product_root)"
+   set p(GRM_SYSTEM_NAME) [hedeby_get_system_name]
+   set p(CHECK_USER)  $CHECK_USER
+   set p(GRM_DIST)    $hedeby_config(dist)
+   set p(GRM_ETC)     [get_local_spool_dir $hostname  hedeby/etc 0]
+   set p(GRM_VAR)     [get_local_spool_dir $hostname  hedeby/var 0]
+   set p(SGE_ROOT)    $ts_config(product_root)
+   set p(GRM_SHARED)  $hedeby_config(shared)
    
    set args ""
    foreach param [array names p] {
@@ -104,68 +105,108 @@ proc create_template { template target } {
    }
    return 0
 }
-proc hedeby_install_bootstrap {} {
+
+
+proc hedeby_install_master {} {
    global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
    global CHECK_ACT_PATH
    global ts_config hedeby_config ts_host_config
    
-   
-   set tmp_file [get_tmp_file_name]
-   if { [create_template $CHECK_ACT_PATH/bootstrap.inst.template $tmp_file] != 0 } {
-      add_proc_error "hedeby_install_bootstrap" -1 "Can not create installation template"
-      return -1
-   }
-
-   set args "-log com.sun.grid.grm.install=FINE -system -auto $tmp_file"
-   
-   set output [start_remote_prog $hedeby_config(master) $CHECK_USER "cd" "$hedeby_config(dist) ; ./inst_grm.sh $args"]
-   if { $prg_exit_state != 0 } {
-      add_proc_error "hedeby_install_bootstrap" -1 "inst_grm failed ($prg_exit_state): $output"
+   set ret [hedeby_run_installer $hedeby_config(master) $CHECK_ACT_PATH/install_master.template]
+   if { $ret != 0 } {
+      add_proc_error "hedeby_install_master" -1 "Installation of hedeby master host failed"
       return -1
    }
    
-   # startup the system
+   # startup the master host, it is necessary because all further
+   # configurations needs the CA component
+   set ret [hedeby_startup $hedeby_config(master)]   
+   if { $ret != 0 } {
+      add_proc_error "hedeby_install_master" -1 "startup of hedeby system on master host failed"
+      return -1
+   }
    
-   puts $CHECK_OUTPUT "-------------------------------------------------"
-   puts $CHECK_OUTPUT "hedeby_install_bootstrap (and startup): NOT IMPLEMENTED!"
-   puts $CHECK_OUTPUT "-------------------------------------------------"
+   return 0
 }
 
-#****** install_hedeby_shell() ***********************************************
-#  NAME
-#     install_hedeby_shell() -- Install Haithabu using local shell script
-#     hedeby_install.sh. 
-#
-#  SYNOPSIS
-#     Pass to hedeby_install.sh shell script list of master host
-#     and execd hosts to be configured by gconf.
-#
-#  FUNCTION
-#     Install Haithabu from TestSuite
-#
-#  INPUTS
-#     
-#
-#*******************************************************************************
 
-proc install_hedeby_shell {} {
+proc hedeby_install_executors {} {
+   
    global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
-   global CHECK_ACTUAL_TEST_PATH CHECK_ACT_LEVEL
+   global CHECK_ACT_PATH
    global ts_config hedeby_config ts_host_config
    
-
-   set hostname [lindex $ts_config(execd_nodes) 0]
-   set host1 [lindex $ts_config(execd_nodes) 1]
-   #set host2 [lindex $ts_config(execd_nodes) 2]
-    
-  # Run this script as user "root" since the Haithabu project is setup
-  # for user root.
- 
-   set result_shell_program [start_remote_prog $hostname "root" \
-   "$CHECK_ACTUAL_TEST_PATH/hedeby_install.sh" "-h $hostname,$host1"]
+   foreach exechost $ts_config(execd_nodes) {
+      set ret [hedeby_run_installer $hedeby_config(master) $CHECK_ACT_PATH/install_executor.template]
+      if { $ret != 0 } {
+         add_proc_error "hedeby_install_executors" -1 "Installation of hedeby executor on exec host ${exechost} failed"
+         return -1
+      }
+   }
+   
+   return 0
 }
 
 
+proc hedeby_run_installer {  host template } {
+   
+   global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
+   global CHECK_ACT_PATH
+   global ts_config hedeby_config ts_host_config
+   
+   set tmp_file [get_tmp_file_name]
+   if { [create_template $host $template $tmp_file] != 0 } {
+      add_proc_error "hedeby_run_installer" -1 "Can not create state file on host $host"
+      return -1
+   }
 
+   set args "--log com.sun.grid.grm.install=FINE --mode AUTO --state $tmp_file"
 
+   set env(JAVA_HOME) [get_java15_home_for_host $host]
+   if { $env(JAVA_HOME) == "" } {
+      add_proc_error "hedeby_run_installer" -1 "Can not run installer, java15 is not defined for host ${host}"
+      return -1
+   }
+   set env(ARCH)      [resolve_arch $host]
+   
+   set open_spawn [ open_remote_spawn_process $host root "./inst_hedeby.sh" "$args" 0 "$hedeby_config(dist)" env]
+   set spawn_list [lindex $open_spawn 1]
+   set timeout 300
+   set result -1
+   set error_count 0
+   expect {
+      -i $spawn_list full_buffer {
+         add_proc_error "hedeby_run_installer" -1 "full_buffer error \"$host\""
+      }
+      -i $spawn_list timeout {
+         add_proc_error "hedeby_run_installer" -1 "got timeout for host \"$host\""
+      }
+      -i $spawn_list eof {
+         add_proc_error "hedeby_run_installer" -1 "got eof \"$host\""
+      }
+      -i $spawn_list "_exit_status_:(*)" {
+         set result [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]         
+      }
+      -i $spawn_list -re {^ERROR:.*?\n} {
+         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         incr error_count
+         exp_continue
+      }
+      -i $spawn_list -re {^.*?\n} {
+         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         exp_continue
+      }
+   }
+
+   close_spawn_process $open_spawn
+   
+   if { $error_count > 0 } {
+      add_proc_error "hedeby_run_installer" -1 "inst_hedeby.sh on host $host failed ($error_count errors)"
+      return -1
+   } elseif { $result != 0 } {
+      add_proc_error "hedeby_run_installer" -1 "inst_hedeby.sh on host $host failed (exit code $result)"
+      return -1
+   }
+   return 0
+}
 

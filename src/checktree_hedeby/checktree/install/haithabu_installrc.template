@@ -1,7 +1,0 @@
-#!/bin/sh
-
-HAITHABU_HOME=/export/home/Haithabu/haithabu; export HAITHABU_HOME
-GRM_DIST=/var/tmp/Haithabu_TestSuite; export GRM_DIST
-
-JAVA_HOME=/usr/jdk/jdk1.5.0_07; export JAVA_HOME
-JAVA_HOME_32=/usr/jdk/j2sdk1.5.0; export JAVA_HOME_32

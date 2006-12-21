@@ -1,3 +1,6 @@
+RH-2006-12-21-0: Enhancem.: First version of hedeby checktree using
+                            the new installer
+ 
 JG-2006-12-21-0: Cleanup:   Removed global variables,
                             and set_error from hedeby testsuite.
                             Minor fixes.
