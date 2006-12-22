@@ -63,6 +63,7 @@ set check_cleanup_function resource_quota_cleanup
 # define test's procedure order
 set check_functions ""
 lappend check_functions "resource_quota_dynamic_limit"
+lappend check_functions "issue_xxx"
 
 global resource_quota_test_host
 global resource_quota_test_qname
@@ -85,14 +86,6 @@ proc resource_quota_setup  {} {
    set resource_quota_test_host [lindex $ts_config(execd_nodes) 0]
    set resource_quota_test_qname "resource_quota.q"
 
-   # disable all.q
-   set queue_list {}
-   foreach host $ts_config(execd_nodes) {
-      lappend queue_list [get_queue_instance "all.q" $host]
-   }
-   disable_queue $queue_list
-   puts $CHECK_OUTPUT "disabled $queue_list"
-
    # create test queue
    set queue_settings(slots) 1000
    set queue_settings(load_thresholds) "np_load_avg=11.75"
@@ -102,13 +95,6 @@ proc resource_quota_setup  {} {
 
 proc resource_quota_cleanup  {} {
    global CHECK_OUTPUT ts_config resource_quota_test_host resource_quota_test_qname
-
-   set queue_list {}
-   foreach host $ts_config(execd_nodes) {
-      lappend queue_list [get_queue_instance "all.q" $host]
-   }
-   enable_queue $queue_list
-   puts $CHECK_OUTPUT "enabled $queue_list"
 
    del_queue $resource_quota_test_qname $resource_quota_test_host 0 1
 
@@ -125,7 +111,7 @@ proc resource_quota_dynamic_limit {} {
    global CHECK_OUTPUT ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
-   set job_options "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+   set job_options "-o /dev/null -j y -q $resource_quota_test_qname $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
 
    set rqs_name "dynamic_rqs"
    set host_num_proc [node_get_processors $resource_quota_test_host]
@@ -163,4 +149,43 @@ proc resource_quota_dynamic_limit {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 20
+}
+
+proc issue_xxx {} {
+   global ts_config resource_quota_test_host resource_quota_test_qname
+
+   set job_options "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+
+   set rqs_name "issue_xxx"
+   set rules ""
+   lappend rules "queues $resource_quota_test_qname hosts $resource_quota_test_host to slots=1"
+
+   # Add resource quota sets 
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set result [add_rqs rqs_charray]
+
+   # Submit one job to fill up defined resource quota
+   set job_id [submit_job "-q $resource_quota_test_qname $job_options"]
+   trigger_scheduling
+   set ret [wait_for_jobstart $job_id "leeper" 20 0]
+   if { $ret == -1 } {
+      add_proc_error "issue_xxx" -1 "RQS does not work"
+      return
+   }
+
+   # All other jobs not affected by quota rule should not be affected
+   # We submit up to 5 jobs that are runnable
+   for {set act_job 0} {$act_job < 5} {incr act_job 1} {
+      set job_id [submit_job "$job_options"]
+      trigger_scheduling
+      if { [wait_for_jobstart $job_id "leeper" 20] == -1} {
+         add_proc_error "issue_xxx" -1 "RQS Scheduling failed. Non RQS affected jobs did not start"
+         break;
+      }
+   }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 20
+
 }

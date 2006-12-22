@@ -53,6 +53,7 @@ proc qconf_add_rqs {} {
 
    set rqs_name_fast "qconf_rqs_fast"
    set rqs_name_cli "qconf_rqs_cli"
+   set rqs_name_invalid "qconf_rqs_invalid"
 
    set rules ""
    lappend rules "to slots=10"
@@ -66,7 +67,28 @@ proc qconf_add_rqs {} {
    set rqs_charray($rqs_name_cli,limit) "$rules"
    set result [add_rqs rqs_charray 0]
 
-   # try to create resource quota set with insufficient permissions
+   # Try to add invalid fast 
+   set rules ""
+   lappend rules "user bla to slots=10"
+   unset rqs_charray
+   set rqs_charray($rqs_name_invalid,limit) "$rules"
+   set result [add_rqs rqs_charray 1 "" "" 0]
+   if { $result != -2 } {
+      add_proc_error "qconf_add_rqs" -1 "qconf -Arqs with invalid RQS returned wrong message"
+   }
+   if { [get_rqs tmp_rqs_charray $rqs_name_invalid  "" "" 0] == 0} {
+      add_proc_error "qconf_add_rqs" -1 "qconf -Arqs added invalid RQS"
+      del_rqs $rqs_name_invalid
+   }
+
+   # Try to add invalid CLI
+   set result [add_rqs rqs_charray 0 "" "" 0]
+   if { [get_rqs tmp_rqs_charray $rqs_name_invalid "" "" 0] == 0} {
+      add_proc_error "qconf_add_rqs" -1 "qconf -arqs added invalid RQS"
+      del_rqs $rqs_name_invalid
+   }
+
+   # Try to create resource quota set with insufficient permissions
    # - as non admin user
    # - from non admin host
    set rqs_name "non_admin_user_rqs"
