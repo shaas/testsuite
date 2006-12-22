@@ -112,6 +112,8 @@ lappend check_functions "check_option_w"
 lappend check_functions "check_option_@"
 lappend check_functions "check_huge_script"
 lappend check_functions "check_qhold_jobname"
+lappend check_functions "check_qsub_ts_iz_72" ;# Testcase for TS IZ 72
+
 
 # test specific globals:
 global CHECK_JOB_OUTPUT_DIR job_output_dir
@@ -2748,3 +2750,94 @@ proc qsub_cleanup {} {
    }
    set_config stored_configuration
 }
+
+#
+#
+#****** qsub/check_qsub_ts_iz_72() ***********************************************
+#  NAME
+#     check_qsub_ts_iz_72() -- Testcase for TS IZ 72.
+#
+#  SYNOPSIS
+#     1. submit an array job in hold
+#     2. qalter one task into system hold
+#     3. qalter one task into pending state
+#     4. wait until the task has finsihed
+#     5. check, if the task in system hold is still there.
+#
+#  FUNCTION
+#     Check if TS IZ 72 has been fixed.
+#  INPUTS
+#
+#*******************************************************************************
+
+proc check_qsub_ts_iz_72 {} {
+	global ts_config CHECK_OUTPUT CHECK_PRODUCT_ROOT   
+
+	set hostname [lindex $ts_config(execd_nodes) 0]
+      
+# Delete any remaining jobs
+   delete_all_jobs
+      
+# 1. submit an array job in hold
+
+   set result0 [start_sge_bin "qsub" "-h -t 1:2 -o /dev/null -j y -N TS_IZ_72 \
+					 $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" ]
+
+# Wait a little for jobs to be scheduled.
+   sleep 15
+	
+# Get the jobid with qstat_plain_parse
+
+   # qstat_plain_output contains the plain qstat output in an assoc. array
+   # qstat_plain_output(jobid) contains a list of jobids.
+   set result1 [qstat_plain_parse qstat_plain_output]
+      
+   puts $CHECK_OUTPUT "qstat array .... \n"
+   parray qstat_plain_output
+      
+
+   # Now let's compare them by jobid. 
+   set jobid_list  $qstat_plain_output(index)
+	
+	set jobid [lindex $jobid_list 0]
+   puts $CHECK_OUTPUT "get the jobid .... \n"
+	
+# 2. qalter one task into system hold
+
+   set result2 [start_sge_bin "qalter" "-h s $jobid.1" ]
+	puts $CHECK_OUTPUT "run qalter -h s.... \n"
+	
+# 	3. qalter one task into pending state
+
+   set result3 [start_sge_bin "qalter" "-h n $jobid.2" ]
+	puts $CHECK_OUTPUT "run qalter -h n .... \n"
+	
+# 	4. wait until the task has finsihed
+
+   sleep 60
+	
+# 	5. check, if the task in system hold is still there.
+
+   set result4 [qstat_plain_parse qstat_plain_output1]
+      
+   puts $CHECK_OUTPUT "qstat array at the end .... \n"
+   parray qstat_plain_output1
+	
+	if { ($qstat_plain_output1($jobid,state) != "hqw") } {
+		add_proc_error "check_qsub_ts_iz_72" -1 "Job 2 not in hold state .."
+	} elseif { ($qstat_plain_output1($jobid,jatask) == "2") } {
+		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still around .."
+	} elseif { ($qstat_plain_output1($jobid,jatask) == "1,2")} {
+		add_proc_error "check_qsub_ts_iz_72" -1 "Job 2 was never scheduled .."
+	} elseif { ([llength $qstat_plain_output1($jobid,jatask)] == 2) } {
+	   add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still  around .."
+	} else {
+		puts $CHECK_OUTPUT "Task in system hold is still around as expected.. \n"
+	} 
+	
+	set_error 0 "ok"
+	
+	delete_all_jobs
+   
+   sleep 25
+}	
