@@ -1,3 +1,7 @@
+CR-2006-12-22-0: Bugfix:    o fixed bug for compiling:
+                              do aimk depend before clean when testsuite did
+                              cvs update
+
 JG-2006-12-21-2: Bugfix:    qmake test failed when test hosts had significantly
                             different speed.
                             system_tests/windows/gui failed in clusters without

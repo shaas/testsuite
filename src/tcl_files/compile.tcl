@@ -415,10 +415,22 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
    # create it before update, clean, depend
    compile_create_java_properties $compile_hosts
 
+   set compile_depend_done "false"
    # update sources
    if {$do_only_install != 1} {
       set res [update_source report]      
       if {$res == 1} {
+         # make dependencies before compile clean
+         if {$do_only_hooks == 0} {
+            if {[compile_depend $compile_hosts report] != 0} {
+               incr error_count
+            } else {
+               set compile_depend_done "true"
+            }
+         } else {
+            puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+         }
+
          # after an update, do an aimk clean
          if {$do_only_hooks == 0} {
             compile_with_aimk $compile_hosts report "compile_clean" "clean"
@@ -475,9 +487,13 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
       puts $CHECK_OUTPUT "Skip compile due to previous errors\n"
    } elseif {$do_only_install != 1} {
       if {$do_only_hooks == 0} {
-         if {[compile_depend $compile_hosts report] != 0} {
-            incr error_count
-         } 
+         if { $compile_depend_done == "false" } {
+            if {[compile_depend $compile_hosts report] != 0} {
+               incr error_count
+            } 
+         } else {
+            puts $CHECK_OUTPUT "Skip second depend, already done!"
+         }
       } else {
          puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
       }
