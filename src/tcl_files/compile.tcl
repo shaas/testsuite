@@ -296,7 +296,7 @@ proc compile_search_compile_host {arch} {
 proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
    global ts_config ts_host_config
    global CHECK_SOURCE_DIR CHECK_OUTPUT CHECK_SOURCE_HOSTNAME
-   global CHECK_SCRIPT_FILE_DIR CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
+   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
    global CHECK_HTML_DIRECTORY
    global CHECK_DEFAULTS_FILE CHECK_SOURCE_CVS_RELEASE do_not_update check_name
    global CHECK_DIST_INSTALL_OPTIONS CHECK_JOB_OUTPUT_DIR
@@ -643,7 +643,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
 #*******************************************************************************
 proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_SCRIPT_FILE_DIR CHECK_SOURCE_DIR
+   global CHECK_SOURCE_DIR
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
    global do_only_install
    
@@ -679,7 +679,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
       # start build jobs
       puts $CHECK_OUTPUT "-> starting $task_name on host $host ..."
 
-      set prog "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/remotecompile.sh"
+      set prog "$ts_config(testsuite_root_dir)/scripts/remotecompile.sh"
       set par1 "$CHECK_SOURCE_DIR"
       set par2 "-DDAILY_BUILD_NUMBER=$build_number $my_compile_options"
 

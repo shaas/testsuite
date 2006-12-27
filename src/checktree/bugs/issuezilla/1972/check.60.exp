@@ -110,7 +110,7 @@ proc issue_1972_cleanup  {} {
 
 proc issue_1972_test1 {} {
    global issue_1972_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
    global CHECK_USER
 
    set arguments "-l idle $ts_config(product_root)/examples/jobs/sleeper.sh 5"

@@ -595,7 +595,7 @@ proc reschedule_checkpointing_forced {} {
 proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
    global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_DEBUG_LEVEL CHECK_USER CHECK_USER
-   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SCRIPT_FILE_DIR CHECK_CORE_EXECD CHECK_HOST
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_CORE_EXECD CHECK_HOST
 
    # JG: TODO: use open_remote_spawn_process - we could run out of filehandles here
    set qrsh_id    [open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
@@ -604,9 +604,9 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
      
    set qlogin_out_file [get_tmp_file_name "" "qlogin" "txt"]
 
-   puts $CHECK_OUTPUT "try to $CHECK_SCRIPT_FILE_DIR/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
+   puts $CHECK_OUTPUT "try to scripts/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
 
-   set qlogin_id  [open_spawn_process "$CHECK_SCRIPT_FILE_DIR/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
+   set qlogin_id  [open_spawn_process "scripts/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
    set qlogin_spawn_id [lindex $qlogin_id 1]
    set no_jobs 4
    set result ""

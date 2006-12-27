@@ -971,7 +971,7 @@ proc setup_check_user_permissions {} {
    global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_OUTPUT
-   global CHECK_SCRIPT_FILE_DIR CHECK_ADMIN_USER_SYSTEM
+   global CHECK_ADMIN_USER_SYSTEM
    global check_use_installed_system 
 
    if {$check_use_installed_system} {
@@ -994,9 +994,9 @@ proc setup_check_user_permissions {} {
         if { $prg_exit_state != 0 } {
            add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$execd_spooldir\" on host $host: $output"
         }
-        set output [ start_remote_prog "$host" "$user" "cd" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR" ]
+        set output [ start_remote_prog "$host" "$user" "cd" "$ts_config(testsuite_root_dir)/scripts" ]
         if { $prg_exit_state != 0 } {
-           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR\" on host $host: $output"
+           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$ts_config(testsuite_root_dir)/scripts\" on host $host: $output"
         }
      }
   }

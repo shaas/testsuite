@@ -141,7 +141,7 @@ proc drmaa_cleanup  {} {
 proc drmaa_check {} {
    global ts_config CHECK_OUTPUT
    global CHECK_USER
-   global CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_ACT_LEVEL
 
    foreach host $ts_config(unique_arch_nodes) {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
@@ -214,7 +214,7 @@ proc drmaa_check {} {
                   ST_SUBMIT_IN_HOLD_RELEASE ST_SUBMIT_IN_HOLD_DELETE \
                   ST_SYNCHRONIZE_NONEXISTANT ST_RECOVERABLE_SESSION" {
                puts "starting single threaded test $st_test"
-               drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/suspendable_sleeper.sh
+               drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
             }
 
             # -- tests with a <sleeper_job> argument repeatedly 
@@ -222,14 +222,14 @@ proc drmaa_check {} {
                set n 100
                puts "starting single threaded test $st_test $n times each"
                for {set i 0} {$i < $n} {incr i} {
-                  drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/suspendable_sleeper.sh
+                  drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
                }
             }
 
             # -- tests with a <exit_arg_job> argument
             foreach ste_test "ST_EXIT_STATUS ST_USAGE_CHECK" {
                puts "starting single threaded test $ste_test"
-               drmaa_test $host $binary_path $ste_test $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit.sh
+               drmaa_test $host $binary_path $ste_test $ts_config(testsuite_root_dir)/scripts/exit.sh
             }
 
 
@@ -238,7 +238,7 @@ proc drmaa_check {} {
             # need to add "-m a" to sge_request file 
             # test assumes job do run at submission host
             # puts "starting single threaded test ST_ATTRIBUTE_CHECK"
-            # drmaa_test $host $binary_path ST_ATTRIBUTE_CHECK $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit.sh "$CHECK_USER@localhost"
+            # drmaa_test $host $binary_path ST_ATTRIBUTE_CHECK $ts_config(testsuite_root_dir)/scripts/exit.sh "$CHECK_USER@localhost"
             # need to remove "-m a" from sge_request file 
             # need to move entry "test.cat -N ExitTest -h" to users .qtask file
             # -- 

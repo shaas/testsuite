@@ -212,7 +212,7 @@ proc setup_qping_dump { log_array  } {
 #     0 on success, 1 on error
 #************************************************************************************
 proc check_all_system_times {} {
-   global CHECK_USER CHECK_OUTPUT ts_config CHECK_SCRIPT_FILE_DIR
+   global CHECK_USER CHECK_OUTPUT ts_config
 
    set return_value 0
    set host_list [host_conf_get_cluster_hosts]
@@ -226,7 +226,7 @@ proc check_all_system_times {} {
    set test_start [timestamp]
    foreach host $host_list {
       set tcl_bin [ get_binary_path $host "expect"]
-      set time_script "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/time.tcl"
+      set time_script "$ts_config(testsuite_root_dir)/scripts/time.tcl"
       puts $CHECK_OUTPUT "test remote system time on host $host ..."
       set result [string trim [start_remote_prog $host $CHECK_USER $tcl_bin $time_script]]
       puts $CHECK_OUTPUT $result
@@ -441,13 +441,13 @@ proc cleanup_qping_dump_output { log_array } {
 #*******************************
 proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
    global ts_config
-   global CHECK_SCRIPT_FILE_DIR CHECK_TCL_SCRIPTFILE_DIR CHECK_DEFAULTS_FILE
+   global CHECK_DEFAULTS_FILE
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
  
    log_user 1
    puts $CHECK_OUTPUT "--- start_remote_tcl_prog start ---"
    set tcl_bin [ get_binary_path $host "expect"]
-   set tcl_prog "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/remote_tcl_command.sh"
+   set tcl_prog "$ts_config(testsuite_root_dir)/scripts/remote_tcl_command.sh"
    set tcl_testhome "$ts_config(testsuite_root_dir)"
    set tcl_defaults  "$CHECK_DEFAULTS_FILE"
    
@@ -461,7 +461,7 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
    if { $CHECK_DEBUG_LEVEL != 0 } {
       set debug_arg "debug"
    }
-   set remote_args "$tcl_bin $ts_config(testsuite_root_dir)/$CHECK_TCL_SCRIPTFILE_DIR/$tcl_file $tcl_testhome $tcl_procedure \"$tcl_procargs\" $tcl_defaults $debug_arg"
+   set remote_args "$tcl_bin $ts_config(testsuite_root_dir)/tcl_files/$tcl_file $tcl_testhome $tcl_procedure \"$tcl_procargs\" $tcl_defaults $debug_arg"
 
    set result ""
    debug_puts "prog: $tcl_prog"
@@ -1204,7 +1204,7 @@ proc open_remote_spawn_process { hostname
                                } {
 
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_HOST CHECK_SCRIPT_FILE_DIR
+   global CHECK_HOST
    global CHECK_EXPECT_MATCH_MAX_BUFFER CHECK_DEBUG_LEVEL
    global CHECK_LOGIN_LINE
    global last_shell_script_file last_spawn_command_arguments
@@ -1456,7 +1456,7 @@ proc open_remote_spawn_process { hostname
          set catch_return [catch {
             set num_tries $nr_of_tries
             # try to start the shell_start_output.sh script
-            ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n" $hostname
+            ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $hostname
             set timeout 2
             expect {
                -i $spawn_id eof {
@@ -1471,7 +1471,7 @@ proc open_remote_spawn_process { hostname
                   incr num_tries -1
                   if {$num_tries > 0} {
                      # try to restart the shell_start_output.sh script
-                     ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n" $hostname
+                     ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $hostname
                      increase_timeout
                      exp_continue
                   } else {
@@ -1532,7 +1532,7 @@ proc open_remote_spawn_process { hostname
       # now we know that we have a connection and can start a shell script
       # try to check login id
       set catch_return [ catch {
-         ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
+         ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
          set num_tries $nr_of_tries
          set timeout 2
          expect {
@@ -1547,7 +1547,7 @@ proc open_remote_spawn_process { hostname
             -i $spawn_id timeout {
                incr num_tries -1
                if {$num_tries > 0} {
-                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
+                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
                   increase_timeout
                   exp_continue
                } else {
@@ -1643,7 +1643,7 @@ proc open_remote_spawn_process { hostname
          # now we should have the id of the target user
          # check login id
          set catch_return [catch {
-            ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
+            ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
             set num_tries $nr_of_tries
             set timeout 2
             expect {
@@ -1658,7 +1658,7 @@ proc open_remote_spawn_process { hostname
                -i $spawn_id timeout {
                   incr num_tries -1
                   if {$num_tries > 0} {
-                     ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $hostname
+                     ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
                      increase_timeout
                      exp_continue
                   } else {
@@ -1721,7 +1721,7 @@ proc open_remote_spawn_process { hostname
    if {$re_use_script == 0} {
       set catch_return [catch {
          debug_puts "checking remote file access ..."
-         ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/file_check.sh $script_name\n" $hostname
+         ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/file_check.sh $script_name\n" $hostname
          set connect_errors 0
          set num_tries $nr_of_tries
          set timeout 2
@@ -1737,7 +1737,7 @@ proc open_remote_spawn_process { hostname
             -i $spawn_id timeout {
                incr num_tries -1
                if {$num_tries > 0} {
-                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/file_check.sh $script_name\n" $hostname
+                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/file_check.sh $script_name\n" $hostname
                   increase_timeout
                   exp_continue
                } else {
@@ -2513,7 +2513,6 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
 #*******************************************************************************
 proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 0} {raise_error 1}} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_SCRIPT_FILE_DIR
 
    debug_puts "check_rlogin_session: $spawn_id $pid $hostname $user $nr_of_shells $only_check"
    if {![is_spawn_id_rlogin_session $spawn_id]} {
@@ -2532,7 +2531,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
    # - expect that sends may fail, pass raise_error = 0 to ts_send
    set connection_ok 0
    set catch_return [catch {
-      ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname) 0 0
+      ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
       set num_tries 15
       set timeout 2
       expect {
@@ -2549,7 +2548,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
                   puts -nonewline $CHECK_OUTPUT "." 
                   flush $CHECK_OUTPUT
                }
-               ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname) 0 0
+               ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
                increase_timeout
                exp_continue
             } else {
@@ -2700,7 +2699,7 @@ proc is_spawn_process_in_use {spawn_id} {
 #*******************************
 proc close_spawn_process {id {check_exit_state 0}} {
    global ts_config CHECK_OUTPUT
-   global CHECK_DEBUG_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_DEBUG_LEVEL
    global CHECK_SHELL_PROMPT
  
    set pid      [lindex $id 0]
@@ -2744,7 +2743,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
          # sending just a ENTER
          # if this is not working, send CTRL-C
          debug_puts "real user of connection is \"$con_data(real_user)\""
-         ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname)
+         ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname)
          set timeout 2
          set num_tries 10
          expect {
@@ -2762,7 +2761,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
                   debug_puts "close_spawn_process: sending CTRL-C"
                   ts_send $spawn_id "\003" $con_data(hostname) ;# CTRL-C
                   ts_send $spawn_id "\n" $con_data(hostname)
-                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/check_identity.sh\n" $con_data(hostname)
+                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname)
                   increase_timeout
                   exp_continue
                } else {

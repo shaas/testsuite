@@ -107,11 +107,10 @@ proc issue_440_set_parameters {} {
 }
 
 proc issue_440_check_qsub {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR 
+   global ts_config CHECK_OUTPUT
    global CHECK_CORE_MASTER issue_440_MAX_KBYTE check_440_host
 
-   set submit_script_path "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/cmd_line_output.sh" 
+   set submit_script_path "$ts_config(testsuite_root_dir)/scripts/cmd_line_output.sh" 
    set start_length 0
    set end_length [expr 1024 * $issue_440_MAX_KBYTE]
    set submit_queue [get_queue_instance "all.q" $check_440_host]
@@ -198,12 +197,11 @@ proc issue_440_check_qsub {} {
 }
 
 proc issue_440_check_qrsh {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR
+   global ts_config CHECK_OUTPUT
    global CHECK_CORE_MASTER CHECK_USER issue_440_MAX_KBYTE check_440_host
 
    # test script
-   set submit_script_path "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/cmd_line_output.sh" 
+   set submit_script_path "$ts_config(testsuite_root_dir)/scripts/cmd_line_output.sh" 
 
    # set start and end command line size
    set start_length 0

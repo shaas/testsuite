@@ -117,7 +117,7 @@ proc shadowd_migrate_cleanup  {} {
 
 
 proc shadowd_migrate_test {} {
-   global CHECK_OUTPUT ts_config  CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR check_description 
+   global CHECK_OUTPUT ts_config  CHECK_ACT_LEVEL check_description 
    global CHECK_USER file_procedure_logfile_wait_sp_id
 
    set nr_shadowds [llength $ts_config(shadowd_hosts)]

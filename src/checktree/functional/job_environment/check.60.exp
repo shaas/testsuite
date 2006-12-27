@@ -85,6 +85,32 @@ proc job_environment_setup_60 {} {
    puts $CHECK_OUTPUT "************************************************************"
 }
 
+####### job_environment_cleanup_60() ###########################################
+#  NAME
+#     job_environment_cleanup_60() -- clean up after the job env test
+#
+#  SYNOPSIS
+#     job_environment_cleanup_60 { } 
+#
+#  FUNCTION
+#     Clean up changes made during the job environment 6.0 test.
+#
+#  RESULT
+#     0 -> ok   1 -> error
+#
+#  SEE ALSO
+#     job_environment_cleanup()
+################################################################################
+proc job_environment_cleanup_60 {} {
+   global job_environment_exec_host
+
+   # Stop execd
+   shutdown_system_daemon $job_environment_exec_host "execd"
+
+   # Restart execd without marker variable
+   startup_execd $job_environment_exec_host
+}
+
 #****** job_environment_amount_uninherited() ***********************************
 #  NAME
 #     job_environment_amount_uninherited() -- test job environment
@@ -352,28 +378,3 @@ proc job_environment_SET_LIB_PATH {} {
    }
 }
 
-####### job_environment_cleanup_60() ###########################################
-#  NAME
-#     job_environment_cleanup_60() -- clean up after the job env test
-#
-#  SYNOPSIS
-#     job_environment_cleanup_60 { } 
-#
-#  FUNCTION
-#     Clean up changes made during the job environment 6.0 test.
-#
-#  RESULT
-#     0 -> ok   1 -> error
-#
-#  SEE ALSO
-#     job_environment_cleanup()
-################################################################################
-proc job_environment_cleanup_60 {} {
-   global job_environment_exec_host
-
-   # Stop execd
-   shutdown_system_daemon $job_environment_exec_host "execd"
-
-   # Restart execd without marker variable
-   startup_execd $job_environment_exec_host
-}

@@ -129,7 +129,7 @@ proc LSB_lockfile_test_cleanup  {} {
 
 proc LSB_lockfile_test_test1 {} {
    global LSB_lockfile_test_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_USER
 
    set prod_type_var "SGE_ROOT"
    set my_timeout 500

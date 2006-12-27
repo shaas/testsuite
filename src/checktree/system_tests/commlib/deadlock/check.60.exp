@@ -67,9 +67,9 @@ proc commlib_deadlock_init_level {} {
 }
 
 proc commlib_deadlock_run  {} {
-   global ts_config  CHECK_OUTPUT CHECK_USER CHECK_SCRIPT_FILE_DIR
+   global ts_config  CHECK_OUTPUT CHECK_USER
    set runs 1 
-   set qping_script_path "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/qping.sh"
+   set qping_script_path "$ts_config(testsuite_root_dir)/scripts/qping.sh"
    set arch [resolve_arch $ts_config(master_host)]
    set qping_arguments "$ts_config(product_root)/bin/$arch/qping $ts_config(master_host) $ts_config(commd_port) qmaste 1 100"
 

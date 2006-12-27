@@ -107,7 +107,7 @@ proc error_states_setup  {} {
 
 proc error_states_prolog {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT CHECK_SCRIPT_FILE_DIR
+   global CHECK_PRODUCT_ROOT
    global error_states_check_queue CHECK_ARCH
 
    set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" 
@@ -121,7 +121,7 @@ proc error_states_prolog {} {
    wait_for_jobpending $job_id "leeper" 60 1
    set q_state [wait_for_queue_state $error_states_check_queue "E" 60]
    
-   set my_conf(prolog) "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_01.sh"
+   set my_conf(prolog) "$ts_config(testsuite_root_dir)/scripts/exit_01.sh"
    set_queue $error_states_check_queue my_conf 
 
    puts $CHECK_OUTPUT "clearing error state $q_state of queue $error_states_check_queue"
@@ -132,7 +132,7 @@ proc error_states_prolog {} {
    wait_for_jobpending $job_id "leeper" 60 1
    set q_state [wait_for_queue_state $error_states_check_queue "E" 60]
 
-   set my_conf(prolog) "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_99.sh"
+   set my_conf(prolog) "$ts_config(testsuite_root_dir)/scripts/exit_99.sh"
    set_queue $error_states_check_queue my_conf 
 
    puts $CHECK_OUTPUT "clearing error state $q_state of queue $error_states_check_queue"
@@ -144,7 +144,7 @@ proc error_states_prolog {} {
 
    wait_for_job_state $job_id "R" 60
 
-   set my_conf(prolog) "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_00.sh"
+   set my_conf(prolog) "$ts_config(testsuite_root_dir)/scripts/exit_00.sh"
    set_queue $error_states_check_queue my_conf 
 
    trigger_scheduling
@@ -158,7 +158,7 @@ proc error_states_prolog {} {
 
 proc error_states_epilog {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT CHECK_SCRIPT_FILE_DIR
+   global CHECK_PRODUCT_ROOT
    global error_states_check_queue
 
    set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" 
@@ -189,7 +189,7 @@ proc error_states_epilog {} {
       add_proc_error "error_states_epilog" -1 "failed not 14 (before epilog): $qacct_error"
    }
 
-   set my_conf(epilog) "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_01.sh"
+   set my_conf(epilog) "$ts_config(testsuite_root_dir)/scripts/exit_01.sh"
    set_queue $error_states_check_queue my_conf 
 
    set job_id [submit_job "-q $error_states_check_queue $jobargs 15" ]
@@ -231,9 +231,9 @@ proc error_states_no_job_shell {} {
 proc error_states_no_default_queue_shell {} {
    global ts_config CHECK_OUTPUT
    global error_states_check_queue
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
+   global CHECK_PRODUCT_ROOT CHECK_ARCH
 
-   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_00.sh" 
+   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/exit_00.sh" 
 
    
    get_queue $error_states_check_queue org_conf
@@ -274,7 +274,7 @@ proc error_states_no_default_queue_shell {} {
 proc error_states_no_unix_shell_script {} {
    global ts_config CHECK_OUTPUT
    global error_states_check_queue
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
+   global CHECK_PRODUCT_ROOT CHECK_ARCH
 
 
    get_queue $error_states_check_queue org_conf
@@ -283,13 +283,13 @@ proc error_states_no_unix_shell_script {} {
    set my_conf(shell_start_mode) "unix_behavior"  
    set_queue $error_states_check_queue my_conf
 
-   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_00.sh"  
+   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/exit_00.sh"  
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "exit" 60 1
    wait_for_jobstart $job_id "exit" 60 
    wait_for_jobend $job_id "exit" 60 
    
-   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/no_unix_shell.sh"  
+   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/no_unix_shell.sh"  
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "no_unix" 60 1
    wait_for_job_state $job_id "E" 60 
@@ -304,7 +304,6 @@ proc error_states_wrong_pe {} {
    global ts_config CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE CHECK_CORE_EXECD
    global error_states_check_queue CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_SCRIPT_FILE_DIR
 
    set wrong_start_pe(pe_name)    "wrong_start_pe"
 #   set wrong_start_pe(queue_list) $error_states_check_queue
@@ -324,14 +323,14 @@ proc error_states_wrong_pe {} {
    set error_start_pe(pe_name)    "error_start_pe"
 #   set error_start_pe(queue_list) $error_states_check_queue
    set error_start_pe(slots)      5
-   set error_start_pe(start_proc_args) "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_01.sh"
+   set error_start_pe(start_proc_args) "$ts_config(testsuite_root_dir)/scripts/exit_01.sh"
    add_pe error_start_pe
    assign_queues_with_pe_object $error_states_check_queue error_start_pe
 
    set error_stop_pe(pe_name)    "error_stop_pe"
 #   set error_stop_pe(queue_list) $error_states_check_queue
    set error_stop_pe(slots)      5
-   set error_stop_pe(stop_proc_args) "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/exit_01.sh"
+   set error_stop_pe(stop_proc_args) "$ts_config(testsuite_root_dir)/scripts/exit_01.sh"
    add_pe error_stop_pe
    assign_queues_with_pe_object $error_states_check_queue error_stop_pe
 
@@ -422,10 +421,9 @@ proc error_states_wrong_pe {} {
 
 proc error_states_submit_error_script {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_SCRIPT_FILE_DIR
    global error_states_check_queue
 
-   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/error.sh" 
+   set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/error.sh" 
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_jobstart $job_id "leeper" 60
@@ -442,7 +440,7 @@ proc error_states_submit_error_script {} {
 proc error_states_job_output {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_HOST CHECK_FIRST_FOREIGN_SYSTEM_USER
-   global error_states_check_queue CHECK_SCRIPT_FILE_DIR
+   global error_states_check_queue
    global CHECK_CORE_EXECD
 
 
@@ -486,27 +484,27 @@ proc error_states_job_output {} {
 
 
 
-   set jobargs "-o $test_dir -e /dev/null $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/error.sh" 
+   set jobargs "-o $test_dir -e /dev/null $ts_config(testsuite_root_dir)/scripts/error.sh" 
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_job_state $job_id "E" 60  
    delete_job $job_id
 
-   set jobargs "-o $test_file -e /dev/null $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/error.sh" 
+   set jobargs "-o $test_file -e /dev/null $ts_config(testsuite_root_dir)/scripts/error.sh" 
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_job_state $job_id "E" 60  
    delete_job $job_id
 
 
-   set jobargs "-o /dev/null -e $test_dir $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/error.sh" 
+   set jobargs "-o /dev/null -e $test_dir $ts_config(testsuite_root_dir)/scripts/error.sh" 
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_job_state $job_id "E" 60  
    delete_job $job_id
    
 
-   set jobargs "-o /dev/null -e $test_file $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/error.sh" 
+   set jobargs "-o /dev/null -e $test_file $ts_config(testsuite_root_dir)/scripts/error.sh" 
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_job_state $job_id "E" 60  
@@ -518,7 +516,7 @@ proc error_states_job_output {} {
    } else {
       # error queue
       set error_run_queue "[lindex $CHECK_CORE_EXECD 1].q"
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_run_queue $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/error.sh" prg_exit_state 60 0 $test_local_dir]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_run_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
       puts $CHECK_OUTPUT $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1
@@ -526,7 +524,7 @@ proc error_states_job_output {} {
       delete_job $job_id
 
       #no error queue
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_states_check_queue $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/error.sh" prg_exit_state 60 0 $test_local_dir]
+      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_states_check_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
       puts $CHECK_OUTPUT $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1

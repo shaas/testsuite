@@ -205,7 +205,7 @@ proc pe_ranges_submit_pejobs_and_wait { job_arguments job_count job_count_max ru
 
 proc pe_ranges_test1 {} {
    global pe_ranges_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
 
    set job_arguments "-l test1=1 -o /dev/null -e /dev/null"
 
@@ -234,7 +234,7 @@ proc pe_ranges_test1 {} {
 
 proc pe_ranges_test {} {
    global pe_ranges_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
 
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)

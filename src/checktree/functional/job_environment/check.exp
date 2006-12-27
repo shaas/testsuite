@@ -61,9 +61,9 @@ set check_setup_function "job_environment_setup"
 set check_cleanup_function "job_environment_cleanup"
 
 # define test's procedure order
-set check_functions ""
-#lappend check_functions "job_environment_amount"
-#lappend check_functions "job_environment_JOB_NAME"
+set check_functions {}
+lappend check_functions "job_environment_amount"
+lappend check_functions "job_environment_JOB_NAME"
 
 ####### job_environment_init_level() ###########################################
 #  NAME
@@ -127,6 +127,39 @@ proc job_environment_setup  {} {
 
    if {$ts_config(gridengine_version) >= 60} {
       job_environment_setup_60
+   }
+}
+
+
+####### job_environment_cleanup() ##############################################
+#  NAME
+#     job_environment_cleanup() -- clean up after the job env test
+#
+#  SYNOPSIS
+#     job_environment_cleanup { } 
+#
+#  FUNCTION
+#     Clean up changes made during the job environment test.  This function
+#     calls the 6.0 cleanup function if appropriate.
+#
+#  RESULT
+#     0 -> ok   1 -> error
+#
+#  SEE ALSO
+#     job_environment_cleanup_60()
+################################################################################
+proc job_environment_cleanup {} {
+   global CHECK_OUTPUT
+   global ts_config job_environment_config
+
+   puts $CHECK_OUTPUT "cleanup ..."
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   set_config job_environment_config
+
+   if {$ts_config(gridengine_version) >= 60} {
+      job_environment_cleanup_60
    }
 }
 
@@ -205,13 +238,13 @@ proc job_environment_parse_env_test_output { file array } {
 ################################################################################
 proc job_environment_qsub_job { jobname array arguments } {
    global ts_config CHECK_OUTPUT
-   global CHECK_PROTOCOL_DIR CHECK_SCRIPT_FILE_DIR
+   global CHECK_PROTOCOL_DIR
    global queue
    upvar $array job_env_array
 
    set ret 1
    puts $CHECK_OUTPUT "job environment should be written to $CHECK_PROTOCOL_DIR"
-   set job_id [submit_job "$arguments -q $queue $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR"]
+   set job_id [submit_job "$arguments -q $queue $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR"]
 
    if {$job_id <= 0} {
       set ret 0
@@ -258,11 +291,11 @@ proc job_environment_qsub_job { jobname array arguments } {
 ################################################################################
 proc job_environment_qresub_job { jobname array arguments } {
    global ts_config CHECK_OUTPUT
-   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
+   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
    global queue
 
    upvar $array job_env_array
-   set job_id [ submit_job "$arguments -q $queue -h $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR" ]
+   set job_id [ submit_job "$arguments -q $queue -h $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR" ]
    
    catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qresub" "$job_id" } result
    puts $CHECK_OUTPUT $result
@@ -298,11 +331,11 @@ proc job_environment_qresub_job { jobname array arguments } {
 ################################################################################
 proc job_environment_qalter_job { jobname array qsub_args qalter_args } {
    global ts_config CHECK_OUTPUT
-   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_SCRIPT_FILE_DIR
+   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
    global queue
 
    upvar $array job_env_array
-   set job_id [ submit_job "$qsub_args -q $queue -h $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR" ]
+   set job_id [ submit_job "$qsub_args -q $queue -h $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR" ]
    catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter" $qalter_args $job_id } result
    puts $CHECK_OUTPUT $result
    catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrls" $job_id } result
@@ -334,13 +367,13 @@ proc job_environment_qalter_job { jobname array qsub_args qalter_args } {
 #     job_environment_parse_env_test_output()
 ################################################################################
 proc job_environment_qrsh_job { array arguments } {
-   global ts_config CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR
+   global ts_config CHECK_OUTPUT
    global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH 
    global queue
 
    upvar $array job_env_array
    
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh" "$arguments -q $queue" $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR } result
+   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh" "$arguments -q $queue" $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR } result
    puts $CHECK_OUTPUT $result
    job_environment_parse_env_test_output $CHECK_PROTOCOL_DIR/job_env.out job_env_array
 }
@@ -369,7 +402,6 @@ proc job_environment_qrsh_job { array arguments } {
 proc job_environment_qsh_job { array arguments } {
    global ts_config CHECK_OUTPUT
    global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
-   global CHECK_SCRIPT_FILE_DIR
    global queue job_environment_exec_host
 
    upvar $array job_env_array
@@ -378,7 +410,7 @@ proc job_environment_qsh_job { array arguments } {
    set script_name "$CHECK_PROTOCOL_DIR/qsh.sh"
    set f [open $script_name "w" "0755"]
    puts $f "#!/bin/sh"
-   puts $f "exec $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/jobenv.sh $CHECK_PROTOCOL_DIR"
+   puts $f "exec $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR"
    close $f
 
    # wait for host to appear on the remote host
@@ -419,7 +451,7 @@ proc job_environment_amount {} {
 
    # Set exced_params=none
    set new_config(execd_params) "none"
-   set_config_and_propogate new_config
+   set_config_and_propagate new_config
 
    job_environment_var_test missing
 
@@ -648,7 +680,7 @@ proc job_environment_JOB_NAME {{stand_alone 1}} {
 
       # Set exced_params=none
       set new_config(execd_params) "none"
-      set_config_and_propogate new_config
+      set_config_and_propagate new_config
    }
 
    puts $CHECK_OUTPUT "\nqsub ..."
@@ -692,36 +724,4 @@ proc job_environment_JOB_NAME {{stand_alone 1}} {
    job_environment_check_env_value "JOB_NAME" "jobenv.sh" job_env(JOB_NAME)
    job_environment_check_env_value "REQNAME" "jobenv.sh" job_env(REQNAME)
    job_environment_check_env_value "REQUEST" "jobenv.sh" job_env(REQUEST)
-}
-
-####### job_environment_cleanup() ##############################################
-#  NAME
-#     job_environment_cleanup() -- clean up after the job env test
-#
-#  SYNOPSIS
-#     job_environment_cleanup { } 
-#
-#  FUNCTION
-#     Clean up changes made during the job environment test.  This function
-#     calls the 6.0 cleanup function if appropriate.
-#
-#  RESULT
-#     0 -> ok   1 -> error
-#
-#  SEE ALSO
-#     job_environment_cleanup_60()
-################################################################################
-proc job_environment_cleanup {} {
-   global CHECK_OUTPUT
-   global ts_config job_environment_config
-
-   puts $CHECK_OUTPUT "cleanup ..."
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60
-
-   set_config job_environment_config
-
-   if {$ts_config(gridengine_version) >= 60} {
-      job_environment_cleanup_60
-   }
 }

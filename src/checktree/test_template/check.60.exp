@@ -164,7 +164,7 @@ proc __TESTSUITE_TEST_NAME_cleanup {} {
 proc __TESTSUITE_TEST_NAME_test1 {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global __TESTSUITE_TEST_NAME_test_hosts check_description
-   global CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_ACT_LEVEL
 
    if { $CHECK_ACT_LEVEL == 0 } {
       puts $CHECK_OUTPUT "this is the test for runlevel $CHECK_ACT_LEVEL"

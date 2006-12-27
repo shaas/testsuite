@@ -83,12 +83,12 @@ proc cl_throughput_shutdown_sge {} {
 }
 
 proc cl_throughput_start_clients { host count user binary args} {
-   global CHECK_OUTPUT ts_config CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config
    upvar $args arguments
 
    # arguments of binary_starter: 1=count 2=binary 3=binary arguments
    set script_arguments "$count $binary \"$arguments\""
-   set start_script "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/binary_starter.sh"
+   set start_script "$ts_config(testsuite_root_dir)/scripts/binary_starter.sh"
    puts $CHECK_OUTPUT "$user is starting \"$start_script $script_arguments\""
    set retval [start_remote_prog $host $user $start_script $script_arguments prg_exit_state 120 0]
    puts $CHECK_OUTPUT $retval

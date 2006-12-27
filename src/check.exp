@@ -342,12 +342,6 @@ set CHECK_MAX_ERROR_MAILS 400
 global CHECK_USE_SSH                             ;# enable/disable use of ssh (o means disable)     
 set CHECK_USE_SSH 0
 
-global CHECK_TCL_SCRIPTFILE_DIR   ;# testsuite's subdir for tcl files
-set CHECK_TCL_SCRIPTFILE_DIR "tcl_files"
-
-global CHECK_SCRIPT_FILE_DIR  ;# testsuite's subdir for script files
-set CHECK_SCRIPT_FILE_DIR "scripts"
-
 global CHECK_EXPECT_MATCH_MAX_BUFFER   ;# read buffer for expect
 set CHECK_EXPECT_MATCH_MAX_BUFFER 640000
 
@@ -1499,7 +1493,6 @@ proc get_testsuite_root_dir_from_file { filename } {
 #*******************************
 proc edit_defaults {} {
   global CHECK_OUTPUT CHECK_DEFAULTS_FILE CHECK_HOST CHECK_CONFIG_DIR
-  global CHECK_SCRIPT_FILE_DIR
   global env
 
   load_defaults
@@ -4104,7 +4097,7 @@ proc run_tests {path runcompleted} {
 proc lock_testsuite {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_HOST CHECK_MAIN_RESULTS_DIR
-   global CHECK_SCRIPT_FILE_DIR CHECK_TESTSUITE_LOCKFILE
+   global CHECK_TESTSUITE_LOCKFILE
 
     set pid [getpid]
     
@@ -4115,7 +4108,7 @@ proc lock_testsuite {} {
     while {$result != 10} {
        puts $CHECK_OUTPUT "waiting for lock ..."
        set result [catch {
-           eval exec "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $CHECK_HOST $CHECK_USER"
+           eval exec "$ts_config(testsuite_root_dir)/scripts/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $CHECK_HOST $CHECK_USER"
        } catch_output]
        puts $CHECK_OUTPUT "lock.sh returned $result: $catch_output"
        set file_size 0
@@ -5794,7 +5787,7 @@ proc print_menu_header {} {
 #     The string the user entered, or "", if he just pressed enter.
 #*******************************
 proc wait_for_enter {{no_text 0} {second_try 0}} {
-   global ts_config CHECK_OUTPUT CHECK_SCRIPT_FILE_DIR
+   global ts_config CHECK_OUTPUT
    flush $CHECK_OUTPUT
 
    # output some message
@@ -5803,7 +5796,7 @@ proc wait_for_enter {{no_text 0} {second_try 0}} {
    }
 
    # wait for the user to press enter
-   set wait_script "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/wait_for_enter.sh"
+   set wait_script "$ts_config(testsuite_root_dir)/scripts/wait_for_enter.sh"
    set output ""
    set en_result [catch {
       set output [eval exec $wait_script]
@@ -7590,7 +7583,6 @@ proc source_tcl_files {} {
 proc build_java_env_list {} {
    global CHECK_USER CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_ROOT CHECK_ARCH
    global CHECK_HOST CHECK_CURRENT_WORKING_DIR
-   global CHECK_SCRIPT_FILE_DIR
    global CHECK_PRODUCT_VERSION_NUMBER
    global env ts_config
 
@@ -7601,7 +7593,7 @@ proc build_java_env_list {} {
    set env_list "$env_list -Dgets.hostname=\"$CHECK_HOST\""
    set env_list "$env_list -Dgets.gets_root=\"$ts_config(testsuite_root_dir)\""
    set env_list "$env_list -Dgets.cwd=\"$CHECK_CURRENT_WORKING_DIR\""
-   set env_list "$env_list -Dgets.scripts_dir=\"$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR\""
+   set env_list "$env_list -Dgets.scripts_dir=\"$ts_config(testsuite_root_dir)/scripts\""
    set env_list "$env_list -Dgets.checktree_root=\"$ts_config(checktree_root_dir)\""
    set env_list "$env_list -Dgets.pid=\"[getpid]\""
    set env_list "$env_list -Dgets.home_dir=\"$env(HOME)\""

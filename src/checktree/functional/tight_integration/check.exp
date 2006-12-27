@@ -452,12 +452,11 @@ proc tight_integration_wait_for_delete_state {jobid timeout} {
 # -------- local test procedures: tests ------------------------------
 proc tight_integration_function {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_SCRIPT_FILE_DIR
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: functional test"
 
-   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 $TIGHT_INTEGRATION_FUNCTIONAL_DURATION" $tight_master_node]
+   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $TIGHT_INTEGRATION_FUNCTIONAL_DURATION" $tight_master_node]
 
    set started 0
    set finished 0
@@ -485,7 +484,7 @@ proc tight_integration_function {} {
 # check if qmaster is killed on reschedule
 proc tight_integration_iz_1916 {} {
    global ts_config CHECK_OUTPUT CHECK_USER 
-   global CHECK_SCRIPT_FILE_DIR CHECK_ACT_LEVEL 
+   global CHECK_ACT_LEVEL 
    global TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: test iz 1916 (reschedule killes qmaster)"
@@ -510,7 +509,7 @@ proc tight_integration_iz_1916 {} {
   
    # start job 
 
-   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -q $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 3600" $tight_master_node]
+   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -q $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
    set started 0
    set finished 0
@@ -583,7 +582,6 @@ proc tight_integration_iz_1916 {} {
 # check if tasks are killed when they hit a wallclock limit
 proc tight_integration_iz_575 {} {
    global ts_config CHECK_OUTPUT CHECK_USER 
-   global CHECK_SCRIPT_FILE_DIR
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: iz 575 task wallclock limit"
@@ -605,7 +603,7 @@ proc tight_integration_iz_575 {} {
    set_queue "tight.q" "$host_list" queue_conf
 
    # submit job
-   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 3600" $tight_master_node]
+   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
    set started 0
    set finished 0
@@ -640,12 +638,11 @@ proc tight_integration_iz_575 {} {
 # check NSLOTS, NHOSTS, NQUEUES for tasks
 proc tight_integration_iz_578 {} {
    global ts_config CHECK_OUTPUT 
-   global CHECK_SCRIPT_FILE_DIR
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: Issue 578 NSLOTS NHOSTS NQUEUES"
 
-   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 $TIGHT_INTEGRATION_FUNCTIONAL_DURATION" $tight_master_node]
+   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $TIGHT_INTEGRATION_FUNCTIONAL_DURATION" $tight_master_node]
 
 
    set started 0
@@ -666,12 +663,11 @@ proc tight_integration_iz_578 {} {
 # master task killed -> job has to be deleted
 proc tight_integration_master_killed {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_SCRIPT_FILE_DIR
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: master task killed - issue 579"
 
-   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 3600" $tight_master_node]
+   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
    set started 0
    set finished 0
@@ -709,12 +705,11 @@ proc tight_integration_master_killed {} {
 # slave task killed -> job has to be deleted
 proc tight_integration_slave_killed {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_SCRIPT_FILE_DIR
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: slave task killed"
 
-   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 3600" $tight_master_node]
+   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
    set started 0
    set finished 0
@@ -753,7 +748,6 @@ proc tight_integration_slave_killed {} {
 proc tight_integration_massive {} {
    global ts_config CHECK_OUTPUT
    global TIGHT_INTEGRATION_MASSIVE_SLOTS TIGHT_INTEGRATION_MASSIVE_DURATION
-   global CHECK_SCRIPT_FILE_DIR
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: massive parallel test"
 
@@ -774,7 +768,7 @@ proc tight_integration_massive {} {
          return
       }
 
-      set id [submit_with_method $submit_command "-pe tight $massive_slots -masterq $tight_masterq -cwd -N tightm" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 $TIGHT_INTEGRATION_MASSIVE_DURATION" $tight_master_node]
+      set id [submit_with_method $submit_command "-pe tight $massive_slots -masterq $tight_masterq -cwd -N tightm" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $TIGHT_INTEGRATION_MASSIVE_DURATION" $tight_master_node]
 
       set started 0
       set finished 0

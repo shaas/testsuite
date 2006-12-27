@@ -537,13 +537,12 @@ proc cluster_perf_do_perform_test {} {
 proc cluster_perf_submit_jobs { hosts job_time max_job_id } {
    global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_PROTOCOL_DIR
-   global CHECK_SCRIPT_FILE_DIR
    global CHECK_PRODUCT_ROOT
    
     foreach elem $hosts {
        puts $CHECK_OUTPUT "starting submit until job id $max_job_id accurs on host $elem ..."
-       set command "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/remote_submit_log.sh"
-       set args "\"$CHECK_PRODUCT_ROOT\" \"$ts_config(cell)\" \"$max_job_id\" \"$CHECK_PROTOCOL_DIR\" \"$job_time\" \"$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/sleeper.sh\" \"$CHECK_PROTOCOL_DIR\""
+       set command "$ts_config(testsuite_root_dir)/scripts/remote_submit_log.sh"
+       set args "\"$CHECK_PRODUCT_ROOT\" \"$ts_config(cell)\" \"$max_job_id\" \"$CHECK_PROTOCOL_DIR\" \"$job_time\" \"$ts_config(testsuite_root_dir)/scripts/sleeper.sh\" \"$CHECK_PROTOCOL_DIR\""
        puts $CHECK_OUTPUT [start_remote_prog $elem $CHECK_USER $command $args prg_exit_state 300 1]
     }
 

@@ -110,7 +110,7 @@ proc startup_execd_cleanup  {} {
 
 proc startup_execd_test1 {} {
    global startup_execd_test_hosts check_description CHECK_ARCH CHECK_HOST
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
 
    set execd_port $ts_config(commd_port)
    incr execd_port 1

@@ -4,6 +4,8 @@
 set deprecated {check_errno check_errstr set_error}
 lappend deprecated "CHECK_TESTSUITE_ROOT"
 lappend deprecated "CHECK_CHECKTREE_ROOT"
+lappend deprecated "CHECK_SCRIPT_FILE_DIR"
+lappend deprecated "CHECK_TCL_SCRIPTFILE_DIR"
 
 # build a list of files to analyze (.tcl and .exp)
 set files ""

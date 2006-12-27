@@ -1,3 +1,5 @@
+JG-2006-12-27-0: Cleanup:   Removed global variables, minor fixes.
+
 OJ-2006-12-22-1: Testsuite: Added test case for TS IZ 72 in 
                             testsuite/src/checktree/system_tests/clients/qsub/check.exp
                  Review:    DT

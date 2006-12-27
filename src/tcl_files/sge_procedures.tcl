@@ -1036,7 +1036,7 @@ proc submit_error_job { jobargs } {
 proc submit_wait_type_job {job_type host user {variable qacct_info}} {
    global ts_config CHECK_OUTPUT
    global CHECK_PRODUCT_ROOT CHECK_HOST CHECK_DEBUG_LEVEL CHECK_USER
-   global CHECK_DISPLAY_OUTPUT CHECK_SCRIPT_FILE_DIR
+   global CHECK_DISPLAY_OUTPUT
    upvar $variable qacctinfo
 
 
@@ -1130,7 +1130,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                         }
                      }
                   } else {
-                     ts_send $sp_id "\n$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/shell_start_output.sh\n" $host
+                     ts_send $sp_id "\n$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $host
                   }
 
                   if { $max_timeouts <= 0 } {
@@ -2048,29 +2048,24 @@ proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
 #     host      the host for which the configuration should be set.  Defaults
 #               to global
 #*******************************************************************************
-proc set_config_and_propagate { config {host global} } {
+proc set_config_and_propagate {config {host global}} {
    global CHECK_OUTPUT CHECK_USER CHECK_HOST ts_config ts_user_config
-   global job_environment_config 
 
    upvar $config my_config
 
    if {[array size my_config] > 0} {
       set conf_host $host
 
+      # get host and spooldir of an execd - where to look for messages file
       if {$conf_host == "global"} {
          set conf_host [lindex $ts_config(execd_hosts) 0]
-         set spool_dir $job_environment_config(execd_spool_dir)
-      } elseif {[info exists job_environment_config(execd_spool_dir)] == 1} {
-         set spool_dir $job_environment_config(execd_spool_dir)
-      } else {
-         get_config global_config
-         set spool_dir $global_config(execd_spool_dir)
       }
+      set spool_dir [get_spool_dir $conf_host "execd"]
 
       # Begin watching messages file for changes
-      set messages_name "$spool_dir/$conf_host/messages"
+      set messages_name "$spool_dir/messages"
       set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) "/usr/bin/tail" "-f $messages_name"]
-      set sp_id [ lindex $tail_id 1 ]
+      set sp_id [lindex $tail_id 1]
 
       # Make configuration change
       set_config my_config $host
@@ -6069,7 +6064,7 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
 proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
    global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM
-   global CHECK_SCRIPT_FILE_DIR CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    global schedd_debug master_debug CHECK_DISPLAY_OUTPUT CHECK_SGE_DEBUG_LEVEL
 
    if {$env_list != ""} {
@@ -6102,7 +6097,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
 
    if {$master_debug != 0} {
       puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-      start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
+      start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
    } else {
       start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_qmaster" ";sleep 2" prg_exit_state 60 0 "" envlist
    }
@@ -6112,7 +6107,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       if { $schedd_debug != 0 } {
          puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
          puts $CHECK_OUTPUT "starting schedd as $startup_user" 
-         start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
+         start_remote_prog "$start_host" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
       } else {
          puts $CHECK_OUTPUT "starting schedd as $startup_user" 
          set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
@@ -6153,7 +6148,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
 proc startup_scheduler {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM
-   global CHECK_SCRIPT_FILE_DIR CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    global schedd_debug CHECK_DISPLAY_OUTPUT CHECK_SGE_DEBUG_LEVEL
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
@@ -6171,7 +6166,7 @@ proc startup_scheduler {} {
 
    if { $schedd_debug != 0 } {
       puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-      start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$CHECK_CORE_MASTER \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2
+      start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$CHECK_CORE_MASTER \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2
    } else {
       start_remote_prog "$CHECK_CORE_MASTER" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" ""
    }

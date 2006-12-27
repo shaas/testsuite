@@ -119,7 +119,7 @@ proc reporting_setup  {} {
    set_schedd_config schedd_conf
 
    # Create a queue with one slot
-   set reporting_test_host [host_conf_get_best_exec_hosts 1]
+   set reporting_test_host [host_conf_get_suited_hosts 1]
    set queue_conf(slots) 1
    add_queue "reporting" $reporting_test_host queue_conf
 

@@ -116,7 +116,7 @@ proc auto_backup_cleanup  {} {
 
 proc auto_backup_create_config {} {
    global auto_backup_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
 
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
@@ -141,9 +141,8 @@ proc auto_backup_create_config {} {
 
 
 proc auto_backup_do_backup {} {
-
    global auto_backup_test_hosts check_description CHECK_ARCH CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
 
    set my_timeout 500
    set exit_val 0

@@ -252,7 +252,7 @@ proc subordinate_submit_jobs_and_wait { job_arguments job_count run_job_count jo
 
 proc subordinate_test {} {
    global subordinate_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_SCRIPT_FILE_DIR
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
 
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)

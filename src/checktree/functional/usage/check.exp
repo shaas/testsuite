@@ -470,7 +470,6 @@ proc usage_monitor_check {id test_name slots} {
 proc usage_single {} {
    global ts_config
    global CHECK_OUTPUT
-   global CHECK_SCRIPT_FILE_DIR
    global submit_command
    global master_host
 
@@ -478,7 +477,7 @@ proc usage_single {} {
       puts $CHECK_OUTPUT "usage: single cpu job submitted with $submit_command to run on host $master_host"
 
       set queue [get_queue_instance "usage.q" $master_host]
-      set id [submit_with_method $submit_command "-N usage -q $queue" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/usage.sh" "sleep 60" $master_host]
+      set id [submit_with_method $submit_command "-N usage -q $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host]
 
       usage_monitor_check $id "usage_single" 1
    }
@@ -487,7 +486,6 @@ proc usage_single {} {
 proc usage_tight {} {
    global ts_config
    global CHECK_OUTPUT
-   global CHECK_SCRIPT_FILE_DIR
    global submit_command
    global master_host
 
@@ -499,7 +497,7 @@ proc usage_tight {} {
          puts $CHECK_OUTPUT "usage: tightly integrated parallel job submitted with $submit_command, master_host is $master_host"
 
          set queue [get_queue_instance "usage.q" $master_host]
-         set id [submit_with_method $submit_command "-pe tight 4 -N usage -masterq $queue" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_job.sh" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/pe_task.sh 1 120" $master_host]
+         set id [submit_with_method $submit_command "-pe tight 4 -N usage -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 120" $master_host]
 
          usage_monitor_check $id "usage_tight" 5
       }
@@ -509,7 +507,6 @@ proc usage_tight {} {
 proc usage_loose {pe expected_slots} {
    global ts_config
    global CHECK_OUTPUT
-   global CHECK_SCRIPT_FILE_DIR
    global submit_command
    global master_host
 
@@ -517,7 +514,7 @@ proc usage_loose {pe expected_slots} {
       puts $CHECK_OUTPUT "usage: parallel job in pe $pe submitted with $submit_command, master_host is $master_host"
 
       set queue [get_queue_instance "usage.q" $master_host]
-      set id [submit_with_method $submit_command "-N usage -pe $pe 4 -masterq $queue" "$ts_config(testsuite_root_dir)/$CHECK_SCRIPT_FILE_DIR/usage.sh" "sleep 60" $master_host]
+      set id [submit_with_method $submit_command "-N usage -pe $pe 4 -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host]
 
       usage_monitor_check $id "usage_loose" $expected_slots
    }

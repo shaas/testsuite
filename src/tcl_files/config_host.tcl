@@ -2354,7 +2354,40 @@ proc host_get_id_a_command {host} {
    return $ret
 }
 
-proc host_conf_get_best_exec_hosts {{num_hosts 1}} {
+#****** config_host/host_conf_get_suited_hosts() *******************************
+#  NAME
+#     host_conf_get_suited_hosts() -- get hosts suited for operation
+#
+#  SYNOPSIS
+#     host_conf_get_suited_hosts { {num_hosts 1} {selected_archs {}} 
+#     {excluded_archs {}} } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     {num_hosts 1}        - number of hosts to return.
+#                            0 means as many as available
+#     {preferred_archs {}} - if possible, select this architecture
+#     {selected_archs {}}  - select this architecture
+#     {excluded_archs {}}  - do not select this architecture
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_archs {}} {excluded_archs {}}} {
    global ts_config CHECK_OUTPUT
 
    if {[llength $ts_config(execd_nodes)] < $num_hosts} {
