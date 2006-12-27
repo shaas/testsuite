@@ -1,3 +1,5 @@
+CR-2006-12-27-0: Bugfix:    Fixed problem when a ts config file is newly generated
+
 JG-2006-12-27-0: Cleanup:   Removed global variables, minor fixes.
 
 OJ-2006-12-22-1: Testsuite: Added test case for TS IZ 72 in 

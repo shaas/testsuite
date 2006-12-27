@@ -5796,7 +5796,15 @@ proc wait_for_enter {{no_text 0} {second_try 0}} {
    }
 
    # wait for the user to press enter
-   set wait_script "$ts_config(testsuite_root_dir)/scripts/wait_for_enter.sh"
+   if { $ts_config(testsuite_root_dir) == "" } {
+      set current_dir [pwd]
+      debug_puts "ts config not set, using current directory ($current_dir) for testsuite_root_dir"
+      set wait_script "$current_dir/scripts/wait_for_enter.sh"
+   } else {
+      set wait_script "$ts_config(testsuite_root_dir)/scripts/wait_for_enter.sh"
+   }
+
+
    set output ""
    set en_result [catch {
       set output [eval exec $wait_script]
