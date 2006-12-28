@@ -106,7 +106,7 @@ proc client_setup_do_test {scenario expected_error} {
    # qping - it does not rely on the tested mechanisms
    # qtcsh - is a shell - would need shell runtime checks
    # sgepasswd - doesn't rely on act_qmaster
-   set commands(index)      "qalter qconf qdel qhold qhost qlogin qmod qquota qresub qrls qrsh qselect qsh qstat qsub"
+   set commands(index)      "qalter qconf qdel qhold qhost qlogin qmod qresub qrls qrsh qselect qsh qstat qsub"
    set commands(qalter,args) "-o /dev/null 1"
    set commands(qconf,args) "-sel"
    set commands(qdel,args) "1"
@@ -114,7 +114,6 @@ proc client_setup_do_test {scenario expected_error} {
    set commands(qhost,args) ""
    set commands(qlogin,args) ""
    set commands(qmod,args) "-s 1"
-   set commands(qquota,args) ""
    set commands(qresub,args) "1"
    set commands(qrls,args) "-h u 1"
    set commands(qrsh,args) ""
@@ -122,6 +121,11 @@ proc client_setup_do_test {scenario expected_error} {
    set commands(qsh,args) ""
    set commands(qstat,args) ""
    set commands(qsub,args)  "$ts_config(product_root)/examples/jobs/sleeper.sh"
+
+   if {$ts_config(gridengine_version) >= 65} {
+      lappend commands(index) qquota
+      set commands(qquota,args) ""
+   }
 
    foreach command $commands(index) {
       set output [start_sge_bin $command $commands($command,args)]

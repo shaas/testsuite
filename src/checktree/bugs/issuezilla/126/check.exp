@@ -149,6 +149,13 @@ proc issue_126_check {} {
    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_ACTUAL_TEST_PATH
    global check_126_host check_126_loops ts_config CHECK_USER CHECK_HOST CHECK_ARCH
 
+   # ps command is broken on darwin.
+   # It shows suspended jobs as running!
+   set arch [resolve_arch $check_126_host]
+   if {[string match "darwin*" $arch]} {
+      add_proc_error "" -3 "ps command doesn't report suspend state on architecture $arch\nskipping host $check_126_host"
+      return
+   }
 
    # 
    # Scenario

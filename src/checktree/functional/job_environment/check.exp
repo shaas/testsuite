@@ -562,6 +562,9 @@ proc job_environment_var_test {missing {extra ""}} {
    set allowed_variables "TZ"
    lappend allowed_variables "SGE_O_TZ"
    lappend allowed_variables "REQNAME"
+   # the following might are set by many GE engineers shell rc files
+   lappend allowed_variables "ARCH"
+   lappend allowed_variables "TERM"
 
    puts $CHECK_OUTPUT "checking number of environment variables ..."
 
