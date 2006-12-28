@@ -1,7 +1,6 @@
 #!/vol2/TCL_TK/glinux/bin/expect
 # global variables ... (defined in main check routine, but you can use it)
 #
-global CHECK_ACT_PATH          ;# actual checkpath
 global CHECK_PRODUCT_ROOT  ;# path to sgeee/sge system
 global CHECK_PRODUCT_TYPE       ;# "sgeee" or "sge"         
 global CHECK_COMMD_PORT        ;# commd port

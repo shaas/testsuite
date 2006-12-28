@@ -309,8 +309,8 @@ proc insure_initialize {{clean 0}} {
       puts $f "insure++.checking_uninit off"
       puts $f "insure++.ignore_wild off"
       puts $f "insure++.temp_directory /tmp"
-      puts $f "#insure++.coverage_boolean on"
-      puts $f "insure++.coverage_only on"
+      puts $f "insure++.coverage_boolean on"
+      puts $f "#insure++.coverage_only on"
       puts $f "insure++.coverage_map_data on"
       # we might add %a (architecture) to the following option
       puts $f "insure++.coverage_map_file ${CHECK_COVERAGE_DIR}/tca.map"

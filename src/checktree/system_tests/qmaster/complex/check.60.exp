@@ -315,7 +315,6 @@ proc complex_loadsensor_test {} {
 }
 
 proc complex_run_job {scenario variable value submittable pending { runnable "0" } } {
-
    # Added variable "runnable" to allow to run cases which cause error, but which we
    # will allow to run so we can complete the test run. These are bugs in qsub
    # Once the qsub bug is resolved, these parts of the code will be removed.
@@ -362,7 +361,7 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
             # test case: job should be scheduled and running by now
             if {$ret == 0} {
                puts $CHECK_OUTPUT "ok, job is running"
-               wait_for_jobend $job_id "Sleeper" 60
+               wait_for_jobend $job_id "Sleeper" 60 0
             } else {
                get_qstat_j_info $job_id
                set schedd_info $qstat_j_info(scheduling info)

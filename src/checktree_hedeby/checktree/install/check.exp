@@ -1,7 +1,6 @@
 #!/vol2/TCL_TK/glinux/bin/expect
 # global variables ... (defined in main check routine, but you can use it)
 #
-# global CHECK_ACT_PATH          ;# actual checkpath
 # gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
 # global CHECK_USER              ;# user who start test
 # global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
@@ -109,10 +108,10 @@ proc create_template { hostname template target } {
 
 proc hedeby_install_master {} {
    global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
-   global CHECK_ACT_PATH
+   global CHECK_ACTUAL_TEST_PATH
    global ts_config hedeby_config ts_host_config
    
-   set ret [hedeby_run_installer $hedeby_config(master) $CHECK_ACT_PATH/install_master.template]
+   set ret [hedeby_run_installer $hedeby_config(master) $CHECK_ACTUAL_TEST_PATH/install_master.template]
    if { $ret != 0 } {
       add_proc_error "hedeby_install_master" -1 "Installation of hedeby master host failed"
       return -1
@@ -133,11 +132,11 @@ proc hedeby_install_master {} {
 proc hedeby_install_executors {} {
    
    global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
-   global CHECK_ACT_PATH
+   global CHECK_ACTUAL_TEST_PATH
    global ts_config hedeby_config ts_host_config
    
    foreach exechost $ts_config(execd_nodes) {
-      set ret [hedeby_run_installer $hedeby_config(master) $CHECK_ACT_PATH/install_executor.template]
+      set ret [hedeby_run_installer $hedeby_config(master) $CHECK_ACTUAL_TEST_PATH/install_executor.template]
       if { $ret != 0 } {
          add_proc_error "hedeby_install_executors" -1 "Installation of hedeby executor on exec host ${exechost} failed"
          return -1
@@ -151,7 +150,6 @@ proc hedeby_install_executors {} {
 proc hedeby_run_installer {  host template } {
    
    global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
-   global CHECK_ACT_PATH
    global ts_config hedeby_config ts_host_config
    
    set tmp_file [get_tmp_file_name]
