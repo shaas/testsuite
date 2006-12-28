@@ -142,13 +142,13 @@ proc check_qhold_jobname {} {
    
 
    # job1 will stop in ca. 30 sec
-   wait_for_jobend $hold_job1 "FIRST" 100
+   wait_for_jobend $hold_job1 "FIRST" 100 0
    
    # job2 should run now
    wait_for_jobstart $hold_job2 "Sleeper" 100
 
    # job2 should run till end
-   wait_for_jobend $hold_job2 "Sleeper" 100 
+   wait_for_jobend $hold_job2 "Sleeper" 100 0
 
 
 
@@ -170,7 +170,7 @@ proc check_qhold_jobname {} {
    set jobargs "-hold_jid FIRST -l h=${actual_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set job_id [submit_job $jobargs] 
    wait_for_jobstart $job_id "Sleeper" 60
-   wait_for_jobend $job_id "Sleeper" 60
+   wait_for_jobend $job_id "Sleeper" 60 0
 
 
 
@@ -221,12 +221,12 @@ proc check_qhold_jobname {} {
 
    release_job $hold_job1
    wait_for_jobstart $hold_job1 "FIRST" 75
-   wait_for_jobend $hold_job1 "FIRST" 75
+   wait_for_jobend $hold_job1 "FIRST" 75 0
 
    delete_job $hold_job2
  
    wait_for_jobstart $hold_job3 "Sleeper" 75
-   wait_for_jobend $hold_job3 "Sleeper" 75
+   wait_for_jobend $hold_job3 "Sleeper" 75 0
 
 
 
@@ -243,7 +243,7 @@ proc check_qhold_jobname {} {
    set hold_job3 [submit_job $jobargs]
 
    wait_for_jobstart $hold_job3 "Sleeper" 75
-   wait_for_jobend $hold_job3 "Sleeper" 75
+   wait_for_jobend $hold_job3 "Sleeper" 75 0
 
 
 
@@ -266,7 +266,7 @@ proc check_qhold_jobname {} {
    
    release_job $hold_job1
    wait_for_jobstart $hold_job1 "FIRST" 60
-   wait_for_jobend $hold_job1 "FIRST" 60
+   wait_for_jobend $hold_job1 "FIRST" 60 0
 
    puts $CHECK_OUTPUT "done."   
 }

@@ -105,7 +105,7 @@ proc issue_402_check {} {
                "Submitted job is not an Array Job" 
    } 
    wait_for_jobstart $job_id $job_name 300
-   wait_for_jobend $job_id $job_name 20
+   wait_for_jobend $job_id $job_name 20 0
 }
 
 proc issue_402_cleanup  {} {

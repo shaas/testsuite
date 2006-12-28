@@ -132,8 +132,8 @@ proc issue_1334_run {} {
    #
    #  Submit a binary job with no shell
    #
-   set my_job [ submit_job "-q iz_1334  $option -shell n -b y /bin/true" ]
-   if {$my_job < 0 } {
+   set my_job [submit_job "-q iz_1334  $option -shell n -b y /bin/true"]
+   if {$my_job < 0} {
      add_proc_error "issue_1334_run" -1 "submit job failed"
      return
    }
@@ -171,7 +171,7 @@ proc issue_1334_run {} {
    #  Submit a binary job with a shell
    #
    set my_job [submit_job "-q iz_1334  $option -shell y -b y /bin/true"]
-   if {$my_job < 0 } {
+   if {$my_job < 0} {
      add_proc_error "issue_1334_run" -1 "submit job failed"
      return
    }

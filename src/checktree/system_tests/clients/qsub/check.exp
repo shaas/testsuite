@@ -297,8 +297,8 @@ proc qsub_starter_method {} {
 
    # Wait job to run and for end of job
    if {$ok} {
-      set back [ wait_for_jobstart $result "leeper" 300 ]
-      if { $back != 0 } {
+      set back [wait_for_jobstart $result "leeper" 300]
+      if {$back != 0} {
          add_proc_error "qsub_starter_method" -1 "job $result doesn't start"
          set ok 0
       }
@@ -306,8 +306,8 @@ proc qsub_starter_method {} {
 
    # Wait for end of job
    if {$ok} {
-      set back [ wait_for_jobend $result "leeper" 300 ]
-      if { $back != 0 } {
+      set back [wait_for_jobend $result "leeper" 300 0]
+      if {$back != 0} {
          add_proc_error "qsub_starter_method" -1 "job $result doesn't stop"
          set ok 0
       }
@@ -500,21 +500,22 @@ proc check_hold {} {
  
    # wait for end of job
    if {$ok} {
-      if {[wait_for_jobend $result "leeper" 300] == -1} {
+      if {[wait_for_jobend $result "leeper" 300 0] == -1} {
          add_proc_error "check_hold" -1 "check_hold - job $result doesn't stop"
          set ok 0
       }
    }
    
    # cleanup
-   set back [ del_job_files $result $job_output_dir 2 ] 
-   if { $back != 2 } {
+   set back [del_job_files $result $job_output_dir 2]
+   if {$back != 2} {
       add_proc_error "check_hold" -1 "job $result did not produce error and output file\njobargs: $jobargs"
    }
-   if {! $ok && $result > 0} {
+   if {!$ok && $result > 0} {
       delete_job $result
    }
 }
+
 #                                                             max. column:     |
 #****** qsub/check_start_time() ******
 # 
@@ -633,7 +634,7 @@ proc check_start_time {} {
  
    # wait for end of job
    if {$ok} {
-      if { [wait_for_jobend $result "leeper" 300] == -1 } {
+      if {[wait_for_jobend $result "leeper" 300 0] == -1} {
          add_proc_error "check_start_time" -1 "check_start_time - job $result doesn't stop"
          set ok 0
       }
@@ -641,11 +642,11 @@ proc check_start_time {} {
   
 
    # cleanup
-   set back [ del_job_files $result $job_output_dir 2 ] 
-   if { $back != 2 } {
+   set back [del_job_files $result $job_output_dir 2]
+   if {$back != 2} {
       add_proc_error "check_start_time" -1 "job $result did not produce error and output file\njobargs: $jobargs"
    }
-   if {! $ok && $result > 0} {
+   if {!$ok && $result > 0} {
       delete_job $result
    }
 }
@@ -2673,7 +2674,7 @@ proc check_huge_script {} {
          wait_for_jobstart $result "Sleeper" $HUGE_SCRIPT_TIMEOUT
          set run_start [clock seconds]
          set sched_time [expr $run_start - $sched_start]
-         wait_for_jobend $result "Sleeper" $HUGE_SCRIPT_TIMEOUT
+         wait_for_jobend $result "Sleeper" $HUGE_SCRIPT_TIMEOUT 0
          set run_end [clock seconds]
          set run_time [expr $run_end - $run_start]
          puts $protocol "$submit_size\t$submit_time\t$sched_time\t$run_time"
@@ -2682,8 +2683,8 @@ proc check_huge_script {} {
    
       file delete $filename
    
-      set back [ del_job_files $result $job_output_dir 2 ] 
-      if { $back != 2 } {
+      set back [del_job_files $result $job_output_dir 2]
+      if {$back != 2} {
          add_proc_error "check_huge_script" -1 "job $result did not produce error and output file\njobargs: $jobargs"
          close $protocol
          return

@@ -143,7 +143,7 @@ proc display_win_gui {} {
       }
 
       # if job ought be scheduled, wait for jobend and analyze accounting data.
-      if {[lindex $expected $i] != "x" } {
+      if {[lindex $expected $i] != "x"} {
          if {[wait_for_jobend $job_id "" 30 1] != 0} {
             add_proc_error "display_win_gui" -1 \
                "job didn't end within timeout"

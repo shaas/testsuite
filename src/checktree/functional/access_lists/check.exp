@@ -142,7 +142,7 @@ proc access_lists_setup  {} {
    set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15"  
    set id [ submit_job $jobargs ]
    wait_for_jobstart $id "leeper" 60 1 1
-   wait_for_jobend $id "leeper" 60
+   wait_for_jobend $id "leeper" 60 0
 
    if { [string first "unknown" $CHECK_GROUP] >= 0 } {
       add_proc_error "access_lists_setup" -1 "CHECK_GROUP set to unknown"

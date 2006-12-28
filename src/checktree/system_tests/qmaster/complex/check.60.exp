@@ -285,20 +285,20 @@ proc complex_loadsensor_test {} {
       lappend job_ids [submit_job "-l test_string=TEST_ARCH $jobargs 30"]
       lappend job_ids [submit_job "-l test_hostname=$complex_host $jobargs 35"]
       set not_requestable_job [submit_job "-l test_double=55.55 $jobargs 60" 0 ]
-      if { $not_requestable_job != -10 } {
+      if {$not_requestable_job != -10} {
           add_proc_error "complex_loadsensor_test" -1 "resource test_double should not be requestable"
       }
       lappend job_ids [submit_job "-l test_memory=123321 $jobargs 40"]
       lappend job_ids [submit_job "-l test_integer=123456 $jobargs 45"]
     
       foreach elem $job_ids {
-         if { $elem >= 0 } {  
+         if {$elem >= 0} {
             wait_for_jobstart $elem "Sleeper" 60
          }
       }
       foreach elem $job_ids {
-         if { $elem >= 0 } {  
-            wait_for_jobend $elem "Sleeper" 60
+         if {$elem >= 0} {
+            wait_for_jobend $elem "Sleeper" 60 0
          }
       }
 

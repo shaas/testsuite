@@ -1828,15 +1828,15 @@ proc qalter_a {} {
    } 
  
    # wait for end of job
-   if { [wait_for_jobend $job_id "leeper" 300] == -1 } {
+   if {[wait_for_jobend $job_id "leeper" 300 0] == -1} {
       add_proc_error "qalter_a" -1 "qalter $option - job doesn't stop"
       del_job_files $job_id $job_output_dir 2
       return 
    } 
   
-   set back [del_job_files $job_id $job_output_dir 2 ]  
-   if { $back != 2 } {
-        add_proc_error "qalter_a" -1 "qalter $option - can't delete Jobfile $job_id"
+   set back [del_job_files $job_id $job_output_dir 2]
+   if {$back != 2} {
+      add_proc_error "qalter_a" -1 "qalter $option - can't delete Jobfile $job_id"
    }
 }
 

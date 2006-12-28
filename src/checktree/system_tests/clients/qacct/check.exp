@@ -126,7 +126,7 @@ proc qacct_basic {} {
    if {[wait_for_jobstart $job_id "" 60 1 1] != 0} {
       return
    }
-   if {[wait_for_jobend $job_id "" 60 1] != 0} {
+   if {[wait_for_jobend $job_id "" 60 0 1] != 0} {
       return
    }
 

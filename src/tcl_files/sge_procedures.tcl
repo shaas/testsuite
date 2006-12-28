@@ -1057,7 +1057,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
       "qsub" {
          set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" $user]
          wait_for_jobstart $job_id "leeper" 30 1 1
-         wait_for_jobend $job_id "leeper" 30 1 1
+         wait_for_jobend $job_id "leeper" 30 0 1
       }
 
       "qrlogin" { ;# without command (qrsh without command)
@@ -1461,9 +1461,8 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          }
          close_spawn_process $sid
 
-         wait_for_jobend $master_task_id "leeper" 60 1 1
+         wait_for_jobend $master_task_id "leeper" 60 0 1
       }
-
    }
 
    if { $job_id == 0 } {

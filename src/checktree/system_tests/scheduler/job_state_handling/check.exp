@@ -177,19 +177,19 @@ proc job_state_handling_hold_pending_running_finished {} {
    }
 
    wait_for_end_of_transfer $result 300
-   set job_state [ get_job_state $result ]
-   if { [ string compare $job_state "r" ] != 0 } {
+   set job_state [get_job_state $result]
+   if {[string compare $job_state "r"] != 0} {
       add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job state not \"r\": $job_state"  
    }
  
-   set back [ wait_for_jobend     $result "leeper" 100 0]
-   if { $back != 0 } { 
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not finished"  
+   set back [wait_for_jobend $result "leeper" 100 0]
+   if {$back != 0} {
+      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not finished"
    }
 
-   set back [ was_job_running     $result              ]
-   if { [ string first $result $back ] < 0 } {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not in accouting file" 
+   set back [was_job_running $result]
+   if {[string first $result $back] < 0} {
+      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not in accouting file"
    }
 }
 
@@ -272,7 +272,7 @@ proc job_state_handling_error_timehold_jobhold {} {
    }
 
    wait_for_jobstart $waitjob_job "leeper" 200
-   wait_for_jobend $waitjob_job "leeper" 100
+   wait_for_jobend $waitjob_job "leeper" 100 0
 
    set job_state [ get_job_state $error_job ]
    if { [ string compare $job_state "Eqw" ] != 0 } {

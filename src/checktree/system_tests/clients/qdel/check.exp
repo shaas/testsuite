@@ -618,8 +618,6 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
    set wait_list_delete "$array_job_list.2 $array_job_list.3"
 
    # Wait for tasks running; delete tasks 2 - 3.
-
-   #wait_for_jobend  $wait_list  qdel_array 200
    set result2 [ start_remote_prog $hostname $CHECK_USER $qdel_program  $wait_list_delete ]
     
    # Check that those tasks have actually been deleted

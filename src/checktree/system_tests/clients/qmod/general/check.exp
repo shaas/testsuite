@@ -668,7 +668,7 @@ proc qmod_clearerrorstate {} {
  
    # now wait for jobend
    wait_for_jobstart $job_id "leeper" 300
-   wait_for_jobend   $job_id "leeper" 300 
+   wait_for_jobend   $job_id "leeper" 300 0
 
    qmod_clear_all_error_states
 }

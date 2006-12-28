@@ -114,7 +114,7 @@ proc issue_540_check {} {
    set qsub_arguments "-l h=$host -o :$job_output_file $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
    wait_for_jobstart $job_id $job_name 300
-   wait_for_jobend $job_id $job_name 20
+   wait_for_jobend $job_id $job_name 20 0
 
    # on slow NFS, it may take some time for outputfile to be visible
    set result [wait_for_remote_file $host $CHECK_USER $user_home/$job_output_file 120]

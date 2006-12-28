@@ -141,7 +141,7 @@ proc issue_440_check_qsub {} {
       # submit job and wait for jobend
       set jobid [submit_job $command_line 1 60 $check_440_host "" "" 0]
       wait_for_jobstart  $jobid "long_cmd" 60 1 1
-      wait_for_jobend $jobid "long_cmd" 60
+      wait_for_jobend $jobid "long_cmd" 60 0
       
       # read job output/error files
       # wait for the file to appear - this might take some time due to slow NFS
@@ -279,7 +279,7 @@ proc issue_440_cleanup {} {
    set command_line "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
    set jobid [ submit_job $command_line ]
    wait_for_jobstart  $jobid "leeper" 60 1 1
-   wait_for_jobend $jobid "leeper" 60 
+   wait_for_jobend $jobid "leeper" 60 0
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 }

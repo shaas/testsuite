@@ -86,11 +86,11 @@ proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } } {
    }
    set job(j_job_number) $res
    
-   if { [wait_for_jobstart $job(j_job_number) "" $start_timeout 1 1] != 0 } {
+   if {[wait_for_jobstart $job(j_job_number) "" $start_timeout 1 1] != 0} {
       return -1
    }
    
-   if { [wait_for_jobend $job(j_job_number) "" $end_timeout 1 1] == -1 } {
+   if {[wait_for_jobend $job(j_job_number) "" $end_timeout 0 1] == -1} {
       return -1
    }
    

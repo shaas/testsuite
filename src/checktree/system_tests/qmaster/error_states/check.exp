@@ -150,7 +150,7 @@ proc error_states_prolog {} {
    trigger_scheduling
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_jobstart $job_id "leeper" 60
-   wait_for_jobend $job_id "leeper" 60
+   wait_for_jobend $job_id "leeper" 60 0
 
    set my_conf(prolog) "NONE"
    set_queue $error_states_check_queue my_conf 
@@ -171,7 +171,7 @@ proc error_states_epilog {} {
    set job_id [submit_job "-q $error_states_check_queue $jobargs 5" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_jobstart $job_id "leeper" 60
-   wait_for_jobend $job_id "leeper" 60
+   wait_for_jobend $job_id "leeper" 60 0
    # JG: TODO: this get_qacct will fail in 6.0 due to delayed writing of accounting information
    # set reporting_params, accounting_flush_time to 00:00:00, or poll one minute until
    # accounting info is available. Consider writing a function get_qacct_poll in sge_procedures
@@ -194,7 +194,7 @@ proc error_states_epilog {} {
 
    set job_id [submit_job "-q $error_states_check_queue $jobargs 15" ]
    wait_for_jobstart $job_id "leeper" 60
-   wait_for_jobend $job_id "leeper" 60
+   wait_for_jobend $job_id "leeper" 60 0
    get_qacct $job_id
    puts $CHECK_OUTPUT "qacct output for job $job_id:"
    puts $CHECK_OUTPUT "failed: $qacct_info(failed)"
@@ -258,7 +258,7 @@ proc error_states_no_default_queue_shell {} {
 
 
    wait_for_jobstart $job_id "exit" 60
-   wait_for_jobend $job_id "exit" 60
+   wait_for_jobend $job_id "exit" 60 0
 
 
    set my_conf(shell_start_mode) "unix_behavior"
@@ -266,7 +266,7 @@ proc error_states_no_default_queue_shell {} {
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "exit" 60 1
    wait_for_jobstart $job_id "exit" 60
-   wait_for_jobend $job_id "exit" 60 
+   wait_for_jobend $job_id "exit" 60  0
    set my_conf(shell_start_mode) $org_conf(shell_start_mode)
    set_queue $error_states_check_queue my_conf
 }
@@ -287,7 +287,7 @@ proc error_states_no_unix_shell_script {} {
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "exit" 60 1
    wait_for_jobstart $job_id "exit" 60 
-   wait_for_jobend $job_id "exit" 60 
+   wait_for_jobend $job_id "exit" 60  0
    
    set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/no_unix_shell.sh"  
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
@@ -354,7 +354,7 @@ proc error_states_wrong_pe {} {
    set job_id [submit_job "-pe wrong_stop_pe 1-4 $jobargs 5" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_jobstart $job_id "leeper" 60
-   wait_for_jobend $job_id "leeper" 60
+   wait_for_jobend $job_id "leeper" 60 0
    get_qacct $job_id
    puts $CHECK_OUTPUT "qacct output for job $job_id:"
    puts $CHECK_OUTPUT "failed: $qacct_info(failed)"
@@ -387,7 +387,7 @@ proc error_states_wrong_pe {} {
    set job_id [submit_job "-pe error_stop_pe 1-4 $jobargs 5" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_jobstart $job_id "leeper" 60
-   wait_for_jobend $job_id "leeper" 60
+   wait_for_jobend $job_id "leeper" 60 0
    get_qacct $job_id
    puts $CHECK_OUTPUT "qacct output for job $job_id:"
    puts $CHECK_OUTPUT "failed: $qacct_info(failed)"
@@ -427,7 +427,7 @@ proc error_states_submit_error_script {} {
    set job_id [submit_job "-q $error_states_check_queue $jobargs" ]
    wait_for_jobpending $job_id "leeper" 60 1
    wait_for_jobstart $job_id "leeper" 60
-   wait_for_jobend $job_id "leeper" 60
+   wait_for_jobend $job_id "leeper" 60 0
    get_qacct $job_id
    puts $CHECK_OUTPUT "qacct output for job $job_id:"
    puts $CHECK_OUTPUT "failed: $qacct_info(failed)"
@@ -529,7 +529,7 @@ proc error_states_job_output {} {
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1
       wait_for_jobstart $job_id "leeper" 60
-      wait_for_jobend $job_id "leeper" 60
+      wait_for_jobend $job_id "leeper" 60 0
       
       set result [start_remote_prog $CHECK_HOST $CHECK_USER "cat" $test_local_dir/Sleeper.o${job_id}]
       puts $CHECK_OUTPUT "job output file: $result"

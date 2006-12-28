@@ -260,8 +260,8 @@ proc auto_reschedule_setup {} {
    wait_for_jobstart $job_id1 "Sleeper" 100
    wait_for_jobstart $job_id2 "Sleeper" 100
 
-   wait_for_jobend $job_id1 "Sleeper" 60
-   wait_for_jobend $job_id2 "Sleeper" 60
+   wait_for_jobend $job_id1 "Sleeper" 60 0
+   wait_for_jobend $job_id2 "Sleeper" 60 0
 }
 
 proc auto_reschedule_unknown_check_master {} {

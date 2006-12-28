@@ -255,7 +255,7 @@ proc job_environment_qsub_job { jobname array arguments } {
       delete_all_jobs
    }
 
-   if {$ret && [wait_for_jobend $job_id $jobname 120] != 0} {
+   if {$ret && [wait_for_jobend $job_id $jobname 120 0] != 0} {
       set ret 0
       delete_all_jobs
    }
@@ -301,7 +301,7 @@ proc job_environment_qresub_job { jobname array arguments } {
    puts $CHECK_OUTPUT $result
    set new_job_id [expr $job_id + 1]
    wait_for_jobstart $new_job_id $jobname 60 1 1
-   wait_for_jobend $new_job_id $jobname 60
+   wait_for_jobend $new_job_id $jobname 60 0
    job_environment_parse_env_test_output $CHECK_PROTOCOL_DIR/job_env.out job_env_array
    delete_job $job_id
 }
@@ -341,7 +341,7 @@ proc job_environment_qalter_job { jobname array qsub_args qalter_args } {
    catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrls" $job_id } result
    puts $CHECK_OUTPUT $result
    wait_for_jobstart $job_id $jobname 60 1 1
-   wait_for_jobend $job_id $jobname 60
+   wait_for_jobend $job_id $jobname 60 0
    job_environment_parse_env_test_output $CHECK_PROTOCOL_DIR/job_env.out job_env_array
 }
 
