@@ -1719,7 +1719,7 @@ proc resolve_build_arch { host } {
 }
 
 proc resolve_build_arch_installed_libs {host {raise_error 1}} {
-   global ts_config CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    set build_arch [resolve_build_arch $host]
 
@@ -1739,6 +1739,10 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
             set build_arch "LINUX86_24"
          }
       }
+   }
+
+   if { [is_remote_path $host $CHECK_USER $ts_config(source_dir)/$build_arch] == 0 } {
+      add_proc_error "resolve_build_arch_installed_libs" -1 "can't find build directory: $ts_config(source_dir)/$build_arch" $raise_error
    }
 
    return $build_arch
