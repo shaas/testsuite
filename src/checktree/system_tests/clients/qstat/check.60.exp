@@ -203,14 +203,14 @@ proc qstat_init_level {} {
 #     expected_jobs - the nr of the expected job count
 #
 #*******************************************************************************
-proc qstat_count_jobs { func_name qstat_options expected_jobs } {
+proc qstat_count_jobs {func_name qstat_options expected_jobs} {
    global ts_config CHECK_OUTPUT CHECK_USER
    
    puts $CHECK_OUTPUT "\nrunning qstat $qstat_options"
    set result [start_sge_bin "qstat" "$qstat_options" "" "" exit_code]
    puts $CHECK_OUTPUT $result
-   if { $exit_code == 0 } {
-      if { [info exists jobinfo] } {
+   if {$exit_code == 0} {
+      if {[info exists jobinfo]} {
          unset jobinfo
       }  
       parse_qstat result jobinfo
@@ -218,7 +218,7 @@ proc qstat_count_jobs { func_name qstat_options expected_jobs } {
       set nr_jobs [llength $shown_jobs]
 
       puts $CHECK_OUTPUT "number of jobs: $nr_jobs"
-      if { $nr_jobs != $expected_jobs } {
+      if {$nr_jobs != $expected_jobs} {
          add_proc_error "$func_name" -1 "qstat $qstat_options broken, got $nr_jobs but expected $expected_jobs"
       }
    } else {
@@ -464,61 +464,62 @@ proc qstat_option_pe {} {
 
 
 proc qstat_option_U {} {
-  global CHECK_OUTPUT CHECK_CORE_EXECD CHECK_PRODUCT_ROOT
-  global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global ts_config CHECK_OUTPUT CHECK_CORE_EXECD CHECK_PRODUCT_ROOT
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
-  puts $CHECK_OUTPUT "checking qstat -U option ..."
+   puts $CHECK_OUTPUT "checking qstat -U option ..."
 
-  set hostname [lindex $CHECK_CORE_EXECD 0]
+   set hostname [lindex $CHECK_CORE_EXECD 0]
 
-  set testq(load_thresholds) "np_load_avg=7.00"
-  set testq(slots) 10
-  set testq(user_lists) deadlineusers 
-  add_queue test.q $hostname testq
-  set qname [get_queue_instance test.q $hostname]
+   set testq(load_thresholds) "np_load_avg=7.00"
+   set testq(slots) 10
+   set testq(user_lists) deadlineusers 
+   add_queue test.q $hostname testq
+   set qname [get_queue_instance test.q $hostname]
 
-  puts $CHECK_OUTPUT "submitting jobs as user $CHECK_USER ..."   
-  
-  set job_id_list ""
-  set arguments "-o /dev/null -e /dev/null -h -q $qname"
-  set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
-  lappend job_id_list $job_id
-  set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
-  lappend job_id_list $job_id
-  set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
-  lappend job_id_list $job_id
+   puts $CHECK_OUTPUT "submitting jobs as user $CHECK_USER ..."   
 
+   set job_id_list ""
+   set arguments "-o /dev/null -e /dev/null -h -q $qname"
+   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
+   lappend job_id_list $job_id
+   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
+   lappend job_id_list $job_id
+   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
+   lappend job_id_list $job_id
 
-  puts $CHECK_OUTPUT "submitting job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."  
-  set arguments "-o /dev/null -e /dev/null -h -q $qname"
-  set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-  lappend job_id_list $job_id
-  
-  qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_USER" 4
-  qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 3 
+   puts $CHECK_OUTPUT "submitting job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."  
+   set arguments "-o /dev/null -e /dev/null -h -q $qname"
+   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   lappend job_id_list $job_id
 
-  qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_FIRST_FOREIGN_SYSTEM_USER" 0
-  qstat_count_jobs "qstat_option_U" "-U $CHECK_FIRST_FOREIGN_SYSTEM_USER" 0
+   qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_USER" 4
 
-  delete_all_jobs
+   if {$ts_config(gridengine_version) >= 65} {
+      qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 3
+   } else {
+      qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 4
+   }
 
-  wait_for_end_of_all_jobs 60
+   qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_FIRST_FOREIGN_SYSTEM_USER" 0
+   qstat_count_jobs "qstat_option_U" "-U $CHECK_FIRST_FOREIGN_SYSTEM_USER" 0
 
-  del_queue test.q $hostname 0 1
-  
-  
-  
+   delete_all_jobs
+
+   wait_for_end_of_all_jobs 60
+
+   del_queue test.q $hostname 0 1
 }
 
 proc qstat_option_s {} {
   global ts_config CHECK_OUTPUT CHECK_USER 
 
-  set arch [ resolve_arch $ts_config(master_host) ]
+  set arch [resolve_arch $ts_config(master_host)]
 
   puts $CHECK_OUTPUT "submitting a long running batch job ..."   
   set job_id_list ""
   set arguments "-o /dev/null -e /dev/null"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100000" ]
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100000"]
   wait_for_jobstart $job_id "Sleeper" 60
 
   puts $CHECK_OUTPUT "submitting & suspending a batch job ..."   
