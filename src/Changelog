@@ -1,3 +1,5 @@
+JG-2006-01-03-2: Bugfix:    added missing script for drmaaj test
+
 CR-2006-01-03-1: Cleanup:   added more information to warning messages
 
 JG-2006-01-03-1: Bugfix:    qtcsh test failed for SGE 6.0. Cleanup.
