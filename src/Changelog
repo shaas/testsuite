@@ -1,3 +1,5 @@
+CR-2006-01-03-1: Cleanup:   added more information to warning messages
+
 JG-2006-01-03-1: Bugfix:    qtcsh test failed for SGE 6.0. Cleanup.
 
 JG-2006-01-03-0: Bugfix:    fixed qstat test for SGE 6.0.

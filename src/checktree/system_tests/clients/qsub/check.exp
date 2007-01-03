@@ -937,7 +937,7 @@ proc check_option_ac {} {
       return
    } elseif {[regexp {[ \t,]myvar4=test 4[,\r\n]} $vars match] != 1} {
       if {[regexp {[ \t,]myvar4='test 4'[,\r\n]} $vars match] == 1} {
-         add_proc_error "check_option_ac" -3 "qsub $option - qsub error: issue IZ1850 encountered"
+         add_proc_error "check_option_ac" -3 "qsub $option - qsub error: issue IZ1850 encountered only fixed for versions > 6.0"
          return
       }
 
