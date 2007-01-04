@@ -1,3 +1,9 @@
+JG-2006-01-04-1: Bugfix:    consumable_resources test relied on different
+                            timetamps of load sensor scripts - which was no 
+                            longer the case after cvs import to testsuite 
+                            project. Modify timestamp of loadsensor file in 
+                            test.
+
 CR-2006-01-04-1: Bugfix:    don't start system_tests/commlib/issues test on
                             irix host and wait 5 sec before starting client
 

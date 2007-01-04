@@ -1065,26 +1065,10 @@ proc consumable_resources_test {} {
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
 
-      # wait for load value to be no longer reported
-      set retries 30
-      set ok 0
-      while { $retries > 0 } {
-         catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
-         puts $CHECK_OUTPUT "waiting for hc:test1=10 load value (retry count: $retries) ..."
-         puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test1=10*" $test_grep] } {
-            puts $CHECK_OUTPUT "resource test1 is set to value 10 - ok"
-            set ok 1
-            break
-         }
-         sleep 5
-         incr retries -1
-      }
-
-      if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=10 by qstat -F on host $host_a"
-      }
-
+      # make sure the new loadsensor has a different timestamp than the old one
+      # otherwise execd won't recognize it as a new load sensor
+      catch { eval exec "touch $ts_config(testsuite_root_dir)/scripts/resource_test1_3_loadsensor.sh" } output
+      puts $CHECK_OUTPUT "touch output: $output"
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test1_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT "created link output: $output"
       wait_for_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
