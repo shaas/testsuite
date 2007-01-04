@@ -78,8 +78,8 @@ proc commlib_issues_run  {} {
  
    set execd_no 2
    set client_up_arch [resolve_build_arch $client_host]
-   while { [string match "*AIX*" $client_up_arch] } {
-      add_proc_error "commlib_issues_run" -3 "skipping aix host because there may be a malloc() problem for this test"
+   while { [string match "*AIX*" $client_up_arch] || [string match "*IRIX*" $client_up_arch] } {
+      puts $CHECK_OUTPUT "skipping aix/irix host because there may be a malloc() problem for this test"
       set client_host [lindex $ts_config(execd_nodes) $execd_no]
       set client_up_arch [resolve_build_arch $client_host]
       incr execd_no 1
@@ -98,6 +98,7 @@ proc commlib_issues_run  {} {
    set client_args "0 TCP client $ts_config(commd_port) $server_host"
 
    set server_sid [open_remote_spawn_process $server_host "root" $server_binary $server_args]
+   after 5000
    set client_sid [open_remote_spawn_process $client_host "ts_def_con" $client_binary $client_args]
 
    set server_id [lindex $server_sid 1]

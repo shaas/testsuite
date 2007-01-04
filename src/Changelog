@@ -1,3 +1,6 @@
+CR-2006-01-04-1: Bugfix:    don't start system_tests/commlib/issues test on
+                            irix host and wait 5 sec before starting client
+
 CR-2006-01-04-0: Bugfix:    fixed windows/gui test when there are no
                             windows host configured
 
