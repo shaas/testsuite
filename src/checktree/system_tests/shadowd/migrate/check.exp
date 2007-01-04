@@ -206,8 +206,12 @@ proc shadowd_migrate_test {} {
       puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
       puts $CHECK_OUTPUT "------------------------------------------------------------"
 
-      if { $CHECK_ACT_LEVEL == 1 } {
-         set CONTROLED_SHUTDOWN [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SHADOWD_CONTROLLEDSHUTDOWN_SU] "*" "100" ]
+      if {$CHECK_ACT_LEVEL == 1} {
+         if {$ts_config(gridengine_version) <= 60} {
+            set CONTROLED_SHUTDOWN [translate_macro MSG_SHADOWD_CONTROLLEDSHUTDOWN_SSSU "*" "*" "*" "100"]
+         } else {
+            set CONTROLED_SHUTDOWN [translate_macro MSG_SHADOWD_CONTROLLEDSHUTDOWN_SU "*" "100"]
+         }
 
          puts $CHECK_OUTPUT "restarting qmaster and shadowds with SGE_TEST_HEARTBEAT_TIMEOUT=600"
          shutdown_system_daemon $ts_config(master_host) "qmaster"
@@ -220,12 +224,12 @@ proc shadowd_migrate_test {} {
 
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $heartbeat_file]
 
-         set heartbeat [string trimleft [string trim $result ] "0"]
+         set heartbeat [string trimleft [string trim $result] "0"]
          puts $CHECK_OUTPUT "   setting heartbeat from $heartbeat to 98 ..."
-         set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" " 98 > $heartbeat_file"]
+         set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "98 > $heartbeat_file"]
          puts $CHECK_OUTPUT $result
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $heartbeat_file]
-         set heartbeat [string trimleft [string trim $result ] "0"]
+         set heartbeat [string trimleft [string trim $result] "0"]
          puts $CHECK_OUTPUT "   heartbeat set to $heartbeat !"
 
 
@@ -239,17 +243,17 @@ proc shadowd_migrate_test {} {
          set my_timeout [timestamp]
          incr my_timeout 660
          set heartbeat 0
-         while { $heartbeat  <= 102 } {
+         while {$heartbeat <= 102} {
             set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $heartbeat_file]
             set heartbeat [string trimleft [string trim $result] "0"]
             after 1000
 ##            puts $CHECK_OUTPUT -nonewline "."
-            set todo [ expr ( $my_timeout - [timestamp]  ) ]
+            set todo [expr $my_timeout - [timestamp]]
             puts -nonewline $CHECK_OUTPUT "\rtimeout in $todo seconds. Heartbeat = $heartbeat    "
             flush stdout
-            if { [timestamp] > $my_timeout } {
+            if {[timestamp] > $my_timeout} {
                add_proc_error "shadowd_migrate_test" -1 "timeout waiting for shadowd to take over!"
-               break;
+               break
             }
          }
          puts $CHECK_OUTPUT ""
@@ -257,7 +261,7 @@ proc shadowd_migrate_test {} {
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $act_qmaster_file]
          set new_act_qmaster [string trim $result]
 
-         if { $act_qmaster == $new_act_qmaster } {
+         if {$act_qmaster == $new_act_qmaster} {
             add_proc_error "shadowd_migrate_test" -1 "no qmaster took over!"
          } else {
             puts $CHECK_OUTPUT "qmaster on host $new_act_qmaster took over!"
@@ -299,22 +303,21 @@ proc shadowd_migrate_test {} {
             if { $logfile_wait_error == 0 } {
                set message_file_output $output
             }
-
          }
          close_logfile_wait
 
          puts $CHECK_OUTPUT "message file of qmaster contains:\n$message_file_output"
-         if { $message_file_output == "" } {
+         if {$message_file_output == ""} {
             add_proc_error "shadowd_migrate_test" -1 "old qmaster doesn't stop with exit state 100"
          }
 
          wait_for_load_from_all_queues 120
 
-         if { [is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file] } {
+         if {[is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file]} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after shutdown of old qmaster"
          }
 
-         if { [is_remote_file $act_qmaster $CHECK_USER $qmaster_lock_file] } {
+         if {[is_remote_file $act_qmaster $CHECK_USER $qmaster_lock_file]} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after shutdown of old qmaster"
          }
 
@@ -329,7 +332,7 @@ proc shadowd_migrate_test {} {
          wait_for_load_from_all_queues 120
       }
 
-      if { $CHECK_ACT_LEVEL == 2 } {
+      if {$CHECK_ACT_LEVEL == 2} {
          puts $CHECK_OUTPUT "shutting down qmaster ..."
          
          if { [is_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file] } {
@@ -343,14 +346,14 @@ proc shadowd_migrate_test {} {
          puts $CHECK_OUTPUT "deleting lock file ..."
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "rm" $qmaster_lock_file]
          puts $CHECK_OUTPUT $result
-         if { $prg_exit_state != 0 } {
+         if {$prg_exit_state != 0} {
             add_proc_error "shadowd_migrate_test" -1 "error removing qmaster lock file \"$qmaster_lock_file\""
          }
          
          set new_act_qmaster $act_qmaster
          set my_timeout [timestamp]
          incr my_timeout 660
-         while { $new_act_qmaster == $act_qmaster } {
+         while {$new_act_qmaster == $act_qmaster} {
             set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $act_qmaster_file]
             set new_act_qmaster [string trim $result]
             after 1000
@@ -363,7 +366,7 @@ proc shadowd_migrate_test {} {
             flush stdout
          }
 
-         if { [is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file] } {
+         if {[is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file]} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after startup of new qmaster on host $new_act_qmaster"
          }
          wait_for_load_from_all_queues 120
@@ -375,14 +378,13 @@ proc shadowd_migrate_test {} {
          puts $CHECK_OUTPUT "restarting qmaster on host $act_qmaster ..."
          startup_qmaster
 
-         if { [is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file] } {
+         if {[is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file]} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after shutdown and restart of original qmaster on host $act_qmaster"
          }
          wait_for_load_from_all_queues 120
       }
 
-      if { $CHECK_ACT_LEVEL == 3 } {
-
+      if {$CHECK_ACT_LEVEL == 3} {
          set migrate_host ""
          foreach host $ts_config(shadowd_hosts) {
             if { $host != $ts_config(master_host) } {
@@ -464,7 +466,7 @@ proc shadowd_migrate_test {} {
 
          if { $CHECK_ACT_LEVEL == 6 } {
             puts $CHECK_OUTPUT "writing unresolvable host into $act_qmaster_file ..."
-            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" " trulla > $act_qmaster_file"]
+            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "trulla > $act_qmaster_file"]
             puts $CHECK_OUTPUT $result
             # check if file is touched
             if { [is_remote_file $ts_config(master_host) $CHECK_USER  $act_qmaster_file ] != 1 } {
@@ -484,7 +486,7 @@ proc shadowd_migrate_test {} {
             }
 
             puts $CHECK_OUTPUT "writing resolvable host into $act_qmaster_file ..."
-            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" " $new_act_master > $act_qmaster_file"]
+            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "$new_act_master > $act_qmaster_file"]
             puts $CHECK_OUTPUT $result
             # check if file is touched
             if { [is_remote_file $ts_config(master_host) $CHECK_USER  $act_qmaster_file ] != 1 } {
@@ -512,7 +514,7 @@ proc shadowd_migrate_test {} {
 
 
             puts $CHECK_OUTPUT "writing ip into $act_qmaster_file ..."
-            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" " $ip_address > $act_qmaster_file"]
+            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "$ip_address > $act_qmaster_file"]
             puts $CHECK_OUTPUT $result
             # check if file is touched
             if { [is_remote_file $ts_config(master_host) $CHECK_USER  $act_qmaster_file ] != 1 } {
@@ -622,7 +624,7 @@ proc shadowd_migrate_test {} {
          }
 
          puts $CHECK_OUTPUT "now setting heartbeat to 99998 ..."
-         set echo_output [start_remote_prog $host $CHECK_USER echo " 99998 > $heartbeat_file"]
+         set echo_output [start_remote_prog $host $CHECK_USER echo "99998 > $heartbeat_file"]
          puts $CHECK_OUTPUT "$echo_output"
 
          set exp_heartbeat 99999

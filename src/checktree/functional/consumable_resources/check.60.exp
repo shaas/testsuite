@@ -256,7 +256,7 @@ proc consumable_resources_cleanup  {} {
    del_queue $qname $consumable_resources_test_hosts  0 1
 
    if { [del_pe "round_robin" 0] } {
-      after 5000
+      sleep 5
       del_pe "round_robin"
    }
 
@@ -268,10 +268,13 @@ proc consumable_resources_cleanup  {} {
 proc check_qhost_broken { complex count } {
    global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER CHECK_HOST
 
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qhost" "-l $complex -F | grep arch | wc -l"]
-   if { $output != $count } {
-      add_proc_error "check_qhost_broken" -2 "qhost is broken - see Issue: 1306, returned $output hosts but $count is expected"
-      set error 1
+   # this bug has only be fixed in maintrunk for SGE 6.1
+   if {$ts_config(gridengine_version) >= 65} {
+      set output [start_remote_prog $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qhost" "-l $complex -F | grep arch | wc -l"]
+      if { $output != $count } {
+         add_proc_error "check_qhost_broken" -2 "qhost is broken - see Issue: 1306, returned $output hosts but $count is expected"
+         set error 1
+      }
    }
 }
 
@@ -457,7 +460,7 @@ proc consumable_resources_submit_jobs_and_wait { job_arguments job_count run_job
                break
             }
             incr sched_info_tries -1
-            after 1000
+            sleep 1
          }
          if { $ok != 1 } {
             add_proc_error "case $case) consumable_resources_submit_jobs_and_wait" -2 "can't find matching scheduler info:\nexpected: $schedd_info\ngot: $qstat_j_info(scheduling info)"
@@ -985,18 +988,30 @@ proc consumable_resources_test {} {
    }
    
    if { $CHECK_ACT_LEVEL == 7 } {
+      # this is our test host
+      set host_a [lindex $consumable_resources_test_hosts 0]
+
+      # reduce the load report time to stabilize and speedup the test
+      # prepare cleanup - get original global host coniguration
+      get_exechost orig_global_host global
+      if {![info exists execd_config_a_host(load_report_time)]} {
+         set execd_config_a_host(load_report_time) ""
+      }
+      if {![info exists execd_config_a_host(load_sensor)]} {
+         set execd_config_a_host(load_sensor) ""
+      }
+      # set load report time
+      set new_config_a_host(load_report_time) "00:00:05"
+      set_config new_config_a_host $host_a
 
       # create complex
       set test1_complex(test1) "t1 INT <= YES YES 0 1000"
       set_complex test1_complex
   
-      # get original global host coniguration
-      get_exechost orig_global_host global
       # modify complex_values of global host
       set global_host(complex_values) "test1=15"
       set_exechost global_host global
 
-      set host_a [lindex $consumable_resources_test_hosts 0]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
        # modify complex_values of host_a host
@@ -1006,26 +1021,20 @@ proc consumable_resources_test {} {
       set queue_settings(complex_values) "test1=5"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
 
-      # setup load script
-      get_config execd_config_a_host $host_a
-
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
-      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+
       catch { eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT "created link output: $output"
       wait_for_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
+
+      # now set the load sensor
       set load_sensor_script_path "$ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"
       if { [info exists execd_config_a_host(load_sensor)] } {
          set new_config_a_host(load_sensor) "$execd_config_a_host(load_sensor),$load_sensor_script_path"
       } else {
          set new_config_a_host(load_sensor) "$load_sensor_script_path"
-         set execd_config_a_host(load_sensor) ""
       }
-      if { [info exists execd_config_a_host(load_report_time)] == 0 } {
-         set execd_config_a_host(load_report_time) ""
-      }
-
-      set new_config_a_host(load_report_time) "00:00:05"
       set_config new_config_a_host $host_a
 
 
@@ -1034,19 +1043,19 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
-         puts $CHECK_OUTPUT "waiting for hl:test1=6 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hc:test1=6 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hl:test1=6*" $test_grep] } {
+         if { [string match "*hc:test1=6*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test1 is set to value 6 - ok"
             set ok 1
             break
          }
-         after 5000
+         sleep 5
          incr retries -1
       }
 
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test1=6 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=6 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
@@ -1055,7 +1064,27 @@ proc consumable_resources_test {} {
       }
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
-      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+
+      # wait for load value to be no longer reported
+      set retries 30
+      set ok 0
+      while { $retries > 0 } {
+         catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
+         puts $CHECK_OUTPUT "waiting for hc:test1=10 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT $test_grep
+         if { [string match "*hc:test1=10*" $test_grep] } {
+            puts $CHECK_OUTPUT "resource test1 is set to value 10 - ok"
+            set ok 1
+            break
+         }
+         sleep 5
+         incr retries -1
+      }
+
+      if { $ok != 1 } {
+         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=10 by qstat -F on host $host_a"
+      }
+
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test1_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh" } output
       puts $CHECK_OUTPUT "created link output: $output"
       wait_for_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
@@ -1066,19 +1095,19 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
-         puts $CHECK_OUTPUT "waiting for hl:test1=3 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hc:test1=3 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hl:test1=3*" $test_grep] } {
+         if { [string match "*hc:test1=3*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test1 is set to value 3 - ok"
             set ok 1
             break
          }
-         after 5000
+         sleep 5
          incr retries -1
       }
 
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test1=3 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=3 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
@@ -1110,7 +1139,7 @@ proc consumable_resources_test {} {
             set ok 1
             break
          }
-         after 5000
+         sleep 5
          incr retries -1
       }
 
@@ -1127,6 +1156,8 @@ proc consumable_resources_test {} {
    }
    
    if { $CHECK_ACT_LEVEL == 8 } {
+      # this is our test host
+      set host_a [lindex $consumable_resources_test_hosts 0]
 
       # create complex
       set test1_complex(test1) "t1 INT <= YES YES 0 1000"
@@ -1139,7 +1170,6 @@ proc consumable_resources_test {} {
       set global_host(complex_values) "test1=15,test2=15"
       set_exechost global_host global
 
-      set host_a [lindex $consumable_resources_test_hosts 0]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
        # modify complex_values of host_a host
@@ -1151,16 +1181,15 @@ proc consumable_resources_test {} {
 
       # setup load script
       get_config execd_config_a_host $host_a
-
             
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh
-      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh" } output
       puts $CHECK_OUTPUT "ln -s output: $output"
       wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh
-      after 2000 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
+      sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
       catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test2_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh" } output
       puts $CHECK_OUTPUT "ln -s output: $output"
       wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh
@@ -1185,18 +1214,18 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test1" } test_grep
-         puts $CHECK_OUTPUT "waiting for hl:test1=6 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hc:test1=6 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hl:test1=6*" $test_grep] } {
+         if { [string match "*hc:test1=6*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test1 is set to value 6 - ok"
             set ok 1
             break
          }
-         after 5000
+         sleep 5
          incr retries -1
       }
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test1=6 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=6 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
@@ -1209,18 +1238,18 @@ proc consumable_resources_test {} {
       set ok 0
       while { $retries > 0 } {
          catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test2" } test_grep
-         puts $CHECK_OUTPUT "waiting for hl:test2=3 load value (retry count: $retries) ..."
+         puts $CHECK_OUTPUT "waiting for hc:test2=3 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hl:test2=3*" $test_grep] } {
+         if { [string match "*hc:test2=3*" $test_grep] } {
             puts $CHECK_OUTPUT "resource test2 is set to value 3 - ok"
             set ok 1
             break
          }
-         after 5000
+         sleep 5
          incr retries -1
       }
       if { $ok != 1 } {
-         add_proc_error "consumable_resources_test" -1 "can't find load value hl:test2=3 by qstat -F on host $host_a"
+         add_proc_error "consumable_resources_test" -1 "can't find load value hc:test2=3 by qstat -F on host $host_a"
       }
 
       catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test2" } test_grep

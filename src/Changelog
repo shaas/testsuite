@@ -1,3 +1,7 @@
+JG-2006-01-04-0: Enhancem.: Enhanced consumable_resources test.
+                            Increased timeout in drmaaj test.
+                 Cleanup:   shadowd_migrate
+
 JG-2006-01-03-2: Bugfix:    added missing script for drmaaj test
 
 CR-2006-01-03-1: Cleanup:   added more information to warning messages
