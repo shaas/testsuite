@@ -139,27 +139,25 @@ proc job_environment_amount_uninherited {} {
    set errors ""
 
    job_environment_var_test missing extra
-
+   set error_type "-3"
    if {[llength $missing] != 0} {
       set missing_vars ""
 
       foreach missing_var $missing {
          append missing_vars " $missing_var"
       }
-
       append errors "\nThe following environment variables should have been set but were not: [string trim $missing]"
+      set error_type "-1"
    } elseif {[llength $extra] != 0} {
       set extra_vars ""
-
       foreach extra_var $extra {
          append extra_vars " $extra_var"
       }
-
       append errors "\nThe following unrecognized environment variables were set: [string trim $extra_vars]"
    }
 
    if {$errors != ""} {
-      add_proc_error "job_environment_amount_uninherited" -1 [string trim $errors]
+      add_proc_error "job_environment_amount_uninherited" $error_type [string trim $errors]
    }
 }
 
@@ -324,7 +322,7 @@ proc job_environment_SET_LIB_PATH {} {
    if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
       append errors "\nFailed submitting job, with INHERIT_ENV=true,SET_LIB_PATH=true"
    } elseif {[info exists job_env($job_environment_libvar)] == 0} {
-      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=true"
+      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=true\nexpected environment var \"$job_environment_libvar\""
    } elseif {$job_env($job_environment_libvar) != "$sge_path:$job_environment_libpath"} {
       append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=true,SET_LIB_PATH=true"
    }
@@ -342,6 +340,9 @@ proc job_environment_SET_LIB_PATH {} {
       append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=false"
    } elseif {$job_env($job_environment_libvar) != $job_environment_libpath} {
       append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=true,SET_LIB_PATH=false"
+   }
+   if { $errors != "" } {
+      puts $CHECK_OUTPUT "errors:\n$errors"
    }
 
    puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=false, SET_LIB_PATH=true"

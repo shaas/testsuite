@@ -1,3 +1,6 @@
+CR-2006-01-04-2: Bugfix:    fixed error report for unexpected user specific
+                            envirionment variables in functional/job_environment
+
 JG-2006-01-04-1: Bugfix:    consumable_resources test relied on different
                             timetamps of load sensor scripts - which was no 
                             longer the case after cvs import to testsuite 
