@@ -1,3 +1,6 @@
+CR-2006-01-04-0: Bugfix:    fixed windows/gui test when there are no
+                            windows host configured
+
 JG-2006-01-04-0: Enhancem.: Enhanced consumable_resources test.
                             Increased timeout in drmaaj test.
                  Cleanup:   shadowd_migrate
