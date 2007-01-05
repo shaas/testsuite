@@ -1642,6 +1642,8 @@ proc del_job_files {jobid job_output_directory expected_file_count} {
 #                                  if not 1:       don't set shared lib path
 #     { without_start_output 0 } - if 0 (default): put out start/end mark of output
 #                                  if not 0:       don't print out start/end marks
+#     { without_sge_single_line 0} - if 0 (default): set SGE_SINGLE_LINE=1 and export it 
+#                                    if not 0:       unset SGE_SINGLE_LINE
 #
 #
 #  EXAMPLE
@@ -1663,6 +1665,7 @@ proc create_shell_script { scriptfile
                            {source_settings_file 1}
                            {set_shared_lib_path 1}
                            {without_start_output 0}
+                           {without_sge_single_line 0}
                          } {
    global ts_config
    global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
@@ -1740,9 +1743,13 @@ proc create_shell_script { scriptfile
          puts $script "fi"
       }
 
-      puts $script "# don't break long lines with qstat"
-      puts $script "SGE_SINGLE_LINE=1"
-      puts $script "export SGE_SINGLE_LINE"
+      if { $without_sge_single_line == 0 } {
+         puts $script "# don't break long lines with qstat"
+         puts $script "SGE_SINGLE_LINE=1"
+         puts $script "export SGE_SINGLE_LINE"
+      } else {
+         puts $script "unset SGE_SINGLE_LINE"
+      }
 #      TODO (CR): check out if LS_COLORS settings may disable qtcsh or qrsh on linux
 #      puts $script "unset LS_COLORS" 
 #      do not enable this without rework of qstat parsing routines

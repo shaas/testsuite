@@ -598,7 +598,7 @@ proc get_sge_error_generic_vdep {messages_var} {
 
    # CSP errors
    lappend messages(index) "-100"
-   set messages(-100) "*[translate_macro MSG_CL_COMMLIB_SSL_ERROR_336105650]*"
+   set messages(-100) "*[translate_macro MSG_SEC_KEYFILENOTFOUND_S "*"]*"
 
    # generic communication errors
    lappend messages(index) "-120"

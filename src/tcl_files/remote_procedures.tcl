@@ -514,6 +514,10 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
 #                                 if not 1: don't source settings file
 #     { set_shared_lib_path 1 } - if 1 (default): set shared lib path
 #                               - if not 1: don't set shared lib path 
+#     { without_start_output 0 } - if 0 (default): put out start/end mark of output
+#                                  if not 0:       don't print out start/end marks
+#     { without_sge_single_line 0} - if 0 (default): set SGE_SINGLE_LINE=1 and export it 
+#                                    if not 0:       unset SGE_SINGLE_LINE
 #
 #  RESULT
 #     program output
@@ -537,6 +541,8 @@ proc start_remote_prog { hostname
                          {set_shared_lib_path 1}
                          {raise_error 1}
                          {win_local_user 0}
+                         {without_start_output 0}
+                         {without_sge_single_line 0}
                        } {
    global CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR CHECK_DEBUG_LEVEL 
    global CHECK_HOST
@@ -560,7 +566,7 @@ proc start_remote_prog { hostname
    }
 
    # open connection
-   set id [open_remote_spawn_process "$hostname" "$user" "$exec_command" "$exec_arguments" $background $cd_dir users_env $source_settings_file 15 $set_shared_lib_path $raise_error $win_local_user]
+   set id [open_remote_spawn_process "$hostname" "$user" "$exec_command" "$exec_arguments" $background $cd_dir users_env $source_settings_file 15 $set_shared_lib_path $raise_error $win_local_user $without_start_output $without_sge_single_line]
    if {$id == ""} {
       add_proc_error "start_remote_prog" -1 "got no spawn id" $raise_error
       set back_exit_state -255
@@ -1151,6 +1157,11 @@ proc map_special_users {hostname user win_local_user} {
 #                                   if not 1:
 #                                      don't source settings file
 #     { nr_of_tries 15 }         -  timout value
+#     { without_start_output 0 } - if 0 (default): put out start/end mark of output
+#                                  if not 0:       don't print out start/end marks
+#     { without_sge_single_line 0} - if 0 (default): set SGE_SINGLE_LINE=1 and export it 
+#                                    if not 0:       unset SGE_SINGLE_LINE
+#
 #
 #  RESULT
 #     spawn id of process (internal format, see close_spawn_process for details)
@@ -1201,6 +1212,8 @@ proc open_remote_spawn_process { hostname
                                  {set_shared_lib_path 1}
                                  {raise_error 1}
                                  {win_local_user 0}
+                                 {without_start_output 0}
+                                 {without_sge_single_line 0}
                                } {
 
    global ts_config CHECK_OUTPUT CHECK_USER
@@ -1274,7 +1287,7 @@ proc open_remote_spawn_process { hostname
    } else {
       set command_name [file tail $exec_command]
       set script_name [get_tmp_file_name $hostname $command_name "sh"]
-      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path
+      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line
       debug_puts "created $script_name"
 
       # remember name of script file for use in the next call to open_remote_spawn_process

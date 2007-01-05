@@ -1,3 +1,14 @@
+CR-2006-01-05-0: Bugfix:    o fixed checktree/system_tests/clients/qconf:
+                              test used csh which produced parsing error on
+                              host gimli because the output
+                              "Warning: ridiculously long PATH truncated"
+                              was printed on qconf
+                            o enhanced start_remote_prog to support switching
+                              of of SGE_SINGLE_LINE envirionment variable
+                            o fixed wrong macro used in
+                              get_sge_error_generic_vdep() for detecting
+                              CSP error for missing keyfiles
+
 CR-2006-01-04-2: Bugfix:    fixed error report for unexpected user specific
                             envirionment variables in functional/job_environment
 
