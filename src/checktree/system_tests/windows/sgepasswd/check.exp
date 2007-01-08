@@ -251,6 +251,12 @@ proc sgepasswd_6472859 {} {
       return
    }
 
+
+   # TODO (CR):
+   # don't use subdiretories just for test setup files!
+   # subdiretories should be used only for further tests in the checktree
+   # -> store the *.test files in the local test directory!
+
    #read sgepasswd filenames that will be used in test
    set files [glob -nocomplain $CHECK_ACTUAL_TEST_PATH/test_files/*.test]
    if { $files == {} } {
