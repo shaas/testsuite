@@ -92,6 +92,11 @@ proc sgepasswd_setup {} {
    global file_exists 
    global actual_time
    
+
+   if { $ts_config(product_feature) == "csp" } {
+      return
+   }
+
    #switch on output of called programs for debug
    if { $CHECK_DEBUG_LEVEL != 0 } {
        set log_user 1
@@ -166,6 +171,14 @@ proc sgepasswd_cleanup {} {
    global file_exists
    global actual_time
 
+
+   #  TODO (CR):
+   #  This test does not work for csp systems, because the certificates not valid anymore
+   if { $ts_config(product_feature) == "csp" } {
+      return
+   }
+
+
    #clean up certificate directories
    set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  /var/sgeCA/$ts_config(commd_port)"]
    set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA"]
@@ -174,6 +187,14 @@ proc sgepasswd_cleanup {} {
    if { $file_exists(var_sgeCA) !=  "0" } {
       #restore /var/sgeCA directory
       set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/sgeCA_$ts_config(commd_port)_$actual_time /var/sgeCA"]
+      # TODO (CR): 
+      # use get_tmp_directory_name for temporary directories and
+      # get_tmp_file_name for temporary files
+
+      # TODO (CR):
+      # when moving this files be sure that start_remote_prog was successful by checking
+      # $prg_exit_state (returned by start_remote_prog) 
+      
    }
    if { $file_exists(common_sgeCA) !=  "0" } {
       #restore $SGE_ROOT/$(cell)/common/sgeCA directory
@@ -223,6 +244,12 @@ proc sgepasswd_cleanup {} {
 proc sgepasswd_6472859 {} {
    global ts_config
    global CHECK_OUTPUT CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_ACTUAL_TEST_PATH 
+
+
+   if { $ts_config(product_feature) == "csp" } {
+      add_proc_error "sgepasswd_6472859" -3 "can't run this test for CSP systems"
+      return
+   }
 
    #read sgepasswd filenames that will be used in test
    set files [glob -nocomplain $CHECK_ACTUAL_TEST_PATH/test_files/*.test]

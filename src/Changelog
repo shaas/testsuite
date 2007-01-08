@@ -1,3 +1,7 @@
+CR-2006-01-08-1: Bugfix:    o fixed /checktree/system_tests/windows/sgepasswd:
+                              test does not work for CSP systems, disabled it
+                              for CSP systems and added some TODOs
+
 CR-2006-01-08-0: Cleanup:   o improved drmaa test output
                             o added wait time (this might fix some 
                               unreproduceable testsuite errors)
