@@ -1,3 +1,6 @@
+CR-2007-01-09-1: Enhancem.: o enhanced tight_integration test to test slave
+                              task killed scenario on all cluster hosts
+
 CR-2007-01-09-0: Bugfix:    o checktree/install_core_system/init_cluster.tcl:
                               added check for pwd problem with csh when links
                               are in the directory path

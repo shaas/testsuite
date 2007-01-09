@@ -709,40 +709,76 @@ proc tight_integration_slave_killed {} {
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: slave task killed"
 
-   set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
-
-   set started 0
-   set finished 0
-   set jobid 0
-   set job_finished 0
-
-   # wait until all tasks are started
-   while {$job_finished == 0 && $started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
-      set job_state [tight_integration_monitor $id started finished jobid info]
-      puts $CHECK_OUTPUT "job state: $job_state"
-      set job_finished [tight_integration_job_finished $job_state]
-   }
-
-   # if startup was ok
-   if {$job_finished == 0} {
-      # wait for job to be running
-      wait_for_job_state $jobid "r" 120
-
-      # kill pid of slave task and wait some seconds
-      # we take task 1: if we have more than one host, it will be on a slave host
-      puts $CHECK_OUTPUT "killing slave task: process group $info(1,pid) on host $info(1,host)"
-      start_remote_prog $info(1,host) "ts_def_con2" kill "-9 -$info(1,pid)"
-
-      if {![tight_integration_wait_for_delete_state $jobid 60]} {
-         add_proc_error "tight_integration_slave_killed" -1 "failed slave task does not cause the job to be deleted"
-         delete_job $jobid
+   set hosts_to_check {}
+   set resolved_master [resolve_host $tight_master_node]
+   foreach host $ts_config(execd_nodes) {
+      set resolved_host [resolve_host $host] 
+      if { $resolved_host != $resolved_master } {
+         lappend hosts_to_check $resolved_host
       }
    }
 
-   set sp_id [lindex $id 1]
-   close_spawn_process $id
 
-   wait_for_jobend $jobid tightf 60 0 1
+   set failures ""
+   set ok_text ""
+   while { [llength $hosts_to_check] > 0 } {
+
+      set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
+
+      set started 0
+      set finished 0
+      set jobid 0
+      set job_finished 0
+
+      # wait until all tasks are started
+      while {$job_finished == 0 && $started < $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS} {
+         set job_state [tight_integration_monitor $id started finished jobid info]
+         puts $CHECK_OUTPUT "job state: $job_state"
+         set job_finished [tight_integration_job_finished $job_state]
+      }
+
+      # if startup was ok
+      if {$job_finished == 0} {
+         set success 1
+         # wait for job to be running
+         wait_for_job_state $jobid "r" 120
+
+         for {set i 0 } {$i < [llength $ts_config(execd_nodes) ]} {incr i 1} {
+            puts $CHECK_OUTPUT "task host $i: $info($i,host)"
+            puts $CHECK_OUTPUT "             pid: $info($i,pid)"
+            set resolved_host [resolve_host $info($i,host)]
+            if { [string compare [lindex $hosts_to_check 0] $resolved_host] == 0 } {
+               set kill_task_nr $i
+               puts $CHECK_OUTPUT "killing task $i this time (host=$resolved_host)!"
+               set hosts_to_check [lrange $hosts_to_check 1 end]
+               puts $CHECK_OUTPUT "kill hosts to test: $hosts_to_check"
+               break
+            }
+         }
+
+         # kill pid of slave task and wait some seconds
+         puts $CHECK_OUTPUT "killing slave task: process group $info($kill_task_nr,pid) on host $info($kill_task_nr,host)"
+         set output [start_remote_prog $info($kill_task_nr,host) "ts_def_con2" kill "-9 -$info($kill_task_nr,pid)"]
+         puts $CHECK_OUTPUT "kill as ts_def_con2 ($CHECK_USER) kill -9 -$info($kill_task_nr,pid) returned:\n$output"
+         if {![tight_integration_wait_for_delete_state $jobid 60]} {
+            set success 0
+         }
+      }
+
+      set sp_id [lindex $id 1]
+      close_spawn_process $id
+
+      if { $success == 0 } {
+         append failures "failed slave task does not cause the job to be deleted when task was killed on host $info($kill_task_nr,host)\n"
+         delete_job $jobid
+      } else {
+         append ok_text "successfully tested \"tight_integration_slave_killed\" on host $info($kill_task_nr,host)\n"
+      }
+      wait_for_jobend $jobid tightf 60 0 1
+   }
+   if { $failures != "" } {
+      add_proc_error "tight_integration_slave_killed" -1 "failures:\n$failures\ntest was ok for:\n$ok_text"
+   }
 }
 
 proc tight_integration_massive {} {
