@@ -126,11 +126,10 @@ proc arco_dbwriter_job_log_setup  {} {
    puts $CHECK_OUTPUT "sqlutil created ($sqlutil_id)"
    
    # setup reporting params (enable job_log)
-   array set arco_dbwriter_job_log_org_config {}
+   if {[info exists arco_dbwriter_job_log_org_config]} {
+      unset arco_dbwriter_job_log_org_config
+   }
    get_config arco_dbwriter_job_log_org_config
-   
-   
-   return 0
 }
 
 
@@ -149,12 +148,10 @@ proc arco_dbwriter_job_log_cleanup  {} {
    set sqlutil_id ""
    set sqlutil_sp_id ""
    
-   set_config arco_dbwriter_job_log_org_config
-   if { [set_config config] != 0 } {
+   if {[set_config arco_dbwriter_job_log_org_config] != 0} {
       add_proc_error "arco_dbwriter_job_log_cleanup" -1 "Can not reset configuration"
       return -1
    }
-   
 }
 
 
@@ -179,12 +176,8 @@ proc arco_dbwriter_job_log_execute {} {
       }
    }
    
-   array set config {}
-   get_config config
    set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=$joblog sharelog=00:10:00"
-   
-   set_config config
-   if { [set_config config] != 0 } {
+   if {[set_config config] != 0} {
       add_proc_error "arco_dbwriter_job_log_setup" -1 "Can not set reporting_params"
       return -1
    }
@@ -196,7 +189,6 @@ proc arco_dbwriter_job_log_execute {} {
    }
 
    set jobs  {}
-   
    lappend jobs { j_job_name     "simple_job"
                   args           "-o /dev/null -e /dev/null $SGE_ROOT/examples/jobs/sleeper.sh 5"
                   sge_job_count  1
@@ -212,20 +204,20 @@ proc arco_dbwriter_job_log_execute {} {
       array set job {}    ;# Reset the job array
       array set job $jobdef
       
-      if { [arco_job_run job] != 0 } {
+      if {[arco_job_run job] != 0} {
          return -1
       }
       
-      if { [arco_query_job $sqlutil_sp_id job $job(sge_job_count)] < 0 } {
+      if {[arco_query_job $sqlutil_sp_id job $job(sge_job_count)] < 0} {
          return -1
       }
       
-      if { [arco_query_job_usage $sqlutil_sp_id job]  < 0 } {
+      if {[arco_query_job_usage $sqlutil_sp_id job]  < 0} {
          return -1
       }
       
       # check the job usage values
-      for { set task_index 0 } { $task_index < $job(task_count) } { incr task_index } {
+      for {set task_index 0} {$task_index < $job(task_count)} {incr task_index} {
          set task(j_job_number)  $job($task_index,j_job_number)
          set task(j_task_number) $job($task_index,j_task_number)
          set task(j_job_name)    $job($task_index,j_job_name)

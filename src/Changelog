@@ -1,3 +1,6 @@
+JG-2006-01-09-0: Bugfix:    Fixed problems with various ARCo tests.
+                 Review:    RH
+
 JG-2006-01-09-0: Bugfix:    o Fixed auto install test with bdb rpc spooling.
                             o Fixed scheduler/reconnect test with long 
                               hostnames.

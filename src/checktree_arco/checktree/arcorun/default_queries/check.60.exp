@@ -68,14 +68,16 @@ lappend check_functions "arcorun_default_queries_check"
 global CHECK_PROTOCOL_DIR
 global arcorun_output_dir  
 
-set arcorun_output_dir $CHECK_PROTOCOL_DIR/arcorun 
+#set arcorun_output_dir $CHECK_PROTOCOL_DIR/arcorun 
+set arcorun_output_dir "/tmp/arcorun_output"
 
 proc arcorun_default_queries_init_level {} {
   global CHECK_ACT_LEVEL
 
-  if { $CHECK_ACT_LEVEL < 4 } {
+  if {$CHECK_ACT_LEVEL < 4} {
      return 0
   }
+
   return -1
 }
 
@@ -94,7 +96,6 @@ proc arcorun_default_queries_init_level {} {
 #
 #*******************************************************************************
 proc arcorun_default_queries_setup {} {
-   
    global CHECK_USER arcorun_output_dir arco_config
    
    if { [arcorun_change_spooldir_owner $CHECK_USER] != 0 } {
@@ -103,13 +104,13 @@ proc arcorun_default_queries_setup {} {
    }   
    
    start_remote_prog $arco_config(swc_host) $CHECK_USER "mkdir" "-p $arcorun_output_dir"
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       add_proc_error "arcorun_default_queries_setup" -1 "Can not create directory $arcorun_output_dir"
       return -1
    }
    
    start_remote_prog $arco_config(swc_host) $CHECK_USER "rm" "-f $arcorun_output_dir/*"
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       add_proc_error "arcorun_default_queries_setup" -3 "Can not clean directory $arcorun_output_dir"
       return -1
    }
@@ -139,7 +140,7 @@ proc arcorun_default_queries_cleanup {} {
       return -1
    }
    
-   start_remote_prog $arco_config(swc_host) $CHECK_USER "rm" "-r $arcorun_output_dir"
+   start_remote_prog $arco_config(swc_host) $CHECK_USER "rm" "-rf $arcorun_output_dir"
    if { $prg_exit_state != 0 } {
       add_proc_error "arcorun_default_queries_setup" -1 "Can not clean directory $arcorun_output_dir"
       return -1
@@ -214,8 +215,8 @@ proc arcorun_default_queries_check {} {
       }
       puts $CHECK_OUTPUT "Execute query $query ($args)"
       set res [arcorun_exec "$args '$query'" output]
-      if { $res != 0 } {
-         add_proc_error "arcorun_default_queries_check" -1 "Query $query failed:\n $output"
+      if {$res != 0} {
+         add_proc_error "arcorun_default_queries_check" -1 "Query $query failed:\n$output"
          incr error_count 1
       }
    }

@@ -71,17 +71,16 @@ proc arcorun_change_spooldir_owner { owner { a_spool_dir "" } } {
 #  EXAMPLE
 #
 #*******************************************************************************
-proc arcorun_exec { args output { timeout 60 } } {
-   global ts_config arco_config
-   global CHECK_USER
+proc arcorun_exec {args output {timeout 60}} {
+   global ts_config arco_config CHECK_OUTPUT CHECK_USER
    
    upvar $output my_output
    
    set swc_host $arco_config(swc_host)
    set arco_run_cmd "$ts_config(product_root)/$ts_config(cell)/arco/reporting/arcorun"
    set my_env(JAVA_HOME) [get_java_home_for_host $swc_host] 
-
-   set my_output [start_remote_prog $swc_host $CHECK_USER $arco_run_cmd "$args" prg_exit_state $timeout 0 "" my_env]
+puts $CHECK_OUTPUT "---> executing on $swc_host as $CHECK_USER: $arco_run_cmd $args"
+   set my_output [start_remote_prog $swc_host $CHECK_USER $arco_run_cmd $args prg_exit_state $timeout 0 "" my_env]
    return $prg_exit_state
 }
 

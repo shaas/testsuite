@@ -466,12 +466,7 @@ proc install_reporting {} {
              send_to_spawn_id $sp_id "y"
              continue
           }
-
-          -i $sp_id "Should the ARCo reporting module * be unregistered? (y/n) * >> " {
-             send_to_spawn_id $sp_id "y"
-             continue
-          }
-          -i $sp_id "Should the GE reporting module * be unregistered? (y/n) * >> " {
+          -i $sp_id "Should the * reporting module * be unregistered? (y/n) * >> " {
              send_to_spawn_id $sp_id "y"
              continue
           }

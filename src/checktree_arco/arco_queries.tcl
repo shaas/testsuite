@@ -157,7 +157,7 @@ proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } } {
 #  SEE ALSO
 #     sql_util/sqlutil_create
 #*******************************************************************************
-proc arco_query_job { sqlutil_sp_id job_array { expected_count 1 } { timeout 120 } } {
+proc arco_query_job {sqlutil_sp_id job_array {expected_count 1} {timeout 300}} {
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
    
    upvar $job_array job
@@ -193,11 +193,11 @@ proc arco_query_job { sqlutil_sp_id job_array { expected_count 1 } { timeout 120
       } 
       puts -nonewline $CHECK_OUTPUT "."
       flush $CHECK_OUTPUT
-      if { $res >= $expected_count } {
+      if {$res >= $expected_count} {
          puts $CHECK_OUTPUT " ok ($res Tasks)"
          set job(task_count) $res
          set col_count [llength $columns]
-         for { set i 0 } { $i < $res } { incr i } {
+         for {set i 0} {$i < $res} {incr i} {
             set col 0
             foreach col_name $columns {
                # puts $CHECK_OUTPUT "task${i}, ${col_name}: $result($i,$col)"
@@ -207,7 +207,7 @@ proc arco_query_job { sqlutil_sp_id job_array { expected_count 1 } { timeout 120
          }
          return $res
       }
-      sleep 3
+      sleep 1
    }
 }
 
@@ -249,7 +249,7 @@ proc arco_query_job { sqlutil_sp_id job_array { expected_count 1 } { timeout 120
 #  SEE ALSO
 #     sql_util/sqlutil_create
 #*******************************************************************************
-proc arco_query_job_log { sqlutil_sp_id job_array { timeout 60 } } {
+proc arco_query_job_log {sqlutil_sp_id job_array {timeout 300}} {
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
    
    upvar $job_array job
@@ -279,7 +279,6 @@ proc arco_query_job_log { sqlutil_sp_id job_array { timeout 60 } } {
       puts $CHECK_OUTPUT "Searching events for job $job_str in table sge_job_log"
       
       foreach event $events {
-         
          set    sql "select count(jl_parent) from sge_job_log "
          append sql "where jl_parent in ("
          append sql "    select j_id from sge_job "
@@ -299,7 +298,6 @@ proc arco_query_job_log { sqlutil_sp_id job_array { timeout 60 } } {
             puts $CHECK_OUTPUT $msg
          }
          while { 1 } {
-            
             if { [clock seconds] > $end_time } {
                puts $CHECK_OUTPUT "Timeout"
                add_proc_error "arco_query_job_log" -1 "timeout error while waiting for job_log entries of job $job_str"
@@ -324,7 +322,7 @@ proc arco_query_job_log { sqlutil_sp_id job_array { timeout 60 } } {
                set job($event) $count
                break
             }
-            sleep 3
+            sleep 1
          }
       }
    }
@@ -373,7 +371,7 @@ proc arco_query_job_log { sqlutil_sp_id job_array { timeout 60 } } {
 #  SEE ALSO
 #     arco_queries/arco_query_job
 #*******************************************************************************
-proc arco_query_job_usage { sqlutil_sp_id job_array { timeout 60 } } {
+proc arco_query_job_usage {sqlutil_sp_id job_array {timeout 300}} {
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
    
    upvar $job_array job
@@ -434,9 +432,10 @@ proc arco_query_job_usage { sqlutil_sp_id job_array { timeout 60 } } {
             }
             break
          }
-         sleep 3
+         sleep 1
       }
    }
+
    return 0
 }
 
