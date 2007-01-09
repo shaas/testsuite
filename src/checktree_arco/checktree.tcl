@@ -157,19 +157,14 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting arco build.sh $target on host $build_host ..."
   
-   # setup private properties file defining SGE_ROOT and source directory
-   set private_properties [open "$arco_config(arco_source_dir)/build_private.properties" "w"]
-   puts $private_properties "sge.root=$ts_config(product_root)"
-   puts $private_properties "sge.srcdir=$ts_config(source_dir)"
-   close $private_properties
- 
    # setup environment
    set env(JAVA_HOME) [get_java_home_for_host $build_host]
    set env(ARCH)      [resolve_arch $build_host]
+
+   append ant_options " -Dsge.root=$ts_config(product_root)"
+   append ant_options " -Dsge.srcdir=$ts_config(source_dir)"
+   set env(ANT_OPTS) "$ant_options"
    
-   if {[string length ant_options] > 0} {
-      set env(ANT_OPTS) "$ant_options"
-   }
 
    if {[coverage_enabled "emma"]} {
       set open_spawn [open_remote_spawn_process $build_host $CHECK_USER "./build.sh" "-emma $target" 0 $arco_config(arco_source_dir) env]
@@ -1000,13 +995,17 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
       }
       append args "start"
       
-      start_remote_prog "$hostname" "$CHECK_USER" "$prog" $args prg_exit_state 60 0 "" dbwriter_env
+      set output [start_remote_prog "$hostname" "$CHECK_USER" "$prog" $args prg_exit_state 60 0 "" dbwriter_env]
       
       if {$debugmode == 1} {
         puts $CHECK_OUTPUT "dbwriter has been started in debug mode"
         puts $CHECK_OUTPUT "Please connect with a jpda debugger to $hostname (Port 8000)!"
         wait_for_enter
       } elseif {$prg_exit_state != 0} {
+         puts $CHECK_OUTPUT "startup of dbwriter failed (exit code $prg_exit_state)"
+         puts $CHECK_OUTPUT "--------------------------------------------------"
+         puts $CHECK_OUTPUT $output
+         puts $CHECK_OUTPUT "--------------------------------------------------"
          add_proc_error "startup_dbwriter" -1 "startup of dbwriter failed (exit code $prg_exit_state)"
       }
       return $prg_exit_state;

@@ -88,7 +88,7 @@ proc arco_junit_check {} {
    global CHECK_PROTOCOL_DIR arco_config ts_config
    
    array set report {}   
-   report_create "ARCO_junit_tests" report 0 0
+   report_create "ARCO_junit_tests" report 1 0
    
    #  Write the configuration file for the tests
    #  Use the template from arco_source dir

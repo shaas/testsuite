@@ -1,3 +1,7 @@
+RH-2007-01-09-0: Bugfix:    arco_build does not longer overwrite 
+                            build_private.properties
+                 Review:    JG
+
 JG-2006-01-09-0: Bugfix:    Fixed problems with various ARCo tests.
                  Review:    RH
 
