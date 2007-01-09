@@ -1,3 +1,6 @@
+RD-2006-01-09-0: Enhancem:  added test for default requests
+                 Review:    JG
+
 CR-2006-01-08-1: Bugfix:    o fixed /checktree/system_tests/windows/sgepasswd:
                               test does not work for CSP systems, disabled it
                               for CSP systems and added some TODOs
@@ -68,6 +71,7 @@ JG-2006-12-27-0: Cleanup:   Removed global variables, minor fixes.
 OJ-2006-12-22-1: Testsuite: Added test case for TS IZ 72 in 
                             system_tests/clients/qsub
                  Review:    DT
+
 RD-2006-12-22-0: Enhancem:  Added some tests for fixed issues:
                             - qconf -Arqs added invalid RQS
                             - RQS breaks scheduler behaviour

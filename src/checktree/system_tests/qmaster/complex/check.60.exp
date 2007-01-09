@@ -119,6 +119,7 @@ lappend check_functions "complex_global_host"
 lappend check_functions "complex_host"
 lappend check_functions "complex_queue"
 lappend check_functions "issue_1847"
+lappend check_functions "complex_default_request"
 
 global complex_host
 global complex_old_config
@@ -314,6 +315,28 @@ proc complex_loadsensor_test {} {
    }
 }
 
+#****** check.60/complex_run_job() *********************************************
+#  NAME
+#     complex_run_job() -- submits a job with the given complex request
+#
+#  SYNOPSIS
+#     complex_run_job { scenario variable value submittable pending 
+#     { runnable "0" } } 
+#
+#  FUNCTION
+#     The function will submit a job with the given complex request and will
+#     send a error mail if the expected job behaviour (submitable/pending) differs
+#     from the real behaviour 
+#
+#  INPUTS
+#     scenario         - scenario name printed in error output
+#     variable         - complex to be requested, "" if no should be requested
+#     value            - value to be requested
+#     submittable      - the job is submittable
+#     pending          - the job is not runnable (will stay pending)
+#     { runnable "0" } - ???
+#
+#*******************************************************************************
 proc complex_run_job {scenario variable value submittable pending { runnable "0" } } {
    # Added variable "runnable" to allow to run cases which cause error, but which we
    # will allow to run so we can complete the test run. These are bugs in qsub
@@ -323,13 +346,17 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
    global ts_config CHECK_OUTPUT
 
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
-   set job_args   "-o /dev/null -j y -l $variable=$value"
+   if {$variable == ""} {
+      set job_args   "-o /dev/null -j y"
+   } else {
+      set job_args   "-o /dev/null -j y -l $variable=$value"
+   }
    set job_id [submit_job "$job_args $job_script" $submittable]
    
    # if job submission shall fail, jobid may not be > 0
    if {!$submittable} { 
       if {$job_id > 0} {
-         if { ( $runnable == 1 ) } { 
+         if {$runnable == 1} { 
             add_proc_error "complex_run_job" -3 "scenario $scenario, $job_args should have failed"
          } else {
             add_proc_error "complex_run_job" -1 "scenario $scenario, $job_args should have failed"
@@ -347,10 +374,10 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
          # test case: job should not be scheduled
          if {$pending} {
             if {$ret == 0} {
-               if { ( $runnable == 1 ) } { 
-               add_proc_error "complex_run_job" -3 "scenario $scenario, $job_args should not be running"
+               if {$runnable == 1} { 
+                  add_proc_error "complex_run_job" -3 "scenario $scenario, $job_args should not be running"
                } else {
-               add_proc_error "complex_run_job" -1 "scenario $scenario, $job_args should not be running"
+                  add_proc_error "complex_run_job" -1 "scenario $scenario, $job_args should not be running"
                }
             } else {
                puts $CHECK_OUTPUT "ok, job is not running"
@@ -365,7 +392,7 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
             } else {
                get_qstat_j_info $job_id
                set schedd_info $qstat_j_info(scheduling info)
-               if { ( $runnable == 1 ) } { 
+               if {$runnable == 1} { 
                   add_proc_error "complex_run_job" -3 "scenario $scenario, $job_args should be running\n$schedd_info"
                } else {   
                   add_proc_error "complex_run_job" -1 "scenario $scenario, $job_args should be running\n$schedd_info"
@@ -892,6 +919,41 @@ proc complex_queue {} {
    }
 }
 
+proc complex_default_request {} {
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global complex_host
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set config(complex_values)    "ti=0"
+      set_exechost config "global"
+   } elseif {$CHECK_ACT_LEVEL == 1} {
+      set config(complex_values)    "ti=100"
+      set_exechost config "global"
+
+      set rqs_name              "test_integer"
+      set rules                  ""
+      lappend rules                  "to test_integer=0"
+      set rqs_charray($rqs_name,limit)   "$rules"
+      set rqs_charray($rqs_name,enabled) "true"
+
+      add_rqs rqs_charray
+
+   }
+
+   #               scenario                variable       value     submittable pending  
+   complex_run_job "default_request"       "ti"           "0"       1           0       
+   complex_run_job "default_request"       ""             ""        1           1      
+
+   if {$CHECK_ACT_LEVEL == 1} {
+      if {[get_rqs_list rqs_names "" "" 0] == 0} {
+         foreach elem $rqs_names {
+            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            del_rqs $elem
+         }
+      }
+   }
+}
+
 proc complex_test_rattr { value } {
     global ts_config CHECK_OUTPUT
     global complex_host
@@ -911,7 +973,6 @@ proc complex_test_rattr { value } {
     } else {
       puts $CHECK_OUTPUT "rejected, OK!"
     }
-
 }
 
 proc issue_1847 {} {
