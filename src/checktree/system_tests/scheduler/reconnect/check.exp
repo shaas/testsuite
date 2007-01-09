@@ -97,31 +97,38 @@ proc schedd_reconnect_test {} {
 
    set expected_reconnect_time 30
    set test_runs 10
-  
+   set failures 0
+   set failures_output ""
+   
    for {set i 0} {$i < $test_runs} {incr i} {
       shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
       startup_qmaster 0
 
       # expect scheduler to be registered at qmaster within 2 * schedd interval (10s)
       set success 0
-      set now [timestamp]
-      set timeout [expr $now + $expected_reconnect_time]
-      while {$timeout > $now} {
-         set ret [get_scheduler_status result "" "" 0]
-         if {$ret == 0 && [string match "$ts_config(master_host)*" $result]} {
-            set success 1
-            break
-         } else {
-            puts $CHECK_OUTPUT "qconf -sss returned $ret: $result"
+      set mytimeout [timestamp]
+      incr mytimeout $expected_reconnect_time
+
+      while {[timestamp] < $mytimeout } {
+         set ret [get_scheduler_status result1 "" "" 0]
+         puts $CHECK_OUTPUT "qconf -sss returned $ret: $result1"
+         set result [lindex $result1 0]
+         if { [llength $result] == 1 && $ret == 0 } {
+            if { [host_list_compare $ts_config(master_host) $result 0 1] == 0 } {
+               puts $CHECK_OUTPUT "scheduler reconnected!"
+               set success 1
+               break
+            }
          }
-
-         sleep 1
-         set now [timestamp]
+         after 1000
       }
-
-      if {!$success} {
-         add_proc_error "schedd_reconnect_test" -1 "scheduler didn't reregister at qmaster within specified time ($expected_reconnect_time s)"
-         break
+      if { $success != 1 } {
+         incr failures 1
+         append failures_output "qconf -sss returned $ret: $result\n"
       }
+   }
+
+   if { $failures_output != "" } {
+      add_proc_error "schedd_reconnect_test" -1 "reconnect failed in $failures from $test_runs test runs:\n$failures_output"
    }
 }

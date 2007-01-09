@@ -3361,8 +3361,12 @@ proc get_file_uid { user host file } {
    global CHECK_OUTPUT
 
    wait_for_remote_file $host $user $file 
-   set output [start_remote_prog $host $user ls "-n $file"]
-   return [lindex $output 2]
+   set output [start_remote_prog $host $user ls "-ln $file"]
+   set uid [lindex $output 2]
+   if { $uid == "" } {
+      add_proc_error "get_file_uid" -1 "can't get file uid on host $host"
+   }
+   return $uid
 }
 
 #****** file_procedures/get_file_perms() ***************************************
@@ -3421,8 +3425,12 @@ proc get_file_perm { user host file } {
 proc get_file_gid { user host file } {
    global CHECK_OUTPUT
    wait_for_remote_file $host $user $file 
-   set output [start_remote_prog $host $user ls "-n $file"]
-   return [lindex $output 3]
+   set output [start_remote_prog $host $user ls "-ln $file"]
+   set gid [lindex $output 3]
+   if { $gid == "" } {
+      add_proc_error "get_file_gid" -1 "can't get file gid on host $host"
+   }
+   return $gid
 }
 
 

@@ -463,7 +463,7 @@ proc job_start_test {} {
                #RD NFS-ROOT2NOBODY has other file permissions
                if { $spool_type == "NFS-ROOT2NOBODY" } {
                   if { $file_uid != $admin_uid } {
-                     add_proc_error "job_start_test" -1 "$current_run_text uid($file_uid) of file \"$file\" doesn't match job uid($admin_uid)"
+                     add_proc_error "job_start_test" -1 "$current_run_text uid($file_uid) of file \"$file\" doesn't match job uid($admin_uid):\n file uid($file_uid) != admin_uid($admin_uid)"
                   }
                   if { $file_perm != "-rw-rw-rw-" } {
                      add_proc_error "job_start_test" -1 "$current_run_text permission $file_uid of file \"$file\" doesn't match expected perm -rw-rw-rw-"
@@ -471,7 +471,7 @@ proc job_start_test {} {
                   
                } else {
                   if { $file_uid != $uid } {
-                     add_proc_error "job_start_test" -1 "$current_run_text uid($file_uid) of file \"$file\" doesn't match job uid($uid)"
+                     add_proc_error "job_start_test" -1 "$current_run_text uid($file_uid) of file \"$file\" doesn't match job uid($uid):\n file uid($file_uid) != admin_uid($admin_uid)"
                   }
                   if { $file_gid != $gid } {
                      add_proc_error "job_start_test" -1 "$current_run_text gid($file_gid) of file \"$file\" doesn't match job gid($gid)"

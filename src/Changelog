@@ -1,3 +1,15 @@
+CR-2007-01-09-0: Bugfix:    o checktree/install_core_system/init_cluster.tcl:
+                              added check for pwd problem with csh when links
+                              are in the directory path
+                            o fixed qconf test for host_aliased setup
+                            o fixed host_aliases for host_aliased setup
+                            o fixed scheduler/reconnect for host_aliased setup
+                            o enhanded error output in job_start test
+                            o fixed get_file_uid() and get_file_gid() hopefully
+                              now work for all platforms (used by job_start test)
+                            o new optional parameter for host_list_compare():
+                                 resolve host lists before compare
+
 RH-2007-01-09-0: Bugfix:    arco_build does not longer overwrite 
                             build_private.properties
                  Review:    JG

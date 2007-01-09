@@ -998,6 +998,23 @@ proc setup_check_user_permissions {} {
         if { $prg_exit_state != 0 } {
            add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$ts_config(testsuite_root_dir)/scripts\" on host $host: $output"
         }
+
+        # additional check the directory pwd output
+        puts $CHECK_OUTPUT "   pwd test ..."
+        set output [start_remote_prog "$host" "$user" "csh" "-c 'cd $execd_spooldir ; echo \"pwd_output:\" ; pwd'"]
+        set output [get_string_value_between "pwd_output:" -1 $output]
+        if { [string match "*$execd_spooldir*" $output] == 0 } {
+           puts $CHECK_OUTPUT "pwd in execd spool directory on $host (user=$user): \"$execd_spooldir\": \"[string trim $output]\")"
+           add_proc_error "setup_check_user_permissions" -1 "pwd (csh) in \"$execd_spooldir\" on host $host returned: $output, not $execd_spooldir"
+        }
+
+        puts $CHECK_OUTPUT "   pwd test ..."
+        set output [start_remote_prog "$host" "$user" "csh" "-c 'cd $ts_config(testsuite_root_dir)/scripts ; echo \"pwd_output:\" ; pwd'"]
+        set output [get_string_value_between "pwd_output:" -1 $output]
+        if { [string match "*$ts_config(testsuite_root_dir)/scripts*" $output] == 0 } {
+           puts $CHECK_OUTPUT "pwd in testsuite scripts directory on $host (user=$user): \"$ts_config(testsuite_root_dir)/scripts\": \"[string trim $output]\")"
+           add_proc_error "setup_check_user_permissions" -1 "pwd (csh) in \"$ts_config(testsuite_root_dir)/scripts\" on host $host returned: $output, not $ts_config(testsuite_root_dir)/scripts"
+        }
      }
   }
 
@@ -1010,6 +1027,17 @@ proc setup_check_user_permissions {} {
          puts $CHECK_OUTPUT "--> E R R O R - user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
          add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
       }
+
+      # additional check the directory pwd output
+      puts $CHECK_OUTPUT "   pwd test ..."
+      set output [start_remote_prog "$ts_config(master_host)" "$user" "csh" "-c 'cd $master_spooldir ; echo \"pwd_output:\" ; pwd'"]
+      set output [get_string_value_between "pwd_output:" -1 $output]
+      if { [string match "*$master_spooldir*" $output] == 0 } {
+         puts $CHECK_OUTPUT "pwd in master spool directory on $host (user=$user): \"$master_spooldir\": \"[string trim $output]\")"
+         add_proc_error "setup_check_user_permissions" -1 "pwd (csh) in \"$master_spooldir\" on host $host returned: $output, not $master_spooldir"
+      }
+
+
   }
   puts "runtime: [ expr ( [timestamp] - $time ) ]"
   get_version_info

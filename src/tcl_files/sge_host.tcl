@@ -815,12 +815,16 @@ proc host_get_running_states {host} {
 #     list_1          - first list
 #     list_2          - second list
 #     {raise_error 1} - raise an error condition if the lists differ?
+#     {do_resolve 0}  - resolve hosts
 #
 #  RESULT
 #     0   on success
 #     < 0 if the lists differ
 #*******************************************************************************
-proc host_list_compare {list_1 list_2 {raise_error 1}} {
+proc host_list_compare {list_1 list_2 {raise_error 1} {do_resolve 0}} {
+ 
+   global CHECK_OUTPUT
+
    # lists have to have same length
    if {[llength $list_1] != [llength $list_2]} {
       add_proc_error "host_list_compare" -1 "host lists have different length:\n$list_1\n$list_2" $raise_error
@@ -833,8 +837,21 @@ proc host_list_compare {list_1 list_2 {raise_error 1}} {
 
    set len [llength $list_1]
    for {set i 0} {$i < $len} {incr i} {
-      set host_1 [lindex $list_1 $i]
-      set host_2 [lindex $list_2 $i]
+      set host_1_org [lindex $list_1 $i]
+      set host_2_org [lindex $list_2 $i]
+      if { $do_resolve != 0 } {
+         set host_1 [resolve_host $host_1_org]
+         set host_2 [resolve_host $host_2_org]
+         if { $host_1 != $host_1_org } {
+            puts $CHECK_OUTPUT "host \"$host_1_org\" resolved to \"$host_1\""
+         }
+         if { $host_2 != $host_2_org } {
+            puts $CHECK_OUTPUT "host \"$host_2_org\" resolved to \"$host_2\""
+         }
+      } else {
+         set host_1 $host_1_org
+         set host_2 $host_2_org
+      }
 
       # compare only short hosts
       set short_1 [lindex [split $host_1 "."] 0]

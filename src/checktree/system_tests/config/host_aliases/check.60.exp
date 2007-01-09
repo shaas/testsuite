@@ -93,6 +93,9 @@ proc host_aliases_test_setup  {} {
    if { [is_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases] } {
       start_remote_prog $ts_config(master_host) $CHECK_USER "mv" \
          "$ts_config(product_root)/$ts_config(cell)/common/host_aliases $ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved"
+      start_remote_prog $ts_config(master_host) $CHECK_USER "cp" \
+         "$ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved $ts_config(product_root)/$ts_config(cell)/common/host_aliases"
+      # if we don't copy the needed host_aliases file the qstat -f will fail which should check the queue loads
       set have_host_aliases "true"
    } else {
       set have_host_aliases "false"
@@ -101,7 +104,7 @@ proc host_aliases_test_setup  {} {
 
 proc host_aliases_test_cleanup  {} {
    global CHECK_OUTPUT ts_config have_host_aliases CHECK_USER
-
+   shutdown_core_system
    if { $have_host_aliases == "true" } {
       if { [is_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved] } {
          delete_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
@@ -111,12 +114,13 @@ proc host_aliases_test_cleanup  {} {
    } else {
       delete_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
    }
+   startup_core_system
+   wait_for_load_from_all_queues 60
 }
 
 proc parse_gethostbyname_output { output {result host_name_array}} {
    global CHECK_OUTPUT
    upvar $result res_array
-
    set lines [split $output "\n"]
    foreach line $lines {
       if {[string match "*Hostname*" $line]} {
@@ -139,11 +143,13 @@ proc parse_gethostbyname_output { output {result host_name_array}} {
 
 proc host_aliases_test_test1 {} {
    global host_aliases_test_test_hosts check_description CHECK_ARCH CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL have_host_aliases
 
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 
+   # first we remove the host_alias file (to support clusters which need it)
+   delete_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
    if { $CHECK_ACT_LEVEL == 0 } {
       set output [start_sge_bin "gethostbyname" "-all $ts_config(master_host)" $ts_config(master_host) "" prg_exit_state 60 "" "utilbin"]
       parse_gethostbyname_output $output
@@ -185,6 +191,12 @@ proc host_aliases_test_test1 {} {
             add_proc_error "host_aliases_test_test1" -1 "host aliasing not working!"
          }
       }
+   }
+
+   # this is for a faster shutdown when there was a host_aliases file
+   if { $have_host_aliases == "true" } {
+      start_remote_prog $ts_config(master_host) $CHECK_USER "cp" \
+         "$ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved $ts_config(product_root)/$ts_config(cell)/common/host_aliases"
    }
 }
 
