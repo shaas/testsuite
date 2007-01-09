@@ -108,7 +108,7 @@ proc schedd_reconnect_test {} {
       set timeout [expr $now + $expected_reconnect_time]
       while {$timeout > $now} {
          set ret [get_scheduler_status result "" "" 0]
-         if {$ret == 0 && $result == $ts_config(master_host)} {
+         if {$ret == 0 && [string match "$ts_config(master_host)*" $result]} {
             set success 1
             break
          } else {
@@ -123,6 +123,5 @@ proc schedd_reconnect_test {} {
          add_proc_error "schedd_reconnect_test" -1 "scheduler didn't reregister at qmaster within specified time ($expected_reconnect_time s)"
          break
       }
-
    }
 }

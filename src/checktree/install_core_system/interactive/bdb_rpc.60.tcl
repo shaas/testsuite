@@ -79,7 +79,7 @@ proc install_bdb_rpc {} {
    puts $CHECK_OUTPUT "installing BDB RPC Server on host $bdb_host ($ts_config(product_type) system) ..."
    if { $check_use_installed_system != 0 } {
       puts "no need to install BDB RPC Server on hosts \"$ts_config(bdb_server)\", noinst parameter is set"
-      if {[startup_bdb_rpc $bdb_host] == 0 } {
+      if {[startup_bdb_rpc $bdb_host] == 0} {
          lappend CORE_INSTALLED $bdb_host
          write_install_list
       } else {

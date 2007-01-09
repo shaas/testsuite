@@ -431,7 +431,15 @@ proc install_qmaster {} {
           continue
        }
 
-      -i $sp_id $WILL_NOT_VERIFY_FILE_PERMISSIONS -
+      -i $sp_id $WILL_NOT_VERIFY_FILE_PERMISSIONS {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(21)"
+          if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "\n"
+          continue
+      }
       -i $sp_id $DO_NOT_VERIFY_FILE_PERMISSIONS {
           puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(21)"
           if {$do_log_output == 1} {

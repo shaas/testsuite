@@ -1666,6 +1666,7 @@ proc check_executable_files {  } {
    foreach file $tcl_filelist {
       lappend filelist "$scripts_dir/$file"
    }
+   lappend filelist "$ts_config(checktree_root_dir)/api/drmaaj/sleeper.sh"
    lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/126/sleep.sh"
    lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/1334/jobstarter.sh"
    lappend filelist "$ts_config(checktree_root_dir)/bugs/issuezilla/1489/infinity.sh"

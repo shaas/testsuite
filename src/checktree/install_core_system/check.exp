@@ -69,9 +69,7 @@ lappend check_functions "kill_running_system"
 if { $install_mode == "automatic" } {
    lappend check_functions "create_autoinst_config"
 }
-if { $install_mode == "manual" } {
-   lappend check_functions "install_bdb_rpc"
-}
+lappend check_functions "install_bdb_rpc"
 lappend check_functions "install_qmaster"
 lappend check_functions "reread_bootstrap"
 if { $install_mode == "manual" } {

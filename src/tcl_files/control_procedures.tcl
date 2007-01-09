@@ -2099,13 +2099,13 @@ proc scale_timeout {timeout {does_computation 1} {does_spooling 1} {process_invo
 
    # respect spooling influence
    if {$does_spooling} {
-      # if we use a RPC server, assume 100% slower spooling
+      # if we use a RPC server, assume 150% slower spooling
       if {$ts_config(bdb_server) != "none"} {
-         set ret [expr $ret * 2.0]
+         set ret [expr $ret * 2.5]
       } else {
-         # classic spooling is slower than BDB, assume 100% slower spooling
+         # classic spooling is slower than BDB, assume 150% slower spooling
          if {$ts_config(spooling_method) == "classic"} {
-            set ret [expr $ret * 2.0]
+            set ret [expr $ret * 2.5]
             set spool_dir [get_qmaster_spool_dir]
          } else {
             set spool_dir [get_bdb_spooldir]

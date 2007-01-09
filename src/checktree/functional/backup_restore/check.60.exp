@@ -77,10 +77,10 @@ proc backup_restore_setup {} {
 
    set spooling_method $ts_config(spooling_method)
    set master_spool_dir [get_spool_dir $CHECK_CORE_MASTER qmaster]
-   if { $spooling_method == "berkeleydb" && $ts_config(bdb_server) != "none" } {
+   if {$spooling_method == "berkeleydb" && $ts_config(bdb_server) != "none"} {
       puts $CHECK_OUTPUT "\nberkeleydb rpc spooling detected"
-      set remote_host "$ts_config(bdb_server)"
-      set spool_dir "$ts_config(bdb_dir)"
+      set remote_host $ts_config(bdb_server)
+      set spool_dir [get_bdb_spooldir $remote_host]
    } else {
       set remote_host "$ts_config(master_host)"
       set spool_dir [get_spool_dir $CHECK_CORE_MASTER spooldb]
@@ -90,9 +90,9 @@ proc backup_restore_setup {} {
          puts $CHECK_OUTPUT "\n berkeleydb local spooling detected"
       }
    }
-   
+
    # Backup Database
-   set id [open_remote_spawn_process "$remote_host" "$CHECK_USER" "./inst_sge" "-bup" 0 $ts_config(product_root)]
+   set id [open_remote_spawn_process $remote_host $CHECK_USER "./inst_sge" "-bup" 0 $ts_config(product_root)]
    set sp_id [ lindex $id 1 ]
 
    while {1} {

@@ -1,3 +1,8 @@
+JG-2006-01-09-0: Bugfix:    o Fixed auto install test with bdb rpc spooling.
+                            o Fixed scheduler/reconnect test with long 
+                              hostnames.
+                            o Fixed ARCo installation.
+
 RD-2006-01-09-0: Enhancem:  added test for default requests
                  Review:    JG
 
