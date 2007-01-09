@@ -489,7 +489,7 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
    # qdel always has to return some text.
    # if result00 is empty, we hit IZ 1860
    if {[string trim $result00] == ""} {
-      add_proc_error "qdel_iz_125_case_2" "-3" "qdel didn't return any text - this is IZ 1860"
+      add_proc_error "qdel_iz_125_case_2" "-3" "qdel didn't return any text - this is IZ 1860 - not fixed for versions >= 6.0"
       set do_continue 0
    }
 
