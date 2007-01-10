@@ -1,3 +1,6 @@
+JG-2007-01-10-0: Enhancem.: Added test for utilbin spooledit.
+                 Review:    RD
+
 CR-2007-01-09-1: Enhancem.: o enhanced tight_integration test to test slave
                               task killed scenario on all cluster hosts
 

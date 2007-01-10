@@ -7812,7 +7812,7 @@ proc get_qconf_list {procedure option output_var {on_host ""} {as_user ""} {rais
    return $ret
 }
 
-#****** sge_procedures/get_scheduler_status() *****************************************
+#****** sge_procedures/get_scheduler_status() **********************************
 #  NAME
 #    get_scheduler_status () -- get the scheduler status 
 #
