@@ -1,3 +1,6 @@
+CR-2007-01-10-0: Cleanup:   o changed output text for translate warning
+                            o enhanced drmaa test with additional information
+
 JG-2007-01-10-0: Enhancem.: Added test for utilbin spooledit.
                  Review:    RD
 
