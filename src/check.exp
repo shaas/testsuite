@@ -203,6 +203,8 @@ set schedd_debug 0
 global actual_user_system
 set actual_user_system "admin user system" ;# system type installed at install core system test
 
+global DISABLE_ADD_PROC_ERROR
+set DISABLE_ADD_PROC_ERROR 0
 global no_action                   ;# just used for testing/debug  procedures
 set no_action 0
 global be_quiet
@@ -657,7 +659,11 @@ proc add_proc_error {proc_name result text {raise_error 1}} {
    global CHECK_CUR_PROC_NAME CHECK_OUTPUT check_name
    global add_proc_error_avoid_recursive_call
    global check_errno check_errstr
+   global DISABLE_ADD_PROC_ERROR
 
+   if { $DISABLE_ADD_PROC_ERROR == 1 } {
+      return;
+   }
    # trim text message
    set text [string trim $text]
 
@@ -2987,7 +2993,7 @@ proc read_checktree_nodes { path } {
    global ts_config
    global check_highest_level check_init_level_procedure check_name
    global check_category 
-   global CHECK_ACT_LEVEL
+   global CHECK_ACT_LEVEL DISABLE_ADD_PROC_ERROR
 
    # remember last check name - we'll reset to it on function exit
    set old_check_name $check_name
@@ -3421,6 +3427,7 @@ proc get_check_name {path} {
 proc get_check_levels { path } {
    global CHECK_ACT_LEVEL
    global ts_checktree
+   global DISABLE_ADD_PROC_ERROR
 
    set saved_level $CHECK_ACT_LEVEL
    set levels {}
@@ -3429,9 +3436,11 @@ proc get_check_levels { path } {
       if {$ts_checktree($nr,check_highest_level) > 0 && $ts_checktree($nr,check_init_level_procedure) != "--"} {
          for {set i 0} {$i <= $ts_checktree($nr,check_highest_level)} {incr i 1} {
             set CHECK_ACT_LEVEL $i
+            set DISABLE_ADD_PROC_ERROR 1
             if {[$ts_checktree($nr,check_init_level_procedure)] != 0} { 
                continue 
             }
+            set DISABLE_ADD_PROC_ERROR 0
             lappend levels $CHECK_ACT_LEVEL
          }
       } else {
@@ -3776,6 +3785,7 @@ proc delete_tests {path {only_if_not_there 0}} {
    global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
    global check_setup_function check_cleanup_function 
    global check_setup_level_function check_cleanup_level_function
+   global DISABLE_ADD_PROC_ERROR
 
    set old_check_name $check_name
    set selected_tests [get_tests_from_checktree $path]
@@ -3803,9 +3813,11 @@ proc delete_tests {path {only_if_not_there 0}} {
             for {set i 0} {$i <= $check_highest_level} {incr i 1} {
                if {[string compare $check_init_level_procedure "--"] != 0} {
                   set CHECK_ACT_LEVEL $i
+                  set DISABLE_ADD_PROC_ERROR 1
                   if {[$check_init_level_procedure] == 0} {
                      delete_result $elem 0 $i
                   }
+                  set DISABLE_ADD_PROC_ERROR 0
                } else {
                   delete_result $elem 0 $i
                }
@@ -4538,10 +4550,7 @@ proc execute_setup_cleanup_function {func_name type} {
 
       if { $type == "setup" || $type == "cleanup" } {
          set act_level_value $CHECK_ACT_LEVEL
-         set CHECK_ACT_LEVEL "\n"
-         append CHECK_ACT_LEVEL "==========================================================================\n"
-         append CHECK_ACT_LEVEL "* using CHECK_ACT_LEVEL not supported for global setup/cleanup function! *\n"
-         append CHECK_ACT_LEVEL "==========================================================================\n"
+         set CHECK_ACT_LEVEL "global $type procedure \"$func_name\""
       }
       set catch_return [ catch { $func_name } catch_message ]
 
@@ -4611,7 +4620,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    global CHECK_CUR_PROC_NAME check_root_access_needs
    global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
    global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT
-   global check_category CHECK_GROUP
+   global check_category CHECK_GROUP DISABLE_ADD_PROC_ERROR
    global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
 
    cd $CHECK_CURRENT_WORKING_DIR
@@ -4659,10 +4668,12 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       clear_all_check_errors $check_name
       for {set level 0} {$level <= $check_highest_level} {incr level 1} {
          if {[string compare $check_init_level_procedure "--"] != 0} { 
+            set DISABLE_ADD_PROC_ERROR 1
             set CHECK_ACT_LEVEL $level
             if {[$check_init_level_procedure ] == 0} { 
                delete_result $path 0 $level
             }
+            set DISABLE_ADD_PROC_ERROR 0
          } else {
             delete_result $path 0 $level
          }
@@ -4679,6 +4690,27 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    set no_level_calls 0 
    set no_of_test_runs 0
    set immediate_return 0
+
+   set possible_test_levels 0
+   for {set level 0} {$level <= $check_highest_level} {incr level 1} {
+      if {[string compare $check_init_level_procedure "--"] != 0} {
+         set CHECK_ACT_LEVEL $level
+         if {[$check_init_level_procedure] == 0} {
+            incr possible_test_levels 1 
+         }
+      } else {
+         # we have an old test which has no check level defined,
+         # assume at least 1 test level (0)
+         incr possible_test_levels 1
+         break  
+      }
+   }
+
+   if { $possible_test_levels == 0 } {
+      # the test doesn't support any check level - store it as done unsupported
+      save_result $path 0 0 1
+      return -3
+   }
 
    # check if this test is enabled for the actual runlevel, test is already done, ...
    for {set level 0} {$level <= $check_highest_level} {incr level 1} {
@@ -4931,6 +4963,7 @@ proc clean_up_globals {} {
 proc show_test {path full} {
   global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_needs check_highest_level 
   global check_init_level_procedure CHECK_ACT_LEVEL check_category
+  global DISABLE_ADD_PROC_ERROR
 
   clean_up_globals  
 
@@ -4960,9 +4993,11 @@ proc show_test {path full} {
        set do_print 0
        if { [string compare $check_init_level_procedure "--" ] != 0 } { 
           set CHECK_ACT_LEVEL $i
+          set DISABLE_ADD_PROC_ERROR 1
           if { [$check_init_level_procedure ]  == 0 } { 
              set do_print 1
           } 
+          set DISABLE_ADD_PROC_ERROR 0
        } else {
           set do_print 1
        }
@@ -5248,13 +5283,14 @@ proc set_command_line_options {} {
 #*******************************************************************************
 proc get_max_level_count {path} {
   global CHECK_ACT_LEVEL
-  global ts_checktree
+  global ts_checktree DISABLE_ADD_PROC_ERROR
  
   set check_directories [get_tests_from_checktree $path]
   set max_level {}
   foreach elem $check_directories {
      set nr $ts_checktree($elem)
      if { [string compare $ts_checktree($nr,check_init_level_procedure) "--" ] != 0 } {
+        set DISABLE_ADD_PROC_ERROR 1
         for {set x 0 } {$x <= $ts_checktree($nr,check_highest_level)} {incr x 1 } {
            set CHECK_ACT_LEVEL $x
            if { [$ts_checktree($nr,check_init_level_procedure)]  == 0 } {
@@ -5263,6 +5299,7 @@ proc get_max_level_count {path} {
               }
            }
         } 
+        set DISABLE_ADD_PROC_ERROR 0
      }
   }  
   return $max_level

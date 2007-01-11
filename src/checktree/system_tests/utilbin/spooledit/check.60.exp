@@ -75,6 +75,7 @@ proc spooledit_init_level {} {
 
    # we run this test only with berkeley db spooling
    if {$ts_config(spooling_method) != "berkeleydb"} {
+      add_proc_error "spooledit_init_level" -3 "this test only works for spooling_method == berkeleydb"
       return -1
    }
 

@@ -1,3 +1,15 @@
+CR-2007-01-11-0: Cleanup:   o added support for using add_proc_error in 
+                              init level procedure of tests
+                            o create_shell_script() is now writing the 
+                              script "at once". (performance)
+                            o some performance cleanup
+                            o sge_macro is now warning when a sge macro
+                              text contains dashes - translate only
+                              will only warn when translated message
+                              contains dashes and the original message has
+                              none
+                 Review:    JG
+
 JG-2007-01-11-0: Bugfix:    Removed too restrictive pwd check.
                  Review:    CR
 

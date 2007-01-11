@@ -583,7 +583,7 @@ proc install_qmaster {} {
           return;
        }
 
-       -i $sp_id $NOT_COMPILED_IN_SECURE_MODE {
+       -i $sp_id -- $NOT_COMPILED_IN_SECURE_MODE {
           add_proc_error "install_qmaster" "-2" "sge_qmaster binary is not compiled in secure mode"
           close_spawn_process $id;
           return;

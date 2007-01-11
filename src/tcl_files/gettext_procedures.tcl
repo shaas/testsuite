@@ -985,11 +985,13 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
    set msg_text [replace_string $msg_text "PAR_5" $par5]
    set msg_text [replace_string $msg_text "PAR_6" $par6]
 
-   if {[string first "-" $msg_text] >= 0} {
-      puts $CHECK_OUTPUT "---WARNING from translate macro procedure ------------------------------------"
-      puts $CHECK_OUTPUT "   translated message contains dashes! Use the \"--\" option on expect pattern"
-      puts $CHECK_OUTPUT "   line when using macro string \"$msg_text\""
-      puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
+   if { [string first "-" $msg_txt] < 0  } {
+      if {[string first "-" $msg_text] >= 0} {
+         puts $CHECK_OUTPUT "---WARNING from translate macro procedure ------------------------------------"
+         puts $CHECK_OUTPUT "   translated text of string \"$msg_txt\" contains dashes(-)!"
+         puts $CHECK_OUTPUT "   Use the \"--\" option on expect pattern line when using \"$msg_text\""
+         puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
+      }
    }
 
    return $msg_text

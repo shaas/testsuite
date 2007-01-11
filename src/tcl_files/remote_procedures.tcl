@@ -104,6 +104,7 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
          # get host specific send delay
          set delay [host_conf_get_send_speed $host]
          if {$delay > 0.0} {
+            debug_puts "WARNING: SENDING WITH DELAY OF $delay"
             set send_slow "1 $delay"
             send -i $spawn_id -s -- "${message}"
          } else {
@@ -588,7 +589,7 @@ proc start_remote_prog { hostname
    set real_start_found 0
    set nr_of_lines 0
  
-   debug_puts "starting command ..."
+   debug_puts "start_remote_prog: expecting ..."
    expect {
      -i $myspawn_id -- "*\n" {
         foreach line [split $expect_out(0,string) "\n"] {
@@ -1631,7 +1632,7 @@ proc open_remote_spawn_process { hostname
                      set connect_errors 1
                   }
                   -i $spawn_id "assword:" {
-                     after 500
+                     # after 500 ;# TODO: Not sure if we need this (CR)
                      log_user 0
                      ts_send $spawn_id "[get_root_passwd]\n" $hostname 1
                      debug_puts "root password sent" 
@@ -1788,7 +1789,7 @@ proc open_remote_spawn_process { hostname
    }
 
    # now start the commmand and set the connection to busy
-   debug_puts "\"$hostname\"($user): starting command: $exec_command $exec_arguments"
+   debug_puts "$user starting command on $hostname: $exec_command $exec_arguments"
    set catch_return [catch {
       ts_send $spawn_id "$script_name\n" $hostname
       set_spawn_process_in_use $spawn_id
@@ -2545,8 +2546,8 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
    set connection_ok 0
    set catch_return [catch {
       ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
-      set num_tries 15
-      set timeout 2
+      set num_tries 30
+      set timeout 1
       expect {
          -i $spawn_id full_buffer {
             add_proc_error "check_rlogin_session" -3 "buffer overflow" $raise_error

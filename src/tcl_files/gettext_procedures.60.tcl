@@ -180,7 +180,19 @@ proc sge_macro { macro_name {raise_error 1} } {
          update_macro_messages_list
       }
    }
-
+   if {[string first "-" $value] >= 0} {
+      # enable this to write all used macros in a file
+      #catch {
+      #   set script [ open "./.testsuite_macros_with_dashes" "a" "0755" ]
+      #   puts $script $macro_name
+      #   close $script
+      #} 
+      puts $CHECK_OUTPUT "---WARNING from translate macro procedure ------------------------------------"
+      puts $CHECK_OUTPUT "   translated macro \"$macro_name\" contains dashes(-)!"
+      puts $CHECK_OUTPUT "   Use the \"--\" option on expect pattern line when using it!"
+#      puts $CHECK_OUTPUT "   Macro names are written into ./.testsuite_macros_with_dashes"
+      puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
+   }
    return $value
 }
 

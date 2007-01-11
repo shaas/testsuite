@@ -1686,113 +1686,112 @@ proc create_shell_script { scriptfile
       return
    }
 
-   catch { exec chmod 0755 $scriptfile } result
-   debug_puts $result
 
+   set script_content ""
 
    # script header
-   puts $script "#!${script_path}"
-   puts $script "# Automatic generated script from Grid Engine Testsuite"
-   puts $script "# The script will execute a special command with arguments"
-   puts $script "# and it should be deleted after use. So if this file exists, please delete it"
+   append script_content "#!${script_path}\n"
+   append script_content "# Automatic generated script from Grid Engine Testsuite\n"
+   append script_content "# The script will execute a special command with arguments\n"
+   append script_content "# and it should be deleted after use. So if this file exists, please delete it\n"
 
    if { $no_setup == 0 } {
       # script command
-      puts $script "trap 'echo \"_exit_status_:(1)\"' 0"
-      puts $script "umask 022"
+      append script_content "trap 'echo \"_exit_status_:(1)\"' 0\n"
+      append script_content "umask 022\n"
 
       if { $set_shared_lib_path == 1 } {
-         puts $script "# settup shared library path"
+         append script_content "# settup shared library path\n"
          get_shared_lib_path $host shared_var shared_value
-         puts $script "if \[ x\$$shared_var = x \]; then"
-         puts $script "   $shared_var=$shared_value"
-         puts $script "   export $shared_var"
-         puts $script "else"
-         puts $script "   $shared_var=\$$shared_var:$shared_value"
-         puts $script "   export $shared_var"
-         puts $script "fi"
+         append script_content "if \[ x\$$shared_var = x \]; then\n"
+         append script_content "   $shared_var=$shared_value\n"
+         append script_content "   export $shared_var\n"
+         append script_content "else\n"
+         append script_content "   $shared_var=\$$shared_var:$shared_value\n"
+         append script_content "   export $shared_var\n"
+         append script_content "fi\n"
       }
       if { $source_settings_file == 1 } {
-         puts $script "# source settings file"
-         puts $script "if \[ -f $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/settings.sh \]; then"
-         puts $script "   . $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/settings.sh"
-         puts $script "else"
+         append script_content "# source settings file\n"
+         append script_content "if \[ -f $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/settings.sh \]; then\n"
+         append script_content "   . $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/settings.sh\n"
+         append script_content "else\n"
       }
-      puts $script "# set testsuite environment"
-      puts $script "   unset GRD_ROOT"
-      puts $script "   unset CODINE_ROOT"
-      puts $script "   unset GRD_CELL"
-      puts $script "   unset CODINE_CELL"
+      append script_content "# set testsuite environment\n"
+      append script_content "   unset GRD_ROOT\n"
+      append script_content "   unset CODINE_ROOT\n"
+      append script_content "   unset GRD_CELL\n"
+      append script_content "   unset CODINE_CELL\n"
       if { [info exists ts_config(commd_port)] } {
-         puts $script "   COMMD_PORT=$ts_config(commd_port)"
-         puts $script "   export COMMD_PORT"
-         puts $script "   SGE_QMASTER_PORT=$ts_config(commd_port)"
-         puts $script "   export SGE_QMASTER_PORT"
+         append script_content "   COMMD_PORT=$ts_config(commd_port)\n"
+         append script_content "   export COMMD_PORT\n"
+         append script_content "   SGE_QMASTER_PORT=$ts_config(commd_port)\n"
+         append script_content "   export SGE_QMASTER_PORT\n"
          set my_execd_port [expr ($ts_config(commd_port) + 1) ]
-         puts $script "   SGE_EXECD_PORT=$my_execd_port"
-         puts $script "   export SGE_EXECD_PORT"
+         append script_content "   SGE_EXECD_PORT=$my_execd_port\n"
+         append script_content "   export SGE_EXECD_PORT\n"
       }
       if { [info exists CHECK_PRODUCT_ROOT] } {
-         puts $script "   SGE_ROOT=$CHECK_PRODUCT_ROOT"
-         puts $script "   export SGE_ROOT"
+         append script_content "   SGE_ROOT=$CHECK_PRODUCT_ROOT\n"
+         append script_content "   export SGE_ROOT\n"
       }
-      puts $script "   SGE_CELL=$ts_config(cell)"
-      puts $script "   export SGE_CELL"
+      append script_content "   SGE_CELL=$ts_config(cell)\n"
+      append script_content "   export SGE_CELL\n"
     
       if { $source_settings_file == 1 } {
-         puts $script "fi"
+         append script_content "fi\n"
       }
 
       if { $without_sge_single_line == 0 } {
-         puts $script "# don't break long lines with qstat"
-         puts $script "SGE_SINGLE_LINE=1"
-         puts $script "export SGE_SINGLE_LINE"
+         append script_content "# don't break long lines with qstat\n"
+         append script_content "SGE_SINGLE_LINE=1\n"
+         append script_content "export SGE_SINGLE_LINE\n"
       } else {
-         puts $script "unset SGE_SINGLE_LINE"
+         append script_content "unset SGE_SINGLE_LINE\n"
       }
 #      TODO (CR): check out if LS_COLORS settings may disable qtcsh or qrsh on linux
-#      puts $script "unset LS_COLORS" 
+#      append script_content "unset LS_COLORS\n" 
 #      do not enable this without rework of qstat parsing routines
-#      puts $script "SGE_LONG_QNAMES=40"
-#      puts $script "export SGE_LONG_QNAMES"
+#      append script_content "SGE_LONG_QNAMES=40\n"
+#      append script_content "export SGE_LONG_QNAMES\n"
 
       # change directory, if requested
       if {$cd_dir != ""} {
-         puts $script "# change into working directory"
-         puts $script "cd $cd_dir"
-         puts $script ""
+         append script_content "# change into working directory\n"
+         append script_content "cd $cd_dir\n"
+         append script_content "\n"
       }
 
       set user_env_names [array names users_env]
       if { [llength $user_env_names] > 0 } {
-         puts $script "# setting users environment variables"
+         append script_content "# setting users environment variables\n"
          foreach u_env $user_env_names {
             set u_val $users_env($u_env)
             debug_puts "setting $u_env to $u_val"
-            puts $script "${u_env}=\"${u_val}\""
-            puts $script "export ${u_env}"
+            append script_content "${u_env}=\"${u_val}\"\n"
+            append script_content "export ${u_env}\n"
          }
       }
 
       if { $without_start_output == 0 } {
-         puts $script "echo \"_start_mark_:(\$?)\""
+         append script_content "echo \"_start_mark_:(\$?)\"\n"
       }
    }
 
    # don't try to find which,cd, test and other shell commands
    # don't try to do anything if $no_setup is set
    # don't try to do a which if exec_command contains a space or ;
-   puts $script "$exec_command $exec_arguments"
+   append script_content "$exec_command $exec_arguments\n"
 
    if { $no_setup == 0 } { 
-      puts $script "exit_val=\"\$?\""
-      puts $script "trap 0"
+      append script_content "exit_val=\"\$?\"\n"
+      append script_content "trap 0\n"
       if { $without_start_output == 0 } {
-         puts $script "echo \"_exit_status_:(\$exit_val)\""
-         puts $script "echo \"script done. (_END_OF_FILE_)\""
+         append script_content "echo \"_exit_status_:(\$exit_val)\"\n"
+         append script_content "echo \"script done. (_END_OF_FILE_)\"\n"
       }
    }
-   flush $script
+   puts -nonewline $script $script_content
    close $script
 
    if { $CHECK_DEBUG_LEVEL != 0 } {
