@@ -5204,11 +5204,10 @@ proc get_qstat_j_info {jobid {variable qstat_j_info}} {
       }
       set my_result "$my_result\n"
       parse_qstat_j my_result jobinfo $jobid 
-      set a_names [array names jobinfo]
+#      set a_names [array names jobinfo]
 #      foreach elem $a_names {
-#         puts "$elem: $jobinfo($elem)"
+#         puts $CHECK_OUTPUT "$elem: $jobinfo($elem)"
 #      }
-#      wait_for_enter
       return 1
    }
    return 0
