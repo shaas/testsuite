@@ -1,3 +1,6 @@
+JG-2007-01-11-0: Bugfix:    Removed too restrictive pwd check.
+                 Review:    CR
+
 AA-2007-01-11-0: Bugfix:    o qstat_j parsing fix to handle qstat -j job_name
                  Review:    RD
 
