@@ -1,3 +1,6 @@
+CR-2007-01-12-0: Bugfix:    fixed possible tcl error in 
+                            checktree/functional/tight_integration/check.exp
+
 CR-2007-01-11-0: Cleanup:   o added support for using add_proc_error in 
                               init level procedure of tests
                             o create_shell_script() is now writing the 

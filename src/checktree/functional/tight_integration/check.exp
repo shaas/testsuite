@@ -738,6 +738,7 @@ proc tight_integration_slave_killed {} {
       }
 
       # if startup was ok
+      set success 0
       if {$job_finished == 0} {
          set success 1
          # wait for job to be running
@@ -763,6 +764,8 @@ proc tight_integration_slave_killed {} {
          if {![tight_integration_wait_for_delete_state $jobid 60]} {
             set success 0
          }
+      } else {
+         append failures "not all jobs seems to have started\n"
       }
 
       set sp_id [lindex $id 1]
