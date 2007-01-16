@@ -295,7 +295,7 @@ proc tight_integration_monitor {id started_var finished_var jobid_var info_var {
    
    expect_user {
       -i $sp_id timeout {
-         add_proc_error tight_integration_monitor -1 "timeout waiting for tasks output"
+         add_proc_error tight_integration_monitor -1 "timeout waiting for tasks output (tight integration)"
          set ret "timeout"
       }
       -i $sp_id full_buffer {

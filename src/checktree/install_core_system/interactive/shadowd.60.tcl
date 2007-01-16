@@ -88,11 +88,14 @@ proc install_shadowd {} {
  
    foreach shadow_host $CHECK_CORE_SHADOWD {
 
-      puts $CHECK_OUTPUT "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
-      if {[lsearch $CHECK_CORE_SHADOWD $shadow_host] == -1 } {
-         add_proc_error "install_shadowd" "-1" "host $shadow_host is not in shadowd list"
-         return 
+      puts $CHECK_OUTPUT "testing shadowd settings for host $shadow_host ..."
+      set info [check_shadowd_settings $shadow_host]
+      if { $info != "" } {
+         add_proc_error "install_shadowd" -3 "skipping shadowd installation for host $shadow_host:\n$info"
+         continue
       }
+
+      puts $CHECK_OUTPUT "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
 #      wait_for_remote_file $shadow_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
       if { $check_use_installed_system != 0 } {
          puts "no need to install shadowd on hosts \"$CHECK_CORE_SHADOWD\", noinst parameter is set"
@@ -346,6 +349,9 @@ proc install_shadowd {} {
 
       # close connection to inst_sge
       close_spawn_process $id
+      if { [is_daemon_running $shadow_host "sge_shadowd"] != 1 } {
+         add_proc_error "install_shadowd" "-1" "shadowd on host $shadow_host is not running"
+      }
    }
 }
 

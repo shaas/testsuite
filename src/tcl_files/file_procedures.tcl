@@ -1792,6 +1792,7 @@ proc create_shell_script { scriptfile
       }
    }
    puts -nonewline $script $script_content
+   flush $script
    close $script
 
    if { $CHECK_DEBUG_LEVEL != 0 } {
@@ -2273,8 +2274,8 @@ proc check_for_core_files {hostname path} {
    }
 }
 
-proc remote_delete_directory {hostname path {win_local_user 0}} { 
-   global ts_config CHECK_OUTPUT
+proc remote_delete_directory {hostname path {win_local_user 0}} {
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    set return_value -1
    
@@ -2308,12 +2309,12 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
             puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder"
             add_proc_error "remote_delete_directory" -1 "$hostname: could not mv/cp directory \"$path\" to trash folder"
             set return_value -1
-         } else { 
+         } else {
             puts $CHECK_OUTPUT "copy ok -  removing directory"
-            start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
+            set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user]
             if { $prg_exit_state != 0 } {
                puts $CHECK_OUTPUT "could not remove directory \"$path\""
-               add_proc_error "remote_delete_directory" -1 "$hostname: could not remove directory \"$path\""
+               add_proc_error "remote_delete_directory" -1 "$hostname (ts_def_con2=$CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
                set return_value -1
             } else {
                puts $CHECK_OUTPUT "done"

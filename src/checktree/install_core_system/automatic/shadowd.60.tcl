@@ -85,10 +85,9 @@ proc install_shadowd {} {
          }
       }
    }
- 
-   foreach shadow_host $CHECK_CORE_SHADOWD {
-      puts $CHECK_OUTPUT "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
-      if {$check_use_installed_system != 0} {
+   
+   if {$check_use_installed_system != 0} {
+      foreach shadow_host $CHECK_CORE_SHADOWD {
          puts $CHECK_OUTPUT "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
          if {[startup_shadowd $shadow_host] == 0} {
             lappend CORE_INSTALLED $shadow_host
@@ -99,17 +98,16 @@ proc install_shadowd {} {
             return
          }
       }
-
+   } else {
       if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
          add_proc_error "install_shadowd" "-1" "inst_sge file not found"
          return
       }
 
+      set shadow_host [lindex $CHECK_CORE_SHADOWD 0]
+      puts $CHECK_OUTPUT "installing shadowd on hosts: $CHECK_CORE_SHADOWD ($ts_config(product_type) system)..."
       set remote_arch [resolve_arch $shadow_host]    
-
       set my_timeout 500
-      set exit_val 0
-  
       puts $CHECK_OUTPUT "inst_sge -sm"
       if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
          set output [start_remote_prog "$shadow_host" "root"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
@@ -117,21 +115,24 @@ proc install_shadowd {} {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
          set output [start_remote_prog "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
       }
-
-      log_user 1
-
-      set do_log_output 0 ;# 1 _LOG
-      if {$CHECK_DEBUG_LEVEL == 2} {
-         set do_log_output 1
-      }
-
       if {$exit_val == 0} {
-         lappend CORE_INSTALLED $shadow_host
-         write_install_list
-         return
-      } else { 
-         add_proc_error "install_shadowd" "-2" "install failed:\n$output"
-         return
+         foreach shadow_host $CHECK_CORE_SHADOWD {
+            puts $CHECK_OUTPUT "testing shadowd settings for host $shadow_host ..."
+            set info [check_shadowd_settings $shadow_host]
+            if { $info != "" } {
+               add_proc_error "install_shadowd" -3 "skipping shadowd installation for host $shadow_host:\n$info"
+               continue
+            }
+            puts $CHECK_OUTPUT "checking shadowd on host $shadow_host ($ts_config(product_type) system) ..."
+            if { [is_daemon_running $shadow_host "sge_shadowd"] == 1 } {
+               lappend CORE_INSTALLED $shadow_host
+               write_install_list
+            } else {
+               add_proc_error "install_shadowd" "-2" "install shadowd on host $shadow_host failed\noutput of inst_sge -sm -auto:\n$output"
+            }
+         }
+      } else {
+         add_proc_error "install_shadowd" "-2" "install shadowd hosts failed\noutput of inst_sge -sm -auto:\n$output"
       }
    }
 }

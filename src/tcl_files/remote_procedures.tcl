@@ -108,7 +108,7 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
             set send_slow "1 $delay"
             send -i $spawn_id -s -- "${message}"
          } else {
-            send -i $spawn_id "${message}"
+            send -i $spawn_id -- "${message}"
          }
       }
    } catch_output]

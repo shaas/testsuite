@@ -1,3 +1,7 @@
+CR-2007-01-16-1: Enhancem.: o added support for multiple shadow daemons
+                            o added some additional error information
+                            o added "--" for default ts_send() call
+
 CR-2007-01-16-0: Cleanup:   o removed output (pwd test ...) in permission check
                             o join of 2 add_proc_error calls in migrate_test
                             o enhanced output of job_environment test

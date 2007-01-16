@@ -7209,6 +7209,12 @@ proc startup_core_system {} {
    # startup all shadowds
    # 
    foreach sh_host $ts_config(shadowd_hosts) {
+      puts $CHECK_OUTPUT "testing shadowd settings for host $sh_host ..."
+      set info [check_shadowd_settings $sh_host]
+      if { $info != "" } {
+         add_proc_error "install_shadowd" -3 "skipping shadowd startup for host $sh_host:\n$info"
+         continue
+      }
       startup_shadowd $sh_host
    }
 

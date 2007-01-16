@@ -396,10 +396,137 @@ proc startup_shadowd { hostname {env_list ""} } {
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/sgemaster" "-shadowd start" prg_exit_state 60 0 "" envlist]
    puts $CHECK_OUTPUT $output
    if { [string first "starting sge_shadowd" $output] >= 0 } {
-       return 0
+       if { [is_daemon_running $hostname "sge_shadowd"] == 1 } {
+          return 0
+       }
    }
    add_proc_error "startup_shadowd" -1 "could not start shadowd on host $hostname:\noutput:\"$output\""
    return -1
+}
+
+
+#****** sge_procedures.60/check_shadowd_settings() *****************************
+#  NAME
+#     check_shadowd_settings() -- check if shadowd installation is supported
+#
+#  SYNOPSIS
+#     check_shadowd_settings { shadowd_host } 
+#
+#  FUNCTION
+#     This function is used to find out if the specified shadowd can be installed
+#     with the current testsuite/host settings 
+#
+#  INPUTS
+#     shadowd_host - name of shadowd host
+#
+#  RESULT
+#     "" (empty string) if there are no problems
+#     "some error text" - if there are problems
+#*******************************************************************************
+proc check_shadowd_settings { shadowd_host } {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   set nr_shadowds [llength $ts_config(shadowd_hosts)]
+   puts $CHECK_OUTPUT "$nr_shadowds shadowd host configured ..." 
+
+   set fine 0
+   set test_host [resolve_host $shadowd_host]
+   foreach sd_host $ts_config(shadowd_hosts) {
+      set sd_res_host [resolve_host $sd_host]
+      if { $sd_res_host == $test_host } {
+         set fine 1
+         break
+      }
+   }
+
+   if { $fine != 1 } {
+      return "shadowd host $shadowd_host not defined in shadowd_hosts list of testsuite"
+   }
+
+   # one shadow is ok on master host
+   if { $nr_shadowds == 1 } {
+      set shadowd_host [resolve_host $ts_config(shadowd_hosts)]
+      set master_host [resolve_host $ts_config(master_host)]
+      puts $CHECK_OUTPUT "shadowd: $shadowd_host"
+      puts $CHECK_OUTPUT "master:  $master_host"
+      if { $master_host == $shadowd_host } {
+         return ""
+      }
+   }
+
+   # we have more than one shadow host
+   if { $nr_shadowds >= 2 } {
+      set heartbeat_file [get_qmaster_spool_dir]/heartbeat
+      set qmaster_lock_file [get_qmaster_spool_dir]/lock
+      set qmaster_messages_file [get_qmaster_spool_dir]/messages
+      set act_qmaster_file "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
+      set sgemaster_file $ts_config(product_root)/$ts_config(cell)/common/sgemaster
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $act_qmaster_file]
+      set act_qmaster [string trim $result]
+
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $heartbeat_file]
+      if { $prg_exit_state != 0 } {
+         return "no nfs shared qmaster spool directory? (1)"
+      } 
+
+      puts $CHECK_OUTPUT $result
+      set heartbeat1 [string trim $result]
+      set heartbeat1 [string trimleft $heartbeat1 "0"]
+
+      set result [start_remote_prog $test_host $CHECK_USER "cat" $heartbeat_file]
+      if { $prg_exit_state != 0 } {
+         return "no nfs shared qmaster spool directory? (2)";
+      }
+
+      puts $CHECK_OUTPUT $result
+      set heartbeat2 [string trim $result ]
+      set heartbeat2 [string trimleft $heartbeat2 "0"]
+
+      set heart_diff [expr ( $heartbeat2 - $heartbeat1 ) ]
+      if { $heart_diff > 1 || $heart_diff < -1 } {
+         return "heartbeat file diff error: heart_diff=$heart_diff - no nfs shared qmaster spool directory found"
+      }
+
+      # We need access to spooling data from shadow hosts, by
+      # - classic spooling to a shared filesystem (to qmaster spooldir - if it was not shared,
+      #   we would have failed earlier.
+      # - bdb spooling with rpc server
+      # - bdb spooling to nfsv4
+      set spooling_ok 0
+      if { $ts_config(spooling_method) == "classic" } {
+         puts $CHECK_OUTPUT "We have \"classic\" spooling to a shared qmaster spool dir."
+         set spooling_ok 1
+      } else {
+         if {$ts_config(spooling_method) == "berkeleydb"} {
+            if {$ts_config(bdb_server) != "none"} {
+               puts $CHECK_OUTPUT "We have \"berkeleydb\" spooling with RPC server." 
+               set spooling_ok 1
+            } else {
+               set bdb_spooldir [get_bdb_spooldir]
+               set fstype [get_fstype $bdb_spooldir $ts_config(master_host)]
+               if {$fstype == "nfs4"} {
+                  puts $CHECK_OUTPUT "We have \"berkeleydb\" spooling on NFS v4" 
+                  set spooling_ok 1
+
+                  # check that the spooldir is NFS v4 on all shadow hosts
+                  foreach host $ts_config(shadowd_hosts) {
+                     set fstype [get_fstype $bdb_spooldir $host]
+                     if {$fstype != "nfs4"} {
+                        puts $CHECK_OUTPUT "berkeley spool directory $bdb_spooldir is not nfsv4 mounted on shadow host $host"
+                        set spooling_ok 0
+                        break
+                     }
+                  }
+               }
+            }
+         }
+      }
+
+      if {!$spooling_ok} {
+         return "Spooling database is not shared between master and shadow hosts"
+      }
+      return ""
+   } 
+   return "some magic error"
 }
 
 
