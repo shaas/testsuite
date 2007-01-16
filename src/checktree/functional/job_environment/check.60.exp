@@ -303,7 +303,7 @@ proc job_environment_INHERIT_ENV {} {
 proc job_environment_SET_LIB_PATH {} {
    global ts_config CHECK_OUTPUT
    global job_environment_exec_host job_environment_libvar
-   global job_environment_libpath
+   global job_environment_libpath queue
 
    set args "-l h=$job_environment_exec_host -o /dev/null -j yes"
    set arch [resolve_arch $job_environment_exec_host]
@@ -322,9 +322,11 @@ proc job_environment_SET_LIB_PATH {} {
    if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
       append errors "\nFailed submitting job, with INHERIT_ENV=true,SET_LIB_PATH=true"
    } elseif {[info exists job_env($job_environment_libvar)] == 0} {
-      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=true\nexpected environment var \"$job_environment_libvar\""
+      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=true (queue=$queue)\nexpected \"$sge_path:$job_environment_libpath\""
    } elseif {$job_env($job_environment_libvar) != "$sge_path:$job_environment_libpath"} {
       append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=true,SET_LIB_PATH=true"
+   } else {
+      puts $CHECK_OUTPUT "libpath with INHERIT_ENV=true,SET_LIB_PATH=true is set to \"$job_env($job_environment_libvar)\""
    }
 
    puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=true, SET_LIB_PATH=false"
@@ -337,7 +339,7 @@ proc job_environment_SET_LIB_PATH {} {
    if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
       append errors "\nFailed submitting job, with INHERIT_ENV=true,SET_LIB_PATH=false"
    } elseif {[info exists job_env($job_environment_libvar)] == 0} {
-      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=false"
+      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=false (queue=$queue)\nexpected \"$job_environment_libpath\""
    } elseif {$job_env($job_environment_libvar) != $job_environment_libpath} {
       append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=true,SET_LIB_PATH=false"
    }
@@ -355,7 +357,7 @@ proc job_environment_SET_LIB_PATH {} {
    if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
       append errors "\nFailed submitting job, with INHERIT_ENV=false,SET_LIB_PATH=true"
    } elseif {[info exists job_env($job_environment_libvar)] == 0} {
-      append errors "\nShared library path is unset, with INHERIT_ENV=false,SET_LIB_PATH=true"
+      append errors "\nShared library path is unset, with INHERIT_ENV=false,SET_LIB_PATH=true (queue=$queue)\nexpected \"$sge_path\""
    } elseif {$job_env($job_environment_libvar) != $sge_path} {
       append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=false,SET_LIB_PATH=true"
    }
@@ -368,7 +370,7 @@ proc job_environment_SET_LIB_PATH {} {
 
    # Test that lib path doesn't exist
    if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
-      append errors "\nFailed submitting job, with INHERIT_ENV=false,SET_LIB_PATH=false"
+      append errors "\nFailed submitting job, with INHERIT_ENV=false,SET_LIB_PATH=false (queue=$queue)"
    } elseif {[info exists job_env($job_environment_libvar)] == 1} {
       append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=false,SET_LIB_PATH=false"
    }
