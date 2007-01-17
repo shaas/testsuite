@@ -51,13 +51,9 @@ set check_init_level_procedure "drmaa_init_level"
 # define test's name and run level descriptions
 set check_name            "drmaa"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   205
-set check_description(200)  "tests to verify DRMAA 0.95 library: single threaded"
-set check_description(201)  "tests to verify DRMAA 0.95 library: multi threaded"
-set check_description(202)  "tests to verify DRMAA 0.95 library: additional interfaces"
-set check_description(203)  "tests to verify DRMAA 1.0 library: single threaded"
-set check_description(204)  "tests to verify DRMAA 1.0 library: multi threaded"
-set check_description(205)  "tests to verify DRMAA 1.0 library: additional interfaces"
+set check_highest_level   201
+set check_description(200)  "tests to verify DRMAA 0.95 library"
+set check_description(201)  "tests to verify DRMAA 1.0 library"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -66,9 +62,17 @@ set check_needs           "init_core_system"
 set check_setup_function "drmaa_setup"
 set check_cleanup_function "drmaa_cleanup"
 
+set check_setup_level_function "drmaa_setup_level"
+set check_cleanup_level_function "drmaa_cleanup_level"
+
 # define test's procedure order
 set check_functions ""
-lappend check_functions "drmaa_check"
+lappend check_functions "drmaa_check_single_threaded_part_01"
+lappend check_functions "drmaa_check_single_threaded_part_02"
+lappend check_functions "drmaa_check_single_threaded_part_03"
+lappend check_functions "drmaa_check_single_threaded_part_04"
+lappend check_functions "drmaa_check_multi_threaded"
+lappend check_functions "drmaa_check_additional_interfaces"
 
 # this function is called each time before
 # a new run level is started
@@ -84,29 +88,17 @@ proc drmaa_init_level {} {
      "201" {
         return 0
      }
-     "202" {
-        return 0
-     }
-     "203" {
-        return 0
-     }
-     "204" {
-        return 0
-     }
-     "205" {
-        return 0
-     }
   } 
-
   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
 global drmaa_test_scenario_settings
+global drmaa_binary_name
 
 proc drmaa_setup {} {
-   global drmaa_config
+   global drmaa_config current_drmaa_mode ts_config
 
    # must forbit reschedule on job exiting with 99 
    # must forbit job error upon job exiting with 100
@@ -121,11 +113,14 @@ proc drmaa_setup {} {
    set_config new_config
 
    # setup file staging scripts
+   foreach host $ts_config(unique_arch_nodes) {
+      set current_drmaa_mode($host) [get_current_drmaa_mode $host]
+   }
 }
 
 # undo what we've done in drmaa_setup
 proc drmaa_cleanup  {} {
-   global backup_qmaster_params drmaa_config ts_config
+   global backup_qmaster_params drmaa_config ts_config current_drmaa_mode
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -135,180 +130,260 @@ proc drmaa_cleanup  {} {
 
    # restore DRMAA library version
    foreach host $ts_config(unique_arch_nodes) {
-      drmaa_redirect_lib "0.95" $host
+      drmaa_redirect_lib $current_drmaa_mode($host) $host
    }
 }
 
-# here the actual test is done
-proc drmaa_check {} {
+proc drmaa_setup_level {} {
+   global CHECK_OUTPUT drmaa_test_scenario_settings drmaa_binary_name
+   global CHECK_ACT_LEVEL check_description ts_config
+
+   puts $CHECK_OUTPUT "setup level $CHECK_ACT_LEVEL: $check_description($CHECK_ACT_LEVEL)"
+
+   set drmaa_test_scenario_settings(level) $CHECK_ACT_LEVEL
+   set drmaa_test_scenario_settings(level_name) $check_description($CHECK_ACT_LEVEL)
+   foreach host $ts_config(unique_arch_nodes) {
+      if {$CHECK_ACT_LEVEL == 200} {
+         drmaa_redirect_lib "0.95" $host
+         set drmaa_binary_name "test_drmaa.0.95"
+      } else {
+         drmaa_redirect_lib "1.0" $host
+         set drmaa_binary_name "test_drmaa.1.0"
+      }
+   }
+}
+
+
+proc drmaa_cleanup_level {} {
+   global CHECK_OUTPUT
+   global CHECK_ACT_LEVEL check_description
+   puts $CHECK_OUTPUT "cleanup level $CHECK_ACT_LEVEL: $check_description($CHECK_ACT_LEVEL)"
+}
+
+
+proc drmaa_check_single_threaded_part_01 {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_USER
-   global CHECK_ACT_LEVEL drmaa_test_scenario_settings check_description
+   global CHECK_USER drmaa_binary_name
 
    foreach host $ts_config(unique_arch_nodes) {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
 
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
       puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
-      set level $CHECK_ACT_LEVEL
 
-      set drmaa_test_scenario_settings(level) $CHECK_ACT_LEVEL
-      set drmaa_test_scenario_settings(level_name) $check_description($level)
+      # -- do all ST_DRMAA_CONTROL tests
+      drmaa_test_failing_control_operations $host $binary_path
 
-      if {$level <= 202} {
-         drmaa_redirect_lib "0.95" $host
-      } else {
-         drmaa_redirect_lib "1.0" $host
-         incr level -3
+      # unset SGE_ROOT and try test_drmaa -h
+      puts "starting single threaded test $drmaa_binary_name -h without SGE_ROOT"
+      set test_output [start_remote_prog $host $CHECK_USER "unset" "SGE_ROOT\n$binary_path/$drmaa_binary_name -h" \
+            prg_exit_state 500 0 "" "" 0 1]
+      if { $prg_exit_state == 0 } {
+         add_proc_error drmaa_check -1 "$drmaa_binary_name -h without SGE_ROOT must exit with unequal 0 at host $host"
+         break
       }
 
-      switch -- $level {
-         "200" { 
-            # -- do all ST_DRMAA_CONTROL tests
-            drmaa_test_failing_control_operations $host $binary_path
-
-            # unset SGE_ROOT and try test_drmaa -h
-            puts "starting single threaded test test_drmaa -h without SGE_ROOT"
-            set test_output [start_remote_prog $host $CHECK_USER "unset" "SGE_ROOT\n$binary_path/test_drmaa -h" \
-                  prg_exit_state 500 0 "" "" 0 1]
-            if { $prg_exit_state == 0 } {
-               add_proc_error drmaa_check -1 "test_drmaa -h without SGE_ROOT must exit with unequal 0 at host $host"
-               break
-            }
-
-            # the ST_INPUT_BECOMES_OUTPUT test
-            drmaa_test_st_input_becomes_output $host $binary_path
-
-            # -- tests without an argument
-            set test_scenario {}
-            lappend test_scenario "ST_ERROR_CODES"
-            lappend test_scenario "ST_MULT_INIT"
-            lappend test_scenario "ST_MULT_EXIT"
-            lappend test_scenario "ST_SUPPORTED_ATTR"
-            lappend test_scenario "ST_SUPPORTED_VATTR"
-            lappend test_scenario "ST_VERSION"
-            lappend test_scenario "ST_DRM_SYSTEM"
-            lappend test_scenario "ST_CONTACT"
-            lappend test_scenario "ST_EMPTY_SESSION_WAIT"
-            lappend test_scenario "ST_EMPTY_SESSION_SYNCHRONIZE_DISPOSE"
-            lappend test_scenario "ST_EMPTY_SESSION_SYNCHRONIZE_NODISPOSE"
-            lappend test_scenario "ST_DRMAA_IMPL"
-            lappend test_scenario "ST_UNSUPPORTED_ATTR"
-            lappend test_scenario "ST_UNSUPPORTED_VATTR"
-
-            foreach st_test $test_scenario {
-               
-               puts "starting single threaded test $st_test"
-               drmaa_test $host $binary_path $st_test ""
-            }
-           
-            # -- tests to ensure control operations on session without jobs result in DRMAA_ERRNO_SUCCESS 
-            set test_scenario {}
-            lappend test_scenario "DRMAA_CONTROL_SUSPEND"
-            lappend test_scenario "DRMAA_CONTROL_RESUME"
-            lappend test_scenario "DRMAA_CONTROL_HOLD"
-            lappend test_scenario "DRMAA_CONTROL_RELEASE"
-            lappend test_scenario "DRMAA_CONTROL_TERMINATE"
-            foreach control_op $test_scenario {
-               puts "starting single threaded test ST_EMPTY_SESSION_CONTROL $control_op"
-               drmaa_test $host $binary_path ST_EMPTY_SESSION_CONTROL "$control_op"
-            }
-
-            # -- tests with a <sleeper_job> argument
-            set test_scenario {}
-            lappend test_scenario "ST_SUBMIT_WAIT"
-            lappend test_scenario "ST_BULK_SUBMIT_WAIT"
-            lappend test_scenario "ST_BULK_SINGLESUBMIT_WAIT_INDIVIDUAL"
-            lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALL_DISPOSE"
-            lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALL_NODISPOSE"
-            lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALLIDS_DISPOSE"
-            lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALLIDS_NODISPOSE"
-            lappend test_scenario "ST_SUBMIT_PAUSE_SUBMIT_SYNC"
-            lappend test_scenario "ST_INPUT_FILE_FAILURE"
-            lappend test_scenario "ST_OUTPUT_FILE_FAILURE"
-            lappend test_scenario "ST_ERROR_FILE_FAILURE"
-            lappend test_scenario "ST_SUBMIT_SUSPEND_RESUME_WAIT"
-            lappend test_scenario "ST_SUBMIT_POLLING_WAIT_TIMEOUT"
-            lappend test_scenario "ST_SUBMIT_POLLING_WAIT_ZEROTIMEOUT"
-            lappend test_scenario "ST_SUBMIT_POLLING_SYNCHRONIZE_TIMEOUT"
-            lappend test_scenario "ST_SUBMIT_POLLING_SYNCHRONIZE_ZEROTIMEOUT"
-            lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SESSION_RELEASE"
-            lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SINGLE_RELEASE"
-            lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SESSION_DELETE"
-            lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SINGLE_DELETE"
-            lappend test_scenario "ST_SUBMIT_IN_HOLD_RELEASE"
-            lappend test_scenario "ST_SUBMIT_IN_HOLD_DELETE"
-            lappend test_scenario "ST_SYNCHRONIZE_NONEXISTANT"
-            lappend test_scenario "ST_RECOVERABLE_SESSION"
-
-            foreach st_test $test_scenario {
-               puts "starting single threaded test $st_test"
-               drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
-            }
-
-            # -- tests with a <sleeper_job> argument repeatedly 
-            set test_scenario {}
-            lappend test_scenario "ST_SUBMIT_NO_RUN_WAIT"
-            foreach st_test $test_scenario {
-               set n 100
-               puts "starting single threaded test $st_test $n times each"
-               for {set i 0} {$i < $n} {incr i} {
-                  drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
-               }
-            }
-
-            # -- tests with a <exit_arg_job> argument
-            set test_scenario {}
-            lappend test_scenario "ST_EXIT_STATUS"
-            lappend test_scenario "ST_USAGE_CHECK"
-            foreach ste_test $test_scenario {
-               puts "starting single threaded test $ste_test"
-               drmaa_test $host $binary_path $ste_test $ts_config(testsuite_root_dir)/scripts/exit.sh
-            }
-
-
-            # -- tests with <exit_arg_job> and <email_addr> arguments
-            # need to add the entry "test.cat -N ExitTest -h" to qtask file
-            # need to add "-m a" to sge_request file 
-            # test assumes job do run at submission host
-            # puts "starting single threaded test ST_ATTRIBUTE_CHECK"
-            # drmaa_test $host $binary_path ST_ATTRIBUTE_CHECK $ts_config(testsuite_root_dir)/scripts/exit.sh "$CHECK_USER@localhost"
-            # need to remove "-m a" from sge_request file 
-            # need to move entry "test.cat -N ExitTest -h" to users .qtask file
-            # -- 
-         } 
-         "201" { 
-            # all MT tests need a sleeper job as argument
-            set test_scenario {}
-            lappend test_scenario "MT_SUBMIT_WAIT"
-            lappend test_scenario "MT_EXIT_DURING_SUBMIT"
-            lappend test_scenario "MT_SUBMIT_MT_WAIT"
-            lappend test_scenario "MT_EXIT_DURING_SUBMIT_OR_WAIT"
-            lappend test_scenario "MT_SUBMIT_BEFORE_INIT_WAIT"
-            foreach mt_test $test_scenario {
-               puts "starting multi threaded test $mt_test"
-               drmaa_test $host $binary_path $mt_test $ts_config(product_root)/examples/jobs/sleeper.sh
-            }
-         }
-         "202" {
-            # shutdown qmaster
-            shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir] 
-
-            # this test must fail when qmaster is down
-            set test_output [start_remote_prog $host $CHECK_USER $binary_path/test_drmaa "ST_SUBMIT_WAIT $ts_config(product_root)/examples/jobs/sleeper.sh" prg_exit_state 500]
-
-            puts $CHECK_OUTPUT "exit status was $prg_exit_state"
-            puts $CHECK_OUTPUT "output was\n$test_output"
-
-            if { $prg_exit_state == 0 } {
-               add_proc_error drmaa_check -1 "test_drmaa ST_SUBMIT_WAIT failed at host $host"
-            }
-            # restart qmaster
-            startup_qmaster 
-         } 
-      } 
+      # the ST_INPUT_BECOMES_OUTPUT test
+      drmaa_test_st_input_becomes_output $host $binary_path
    }
 }
+
+
+proc drmaa_check_single_threaded_part_02 {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_USER drmaa_binary_name
+
+   foreach host $ts_config(unique_arch_nodes) {
+      set compile_arch_mt [resolve_build_arch_installed_libs $host]
+
+      set binary_path "$ts_config(source_dir)/$compile_arch_mt"
+      puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
+
+      # -- tests without an argument
+      set test_scenario {}
+      lappend test_scenario "ST_ERROR_CODES"
+      lappend test_scenario "ST_MULT_INIT"
+      lappend test_scenario "ST_MULT_EXIT"
+      lappend test_scenario "ST_SUPPORTED_ATTR"
+      lappend test_scenario "ST_SUPPORTED_VATTR"
+      lappend test_scenario "ST_VERSION"
+      lappend test_scenario "ST_DRM_SYSTEM"
+      lappend test_scenario "ST_CONTACT"
+      lappend test_scenario "ST_EMPTY_SESSION_WAIT"
+      lappend test_scenario "ST_EMPTY_SESSION_SYNCHRONIZE_DISPOSE"
+      lappend test_scenario "ST_EMPTY_SESSION_SYNCHRONIZE_NODISPOSE"
+      lappend test_scenario "ST_DRMAA_IMPL"
+      lappend test_scenario "ST_UNSUPPORTED_ATTR"
+      lappend test_scenario "ST_UNSUPPORTED_VATTR"
+
+      foreach st_test $test_scenario {
+         puts "starting single threaded test $st_test"
+         drmaa_test $host $binary_path $st_test ""
+      }
+    
+
+      # -- tests to ensure control operations on session without jobs result in DRMAA_ERRNO_SUCCESS 
+      set test_scenario {}
+      lappend test_scenario "DRMAA_CONTROL_SUSPEND"
+      lappend test_scenario "DRMAA_CONTROL_RESUME"
+      lappend test_scenario "DRMAA_CONTROL_HOLD"
+      lappend test_scenario "DRMAA_CONTROL_RELEASE"
+      lappend test_scenario "DRMAA_CONTROL_TERMINATE"
+      foreach control_op $test_scenario {
+         puts "starting single threaded test ST_EMPTY_SESSION_CONTROL $control_op"
+         drmaa_test $host $binary_path ST_EMPTY_SESSION_CONTROL "$control_op"
+      }
+   }
+}
+
+
+proc drmaa_check_single_threaded_part_03 {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_USER drmaa_binary_name
+
+   foreach host $ts_config(unique_arch_nodes) {
+      set compile_arch_mt [resolve_build_arch_installed_libs $host]
+
+      set binary_path "$ts_config(source_dir)/$compile_arch_mt"
+      puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
+
+      # -- tests with a <sleeper_job> argument
+      set test_scenario {}
+      lappend test_scenario "ST_SUBMIT_WAIT"
+      lappend test_scenario "ST_BULK_SUBMIT_WAIT"
+      lappend test_scenario "ST_BULK_SINGLESUBMIT_WAIT_INDIVIDUAL"
+      lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALL_DISPOSE"
+      lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALL_NODISPOSE"
+      lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALLIDS_DISPOSE"
+      lappend test_scenario "ST_SUBMITMIXTURE_SYNC_ALLIDS_NODISPOSE"
+      lappend test_scenario "ST_SUBMIT_PAUSE_SUBMIT_SYNC"
+      lappend test_scenario "ST_INPUT_FILE_FAILURE"
+      lappend test_scenario "ST_OUTPUT_FILE_FAILURE"
+      lappend test_scenario "ST_ERROR_FILE_FAILURE"
+      lappend test_scenario "ST_SUBMIT_SUSPEND_RESUME_WAIT"
+      lappend test_scenario "ST_SUBMIT_POLLING_WAIT_TIMEOUT"
+      lappend test_scenario "ST_SUBMIT_POLLING_WAIT_ZEROTIMEOUT"
+      lappend test_scenario "ST_SUBMIT_POLLING_SYNCHRONIZE_TIMEOUT"
+      lappend test_scenario "ST_SUBMIT_POLLING_SYNCHRONIZE_ZEROTIMEOUT"
+      lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SESSION_RELEASE"
+      lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SINGLE_RELEASE"
+      lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SESSION_DELETE"
+      lappend test_scenario "ST_BULK_SUBMIT_IN_HOLD_SINGLE_DELETE"
+      lappend test_scenario "ST_SUBMIT_IN_HOLD_RELEASE"
+      lappend test_scenario "ST_SUBMIT_IN_HOLD_DELETE"
+      lappend test_scenario "ST_SYNCHRONIZE_NONEXISTANT"
+      lappend test_scenario "ST_RECOVERABLE_SESSION"
+
+      foreach st_test $test_scenario {
+         puts "starting single threaded test $st_test"
+         drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
+      }
+
+      # -- tests with a <sleeper_job> argument repeatedly 
+      set test_scenario {}
+      lappend test_scenario "ST_SUBMIT_NO_RUN_WAIT"
+      foreach st_test $test_scenario {
+         set n 100
+         puts "starting single threaded test $st_test $n times each"
+         for {set i 0} {$i < $n} {incr i} {
+            puts $CHECK_OUTPUT "test $i/$n"
+            drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
+         }
+      }
+   }
+}
+
+proc drmaa_check_single_threaded_part_04 {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_USER drmaa_binary_name
+
+   foreach host $ts_config(unique_arch_nodes) {
+      set compile_arch_mt [resolve_build_arch_installed_libs $host]
+
+      set binary_path "$ts_config(source_dir)/$compile_arch_mt"
+      puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
+
+
+      # -- tests with a <exit_arg_job> argument
+      set test_scenario {}
+      lappend test_scenario "ST_EXIT_STATUS"
+      lappend test_scenario "ST_USAGE_CHECK"
+      foreach ste_test $test_scenario {
+         puts "starting single threaded test $ste_test"
+         drmaa_test $host $binary_path $ste_test $ts_config(testsuite_root_dir)/scripts/exit.sh
+      }
+
+
+      # -- tests with <exit_arg_job> and <email_addr> arguments
+      # need to add the entry "test.cat -N ExitTest -h" to qtask file
+      # need to add "-m a" to sge_request file 
+      # test assumes job do run at submission host
+      # puts "starting single threaded test ST_ATTRIBUTE_CHECK"
+      # drmaa_test $host $binary_path ST_ATTRIBUTE_CHECK $ts_config(testsuite_root_dir)/scripts/exit.sh "$CHECK_USER@localhost"
+      # need to remove "-m a" from sge_request file 
+      # need to move entry "test.cat -N ExitTest -h" to users .qtask file
+      # -- 
+   }
+}
+
+
+
+proc drmaa_check_multi_threaded {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_USER
+
+   foreach host $ts_config(unique_arch_nodes) {
+      set compile_arch_mt [resolve_build_arch_installed_libs $host]
+
+      set binary_path "$ts_config(source_dir)/$compile_arch_mt"
+      puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
+
+
+      # all MT tests need a sleeper job as argument
+      set test_scenario {}
+      lappend test_scenario "MT_SUBMIT_WAIT"
+      lappend test_scenario "MT_EXIT_DURING_SUBMIT"
+      lappend test_scenario "MT_SUBMIT_MT_WAIT"
+      lappend test_scenario "MT_EXIT_DURING_SUBMIT_OR_WAIT"
+      lappend test_scenario "MT_SUBMIT_BEFORE_INIT_WAIT"
+      foreach mt_test $test_scenario {
+         puts "starting multi threaded test $mt_test"
+         drmaa_test $host $binary_path $mt_test $ts_config(product_root)/examples/jobs/sleeper.sh
+      }
+   }
+}
+
+
+proc drmaa_check_additional_interfaces {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_USER drmaa_binary_name
+
+   foreach host $ts_config(unique_arch_nodes) {
+      set compile_arch_mt [resolve_build_arch_installed_libs $host]
+
+      set binary_path "$ts_config(source_dir)/$compile_arch_mt"
+      puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
+
+      # shutdown qmaster
+      shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir] 
+    
+      # this test must fail when qmaster is down
+      set test_output [start_remote_prog $host $CHECK_USER $binary_path/$drmaa_binary_name "ST_SUBMIT_WAIT $ts_config(product_root)/examples/jobs/sleeper.sh" prg_exit_state 500]
+
+      puts $CHECK_OUTPUT "exit status was $prg_exit_state"
+      puts $CHECK_OUTPUT "output was\n$test_output"
+
+      if { $prg_exit_state == 0 } {
+         add_proc_error drmaa_check -1 "$drmaa_binary_name ST_SUBMIT_WAIT should have failed at host $host"
+      }
+
+      # restart qmaster
+      startup_qmaster 
+   }
+}
+
+
+
 
 #                                                             max. column:     |
 #
@@ -337,7 +412,7 @@ proc drmaa_check {} {
 #*******************************
 #
 proc drmaa_test { host binary_path test_name arguments {user ""} } {
-   global CHECK_OUTPUT CHECK_USER drmaa_test_scenario_settings
+   global CHECK_OUTPUT CHECK_USER drmaa_test_scenario_settings drmaa_binary_name
 
    if {$user == ""} { 
       set user $CHECK_USER
@@ -347,7 +422,7 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
    append add_info "dramaa scenario description:           \"$drmaa_test_scenario_settings(level_name)\"\n"
    append add_info "test_drmaa host: $host\n"
    append add_info "test_drmaa user: $user\n"
-   append add_info "test_drmaa binary: $binary_path/test_drmaa\n"
+   append add_info "test_drmaa binary: $binary_path/$drmaa_binary_name\n"
    append add_info "test_drmaa arguments: $test_name $arguments\n"
 
    puts $CHECK_OUTPUT "first checking testsuite connection by starting remote command ..."
@@ -360,10 +435,10 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
    }
 
    puts $CHECK_OUTPUT "starting ..."
-   puts $CHECK_OUTPUT "$binary_path/test_drmaa $test_name $arguments"
+   puts $CHECK_OUTPUT "$binary_path/$drmaa_binary_name $test_name $arguments"
 
    set time_start [clock seconds]
-   set test_output [start_remote_prog $host $user $binary_path/test_drmaa "$test_name $arguments" prg_exit_state 550]
+   set test_output [start_remote_prog $host $user $binary_path/$drmaa_binary_name "$test_name $arguments" prg_exit_state 550]
    set time_end [clock seconds]
    set run_time [expr $time_end - $time_start]
 
@@ -377,7 +452,7 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
       add_proc_error drmaa_check -3 "test $test_name $arguments on host $host took more than 450 seconds! (testsuite timeout=550)\n$add_info"
    }
    if { $prg_exit_state != 0 } {
-      add_proc_error drmaa_check -1 "$binary_path/test_drmaa $test_name $arguments failed at host $host (runtime: $run_time)\n$add_info"
+      add_proc_error drmaa_check -1 "$binary_path/$drmaa_binary_name $test_name $arguments failed at host $host (runtime: $run_time)\n$add_info"
    }
 }
 
@@ -402,7 +477,7 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
 #*******************************
 #
 proc drmaa_test_st_input_becomes_output { host binary_path } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER drmaa_binary_name
 
    # prepare input file
    set input_file [get_tmp_file_name]
@@ -417,10 +492,10 @@ proc drmaa_test_st_input_becomes_output { host binary_path } {
       add_proc_error drmaa_check -1 "input and output file are equal"
    }
 
-   puts $CHECK_OUTPUT "$binary_path/test_drmaa ST_INPUT_BECOMES_OUTPUT $input_file $output_file"
+   puts $CHECK_OUTPUT "$binary_path/$drmaa_binary_name ST_INPUT_BECOMES_OUTPUT $input_file $output_file"
 
    # run job
-   set test_output [start_remote_prog $host $CHECK_USER $binary_path/test_drmaa "ST_INPUT_BECOMES_OUTPUT $input_file $output_file" prg_exit_state 500]
+   set test_output [start_remote_prog $host $CHECK_USER $binary_path/$drmaa_binary_name "ST_INPUT_BECOMES_OUTPUT $input_file $output_file" prg_exit_state 500]
 
    puts $CHECK_OUTPUT "exit status was $prg_exit_state"
    puts $CHECK_OUTPUT "output was\n$test_output"
@@ -430,7 +505,7 @@ proc drmaa_test_st_input_becomes_output { host binary_path } {
    file delete "$output_file"
 
    if { $prg_exit_state != 0 } {
-      add_proc_error drmaa_check -1 "test_drmaa ST_INPUT_BECOMES_OUTPUT failed at host $host\nexit status was $prg_exit_state\noutput was $test_output"
+      add_proc_error drmaa_check -1 "$drmaa_binary_name ST_INPUT_BECOMES_OUTPUT failed at host $host\nexit status was $prg_exit_state\noutput was $test_output"
    }
 }
 
@@ -523,19 +598,5 @@ proc drmaa_test_failing_control_operations { host binary_path } {
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_INVALID_JOB $job_id.1" $CHECK_FIRST_FOREIGN_SYSTEM_USER
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_INVALID_JOB $job_id.2" $CHECK_FIRST_FOREIGN_SYSTEM_USER
    }
-}
-
-proc drmaa_redirect_lib {version {host CHECK_HOST}} {
-   global ts_config CHECK_USER CHECK_HOST CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "Using DRMAA version $version on $host"
-
-   set compile_arch [resolve_build_arch_installed_libs $host]
-   set install_arch [resolve_arch $host]
-
-   start_remote_prog $CHECK_HOST "root" "/bin/rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.so"
-   start_remote_prog $CHECK_HOST "root" "/bin/ln" "-s libdrmaa.so.$version $ts_config(product_root)/lib/$install_arch/libdrmaa.so"
-   start_remote_prog $CHECK_HOST "root" "/bin/rm" "$ts_config(source_dir)/$compile_arch/test_drmaa"
-   start_remote_prog $CHECK_HOST "root" "/bin/ln" "-s test_drmaa.$version $ts_config(source_dir)/$compile_arch/test_drmaa"
 }
 

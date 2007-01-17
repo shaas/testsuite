@@ -48,9 +48,11 @@ set check_init_level_procedure "resource_reservation_init_level"
 # define test's name and run level descriptions
 set check_name            "resource_reservation"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   1 
-set check_description(0)  "check resource reservation"
-set check_description(1)  "check resource reservation with resource quota sets"
+set check_highest_level   3
+set check_description(0)  "check resource reservation (drmaa version 0.95)"
+set check_description(1)  "check resource reservation with resource quota sets (drmaa version 0.95)"
+set check_description(2)  "check resource reservation (drmaa version 1.0)"
+set check_description(3)  "check resource reservation with resource quota sets (drmaa version 1.0)"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -67,35 +69,53 @@ set check_cleanup_level_function resource_reservation_level_cleanup
 set check_functions ""
 lappend check_functions "resource_reservation_basic"
 
+global rr_queue_name 
+global rr_h_vmem_complex 
+global rr_host
+global binary_path
+global drmaa_version
+
 proc resource_reservation_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
    global CHECK_OUTPUT
+   global drmaa_version
 
+   set drmaa_version "please specify test binary"
 
    switch -- $CHECK_ACT_LEVEL {
       "0" {
+         set drmaa_version "test_drmaa.0.95"
          return 0;      # Tests resource_reservation
       }
       "1" {
+         set drmaa_version "test_drmaa.0.95"
          if {$ts_config(gridengine_version) >= 65} {
             return 0;   # Tests resource_reservation with resource quota sets
          } else {
+            add_proc_error "resource_reservation_init_level" -3 "need version >= 65"
+            return -1;
+         }
+      }
+      "2" {
+         set drmaa_version "test_drmaa.1.0"
+         return 0;      # Tests resource_reservation
+      }
+      "3" {
+         set drmaa_version "test_drmaa.1.0"
+         if {$ts_config(gridengine_version) >= 65} {
+            return 0;   # Tests resource_reservation with resource quota sets
+         } else {
+            add_proc_error "resource_reservation_init_level" -3 "need version >= 65"
             return -1;
          }
       }
    }
-
    return -1
 }
 
 # -------- local test procedures: initialization ------------------------------
 
-global rr_queue_name 
-global rr_h_vmem_complex 
-global rr_host
-global binary_path
-global job_desc
 
 proc resource_reservation_setup {} {
    global rr_queue_name rr_h_vmem_complex 
@@ -104,7 +124,6 @@ proc resource_reservation_setup {} {
    global binary_path
    global CHECK_OUTPUT
    global CHECK_SOURCE_DIR
-   global CHECK_ACT_LEVEL
 
    puts $CHECK_OUTPUT "resource_reservation_setup" 
 
@@ -180,12 +199,11 @@ proc resource_reservation_level_setup {} {
    global rr_queue_name rr_h_vmem_complex 
    global rr_host
    global ts_config
-   global binary_path
    global CHECK_OUTPUT
    global CHECK_SOURCE_DIR
    global CHECK_ACT_LEVEL
 
-   if { $CHECK_ACT_LEVEL == 0 } {
+   if { $CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 2 } {
       # setup needed pe
       set pe(pe_name)           "round_robin"
       set pe(slots)             "5"
@@ -209,7 +227,7 @@ proc resource_reservation_level_setup {} {
       set queue_conf(complex_values)   "myslots=5"
    } 
 
-   if { $CHECK_ACT_LEVEL == 1 } {
+   if { $CHECK_ACT_LEVEL == 1 || $CHECK_ACT_LEVEL == 3 } {
       # setup needed pe
       set pe(pe_name)           "round_robin"
       set pe(slots)             "100"
@@ -263,7 +281,6 @@ proc resource_reservation_cleanup {  } {
    global rr_queue_name rr_h_vmem_complex
    global ts_config
    global rr_host
-   global binary_path
    global CHECK_OUTPUT
    global CHECK_SOURCE_DIR
 
@@ -298,10 +315,8 @@ proc resource_reservation_level_cleanup {} {
    global rr_queue_name rr_h_vmem_complex 
    global rr_host
    global ts_config
-   global binary_path
    global CHECK_OUTPUT
    global CHECK_SOURCE_DIR
-   global CHECK_ACT_LEVEL
 
    puts $CHECK_OUTPUT "resource_reservation_level_cleanup"
 
@@ -411,17 +426,18 @@ proc drmaa_test { test_name arguments } {
    global CHECK_OUTPUT CHECK_USER
    global binary_path
    global rr_host
+   global drmaa_version
 
    set user $CHECK_USER
 
-   puts $CHECK_OUTPUT "$binary_path/test_drmaa $test_name $arguments"
-   set test_output [ start_remote_prog $rr_host $user $binary_path/test_drmaa "$test_name $arguments" prg_exit_state 500 ]
+   puts $CHECK_OUTPUT "$binary_path/$drmaa_version $test_name $arguments"
+   set test_output [ start_remote_prog $rr_host $user $binary_path/$drmaa_version "$test_name $arguments" prg_exit_state 500 ]
 
    puts $CHECK_OUTPUT "exit status was $prg_exit_state"
    puts $CHECK_OUTPUT "output was\n$test_output"
 
    if { $prg_exit_state != 0 } {
-      add_proc_error drmaa_check -1 "$binary_path/test_drmaa $test_name $arguments failed at host $rr_host"
+      add_proc_error drmaa_check -1 "$binary_path/$drmaa_version $test_name $arguments failed at host $rr_host"
    }
 }
 

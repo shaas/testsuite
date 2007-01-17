@@ -732,3 +732,134 @@ proc get_sge_error_generic_vdep {messages_var} {
    set messages(-120) "*[translate_macro MSG_GDI_UNABLE_TO_CONNECT_SUS "qmaster" "*" "*"]*"
    set messages(-120,description) "probably sge_qmaster is down"
 }
+
+
+#****** sge_procedures.60/drmaa_redirect_lib() *********************************
+#  NAME
+#     drmaa_redirect_lib() -- change drmaa lib version
+#
+#  SYNOPSIS
+#     drmaa_redirect_lib { version {host CHECK_HOST} } 
+#
+#  FUNCTION
+#     This function re-links the drmaa library for the specified host to
+#     the specified version.
+#
+#  INPUTS
+#     version           - "0.95" or "1.0"
+#     {host CHECK_HOST} - hostname
+#
+#  SEE ALSO
+#     sge_procedures.60/get_current_drmaa_lib_extension()
+#     sge_procedures.60/drmaa_redirect_lib()
+#     sge_procedures.60/get_current_drmaa_mode()
+#*******************************************************************************
+proc drmaa_redirect_lib {version host } {
+   global ts_config CHECK_USER CHECK_HOST CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT "Using DRMAA version $version on $host"
+
+   set compile_arch [resolve_build_arch_installed_libs $host]
+   set install_arch [resolve_arch $host]
+   set lib_ext [get_current_drmaa_lib_extension $host]
+   start_remote_prog $CHECK_HOST "root" "/bin/rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   start_remote_prog $host "root" "/bin/rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   start_remote_prog $host "root" "/bin/ln" "-s libdrmaa.$lib_ext.$version $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   wait_for_remote_file $CHECK_HOST $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+}
+
+#****** sge_procedures.60/get_current_drmaa_mode() *****************************
+#  NAME
+#     get_current_drmaa_mode() -- return the current drmaa version string
+#
+#  SYNOPSIS
+#     get_current_drmaa_mode { host } 
+#
+#  FUNCTION
+#     Return the current linked drmaa library version string. 
+#
+#  INPUTS
+#     host - hostname 
+#
+#  RESULT
+#     string containting the version information from the libdrmaa link extention
+#     (currently "0.95" or "1.0")
+#
+#  SEE ALSO
+#     sge_procedures.60/get_current_drmaa_lib_extension()
+#     sge_procedures.60/drmaa_redirect_lib()
+#     sge_procedures.60/get_current_drmaa_mode()
+#*******************************************************************************
+proc get_current_drmaa_mode { host } {
+   global CHECK_OUTPUT ts_config
+   puts $CHECK_OUTPUT "checking DRMAA version on $host ..."
+   
+   set compile_arch [resolve_build_arch_installed_libs $host]
+   set install_arch [resolve_arch $host]
+
+   set files [get_file_names "$ts_config(product_root)/lib/$install_arch" "*drmaa*"]
+   foreach file_base $files {
+      set file "$ts_config(product_root)/lib/$install_arch/$file_base"
+      set file_type [file type $file]
+      puts $CHECK_OUTPUT "$file_type: $file"
+      if { $file_type == "link" } {
+         set linked_to [file readlink $file]
+         puts $CHECK_OUTPUT "found drmaa lib link: $file_base -> $linked_to"
+         puts $CHECK_OUTPUT "lib is linked to $linked_to"
+         set version_pos [string first "." $linked_to]
+         incr version_pos 1
+         set linked_to [string range $linked_to $version_pos end]
+         set version_pos [string first "." $linked_to]
+         incr version_pos 1
+         set version [string range $linked_to $version_pos end ]
+         puts $CHECK_OUTPUT "version extension is \"$version\""
+         return $version
+      }
+   }
+}
+
+#****** sge_procedures.60/get_current_drmaa_lib_extension() ********************
+#  NAME
+#     get_current_drmaa_lib_extension() -- get link extention name for the host
+#
+#  SYNOPSIS
+#     get_current_drmaa_lib_extension { host } 
+#
+#  FUNCTION
+#     Find out the host specific dynamic link extention (e.g. "so" or "dylib")
+#
+#  INPUTS
+#     host - host for which the information is needed
+#
+#  RESULT
+#     string containing the lib extention (e.g. "so")
+#
+#  SEE ALSO
+#     sge_procedures.60/get_current_drmaa_lib_extension()
+#     sge_procedures.60/drmaa_redirect_lib()
+#     sge_procedures.60/get_current_drmaa_mode()
+#*******************************************************************************
+proc get_current_drmaa_lib_extension { host } {
+   global CHECK_OUTPUT ts_config
+   
+   set compile_arch [resolve_build_arch_installed_libs $host]
+   set install_arch [resolve_arch $host]
+
+   set files [get_file_names "$ts_config(product_root)/lib/$install_arch" "*drmaa*"]
+   foreach file_base $files {
+      set file "$ts_config(product_root)/lib/$install_arch/$file_base"
+      set file_type [file type $file]
+      if { $file_type == "link" } {
+         set linked_to [file readlink $file]
+         set version_pos [string first "." $linked_to]
+         incr version_pos 1
+         set linked_to [string range $linked_to $version_pos end]
+         set version_pos [string first "." $linked_to]
+         incr version_pos -1
+         set lib_ext [string range $linked_to 0 $version_pos ]
+         puts $CHECK_OUTPUT "lib extension is \"$lib_ext\""
+         return $lib_ext
+      }
+   }
+}
+

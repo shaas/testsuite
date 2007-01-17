@@ -173,7 +173,7 @@ proc drmaaj_check {} {
 }
 
 proc drmaaj_setup {} {
-   global drmaaj_config
+   global drmaaj_config current_drmaa_mode ts_config
 
    # must forbit reschedule on job exiting with 99 
    # must forbit job error upon job exiting with 100
@@ -186,11 +186,17 @@ proc drmaaj_setup {} {
    set new_config(qmaster_params) "FORBID_RESCHEDULE=TRUE,FORBID_APPERROR=TRUE"
    set new_config(delegated_file_staging) "true"
    set_config new_config
+
+   # setup file staging scripts
+   foreach host $ts_config(unique_arch_nodes) {
+      set current_drmaa_mode($host) [get_current_drmaa_mode $host]
+   }
 }
 
 # undo what we've done in drmaa_setup
 proc drmaaj_cleanup  {} {
    global backup_qmaster_params drmaaj_config ts_config
+   global current_drmaa_mode
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -200,6 +206,6 @@ proc drmaaj_cleanup  {} {
 
    # restore DRMAA library version
    foreach host $ts_config(unique_arch_nodes) {
-      drmaa_redirect_lib "0.95" $host
+      drmaa_redirect_lib $current_drmaa_mode($host) $host
    }
 }

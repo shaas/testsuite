@@ -1,3 +1,14 @@
+CR-2007-01-17-1: Cleanup:   o drmaa and drmaaj tests:
+                              - added drmaa_redirect_lib(), get_current_drmaa_mode()
+                                and get_current_drmaa_lib_extension() to 
+                                sge_procedures.60.tcl
+                              - fixed lib link setting
+                            o resource_reservation now also started with 1.0 drmaa
+                              lib
+                            o fixed startup_qmaster when scheduler should also
+                              be started (wait for new schedd pidfile)
+                 Review:    JG
+
 CR-2007-01-17-0: Cleanup:   o log testsuite macro warnings only once per startup
                             o added output when deleting temp files
                  Review:    JG

@@ -6101,6 +6101,9 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
    }
 
    if {$and_scheduler} {
+      set old_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
+      debug_puts "old scheduler pid is \"$old_schedd_pid\""
+
       puts $CHECK_OUTPUT "starting up scheduler ..."
       if { $schedd_debug != 0 } {
          puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
@@ -6110,6 +6113,21 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
          puts $CHECK_OUTPUT "starting schedd as $startup_user" 
          set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
          puts $CHECK_OUTPUT $result
+      }
+      set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
+      puts $CHECK_OUTPUT "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
+
+      set nr_of_checks 10
+      while { $current_schedd_pid == $old_schedd_pid } {
+         puts $CHECK_OUTPUT "waiting for pidfile containing a new scheduler pid ..."
+         after 1000
+         incr nr_of_checks -1
+         if { $nr_of_checks <= 0 } {
+            add_proc_error "startup_qmaster" -1 "new scheduler pid not written"
+            break
+         }
+         set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
+         puts $CHECK_OUTPUT "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
       }
    }
  
