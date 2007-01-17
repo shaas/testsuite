@@ -1,3 +1,6 @@
+CR-2007-01-17-2: Cleanup:   o removed puts output from testsuite init procedure
+                              for clients/qconf and issue 193 test
+
 CR-2007-01-17-1: Cleanup:   o drmaa and drmaaj tests:
                               - added drmaa_redirect_lib(), get_current_drmaa_mode()
                                 and get_current_drmaa_lib_extension() to 
