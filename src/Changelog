@@ -1,3 +1,7 @@
+RD-2007-01-17-0: Enhancem.: added test for qmaster core dump with usersets
+                            referenced in RQS
+                 Review:    JG
+
 CR-2007-01-16-1: Enhancem.: o added support for multiple shadow daemons
                             o added some additional error information
                             o added "--" for default ts_send() call

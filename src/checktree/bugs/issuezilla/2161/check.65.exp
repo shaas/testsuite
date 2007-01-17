@@ -1,0 +1,112 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define test's name and run level descriptions
+set check_name            "issue_2161"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0) "check qmaster core dump with RQS and undefined project/userset"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2161_userset"
+lappend check_functions "issue_2161_project"
+
+proc issue_2161_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1  ;# no other level
+}
+
+proc issue_2161_userset {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+
+   set rqs_name "issue_2161"
+   set rules ""
+   lappend rules "users @unknown_userset to slots=1"
+
+   # Add resource quota sets 
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set result [add_rqs rqs_charray 1 "" "" 0]
+
+   after 2000
+   if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
+      add_proc_error "issue_2161_userset" -1 "RQS with undefined userset crashed qmaster"
+      startup_qmaster 0
+   }
+
+   del_rqs $rqs_name "" "" 0
+}
+
+proc issue_2161_project {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+
+   set rqs_name "issue_2161"
+   set rules ""
+   lappend rules "projects unknown_project to slots=1"
+
+   # Add resource quota sets 
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set result [add_rqs rqs_charray 1 "" "" 0]
+
+   after 2000
+   if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
+      add_proc_error "issue_2161_project" -1 "RQS with undefined project crashed qmaster"
+      startup_qmaster 0
+   }
+
+   del_rqs $rqs_name "" "" 0
+}
