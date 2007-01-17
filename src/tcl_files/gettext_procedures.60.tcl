@@ -55,8 +55,9 @@
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
+global warnings_already_logged
 proc sge_macro { macro_name {raise_error 1} } {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT warnings_already_logged
  
    set value ""
 
@@ -180,7 +181,7 @@ proc sge_macro { macro_name {raise_error 1} } {
          update_macro_messages_list
       }
    }
-   if {[string first "-" $value] >= 0} {
+   if {[string first "-" $value] >= 0 && [info exists warnings_already_logged($macro_name)] == 0} {
       # enable this to write all used macros in a file
       #catch {
       #   set script [ open "./.testsuite_macros_with_dashes" "a" "0755" ]
@@ -192,7 +193,8 @@ proc sge_macro { macro_name {raise_error 1} } {
       puts $CHECK_OUTPUT "   Use the \"--\" option on expect pattern line when using it!"
 #      puts $CHECK_OUTPUT "   Macro names are written into ./.testsuite_macros_with_dashes"
       puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
-   }
+      set warnings_already_logged($macro_name) 1
+   } 
    return $value
 }
 

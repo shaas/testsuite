@@ -4485,17 +4485,23 @@ proc check_root_access {path} {
 proc delete_temp_script_files { } {
   global ts_config CHECK_OUTPUT
 
+  puts -nonewline $CHECK_OUTPUT "deleting temporary used files ..."
   set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
   if { [ file isfile $del_file_name ] == 1 } {
      set del_file [ open $del_file_name "r" ]
      while { [gets $del_file line] >= 0 } {
         if { [ file isfile $line ] == 1 } {
            file delete $line
+           puts -nonewline $CHECK_OUTPUT "."
+           flush $CHECK_OUTPUT
         }
      }
      close $del_file
-     file delete $del_file_name     
+     file delete $del_file_name
+     puts -nonewline $CHECK_OUTPUT "."
+     flush $CHECK_OUTPUT
   } 
+  puts $CHECK_OUTPUT ""
 }
 
 #****** check/execute_setup_cleanup_function() *********************************

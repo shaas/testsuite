@@ -1,3 +1,7 @@
+CR-2007-01-17-0: Cleanup:   o log testsuite macro warnings only once per startup
+                            o added output when deleting temp files
+                 Review:    JG
+
 RD-2007-01-17-0: Enhancem.: added test for qmaster core dump with usersets
                             referenced in RQS
                  Review:    JG
