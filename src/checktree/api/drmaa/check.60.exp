@@ -358,15 +358,14 @@ proc drmaa_check_additional_interfaces {} {
    global ts_config CHECK_OUTPUT
    global CHECK_USER drmaa_binary_name
 
+   # shutdown qmaster
+   shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir] 
+
    foreach host $ts_config(unique_arch_nodes) {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
-
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
       puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
 
-      # shutdown qmaster
-      shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir] 
-    
       # this test must fail when qmaster is down
       set test_output [start_remote_prog $host $CHECK_USER $binary_path/$drmaa_binary_name "ST_SUBMIT_WAIT $ts_config(product_root)/examples/jobs/sleeper.sh" prg_exit_state 500]
 
@@ -376,10 +375,9 @@ proc drmaa_check_additional_interfaces {} {
       if { $prg_exit_state == 0 } {
          add_proc_error drmaa_check -1 "$drmaa_binary_name ST_SUBMIT_WAIT should have failed at host $host"
       }
-
-      # restart qmaster
-      startup_qmaster 
    }
+   # restart qmaster
+   startup_qmaster 
 }
 
 
