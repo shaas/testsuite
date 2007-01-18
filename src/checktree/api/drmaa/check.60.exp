@@ -436,20 +436,20 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
    puts $CHECK_OUTPUT "$binary_path/$drmaa_binary_name $test_name $arguments"
 
    set time_start [clock seconds]
-   set test_output [start_remote_prog $host $user $binary_path/$drmaa_binary_name "$test_name $arguments" prg_exit_state 550]
+   set test_output [start_remote_prog $host $user $binary_path/$drmaa_binary_name "$test_name $arguments" prg_exit_state 650]
    set time_end [clock seconds]
    set run_time [expr $time_end - $time_start]
 
    puts $CHECK_OUTPUT "$test_output"
    #puts $CHECK_OUTPUT "exit status was $prg_exit_state"
 
-   if { $run_time > 0 } {
+   if {$run_time > 0} {
       puts $CHECK_OUTPUT "test took $run_time seconds on host $host."
    }
-   if { $run_time > 450 } {
-      add_proc_error drmaa_check -3 "test $test_name $arguments on host $host took more than 450 seconds! (testsuite timeout=550)\n$add_info"
+   if {$run_time > 550} {
+      add_proc_error drmaa_check -3 "test $test_name $arguments on host $host took more than 550 seconds! (testsuite timeout=650)\n$add_info"
    }
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       add_proc_error drmaa_check -1 "$binary_path/$drmaa_binary_name $test_name $arguments failed at host $host (runtime: $run_time)\n$add_info"
    }
 }

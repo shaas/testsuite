@@ -71,6 +71,11 @@ lappend check_functions "service_error_handling"
 proc SGE_Helper_Service_init_level {} {
    global CHECK_ACT_LEVEL
 
+   if {![host_conf_have_windows]} {
+      add_proc_error "" -3 "no windows execution host configured for this cluster - skipping this test"
+      return -1
+   }
+
    switch -- $CHECK_ACT_LEVEL {
       "0" { 
          return 0
@@ -87,12 +92,6 @@ proc SGE_Helper_Service_setup {} {
    global qacct_reporting_backup
    global SGE_Helper_Service_was_running
    global host
-
-   if {![host_conf_have_windows]} {
-      return
-   }
-
-   
 
    set host [host_conf_get_windows_exec_host]
 
@@ -118,10 +117,6 @@ proc SGE_Helper_Service_cleanup  {} {
    global ts_config CHECK_OUTPUT
    global qacct_reporting_backup
    global SGE_Helper_Service_was_running
-
-   if {![host_conf_have_windows]} {
-      return
-   }
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -171,12 +166,6 @@ proc SGE_Helper_Service_cleanup  {} {
 proc service_error_handling { } {
    global ts_config 
    global host
-
-   if {![host_conf_have_windows]} {
-      add_proc_error "service_error_handling" -3 "No windows hosts configured - skipping this test"
-      return
-   }
-
 
    set queue "all.q"
 

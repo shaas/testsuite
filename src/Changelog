@@ -1,3 +1,6 @@
+JG-2007-01-18-0: Bugfix:    Fixed system_tests/windows/gui with no windows host.
+                            Increased timeout in drmaa test.
+
 RH-2007-01-18-0: Enhancm:   o mysql support for arco checktree added
                               (thanks to Aja, she prepared the testsuite changes)
                  Review:    CR
