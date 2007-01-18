@@ -31,25 +31,21 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-
 # $1 lockfile
 # $2 pid
 # $3 hostname
 # $4 user
 
-LOCKFILE=$1
 locked=0
 loops=0
-
-
-echo "saving lockfile in $LOCKFILE" 
+echo "saving lockfile in $1" 
 umask 111
 while [ $locked -eq 0 -a $loops -lt 10 ]; do 
-  if [ ! -f $LOCKFILE ]; then
-     touch $LOCKFILE
-     echo "$2 $3 $4" >> $LOCKFILE
+  if [ ! -f $1 ]; then
+     touch $1
+     echo "$2 $3 $4" >> $1
      echo "file writen"
-     touch $LOCKFILE
+     touch $1
      read r_pid r_hostname r_user <$1
      echo "input: $r_pid $r_hostname $r_user"
      if [ x$2 != x -a $2 = $r_pid ]; then
@@ -62,7 +58,14 @@ while [ $locked -eq 0 -a $loops -lt 10 ]; do
      fi
   fi
   loops=`expr $loops + 1`
+  echo "waiting for lock ..."
   sleep 1
 done
 umask 022
-exit $locked
+if [ $locked -eq 10 ]; then
+   echo "locked"
+   exit 0
+else
+   echo "can't lock"
+   exit 1
+fi

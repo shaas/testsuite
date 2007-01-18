@@ -588,72 +588,84 @@ proc start_remote_prog { hostname
    set real_end_found 0
    set real_start_found 0
    set nr_of_lines 0
- 
+   set find_out_more 0
    debug_puts "start_remote_prog: expecting ..."
    expect {
-     -i $myspawn_id -- "*\n" {
-        foreach line [split $expect_out(0,string) "\n"] {
-           if { $line == "" } {
-              continue
-           }
-           if { $real_start_found == 1 } {
-              append output "$line\n"
-              incr nr_of_lines 1
-              set tmp_exit_status_start [string first "_exit_status_:" $line]
-              if { $tmp_exit_status_start >= 0 } {
-                 # check if a ? is between _exit_status_:() - brackets
-                 set tmp_exit_status_string [string range $line $tmp_exit_status_start end]
-                 set tmp_exit_status_end [string first ")" $tmp_exit_status_string]
-                 if {$tmp_exit_status_end >= 0 } {
-                    set tmp_exit_status_string [ string range $tmp_exit_status_string 0 $tmp_exit_status_end ]
-                 } else {
-                    add_proc_error "start_remote_prog" -1 "unexpected error - did not get full exit status string" $raise_error
-                 }
-                 set real_end_found 1
-                 set do_stop 1
-                 break
-              }
-           } else {
-              if { [ string first "_start_mark_:" $line ] >= 0 } {
-                 set real_start_found 1
-                 set output "_start_mark_\n"
-                 if { $background == 1 } { 
-                    set do_stop 1
-                    break
-                 }
-              }
-           }
-        }
-        if { $do_stop == 0 } {
-           exp_continue
-        }
-     }
-
      -i $myspawn_id timeout {
-        add_proc_error "start_remote_prog" "-1" "timeout error(1):\nmaybe the shell is expecting an interactive answer from user?\nexec commando was: \"$exec_command $exec_arguments\"\n$expect_out(buffer)\nmore information in next error message in 5 seconds!!!" $raise_error
-        set timeout 5
-        expect {
-           -i $myspawn_id full_buffer {
-              add_proc_error "start_remote_prog" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
-           }
-           -i $myspawn_id timeout {
-              add_proc_error "start_remote_prog" "-1" "no more output available" $raise_error $raise_error
-           }
-           -i $myspawn_id "*" {
-              add_proc_error "start_remote_prog" "-1" "expect buffer:\n$expect_out(buffer)" $raise_error
-           }
-           -i $myspawn_id default {
-              add_proc_error "start_remote_prog" "-1" "default - no more output available" $raise_error
-           }
-        }
+        set find_out_more 1
      }
-
      -i $myspawn_id full_buffer {
         add_proc_error "start_remote_prog" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
      }
+     -i $myspawn_id -- "*\n" {
+        foreach line [split $expect_out(0,string) "\n"] {
+           if {$line != ""} {
+              if {$real_start_found} {
+                 append output "$line\n"
+                 incr nr_of_lines 1
+                 set tmp_exit_status_start [string first "_exit_status_:" $line]
+                 if { $tmp_exit_status_start >= 0 } {
+                    # check if a ? is between _exit_status_:() - brackets
+                    set tmp_exit_status_string [string range $line $tmp_exit_status_start end]
+                    set tmp_exit_status_end [string first ")" $tmp_exit_status_string]
+                    if {$tmp_exit_status_end >= 0 } {
+                       set tmp_exit_status_string [ string range $tmp_exit_status_string 0 $tmp_exit_status_end ]
+                    } else {
+                       add_proc_error "start_remote_prog" -1 "unexpected error - did not get full exit status string" $raise_error
+                    }
+                    set real_end_found 1
+                    set real_start_found 0
+                 }
+              } else {
+                 if {$real_end_found} {
+                    #  here we read the last line ( _END_OF_FILE_ )
+                    set do_stop 1
+                    break
+                 }
+                 if { [ string first "_start_mark_:" $line ] >= 0 } {
+                    set real_start_found 1
+                    set output "_start_mark_\n"
+                    if { $background == 1 } { 
+                       set do_stop 1
+                       break
+                    }
+                 }
+              }
+           }
+        }
+        if { !$do_stop } {
+           exp_continue
+        }
+     }
    }
-   debug_puts "starting command done!"
 
+
+   if { $find_out_more == 1 } {
+      set info_message_text ""
+      append info_message_text "timeout error(1):\n"
+      append info_message_text "maybe the shell is expecting an interactive answer from user?\n"
+      append info_message_text "exec commando was: \"$exec_command $exec_arguments\"\n"
+      append info_message_text "expect_out(buffer):\n>$expect_out(buffer)<\n"
+      append info_message_text "more information in next error message in 5 seconds!!!\n"
+      append info_message_text ""
+      add_proc_error "start_remote_prog" "-1" "$info_message_text" $raise_error
+      set timeout 5
+      expect {
+         -i $myspawn_id full_buffer {
+            add_proc_error "start_remote_prog" "-1" "buffer overflow! Increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
+         }
+         -i $myspawn_id timeout {
+            add_proc_error "start_remote_prog" "-1" "no more output available" $raise_error
+         }
+         -i $myspawn_id "*" {
+            add_proc_error "start_remote_prog" "-1" "expect buffer:\n$expect_out(buffer)" $raise_error
+         }
+         -i $myspawn_id default {
+            add_proc_error "start_remote_prog" "-1" "default - no more output available" $raise_error
+         }
+      }
+   }
+   debug_puts "start_remote_prog: expecting ... done"
 
    # parse output: cut leading sequence 
    set found_start [string first "_start_mark_" $output]
@@ -1571,7 +1583,7 @@ proc open_remote_spawn_process { hostname
                   set connect_errors 1
                }
              }
-             -i $spawn_id "__ my id is ->*${connect_user}*\n" { 
+             -i $spawn_id -- "TS_ID: ->*${connect_user}*\n" { 
                  debug_puts "logged in as ${connect_user} - fine" 
              }
           }
@@ -1682,10 +1694,10 @@ proc open_remote_spawn_process { hostname
                      set connect_errors 1
                   }
                }
-               -i $spawn_id "__ my id is ->*${real_user}*\n" { 
+               -i $spawn_id -- "TS_ID: ->*${real_user}*\n" { 
                   debug_puts "correctly switched to user $real_user - fine" 
                }
-               -i $spawn_id "__ my id is ->*${connect_user}*\n" { 
+               -i $spawn_id -- "TS_ID: ->*${connect_user}*\n" { 
                   add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nswitch to user $real_user didn't succeed, we are still ${connect_user}" $raise_error
                   set connect_errors 1
                }
@@ -1734,7 +1746,6 @@ proc open_remote_spawn_process { hostname
    # we wait for some time, as the it might take some time until the command is visible (NFS)
    if {$re_use_script == 0} {
       set catch_return [catch {
-         debug_puts "checking remote file access ..."
          ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/file_check.sh $script_name\n" $hostname
          set connect_errors 0
          set num_tries $nr_of_tries
@@ -1758,10 +1769,8 @@ proc open_remote_spawn_process { hostname
                   add_proc_error "open_remote_spawn_process (file check)" -2 "${error_info}\ntimeout waiting for file_check.sh script" $raise_error
                   set connect_errors 1
                }
-            }  
-            -i $spawn_id "file exists" {
-               # fine, we are ready to go - leave expect loop
-               debug_puts "script file exists on $hostname"
+            }
+            -i $spawn_id -- "TS_OK" {
             }
          }
       } catch_error_message]
@@ -2569,8 +2578,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
                add_proc_error "check_rlogin_session" -3 "timeout waiting for shell response" $raise_error
             }
          }
-         -i $spawn_id "__ my id is ->*${real_user}*\n" {
-            debug_puts "connection is ok"
+         -i $spawn_id -- "TS_ID: ->*${real_user}*\n" {
             set connection_ok 1
          }
       }
@@ -2581,6 +2589,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
 
    # are we done?
    if {$connection_ok} {
+      debug_puts "connection is ok"
       return 1
    }
 
@@ -2782,7 +2791,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
                   add_proc_error "close_spawn_process (regular close)" -2 "timeout waiting for shell prompt"
                }
             }
-            -i $spawn_id "__ my id is ->*${con_data(real_user)}*\n" {
+            -i $spawn_id -- "TS_ID: ->*${con_data(real_user)}*\n" {
                debug_puts "logged in as ${con_data(real_user)} - fine"
                set do_return -1
             }

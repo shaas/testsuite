@@ -1,2 +1,2 @@
 #!/bin/sh
-echo "__ my id is ->`id`<-"
+echo "TS_ID: ->`id`<-"

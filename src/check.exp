@@ -4116,14 +4116,16 @@ proc lock_testsuite {} {
     
     debug_puts "-> lock_testsuite: pid=$pid host=$CHECK_HOST user=$CHECK_USER"
 
-    set result 0
+    set result 1
     set time [expr [timestamp] + 60]
-    while {$result != 10} {
+    while {$result != 0} {
        puts $CHECK_OUTPUT "waiting for lock ..."
        set result [catch {
-           eval exec "$ts_config(testsuite_root_dir)/scripts/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $CHECK_HOST $CHECK_USER"
+          exec -- $ts_config(testsuite_root_dir)/scripts/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $CHECK_HOST $CHECK_USER
        } catch_output]
-       puts $CHECK_OUTPUT "lock.sh returned $result: $catch_output"
+       debug_puts "======================================="
+       debug_puts "lock.sh returned $result:\n$catch_output"
+       debug_puts "======================================="
        set file_size 0
        catch {set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
        if {$file_size == 0} {
@@ -4133,7 +4135,7 @@ proc lock_testsuite {} {
            sleep 60  ;# wait for NFS to update file
            return [lock_testsuite]  
        }
-       if {$result != 10} {
+       if {$result != 0} {
           puts $CHECK_OUTPUT "checking lockfile owner process ..."
           set data ""
           catch {
@@ -4148,7 +4150,7 @@ proc lock_testsuite {} {
           debug_puts "testsuite is locked by user $owner_user, process $owner_pid on host $owner_host!"
           if {[lindex $data 0] == $pid && [lindex $data 1] == $CHECK_HOST && [lindex $data 2] == $CHECK_USER} {
               debug_puts "thats me, so we have the lock"
-              set result 10
+              set result 0
               continue
           }
           debug_puts "checking whether process is still alive ..."

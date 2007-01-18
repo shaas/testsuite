@@ -1,3 +1,9 @@
+CR-2007-01-18-0: Cleanup:   o start_remote_prog now always reads complete 
+                              script output
+                            o reworked testsuite lock script
+                            o reworked output of testsuite script to be more
+                              readable
+
 CR-2007-01-17-3: Cleanup:   o performance fix for dmraa test
 
 CR-2007-01-17-2: Cleanup:   o removed puts output from testsuite init procedure
