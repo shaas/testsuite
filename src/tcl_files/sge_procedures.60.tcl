@@ -290,7 +290,7 @@ proc switch_to_normal_user_system {} {
 #     file_procedures/get_execd_spooldir()
 #*******************************************************************************
 proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT CHECK_HOST
 
    set spool_dir [get_execd_spooldir $host $spool_type]
    set base_spool_dir [get_execd_spooldir $host $spool_type 1]
@@ -319,11 +319,14 @@ proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
    puts $CHECK_OUTPUT "changing execd_spool_dir for host $host ..."
    set execd_config(execd_spool_dir) $spool_dir
    set_config execd_config $host
+   puts $CHECK_OUTPUT "configuration changed for host $host!"
 
-   if { [ remote_file_isdirectory $host $base_spool_dir ] != 1 } {
+   puts $CHECK_OUTPUT "checking base spool dir: $base_spool_dir"
+   if { [ remote_file_isdirectory $host $base_spool_dir 0 0] != 1 } {
       puts $CHECK_OUTPUT "creating not existing base spool directory:\n\"$base_spool_dir\""
       remote_file_mkdir $host $base_spool_dir
-   }   
+      wait_for_remote_dir $CHECK_HOST "ts_def_con2" $base_spool_dir
+   }
 
    puts $CHECK_OUTPUT "cleaning up spool dir $spool_dir ..."
    cleanup_spool_dir_for_host $host $base_spool_dir "execd"

@@ -1697,7 +1697,7 @@ proc create_shell_script { scriptfile
 
    if { $no_setup == 0 } {
       # script command
-      append script_content "trap 'echo \"_exit_status_:(1)\"' 0\n"
+      append script_content "trap 'echo \"_exit_status_:(1)\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
       append script_content "umask 022\n"
 
       if { $set_shared_lib_path == 1 } {
@@ -2567,7 +2567,7 @@ proc wait_for_file { path_to_file seconds { to_go_away 0 } { do_error_check 1 } 
 #   
 #  SEE ALSO
 #     file_procedures/wait_for_file()
-#     file_procedures/wait_for_remote_file()
+#     file_procedures/wait_for_remote_dir()
 #*******************************************************************************
 proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} {to_go_away 0} } {
    global CHECK_OUTPUT
@@ -2610,6 +2610,77 @@ proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} 
       return -1;
    }
 }
+
+
+#****** file_procedures/wait_for_remote_dir() *********************************
+#  NAME
+#     wait_for_remote_dir() -- waiting for a file to apear (NFS-Check)
+#
+#  SYNOPSIS
+#     wait_for_remote_dir { hostname user path { mytimeout 60 } } 
+#
+#  FUNCTION
+#     The function is using the ls command on the remote host. If the command
+#     returns no error the procedure returns. Otherwise an error is reported
+#     when reaching timeout value.
+#
+#  INPUTS
+#     hostname         - host where the file should be checked
+#     user             - user id who performs check
+#     path             - full path to file
+#     { mytimeout 60 } - timeout in seconds
+#     {raise_error 1}  - do report errors?
+#
+#  RESULT
+#     0 on success
+#     -1 on error
+#   
+#  SEE ALSO
+#     file_procedures/wait_for_file()
+#     file_procedures/wait_for_remote_file()
+#*******************************************************************************
+proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {to_go_away 0} } {
+   global CHECK_OUTPUT
+
+   set is_ok 0
+   set my_mytimeout [ expr ( [timestamp] + $mytimeout ) ] 
+
+   while { $is_ok == 0 } {
+      set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0]
+      if { $to_go_away == 0 } {
+         if { $prg_exit_state == 0 } {
+            set is_ok 1
+            break
+         } 
+      } else {
+         if { $prg_exit_state != 0 } {
+            set is_ok 1
+            break
+         } 
+      }
+      puts -nonewline $CHECK_OUTPUT "."
+      flush $CHECK_OUTPUT
+      if { [timestamp] > $my_mytimeout } {
+         break
+      }
+      after 500
+   }
+   if { $is_ok == 1 } {
+      if { $to_go_away == 0 } {
+         puts $CHECK_OUTPUT "ok - directory exists on host $hostname"
+      } else {
+         puts $CHECK_OUTPUT "ok - directory does not exist anymore on host $hostname"
+      }
+      return 0;
+   } else {
+      puts $CHECK_OUTPUT "timeout"
+      if {$raise_error} {
+         add_proc_error "wait_for_remote_dir" -1 "timeout while waiting for remote directory $path on host $hostname"
+      }
+      return -1;
+   }
+}
+
 
 
 #****** file_procedures/is_remote_file() ***************************************

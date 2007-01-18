@@ -1,3 +1,8 @@
+CR-2007-01-18-1: Bugfix:    o fixed bug produced by CR-2007-01-18-0:
+                              testsuite might hang on unexpected script 
+                              errors
+                            o added new method: wait_for_remote_dir
+
 CR-2007-01-18-0: Cleanup:   o start_remote_prog now always reads complete 
                               script output
                             o reworked testsuite lock script
