@@ -731,12 +731,12 @@ proc config_database_type { only_check name config_array } {
    
    set help_text {  "Please enter the database type, or press >RETURN<"
                     "to use the default value."
-                    "Valid values are \"postgres\" or \"oracle\"" }
+                    "Valid values are \"postgres\", \"oracle\" or \"mysql\"" }
                     
        
    set db_type [config_generic $only_check $name config $help_text]
 
-   if { $db_type == "postgres" || $db_type == "oracle" } {
+   if { $db_type == "postgres" || $db_type == "oracle" || $db_type == "mysql" } {
       return $db_type
    }
    return -1
@@ -1150,8 +1150,10 @@ proc arco_clean_database { { drop 0 } } {
    
    if { $arco_config(database_type) == "oracle" } {
       return [arco_clean_oracle_database $drop]
-   } else {
+   } elseif { $arco_config(database_type) == "postgres" } {
       return [arco_clean_postgres_database $drop ]
+   } elseif { $arco_config(database_type) == "mysql" } {
+      return [arco_clean_mysql_database $drop ]
    }
 } 
 
@@ -1409,6 +1411,117 @@ proc arco_clean_postgres_database { { drop 0 } } {
    return $result
 }
 
+proc arco_clean_mysql_database { { drop 0 } } {
+
+global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
+   
+   set id [sqlutil_create]
+   if { $id == "-1" } {
+      add_sql_error "arco_clean_mysql_database" "-2" "Can not create sqlutil"
+      return -1
+   }   
+   set sp_id [ lindex $id 1 ]
+   
+   
+   # first of all connect to the admin db and check wether the database exists
+   if { [ sqlutil_connect $sp_id 1 ] != 0 } {
+      add_sql_error "arco_clean_mysql_database" "-2" "Can not connect to admin database"
+      close_spawn_process $id;
+      return -2
+   }
+   
+   # Ensure that the test database is available
+   set db_name [get_database_name]
+   set sql "select schema_name FROM information_schema.schemata where schema_name = '${db_name}'"
+   array set result_array {}
+   set column_names {}
+   set res [sqlutil_query $sp_id $sql result_array column_names]
+   if {$res <= 0} {
+      puts $CHECK_OUTPUT "database $db_name does not exist => nothing to clean"
+      close_spawn_process $id;
+      return 0
+   }
+
+   # now connect to the test database
+   if { [ sqlutil_connect $sp_id 0 ] != 0 } {
+      add_sql_error "arco_clean_mysql_database" "-2" "Can not connect to database $db_name"
+      close_spawn_process $id;
+      return -2
+   }
+   
+   set result 0
+   
+   if { $drop } {
+      # drop views
+      foreach view $ARCO_VIEWS {
+         set view [string tolower $view]
+         set sql "select table_name from information_schema.views where table_name = '$view' and table_schema = '${db_name}'";
+         set res [sqlutil_query $sp_id $sql result_array column_names]
+         if { $res == 0 } {
+            puts $CHECK_OUTPUT "view $view does not exist"
+            continue
+         } elseif { $res < 0 } {
+            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not query view $view"
+            close_spawn_process $id;
+            return -1
+         }
+         
+         set sql "DROP VIEW $view"
+         puts $CHECK_OUTPUT "drop view $view"
+         set res [sqlutil_exec $sp_id $sql]
+         if { $res != 0 } {
+            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not drop view $VIEW"
+            close_spawn_process $id;
+            return -1
+         }
+      }
+   }   
+   foreach table $ARCO_TABLES {
+      set table [string tolower $table]
+      set sql "select table_name, table_schema from information_schema.tables where table_name = '$table' and table_schema = '${db_name}'"
+      array set result_array {}
+      set column_names {}
+      set res [sqlutil_query $sp_id $sql result_array column_names]
+      if { $res == 0 } {
+         puts $CHECK_OUTPUT "table $table does not exist"
+         continue
+      } elseif { $res < 0 } {
+         add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not query table $table"
+         close_spawn_process $id
+         return -1
+      }
+      
+      if { $drop } {
+         set sql "DROP TABLE $table CASCADE"
+         puts $CHECK_OUTPUT "drop table $table"
+         set res [sqlutil_exec $sp_id $sql]
+         if { $res != 0 } {
+            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not drop table $table"
+            set result -1
+            break;
+         }
+      } else {
+         set sql "DELETE from $table"
+         set res [sqlutil_exec $sp_id $sql]
+         if { $res != 0 } {
+            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not delete table $table"
+            set result -1
+            break;
+         }
+      }
+      set sql "COMMIT"
+      set res [sqlutil_exec $sp_id $sql]
+      if { $res != 0 } {
+         add_sql_error "arco_clean_mysql_database" "-2" "Error: Commit failed"
+         set result -1
+         break;
+      }
+   }
+   
+   close_spawn_process $id;
+   return $result
+
+}
 
 #****** checktree/get_java_web_console_status() **************************************************
 #  NAME

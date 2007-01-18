@@ -119,6 +119,13 @@ proc arco_junit_check {} {
            set db_def      "database/oracle/dbdefinition.xml"
            set db_schema   $write_user
       }
+      "mysql"    {
+           set identifier "mysql"
+           set jdbc_driver "com.mysql.jdbc.Driver" 
+           set jdbc_url    "jdbc:mysql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
+           set db_def      "database/mysql/dbdefinition.xml"
+           set db_schema   $db_name
+      }
       default    {
          add_proc_error "arco_junit_check" -1 "Unkown database type $arco_config(database_type)"
          return 0

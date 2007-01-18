@@ -160,11 +160,13 @@ proc install_dbwriter {} {
              send_to_spawn_id $sp_id $java_home
              continue
           }
-          -i $sp_id "Enter your database type ( o = Oracle, p = PostgreSQL ) * >> " {
+          -i $sp_id "Enter your database type * >> " {
              if { $arco_config(database_type) == "oracle" } {
                 set input "o"
-             } else {
+             } elseif { $arco_config(database_type) == "postgres" }  {
                 set input "p"
+             } elseif { $arco_config(database_type) == "mysql" }  {
+                set input "m"
              }
              send_to_spawn_id $sp_id $input
              continue
@@ -399,11 +401,13 @@ proc install_reporting {} {
              send_to_spawn_id $sp_id $spool_dir
              continue
           }
-          -i $sp_id "Enter your database type ( o = Oracle, p = PostgreSQL ) * >> " {
+          -i $sp_id "Enter your database type ( o = Oracle, p = PostgreSQL, m = MySQL ) * >> " {
              if { $arco_config(database_type) == "oracle" } {
                 set input "o"
-             } else {
+             } elseif { $arco_config(database_type) == "postgres" }  {
                 set input "p"
+             } elseif { $arco_config(database_type) == "mysql" }  {
+                set input "m"
              }
              send_to_spawn_id $sp_id $input
              continue
@@ -512,8 +516,10 @@ proc init_arco_db {} {
    
    if { $arco_config(database_type) == "oracle" } {
       oracle_init_arco_db
-   } else {
+   } elseif { $arco_config(database_type) == "postgres" } {
       postgres_init_arco_db
+   } elseif { $arco_config(database_type) == "mysql" } {
+      mysql_init_arco_db
    }
 }
 
@@ -522,10 +528,6 @@ proc oracle_init_arco_db {} {
    
    global ts_config ts_host_config arco_config CHECK_DEBUG_LEVEL
    
-   
-   set cmd "$ts_host_config($arco_config(database_host),java)"
-   set args "com.sun.grid.util.SQLUtil"
-   set sql_utilenv(CLASSPATH) [get_sqlutil_classpath]
    
    set id [sqlutil_create]
    if { $id == "-1" } {
@@ -624,10 +626,6 @@ proc postgres_init_arco_db {} {
       shutdown_dbwriter
    }
    
-   set cmd "$ts_host_config($arco_config(database_host),java)"
-   set args "com.sun.grid.util.SQLUtil"
-   set sql_utilenv(CLASSPATH) [get_sqlutil_classpath]
-   
    set id [sqlutil_create]
    if { $id == "-1" } {
       add_sql_error "postgres_init_arco_db" "-2" "Can not create sqlutil"
@@ -720,4 +718,133 @@ proc postgres_init_arco_db {} {
    
    close_spawn_process $id
    return 0
+}
+
+## ----------- MySQL --------------------------------------------------------
+proc mysql_init_arco_db {} {
+
+ global ts_config ts_host_config arco_config 
+   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+
+   if { [get_dbwriter_status 0] == 0} {
+      shutdown_dbwriter
+   }
+   
+   set id [sqlutil_create]
+   if { $id == "-1" } {
+      add_sql_error "mysql_init_arco_db" "-2" "Can not create sqlutil"
+      return -2
+   }   
+   set sp_id [ lindex $id 1 ]
+   
+   # connect to the admin database
+   if {[sqlutil_connect $sp_id 1] != 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "Can not connect to database"      
+      close_spawn_process $id
+      return -2
+   }
+   
+   set db_name [get_database_name]
+   set sql "SELECT schema_name FROM information_schema.schemata where schema_name = '${db_name}'"
+   
+   set column_names {}
+   array set result_array {}
+   set res [sqlutil_query $sp_id $sql result_array column_names]
+   if {$res < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "can not query database name"
+      close_spawn_process $id 
+      return -2
+   } elseif {$res > 0} {
+      # database does exists => drop it
+      set sql "drop database $db_name"
+      if {[sqlutil_exec $sp_id "$sql"] != 0} {
+         add_sql_error "mysql_init_arco_db" "-2" "Can't drop database $db_name, may be another user is using this database"
+         close_spawn_process $id 
+         return -2
+      }
+   }
+   
+   set arco_write_user [get_arco_write_user]
+   set sql "SELECT user FROM mysql.user WHERE user = '${arco_write_user}'"
+
+   set res [sqlutil_query $sp_id "$sql" result_array column_names]
+   if {$res < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "can not query arco_write_user"
+      close_spawn_process $id 
+      return -2
+   } elseif {$res > 0} {
+      # user does exists => drop it
+      set sql "drop user $arco_write_user"
+      if {[sqlutil_exec $sp_id "$sql"] != 0} {
+         add_sql_error "mysql_init_arco_db" "-2" "Can't drop user $arco_write_user"
+         close_spawn_process $id 
+         return -2
+      }
+   }
+   
+   set arco_read_user [get_arco_read_user]
+   set sql "SELECT user FROM mysql.user WHERE user = '${arco_read_user}'"
+   
+   set res [sqlutil_query $sp_id "$sql" result_array column_names]
+   if {$res < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "can not query arco_read_user"
+      close_spawn_process $id 
+      return -2
+   } elseif {$res > 0} {
+      set sql "drop user $arco_read_user"
+      if {[sqlutil_exec $sp_id "$sql"] != 0} {
+         add_sql_error "mysql_init_arco_db" "-2" "Can't drop user $arco_read_user"
+         close_spawn_process $id 
+         return -2
+      }
+   }
+   
+   set sql "create user '$arco_write_user'@'%' identified by 'secret'"
+   if {[sqlutil_exec $sp_id "$sql"] < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "Can't create user $arco_write_user"
+      close_spawn_process $id 
+      return -2
+   }
+   
+   set sql "create user $arco_read_user identified by 'secret'"
+   if {[sqlutil_exec $sp_id "$sql"] < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "Can't create user $arco_write_user"
+      close_spawn_process $id 
+      return -2
+   }
+   
+   set sql "create database $db_name"
+   if {[sqlutil_exec $sp_id "$sql"] < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "Can't create database $db_name"
+      close_spawn_process $id
+      return -2
+   }
+   
+   
+   set sql "GRANT ALL on ${db_name}.* to '$arco_write_user'@'%' with GRANT OPTION"
+   if {[sqlutil_exec $sp_id "$sql"] < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user $arco_write_user"
+      close_spawn_process $id 
+      return -2
+   }
+   
+   set sql "GRANT SELECT on ${db_name}.* to '$arco_read_user'@'%'"
+   if {[sqlutil_exec $sp_id "$sql"] < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user $arco_read_user"
+      close_spawn_process $id 
+      return -2
+   }
+   
+   set sql "FLUSH PRIVILEGES"
+   if {[sqlutil_exec $sp_id "$sql"] < 0} {
+      add_sql_error "mysql_init_arco_db" "-2" "Can't flus privileges"
+      close_spawn_process $id 
+      return -2
+   }
+   
+   
+   close_spawn_process $id
+   set_error "0" "arco db initialized"
+   return 0
+
 }

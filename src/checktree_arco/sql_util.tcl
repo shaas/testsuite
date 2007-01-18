@@ -246,9 +246,12 @@ proc sqlutil_connect { sp_id { use_admin_db 0 } } {
    if { $arco_config(database_type) == "oracle" } {
       set jdbc_driver "oracle.jdbc.driver.OracleDriver"
       set jdbc_url "jdbc:oracle:thin:@${arco_config(database_host)}:${arco_config(database_port)}:$db_name"
-   } else {
+   } elseif { $arco_config(database_type) == "postgres" } {
       set jdbc_driver "org.postgresql.Driver"
       set jdbc_url "jdbc:postgresql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
+   } elseif { $arco_config(database_type) == "mysql" } {
+      set jdbc_driver "com.mysql.jdbc.Driver"
+      set jdbc_url "jdbc:mysql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
    }
    
    # puts $CHECK_OUTPUT "jdbc_url = $jdbc_url"

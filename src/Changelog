@@ -1,3 +1,7 @@
+RH-2007-01-18-0: Enhancm:   o mysql support for arco checktree added
+                              (thanks to Aja, she prepared the testsuite changes)
+                 Review:    CR
+
 CR-2007-01-18-1: Bugfix:    o fixed bug produced by CR-2007-01-18-0:
                               testsuite might hang on unexpected script 
                               errors
