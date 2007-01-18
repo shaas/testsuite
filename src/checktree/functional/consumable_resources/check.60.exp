@@ -369,7 +369,7 @@ proc consumable_resources_submit_pejobs_and_wait { job_arguments job_count run_j
       }
 
       if { $job_state == -1 } {
-         add_proc_error "case $case) consumable_resources_submit_jobs_and_wait" -2 "job was not submitted - stop"
+         add_proc_error "case $case) consumable_resources_submit_pejobs_and_wait" -2 "job was not submitted - stop"
          set error 1
          break
       }
@@ -379,7 +379,7 @@ proc consumable_resources_submit_pejobs_and_wait { job_arguments job_count run_j
          break
       }
       if { $running_jobs != 0 } {
-         add_proc_error "case $case) consumable_resources_submit_jobs_and_wait" -2 "job ran with the wrong slot count $running_jobs expected $run_job_count"
+         add_proc_error "case $case) consumable_resources_submit_pejobs_and_wait" -2 "job ran with the wrong slot count $running_jobs expected $run_job_count"
          set error 1
          break
       }
