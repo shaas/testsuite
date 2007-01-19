@@ -1,3 +1,5 @@
+RH-2007-01-19-0: Bugfix:    installation of arco checktree did not work in mysql < 5.02
+                  
 CR-2007-01-19-0: Bugfix:    path_alias test should support darwin automounter prefix
                  Issue:     111
                  Review:    JG

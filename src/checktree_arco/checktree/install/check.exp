@@ -798,37 +798,26 @@ proc mysql_init_arco_db {} {
          return -2
       }
    }
-   
-   set sql "create user '$arco_write_user'@'%' identified by 'secret'"
-   if {[sqlutil_exec $sp_id "$sql"] < 0} {
-      add_sql_error "mysql_init_arco_db" "-2" "Can't create user $arco_write_user"
-      close_spawn_process $id 
-      return -2
-   }
-   
-   set sql "create user $arco_read_user identified by 'secret'"
-   if {[sqlutil_exec $sp_id "$sql"] < 0} {
-      add_sql_error "mysql_init_arco_db" "-2" "Can't create user $arco_write_user"
-      close_spawn_process $id 
-      return -2
-   }
-   
+  
    set sql "create database $db_name"
    if {[sqlutil_exec $sp_id "$sql"] < 0} {
       add_sql_error "mysql_init_arco_db" "-2" "Can't create database $db_name"
       close_spawn_process $id
       return -2
    }
-   
-   
-   set sql "GRANT ALL on ${db_name}.* to '$arco_write_user'@'%' with GRANT OPTION"
+  
+   # Note: 
+   # The grant statement also creates the user in the database
+    
+   set sql "GRANT ALL on *.* to '$arco_write_user'@'%' IDENTIFIED BY 'secret' with GRANT OPTION"
    if {[sqlutil_exec $sp_id "$sql"] < 0} {
       add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user $arco_write_user"
       close_spawn_process $id 
       return -2
    }
+
    
-   set sql "GRANT SELECT on ${db_name}.* to '$arco_read_user'@'%'"
+   set sql "GRANT SELECT on ${db_name}.* to '$arco_read_user'@'%' IDENTIFIED BY 'secret'"
    if {[sqlutil_exec $sp_id "$sql"] < 0} {
       add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user $arco_read_user"
       close_spawn_process $id 
@@ -837,7 +826,7 @@ proc mysql_init_arco_db {} {
    
    set sql "FLUSH PRIVILEGES"
    if {[sqlutil_exec $sp_id "$sql"] < 0} {
-      add_sql_error "mysql_init_arco_db" "-2" "Can't flus privileges"
+      add_sql_error "mysql_init_arco_db" "-2" "Can't flush privileges"
       close_spawn_process $id 
       return -2
    }
