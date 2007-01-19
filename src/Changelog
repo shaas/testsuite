@@ -1,3 +1,8 @@
+CR-2007-01-19-1: Bugifx:    Enhanced fix CR-2007-01-19-0 (Issue 111) to detect the
+                            automounter prefix before starting the test. Now the
+                            test should support any automounter prefix
+                 Review:    JG
+
 RH-2007-01-19-0: Bugfix:    installation of arco checktree did not work in mysql < 5.02
                   
 CR-2007-01-19-0: Bugfix:    path_alias test should support darwin automounter prefix

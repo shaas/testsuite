@@ -146,27 +146,34 @@ proc path_alias_setup {} {
             if { $counter <= 0 } {
                add_proc_error "path_alias_setup" "-1" "error moving file ${file_name} on host $elem"
             }
-         } 
-
+         }
       }
+
+      set index 0
+      foreach host $ts_config(unique_arch_nodes) {
+         set output [start_remote_prog "$host" $CHECK_USER "csh" "-c 'cd $ts_config(product_root) ; echo \"pwd_output:\" ; pwd'"]
+         set output [get_string_value_between "pwd_output:" -1 $output]
+         if { $output != $ts_config(product_root) } {
+            puts $CHECK_OUTPUT "host $host seems to have an automounter prefix! checking ..."
+            set pos [string first $ts_config(product_root) $output]
+            set prefix [string range $output 0 $pos]
+            puts $CHECK_OUTPUT "automounter prefix is \"$prefix\" on host $host"
+            set data(src-path,$index)     "$prefix"
+            set data(sub-host,$index)     "*"
+            set data(exec-host,$index)    "*" 
+            set data(replacement,$index)  "/"
+            incr index 1
+         }
+      }
+
+      set data(src-path,$index)     "$PATH_ALIAS_OUTPUT1"
+      set data(sub-host,$index)     "*"
+      set data(exec-host,$index)    "*" 
+      set data(replacement,$index)  "$PATH_ALIAS_OUTPUT2"
+      incr index 1
+
       if { [ file isfile ${file_name}  ] != 1 } {
-         set data(src-path,0)     "/tmp_mnt/"
-         set data(sub-host,0)     "*"
-         set data(exec-host,0)    "*" 
-         set data(replacement,0)  "/"
-         set data(src-path,1)     "/private/var/automount/"
-         set data(sub-host,1)     "*"
-         set data(exec-host,1)    "*" 
-         set data(replacement,1)  "/"
-         set data(src-path,2)     "/private/automount/"
-         set data(sub-host,2)     "*"
-         set data(exec-host,2)    "*" 
-         set data(replacement,2)  "/"
-         set data(src-path,3)     "$PATH_ALIAS_OUTPUT1"
-         set data(sub-host,3)     "*"
-         set data(exec-host,3)    "*" 
-         set data(replacement,3)  "$PATH_ALIAS_OUTPUT2"
-         create_path_aliasing_file ${file_name} data 4
+         create_path_aliasing_file ${file_name} data $index
       }
    }
    set cat_output ""
@@ -217,7 +224,7 @@ proc path_alias_main {} {
    global PATH_ALIAS_OUTPUT2
    global CHECK_OUTPUT
    global CHECK_PRODUCT_ROOT
-   global CHECK_USER   
+   global CHECK_USER
 
 
    set files1_old [get_file_names $PATH_ALIAS_OUTPUT1]
@@ -228,15 +235,15 @@ proc path_alias_main {} {
    foreach elem $ts_config(unique_arch_nodes) {
       puts $CHECK_OUTPUT "submitting job(s) for host $elem"
 
-      puts $CHECK_OUTPUT "qsub ..."
+      puts $CHECK_OUTPUT "qsub $elem ..."
       set args     "-cwd -l h=${elem} $job_script"
-
+      puts $CHECK_OUTPUT "qsub $args"
       start_remote_prog $elem $CHECK_USER "qsub" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1
 
-      puts $CHECK_OUTPUT "qrsh ..."
+      puts $CHECK_OUTPUT "qrsh $elem ..."
 
       set args "-cwd -l h=${elem} \"pwd\""
-
+      puts $CHECK_OUTPUT "qrsh $args"
       set output [start_remote_prog $elem $CHECK_USER "qrsh" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1]
       set output [split $output "\n"]
       set output [lindex $output 0]
@@ -246,13 +253,13 @@ proc path_alias_main {} {
          add_proc_error "path_alias_main" -1 "host: $elem\nqrsh -cwd directory is\n\"$output\"\n instead of \n\"$PATH_ALIAS_OUTPUT2\""
       }
 
-      puts $CHECK_OUTPUT "qsh ..."
+      puts $CHECK_OUTPUT "qsh $elem ..."
       set pwd_script "$PATH_ALIAS_OUTPUT1/global_pwdscript_$elem.sh"
       set command     "> qsh_pwd_output_$elem.txt ; sleep 10"
       create_shell_script $pwd_script $elem "pwd" "$command " "" "" "/bin/sh" 0 1 1 1
 
       set args "-cwd -l h=${elem} -- -e $pwd_script"
-
+      puts $CHECK_OUTPUT "qsh $args"
       set output [start_remote_prog $elem $CHECK_USER "qsh" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1]
       puts $CHECK_OUTPUT $output
    }
