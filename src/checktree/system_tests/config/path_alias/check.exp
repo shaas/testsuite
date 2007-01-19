@@ -154,12 +154,19 @@ proc path_alias_setup {} {
          set data(sub-host,0)     "*"
          set data(exec-host,0)    "*" 
          set data(replacement,0)  "/"
-         set data(src-path,1)     "$PATH_ALIAS_OUTPUT1"
+         set data(src-path,1)     "/private/var/automount/"
          set data(sub-host,1)     "*"
          set data(exec-host,1)    "*" 
-         set data(replacement,1)  "$PATH_ALIAS_OUTPUT2"
-
-         create_path_aliasing_file ${file_name} data 2
+         set data(replacement,1)  "/"
+         set data(src-path,2)     "/private/automount/"
+         set data(sub-host,2)     "*"
+         set data(exec-host,2)    "*" 
+         set data(replacement,2)  "/"
+         set data(src-path,3)     "$PATH_ALIAS_OUTPUT1"
+         set data(sub-host,3)     "*"
+         set data(exec-host,3)    "*" 
+         set data(replacement,3)  "$PATH_ALIAS_OUTPUT2"
+         create_path_aliasing_file ${file_name} data 4
       }
    }
    set cat_output ""
