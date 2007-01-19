@@ -267,7 +267,7 @@ proc job_start_test {} {
          foreach jobt $job_type {
             set job_id [submit_wait_type_job $jobt $host $ts_user_config(second_foreign_user) qacct_info]
 
-            set current_run_text    "\n"
+            set current_run_text    "Job start test settings information:\n"
             append current_run_text "Running $jobt job as user $ts_user_config(second_foreign_user)\n"
             append current_run_text "on host $host with spooling type \"$spool_type\"\n\n"
             append current_run_text "XWindow display set to $CHECK_DISPLAY_OUTPUT\n\n"
@@ -276,7 +276,9 @@ proc job_start_test {} {
                append current_run_text "Also check if you have enabled the host to use your display (check with xhost command).\n"
                append current_run_text "You can set your display by modifying the testsuite user configuration file!\n\n"
             }
-            append current_run_text "$jobt Error:\n\n"
+            append current_run_text "spooling directory of execd:\n"
+            append current_run_text "[get_execd_spooldir $host $spool_type]\n"
+            append current_run_text "Following test error occured:\n"
    
             if { $job_id <= 0 } {
                add_proc_error "job_start_test" -1 "$current_run_text Skipping further job result test! Continue with next job ..."
@@ -304,6 +306,13 @@ proc job_start_test {} {
                   set expected_trace_WIFEXITED   1
                   set expected_qacct_exit_state  0  
                   set expected_job_run_time      30
+               }
+               "qrlogin" {
+                  set expected_trace_status      "undefined"
+                  set expected_trace_WIFSIGNALED 0
+                  set expected_trace_WIFEXITED   1
+                  set expected_qacct_exit_state  "undefined" 
+                  set expected_job_run_time      5
                }
 
                default {
@@ -379,9 +388,13 @@ proc job_start_test {} {
             }
 
             puts $CHECK_OUTPUT "checking all information ..."
-            if { [lindex $qacct_info(exit_status) 0] != $expected_qacct_exit_state } {
-               add_proc_error "job_start_test" -1 "$current_run_text qacct exit_status doesn't match expected exit state $expected_qacct_exit_state"
-            }         
+            if { $expected_qacct_exit_state != "undefined" } {
+               if { [lindex $qacct_info(exit_status) 0] != $expected_qacct_exit_state } {
+                  add_proc_error "job_start_test" -1 "$current_run_text qacct exit_status($qacct_info(exit_status)) doesn't match expected exit state($expected_qacct_exit_state)"
+               }         
+            } else {
+               add_proc_error "job_start_test" -3 "$current_run_text skipping test of acounting file exit status - expected value set to undefined"
+            }
 
             if { [lindex $qacct_info(exit_status) 0] != $exit_status_output && $expected_trace_WIFEXITED == 1 } {
                add_proc_error "job_start_test" -1 "$current_run_text exit_status_file doesn't match qacct exit_status"
@@ -417,9 +430,13 @@ proc job_start_test {} {
                set tight_file_perms_output [start_remote_prog $host $ts_user_config(second_foreign_user) ls "-n $tight_jobs_dir" prg_exit_state 60] 
 #               puts $CHECK_OUTPUT "---\n$tight_file_perms_output\n---"
 
-               if { [lindex $qacct_info(exit_status) 0] != $expected_qacct_exit_state } {
-                  add_proc_error "job_start_test" -1 "$current_run_text qacct exit_status of master task doesn't match expected exit state $expected_qacct_exit_state: [lindex $qacct_info(exit_status) 0] != $expected_qacct_exit_state"
-               }         
+               if { $expected_qacct_exit_state != "undefined" } {
+                  if { [lindex $qacct_info(exit_status) 0] != $expected_qacct_exit_state } {
+                     add_proc_error "job_start_test" -1 "$current_run_text qacct exit_status of master task doesn't match expected exit state $expected_qacct_exit_state: [lindex $qacct_info(exit_status) 0] != $expected_qacct_exit_state"
+                  }         
+               } else {
+                  add_proc_error "job_start_test" -3 "$current_run_text skipping test of acounting file exit status - expected value set to undefined"
+               }
 
                set slave_qacct_info [lindex $qacct_info(exit_status) 1];
                if { $slave_qacct_info != $tight_exit_status_output && $expected_trace_WIFEXITED == 1 } {
@@ -490,7 +507,23 @@ proc job_start_test {} {
             if { [info exists found_array] } {
                unset found_array
             }
-
+            set found_array(1) 0
+            set found_array(1,text) "*shepherd called with*"
+            set found_array(2) 0
+            set found_array(2,text) "*setting limits*"
+            set found_array(3) 0
+            set found_array(3,text) "*switching to intermediate/target user*"
+            set found_array(4) 0
+            set found_array(4,text) "*now running with uid*euid*"
+            set found_array(5) 0
+            set found_array(5,text) "*execvp*"
+            set found_array(6) 0
+            set found_array(6,text) "*calling qlogin_starter*"
+            set found_array(7) 0
+            set found_array(7,text) "*wait3 returned*(status*"
+            set found_array(8) 0
+            set found_array(8,text) "*job exited with exit status*"
+            set log_trace_output $trace_output
             set trace_output [split $trace_output "\r\n"]
             foreach line_a $trace_output {
                set line [string trim $line_a]
@@ -538,7 +571,7 @@ proc job_start_test {} {
                      set found_array(3) 1
                   }
 
-                  if { [string match "*now running with uid*euid**" $line ] } {
+                  if { [string match "*now running with uid*euid*" $line ] } {
                      set found_array(4) 1
                      set trace_running_uid  [get_string_value_between "uid=" ", euid" $line ] 
                      set trace_running_euid [get_string_value_between "euid=" -1 $line ] 
@@ -644,7 +677,7 @@ proc job_start_test {} {
                   }
 
                   if { [string match "*calling qlogin_starter*" $line ] } {
-                     set found_array(5) 1
+                     set found_array(6) 1
                      puts $CHECK_OUTPUT $line
 
                      set line [get_string_value_between "qlogin_starter(" ");" $line]
@@ -659,7 +692,7 @@ proc job_start_test {} {
                      puts $CHECK_OUTPUT "trace_job_dir: \"$trace_job_dir\""
                      puts $CHECK_OUTPUT "trace_daemon:  \"$trace_daemon\""
 
-                     if { $trace_job_dir != $jobs_dir } {
+                     if { [string match "*$jobs_dir*" $trace_job_dir] == 0 } {
                         add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file qlogin_starter output job dir \"$jobs_dir\": $trace_job_dir"
                      }
                      switch -exact $jobt {
@@ -698,7 +731,7 @@ proc job_start_test {} {
 #08/25/2005 11:45:28 [115091:13995]: wait3 returned 13996 (status: 0; WIFSIGNALED: 0,  WIFEXITED: 1, WEXITSTATUS: 0)
 
                   if { [string match "*wait3 returned*(status*" $line ] } {
-                     set found_array(6) 1
+                     set found_array(7) 1
 
                      set trace_wait_return [get_string_value_between "wait3 returned" "(status" $line ]
                      set trace_status      [get_string_value_between "(status:" "; WIFSIGNALED:" $line ]
@@ -716,9 +749,12 @@ proc job_start_test {} {
                         add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file wait3 return value doesn't match child pid($trace_pid_2): $trace_wait_return"
                      }
 
-
-                     if { $trace_status != $expected_trace_status } {
-                        add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file wait3 return value doesn't match status($expected_trace_status): got $trace_status"
+                     if { $expected_trace_status != "undefined" } {
+                        if { $trace_status != $expected_trace_status } {
+                           add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file wait3 return value doesn't match status($expected_trace_status): got $trace_status"
+                        }
+                     } else {
+                        add_proc_error "job_start_test" -3 "$current_run_text skipping test of wait3 return value - expected value set to undefined"
                      }
 
                      if { $trace_WIFSIGNALED != $expected_trace_WIFSIGNALED } {
@@ -735,7 +771,7 @@ proc job_start_test {} {
                   }
 
                   if { [string match "*job exited with exit status*" $line ] } {
-                     set found_array(7) 1
+                     set found_array(8) 1
 
                      set trace_job_exit_status [get_string_value_between "exit status" -1 $line ]
                      puts $CHECK_OUTPUT "trace_job_exit_status: \"$trace_job_exit_status\""
@@ -757,11 +793,15 @@ proc job_start_test {} {
                }
             }
 
-            for { set index 1 } { $index <= 7 } { incr index 1 } {
+            for { set index 1 } { $index <= 8 } { incr index 1 } {
                if { [info exists found_array($index)] } {
                   puts $CHECK_OUTPUT "found index $index"
                } else {
-                  add_proc_error "job_start_test" -1 "$current_run_text can't find index $index in shepherd trace file"
+                  set error_mail_message "$current_run_text"
+                  append error_mail_message "can't find index $index in shepherd trace file\nexpected output:\n"
+                  append error_mail_message "\"found_array($index,text)\"\n"
+                  append error_mail_message "sheperd trace file:\n$log_trace_output"
+                  add_proc_error "job_start_test" -1 "$error_mail_message"
                }
             }
 
@@ -775,7 +815,24 @@ proc job_start_test {} {
                if { [info exists found_array] } {
                   unset found_array
                }
-              
+
+               set found_array(1) 0
+               set found_array(1,text) "*shepherd called with*"
+               set found_array(2) 0
+               set found_array(2,text) "*setting limits*"
+               set found_array(3) 0
+               set found_array(3,text) "*switching to intermediate/target user*"
+               set found_array(4) 0
+               set found_array(4,text) "*now running with uid*euid*"
+               set found_array(5) 0
+               set found_array(5,text) "*execvp*"
+               set found_array(6) 0
+               set found_array(6,text) "*calling qlogin_starter*"
+               set found_array(7) 0
+               set found_array(7,text) "*wait3 returned*(status*"
+               set found_array(8) 0
+               set found_array(8,text) "*job exited with exit status*"
+
                set trace_output [split $tight_trace_output "\r\n"]
                foreach line_a $trace_output {
                   set line [string trim $line_a]
@@ -817,7 +874,7 @@ proc job_start_test {} {
                         set found_array(3) 1
                      }
 
-                     if { [string match "*now running with uid*euid**" $line ] } {
+                     if { [string match "*now running with uid*euid*" $line ] } {
                         set found_array(4) 1
                         set trace_running_uid  [get_string_value_between "uid=" ", euid" $line ] 
                         set trace_running_euid [get_string_value_between "euid=" -1 $line ] 
@@ -866,7 +923,7 @@ proc job_start_test {} {
                      }
 
                      if { [string match "*calling qlogin_starter*" $line ] } {
-                        set found_array(5) 1
+                        set found_array(6) 1
                         puts $CHECK_OUTPUT $line
 
                         set line [get_string_value_between "qlogin_starter(" ");" $line]
@@ -881,7 +938,8 @@ proc job_start_test {} {
                         puts $CHECK_OUTPUT "trace_job_dir: \"$trace_job_dir\""
                         puts $CHECK_OUTPUT "trace_daemon:  \"$trace_daemon\""
 
-                        if { $trace_job_dir != $tight_jobs_dir } {
+
+                        if { [string match "*$tight_jobs_dir*" $trace_job_dir] == 0 } {
                            add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file qlogin_starter output job dir \"$tight_jobs_dir\": $trace_job_dir"
                         }
                         # using rshd from gridengine source 
@@ -903,7 +961,7 @@ proc job_start_test {} {
                      
 
                      if { [string match "*wait3 returned*(status*" $line ] } {
-                        set found_array(6) 1
+                        set found_array(7) 1
 
                         set trace_wait_return [get_string_value_between "wait3 returned" "(status" $line ]
                         set trace_status      [get_string_value_between "(status:" "; WIFSIGNALED:" $line ]
@@ -921,9 +979,12 @@ proc job_start_test {} {
                            add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file wait3 return value doesn't match child pid($trace_pid_2): $trace_wait_return"
                         }
 
-
-                        if { $trace_status != $expected_trace_status } {
-                           add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file wait3 return value doesn't match status($expected_trace_status): got $trace_status"
+                        if { $expected_trace_status != "undefined" } {
+                           if { $trace_status != $expected_trace_status } {
+                              add_proc_error "job_start_test" -1 "$current_run_text shepherd trace file wait3 return value doesn't match status($expected_trace_status): got $trace_status"
+                           }
+                        } else {
+                           add_proc_error "job_start_test" -3 "$current_run_text skipping test of wait3 return value - expected value set to undefined"
                         }
 
                         if { $trace_WIFSIGNALED != $expected_trace_WIFSIGNALED } {
@@ -940,7 +1001,7 @@ proc job_start_test {} {
                      }
 
                      if { [string match "*job exited with exit status*" $line ] } {
-                        set found_array(7) 1
+                        set found_array(8) 1
 
                         set trace_job_exit_status [get_string_value_between "exit status" -1 $line ]
                         puts $CHECK_OUTPUT "trace_job_exit_status: \"$trace_job_exit_status\""
@@ -962,11 +1023,15 @@ proc job_start_test {} {
                   }
                }
 
-               for { set index 1 } { $index <= 7 } { incr index 1 } {
+               for { set index 1 } { $index <= 8 } { incr index 1 } {
                   if { [info exists found_array($index)] } {
                      puts $CHECK_OUTPUT "found index $index for slave job"
                   } else {
-                     add_proc_error "job_start_test" -1 "$current_run_text can't find index $index in shepherd trace file for $jobt slave task job"
+                     set error_mail_message "$current_run_text"
+                     append error_mail_message "can't find index $index in shepherd trace file for $jobt slave task job\nexpected output:\n"
+                     append error_mail_message "\"found_array($index,text)\"\n"
+                     append error_mail_message "sheperd trace file:\n$log_trace_output"
+                     add_proc_error "job_start_test" -1 "$error_mail_message"
                   }
                }
             }
