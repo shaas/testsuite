@@ -272,7 +272,7 @@ proc check_qhost_broken { complex count } {
    if {$ts_config(gridengine_version) >= 65} {
       set output [start_remote_prog $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qhost" "-l $complex -F | grep arch | wc -l"]
       if { $output != $count } {
-         add_proc_error "check_qhost_broken" -2 "qhost is broken - see Issue: 1306, returned $output hosts but $count is expected"
+         add_proc_error "check_qhost_broken" -3 "qhost is broken - see Issue: 1306, returned $output hosts but $count is expected"
          set error 1
       }
    }
