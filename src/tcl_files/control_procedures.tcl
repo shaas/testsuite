@@ -1718,6 +1718,60 @@ proc resolve_build_arch { host } {
   return $build_arch_cache($host)
 }
 
+#                                                             max. column:     |
+#****** control_procedures/resolve_lib_path_name() ******
+# 
+#  NAME
+#     resolve_lib_path_name -- Returns the name of the shared library path name
+#                              environment variable
+#
+#  SYNOPSIS
+#     resolve_lib_path_name { host  {use_source_arch 0}} 
+#
+#  FUNCTION
+#     This function resolves the name of the shared library path name
+#     environment variable on the target host.  For example, is the target
+#     host is a Solaris machine, this function will return "LD_LIBRARY_PATH".
+#
+#  INPUTS
+#     host - the name of the target host
+#     use_source_arch - forces the arch script from the source directory to be
+#                       used.  Defaults to false.
+#
+#  RESULT
+#     the name of the shared library path name environment variable
+#
+#*******************************
+proc resolve_lib_path_name { host {use_source_arch 0}} {
+   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT libpath_cache ts_config
+   global CHECK_USER
+
+   if { [info exists libpath_cache($host) ] } {
+      return $libpath_cache($host)
+   }
+
+   # if $SGE_ROOT/util/arch is available, use this one,
+   # otherwise use the one from the distribution
+   if {[file exists "$ts_config(product_root)/util/arch"] && ! $use_source_arch} {
+      set arch_script "$ts_config(product_root)/util/arch"
+   } else {
+      set arch_script "$ts_config(source_dir)/dist/util/arch"
+   }
+
+   # try to retrieve architecture
+   set result [start_remote_prog $host $CHECK_USER $arch_script "-lib" prg_exit_state 60 0 "" "" 1 0 0]
+ 
+   if {$prg_exit_state != 0} {
+      return "unknown"
+   }
+
+   set result [lindex $result 0]  ;# remove CR
+   set libpath_cache($host) $result
+   puts $CHECK_OUTPUT "shared lib path name variable is \"$result\""
+
+   return $libpath_cache($host)
+}
+
 proc resolve_build_arch_installed_libs {host {raise_error 1}} {
    global ts_config CHECK_OUTPUT CHECK_USER
 
@@ -2099,13 +2153,13 @@ proc scale_timeout {timeout {does_computation 1} {does_spooling 1} {process_invo
 
    # respect spooling influence
    if {$does_spooling} {
-      # if we use a RPC server, assume 150% slower spooling
+      # if we use a RPC server, assume 100% slower spooling
       if {$ts_config(bdb_server) != "none"} {
-         set ret [expr $ret * 2.5]
+         set ret [expr $ret * 2.0]
       } else {
-         # classic spooling is slower than BDB, assume 150% slower spooling
+         # classic spooling is slower than BDB, assume 100% slower spooling
          if {$ts_config(spooling_method) == "classic"} {
-            set ret [expr $ret * 2.5]
+            set ret [expr $ret * 2.0]
             set spool_dir [get_qmaster_spool_dir]
          } else {
             set spool_dir [get_bdb_spooldir]

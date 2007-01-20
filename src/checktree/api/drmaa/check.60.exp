@@ -134,6 +134,7 @@ proc drmaa_cleanup  {} {
    }
 }
 
+
 proc drmaa_setup_level {} {
    global CHECK_OUTPUT drmaa_test_scenario_settings drmaa_binary_name
    global CHECK_ACT_LEVEL check_description ts_config
@@ -162,12 +163,12 @@ proc drmaa_cleanup_level {} {
 
 
 proc drmaa_check_single_threaded_part_01 {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
    global CHECK_USER drmaa_binary_name
 
    foreach host $ts_config(unique_arch_nodes) {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
-
+      set drmaa_preamble [drmaa_resolve_preamble $host]
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
       puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
 
@@ -176,7 +177,7 @@ proc drmaa_check_single_threaded_part_01 {} {
 
       # unset SGE_ROOT and try test_drmaa -h
       puts "starting single threaded test $drmaa_binary_name -h without SGE_ROOT"
-      set test_output [start_remote_prog $host $CHECK_USER "unset" "SGE_ROOT\n$binary_path/$drmaa_binary_name -h" \
+      set test_output [start_remote_prog $host $CHECK_USER "unset" "SGE_ROOT\n$drmaa_preamble$binary_path/$drmaa_binary_name -h" \
             prg_exit_state 500 0 "" "" 0 1]
       if { $prg_exit_state == 0 } {
          add_proc_error drmaa_check -1 "$drmaa_binary_name -h without SGE_ROOT must exit with unequal 0 at host $host"
@@ -293,6 +294,7 @@ proc drmaa_check_single_threaded_part_03 {} {
    }
 }
 
+
 proc drmaa_check_single_threaded_part_04 {} {
    global ts_config CHECK_OUTPUT
    global CHECK_USER drmaa_binary_name
@@ -327,7 +329,6 @@ proc drmaa_check_single_threaded_part_04 {} {
 }
 
 
-
 proc drmaa_check_multi_threaded {} {
    global ts_config CHECK_OUTPUT
    global CHECK_USER
@@ -355,7 +356,7 @@ proc drmaa_check_multi_threaded {} {
 
 
 proc drmaa_check_additional_interfaces {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
    global CHECK_USER drmaa_binary_name
 
    # shutdown qmaster
@@ -364,10 +365,12 @@ proc drmaa_check_additional_interfaces {} {
    foreach host $ts_config(unique_arch_nodes) {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
+      set drmaa_preamble [drmaa_resolve_preamble $host]
+
       puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt mt bin path $binary_path"
 
       # this test must fail when qmaster is down
-      set test_output [start_remote_prog $host $CHECK_USER $binary_path/$drmaa_binary_name "ST_SUBMIT_WAIT $ts_config(product_root)/examples/jobs/sleeper.sh" prg_exit_state 500]
+      set test_output [start_remote_prog $host $CHECK_USER "cd" ".\n$drmaa_preamble$binary_path/$drmaa_binary_name ST_SUBMIT_WAIT $ts_config(product_root)/examples/jobs/sleeper.sh" prg_exit_state 500]
 
       puts $CHECK_OUTPUT "exit status was $prg_exit_state"
       puts $CHECK_OUTPUT "output was\n$test_output"
@@ -379,8 +382,6 @@ proc drmaa_check_additional_interfaces {} {
    # restart qmaster
    startup_qmaster 
 }
-
-
 
 
 #                                                             max. column:     |
@@ -410,7 +411,10 @@ proc drmaa_check_additional_interfaces {} {
 #*******************************
 #
 proc drmaa_test { host binary_path test_name arguments {user ""} } {
-   global CHECK_OUTPUT CHECK_USER drmaa_test_scenario_settings drmaa_binary_name
+   global CHECK_OUTPUT CHECK_USER drmaa_test_scenario_settings
+   global drmaa_binary_name CHECK_ACT_LEVEL
+
+   set drmaa_preamble [drmaa_resolve_preamble $host]
 
    if {$user == ""} { 
       set user $CHECK_USER
@@ -436,7 +440,7 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
    puts $CHECK_OUTPUT "$binary_path/$drmaa_binary_name $test_name $arguments"
 
    set time_start [clock seconds]
-   set test_output [start_remote_prog $host $user $binary_path/$drmaa_binary_name "$test_name $arguments" prg_exit_state 650]
+   set test_output [start_remote_prog $host $user "cd" ".\n$drmaa_preamble$binary_path/$drmaa_binary_name $test_name $arguments" prg_exit_state 650]
    set time_end [clock seconds]
    set run_time [expr $time_end - $time_start]
 
@@ -453,6 +457,7 @@ proc drmaa_test { host binary_path test_name arguments {user ""} } {
       add_proc_error drmaa_check -1 "$binary_path/$drmaa_binary_name $test_name $arguments failed at host $host (runtime: $run_time)\n$add_info"
    }
 }
+
 
 #                                                             max. column:     |
 #
@@ -490,10 +495,12 @@ proc drmaa_test_st_input_becomes_output { host binary_path } {
       add_proc_error drmaa_check -1 "input and output file are equal"
    }
 
+   set drmaa_preamble [drmaa_resolve_preamble $host]
+
    puts $CHECK_OUTPUT "$binary_path/$drmaa_binary_name ST_INPUT_BECOMES_OUTPUT $input_file $output_file"
 
    # run job
-   set test_output [start_remote_prog $host $CHECK_USER $binary_path/$drmaa_binary_name "ST_INPUT_BECOMES_OUTPUT $input_file $output_file" prg_exit_state 500]
+   set test_output [start_remote_prog $host $CHECK_USER "cd" ".\n$drmaa_preamble$binary_path/$drmaa_binary_name ST_INPUT_BECOMES_OUTPUT $input_file $output_file" prg_exit_state 500]
 
    puts $CHECK_OUTPUT "exit status was $prg_exit_state"
    puts $CHECK_OUTPUT "output was\n$test_output"
@@ -506,6 +513,7 @@ proc drmaa_test_st_input_becomes_output { host binary_path } {
       add_proc_error drmaa_check -1 "$drmaa_binary_name ST_INPUT_BECOMES_OUTPUT failed at host $host\nexit status was $prg_exit_state\noutput was $test_output"
    }
 }
+
 
 #                                                             max. column:     |
 #
@@ -598,3 +606,44 @@ proc drmaa_test_failing_control_operations { host binary_path } {
    }
 }
 
+#                                                             max. column:     |
+#
+#****** drmaa_test/drmaa_resolve_preamble() ******
+#  NAME
+#     drmaa_resolve_preamble() -- figure out what operations need to happen
+#                                 before running test_drmaa on this host
+#
+#  SYNOPSIS
+#     drmaa_resolve_preamble { host }
+#
+#  FUNCTION
+#     This function returns a string which contains the oprtations which should
+#     be done before running test_drmaa on the given host.
+#
+#  INPUTS
+#     host                       - The host where 'test_drmaa' is run
+#
+#  OUTPUTS
+#     the required preamble
+#
+#*******************************
+#
+proc drmaa_resolve_preamble { host } {
+   global CHECK_ACT_LEVEL ts_config
+
+   set compile_arch_mt [resolve_build_arch_installed_libs $host]
+
+   if {$CHECK_ACT_LEVEL == 200} {
+      # On architectures that don't support SONAME, the test_drmaa.0.95
+      # binary will store a reference to libdrmaa95.so instead of
+      # libdrmaa.so.0.95.  Because libdrmaa95 only exists in the source
+      # directory, we have to add the source dir to the end of shared lib
+      # path.
+      set libpath [resolve_lib_path_name $host]
+      set drmaa_preamble "$libpath=\${$libpath}:$ts_config(source_dir)/$compile_arch_mt\nexport $libpath\n"
+   } else {
+      set drmaa_preamble ""
+   }
+
+   return $drmaa_preamble
+}
