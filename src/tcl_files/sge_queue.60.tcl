@@ -566,17 +566,19 @@ proc get_qinstance_list {{filter ""}} {
       set arg1 [lindex $filter 0]
       set arg2 [lindex $filter 1]
       set ret [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qselect" "$arg1" "$arg2"} result]
+      set command_line "qselect $arg1 $arg2"
    } else {
       set ret [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qselect" } result]
+      set command_line "qselect"
    }
    if { $ret != 0 } {
       # command failed because queue list is empty
-      if { [string compare $NO_QUEUE_DEFINED $result] == 0 } {
+      if {[string match "*$NO_QUEUE_DEFINED*" $result]} {
          puts $CHECK_OUTPUT $result
          set result {}
       } else {
          # if command fails: output error
-         add_proc_error "get_qinstance_list" -1 "error reading queue list: $result"
+         add_proc_error "get_qinstance_list" -1 "error reading queue list:\n$command_line\n$result"
          set result {}
       }
    }
