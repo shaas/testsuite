@@ -1,0 +1,71 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+lappend check_functions "qalter_wd"         ;# test the -wd <dir>/-cwd options
+
+#****** qalter/qalter_wd() ******
+# 
+#  NAME
+#     qalter_wd -- test if -wd/-cwd work
+#
+#  SYNOPSIS
+#     qalter_wd { } 
+#
+#*******************************
+proc qalter_wd {} {
+   global CHECK_OUTPUT ts_config env
+
+   puts $CHECK_OUTPUT "check if -wd/-cwd is set correctly"
+
+   # Set a directory
+   set wdir "/tmp"
+   set cwdir [pwd]
+
+   # Test1 qsub -cwd -h $SGE_ROOT/examples/jobs/sleeper.sh
+   set jobargs "-cwd -h -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh" 
+   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1] 
+   get_qstat_j_info $hold_job1
+   if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
+      set error_text "qsub did not set the correct working dir: $cwdir != $qstat_j_info(cwd)\n"
+      add_proc_error "qalter_wd" -1 $error_text
+   }
+   set result1 [start_sge_bin qalter "-wd $wdir $hold_job1"]
+   get_qstat_j_info $hold_job1
+   if {[string compare "$qstat_j_info(cwd)" "$wdir"] != 0} {
+      set error_text "qalter did not set the correct working dir: $wdir != $qstat_j_info(cwd)\n"
+      add_proc_error "qalter_wd" -1 $error_text
+   }
+   delete_job $hold_job1 1
+
+   # wait_for_end_of_all_jobs 30 
+}

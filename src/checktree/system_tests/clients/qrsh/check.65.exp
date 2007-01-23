@@ -1,0 +1,90 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+lappend check_functions "qrsh_wd"                    ;# test the -wd <dir>/-cwd options
+
+
+#****** qrsh/qrsh_wd() ******
+# 
+#  NAME
+#     qrsh_wd -- test if -wd/-cwd work
+#
+#  SYNOPSIS
+#     qrsh_wd { } 
+#
+#*******************************
+proc qrsh_wd {} {
+   global CHECK_OUTPUT env
+
+   puts $CHECK_OUTPUT "check if -wd/-cwd is set correctly"
+
+   # Set a directory
+   set wdir "/tmp"
+   set cwdir [pwd]
+
+   # Test1 -wd $wdir
+   set result1 [start_sge_bin qrsh "-wd $wdir pwd"]
+   set result1 [string trim $result1]
+   if {[string compare "$result1" "$wdir"] != 0} {
+      set error_text "qrsh did not set the correct working dir: $wdir != $result1\n"
+      add_proc_error "qrsh_wd" -1 $error_text
+   }
+
+   # Test2 -cwd
+   set result1 [start_sge_bin qrsh "-cwd pwd" "" "" exit_state 5 $cwdir "bin"]
+   set result1 [string trim $result1]
+   if {[string compare "$result1" "$cwdir"] != 0} {
+      set error_text "qrsh did not set the correct working dir: $cwdir != $result1\n"
+      add_proc_error "qrsh_wd" -1 $error_text
+   }
+
+   # Test3 -cwd -wd $wdir
+   set result1 [start_sge_bin qrsh "-cwd -wd $wdir pwd" "" "" exit_state 5 $cwdir "bin"]
+   set result1 [string trim $result1]
+   if {[string compare "$result1" "$wdir"] != 0} {
+      set error_text "qrsh did not set the correct working dir: $wdir != $result1\n"
+      add_proc_error "qrsh_wd" -1 $error_text
+   }
+
+   # Test3 -wd $wdir -cwd
+   set result1 [start_sge_bin qrsh "-wd $wdir -cwd pwd" "" "" exit_state 5 $cwdir "bin"]
+   set result1 [string trim $result1]
+   if {[string compare "$result1" "$cwdir"] != 0} {
+      set error_text "qrsh did not set the correct working dir: $cwdir != $result1\n"
+      add_proc_error "qrsh_wd" -1 $error_text
+   }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 30 
+}
