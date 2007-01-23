@@ -1,0 +1,249 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name        
+global check_category    
+global check_description 
+global check_needs       
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "arco_dbwriter_performance_init_level"
+
+# define test's name and run level descriptions
+set check_name            "arco_dbwriter_performance"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   200
+set check_description(0)  "Tests the performance of the dbwriter (short test)"
+set check_description(200)  "Tests the performance of the dbwriter (long test)"
+
+
+# define test's dependencies
+set check_needs           "init_core_system arco_database_install arco_dbwriter_install" 
+
+# setup and cleanup functions
+set check_setup_function arco_dbwriter_performance_setup
+set check_cleanup_function arco_dbwriter_performance_cleanup
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "arco_dbwriter_performance_execute"
+
+proc arco_dbwriter_performance_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      }
+      "200" { 
+         return 0
+      }
+      default {
+         return -1
+      }
+   }
+   return -1  ;# no other level 
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc arco_dbwriter_performance_setup  {} {
+   global CHECK_OUTPUT ts_config 
+   global sqlutil_id sqlutil_sp_id
+   global arco_dbwriter_job_log_org_config
+   
+   set sqlutil_id ""
+   
+   if { [get_dbwriter_status 0] != 0 } {
+      if {[startup_dbwriter] != 0 } {
+         add_proc_error "arco_dbwriter_job_log_setup" -1 "Can not start dbwriter"
+         return -1
+      }
+   }
+   
+   puts $CHECK_OUTPUT "Create sqlutil as ts_def_con2"
+   set sqlutil_id [sqlutil_create ts_def_con2]
+   if { $sqlutil_id == "-1" } {
+      add_sql_error "arco_dbwriter_performance_setup" -1 "Can not create sqlutil"
+      set sqlutil_id ""
+      return -1
+   }   
+   set sqlutil_sp_id [ lindex $sqlutil_id 1 ]
+
+   if { [ sqlutil_connect $sqlutil_sp_id] != 0 } {
+      add_sql_error "arco_dbwriter_performance_setup" -1 "Can not connect to database"
+      close_spawn_process $sqlutil_id;
+      set sqlutil_id ""
+      return -2
+   }
+   
+   puts $CHECK_OUTPUT "sqlutil created ($sqlutil_id)"
+   
+   # setup reporting params (enable job_log)
+   if {[info exists arco_dbwriter_performance_org_config]} {
+      unset arco_dbwriter_performance_org_config
+   }
+   get_config arco_dbwriter_performance_org_config
+   
+   set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=true sharelog=00:10:00"
+   if {[set_config config] != 0} {
+      add_proc_error "arco_dbwriter_performance_setup" -1 "Can not set reporting_params"
+      return -1
+   }
+   
+   # setup some projects
+   set prj(name) "project0"
+   add_prj prj
+   
+   set prj(name) "project1"
+   add_prj prj
+   
+   set prj(name) "project2"
+   add_prj prj
+   
+   puts $CHECK_OUTPUT "projects created"
+   
+}
+
+proc arco_dbwriter_performance_cleanup  {} {
+   global CHECK_OUTPUT ts_config
+   global sqlutil_id sqlutil_sp_id
+   global arco_dbwriter_performance_org_config
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   if { $sqlutil_id != "" } {
+      close_spawn_process $sqlutil_id;
+   }
+   set sqlutil_id ""
+   set sqlutil_sp_id ""
+   
+   if {[set_config arco_dbwriter_performance_org_config] != 0} {
+      add_proc_error "arco_dbwriter_performance_cleanup" -1 "Can not reset configuration"
+      return -1
+   }
+   
+   del_prj "project0"
+   del_prj "project1"
+   del_prj "project2"
+}
+
+
+
+proc arco_dbwriter_performance_execute {} {
+   global CHECK_OUTPUT CHECK_USER CHECK_HOST CHECK_ACT_LEVEL 
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_CORE_MASTER
+   global ts_config check_description sqlutil_sp_id
+   
+   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   
+   
+   set job_sleep_time 10
+   
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         set job_count 100
+         set test_time [expr 5 * 60 * 1000]   ;# test time is five minutes
+      }
+      "200" {
+         set job_count 1000000
+         set test_time [expr 60 * 60 * 1000]   ;# test time is 1 hour
+      }
+      default {
+         add_proc_error "arco_dbwriter_performance_execute" -1 "Invalid runlevel $CHECK_ACT_LEVEL"
+         return -1
+      }
+   }   
+
+   set job_args "$ts_config(testsuite_root_dir)/scripts/pminiworm.sh -s $job_sleep_time -m $job_count -- "
+   
+   set projects "project0 project1 project2" 
+   set users    "$CHECK_USER $CHECK_FIRST_FOREIGN_SYSTEM_USER $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+   
+   foreach project $projects {
+      foreach user $users {
+         set res [submit_job "$job_args -P $project" 1 60 $CHECK_HOST $user]
+         if { $res < 0 } {
+            add_proc_error "arco_dbwriter_performance_execute" -1 "submission of job failed"
+            return -1
+         }
+      }
+   }
+   
+   set cycle_time [expr 60 * 1000] ;# we sleep 60 seconds
+   while { $test_time > 0 } {
+      
+      set res [time "arco_dbwriter_performance_query $sqlutil_sp_id"]
+      set needed_time [lindex $res 0]
+      set needed_time [expr $needed_time / 1000]
+      set sleep_time [expr $cycle_time - $needed_time ]
+      
+      
+      set seconds [expr $test_time / 1000 ]
+      set minutes [expr $seconds / 60 ]
+      set hours [expr $minutes / 60 ]
+      set minutes [expr $minutes % 60 ]
+      set seconds [expr $seconds % 60]
+      puts $CHECK_OUTPUT [format "Remaining time %02d:%02d:%02d" ${hours} ${minutes} ${seconds}]
+      
+      after $sleep_time
+      set test_time [expr $test_time - $cycle_time]
+   }
+   return 0
+}
+
+
+proc arco_dbwriter_performance_query { sqlutil_sp_id } {
+   
+   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   
+   set sql "select num_value from view_statistic where time_end = (select max(time_end) from view_statistic where variable = 'lines_per_second')"
+
+   set res [sqlutil_query $sqlutil_sp_id $sql rows columns 300]
+   if { $res <= 0 } {
+      puts $CHECK_OUTPUT "Got not statistics from db"
+   } else {
+      puts $CHECK_OUTPUT "Current dbwriter performance is $rows(0,0) lines/second"
+   }
+}
+
+
