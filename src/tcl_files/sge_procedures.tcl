@@ -37,6 +37,119 @@ set module_name "sge_procedures.tcl"
 
 # procedures
 #                                                             max. column:     |
+# test -- ??? 
+# get_complex_version() -- get information about used qconf version
+# get_qmaster_spool_dir() -- return path to qmaster spool directory
+# set_qmaster_spool_dir() -- return path to qmaster spool directory
+# get_execd_spool_dir() -- return spool dir for exec host
+# check_messages_files() -- check messages files for errors and warnings
+# get_qmaster_messages_file() -- get path to qmaster's messages file
+# check_qmaster_messages() -- get qmaster messages file content
+# get_schedd_messages_file() -- get path to scheduler's messages file
+# check_schedd_messages() -- get schedulers messages file content
+# get_execd_messages_file() -- get messages file path of execd
+# check_execd_messages() -- get execd messages file content
+# start_sge_bin() -- start a sge binary
+# start_sge_utilbin() -- start a sge utilbin binary
+# start_source_bin() -- start a binary in compile directory
+# get_sge_error_generic() -- provide a list of generic error messages
+# get_sge_error() -- return error code for sge command
+# handle_sge_errors() -- parse error messages from sge commands
+# check_for_non_cluster_host_error() -- validate host related error code
+# submit_error_job() -- submit job which will get error state
+# submit_wait_type_job() -- submit job and wait for accouting info
+# submit_time_job() -- Submit a job with execution time
+# submit_waitjob_job() -- submit job with hold_jid (wait for other job)
+# get_loadsensor_path() -- get loadsensor for host
+# get_gid_range() -- get gid range for user   
+# move_qmaster_spool_dir -- ??? 
+# get_config -- get global or host configuration settings
+# set_config -- change global or host specific configuration
+# set_config_and_propagate() -- set the config for the given host
+# add_exechost -- Add a new exechost configuration object
+# get_scheduling_info() -- get scheduling information 
+# add_userset -- add a userset with qconf -Au
+# add_access_list() -- add user access list
+# del_user_from_access_list() -- delete a user from an access list
+# del_access_list() -- delete user access list
+# add_user -- ??? 
+# mod_user() -- ???
+# del_pe -- delete parallel environment object definition
+# del_calendar -- ??? 
+# was_job_running -- look for job accounting
+# slave_queue_of -- Get the last slave queue of a parallel job
+# master_queue_of -- get the master queue of a parallel job
+# wait_for_load_from_all_queues -- wait for load value reports from queues
+# wait_for_job_state() -- wait for job to become special job state
+# wait_for_queue_state() -- wait for queue to become special error state
+# soft_execd_shutdown() -- soft shutdown of execd
+# wait_for_unknown_load() -- wait for load to get >= 99 for a list of queues
+# wait_for_end_of_all_jobs() -- wait for end of all jobs
+# mqattr -- Modify queue attributes
+# mhattr() -- Modify host qttributes 
+# mod_attr() -- modify an attribute 
+# mod_attr_error() -- error handling for mod_attr
+# get_attr() -- get an attribute
+# del_attr() -- Delete an attribute
+# del_attr_error() -- error handling for del_attr_
+# add_attr () -- add an attribute
+# add_attr_error() -- error handling for add_attr
+# replace_attr() -- Replace an attribute
+# replace_attr_error() -- error handling for replace_attr
+# suspend_job -- set job in suspend state
+# unsuspend_job -- set job bakr from unsuspended state
+# is_job_id() -- check if job_id is a real sge job id
+# delete_job -- delete job with jobid
+# submit_job -- submit a job with qsub
+# submit_job_parse_job_id() -- parse job id from qsub output
+# get_grppid_of_job -- get grppid of job
+# get_suspend_state_of_job() -- get suspend state of job from ps command
+# get_job_info -- get qstat -ext jobinformation 
+# get_standard_job_info -- get jobinfo with qstat
+# get_extended_job_info -- get extended job information (qstat ..)
+# get_qstat_j_info() -- get qstat -j information
+# get_qconf_se_info() -- get qconf -se information
+# get_qacct_error() -- error handling for get_qacct
+# get_qacct -- get job accounting information
+# is_job_running -- get run information of job
+# get_job_state() -- get job state information
+# wait_for_jobstart -- wait for job to get out of pending list
+# wait_for_end_of_transfer -- wait transfer end of job
+# wait_for_jobpending -- wait for job to get into pending state
+# hold_job -- set job in hold state
+# release_job -- release job from hold state
+# wait_for_jobend -- wait for end of job
+# startup_qmaster() -- startup qmaster (and scheduler) daemon
+# startup_scheduler() -- ??? 
+# startup_execd_raw() -- startup execd without using startup script
+# are_master_and_scheduler_running -- ??? 
+# shutdown_master_and_scheduler -- ??? 
+# shutdown_scheduler() -- ??? 
+# is_scheduler_alive() -- ??? 
+# is_qmaster_alive() -- check if qmaster process is running
+# get_scheduler_pid() -- ??? 
+# shutdown_qmaster() -- ??? 
+# shutdown_all_shadowd -- ??? 
+# shutdown_bdb_rpc -- ??? 
+# is_pid_with_name_existing -- search for process on remote host 
+# shutdown_system_daemon -- kill running sge daemon 
+# shutdown_core_system -- shutdown complete cluster
+# startup_core_system() -- startup complete cluster
+# add_operator
+# delete_operator
+# submit_with_method
+# copy_certificates() -- copy csp (ssl) certificates to the specified host
+# is_daemon_running 
+# restore_qtask_file() -- restore qtask file from template
+# append_to_qtask_file() -- append line(s) to qtask file
+# get_shared_lib_var() -- get the env var used for the shared lib path
+# get_qconf_list() -- return a list from qconf -s* command
+# get_scheduler_status () -- get the scheduler status 
+# get_detached_settings () -- get the detached settings in the cluster  config 
+# get_event_client_list() -- get the event client list
+# trigger_scheduling() -- trigger a scheduler run
+# wait_for_job_end() -- waits for a job to leave qmaster
+#
 #****** sge_procedures/test() ******
 # 
 #  NAME
