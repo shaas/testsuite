@@ -1001,7 +1001,6 @@ proc setup_check_user_permissions {} {
 
         # additional check the directory pwd output
         #puts $CHECK_OUTPUT "   pwd test ..."
-        set execd_spooldir [string trimright $execd_spooldir "/"]
         set output [start_remote_prog "$host" "$user" "csh" "-c 'cd $execd_spooldir ; echo \"pwd_output:\" ; pwd'"]
         set output [get_string_value_between "pwd_output:" -1 $output]
         if { [string match "*$execd_spooldir*" "$output"] == 0 } {

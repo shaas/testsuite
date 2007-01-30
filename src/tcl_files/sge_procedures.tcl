@@ -200,7 +200,8 @@ proc get_execd_spool_dir {host} {
      get_config host_config
   }
   if { [info exist host_config(execd_spool_dir) ] != 0 } {
-     return $host_config(execd_spool_dir)
+     set ret [string trimright "$host_config(execd_spool_dir)" "/"]
+     return $ret 
   } else {
      return "unknown"
   }

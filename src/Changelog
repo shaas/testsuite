@@ -1,3 +1,5 @@
+EB-2007-01-30-0: Enhancem:  Added missing tests for issue 2158 and 2145
+
 EB-2007-01-26-0: Enhancem:  Fixed bug which caused error in test for issue 1330.
 
 AA-2007-01-23-0: Enhancem:  o -wd/-cwd tests for qsub/qalter/qrsh

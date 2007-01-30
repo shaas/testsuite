@@ -3555,7 +3555,6 @@ proc get_spool_dir {host subdir} {
          append spooldir "/$host"
       }
    }
-
    return $spooldir
 }
 
