@@ -1,0 +1,6 @@
+Issue:      2061
+Synopsis:   qsub -N broken output
+
+This bug is verified in the following testsuite check:
+Check:      src/checktree/bugs/issuezilla/2061
+Function:   issue_2061_run

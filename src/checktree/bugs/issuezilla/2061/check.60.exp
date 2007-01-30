@@ -1,0 +1,106 @@
+#!/vol2/TCL_TK/glinux/bin/expect --
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions check_highest_level
+global check_init_level_procedure check_category
+global check_root_access_needs
+
+set check_init_level_procedure "issue_2061_init_level"
+
+set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_name                "issue_2061"
+set check_description(0)      "qsub -N broken otput"
+set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+set check_root_access_needs   "no"
+
+# setup and cleanup functions
+#set check_setup_function "issue_2061_setup"
+#set check_cleanup_function "issue_2061_cleanup"
+
+# define test's procedure order
+set check_functions           ""
+lappend check_functions       "issue_2061_run"
+set check_highest_level       0
+
+proc issue_2061_init_level {} {
+   global CHECK_ACT_LEVEL 
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0"  { 
+         return 0
+      }
+   }
+
+   return -1
+}
+
+
+proc issue_2061_run  {} {
+   global CHECK_OUTPUT check_name ts_config 
+
+   foreach host $ts_config(unique_arch_nodes) {
+      set unexpected_output "yes"
+      set output ""
+      set do_stop 0
+
+      set jobargs "-b y -N $check_name -o /dev/null -j y -l h=$host sleep 5" 
+
+      eval spawn qsub $jobargs
+      expect {
+         "*(\"$check_name\")*" {
+               set unexpected_output "no"
+               close
+               wait
+            }
+         eof {
+               set unexpected_output "yes"
+         }
+         timeout {
+               set unexpected_output "yes"
+               close
+               wait
+         }
+      }
+
+      if {$unexpected_output == "yes"} {
+         set out_msg1  "unexpected output on host $host: expected pattern (\"$check_name\") was not found"
+         add_proc_error "submit $jobargs " -1 $out_msg1
+         break
+      }
+   }
+}
+
