@@ -97,8 +97,8 @@ proc issue_2158_cleanup  {} {
 proc issue_2158_test {} {
    global ts_config CHECK_OUTPUT CHECK_ARCH
 
-   set ret [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mattr" "queue" "slots" "10" "@allhosts"} result]
-   if { $ret != 1 } {
+   set result [start_sge_bin "qconf" "-mattr queue slots 10 @allhosts"]
+   if { $prg_exit_state != 1 } {
       # qconf had success => bug is present
       puts $CHECK_OUTPUT $result
       add_proc_error "issue_2158_test" -1 "qconf could be called with invalid queue instance specification"

@@ -102,7 +102,9 @@ proc issue_2145_test {} {
    global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_HOST
    global complex_backup
 
-   set qinstance_name all.q@$CHECK_HOST
+   set exechost_name [host_conf_get_suited_hosts 1]
+
+   set qinstance_name all.q@$exechost_name
 
    # add a additional complex entry
    set test_complex(test) "test INT <= YES YES 0 1000"
@@ -111,24 +113,24 @@ proc issue_2145_test {} {
    # add a value test=5 to the global host
    set ret [mhattr "complex_values" "test=5" "global" ]
 
-   # add a value test=1 to all.q@<CHECK_HOST> 
-   set qinstance_name all.q@$CHECK_HOST
-   set ret [mqattr "complex_values" "test=1" "$qinstance_name" ]
-
-   # check if no queue is returned
-   set ret [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qselect" "-l" "test=5"} result]
+   # check if queue is returned
+   set result [start_sge_bin "qselect" "-l test=5"]
    if { [ string compare $qinstance_name $result ] == 0 } {
       add_proc_error "issue_2145_test" -1 "qselect returned queue although there was no output expected"
    }   
 
-   # check if one queue is returned
-   set ret [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qselect" "-l" "test=1"} result]
-   if { [ string compare $qinstance_name $result ] != 0 } {
-      add_proc_error "issue_2145_test" -1 "qselect returned no queue although there was one expected"
+   # add a value test=1 to all.q@$exechost_name
+   set qinstance_name all.q@$exechost_name
+   set ret [mqattr "complex_values" "test=1" "$qinstance_name" ]
+
+   # check if queue is returned
+   set result [start_sge_bin "qselect" "-l test=1"]
+   if { [ string compare $qinstance_name $result ] == 0 } {
+      add_proc_error "issue_2145_test" -1 "qselect returned queue although there was one expected after modifying qinstance"
    }   
 
-   # add a value test=1 to all.q@<CHECK_HOST> 
-   set qinstance_name all.q@$CHECK_HOST
+   # add a value test=1 to all.q@$exechost_name 
+   set qinstance_name all.q@$exechost_name
    set ret [mqattr "complex_values" "NONE" "$qinstance_name" ]
 
    # reset complex_values of global host 
