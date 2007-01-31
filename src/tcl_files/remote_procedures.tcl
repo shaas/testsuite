@@ -55,6 +55,34 @@ set rlogin_max_open_connections [expr ($descriptors - 15) / 3]
 puts "    * rlogin_max_open_connections = $rlogin_max_open_connections"
 puts "    *********************************************"
 
+# ts_send() -- send to a spawned process (spawn_id)
+# setup_qping_dump() -- start qping dump as remote process (as root)
+# check_all_system_times() -- check clock synchronity on each cluster deamon host
+# get_qping_dump_output() -- get qping dump output
+# cleanup_qping_dump_output() -- shutdwon qping dump connection
+# start_remote_tcl_prog -- ??? 
+# start_remote_prog() -- start remote application
+# sendmail() -- sendmail in mime format (first prototype)
+# close_spawn_id() -- close spawn_id and wait child process
+# increase_timeout() -- stepwise increase expect timeout
+# map_special_users() -- map special user names and windows user names
+# open_remote_spawn_process() -- open spawn process on remote host
+# open_spawn_process -- start process with the expect "spawn" command
+# get_busy_spawn_rlogin_sessions() -- get number of busy rlogin sessions
+# dump_spawn_rlogin_sessions() -- dump connection information
+# add_open_spawn_rlogin_session() -- add spawn id to open connection list
+# remove_oldest_spawn_rlogin_session() -- remove oldest idle rlogin session
+# get_open_spawn_rlogin_session() -- get rlogin connection data
+# del_open_spawn_rlogin_session() -- remove rlogin session
+# is_spawn_id_rlogin_session() -- does a certain session exist?
+# get_open_rlogin_sessions() -- return list of all spawn ids
+# get_spawn_id_rlogin_session() -- get rlogin connection data
+# get_spawn_id_hostname() -- get host associated with spawn_id
+# close_open_rlogin_sessions() -- close all open rlogin sessions
+# check_rlogin_session() -- check if rlogin session is alive
+# set_spawn_process_in_use() -- set info if a session is in use
+# is_spawn_process_in_use() -- check if spawn id is in use
+
 #****** remote_procedures/ts_send() ********************************************
 #  NAME
 #     ts_send() -- send to a spawned process (spawn_id)
