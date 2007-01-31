@@ -70,37 +70,19 @@ proc issue_2061_init_level {} {
 
 
 proc issue_2061_run  {} {
-   global CHECK_OUTPUT check_name ts_config 
+   global CHECK_OUTPUT check_name ts_config CHECK_USER
 
    foreach host $ts_config(unique_arch_nodes) {
-      set unexpected_output "yes"
-      set output ""
-      set do_stop 0
+      set jobargs "-N $check_name -o /dev/null -j y -l h=$host $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
+      puts $CHECK_OUTPUT "submitting job qsub $jobargs ..."
 
-      set jobargs "-b y -N $check_name -o /dev/null -j y -l h=$host sleep 5" 
-
-      eval spawn qsub $jobargs
-      expect {
-         "*(\"$check_name\")*" {
-               set unexpected_output "no"
-               close
-               wait
-            }
-         eof {
-               set unexpected_output "yes"
-         }
-         timeout {
-               set unexpected_output "yes"
-               close
-               wait
-         }
-      }
-
-      if {$unexpected_output == "yes"} {
-         set out_msg1  "unexpected output on host $host: expected pattern (\"$check_name\") was not found"
-         add_proc_error "submit $jobargs " -1 $out_msg1
+      set output [start_remote_prog  $host $CHECK_USER "qsub" $jobargs ]
+      puts $CHECK_OUTPUT $output
+      if { [string match "*(\"$check_name\")*" $output ] } {
+         puts $CHECK_OUTPUT "got output which contains \"$check_name\" on host $host - ok"
+      } else {
+         add_proc_error "issue_2061_run" -1 "output doesn't contain the string sequence (\"$check_name\")"
          break
       }
    }
 }
-

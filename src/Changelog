@@ -1,3 +1,5 @@
+PJ-2007-01-31-0: Enhancem:  Test safe implementation of the issue_2061 test
+
 PJ-2007-01-30-0: Enhancem:  Added tests for issue 2061 + some function overview in sge_procedures.tcl
 
 EB-2007-01-30-0: Enhancem:  Added missing tests for issue 2158 and 2145
