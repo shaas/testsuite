@@ -49,7 +49,7 @@ set check_root_access_needs   "no"
 
 # setup and cleanup functions
 #set check_setup_function "issue_2061_setup"
-#set check_cleanup_function "issue_2061_cleanup"
+set check_cleanup_function "issue_2061_cleanup"
 
 # define test's procedure order
 set check_functions           ""
@@ -72,17 +72,22 @@ proc issue_2061_init_level {} {
 proc issue_2061_run  {} {
    global CHECK_OUTPUT check_name ts_config CHECK_USER
 
-   foreach host $ts_config(unique_arch_nodes) {
-      set jobargs "-N $check_name -o /dev/null -j y -l h=$host $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
-      puts $CHECK_OUTPUT "submitting job qsub $jobargs ..."
+   set job_args "-N $check_name -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
+   puts $CHECK_OUTPUT "submitting job qsub $job_args ..."
 
-      set output [start_remote_prog  $host $CHECK_USER "qsub" $jobargs ]
-      puts $CHECK_OUTPUT $output
-      if { [string match "*(\"$check_name\")*" $output ] } {
-         puts $CHECK_OUTPUT "got output which contains \"$check_name\" on host $host - ok"
-      } else {
-         add_proc_error "issue_2061_run" -1 "output doesn't contain the string sequence (\"$check_name\")"
-         break
-      }
+   set output [start_sge_bin "qsub" $job_args]
+   puts $CHECK_OUTPUT $output
+   if { [string match "*(\"$check_name\")*" $output ] } {
+      puts $CHECK_OUTPUT "got output which contains \"$check_name\" - ok"
+   } else {
+      add_proc_error "issue_2061_run" -1 "output doesn't contain the string sequence (\"$check_name\")"
    }
+}
+
+proc issue_2061_cleanup  {} {
+   global CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT "delete_all_jobs ..."
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60 
 }
