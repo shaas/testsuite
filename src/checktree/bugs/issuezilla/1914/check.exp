@@ -1,0 +1,487 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_1914_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_1914"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check setup qlogin_daemon rlogin_daemon paths"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_1914_setup
+set check_cleanup_function issue_1914_cleanup
+
+# define variables used in test
+global test_host
+global test_queue
+global act_time
+global backup_config
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_1914_test"
+
+proc issue_1914_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   } 
+
+   return -1  ;# no other level 
+}
+
+# -------- local test procedures: initialization------------------------------
+
+
+proc issue_1914_setup  {} {
+   global CHECK_CORE_EXECD test_host test_queue act_time 
+   #define variable based on current time to create unique file/queue names
+   set act_time [timestamp]
+
+   set test_host [ lindex $CHECK_CORE_EXECD 0 ]
+   set test_queue "test.$act_time"
+   get_config backup_config $test_host
+   #add new test queue
+   set new_queue(load_thresholds) "np_load_avg=11.75"
+   add_queue $test_queue $test_host new_queue 0
+   
+}
+
+proc issue_1914_cleanup  {} {
+   global test_queue test_host backup_config
+   # cleanup cluster
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+   del_queue $test_queue $test_host 0 1
+   set_config_and_propagate backup_config $test_host
+   # make sure all jobs left qmaster
+   trigger_scheduling
+}
+
+proc issue_1914_submit_test_job { job_type host user test_path} {
+
+   global ts_config CHECK_OUTPUT
+   global CHECK_PRODUCT_ROOT CHECK_HOST CHECK_DEBUG_LEVEL CHECK_USER CHECK_ARCH
+   global CHECK_DISPLAY_OUTPUT
+   #cleaning up queues before submit test
+   delete_all_jobs
+   trigger_scheduling 
+   set daemon_error 0
+   set error 0
+   set job_id 0
+   set remote_host_arg "-l h=$host"
+
+   puts $CHECK_OUTPUT "submitting job type \"$job_type\" ..."
+   switch -exact $job_type {
+
+      "qrsh" { 
+         puts $CHECK_OUTPUT "starting qrsh $remote_host_arg as user $user on host $CHECK_HOST ..."
+         set sid [open_remote_spawn_process $CHECK_HOST $user "qrsh" "$remote_host_arg"]
+         set sp_id [lindex $sid 1]
+         set timeout 1
+         set error 1 
+         set max_timeouts 60
+         set done 0
+         while {!$done} {
+            expect {
+               -i $sp_id "_start_mark_*\n" {
+                  puts $CHECK_OUTPUT "got start mark ..."
+               }
+ 
+               -i $sp_id full_buffer {
+                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  set done 1
+               }
+               -i $sp_id timeout {
+                  incr max_timeouts -1
+
+                  if { $job_id == 0 } {
+                     set job_list [get_standard_job_info 0 0 1]
+                     foreach job $job_list {
+                        puts $CHECK_OUTPUT $job
+                        if { [lindex $job 2] == "QRLOGIN" && [lindex $job 3] == $user && [lindex $job 4] == "r"  } {
+
+                                          puts $CHECK_OUTPUT "qrlogin job id is [lindex $job 0]"
+                           set job_id [lindex $job 0]
+                        }
+                     }
+                  } else {
+                     ts_send $sp_id "\n$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $host
+                  }
+
+                  if { $max_timeouts <= 0 } {
+                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     set done 1
+                  }
+               }
+               -i $sp_id "ts_shell_response*\n" {
+                  puts $CHECK_OUTPUT "found matching shell response text! Sending exit ..."
+                  ts_send $sp_id "exit\n" $host
+                  set error 0
+
+               }
+
+               -i $sp_id eof {
+                  add_proc_error "submit_with_method" -1 "got eof"
+                  set done 1
+               }
+               -i $sp_id "_start_mark_" {
+                  puts $CHECK_OUTPUT "remote command started"
+                  set done 0
+               }
+               -i $sp_id "_exit_status_" {
+                  puts $CHECK_OUTPUT "remote command terminated"
+                  set done 1
+               }
+               #detects issue 2174 
+               -i $sp_id "Protocol error*" {
+                  set error 1
+                  puts $CHECK_OUTPUT "Received protocol error from qrsh"
+               }
+               -i $sp_id "assword" {
+                  add_proc_error "submit_wait_type_job" -1 "unexpected password question for user $user on host $host"
+                  set done 1
+               }
+               -i $sp_id "*rlogin_daemon \"$test_path\" is not executable*" {
+                  set daemon_error 1 
+
+               }
+               -i $sp_id "*rlogin_daemon \"$test_path\" is not an absolute path*" {
+                  set daemon_error 1
+
+               }
+               -i $sp_id "*rlogin_daemon \"$test_path\" can't be read*" {
+                  set daemon_error 1
+
+               }
+               #when rlogin_daemon set to "none" >> "none" is treated as some keyword and it should be a CR is created
+               #once the bug is fixed this condition should be removed and the test is ok
+               -i $sp_id "*rlogin_daemon \"$CHECK_PRODUCT_ROOT/utilbin/$CHECK_ARCH/rlogind\" can't be read*" {
+                  set daemon_error 1
+               }
+
+               -i $sp_id "*\n" {
+                  set output $expect_out(buffer)
+                  set output [ split $output "\n" ]
+                  foreach line $output {
+                     set line [string trim $line]
+                     if { [string length $line] == 0 } {
+                        continue
+                     }
+                     puts $CHECK_OUTPUT $line
+                  }
+               }
+               -i $sp_id default {
+                                    }
+            }
+         }
+         close_spawn_process $sid
+      }
+       "qlogin" {
+         puts $CHECK_OUTPUT "starting qlogin $remote_host_arg ..."
+         set sid [open_remote_spawn_process $CHECK_HOST $user "qlogin" "$remote_host_arg"]
+         set sp_id [lindex $sid 1]
+         set timeout 1
+         set max_timeouts 15
+         set done 0
+         #need to get password question if not some error occured
+         set error 1
+         while {!$done} {
+            expect {
+               -i $sp_id full_buffer {
+                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  set done 1
+               }
+               -i $sp_id timeout {
+                  incr max_timeouts -1
+                  if { $job_id == 0 } {
+                     set job_list [get_standard_job_info 0 0 1]
+                     foreach job $job_list {
+                        puts $CHECK_OUTPUT $job
+                        if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
+                           puts $CHECK_OUTPUT "qlogin job id is [lindex $job 0]"
+                           set job_id [lindex $job 0]
+                        }
+                     }
+                  }
+
+                  if { $max_timeouts <= 0 } {
+                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     set done 1
+                  }
+               }
+               -i $sp_id eof {
+                  add_proc_error "submit_with_method" -1 "got eof"
+                  set done 1
+               }
+               -i $sp_id "_start_mark_" {
+                  puts $CHECK_OUTPUT "remote command started"
+                  set done 0
+               }
+               -i $sp_id "_exit_status_" {
+                  puts $CHECK_OUTPUT "remote command terminated"
+                  set done 1
+               }
+
+               -i $sp_id "login:" {
+                  ts_send $sp_id "$user\n" $host 1
+               }
+
+               -i $sp_id "assword" {
+                  puts $CHECK_OUTPUT "got password question for user $user on host $host"
+                  set error 0 
+                  if { $job_id == 0 } {
+                     set job_list [get_standard_job_info 0 0 1]
+                     foreach job $job_list {
+                        puts $CHECK_OUTPUT $job
+                        if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
+                           puts $CHECK_OUTPUT "qlogin job id is [lindex $job 0]"
+                           set job_id [lindex $job 0]
+                        }
+                     }
+                  }
+                  puts $CHECK_OUTPUT "deleting job with id $job_id, because we don't know user password ..."
+                  delete_job $job_id
+               }
+               -i $sp_id "*qlogin_daemon \"$test_path\" is not executable*" {
+                  set daemon_error 1
+                  }
+               -i $sp_id "*qlogin_daemon \"$test_path\" is not an absolute path*" {
+                  set daemon_error 1
+                  }
+               -i $sp_id "*qlogin_daemon \"$test_path\" can't be read*" {
+                  set daemon_error 1
+                  }
+ 
+
+               -i $sp_id "*\n" {
+                  set output $expect_out(buffer)
+                  set output [ split $output "\n" ]
+                  foreach line $output {
+                     set line [string trim $line]
+                     if { [string length $line] == 0 } {
+                        continue
+                     }
+                     puts $CHECK_OUTPUT $line
+                  }
+               }
+               -i $sp_id default {
+               }
+            }
+         }
+         close_spawn_process $sid
+      }
+   }
+   #check if error message was received 
+   if { $daemon_error == 1 } {
+      puts $CHECK_OUTPUT "received error message about daemon configuration from \"$job_type\""
+      return 1
+   }
+   #error occurs also with wrong binary defined - issue 2174
+   if { $error == 1 } {
+      puts $CHECK_OUTPUT "didn't get password question for qlogin or error occured for qrsh - unsupported error occured"
+      return 1
+   }
+   return 0
+
+}
+
+#checks if all queues on tested host are set into error state
+#rerurns 
+#0-all in no-error state
+#1-all in error state
+#2-queues with E state, no state, >> mixed states
+proc issue_1914_check_host_state { host } {
+   global CHECK_OUTPUT
+   set state 0 
+   #delay so the queue state would be updated
+   set my_timeout [timestamp]
+   incr my_timeout 2 
+   while {1} {
+      if { $my_timeout < [timestamp] } {
+      break
+      }
+   }
+   set queues [ get_queue_list ]
+   foreach queue $queues {
+      set queue_state [ get_queue_state "$queue@$host" ]
+      if { [ string compare $queue_state "E" ] != 0 } {
+         if { [ string compare $queue_state "" ] == 0 } {
+            if { $state == 1 } {
+               return 2 
+            }
+         } else {
+            return 2
+         }
+      } else {
+         set state 1
+      }
+   }
+   return $state 
+}
+
+#return 1 if test passed, 0 if failed 
+proc issue_1914_test_submit { job host path error_test } {
+   global CHECK_OUTPUT CHECK_USER ts_user_config
+   set res [ issue_1914_submit_test_job $job $host $ts_user_config(second_foreign_user) $path ] 
+   if { $res == [ issue_1914_check_host_state $host ] && $res == $error_test } {
+      return 1
+   }
+   return 0
+} 
+
+proc issue_1914_test {} {
+   global ts_config ts_user_config CHECK_OUTPUT CHECK_USER
+   global test_host act_time
+   set test_jobs ""
+   #test_jobs - what jobs are meant to be tested
+   lappend test_jobs "qlogin"
+   lappend test_jobs "qrsh"
+
+
+   foreach job $test_jobs {
+      switch -exact $job {
+
+         "qlogin" {
+             set daemon "qlogin_daemon"
+             set correct_daemon_path "/usr/sbin/in.telnetd" 
+         }
+
+         "qrsh" {
+             set daemon "rlogin_daemon"
+             set correct_daemon_path "/usr/sbin/in.rlogind" 
+         }
+      }
+      #here starts the real test conditions
+      #error = 1 means that wrong configuration is tested - host in error expected 
+      set error 1
+      #testing daemon set to "none" value
+      set path "none"
+      set test($daemon) $path
+      set_config_and_propagate test $test_host
+      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         issue 1914 fix didn't work for corrupted $daemon configuration - none daemon"
+      } else {
+         puts $CHECK_OUTPUT "Test 1 for \"$job\" passed"
+      }
+
+      #testing daemon set to path that has no execution permissions
+      set path "/tmp/daemon_$act_time"
+      set test($daemon) $path
+      set_config_and_propagate test $test_host
+      start_remote_prog $test_host $CHECK_USER "touch" "$path"
+      start_remote_prog $test_host "root" "chmod" "-x $path"
+      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         issue 1914 fix didn't work for corrupted $daemon configuration - daemon without x permissions"
+      } else {
+         puts $CHECK_OUTPUT "Test 2 for \"$job\" passed"
+      }
+      #clean up file after test
+      start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
+         
+      #testing daemon set to relative path value (not absolute path)
+      set path "tmp/daemon_$act_time"
+      set test($daemon) $path
+      set_config_and_propagate test $test_host
+      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         issue 1914 fix didn't work for corrupted $daemon configuration - relative path daemon"
+      } else {
+         puts $CHECK_OUTPUT "Test 3 for \"$job\" passed"
+      }
+         
+      #testing daemon set to path that doesn't exist 
+      set path "/tmp/daemon_$act_time"
+      #just to be sure that it doesn't exist  
+      start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
+      set test($daemon) $path
+      set_config_and_propagate test $test_host
+      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         issue 1914 fix didn't work for corrupted $daemon configuration - non-existing file"
+      } else {
+         puts $CHECK_OUTPUT "Test 4 for \"$job\" passed"
+      }
+      #test for issue 2174 when file has execution permission but is not 
+      #proper daemon file - binary
+      #set path "/tmp/daemon_$act_time"
+      start_remote_prog $test_host $CHECK_USER "touch" "$path"
+      start_remote_prog $test_host $CHECK_USER "chmod" "+x $path"
+      set test($daemon) $path
+      set_config_and_propagate test $test_host
+      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+         add_proc_error "Issue 2174 test failed" -1 "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
+         issue 2174 fix didn't work for $daemon configuration - wrong binary issue"
+      } else {
+         puts $CHECK_OUTPUT "Test 5 for \"$job\" passed"
+      }
+      #clean up file after test
+      start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
+       
+      #start the test with correct daemon configuration 
+      set error 0
+      set path $correct_daemon_path 
+      set test($daemon) $path
+      set_config_and_propagate test $test_host
+      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         issue 1914 fix didn't work for correct $daemon configuration"
+      } else {
+         puts $CHECK_OUTPUT "Test 6 for \"$job\" passed"
+      }
+   }
+}
+
+
