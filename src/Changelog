@@ -1,3 +1,6 @@
+RD-2007-02-09-0: Bugfix:    fixed wrong macro definitions
+                 Review:    JG
+
 RM-2007-02-06-0: Enhancem:  New test for issue 1914
                             Test also checks issue 2174.
                  Review:    JG

@@ -1364,7 +1364,7 @@ proc qrsh_batch {} {
    if { $ts_config(gridengine_version) == 53 } {
       set HAS_BEEN_SUBMITTED  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOB_USS] "*" "*" "*" ]
    } else {
-      set HAS_BEEN_SUBMITTED  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOB_USS] "*" "*" "*"]
+      set HAS_BEEN_SUBMITTED  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOB_US] "*" "*"]
    }
 
    foreach host $qrsh_hostlist {

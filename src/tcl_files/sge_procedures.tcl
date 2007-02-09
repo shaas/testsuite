@@ -4689,14 +4689,16 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
 
    # success messages:
    if { $ts_config(gridengine_version) == 53 } {
+      set messages(0)      "*[translate_macro MSG_JOB_SUBMITJOB_USS "*" "*" "*"]*"
       set messages(1)      "*[translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_U "*"]*"
+      set messages(2)      "*[translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS "*" "*" "*" "*" "*" "*" ]*"
    } else {
       # 6.0 and higher
+      set messages(0)      "*[translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]*"
       set messages(1)      "*[translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_S "*"]*"
+      set messages(2)      "*[translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUS "*" "*" "*" "*" "*"]*"
    }
 
-   set messages(0)      "*[translate_macro MSG_JOB_SUBMITJOB_USS "*" "*" "*"]*"
-   set messages(2)      "*[translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS "*" "*" "*" "*" "*" "*" ]*"
 
    # failure messages:
    if { $ts_config(gridengine_version) == 53 } {
@@ -4812,7 +4814,11 @@ proc submit_job_parse_job_id {output_var type message} {
    # we need to determine the position of the job id in the output message
    switch -exact -- $type {
       0 {
-         set JOB_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOB_USS "__JOB_ID__" "__JOB_NAME__" "__JOB_ARG__"]
+         if { $ts_config(gridengine_version) == 53 } {
+            set JOB_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOB_USS "__JOB_ID__" "__JOB_NAME__" "__JOB_ARG__"]
+         } else {
+            set JOB_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOB_US "__JOB_ID__" "__JOB_NAME__"]
+         }
          set pos [lsearch -exact $JOB_SUBMITTED_DUMMY "__JOB_ID__"]
       }
       1 {
@@ -4825,7 +4831,11 @@ proc submit_job_parse_job_id {output_var type message} {
          set pos [lsearch -exact $JOB_IMMEDIATE_DUMMY "__JOB_ID__"]
       }
       2 {
-         set JOB_ARRAY_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS "__JOB_ID__" "" "" "" "__JOB_NAME__" "__JOB_ARG__"]
+         if { $ts_config(gridengine_version) == 53 } {
+            set JOB_ARRAY_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUSS "__JOB_ID__" "" "" "" "__JOB_NAME__" "__JOB_ARG__"]
+         } else {
+            set JOB_ARRAY_SUBMITTED_DUMMY [translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUS "__JOB_ID__" "" "" "" "__JOB_NAME__"]
+         }
          set pos [lsearch -exact $JOB_ARRAY_SUBMITTED_DUMMY "__JOB_ID__.-:"]
       }
    }

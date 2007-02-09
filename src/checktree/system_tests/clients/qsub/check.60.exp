@@ -369,7 +369,7 @@ proc check_option_sync_ww {} {
    set found_job_submitted 0
    set found_timeout 0
 
-   set JOB_SUBMITTED       [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOB_USS] "*" "*" "*"]
+   set JOB_SUBMITTED       [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_SUBMITJOB_US] "*" "*"]
    set WARNING             [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_VERIFYWARN] ]
    set NOSUITABLEQ_S       [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_NOSUITABLEQ_S] $WARNING ]
 

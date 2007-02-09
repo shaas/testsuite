@@ -114,7 +114,6 @@ lappend check_functions "check_huge_script"
 lappend check_functions "check_qhold_jobname"
 lappend check_functions "check_qsub_ts_iz_72" ;# Testcase for TS IZ 72
 
-
 # test specific globals:
 global CHECK_JOB_OUTPUT_DIR job_output_dir
 global actual_host
