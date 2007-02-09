@@ -2948,7 +2948,7 @@ proc init_logfile_wait { hostname logfile  } {
    global CHECK_OUTPUT
    global file_procedure_logfile_wait_sp_id
 
-   set sid [open_remote_spawn_process $hostname "ts_def_con" "tail" "-f $logfile"]
+   set sid [open_remote_spawn_process $hostname "ts_def_con_log" "tail" "-f $logfile"]
    set sp_id [lindex $sid 1]
    set timeout 5
    puts $CHECK_OUTPUT "spawn id: $sp_id"

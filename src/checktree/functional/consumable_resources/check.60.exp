@@ -265,15 +265,14 @@ proc consumable_resources_cleanup  {} {
 }
 
 # Issue: 1306, Bugster: 6287862 - qhost -l for complexes broken
-proc check_qhost_broken { complex count } {
-   global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER CHECK_HOST
+proc check_qhost_broken {complex count} {
+   global ts_config CHECK_OUTPUT
 
    # this bug has only be fixed in maintrunk for SGE 6.1
    if {$ts_config(gridengine_version) >= 65} {
-      set output [start_remote_prog $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qhost" "-l $complex -F | grep arch | wc -l"]
-      if { $output != $count } {
-         add_proc_error "check_qhost_broken" -3 "qhost is broken - see Issue: 1306, returned $output hosts but $count is expected"
-         set error 1
+      set output [start_sge_bin "qhost" "-l $complex -F | grep arch | wc -l"]
+      if {$output != $count} {
+         add_proc_error "check_qhost_broken" -1 "qhost -l $complex is broken - see Issue: 1306, returned $output hosts but $count is expected"
       }
    }
 }

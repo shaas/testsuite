@@ -5615,32 +5615,33 @@ proc is_job_running { jobid jobname } {
 #         
 #
 #*******************************************************************************
-proc get_job_state { jobid { not_all_equal 0 } { taskid task_id } } {
-  global ts_config
-   global CHECK_ARCH CHECK_OUTPUT check_timestamp
+proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
+   global ts_config CHECK_OUTPUT
+   global check_timestamp
    upvar $taskid r_task_id
-   set mytime [timestamp]
 
-   if { $mytime == $check_timestamp } {
+   set mytime [timestamp]
+   if {$mytime == $check_timestamp} {
       after 1000
    }
    set check_timestamp $mytime
 
-   set my_timeout [ expr ( $mytime + 100 ) ]
+   set my_timeout [expr $mytime + 100]
    set states_all_equal 0
-   while { $my_timeout > [timestamp] && $states_all_equal == 0 } {   
+   while {$my_timeout > [timestamp] && $states_all_equal == 0} {
       set states_all_equal 1
 
       if {$ts_config(gridengine_version) == 53} {
-         set catch_state [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-f" } result ]
+         set result [start_sge_bin "qstat" "-f" "" "ts_def_con"]
+      } elseif {$ts_config(gridengine_version) == 60} {
+         set result [start_sge_bin "qstat" "-f -g t" "" "ts_def_con"]
       } else {
-         set catch_state [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-f" "-g" "t"} result ]
+         set result [start_sge_bin "qstat" "-f -g t -u '*'" "" "ts_def_con"]
       }
-      if { $catch_state != 0 } {
+      if {$prg_exit_state != 0} {
          puts $CHECK_OUTPUT "debug: $result"
          return -1
       }
-   #   puts $CHECK_OUTPUT "debug: catch_state: $catch_state"
    
       # split each line as listelement
       set help [split $result "\n"]
@@ -5649,10 +5650,10 @@ proc get_job_state { jobid { not_all_equal 0 } { taskid task_id } } {
       set states ""
       set lfnr 0
       foreach line $help {
-        if { [lindex $line 0] == $jobid } {
+        if {[lindex $line 0] == $jobid} {
            lappend states [lindex $line 4]
            debug_puts "debug: $line"
-           if { [lindex $line 7] == "MASTER" } {
+           if {[lindex $line 7] == "MASTER"} {
               set r_task_id($lfnr,task)  [lindex $line 8]
            } else {
               set r_task_id($lfnr,task)  [lindex $line 7]
@@ -5661,26 +5662,26 @@ proc get_job_state { jobid { not_all_equal 0 } { taskid task_id } } {
            incr lfnr 1
         }
       }
-      if { $states == "" } {
+      if {$states == ""} {
          set states -1
       }
-      
+
       set main_state [lindex $states 0]
-      if { $not_all_equal == 0 } {
-         for { set elem 0 } { $elem < [llength $states] } { incr elem 1 } {
-            if { [ string compare [lindex $states $elem] $main_state ] != 0 } {
+      if {$not_all_equal == 0} {
+         for {set elem 0} {$elem < [llength $states]} {incr elem 1} {
+            if {[string compare [lindex $states $elem] $main_state] != 0} {
                puts $CHECK_OUTPUT "jobstate of task $elem is: [lindex $states $elem], waiting ..."
                set states_all_equal 0
-            } 
+            }
          }
          after 1000
       }
    }
-   if { $not_all_equal != 0 } {
+   if {$not_all_equal != 0} {
       return $states
    }
 
-   if { $states_all_equal == 1 } {
+   if {$states_all_equal == 1} {
       return $main_state
    }
  

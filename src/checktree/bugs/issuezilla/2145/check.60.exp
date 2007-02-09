@@ -81,62 +81,57 @@ proc issue_2145_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 
-proc issue_2145_setup  {} {
+proc issue_2145_setup {} {
    global CHECK_OUTPUT ts_config
    global complex_backup
 
-   puts $CHECK_OUTPUT "setup 2145"
+   if {[info exists complex_backup]} {
+      unset complex_backup
+   }
    get_complex complex_backup
 }
 
-proc issue_2145_cleanup  {} {
+proc issue_2145_cleanup {} {
    global CHECK_OUTPUT ts_config
    global complex_backup
 
+   # reset complex configuration
    set_complex complex_backup
-   puts $CHECK_OUTPUT "cleanup 2145"
 }
 
 
 proc issue_2145_test {} {
    global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_HOST
-   global complex_backup
 
    set exechost_name [host_conf_get_suited_hosts 1]
-
-   set qinstance_name all.q@$exechost_name
+   set qinstance_name [get_queue_instance all.q $exechost_name]
 
    # add a additional complex entry
    set test_complex(test) "test INT <= YES YES 0 1000"
    set_complex test_complex
 
    # add a value test=5 to the global host
-   set ret [mhattr "complex_values" "test=5" "global" ]
+   set ret [mhattr "complex_values" "test=5" "global"]
 
    # check if queue is returned
    set result [start_sge_bin "qselect" "-l test=5"]
-   if { [ string compare $qinstance_name $result ] == 0 } {
+   if {[string compare $qinstance_name $result] == 0} {
       add_proc_error "issue_2145_test" -1 "qselect returned queue although there was no output expected"
    }   
 
    # add a value test=1 to all.q@$exechost_name
-   set qinstance_name all.q@$exechost_name
-   set ret [mqattr "complex_values" "test=1" "$qinstance_name" ]
+   set ret [mqattr "complex_values" "test=1" $qinstance_name]
 
    # check if queue is returned
    set result [start_sge_bin "qselect" "-l test=1"]
-   if { [ string compare $qinstance_name $result ] == 0 } {
+   if {[string compare $qinstance_name $result] == 0} {
       add_proc_error "issue_2145_test" -1 "qselect returned queue although there was one expected after modifying qinstance"
    }   
 
    # add a value test=1 to all.q@$exechost_name 
-   set qinstance_name all.q@$exechost_name
-   set ret [mqattr "complex_values" "NONE" "$qinstance_name" ]
+   set ret [mqattr "complex_values" "NONE" $qinstance_name]
 
    # reset complex_values of global host 
-   set ret [mhattr "complex_values" "NONE" "global" 100 ]
-
-   # reset complex configuration
-   set_complex complex_backup
+   set ret [mhattr "complex_values" "NONE" "global" 100]
 }
 

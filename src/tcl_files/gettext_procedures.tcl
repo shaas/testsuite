@@ -236,7 +236,7 @@ proc get_macro_messages_file_name { } {
 proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
    global CHECK_OUTPUT macro_messages_list
 
-   if { [info exists macro_messages_list] == 0 } {
+   if {[info exists macro_messages_list] == 0} {
      update_macro_messages_list
    }
 
@@ -404,6 +404,21 @@ proc check_c_source_code_files_for_macros {} {
 # --   wait_for_enter
 }
 
+proc get_source_msg_files {} {
+   global CHECK_SOURCE_DIR
+
+   set msg_files {}
+   set dirs [get_all_subdirectories $CHECK_SOURCE_DIR]
+   foreach dir $dirs {
+      set files [get_file_names $CHECK_SOURCE_DIR/$dir "msg_*.h"]
+      foreach file $files {
+         lappend msg_files $CHECK_SOURCE_DIR/$dir/$file
+      }
+   }
+
+   return $msg_files
+}
+
 #****** gettext_procedures/update_macro_messages_list() ************************
 #  NAME
 #     update_macro_messages_list() -- parse sge source code for sge macros
@@ -425,40 +440,62 @@ proc check_c_source_code_files_for_macros {} {
 #     check/compile_source()
 #*******************************************************************************
 proc update_macro_messages_list {} {
-  global CHECK_OUTPUT CHECK_SOURCE_DIR macro_messages_list
-  global CHECK_PROTOCOL_DIR CHECK_SOURCE_CVS_RELEASE 
-  if { [info exists macro_messages_list]} {
-     unset macro_messages_list
-  }
-  set filename [get_macro_messages_file_name]
-  if { [ file isfile $filename ] } {
-     puts $CHECK_OUTPUT "reading macro messages spool file:\n\"$filename\" ..."
-     puts $CHECK_OUTPUT "delete this file if you want to parse the macros again!"
-     puts $CHECK_OUTPUT "======================================================="
-     read_array_from_file $filename "macro_messages_list" macro_messages_list 1 
-     if { [ string compare $macro_messages_list(source_code_directory) $CHECK_SOURCE_DIR] != 0 } {
-        puts $CHECK_OUTPUT "source code directory from macro spool file:"
-        puts $CHECK_OUTPUT $macro_messages_list(source_code_directory)
-        puts $CHECK_OUTPUT "actual source code directory:"
-        puts $CHECK_OUTPUT $CHECK_SOURCE_DIR
-        puts $CHECK_OUTPUT "the macro spool dir doesn't match to actual source code directory."
-        puts $CHECK_OUTPUT "start parsing new source code directory ..."
-        if { [info exists macro_messages_list]} {
-           unset macro_messages_list
-        }
-     } else {
-        return
-     }
-  }
+   global CHECK_OUTPUT CHECK_SOURCE_DIR macro_messages_list
+   global CHECK_PROTOCOL_DIR CHECK_SOURCE_CVS_RELEASE 
+
+   if {[info exists macro_messages_list]} {
+      unset macro_messages_list
+   }
+
+   set filename [get_macro_messages_file_name]
+   if {[file isfile $filename]} {
+      # If source code messages files (msg_*.h) have changed since we last parsed
+      # them, we'll have to do an update.
+      set macro_file_tstamp [file mtime $filename]
+
+      set msg_files [get_source_msg_files]
+      set update_required 0
+      foreach msg_file $msg_files {
+         set tstamp [file mtime $msg_file]
+         if {$tstamp > $macro_file_tstamp} {
+            puts $CHECK_OUTPUT "$msg_file has been modified"
+            set update_required 1
+            break
+         }
+      }
+
+      if {$update_required} {
+         puts $CHECK_OUTPUT "The macro messages spool file is not up to date."
+         puts $CHECK_OUTPUT "Recreating it ..."
+      } else {
+         puts $CHECK_OUTPUT "reading macro messages spool file:\n\"$filename\" ..."
+         puts $CHECK_OUTPUT "delete this file if you want to parse the macros again!"
+         puts $CHECK_OUTPUT "======================================================="
+         read_array_from_file $filename "macro_messages_list" macro_messages_list 1
+
+         # Verify that the messages file comes from the correct source directory.
+         if {[string compare $macro_messages_list(source_code_directory) $CHECK_SOURCE_DIR] != 0} {
+            puts $CHECK_OUTPUT "source code directory from macro spool file:"
+            puts $CHECK_OUTPUT $macro_messages_list(source_code_directory)
+            puts $CHECK_OUTPUT "actual source code directory:"
+            puts $CHECK_OUTPUT $CHECK_SOURCE_DIR
+            puts $CHECK_OUTPUT "the macro spool dir doesn't match to actual source code directory."
+            puts $CHECK_OUTPUT "start parsing new source code directory ..."
+            if {[info exists macro_messages_list]} {
+               unset macro_messages_list
+            }
+         } else {
+            # File exists,
+            # corresponds to the correct source directory,
+            # and is up to date.
+            # Fine, nothing to do.
+            return
+         }
+      }
+   }
+
   set error_text ""
-  set msg_files ""
-  set dirs [get_all_subdirectories $CHECK_SOURCE_DIR ]
-  foreach dir $dirs {
-     set files [get_file_names $CHECK_SOURCE_DIR/$dir "msg_*.h"]
-     foreach file $files { 
-       lappend msg_files $CHECK_SOURCE_DIR/$dir/$file
-     }
-  }
+  set msg_files [get_source_msg_files]
 
    puts $CHECK_OUTPUT "parsing the following messages files:"
    foreach file $msg_files {

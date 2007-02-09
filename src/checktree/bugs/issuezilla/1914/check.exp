@@ -109,7 +109,6 @@ proc issue_1914_cleanup  {} {
 }
 
 proc issue_1914_submit_test_job { job_type host user test_path} {
-
    global ts_config CHECK_OUTPUT
    global CHECK_PRODUCT_ROOT CHECK_HOST CHECK_DEBUG_LEVEL CHECK_USER CHECK_ARCH
    global CHECK_DISPLAY_OUTPUT
@@ -234,7 +233,9 @@ proc issue_1914_submit_test_job { job_type host user test_path} {
          set timeout 1
          set max_timeouts 15
          set done 0
-         #need to get password question if not some error occured
+         # usually we'll get a login question,
+         # on Solaris, we get the password question,
+         # if not some error occured
          set error 1
          while {!$done} {
             expect {
@@ -244,7 +245,7 @@ proc issue_1914_submit_test_job { job_type host user test_path} {
                }
                -i $sp_id timeout {
                   incr max_timeouts -1
-                  if { $job_id == 0 } {
+                  if {$job_id == 0} {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
                         puts $CHECK_OUTPUT $job
@@ -255,7 +256,7 @@ proc issue_1914_submit_test_job { job_type host user test_path} {
                      }
                   }
 
-                  if { $max_timeouts <= 0 } {
+                  if {$max_timeouts <= 0} {
                      add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
                      set done 1
                   }
@@ -295,18 +296,22 @@ proc issue_1914_submit_test_job { job_type host user test_path} {
                }
                -i $sp_id "*qlogin_daemon \"$test_path\" is not executable*" {
                   set daemon_error 1
-                  }
+               }
                -i $sp_id "*qlogin_daemon \"$test_path\" is not an absolute path*" {
                   set daemon_error 1
-                  }
+               }
                -i $sp_id "*qlogin_daemon \"$test_path\" can't be read*" {
                   set daemon_error 1
-                  }
+               }
+               -i $sp_id "*closed by foreign host*" {
+                  puts $CHECK_OUTPUT "telnet connection was \"closed by foreign host\""
+                  set daemon_error 1
+               }
  
 
                -i $sp_id "*\n" {
                   set output $expect_out(buffer)
-                  set output [ split $output "\n" ]
+                  set output [split $output "\n"]
                   foreach line $output {
                      set line [string trim $line]
                      if { [string length $line] == 0 } {
@@ -322,18 +327,19 @@ proc issue_1914_submit_test_job { job_type host user test_path} {
          close_spawn_process $sid
       }
    }
-   #check if error message was received 
-   if { $daemon_error == 1 } {
+   # check if error message was received 
+   if {$daemon_error == 1} {
       puts $CHECK_OUTPUT "received error message about daemon configuration from \"$job_type\""
       return 1
    }
-   #error occurs also with wrong binary defined - issue 2174
-   if { $error == 1 } {
+
+   # error occurs also with wrong binary defined - issue 2174
+   if {$error == 1} {
       puts $CHECK_OUTPUT "didn't get password question for qlogin or error occured for qrsh - unsupported error occured"
       return 1
    }
-   return 0
 
+   return 0
 }
 
 #checks if all queues on tested host are set into error state
@@ -341,23 +347,19 @@ proc issue_1914_submit_test_job { job_type host user test_path} {
 #0-all in no-error state
 #1-all in error state
 #2-queues with E state, no state, >> mixed states
-proc issue_1914_check_host_state { host } {
+proc issue_1914_check_host_state {host} {
    global CHECK_OUTPUT
-   set state 0 
-   #delay so the queue state would be updated
-   set my_timeout [timestamp]
-   incr my_timeout 2 
-   while {1} {
-      if { $my_timeout < [timestamp] } {
-      break
-      }
-   }
-   set queues [ get_queue_list ]
+
+   set state 0
+   # delay so the queue state would be updated
+   sleep 2
+
+   set queues [get_queue_list]
    foreach queue $queues {
-      set queue_state [ get_queue_state "$queue@$host" ]
-      if { [ string compare $queue_state "E" ] != 0 } {
-         if { [ string compare $queue_state "" ] == 0 } {
-            if { $state == 1 } {
+      set queue_state [get_queue_state [get_queue_instance $queue $host]]
+      if {[string compare $queue_state "E"] != 0} {
+         if {[string compare $queue_state ""] == 0} {
+            if {$state == 1} {
                return 2 
             }
          } else {
@@ -371,10 +373,10 @@ proc issue_1914_check_host_state { host } {
 }
 
 #return 1 if test passed, 0 if failed 
-proc issue_1914_test_submit { job host path error_test } {
+proc issue_1914_test_submit {job host path error_test} {
    global CHECK_OUTPUT CHECK_USER ts_user_config
-   set res [ issue_1914_submit_test_job $job $host $ts_user_config(second_foreign_user) $path ] 
-   if { $res == [ issue_1914_check_host_state $host ] && $res == $error_test } {
+   set res [issue_1914_submit_test_job $job $host $ts_user_config(second_foreign_user) $path] 
+   if {$res == [issue_1914_check_host_state $host] && $res == $error_test} {
       return 1
    }
    return 0
@@ -383,7 +385,7 @@ proc issue_1914_test_submit { job host path error_test } {
 proc issue_1914_test {} {
    global ts_config ts_user_config CHECK_OUTPUT CHECK_USER
    global test_host act_time
-   set test_jobs ""
+   set test_jobs {}
    #test_jobs - what jobs are meant to be tested
    lappend test_jobs "qlogin"
    lappend test_jobs "qrsh"
@@ -409,7 +411,7 @@ proc issue_1914_test {} {
       set path "none"
       set test($daemon) $path
       set_config_and_propagate test $test_host
-      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+      if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
          add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for corrupted $daemon configuration - none daemon"
       } else {
@@ -422,7 +424,7 @@ proc issue_1914_test {} {
       set_config_and_propagate test $test_host
       start_remote_prog $test_host $CHECK_USER "touch" "$path"
       start_remote_prog $test_host "root" "chmod" "-x $path"
-      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+      if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
          add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for corrupted $daemon configuration - daemon without x permissions"
       } else {
@@ -448,7 +450,7 @@ proc issue_1914_test {} {
       start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
       set test($daemon) $path
       set_config_and_propagate test $test_host
-      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+      if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
          add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for corrupted $daemon configuration - non-existing file"
       } else {
@@ -461,7 +463,7 @@ proc issue_1914_test {} {
       start_remote_prog $test_host $CHECK_USER "chmod" "+x $path"
       set test($daemon) $path
       set_config_and_propagate test $test_host
-      if { [ issue_1914_test_submit $job $test_host $path $error ] == 0 } {
+      if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
          add_proc_error "Issue 2174 test failed" -1 "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
          issue 2174 fix didn't work for $daemon configuration - wrong binary issue"
       } else {
