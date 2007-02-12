@@ -89,8 +89,8 @@ proc display_win_gui {} {
    # The exit status 57 of GUI_test.exe means that it was able to display it's
    # GUI on the visible desktop. 0 means that it wasn't able to display it.
 
-   if {$ts_config(gridengine_version) < 65} {
-      puts $CHECK_OUTPUT "Grid Engine version below 6.5, not testing \
+   if {$ts_config(gridengine_version) < 61} {
+      puts $CHECK_OUTPUT "Grid Engine version below 6.1, not testing \
             display_win_gui complex variable."
       return 0
    }

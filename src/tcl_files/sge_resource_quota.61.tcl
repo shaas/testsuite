@@ -33,7 +33,7 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-#****** sge_resource_quota.65/get_rqs() ******************************************
+#****** sge_resource_quota.61/get_rqs() ******************************************
 #  NAME
 #     get_rqs() -- get resource quota set config
 #
@@ -76,7 +76,7 @@ proc get_rqs {output_var {rqs ""} {on_host ""} {as_user ""} {raise_error 1}} {
    return $ret
 }
 
-#****** sge_resource_quota.65/get_rqs_list() *************************************
+#****** sge_resource_quota.61/get_rqs_list() *************************************
 #  NAME
 #     get_rqs_list() -- get a list of all configured resource quota sets
 #
@@ -102,7 +102,7 @@ proc get_rqs_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}
    return [get_qconf_list "get_rqs_list" "-srqsl" out $on_host $as_user $raise_error]
 }
 
-#****** sge_resource_quota.65/get_rqs_error() ************************************
+#****** sge_resource_quota.61/get_rqs_error() ************************************
 #  NAME
 #     get_rqs_error() -- error handling for get_rqs
 #
@@ -135,7 +135,7 @@ proc get_rqs_error {result rqs raise_error} {
    return $ret
 }
 
-#****** sge_resource_quota.65/add_rqs() ******************************************
+#****** sge_resource_quota.61/add_rqs() ******************************************
 #  NAME
 #     add_rqs() -- Add resource quota set(s)
 #
@@ -208,7 +208,7 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
   return $result
 }
 
-#****** sge_resource_quota.65/mod_rqs() ******************************************
+#****** sge_resource_quota.61/mod_rqs() ******************************************
 #  NAME
 #     mod_rqs() -- Modify resource quota set(s)
 #
@@ -269,7 +269,7 @@ proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {rai
    return $ret
 }
 
-#****** sge_resource_quota.65/del_rqs() ******************************************
+#****** sge_resource_quota.61/del_rqs() ******************************************
 #  NAME
 #     del_rqs() -- Deletes resource quota set(s)
 #

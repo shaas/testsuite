@@ -2140,6 +2140,11 @@ proc config_product_type { only_check name config_array } {
            puts $CHECK_OUTPUT "product_type can only be \"sge\" or \"sgeee\""
            return -1
       }
+
+      if {$config(gridengine_version) >= 60) && $value == "sge"} {
+           puts $CHECK_OUTPUT "product_type can only be \"sgeee\" for Grid Engine 6.0 or higher"
+           return -1
+      }
    }
   
    set CHECK_PRODUCT_TYPE $value
