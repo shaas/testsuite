@@ -495,7 +495,7 @@ proc qstat_option_U {} {
 
    qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_USER" 4
 
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 3
    } else {
       qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 4

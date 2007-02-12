@@ -33,7 +33,7 @@
 
 global ts_host_config               ;# new testsuite host configuration array
 global actual_ts_host_config_version      ;# actual host config version number
-set    actual_ts_host_config_version "1.9"
+set    actual_ts_host_config_version "1.10"
 
 if {![info exists ts_host_config]} {
    # ts_host_config defaults
@@ -582,14 +582,17 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
    set config($new_host,spooldir)      ""
    set config($new_host,arch,53)       "unsupported"
    set config($new_host,arch,60)       "unsupported"
-   set config($new_host,arch,65)       "unsupported"
+   set config($new_host,arch,61)       "unsupported"
+   set config($new_host,arch,62)       "unsupported"
    set config($new_host,arch,$ts_config(gridengine_version))          $arch
    set config($new_host,compile,53)    0
    set config($new_host,compile,60)    0
-   set config($new_host,compile,65)    0
+   set config($new_host,compile,61)    0
+   set config($new_host,compile,62)    0
    set config($new_host,java_compile,53)    0
    set config($new_host,java_compile,60)    0
-   set config($new_host,java_compile,65)    0
+   set config($new_host,java_compile,61)    0
+   set config($new_host,java_compile,62)    0
    set config($new_host,compile_time)  0
    set config($new_host,response_time) [ expr ( [timestamp] - $time ) ]
    set config($new_host,fr_locale)     ""
@@ -980,7 +983,8 @@ proc host_config_hostlist_delete_host { array_name } {
          set config(hostlist) [lreplace $config(hostlist) $index $index]
          unset config($host,arch,53)
          unset config($host,arch,60)
-         unset config($host,arch,65)
+         unset config($host,arch,61)
+         unset config($host,arch,62)
          unset config($host,expect)
          unset config($host,vim)
          unset config($host,tar)
@@ -996,13 +1000,16 @@ proc host_config_hostlist_delete_host { array_name } {
          unset config($host,zh_locale)
          unset config($host,compile,53)
          unset config($host,compile,60)
-         unset config($host,compile,65)
+         unset config($host,compile,61)
+         unset config($host,compile,62)
          unset config($host,java_compile,53)
          unset config($host,java_compile,60)
-         unset config($host,java_compile,65)
+         unset config($host,java_compile,61)
+         unset config($host,java_compile,62)
          unset config($host,send_speed)
          unset config($host,compile_time)
          unset config($host,response_time)
+         unset config($host,zones)
          continue
       }
    }
@@ -1760,7 +1767,7 @@ proc host_conf_is_java_compile_host {host {config_var ""}} {
 #     host configuration.
 #     The architecture string may be Grid Engine version dependent, that
 #     means, the function may return different architecture strings for
-#     different Grid Engine version (53, 60, 65, ...).
+#     different Grid Engine version (53, 60, 61, ...).
 #     If a host is not supported platform for a certain Grid Engine version,
 #     "unsupported" is returned as archictecture name.
 #
@@ -1910,7 +1917,7 @@ proc host_conf_is_supported_host {host {config_var ""}} {
 #
 #  SEE ALSO
 #     config_host/host_conf_60_arch()
-#     config_host/host_conf_65_arch()
+#     config_host/host_conf_61_arch()
 #*******************************************************************************
 proc host_conf_53_arch {arch} {
    switch -glob $arch {
@@ -1971,11 +1978,11 @@ proc host_conf_53_arch {arch} {
 #
 #  SEE ALSO
 #     config_host/host_conf_53_arch()
-#     config_host/host_conf_65_arch()
+#     config_host/host_conf_61_arch()
 #*******************************************************************************
 proc host_conf_60_arch {arch} {
    # map old 5.3 names to 6.0
-   # map 6.5 names to 6.0
+   # map 6.1 names to 6.0
    # allow all sol-, lx, fbsd, nbsd platforms for testsuite
    # allow selected architecture names
    # the rest will be unsupported
@@ -2014,16 +2021,16 @@ proc host_conf_60_arch {arch} {
    return "unsupported"
 }
 
-#****** config_host/host_conf_65_arch() ****************************************
+#****** config_host/host_conf_61_arch() ****************************************
 #  NAME
-#     host_conf_65_arch() -- convert any arch string to 65 arch string
+#     host_conf_61_arch() -- convert any arch string to 61 arch string
 #
 #  SYNOPSIS
-#     host_conf_65_arch { arch } 
+#     host_conf_61_arch { arch } 
 #
 #  FUNCTION
 #     Takes an architecture string and tries to convert it to a Grid Engine
-#     6.5 architecture string.
+#     6.1 architecture string.
 #
 #     If the given architecture string cannot be converted, "unknown" will
 #     be returned.
@@ -2032,15 +2039,15 @@ proc host_conf_60_arch {arch} {
 #     arch - any arch string
 #
 #  RESULT
-#     6.5 architecture string or "unknown"
+#     6.1 architecture string or "unknown"
 #
 #  SEE ALSO
 #     config_host/host_conf_53_arch()
 #     config_host/host_conf_60_arch()
 #*******************************************************************************
-proc host_conf_65_arch {arch} {
-   # map old 5.3 names to 6.5
-   # map 6.0 names to 6.5
+proc host_conf_61_arch {arch} {
+   # map old 5.3 names to 6.1
+   # map 6.0 names to 6.1
    # allow all sol-, lx, fbsd, nbsd platforms for testsuite
    # allow selected architecture names
    # the rest will be unsupported

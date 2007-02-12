@@ -148,7 +148,7 @@ proc qmaster_spooling_prj_restart {} {
 proc qmaster_spooling_rqs_restart {} {
    global ts_config CHECK_OUTPUT
 
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       set rqs_name "test_spooling"
 
       set rules ""
@@ -177,7 +177,7 @@ proc qmaster_spooling_rqs_restart {} {
 proc qmaster_spooling_cleanup {} {
    global CHECK_OUTPUT ts_config
 
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
             puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"

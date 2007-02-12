@@ -122,7 +122,7 @@ proc client_setup_do_test {scenario expected_error} {
    set commands(qstat,args) ""
    set commands(qsub,args)  "$ts_config(product_root)/examples/jobs/sleeper.sh"
 
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       lappend commands(index) qquota
       set commands(qquota,args) ""
    }

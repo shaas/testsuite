@@ -73,7 +73,7 @@ proc pe_ranges_init_level {} {
    if { $CHECK_ACT_LEVEL == 0 } {
       return 0 
    } elseif { $CHECK_ACT_LEVEL == 1 } {
-      if {$ts_config(gridengine_version) >= 65} {
+      if {$ts_config(gridengine_version) >= 61} {
          return 0
       } else {
          return -1
@@ -155,7 +155,7 @@ proc pe_ranges_cleanup  {} {
    set_complex consumable_complex_backup
 
    # Delete resource quota sets
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
             puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"

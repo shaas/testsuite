@@ -516,9 +516,9 @@ proc qtcsh_evaluate {{result ""} {option ""} {command "hostname"} {mode "command
 
    if {$ret_value != 0} {
       set additional_message ""
-      if {$ts_config(gridengine_version) < 65 && $hostname == $hostname_remote} {
+      if {$ts_config(gridengine_version) < 61 && $hostname == $hostname_remote} {
          set error_level -3
-         set additional_message "\nthis is IZ 1858 and has been fixed for SGE 6.5"
+         set additional_message "\nthis is IZ 1858 and has been fixed for SGE 6.1"
       } else {
          set error_level -1
       }

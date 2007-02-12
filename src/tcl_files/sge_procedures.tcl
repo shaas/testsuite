@@ -4721,7 +4721,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       if {$ts_config(gridengine_version) == 60} {
          set messages(-29)    "blah blah blah no POSITIVE_PRIO in 6.0"
       } else {
-         # 6.5 and higher
+         # 6.1 and higher
          set messages(-29)    "*[translate_macro MSG_JOB_NONADMINPRIO]*"
       }
    }
@@ -5146,7 +5146,7 @@ proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
    } elseif {$ts_config(gridengine_version) == 60} {
       set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-g" "t" } result ]
    } else {
-      # ts_config gridengine_version 65
+      # ts_config gridengine_version 61
       set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-u" "*" "-g" "t" } result ]
    }
 
@@ -5259,7 +5259,7 @@ proc get_extended_job_info {jobid {variable job_info} { do_replace_NA 1 } } {
    if {[info exists jobinfo]} {
       unset jobinfo
    }
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       set qstat_options "-u '*'"
    } else {
       set qstat_options ""
@@ -5535,7 +5535,7 @@ proc is_job_running { jobid jobname } {
       set check_job_name 1
    }
    set arch [resolve_arch $ts_config(master_host)]
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       set result [start_sge_bin "qstat" "-u '*' -f" "" "" catch_state ]
    } else {
       set result [start_sge_bin "qstat" "-f" "" "" catch_state ]

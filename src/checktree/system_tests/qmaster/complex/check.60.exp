@@ -136,7 +136,7 @@ proc complex_init_level {} {
          return 0
       }
       "1" {
-         if {$ts_config(gridengine_version) >= 65} {
+         if {$ts_config(gridengine_version) >= 61} {
             return 0
          } else {
             return -1
@@ -228,7 +228,7 @@ proc complex_cleanup {} {
    enable_queue $queue_list
 
    # Delete resource quota sets
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
             puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"

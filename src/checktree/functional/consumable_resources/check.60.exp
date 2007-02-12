@@ -269,7 +269,7 @@ proc check_qhost_broken {complex count} {
    global ts_config CHECK_OUTPUT
 
    # this bug has only be fixed in maintrunk for SGE 6.1
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       set output [start_sge_bin "qhost" "-l $complex -F | grep arch | wc -l"]
       if {$output != $count} {
          add_proc_error "check_qhost_broken" -1 "qhost -l $complex is broken - see Issue: 1306, returned $output hosts but $count is expected"

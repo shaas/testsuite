@@ -3293,9 +3293,10 @@ proc config_testsuite_gridengine_version { only_check name config_array } {
    if { $only_check == 0 } {
       puts $CHECK_OUTPUT "" 
       puts $CHECK_OUTPUT "Please specify the gridengine version for testsuite"
-      puts $CHECK_OUTPUT "Enter \"53\" for SGE(EE) 5.3 systems,"
-      puts $CHECK_OUTPUT "Enter \"60\" for N1GE 6.0 systems"
-      puts $CHECK_OUTPUT "Enter \"65\" for N1GE 6.5 systems"
+      puts $CHECK_OUTPUT "Enter \"53\" for SGE(EE) 5.3 systems (e.g. V53_beta2_BRANCH),"
+      puts $CHECK_OUTPUT "Enter \"60\" for N1GE 6.0 systems (e.g. V60s2_BRANCH)"
+      puts $CHECK_OUTPUT "Enter \"61\" for N1GE 6.1 systems (e.g. V61_BRANCH)"
+      puts $CHECK_OUTPUT "Enter \"62\" for N1GE 6.2 systems (e.g. maintrunk)"
       puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
       puts $CHECK_OUTPUT "(default: $value)"
       puts -nonewline $CHECK_OUTPUT "> "
@@ -3311,7 +3312,8 @@ proc config_testsuite_gridengine_version { only_check name config_array } {
    if {!$fast_setup} {
       if {[string compare $value "53"] != 0 &&
           [string compare $value "60"] != 0 &&
-          [string compare $value "65"] != 0} {
+          [string compare $value "61"] != 0 && 
+          [string compare $value "62"] != 0} {
          puts $CHECK_OUTPUT "invalid testsuite gridengine version"
          return -1
       }
@@ -4101,7 +4103,7 @@ proc config_build_ts_config_1_3 {} {
    set parameter "gridengine_version"
    set ts_config($parameter)            ""
    set ts_config($parameter,desc)       "Gridengine Version, e.g. 53 for SGE(EE) 5.3, or 60 for N1GE 6.0"
-   set ts_config($parameter,default)    "65"
+   set ts_config($parameter,default)    "62"
    set ts_config($parameter,setup_func) "config_testsuite_gridengine_version"
    set ts_config($parameter,onchange)   "stop"
    set ts_config($parameter,pos)        $insert_pos
@@ -4311,6 +4313,18 @@ proc config_build_ts_config_1_91 {} {
 
    # now we have a configuration version 1.91
    set ts_config(version) "1.91"
+}
+
+proc config_build_ts_config_1_10 {} {
+   global ts_config
+
+   # we renamed the version planned to be 6.5 to 6.1
+   if {$ts_config(gridengine_version) == 65} {
+      set ts_config(gridengine_version) 62
+   }
+
+   # now we have a configuration version 1.10
+   set ts_config(version) "1.10"
 }
 
 #****** config/config_select_host() ********************************************
@@ -4570,7 +4584,7 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
 # MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.91"
+set actual_ts_config_version "1.10"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -4585,5 +4599,6 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_8
    config_build_ts_config_1_9
    config_build_ts_config_1_91
+   config_build_ts_config_1_10
 }
 

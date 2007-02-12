@@ -260,7 +260,7 @@ proc qconf_cleanup {} {
    set result [mod_schedd_config qconf_sched_config]
 
    # Re-set resource quota sets
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
             puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
@@ -871,7 +871,7 @@ proc qconf_se {} {
    if {$non_cluster_host != ""} {
       set result [get_exechost exec_host $cluster_host $non_cluster_host "" 0]
       if {![check_for_non_cluster_host_error $result "any"]} {
-         add_proc_error "qconf_se" -3 "qconf -se called on $non_cluster_host (non submit/admin host) should have failed\nknown issue 1889 fixed for release >= 6.5"
+         add_proc_error "qconf_se" -3 "qconf -se called on $non_cluster_host (non submit/admin host) should have failed\nknown issue 1889 fixed for release >= 6.1"
       }
    }
 }
@@ -895,7 +895,7 @@ proc qconf_sel {} {
    if {$non_cluster_host != ""} {
       set result [get_exechost_list exechost_list $non_cluster_host "" 0]
       if {![check_for_non_cluster_host_error $result "any"]} {
-         add_proc_error "qconf_sel" -3 "qconf -sel called on $non_cluster_host (non submit/admin host) should have failed\nknown issue 1889 fixed for release >= 6.5"
+         add_proc_error "qconf_sel" -3 "qconf -sel called on $non_cluster_host (non submit/admin host) should have failed\nknown issue 1889 fixed for release >= 6.1"
       }
    }
 }

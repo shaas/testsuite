@@ -90,10 +90,10 @@ proc resource_reservation_init_level {} {
       }
       "1" {
          set drmaa_version "test_drmaa.0.95"
-         if {$ts_config(gridengine_version) >= 65} {
+         if {$ts_config(gridengine_version) >= 61} {
             return 0;   # Tests resource_reservation with resource quota sets
          } else {
-            add_proc_error "resource_reservation_init_level" -3 "need version >= 65"
+            add_proc_error "resource_reservation_init_level" -3 "need version >= 61"
             return -1;
          }
       }
@@ -103,10 +103,10 @@ proc resource_reservation_init_level {} {
       }
       "3" {
          set drmaa_version "test_drmaa.1.0"
-         if {$ts_config(gridengine_version) >= 65} {
+         if {$ts_config(gridengine_version) >= 61} {
             return 0;   # Tests resource_reservation with resource quota sets
          } else {
-            add_proc_error "resource_reservation_init_level" -3 "need version >= 65"
+            add_proc_error "resource_reservation_init_level" -3 "need version >= 61"
             return -1;
          }
       }
@@ -333,7 +333,7 @@ proc resource_reservation_level_cleanup {} {
    del_pe        "pe_slots"
 
    # Delete resource quota sets
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
             puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"

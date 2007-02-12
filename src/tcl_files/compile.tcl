@@ -117,7 +117,7 @@ proc compile_host_list {} {
                          [checktree_get_required_hosts]]
 
    # For SGE 6.0 we build the drmaa.jar on the java build host.
-   # Beginning with SGE 6.5 we build java code on all platforms.
+   # Beginning with SGE 6.1 we build java code on all platforms.
    # Add the java build host to the host list.
    if {$ts_config(gridengine_version) >= 60} {
       lappend host_list [host_conf_get_java_compile_host]
@@ -942,7 +942,7 @@ proc delete_build_number_object {host build} {
 
 #****** compile/compile_create_java_properties() *******************************
 #  NAME
-#     compile_create_java_properties() -- create java properites file for 65 builds
+#     compile_create_java_properties() -- create java properites file for 61 builds
 #
 #  SYNOPSIS
 #     compile_create_java_properties { compile_hosts } 
@@ -950,7 +950,7 @@ proc delete_build_number_object {host build} {
 #  FUNCTION
 #     Create and check availablity of the properties file on the specified compile
 #     hosts.
-#     This is only needed with SGE >= 6.5 (where we build jgdi).
+#     This is only needed with SGE >= 6.1 (where we build jgdi).
 #
 #  INPUTS
 #     compile_hosts - list of compile hosts
@@ -959,7 +959,7 @@ proc delete_build_number_object {host build} {
 proc compile_create_java_properties { compile_hosts } {
    global ts_config CHECK_OUTPUT CHECK_USER
 
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
       puts $CHECK_OUTPUT "creating $properties_file"
       set f [open $properties_file "w"]
@@ -982,7 +982,7 @@ proc compile_create_java_properties { compile_hosts } {
 #
 #  FUNCTION
 #     Delete the generated testsuite properties file.
-#     This is only needed with SGE >= 6.5 (where we build jgdi).
+#     This is only needed with SGE >= 6.1 (where we build jgdi).
 #
 #  INPUTS
 #
@@ -990,7 +990,7 @@ proc compile_create_java_properties { compile_hosts } {
 proc compile_delete_java_properties {} {
    global ts_config CHECK_OUTPUT
 
-   if {$ts_config(gridengine_version) >= 65} {
+   if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
       if {[file isfile $properties_file]} {
          puts $CHECK_OUTPUT "deleting $properties_file"

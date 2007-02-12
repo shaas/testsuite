@@ -85,7 +85,7 @@ proc drmaaj_init_level {} {
            }
      } 
      "202" {
-           if {$ts_config(gridengine_version) == 65} {
+           if {$ts_config(gridengine_version) == 61} {
               return 0
            } else {
               return -1
@@ -160,7 +160,7 @@ proc drmaaj_check {} {
 
          set classpath "$ts_config(product_root)/lib/drmaa"
 
-         if {$ts_config(gridengine_version) == 65} {
+         if {$ts_config(gridengine_version) == 61} {
             set classpath "${classpath}-0.5"
          }
 

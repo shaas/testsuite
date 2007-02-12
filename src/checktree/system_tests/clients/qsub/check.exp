@@ -2032,7 +2032,7 @@ proc check_option_p {} {
 
    # Up to version 6.0, a positive priority from non operators will be silently 
    # set to 0 by qmaster.
-   # Beginning with version 6.5, we will reject such jobs.
+   # Beginning with version 6.1, we will reject such jobs.
    if {$ts_config(gridengine_version) <= 60} {
       qsub_submit_check "-p 1 $default_args" 0 $CHECK_FIRST_FOREIGN_SYSTEM_USER
    } else {
