@@ -105,6 +105,7 @@ proc install_qmaster {} {
    # install_qmaster will ask us about this
    set have_windows_host [host_conf_have_windows]
 
+ set LICENSE_AGREEMENT            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_LICENSE_AGREEMENT] ]
  set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
  set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
  set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
@@ -1092,6 +1093,16 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
           ts_send $sp_id "\n"
+          continue
+       }
+
+       -i $sp_id $LICENSE_AGREEMENT { 
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(21)"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "$ANSWER_YES\n"
           continue
        }
 
