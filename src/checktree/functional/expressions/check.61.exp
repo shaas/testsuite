@@ -1,0 +1,185 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "eval_expression_init_level"
+
+# define test's name and run level descriptions
+set check_name            "eval_expression"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "run the eval_expression_test"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function eval_expression_setup
+set check_cleanup_function eval_expression_cleanup
+
+
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "qsub_queue_expression_test"
+lappend check_functions "qsub_host_expression_test"
+lappend check_functions "qsub_group_expression_test"
+lappend check_functions "qsub_complex_expression_test1"
+lappend check_functions "qsub_complex_expression_test2"
+
+
+global eval_expression_test_hosts
+global eval_expression_saved_slot_count
+
+proc eval_expression_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc eval_expression_setup {} {
+   global ts_config CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT "Eval expression test setup"
+}
+
+proc eval_expression_cleanup {} {
+   global ts_config CHECK_OUTPUT
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+   puts $CHECK_OUTPUT "Eval expression cleanup function"
+}
+
+
+
+proc qsub_queue_expression_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global eval_expression_test_hosts check_description
+   global CHECK_ACT_LEVEL
+
+   set remote_host_arg "-q 'a*&!excluded@*'"
+   set output_argument "-o /dev/null -e /dev/null"
+   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+
+   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+# qsub qinstance
+   set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
+   wait_for_job_state $job_id "r" 60
+}
+
+
+proc qsub_host_expression_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global eval_expression_test_hosts check_description
+   global CHECK_ACT_LEVEL
+
+   set remote_host_arg "-q '*@*&!excluded'"
+   set output_argument "-o /dev/null -e /dev/null"
+   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+
+   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+# qsub qhost
+   set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
+   wait_for_job_state $job_id "r" 60
+}
+
+
+ proc qsub_group_expression_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global eval_expression_test_hosts check_description
+   global CHECK_ACT_LEVEL
+
+   set remote_host_arg "-q '*@@*&!excluded'"
+   set output_argument "-o /dev/null -e /dev/null"
+   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+
+   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+# qsub group
+   set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
+   wait_for_job_state $job_id "r" 60
+}
+ 
+proc qsub_complex_expression_test1 {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global eval_expression_test_hosts check_description
+   global CHECK_ACT_LEVEL
+
+   set remote_host_arg "-l 'h=*&!excluded'"
+   set output_argument "-o /dev/null -e /dev/null"
+   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+
+   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+# qsub comlex host
+   set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
+   wait_for_job_state $job_id "r" 60
+}
+    
+    
+proc qsub_complex_expression_test2 {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global eval_expression_test_hosts check_description
+   global CHECK_ACT_LEVEL
+
+   set remote_host_arg "-l 'arch=*&!excluded'"
+   set output_argument "-o /dev/null -e /dev/null"
+   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+
+   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+# qsub comlex host
+   set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
+   wait_for_job_state $job_id "r" 60
+}
+    
+    
