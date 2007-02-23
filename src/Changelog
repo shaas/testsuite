@@ -1,3 +1,7 @@
+GH-2007-02-23-0: Bugfix:    IZ 117: Test qstat_option_s is broken
+                 Enhancem.: IZ 121: Need test for CR 6452471
+                 Review:    JG
+
 MD-2007-02-14-0: Enhancem.: Added submithost install and copycert test
                  Review:    JG
 
