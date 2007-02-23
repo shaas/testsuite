@@ -61,7 +61,8 @@ lappend check_functions  "qstat_option_pe"
 lappend check_functions  "qstat_option_U"
 lappend check_functions  "qstat_option_s"
 lappend check_functions  "qstat_issue1800"
-
+#
+lappend check_functions   "qstat_profile"
 #
 lappend check_functions  "qstat_plain_xml_comparison"  ;# Compare the two qstatcommands
 lappend check_functions  "qstat_ne_plain_xml_comparison"  ;# Compare the two qstat -ne commands
@@ -146,7 +147,8 @@ proc qstat_setup {} {
 }
 
 proc qstat_cleanup {} {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT CHECK_PRODUCT_ROOT
+   global hostname job_id_list
    global ts_config
 
    delete_all_jobs
@@ -161,6 +163,38 @@ proc qstat_cleanup {} {
    puts $CHECK_OUTPUT "Deleting  empty.q queue ...\n"
    del_queue "empty.q" $first_host 1
 
+
+   #
+   # We may come  here without ever having executed qstat_profile
+   # test. Hence we check for the existence of job_id_list to
+   # figure out what to do.
+   #
+   if {[info exists job_id_list]} {
+      set home [glob ~/]
+      #
+      # Delete regardless....
+      #
+      file delete "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_qstat"
+      file delete "$home/.sge_qstat"
+      #
+      # Delete any jobs left over (if any...). 
+      #
+      while {[llength $job_id_list] > 0} {
+         set job_id [lindex $job_id_list 0]
+         puts $CHECK_OUTPUT "Deleting job $job_id"
+         delete_job $job_id
+         wait_for_jobend $job_id "Sleeper" 30 0 1
+         set job_id_list [lreplace $job_id_list 0 0]
+      }
+      wait_for_end_of_all_jobs 60
+      #
+      # Clean up test.q if it's still around.
+      #
+      if {[lsearch [get_queue_list] "test.q"] != -1} {
+         puts $CHECK_OUTPUT "Deleting test.q"
+         del_queue test.q $hostname 0 1
+      }
+   }
    return 0
 }
 
@@ -480,7 +514,7 @@ proc qstat_option_U {} {
    puts $CHECK_OUTPUT "submitting jobs as user $CHECK_USER ..."   
 
    set job_id_list ""
-   set arguments "-o /dev/null -e /dev/null -h -q $qname"
+   set arguments "-o /dev/null -e /dev/null  -q $qname"
    set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
    lappend job_id_list $job_id
    set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
@@ -495,7 +529,7 @@ proc qstat_option_U {} {
 
    qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_USER" 4
 
-   if {$ts_config(gridengine_version) >= 61} {
+   if {$ts_config(gridengine_version) >= 65} {
       qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 3
    } else {
       qstat_count_jobs "qstat_option_U" "-U $CHECK_USER" 4
@@ -583,7 +617,11 @@ proc qstat_option_s {} {
   #-s ha
   puts $CHECK_OUTPUT "submitting an date hold batch job ..."   
   set job_id_list ""
-  set arguments "-a 01011000 -o /dev/null -e /dev/null"
+  #
+  # Set duetime well in the future. No hard coded values, please.
+  # 
+  set duetime [clock format [clock scan "next week"] -format "%m%d%H%M" ]
+  set arguments "-a $duetime -o /dev/null -e /dev/null"
   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
   qstat_count_jobs "qstat_option_s" "-s ha" 1 
 
@@ -3898,3 +3936,225 @@ proc qstat_U_valid_plain_xml_comparison {} {
    
    delete_all_jobs
 }
+proc qstat_profile {} {
+   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global  CHECK_CORE_EXECD CHECK_USER
+   global ts_config
+   global hostname job_id_list
+
+   #
+   # Test Plan
+   # =========
+   #
+   # Phase 1
+   # - submit one dummy job each for check user, sgetest1 and sgetest2 user
+   # - create and populate cluster qstat profile with option -u sgetest1
+   #   plus one comment line with option -u sgetest2 
+   # - run qstat w/o command line options
+   # - check if we got only one line of output for user sgetest1. No data
+   #   expected for user sgetest2.
+   # Phase 2 check cummulative semanitic local/global profile
+   # - create and populate local qstat profile with option -u s<check_user>
+   # - run qstat w/o command line options
+   # - check if we got two lines of output
+   # Phase 3 check override semanitic command line/local profile
+   # - run qstat with command line option -u sgetest2
+   # - check if we got only one line of output for this user
+   #
+   puts $CHECK_OUTPUT "checking sge_qstat file functionality ...."
+
+   set home [glob ~/]
+
+   file delete "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_qstat"
+   file delete "$home/.sge_qstat"
+   #
+   # Create test queue and submit dummy jobs as check user and user sgetest1.
+   #
+   set hostname [lindex $CHECK_CORE_EXECD 0]
+   set testq(slots) 10
+   add_queue test.q $hostname testq
+   set qname [get_queue_instance test.q $hostname]
+   puts $CHECK_OUTPUT "Created test queue $qname"
+   set job_id_list ""
+   set job_args "-o /dev/null -e /dev/null -q $qname"
+   set job_id_list ""
+   #
+   #
+   #
+   set job_id [submit_job "$job_args $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 60" \
+                           1 30 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER]
+   set junk 1
+   if { $job_id == -1} {
+      add_proc_error "qstat_profile" \
+            -1 \
+            "can't start job for qstat profile test user\
+            $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+      return -1
+   }
+   wait_for_jobstart $job_id "Sleeper" 60
+   lappend job_id_list $job_id
+   #
+   #
+   #
+   set job_id [submit_job "$job_args $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 60" \
+                           1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if { $job_id == -1} {
+      add_proc_error "qstat_profile" \
+            -1 \
+            "can't start job for qstat profile test user\
+            $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      return -1
+   }
+   wait_for_jobstart $job_id "Sleeper" 60
+   lappend job_id_list $job_id
+   #
+   #
+   #
+   set job_id [submit_job "$job_args $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 60" \
+                           1 30 "" $CHECK_USER]
+   if {$job_id == -1} {
+      add_proc_error "qstat_profile" \
+            -1 \
+            "can't start job for qstat profile test user\
+            $CHECK_USER"
+      return -1
+   }
+   wait_for_jobstart $job_id "Sleeper" 60
+   lappend job_id_list $job_id
+   #
+   # Ok, now we know that all required jobs are in the correct state to
+   # to get picked up by qstat. The life time of the jobs should be
+   # sufficiently long.
+   #
+   # Create global qstat profile. File gets truncated (paranoia!).
+   #
+   set sge_global_qstat_profile [open $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_qstat w+ 0777]
+   #
+   # Populate global sge_qstat file. Make user sgetest1 default user option.
+   # User sgetest2 is commented out; we don't like to see this job.
+   #
+   puts $sge_global_qstat_profile "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   puts $sge_global_qstat_profile "#-u $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+
+   close $sge_global_qstat_profile
+   #
+   # The real test begins right now.
+   #
+   puts $CHECK_OUTPUT "\nrunning qstat without any command line options...."
+   set result [start_sge_bin "qstat" ""]
+   puts $CHECK_OUTPUT $result
+   if { $prg_exit_state == 0 } {
+      if { [info exists jobinfo] } {
+         unset jobinfo
+      }
+      #
+      # To succeed we require just ONE entry for sgetest1 user.
+      #
+      parse_qstat result jobinfo
+      set shown_jobs $jobinfo(index)
+      set nr_jobs [llength $shown_jobs]
+      if { $nr_jobs != 1 || [lsearch $result $CHECK_FIRST_FOREIGN_SYSTEM_USER] == -1 } {
+         add_proc_error "qstat_profile" \
+               -1 \
+               "qstat using cluster profile should show one entry for user\
+                $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      }
+   } else {
+      add_proc_error "qstat_profile" -1 "qstat using cluster profile: exit != 0"
+   }
+   #
+   #
+   # Now, populate local qstat profile and make check user default user option.
+   #
+   set sge_local_qstat_profile [open $home/.sge_qstat w+ 0777]
+   puts $sge_local_qstat_profile "-u $CHECK_USER"
+   close $sge_local_qstat_profile
+   #
+   # Issue qstat command without any further options. We should see entries
+   # of check user and sgetest1 user.
+   #
+   set result [start_sge_bin "qstat" ""]
+   puts $CHECK_OUTPUT $result
+   if { $prg_exit_state == 0 } {
+      if { [info exists jobinfo] } {
+         unset jobinfo
+      }
+      #
+      # To succeed we require two lines of output for check test
+      # user and second foreign tester.
+      #
+      parse_qstat result jobinfo 
+      set shown_jobs $jobinfo(index)
+      set nr_jobs [llength $shown_jobs]
+      if { $nr_jobs != 2 || \
+       [lsearch $result $CHECK_FIRST_FOREIGN_SYSTEM_USER] == -1 || \
+       [lsearch $result $CHECK_USER] == -1 } {
+         add_proc_error \
+                "qstat_profile"
+                -1 \
+                "qstat using local profile should show two active jobs"
+      }
+   } else {
+      add_proc_error "qstat_profile" -1 "qstat using local profile: exit != 0"
+   }
+   #
+   # Now with global and local profile active, select second foreign
+   # test user from command line.
+   #
+   set result [start_sge_bin "qstat" "-u $CHECK_SECOND_FOREIGN_SYSTEM_USER"]
+   puts $CHECK_OUTPUT $result
+   if { $prg_exit_state == 0 } {
+      if { [info exists jobinfo] } {
+         unset jobinfo
+      }
+      #
+      # To succeed we require just ONE entry for user sgetest2.
+      #
+      #set user_found [lsearch $result $CHECK_SECOND_FOREIGN_SYSTEM_USER]
+      parse_qstat result jobinfo
+      set shown_jobs $jobinfo(index)
+      set nr_jobs [llength $shown_jobs]
+      if { $nr_jobs != 1 || [lsearch $result $CHECK_SECOND_FOREIGN_SYSTEM_USER] == -1 } {
+         add_proc_error  \
+               "qstat_profile" \
+               -1 \
+               "qstat started with -u command line option should show one entry for user\
+                $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+      }
+   } else {
+      add_proc_error "qstat_profile" \
+                     -1 \
+                     "qstat started with -u command line option: exit != 0"
+   }
+   #
+   # OK, cleanup.
+   #
+   file delete "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_qstat"
+   file delete "$home/.sge_qstat"
+
+   while {[llength $job_id_list] > 0} {
+      #
+      # Walk list of submitted jobs. Update
+      # list when really done with job to
+      # ease cleanup operation.
+      #
+      # Note that we do not care about jobs
+      # possibly left over from other (failed)
+      # tests.
+      #
+      set job_id [lindex $job_id_list 0]
+      puts $CHECK_OUTPUT "Deleting job $job_id"
+      delete_job $job_id
+      wait_for_jobend $job_id "Sleeper" 30 0 1
+      set job_id_list [lreplace $job_id_list 0 0]
+   }
+   #
+   # Paranoia....
+   #
+   if {[lsearch [get_queue_list] "test.q"] != -1} {
+      puts $CHECK_OUTPUT "Deleting test.q"
+      del_queue test.q $hostname 0 1
+   }
+}
+
