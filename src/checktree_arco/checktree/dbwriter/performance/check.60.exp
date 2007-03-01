@@ -50,13 +50,14 @@ set check_init_level_procedure "arco_dbwriter_performance_init_level"
 # define test's name and run level descriptions
 set check_name            "arco_dbwriter_performance"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   200
-set check_description(0)  "Tests the performance of the dbwriter (short test)"
-set check_description(200)  "Tests the performance of the dbwriter (long test)"
-
+set check_highest_level    400
+set check_description(0)  "Tests the performance of the dbwriter (short test) 5 minutes"
+set check_description(200)  "Tests the performance of the dbwriter (long test) 1 hour"
+set check_description(300)  "Tests the performance of the dbwriter (day test) 1 day"
+set check_description(400)  "Tests the performance of the dbwriter (day test) 2 days"
 
 # define test's dependencies
-set check_needs           "init_core_system arco_database_install arco_dbwriter_install" 
+set check_needs           "init_core_system arco_database_install" 
 
 # setup and cleanup functions
 set check_setup_function arco_dbwriter_performance_setup
@@ -74,6 +75,12 @@ proc arco_dbwriter_performance_init_level {} {
          return 0
       }
       "200" { 
+         return 0
+      }   
+      "300" {
+         return 0
+      }
+      "400" { 
          return 0
       }
       default {
@@ -187,6 +194,14 @@ proc arco_dbwriter_performance_execute {} {
       "200" {
          set job_count 1000000
          set test_time [expr 60 * 60 * 1000]   ;# test time is 1 hour
+      }
+      "300" {
+         set job_count 1000000
+         set test_time [expr 60 * 60 * 1000 * 24 ]   ;# test time is 1 day
+      }
+      "400" {
+         set job_count 1000000
+         set test_time [expr 60 * 60 * 1000 * 24 * 2 ]   ;# test time is 2 days
       }
       default {
          add_proc_error "arco_dbwriter_performance_execute" -1 "Invalid runlevel $CHECK_ACT_LEVEL"

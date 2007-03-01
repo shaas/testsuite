@@ -50,7 +50,7 @@ set check_root_access_needs    "yes"
 set check_name                 "arcorun_commandline"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_description(0)       "Test the arcorun command line options"
-set check_needs                "arco_install"                  
+set check_needs                "arco_database_install"                  
 set check_init_level_procedure "arcorun_commandline_init_level"
 set check_functions            ""   
 set check_highest_level        0

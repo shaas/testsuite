@@ -63,7 +63,7 @@ set check_description(8)  ""
 
 
 # define test's dependencies
-set check_needs           "init_core_system arco_install" 
+set check_needs           "init_core_system arco_database_install" 
 
 # setup and cleanup functions
 set check_setup_function arco_dbwriter_job_log_reuse_setup

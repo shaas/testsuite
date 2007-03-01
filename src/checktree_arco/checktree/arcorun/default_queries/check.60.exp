@@ -53,7 +53,7 @@ set check_description(0)       "The the xml output of the arcorun util"
 set check_description(1)       "The the cvs output of the arcorun util"
 set check_description(2)       "The the html output of the arcorun util"
 set check_description(3)       "The the pdf output of the arcorun util"
-set check_needs                "arco_install"                  
+set check_needs                "arco_database_install"                  
 set check_init_level_procedure "arcorun_default_queries_init_level"
 set check_functions            ""   
 set check_highest_level        3
