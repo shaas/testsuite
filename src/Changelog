@@ -1,3 +1,7 @@
+JG-2007-03-02-0: Enhancem.: New test for issue 2202.
+                            Some cleanup.
+                 Review:    CR
+
 AP-2007-03-01-0: Enhancem.: Adding more run levels to dbwriter performance test
                  Bugfix:    ARCo test dependencies
                  Review:    JO, AP

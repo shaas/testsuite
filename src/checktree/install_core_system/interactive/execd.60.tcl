@@ -88,7 +88,7 @@ proc install_execd {} {
       set feature_install_options ""
       foreach elem $CHECK_SUBMIT_ONLY_HOSTS {
          puts $CHECK_OUTPUT "do a qconf -as $elem ..."
-         catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-as $elem" } result
+         set result [start_sge_bin "qconf" "-as $elem" $ts_config(master_host)]
          puts $CHECK_OUTPUT $result
       }
       if {$ts_config(product_feature) == "csp" || $have_windows_host} {

@@ -110,7 +110,7 @@ proc inst_submit_host_setup {} {
          -i $sp_id $CURRENT_GRID_ROOT_DIRECTORY {
             puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<(2)"
             ts_send $sp_id "\n"
-            continue;
+            continue
          }
          -i $sp_id $CELL_NAME_FOR_EXECD {
             puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
@@ -186,18 +186,18 @@ proc inst_submit_host_setup {} {
 
          -i $sp_id timeout {
             add_proc_error "inst_submit_hosts" "-1" "$expect_out(0,string)"
-            close_spawn_process $id;
-            return;
+            close_spawn_process $id
+            return
          }
          -i $sp_id "ommand failed*\n" {
             add_proc_error "inst_submit_hosts" "-1" "$expect_out(0,string)"
-            close_spawn_process $id;
-            return;
+            close_spawn_process $id
+            return
          }
          # End of loop
          -i $sp_id "Submit host installation is complete!" {
             break
-         } 
+         }
       }
 
       flush $CHECK_OUTPUT

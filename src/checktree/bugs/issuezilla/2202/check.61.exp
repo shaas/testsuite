@@ -1,0 +1,164 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2202_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2202"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check abort of qmaster when modifying resource quotas"
+
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2202_setup
+set check_cleanup_function issue_2202_cleanup
+
+
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2202_test"
+
+proc issue_2202_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2202_setup {} {
+   global ts_config CHECK_OUTPUT
+   global num_queues num_jobs
+   global backup_config
+
+   # some global settings
+   set num_queues 10
+   set num_jobs 100
+
+   # create a number of test queues
+   set queue_conf(load_thresholds) "NONE"
+   for {set i 0} {$i < $num_queues} {incr i} {
+      add_queue "test_$i" "@allhosts" queue_conf
+   }
+
+   # create resource quota set
+   set rqs_conf(test,limit) {}
+   for {set i 0} {$i < $num_queues} {incr i} {
+      lappend rqs_conf(test,limit) "users {*} queues test_$i to slots=2"
+   }
+   set rqs_conf(test,enabled) "true"
+   add_rqs rqs_conf
+
+   # backup and set config
+   if {[info exists backup_config]} {
+      unset backup_config
+   }
+   get_config backup_config
+
+   set new_config(qmaster_params) "simulate_hosts=1"
+   set_config new_config
+}
+
+proc issue_2202_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global num_queues
+   global backup_config
+
+   # delete the test jobs
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   # delete the resource quota set
+   del_rqs "test"
+
+   # delete the test queues
+   for {set i 0} {$i < $num_queues} {incr i} {
+      del_queue "test_$i" "" 1 1
+   }
+
+   # restore global config
+   set_config backup_config
+}
+
+
+proc issue_2202_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global num_queues num_jobs
+
+   # submit test jobs
+   set jobargs   "-o /dev/null -j y -ac SGE_MULTI_SUBMIT=$num_jobs"
+   set jobscript "$ts_config(product_root)/examples/jobs/sleeper.sh 600"
+   submit_job "$jobargs $jobscript" 1 60 "" $CHECK_USER
+   submit_job "$jobargs $jobscript" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   submit_job "$jobargs $jobscript" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   # trigger scheduling of the jobs and wait some time for them to be delivered
+   trigger_scheduling
+   sleep 10
+
+   # now modify one of the rules and measure the time
+   set rule_no [expr $num_queues / 2 + 1]
+   set time_start [clock clicks -milliseconds]
+   set result [mod_attr "resource_quota" "limit" "slots=1" "test/$rule_no" 0]
+   set time_end [clock clicks -milliseconds]
+
+   puts $CHECK_OUTPUT "modifying resource quota set took [expr $time_end - $time_start]ms"
+}
+
