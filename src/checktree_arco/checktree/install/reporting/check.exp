@@ -187,7 +187,7 @@ proc arco_reporting_install {} {
              send_to_spawn_id $sp_id $spool_dir
              continue
           }
-          -i $sp_id "Enter your database type ( o = Oracle, p = PostgreSQL, m = MySQL ) * >> " {
+          -i $sp_id "Enter your database type * >> " {
              if { $arco_config(database_type) == "oracle" } {
                 set input "o"
              } elseif { $arco_config(database_type) == "postgres" } {
