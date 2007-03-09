@@ -936,12 +936,23 @@ proc transform_cpu { s_cpu } {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc transform_date_time { value } {
-   if { $value == "" || $value == "-/-" } {
-      return ""
-   } else {
-      return [clock scan $value]
+proc transform_date_time {value} {
+   set ret ""
+
+   # we parse both time stamps in the format 03/08/2007 16:45:02, and
+   # xml date/time strings in the format 2007-03-08T16:31:38
+   # the "T" makes problems when parsing with clock scan - remove it
+   set value [join [split [string trim $value] "T"] " "]
+   if {$value != "" && $value != "-/-"} {
+      set catch_ret [catch {clock scan $value} output]
+      if {$catch_ret == 0} {
+         set ret $output
+      } else {
+         add_proc_error "transform_date_time" -1 "error parsing date/time string $value"
+      }
    }
+
+   return $ret
 }
 
 
@@ -1579,7 +1590,7 @@ proc qstat_plain_parse { output  {params ""} } {
    upvar $output qstat_output
 
    # Run usual command
-   set result [start_sge_bin "qstat" "$params"]
+   set result [start_sge_bin "qstat" $params]
 
    parse_qstat result  qstat_output
 }

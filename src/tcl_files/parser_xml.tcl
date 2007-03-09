@@ -66,8 +66,6 @@ proc qstat_xml_parse { output {param ""} } {
 
    global CHECK_OUTPUT
 
-   catch { eval [package require tdom] } 
-
    upvar $output output_xml
 
    # Run now -xml command
@@ -148,8 +146,6 @@ proc qstat_j_xml_parse { output  } {
 
    global CHECK_OUTPUT
 
-   catch { eval [package require tdom] } 
-
    upvar $output output_xml
 
    # Run now -xml command
@@ -206,8 +202,6 @@ proc qstat_j_JOB_NAME_xml_parse { output {param ""} } {
 
    global CHECK_OUTPUT
 
-   catch { eval [package require tdom] } 
-
    upvar $output output_xml
 
    # Run now -xml command
@@ -259,8 +253,6 @@ proc qstat_j_JOB_NAME_xml_parse { output {param ""} } {
 proc qstat_f_xml_parse { output {param ""} } {
 
    global CHECK_OUTPUT
-
-   catch { eval [package require tdom] } 
 
    upvar $output output_xml
    
@@ -343,8 +335,6 @@ proc qstat_F_xml_parse { output {params ""} } {
 
    global CHECK_OUTPUT
 
-   catch { eval [package require tdom] } 
-
    upvar $output output_xml
 
    # Transform the params list into a comma separated list
@@ -404,8 +394,6 @@ proc qstat_F_xml_parse { output {params ""} } {
 
 proc qstat_j_xml_jobid { node1  output} {
    global CHECK_OUTPUT ts_config
-
-   catch { eval [package require tdom] } 
 
    upvar $output output_xml_qstat
    
@@ -517,8 +505,6 @@ proc qstat_j_xml_jobid { node1  output} {
 
 proc qstat_xml_jobid { node121 jobtype output} {
    global CHECK_OUTPUT
-
-   catch { eval [package require tdom] } 
 
    upvar $output output_xml_qstat
    
@@ -688,7 +674,7 @@ proc qstat_xml_jobid { node121 jobtype output} {
 
       # For time, need the UNIX value, to compare with plain output.
       if { ($column == "time") } {
-         set xml_param  [transform_date_time $xml_param]
+         set xml_param [transform_date_time $xml_param]
       }   
       
       # In the case of qstat -r, we get hard_req_queue after slots, not task_id
@@ -876,8 +862,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
 
 proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
    global CHECK_OUTPUT
-
-   catch { eval [package require tdom] }
 
    upvar $output output_xml_qstat
 
@@ -1484,8 +1468,6 @@ proc qstat_g_c_xml_parse { output } {
 
    global CHECK_OUTPUT
 
-   catch { eval [package require tdom] } 
-   
    upvar $output output_xml
 
    # Run now -xml command
@@ -1633,8 +1615,6 @@ proc qstat_g_c_xml_queue { node output } {
 proc qstat_ext_xml_parse { output } {
 
    global CHECK_OUTPUT
-
-	catch { eval [package require tdom] } 
 
    upvar $output output_xml
 

@@ -3566,7 +3566,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #     sge_procedures/wait_for_jobend()
 #*******************************
 #
-proc wait_for_end_of_all_jobs { seconds } {
+proc wait_for_end_of_all_jobs {{seconds 60}} {
   global ts_config
    global CHECK_ARCH CHECK_OUTPUT
 

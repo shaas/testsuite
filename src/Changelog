@@ -1,3 +1,7 @@
+JG-2007-03-09-0: Bugfix:    Fixed qstat test (-U, profile),
+                            started to fix qstat -xml tests.
+                 Review:    CR
+
 RH-2007-03-06-0: Bugfix:    o arco reporting install test failed when installing
                               arco version 6.0x.
                  Review:    AA

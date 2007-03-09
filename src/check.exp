@@ -353,6 +353,9 @@ set CHECK_COVERAGE {} ;# list of code coverage methods (tcov, insure, or emma)
 global CHECK_COVERAGE_DIR ;# directory for test coverage profiles
 set CHECK_COVERAGE_DIR ""
 
+global CHECK_HAVE_TDOM ;# do we have the tdom tcl package installed?
+set CHECK_HAVE_TDOM 0
+
 # to redefine in checks:
 global check_name                  ;# name of actual check module 
 global check_category              ;# check category name array (z.b. COMPATIBILITY, NONROOT, SYSTEM, PERFORMANCE)
@@ -7692,6 +7695,17 @@ proc build_java_env_list {} {
    return $env_list
 }
 
+proc load_additional_packages {} {
+   global CHECK_HAVE_TDOM CHECK_OUTPUT
+
+   set ret [catch {package require tdom} output]
+   if {$ret == 0} {
+      set CHECK_HAVE_TDOM 1
+      puts $CHECK_OUTPUT "successfully loaded tdom package version $output"
+   }
+}
+
+
 # Main programm:
 
 set do_kill           0
@@ -8117,6 +8131,7 @@ if { $do_only_diff_macros == 1 } {
 }
 
 setup2
+load_additional_packages
 source_tcl_files
 
 # fill sge_config array with minimal information
