@@ -1,3 +1,7 @@
+AP-2007-03-12-0: Bugfix:    o arco dbwriter install test failed when installing
+                              arco version 6.0x.
+                 Review:    JO
+
 MP-2007-03-12-0: Enhancem.: New test for CR 6288953
                  Changed:   qdel
                  Review:    JG

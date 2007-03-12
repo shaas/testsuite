@@ -158,7 +158,7 @@ proc arco_dbwriter_install {} {
              send_to_spawn_id $sp_id $java_home
              continue
           }
-          -i $sp_id "Enter your database type ( o = Oracle, p = PostgreSQL, m = MySQL ) * >> " {
+          -i $sp_id "Enter your database type * >> " {
              if { $arco_config(database_type) == "oracle" } {
                 set input "o"
              } elseif { $arco_config(database_type) == "postgres" } {
