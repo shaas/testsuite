@@ -81,6 +81,7 @@ lappend check_functions "qdel_iz_125_case_3"         ;# implement Case 3) of iz 
 lappend check_functions "qdel_iz_125_case_4"         ;# implement Case 4) of iz 125 
 lappend check_functions "qdel_iz_125_case_5"         ;# implement Case 5) of iz 125 
 lappend check_functions "qdel_delete_task_range"     ;# implement task range deletion
+lappend check_functions "qdel_delete_large_array"    ;# implement large array deletion
 
 # check's globals
 global hold_state
@@ -1904,6 +1905,74 @@ proc qdel_force {} {
    # now restart execd
    startup_execd $test_host
    wait_for_load_from_all_queues 300
+}
+
+#****** qdel/qdel_delete_large_task() ******
+#
+#  NAME
+#     qdel_delete_large_task
+#
+#  SYNOPSIS
+#     This functions submits a large array job and then 
+#     sends qdel to see if jobs are deleted. This tests for the case 
+#     when deleting tasks within a job take a long time and make qmaster
+#     unresponsive.
+#
+#  FUNCTION
+#     qdel a valid range of jobs
+#
+#  INPUTS
+#
+#  RESULT
+#     ???
+#
+#  EXAMPLE
+#     ???
+#
+#  NOTES
+#     ???
+#
+#  BUGS
+#     CR 6288953
+#
+#  SEE ALSO
+#     ???/???
+#*******************************
+proc qdel_delete_large_array {} {
+   global CHECK_OUTPUT CHECK_USER ts_config
+    
+   set hostname  [lindex $ts_config(execd_nodes) 0]
+   # Submit a task array of 5000 tasks
+   set job_id_5000 [submit_testjobs "" "" 1 "-t 1:5000" ]
+   set job_range [concat [lindex $job_id_5000 0].1-5000]
+
+   trigger_scheduling
+   sleep 10
+   # Now delete all of the tasks within the job
+
+   set result5000 [start_sge_bin "qdel" $job_range "" $CHECK_USER]
+   
+   # Sleep a little
+   sleep 30
+
+   # Now check with qstat that there are no more jobs
+
+   set result11 [ start_sge_bin "qstat" "" "" $CHECK_USER]
+
+   set string1 [translate $hostname 0 1 0 "qdel_check"]
+   set string2 [translate $hostname 0 1 0 "deleted job-array tasks 1-5000:1 of job "]
+
+   if { ( [ string first "$string1"  $result11 ] < 0 ) ||
+        ( [ string first [concat "$string2" [lindex $job_id_5000 0]] $result11 ] >=0  ) } {
+   } else {
+      add_proc_error "qdel_delete_large_array" -1 "CR 6288953 test was not ok"
+      puts $CHECK_OUTPUT "job range is  $job_range"
+      puts $CHECK_OUTPUT "result of job range deletion is $result11"
+      puts $CHECK_OUTPUT "My string is [concat "$string2" [lindex $job_id_5000 0]]"
+   }
+
+   # Clean up the queues
+   delete_all_jobs
 }
 
 # ------------------------------------------
