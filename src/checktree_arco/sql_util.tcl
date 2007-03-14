@@ -8,10 +8,10 @@ set sqlutil_errors {}
 #    send_to_spawn_id() -- send a string to a remote spawn process
 #
 #  SYNOPSIS
-#    send_to_spawn_id { sp_id input { no_nl 0 }  } 
+#    send_to_spawn_id { sp_id input { no_nl 0 }  }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #    sp_id         --  the spawn id
@@ -23,7 +23,7 @@ set sqlutil_errors {}
 #
 #  set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER  "ls" ]
 #  set sp_id [ lindex $id 1 ]
-#  
+#
 #  set timeout 30
 #  expect {
 #     ...
@@ -37,7 +37,7 @@ set sqlutil_errors {}
 #*******************************************************************************
 proc send_to_spawn_id { sp_id input { no_nl 0 } } {
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
-   
+
    if {$no_nl} {
       if {$CHECK_DEBUG_LEVEL > 0} {
          puts $CHECK_OUTPUT "\n -->testsuite: sending $input"
@@ -131,7 +131,6 @@ proc get_sqlutil_classpath {} {
 #     ???/???
 #*******************************************************************************
 proc sqlutil_create { { user "" } } {
-   
    global ts_host_config arco_config CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_HOST
    global CHECK_USER
    

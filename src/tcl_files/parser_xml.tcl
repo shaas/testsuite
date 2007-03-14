@@ -61,25 +61,23 @@
 #     
 #
 #*******************************
-
 proc qstat_xml_parse { output {param ""} } {
-
    global CHECK_OUTPUT
-
    upvar $output output_xml
 
    # Run now -xml command
-   set XML [start_sge_bin  "qstat" "$param -xml" ]
+   set XML [start_sge_bin "qstat" "$param -xml"]
 
+   # JG: TODO: do we need additional options?
+   # -keepEmpties: text  nodes,  which contain  only  whitespaces,  will  be  part of the resulting DOM tree
    set doc  [dom parse $XML]
-
    set root [$doc documentElement]
 
-   if { ($param == "-urg") } {
+   if {$param == "-urg"} {
       set jobparam "urg"
-   } elseif {  ($param == "-pri") } {
+   } elseif {$param == "-pri"} {
       set jobparam "pri"
-   } elseif {  ($param == "-r") } {
+   } elseif {$param == "-r"} {
       set jobparam "r"   
    } else {
       set jobparam "running"
@@ -93,12 +91,11 @@ proc qstat_xml_parse { output {param ""} } {
 
    # Parse the pending jobs info using this node. Need to start here
    # NOT at root.
-   
-   if { ($param == "-urg") } {
+   if {$param == "-urg"} {
       set jobparam "urgpending"
-   } elseif {  ($param == "-pri") } {
+   } elseif {$param == "-pri"} {
       set jobparam "pripending"
-   } elseif {  ($param == "-r") } {
+   } elseif {$param == "-r"} {
       set jobparam "rpending"
     } else {
       set jobparam "pending"
@@ -108,6 +105,9 @@ proc qstat_xml_parse { output {param ""} } {
    set node121 [$node12 firstChild]  ; # <qname/>
 
    set result2 [qstat_xml_jobid $node121 $jobparam output_xml]
+
+   # free the XML document
+   $doc delete
 }
 
 
@@ -523,7 +523,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
    }
    set jobid [$node12111 nodeValue]
 
-
    set output_xml_qstat($jobid,jobid) $jobid
    lappend output_xml_qstat(jobid_list) $jobid
 
@@ -674,7 +673,7 @@ proc qstat_xml_jobid { node121 jobtype output} {
 
       # For time, need the UNIX value, to compare with plain output.
       if { ($column == "time") } {
-         set xml_param [transform_date_time $xml_param]
+         set xml_param [transform_date_time $xml_param 1]
       }   
       
       # In the case of qstat -r, we get hard_req_queue after slots, not task_id
@@ -807,7 +806,7 @@ proc qstat_xml_jobid { node121 jobtype output} {
          puts  " "
          
          if { ($next_column == "time") } {
-            set next_xml_param  [transform_date_time $next_xml_param]
+            set next_xml_param  [transform_date_time $next_xml_param 1]
          }   
             
          # For colums "queue", "master", "slots", "task_id" we need to append

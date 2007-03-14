@@ -936,13 +936,15 @@ proc transform_cpu { s_cpu } {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc transform_date_time {value} {
+proc transform_date_time {value {xml 0}} {
    set ret ""
 
    # we parse both time stamps in the format 03/08/2007 16:45:02, and
    # xml date/time strings in the format 2007-03-08T16:31:38
    # the "T" makes problems when parsing with clock scan - remove it
-   set value [join [split [string trim $value] "T"] " "]
+   if {$xml} {
+      set value [join [split [string trim $value] "T"] " "]
+   }
    if {$value != "" && $value != "-/-"} {
       set catch_ret [catch {clock scan $value} output]
       if {$catch_ret == 0} {

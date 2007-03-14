@@ -1,3 +1,7 @@
+JG-2007-03-14-0: Bugfix:    Fixed date/time parsing.
+                            Disable broken qstat -xml tests. Cleanup.
+                 Review:    RD
+
 AP-2007-03-12-0: Bugfix:    o arco dbwriter install test failed when installing
                               arco version 6.0x.
                  Review:    JO

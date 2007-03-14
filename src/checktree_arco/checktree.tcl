@@ -9,7 +9,7 @@ ts_source $ACT_CHECKTREE/arcorun
 ts_source $ACT_CHECKTREE/arco_queries
 
 set arco_config(initialized) 0
-set  arco_checktree_nr $ts_checktree($ACT_CHECKTREE)
+set arco_checktree_nr $ts_checktree($ACT_CHECKTREE)
 
 set ts_checktree($arco_checktree_nr,setup_hooks_0_name)         "ARCo configuration"
 set ts_checktree($arco_checktree_nr,setup_hooks_0_config_array) arco_config
