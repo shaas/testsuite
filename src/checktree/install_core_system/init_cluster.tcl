@@ -1109,14 +1109,14 @@ proc setup_check_messages_files {} {
 #*******************************
 proc setup_inhouse_cluster {} {
    global ts_config
-  global CHECK_ARCH env CHECK_USER
-  global CHECK_OUTPUT
+   global CHECK_ARCH env CHECK_USER
+   global CHECK_OUTPUT
 
-  # reset_schedd_config has global error reporting
-  if {[lsearch -exact [info procs] "inhouse_cluster_post_install"] != -1} {
-    puts $CHECK_OUTPUT "executing postinstall procedure for inhouse cluster"
-    inhouse_cluster_post_install
-  }
+   # reset_schedd_config has global error reporting
+   if {[lsearch -exact [info procs] "inhouse_cluster_post_install"] != -1} {
+      puts $CHECK_OUTPUT "executing postinstall procedure for inhouse cluster"
+      inhouse_cluster_post_install
+   }
 }
 
 #****** init_cluster/setup_win_users() *****************************************

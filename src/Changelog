@@ -1,3 +1,11 @@
+JG-2007-03-21-0: Enhancem.: New testsuite configuration parameter 
+                            "additional_config", which allows to specify 
+                            additional testsuite configurations, which can be 
+                            used to install multiple cells with one testsuite 
+                            installation run.
+                 Bugfix:    Fixed csp error message detection.
+                 Review:    AA
+
 MP-2007-03-21-0: Enhancem.: Test logging of invalid qmaster parameters values
                  Changed:   Added qmaster/cluster_config
                  Review:    JG

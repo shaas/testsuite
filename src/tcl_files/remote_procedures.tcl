@@ -557,16 +557,16 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
 #*******************************
 #
 proc start_remote_prog { hostname
-                         user 
-                         exec_command 
-                         exec_arguments 
-                         {exit_var prg_exit_state} 
-                         {mytimeout 60} 
-                         {background 0} 
+                         user
+                         exec_command
+                         exec_arguments
+                         {exit_var prg_exit_state}
+                         {mytimeout 60}
+                         {background 0}
                          {cd_dir ""}
                          {envlist ""}
-                         {do_file_check 1} 
-                         {source_settings_file 1} 
+                         {do_file_check 1}
+                         {source_settings_file 1}
                          {set_shared_lib_path 1}
                          {raise_error 1}
                          {win_local_user 0}

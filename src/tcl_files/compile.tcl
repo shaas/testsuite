@@ -116,6 +116,25 @@ proc compile_host_list {} {
                          $ts_config(bdb_server) \
                          [checktree_get_required_hosts]]
 
+   # for additional configurations, we might have different architectures
+   if {$ts_config(additional_config) != "none"} {
+      foreach filename $ts_config(additional_config) {
+         # clear previously read config
+         if {[info exists add_config]} {
+            unset add_config
+         }
+         # read additional config file
+         if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+            add_proc_error "compile_host_list" -1 "cannot read additonal configuration file $filename"
+            continue
+         }
+         
+         foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
+            append host_list " $add_config($param)"
+         }
+      }
+   }
+
    # For SGE 6.0 we build the drmaa.jar on the java build host.
    # Beginning with SGE 6.1 we build java code on all platforms.
    # Add the java build host to the host list.
@@ -408,8 +427,8 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
       } 
    }
 
-   # shutdown possibly running system
-   shutdown_core_system $do_only_hooks
+   # shutdown possibly running system (and additional_config clusters)
+   shutdown_core_system $do_only_hooks 1
 
    # for building java code, we need a build_testsuite.properties file
    # create it before update, clean, depend

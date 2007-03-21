@@ -442,6 +442,7 @@ proc get_source_msg_files {} {
 proc update_macro_messages_list {} {
    global CHECK_OUTPUT CHECK_SOURCE_DIR macro_messages_list
    global CHECK_PROTOCOL_DIR CHECK_SOURCE_CVS_RELEASE 
+   global fast_setup
 
    if {[info exists macro_messages_list]} {
       unset macro_messages_list
@@ -449,18 +450,21 @@ proc update_macro_messages_list {} {
 
    set filename [get_macro_messages_file_name]
    if {[file isfile $filename]} {
+      set update_required 0
+
       # If source code messages files (msg_*.h) have changed since we last parsed
       # them, we'll have to do an update.
-      set macro_file_tstamp [file mtime $filename]
+      if {!$fast_setup} {
+         set macro_file_tstamp [file mtime $filename]
 
-      set msg_files [get_source_msg_files]
-      set update_required 0
-      foreach msg_file $msg_files {
-         set tstamp [file mtime $msg_file]
-         if {$tstamp > $macro_file_tstamp} {
-            puts $CHECK_OUTPUT "$msg_file has been modified"
-            set update_required 1
-            break
+         set msg_files [get_source_msg_files]
+         foreach msg_file $msg_files {
+            set tstamp [file mtime $msg_file]
+            if {$tstamp > $macro_file_tstamp} {
+               puts $CHECK_OUTPUT "$msg_file has been modified"
+               set update_required 1
+               break
+            }
          }
       }
 

@@ -7177,7 +7177,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
 #     sge_procedures/startup_execd()
 #     sge_procedures/startup_shadowd()
 #*******************************
-proc shutdown_core_system { { only_hooks 0 } } {
+proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
    global ts_config
    global CHECK_ARCH 
    global CHECK_CORE_MASTER 
@@ -7308,6 +7308,12 @@ proc shutdown_core_system { { only_hooks 0 } } {
    foreach host $ts_config(execd_nodes) { 
       set spooldir [get_spool_dir $host execd] 
       check_for_core_files $host "$spooldir"
+   }
+
+   # we might have secondary Grid Engine clusters (additional_config)
+   # shut them down as well
+   if {$with_additional_clusters && $ts_config(additional_config) != "none"} {
+      operate_additional_clusters kill
    }
 }
 

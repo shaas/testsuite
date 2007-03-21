@@ -1067,7 +1067,7 @@ proc set_passwd {user root_host win_host} {
 #  SEE ALSO
 #     check/set_passwd()
 #*******************************************************************************
-proc get_passwd {user} {
+proc get_passwd {user {raise_error 1}} {
   global stored_passwd
 
    if {$user == "Administrator"} {
@@ -1075,7 +1075,7 @@ proc get_passwd {user} {
    }
 
    if {![info exists stored_passwd($user)] || $stored_passwd($user) == ""} {
-      add_proc_error "get_passwd" "-2" "$user's password not set"
+      add_proc_error "get_passwd" "-2" "$user's password not set" $raise_error
       return ""
    }
 
@@ -2482,79 +2482,86 @@ proc update_ts_config_version {} {
    global ts_config
    global CHECK_OUTPUT
 
-   if { $ts_config(version) == "1.0" } {
+   if {[string compare $ts_config(version) "1.0"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.0 to 1.1 ..."
       config_build_ts_config_1_1
       show_config ts_config
       wait_for_enter
    }
 
-   if { $ts_config(version) == "1.1" } {
+   if {[string compare $ts_config(version) "1.1"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.1 to 1.2 ..."
       config_build_ts_config_1_2
       show_config ts_config
       wait_for_enter
    }
 
-   if { $ts_config(version) == "1.2" } {
+   if {[string compare $ts_config(version) "1.2"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.2 to 1.3 ..."
       config_build_ts_config_1_3
       show_config ts_config
       wait_for_enter
    }
    
-   if { $ts_config(version) == "1.3" } {
+   if {[string compare $ts_config(version) "1.3"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.3 to 1.4 ..."
       config_build_ts_config_1_4
       show_config ts_config
       wait_for_enter
    }
    
-   if { $ts_config(version) == "1.4" } {
+   if {[string compare $ts_config(version) "1.4"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.4 to 1.5 ..."
       config_build_ts_config_1_5
       show_config ts_config
       wait_for_enter
    }
    
-   if { $ts_config(version) == "1.5" } {
+   if {[string compare $ts_config(version) "1.5"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.5 to 1.6 ..."
       config_build_ts_config_1_6
       show_config ts_config
       wait_for_enter
    }
   
-   if { $ts_config(version) == "1.6" } {
+   if {[string compare $ts_config(version) "1.6"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.6 to 1.7 ..."
       config_build_ts_config_1_7
       show_config ts_config
       wait_for_enter
    }
 
-   if { $ts_config(version) == "1.7" } {
+   if {[string compare $ts_config(version) "1.7"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.7 to 1.8 ..."
       config_build_ts_config_1_8
       show_config ts_config
       wait_for_enter
    }
 
-   if { $ts_config(version) == "1.8" } {
+   if {[string compare $ts_config(version) "1.8"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.8 to 1.9 ..."
       config_build_ts_config_1_9
       show_config ts_config
       wait_for_enter
    }
 
-   if { $ts_config(version) == "1.9" } {
+   if {[string compare $ts_config(version) "1.9"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.9 to 1.91 ..."
       config_build_ts_config_1_91
       show_config ts_config
       wait_for_enter
    }
    
-   if { $ts_config(version) == "1.91" } {
+   if {[string compare $ts_config(version) "1.91"] == 0} {
       puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.91 to 1.10 ..."
       config_build_ts_config_1_10
+      show_config ts_config
+      wait_for_enter
+   }
+   
+   if {[string compare $ts_config(version) "1.10"] == 0} {
+      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.10 to 1.11 ..."
+      config_build_ts_config_1_11
       show_config ts_config
       wait_for_enter
       return 0
@@ -2675,10 +2682,10 @@ proc setup2 { } {
    set have_defaults 0
    set configuration_updated 0
 
-   if { [read_array_from_file $CHECK_DEFAULTS_FILE "testsuite configuration" ts_config ] == 0 } {
-      if { $ts_config(version) != $actual_ts_config_version } {
-         puts $CHECK_OUTPUT "unkown configuration file version: $ts_config(version)"
-         while { [update_ts_config_version] != 0 } {
+   if {[read_array_from_file $CHECK_DEFAULTS_FILE "testsuite configuration" ts_config ] == 0} {
+      if {$ts_config(version) != $actual_ts_config_version} {
+         puts $CHECK_OUTPUT "unknown configuration file version: $ts_config(version)"
+         while {[update_ts_config_version] != 0} {
             wait_for_enter
          }
 
@@ -7343,6 +7350,7 @@ proc menu {} {
            set runcompleted 1
            run_tests "root" $runcompleted
            set CHECK_ENABLED_CATEGORIES $org_categories
+           install_additional_clusters
            wait_for_enter
          }
     "20" { restart_debug_daemons } 
@@ -7464,8 +7472,8 @@ proc menu {} {
     "3" { show_tests $CHECK_ACT_PATH 1
         }
     "4" { puts "bye!\n"; 
-          shutdown_core_system;
-          if { [string compare "stdout" $CHECK_OUTPUT ] != 0 } {
+          shutdown_core_system 0 1
+          if {[string compare "stdout" $CHECK_OUTPUT] != 0} {
              close $CHECK_OUTPUT
           } 
           exit 0; 
@@ -7705,6 +7713,96 @@ proc load_additional_packages {} {
    }
 }
 
+proc install_additional_clusters {} {
+   global ts_config
+
+   if {$ts_config(additional_config) != "none"} {
+      operate_additional_clusters install
+   }
+}
+
+proc operate_additional_clusters {operation} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global check_use_installed_system
+
+   foreach filename $ts_config(additional_config) {
+      # clear previously read config
+      if {[info exists add_config]} {
+         unset add_config
+      }
+      # read additional config file
+      if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+         add_proc_error "operate_additional_clusters $operation" -1 "cannot read additonal configuration file $filename"
+         continue
+      }
+
+      # start testsuite with install option on the cluster's master host
+      puts $CHECK_OUTPUT "\n${operation}ing cluster of additional configuration $filename"
+      puts $CHECK_OUTPUT "on host $add_config(master_host) as user $CHECK_USER"
+      set args "check.exp file $filename fast_setup $operation"
+      if {$operation == "install" && $check_use_installed_system} {
+         append args " re_init"
+      }
+      set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
+      if {$id == ""} {
+         add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ngot no spawn id"
+         continue
+      }
+      
+      set spawn_id [lindex $id 1]
+      log_user 1
+      set timeout 60
+      expect {
+         -i $spawn_id timeout {
+            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ntimeout"
+         }
+         -i $spawn_id full_buffer {
+            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nbuffer overflow"
+         }
+         -i $spawn_id eof {
+            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nunexpected eof"
+         }
+
+         -i $spawn_id "*\n" {
+            set stop 0
+            foreach line [split $expect_out(0,string) "\n"] {
+               set line [string trim $line]
+               if {$line != ""} {
+                  switch -glob -- $line {
+                     "host access with password needed for user*" {
+                        set user [lindex $line 7]
+                        set passwd [get_passwd $user]
+                        if {$passwd == ""} {
+                           set_passwd $user $add_config(master_host) [host_conf_get_windows_host]
+                           set passwd [get_passwd $user]
+                           # the set_passwd switches off log_user
+                           log_user 1
+                        }
+
+                        if {$passwd == ""} {
+                           add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
+                           set stop 1
+                        } else {
+                           sleep 1
+                           send -i $spawn_id -- "$passwd\n"
+                        }
+                     }
+                     "_exit_status_:(*)" {
+                        set stop 1
+                     }
+                  }
+               }
+            }
+           
+            if {!$stop} {
+               exp_continue
+            }
+         }
+      }
+
+      close_spawn_process $id
+   }
+}
 
 # Main programm:
 
@@ -8232,11 +8330,12 @@ if { $do_install } {
    puts "installing core system on host $CHECK_HOST ..."
    set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
    run_test $CHECK_ACT_PATH 1
+   install_additional_clusters
    exit 0 
 }
 
 if { $do_kill } {
-   shutdown_core_system
+   shutdown_core_system 0 1
    exit 0   
 }
 

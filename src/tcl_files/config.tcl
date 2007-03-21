@@ -476,7 +476,6 @@ proc show_config { conf_array {short 1} { output "not_set" } } {
          }
       }
    }
-
 }
 
 #****** config/modify_setup2() **************************************************
@@ -850,7 +849,7 @@ proc config_additional_checktree_dirs { only_check name config_array } {
       puts $CHECK_OUTPUT "Please enter the full pathname of an additional checktree directory or press >RETURN<"
       puts $CHECK_OUTPUT "to use the default value."
       puts $CHECK_OUTPUT "The checktree directory contains all tests in its subdirectory structure. You can"
-      puts $CHECK_OUTPUT "add more than one directory by using a space as seperator."
+      puts $CHECK_OUTPUT "add more than one directory by using a space as separator."
       puts $CHECK_OUTPUT "If you enter the keyword \"none\" no additional checktree directory is supported."
       puts $CHECK_OUTPUT "(default: $value)"
       puts -nonewline $CHECK_OUTPUT "> "
@@ -894,6 +893,126 @@ proc config_additional_checktree_dirs { only_check name config_array } {
             # is file ?
             if { [ file isdirectory $directory ] != 1 } {
                puts $CHECK_OUTPUT "Directory \"$directory\" not found"
+               return -1
+            }
+         }
+      } else {
+         set value "none"
+      }
+   }
+
+   return $value
+}
+
+
+proc config_additional_config { only_check name config_array } {
+   global CHECK_OUTPUT 
+   global CHECK_TESTSUITE_LOCKFILE
+   global CHECK_USER CHECK_HOST
+   global CHECK_GROUP
+   global env fast_setup
+
+   upvar $config_array config
+   
+   set actual_value  $config($name)
+   set default_value $config($name,default)
+   set description   $config($name,desc)
+
+   set value $actual_value
+   if {$actual_value == ""} {
+      set value $default_value
+      if {$default_value == ""} { 
+         set value "none"
+      }
+   }
+
+   if {$only_check == 0} {
+      # do setup
+      puts $CHECK_OUTPUT "" 
+      puts $CHECK_OUTPUT "Please enter the full pathname of an additional testsuite configuration"
+      puts $CHECK_OUTPUT "used for installing a secondary Grid Engine cluster,"
+      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
+      puts $CHECK_OUTPUT "You can add more than one configuration file by using a space as separator."
+      puts $CHECK_OUTPUT "If you enter the keyword \"none\" no additional configuration will be used."
+      puts $CHECK_OUTPUT "(default: $value)"
+      puts -nonewline $CHECK_OUTPUT "> "
+      set input [wait_for_enter 1]
+      if {[string length $input] > 0} {
+         set value $input
+      } else {
+         puts $CHECK_OUTPUT "using default value"
+      }
+   }
+
+   # now verify
+   if {!$fast_setup} {
+      set not_set 1 
+      foreach filename $value {
+         if {$filename == "none"} {
+            set not_set 0
+         }
+      }
+
+      if {$not_set == 1} {
+         # make a proper list out of the input
+         set new_value ""
+         foreach filename $value {
+            append new_value " $filename"
+         }
+         set value [string trim $new_value]
+
+         foreach filename $value {
+            # is full path ?
+            if {[string first "/" $filename] != 0} {
+               puts $CHECK_OUTPUT "File name \"$filename\" doesn't start with \"/\""
+               return -1
+            }
+
+            # is file ?
+            if {[file isfile $filename] != 1} {
+               puts $CHECK_OUTPUT "File \"$filename\" not found"
+               return -1
+            }
+         }
+
+         # now make sure that the additional configurations can work together
+         # the following parameters have to be the same for all configs
+         set same_params "gridengine_version testsuite_root_dir checktree_root_dir source_dir source_cvs_release host_config_file product_root"
+         # the following parameters have to differ between all configs
+         set diff_params "results_dir commd_port cell"
+
+         # put these params into lists
+         foreach param "$same_params $diff_params" {
+            set joined_config($param) $config($param)
+         }
+
+         foreach filename $value {
+            # clear previously read config
+            if {[info exists add_config]} {
+               unset add_config
+            }
+            # read additional config file
+            if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+               puts $CHECK_OUTPUT "cannot read configuration file \"$filename\""
+               return -1
+            }
+            # add the params to be checked to our joined config
+            foreach param "$same_params $diff_params" {
+               lappend joined_config($param) $add_config($param)
+            }
+         }
+
+         # now we check for equality or difference
+         foreach param $same_params {
+            if {[llength [lsort -unique $joined_config($param)]] != 1} {
+               puts $CHECK_OUTPUT "the parameter $param has to be the same for all configurations,\nbut has the following values:\n$joined_config($param)"
+               return -1
+            }
+         }
+         set num_configs [expr 1 + [llength $value]]
+         foreach param $diff_params {
+            if {[llength [lsort -unique $joined_config($param)]] != $num_configs} {
+               puts $CHECK_OUTPUT "the parameter $param has to be different for all configurations,\nbut has the following values:\n$joined_config($param)"
                return -1
             }
          }
@@ -4303,8 +4422,8 @@ proc config_build_ts_config_1_91 {} {
    # move positions of following parameters
    set names [array names ts_config "*,pos"]
    foreach name $names {
-      if { $ts_config($name) >= $insert_pos } {
-         set ts_config($name) [ expr ( $ts_config($name) + 1 ) ]
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 1]
       }
    }
 
@@ -4330,6 +4449,34 @@ proc config_build_ts_config_1_10 {} {
 
    # now we have a configuration version 1.10
    set ts_config(version) "1.10"
+}
+
+proc config_build_ts_config_1_11 {} {
+   global ts_config
+
+   # we add a new parameter: additional_config
+   # after additional_checktree_dirs
+   set insert_pos $ts_config(additional_checktree_dirs,pos)
+   incr insert_pos 1
+
+   # move positions of following parameters
+   set names [array names ts_config "*,pos"]
+   foreach name $names {
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 1]
+      }
+   }
+
+   set parameter "additional_config"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "Additional Testsuite Configurations"
+   set ts_config($parameter,default)    ""
+   set ts_config($parameter,setup_func) "config_additional_config"
+   set ts_config($parameter,onchange)   "compile"
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.10
+   set ts_config(version) "1.11"
 }
 
 #****** config/config_select_host() ********************************************
@@ -4589,7 +4736,7 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
 # MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.10"
+set actual_ts_config_version "1.11"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -4605,5 +4752,6 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_9
    config_build_ts_config_1_91
    config_build_ts_config_1_10
+   config_build_ts_config_1_11
 }
 
