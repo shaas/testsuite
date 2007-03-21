@@ -1,3 +1,7 @@
+MP-2007-03-21-0: Enhancem.: Test logging of invalid qmaster parameters values
+                 Changed:   Added qmaster/cluster_config
+                 Review:    JG
+
 JG-2007-03-14-0: Bugfix:    Fixed date/time parsing.
                             Disable broken qstat -xml tests. Cleanup.
                  Review:    RD
