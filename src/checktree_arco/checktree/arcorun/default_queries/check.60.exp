@@ -162,7 +162,8 @@ proc arcorun_default_queries_cleanup {} {
 #*******************************************************************************
 proc arcorun_default_queries_check {} {
    global CHECK_OUTPUT CHECK_ACT_LEVEL arcorun_output_dir
-   
+   global ts_config
+
    set add_args ""
    
    switch -- $CHECK_ACT_LEVEL {
@@ -203,7 +204,11 @@ proc arcorun_default_queries_check {} {
    lappend queries { "Accounting per Project" }
    lappend queries { "Queue Consumables" "-lb variable=slots" }
    lappend queries { "Job Log" "-lb job_number=1" }
-   
+   if {$ts_config(gridengine_version) >= 61} {
+      lappend queries { "Statistic History" }
+      lappend queries { "DBWriter Performance" }
+   }
+
    set error_count 0
    foreach query_spec $queries {
       set query [lindex $query_spec 0]

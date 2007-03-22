@@ -88,7 +88,7 @@ proc oracle_init_arco_db {} {
    
    global ts_config ts_host_config arco_config CHECK_DEBUG_LEVEL
    
-   
+
    set id [sqlutil_create]
    if { $id == "-1" } {
       add_sql_error "oracle_init_arco_db" "-2" "Can not create sqlutil"
@@ -284,7 +284,7 @@ proc postgres_init_arco_db {} {
 proc mysql_init_arco_db {} {
 
  global ts_config ts_host_config arco_config 
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global CHECK_OUTPUT CHECK_DEBUG_LEVEL CHECK_HOST
 
    if { [get_dbwriter_status 0] == 0} {
       shutdown_dbwriter
@@ -324,6 +324,12 @@ proc mysql_init_arco_db {} {
       }
    }
    
+   set hosts {}
+   lappend hosts "%"
+   lappend hosts "localhost"
+   lappend hosts "$CHECK_HOST"
+   lappend hosts "$arco_config(dbwriter_host)"
+
    set arco_write_user [get_arco_write_user]
    set sql "SELECT user FROM mysql.user WHERE user = '${arco_write_user}'"
 
@@ -334,11 +340,13 @@ proc mysql_init_arco_db {} {
       return -2
    } elseif {$res > 0} {
       # user does exists => drop it
-      set sql "drop user $arco_write_user"
-      if {[sqlutil_exec $sp_id "$sql"] != 0} {
-         add_sql_error "mysql_init_arco_db" "-2" "Can't drop user $arco_write_user"
-         close_spawn_process $id 
-         return -2
+      foreach host $hosts {
+         set sql "drop user '$arco_write_user'@'$host'"
+         if {[sqlutil_exec $sp_id "$sql"] != 0} {
+            add_sql_error "mysql_init_arco_db" "-2" "Can't drop user '$arco_write_user'@'$host'"
+            close_spawn_process $id 
+            return -2
+         }
       }
    }
    
@@ -351,11 +359,13 @@ proc mysql_init_arco_db {} {
       close_spawn_process $id 
       return -2
    } elseif {$res > 0} {
-      set sql "drop user $arco_read_user"
-      if {[sqlutil_exec $sp_id "$sql"] != 0} {
-         add_sql_error "mysql_init_arco_db" "-2" "Can't drop user $arco_read_user"
-         close_spawn_process $id 
-         return -2
+      foreach host $hosts {
+         set sql "drop user '$arco_read_user'@'$host'"
+         if {[sqlutil_exec $sp_id "$sql"] != 0} {
+            add_sql_error "mysql_init_arco_db" "-2" "Can't drop user '$arco_read_user'@'$host'"
+            close_spawn_process $id 
+            return -2
+         }
       }
    }
   
@@ -369,19 +379,22 @@ proc mysql_init_arco_db {} {
    # Note: 
    # The grant statement also creates the user in the database
     
-   set sql "GRANT ALL on *.* to '$arco_write_user'@'%' IDENTIFIED BY 'secret' with GRANT OPTION"
-   if {[sqlutil_exec $sp_id "$sql"] < 0} {
-      add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user $arco_write_user"
-      close_spawn_process $id 
-      return -2
+   foreach host $hosts {
+      set sql "GRANT ALL on *.* to '$arco_write_user'@'$host' IDENTIFIED BY 'secret' with GRANT OPTION"
+      if {[sqlutil_exec $sp_id "$sql"] < 0} {
+         add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user '$arco_write_user'@'$host'"
+         close_spawn_process $id 
+         return -2
+      }
    }
 
-   
-   set sql "GRANT SELECT on ${db_name}.* to '$arco_read_user'@'%' IDENTIFIED BY 'secret'"
-   if {[sqlutil_exec $sp_id "$sql"] < 0} {
-      add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user $arco_read_user"
-      close_spawn_process $id 
-      return -2
+   foreach host $hosts { 
+      set sql "GRANT SELECT, SHOW VIEW on ${db_name}.* to '$arco_read_user'@'$host' IDENTIFIED BY 'secret'"
+      if {[sqlutil_exec $sp_id "$sql"] < 0} {
+         add_sql_error "mysql_init_arco_db" "-2" "Can't grant privileges to user '$arco_read_user'@'$host'"
+         close_spawn_process $id 
+         return -2
+      }
    }
    
    set sql "FLUSH PRIVILEGES"

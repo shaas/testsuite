@@ -31,6 +31,7 @@ set ts_checktree($arco_checktree_nr,required_hosts_hook)    "arco_get_required_h
 
 global ARCO_TABLES
 global ARCO_VIEWS
+global ts_config
 
 set ARCO_TABLES { sge_job_usage sge_job_log sge_job_request sge_job
                   sge_queue_values sge_queue
@@ -40,13 +41,20 @@ set ARCO_TABLES { sge_job_usage sge_job_log sge_job_request sge_job
                   sge_user_values sge_user 
                   sge_group_values sge_group
                   sge_share_log 
+                  sge_version
 }
-                  
+if {$ts_config(gridengine_version) >= 61} {
+  lappend ARCO_TABLES sge_statistic_values
+  lappend ARCO_TABLES sge_statistic
+}
+
 set ARCO_VIEWS { view_job_times view_jobs_completed
                  view_job_log view_department_values view_group_values view_host_values
                  view_project_values view_queue_values view_user_values view_accounting
 }
-
+if {$ts_config(gridengine_version) >= 61} {
+  lappend ARCO_VIEWS view_statistic
+}
 
 #****** checktree/arco_compile() **************************************************
 #  NAME
@@ -1278,12 +1286,14 @@ proc arco_clean_oracle_database { { drop 0 } } {
                break;
             }
          } else {
-            set sql "DELETE from $table"
-            set res [sqlutil_exec $sp_id $sql]
-            if { $res != 0 } {
-               add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not delete table $table"
-               set result -1
-               break;
+            if { [string compare [string tolower $table] "sge_version"] != 0 } {
+               set sql "DELETE from $table"
+               set res [sqlutil_exec $sp_id $sql]
+               if { $res != 0 } {
+                  add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not delete table $table"
+                  set result -1
+                  break;
+               }
             }
          }
          set sql "COMMIT"
@@ -1390,13 +1400,15 @@ proc arco_clean_postgres_database { { drop 0 } } {
             break;
          }
       } else {
-         set sql "DELETE from $table"
-         set res [sqlutil_exec $sp_id $sql]
-         if { $res != 0 } {
-            add_sql_error "arco_clean_postgres_database" "-2" "Error: Can not delete table $table"
-            set result -1
-            break;
-         }
+         if { [string compare [string tolower $table] "sge_version"] != 0 } {
+            set sql "DELETE from $table"
+            set res [sqlutil_exec $sp_id $sql]
+            if { $res != 0 } {
+               add_sql_error "arco_clean_postgres_database" "-2" "Error: Can not delete table $table"
+               set result -1
+               break;
+            } 
+         } 
       }
       set sql "COMMIT"
       set res [sqlutil_exec $sp_id $sql]
@@ -1501,12 +1513,14 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
             break;
          }
       } else {
-         set sql "DELETE from $table"
-         set res [sqlutil_exec $sp_id $sql]
-         if { $res != 0 } {
-            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not delete table $table"
-            set result -1
-            break;
+         if { [string compare [string tolower $table] "sge_version"] != 0 } {
+            set sql "DELETE from $table"
+            set res [sqlutil_exec $sp_id $sql]
+            if { $res != 0 } {
+               add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not delete table $table"
+               set result -1
+               break;
+            }
          }
       }
       set sql "COMMIT"

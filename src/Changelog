@@ -1,3 +1,7 @@
+AP-2007-03-22-0: Bugfix:    ARCo testsuite update.
+                 Changed:   Checktree_arco
+                 Review:    JG
+
 JG-2007-03-21-0: Enhancem.: New testsuite configuration parameter 
                             "additional_config", which allows to specify 
                             additional testsuite configurations, which can be 
