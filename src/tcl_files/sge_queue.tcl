@@ -628,7 +628,7 @@ proc unsuspend_queue { queue } {
 #*******************************
 proc disable_queue { queuelist } {
   global ts_config
- global CHECK_ARCH
+  global CHECK_ARCH
   global CHECK_OUTPUT CHECK_HOST CHECK_USER
   global CHECK_CORE_MASTER CHECK_USER
   

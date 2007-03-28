@@ -156,7 +156,7 @@ proc __TESTSUITE_TEST_NAME_cleanup {} {
    global ts_config CHECK_OUTPUT
 
 #   delete_all_jobs
-#   wait_for_end_of_all_jobs 60
+#   wait_for_end_of_all_jobs
    puts $CHECK_OUTPUT "this is a dummy cleanup function"
 }
 

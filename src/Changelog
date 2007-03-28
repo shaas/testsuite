@@ -1,3 +1,8 @@
+JG-2007-03-28-0: Enhancem.: Added test for issue 2222 (hybrid user/project 
+                            sharetree).
+                 Review:    AH
+                            Cleanup.
+
 AP-2007-03-22-0: Bugfix:    ARCo testsuite update.
                  Changed:   Checktree_arco
                  Review:    JG

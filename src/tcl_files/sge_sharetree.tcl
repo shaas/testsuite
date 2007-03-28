@@ -72,7 +72,6 @@ proc add_sharetree_node {project user1 shares1 user2 shares2 {on_host ""} {as_us
    }
 
    return $ret
-
 }
 
 #****** sge_sharetree/add_sharetree_node_error() ***************************************

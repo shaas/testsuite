@@ -1,0 +1,275 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2222_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2222"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   1
+set check_description(0)  "hybrid user/project sharetree was broken (test sequential jobs)"
+set check_description(1)  "hybrid user/project sharetree was broken (test array jobs)"
+
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2222_setup
+set check_cleanup_function issue_2222_cleanup
+set check_cleanup_level_function issue_2222_cleanup_level
+
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2222_test"
+
+
+proc issue_2222_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+      "1" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2222_setup {} {
+   global ts_config CHECK_OUTPUT
+   global config_backup issue_2222_host
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   # select a host for testing
+   set issue_2222_host [host_conf_get_suited_hosts]
+
+   # backup the hosts configuration
+   unset -nocomplain config_backup
+   get_config config_backup $issue_2222_host
+
+   # activate SHARETREE_RESERVED_USAGE,
+   # and a shorter load report interval to get usage reports more quickly
+   set new_config(execd_params) "SHARETREE_RESERVED_USAGE=true"
+   set new_config(load_report_time) "0:0:5"
+   set_config_and_propagate new_config $issue_2222_host
+
+   # configure sharetree tickets
+   set sched_conf(weight_tickets_share) 1000
+   set_schedd_config sched_conf
+
+   # create projects
+   set project(name) "Batch"
+   add_prj project
+   set project(name) "Interactive"
+   add_prj project
+
+   # add users
+   # they might exist as auto users from earlier tests, so first try to delete them
+   del_user $CHECK_FIRST_FOREIGN_SYSTEM_USER "" "" 0
+   del_user $CHECK_SECOND_FOREIGN_SYSTEM_USER "" "" 0
+   set user(name) $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   add_user user 1
+   unset user
+   set user(name) $CHECK_SECOND_FOREIGN_SYSTEM_USER
+   add_user user 1
+
+   # create sharetree
+   stree_buffer_init sharetree
+   stree_buffer_add_node sharetree "/Batch" 10
+   stree_buffer_add_node sharetree "/Batch/$CHECK_FIRST_FOREIGN_SYSTEM_USER" 10
+   stree_buffer_add_node sharetree "/Batch/$CHECK_SECOND_FOREIGN_SYSTEM_USER" 10
+   stree_buffer_add_node sharetree "/Interactive" 10
+   stree_buffer_commit sharetree
+
+   # create queues
+   set queue(load_thresholds) "NONE"
+   set queue(slots)           5
+   set queue(projects)        "Batch"
+   add_queue "Batch" $issue_2222_host queue
+
+   unset queue
+   set queue(load_thresholds) "NONE"
+   set queue(slots)           10
+   set queue(projects)        "Interactive"
+   add_queue "Interactive" $issue_2222_host queue
+
+   # disable all.q
+   set queues {}
+   foreach host $ts_config(execd_nodes) {
+      lappend queues [get_queue_instance "all.q" $host]
+   }
+   disable_queue $queues
+}
+
+proc issue_2222_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global config_backup issue_2222_host
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   # delete jobs and make sure they are no longer referenced in qmaster
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   trigger_scheduling
+   sleep 2
+
+   # delete the queues
+   del_queue "Batch" $issue_2222_host 0 1
+   del_queue "Interactive" $issue_2222_host 0 1
+
+   # delete sharetree
+   del_sharetree
+
+   # delete users
+   del_user $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   del_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   # delete projects
+   del_prj "Batch"
+   del_prj "Interactive"
+
+   # reset the schedd config
+   reset_schedd_config
+
+   # restore the global configuration
+   set_config_and_propagate config_backup $issue_2222_host
+
+   # enable all.q
+   set queues {}
+   foreach host $ts_config(execd_nodes) {
+      lappend queues [get_queue_instance "all.q" $host]
+   }
+   enable_queue $queues
+}
+
+proc issue_2222_cleanup_level {} {
+   # delete jobs and make sure they are no longer referenced in qmaster
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # we have to clear the sharetree usage between levels
+   start_sge_bin "qconf" "-clearusage"
+}
+
+proc issue_2222_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_ACT_LEVEL
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh"
+
+   # submit an array job to the Interactive project as first user
+   set options "-P Interactive -N Interactive -o /dev/null -j y"
+   if {$CHECK_ACT_LEVEL == 0} {
+      for {set i 0} {$i < 50} {incr i} {
+         submit_job "$options $job_script 300" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
+      }
+   } else {
+      submit_job "-t 1-50 $options $job_script 300" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   }
+
+   # make the jobs run and wait some time (3 * load_report_interval) 
+   # for usage reports
+   trigger_scheduling
+   sleep 15
+
+   # close the Batch queue
+   disable_queue "Batch"
+
+   # submit jobs as both users
+   set options "-P Batch -N Batch -o /dev/null -j y"
+   if {$CHECK_ACT_LEVEL == 0} {
+      for {set i 0} {$i < 5} {incr i} {
+         submit_job "$options $job_script 300" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
+      }
+      for {set i 0} {$i < 5} {incr i} {
+         submit_job "$options $job_script 300" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER
+      }
+   } else {
+      submit_job "-t 1-5 $options $job_script 300" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
+      submit_job "-t 1-5 $options $job_script 300" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER
+   }
+
+   # open the Batch queue
+   enable_queue "Batch"
+
+   # make the jobs to be scheduled
+   trigger_scheduling
+   sleep 5
+
+   # verify that jobs of both users are running in the Batch queue
+   set qstat_options "-q Batch -s r"
+   if {$ts_config(gridengine_version) >= 61} {
+      append qstat_options " -u '*'"
+   }
+   set qstat_output [start_sge_bin "qstat" $qstat_options]
+   parse_qstat qstat_output qstat_data
+
+   # we must see running jobs of both users
+   if {![info exists qstat_data(index)]} {
+      add_proc_error "issue_2222_test" -1 "qstat, or qstat parsing didn't produce results"
+      return
+   }
+   set user1_jobs 0
+   set user2_jobs 0
+   foreach job $qstat_data(index) {
+      if {$qstat_data($job,user) == $CHECK_FIRST_FOREIGN_SYSTEM_USER} {
+         incr user1_jobs
+      } else {
+         incr user2_jobs
+      }
+   }
+   if {$user1_jobs == 0 || $user2_jobs == 0} {
+      add_proc_error "issue_2222_test" -1 "we don't see jobs of both test users running:\n$qstat_output"
+   }
+}
+
