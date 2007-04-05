@@ -1,3 +1,9 @@
+RD-2007-04-04-0: Enhancem.: - new test for resource_reservation with calendar
+                              disabled queue
+                            - made testsuite default_duration=INFINITY aware
+                            - fixed some tests for darwin as exechost
+                 Review:    JG
+
 JG-2007-04-05-0: Enhancem.: Added function for selecting hosts following certain
                             criteria (host_conf_get_suited_hosts).
                             Added commandline switch "preferred_archs" to use

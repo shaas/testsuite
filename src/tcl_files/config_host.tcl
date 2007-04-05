@@ -2308,6 +2308,7 @@ proc host_has_newgrp {host {raise_error 1}} {
    set arch [resolve_arch $host]
    switch -exact $arch {
       "nbsd-i386" -
+      "darwin*" -
       "win32-x86" {
          add_proc_error "host_has_newgrp" -3 "host $host ($arch) doesn't support newgrp" $raise_error
          set ret 0

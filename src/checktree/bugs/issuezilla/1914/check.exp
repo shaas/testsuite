@@ -84,13 +84,17 @@ proc issue_1914_init_level {} {
 
 
 proc issue_1914_setup  {} {
-   global CHECK_CORE_EXECD test_host test_queue act_time 
+   global CHECK_CORE_EXECD test_host test_queue act_time backup_config
    #define variable based on current time to create unique file/queue names
    set act_time [timestamp]
 
    set test_host [ lindex $CHECK_CORE_EXECD 0 ]
    set test_queue "test.$act_time"
+   
+   # save orig config
+   unset -nocomplain backup_config
    get_config backup_config $test_host
+
    #add new test queue
    set new_queue(load_thresholds) "np_load_avg=11.75"
    add_queue $test_queue $test_host new_queue 0
@@ -383,27 +387,26 @@ proc issue_1914_test_submit {job host path error_test} {
 } 
 
 proc issue_1914_test {} {
-   global ts_config ts_user_config CHECK_OUTPUT CHECK_USER
+   global ts_config ts_user_config CHECK_OUTPUT CHECK_USER backup_config
    global test_host act_time
    set test_jobs {}
    #test_jobs - what jobs are meant to be tested
    lappend test_jobs "qlogin"
    lappend test_jobs "qrsh"
 
-
    foreach job $test_jobs {
       switch -exact $job {
 
          "qlogin" {
              set daemon "qlogin_daemon"
-             set correct_daemon_path "/usr/sbin/in.telnetd" 
          }
 
          "qrsh" {
              set daemon "rlogin_daemon"
-             set correct_daemon_path "/usr/sbin/in.rlogind" 
          }
       }
+      set correct_daemon_path $backup_config($daemon)
+      
       #here starts the real test conditions
       #error = 1 means that wrong configuration is tested - host in error expected 
       set error 1

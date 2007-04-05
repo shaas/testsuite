@@ -3486,7 +3486,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
          set len [llength $help]
          for {set ind 0} {$ind < $len } {incr ind 1} {
             if {[lsearch [lindex $help $ind] "------*"] >= 0 } {
-               lappend data [lindex $help [expr ( $ind + 1 )]] 
+               lappend data [lindex $help [expr ($ind + 1)]] 
             }
          }
       
