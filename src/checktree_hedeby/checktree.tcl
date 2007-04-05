@@ -302,7 +302,7 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting hedeby ant $target on host $build_host ..."
    
-   set env(JAVA_HOME) [get_java15_home_for_host $build_host]
+   set env(JAVA_HOME) [get_java_home_for_host $build_host "1.5"]
    
    if { $env(JAVA_HOME) == "" } {
       report_task_add_message report $task_nr "Error: hededy build requires java15. It is not available on host $build_host"

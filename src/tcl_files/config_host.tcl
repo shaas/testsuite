@@ -33,7 +33,7 @@
 
 global ts_host_config               ;# new testsuite host configuration array
 global actual_ts_host_config_version      ;# actual host config version number
-set    actual_ts_host_config_version "1.10"
+set    actual_ts_host_config_version "1.11"
 
 if {![info exists ts_host_config]} {
    # ts_host_config defaults
@@ -558,25 +558,20 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
       set ssh_bin "" 
    }
 
-   set java_bin [start_remote_prog $new_host $CHECK_USER "which" "java" prg_exit_state 12 0 "" "" 1 0]
-   if {$prg_exit_state != 0} {
-      set java_bin "" 
-   }
-
-   set myenv(EN_QUIET) "1"
-   set java15_bin [start_remote_prog $new_host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 "" myenv 1 0]
-
-   if {$prg_exit_state != 0} {
-      set java15_bin "" 
-   }
+   set java14_bin [autodetect_java $new_host "1.4"]
+   set java15_bin [autodetect_java $new_host "1.5"]
+   set java16_bin [autodetect_java $new_host "1.6"]
+   set ant_bin [autodetect_ant $new_host]
 
    set config($new_host,expect)        [string trim $expect_bin]
    set config($new_host,vim)           [string trim $vim_bin]
    set config($new_host,tar)           [string trim $tar_bin]
    set config($new_host,gzip)          [string trim $gzip_bin]
    set config($new_host,ssh)           [string trim $ssh_bin]
-   set config($new_host,java)          [string trim $java_bin]
+   set config($new_host,java14)        [string trim $java14_bin]
    set config($new_host,java15)        [string trim $java15_bin]
+   set config($new_host,java16)        [string trim $java16_bin]
+   set config($new_host,ant)           [string trim $ant_bin]
    set config($new_host,loadsensor)    ""
    set config($new_host,processors)    1
    set config($new_host,spooldir)      ""
@@ -681,8 +676,10 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
       puts $CHECK_OUTPUT "   tar           : $config($host,tar)"
       puts $CHECK_OUTPUT "   gzip          : $config($host,gzip)"
       puts $CHECK_OUTPUT "   ssh           : $config($host,ssh)"
-      puts $CHECK_OUTPUT "   java          : $config($host,java)"
+      puts $CHECK_OUTPUT "   java14        : $config($host,java14)"
       puts $CHECK_OUTPUT "   java15        : $config($host,java15)"
+      puts $CHECK_OUTPUT "   java16        : $config($host,java16)"
+      puts $CHECK_OUTPUT "   ant           : $config($host,ant)"
       puts $CHECK_OUTPUT "   loadsensor    : $config($host,loadsensor)"
       puts $CHECK_OUTPUT "   processors    : $config($host,processors)"
       puts $CHECK_OUTPUT "   spooldir      : $config($host,spooldir)"
@@ -719,6 +716,8 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
  
       set isfile 0
       set isdir 0
+      set check_valid_java ""
+      set check_ant 0
       set islocale 0
       set input_type "forbidden"
       switch -- $input {
@@ -727,11 +726,29 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
          "tar" -
          "gzip" -
          "ssh" -
-         "java" -
-         "java15" -
          "loadsensor" { 
             set input_type "simple"
             set isfile 1
+         }
+         "java14" {
+	    set input_type "simple"
+	    set isfile 1
+            set check_valid_java "1.4"
+         }
+         "java15" {
+	    set input_type "simple"
+	    set isfile 1
+            set check_valid_java "1.5"
+         }
+         "java16" {
+	    set input_type "simple"
+	    set isfile 1
+            set check_valid_java "1.6"
+         }
+         "ant" {
+	    set input_type "simple"
+            set isfile 1
+	    set check_ant 1
          }
 
          "spooldir" {
@@ -856,6 +873,26 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
          }
       }
 
+      # check java
+      if { $check_valid_java != "" && [string trim $value] != "" } {
+         set result [check_java_version $host $value $check_valid_java]
+         if {$result != 0} {
+            puts $CHECK_OUTPUT "Not a java $check_valid_java"
+            wait_for_enter
+            continue
+         }
+      }
+
+      # check ant
+      if { $check_ant && [string trim $value] != "" } {
+         set result [check_ant_version $host $value]
+         if {$result != 0} {
+            puts $CHECK_OUTPUT "Not a valid ant for the testsuite"
+            wait_for_enter
+            continue
+         }
+      }
+
       # locale test
       if {$islocale == 1} {
          set mem_it $ts_host_config($host,$input)
@@ -946,7 +983,10 @@ proc host_config_hostlist_delete_host { array_name } {
       puts $CHECK_OUTPUT "   tar           : $config($host,tar)"
       puts $CHECK_OUTPUT "   gzip          : $config($host,gzip)"
       puts $CHECK_OUTPUT "   ssh           : $config($host,ssh)"
-      puts $CHECK_OUTPUT "   java          : $config($host,java)"
+      puts $CHECK_OUTPUT "   java14        : $config($host,java14)"
+      puts $CHECK_OUTPUT "   java15        : $config($host,java15)"
+      puts $CHECK_OUTPUT "   java16        : $config($host,java16)"
+      puts $CHECK_OUTPUT "   ant           : $config($host,ant)"
       puts $CHECK_OUTPUT "   loadsensor    : $config($host,loadsensor)"
       puts $CHECK_OUTPUT "   processors    : $config($host,processors)"
       puts $CHECK_OUTPUT "   spooldir      : $config($host,spooldir)"
@@ -990,8 +1030,10 @@ proc host_config_hostlist_delete_host { array_name } {
          unset config($host,tar)
          unset config($host,gzip)
          unset config($host,ssh)
-         unset config($host,java)
+         unset config($host,java14)
          unset config($host,java15)
+         unset config($host,java16)
+         unset config($host,ant)
          unset config($host,loadsensor)
          unset config($host,processors)
          unset config($host,spooldir)
@@ -1086,7 +1128,7 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
          debug_puts "not initialized or forced!"
          lappend uninitalized $param
          if { $only_check != 0 } {
-            lappend error_list ">$par< configuration not initalized"
+            lappend error_list ">$par< configuration not initialized"
             incr errors 1
          }
       } else {
@@ -1098,7 +1140,7 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
          } else {
             if {[info procs $procedure_name] != $procedure_name} {
                puts $CHECK_OUTPUT "error\n"
-               puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
+               puts $CHECK_OUTPUT "-->WARNING: unknown procedure name: \"$procedure_name\" !!!"
                puts $CHECK_OUTPUT "   ======="
                lappend uninitalized $param
 
@@ -1147,7 +1189,7 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
          } else {
             if {[info procs $procedure_name] != $procedure_name} {
                puts $CHECK_OUTPUT ""
-               puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
+               puts $CHECK_OUTPUT "-->WARNING: unknown procedure name: \"$procedure_name\" !!!"
                puts $CHECK_OUTPUT "   ======="
                if {$only_check == 0} {wait_for_enter}
                set use_default 1
@@ -1192,6 +1234,476 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
    return $errors
 }
 
+
+#****** config/update_ts_host_config_version() **********************************
+#  NAME
+#     update_ts_host_config_version() -- used for version update of ts_host_config
+#
+#  SYNOPSIS
+#     update_ts_host_config_version { filename } 
+#
+#  FUNCTION
+#     This procedure is called when the versions of the testsuite host configuration
+#     are not equal.
+#
+#  INPUTS
+#     filename - host configuration file
+#
+#  SEE ALSO
+#     check/update_ts_config_version()
+#*******************************************************************************
+proc update_ts_host_config_version { filename } {
+   global actual_ts_host_config_version
+   global ts_host_config ts_config
+   global CHECK_OUTPUT CHECK_USER
+
+   if { [string compare $ts_host_config(version)  "1.0"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.0 to 1.1 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         set ts_host_config($host,fr_locale) ""
+         set ts_host_config($host,ja_locale) ""
+         set ts_host_config($host,zh_locale) ""
+      }
+      set ts_host_config(version) "1.1"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if { [ save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.1"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.1 to 1.2 ..."
+wait_for_enter
+         return
+	
+      foreach host $ts_host_config(hostlist) {
+         set ts_host_config($host,ssh) ""
+      }
+      set ts_host_config(version) "1.2"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if { [ save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.2"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.2 to 1.3 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         set ts_host_config($host,java) ""
+      }
+      set ts_host_config(version) "1.3"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if { [ save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.3"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.3 to 1.4 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         set ts_host_config($host,zones) ""
+      }
+      set ts_host_config(version) "1.4"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if { [ save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.4"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.4 to 1.5 ..."
+
+      # insert new parameter after version parameter
+      set insert_pos $ts_host_config(version,pos)
+      incr insert_pos 1
+
+      # move positions of following parameters for 2 steps
+      set new_parameter_cont 2
+      set names [array names ts_host_config "*,pos"]
+      foreach name $names {
+         if { $ts_host_config($name) >= $insert_pos } {
+            set ts_host_config($name) [ expr ( $ts_host_config($name) + $new_parameter_cont ) ]
+         }
+      }
+
+      # parameter 1
+      set parameter "NFS-ROOT2NOBODY"
+      set ts_host_config($parameter)            ""
+      set ts_host_config($parameter,desc)       "NFS shared directory with root to nobody mapping"
+      set ts_host_config($parameter,default)    ""
+      set ts_host_config($parameter,setup_func) "host_config_$parameter"
+      set ts_host_config($parameter,onchange)   "install"
+      set ts_host_config($parameter,pos)        $insert_pos
+
+       
+      # increment position for the second parameter 
+      incr insert_pos 1
+
+      # parameter 2
+      set parameter "NFS-ROOT2ROOT"
+      set ts_host_config($parameter)            ""
+      set ts_host_config($parameter,desc)       "NFS shared directory with root read/write rights"
+      set ts_host_config($parameter,default)    ""
+      set ts_host_config($parameter,setup_func) "host_config_$parameter"
+      set ts_host_config($parameter,onchange)   "install"
+      set ts_host_config($parameter,pos)        $insert_pos
+
+ 
+      # now we have version 1.5
+      set ts_host_config(version) "1.5"
+
+      show_config ts_host_config
+      wait_for_enter
+      if { [ save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.5"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.5 to 1.6 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         # convert the one architecture string to a version dependent one
+         set arch $ts_host_config($host,arch)
+         unset ts_host_config($host,arch)
+         set ts_host_config($host,arch,53) [host_conf_53_arch $arch]
+         set ts_host_config($host,arch,60) [host_conf_60_arch $arch]
+         set ts_host_config($host,arch,61) [host_conf_61_arch $arch]
+
+         # we now store compile host property depending on gridengine version
+         # assume our current compile hosts compile for 53, 60, and 61
+         if {$ts_host_config($host,compile) == 1} {
+            set ts_host_config($host,compile,53) 1
+            set ts_host_config($host,compile,60) 1
+            set ts_host_config($host,compile,61) 1
+         } else {
+            set ts_host_config($host,compile,53) 0
+            set ts_host_config($host,compile,60) 0
+            set ts_host_config($host,compile,61) 0
+         }
+         unset ts_host_config($host,compile)
+      }
+      set ts_host_config(version) "1.6"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if { [ save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.6"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.6 to 1.7 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         # convert the java home string to a version dependent one
+         puts -nonewline " ... "
+         set myenv(EN_QUIET) "1"
+         set java15_bin [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 "" myenv 1 0]
+         if { $prg_exit_state != 0 } {
+            set java15_bin "" 
+         }
+         set java15_bin [string trim $java15_bin]
+         if { ![file isfile $java15_bin] } {
+            puts $CHECK_OUTPUT "file not found"
+            set java15_bin ""
+         }
+         puts $CHECK_OUTPUT "setting java15 for host $host to \"$java15_bin\""
+         set ts_host_config($host,java15) $java15_bin
+      }
+      set ts_host_config(version) "1.7"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if {[save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.7"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.7 to 1.8 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         # we now store java compile host property depending on gridengine version
+         set ts_host_config($host,java_compile,53) 0
+         set ts_host_config($host,java_compile,60) 0
+         set ts_host_config($host,java_compile,61) 0
+      }
+      set ts_host_config(version) "1.8"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if {[save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.8"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.8 to 1.9 ..."
+
+      foreach host $ts_host_config(hostlist) {
+         # we now expect send speed property - use a pretty slow default
+         set ts_host_config($host,send_speed) 0.001
+      }
+      set ts_host_config(version) "1.9"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if {[save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.9"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.9 to 1.10 ..."
+
+      # we have to update all version dependent settings from 65 to 61
+      foreach host $ts_host_config(hostlist) {
+         set ts_host_config($host,arch,61) $ts_host_config($host,arch,65)
+         set ts_host_config($host,arch,62) $ts_host_config($host,arch,65)
+         unset ts_host_config($host,arch,65)
+
+         set ts_host_config($host,compile,61) $ts_host_config($host,compile,65)
+         set ts_host_config($host,compile,62) $ts_host_config($host,compile,65)
+         unset ts_host_config($host,compile,65)
+
+         set ts_host_config($host,java_compile,61) $ts_host_config($host,java_compile,65)
+         set ts_host_config($host,java_compile,62) $ts_host_config($host,java_compile,65)
+         unset ts_host_config($host,java_compile,65)
+      }
+
+      set ts_host_config(version) "1.10"
+
+      show_config ts_host_config
+      wait_for_enter
+      if {[save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+   }
+
+   if { [string compare $ts_host_config(version)  "1.10"] == 0 } {
+      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.10 to 1.11 ..."
+
+      # we have to update all version dependent settings from 65 to 61
+      foreach host $ts_host_config(hostlist) {
+         puts $CHECK_OUTPUT "$host"
+         #Remove java from host_config
+         puts $CHECK_OUTPUT "---removing java for host $host"
+         unset ts_host_config($host,java)
+	 #Add java 1.4
+         set ts_host_config($host,java14) [autodetect_java $host "1.4"]
+         #Check if java1.5 is valid
+         set java15_bin $ts_host_config($host,java15)
+         if { [check_java_version $host $java15_bin "1.5"] != 0 } {
+            set ts_host_config($host,java15) [autodetect_java $host "1.5"]
+         }
+         #Add java1.6
+         set ts_host_config($host,java16) [autodetect_java $host "1.6"]
+         #Add ant
+         set ts_host_config($host,ant) [autodetect_ant $host]
+         puts $CHECK_OUTPUT "================="
+      }
+
+      set ts_host_config(version) "1.11"
+     
+      show_config ts_host_config
+      wait_for_enter
+      if {[save_host_configuration $filename] != 0} {
+         puts $CHECK_OUTPUT "Could not save host configuration"
+         wait_for_enter
+         return
+      }
+      return 0
+   }
+
+   puts $CHECK_OUTPUT "\nunexpected version"
+   return -1
+}
+
+
+#****** config/check_ant_version() *********************************************
+#  NAME
+#     check_ant_version() -- checks if ant is at least of version 1.6 and has 
+#                            junit.jar in it's lib directory
+#
+#  SYNOPSIS
+#      check_ant_version { host ant_bin }
+#
+#  FUNCTION
+#     This procedure is called when the the testsuite host configuration is 
+#     updated to 1.11. And each time ant location is modified in host 
+#     configuration.
+#
+#  INPUTS
+#     host - host where we expect the ant_bin
+#     ant_bin - whole path to ant binary
+#
+#  SEE ALSO
+#
+#*******************************************************************************
+proc check_ant_version { host ant_bin } {
+   global CHECK_USER CHECK_OUTPUT
+   set output [start_remote_prog $host $CHECK_USER "$ant_bin" "-version" prg_exit_state 12 0 "" "" 1 0]
+   set act_version [string trim [string range [get_string_value_between " version " " compiled" $output] 0 2]]
+   if { [string length $act_version] != 3 } {
+      puts $CHECK_OUTPUT "Error: 'ant -version' returned: \"$output\""
+      return -1
+   }
+   if { $act_version >= 1.6 } {
+      set input_len [ string length $ant_bin ]
+      set ant_len  [ string length "/bin/ant" ]
+      set last [ expr ( $input_len - $ant_len -1 ) ]
+      set res [ string range $ant_bin 0 $last]
+
+      set result [start_remote_prog $host $CHECK_USER "ls" "$res/lib/ant/junit.jar" prg_exit_state 12 0 "" "" 1 0]
+      if {$prg_exit_state == 0} {
+         return 0
+      }
+      puts $CHECK_OUTPUT "Warning: This ant version seems to have missing $res/lib/ant/junit.jar. Copy it there or update the ant version in host configuration manually!"
+      return 0
+   }
+   return -1
+}
+
+
+#****** config/autodetect_ant() ********************************************
+#  NAME
+#     autodetect_ant() -- tries to find ant_bin
+#
+#  SYNOPSIS
+#      check_ant_version { host }
+#
+#  FUNCTION
+#     This procedure is called to autodetect ant
+#
+#  INPUTS
+#     host - host where we expect the ant_bin
+#
+#  SEE ALSO
+#
+#*******************************************************************************
+proc autodetect_ant { host } {
+   global CHECK_USER CHECK_OUTPUT ts_host_config
+   set ant_bin [start_remote_prog $host $CHECK_USER "which" "ant" prg_exit_state 12 0 "" myenv 1 0]
+   set ant_bin [string trim $ant_bin]
+   if { $prg_exit_state != 0 } {
+      puts $CHECK_OUTPUT "Unable to autodetect ant for host $host. Set it manually in host configuration! Ant should have junit.jar copied to it's lib directory"
+      set ant_bin ""
+   } elseif  { [check_ant_version $host $ant_bin] != 0 } {
+      puts $CHECK_OUTPUT "Invalid ant: \"$ant_bin\""
+      set ant_bin ""
+   }
+   puts $CHECK_OUTPUT "---setting ant for host $host to \"$ant_bin\""
+   return $ant_bin
+}
+
+
+#****** config/check_java_version() ********************************************
+#  NAME
+#     check_java_version() -- java_bin is of a version specified
+#
+#  SYNOPSIS
+#      check_java_version { host java_bin version }
+#
+#  FUNCTION
+#     This procedure is called each time java14 java15 and java16 locations are 
+#     modified in host configuration.
+#
+#  INPUTS
+#     host - host where we expect the java_bin
+#     java_bin - whole path to java binary
+#     version - expected java version of java_bin
+#
+#  SEE ALSO
+#
+#  TODO
+#     Having valid java_bin is not enough. We also need JAVA_HOME/include dir.
+#     E.g.: /usr/jdk/jre/bin/java is invalid, correct would be /usr/jdk/bin/java
+#*******************************************************************************
+proc check_java_version { host java_bin version } {
+   global CHECK_USER
+   if { [string trim $java_bin] == "" } {
+      return -1
+   }
+   set output [start_remote_prog $host $CHECK_USER "$java_bin" "-version" prg_exit_state 12 0 "" "" 1 0]
+   if { [string match "*java version \"$version.*" $output] == 1 } {
+      return 0
+   }
+   return -1
+}
+
+
+#****** config/autodetect_java() ********************************************
+#  NAME
+#     autodetect_java() -- tries to find java_bin
+#
+#  SYNOPSIS
+#      check_java_version { host version }
+#
+#  FUNCTION
+#     This procedure is called to autodetect java14 java15 and java16
+#
+#  INPUTS
+#     host - host where we expect the java_bin
+#     version - expected java version of java_bin
+#
+#  SEE ALSO
+#
+#*******************************************************************************
+proc autodetect_java { host {version "1.4"} } {
+   global CHECK_OUTPUT CHECK_USER ts_host_config
+   set ver [get_testsuite_java_version $version]
+   set output [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk$ver ; which java\"" prg_exit_state 12 0 "" myenv 1 0]
+   if  { [string match "* NOT SUPPORTED *" $output] == 1 } {
+      puts $CHECK_OUTPUT "Error: [lindex [split $output "\n"] 0]"
+      set bin ""
+   } else {
+      set output [split $output "\n"]
+      set bin [string trim [lindex $output [expr [llength $output] - 2]]]
+      if { $prg_exit_state != 0 } {
+         puts $CHECK_OUTPUT "Error: Unable to autodetect java$ver  for host $host. Set it manually in host configuration!"
+         set bin "" 
+      } elseif { [check_java_version $host $bin $version] != 0 } {
+         puts $CHECK_OUTPUT "Error: $bin does not point to valid java$ver"
+         set bin ""
+      }
+   }
+   puts $CHECK_OUTPUT "---setting java$ver for host $host to \"$bin\""
+   return $bin
+}
+
+
 #****** config/host/setup_host_config() **********************************************
 #  NAME
 #     setup_host_config() -- testsuite host configuration initalization
@@ -1215,7 +1727,7 @@ proc setup_host_config {file {force 0}} {
 
    if { [read_array_from_file $file "testsuite host configuration" ts_host_config ] == 0 } {
       if { $ts_host_config(version) != $actual_ts_host_config_version } {
-         puts $CHECK_OUTPUT "unkown host configuration file version: $ts_host_config(version)"
+         puts $CHECK_OUTPUT "unknown host configuration file version: $ts_host_config(version) actual version: $actual_ts_host_config_version"
          while { [update_ts_host_config_version $file] != 0 } {
             wait_for_enter
          }
@@ -1547,10 +2059,11 @@ proc host_conf_get_unused_host {{raise_error 1}} {
 
 #****** config_host/get_java_home_for_host() **************************************************
 #  NAME
-#    get_java_home_for_host() -- Get the java home directory for a host
+#    get_java_home_for_host() -- Get the java home directory for a host. If no/unknown java 
+#                                version specified returns java home for java 1.4.
 #
 #  SYNOPSIS
-#    get_java_home_for_host { host } 
+#    get_java_home_for_host { host {java_version "1.4"} } 
 #
 #  FUNCTION
 #     Reads the java home directory for a host from the host configuration
@@ -1565,7 +2078,7 @@ proc host_conf_get_unused_host {{raise_error 1}} {
 #
 #  EXAMPLE
 #
-#     set java_home [get_java_home_for_host $CHECK_HOST]
+#     set java_home [get_java_home_for_host $CHECK_HOST "1.6"]
 #
 #     if { $java_home == "" } {
 #         puts "java not configurated for host $CHECK_HOST"
@@ -1578,10 +2091,15 @@ proc host_conf_get_unused_host {{raise_error 1}} {
 #     Doesn't work for MAC OS X
 #  SEE ALSO
 #*******************************************************************************
-proc get_java_home_for_host { host } {
-   global ts_host_config CHECK_OUTPUT
-   
-    set input $ts_host_config($host,java)
+proc get_java_home_for_host { host {java_version "1.4"} } {
+    global ts_host_config CHECK_OUTPUT
+    set version [get_testsuite_java_version $java_version]
+    set input $ts_host_config($host,java$version)
+
+    if { $input == "" } {
+       puts $CHECK_OUTPUT "Error: java$version is not set for host: $host"
+       return ""
+    }
     
     set input_len [ string length $input ]
     set java_len  [ string length "/bin/java" ]
@@ -1593,53 +2111,22 @@ proc get_java_home_for_host { host } {
     return $res
 }
 
-#****** config_host/get_java15_home_for_host() **************************************************
-#  NAME
-#    get_java15_home_for_host() -- Get the java15 home directory for a host
-#
-#  SYNOPSIS
-#    get_java15_home_for_host { host } 
-#
-#  FUNCTION
-#     Reads the java15 home directory for a host from the host configuration
-#
-#  INPUTS
-#    host -- name of the host
-#
-#  RESULT
-#     
-#     the java15 home directory of an empty string if the java15 is not set 
-#     in the host configuration
-#
-#  EXAMPLE
-#
-#     set java15_home [get_java15_home_for_host $CHECK_HOST]
-#
-#     if { $java15_home == "" } {
-#         puts "java15 not configurated for host $CHECK_HOST"
-#     }
-#
-#  NOTES
-#     TODO: store JAVA_HOME in host config!
-#
-#  BUGS
-#     Doesn't work for MAC OS X
-#
-#  SEE ALSO
-#*******************************************************************************
-proc get_java15_home_for_host { host } {
-   global ts_host_config CHECK_OUTPUT
-   
-    set input $ts_host_config($host,java15)
-    
-    set input_len [ string length $input ]
-    set java_len  [ string length "/bin/java" ]
-    
-    set last [ expr ( $input_len - $java_len -1 ) ]
-    
-    set res [ string range $input 0 $last]
-    
-    return $res
+proc get_testsuite_java_version { {version "1.4"} } {
+   global CHECK_OUTPUT
+
+   switch -exact $version {
+     "1.4" {
+        return "14"
+     }
+     "1.5" {
+        return "15"
+     }
+     "1.6" {
+        return "16"
+     }
+   }
+   puts $CHECK_OUTPUT "Warning: Unknown java_version: $version. Java 1.4 will be used instead!"
+   return "14"
 }
 
 

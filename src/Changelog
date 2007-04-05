@@ -1,3 +1,12 @@
+LP-2007-04-05-0: Enhancem.: Added new attributes "java16", "ant" to host config.
+                            Issue 8: rename host property "java" to "java14"
+                            Changed get_java_home_for_host to accept version
+                            argument (default "1.4").
+                            Removed get_java15_home_for_host.
+                            Added check_java_version, check_ant_version
+                            Added autodetect_java, autodetect_ant.                        
+                 Review:    JG
+
 RD-2007-04-04-0: Enhancem.: - new test for resource_reservation with calendar
                               disabled queue
                             - made testsuite default_duration=INFINITY aware

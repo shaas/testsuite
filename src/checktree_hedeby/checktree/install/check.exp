@@ -160,7 +160,7 @@ proc hedeby_run_installer {  host template } {
 
    set args "--log com.sun.grid.grm.install=FINE --mode AUTO --state $tmp_file"
 
-   set env(JAVA_HOME) [get_java15_home_for_host $host]
+   set env(JAVA_HOME) [get_java_home_for_host $host "1.5"]
    if { $env(JAVA_HOME) == "" } {
       add_proc_error "hedeby_run_installer" -1 "Can not run installer, java15 is not defined for host ${host}"
       return -1
