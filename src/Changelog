@@ -1,7 +1,13 @@
+JG-2007-04-05-0: Enhancem.: Added function for selecting hosts following certain
+                            criteria (host_conf_get_suited_hosts).
+                            Added commandline switch "preferred_archs" to use
+                            certain preferred architectures for testing.
+                 Review:    CR
+
 JG-2007-03-28-0: Enhancem.: Added test for issue 2222 (hybrid user/project 
                             sharetree).
-                 Review:    AH
                             Cleanup.
+                 Review:    AH
 
 AP-2007-03-22-0: Bugfix:    ARCo testsuite update.
                  Changed:   Checktree_arco

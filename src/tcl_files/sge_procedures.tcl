@@ -659,7 +659,7 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #  INPUTS
 #     bin                       - binary to start, e.g. qconf
 #     args                      - arguments, e.g. "-sel"
-#     {host ""}                 - host on which to execute command
+#     {host ""}                 - host on which to execute command - default: any host
 #     {user ""}                 - user who shall call command
 #     {exit_var prg_exit_state} - variable for returning command exit code
 #     {timeout 60}              - timeout for command execution
@@ -680,7 +680,7 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
    upvar $exit_var exit_state
 
    if {$host == ""} {
-      set host $ts_config(master_host)
+      set host [host_conf_get_suited_hosts]
    }
 
    if {$user == ""} {
@@ -713,7 +713,7 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
 #  INPUTS
 #     bin                       - command to start
 #     args                      - arguments for command
-#     {host ""}                 - host on which to start command
+#     {host ""}                 - host on which to start command - default: any host
 #     {user ""}                 - user who shall start command
 #     {exit_var prg_exit_state} - variable for returning command exit code
 #     {timeout 60}              - timeout for command execution
@@ -746,7 +746,7 @@ proc start_sge_utilbin {bin args {host ""} {user ""} {exit_var prg_exit_state} {
 #  INPUTS
 #     bin                       - binary to start, e.g. test_drmaa
 #     args                      - arguments, e.g. "-sel"
-#     {host ""}                 - host on which to execute command
+#     {host ""}                 - host on which to execute command - default: any host
 #     {user ""}                 - user who shall call command
 #     {exit_var prg_exit_state} - variable for returning command exit code
 #     {timeout 60}              - timeout for command execution
@@ -772,7 +772,7 @@ proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {t
    }
 
    if {$host == ""} {
-      set host $ts_config(master_host)
+      set host [host_conf_get_suited_hosts]
    }
 
    if {$user == ""} {
@@ -3247,8 +3247,8 @@ proc wait_for_load_from_all_queues { seconds } {
       puts $CHECK_OUTPUT "waiting for load value report from all queues ..."
       after 1000
       set result ""
-      set catch_return [ catch {exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-f"} result ]
-      if { $catch_return == 0 } {
+      set result [start_sge_bin "qstat" "-f"]
+      if { $prg_exit_state == 0 } {
          # split each line as listelement
          set help [split $result "\n"]
        
@@ -3473,9 +3473,8 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
    while { 1 } {
       after 1000
       puts $CHECK_OUTPUT "wait_for_unknown_load - waiting for queues\n\"$queue_array\"\nto get unknown load state ..."
-      set result ""
-      set catch_return [ catch {exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-f"} result ]
-      if { $catch_return == 0 } {
+      set result [start_sge_bin "qstat" "-f"]
+      if {$prg_exit_state == 0} {
          # split each line as listelement
          set help [split $result "\n"]
        
@@ -3576,8 +3575,8 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
       puts $CHECK_OUTPUT "waiting for end of all jobs ..."
       after 1000
       set result ""
-      set catch_return [ catch {eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat -s pr" } result ]
-      if { $catch_return == 0 } {
+      set result [start_sge_bin "qstat" "-s pr"]
+      if {$prg_exit_state == 0} {
          if { [ string compare $result "" ] == 0 } {
             puts $CHECK_OUTPUT "no further jobs in system"
             return 0

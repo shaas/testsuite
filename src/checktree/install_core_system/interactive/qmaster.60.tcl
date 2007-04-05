@@ -903,7 +903,7 @@ proc install_qmaster {} {
       }
    
       -i $sp_id $ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING {
-         set spooldir [get_bdb_spooldir $ts_config(master_host) 1]
+         set spooldir [get_bdb_spooldir $ts_config(master_host) 0]
   
          if { $spooldir == "" } {
             puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(12)"

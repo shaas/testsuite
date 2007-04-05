@@ -128,7 +128,7 @@ proc client_setup_do_test {scenario expected_error} {
    }
 
    foreach command $commands(index) {
-      set output [start_sge_bin $command $commands($command,args)]
+      set output [start_sge_bin $command $commands($command,args) $ts_config(master_host)]
       set messages(index) ""
       set ret [handle_sge_errors "client_setup_do_test" "$command $commands($command,args)" $output messages 0 $prg_exit_state]
 

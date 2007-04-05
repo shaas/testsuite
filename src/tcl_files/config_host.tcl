@@ -2370,42 +2370,365 @@ proc host_get_id_a_command {host} {
 #     {excluded_archs {}} } 
 #
 #  FUNCTION
-#     ??? 
+#     Returns hosts from the exec node list, selected by certain criteria.
+#
+#     For many checks, or for operations like calling a Grid Engine binary
+#     (qstat, qconf, ...), we need to decide, on which host to do the check.
+#     This can be done by calling host_conf_get_suited_host.
+#     host_conf_get_suited_host allows filtering the host list following 
+#     certain criteria:
+#        - by preferred architecture:
+#          Hosts will be returned matching these preferred architectures.
+#          If more hosts are needed than provided with the preferred
+#          architectures, other hosts will be returned as well.
+#        - by selecting architectures:
+#          In this case, only hosts of the selected architectures will
+#          be returned.
+#        - by excluding certain architectures:
+#          Hosts having these architectures will excluded from the host list.
+#
+#     If no preferred architectures are specified at the function call,
+#     but the preferred_archs commandline switch has been used, the archs
+#     specified at the commandline will be used as preferred archs.
+#
+#     If multiple hosts are candiates for host selection, the host(s) will be
+#     returned, that have not been used for the longest time period.
 #
 #  INPUTS
 #     {num_hosts 1}        - number of hosts to return.
-#                            0 means as many as available
 #     {preferred_archs {}} - if possible, select this architecture
 #     {selected_archs {}}  - select this architecture
 #     {excluded_archs {}}  - do not select this architecture
 #
 #  RESULT
-#     ??? 
+#     A list of hosts matching the criteria.
 #
 #  EXAMPLE
-#     ??? 
+#     host_conf_get_suited_hosts
+#        will return one host (the one not being used for the longest time).
 #
-#  NOTES
-#     ??? 
+#     host_conf_get_suited_hosts 2
+#        will return 2 hosts (the ones not being used for the longest time).
 #
-#  BUGS
-#     ??? 
+#     host_conf_get_suited_hosts 1 {sol-sparc64 sol-x86}
+#        will return one host, if possible a sol-sparc64, or a sol-x86, or
+#        if we have neither sol-sparc64 nor sol-x86 host, any other arch.
 #
-#  SEE ALSO
-#     ???/???
+#     host_conf_get_suited_hosts 1 {} {sol-sparc64}
+#        will return one sol-sparc64 host, or raise an error, if we don't
+#        have sol-sparc64 in our cluster
+#
+#     host_conf_get_suited_hosts 1 {sol-sparc64} {sol-amd64 sol-sparc64}
+#        will return one host, either sol-amd64 or sol-sparc, but we prefer
+#        to get a sol-sparc64 host.
+#
+#     host_conf_get_suited_hosts 1 {} {sol-amd64 sol-sparc64} {sol-amd64}
+#        error: selected and excluded architecture may not overlap
+#
+#     host_conf_get_suited_hosts 4 {} {} {lx24-ia64}
+#        return 4 hosts of any architecture, but not on Linux on Itanic.
+#
+#     host_conf_get_suited_hosts 4 {sol-sparc64} {} {lx24-ia64}
+#        return 4 hosts of any architecture, we prefer to get sol-sparc64 hosts,
+#        but cannot use Linux on Itanic.
 #*******************************************************************************
 proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_archs {}} {excluded_archs {}}} {
    global ts_config CHECK_OUTPUT
+   global CHECK_PREFERRED_ARCHS
 
-   if {[llength $ts_config(execd_nodes)] < $num_hosts} {
-      add_proc_error "host_conf_get_test_exec_hosts" -1 "our cluster doesn't have the requested $num_hosts hosts"
+   # preferred archs as option to the function call will override
+   # globally defined preferred archs (through commandline option at testsuite start).
+   if {$preferred_archs == {} && $CHECK_PREFERRED_ARCHS != {}} {
+      set preferred_archs $CHECK_PREFERRED_ARCHS
+   }
+
+   # (re)build cache
+   host_conf_get_suited_hosts_rebuild_cache
+
+   # build a list of candidates from parameters
+   host_conf_get_suited_hosts_candidates $preferred_archs $selected_archs $excluded_archs preferred_hosts remaining_hosts
+
+   if {[expr [llength $preferred_hosts] + [llength $remaining_hosts]] < $num_hosts} {
+      add_proc_error "host_conf_get_suited_hosts" -1 "host_selection doesn't return the required number of hosts ($num_hosts):\npreferred_archs:    $preferred_archs\nselected_archs:     $selected_archs\nexcluded_archs:     $excluded_archs\nresulting hostlist: $preferred_hosts $remaining_hosts"
       return {}
    }
 
-   set hosts {}
-   for {set i 0} {$i < $num_hosts} {incr i} {
-      lappend hosts [lindex $ts_config(execd_nodes) $i]
+   set hosts [host_conf_get_suited_hosts_select $num_hosts $preferred_hosts $remaining_hosts]
+   return $hosts
+}
+
+#****** config_host/host_conf_get_suited_hosts_rebuild_cache() *****************
+#  NAME
+#     host_conf_get_suited_hosts_rebuild_cache() -- initialization (internal)
+#
+#  SYNOPSIS
+#     host_conf_get_suited_hosts_rebuild_cache { } 
+#
+#  FUNCTION
+#     Initializes the caches used by host_conf_get_suited_hosts
+#     Internal - do not call in tests.
+#
+#  SEE ALSO
+#     config_host/host_conf_get_suited_hosts()
+#*******************************************************************************
+proc host_conf_get_suited_hosts_rebuild_cache {} {
+   global ts_config CHECK_OUTPUT
+   global suited_host_cache suited_arch_cache
+   global suited_exec_node_backup
+
+   # first call, initialize some variables
+   if {![info exists suited_exec_node_backup]} {
+      set suited_exec_node_backup $ts_config(execd_nodes)
+   } else {
+      # if the exec_node_list changed, clear cache
+      if {$suited_exec_node_backup != $ts_config(execd_nodes)} {
+         puts $CHECK_OUTPUT "the exec node list was modified - rebuilding suited host cache"
+         unset -nocomplain suited_host_cache
+         unset -nocomplain suited_arch_cache
+      }
    }
 
-   return $hosts
+   # (re)build cache, if it doesn't exist
+   if {![info exists suited_host_cache]} {
+      foreach host $ts_config(execd_nodes) {
+         set suited_host_cache($host) 0
+         set arch [resolve_arch $host]
+         if {![info exists suited_arch_cache($arch)]} {
+            set suited_arch_cache($arch) {}
+         }
+         lappend suited_arch_cache($arch) $host
+      }
+   }
+}
+
+#****** config_host/host_conf_get_suited_hosts_candidates() ********************
+#  NAME
+#     host_conf_get_suited_hosts_candidates() -- select possible hosts (internal)
+#
+#  SYNOPSIS
+#     host_conf_get_suited_hosts_candidates { preferred selected excluded 
+#     preferred_var remaining_var } 
+#
+#  FUNCTION
+#     Selects host matching certain criteria.
+#     Internal use only in host_conf_get_suited_hosts.
+#
+#  INPUTS
+#     preferred     - list of preferred architectures
+#     selected      - list of selected architectures
+#     excluded      - list of excluded architectures
+#     preferred_var - return preferred hosts here
+#     remaining_var - return all other possible hosts here
+#
+#  RESULT
+#     List of hosts for preferred use, and a list of other hosts that match the
+#     selection criteria, but are not the preferred ones.
+#
+#  SEE ALSO
+#     config_host/host_conf_get_suited_hosts()
+#*******************************************************************************
+proc host_conf_get_suited_hosts_candidates {preferred selected excluded preferred_var remaining_var} {
+   global suited_host_cache suited_arch_cache
+   upvar $preferred_var preferred_hosts
+   upvar $remaining_var remaining_hosts
+   set preferred_hosts {}
+   set remaining_hosts {}
+
+   # check: selected and excluded may not overlap 
+   foreach arch $selected {
+      if {[lsearch -exact $excluded $arch] >= 0} {
+         add_proc_error "" -1 "selected and excluded architecture list overlap:\nselected: $selected\nexcluded: $excluded"
+         return
+      }
+   }
+
+   # check: selected archs must exist in the cluster
+   set all_archs [array names suited_arch_cache]
+   foreach arch $selected {
+      if {[lsearch -exact $all_archs $arch] < 0} {
+         add_proc_error "" -1 "selected architecture is not available in our cluster:\nselected:  $selected\navailable: $all_archs"
+         return
+      }
+   }
+
+   # if we have selected archs, use these
+   if {$selected != {}} {
+      set all_archs $selected
+   } else {
+      # remove the excluded archs from all available
+      foreach arch $excluded {
+         set pos [lsearch -exact $all_archs $arch]
+         if {$pos >= 0} {
+            set all_archs [lreplace $all_archs $pos $pos]
+         }
+      }
+   }
+
+   # rebuild preferred arch list from the available archs
+   # build the list of remaining_archs
+   set new_preferred {}
+   set remaining_archs {}
+   foreach arch $all_archs {
+      if {[lsearch $preferred $arch] >= 0} {
+         lappend new_preferred $arch
+      } else {
+         lappend remaining_archs $arch
+      }
+   }
+   set preferred $new_preferred
+
+   # finally build the host lists
+   foreach arch $preferred {
+      foreach host $suited_arch_cache($arch) {
+         lappend preferred_hosts $host
+      }
+   }
+   foreach arch $remaining_archs {
+      foreach host $suited_arch_cache($arch) {
+         lappend remaining_hosts $host
+      }
+   }
+}
+
+#****** config_host/host_conf_get_suited_hosts_select() ************************
+#  NAME
+#     host_conf_get_suited_hosts_select() -- select hosts from candiates (internal)
+#
+#  SYNOPSIS
+#     host_conf_get_suited_hosts_select { num_hosts preferred_hosts 
+#     remaining_hosts } 
+#
+#  FUNCTION
+#     Selects hosts from a list of preferred hosts and a list of other
+#     possible hosts.
+#     Internal function - only to be called from host_conf_get_suited_hosts.
+#
+#  INPUTS
+#     num_hosts       - number of hosts to return
+#     preferred_hosts - the preferred hosts
+#     remaining_hosts - other hosts (second choice)
+#
+#  RESULT
+#     List of selected hosts.
+#
+#  SEE ALSO
+#     config_host/host_conf_get_suited_hosts()
+#*******************************************************************************
+proc host_conf_get_suited_hosts_select {num_hosts preferred_hosts remaining_hosts} {
+   global suited_host_cache
+
+   set ret {}
+
+   # first take hosts from the preferred host list
+   # sort the list by "not used for the longest time"
+   set hosts [lsort -command host_conf_sort_suited $preferred_hosts]
+
+   foreach host $hosts {
+      if {$num_hosts <= 0} {
+         break
+      }
+      lappend ret $host
+      set suited_host_cache($host) [timestamp]
+      incr num_hosts -1
+   }
+
+   # if we need more hosts than available in the preferred hosts, 
+   # take hosts from the remaining_hosts
+   if {$num_hosts > 0} {
+      # sort the list by "not used for the longest time"
+      set hosts [lsort -command host_conf_sort_suited $remaining_hosts]
+
+      foreach host $hosts {
+         if {$num_hosts <= 0} {
+            break
+         }
+         lappend ret $host
+         set suited_host_cache($host) [timestamp]
+         incr num_hosts -1
+      }
+   }
+
+   return $ret
+}
+
+#****** config_host/host_conf_sort_suited() ************************************
+#  NAME
+#     host_conf_sort_suited() -- sorting function (internal)
+#
+#  SYNOPSIS
+#     host_conf_sort_suited { a b } 
+#
+#  FUNCTION
+#     Used for sorting hosts by "last used" criteria.
+#     Internal use only from host_conf_get_suited_host.
+#
+#  INPUTS
+#     a - host a
+#     b - host b
+#
+#  RESULT
+#     -1, 0, 1 - similar to string compare
+#
+#  SEE ALSO
+#     config_host/host_conf_get_suited_hosts()
+#*******************************************************************************
+proc host_conf_sort_suited {a b} {
+   global suited_host_cache
+
+   if {$suited_host_cache($a) < $suited_host_cache($b)} {
+      return -1
+   } elseif {$suited_host_cache($a) == $suited_host_cache($b)} {
+      return 0
+   } else {
+      return 1
+   }
+}
+
+proc test_host_conf_get_suited_host {} {
+   global CHECK_OUTPUT
+
+   # any host(s) - increase number of hosts until it failes
+   set num_hosts 1
+   while {1} {
+      set hosts [host_conf_get_suited_hosts $num_hosts]
+      puts $CHECK_OUTPUT "-> $num_hosts\t$hosts"
+      if {$hosts == {}} {
+         break
+      }
+      sleep 1
+      incr num_hosts
+   }
+
+   # test preferred hosts
+   # 1 which should match my test cluster
+   set hosts [host_conf_get_suited_hosts 1 "sol-sparc64"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   # here we should see fillup with other archs
+   set hosts [host_conf_get_suited_hosts 4 "sol-sparc64"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   # this one will fail
+   set hosts [host_conf_get_suited_hosts 1 "nonexisting-arch"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+
+   # test selected hosts
+   # 1 which should match my test cluster
+   set hosts [host_conf_get_suited_hosts 1 {} "sol-sparc64"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   # this one should fail due to lack of 4 sol-sparc64 hosts
+   set hosts [host_conf_get_suited_hosts 4 {} "sol-sparc64"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   # this one will fail due to unknown arch
+   set hosts [host_conf_get_suited_hosts 1 {} "nonexisting-arch"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   # multiple selected archs with a preferred one
+   set hosts [host_conf_get_suited_hosts 2 "sol-sparc64" "sol-amd64 sol-sparc64"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+
+   # test excluded archs
+   set hosts [host_conf_get_suited_hosts 6 "" "" "sol-amd64"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+
+   # this one should return a error
+   set hosts [host_conf_get_suited_hosts 1 "" "sol-amd64 sol-sparc64" "sol-amd64"]
+   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
 }

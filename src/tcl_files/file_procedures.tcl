@@ -3295,8 +3295,7 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
    set spooldir ""
 
    # special case: suppress local spooldirectories
-   # but we need a local spooldir for the berkeley db
-   if {$check_do_not_use_spool_config_entries == 1 && $subdir != "spooldb"} {
+   if {$check_do_not_use_spool_config_entries == 1} {
       puts $CHECK_OUTPUT "\"no_local_spool\" option is set - returning empty spool dir" 
       return $spooldir
    }
@@ -3590,7 +3589,7 @@ proc get_bdb_spooldir {{host ""} {only_local 0}} {
 
    # if no special bdb spool directory is given, use qmaster spooldir
    if {$ts_config(bdb_dir) == "none"} {
-      set spooldir [get_local_spool_dir $host spooldb 0 ]
+      set spooldir [get_local_spool_dir $host spooldb 0]
    } else {
       set spooldir $ts_config(bdb_dir)
    }
@@ -3623,7 +3622,7 @@ proc get_bdb_spooldir {{host ""} {only_local 0}} {
 #
 #  INPUTS
 #     path      - path to file or directory
-#     {host ""} - host on which to do the check. Default is the master host.
+#     {host ""} - host on which to do the check. Default is any host.
 #
 #  RESULT
 #     The filesystem type (e.g. "nfs, nfs4, tmpfs, ufs), or
@@ -3633,7 +3632,7 @@ proc get_fstype {path {host ""}} {
    set ret "unknown"
 
    # use the SGE utilbin fstype
-   set output [start_sge_utilbin "fstype" $path]
+   set output [start_sge_utilbin "fstype" $path $host]
    if {$prg_exit_state != 0} {
       add_proc_error "" -1 "fstype $path failed:\n$output"
    } else {

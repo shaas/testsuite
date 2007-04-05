@@ -353,6 +353,9 @@ set CHECK_COVERAGE {} ;# list of code coverage methods (tcov, insure, or emma)
 global CHECK_COVERAGE_DIR ;# directory for test coverage profiles
 set CHECK_COVERAGE_DIR ""
 
+global CHECK_PREFERRED_ARCHS ;# preferred architecture for testing
+set CHECK_PREFERRED_ARCHS {}
+
 global CHECK_HAVE_TDOM ;# do we have the tdom tcl package installed?
 set CHECK_HAVE_TDOM 0
 
@@ -7940,6 +7943,11 @@ for { set i 0 } { $i < $argc } { incr i } {
       puts ""
       puts "coverage <type(s)>    with code coverage analysis, type =\"tcov|insure|emma\""
       puts "coverage_dir <dir>    directory for test coverage profiles"
+      puts ""
+      puts "preferred_archs <archs> specify architectures, that shall be used whenever possible"
+      puts "                      please use quotes, when specifying multiple architectures, e.g."
+      puts "                      preferred_archs sol-sparc64, or preferred_archs \"hp11 hp11-64\""
+      puts ""
 
       exit 1
    }
@@ -8211,6 +8219,20 @@ for { set i 0 } { $i < $argc } { incr i } {
       set no_action 0
       puts "no_main2 active"
       return
+   }
+
+   if {[string compare [lindex $argv $i] "--preferred_archs"] == 0 || [string compare [lindex $argv $i] "preferred_archs"] == 0} {
+      incr i
+      set help_var [lindex $argv $i]
+      set CHECK_PREFERRED_ARCHS [string trim $help_var]
+
+      if {[llength $CHECK_PREFERRED_ARCHS] < 1} {
+         puts $CHECK_OUTPUT "please specify an architecture name together with the preferred_archs switch"
+         exit -1 
+      }
+
+      puts $CHECK_OUTPUT " ---> using \"$CHECK_PREFERRED_ARCHS\" as preferred architectures <---"
+      continue
    }
 }
 
