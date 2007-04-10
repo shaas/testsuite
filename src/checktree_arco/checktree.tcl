@@ -723,10 +723,13 @@ proc config_dbwriter_host { only_check name config_array } {
          puts $CHECK_OUTPUT "Host $dbwriter_host is not defined in the host configuration"
          return -1
       }
-      if {[get_binary_path $dbwriter_host "java"] == "java"} { 
-         puts $CHECK_OUTPUT "Java is not configured for host $dbwriter_host"
-         return -1
-      }
+# AP: commented after removing the java property from host configuration
+# (replaced by java14, java15, java16) 
+# TODO: change the behaviour when java is not set -> now -> can't get to the testsuite setup 
+#      if {[get_binary_path $dbwriter_host "java"] == "java"} { 
+#         puts $CHECK_OUTPUT "Java is not configured for host $dbwriter_host"
+#         return -1
+#      }
    }
 
    return $dbwriter_host
