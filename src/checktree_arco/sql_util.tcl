@@ -137,8 +137,8 @@ proc sqlutil_create { { user "" } } {
    if { $user == "" } {
       set user $CHECK_USER
    }
-   
-   set cmd [get_binary_path $CHECK_HOST "java"]
+# TODO - change the method for getting java   
+   set cmd [get_binary_path $CHECK_HOST "java14"]
    set args "com.sun.grid.util.SQLUtil"
 
    set sql_utilenv(CLASSPATH) [get_sqlutil_classpath]
