@@ -1,3 +1,7 @@
+CR-2007-04-16-0: Enhancem.: added more output for auto_reschedule test when
+                            timeout occurs.
+                 Review:    RH
+
 LP-2007-04-05-0: Enhancem.: Added new attributes "java16", "ant" to host config.
                             Issue 8: rename host property "java" to "java14"
                             Changed get_java_home_for_host to accept version

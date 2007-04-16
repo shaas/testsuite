@@ -237,7 +237,8 @@ proc auto_reschedule_setup {} {
        add_proc_error "auto_reschedule_setup" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
      -i $sp_id timeout {
-         add_proc_error "auto_reschedule_setup" -1 "setup failed (timeout waiting for config to change)"
+         set output $expect_out(buffer)
+         add_proc_error "auto_reschedule_setup" -1 "setup failed (timeout waiting for config to change):\noutput:\n$output"
       }
       -i $sp_id "using*${global_reschedule_value}*reschedule_unknown" {
          puts $CHECK_OUTPUT "configuration changed"
