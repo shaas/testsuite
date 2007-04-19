@@ -566,7 +566,7 @@ proc consumable_resources_test {} {
 
    if { $CHECK_ACT_LEVEL == 1 } {
       set RUNATHOST  [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNATHOST_SSS]  "*" "*" "*test2=0*"]
-   
+
       # case a)
       #           all jobs will run
       puts $CHECK_OUTPUT "\ncase a)"
@@ -591,7 +591,7 @@ proc consumable_resources_test {} {
       set run_job_count 6
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a"
       consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a" 
-   
+
       # case b) 
       #           5 jobs run, 1 have to wait
       puts $CHECK_OUTPUT "\ncase b)"
@@ -642,6 +642,7 @@ proc consumable_resources_test {} {
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
       set job_count 6
       set run_job_count 2
+
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "e" $RUNATHOST
       consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e" 
 

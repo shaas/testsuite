@@ -103,7 +103,7 @@ proc spooledit_init_level {} {
 proc spooledit_list {} {
    global ts_config CHECK_OUTPUT
 
-   set output [start_sge_utilbin "spooledit" "list"]
+   set output [start_sge_utilbin "spooledit" "list" $ts_config(master_host)]
    if {$prg_exit_state != 0} {
       add_proc_error "spooledit_list" -1 "spooledit list failed:\n$output"
    } else {
@@ -127,7 +127,7 @@ proc spooledit_dump {} {
    global ts_config CHECK_OUTPUT
 
    # read the list of objects
-   set output [start_sge_utilbin "spooledit" "list"]
+   set output [start_sge_utilbin "spooledit" "list" $ts_config(master_host)]
    if {$prg_exit_state != 0} {
       add_proc_error "spooledit_dump" -1 "spooledit list failed:\n$output"
       return
@@ -139,7 +139,7 @@ proc spooledit_dump {} {
    foreach obj $spooled_objects {
       puts -nonewline $CHECK_OUTPUT "\r$obj                             "
       flush $CHECK_OUTPUT
-      set output [start_sge_utilbin "spooledit" "dump $obj"]
+      set output [start_sge_utilbin "spooledit" "dump $obj" $ts_config(master_host)]
       if {$prg_exit_state != 0} {
          add_proc_error "spooledit_dump" -1 "spooledit dump $obj failed:\n$output"
          puts $CHECK_OUTPUT ""

@@ -113,8 +113,13 @@ proc resource_reservation_init_level {} {
          }
       }
       "4" {
-         set drmaa_version "test_drmaa.1.0"
-         return 0;      # Tests resource_reservation
+         if {[llength $ts_config(execd_nodes)] < 2} {
+            add_proc_error "resource_reservation_init_level" -3 "need at least 2 execd hosts for this test"
+            return -1;
+         } else {
+            set drmaa_version "test_drmaa.1.0"
+            return 0;      # Tests resource_reservation
+         }
       }
    }
    return -1
@@ -235,9 +240,10 @@ proc resource_reservation_level_setup {} {
       if {$CHECK_ACT_LEVEL == 4} {
 
          add_queue "$rr_cal_queue_name" "@allhosts" queue_conf 1
+         set no_rr_host [lindex $ts_config(execd_nodes) 1]
 
          # submit jobs into that queue
-         set job_options "-j y -o /dev/null -q $rr_cal_queue_name $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+         set job_options "-j y -o /dev/null -q $rr_cal_queue_name -l h=$no_rr_host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
          set job_id [submit_job "$job_options"]
          trigger_scheduling
          wait_for_jobstart $job_id "Sleeper" 60 1 1
