@@ -64,15 +64,13 @@ set check_cleanup_function tight_integration_cleanup
 
 # define test's procedure order
 set check_functions ""
-lappend check_functions "tight_integration_init_messages_check"
 lappend check_functions "tight_integration_function"
 lappend check_functions "tight_integration_iz_578";# env vars NSLOTS and NHOSTS
 lappend check_functions "tight_integration_master_killed"
 lappend check_functions "tight_integration_slave_killed"
 lappend check_functions "tight_integration_iz_575";# wallclock limit for tasks
-lappend check_functions "tight_integration_massive"
-lappend check_functions "tight_integration_messages_check"
 lappend check_functions "tight_integration_iz_1916"
+lappend check_functions "tight_integration_massive"
 
 # constants to be used by the tight integration test
 global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS 
@@ -125,7 +123,32 @@ proc tight_integration_parse_execd_messages {mode} {
    global CHECK_PRODUCT_ROOT TIGHT_INTEGRATION_MASSIVE_SLOTS
    global ts_config CHECK_OUTPUT CHECK_USER
    global TIGHT_INTEGRATION_ERROR_MESSAGES TIGHT_INTEGRATION_WARNING_MESSAGES
-
+   global tight_master_node
+   #
+   # Parse qmaster message file for warning and error messages. Note that we
+   # may pick up old and stale messages as well.
+   #
+   puts $CHECK_OUTPUT "check messages file from qmaster on $tight_master_node..."
+   set TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode) 0
+   set TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode) 0
+   set messages [ get_qmaster_messages_file ]
+   get_file_content $tight_master_node $CHECK_USER $messages
+   if { $file_array(0) < 1 } {
+      add_proc_error "tight_integration_setup" -1 "no qmaster(host=$tight_master_node) messages file:\n$messages"
+   }
+   for {set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+      if { [string match "*|E|*" $file_array($i)] } {
+         incr TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode) 1
+         set TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode,$TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode)) $file_array($i)
+      }
+      if { [string match "*|W|*" $file_array($i)] } {
+         incr TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode) 1
+         set TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode,$TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode)) $file_array($i)
+      }
+   }
+   #
+   # Now, do the same whizzardry for each execd configured.
+   #
    foreach execd $ts_config(execd_nodes) {
       puts $CHECK_OUTPUT "check messages file from execd $execd ..."
       set TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode) 0
@@ -139,15 +162,20 @@ proc tight_integration_parse_execd_messages {mode} {
          if {[string match "*|E|*" $file_array($i)]} {
             incr TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode) 1
             set TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode,$TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode)) $file_array($i)
-            puts $CHECK_OUTPUT $file_array($i)
+            #puts $CHECK_OUTPUT $file_array($i)
          }
          if {[string match "*|W|*" $file_array($i)]} {
             incr TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode) 1
             set TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode,$TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode)) $file_array($i)
-            puts $CHECK_OUTPUT "$execd,$mode,$TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode) = $file_array($i)"
+            #puts $CHECK_OUTPUT "$execd,$mode,$TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode) = $file_array($i)"
          }
       }
    }
+
+   puts $CHECK_OUTPUT "error   messages for qmaster $tight_master_node $mode: \
+                       $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode)"
+   puts $CHECK_OUTPUT "warning messages for qmaster $tight_master_node $mode: \
+                       $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode)"
 
    foreach execd $ts_config(execd_nodes) {
       puts $CHECK_OUTPUT "error   messages for execd $execd: $TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode)"
@@ -156,41 +184,134 @@ proc tight_integration_parse_execd_messages {mode} {
 }
 
 
-proc tight_integration_check_messages {mode1 mode2} {
+proc tight_integration_check_messages {mode1 mode2 scenario} {
    global CHECK_PRODUCT_ROOT TIGHT_INTEGRATION_MASSIVE_SLOTS
    global ts_config CHECK_OUTPUT CHECK_USER
    global TIGHT_INTEGRATION_ERROR_MESSAGES TIGHT_INTEGRATION_WARNING_MESSAGES
 
    set error_text ""
- 
+   #
+   # OK, check if number of qmaster error messages has changed since test startup
+   #
+   if { $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode1) != $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2) } {
+      set header_written 0
+      for { set i [expr ( $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode1) + 1 ) ] } \
+       { $i <= $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2) } { incr i 1 } {
+         #
+         # Loop over qmaster error messages generated during test run.
+         #
+         set message $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2,$i)
+         set mstart [ string last "|" $message ]
+         incr mstart 1
+         set skip_message 0
+         #
+         # We need to blank out qmaster messages that originate from fault injection.
+         # There is one check per fault injections scenario.
+         #
+         if { $scenario == "master_killed" && \
+               ( [ string match "*master task of job*" $message ] == 1 || \
+                 [ string match "*died through signal KILL*" $message ] == 1 ) } {
+            set skip_message 1
+         } elseif { ( $scenario == "wallclock_test" || \
+                      $scenario == "slave_killed" ) && \
+                      ( [ string match "*killing job*" $message ] == 1 || \
+                        [ string match "*died through signal KILL*" $message ] == 1 ) } {
+            set skip_message 1
+         }
+         #
+         # Write out any unexpected error message and header, if required.
+         #
+         if { $skip_message == 0 } {
+            if { $header_written == 0 } {
+               append error_text "tight integration check produced qmaster error messages at dagored:\n"
+               set header_written 1
+            }
+            append error_text [string range "$message\n" $mstart end]
+         }
+      }
+   }
+   #
+   # Next, check if number of qmaster warning messages has changed since test startup
+   #
+   if { $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode1) != $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2) } {
+      set header_written 0
+      for { set i [expr ( $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode1) + 1 ) ] } \
+       { $i <= $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2) } { incr i 1 } {
+         #
+         # Loop over qmaster error messages generated during test run.
+         #
+         set message $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2,$i)
+         set mstart [ string last "|" $message ]
+         incr mstart 1
+         set skip_message 0
+         #
+         # We need to blank out qmaster messages that originate from fault injection.
+         # There is one check per fault injections scenario.
+         #
+         if { ( $scenario == "reschedule_test" || \
+                $scenario == "slave_killed" || \
+                $scenario == "wallclock_test" || \
+                $scenario == "master_killed" ) &&  \
+              ( [ string match "*rescheduling because*" $message ] == 1 || \
+                [ string match "*rescheduling job*" $message ] == 1 || \
+                [ string match "*died through signal KILL*" $message ] == 1 ) } {
+            set skip_message 1
+         }
+         #
+         # Write out any unexpected warning message and header, if required.
+         #
+         if { $skip_message == 0 } {
+            if { $header_written == 0 } {
+               append error_text "tight integration check produced qmaster warning messages at dagored:\n"
+               set header_written 1
+            }
+            append error_text [string range "$message\n" $mstart end]
+         }
+      }
+   }
    foreach execd $ts_config(execd_nodes) {
       if {$TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode1) != $TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode2)} {
          puts $CHECK_OUTPUT "tight integration check produced execd error messages at $execd:"
          append error_text "tight integration check produced execd error messages at $execd:\n"
          for {set i [expr $TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode1) + 1]} {$i <= $TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode2)} {incr i 1} { 
-            puts $CHECK_OUTPUT $TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode2,$i)
-            set mstart [string last "|" $TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode2,$i)]
+            set message $TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode2,$i)
+            set mstart [string last "|" $message]
             incr mstart 1 
-            append error_text [string range "$TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode2,$i)\n" $mstart end]
+            append error_text [string range "$message\n" $mstart end]
          }
       }
+      #
+      # Check for new warning messages.
+      #
+      set header_written 0
       if {$TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode1) != $TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2)} {
-         puts $CHECK_OUTPUT "tight integration check produced execd waring messages at $execd:"
-         append error_text "$TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode1) != $TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2)\n"
-         append error_text "tight integration check produced execd waring messages at $execd:\n"
-
+         #
+         # Dump warning messages geerated during test run.
+         #
          for {set i [expr $TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode1) + 1]} {$i <= $TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2)} {incr i} {
-             if {[info exists TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2,$i)]} {
-                puts $CHECK_OUTPUT $TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2,$i)
-                set mstart [string last "|" $TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2,$i)]
-                incr mstart 1 
-                append error_text [string range "$TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2,$i)\n" $mstart end]
-             } else {
-                append error_text "can't read TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2,$i)\n"
-                foreach elem [array names TIGHT_INTEGRATION_WARNING_MESSAGES] {
-                   puts $CHECK_OUTPUT "TIGHT_INTEGRATION_WARNING_MESSAGES($elem) = $TIGHT_INTEGRATION_WARNING_MESSAGES($elem)"
-                }
-             }
+            set message $TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode2,$i)
+            set mstart [string last "|" $message]
+            incr mstart 1
+            set skip_message 0
+            set poo [ string map {" " "_"} $message ]
+            #
+            # We need to blank out execd messages that originate from fault injection.
+            # There is one check per fault injections scenario.
+            #
+            if { $scenario == "wallclock_test" && [ string match "*exceeded_hard_wallclock*" $poo ] } {
+               set skip_message 1
+            }
+            #
+            # Write out any unexpected error message and header, if required.
+            #
+            if { $skip_message == 0 } {
+               if { $header_written == 0 } {
+                  puts $CHECK_OUTPUT "tight integration check produced execd warning messages at $execd:"
+                  append error_text "tight integration check produced execd warning messages at $execd:\n"
+                  set header_written 1
+               }
+               append error_text [string range "$message\n" $mstart end]
+            }
          }
       }
    }
@@ -207,7 +328,7 @@ proc tight_integration_init_messages_check {} {
    tight_integration_parse_execd_messages startup
 }
 
-proc tight_integration_messages_check {} {
+proc tight_integration_messages_check { scenario } {
    global CHECK_OUTPUT
 
    get_config global_config
@@ -226,14 +347,14 @@ proc tight_integration_messages_check {} {
    tight_integration_parse_execd_messages cleanup
 
    puts $CHECK_OUTPUT "compare error messages ..."
-   tight_integration_check_messages startup cleanup
+   tight_integration_check_messages startup cleanup $scenario
 }
 
 proc tight_integration_setup {} {
    global ts_config CHECK_OUTPUT
    global tight_masterq tight_master_node
 
-   set tight_master_node [lindex $ts_config(execd_nodes) 0]
+   set tight_master_node $ts_config(master_host)
    set tight_masterq [get_queue_instance "tight.q" $tight_master_node]
 
    # shutdown and restart an execd
@@ -487,6 +608,11 @@ proc tight_integration_iz_1916 {} {
    global CHECK_ACT_LEVEL 
    global TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
+   #
+   # Initialize message processing.
+   #
+   tight_integration_init_messages_check
+
    puts $CHECK_OUTPUT "tight_integration: test iz 1916 (reschedule killes qmaster)"
 
    if {$CHECK_ACT_LEVEL != 0} {
@@ -575,8 +701,14 @@ proc tight_integration_iz_1916 {} {
 
    close_spawn_process $id
 
+   #
+   # Check for warning/error messages and write out.
+   #
+   tight_integration_messages_check reschedule_test
+
    # reset global config
    set_config org_global_conf
+
 }   
 
 # check if tasks are killed when they hit a wallclock limit
@@ -584,6 +716,11 @@ proc tight_integration_iz_575 {} {
    global ts_config CHECK_OUTPUT CHECK_USER 
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
+   #
+   # Initialize message processing.
+   #
+   tight_integration_init_messages_check
+
    puts $CHECK_OUTPUT "tight_integration: iz 575 task wallclock limit"
 
    if {$ts_config(gridengine_version) == 53} {
@@ -633,6 +770,10 @@ proc tight_integration_iz_575 {} {
    # reset queue runtime limit
    set queue_conf(h_rt) "INFINITY"
    set_queue "tight.q" "$host_list" queue_conf
+   #
+   # Check for warning/error messages and write out.
+   #
+   tight_integration_messages_check wallclock_test
 }
 
 # check NSLOTS, NHOSTS, NQUEUES for tasks
@@ -641,6 +782,11 @@ proc tight_integration_iz_578 {} {
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: Issue 578 NSLOTS NHOSTS NQUEUES"
+   #
+   # Initialize message processing.
+   #
+   tight_integration_init_messages_check
+
 
    set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $TIGHT_INTEGRATION_FUNCTIONAL_DURATION" $tight_master_node]
 
@@ -658,6 +804,10 @@ proc tight_integration_iz_578 {} {
    close_spawn_process $id
 
    wait_for_jobend $jobid tightf 60 0 1
+   #
+   # Check for new warning/error messages and write out.
+   #
+   tight_integration_messages_check iz_578
 }
 
 # master task killed -> job has to be deleted
@@ -667,6 +817,9 @@ proc tight_integration_master_killed {} {
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: master task killed - issue 579"
 
+   #
+   # Initialize message processing.
+   #
    set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
    set started 0
@@ -700,6 +853,11 @@ proc tight_integration_master_killed {} {
    close_spawn_process $id
 
    wait_for_jobend $jobid tightf 60 0 1
+   #
+   # Check for new warning/error messages and write out.
+   #
+   tight_integration_messages_check master_killed
+
 }
 
 # slave task killed -> job has to be deleted
@@ -708,6 +866,11 @@ proc tight_integration_slave_killed {} {
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS TIGHT_INTEGRATION_FUNCTIONAL_DURATION
    global submit_command tight_masterq tight_master_node
    puts $CHECK_OUTPUT "tight_integration: slave task killed"
+
+   #
+   # Initialize message processing.
+   #
+   tight_integration_init_messages_check
 
    set hosts_to_check {}
    set resolved_master [resolve_host $tight_master_node]
@@ -782,6 +945,11 @@ proc tight_integration_slave_killed {} {
    if { $failures != "" } {
       add_proc_error "tight_integration_slave_killed" -1 "failures:\n$failures\ntest was ok for:\n$ok_text"
    }
+   #
+   # Check for new warning/error messages and write out.
+   #
+   tight_integration_messages_check slave_killed
+
 }
 
 proc tight_integration_massive {} {
