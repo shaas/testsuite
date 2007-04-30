@@ -1,3 +1,7 @@
+GH-2007-04-30-0: Enhancem.: Added test for CR 6396036. This is covered by
+                            IZ 125.
+                 Review:    JG
+
 GH-2007-04-27-0: Enhancem.: Added test for CR 6461308. This is covered by
                             IZ 2154: "checktree/functional/tight_integration
                             should evaluate qmaster messages"
