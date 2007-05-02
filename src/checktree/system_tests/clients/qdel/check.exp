@@ -469,13 +469,14 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
    set string3 [translate $hostname 0 1 0 "does not exist "]
    set string4 [translate $hostname 0 1 0 "registered the job "]
    set string5 [translate $hostname 0 1 0 "for deletion "]
+   set string6 [translate $hostname 0 1 0 "is already in deletion "]
 
    # in case of errors, break
    set do_continue 1
 
-   if { (  [string first [concat "$string1 " [lindex $job_list 0] ] $result0] >= 0 ) ||
-   (  [string first [concat "$string2 " \"[lindex $job_list 0]\" "$string3" ] $result0] >= 0 ) ||
-   (  [string first [concat "$string4 " [lindex $job_list 0] "$string5" ] $result0] >= 0 ) } {
+   if { [string first [concat "$string1 " [lindex $job_list 0] ] $result0] >= 0 ||
+        [string first [concat "$string2 " \"[lindex $job_list 0]\" "$string3"] $result0] >= 0 ||
+        [string first [concat "$string4 " [lindex $job_list 0] "$string5"] $result0] >= 0 } {
 
   	   puts $CHECK_OUTPUT "first delete OK"
    } else {
@@ -490,14 +491,15 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
    # qdel always has to return some text.
    # if result00 is empty, we hit IZ 1860
    if {[string trim $result00] == ""} {
-      add_proc_error "qdel_iz_125_case_2" "-3" "qdel didn't return any text - this is IZ 1860 - not fixed for versions >= 6.0"
+      add_proc_error "qdel_iz_125_case_2" "-1" "qdel didn't return any text - this is IZ 1860"
       set do_continue 0
    }
 
    if ($do_continue) {
-      if { ( [string first [concat "$string1" \"[lindex $job_list 0]]\" $result00] >= 0 ) ||
-      ( [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result00] >= 0 ) ||
-      ( [string first [concat "$string4" [lindex $job_list 0] "$string5" ] $result00] >= 0 ) } {
+      if { [string first [concat "$string1" \"[lindex $job_list 0]]\" $result00] >= 0 ||
+           [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result00] >= 0 ||
+           [string first [concat "$string4" [lindex $job_list 0] "$string5" ] $result00] >= 0 ||
+           [string first [concat "$string2 " [lindex $job_list 0] "$string6"] $result00] >= 0 } {
 
          puts $CHECK_OUTPUT "second delete OK"
       } else {
@@ -511,9 +513,10 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
       set result000 [ start_remote_prog $hostname $CHECK_USER $qdel_program $job_list ]
 
       # Check that we get a response
-      if { ( [string first [concat "$string1"  \"[lindex $job_list 0]]\" $result000] >= 0 ) ||
-      ( [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result000] >= 0 ) ||
-      ( [string first [concat "$string4"  [lindex $job_list 0] "$string5" ] $result000] >= 0 ) } {
+      if { [string first [concat "$string1"  \"[lindex $job_list 0]]\" $result000] >= 0 ||
+           [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result000] >= 0 ||
+           [string first [concat "$string4"  [lindex $job_list 0] "$string5" ] $result000] >= 0 ||
+           [string first [concat "$string2 " [lindex $job_list 0] "$string6"] $result00] >= 0 } {
          puts $CHECK_OUTPUT "third delete OK"
       } else {
          add_proc_error "qdel_iz_125_case_2" -1 "Third delete of case 2), IZ 125 failed:\n$result000"

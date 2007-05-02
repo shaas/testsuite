@@ -1,3 +1,7 @@
+RD-2007-05-02-0: Enhancem.: changed check for IZ 1860 from warning to
+                            error
+                 Review:    JG
+
 EB-2007-05-02-0: Enhancem.: Changed parsing code for advance reservation 
                             enhancements in qstat for v6.2
                  Review:    RD
