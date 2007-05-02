@@ -143,7 +143,6 @@ proc issue_1848_cleanup {} {
    set_config myconfig
 }
 
-
 proc issue_1848_run {} {
    global ts_config
    global CHECK_OUTPUT

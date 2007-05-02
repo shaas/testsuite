@@ -1739,7 +1739,7 @@ proc qstat_urg_plain_parse { output  } {
 #*******************************
 
 proc qstat_f_urg_plain_parse { output {param ""} } {
-   global  CHECK_OUTPUT   
+   global  CHECK_OUTPUT ts_config 
 
    upvar $output qstat_output
 
@@ -1775,19 +1775,31 @@ proc qstat_f_urg_plain_parse { output {param ""} } {
       # name, user, state, submit_time, start_time, deadline, queue, slots, task_id.
 
       set id [lindex $single_white_space_string 0]
-      
-      if { ([llength $single_white_space_string] < 7) && [regexp "\[a-zA-Z\]" $id] && \
+
+      if { $ts_config(gridengine_version) == 62 } {
+         # resv. slots have been added
+         set total_columns 8
+      } else {
+         set total_columns 7
+      }
+     
+#TODO EB 
+      if { ([llength $single_white_space_string] < $total_columns) && [regexp "\[a-zA-Z\]" $id] && \
             ( $id != "queuename") } { ; # queue listing
-      
-         set qstat_output($id,qname) [lindex $single_white_space_string 0]
-         set qstat_output($id,qtype) [lindex $single_white_space_string 1]
-         set qstat_output($id,used_slots) [lindex $single_white_space_string 2]
-         set qstat_output($id,total_slots) [lindex $single_white_space_string 3]
-         set qstat_output($id,load_avg) [lindex $single_white_space_string 4]
-         set qstat_output($id,arch) [lindex $single_white_space_string 5]
+         set delta 0 
+         set qstat_output($id,qname) [lindex $single_white_space_string [expr 0 + $delta]]
+         set qstat_output($id,qtype) [lindex $single_white_space_string [expr 1 + $delta]]
+         if { $ts_config(gridengine_version) == 62 } {
+            set qstat_output($id,resv_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+            set delta [expr $delta + 1] 
+         }
+         set qstat_output($id,used_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+         set qstat_output($id,total_slots) [lindex $single_white_space_string [expr 3 + $delta]]
+         set qstat_output($id,load_avg) [lindex $single_white_space_string [expr 4 + $delta]]
+         set qstat_output($id,arch) [lindex $single_white_space_string [expr 5 + $delta]]
          append qstat_output($id,state) ""
-         if { [llength $single_white_space_string] > 6 } {
-            set qstat_output($id,state) [lindex $single_white_space_string 6]
+         if { [llength $single_white_space_string] > [expr 6 + $delta] } {
+            set qstat_output($id,state) [lindex $single_white_space_string [expr 6 + $delta]]
          }
          
          lappend qstat_output(queue_list) $id
@@ -2361,7 +2373,7 @@ proc qstat_r_plain_parse { output  } {
 #*******************************
 
 proc qstat_f_r_plain_parse { output } {
-   global CHECK_OUTPUT   jobid
+   global CHECK_OUTPUT jobid ts_config
 
    upvar $output qstat_output
 
@@ -2424,21 +2436,34 @@ proc qstat_f_r_plain_parse { output } {
             set qstat_output($jobid,granted_pe_value) [lindex $single_white_space_string 3]
          }
             
-      }      
-               
-      if { ([llength $single_white_space_string] == 6) || \
-           ([llength $single_white_space_string] == 7) && [regexp "\[a-zA-Z\]" $id] && \
+      }     
+
+      if { $ts_config(gridengine_version) == 62 } {
+         # resv. slots have been added
+         set total_columns 8
+         set total_columns_without_state 7
+      } else {
+         set total_columns 7
+         set total_columns_without_state 6
+      }
+#TODO EB               
+      if { ([llength $single_white_space_string] == $total_columns_without_state) || \
+           ([llength $single_white_space_string] == $total_columns) && [regexp "\[a-zA-Z\]" $id] && \
             ( $id != "queuename") } { ; # queue listing
-      
-         set qstat_output($id,qname) [lindex $single_white_space_string 0]
-         set qstat_output($id,qtype) [lindex $single_white_space_string 1]
-         set qstat_output($id,used_slots) [lindex $single_white_space_string 2]
-         set qstat_output($id,total_slots) [lindex $single_white_space_string 3]
-         set qstat_output($id,load_avg) [lindex $single_white_space_string 4]
-         set qstat_output($id,arch) [lindex $single_white_space_string 5]
+         set delta 0 
+         set qstat_output($id,qname) [lindex $single_white_space_string [expr 0 + $delta]]
+         set qstat_output($id,qtype) [lindex $single_white_space_string [expr 1 + $delta]]
+         if { $ts_config(gridengine_version) == 62 } {
+            set qstat_output($id,resv_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+            set delta [expr $delta + 1]
+         }
+         set qstat_output($id,used_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+         set qstat_output($id,total_slots) [lindex $single_white_space_string [expr 3 + $delta]]
+         set qstat_output($id,load_avg) [lindex $single_white_space_string [expr 4 + $delta]]
+         set qstat_output($id,arch) [lindex $single_white_space_string [expr 5 + $delta]]
          append qstat_output($id,state) ""
-         if { [llength $single_white_space_string] > 6 } {
-            set qstat_output($id,state) [lindex $single_white_space_string 6]
+         if { [llength $single_white_space_string] > [expr 6 + $delta] } {
+            set qstat_output($id,state) [lindex $single_white_space_string [expr 6 + $delta]]
          }
 			
          lappend qstat_output(queue_list) $id
@@ -2500,7 +2525,7 @@ proc qstat_f_r_plain_parse { output } {
 #*******************************
 
 proc qstat_f_plain_parse { output {param ""} } {
-   global CHECK_OUTPUT    
+   global CHECK_OUTPUT ts_config   
 
    upvar $output qstat_output
 
@@ -2534,18 +2559,24 @@ proc qstat_f_plain_parse { output {param ""} } {
 
       # If the first element contains a letter, it is a queue listing
       # Else, it is a jobid.
-      
+     
       set id [lindex $single_white_space_string 0]
       if { [regexp "\[a-zA-Z\]" $id] } {  ; # queue listing
-         set qstat_output($id,qname) [lindex $single_white_space_string 0]
-         set qstat_output($id,qtype) [lindex $single_white_space_string 1]
-         set qstat_output($id,used_slots) [lindex $single_white_space_string 2]
-         set qstat_output($id,total_slots) [lindex $single_white_space_string 3]
-         set qstat_output($id,load_avg) [lindex $single_white_space_string 4]
-         set qstat_output($id,arch) [lindex $single_white_space_string 5]
+#TODO EB
+         set delta 0
+         set qstat_output($id,qname) [lindex $single_white_space_string [expr 0 + $delta]]
+         set qstat_output($id,qtype) [lindex $single_white_space_string [expr 1 + $delta]]
+         if { $ts_config(gridengine_version) == 62 } {
+            set qstat_output($id,resv_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+            set delta [expr $delta + 1]
+         }
+         set qstat_output($id,used_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+         set qstat_output($id,total_slots) [lindex $single_white_space_string [expr 3 + $delta]]
+         set qstat_output($id,load_avg) [lindex $single_white_space_string [expr 4 + $delta]]
+         set qstat_output($id,arch) [lindex $single_white_space_string [expr 5 + $delta]]
          append qstat_output($id,state) ""
-         if { [llength $single_white_space_string] > 6 } {
-            set qstat_output($id,state) [lindex $single_white_space_string 6]
+         if { [llength $single_white_space_string] > [expr 6 + $delta] } {
+            set qstat_output($id,state) [lindex $single_white_space_string [expr 6 + $delta]]
          }
          
          lappend qstat_output(queue_list) $id
@@ -2601,7 +2632,7 @@ proc qstat_f_plain_parse { output {param ""} } {
 #*******************************
 
 proc qstat_g_c_plain_parse { output  } {
-   global  CHECK_OUTPUT    
+   global CHECK_OUTPUT ts_config   
 
    upvar $output qstat_output
 
@@ -2638,14 +2669,17 @@ proc qstat_g_c_plain_parse { output  } {
       set qstat_output($cqueue,clusterqueue) $cqueue
       lappend qstat_output(queue_list) $cqueue
 
-      set qstat_output($cqueue,cqload) [lindex $single_white_space_string 1]
-      set qstat_output($cqueue,used) [lindex $single_white_space_string 2]
-      set qstat_output($cqueue,avail) [lindex $single_white_space_string 3]
-      set qstat_output($cqueue,total) [lindex $single_white_space_string 4]
-      set qstat_output($cqueue,aoACDS) [lindex $single_white_space_string 5]
-      set qstat_output($cqueue,cdsuE) [lindex $single_white_space_string 6]
-                    
-         
+      set delta 0
+      set qstat_output($cqueue,cqload) [lindex $single_white_space_string [expr 1 + $delta]]
+      set qstat_output($cqueue,used) [lindex $single_white_space_string [expr 2 + $delta]]
+      if { $ts_config(gridengine_version) == 62 } {
+         set qstat_output($cqueue,resv) [lindex $single_white_space_string [expr 3 + $delta]]
+         set delta [expr $delta + 1]
+      }
+      set qstat_output($cqueue,avail) [lindex $single_white_space_string [expr 3 + $delta]]
+      set qstat_output($cqueue,total) [lindex $single_white_space_string [expr 4 + $delta]]
+      set qstat_output($cqueue,aoACDS) [lindex $single_white_space_string [expr 5 + $delta]]
+      set qstat_output($cqueue,cdsuE) [lindex $single_white_space_string [expr 6 + $delta]]
    }
 }
 #                                                             max. column:     |
@@ -2685,13 +2719,14 @@ proc qstat_special_parse {input_string } {
 
    # For date, skip slash removal
    set date_flag [regexp "(\[0-9]+\/\[0-9]+\/\[0-9]+)" $input_string]
-
-   if {$date_flag == 1} {
+   set slots_flag [regexp "(\[BIPC]+\[ ]+\[0-9]+\/\[0-9]+\/\[0-9]+)" $input_string]
+   if {$date_flag == 1 && $slots_flag == 0} {
       # do nothing, we have a date, so keep the slashes; return
       return $input_string
    } else {
       # we have slots, so remove the slash
-      regsub "\/" $input_string " " output_string
+      regsub "\/" $input_string " " output_string_tmp
+      regsub "\/" $output_string_tmp " " output_string
       #regsub "(\[0-9\]*)\/(\[0-9\]*)( )" $input_string "\1 \2" output_string
    }
 
@@ -2728,7 +2763,7 @@ proc qstat_special_parse {input_string } {
 #*******************************
 
 proc qstat_ext_plain_parse { output {param ""} } {
-   global  CHECK_OUTPUT    
+   global CHECK_OUTPUT ts_config   
 
    upvar $output qstat_output
 
@@ -2767,17 +2802,23 @@ proc qstat_ext_plain_parse { output {param ""} } {
       # department state cpu mem io tckts ovrts otckt ftckt stckt share queue task_id
 
       set id [lindex $single_white_space_string 0]
-      
+
+#TODO EB
       if { [regexp "\[a-zA-Z\]" $id] } {  ; # queue listing
-         set qstat_output($id,qname) [lindex $single_white_space_string 0]
-         set qstat_output($id,qtype) [lindex $single_white_space_string 1]
-         set qstat_output($id,used_slots) [lindex $single_white_space_string 2]
-         set qstat_output($id,total_slots) [lindex $single_white_space_string 3]
-         set qstat_output($id,load_avg) [lindex $single_white_space_string 4]
-         set qstat_output($id,arch) [lindex $single_white_space_string 5]
+         set delta 0
+         set qstat_output($id,qname) [lindex $single_white_space_string [expr 0 + $delta]]
+         set qstat_output($id,qtype) [lindex $single_white_space_string [expr 1 + $delta]]
+         if { $ts_config(gridengine_version) == 62 } {
+            set qstat_output($id,resv_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+            set delta [expr $delta + 1]
+         }
+         set qstat_output($id,used_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+         set qstat_output($id,total_slots) [lindex $single_white_space_string [expr 3 + $delta]]
+         set qstat_output($id,load_avg) [lindex $single_white_space_string [expr 4 + $delta]]
+         set qstat_output($id,arch) [lindex $single_white_space_string [expr 5 + $delta]]
          append qstat_output($id,state) ""
-         if { [llength $single_white_space_string] > 6 } {
-            set qstat_output($id,state) [lindex $single_white_space_string 6]
+         if { [llength $single_white_space_string] > [expr 6 + $delta] } {
+            set qstat_output($id,state) [lindex $single_white_space_string [expr 6 + $delta]]
          }
          
          lappend qstat_output(queue_list) $id
@@ -2876,7 +2917,7 @@ proc qstat_ext_plain_parse { output {param ""} } {
 #     parser/parse_qstat
 #*******************************
 proc qstat_F_plain_parse {  output {params ""} } {
-   global CHECK_OUTPUT queue_name
+   global CHECK_OUTPUT queue_name ts_config
 
    upvar $output qstat_output
 
@@ -2925,16 +2966,22 @@ proc qstat_F_plain_parse {  output {params ""} } {
     
          
       } elseif { [regexp "\[a-zA-Z\]" $id] } {  ; # queue listing
-         set qstat_output($id,qname) [lindex $single_white_space_string 0]
+#TODO EB
+         set delta 0
+         set qstat_output($id,qname) [lindex $single_white_space_string [expr 0 + $delta]]
          set queue_name $qstat_output($id,qname)
-         set qstat_output($id,qtype) [lindex $single_white_space_string 1]
-         set qstat_output($id,used_slots) [lindex $single_white_space_string 2]
-         set qstat_output($id,total_slots) [lindex $single_white_space_string 3]
-         set qstat_output($id,load_avg) [lindex $single_white_space_string 4]
-         set qstat_output($id,arch) [lindex $single_white_space_string 5]
+         set qstat_output($id,qtype) [lindex $single_white_space_string [expr 1 + $delta]]
+         if { $ts_config(gridengine_version) == 62 } {
+            set qstat_output($id,resv_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+            set delta [expr $delta + 1]
+         }
+         set qstat_output($id,used_slots) [lindex $single_white_space_string [expr 2 + $delta]]
+         set qstat_output($id,total_slots) [lindex $single_white_space_string [expr 3 + $delta]]
+         set qstat_output($id,load_avg) [lindex $single_white_space_string [expr 4 + $delta]]
+         set qstat_output($id,arch) [lindex $single_white_space_string [expr 5 + $delta]]
          append qstat_output($id,state) ""
-         if { [llength $single_white_space_string] > 6 } {
-            set qstat_output($id,state) [lindex $single_white_space_string 6]
+         if { [llength $single_white_space_string] > [expr 6 + $delta] } {
+            set qstat_output($id,state) [lindex $single_white_space_string [expr 6 + $delta]]
          }
 
          lappend qstat_output(queue_list) $id
