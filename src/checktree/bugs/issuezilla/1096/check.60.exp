@@ -88,11 +88,10 @@ proc issue_1096_run {} {
    } else {
       puts $CHECK_OUTPUT "try to start qmaster on port $ts_config(reserved_port) ..."
 
-      for { set i 0 } { $i < [llength $ts_config(unique_arch_nodes) ]  } { incr i 1 } {
-         set act_host [lindex  $ts_config(unique_arch_nodes) $i]
+      foreach act_host $ts_config(unique_arch_nodes) {
          set arch [resolve_arch $act_host]
 
-         if { $arch == "win32-x86" } {
+         if {$arch == "win32-x86"} {
             add_proc_error "issue_1096_run" -3 "Skipping win32-x86 architecture!" 
             continue
          }

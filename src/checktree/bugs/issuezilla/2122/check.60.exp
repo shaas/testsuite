@@ -64,33 +64,29 @@ proc sge_strdup_test_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          return 0
-      } 
-   } 
+      }
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization------------------------------
 
 proc sge_strdup_test_test1 {} {
-   global CHECK_USER CHECK_ACT_LEVEL check_description
-   global CHECK_OUTPUT ts_config 
+   global ts_config CHECK_OUTPUT
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
- 
-   set output [start_sge_bin "qconf" "-ae \"\"" ]
+   set output [start_sge_bin "qconf" "-ae \"\""]
    puts $CHECK_OUTPUT "output: $output"
-   if { [string first "\"\"" $output] < 0 } {
+   if {[string first "\"\"" $output] < 0} {
       add_proc_error "sge_strdup_test_test1" -1 "issue 2122 found"
    }
 
-   set output [start_sge_bin "qconf" "-purge queue slots \"\"" ]
+   set output [start_sge_bin "qconf" "-purge queue slots \"\""]
    puts $CHECK_OUTPUT "output: $output"
-   if { [string first "\"\"" $output] < 0 } {
+   if {[string first "\"\"" $output] < 0} {
       add_proc_error "sge_strdup_test_test1" -1 "issue 2122 found" 
    }
 }
-
 

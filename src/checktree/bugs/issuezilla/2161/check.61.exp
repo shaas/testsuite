@@ -70,7 +70,7 @@ proc issue_2161_init_level {} {
 }
 
 proc issue_2161_userset {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT
 
    set rqs_name "issue_2161"
    set rules ""
@@ -91,7 +91,7 @@ proc issue_2161_userset {} {
 }
 
 proc issue_2161_project {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT
 
    set rqs_name "issue_2161"
    set rules ""

@@ -66,14 +66,12 @@ lappend check_functions "issue_524_check"
 
 proc issue_524_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
-   } 
+      "0" {
+         return 0
+      }
+   }
 
    return -1  ;# no other level else
 }
@@ -85,13 +83,16 @@ proc issue_524_check {} {
 
    puts $CHECK_OUTPUT "Submitting sleeper ..."
    set arguments "-h $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
-   set job_id1 [ submit_job "$arguments" ]
+   set job_id1 [submit_job "$arguments"]
 
    puts "Submitting 2000 jobs (one '.' represents 100 jobs)"
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qresub -h u $job_id1"
-   for { set i 0 } { $i < 20 } { incr i } {
-      for { set j 0 } { $j < 100 } { incr j } {
-         set result [ catch { eval exec "$command" } output ]
+   for {set i 0} {$i < 20} {incr i} {
+      for {set j 0} {$j < 100} {incr j} {
+         set output [start_sge_bin "qresub" "-h u $job_id1"]
+         if {$prg_exit_state != 0} {
+            add_proc_error "issue_524_check" -1 "qresub failed:\n$output"
+            return
+         }
       }
       puts -nonewline "."
       flush stdout
@@ -99,20 +100,17 @@ proc issue_524_check {} {
    puts ""
 
    puts $CHECK_OUTPUT "Deleting Sleeper ..."
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel -u $CHECK_USER"
-   set result [ catch { eval exec "$command" } output ]
-   if { ( $result == 1 ) } {
-      add_proc_error "issue_524_check" "-1" "qdel -u failed"
+   set output [start_sge_bin "qdel" "-u $CHECK_USER"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_524_check" "-1" "qdel -u $CHECK_USER failed:\n$output"
       return
    } 
 
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 }
 
-proc issue_524_cleanup  {} {
-   global CHECK_OUTPUT
-
+proc issue_524_cleanup {} {
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 }
 

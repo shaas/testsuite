@@ -72,49 +72,49 @@ proc issue_1104_init_level {} {
 
 
 proc issue_1104_run {} {
-   global ts_config orig_config CHECK_OUTPUT
+   global ts_config orig_config CHECK_OUTPUT CHECK_USER
 
+   # backup config of master host
    get_config orig1104_config $ts_config(master_host)
 
-   foreach name [array names orig1104_config] {
-      puts $CHECK_OUTPUT "$name $orig1104_config($name)"
-   }
-   
-   set arch [resolve_arch $ts_config(master_host)]
-
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf" "-sconf" "$ts_config(master_host)"} result ]
-
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf" "-dconf" "$ts_config(master_host)"} result ]
+   set result [start_sge_bin "qconf" "-sconf $ts_config(master_host)"]
    puts $CHECK_OUTPUT $result
 
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf" "-sconf" "$ts_config(master_host)"} result ]
+   set result [start_sge_bin "qconf" "-dconf $ts_config(master_host)"]
+   puts $CHECK_OUTPUT $result
 
-   if { $catch_result == 0 } {
-      add_proc_error "issue_1104_setup" "-1" "could not delete local configuration for host $ts_config(master_host)"
+   set result [start_sge_bin "qconf" "-sconf $ts_config(master_host)"]
+   puts $CHECK_OUTPUT $result
+
+   if {$prg_exit_state == 0} {
+      add_proc_error "issue_1104_run" "-1" "could not delete local configuration for host $ts_config(master_host)"
    } 
 
-   
+   # restart qmaster
    shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
-
    startup_qmaster
-   
+  
+   # re-add config of master host from file
    file mkdir "$ts_config(product_root)/tmp"
-   set conf_file [ open "$ts_config(product_root)/tmp/$ts_config(master_host)" "w" ]
+   set temp_file "$ts_config(product_root)/tmp/$ts_config(master_host)"
+   set conf_file [open $temp_file "w"]
    foreach name [array names orig1104_config] {
       puts $conf_file "$name $orig1104_config($name)" 
    }
    close $conf_file
 
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf" "-Aconf" "$ts_config(product_root)/tmp/$ts_config(master_host)"} result ]
+   # run this command on any host
+   set host [host_conf_get_suited_hosts]
+   wait_for_remote_file $host $CHECK_USER $temp_file
+   start_sge_bin "qconf" "-Aconf $temp_file" $host
 
-   set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qstat" } result ]
-   if { $catch_result != 0 } {
-      add_proc_error "issue_1104_setup" "-1" "could not contact qmaster and add configuration on host $ts_config(master_host), original config stored at $ts_config(product_root)/tmp/$ts_config(master_host)"
+   # now test if qmaster is still alive
+   start_sge_bin "qstat" ""
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_1104_run" "-1" "could not contact qmaster and add configuration on host $ts_config(master_host), original config stored at $temp_file"
    } else {
-      file delete "$ts_config(product_root)/tmp/$ts_config(master_host)" 
-
+      file delete $temp_file
       file delete "$ts_config(product_root)/tmp"
    }
 }
-
 

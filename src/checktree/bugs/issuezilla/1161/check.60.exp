@@ -54,9 +54,9 @@ set check_highest_level       0
 proc issue_1161_init_level {} {
    global CHECK_ACT_LEVEL ts_config
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -64,14 +64,14 @@ proc issue_1161_init_level {} {
    return -1
 }
 
-proc issue_1161_run  {} {
+proc issue_1161_run {} {
    global ts_config CHECK_ARCH
 
    set vi_commands ""
    lappend vi_commands "A\ncomplex1161[format "%c" 27]"
 
    # localize messages
-   set INVALID [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWN_ATTR_TYPE_U] 0 ]
+   set INVALID [translate_macro MSG_SGETEXT_UNKNOWN_ATTR_TYPE_U 0]
 
    # add by handling vi
    handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc" $vi_commands $INVALID

@@ -67,20 +67,19 @@ lappend check_functions "issue_540_check"
 proc issue_540_init_level {} {
    global CHECK_ACT_LEVEL
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-  } 
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
 
-  return -1  ;# no other level else
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
 proc issue_540_check {} {
-   global ts_config
-   global CHECK_OUTPUT env CHECK_USER
+   global ts_config CHECK_OUTPUT env CHECK_USER
  
    #
    # Scenario:
@@ -92,21 +91,21 @@ proc issue_540_check {} {
    set user_home $env(HOME)
    puts "user_home:$user_home"
 
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
 
    delete_remote_file $host $CHECK_USER $user_home/$job_output_file
 
    # first test should fail - We submit two logfiles for the default host. 
    set qsub_arguments "-l h=$host -o :$job_output_file,:$job_output_file $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
-   if { $job_id > 0 } {
+   if {$job_id > 0} {
       add_proc_error "issue_540_check" "-1" "qsub accepted the invalid option -o :out:put.txt,:out:put1.txt"
    }
 
    #second test should fail - We submit a logfile for a not existing host
    set qsub_arguments "-l h=$host -o qwdfvb:$job_output_file $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
-   if { $job_id > 0 } {
+   if {$job_id > 0} {
       add_proc_error "issue_540_check" "-1" "qsub accepted an invalid host in the -o qwdfvb:out:put.txt option"   
    }
 
@@ -119,18 +118,16 @@ proc issue_540_check {} {
    # on slow NFS, it may take some time for outputfile to be visible
    set result [wait_for_remote_file $host $CHECK_USER $user_home/$job_output_file 120]
 
-   if { $result != 0 } {
+   if {$result != 0} {
       add_proc_error "issue_540_check" "-1" "qsub did not create the specified output file $job_output_file on host $host"
    } else {
       delete_remote_file $host $CHECK_USER $user_home/$job_output_file
    }
 }
 
-proc issue_540_cleanup  {} {
-   global CHECK_OUTPUT
-
+proc issue_540_cleanup {} {
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 }
 
 

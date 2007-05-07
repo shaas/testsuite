@@ -38,7 +38,7 @@ set check_init_level_procedure "copy_certs_init_level"
 
 # define test's name and run level descriptions
 set check_name            "copy_certs"
-set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED CSP"
 set check_highest_level   0
 set check_description(0)  "Tests the copy_certs switch installation script"
 

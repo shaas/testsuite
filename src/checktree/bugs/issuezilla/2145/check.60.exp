@@ -73,9 +73,9 @@ proc issue_2145_init_level {} {
       "0" {
          return 0
       }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization------------------------------
@@ -85,9 +85,8 @@ proc issue_2145_setup {} {
    global CHECK_OUTPUT ts_config
    global complex_backup
 
-   if {[info exists complex_backup]} {
-      unset complex_backup
-   }
+   # backup complex
+   unset -nocomplain complex_backup
    get_complex complex_backup
 }
 
@@ -101,9 +100,9 @@ proc issue_2145_cleanup {} {
 
 
 proc issue_2145_test {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_HOST
+   global ts_config CHECK_OUTPUT
 
-   set exechost_name [host_conf_get_suited_hosts 1]
+   set exechost_name [host_conf_get_suited_hosts]
    set qinstance_name [get_queue_instance all.q $exechost_name]
 
    # add a additional complex entry

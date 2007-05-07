@@ -56,7 +56,7 @@ proc issue_1198_init_level {} {
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -67,19 +67,19 @@ proc issue_1198_init_level {} {
 proc issue_1198_run  {} {
    global ts_config CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT
 
-   set test_host [lindex $ts_config(execd_nodes) 0]
+   set test_host [host_conf_get_suited_hosts]
 
    # Setup
-   catch { exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-sql" } result
-   if { [string first "no queue defined" $result] >= 0 } {
+   set result [start_sge_bin "qconf" "-sql"]
+   if {[string first "no queue defined" $result] >= 0} {
       add_proc_error "issue_1198_run" "-1" "no queue defined"
       return
    } else {
       set queue [lindex $result 0]
    }
 
-   catch { exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-shgrpl" } result
-   if { [string first "no hostgroup defined" $result] >= 0 } {
+   set result [start_sge_bin "qconf" "-shgrpl"]
+   if {[string first "no hostgroup defined" $result] >= 0} {
       add_proc_error "issue_1198_run" "-1" "no hostgroup defined"
       return
    } else {
@@ -89,7 +89,7 @@ proc issue_1198_run  {} {
    # Test
    puts $CHECK_OUTPUT "Looking for slots in ${queue}@${test_host} complex values list"
 
-   set catch_result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -sq ${queue}@${test_host} | grep complex_values | grep -v slots" } result ]
+   set catch_result [catch {eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -sq ${queue}@${test_host} | grep complex_values | grep -v slots"} result]
 
    if {$catch_result != 0} {
       add_proc_error "issue_1198_run" "-1" "qconf failed to hide slots for queue ${queue}@${test_host}: $result"
@@ -98,7 +98,7 @@ proc issue_1198_run  {} {
 
    puts $CHECK_OUTPUT "Looking for slots in ${queue}@${hostgroup} complex values list"
 
-   set catch_result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -sq ${queue}@${hostgroup} | grep complex_values | grep -v slots" } result ]
+   set catch_result [catch {eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -sq ${queue}@${hostgroup} | grep complex_values | grep -v slots"} result]
 
    if {$catch_result != 0} {
       add_proc_error "issue_1198_run" "-1" "qconf failed to hide slots for queue ${queue}@${hostgroup}: $result"

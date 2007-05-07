@@ -44,6 +44,7 @@ set check_init_level_procedure "issue_1741_init_level"
 
 set check_category            "COMPATIBILITY SYSTEM VERIFIED"
 set check_name                "issue_1741"
+set check_highest_level       0
 set check_description(0)      "subordinate properties lost on qmaster restart"
 set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
 set check_root_access_needs   "yes"
@@ -56,7 +57,6 @@ set check_cleanup_function "issue_1741_cleanup"
 set check_functions           ""
 lappend check_functions       "issue_1741_run"   ;# functions to call (in order)
 
-set check_highest_level       0
 
 #
 # Scenario:
@@ -81,9 +81,9 @@ set check_highest_level       0
 #
 
 proc issue_1741_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
@@ -93,51 +93,47 @@ proc issue_1741_init_level {} {
 }
 
 proc issue_1741_setup  {} {
-   global ts_config 
-   global CHECK_OUTPUT CHECK_HOST CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global ts_config CHECK_OUTPUT
+   global check_host
+
+   set check_host [host_conf_get_suited_hosts]
 
    set queue_settings(slots) 1
-   set queue_settings(hostlist) $CHECK_HOST
    set queue_settings(load_thresholds) "np_load_avg=11.75"
-   set qname "b.q"
-   add_queue $qname $CHECK_HOST queue_settings
+   add_queue "b.q" $check_host queue_settings
 
    set queue_settings(slots) 1
-   set queue_settings(hostlist) $CHECK_HOST
    set queue_settings(load_thresholds) "np_load_avg=11.75"
    set queue_settings(subordinate_list) "b.q=1"
-   set qname "a.q"
-   add_queue $qname $CHECK_HOST queue_settings
+   add_queue "a.q" $check_host queue_settings
 }
 
 proc issue_1741_cleanup  {} {
-   global ts_config 
-   global CHECK_OUTPUT CHECK_HOST CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global ts_config CHECK_OUTPUT
+   global check_host
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
 
-   wait_for_end_of_all_jobs 60
-
-   set qname "a.q"
-   del_queue $qname $CHECK_HOST  0 1
-
-   set qname "b.q"
-   del_queue $qname $CHECK_HOST  0 1
+   del_queue "a.q" $check_host  0 1
+   del_queue "b.q" $check_host  0 1
 }
 
 proc issue_1741_run  {} {
-   global ts_config 
-   global CHECK_OUTPUT CHECK_HOST CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global ts_config CHECK_OUTPUT
+   global check_host
 
-   set job_id1 [submit_job "-q b.q@${CHECK_HOST} ${CHECK_PRODUCT_ROOT}/examples/jobs/sleeper.sh 100"]
+   set aq [get_queue_instance "a.q" $check_host]
+   set bq [get_queue_instance "b.q" $check_host]
+
+   set job_id1 [submit_job "-o /dev/null -j y -q $bq $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
    wait_for_jobstart $job_id1 "Sleeper" 20 1 1
-   set job_id2 [submit_job "-q a.q@${CHECK_HOST} ${CHECK_PRODUCT_ROOT}/examples/jobs/sleeper.sh 100"]
+   set job_id2 [submit_job "-o /dev/null -j y -q $aq $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
    wait_for_jobstart $job_id2 "Sleeper" 20 1 1
 
-
-   wait_for_queue_state "b.q@${CHECK_HOST}" "S" 60
+   wait_for_queue_state $bq "S" 60
 
    shutdown_and_restart_qmaster
 
-   wait_for_queue_state "b.q@${CHECK_HOST}" "S" 60
+   wait_for_queue_state $bq "S" 60
 }

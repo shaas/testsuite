@@ -76,10 +76,10 @@ proc issue_1334_init_level {} {
    global test_array_jobs 
 
   switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-  } 
+     "0" {
+        return 0
+     }
+  }
 
   return -1  ;# no other level else
 }
@@ -87,17 +87,14 @@ proc issue_1334_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1334_setup {} {
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_ARCH CHECK_PROTOCOL_DIR
-   global add_queue
+   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
    global issue_1334_job_stdout_file issue_1334_job_stderr_file
    
    set issue_1334_job_stdout_file "$CHECK_PROTOCOL_DIR/iz_1334.stdout"
    set issue_1334_job_stderr_file "$CHECK_PROTOCOL_DIR/iz_1334.stderr"
    
    # create a queue with a termination_method
-   
    set queue_conf(starter_method)  "$CHECK_ACTUAL_TEST_PATH/jobstarter.sh"
-   
    add_queue "iz_1334" "@allhosts" queue_conf 1
 
    delete_file $issue_1334_job_stdout_file 0
@@ -105,8 +102,7 @@ proc issue_1334_setup {} {
 }
 
 proc issue_1334_cleanup  {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
-   global ts_config
+   global ts_config CHECK_OUTPUT
    global issue_1334_job_stdout_file issue_1334_job_stderr_file
    
    delete_all_jobs
@@ -121,9 +117,7 @@ proc issue_1334_cleanup  {} {
 }
 
 proc issue_1334_run {} {
-
-   global CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_HOST CHECK_USER
-   global ts_config
+   global ts_config CHECK_OUTPUT CHECK_HOST CHECK_USER
    global issue_1334_job_stdout_file issue_1334_job_stderr_file
    
 
@@ -145,9 +139,9 @@ proc issue_1334_run {} {
    }
   
    puts $CHECK_OUTPUT "waiting for file $issue_1334_job_stdout_file"
-   set res [ wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120 ]
+   set res [wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120]
    
-   if { $res != 0 } {
+   if {$res != 0} {
       add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
       return
    }
@@ -157,7 +151,7 @@ proc issue_1334_run {} {
    # the pattern SGE_STARTER_SHELL_PATH
    #
    set output [start_remote_prog $CHECK_HOST $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
-   if { [string match "*SGE_STARTER_SHELL_PATH*" $output] != 1 } {
+   if {[string match "*SGE_STARTER_SHELL_PATH*" $output] != 1} {
       add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (1)"
       return
    }
@@ -183,9 +177,9 @@ proc issue_1334_run {} {
    }
   
    puts $CHECK_OUTPUT "waiting for file $issue_1334_job_stdout_file"
-   set res [ wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120 ]
+   set res [wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120]
    
-   if { $res != 0 } {
+   if {$res != 0} {
       add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
       return
    }
@@ -195,7 +189,7 @@ proc issue_1334_run {} {
    # the pattern SGE_STARTER_SHELL_PATH
    #
    set output [start_remote_prog $CHECK_HOST $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
-   if { [string match "*SGE_STARTER_SHELL_PATH*" $output] != 1 } {
+   if {[string match "*SGE_STARTER_SHELL_PATH*" $output] != 1} {
       add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (2)"
       return
    }

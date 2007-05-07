@@ -60,7 +60,7 @@ proc issue_2061_init_level {} {
    global CHECK_ACT_LEVEL 
 
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -69,25 +69,22 @@ proc issue_2061_init_level {} {
 }
 
 
-proc issue_2061_run  {} {
-   global CHECK_OUTPUT check_name ts_config CHECK_USER
+proc issue_2061_run {} {
+   global CHECK_OUTPUT check_name ts_config
 
    set job_args "-N $check_name -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
    puts $CHECK_OUTPUT "submitting job qsub $job_args ..."
 
    set output [start_sge_bin "qsub" $job_args]
    puts $CHECK_OUTPUT $output
-   if { [string match "*(\"$check_name\")*" $output ] } {
+   if {[string match "*(\"$check_name\")*" $output ]} {
       puts $CHECK_OUTPUT "got output which contains \"$check_name\" - ok"
    } else {
       add_proc_error "issue_2061_run" -1 "output doesn't contain the string sequence (\"$check_name\")"
    }
 }
 
-proc issue_2061_cleanup  {} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "delete_all_jobs ..."
+proc issue_2061_cleanup {} {
    delete_all_jobs
-   wait_for_end_of_all_jobs 60 
+   wait_for_end_of_all_jobs
 }

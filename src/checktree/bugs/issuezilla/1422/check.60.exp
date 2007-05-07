@@ -58,7 +58,7 @@ proc issue_1422_init_level {} {
    global CHECK_ACT_LEVEL ts_config
 
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -66,31 +66,31 @@ proc issue_1422_init_level {} {
    return -1
 }
 
-proc issue_1422_setup  {} {
+proc issue_1422_setup {} {
    delete_session_directory
-}
-
-proc issue_1422_run  {} {
-   global CHECK_PRODUCT_ROOT CHECK_CORE_EXECD
-
-   foreach host $CHECK_CORE_EXECD {
-     catch { eval exec "/bin/ls -lR $session_directory | wc -l" } result1
-
-     set jobargs "-sync y -o /dev/null -j y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5" 
-     set result [submit_job $jobargs 1 30 $host] 
-
-     catch { eval exec "/bin/ls -lR $session_directory | wc -l" } result2
-
-     if { $result1 != $result2 } {
-        add_proc_error "issue_1422_run" -1 "qsub did not clean up the session directory"
-     }
-   }
 }
 
 proc issue_1422_cleanup {} {
    delete_session_directory
 }
 
+proc issue_1422_run {} {
+   global ts_config
+
+   foreach host $ts_config(unique_arch_nodes) {
+      catch {eval exec "/bin/ls -lR $session_directory | wc -l"} result1
+
+      set jobargs "-sync y -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
+      set result [submit_job $jobargs 1 30 $host] 
+
+      catch {eval exec "/bin/ls -lR $session_directory | wc -l"} result2
+
+      if {$result1 != $result2} {
+         add_proc_error "issue_1422_run" -1 "qsub did not clean up the session directory"
+      }
+   }
+}
+
 proc delete_session_directory {} {
-   catch {  eval exec "rm" "-Rf" $session_directory } result
+   catch {eval exec "rm" "-Rf" $session_directory} result
 }

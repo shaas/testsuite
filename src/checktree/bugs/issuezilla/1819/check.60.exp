@@ -60,7 +60,6 @@ set check_description(0)  "Create a autobackup config file and execute the autom
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_function auto_backup_setup
 set check_cleanup_function auto_backup_cleanup
 
 
@@ -71,19 +70,16 @@ lappend check_functions "auto_backup_create_config"
 lappend check_functions "auto_backup_do_backup"
 
 
-global auto_backup_test_hosts
-global auto_backup_saved_slot_count
-
 proc auto_backup_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          return 0
-      } 
-   } 
+      }
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 
@@ -92,21 +88,13 @@ proc auto_backup_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 
-proc auto_backup_setup  {} {
-   global CHECK_OUTPUT ts_config
-}
-
 proc auto_backup_cleanup  {} {
    global CHECK_OUTPUT ts_config
 
-#   delete_all_jobs
-#   wait_for_end_of_all_jobs 60
    puts $CHECK_OUTPUT "Removing the backup directories!"
-
    set dir_names [get_dir_names "$ts_config(product_root)"]
-
    foreach dir $dir_names {
-      if { [string match "*auto_backup_*" $dir] } {
+      if {[string match "*auto_backup_*" $dir]} {
          delete_directory $ts_config(product_root)/$dir
          puts $CHECK_OUTPUT $dir
       }
@@ -115,14 +103,9 @@ proc auto_backup_cleanup  {} {
 
 
 proc auto_backup_create_config {} {
-   global auto_backup_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global CHECK_OUTPUT ts_config
 
-
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
-
-
-   if { [file isfile "$ts_config(product_root)/autobackup_config.conf"] == 1} {
+   if {[file isfile "$ts_config(product_root)/autobackup_config.conf"] == 1} {
       delete_file $ts_config(product_root)/autobackup_config.conf
    }
 
@@ -141,14 +124,13 @@ proc auto_backup_create_config {} {
 
 
 proc auto_backup_do_backup {} {
-   global auto_backup_test_hosts check_description CHECK_ARCH CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    set my_timeout 500
    set exit_val 0
 
-   if { $ts_config(bdb_server) == "none" } {
-      set output [start_remote_prog $CHECK_CORE_MASTER $CHECK_USER "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+   if {$ts_config(bdb_server) == "none"} {
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    } else {
       set output [start_remote_prog $ts_config(bdb_server) $CHECK_USER "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    }

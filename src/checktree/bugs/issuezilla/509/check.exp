@@ -68,9 +68,9 @@ proc issue_509_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
+      "0" {
+         return 0
+      }
    }
 
    return -1  ;# no other level else
@@ -83,20 +83,19 @@ proc issue_509_check {} {
 
    # 1
    set arguments "-t 2,4,6,8 $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10"
-   set job_id1 [ submit_job "$arguments" ]
+   set job_id1 [submit_job "$arguments"]
    wait_for_end_of_all_jobs 60
 
    # 2
    set arguments "-t 2,3,6 $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10"
-   set job_id1 [ submit_job "$arguments" 0 ]
-   if { ( [ string compare "$job_id1" "-18" ] == -1 ) } {
+   set job_id1 [submit_job "$arguments" 0]
+   if {[string compare "$job_id1" "-18"] == -1} {
       add_proc_error "issue_509_check" "-1" "qsub command did not fail"
    }
 }
 
 proc issue_509_cleanup  {} {
-   global CHECK_OUTPUT
-
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 

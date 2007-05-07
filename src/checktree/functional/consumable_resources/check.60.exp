@@ -242,7 +242,7 @@ proc consumable_resources_cleanup  {} {
    global consumable_complex_backup
 
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    set queue_list {}
    foreach host $ts_config(execd_nodes) {
@@ -347,7 +347,7 @@ proc consumable_resources_submit_jobs_and_alter { job_arguments resource resourc
    }
  
    delete_all_jobs  
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 }
 
 proc consumable_resources_submit_pejobs_and_wait { job_arguments job_count run_job_count case } {
@@ -384,94 +384,98 @@ proc consumable_resources_submit_pejobs_and_wait { job_arguments job_count run_j
       }
    }
 
+   # delete all jobs, and make sure they are no longer referenced
    delete_all_jobs  
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
+   trigger_scheduling
+   sleep 1
 }
 
-proc consumable_resources_submit_jobs_and_wait { job_arguments job_count run_job_count job_arguments2 case { schedd_info "" } { queue_state "" } { schedd_info_err "" } } {
+proc consumable_resources_submit_jobs_and_wait {job_arguments job_count run_job_count job_arguments2 case {schedd_info ""} {queue_state ""} {schedd_info_err ""}} {
    global ts_config CHECK_OUTPUT CHECK_ARCH
 
-   if { $job_arguments2 == "" } {
-      for { set i 0 } { $i < $job_count } { incr i 1 } {
+   if {$job_arguments2 == ""} {
+      for {set i 0} {$i < $job_count} {incr i 1} {
          set job_id($i) [submit_job "$job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
       }
    } else {
-      for { set i 0 } { $i < $job_count } { incr i 1 } {
+      for {set i 0} {$i < $job_count} {incr i 1} {
          set job_id($i) [submit_job "$job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
          incr i 1
          set job_id($i) [submit_job "$job_arguments2 $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
       }
    }
 
-   while { 1 } {
+   while {1} {
       trigger_scheduling
       set running_jobs 0
       set error 0
-      for { set i 0 } { $i < $job_count } { incr i 1 } {
+      for {set i 0} {$i < $job_count} {incr i 1} {
          set job_state [is_job_running $job_id($i) "leeper"]
          set job_id($i,running) $job_state
-         if { $job_state == 1 } {
+         if {$job_state == 1} {
             incr running_jobs 1
          }
-         if { $job_state == -1 } {
+         if {$job_state == -1} {
             add_proc_error "case $case) consumable_resources_submit_jobs_and_wait" -2 "job was not submitted - stop"
             set error 1
             break
          }
       }
       puts $CHECK_OUTPUT "running jobs count: $running_jobs"
-      if { $running_jobs == $run_job_count || $error != 0 } {
+      if {$running_jobs == $run_job_count || $error != 0} {
          break
       }
    }
 
-   if { $queue_state != "" } {
+   if {$queue_state != ""} {
       wait_for_queue_state [lindex $queue_state 0] [lindex $queue_state 1] 60
    }
 
-   if { $job_count != $run_job_count } {
-      if { $schedd_info == "" } {
+   if {$job_count != $run_job_count} {
+      if {$schedd_info == ""} {
          add_proc_error "case $case) consumable_resources_submit_jobs_and_wait" -2 "got not running job, but no schedule info to search for"
       } else {
          set sched_info_tries 10
          set ok 0
-         while { $sched_info_tries > 0 } {      
+         while {$sched_info_tries > 0} {      
             trigger_scheduling
-            for { set i 0 } { $i < $job_count } { incr i 1 } {
-               if { $job_id($i,running) == 0 } {
+            for {set i 0} {$i < $job_count} {incr i 1} {
+               if {$job_id($i,running) == 0} {
                   puts $CHECK_OUTPUT "job $job_id($i) is not running, checking schedd job info message ..."
                   puts $CHECK_OUTPUT "looking for \"$schedd_info\" of job $job_id($i)"
                   get_qstat_j_info $job_id($i)
-                  if { $schedd_info_err != "" } {
-                     if { [string match "*$schedd_info_err*" $qstat_j_info(scheduling info)] } {
+                  if {$schedd_info_err != ""} {
+                     if {[string match "*$schedd_info_err*" $qstat_j_info(scheduling info)]} {
                         add_proc_error "consumable_resources_submit_jobs_and_wait_error" -2 "found issue 1894 (scheduling info contains: $schedd_info_err) - stop"
                         set error 1
                         set ok 1
                      }
                   }
-                  if { [string match "*$schedd_info*" $qstat_j_info(scheduling info)] } {
+                  if {[string match "*$schedd_info*" $qstat_j_info(scheduling info)]} {
                      puts $CHECK_OUTPUT "found matching scheduling info"
                      set ok 1
                   }
                }
             }
-            if { $ok == 1 } {
+            if {$ok == 1} {
                break
             }
             incr sched_info_tries -1
             sleep 1
          }
-         if { $ok != 1 } {
+         if {$ok != 1} {
             add_proc_error "case $case) consumable_resources_submit_jobs_and_wait" -2 "can't find matching scheduler info:\nexpected: $schedd_info\ngot: $qstat_j_info(scheduling info)"
          }
       }
    }
- 
+
+   # delete all jobs, and make sure they are no longer referenced
    delete_all_jobs  
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
+   trigger_scheduling
+   sleep 1
 }
-
-
 
 proc consumable_resources_test {} {
    global consumable_resources_test_hosts check_description CHECK_ARCH CHECK_USER
@@ -854,7 +858,6 @@ proc consumable_resources_test {} {
     
 
    if { $CHECK_ACT_LEVEL == 5 } {
-
       # create complex
       set test1_complex(test1) "t1 INT <= YES YES 0 1000"
       set_complex test1_complex
@@ -868,14 +871,13 @@ proc consumable_resources_test {} {
       set host_a [lindex $consumable_resources_test_hosts 0]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
-       # modify complex_values of host_a host
+      # modify complex_values of host_a host
       set host_a_host(complex_values) "test1=4"
       set_exechost host_a_host $host_a
 
       set queue_settings(complex_values) "test1=3"
       set queue_settings(load_thresholds) "np_load_avg=11.75,test1=2"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
-
 
       # case a
       puts $CHECK_OUTPUT "\ncase a)"
@@ -888,12 +890,11 @@ proc consumable_resources_test {} {
       lappend queue_check "a"
 
       consumable_resources_submit_jobs_and_wait $job_arguments1 $job_count $run_job_count $job_arguments2 "" "a" $queue_check
-      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a"  
+      consumable_resources_submit_pejobs_and_wait $job_arguments1 $job_count $run_job_count "a"
 
       set queue_settings(load_thresholds) "np_load_avg=11.75"
       set queue_settings(complex_values) "NONE"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
-
 
       set host_a_host(complex_values) $orig_host_a_host(complex_values)
       set_exechost host_a_host $host_a
@@ -966,7 +967,7 @@ proc consumable_resources_test {} {
       }
 
       delete_all_jobs  
-      wait_for_end_of_all_jobs 60
+      wait_for_end_of_all_jobs
 
       set queue_settings(load_thresholds) "np_load_avg=11.75"
       set queue_settings(complex_values) "NONE"
@@ -1220,11 +1221,11 @@ proc consumable_resources_test {} {
       # check for reported load value
       set retries 30
       set ok 0
-      while { $retries > 0 } {
-         catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test2" } test_grep
+      while {$retries > 0} {
+         catch {eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-l h=$host_a -F | grep test2"} test_grep
          puts $CHECK_OUTPUT "waiting for hc:test2=3 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test2=3*" $test_grep] } {
+         if {[string match "*hc:test2=3*" $test_grep]} {
             puts $CHECK_OUTPUT "resource test2 is set to value 3 - ok"
             set ok 1
             break
@@ -1232,11 +1233,11 @@ proc consumable_resources_test {} {
          sleep 5
          incr retries -1
       }
-      if { $ok != 1 } {
+      if {$ok != 1} {
          add_proc_error "consumable_resources_test" -1 "can't find load value hc:test2=3 by qstat -F on host $host_a"
       }
 
-      catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test2" } test_grep
+      catch {eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test2"} test_grep
       if { [string match "*test2=3*" $test_grep] == 0 } {
          add_proc_error "consumable_resources_test" -1 "qconf -se doesn't show test2=3 load value"
       }
@@ -1259,32 +1260,31 @@ proc consumable_resources_test {} {
 
       set test_grep "test1" 
       set retries 45
-      while { [string match "*test1*" $test_grep] && $retries > 0 } {
-         catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1" } test_grep
+      while {[string match "*test1*" $test_grep] && $retries > 0} {
+         catch {eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test1"} test_grep
          puts $CHECK_OUTPUT "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          puts $CHECK_OUTPUT "$test_grep"
          incr retries -1
          sleep 5
       }
 
-      if { [string match "*test1*" $test_grep] } {
+      if {[string match "*test1*" $test_grep]} {
          add_proc_error "consumable_resources_test" -1 "load sensor report test1 does not disappear"
       }
 
       set test_grep "test2" 
       set retries 45
-      while { [string match "*test2*" $test_grep] && $retries > 0 } {
-         catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test2" } test_grep
+      while {[string match "*test2*" $test_grep] && $retries > 0} {
+         catch {eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-se $host_a | grep test2"} test_grep
          puts $CHECK_OUTPUT "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          puts $CHECK_OUTPUT "$test_grep"
          incr retries -1
          sleep 5
       }
 
-      if { [string match "*test2*" $test_grep] } {
+      if {[string match "*test2*" $test_grep]} {
          add_proc_error "consumable_resources_test" -1 "load sensor report test2 does not disappear"
       }
-
       
       # remove test1 and test2 complex 
       set test1_complex(test1) ""

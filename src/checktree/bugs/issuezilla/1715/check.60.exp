@@ -44,7 +44,6 @@ set check_needs               "init_core_system"      ;# dependencies of this ch
 set check_root_access_needs   "no"
 
 # setup and cleanup functions
-set check_cleanup_function "issue_1715_cleanup"
 
 # define test's procedure order
 set check_functions           ""
@@ -52,11 +51,11 @@ lappend check_functions       "issue_1715_run"   ;# functions to call (in order)
 set check_highest_level       0
 
 proc issue_1715_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -64,36 +63,27 @@ proc issue_1715_init_level {} {
    return -1
 }
 
-proc issue_1715_run  {} {
-   global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER CHECK_HOST CHECK_CORE_MASTER
-   set queue_name "@$CHECK_HOST"
-   set qmaster_arch [resolve_arch $CHECK_CORE_MASTER]
+proc issue_1715_run {} {
+   global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER
 
-   if { [string match $qmaster_arch "lx24*" ] == 1  } {
+   # cannot run this check on linux kernel 2.4
+   set qmaster_arch [resolve_arch $ts_config(master_host)]
+   if {[string match $qmaster_arch "*lx24*"] == 1} {
       add_proc_error ssue_1715 -3 "test cannot kill qmaster on lx24 because of defect threading library - testsuite will block and never quit"
       return
-
    }
 
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aattr queue slots \"\[\=1\]\" all.q" result 10 ]
+   set output [start_sge_bin "qconf" "-aattr queue slots \"\[\=1\]\" all.q"]
 
-   set macro [ sge_macro MSG_SGETEXT_INVALIDHOST_S ]
-   puts $CHECK_OUTPUT $macro
-   set INVALIDHOST [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_INVALIDHOST_S] "dummy" ]
+   set INVALIDHOST [translate_macro MSG_SGETEXT_INVALIDHOST_S "dummy"]
    set INVALIDHOST [replace_string $INVALIDHOST "dummy" "" ] 
    puts $CHECK_OUTPUT $INVALIDHOST
-   set output [ string trim $output ]
-   set INVALIDHOST [ string trim $INVALIDHOST ]
+   set output [string trim $output]
+   set INVALIDHOST [string trim $INVALIDHOST]
    puts $CHECK_OUTPUT "$output compared to $INVALIDHOST"
    
-   if { [ string match $output $INVALIDHOST ] == 0 } {
+   if {[string match $output $INVALIDHOST] == 0} {
       add_proc_error "issue_1715" -1 "issue 1715 still exists, qconf -aattr queue slots \"\[=1\]\" <queue>  crashes qmaster"
    }
 }
 
-proc issue_1715_cleanup {} {
-   global CHECK_CORE_MASTER
-
-   shutdown_qmaster $CHECK_CORE_MASTER [get_qmaster_spool_dir]
-   startup_qmaster 0
-}

@@ -35,7 +35,7 @@
 global check_name check_description check_needs check_functions check_highest_level
 global check_init_level_procedure check_category
 global check_root_access_needs
-global stree tmp_name
+global stree
 
 # setup and cleanup functions
 set check_cleanup_function issue_1874_cleanup
@@ -59,9 +59,6 @@ lappend check_functions       "issue_1874_run"   ;# functions to call (in order)
 set check_highest_level       0
 
 #
-set my_pid [pid]
-set tmp_name "/tmp/tmp1874.$my_pid"
-
 #
 # Scenario:
 #     setup:
@@ -85,7 +82,7 @@ set tmp_name "/tmp/tmp1874.$my_pid"
 proc issue_1874_init_level {} {
    global CHECK_ACT_LEVEL ts_config
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
@@ -95,39 +92,39 @@ proc issue_1874_init_level {} {
 }
 
 proc issue_1874_setup  {} {
-   global ts_config CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
-   global stree tmp_name
+   global ts_config CHECK_OUTPUT
+   global stree
 
    # add project
    set object(name) "1874_prj1"
-   set result [ add_prj object ]
+   set result [add_prj object]
 
    # add user
    set object(name) "1874_usr1"
-   set result [ add_user object ]
+   set result [add_user object]
    set object(name) "1874_usr2"
-   set result [ add_user object ]
+   set result [add_user object]
 
    # create file containing sharetree
    create_stree1_1874
-   set f [ open "$tmp_name" w ]
+   set tmp_name [get_tmp_file_name]
+   set f [open $tmp_name w]
    puts $f $stree
    close $f
    # create sharetree
-   set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "qconf" "-Mstree $tmp_name"]
+   set output [start_sge_bin "qconf" "-Mstree $tmp_name" $ts_config(master_host)]
 }
 
 proc issue_1874_cleanup  {} {
-   global ts_config CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
-   global stree tmp_name
+   global ts_config CHECK_OUTPUT
 
    # delete sharetree
    del_sharetree
    # add user
-   set result [ del_user "1874_usr1" ]
-   set result [ del_user "1874_usr2" ]
+   del_user "1874_usr1"
+   del_user "1874_usr2"
    # remove project 
-   set result [ del_prj "1874_prj1" ]
+   del_prj "1874_prj1"
 }
 
 proc create_stree1_1874 {} {
@@ -165,8 +162,7 @@ proc create_stree2_1874 {} {
 proc issue_1874_run  {} {
    global ts_config CHECK_USER CHECK_HOST CHECK_PRODUCT_ROOT CHECK_OUTPUT
    global CHECK_ARCH
-   global stree tmp_name
-
+   global stree
 
    # create file containing sharetree
    create_stree2_1874
@@ -178,12 +174,12 @@ proc issue_1874_run  {} {
       lappend vi_commands "GA${line}[format "%c" 27]"
    }
    lappend vi_commands "1Gdddddddddd"
-   set CHANGED_SHARETREE [translate $CHECK_HOST 1 0 0 [sge_macro MSG_TREE_CHANGEDSHARETREE]]
-   set CAN_T_READ [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QCONF_CANTREADSHARETREEX_S] "*"]
+   set CHANGED_SHARETREE [translate_macro MSG_TREE_CHANGEDSHARETREE]
+   set CAN_T_READ [translate_macro MSG_QCONF_CANTREADSHARETREEX_S "*"]
 
-   set result [ handle_vi_edit "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-mstree" $vi_commands $CHANGED_SHARETREE ]
+   set result [handle_vi_edit "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-mstree" $vi_commands $CHANGED_SHARETREE]
    
-   if { $result != 0 } {
-      add_proc_error "issue_1874_run" -1 "qconf failed: issue might 1874 exists"
+   if {$result != 0} {
+      add_proc_error "issue_1874_run" -1 "qconf failed: issue 1874 might exist"
    }
 }

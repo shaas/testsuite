@@ -57,6 +57,7 @@ set check_description(0) "schedd dies when priority of a running job is changed 
 set check_needs "init_core_system" 
 
 # setup and cleanup functions
+set check_setup_function "issue_545_setup"
 set check_cleanup_function "issue_545_cleanup"
 
 # define test's procedure order
@@ -65,13 +66,11 @@ lappend check_functions "issue_545_check"
 
 proc issue_545_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
+      "0" {
+         return 0
+      }
    }
 
    return -1  ;# no other level else
@@ -79,21 +78,27 @@ proc issue_545_init_level {} {
 
 # -------- local test procedures -----------------------------------------------
 
-proc issue_545_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
-
-   # SETUP 
-   get_schedd_config stored_schedd_conf
-
+proc issue_545_setup {} {
+   # enable user sort
    set my_schedd_conf(user_sort) "true"
    set_schedd_config my_schedd_conf 
+}
 
-   # TEST
+proc issue_545_cleanup {} {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # restore schedd config
+   reset_schedd_config
+}
+
+proc issue_545_check {} {
+   global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_USER
 
    # submit one job
    puts $CHECK_OUTPUT "Submitting 1 sleeper (3600s) ..."
-   set arguments "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3600"
-   set job_id [ submit_job "$arguments" ]
+   set arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 3600"
+   set job_id [submit_job "$arguments"]
 
    # wait for the job to start
    puts $CHECK_OUTPUT "Waiting for job to start ..."
@@ -101,27 +106,10 @@ proc issue_545_check {} {
 
    # change -p priority of running job
    puts $CHECK_OUTPUT "Change priority of running job"
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter -p 100 $job_id"
-   set result [ catch { eval exec "$command" } output ]
-   if { ( $result == 1 ) } {
-      add_proc_error "issue_545_check" "-1" "qalter -p failed for job"
+   set output [start_sge_bin "qalter" "-p 100 $job_id"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_545_check" "-1" "qalter -p failed for job:\n$output"
       return
    }
-
-   # Terminate all jobs
-   puts $CHECK_OUTPUT "Terminate all jobs"
-   delete_all_jobs
-
-   wait_for_end_of_all_jobs 60
-
-   # CLEANUP
-   set_schedd_config stored_schedd_conf
-}
-
-proc issue_545_cleanup  {} {
-   global CHECK_OUTPUT
-
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60
 }
 

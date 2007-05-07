@@ -66,12 +66,10 @@ lappend check_functions "issue_403_check"
 
 proc issue_403_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
+      "0" {
+         return 0
       }
    }
 
@@ -81,8 +79,8 @@ proc issue_403_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_403_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
-   global ts_config 
+   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
+   global ts_config CHECK_OUTPUT
 
    set priority 0
    set the_command "-h $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3600"
@@ -107,17 +105,16 @@ proc issue_403_check {} {
          # resolve the expected macro
          set macro [sge_macro MSG_JOB_PRIOSET_SSUI]
       }
-      set EXPECTED_MESSAGE [translate $CHECK_HOST 1 0 0 $macro $CHECK_USER [resolve_host $CHECK_HOST 1] $job_id $priority]
+      set EXPECTED_MESSAGE [translate $CHECK_HOST 1 0 0 $macro $CHECK_USER "*" $job_id $priority]
 
       # do qalter -p -2
-      set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $p_option $job_id" } qalteroutput ]
-
+      set qalteroutput [start_sge_bin "qalter" "$p_option $job_id"]
       puts $CHECK_OUTPUT "expecting: $EXPECTED_MESSAGE"
       puts $CHECK_OUTPUT "received:  $qalteroutput"
 
       # evaluate result
-      if { ( [ string compare $qalteroutput $EXPECTED_MESSAGE ] != 0 ) } {
-         add_proc_error "issue_314_check" "-1" \
+      if {![string match $EXPECTED_MESSAGE [string trim $qalteroutput]]} {
+         add_proc_error "issue_403_check" "-1" \
                         "Success message of qalter -p <neg> priority shows wrong msg:\nExpected: \"$EXPECTED_MESSAGE\"\nbut got:  \"$qalteroutput\"\n"
       }
    }
@@ -126,10 +123,8 @@ proc issue_403_check {} {
    delete_job $job_id "1"
 }
 
-proc issue_403_cleanup  {} {
-   global CHECK_OUTPUT
-
+proc issue_403_cleanup {} {
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 }
 

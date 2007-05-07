@@ -55,18 +55,18 @@ set check_highest_level       0
 
 
 proc issue_1848_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0" {
          return 0
       }
    }
    return -1
 }
 
-proc issue_1848_setup  {} {
+proc issue_1848_setup {} {
    global ts_config CHECK_OUTPUT
    global prj1_id_list 
 
@@ -201,7 +201,7 @@ proc issue_1848_run {} {
             add_proc_error qmaster_monitoring_monitor -1 "unexpected eof"
          }
          -i $sp_id "?*\n" {
-            foreach line [ string trim [split $expect_out(0,string) "\n"]] {
+            foreach line [string trim [split $expect_out(0,string) "\n"]] {
                set line [string trim $line]
                if {[string length $line] > 0} {
                   puts $CHECK_OUTPUT "processing line: $line"

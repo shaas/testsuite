@@ -78,9 +78,9 @@ set check_highest_level       0
 #
 
 proc issue_1877_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
@@ -89,30 +89,30 @@ proc issue_1877_init_level {} {
    return -1  ;# no other level else
 }
 
-proc issue_1877_setup  {} {
-   global ts_config CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+proc issue_1877_setup {} {
+   global ts_config CHECK_OUTPUT
 
-   set new_values(terminate_method) "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30 0"
+   set new_values(terminate_method) "$ts_config(product_root)/examples/jobs/sleeper.sh 30 0"
    mod_queue "all.q" "" new_values
 }
 
-proc issue_1877_cleanup  {} {
-   global ts_config CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+proc issue_1877_cleanup {} {
+   global ts_config CHECK_OUTPUT
 
    set new_values(terminate_method) "NONE"
    mod_queue "all.q" "" new_values
 }
 
-proc issue_1877_run  {} {
-   global ts_config CHECK_USER CHECK_HOST CHECK_PRODUCT_ROOT CHECK_OUTPUT
+proc issue_1877_run {} {
+   global ts_config CHECK_OUTPUT
 
    # submit a job (sleeper 30)
-   set arguments "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15"
-   set job_id1 [ submit_job "$arguments" ]
+   set arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 15"
+   set job_id1 [submit_job "$arguments"]
 
    # wait for job start
    wait_for_jobstart $job_id1 "Sleeper" 20 1 1
-   set mytime [ expr ( [timestamp] + 30 ) ]
+   set mytime [expr [timestamp] + 30]
 
    #delete the job
    delete_job $job_id1
@@ -122,7 +122,7 @@ proc issue_1877_run  {} {
    set nowtime [timestamp]
 
    #job has to run at least 30 seconds (terminate method run time)
-   if { $nowtime < $mytime } {
+   if {$nowtime < $mytime} {
       add_proc_error "issue_1877_run" -1 "issue 1877 is present"
    }
 }

@@ -68,44 +68,39 @@ proc issue_1401_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
+      "0" {
+         return 0
       }
-   } 
-   
+   }
+
    return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1401_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
-   global ts_config 
-
-   # initialize parameter
-   set job_script "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 120"
-   set qstat_command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat"
+   global ts_config CHECK_OUTPUT
 
    # qsub $SGE_ROOT/examples/jobs/sleeper.sh 120
-   set qsub_arguments "$job_script"
+   set qsub_arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 120"
    set job_id1 [submit_job $qsub_arguments]
 
    # qstat -ext -xml 
-   set qstatresult [ catch { eval exec "$qstat_command -ext -xml" } qstatoutput ]
-   if { ( $qstatresult == 1 ) } {
+   set result [start_sge_bin "qstat" "-ext -xml"]
+   if {$prg_exit_state != 0} {
       add_proc_error "issue_1401_check" "-1" \
-                     "qstat -ext -xml fails with following output: \"$qstatoutput\""
+                     "qstat -ext -xml fails with following output:\n$result"
       return
    }
 
    # cleanup
-   delete_job $job_id1 "1"
+   delete_job $job_id1 1
 }
 
 proc issue_1401_cleanup  {} {
    global CHECK_OUTPUT
 
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 }
 

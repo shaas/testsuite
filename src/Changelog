@@ -1,3 +1,8 @@
+JG-2007-05-07-0: Enhancem.: Use start_sge_bin instead of eval exec,
+                            use host_conf_get_suited_host instead of fixed host,
+                            further cleanup.
+                 Review:    RD
+
 RD-2007-05-02-0: Enhancem.: changed check for IZ 1860 from warning to
                             error
                  Review:    JG

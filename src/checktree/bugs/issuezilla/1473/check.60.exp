@@ -71,21 +71,20 @@ lappend check_functions "issue_1473_del"
 proc issue_1473_init_level {} {
    global CHECK_ACT_LEVEL
    global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-  } 
+   switch -- $CHECK_ACT_LEVEL {
+     "0" {
+         return 0
+      }
+   }
 
-  return -1  ;# no other level else
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
-proc issue_1473_setup  {} {
-   global CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
+proc issue_1473_setup {} {
+   global ts_config CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_ARCH
    global num_queues complex_backup
 
    # create a high number of queues - this will make the bug showing up more likely
@@ -100,14 +99,14 @@ proc issue_1473_setup  {} {
    unset -nocomplain complex_backup
    set complex_backup "$CHECK_PROTOCOL_DIR/complex.txt"
    puts $CHECK_OUTPUT "backup current complex to $complex_backup"
-   set ret [catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -sc > $complex_backup" } output]
+   set ret [catch { eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -sc > $complex_backup" } output]
    if {$ret != 0} {
       add_proc_error issue_1473_setup -1 "backing up complex failed: $output"
    }
 }
 
-proc issue_1473_cleanup  {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
+proc issue_1473_cleanup {} {
+   global ts_config CHECK_OUTPUT
    global num_queues complex_backup
 
    # delete queues
@@ -122,8 +121,7 @@ proc issue_1473_cleanup  {} {
 }
 
 proc modify_complex_from_file {filename {time_var dummy}} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER CHECK_HOST
-   global CHECK_CORE_MASTER ts_config
+   global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_USER
 
    upvar $time_var time
 
@@ -134,16 +132,16 @@ proc modify_complex_from_file {filename {time_var dummy}} {
       puts $CHECK_OUTPUT "modify complex from file $filename"
       set time_start [clock clicks -milliseconds]
       puts $CHECK_OUTPUT "start ..."
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf "-Mc $filename" ]
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER $ts_config(product_root)/bin/$CHECK_ARCH/qconf "-Mc $filename"]
       set time_end [clock clicks -milliseconds]
       set time [expr ($time_end - $time_start) / 1000.0]
 
       # parse returned strings
-      set MSG_CENTRY_NOTCHANGED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CENTRY_NOTCHANGED]]
-      set MSG_SGETEXT_ADDEDTOLIST_SSSS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-      set MSG_SGETEXT_REMOVEDFROMLIST_SSSS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" "*" "*"]
-      set MSG_SGETEXT_MODIFIEDINLIST_SSSS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
-      set MSG_INVALID_CENTRY_DEL_S [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_INVALID_CENTRY_DEL_S] "*"]
+      set MSG_CENTRY_NOTCHANGED [translate_macro MSG_CENTRY_NOTCHANGED]
+      set MSG_SGETEXT_ADDEDTOLIST_SSSS [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set MSG_SGETEXT_REMOVEDFROMLIST_SSSS [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set MSG_SGETEXT_MODIFIEDINLIST_SSSS [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
+      set MSG_INVALID_CENTRY_DEL_S [translate_macro MSG_INVALID_CENTRY_DEL_S "*"]
       set output_list [split $output "\n"]
       set changed 0
 #      puts $output

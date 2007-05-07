@@ -69,9 +69,9 @@ proc issue_402_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
+      "0" {
+         return 0
+      }
    }
 
    return -1  ;# no other level else
@@ -80,7 +80,7 @@ proc issue_402_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_402_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
  
    #
    # Scenario:
@@ -92,7 +92,7 @@ proc issue_402_check {} {
    #     -> now we can be really sure that the bug is not here
    #
    set job_name "Sleeper"
-   set job_script "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh"
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh"
    set job_sleep_time "10"
    set job_t_param "-t 1-1:1"
    set qsub_arguments "$job_t_param $job_script $job_sleep_time"
@@ -108,10 +108,11 @@ proc issue_402_check {} {
    wait_for_jobend $job_id $job_name 20 0
 }
 
-proc issue_402_cleanup  {} {
+proc issue_402_cleanup {} {
    global CHECK_OUTPUT
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 

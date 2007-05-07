@@ -51,11 +51,11 @@ lappend check_functions       "issue_1780_run"   ;# functions to call (in order)
 set check_highest_level       0
 
 proc issue_1780_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -67,7 +67,7 @@ proc issue_1780_run  {} {
    global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER CHECK_HOST
 
    set tmp_file [get_tmp_file_name]
-   set arch [ resolve_arch $ts_config(master_host) ]
+   set arch [resolve_arch $ts_config(master_host)]
 
 
    puts $CHECK_OUTPUT "retrieving hosts via ypcat"
@@ -88,7 +88,7 @@ proc issue_1780_run  {} {
 
    # write queue config to temporary file
    puts $CHECK_OUTPUT "creating queue config file"
-   set f [ open "$tmp_file" w ]
+   set f [open "$tmp_file" w]
 
    puts $f "qname\t3000_hosts.q"
    puts $f "slots\t10,\\"
@@ -126,7 +126,7 @@ proc issue_1780_run  {} {
    set result [start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qconf" "-sq all.q | grep -v slots | grep -v qname >> $tmp_file" exit_code]
    set result [start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qconf" "-Aq $tmp_file" exit_code 610]
 
-   if { $exit_code != 0 } {
+   if {$exit_code != 0} {
       add_proc_error "issue_1780_run" -1 "qconf -Mconf with huge amout of host entries broken:\n$result"
    }
 }

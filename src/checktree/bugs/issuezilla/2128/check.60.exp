@@ -76,15 +76,15 @@ proc xauthority_issue_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          return 0
-      } 
-      "1" { 
+      }
+      "1" {
          return 0
-      } 
+      }
+   }
 
-   } 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 
@@ -93,7 +93,7 @@ proc xauthority_issue_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 
-proc xauthority_issue_setup  {} {
+proc xauthority_issue_setup {} {
    global CHECK_OUTPUT ts_config xauthority_issue_test_hosts
 
    set xauthority_issue_test_hosts $ts_config(execd_nodes)
@@ -108,7 +108,7 @@ proc xauthority_issue_setup  {} {
    wait_for_load_from_all_queues 60
 }
 
-proc xauthority_issue_cleanup  {} {
+proc xauthority_issue_cleanup {} {
    global CHECK_OUTPUT ts_config xauthority_issue_test_hosts
 
    foreach host $xauthority_issue_test_hosts {
@@ -120,22 +120,18 @@ proc xauthority_issue_cleanup  {} {
 
 
 proc xauthority_issue_test1 {} {
-   global xauthority_issue_test_hosts check_description CHECK_ARCH
+   global xauthority_issue_test_hosts CHECK_ARCH
    global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
    global ts_user_config
 
-
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
-
-   if { $CHECK_ACT_LEVEL == 0 } {
+   if {$CHECK_ACT_LEVEL == 0} {
       set error_text ""
       set success_text ""
       foreach host $xauthority_issue_test_hosts {
-
          set ok "true"
          puts $CHECK_OUTPUT "checking for correct test setup on host $host ..."
          set output [start_sge_bin "qrsh" "-q all.q@$host env | grep MY_OWN_TESTSUITE_ENVIRONMENT" $ts_config(master_host)]
-         if { [string match "*MY_OWN_TESTSUITE_ENVIRONMENT*" $output] } {
+         if {[string match "*MY_OWN_TESTSUITE_ENVIRONMENT*" $output]} {
             puts $CHECK_OUTPUT "test is setup correctly!"
          } else {
             append error_text "host: $host\n"
@@ -150,23 +146,23 @@ proc xauthority_issue_test1 {} {
 
          puts $CHECK_OUTPUT "checking for XAUTHORITY set in job environment on host $host ..."
          set output [start_sge_bin "qrsh" "-q all.q@$host env | grep XAUTHORITY" $ts_config(master_host)]
-         if { [string match "*XAUTHORITY*" $output] } {
+         if {[string match "*XAUTHORITY*" $output]} {
             append error_text "host: $host\n"
             append error_text "===========\n"
             append error_text "found XAUTHORITY environment setting in qrsh job output on host $host! issue 2128 detected!"
             append error_text "qrsh output:\n$output\n"
             set ok "false"
          }
-         if { $ok == "true" } {
+         if {$ok == "true"} {
             append success_text "test was ok for host $host\n"
          }
       }
-      if { $error_text != "" } {
+      if {$error_text != ""} {
          add_proc_error "xauthority_issue_test1" -1 "$error_text\n$success_text"
       }
    }
 
-   if { $CHECK_ACT_LEVEL == 1 } {
+   if {$CHECK_ACT_LEVEL == 1} {
       foreach host $xauthority_issue_test_hosts {
          submit_wait_type_job "qsh" $host $ts_user_config(second_foreign_user)
       }

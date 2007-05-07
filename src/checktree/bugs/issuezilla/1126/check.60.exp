@@ -75,20 +75,23 @@ proc issue_1126_shutdown_master {} {
    shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
 }
 
-proc issue_1126_run  {} {
-   global ts_config  CHECK_OUTPUT CHECK_USER
+proc issue_1126_run {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
 
-   set up_arch [resolve_build_arch $ts_config(master_host)]
+   set test_host [host_conf_get_suited_hosts]
+   puts $CHECK_OUTPUT "testing on host $test_host"
+
+   set up_arch [resolve_build_arch $test_host]
    set client_binary $ts_config(source_dir)/$up_arch/test_cl_commlib_client
-   set client_args "$ts_config(master_host) $ts_config(commd_port) 0 0 0 0"
+   set client_args "$test_host $ts_config(commd_port) 0 0 0 0"
 
    set server_binary $ts_config(source_dir)/$up_arch/test_server_connection
    set server_args "0 $ts_config(commd_port) 10"
    
-   set client_sid [ open_remote_spawn_process $ts_config(master_host) "ts_def_con" $client_binary $client_args]
+   set client_sid [open_remote_spawn_process $test_host "ts_def_con" $client_binary $client_args]
    set client_id  [lindex $client_sid 1]
 
-   set server_sid [ open_remote_spawn_process $ts_config(master_host) "root" $server_binary $server_args]
+   set server_sid [open_remote_spawn_process $test_host "root" $server_binary $server_args]
    set server_id  [lindex $server_sid 1]
 
    set both_list "$client_id $server_id"
@@ -96,7 +99,7 @@ proc issue_1126_run  {} {
    
    set kbit_count 0
    set in_loop 1
-   while { $in_loop } {
+   while {$in_loop} {
       set timeout 15 
       expect {
          -i $both_list full_buffer {
@@ -118,7 +121,7 @@ proc issue_1126_run  {} {
          }
          -i $server_id -- "*\n" {
             set output $expect_out(0,string) 
-            set output [ split $output "\n" ]
+            set output [split $output "\n"]
             foreach line $output {
                set help [string trim $line]
                puts $CHECK_OUTPUT "server: $help"
@@ -126,17 +129,17 @@ proc issue_1126_run  {} {
          }
          -i $client_id -- "*\n" {
             set output $expect_out(0,string) 
-            set output [ split $output "\n" ]
+            set output [split $output "\n"]
             foreach line $output {
                set help [string trim $line]
-               if { [string match "*KBit*" $help] } {
+               if {[string match "*KBit*" $help]} {
                   incr kbit_count 1
                   puts $CHECK_OUTPUT "client: $help"
                }
             }
          }
       }
-      if { $kbit_count == 5 } {
+      if {$kbit_count == 5} {
          set in_loop 0   
       }
    }
@@ -144,7 +147,7 @@ proc issue_1126_run  {} {
 
    sleep 5  
 
-   set server_sid [ open_remote_spawn_process $ts_config(master_host) "root" $server_binary $server_args]
+   set server_sid [open_remote_spawn_process $test_host "root" $server_binary $server_args]
    set server_id  [lindex $server_sid 1]
 
    set both_list "$client_id $server_id"
@@ -152,7 +155,7 @@ proc issue_1126_run  {} {
 
    set kbit_count 0
    set in_loop 1
-   while { $in_loop } {
+   while {$in_loop} {
       set timeout 15 
       expect {
          -i $both_list full_buffer {
@@ -174,7 +177,7 @@ proc issue_1126_run  {} {
          }
          -i $server_id -- "*\n" {
             set output $expect_out(0,string) 
-            set output [ split $output "\n" ]
+            set output [split $output "\n"]
             foreach line $output {
                set help [string trim $line]
                puts $CHECK_OUTPUT "server: $help"
@@ -182,20 +185,21 @@ proc issue_1126_run  {} {
          }
          -i $client_id -- "*\n" {
             set output $expect_out(0,string) 
-            set output [ split $output "\n" ]
+            set output [split $output "\n"]
             foreach line $output {
                set help [string trim $line]
-               if { [string match "*KBit*" $help] } {
+               if {[string match "*KBit*" $help]} {
                   incr kbit_count 1
                   puts $CHECK_OUTPUT "client: $help"
                }
             }
          }
       }
-      if { $kbit_count == 5 } {
+      if {$kbit_count == 5} {
          set in_loop 0   
       }
    }
+
    close_spawn_process $server_sid
    close_spawn_process $client_sid
 

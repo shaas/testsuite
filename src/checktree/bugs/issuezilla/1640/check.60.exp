@@ -68,32 +68,35 @@ lappend check_functions "issue_1640_test"
 
 proc issue_1640_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-  } 
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
 
-  return -1  ;# no other level else
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1640_setup  {} {
-   global CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
-   global num_queues complex_backup
+   global backup_global_host
+
+   # backup the global host - we are going to modify it
+   unset -nocomplain backup_global_host
+   get_exechost backup_global_host "global"
 }
 
 proc issue_1640_cleanup  {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
-   global num_queues complex_backup
+   global backup_global_host
+
+   # restore global host
+   set_exechost backup_global_host "global"
 }
 
 proc issue_1640_test {} {
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_ROOT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    #
    # Scenario:
@@ -103,27 +106,23 @@ proc issue_1640_test {} {
    # Bug exists if complex_values has the value 
    #     rerun=false,rerun=true
    #
-
-   set catch_return [ catch {
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -mattr exechost complex_values re=false global"
-   } result ]
-   if { $catch_return != 0 } {
-      add_proc_error "issue_1640_test" -1 "error: qconf -mattr exechost complex_values re=false global"
+   set result [start_sge_bin "qconf" "-mattr exechost complex_values re=false global"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_1640_test" -1 "error: qconf -mattr exechost complex_values re=false global:\n$result"
+      return
    }
 
-   set catch_return [ catch {
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -mattr exechost complex_values re=true global"
-   } result ]
-   if { $catch_return != 0 } {
-      add_proc_error "issue_1640_test" -1 "error: qconf -mattr exechost complex_values re=true global"
+   set result [start_sge_bin "qconf" "-mattr exechost complex_values re=true global"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_1640_test" -1 "error: qconf -mattr exechost complex_values re=true global:\n$result"
+      return
    }
 
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -se global"
-   set expected_output "rerun=false"
-   set result [ catch { eval exec "$command \| grep \"$expected_output\" " } qstatoutput ]
-   if { ( $result == 0 ) } {
+   get_exechost global_host "global"
+   set expected_output "rerun=true"
+   if {$global_host(complex_values) != $expected_output} {
       add_proc_error "issue_1640_check" "-1" \
-                     "IZ 1640 is present: qconf gets confused by shortcuts"
+                     "IZ 1640 is present: qconf gets confused by shortcuts\ngot $global_host(complex_values)\nexpected $expected_output"
       return
    }
 }

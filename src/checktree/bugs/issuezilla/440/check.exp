@@ -74,9 +74,7 @@ lappend check_functions "issue_440_check_qrsh"
 global issue_440_MAX_KBYTE
 
 proc issue_440_init_level {} {
-   global ts_config
-   global CHECK_ACT_LEVEL
-   global issue_440_MAX_KBYTE check_440_host check_440_num_hosts
+   global CHECK_ACT_LEVEL check_440_num_hosts
 
    if {$CHECK_ACT_LEVEL < $check_440_num_hosts} {
       return 0
@@ -108,7 +106,7 @@ proc issue_440_set_parameters {} {
 
 proc issue_440_check_qsub {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_CORE_MASTER issue_440_MAX_KBYTE check_440_host
+   global issue_440_MAX_KBYTE check_440_host
 
    set submit_script_path "$ts_config(testsuite_root_dir)/scripts/cmd_line_output.sh" 
    set start_length 0
@@ -190,7 +188,7 @@ proc issue_440_check_qsub {} {
    }
 
    puts $CHECK_OUTPUT "check if master and scheduler are running ..."
-   set back [are_master_and_scheduler_running $CHECK_CORE_MASTER [get_qmaster_spool_dir]]
+   set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
    if {$back != 3} {
       add_proc_error "issue_440_check_qsub" -1 "are_master_and_scheduler_running returns $backafter submit on host $check_440_host"
    }
@@ -198,7 +196,7 @@ proc issue_440_check_qsub {} {
 
 proc issue_440_check_qrsh {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_USER issue_440_MAX_KBYTE check_440_host
+   global CHECK_USER issue_440_MAX_KBYTE check_440_host
 
    # test script
    set submit_script_path "$ts_config(testsuite_root_dir)/scripts/cmd_line_output.sh" 
@@ -266,7 +264,7 @@ proc issue_440_check_qrsh {} {
    }
 
    puts $CHECK_OUTPUT "check if master and scheduler are running ..."
-   set back [are_master_and_scheduler_running $CHECK_CORE_MASTER [get_qmaster_spool_dir]]
+   set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
    if {$back != 3} {
       add_proc_error "issue_440_check_qrsh" -1 "are_master_and_scheduler_running returns $back after submit on host $check_440_host"
    }   
@@ -277,7 +275,7 @@ proc issue_440_cleanup {} {
 
    # check if system is running normal
    set command_line "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
-   set jobid [ submit_job $command_line ]
+   set jobid [submit_job $command_line]
    wait_for_jobstart  $jobid "leeper" 60 1 1
    wait_for_jobend $jobid "leeper" 60 0
    delete_all_jobs

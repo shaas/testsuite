@@ -56,11 +56,11 @@ set check_highest_level       0
 global issue_1768_stored_qtask_file
 
 proc issue_1768_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -74,32 +74,21 @@ proc issue_1768_setup {} {
 
 proc issue_1768_cleanup {} {
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    restore_qtask_file
 }
 
 proc issue_1768_run  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global qtask_command
+   global ts_config CHECK_OUTPUT
 
    # Run test binary on all architectures
    puts $CHECK_OUTPUT "running drmaa test binary on all architectures"
    foreach host $ts_config(unique_arch_nodes) {
-      set up_arch [resolve_build_arch_installed_libs $host]
-      puts $CHECK_OUTPUT "$up_arch ($host)"
-
-      set client_binary "$ts_config(source_dir)/$up_arch/test_drmaa_issue1768"
-
-      if {[wait_for_remote_file $host $CHECK_USER $client_binary 1 0] != 0} {
-         add_proc_error "issue_1768_run" -3 "test binary $client_binary doesn't exist on host $host"
-         continue
-      } else {
-         set output [start_remote_prog $host $CHECK_USER $client_binary "/bin/date issue1768"]
-         # If we segfault on any architecture, the bug still exists.
-         if {$prg_exit_state != 0} {
-            add_proc_error "issue_1768_run" -1 "test binary $client_binary failed on host $host:\n$output"
-         }
-      }   
+      set output [start_source_bin "test_drmaa_issue1768" "/bin/date issue1768" $host]
+      # If we segfault on any architecture, the bug still exists.
+      if {$prg_exit_state != 0} {
+         add_proc_error "issue_1768_run" -1 "test binary test_drmaa_issue1768 failed on host $host:\n$output"
+      }
    }
 }

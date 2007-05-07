@@ -57,10 +57,6 @@ set check_description(0)  "verify scheduler profiles for installation"
 # define test's dependencies
 set check_needs           "init_core_system" 
 
-# setup and cleanup functions
-set check_setup_function issue_2158_setup
-set check_cleanup_function issue_2158_cleanup
-
 # define test's procedure order
 set check_functions ""
 lappend check_functions "issue_2158_test"
@@ -73,32 +69,18 @@ proc issue_2158_init_level {} {
       "0" {
          return 0
       }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization------------------------------
-
-
-proc issue_2158_setup  {} {
-   global CHECK_OUTPUT ts_config
-
-   puts $CHECK_OUTPUT "setup 2158"
-}
-
-proc issue_2158_cleanup  {} {
-   global CHECK_OUTPUT ts_config
-
-   puts $CHECK_OUTPUT "cleanup 2158"
-}
-
 
 proc issue_2158_test {} {
    global ts_config CHECK_OUTPUT CHECK_ARCH
 
    set result [start_sge_bin "qconf" "-mattr queue slots 10 @allhosts"]
-   if { $prg_exit_state != 1 } {
+   if {$prg_exit_state != 1} {
       # qconf had success => bug is present
       puts $CHECK_OUTPUT $result
       add_proc_error "issue_2158_test" -1 "qconf could be called with invalid queue instance specification"

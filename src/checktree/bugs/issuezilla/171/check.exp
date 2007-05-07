@@ -66,28 +66,29 @@ lappend check_functions "issue_171_check"
 
 proc issue_171_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-     "1" {
-           return -1
-     }
-  } 
-  return -1  ;# no other level else
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
+proc issue_171_cleanup  {} {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
 proc issue_171_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
+   global ts_config CHECK_OUTPUT
   
    puts $CHECK_OUTPUT "Starting job ..."
    set arguments "-o /dev/null -e /dev/null -h -t 1-10"
-   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" ]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
 
    puts $CHECK_OUTPUT "Waiting for start of job tasks ${job_id}.1-10 ..."
    wait_for_jobpending $job_id "Sleeper" 60 
@@ -98,69 +99,58 @@ proc issue_171_check {} {
    set mytimeout [timestamp]
    incr mytimeout 60
    set ok 0
-   while { [timestamp] < $mytimeout } {
+   while {[timestamp] < $mytimeout} {
       set statelist [get_job_state $job_id 1 tasklist]
       set task  $tasklist(0,task)
       set state $tasklist(0,state)
       puts $CHECK_OUTPUT "examining task $task , state $state..."
-      if { [ string first "1-4" $task ] >= 0  } {
+      if {[string first "1-4" $task] >= 0} {
           set ok 1
           break
       }
+      after 500
    }
-   if { $ok == 0 } {
+   if {$ok == 0} {
       add_proc_error "issue_171_check" -1 "timeout waiting for task 5 deletion"
+      return
    }
 
-
-   set qalterresult [ catch { 
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter -h s $job_id.1-10" 
-   } qalteroutput ]
-
-   puts $CHECK_OUTPUT $qalteroutput
-   if { $qalterresult != 0 } {
-      add_proc_error "issue_171_check" -1 "qalter exit status is $qalterresult"
+   set result [start_sge_bin "qalter" "-h s $job_id.1-10"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_171_check" -1 "qalter (1) failed with exit status $prg_exit_state:\n$result"
+      return
    }
 
-   set qalterresult [ catch { 
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter -h n $job_id.1-10" 
-   } qalteroutput ]
-
-   puts $CHECK_OUTPUT $qalteroutput
-   if { $qalterresult != 0 } {
-      add_proc_error "issue_171_check" -1 "qalter exit status is $qalterresult"
+   set result [start_sge_bin "qalter" "-h n $job_id.1-10"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_171_check" -1 "qalter (2) failed with exit status $prg_exit_state:\n$result"
+      return
    }
    wait_for_jobstart $job_id "Sleeper" 60 1 1
    wait_for_end_of_transfer $job_id 60 
-
  
    set statelist [get_job_state $job_id 1 tasklist]
-   set length [ llength $statelist ]
+   set length [llength $statelist]
    set taskcount 0
    for {set i 0} {$i < $length} {incr i 1} {
       set task  $tasklist($i,task)
       set state $tasklist($i,state)
       puts $CHECK_OUTPUT "examining task $task ..."
-      if { $task == 5 } {
-         add_proc_error "issue_171_check" -1 "task $task should not exists"
+      if {$task == 5} {
+         add_proc_error "issue_171_check" -1 "task $task should not exist"
       }
-      if { [ string first "r" $state ] < 0 } {
-         add_proc_error "issue_171_check" -1 "task $task should be in running state"
+      if {[string first "r" $state] < 0} {
+         add_proc_error "issue_171_check" -1 "task $task should be in running state, but is in state \"$state\""
+         return
       }
    }
 
    puts $CHECK_OUTPUT "check if master and scheduler are running ..."
-   set back [ are_master_and_scheduler_running $CHECK_CORE_MASTER [get_qmaster_spool_dir]]
-   if { $back != 3 } {
+   set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
+   if {$back != 3} {
       add_proc_error "issue_171_check" -1 "are_master_and_scheduler_running returns $back"
-   }   
-}
-
-proc issue_171_cleanup  {} {
-   global CHECK_OUTPUT
-
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60 
+      return
+   }
 }
 
 

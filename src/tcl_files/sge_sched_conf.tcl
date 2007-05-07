@@ -385,9 +385,11 @@ proc get_schedd_config { change_array } {
   global CHECK_ARCH
   upvar $change_array chgar
 
-  set catch_return [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -ssconf" } result ]
-  if { $catch_return != 0 } {
-     add_proc_error "get_schedd_config" "-1" "qconf error or binary not found"
+   unset -nocomplain chgar
+  
+  set result [start_sge_bin "qconf" "-ssconf"]
+  if {$prg_exit_state != 0} {
+     add_proc_error "get_schedd_config" "-1" "qconf -ssconf failed:\n$output"
      return
   }
 

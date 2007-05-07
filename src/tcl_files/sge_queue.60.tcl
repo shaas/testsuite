@@ -228,7 +228,7 @@ proc set_cqueue_default_values { current_array change_array } {
 
    upvar $current_array currar
    upvar $change_array chgar
-      puts $CHECK_OUTPUT "calling set_cqueue_default_values"
+   puts $CHECK_OUTPUT "calling set_cqueue_default_values"
 
    # parse each attribute to be changed and set the queue default value
    foreach attribute [array names chgar] {
@@ -241,7 +241,7 @@ proc set_cqueue_default_values { current_array change_array } {
       # get position of host(group) specific values and append them 
       set comma_pos [string first ",\[" $currar($attribute)]
       puts $CHECK_OUTPUT "--> comma pos = $comma_pos"
-      if { $comma_pos != -1 } {
+      if {$comma_pos != -1} {
          append new_value [string range $currar($attribute) $comma_pos end]
       }
 
@@ -251,24 +251,24 @@ proc set_cqueue_default_values { current_array change_array } {
    }
 }
 
-proc set_cqueue_specific_values { current_array change_array hostlist } {
+proc set_cqueue_specific_values {current_array change_array hostlist} {
    global CHECK_OUTPUT
 
    upvar $current_array currar
    upvar $change_array chgar
-      puts $CHECK_OUTPUT "calling set_cqueue_specific_values"
+   puts $CHECK_OUTPUT "calling set_cqueue_specific_values"
 
    # parse each attribute to be changed
    foreach attribute [array names chgar] {
-      if { [string compare $attribute qname] == 0 } {
-         continue;
+      if {[string compare $attribute qname] == 0} {
+         continue
       }
 
       puts $CHECK_OUTPUT "--> setting queue default value for attribute $attribute"
       puts $CHECK_OUTPUT "--> old_value = $currar($attribute)"
      
       # split old value and store host specific values in an array
-      if { [info exists host_values] } {
+      if {[info exists host_values]} {
          unset host_values
       }
 
@@ -276,7 +276,7 @@ proc set_cqueue_specific_values { current_array change_array hostlist } {
       set value_list [split $currar($attribute) "\["]
 
       # copy the default value
-      if { $hostlist == "" } {
+      if {$hostlist == ""} {
          # use the new value for the cluster queue
          set new_value $default_value
       } else {
@@ -289,7 +289,8 @@ proc set_cqueue_specific_values { current_array change_array hostlist } {
             set host_value [lindex $value_list $i]
             set first_equal_position [string first "=" $host_value]
             incr first_equal_position -1
-            set host  [string range $host_value 0 $first_equal_position]
+            set host [string range $host_value 0 $first_equal_position]
+            set host [resolve_host $host]
             incr first_equal_position 2
             set value [string range $host_value $first_equal_position end]
             set value [string trimright $value ",\]\\"]
@@ -361,7 +362,7 @@ proc set_cqueue_specific_values { current_array change_array hostlist } {
 #  RESULT
 #
 #*******************************************************************************
-proc set_queue { qname hostlist change_array {fast_add 1}  {on_host ""} {as_user ""}  {raise_error 1}} {
+proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user ""} {raise_error 1}} {
    global ts_config
    global CHECK_OUTPUT CHECK_ARCH
 
@@ -374,15 +375,14 @@ proc set_queue { qname hostlist change_array {fast_add 1}  {on_host ""} {as_user
    get_queue $qname currar
 
    # process chgar and set values
-   if { [llength $hostlist] == 0 } {
+   if {[llength $hostlist] == 0} {
       set_cqueue_default_values currar chgar
    } else {
       set_cqueue_specific_values currar chgar $hostlist
    }
 
    # Modify queue from file
-   if { $fast_add } {
-
+   if {$fast_add} {
      # Add in currar elements from chgar which have NOT
      # been changed
      
@@ -390,7 +390,7 @@ proc set_queue { qname hostlist change_array {fast_add 1}  {on_host ""} {as_user
         set fastar($elem) $chgar($elem)
      }
      foreach elem [array names currar] {
-        if { ![info exists chgar($elem)] } {
+        if {![info exists chgar($elem)]} {
            set fastar($elem) $currar($elem)
         }
      }
@@ -405,7 +405,6 @@ proc set_queue { qname hostlist change_array {fast_add 1}  {on_host ""} {as_user
       }
 
    } else {
-
       # do the work
       set result [set_queue_work $qname chgar $raise_error]
       

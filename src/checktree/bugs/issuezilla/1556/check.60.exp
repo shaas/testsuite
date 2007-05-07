@@ -49,11 +49,11 @@ lappend check_functions       "issue_1556_run"   ;# functions to call (in order)
 set check_highest_level       0
 
 proc issue_1556_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels 
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -61,13 +61,12 @@ proc issue_1556_init_level {} {
    return -1
 }
 
-proc issue_1556_run  {} {
-   global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER CHECK_HOST
-   global CHECK_ACTUAL_TEST_PATH
+proc issue_1556_run {} {
+   global ts_config CHECK_ACTUAL_TEST_PATH
 
-   set options "-sync yes -b no -o /dev/null -e /dev/null"
    # Run script 1556.sh as non-binary job
-   catch {set output [start_remote_prog $CHECK_HOST $CHECK_USER "$ts_config(product_root)/bin/$CHECK_ARCH/qsub" "$options $CHECK_ACTUAL_TEST_PATH/1556.sh" ]}
+   set options "-sync yes -b no -o /dev/null -e /dev/null"
+   set output [start_sge_bin "qsub" "$options $CHECK_ACTUAL_TEST_PATH/1556.sh"]
 
    if {$prg_exit_state != 0} {
       add_proc_error "issue_1556" -1 "multi-word quoted argument was mangled; issue 1556 still exists"

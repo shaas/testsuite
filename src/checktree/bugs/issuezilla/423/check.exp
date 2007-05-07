@@ -66,13 +66,11 @@ lappend check_functions "issue_423_check"
 
 proc issue_423_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
+      "0" {
+         return 0
+      }
    }
 
    return -1  ;# no other level else
@@ -99,7 +97,7 @@ proc issue_423_check {} {
 
    # Negative or zero step in range is not allowed
    # submit_job returns -20 in this case
-   if { $job_id != -20 } {
+   if {$job_id != -20} {
       add_proc_error "issue_423_check" -1 "job with zero step should have been rejected (submit_job = -20), instead submit returned $job_id"
       if {$job_id > 0} {
          delete_job $job_id
@@ -108,10 +106,8 @@ proc issue_423_check {} {
 }
 
 proc issue_423_cleanup  {} {
-   global CHECK_OUTPUT
-
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 }
 
 

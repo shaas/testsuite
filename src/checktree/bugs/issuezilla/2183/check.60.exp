@@ -83,6 +83,7 @@ proc issue_2183_setup {} {
    global ts_config CHECK_OUTPUT
    global config_backup
 
+   unset -nocomplain config_backup
    get_config config_backup
 }
 
@@ -92,7 +93,6 @@ proc issue_2183_cleanup {} {
 
    set_config config_backup
 }
-
 
 proc issue_2183_test {} {
    global ts_config CHECK_OUTPUT

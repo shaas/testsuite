@@ -137,6 +137,8 @@ proc drmaaj_check {} {
          "sol-x86" -
          "lx24-x86" -
          "lx24-amd64" -
+         "ulx24-x86" -
+         "ulx24-amd64" -
          "aix51" -
          "irix65" -
          "hp11" -

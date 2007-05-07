@@ -54,12 +54,12 @@ lappend check_functions       "issue_1837_run"   ;# functions to call (in order)
 set check_highest_level       0
 
 proc issue_1837_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
       # This test will take at least 1 minute for every exec host in the cluster
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -73,25 +73,20 @@ proc issue_1837_setup {} {
 
 proc issue_1837_cleanup {} {
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    restore_qtask_file
 }
 
-proc issue_1837_run  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+proc issue_1837_run {} {
+   global ts_config CHECK_OUTPUT
 
    # Run test binary on all architectures
    puts $CHECK_OUTPUT "running qtcsh on all architectures"
    foreach host $ts_config(unique_arch_nodes) {
-      set up_arch [resolve_arch $host]
-      puts $CHECK_OUTPUT "$up_arch ($host)"
-
-      set client_binary "$ts_config(product_root)/bin/$up_arch/qtcsh"
-
       # If the bug still exists, this test will time out.  The default timeout
       # for start_remote_prog is 60 seconds.
-      set output [start_remote_prog $host $CHECK_USER $client_binary "-c /bin/date"]
+      set output [start_sge_bin "qtcsh" "-c /bin/date" $host]
 
       # If we time out on any architecture, the bug still exists
       if {$prg_exit_state != 0} {

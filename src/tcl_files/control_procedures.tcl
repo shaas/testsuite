@@ -992,12 +992,13 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
    set psinfo($pid,string) "not found"
 
 
-   set host_arch [ resolve_arch $host ]
+   set host_arch [resolve_arch $host]
 
    #puts "arch on host $host is $host_arch"
    
    switch -glob -- $host_arch {
-      "sol*" {
+      "sol*" - 
+      "usol-*" {
          set myenvironment(COLUMNS) "500"
          set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-e -o \"pid=_____pid\" -o \"pgid=_____pgid\" -o \"ppid=_____ppid\" -o \"uid=_____uid\" -o \"s=_____s\" -o \"stime=_____stime\" -o \"vsz=_____vsz\" -o \"time=_____time\" -o \"args=_____args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "_____pid _____pgid _____ppid _____uid _____s _____stime _____vsz _____time _____args"
@@ -1126,11 +1127,8 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       }
      
       "glinux" -
-      "lx2?-x86" - 
-      "lx2?-ia64" - 
-      "lx2?-amd64" -
-      "lx2?-sparc" -
-      "lx2?-sparc64" {
+      "lx2?-*" - 
+      "ulx24-*" {
          set myenvironment(COLUMNS) "500"
          set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-weo \"pid pgid ppid uid=BIGGERUID s stime vsz time args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "  PID  PGID  PPID BIGGERUID S STIME   VSZ     TIME COMMAND"
@@ -1786,6 +1784,13 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
             set build_arch "HP11"
          }
       }
+      "LINUXAMD64_26" {
+         set arch [resolve_arch $host]
+         if {$arch == "lx24-amd64"} {
+            add_proc_error "resolve_build_arch_installed_lib" -3 "We are on lx26-amd64 platform (build platform LINUXAMD64_26) with lx24-amd64 binaries installed.\nUsing lx24-amd64 (build platform LINUXAMD64_24) test binaries" $raise_error
+            set build_arch "LINUXAMD64_24"
+         }
+      }
       "LINUX86_26" {
          set arch [resolve_arch $host]
          if {$arch == "lx24-x86"} {
@@ -1833,18 +1838,17 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc resolve_host { name { long 0 } } {
-   global ts_config
-   global CHECK_OUTPUT
+proc resolve_host {name {long 0}} {
+   global ts_config CHECK_OUTPUT
    global resolve_host_cache
 
    # we cannot resolve hostgroups.
-   if {[string range $name 0 0] == "@" } {
+   if {[string range $name 0 0] == "@"} {
       puts $CHECK_OUTPUT "hostgroups ($name) cannot be resolved"
       return $name
    }
    
-   if { $long != 0 } {
+   if {$long != 0} {
       if {[info exists resolve_host_cache($name,long)]} {
          return $resolve_host_cache($name,long)
       }
@@ -1854,31 +1858,29 @@ proc resolve_host { name { long 0 } } {
       }
    }
 
-   set remote_arch [ resolve_arch $ts_config(master_host) ]
+   set result [start_sge_utilbin "gethostbyname" "-aname $name" $ts_config(master_host) "ts_def_con_translate"]
 
-   set result [start_remote_prog $ts_config(master_host) "ts_def_con_translate" "$ts_config(product_root)/utilbin/$remote_arch/gethostbyname" "-aname $name" prg_exit_state 60 0 "" "" 0]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "proc resolve_host - gethostbyname failed: \n$result"
+      return "unknown"
+   }
 
-  if { $prg_exit_state != 0 } {
-     puts $CHECK_OUTPUT "proc resolve_host - gethostbyname error or file \"$ts_config(product_root)/utilbin/$remote_arch/gethostbyname\" not found: \n$result"
-     return "unknown"
-  }
+   set newname [string trim $result]
+   if {$long == 0} {
+      set split_name [split $newname "."]
+      set newname [lindex $split_name 0]
+   }
 
-  set newname [string trim $result]
-  if { $long == 0 } {
-     set split_name [split $newname "."]
-     set newname [lindex $split_name 0]
-  }
+   # cache result
+   if {$long != 0} {
+      set resolve_host_cache($name,long) $newname
+      puts $CHECK_OUTPUT "long resolve_host: \"$name\" resolved to \"$newname\""
+   } else {
+      set resolve_host_cache($name,short) $newname
+      puts $CHECK_OUTPUT "short resolve_host: \"$name\" resolved to \"$newname\""
+   }
 
-
-  # cache result
-  if { $long != 0 } {
-     set resolve_host_cache($name,long) $newname
-     puts $CHECK_OUTPUT "long resolve_host: \"$name\" resolved to \"$newname\""
-  } else {
-     set resolve_host_cache($name,short) $newname
-     puts $CHECK_OUTPUT "short resolve_host: \"$name\" resolved to \"$newname\""
-  }
-  return $newname
+   return $newname
 }
 
 

@@ -59,7 +59,6 @@ set check_needs           "init_core_system"
 
 
 # setup and cleanup functions
-set check_setup_function "issue_1798_setup"
 set check_cleanup_function "issue_1798_cleanup"
 
 # define test's procedure order
@@ -68,42 +67,34 @@ lappend check_functions "issue_1798_test"
 
 proc issue_1798_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
-   } 
+      "0" {
+         return 0
+      }
+   }
 
    return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
-proc issue_1798_setup  {} {
-   global CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
-}
+proc issue_1798_cleanup {} {
+   global ts_config CHECK_OUTPUT
 
-proc issue_1798_cleanup  {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
-
-   set back [ are_master_and_scheduler_running $CHECK_CORE_MASTER [get_qmaster_spool_dir]]
-   if { $back != 3 } {
+   set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
+   if {$back != 3} {
       startup_qmaster 0
    }
 
-   set catch_return [ catch {
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -dattr exechost complex_values slots=1 global"
-   } result ]
-   if { $catch_return != 0 } {
-      add_proc_error "issue_1798_test" -1 "qconf -dattr error"
+   set output [start_sge_bin "qconf" "-dattr exechost complex_values slots=1 global"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_1798_cleanup" -1 "qconf -dattr failed:\n$output"
    }
 }
 
 proc issue_1798_test {} {
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_CORE_MASTER CHECK_ARCH CHECK_PRODUCT_ROOT
+   global ts_config CHECK_OUTPUT
 
    #
    # Scenario:
@@ -113,19 +104,14 @@ proc issue_1798_test {} {
    #     if the master cores the bug is present
    #
    #
-
-   set catch_return [ catch {
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -mattr exechost complex_values slots=1 global"
-   } result ]
-   if { $catch_return != 0 } {
-      add_proc_error "issue_1798_test" -1 "error: qconf -mattr exechost complex_values slots=1 global"
+   set output [start_sge_bin "qconf" "-mattr exechost complex_values slots=1 global"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_1798_test" -1 "error: qconf -mattr exechost complex_values slots=1 global:\n$output"
    }
 
-   set catch_return [ catch {
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -mattr exechost complex_values = global"
-   } result ]
-   if { $catch_return != 1 } {
-      add_proc_error "issue_1798_test" -2 "error: qconf -mattr exechost complex_values = global caused core of master"
+   set output [start_sge_bin "qconf" "-mattr exechost complex_values = global"]
+   if {$prg_exit_state != 1} {
+      add_proc_error "issue_1798_test" -2 "error: qconf -mattr exechost complex_values = global caused core of master:\n$output"
       return -2
    }
 }

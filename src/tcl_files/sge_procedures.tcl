@@ -1993,7 +1993,7 @@ proc get_config { change_array {host global}} {
   global CHECK_ARCH CHECK_OUTPUT
   upvar $change_array chgar
 
-  if { [info exists chgar] } {
+  if {[info exists chgar]} {
      unset chgar
   }
 

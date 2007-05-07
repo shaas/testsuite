@@ -52,7 +52,7 @@ lappend check_functions       "issue_1529_run"   ;# functions to call (in order)
 set check_highest_level       0
 
 proc issue_1529_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
 
    # setup levels
    switch -- $CHECK_ACT_LEVEL {
@@ -65,12 +65,12 @@ proc issue_1529_init_level {} {
 }
 
 proc issue_1529_run  {} {
-   global ts_config CHECK_USER
+   global ts_config
 
    set client_args "$ts_config(product_root)/examples/jobs/sleeper.sh"
    set output [start_source_bin "test_drmaa_no_bin" $client_args]
 
-   if { $prg_exit_state != 0 } {
+   if {$prg_exit_state != 0} {
       add_proc_error "issue_1529_run" "-1" "DRMAA failed to accept non-binary job:\n$output"
    }
 }

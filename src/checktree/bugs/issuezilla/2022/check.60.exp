@@ -73,9 +73,9 @@ proc issue_2022_init_level {} {
       "0" {
          return 0
       }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 

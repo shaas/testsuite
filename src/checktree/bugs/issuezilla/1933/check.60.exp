@@ -64,8 +64,7 @@ lappend check_functions "issue_1933_test"
 global queue_name
 
 proc issue_1933_init_level {} {
-   global CHECK_ACT_LEVEL queue_name
-   set queue_name "1933.q"
+   global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
       "0" {
@@ -79,46 +78,43 @@ proc issue_1933_init_level {} {
 proc issue_1933_setup  {} {
    global CHECK_OUTPUT ts_config queue_name
 
+   set queue_name "1933.q"
    puts $CHECK_OUTPUT "add $queue_name"
    set q_param(prolog) "invalid_prolog"
    add_queue $queue_name "@allhosts" q_param
 }
 
 proc issue_1933_cleanup  {} {
-   global CHECK_OUTPUT CHECK_USER ts_config queue_name
-
-   set host [lindex $ts_config(execd_nodes) 0]
+   global CHECK_OUTPUT ts_config queue_name
 
    puts $CHECK_OUTPUT "delete $queue_name"
    del_queue $queue_name "@allhosts" 1 1
-   start_remote_prog $host $CHECK_USER qmod "-cq all.q" exit_state 30
+   start_sge_bin "qmod" "-cq all.q"
 }
 
 
 proc issue_1933_test {} {
-   global 1933_test_hosts check_description queue_name
+   global queue_name
    global CHECK_OUTPUT ts_config CHECK_PRODUCT_ROOT CHECK_ACT_LEVEL
    global CHECK_HOST CHECK_USER
 
-   set host [lindex $ts_config(execd_nodes) 0]
-
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   set host [host_conf_get_suited_hosts]
 
    # submit testjob to set the queue in error
-   set job_id [ submit_job "-o /dev/null -e /dev/null -q ${queue_name}@$host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15" ]
+   set job_id [submit_job "-o /dev/null -e /dev/null -q ${queue_name}@$host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15"]
 
    # wait for queue to get in error state
    set time [timestamp]
    while {1} {
-      set state [ get_queue_state "$queue_name@$host" ] 
-      if { [ string first "E" $state ] >=  0  } {
+      set state [get_queue_state "$queue_name@$host"] 
+      if {[string first "E" $state] >=  0} {
          break
       }
 
-      set runtime [expr ( [timestamp] - $time) ]
-      if { $runtime >= 60 } {
+      set runtime [expr [timestamp] - $time]
+      if {$runtime >= 60} {
          add_proc_error "issue_1933_test" -1 "timeout waiting for queue ${queue_name}@$host to get in error state"
-         break;
+         break
       }
       sleep 1
    }
@@ -128,11 +124,11 @@ proc issue_1933_test {} {
 
    puts $CHECK_OUTPUT $output
 
-   if { [ string first "QERROR" $output ] <= 0  } {
-      add_proc_error "issue_1933_test" -1 "qstat printed QERROR never"
+   if {[string first "QERROR" $output] <= 0} {
+      add_proc_error "issue_1933_test" -1 "qstat didn't print QERROR"
    } else {
-      if { [ string first "QERROR" $output ] != [ string last "QERROR" $output ] } {
-         set message "Issue 1933 present: qstat printed QERROR for one queue instance multiple times"
+      if {[string first "QERROR" $output] != [string last "QERROR" $output]} {
+         set message "issue 1933 present: qstat printed QERROR for one queue instance multiple times"
          if {$ts_config(gridengine_version) == 60} {
             add_proc_error "issue_1933_test" -3 "$message\nnot fixed for 6.0"
          } else {

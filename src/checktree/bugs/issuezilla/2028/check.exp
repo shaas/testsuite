@@ -73,15 +73,15 @@ proc issue_2028_init_level {} {
       "0" {
          return 0
       }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization------------------------------
 
 
-proc issue_2028_setup  {} {
+proc issue_2028_setup {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global issue_2028_backup_seqno
 
@@ -96,16 +96,17 @@ proc issue_2028_setup  {} {
    startup_qmaster 0
 }
 
-proc issue_2028_cleanup  {} {
+proc issue_2028_cleanup {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global issue_2028_backup_seqno
 
    # cleanup cluster
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    # make sure all jobs left qmaster
-   sleep 30
+   trigger_scheduling
+   sleep 5
 
    # shutdown qmaster and restore jobseqnum
    set qmaster_spool_dir [get_qmaster_spool_dir]

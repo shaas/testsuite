@@ -68,9 +68,9 @@ proc issue_478_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
+      "0" {
+         return 0
+      }
    }
 
    return -1  ;# no other level else
@@ -79,17 +79,16 @@ proc issue_478_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_478_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
-   global ts_config 
+   global ts_config CHECK_OUTPUT CHECK_ARCH
 
    # initialize parameter
    set job_name "n1"
    set N_option "-N $job_name"
    set h_option "-h"
-   set job_script "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 120"
-   set qstat_command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat"
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 120"
+   set qstat_command "$ts_config(product_root)/bin/$CHECK_ARCH/qstat"
 
-   if { $ts_config(gridengine_version) == 53} {
+   if {$ts_config(gridengine_version) == 53} {
       set grep_pattern "Predecessor Jobs:"
       set formatstring "       Predecessor Jobs: %d, %s"
    } else {
@@ -112,11 +111,11 @@ proc issue_478_check {} {
 
    # qstat -r output has to contain following output: 
    #    "Predecessor Jobs: <job_id1>,n1"
-   set qstatresult [ catch { eval exec "$qstat_command -r \| grep \"$grep_pattern\"" } qstatoutput ]
+   set qstatresult [catch { eval exec "$qstat_command -r \| grep \"$grep_pattern\"" } qstatoutput]
    scan $qstatoutput $formatstring out_id out_name
 
-   if { ( [ string compare $job_id1 $out_id ] != 0 ) || \
-        ( [ string compare $job_name $out_name] != 0 ) } {
+   if {[string compare $job_id1 $out_id] != 0 || \
+       [string compare $job_name $out_name] != 0} {
       puts [format " expeced output: $formatstring" $job_id1 $job_name]
       puts "qstat -r output: $qstatoutput"
       add_proc_error "issue_478_check" "-1" \
@@ -130,9 +129,8 @@ proc issue_478_check {} {
    delete_job $job_id1 "1"
 }
 
-proc issue_478_cleanup  {} {
-   global CHECK_OUTPUT
-
+proc issue_478_cleanup {} {
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 

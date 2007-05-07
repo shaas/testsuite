@@ -102,7 +102,6 @@ proc issue_126_init_level {} {
          default {
             return -1
          }
-
       }
       return 0
    }
@@ -112,7 +111,7 @@ proc issue_126_init_level {} {
 
 # -------- local test procedures -----------------------------------------------
 
-proc issue_126_setup  {} {
+proc issue_126_setup {} {
    global ts_config
    global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_ACT_LEVEL
    global check_126_host check_126_loops
@@ -139,8 +138,8 @@ proc issue_126_setup  {} {
    set queue2(load_thresholds)    "np_load_avg=7.00"
    set queue2(suspend_thresholds) "np_load_avg=7"
    set queue2(subordinate_list) $q1
-   set result [ add_queue "q2" $check_126_host queue2 ]
-   if { ($result != 0)  } {
+   set result [add_queue "q2" $check_126_host queue2]
+   if {$result != 0} {
       add_proc_error "issue_126_setup" "-1" "Could not add queue q2"
    }
 }
@@ -198,15 +197,14 @@ proc issue_126_check {} {
       # 2
       #
       append error_output "\n======================================================================\n"
-      append error_output "[exec date] starting test run $i\n"
+      append error_output "[clock format [clock seconds]] starting test run $i\n"
 
-      set program "$ts_config(product_root)/bin/$CHECK_ARCH/qmod"
-      set output [start_remote_prog $CHECK_HOST $CHECK_USER $program "-d $q1 $q2"]
+      set output [start_sge_bin "qmod" "-d $q1 $q2"]
       puts $CHECK_OUTPUT $output
       
 #      disable_queue "$q1 $q2"
  
-      append error_output "[exec date] disabled queue $q1 and $q2\n"
+      append error_output "[clock format [clock seconds]] disabled queue $q1 and $q2\n"
 
       #
       # 3
@@ -218,51 +216,50 @@ proc issue_126_check {} {
 
       set job1_args "-o /dev/null -j y -N $job_name1 -l q=$q1 "
       set job1_id [submit_job "$job1_args $work_script"]
-      append error_output "[exec date] submitted job $job1_id ($job1_args $work_script)\n"
+      append error_output "[clock format [clock seconds]] submitted job $job1_id ($job1_args $work_script)\n"
 
       set job2_args "-o /dev/null -j y -N $job_name2 -l q=$q2 "
       set job2_id [submit_job "$job2_args $sleep_script"]
-      append error_output "[exec date] submitted job $job2_id ($job2_args $sleep_script)\n"
+      append error_output "[clock format [clock seconds]] submitted job $job2_id ($job2_args $sleep_script)\n"
 
       enable_queue "$q1 $q2"
 
       #
       # 4
       #
-      append error_output "[exec date] enabled queue $q1 and $q2\n"
+      append error_output "[clock format [clock seconds]] enabled queue $q1 and $q2\n"
 
       #
       # 5
       #
       wait_for_jobstart $job1_id $job_name1 300 1 1
-      append error_output "[exec date] job $job1_id started\n"
+      append error_output "[clock format [clock seconds]] job $job1_id started\n"
       wait_for_jobstart $job2_id $job_name2 300
-      append error_output "[exec date] job $job2_id started\n"
+      append error_output "[clock format [clock seconds]] job $job2_id started\n"
       wait_for_end_of_transfer $job1_id 300
-      append error_output "[exec date] job $job1_id: end of transfer\n"
+      append error_output "[clock format [clock seconds]] job $job1_id: end of transfer\n"
       wait_for_end_of_transfer $job2_id 300
-      append error_output "[exec date] job $job2_id: end of transfer\n"
-
+      append error_output "[clock format [clock seconds]] job $job2_id: end of transfer\n"
      
       # 
       # 6 wait until prolog of j1 has finished (prolog sleeps 10s)
       #
       set my_timeout [timestamp]
       incr my_timeout 40
-      while { 1 } {
-         append error_output "[exec date] try to get suspend state of job $job1_id ...\n"
+      while {1} {
+         append error_output "[clock format [clock seconds]] try to get suspend state of job $job1_id ...\n"
 
-         set state1 [ get_suspend_state_of_job $job1_id $check_126_host "pid_list" 0]
-         append error_output "[exec date] job $job1_id has suspend state \"$state1\"\n"
+         set state1 [get_suspend_state_of_job $job1_id $check_126_host "pid_list" 0]
+         append error_output "[clock format [clock seconds]] job $job1_id has suspend state \"$state1\"\n"
          puts $CHECK_OUTPUT "suspend state is \"$state1\""
 
-         append error_output "[exec date] process group info from ps output:\n$process_group_info"
+         append error_output "[clock format [clock seconds]] process group info from ps output:\n$process_group_info"
 
          if { [string compare $state1 "T" ] == 0 } {
             break
          } 
          if { $my_timeout < [timestamp] } {
-            append error_output "[exec date] job $job1_id has state \"$state1\", but should have state \"T\" - bug #126 is present\n"
+            append error_output "[clock format [clock seconds]] job $job1_id has state \"$state1\", but should have state \"T\" - bug #126 is present\n"
             #
             # Bug #126 is present
             #   
@@ -275,18 +272,15 @@ proc issue_126_check {} {
       #
       # 7
       #
-      append error_output "[exec date] deleting jobs $job1_id and $job2_id\n"
+      append error_output "[clock format [clock seconds]] deleting jobs $job1_id and $job2_id\n"
 
-      set program "$ts_config(product_root)/bin/$CHECK_ARCH/qdel"
-      set output [start_remote_prog $CHECK_HOST $CHECK_USER $program "$job1_id"]
-      puts $CHECK_OUTPUT $output
-      set output [start_remote_prog $CHECK_HOST $CHECK_USER $program "$job2_id"]
+      set output [start_sge_bin "qdel" "$job1_id $job2_id"]
       puts $CHECK_OUTPUT $output
 
-      while { [get_qping_dump_output dump_handle] == 0 } {
+      while {[get_qping_dump_output dump_handle] == 0} {
       }
       puts $CHECK_OUTPUT "try to print qping output"
-      while { $printed_line < $dump_handle(actual_line) } {
+      while {$printed_line < $dump_handle(actual_line)} {
          set time      $dump_handle(line,1,$printed_line)
          set local     $dump_handle(line,2,$printed_line)
          set direction $dump_handle(line,3,$printed_line)
@@ -300,10 +294,10 @@ proc issue_126_check {} {
          set msg_time  $dump_handle(line,11,$printed_line)
          append error_output "$time $direction $remote $df $ack $msg_tag $msg_id $msg_rid $msg_time\n"
            
-         if { [string match "*TAG_SIGQUEUE*" $msg_tag] != 0 || 
-              [string match "*TAG_SIGJOB*" $msg_tag] != 0 ||
-              [string match "*TAG_ACK_REQUEST*" $msg_tag] != 0 ||
-              [string match "*TAG_CHANGE_TICKET*" $msg_tag] != 0 } {
+         if {[string match "*TAG_SIGQUEUE*" $msg_tag] != 0 || 
+             [string match "*TAG_SIGJOB*" $msg_tag] != 0 ||
+             [string match "*TAG_ACK_REQUEST*" $msg_tag] != 0 ||
+             [string match "*TAG_CHANGE_TICKET*" $msg_tag] != 0} {
             puts $CHECK_OUTPUT "dumping out message tag $msg_tag"
             append error_output "dumping out message tag $msg_tag:"
             append error_output "$dump_handle(block,$printed_line)\n"
@@ -312,10 +306,10 @@ proc issue_126_check {} {
          
       }
    }
-   while { [get_qping_dump_output dump_handle] == 0 } {
+   while {[get_qping_dump_output dump_handle] == 0} {
    }
    puts $CHECK_OUTPUT "try to print qping output"
-   while { $printed_line < $dump_handle(actual_line) } {
+   while {$printed_line < $dump_handle(actual_line)} {
       set time      $dump_handle(line,1,$printed_line)
       set local     $dump_handle(line,2,$printed_line)
       set direction $dump_handle(line,3,$printed_line)
@@ -339,11 +333,11 @@ proc issue_126_check {} {
    #
    # 8   
    #
-   wait_for_end_of_all_jobs "10"
+   wait_for_end_of_all_jobs 10
    set error_output ""
 }
 
-proc issue_126_cleanup  {} {
+proc issue_126_cleanup {} {
    global check_126_host
 
    delete_all_jobs
@@ -351,7 +345,7 @@ proc issue_126_cleanup  {} {
    foreach queue "q2 q1" {
       set result [del_queue [get_requestable_queue $queue $check_126_host] \
                   "" 1 1]
-      if { $result != 0 } {
+      if {$result != 0} {
          add_proc_error "issue_126_cleanup" "-1" \
                         "Could not delete queue $queue: $result"
       }

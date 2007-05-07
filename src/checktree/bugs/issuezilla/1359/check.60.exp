@@ -53,9 +53,9 @@ set check_highest_level       0
 proc issue_1359_init_level {} {
    global CHECK_ACT_LEVEL ts_config
 
-   # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      "0"  {
          return 0
       }
    }
@@ -63,13 +63,11 @@ proc issue_1359_init_level {} {
    return -1
 }
 
-proc issue_1359_run  {} {
-   global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER
-   global CHECK_PRODUCT_ROOT
+proc issue_1359_run {} {
+   global ts_config CHECK_HOST CHECK_ARCH CHECK_OUTPUT
 
    # prepare operation with file
    set tmp_file [get_tmp_file_name]
-   # JG: TODO: are the tmp_files deleted automagically?
    set f [ open "$tmp_file" w ]
    puts $f "id=0"
    puts $f "name=Root"
@@ -79,7 +77,7 @@ proc issue_1359_run  {} {
    close $f
 
    # localize messages
-   set INVALID [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_STREE_NOVALIDNODEREF_U] 1 ]
+   set INVALID [translate_macro MSG_STREE_NOVALIDNODEREF_U 1]
 
    # add by handling vi
    set vi_commands ""
@@ -88,34 +86,26 @@ proc issue_1359_run  {} {
    del_sharetree
 
    puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -astree"
-
-   handle_vi_edit "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-astree" $vi_commands $INVALID
+   handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-astree" $vi_commands $INVALID
 
    del_sharetree
 
    puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -mstree"
-
-   handle_vi_edit "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-mstree" $vi_commands $INVALID
+   handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mstree" $vi_commands $INVALID
 
    del_sharetree
 
    puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -Astree"
-
-   set catch_result [catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -Astree $tmp_file" } result]
-#   set result [ string trim $result ]
-
-   if {[string compare $result $INVALID] != 0} {
+   set result [start_sge_bin "qconf" "-Astree $tmp_file" $CHECK_HOST]
+   if {[string compare [string trim $result] $INVALID] != 0} {
       add_proc_error "issue_1359_run" "-1" "qconf allowed dangling child reference in sharetree: $result"
    }
 
    del_sharetree
 
    puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -Mstree"
-
-   set catch_result [catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -Mstree $tmp_file" } result]
-#   set result [ string trim $result ]
-
-   if {[string compare $result $INVALID] != 0} {
+   set result [start_sge_bin "qconf" "-Mstree $tmp_file" $CHECK_HOST]
+   if {[string compare [string trim $result] $INVALID] != 0} {
       add_proc_error "issue_1359_run" "-1" "qconf allowed dangling child reference in sharetree: $result"
    }
 }

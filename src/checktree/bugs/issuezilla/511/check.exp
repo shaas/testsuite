@@ -67,13 +67,11 @@ lappend check_functions "issue_511_check"
 
 proc issue_511_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
+      "0" {
+         return 0
+      }
    }
 
    return -1  ;# no other level else
@@ -93,13 +91,13 @@ proc issue_511_setup  {} {
 
 
 proc issue_511_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global ts_config CHECK_OUTPUT
 
    # TEST
 
    # submit 5 jobs
    puts $CHECK_OUTPUT "Submitting 5 sleeper (3600s) ..."
-   set arguments "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3600"
+   set arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 3600"
    set job_id1 [ submit_job "$arguments" ]
    set job_id2 [ submit_job "$arguments" ]
    set job_id3 [ submit_job "$arguments" ]
@@ -116,69 +114,63 @@ proc issue_511_check {} {
 
    # EB: TODO: handle also other languages
    # Is the last task still in qw state
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -j $job_id5"
+   set output [start_sge_bin "qstat" "-j $job_id5"]
    set expected_output "job dropped because of user limitations"
-   set result [ catch { eval exec "$command \| grep \"$expected_output\" " } qstatoutput ]
-   if { ( $result == 1 ) } {
+   if {[string first $expected_output $output] < 0} {
       add_proc_error "issue_511_check" "-1" \
-                     "qstat -j output is not correct for last pending job: expected \"$expected_output\" but received \"$qstatoutput\""
+                     "qstat -j output is not correct for last pending job: expected\n$expected_output\nbut received\n$output"
       return
    } 
 
    # qmod -s <1st_job_id>
    puts $CHECK_OUTPUT "Change one job into suspended state"
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -s $job_id1"
-   set result [ catch { eval exec "$command" } output ]
-   if { ( $result == 1 ) } {
-      add_proc_error "issue_511_check" "-1" "qmod -s failed for first job"
+   set output [start_sge_bin "qmod" "-s $job_id1"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_511_check" "-1" "qmod -s failed for first job:\n$output"
       return
    }
 
    # qhold <2nd_job_id>
    puts $CHECK_OUTPUT "Change one job into hold state"
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qhold $job_id2"
-   set result [ catch { eval exec "$command" } output ]
-   if { ( $result == 1 ) } {
-      add_proc_error "issue_511_check" "-1" "qhold failed for second job"
+   set output [start_sge_bin "qhold" "$job_id2"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_511_check" "-1" "qhold failed for second job:\n$output"
       return
    }
    
    # qalter -a <starttime_in_future> <3nd_job_id>
    puts $CHECK_OUTPUT "Attaching new start time for one job "
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter -a 203001010000 $job_id3"
-   set result [ catch { eval exec "$command" } output ]
-   if { ( $result == 1 ) } {
-      add_proc_error "issue_511_check" "-1" "qalter -a failed for third job"
+   set output [start_sge_bin "qalter" "-a 203001010000 $job_id3"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_511_check" "-1" "qalter -a failed for third job:\n$output"
       return
    }
 
    # qalter -hold_jid <5th_job_id> <4nd_job_id>
    puts $CHECK_OUTPUT "Changing dependency of one job"
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter -hold_jid $job_id5 $job_id4"
-   set result [ catch { eval exec "$command" } output ]
-   if { ( $result == 1 ) } {
-      add_proc_error "issue_511_check" "-1" "qalter -a failed for third job"
+   set output [start_sge_bin "qalter" "-hold_jid $job_id5 $job_id4"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_511_check" "-1" "qalter -a failed for third job:\n$output"
       return
    }
 
    # EB: TODO: handle also other languages
    # Is the last task still in qw state?
-   set command "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -j $job_id5"
    set expected_output "job dropped because of user limitations"
-   set result [ catch { eval exec "$command \| grep \"$expected_output\" " } qstatoutput ]
-   if { ( $result == 1 ) } {
+   set output [start_sge_bin "qstat" "-j $job_id5"]
+   if {[string first $expected_output $output] < 0} {
       add_proc_error "issue_511_check" "-1" \
-                     "qstat -j output is not correct for last pending job: expected \"$expected_output\" but received \"$qstatoutput\""
+                     "qstat -j output is not correct for last pending job: expected\n$expected_output\nbut received\n$output"
       return
    }
 }
 
-proc issue_511_cleanup  {} {
+proc issue_511_cleanup {} {
    global stored_schedd_conf
 
    # Terminate all jobs
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    # Restore schedd config
    set_schedd_config stored_schedd_conf

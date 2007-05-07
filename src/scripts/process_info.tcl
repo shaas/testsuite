@@ -75,6 +75,9 @@ proc get_ps_cmd {pid} {
       "solaris86" -
       "sol-x86" -
       "sol-amd64" -
+      "usol-sparc" -
+      "usol-sparc64" -
+      "usol-x86" -
       "tru64" {
          set cmd "/usr/bin/ps -p $pid -o vsz,time | tail -1"
       }
@@ -87,7 +90,9 @@ proc get_ps_cmd {pid} {
       "lx24-ia64" -
       "lx26-ia64" -
       "lx24-amd64" -
-      "lx26-amd64" {
+      "lx26-amd64" - 
+      "ulx24-x86" -
+      "ulx24-amd64" {
          set cmd "/bin/ps -p $pid --no-heading -o vsz,time"
       }
       "hp10" - 

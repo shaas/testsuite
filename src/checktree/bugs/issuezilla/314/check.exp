@@ -66,24 +66,22 @@ lappend check_functions "issue_314_check"
 
 proc issue_314_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-  } 
-  return -1  ;# no other level else
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
 proc issue_314_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global ts_config CHECK_OUTPUT CHECK_ARCH
 
    set A_option "-A \":\""
-   set the_command "-h $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3600"
+   set the_command "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3600"
 
    # try to submit one job using a colon in account string
    set qsub_arguments "$A_option $the_command"
@@ -95,12 +93,12 @@ proc issue_314_check {} {
    }
 
    # submit a normal job and try to change the account string
-   set qsub_arguments "$the_command"
+   set qsub_arguments $the_command
    set job_id [submit_job $qsub_arguments 1]
-   set qalterresult [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter $A_option $job_id" } qalteroutput ]
-   if {$qalterresult == 0} {
+   set output [start_sge_bin "qalter" "$A_option $job_id"]
+   if {$prg_exit_state == 0} {
       add_proc_error "issue_314_check" "-1" \
-                     "qalter does not reject colon \":\" in account string"
+                     "qalter does not reject colon \":\" in account string:\n$output"
       return
    }
 
@@ -112,6 +110,7 @@ proc issue_314_cleanup  {} {
    global CHECK_OUTPUT
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 

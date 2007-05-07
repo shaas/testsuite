@@ -60,7 +60,6 @@ set check_description(0)  "termination script may not be ignored, when job submi
 # define test's dependencies
 set check_needs           "init_core_system" 
 
-
 # setup and cleanup functions
 set check_setup_function "issue_1489_setup"
 set check_cleanup_function "issue_1489_cleanup"
@@ -69,26 +68,23 @@ set check_cleanup_function "issue_1489_cleanup"
 set check_functions ""
 lappend check_functions "issue_1489_run"
 
-
 proc issue_1489_init_level {} {
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-  } 
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
 
-  return -1  ;# no other level else
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1489_setup {} {
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_ARCH CHECK_PROTOCOL_DIR
-   global add_queue
+   global ts_config CHECK_OUTPUT 
+   global CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
    global issue_1489_log_file issue_1489_lck_file
 
    #
@@ -104,11 +100,9 @@ proc issue_1489_setup {} {
    set issue_1489_lck_file "$CHECK_PROTOCOL_DIR/issue_1489.lck"
    
    # create a queue with a termination_method
-   
    set queue_conf(terminate_method)  "$CHECK_ACTUAL_TEST_PATH/termtest.sh \$host \$job_owner \$job_id \$job_name \$queue \$job_pid $issue_1489_log_file"
    set queue_conf(shell_start_mode)  "unix_behavior"   
    set queue_conf(notify)            "00:00:20"
-   
    add_queue "iz_1489" "@allhosts" queue_conf 1
    
    delete_file $issue_1489_lck_file 0
@@ -116,62 +110,57 @@ proc issue_1489_setup {} {
 }
 
 proc issue_1489_cleanup  {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
+   global ts_config CHECK_OUTPUT
    global issue_1489_log_file issue_1489_lck_file del_queue
   
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
   
    puts $CHECK_OUTPUT "delete test queue"
    del_queue "iz_1489" "@allhosts" 0 1
   
    puts $CHECK_OUTPUT "cleaning up log and lck files"
-
    delete_file $issue_1489_lck_file 0
    delete_file $issue_1489_log_file 0
 }
 
 proc issue_1489_run {} {
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR 
-   global submitresult delete_job
+   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
    global issue_1489_log_file issue_1489_lck_file
    
    set option "-o /dev/null -e /dev/null"
-   #set option "-o $CHECK_PROTOCOL_DIR/iz_1489.stdout -e $CHECK_PROTOCOL_DIR/iz_1489.stderr"
    
    # -notify
-   
-   set my_job [ submit_job "-q iz_1489  $option $CHECK_ACTUAL_TEST_PATH/infinity.sh $issue_1489_lck_file" ]
+   set my_job [submit_job "-q iz_1489  $option $CHECK_ACTUAL_TEST_PATH/infinity.sh $issue_1489_lck_file"]
    if {$my_job < 0 } {
-     add_proc_error "issue_1489_run" -1 "submit job failed"
-     return
+      add_proc_error "issue_1489_run" -1 "submit job failed"
+      return
    }
    
    puts $CHECK_OUTPUT "waiting for file $issue_1489_lck_file"
-#   waiting only 10 seconds for the lock file is to short for NFS directories
-#   set res [ wait_for_file $issue_1489_lck_file 10 0 ]
-   set res [ wait_for_file $issue_1489_lck_file 70 0 ]
+   # waiting only 10 seconds for the lock file is to short for NFS directories
+   set res [wait_for_file $issue_1489_lck_file 70 0]
 
    
-   if { $res == 0 } {
+   if {$res == 0} {
       puts $CHECK_OUTPUT "lock file $issue_1489_lck_file has been created, job $my_job is running"
    } else {   
       add_proc_error "issue_1489_run" -1 "lock file $issue_1489_lck_file has not been created, job $my_job has not started"
       return
    }
    
-   set del_result [ delete_job $my_job ]
+   set del_result [delete_job $my_job]
    
-   if { $del_result != 0 } {
+   if {$del_result != 0} {
       add_proc_error "issue_1489_run" -1 "qdel of job $my_job failed"
       return
    }
    
    # wait 30 seconds (notify is 20 seconds)  for the deletion of the lock file
    # CR -> wait longer 70 seconds (because of NFS timeouts)
-   set res [ wait_for_file $issue_1489_lck_file 70 1 ]
+   set res [wait_for_file $issue_1489_lck_file 70 1]
 
-   if { $res == 0 } {
+   if {$res == 0} {
       puts $CHECK_OUTPUT "lock file $issue_1489_lck_file has been deleted, job $my_job gots the TERM signal"
    } else {
       add_proc_error "issue_1489_run" -1 "lock file $issue_1489_lck_file has not been deleted, job $my_job did not get the TERM signal"

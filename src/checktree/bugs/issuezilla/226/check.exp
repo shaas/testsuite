@@ -69,9 +69,9 @@ proc issue_226_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         return 0    
-      } 
+      "0" {
+         return 0
+      }
    }
 
    return -1  ;# no other level else
@@ -80,7 +80,7 @@ proc issue_226_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_226_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    # NONE should be allowed
    set my_cluster_conf(gid_range) "NONE"
@@ -96,14 +96,14 @@ proc issue_226_check {} {
 }
 
 proc issue_226_setup  {} {
-   global CHECK_OUTPUT stored_configuration
+   global ts_config CHECK_OUTPUT stored_configuration
 
    # get configuration
    get_config stored_configuration
 }
 
 proc issue_226_cleanup  {} {
-   global CHECK_OUTPUT stored_configuration
+   global ts_config CHECK_OUTPUT stored_configuration
 
    # reset saved configuration
    if {[info exists stored_configuration]} {
