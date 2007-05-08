@@ -1,3 +1,8 @@
+CR-2007-05-08-0: Enhancem.: fixed compilation errors for slow hosts
+                               o added more output for java compilation
+                               o enhanced timeout for compile
+                               o fixed wrong timeout handling
+
 JG-2007-05-07-0: Enhancem.: Use start_sge_bin instead of eval exec,
                             use host_conf_get_suited_host instead of fixed host,
                             further cleanup.

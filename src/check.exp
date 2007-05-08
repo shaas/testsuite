@@ -6485,8 +6485,7 @@ proc install_binaries { do_only_install arch_list a_report } {
 #     check/compile_source
 #******
 proc update_source { a_report } {
-   global do_not_update
-   
+   global do_not_update CHECK_OUTPUT
    upvar $a_report report
    if { $do_not_update == 0 } {
       global CHECK_OUTPUT CHECK_SOURCE_HOSTNAME CHECK_USER
@@ -6500,6 +6499,8 @@ proc update_source { a_report } {
       set conflict_files {}
       
       set task_nr [report_create_task report "cvs_update" $CHECK_SOURCE_HOSTNAME]
+
+      puts $CHECK_OUTPUT "updating sources (-q -z 9 update -dP) ..."
       
       while { $tries <= 3 && $update_ok == 0 } {
          
@@ -6656,7 +6657,7 @@ proc compile_depend { compile_hosts a_report } {
    
    upvar $a_report report
  
-   puts $CHECK_OUTPUT "building dependencies"
+   puts $CHECK_OUTPUT "building dependencies ..."
  
    # we prefer building the dependencies on a sol-sparc64 host
    # to avoid automounter issues like having a heading /tmp_mnt in paths

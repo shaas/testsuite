@@ -727,50 +727,22 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    puts $CHECK_OUTPUT "now waiting for end of compile ..." 
    set status_updated 1
    set status_time 0
-   set timeout 900
+   set timeout 3600 ;# need this extreme long timeout because of long jgdi wrapper classes
+   # TODO (CR): decrease timeout when jgdi wrapper classes compilation is splitted into smaller c files
    set done_count 0
    log_user 0
 
    set org_spawn_list $spawn_list
-   
+   set do_stop 0
    while {[llength $spawn_list] > 0} {
-      if {[info exists spawn_id]} {
-         unset spawn_id
-      }
-      
-      set now [timestamp]
-      if {$status_updated && $status_time < $now} {
-         set status_time $now
-         set status_updated 0
-
-         # output compile status
-         set status_output [print_xy_array $status_cols $status_rows status_array status_max_column_len status_max_index_len]
-         clear_screen
-         puts $CHECK_OUTPUT "================================================================================"
-         puts $CHECK_OUTPUT "open compile connections (aimk $my_compile_options):\n"
-         puts $CHECK_OUTPUT $status_output
-         puts $CHECK_OUTPUT "================================================================================"
-      }
-
       expect {
          -i $spawn_list full_buffer {
+            # we got full buffer error, stop compileing
+            set do_stop 1
          }
          -i $spawn_list timeout {
-            set spawn_id $expect_out(spawn_id)
-            set host $host_array($spawn_id,host)
-            set line $expect_out(0,string)
-            
-            report_task_add_message report $host_array($spawn_id,task_nr) "got timeout for host \"$host\""
-            set host_array($spawn_id,bad_compile) 1
-            
-            close_spawn_process $host_array($spawn_id,open_spawn)
-            set host_array($spawn_id,open_spawn) "--"
-            set index [lsearch -exact $spawn_list $spawn_id]
-            set spawn_list [lreplace $spawn_list $index $index]
-
-            set status_array(file,$host)   "-"
-            set status_array(status,$host) "timeout"
-            set status_updated 1
+            # we got timeout, stop compileing
+            set do_stop 1
          }
          -i $spawn_list eof {
             set spawn_id $expect_out(spawn_id)
@@ -789,7 +761,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
             set status_array(status,$host) "eof"
             set status_updated 1
          }
-         -i $spawn_list "remotecompile * aimk compile error" {
+         -i $spawn_list -- "remotecompile * aimk compile error" {
             set spawn_id $expect_out(spawn_id)
             set host $host_array($spawn_id,host)
             set line $expect_out(0,string)
@@ -807,7 +779,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
             set status_array(status,$host) "compile error"
             set status_updated 1
          }
-         -i $spawn_list "remotecompile * aimk no errors" {
+         -i $spawn_list -- "remotecompile * aimk no errors" {
             set spawn_id $expect_out(spawn_id)
             set host $host_array($spawn_id,host)
             set line $expect_out(0,string)
@@ -819,17 +791,18 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
             set host_array($spawn_id,open_spawn) "--"
             set index [lsearch -exact $spawn_list $spawn_id]
             set spawn_list [lreplace $spawn_list $index $index]
+            
 
             set status_array(file,$host)   "-"
             set status_array(status,$host) "finished"
             set status_updated 1
          }
-         -i $spawn_list "*\n" {
+         -i $spawn_list -- "*\n" {
             set spawn_id $expect_out(spawn_id)
             set host $host_array($spawn_id,host)
             set line [split [string trim $expect_out(0,string)]]
-
-            report_task_add_message report $host_array($spawn_id,task_nr) $line
+            set report_line "[clock format [clock seconds] -format "%H:%M:%S"]:$line"
+            report_task_add_message report $host_array($spawn_id,task_nr) $report_line
 
             # look for output in the form "<compiler> .... -o target ..."
             #                          or "<compiler> .... -c ...."
@@ -865,15 +838,35 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
                      }
                   }
                   "\[java\]" {
-                     puts $CHECK_OUTPUT $line
+                     #puts $CHECK_OUTPUT $line
                      if {[lsearch -exact $line "jar.wait:"] >= 0} {
-                        set status_array(file,$host) "java"
+                        set status_array(file,$host) "java (wait for java build host)"
                         set status_array(status,$host) "waiting"
                         set status_updated 1
                      } else {
-                        set status_array(file,$host) "java"
-                        set status_array(status,$host) "running"
-                        set status_updated 1
+                        set pos [lsearch -glob $line "*.c"]
+                        if {$pos > 0 && [llength $line] > $pos} {
+                           set status_array(file,$host) "java ([file tail [lindex $line $pos]])"
+                           set status_array(status,$host) "running"
+                           set status_updated 1
+                        } else {
+                           set pos [string last ":" $line]
+                           set pos1 [string last "java\]\}" $line]
+                           if { $pos > 0 && $pos1 > 0 } {
+                              incr pos1 6
+                              set my_text [string range $line $pos1 $pos]
+                              if { [string length $my_text] > 60 } {
+                                 set my_text [string range $my_text 0 59]
+                              }
+                              set status_array(file,$host) "java ($my_text)"
+                              set status_array(status,$host) "running"
+                              set status_updated 1
+                           } else {
+                              set status_array(file,$host) "java (unparsed output)"
+                              set status_array(status,$host) "running"
+                              set status_updated 1
+                           }
+                        }
                      }
                   }
                   default {
@@ -884,6 +877,47 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
                }
             }
          }
+      }
+      if { $do_stop == 1 } {
+         foreach tmp_spawn_id $spawn_list {
+            set host $host_array($tmp_spawn_id,host)
+            puts $CHECK_OUTPUT "stoping $tmp_spawn_id (host: $host)!"
+
+            set report_line "[clock format [clock seconds] -format "%H:%M:%S"]: got timeout while waiting for output (some host is extremely slow)"
+            report_task_add_message report $host_array($tmp_spawn_id,task_nr) $report_line
+
+            set host_array($tmp_spawn_id,bad_compile) 1
+            set tmp_open_spawn $host_array($tmp_spawn_id,open_spawn)
+            if { $tmp_open_spawn != "--" && $tmp_open_spawn != "" } {
+               close_spawn_process $host_array($tmp_spawn_id,open_spawn)
+            }
+            set host_array($tmp_spawn_id,open_spawn) "--"
+            set status_array(file,$host)   "-"
+            set status_array(status,$host) "timeout"
+         }
+         set spawn_list {}
+         set status_updated 1
+         set status_time 0
+      }
+      
+      set now [timestamp]
+      if {$status_updated && $status_time < $now} {
+         set status_time $now
+         set status_updated 0
+
+         # output compile status
+         set status_output [print_xy_array $status_cols $status_rows status_array status_max_column_len status_max_index_len]
+         #if {[info exists status_max_column_len]} {
+         #   unset status_max_column_len
+         #}
+         #if {[info exists status_max_index_len]} {
+         #   unset status_max_index_len
+         #}
+         clear_screen
+         puts $CHECK_OUTPUT "================================================================================"
+         puts $CHECK_OUTPUT "open compile connections (aimk $my_compile_options):\n"
+         puts $CHECK_OUTPUT $status_output
+         puts $CHECK_OUTPUT "================================================================================"
       }
    }
    log_user 1
