@@ -61,6 +61,6 @@ proc vdep_set_sched_conf_defaults { change_array } {
    if {$ts_config(gridengine_version) >= 62} {
       set chgar(default_duration)                 "INFINITY"
    } else {
-      set chgar(default_duration)                 "0:1:0"
+      set chgar(default_duration)                 "0:10:0"
    }
 }
