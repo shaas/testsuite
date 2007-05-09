@@ -1,3 +1,6 @@
+RD-2007-05-09-0: Bugfix:    fixed qstat test for qstat AR changes
+                 Review:    CR
+
 CR-2007-05-09-0: Bugfix:    o fixed problems for additional cluster 
                               installation
                             o enhanced create_shell_script() to write

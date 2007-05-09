@@ -277,13 +277,27 @@ proc check_core_queues {} {
 
   set result [start_sge_bin "qstat" "-f -q all.q"]
 #
-#Original output of qstat -f looks like this:
+#Original output of qstat -f looks like this for 6.0 and 6.1:
 #>qstat -f
 #queuename            qtype used/tot. load_avg arch    states
 #----------------------------------------------------------------------------
 #all.q@balrog             BI    0/2       1.42     solaris64 
 #----------------------------------------------------------------------------
 #all.q@dwain              BI    1/1       2.00     irix6     a
+#     2     0 Sleeper    crei         r     05/15/2000 13:09:48 MASTER           
+#
+############################################################################
+# - PENDING JOBS - PENDING JOBS - PENDING JOBS - PENDING JOBS - PENDING JOBS
+############################################################################
+#     3     0 Sleeper    crei         qw    05/15/2000 13:09:49          
+#
+#And since 6.2
+#>qstat -f
+#queuename            qtype resv/used/tot. load_avg arch    states
+#----------------------------------------------------------------------------
+#all.q@balrog             BI    0/0/2       1.42     solaris64 
+#----------------------------------------------------------------------------
+#all.q@dwain              BI    0/1/1       2.00     irix6     a
 #     2     0 Sleeper    crei         r     05/15/2000 13:09:48 MASTER           
 #
 ############################################################################
@@ -306,8 +320,7 @@ proc check_core_queues {} {
      }
   }
 
-
-  set qcount [ llength $data]
+  set qcount [llength $data]
   set qnames ""
   set slots ""
   set load ""
@@ -317,8 +330,8 @@ proc check_core_queues {} {
      set linedata $elem
      lappend qnames [lindex $linedata 0]
      set used_tot [lindex $linedata 2]
-     set pos1 [ expr ( [string first "/" $used_tot] + 1 ) ]
-     set pos2 [ expr ( [string length $used_tot]          - 1 ) ]
+     set pos1 [ expr ([string last "/" $used_tot] + 1)]
+     set pos2 [ expr ([string length $used_tot]   - 1)]
 
      lappend slots [string range $used_tot $pos1 $pos2 ]
      lappend load [lindex $linedata 3]
@@ -334,8 +347,9 @@ proc check_core_queues {} {
   set numofproc [node_get_processors $check_host]
   set queue_name "all.q@[resolve_host $check_host 1]"
   puts $CHECK_OUTPUT "got $numofproc slots"
-  if { [lindex $slots [lsearch $qnames $queue_name] ] != [expr ( $numofproc * 10 )] } {
-     add_proc_error "check_core_queues" -1 "queue $queue_name shoud have [expr ( $numofproc * 10 )] slots) (cpu count * 10)"
+  set reported_slots [lindex $slots [lsearch $qnames $queue_name]]
+  if { $reported_slots != [expr ( $numofproc * 10 )] } {
+     add_proc_error "check_core_queues" -1 "queue $queue_name should have [expr ($numofproc * 10)] slots) (cpu count * 10)\nqstat reported $reported_slots"
      return
   } 
 
