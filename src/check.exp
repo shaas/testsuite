@@ -7073,7 +7073,7 @@ proc menu {} {
            set runcompleted 1
            run_tests "root" $runcompleted
            set CHECK_ENABLED_CATEGORIES $org_categories
-           install_additional_clusters
+           operate_additional_clusters install
            wait_for_enter
          }
     "20" { restart_debug_daemons } 
@@ -7436,18 +7436,12 @@ proc load_additional_packages {} {
    }
 }
 
-proc install_additional_clusters {} {
-   global ts_config
-
-   if {$ts_config(additional_config) != "none"} {
-      operate_additional_clusters install
-   }
-}
 
 proc operate_additional_clusters {operation} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global check_use_installed_system
+   global check_use_installed_system last_shell_script_file
 
+   if {$ts_config(additional_config) != "none"} {
    foreach filename $ts_config(additional_config) {
       # clear previously read config
       if {[info exists add_config]} {
@@ -7466,15 +7460,23 @@ proc operate_additional_clusters {operation} {
       if {$operation == "install" && $check_use_installed_system} {
          append args " re_init"
       }
+
+      puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $$add_config(master_host) ..."
       set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
+      set script_tail_name [file tail $last_shell_script_file]
+      set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
+      puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""
+
       if {$id == ""} {
          add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ngot no spawn id"
          continue
       }
       
       set spawn_id [lindex $id 1]
-      log_user 1
-      set timeout 60
+#      log_user 1
+      set timeout 120
+      set found_end 0
+
       expect {
          -i $spawn_id timeout {
             add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ntimeout"
@@ -7486,11 +7488,12 @@ proc operate_additional_clusters {operation} {
             add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nunexpected eof"
          }
 
-         -i $spawn_id "*\n" {
+         -i $spawn_id -- "*\n" {
             set stop 0
             foreach line [split $expect_out(0,string) "\n"] {
                set line [string trim $line]
                if {$line != ""} {
+                  puts $CHECK_OUTPUT "\[remote ts [file tail $filename]\]$line"
                   switch -glob -- $line {
                      "host access with password needed for user*" {
                         set user [lindex $line 7]
@@ -7506,12 +7509,24 @@ proc operate_additional_clusters {operation} {
                            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
                            set stop 1
                         } else {
-                           sleep 1
-                           send -i $spawn_id -- "$passwd\n"
+                           ts_send $spawn_id "$passwd\n" 1 1
                         }
                      }
-                     "_exit_status_:(*)" {
-                        set stop 1
+                     "_exit_status_:(*)*" {
+                        if { [string match "*$script_tail_name*" $line] } {
+                            puts $CHECK_OUTPUT "got _exit_status - stopping"
+                            set found_end 1
+                        } else {
+                           debug_puts $CHECK_OUTPUT "found an exit status"
+                        }
+                     }
+                     "*_END_OF_FILE_*" {
+                        if { $found_end == 1 } {
+                           puts $CHECK_OUTPUT "exit status found - last line parsed - finished"
+                           set stop 1
+                        } else {
+                           debug_puts $CHECK_OUTPUT "this is not end of my script file"
+                        }
                      }
                   }
                }
@@ -7522,8 +7537,11 @@ proc operate_additional_clusters {operation} {
             }
          }
       }
-
       close_spawn_process $id
+      puts $CHECK_OUTPUT "remote operation $operation in remote testsuite [file tail $filename] finished"
+   }
+   } else {
+      puts $CHECK_OUTPUT "no additional clusters defined"
    }
 }
 
@@ -8072,7 +8090,7 @@ if { $do_install } {
    puts "installing core system on host $CHECK_HOST ..."
    set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
    run_test $CHECK_ACT_PATH 1
-   install_additional_clusters
+   operate_additional_clusters install
    exit 0 
 }
 

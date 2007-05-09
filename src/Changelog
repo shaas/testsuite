@@ -1,3 +1,8 @@
+CR-2007-05-09-0: Bugfix:    o fixed problems for additional cluster 
+                              installation
+                            o enhanced create_shell_script() to write
+                              shell script name into script
+
 CR-2007-05-08-1: Bugfix:    fixed wrong scheduler default_duration setting
                  Review:    RD
 

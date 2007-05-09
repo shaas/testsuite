@@ -1675,6 +1675,7 @@ proc create_shell_script { scriptfile
       upvar $envlist users_env
    }
     
+   set script_tail_name [file tail $scriptfile]
    set_users_environment $host users_env
 
    set script "no_script"
@@ -1697,7 +1698,7 @@ proc create_shell_script { scriptfile
 
    if { $no_setup == 0 } {
       # script command
-      append script_content "trap 'echo \"_exit_status_:(1)\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
+      append script_content "trap 'echo \"_exit_status_:(1) script: $script_tail_name\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
       append script_content "umask 022\n"
 
       if { $set_shared_lib_path == 1 } {
@@ -1787,7 +1788,7 @@ proc create_shell_script { scriptfile
       append script_content "exit_val=\"\$?\"\n"
       append script_content "trap 0\n"
       if { $without_start_output == 0 } {
-         append script_content "echo \"_exit_status_:(\$exit_val)\"\n"
+         append script_content "echo \"_exit_status_:(\$exit_val) script: $script_tail_name\"\n"
          append script_content "echo \"script done. (_END_OF_FILE_)\"\n"
       }
    }
