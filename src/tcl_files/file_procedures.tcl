@@ -2367,16 +2367,16 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
 #  SEE ALSO
 #     file_procedures/delete_directory
 #*******************************
-proc delete_file_at_startup { filename } {
+proc delete_file_at_startup {filename} {
    global ts_config CHECK_OUTPUT
 
    set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
-   if {[file isfile $del_file_name] != 1} {
-       set del_file [ open $del_file_name "w" ]
+   if {![file isfile $del_file_name]} {
+       set del_file [open $del_file_name "w"]
    } else {
-       set del_file [ open $del_file_name "a" ]
+       set del_file [open $del_file_name "a"]
    }
-   puts $del_file "$filename"
+   puts $del_file $filename
    close $del_file    
 }
 

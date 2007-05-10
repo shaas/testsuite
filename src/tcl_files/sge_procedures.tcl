@@ -3370,19 +3370,21 @@ proc wait_for_job_state { jobid state wait_timeout } {
 #  SEE ALSO
 #     sge_procedures/wait_for_job_state()
 #*******************************************************************************
-proc wait_for_queue_state { queue state wait_timeout } {
-  global ts_config
-   global CHECK_OUTPUT
+proc wait_for_queue_state {queue state wait_timeout} {
+   global ts_config CHECK_OUTPUT
 
-   set my_timeout [ expr ( [timestamp] + $wait_timeout ) ]
-   while { 1 } {
-      puts $CHECK_OUTPUT "waiting for queue $queue to get in \"${state}\" state ..."
+   puts -nonewline $CHECK_OUTPUT "waiting for queue $queue to get in \"${state}\" state " ; flush $CHECK_OUTPUT
+   set my_timeout [expr [timestamp] + $wait_timeout]
+   while {1} {
+      puts -nonewline $CHECK_OUTPUT "." ; flush $CHECK_OUTPUT
       after 1000
       set q_state [get_queue_state $queue]
-      if { [string first $state $q_state] >= 0 } {
+      if {[string first $state $q_state] >= 0} {
+         puts $CHECK_OUTPUT ""
          return $q_state
       }
-      if { [timestamp] > $my_timeout } {
+      if {[timestamp] > $my_timeout} {
+         puts $CHECK_OUTPUT ""
          add_proc_error "wait_for_queue_state" -1 "timeout waiting for queue $queue to get in \"${state}\" state"
          return -1
       }

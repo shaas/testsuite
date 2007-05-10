@@ -61,7 +61,7 @@ global check_init_level_procedure
 global check_root_access_needs
 global env
 
-set check_root_access_needs "no"
+set check_root_access_needs "yes"
 
 # define a level initialization procedure:
 set check_init_level_procedure "reporting_init_level"
@@ -85,6 +85,7 @@ set check_functions {}
 lappend check_functions "reporting_periodic_accounting_test"
 lappend check_functions "reporting_immediate_accounting_test"
 lappend check_functions "reporting_reporting_accounting_test"
+lappend check_functions "reporting_queue_state_test"
 
 global reporting_old_config reporting_acct_file
 
@@ -104,39 +105,64 @@ proc reporting_init_level {} {
 
 
 proc reporting_setup  {} {
-   global ts_config CHECK_OUTPUT
-   global reporting_old_config reporting_acct_file reporting_test_host
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global reporting_old_config reporting_file reporting_acct_file reporting_test_host
 
-   # Delete any jobs that might be in the system
+   # delete any jobs that might be in the system
    delete_all_jobs
 
-   # Archive old config
+   # archive old config
    get_config reporting_old_config
 
-   # Enable immediate scheduling
+   # enable immediate scheduling
    set schedd_conf(flush_submit_sec) 1
    set schedd_conf(flush_finish_sec) 1
    set_schedd_config schedd_conf
 
-   # Create a queue with one slot
-   set reporting_test_host [host_conf_get_suited_hosts 1]
+   # create 2 queues with one slot each, subordinate mechanism
+   set reporting_test_host [host_conf_get_suited_hosts]
+   set queue_conf(load_thresholds) NONE
    set queue_conf(slots) 1
    add_queue "reporting" $reporting_test_host queue_conf
+   set queue_conf(subordinate_list) "reporting"
+   add_queue "reporting_super" $reporting_test_host queue_conf
 
-   # Find accounting file
+   # create an additional calendar for queue state test
+   set cal(calendar_name) "reporting"
+   set cal(year)          "01.01.2000=00:00-01:00=off"
+   set cal(week)          "NONE"
+   add_calendar cal
+
+   # create an additional hostgroup for queue state test
+   set hgrp(group_name) "@reporting"
+   set hgrp(hostlist)   $reporting_test_host
+   add_hostgroup "@reporting" hgrp
+
+   # find accounting file
+   set reporting_file "$ts_config(product_root)/$ts_config(cell)/common/reporting"
    set reporting_acct_file "$ts_config(product_root)/$ts_config(cell)/common/accounting"
+
+   # touch reporting file
+   start_remote_prog $ts_config(master_host) $CHECK_USER "touch" "$reporting_file"
 }
 
 proc reporting_cleanup {} {
-   global reporting_old_config reporting_test_host
+   global reporting_old_config reporting_test_host reporting_file
 
-   # Restore old config
+   # restore old config
    set_config reporting_old_config
    reset_schedd_config
 
-   # remove test host
+   # remove test queues
+   del_queue "reporting_super" $reporting_test_host 0 1
    del_queue "reporting" $reporting_test_host 0 1
 
+   # remove calendar and hostgroup of queue state test
+   del_calendar "reporting"
+   del_hostgroup "@reporting"
+
+   # delete the reporting file
+   file delete -force $reporting_file
 }
 
 proc reporting_do_accounting_test {scenario} {
@@ -258,4 +284,187 @@ proc reporting_immediate_accounting_test {} {
        add_proc_error "reporting_immediate_accounting_test" -1 "accounting file was not flushed before job finish event"
        return
    }
+}
+
+proc reporting_wait_for_queue_state {state {timeout 10}} {
+   global ts_config CHECK_OUTPUT reporting_test_host
+
+   # make sure the queue actually is in the requested state
+   set queue_state [get_queue_state [get_queue_instance "reporting" $reporting_test_host]]
+   puts $CHECK_OUTPUT "queue is in state \"$queue_state\""
+   if {$state != $queue_state} {
+      add_proc_error "reporting_wait_for_queue_state" -1 "queue is not in expected state \"$state\", but in state \"$queue_state\""
+   }
+
+   # now read from reporting file and check for queue records and the expected state
+   puts $CHECK_OUTPUT "waiting for queue state \"$state\" in reporting file"
+
+   set pattern ":queue:reporting:"
+   set output [logfile_wait $pattern $timeout 0]
+   if {$logfile_wait_error == 0} {
+      set queue_state_found 0
+      foreach line $output {
+         if {[string first $pattern $line] >= 0} {
+            set queue_state_found 1
+            set split_line [split $line ":"]
+            set reported_state [lindex $split_line 5]
+            if {$state != $reported_state} {
+               add_proc_error "reporting_wait_for_queue_state" -1 "reporting: expected queue state \"$state\" but got \"$reported_state\""
+            }
+         }
+      }
+
+      # There was no queue record at all? That's bad ...
+      if {!$queue_state_found} {
+         add_proc_error "reporting_wait_for_queue_state" -1 "there were no queue records in the reporting file, got only\n$output"
+      }
+   }
+}
+
+proc reporting_queue_state_test {} {
+   global ts_config CHECK_OUTPUT
+   global reporting_file reporting_test_host
+
+   # activate reporting and set short reporting flush time
+   set new_config(reporting_params) "reporting=true flush_time=00:00:1"
+   set_config new_config
+
+   # tail -f reporting file
+   init_logfile_wait $ts_config(master_host) $reporting_file
+
+   ########################
+   # test queue alarm state
+   ########################
+   replace_attr "queue" "load_thresholds" "np_load_avg=-1" "reporting"
+   reporting_wait_for_queue_state "a"
+   replace_attr "queue" "load_thresholds" "NONE" "reporting"
+
+   ################################
+   # test queue suspend alarm state
+   ################################
+   replace_attr "queue" "suspend_thresholds" "np_load_avg=-1" "reporting"
+   reporting_wait_for_queue_state "A"
+   replace_attr "queue" "suspend_thresholds" "NONE" "reporting"
+
+   ###########################
+   # test queue disabled state
+   ###########################
+   disable_queue "reporting"
+   reporting_wait_for_queue_state "d"
+   enable_queue "reporting"
+   reporting_wait_for_queue_state ""
+
+   ############################
+   # test queue suspended state
+   ############################
+   suspend_queue "reporting"
+   reporting_wait_for_queue_state "s"
+   unsuspend_queue "reporting"
+   reporting_wait_for_queue_state ""
+
+   ##########################
+   # test queue unknown state
+   ##########################
+   start_sge_bin "qconf" "-ke $reporting_test_host"
+   reporting_wait_for_queue_state "u"
+   startup_execd $reporting_test_host
+   wait_for_load_from_all_queues 60
+   reporting_wait_for_queue_state ""
+
+   ########################
+   # test queue error state
+   ########################
+   replace_attr "queue" "prolog" "non_existing_prolog" "reporting"
+   set job_id [submit_job "-o /dev/null -j y -q reporting -b y echo test"]
+   trigger_scheduling
+   wait_for_queue_state [get_queue_instance "reporting" $reporting_test_host] "E" 60
+   reporting_wait_for_queue_state "E"
+   delete_job $job_id
+   replace_attr "queue" "prolog" "NONE" "reporting"
+   start_sge_bin "qmod" "-c reporting"
+   reporting_wait_for_queue_state ""
+
+   ###########################################
+   # test queue suspended on subordinate state
+   ###########################################
+   set job_id [submit_job "-o /dev/null -j y -q reporting_super -b y sleep 60"]
+   trigger_scheduling
+   wait_for_queue_state [get_queue_instance "reporting" $reporting_test_host] "S" 60
+   reporting_wait_for_queue_state "S"
+   delete_job $job_id 1
+   reporting_wait_for_queue_state ""
+
+   ####################################
+   # test queue calender disabled state 
+   ####################################
+   #
+   # after adding the calendar "always disabled"
+   replace_attr "queue" "calendar" "always_disabled" "reporting"
+   reporting_wait_for_queue_state "D"
+   # test queue default state (after adding the calendar disabling in one minute)
+   set time1 [expr [timestamp] + 120]
+   set time2 [expr $time1 + 600];# test will probably fail when running over midnight
+   set cal(calendar_name) "reporting"
+   set cal(year) "[clock format $time1 -format "%d.%m.%Y"]"
+   append cal(year) "=[clock format $time1 -format "%H:%M"]"
+   append cal(year) "-[clock format $time2 -format "%H:%M"]"
+   append cal(year) "=off"
+   mod_calendar cal
+   replace_attr "queue" "calendar" "reporting" "reporting"
+   reporting_wait_for_queue_state ""
+   # test queue calender disabled state (when calendar time reached)
+   wait_for_queue_state [get_queue_instance "reporting" $reporting_test_host] "D" 180
+   reporting_wait_for_queue_state "D"
+   # test queue default state (after removing the calendar)
+   replace_attr "queue" "calendar" "NONE" "reporting"
+   reporting_wait_for_queue_state ""
+
+   #####################################
+   # test queue calender suspended state
+   #####################################
+   #
+   # after adding the calendar "always suspended"
+   replace_attr "queue" "calendar" "always_suspend" "reporting"
+   reporting_wait_for_queue_state "C"
+   # test queue default state (after adding the calendar suspending in one minute)
+   set time1 [expr [timestamp] + 120]
+   set time2 [expr $time1 + 600];# test will probably fail when running over midnight
+   set cal(calendar_name) "reporting"
+   set cal(year) "[clock format $time1 -format "%d.%m.%Y"]"
+   append cal(year) "=[clock format $time1 -format "%H:%M"]"
+   append cal(year) "-[clock format $time2 -format "%H:%M"]"
+   append cal(year) "=suspended"
+   mod_calendar cal
+   replace_attr "queue" "calendar" "reporting" "reporting"
+   reporting_wait_for_queue_state ""
+   # test queue calender suspended state (when calendar time reached)
+   wait_for_queue_state [get_queue_instance "reporting" $reporting_test_host] "C" 180
+   reporting_wait_for_queue_state "C"
+   # test queue default state (after removing the calendar)
+   replace_attr "queue" "calendar" "NONE" "reporting"
+   reporting_wait_for_queue_state ""
+
+   ###########################
+   # test queue ambigous state
+   ###########################
+   replace_attr "queue" "load_thresholds" "NONE,\[@allhosts=load_avg=1\],\[@reporting=load_avg=2\]" "reporting"
+   wait_for_queue_state [get_queue_instance "reporting" $reporting_test_host] "c" 60
+   reporting_wait_for_queue_state "c"
+   replace_attr "queue" "load_thresholds" "NONE" "reporting"
+   reporting_wait_for_queue_state ""
+
+   ###########################
+   # test queue orphaned state
+   ###########################
+   set job_id [submit_job "-o /dev/null -j y -q reporting -b y sleep 60"]
+   trigger_scheduling
+   wait_for_jobstart $job_id "" 60
+   replace_attr "queue" "hostlist" "NONE" "reporting"
+   reporting_wait_for_queue_state "o"
+   delete_job $job_id 1
+   replace_attr "queue" "hostlist" "$reporting_test_host" "reporting"
+   reporting_wait_for_queue_state ""
+
+   # shutdown tail -f
+   close_logfile_wait
 }
