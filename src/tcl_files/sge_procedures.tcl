@@ -7311,7 +7311,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 
    # we might have secondary Grid Engine clusters (additional_config)
    # shut them down as well
-   if {$with_additional_clusters && $ts_config(additional_config) != "none"} {
+   if {$with_additional_clusters} {
       operate_additional_clusters kill
    }
 }
@@ -7321,12 +7321,14 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 #     startup_core_system() -- startup complete cluster
 #
 #  SYNOPSIS
-#     startup_core_system { } 
+#     startup_core_system { {only_hooks 0} {with_additional_clusters 0} } 
 #
 #  FUNCTION
-#     ??? 
+#     startup cluster which was shutdown before with shutdown_core_system()
 #
 #  INPUTS
+#     {only_hooks 0}               - if not 0 only hooks are started
+#     {with_additional_clusters 0} - if not 0 additional clusters are started
 #
 #  RESULT
 #     ??? 
@@ -7334,7 +7336,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 #  SEE ALSO
 #      sge_procedures/shutdown_core_system()
 #*******************************************************************************
-proc startup_core_system {} {
+proc startup_core_system {{only_hooks 0} {with_additional_clusters 0} } {
    global ts_config
    global CHECK_ARCH 
    global CHECK_CORE_MASTER 
@@ -7342,38 +7344,46 @@ proc startup_core_system {} {
    global CHECK_USER
    global CHECK_ADMIN_USER_SYSTEM do_compile
 
-
    if { [ have_root_passwd ] == -1 } {
       set_root_passwd 
    }
 
-   # startup of BDB RPC service
-   startup_bdb_rpc $ts_config(bdb_server)
+   if { $only_hooks == 0 } {
 
-   # startup of schedd and qmaster 
-   startup_qmaster
+      # startup of BDB RPC service
+      startup_bdb_rpc $ts_config(bdb_server)
 
-   
-   # startup all shadowds
-   # 
-   foreach sh_host $ts_config(shadowd_hosts) {
-      puts $CHECK_OUTPUT "testing shadowd settings for host $sh_host ..."
-      set info [check_shadowd_settings $sh_host]
-      if { $info != "" } {
-         add_proc_error "install_shadowd" -3 "skipping shadowd startup for host $sh_host:\n$info"
-         continue
+      # startup of schedd and qmaster 
+      startup_qmaster
+
+      
+      # startup all shadowds
+      # 
+      foreach sh_host $ts_config(shadowd_hosts) {
+         puts $CHECK_OUTPUT "testing shadowd settings for host $sh_host ..."
+         set info [check_shadowd_settings $sh_host]
+         if { $info != "" } {
+            add_proc_error "install_shadowd" -3 "skipping shadowd startup for host $sh_host:\n$info"
+            continue
+         }
+         startup_shadowd $sh_host
       }
-      startup_shadowd $sh_host
-   }
 
-   # startup of all execd
-   foreach ex_host $ts_config(execd_nodes) {
-      startup_execd $ex_host
+      # startup of all execd
+      foreach ex_host $ts_config(execd_nodes) {
+         startup_execd $ex_host
+      }
+    
+      # here we startup additional clusters  
+      if {$with_additional_clusters != 0} {
+         operate_additional_clusters start
+      }
+   } else {
+      puts $CHECK_OUTPUT "skip startup core system, I am in only hooks mode"
    }
    
    # now execute all startup hooks
    exec_startup_hooks
-
 }
 
 

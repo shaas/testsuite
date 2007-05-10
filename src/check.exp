@@ -730,6 +730,59 @@ proc add_proc_error {proc_name result text {raise_error 1}} {
    set add_proc_error_avoid_recursive_call 0
 }
 
+#****** check/print_errors() ***************************************************
+#  NAME
+#     print_errors() -- parse resent testsuite errors and print them out
+#
+#  SYNOPSIS
+#     print_errors { } 
+#
+#  FUNCTION
+#     This procedure analyses the current stored testsuite errors reported
+#     via add_proc_error and prints them out in a error report section.
+#     This section is parsed when a testsuite is controlling another testsuite
+#     and the controller testsuite wants to find out what happens on the
+#     remote testsuite. The function returns 0 when there where no errors.
+#     Warnings are ignored.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 no errors found
+#     1 there were errors 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc print_errors {} {
+   global check_errno check_errstr CHECK_OUTPUT
+   set found_errors 0
+   if { [info exists check_errno] } {
+      set names [array names check_errno]
+      foreach name $names {
+         set max_error [llength $check_errno($name)]
+         for {set index 0} {$index < $max_error} {incr index 1} {
+            set error [lindex $check_errno($name) $index]
+            if { $error == -1 || $error == -2 } {
+               if { $found_errors == 0 } {
+                  puts $CHECK_OUTPUT "ERROR REPORT - START"
+                  set found_errors 1
+               }
+               set help [lindex $check_errstr($name) $index]
+               set help [split $help "|"]
+               set test_name [lindex $help 1]
+               set test_proc [lindex $help 0]
+               set test_error [lindex $help 3]
+               puts $CHECK_OUTPUT "$test_name: procedure \"$test_proc\" - $test_error"
+            }
+         }
+      }
+      if { $found_errors != 0} {
+         puts $CHECK_OUTPUT "ERROR REPORT - DONE"
+      }
+   }
+   return $found_errors
+}
 
 #                                                             max. column:     |
 #****** check/have_ssh_access() ******
@@ -1290,49 +1343,47 @@ proc mail_report { subject body } {
 #*******************************
 proc send_mail { address cc subject body } {
    global ts_config
-  global CHECK_MAILX_HOST CHECK_OUTPUT
-  global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_USER CHECK_MAX_ERROR_MAILS
-  global write_mail_to_file CHECK_MAIL_OUTPUT_FILE CHECK_ENABLE_MAIL
+   global CHECK_MAILX_HOST CHECK_OUTPUT
+   global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_USER CHECK_MAX_ERROR_MAILS
+   global write_mail_to_file CHECK_MAIL_OUTPUT_FILE CHECK_ENABLE_MAIL
 
-  if { $write_mail_to_file != 0 } {
-     set fd [ open $CHECK_MAIL_OUTPUT_FILE "a" ]
-     puts $fd "-=*************************************************************=-"
-     puts $fd "Grid Engine Version: [get_version_info]"
-     puts $fd "Subject            : $subject"
-     puts $fd "-=*************************************************************=-"
-     puts $fd "$body"
-     puts $fd "-=*=-"
-     flush $fd
-     close $fd 
-     puts $CHECK_OUTPUT "Added entry in mail output file $CHECK_MAIL_OUTPUT_FILE"
-     return
-  }
+   if { $write_mail_to_file != 0 } {
+      set fd [ open $CHECK_MAIL_OUTPUT_FILE "a" ]
+      puts $fd "-=*************************************************************=-"
+      puts $fd "Grid Engine Version: [get_version_info]"
+      puts $fd "Subject            : $subject"
+      puts $fd "-=*************************************************************=-"
+      puts $fd "$body"
+      puts $fd "-=*=-"
+      flush $fd
+      close $fd 
+      puts $CHECK_OUTPUT "Added entry in mail output file $CHECK_MAIL_OUTPUT_FILE"
+      return
+   }
 
-  set erg [sendmail_wrapper $address $cc $subject $body]
-  if { $erg == 0 } {
-     return
-  }
+   set erg [sendmail_wrapper $address $cc $subject $body]
+   if { $erg == 0 } {
+      return
+   }
 
-  set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
+   set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
+  
+   if { $CHECK_ENABLE_MAIL != 1 } {
+      puts $CHECK_OUTPUT "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
+      puts $CHECK_OUTPUT "mail new_subject: $new_subject"
+      puts $CHECK_OUTPUT "mail body:"
+      puts $CHECK_OUTPUT "$body"
+      return
+   }
+ 
+   set tmp_mailfile [get_tmp_file_name]
 
-  if { $CHECK_ENABLE_MAIL != 1 } {
-     puts $CHECK_OUTPUT "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
-     puts $CHECK_OUTPUT "mail new_subject: $new_subject"
-     puts $CHECK_OUTPUT "mail body:"
-     puts $CHECK_OUTPUT "$body"
-     return
-  }
-
-
-   set tmp_mailfile "$ts_config(testsuite_root_dir)/mailbody_testsuite_tmp"
-  file delete $tmp_mailfile 
-
-  set output_file [ open $tmp_mailfile "w"]
-  puts $output_file $body
-  flush $output_file
-  close $output_file
-
-  set file_size 0
+   set output_file [open $tmp_mailfile "w"]
+   puts $output_file $body
+   flush $output_file
+   close $output_file
+ 
+   set file_size 0
    while { $file_size == 0 } {
       catch { set file_size [file size $tmp_mailfile]}
       if { $file_size == 0 } { 
@@ -1340,36 +1391,36 @@ proc send_mail { address cc subject body } {
          sleep 1
       }
    }
-
-
-
-  catch { exec "touch" $tmp_mailfile } result
-  catch { exec "chmod" "0755" $tmp_mailfile } result
-
-  if { [string compare $cc "none"] != 0 } {
-     set mail_args "-s \"$new_subject\" -c \"$cc\" \"$address\" < \"$tmp_mailfile\""
-  } else {
-     set mail_args "-s \"$new_subject\" \"$address\" < \"$tmp_mailfile\""
-  }
-  set mail_output [start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
-
-  if { $prg_exit_state != 0 } {
-     puts $CHECK_OUTPUT "--> send_mail - could not send mail:\n$mail_output"
-  } else {
-     puts $CHECK_OUTPUT "--> send_mail - mail sent to $address"
-     incr CHECK_MAILS_SENT 1
-     if { $CHECK_MAILS_SENT == $CHECK_MAX_ERROR_MAILS } {
-        if { [string compare $cc "none"] != 0 } {
-           set mail_args "-s \"max mail count reached\" -c \"$cc\" \"$address\" < \"$tmp_mailfile\""
-        } else {
-           set mail_args "-s \"max mail count reached\" \"$address\" < \"$tmp_mailfile\""
-        }
-        start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
-        set CHECK_ENABLE_MAIL 0
-     }  
-  }
-
-  file delete $tmp_mailfile 
+ 
+ 
+ 
+   catch { exec "touch" $tmp_mailfile } result
+   catch { exec "chmod" "0755" $tmp_mailfile } result
+ 
+   if { [string compare $cc "none"] != 0 } {
+      set mail_args "-s \"$new_subject\" -c \"$cc\" \"$address\" < \"$tmp_mailfile\""
+   } else {
+      set mail_args "-s \"$new_subject\" \"$address\" < \"$tmp_mailfile\""
+   }
+   set mail_output [start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
+ 
+   if { $prg_exit_state != 0 } {
+      puts $CHECK_OUTPUT "--> send_mail - could not send mail:\n$mail_output"
+   } else {
+      puts $CHECK_OUTPUT "--> send_mail - mail sent to $address"
+      incr CHECK_MAILS_SENT 1
+      if { $CHECK_MAILS_SENT == $CHECK_MAX_ERROR_MAILS } {
+         if { [string compare $cc "none"] != 0 } {
+            set mail_args "-s \"max mail count reached\" -c \"$cc\" \"$address\" < \"$tmp_mailfile\""
+         } else {
+            set mail_args "-s \"max mail count reached\" \"$address\" < \"$tmp_mailfile\""
+         }
+         start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
+         set CHECK_ENABLE_MAIL 0
+      }  
+   }
+ 
+   file delete $tmp_mailfile 
 }
 
 
@@ -7140,7 +7191,8 @@ proc menu {} {
          set_command_line_options
     }
     "28" {
-         startup_core_system
+         startup_core_system 0 1
+         wait_for_enter
     }
     "29" {
          check_local_spool_directories 1
@@ -7442,104 +7494,134 @@ proc operate_additional_clusters {operation} {
    global check_use_installed_system last_shell_script_file
 
    if {$ts_config(additional_config) != "none"} {
-   foreach filename $ts_config(additional_config) {
-      # clear previously read config
-      if {[info exists add_config]} {
-         unset add_config
-      }
-      # read additional config file
-      if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-         add_proc_error "operate_additional_clusters $operation" -1 "cannot read additonal configuration file $filename"
-         continue
-      }
-
-      # start testsuite with install option on the cluster's master host
-      puts $CHECK_OUTPUT "\n${operation}ing cluster of additional configuration $filename"
-      puts $CHECK_OUTPUT "on host $add_config(master_host) as user $CHECK_USER"
-      set args "check.exp file $filename fast_setup $operation"
-      if {$operation == "install" && $check_use_installed_system} {
-         append args " re_init"
-      }
-
-      puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $$add_config(master_host) ..."
-      set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
-      set script_tail_name [file tail $last_shell_script_file]
-      set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
-      puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""
-
-      if {$id == ""} {
-         add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ngot no spawn id"
-         continue
-      }
-      
-      set spawn_id [lindex $id 1]
-#      log_user 1
-      set timeout 120
-      set found_end 0
-
-      expect {
-         -i $spawn_id timeout {
-            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ntimeout"
+      foreach filename $ts_config(additional_config) {
+         # clear previously read config
+         if {[info exists add_config]} {
+            unset add_config
          }
-         -i $spawn_id full_buffer {
-            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nbuffer overflow"
-         }
-         -i $spawn_id eof {
-            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nunexpected eof"
+         # read additional config file
+         if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+            add_proc_error "operate_additional_clusters $operation" -1 "cannot read additonal configuration file $filename"
+            continue
          }
 
-         -i $spawn_id -- "*\n" {
-            set stop 0
-            foreach line [split $expect_out(0,string) "\n"] {
-               set line [string trim $line]
-               if {$line != ""} {
-                  puts $CHECK_OUTPUT "\[remote ts [file tail $filename]\]$line"
-                  switch -glob -- $line {
-                     "host access with password needed for user*" {
-                        set user [lindex $line 7]
-                        set passwd [get_passwd $user]
-                        if {$passwd == ""} {
-                           set_passwd $user $add_config(master_host) [host_conf_get_windows_host]
+         # start testsuite with install option on the cluster's master host
+         puts $CHECK_OUTPUT "\n${operation}ing cluster of additional configuration $filename"
+         puts $CHECK_OUTPUT "on host $add_config(master_host) as user $CHECK_USER"
+         set args "check.exp file $filename fast_setup quiet $operation"
+         if {$operation == "install" && $check_use_installed_system} {
+            append args " re_init"
+         }
+
+         puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $$add_config(master_host) ..."
+         set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
+         set script_tail_name [file tail $last_shell_script_file]
+         set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
+         puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""
+
+         if {$id == ""} {
+            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ngot no spawn id"
+            continue
+         }
+         
+         set spawn_id [lindex $id 1]
+   #      log_user 1
+         set timeout 120
+         set found_end 0
+         set error_found 0
+         set error_text ""
+
+         expect {
+            -i $spawn_id timeout {
+               add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ntimeout"
+            }
+            -i $spawn_id full_buffer {
+               add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nbuffer overflow"
+            }
+            -i $spawn_id eof {
+               add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nunexpected eof"
+            }
+
+            -i $spawn_id -- "*\n" {
+               set stop 0
+               foreach line [split $expect_out(0,string) "\n"] {
+                  set line [string trim $line]
+                  if {$line != ""} {
+                     puts $CHECK_OUTPUT "\[remote ts [file tail $filename]\]$line"
+                     switch -glob -- $line {
+                        "host access with password needed for user*" {
+                           set user [lindex $line 7]
                            set passwd [get_passwd $user]
-                           # the set_passwd switches off log_user
-                           log_user 1
-                        }
+                           if {$passwd == ""} {
+                              set_passwd $user $add_config(master_host) [host_conf_get_windows_host]
+                              set passwd [get_passwd $user]
+                              # the set_passwd switches off log_user
+                              log_user 1
+                           }
 
-                        if {$passwd == ""} {
-                           add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
-                           set stop 1
-                        } else {
-                           ts_send $spawn_id "$passwd\n" 1 1
+                           if {$passwd == ""} {
+                              add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
+                              set stop 1
+                           } else {
+                              ts_send $spawn_id "$passwd\n" 1 1
+                           }
+                        }
+                        "_exit_status_:(*)*" {
+                           if { [string match "*$script_tail_name*" $line] } {
+                               set remote_exit_state [get_string_value_between "(" ")" $line]
+                               if { $remote_exit_state != 0 } {
+                                  append error_text "remote testsuite terminated with exit state $remote_exit_state\n"
+                               }
+                               puts $CHECK_OUTPUT "got _exit_status - stopping"
+                               set found_end 1
+                           } else {
+                              debug_puts $CHECK_OUTPUT "found an exit status"
+                           }
+                        }
+                        "*_END_OF_FILE_*" {
+                           if { $found_end == 1 } {
+                              puts $CHECK_OUTPUT "exit status found - last line parsed - finished"
+                              set stop 1
+                           } else {
+                              debug_puts $CHECK_OUTPUT "this is not end of my script file"
+                           }
+                        }
+                        "ERROR REPORT - START" {
+                           puts $CHECK_OUTPUT "found error report start"
+                           set error_found 1
+                        }
+                        "ERROR REPORT - DONE" {
+                           puts $CHECK_OUTPUT "found error report end"
+                           set error_found 0
                         }
                      }
-                     "_exit_status_:(*)*" {
-                        if { [string match "*$script_tail_name*" $line] } {
-                            puts $CHECK_OUTPUT "got _exit_status - stopping"
-                            set found_end 1
-                        } else {
-                           debug_puts $CHECK_OUTPUT "found an exit status"
-                        }
+                     if { $error_found == 2 } {
+                        append error_text "$line\n"
                      }
-                     "*_END_OF_FILE_*" {
-                        if { $found_end == 1 } {
-                           puts $CHECK_OUTPUT "exit status found - last line parsed - finished"
-                           set stop 1
-                        } else {
-                           debug_puts $CHECK_OUTPUT "this is not end of my script file"
-                        }
+                     if { $error_found == 1 } {
+                        incr error_found 1
                      }
+
                   }
                }
-            }
-           
-            if {!$stop} {
-               exp_continue
+              
+               if {!$stop} {
+                  exp_continue
+               }
             }
          }
+         close_spawn_process $id
+         if { $error_text != "" } {
+            puts $CHECK_OUTPUT "remote operation $operation in remote testsuite [file tail $filename] failed:"
+            puts $CHECK_OUTPUT $error_text
+            set proc_error_text ""
+            append proc_error_text "remote operation ->$operation<- in testsuite [file tail $filename] failed:\n"
+            append proc_error_text $error_text
+            add_proc_error "operate_additional_clusters" -1 "$proc_error_text"
+         } else {
+            puts $CHECK_OUTPUT "remote operation $operation in remote testsuite [file tail $filename] finished successfully"
+         }
       }
-      close_spawn_process $id
-      puts $CHECK_OUTPUT "remote operation $operation in remote testsuite [file tail $filename] finished"
-   }
    } else {
       puts $CHECK_OUTPUT "no additional clusters defined"
    }
@@ -7549,6 +7631,7 @@ proc operate_additional_clusters {operation} {
 
 set do_kill           0
 set do_install        0
+set do_start          0
 set do_compile        0
 set do_not_update     0
 set do_all            0
@@ -7612,6 +7695,8 @@ for { set i 0 } { $i < $argc } { incr i } {
       puts "install               just install core system and exit"
       puts ""
       puts "kill                  shutdown cluster"
+      puts ""
+      puts "start                 startup cluster"
       puts ""
       puts "setup                 run setup"
       puts ""
@@ -7760,6 +7845,12 @@ for { set i 0 } { $i < $argc } { incr i } {
       set do_kill 1
       continue
    }
+
+   if { ( [string compare [lindex $argv $i] "--start"] == 0 ) || ([string compare [lindex $argv $i] "start"] == 0) } {
+      set do_start 1
+      continue
+   }
+
    
    if { ( [string compare [lindex $argv $i] "--mfile"] == 0 ) || ([string compare [lindex $argv $i] "mfile"] == 0) } {
       incr i
@@ -8091,12 +8182,28 @@ if { $do_install } {
    set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
    run_test $CHECK_ACT_PATH 1
    operate_additional_clusters install
-   exit 0 
+
+   set exit_value [print_errors]
+   exit $exit_value
 }
 
 if { $do_kill } {
+   set check_name "command line"
+
    shutdown_core_system 0 1
-   exit 0   
+
+   set exit_value [print_errors]
+   exit $exit_value
+
+}
+
+if { $do_start } {
+   set check_name "command line"
+
+   startup_core_system 0 1
+
+   set exit_value [print_errors]
+   exit $exit_value
 }
 
 

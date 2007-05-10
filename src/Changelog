@@ -1,3 +1,15 @@
+CR-2007-05-10-0: Enhancem.: o added new command line option "start"
+                            o added error reporting when testsuite is started
+                              with command line options "start, kill and install"
+                            o remote testsuites exit status and errors are now
+                              reported in controller testsuite
+                            o temp mail filename is now generated with 
+                              get_tmp_file_name() (caused problems for controller
+                              testsuite because of same mail file name)
+                            o enhanced startup_core_system() to support the same
+                              parameters as shutdown_core_system()
+                 Review:    RD
+
 RD-2007-05-09-0: Bugfix:    fixed qstat test for qstat AR changes
                  Review:    CR
 
@@ -5,6 +17,7 @@ CR-2007-05-09-0: Bugfix:    o fixed problems for additional cluster
                               installation
                             o enhanced create_shell_script() to write
                               shell script name into script
+                 Review:    JG
 
 CR-2007-05-08-1: Bugfix:    fixed wrong scheduler default_duration setting
                  Review:    RD
