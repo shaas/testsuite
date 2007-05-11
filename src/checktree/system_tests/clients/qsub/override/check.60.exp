@@ -1,0 +1,127 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "client_override_init_level"
+
+# define test's name and run level descriptions
+set check_name            "client_override"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "submit a job with command line parameters that should override the default parameters in sge_request"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function client_override_setup
+set check_cleanup_function client_override_cleanup
+
+# array with information about existing files/directories
+global file_exists
+set file_exists(sge_request) "0"
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "client_override_test1"
+
+proc client_override_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }      
+   }
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc client_override_setup {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global file_exists
+
+   # check if sge_request file already exists and saves it temporarily
+   if { ![file exists $ts_config(product_root)/$ts_config(cell)/common/sge_request]} {
+         set file_exists(sge_request) "1"
+         # save existing file
+         set id [start_remote_prog $ts_config(master_host) $CHECK_USER "mv" "-f  $ts_config(product_root)/$ts_config(cell)/common/sge_request /tmp/sge_request"]
+      }
+   set id1 [start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "-f  $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qsub/override/test_files/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"]
+   puts $CHECK_OUTPUT "sge_request file successfully backed-up"
+}
+
+proc client_override_cleanup {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global file_exists
+
+   if { $file_exists(sge_request) !=  "0" } {
+      # restore sge_request file
+      set id [start_remote_prog $ts_config(master_host) $CHECK_USER "mv" "-f  /tmp/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"]
+   }
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   puts $CHECK_OUTPUT "cleanup function successfully run"
+}
+
+
+proc client_override_test1 {} {
+   global ts_config
+   global CHECK_ACT_LEVEL
+
+   set hostname [host_conf_get_suited_hosts]
+   
+   set jobargs "-q all.q@$hostname $ts_config(product_root)/examples/jobs/sleeper.sh 30" 
+   set job_id [submit_job $jobargs]
+   
+   get_qstat_j_info $job_id
+   if {[string compare "$qstat_j_info(hard_queue_list)" "all.q@$hostname"] != 0} {
+      set error_text "qsub did not set the correct queue: $hostname \n"
+      add_proc_error "client_override_test1" -1 " overriding of default script file failed"
+   }
+     
+}
