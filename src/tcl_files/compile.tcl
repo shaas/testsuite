@@ -98,6 +98,7 @@ proc compile_check_compile_hosts {host_list} {
 #     - shadowd hosts
 #     - submit only hosts
 #     - berkeley db rpc server host
+#     - additional config configurations
 #
 #  RESULT
 #     list of compile hosts
@@ -128,9 +129,19 @@ proc compile_host_list {} {
             add_proc_error "compile_host_list" -1 "cannot read additonal configuration file $filename"
             continue
          }
-         
-         foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
-            append host_list " $add_config($param)"
+
+         # check whether it is cell cluster or independed cluster
+         if { $ts_config(product_root) == $add_config(product_root) &&
+              $ts_config(source_dir)   == $add_config(source_dir) } {
+            puts $CHECK_OUTPUT "adding hosts from additional cluster configuration file"
+            puts $CHECK_OUTPUT "$filename"
+            puts $CHECK_OUTPUT "to compile host list. This cluster will be installed as GE Cell!"
+            foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
+               append host_list " $add_config($param)"
+            }
+         } else {
+            puts $CHECK_OUTPUT "compilation of independed GE cluster ..."
+            add_proc_error "compile_host_list" -1 "independed cluster compilation/installation currently not supported"
          }
       }
    }
@@ -427,7 +438,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
       } 
    }
 
-   # shutdown possibly running system (and additional_config clusters)
+   # shutdown possibly running system (and additional config clusters)
    shutdown_core_system $do_only_hooks 1
 
    # for building java code, we need a build_testsuite.properties file

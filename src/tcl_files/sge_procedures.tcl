@@ -7311,7 +7311,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       check_for_core_files $host "$spooldir"
    }
 
-   # we might have secondary Grid Engine clusters (additional_config)
+   # we might have secondary Grid Engine clusters
    # shut them down as well
    if {$with_additional_clusters} {
       operate_additional_clusters kill

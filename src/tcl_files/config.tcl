@@ -975,18 +975,12 @@ proc config_additional_config { only_check name config_array } {
             }
          }
 
-         # now make sure that the additional configurations can work together
-         # the following parameters have to be the same for all configs
-         set same_params "gridengine_version testsuite_root_dir checktree_root_dir source_dir source_cvs_release host_config_file product_root"
-         # the following parameters have to differ between all configs
-         set diff_params "results_dir commd_port cell"
-
-         # put these params into lists
-         foreach param "$same_params $diff_params" {
-            set joined_config($param) $config($param)
-         }
-
          foreach filename $value {
+
+            if { $only_check == 0 } {
+               puts $CHECK_OUTPUT "checking configuration:\n\"$filename\""
+            }
+
             # clear previously read config
             if {[info exists add_config]} {
                unset add_config
@@ -996,24 +990,70 @@ proc config_additional_config { only_check name config_array } {
                puts $CHECK_OUTPUT "cannot read configuration file \"$filename\""
                return -1
             }
+
+
+            #  cell or independed cluster support?
+            #  o if cluster have the same cvs source directory AND the same SGE_ROOT the
+            #    compilation is done in the main cluster (ts with additional config)
+            #
+            #  o if SGE_ROOT is different the cvs source has also to be different
+            #    (complete independed additional cluster config). Then the compilation
+            #    is done via operate_additional_clusters call. This means
+            #    gridengine version, and cvs release may be different
+
+            if { $add_config(product_root) == $config(product_root) && 
+                 $add_config(source_dir)   == $config(source_dir) } {
+               if { $only_check == 0 } {
+                  puts -nonewline $CHECK_OUTPUT "   (cell cluster) ..."
+               }
+               # now make sure that the additional configurations can work together
+               # the following parameters have to be the same for all configs
+               set same_params "gridengine_version source_dir source_cvs_release host_config_file product_root"
+               # the following parameters have to differ between all configs
+               set diff_params "results_dir commd_port cell"
+            } else {
+               if { $only_check == 0 } {
+                  puts -nonewline $CHECK_OUTPUT "   (independent cluster) ..."
+               }
+               # now make sure that the additional configurations can work together
+               # the following parameters have to be the same for all configs
+               set same_params "host_config_file"
+               # the following parameters have to differ between all configs
+               set diff_params "results_dir commd_port product_root source_dir"
+            }
+
+            # clear previously joined_config
+            if { [info exists joined_config ] } {
+               unset joined_config
+            }
+
+            # create joined_config
+            foreach param "$same_params $diff_params" {
+               set joined_config($param) $config($param)
+            }
+
             # add the params to be checked to our joined config
             foreach param "$same_params $diff_params" {
                lappend joined_config($param) $add_config($param)
             }
-         }
 
-         # now we check for equality or difference
-         foreach param $same_params {
-            if {[llength [lsort -unique $joined_config($param)]] != 1} {
-               puts $CHECK_OUTPUT "the parameter $param has to be the same for all configurations,\nbut has the following values:\n$joined_config($param)"
-               return -1
+            # now we check for equality or difference
+            foreach param $same_params {
+               if {[llength [lsort -unique $joined_config($param)]] != 1} {
+                  puts $CHECK_OUTPUT "\nThe parameter \"$param\" has to be the same for configuration\n\"$filename\","
+                  puts $CHECK_OUTPUT "but has the following values:\n$joined_config($param)"
+                  return -1
+               }
             }
-         }
-         set num_configs [expr 1 + [llength $value]]
-         foreach param $diff_params {
-            if {[llength [lsort -unique $joined_config($param)]] != $num_configs} {
-               puts $CHECK_OUTPUT "the parameter $param has to be different for all configurations,\nbut has the following values:\n$joined_config($param)"
-               return -1
+            foreach param $diff_params {
+               if {[llength [lsort -unique $joined_config($param)]] != 2} {
+                  puts $CHECK_OUTPUT "\nThe parameter \"$param\" has to be different for configuration\n\"$filename\","
+                  puts $CHECK_OUTPUT "but has the following values:\n$joined_config($param)"
+                  return -1
+               }
+            }
+            if { $only_check == 0 } {
+               puts $CHECK_OUTPUT "ok"
             }
          }
       } else {

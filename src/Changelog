@@ -1,4 +1,9 @@
-MP-2007-05-11-0  Enhancem:  Added test for CR 6328064. Checks to see if command
+CR-2007-05-11-0: Enhancem.: o Added configuration support for additional cell
+                              and addtional independed clusters.
+                            o Removed needless spawn output at testsuite startup.
+                 Review:    JG
+
+MP-2007-05-11-0: Enhancem.: Added test for CR 6328064. Checks to see if command
                             line parameters override script defaults for qsub.
                  Review:    JG
 

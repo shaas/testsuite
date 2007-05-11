@@ -1398,12 +1398,19 @@ proc open_remote_spawn_process { hostname
             set passwd [get_passwd $real_user]
          }
 
-         if {[have_ssh_access]} {
+         set tmp_help [have_ssh_access];
+         set tmp_log_user [log_user]
+         log_user 0
+         if { $CHECK_DEBUG_LEVEL != 0 } {
+            log_user 1
+         }
+         if {$tmp_help} {
             set ssh_binary [get_binary_path $CHECK_HOST ssh]
             set pid [spawn $ssh_binary "-l" $connect_full_user $hostname]
          } else {
             set pid [spawn "rlogin" $hostname "-l" $connect_full_user]
          }
+         set log_user $tmp_log_user
 
          if {$pid == 0 } {
            add_proc_error "open_remote_spawn_process" -2 "${error_info}\ncould not spawn! (pid = $pid)"  $raise_error
