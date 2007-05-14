@@ -1,3 +1,12 @@
+CR-2007-05-14-0: Enhancem.: o removed not needed parameter in compile_source()
+                            o added compile support for independent addtional
+                              clusters
+                            o new procedure: operate_add_cluster() (start
+                              operation for specified cluster only)
+                            o new procedure: get_additional_cluster_type()
+                              return type of cluster ("cell" or "independent")
+                 Review:    MD
+
 CR-2007-05-11-0: Enhancem.: o Added configuration support for additional cell
                               and addtional independed clusters.
                             o Removed needless spawn output at testsuite startup.

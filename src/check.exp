@@ -6357,7 +6357,7 @@ proc build_distribution { arch_list } {
       while { $done != 1 } {
          expect_user {
             -i $sp_id full_buffer {
-               puts $CHECK_OUTPUT "testsuite - compile_source buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               puts $CHECK_OUTPUT "testsuite - compile source buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             }
             -i $sp_id "_exit_status_" {
                set done 1
@@ -6375,7 +6375,7 @@ proc build_distribution { arch_list } {
    }
 }
 
-proc install_binaries { do_only_install arch_list a_report } {
+proc install_binaries { arch_list a_report } {
    global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
    global ts_config CHECK_JOB_OUTPUT_DIR CHECK_SOURCE_DIR CHECK_DIST_INSTALL_OPTIONS
    global CHECK_HOST CHECK_USER CHECK_CORE_EXECD
@@ -6443,7 +6443,7 @@ proc install_binaries { do_only_install arch_list a_report } {
    while { $done != 1 } {
       expect_user {
          -i $sp_id full_buffer {
-            report_task_add_message report $task_nr "testsuite - compile_source buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            report_task_add_message report $task_nr "testsuite - compile source buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "Base directory:" {
              ts_send $sp_id "y\n"
@@ -6853,7 +6853,7 @@ proc run_all_at_starttime {} {
 #     remove_old_cvs_tree
       set back [ compile_source ]
       if { $back != 0 } {
-         puts "error in compile_source - stop"
+         puts "error in compile source - stop"
          exit -1
       }
       set saved_path $CHECK_ACT_PATH
@@ -7227,7 +7227,7 @@ proc menu {} {
                   puts $CHECK_OUTPUT "need root access ..."
                   set_root_passwd
             }
-            set back [compile_source 0 1]
+            set back [compile_source 1]
              
             if { $back != 0 } {
                puts "--> error compiling and pre installing source code"
@@ -7489,143 +7489,253 @@ proc load_additional_packages {} {
 }
 
 
+#****** check/operate_additional_clusters() ************************************
+#  NAME
+#     operate_additional_clusters() -- perform remote testsuite actions
+#
+#  SYNOPSIS
+#     operate_additional_clusters { operation } 
+#
+#  FUNCTION
+#     This procedure is used to startup remote testsuite with additional_config
+#     and perform startup, kill, compile, install ... commands. The command
+#     is stared on all configured additional configurations. 
+#
+#  INPUTS
+#     operation - command line parameter for remote testsuite
+#
+#  RESULT
+#     0 on success or the exit value of the remote testsuite run
+#  SEE ALSO
+#     check/operate_add_cluster()
+#*******************************************************************************
 proc operate_additional_clusters {operation} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global check_use_installed_system last_shell_script_file
 
    if {$ts_config(additional_config) != "none"} {
       foreach filename $ts_config(additional_config) {
-         # clear previously read config
-         if {[info exists add_config]} {
-            unset add_config
-         }
-         # read additional config file
-         if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-            add_proc_error "operate_additional_clusters $operation" -1 "cannot read additonal configuration file $filename"
-            continue
-         }
-
-         # start testsuite with install option on the cluster's master host
-         puts $CHECK_OUTPUT "\n${operation}ing cluster of additional configuration $filename"
-         puts $CHECK_OUTPUT "on host $add_config(master_host) as user $CHECK_USER"
-         set args "check.exp file $filename fast_setup quiet $operation"
-         if {$operation == "install" && $check_use_installed_system} {
-            append args " re_init"
-         }
-
-         puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $$add_config(master_host) ..."
-         set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
-         set script_tail_name [file tail $last_shell_script_file]
-         set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
-         puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""
-
-         if {$id == ""} {
-            add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ngot no spawn id"
-            continue
-         }
-         
-         set spawn_id [lindex $id 1]
-   #      log_user 1
-         set timeout 120
-         set found_end 0
-         set error_found 0
-         set error_text ""
-
-         expect {
-            -i $spawn_id timeout {
-               add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ntimeout"
-            }
-            -i $spawn_id full_buffer {
-               add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nbuffer overflow"
-            }
-            -i $spawn_id eof {
-               add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\nunexpected eof"
-            }
-
-            -i $spawn_id -- "*\n" {
-               set stop 0
-               foreach line [split $expect_out(0,string) "\n"] {
-                  set line [string trim $line]
-                  if {$line != ""} {
-                     puts $CHECK_OUTPUT "\[remote ts [file tail $filename]\]$line"
-                     switch -glob -- $line {
-                        "host access with password needed for user*" {
-                           set user [lindex $line 7]
-                           set passwd [get_passwd $user]
-                           if {$passwd == ""} {
-                              set_passwd $user $add_config(master_host) [host_conf_get_windows_host]
-                              set passwd [get_passwd $user]
-                              # the set_passwd switches off log_user
-                              log_user 1
-                           }
-
-                           if {$passwd == ""} {
-                              add_proc_error "operate_additional_clusters $operation" -1 "${operation}ing of additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
-                              set stop 1
-                           } else {
-                              ts_send $spawn_id "$passwd\n" 1 1
-                           }
-                        }
-                        "_exit_status_:(*)*" {
-                           if { [string match "*$script_tail_name*" $line] } {
-                               set remote_exit_state [get_string_value_between "(" ")" $line]
-                               if { $remote_exit_state != 0 } {
-                                  append error_text "remote testsuite terminated with exit state $remote_exit_state\n"
-                               }
-                               puts $CHECK_OUTPUT "got _exit_status - stopping"
-                               set found_end 1
-                           } else {
-                              debug_puts $CHECK_OUTPUT "found an exit status"
-                           }
-                        }
-                        "*_END_OF_FILE_*" {
-                           if { $found_end == 1 } {
-                              puts $CHECK_OUTPUT "exit status found - last line parsed - finished"
-                              set stop 1
-                           } else {
-                              debug_puts $CHECK_OUTPUT "this is not end of my script file"
-                           }
-                        }
-                        "ERROR REPORT - START" {
-                           puts $CHECK_OUTPUT "found error report start"
-                           set error_found 1
-                        }
-                        "ERROR REPORT - DONE" {
-                           puts $CHECK_OUTPUT "found error report end"
-                           set error_found 0
-                        }
-                     }
-                     if { $error_found == 2 } {
-                        append error_text "$line\n"
-                     }
-                     if { $error_found == 1 } {
-                        incr error_found 1
-                     }
-
-                  }
-               }
-              
-               if {!$stop} {
-                  exp_continue
-               }
-            }
-         }
-         close_spawn_process $id
-         if { $error_text != "" } {
-            puts $CHECK_OUTPUT "remote operation $operation in remote testsuite [file tail $filename] failed:"
-            puts $CHECK_OUTPUT $error_text
-            set proc_error_text ""
-            append proc_error_text "remote operation ->$operation<- in testsuite [file tail $filename] failed:\n"
-            append proc_error_text $error_text
-            add_proc_error "operate_additional_clusters" -1 "$proc_error_text"
-         } else {
-            puts $CHECK_OUTPUT "remote operation $operation in remote testsuite [file tail $filename] finished successfully"
-         }
+         operate_add_cluster $filename $operation
       }
    } else {
       puts $CHECK_OUTPUT "no additional clusters defined"
    }
 }
+
+#****** check/operate_add_cluster() ********************************************
+#  NAME
+#     operate_add_cluster() -- perform single remote testsuite action
+#
+#  SYNOPSIS
+#     operate_add_cluster { filename operation {atimeout 120} } 
+#
+#  FUNCTION
+#     This procedure is used to startup remote testsuite with additional_config
+#     and perform startup, kill, compile, install ... commands
+#
+#  INPUTS
+#     filename       - filename of the remote testsuite configuration
+#     operation      - startup: startup system which was killed
+#                      kill: kill system which was started
+#                      compile: compile sources
+#                      install: install system (basic installation)
+#     {atimeout 120} - timeout for operation outputs
+#
+#  SEE ALSO
+#     check/operate_additional_clusters()
+#*******************************************************************************
+proc operate_add_cluster {filename operation {atimeout 120}} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global check_use_installed_system last_shell_script_file 
+   global check_do_clean_compile do_not_update
+
+   set return_value 0
+   if {$ts_config(additional_config) != "none"} {
+      # clear previously read config
+      if {[info exists add_config]} {
+         unset add_config
+      }
+      # read additional config file
+      if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+         add_proc_error "operate_add_cluster $operation" -1 "cannot read additonal configuration file $filename"
+         continue
+      }
+
+      # start testsuite with install option on the cluster's master host
+      puts $CHECK_OUTPUT "\n${operation}ing cluster of additional configuration $filename"
+      puts $CHECK_OUTPUT "on host $add_config(master_host) as user $CHECK_USER"
+      set args "check.exp file $filename fast_setup quiet $operation"
+      if {$operation == "install" && $check_use_installed_system} {
+         append args " re_init"
+      }
+
+      if {$operation == "compile" && $check_do_clean_compile } {
+         append args " compile_clean"
+      }
+
+      if {$operation == "compile" && $do_not_update } {
+         append args " no_update"
+      }
+
+
+
+      puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $$add_config(master_host) ..."
+      set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
+      set script_tail_name [file tail $last_shell_script_file]
+      set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
+      puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""
+
+      if {$id == ""} {
+         add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\ngot no spawn id"
+         continue
+      }
+      
+      set spawn_id [lindex $id 1]
+#      log_user 1
+      set timeout $atimeout
+      set found_end 0
+      set error_found 0
+      set error_text ""
+
+      expect {
+         -i $spawn_id timeout {
+            add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\ntimeout"
+         }
+         -i $spawn_id full_buffer {
+            add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\nbuffer overflow"
+         }
+         -i $spawn_id eof {
+            add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\nunexpected eof"
+         }
+
+         -i $spawn_id -- "*\n" {
+            set stop 0
+            foreach line [split $expect_out(0,string) "\n"] {
+               set line [string trim $line]
+               if {$line != ""} {
+                  puts $CHECK_OUTPUT "\[remote ts [file tail $filename]\]$line"
+                  switch -glob -- $line {
+                     "host access with password needed for user*" {
+                        set user [lindex $line 7]
+                        set passwd [get_passwd $user]
+                        if {$passwd == ""} {
+                           set_passwd $user $add_config(master_host) [host_conf_get_windows_host]
+                           set passwd [get_passwd $user]
+                           # the set_passwd switches off log_user
+                           log_user 1
+                        }
+
+                        if {$passwd == ""} {
+                           add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
+                           set stop 1
+                        } else {
+                           ts_send $spawn_id "$passwd\n" 1 1
+                        }
+                     }
+                     "_exit_status_:(*)*" {
+                        if { [string match "*$script_tail_name*" $line] } {
+                            set remote_exit_state [get_string_value_between "(" ")" $line]
+                            if { $remote_exit_state != 0 } {
+                               append error_text "remote testsuite terminated with exit state $remote_exit_state\n"
+                               set return_value $remote_exit_state
+                            }
+                            puts $CHECK_OUTPUT "got _exit_status - stopping"
+                            set found_end 1
+                        } else {
+                           debug_puts $CHECK_OUTPUT "found an exit status"
+                        }
+                     }
+                     "*_END_OF_FILE_*" {
+                        if { $found_end == 1 } {
+                           puts $CHECK_OUTPUT "exit status found - last line parsed - finished"
+                           set stop 1
+                        } else {
+                           debug_puts $CHECK_OUTPUT "this is not end of my script file"
+                        }
+                     }
+                     "ERROR REPORT - START" {
+                        puts $CHECK_OUTPUT "found error report start"
+                        set error_found 1
+                     }
+                     "ERROR REPORT - DONE" {
+                        puts $CHECK_OUTPUT "found error report end"
+                        set error_found 0
+                     }
+                  }
+                  if { $error_found == 2 } {
+                     append error_text "$line\n"
+                  }
+                  if { $error_found == 1 } {
+                     incr error_found 1
+                  }
+
+               }
+            }
+           
+            if {!$stop} {
+               exp_continue
+            }
+         }
+      }
+      close_spawn_process $id
+      if { $error_text != "" } {
+         puts $CHECK_OUTPUT "remote operation \"$operation\" in remote testsuite [file tail $filename] failed:"
+         puts $CHECK_OUTPUT $error_text
+         set proc_error_text ""
+         append proc_error_text "remote operation \"$operation\" in testsuite [file tail $filename] failed:\n"
+         append proc_error_text $error_text
+         add_proc_error "operate_add_cluster" -1 "$proc_error_text"
+      } else {
+         puts $CHECK_OUTPUT "remote operation \"$operation\" in remote testsuite [file tail $filename] finished successfully"
+      }
+   } else {
+      puts $CHECK_OUTPUT "no additional clusters defined"
+   }
+   return $return_value
+}
+
+
+#****** check/get_additional_cluster_type() ************************************
+#  NAME
+#     get_additional_cluster_type() -- find out type of additional cluster config
+#
+#  SYNOPSIS
+#     get_additional_cluster_type { filename additional_config } 
+#
+#  FUNCTION
+#     reads specified cluster configuration and returns its type.
+#
+#  INPUTS
+#     filename          - cluster config file 
+#     additional_config - upvar variable where to read config 
+#
+#  RESULT
+#     "" on error, "cell" for cell cluster, "independent" for standalone cluster 
+#*******************************************************************************
+proc get_additional_cluster_type { filename additional_config } {
+   global ts_config
+   upvar $additional_config add_config
+
+   # clear previously read config
+   if {[info exists add_config]} {
+      unset add_config
+   }
+
+   # read additional config file
+   if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+      add_proc_error "get_additional_cluster_type" -1 "cannot read additonal configuration file $filename"
+      return ""
+   }
+
+   # check whether it is cell cluster or independed cluster
+   if { $ts_config(product_root) == $add_config(product_root) &&
+        $ts_config(source_dir)   == $add_config(source_dir) } {
+      return "cell"
+   } else {
+      return "independent"
+   }
+}
+
 
 # Main programm:
 

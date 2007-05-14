@@ -120,28 +120,20 @@ proc compile_host_list {} {
    # for additional configurations, we might have different architectures
    if {$ts_config(additional_config) != "none"} {
       foreach filename $ts_config(additional_config) {
-         # clear previously read config
-         if {[info exists add_config]} {
-            unset add_config
-         }
-         # read additional config file
-         if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-            add_proc_error "compile_host_list" -1 "cannot read additonal configuration file $filename"
+         set cl_type [get_additional_cluster_type $filename add_config]
+
+         if { $cl_type == "" } {
             continue
          }
 
          # check whether it is cell cluster or independed cluster
-         if { $ts_config(product_root) == $add_config(product_root) &&
-              $ts_config(source_dir)   == $add_config(source_dir) } {
+         if { $cl_type == "cell" } {
             puts $CHECK_OUTPUT "adding hosts from additional cluster configuration file"
             puts $CHECK_OUTPUT "$filename"
             puts $CHECK_OUTPUT "to compile host list. This cluster will be installed as GE Cell!"
             foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
                append host_list " $add_config($param)"
             }
-         } else {
-            puts $CHECK_OUTPUT "compilation of independed GE cluster ..."
-            add_proc_error "compile_host_list" -1 "independed cluster compilation/installation currently not supported"
          }
       }
    }
@@ -292,38 +284,23 @@ proc compile_search_compile_host {arch} {
    return "none"
 }
 
-#
-#                                                             max. column:     |
-#
-#****** check/compile_source() ******
+#****** compile/compile_source() ***********************************************
 #  NAME
-#     compile_source() -- ??? 
+#     compile_source() -- compile source code
 #
 #  SYNOPSIS
-#     compile_source { } 
+#     compile_source { { do_only_hooks 0} } 
 #
 #  FUNCTION
-#     ??? 
+#     compile all source code
 #
 #  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
+#     { do_only_hooks 0} - if set, only compile and distinst hooks
 #
 #  SEE ALSO
 #     ???/???
-#*******************************
-#
-proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
+#*******************************************************************************
+proc compile_source { { do_only_hooks 0} } {
    global ts_config ts_host_config
    global CHECK_SOURCE_DIR CHECK_OUTPUT CHECK_SOURCE_HOSTNAME
    global CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
@@ -334,11 +311,27 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
 
    # settings for mail
    set check_name "compile_source"
-   set CHECK_CUR_PROC_NAME "compile_source"
+   set CHECK_CUR_PROC_NAME $check_name
    if { $do_only_hooks == 0 } {
       set NFS_sleep_time 20
    } else {
       set NFS_sleep_time 0
+   }
+
+   # for additional configurations, we might want to start remote operation
+   # (for independed clusters)
+   if {$ts_config(additional_config) != "none"} {
+      foreach filename $ts_config(additional_config) {
+         set cl_type [get_additional_cluster_type $filename add_config]
+
+         if { $cl_type == "" } {
+            continue
+         }
+         if { $cl_type == "independent" } {
+            puts $CHECK_OUTPUT "Found $cl_type additional cluster, starting remote compile ..."
+            operate_add_cluster $filename "compile" 3600
+         }
+      }
    }
 
    array set report {}
@@ -446,51 +439,50 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
    compile_create_java_properties $compile_hosts
 
    set compile_depend_done "false"
+
    # update sources
-   if {$do_only_install != 1} {
-      set res [update_source report]      
-      if {$res == 1} {
-         # make dependencies before compile clean
-         if {$do_only_hooks == 0} {
-            if {[compile_depend $compile_hosts report] != 0} {
-               incr error_count
-            } else {
-               set compile_depend_done "true"
-            }
+   set res [update_source report]      
+   if {$res == 1} {
+      # make dependencies before compile clean
+      if {$do_only_hooks == 0} {
+         if {[compile_depend $compile_hosts report] != 0} {
+            incr error_count
          } else {
-            puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+            set compile_depend_done "true"
          }
-
-         # after an update, do an aimk clean
-         if {$do_only_hooks == 0} {
-            compile_with_aimk $compile_hosts report "compile_clean" "clean"
-         } else {
-            puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
-         }
-         # execute all registered compile_clean hooks of the checktree
-         set res [exec_compile_clean_hooks $compile_hosts report]
-         if {$res < 0} {
-            report_add_message report "exec_compile_clean_hooks returned fatal error"
-         } elseif { $res > 0 } {
-            report_add_message report "$res compile_clean hooks failed\n"
-         } else {
-            report_add_message report "All compile_clean hooks successfully executed\n"
-         }
-      
-         # give NFS some rest after (probably massive) deletes
-         sleep $NFS_sleep_time
-
-         # after an update, delete macro messages file to have it updated
-         set macro_messages_file [get_macro_messages_file_name]
-         puts $CHECK_OUTPUT "deleting macro messages file after update!"
-         puts $CHECK_OUTPUT "file: $macro_messages_file"
-         if {[file isfile $macro_messages_file]} {
-            file delete $macro_messages_file
-         }
-         update_macro_messages_list
-      } elseif {$res < 0} {
-         incr error_count
+      } else {
+         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
       }
+
+      # after an update, do an aimk clean
+      if {$do_only_hooks == 0} {
+         compile_with_aimk $compile_hosts report "compile_clean" "clean"
+      } else {
+         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+      }
+      # execute all registered compile_clean hooks of the checktree
+      set res [exec_compile_clean_hooks $compile_hosts report]
+      if {$res < 0} {
+         report_add_message report "exec_compile_clean_hooks returned fatal error"
+      } elseif { $res > 0 } {
+         report_add_message report "$res compile_clean hooks failed\n"
+      } else {
+         report_add_message report "All compile_clean hooks successfully executed\n"
+      }
+   
+      # give NFS some rest after (probably massive) deletes
+      sleep $NFS_sleep_time
+
+      # after an update, delete macro messages file to have it updated
+      set macro_messages_file [get_macro_messages_file_name]
+      puts $CHECK_OUTPUT "deleting macro messages file after update!"
+      puts $CHECK_OUTPUT "file: $macro_messages_file"
+      if {[file isfile $macro_messages_file]} {
+         file delete $macro_messages_file
+      }
+      update_macro_messages_list
+   } elseif {$res < 0} {
+      incr error_count
    }
 
    if {$error_count == 0 && $check_do_clean_compile == 1} {
@@ -515,7 +507,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
 
    if {$error_count > 0} {
       puts $CHECK_OUTPUT "Skip compile due to previous errors\n"
-   } elseif {$do_only_install != 1} {
+   } else {
       if {$do_only_hooks == 0} {
          if { $compile_depend_done == "false" } {
             if {[compile_depend $compile_hosts report] != 0} {
@@ -553,9 +545,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
             }
          }
       }
-   } else {
-      puts $CHECK_OUTPUT "Skip compile, I am on do_install mode\n"
-   }
+   } 
 
    # delete the build_testsuite.properties
    compile_delete_java_properties
@@ -582,7 +572,7 @@ proc compile_source { { do_only_install 0 } { do_only_hooks 0} } {
       puts ""
       
       if { $do_only_hooks == 0 } {
-         if { [ install_binaries $do_only_install $arch_list report] != 0 } {
+         if { [ install_binaries $arch_list report] != 0 } {
             report_add_message report "install_binaries failed\n"
             incr error_count
          } 
@@ -675,7 +665,6 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_SOURCE_DIR
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
-   global do_only_install
    
    upvar $a_report report
 
