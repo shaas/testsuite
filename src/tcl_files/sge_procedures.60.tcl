@@ -64,7 +64,7 @@ proc get_complex { change_array } {
 #     set_complex() -- set complexes with the qconf -mc commaned
 #
 #  SYNOPSIS
-#     set_complex { change_array } 
+#     set_complex { change_array {raise_error 1}} 
 #
 #  FUNCTION
 #     Modifies, adds or deletes complexes
@@ -76,6 +76,7 @@ proc get_complex { change_array } {
 #
 #  INPUTS
 #     change_array - array with the complex definitions
+#     raise_error  - if unset the error is expected
 #
 #  RETURN:
 #
@@ -102,7 +103,7 @@ proc get_complex { change_array } {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc set_complex { change_array } {
+proc set_complex { change_array {raise_error 1}} {
   global ts_config CHECK_USER
   global env CHECK_ARCH CHECK_OUTPUT
   global CHECK_CORE_MASTER
@@ -147,11 +148,13 @@ proc set_complex { change_array } {
   set MODIFIED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
   set ADDED    [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
   set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" "*" "*"]
+  set STILLREF [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CENTRYREFINQUEUE_SS] "*" "*"]
   set NOT_MODIFIED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CENTRY_NOTCHANGED]]
   
-  set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED ]
+  set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport
+  SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF]
   if { $result != 0 && $result != -2 && $result != -3 && $result != -4 } {
-     add_proc_error "set_complex" -1 "could not modify complex: ($result)"
+     add_proc_error "set_complex" -1 "could not modify complex: ($result)" $raise_error
   }
   return $result
 }

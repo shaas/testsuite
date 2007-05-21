@@ -2624,7 +2624,7 @@ proc del_user_from_access_list { user_name list_name  } {
 #     del_access_list() -- delete user access list
 #
 #  SYNOPSIS
-#     del_access_list { list_name } 
+#     del_access_list {{ list_name } {raise_error 1}}
 #
 #  FUNCTION
 #     This procedure starts the qconf -dul command to delete a user access
@@ -2632,6 +2632,7 @@ proc del_user_from_access_list { user_name list_name  } {
 #
 #  INPUTS
 #     list_name - name of access list to delete
+#     raise_error - do add_proc_error in case of errors
 #
 #  RESULT
 #     -1 on error, 0 on success
@@ -2640,7 +2641,7 @@ proc del_user_from_access_list { user_name list_name  } {
 #     sge_procedures/add_access_list()
 # 
 #*******************************************************************************
-proc del_access_list { list_name } {
+proc del_access_list { list_name {raise_error 1} } {
   global ts_config
   global CHECK_ARCH CHECK_OUTPUT
   global CHECK_CORE_MASTER CHECK_USER
@@ -2652,12 +2653,12 @@ proc del_access_list { list_name } {
    puts $CHECK_OUTPUT $result
   set USER [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_OBJ_USERSET]]
   set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $list_name $USER]
-  puts $CHECK_OUTPUT $REMOVED
 
   if { [ string match "*$REMOVED" $result ] == 0 } {
-     add_proc_error "add_access_list" "-1" "could not delete access_list $list_name"
+     add_proc_error "add_access_list" "-1" "could not delete access_list $list_name" $raise_error
      return -1
   }
+
   return 0
 }
 

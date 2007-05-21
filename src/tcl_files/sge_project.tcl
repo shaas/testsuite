@@ -149,19 +149,23 @@ proc get_prj { prj_name change_array } {
 #****** sge_project/del_prj() ******
 # 
 #  NAME
-#     del_prj -- ??? 
+#     del_prj -- Delete a project
 #
 #  SYNOPSIS
-#     del_prj { myprj_name } 
+#     del_prj { myprj_name {raise_error 1} } 
 #
 #  FUNCTION
-#     ??? 
+#     Deletes a project using qconf -dprj
 #
 #  INPUTS
-#     myprj_name - ??? 
+#     myprj_name - Name of the project
+#     raise_error - do add_proc_error in case of errors
+
 #
 #  RESULT
-#     ??? 
+#     0 - on success
+#    <0 - on error
+
 #
 #  EXAMPLE
 #     ??? 
@@ -175,7 +179,7 @@ proc get_prj { prj_name change_array } {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc del_prj { prj_name } {
+proc del_prj { prj_name {raise_error 1} } {
    global ts_config
    global CHECK_USER
 
@@ -184,7 +188,7 @@ proc del_prj { prj_name } {
 
    set output [start_sge_bin "qconf" "-dprj $prj_name"]
 
-   set ret [handle_sge_errors "del_prj" "qconf -dprj $prj_name" $output messages]
+   set ret [handle_sge_errors "del_prj" "qconf -dprj $prj_name" $output messages $raise_error]
    return $ret
 }
 #                                                             max. column:     |
