@@ -174,7 +174,7 @@ proc issue_2050_test {} {
 
             #create a project by adding a user to it
             puts $CHECK_OUTPUT "Creating new project $test_project"
-            set result [add_prj new_project 0]
+            set result [add_prj new_project]
             if {$result == 0} {
                puts $CHECK_OUTPUT "New project $test_project created"
             } else {
@@ -230,7 +230,7 @@ proc issue_2050_test {} {
             }
             #now try deleting the pe, it should throw an error!
             puts $CHECK_OUTPUT "Deleting pe $test_pe"
-            set result [del_pe $test_pe 0]
+            set result [del_pe $test_pe "" "" 0]
             if {$result == 0} {
                add_proc_error "issue_2050 failed:" -1 " the pe should not have been deleted!!"
                append error_mail_output "the pe should not have been deleted, as it is still referenced in the queue!"
@@ -350,7 +350,7 @@ proc issue_2050_test {} {
             }
             #now try deleting the checkpoint, it should throw an error!
             puts $CHECK_OUTPUT "Deleting checkpoint $test_checkpoint"
-            set result [del_checkpointobj $test_checkpoint 0]
+            set result [del_checkpointobj $test_checkpoint "" "" 0]
             if {$result == 0} {
                add_proc_error "issue_2050 failed:" -1 " the checkpoint should not have been deleted!!"
                append error_mail_output "the checkpoint should not have been deleted, as it is still referenced in the queue!"
