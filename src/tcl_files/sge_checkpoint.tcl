@@ -140,17 +140,17 @@ proc get_checkpointobj { ckpt_obj change_array } {
 #  SEE ALSO
 #     sge_checkpoint/add_checkpointobj()
 #*******************************
-proc del_checkpointobj {checkpoint_name {raise_error 1}} {
+proc del_checkpointobj {checkpoint_name {on_host ""} {as_user ""} {raise_error 1}} {
    global ts_config
    global CHECK_USER
 
-   unassign_queues_with_ckpt_object $checkpoint_name
+   unassign_queues_with_ckpt_object $checkpoint_name $on_host $as_user $raise_error
 
    set messages(index) "0 -1"
    set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $checkpoint_name "*"]
    set messages(-1) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "*" $checkpoint_name]
    
-   set output [start_sge_bin "qconf" "-dckpt $checkpoint_name"]
+   set output [start_sge_bin "qconf" "-dckpt $checkpoint_name" $on_host $as_user]
 
    set ret [handle_sge_errors "del_checkpointobj" "qconf -dckpt $checkpoint_name" $output messages $raise_error $prg_exit_state]
    return $ret
@@ -215,11 +215,11 @@ proc add_checkpointobj { change_array } {
    set ckpt_name $chgar(ckpt_name)
    set args "-ackpt $ckpt_name"
  
-   set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" $ckpt_name]
-   set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" $ckpt_name "checkpoint interface" ]
+   set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" $ckpt_name]
+   set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" $ckpt_name "checkpoint interface" ]
 
    if { $ts_config(gridengine_version) == 53 } {
-      set REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWNQUEUE_SSSS] "*" "*" "*" "*"] 
+      set REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT [translate_macro MSG_SGETEXT_UNKNOWNQUEUE_SSSS "*" "*" "*" "*"] 
 
       set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" $args $vi_commands $ADDED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT ] 
    } else {
@@ -231,7 +231,7 @@ proc add_checkpointobj { change_array } {
    if { $result == -1 } { add_proc_error "add_checkpointobj" -1 "timeout error" }
    if { $result == -2 } { add_proc_error "add_checkpointobj" -1 "already exists" }
    if { $result == -3 } { add_proc_error "add_checkpointobj" -1 "queue reference does not exist" }
-   if { $result != 0  } { add_proc_error "add_checkpointobj" -1 "could nod add checkpoint object" }
+   if { $result != 0  } { add_proc_error "add_checkpointobj" -1 "could not add checkpoint object" }
 
    return $result
 }

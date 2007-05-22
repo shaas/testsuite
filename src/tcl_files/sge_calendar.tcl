@@ -385,28 +385,18 @@ proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_er
   # Set calendar to chgar(calendar_name)
   set calendar $chgar(calendar_name)
 
- if { $fast_add != 0 } {
+  if { $fast_add != 0 } {
      # add calendar from file!
 
-     set tmpfile  [get_tmp_file_name]
-     set file [open $tmpfile "w"]
-     set values [array names default_array]
-     foreach elem $values {
-        set value [set default_array($elem)]
-        puts $file "$elem                   $value"
-     }
-     close $file
-
-     set ret 0
-     set result [start_sge_bin "qconf" "-Mcal $tmpfile" $on_host $as_user]
+     set tmpfile [dump_array_to_tmpfile default_array]
+     set ret [start_sge_bin "qconf" "-Mcal $tmpfile" $on_host $as_user]
 
      # parse output or raise error
      if {$prg_exit_state == 0} {
-        set ret 0 
+        set result 0 
      } else {
-     set ret [mod_calender_error $prg_exit_state $tmpfile $calendar $raise_error]
+        set result [mod_calendar_error $ret $tmpfile $calendar $raise_error]
      }
-
    } else {
 
       puts $CHECK_OUTPUT "modifying calendar $calendar"
@@ -415,15 +405,17 @@ proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_er
 
       set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "*" "*"]
       set ALREADY_EXISTS [translate_macro  MSG_SGETEXT_ALREADYEXISTS_SS "*" "*" ]
+      set REJECTED_DUE_TO_AR_SSU [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
 
      # Now add using vi
-     set ret [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mcal $calendar" $vi_commands $MODIFIED $ALREADY_EXISTS ]
-     if { $ret == -1 } { add_proc_error "add_calendar" -1 "timeout error" }
-     if { $ret == -2 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" already exists" }
-     if { $ret != 0  } { add_proc_error "add_calendar" -1 "could not add calendar \"[set $calendar]\"" }
+     set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mcal $calendar" $vi_commands $MODIFIED $ALREADY_EXISTS $REJECTED_DUE_TO_AR_SSU]
+     if { $result == -1 } { add_proc_error "add_calendar" -1 "timeout error" }
+     if { $result == -2 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" already exists" }
+     if { $result == -3 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" rejected because of advance reservation" }
+     if { $result != 0  } { add_proc_error "add_calendar" -1 "could not add calendar \"[set $calendar]\"" }
 
   }
-  return $ret
+  return $result 
 
 }
 #****** sge_calendar/mod_calender_error() ***************************************
@@ -459,14 +451,15 @@ proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_er
 #     sge_calendar/get_calendar
 #     sge_procedures/handle_sge_errors
 #*******************************************************************************
-proc mod_calender_error {result tmpfile calendar raise_error} {
+proc mod_calendar_error {result tmpfile calendar raise_error} {
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1"
+   set messages(index) "-1 -2"
    set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
+   set messages(-2) [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
 
    # we might have version dependent, calendar specific error messages
-   get_calendar_error_vdep messages $calendar
+   # get_calendar_error_vdep messages $calendar
 
    set ret 0
    # now evaluate return code and raise errors
@@ -508,10 +501,8 @@ proc del_calendar {calendar {on_host ""} {as_user ""} {raise_error 1}} {
    set result [start_sge_bin "qconf" "-dcal $calendar" $on_host $as_user]
 
    # parse output or raise error
-   if {$prg_exit_state == 0} {
-      set ret 0
-   } else {
-      set ret [del_calendar_error $prg_exit_state $calendar $raise_error]
+   if {$prg_exit_state != 0} {
+      set ret [del_calendar_error $result $calendar $raise_error]
    }
 
    return $ret

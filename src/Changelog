@@ -1,11 +1,14 @@
+RD-2007-05-21-0: Enhancem.: Added AR qmaster consistency checks
+                 Review:    JG
+
 PJ-2007-05-21-0  Enhancem:  Added functions file sge_ar.62.tcl and qrsub test
                  Review:    JG
 
 RN-2007-05-21-0: Enhancem.: o Added test for CR 6422335 (issue no 2050)
                             o changed vi command for adding complex in
-			    sge_procedures.60.tcl
+                              sge_procedures.60.tcl
                             o Changed del_prj(), del_access_list(),
-			    set_complex() to use raise_error variable
+                              set_complex() to use raise_error variable
                  Review:    JG
 
 CR-2007-05-14-0: Enhancem.: o removed not needed parameter in compile_source()

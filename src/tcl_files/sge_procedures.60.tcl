@@ -151,8 +151,8 @@ proc set_complex { change_array {raise_error 1}} {
   set STILLREF [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CENTRYREFINQUEUE_SS] "*" "*"]
   set NOT_MODIFIED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CENTRY_NOTCHANGED]]
   
-  set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport
-  SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF]
+  set result [handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport
+  SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF "___ABCDEFG___" $raise_error]
   if { $result != 0 && $result != -2 && $result != -3 && $result != -4 } {
      add_proc_error "set_complex" -1 "could not modify complex: ($result)" $raise_error
   }

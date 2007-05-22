@@ -150,9 +150,9 @@ proc issue_2050_test {} {
             }
             #now try deleting the userlist, it should throw an error!
             puts $CHECK_OUTPUT "Deleting userlist $test_userlist"
-            set result [del_access_list $test_userlist 0]
+            set result [del_access_list $test_userlist "" "" 0]
             if {$result == 0} {
-               add_proc_error "issue_2050 failed:" -1 " the userlist should not have been deleted!!"
+               add_proc_error "issue_2050" -1 " the userlist should not have been deleted!!"
                append error_mail_output "the userlist should not have been deleted, as it is still referenced in the queue!"
             } else {
                del_attr $object_spec "user_lists" $test_userlist $test_queueinst

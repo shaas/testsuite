@@ -35,26 +35,23 @@
 # The current implemtation using aattr/dattr is destroying the default
 # settings in all.q
 
-proc unassign_queues_with_pe_object { pe_obj } {
+proc unassign_queues_with_pe_object { pe_obj {on_host ""} {as_user ""} {raise_error 1}} {
    global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
+   global CHECK_OUTPUT
 
    puts $CHECK_OUTPUT "searching for references in cluster queues ..."
-   set queue_list [get_queue_list]
+   set queue_list [get_queue_list $on_host $as_user $raise_error]
    foreach elem $queue_list {
       puts $CHECK_OUTPUT "queue: $elem"
-      if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dattr" "queue" "pe_list" "$pe_obj" "$elem" } result] != 0 } {
-         # if command fails: output error
-         add_proc_error "unassign_queues_with_pe_object" -1 "error reading queue list: $result"
-      }
+      start_sge_bin "qconf" "-dattr queue pe_list $pe_obj $elem"
    }
    puts $CHECK_OUTPUT "searching for references in queue instances ..."
-   set queue_list [get_qinstance_list "-pe $pe_obj"]
+   set queue_list [get_qinstance_list "-pe $pe_obj" $on_host $as_user $raise_error]
    foreach elem $queue_list {
       puts $CHECK_OUTPUT "queue: $elem"
-      if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dattr" "queue" "pe_list" "$pe_obj" "$elem" } result] != 0 } {
-         # if command fails: output error
-         add_proc_error "unassign_queues_with_pe_object" -1 "error changing pe_list: $result"
+      set output [start_sge_bin "qconf" "-dattr queue pe_list $pe_obj $elem"]
+      if {$prg_exit_state != 0} {
+         add_proc_error "unassign_queues_with_pe_object" -1 "qconf -dattr failed: $output" $raise_error
       }
    }
 }

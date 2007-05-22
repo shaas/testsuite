@@ -60,7 +60,7 @@
 #     set_complex mycomplex host
 #
 #*******************************************************************************
-proc set_complex { change_array complex_list { create 0 } } {
+proc set_complex { change_array complex_list {raise_error 1} } {
   global ts_config
   global env CHECK_ARCH CHECK_OUTPUT
   global CHECK_CORE_MASTER
@@ -100,12 +100,12 @@ proc set_complex { change_array complex_list { create 0 } } {
 
 
   if { $create == 0 } {
-     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc $complex_list" $vi_commands $MODIFIED $EDIT_FAILED $ADDED ]
+     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc $complex_list" $vi_commands $MODIFIED $EDIT_FAILED $ADDED "___ABCDEFG___"  "___ABCDEFG___" $raise_error]
   } else {
-     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -ac $complex_list" $vi_commands $ADDED $EDIT_FAILED $MODIFIED ]
+     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -ac $complex_list" $vi_commands $ADDED $EDIT_FAILED $MODIFIED "___ABCDEFG___"  "___ABCDEFG___" $raise_error]
   }
   if { $result != 0  } {
-     add_proc_error "set_complex" -1 "could not modify complex $complex_list ($result)"
+     add_proc_error "set_complex" -1 "could not modify complex $complex_list ($result)" $raise_error
   }
   return $result
 }

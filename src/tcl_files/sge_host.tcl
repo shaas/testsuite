@@ -261,7 +261,11 @@ proc set_exechost { change_array host {fast_add 1} {on_host ""} {as_user ""} {ra
       set elem "exechost"
       set host "$old_values(hostname)"
 
-      set CHANGED  [translate_macro MSG_EXEC_HOSTENTRYOFXCHANGEDINEXECLIST_S "*" ]
+      if { $ts_config(gridengine_version) == 62 } {
+         set CHANGED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "*" "*" ]
+      } else {
+         set CHANGED  [translate_macro MSG_EXEC_HOSTENTRYOFXCHANGEDINEXECLIST_S "*" ]
+      }
       set PROJ_DS_NT_EXST [translate_macro MSG_SGETEXT_UNKNOWNPROJECT_SSSS $project $attributes $elem $host ]
       set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "*" "*" ]
 
@@ -333,8 +337,9 @@ proc set_exechost_error {result old_values tmpfile  raise_error} {
       set host "unknown"
    }
 
-   set messages(index) "-1"
+   set messages(index) "-1 -2"
    set messages(-1) [translate_macro MSG_SGETEXT_UNKNOWNPROJECT_SSSS $attributes $project $elem $host ]
+   set messages(-2) [translate_macro MSG_QUEUE_MODCMPLXDENYDUETOAR_SS "*" "*" ]
 
    set ret 0
    # now evaluate return code and raise errors

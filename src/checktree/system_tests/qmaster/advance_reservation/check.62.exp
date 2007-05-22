@@ -1,0 +1,547 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "advance_reservation_init_level"
+
+# define test's name and run level descriptions
+set check_name            "advance_reservation"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "advance reservation constistancy checks"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function advance_reservation_setup
+set check_cleanup_function advance_reservation_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "test_pe"
+lappend check_functions "test_ckpt"
+lappend check_functions "test_cal"
+lappend check_functions "test_userlist"
+lappend check_functions "test_complexes"
+
+#TBD
+#lappend check_functions "qrdel_force"
+
+global pe_name1 pe_name2
+global ar_name1 ar_name2
+global queue_name1 queue_name2
+global ckpt_name1 ckpt_name2
+global cal_name1 cal_name2
+global userset_name1 userset_name2
+global complex_name1 complex_name2
+global test_host
+
+proc advance_reservation_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+   global pe_name1 pe_name2
+   global ckpt_name1 ckpt_name2
+   global cal_name1 cal_name2
+   global userset_name1 userset_name2
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+   global complex_name1 complex_name2
+   global test_host
+
+   set pe_name1 "pe_with_conflict"
+   set pe_name2 "pe_without_conflict"
+   set ckpt_name1 "ckpt_with_conflict"
+   set ckpt_name2 "ckpt_without_conflict"
+   set cal_name1 "cal_with_conflict"
+   set cal_name2 "cal_without_conflict"
+   set userset_name1 "userset_with_conflict"
+   set userset_name2 "userset_without_conflict"
+   set ar_name1 "ar_with_conflict"
+   set ar_name2 "ar_without_conflict"
+   set queue_name1 "queue_with_conflict"
+   set queue_name2 "queue_without_conflict"
+   set complex_name1 "complex_with_conflict"
+   set complex_name2 "complex_without_conflict"
+
+   set test_host [host_conf_get_suited_hosts]
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc advance_reservation_setup {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global queue_name1 queue_name2
+   global complex_name1 complex_name2
+   global test_host
+
+   set queue_settings(slots) 10
+   set queue_settings(pe_list) "mytestpe"
+   set queue_settings(load_thresholds) "np_load_avg=11.75"
+
+   add_queue $queue_name1 $test_host queue_settings
+   puts $CHECK_OUTPUT "added queue $queue_name1 for hosts $test_host"
+
+   set qname "$queue_name2"
+   add_queue $queue_name2 $test_host queue_settings
+   puts $CHECK_OUTPUT "added queue $queue_name2 for hosts $test_host"
+
+   #           name            short  type    op.   requ.  cons. default  urgency
+   set complex($complex_name1)  "cplx1    INT       <=    YES    NO   0        0"
+   set complex($complex_name2)  "cplx2    INT       <=    YES    NO   0        0"
+   set_complex complex
+}
+
+proc advance_reservation_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global pe_name1 pe_name2
+   global ckpt_name1 ckpt_name2
+   global cal_name1 cal_name2
+   global userset_name1 userset_name2
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+   global complex_name1 complex_name2
+   global test_host
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   start_sge_bin "qrdel" "$ar_name1"
+   start_sge_bin "qrdel" "$ar_name2"
+
+   del_queue $queue_name1 $test_host 0 1
+   del_queue $queue_name2 $test_host 0 1
+
+   del_pe $pe_name1 "" "" 0
+   del_pe $pe_name2 "" "" 0
+
+   del_checkpointobj $ckpt_name1 "" "" 0
+   del_checkpointobj $ckpt_name2 "" "" 0
+
+   del_calendar $cal_name1 "" "" 0
+   del_calendar $cal_name2 "" "" 0
+
+   del_access_list $userset_name1 "" "" 0
+   del_access_list $userset_name2 "" "" 0
+
+   set host_config(complex_values) "NONE"
+   set_exechost host_config $test_host
+
+   set complex_config($complex_name1)  ""
+   set complex_config($complex_name2)  ""
+   set_complex complex_config 0
+}
+
+
+proc test_pe {} {
+   global ts_config 
+   global pe_name1 pe_name2
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+
+   # Test setup
+   set pe(slots)             "2"
+   set pe(allocation_rule)   "\$round_robin"
+   set pe(pe_name)           "$pe_name1"
+   add_pe pe
+   set pe(pe_name)           "$pe_name2"
+   add_pe pe
+
+   set queue_settings(pe_list)          "$pe_name1"
+   mod_queue $queue_name1 "" queue_settings
+   set queue_settings(pe_list)          "$pe_name2"
+   mod_queue $queue_name2 "" queue_settings
+
+   set queue_settings(pe_list) "mytestpe" 
+   set pe_settings(slots) "1"
+
+   # Submit advance reservation with queue1 AND pe1 request
+   start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -pe $pe_name1 2 -d 36000"
+   # Submit advance reservation with queue2 and NO pe request
+   start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 36000"
+
+   # Try to remove pe settings from queue1. Should be rejected because AR requested the pe 
+   set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
+   if {$result != -3} {
+      add_proc_error "test_pe" -1 "modifing queue pe_list with a advance reservation is not rejected"
+   }
+   set result [replace_attr queue pe_list "NONE" $queue_name1 1 "" "" 0]
+   if {$result != -2} {
+      add_proc_error "test_pe" -1 "modifing queue pe_list with rattr with a advance reservation is not rejected"
+   }
+
+   # Try to lower pe_slots. Should be allowed for queue2 but not for queue1
+   set result [set_pe $pe_name1 pe_settings 0] 
+   if {$result != -4} {
+      add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
+   }
+   set result [set_pe $pe_name2 pe_settings 0] 
+   if {$result != 0} {
+      add_proc_error "test_pe" -1 "lowering pe_slots is wrongly rejected"
+   }
+
+   # Try to remove pe settings from queue2. Should be allowed because the AR for queue2 did not requested a pe
+   set result [mod_queue $queue_name2 "" queue_settings]
+   if {$result != 0} {
+      add_proc_error "test_pe" -1 "modifing queue pe_list without a advance reservation is wrongly rejected(1)"
+   }
+
+   # Now remove advance reservation and try it again
+   start_sge_bin "qrdel" "$ar_name1"
+   set result [set_pe $pe_name1 pe_settings 0] 
+   if {$result != 0} {
+      add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
+   }
+   set result [mod_queue $queue_name1 "" queue_settings]
+   if {$result != 0} {
+      add_proc_error "test_pe" -1 "modifing queue pe_list without advance reservation is wrongly rejected(2)"
+   }
+
+   # Test Cleanup
+   start_sge_bin "qrdel" "$ar_name2"
+   mod_queue $queue_name1 "" queue_settings
+   mod_queue $queue_name2 "" queue_settings
+
+   del_pe $pe_name1
+   del_pe $pe_name2
+}
+
+proc test_ckpt {} {
+   global ts_config CHECK_OUTPUT
+   global ckpt_name1 ckpt_name2
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+
+   # Test setup
+   set ckpt(ckpt_name)       "$ckpt_name1"
+   add_checkpointobj ckpt
+   set ckpt(ckpt_name)       "$ckpt_name2"
+   add_checkpointobj ckpt
+
+   set queue_settings(ckpt_list)        "$ckpt_name1"
+   mod_queue $queue_name1 "" queue_settings
+   set queue_settings(ckpt_list)        "$ckpt_name2"
+   mod_queue $queue_name2 "" queue_settings
+
+   set queue_settings(ckpt_list) "NONE" 
+
+   # Submit advance reservation with queue1 AND ckpt1 request
+   set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -ckpt $ckpt_name1 -d 36000"]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+   }
+   # Submit advance reservation with queue2 and NO ckpt request
+   set output [start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 36000"]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+   }
+
+   # Try to remove ckpt settings from queue1. Should be rejected because AR requested the ckpt
+   set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
+   if {$result != -3} {
+      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list with a advance reservation is not rejected"
+   }
+   set result [replace_attr queue ckpt_list "NONE" $queue_name1 1 "" "" 0]
+   if {$result != -2} {
+      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list with rattr with a advance reservation is not rejected"
+   }
+
+   # Try to remove ckpt settings from queue2. Should be allowed because the AR for queue2 did not requested the ckpt
+   set result [mod_queue $queue_name2 "" queue_settings]
+   if {$result != 0} {
+      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list without a advance reservation is wrongly rejected(1)"
+   }
+
+   # Now remove advance reservation and try it again
+   start_sge_bin "qrdel" "$ar_name1"
+   set result [mod_queue $queue_name1 "" queue_settings]
+   if {$result != 0} {
+      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list without advance reservation is wrongly rejected(2)"
+   }
+
+   # Cleanup
+   start_sge_bin "qrdel" "$ar_name2"
+   mod_queue $queue_name1 "" queue_settings
+   mod_queue $queue_name2 "" queue_settings
+
+   del_checkpointobj $ckpt_name1
+   del_checkpointobj $ckpt_name2
+}
+
+proc test_cal {} {
+   global ts_config CHECK_OUTPUT
+   global cal_name1 cal_name2
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+
+   # Test setup
+   set calendar(week)        "mon-sun=0-24=on"
+   set calendar(calendar_name) "$cal_name1"
+   add_calendar calendar
+   set calendar(calendar_name) "$cal_name2"
+   add_calendar calendar
+
+   set queue_settings(calendar)         "$cal_name1"
+   mod_queue $queue_name1 "" queue_settings
+   set queue_settings(calendar)         "$cal_name2"
+   mod_queue $queue_name2 "" queue_settings
+
+   set queue_settings(calendar) "NONE" 
+
+   # Submit advance reservation to queue1
+   set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -d 36000"]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+   }
+   # Submit advance reservation to queue2
+   set output [start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 3600"]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+   }
+
+   # Try to calendar disable queue1, should be rejected because of AR
+   set calendar(week)          "mon-sun=0-24=off"
+   set calendar(calendar_name) "$cal_name1"
+   set result [mod_calendar calendar 1 "" "" 0]
+   if {$result != -2} {
+      add_proc_error "test_cal" -1 "modifing calendar that disables reserved queue is not rejected"
+   }
+
+   # Calendar disable queue2 in the far future, should be allowed
+   set time1 [expr [timestamp] + 172800]; # calendar starts in two days
+   set time2 [expr $time1 + 86400];       # and is disabled for one day
+   set calendar(year) "[clock format $time1 -format "%d.%m.%Y"]"
+   append calendar(year) "-[clock format $time2 -format "%d.%m.%Y"]"
+   append calendar(year) "=off"
+   set calendar(week)    "NONE"
+   set result [mod_calendar calendar]
+   if {$result !=0} {
+      add_proc_error "test_cal" -1 "modifing calendar that is wrongly rejected(1)"
+   }
+
+   # Now remove advance reservation and try it again
+   start_sge_bin "qrdel" "$ar_name1"
+   set calendar(year)          "NONE"
+   set calendar(week)          "mon-sun=0-24=off"
+   set calendar(calendar_name) "$cal_name1"
+   set result [mod_calendar calendar]
+   if {$result != 0} {
+      add_proc_error "test_cal" -1 "modifing calendar that is wrongly rejected(2)"
+   }
+
+   # Cleanup
+   start_sge_bin "qrdel" "$ar_name2"
+   mod_queue $queue_name1 "" queue_settings
+   mod_queue $queue_name2 "" queue_settings
+
+   del_calendar $cal_name1
+   del_calendar $cal_name2
+}
+
+proc test_userlist {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global userset_name1 userset_name2
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+
+   # Test setup
+   set userset(name)         "$userset_name1"
+   set userset(entries)      "$CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER"
+   add_userset userset
+   set userset(name)         "$userset_name2"
+   set userset(entries)      "$CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER"
+   add_userset userset
+
+   set queue_settings(user_lists)       "$userset_name1"
+   mod_queue $queue_name1 "" queue_settings
+   set queue_settings(user_lists)       "$userset_name2"
+   mod_queue $queue_name2 "" queue_settings
+
+   set queue_settings(user_lists) "NONE" 
+   set queue_settings(xuser_lists) "$userset_name1" 
+
+   set userset_settings(entries) "$CHECK_USER"
+
+   # Submit advance reservation with queue1 AND acl request
+   set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -u $CHECK_FIRST_FOREIGN_SYSTEM_USER -d 36000"]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+   }
+   # Submit advance reservation with queue2 and NO acl request
+   set output [start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 36000"]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+   }
+
+   # Try to remove sgetest1 access from queue1. Should be rejected because AR requested the access
+   set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
+   if {$result != -4} {
+      add_proc_error "test_userlist" -1 "modifing queue user_lists with a advance reservation is not rejected"
+   }
+   set result [replace_attr queue xuser_lists "$userset_name1" $queue_name1 1 "" "" 0]
+   if {$result != -3} {
+      add_proc_error "test_userlist" -1 "modifing queue user_lists with rattr with a advance reservation is not rejected"
+   }
+
+   # Try to remove sgetest1 from userset1. Should be allowed for queue2 but not for queue1
+   set result [del_user_from_access_list sgetest1 $userset_name1 "" "" 0]
+   if {$result != -3} {
+      add_proc_error "test_userlist" -1 "removing user from userset used for advance reservation is not rejected"
+   }
+
+   set result [del_user_from_access_list sgetest1 $userset_name2]
+   if {$result != 0} {
+      add_proc_error "test_userlist" -1 "removing user from userset is wrongly rejected(1)"
+   }
+
+   # Now remove advance reservation and try it again
+   start_sge_bin "qrdel" "$ar_name1"
+   set result [del_user_from_access_list sgetest1 $userset_name1]
+   if {$result != 0} {
+      add_proc_error "test_userlist" -1 "removing user from userset is wrongly rejected(2)"
+   }
+
+   # Cleanup
+   start_sge_bin "qrdel" "$ar_name2"
+   set queue_settings(user_lists)       "NONE"
+   set queue_settings(xuser_lists)      "NONE"
+   mod_queue $queue_name1 "" queue_settings
+   mod_queue $queue_name2 "" queue_settings
+   
+   del_access_list $userset_name1
+   del_access_list $userset_name2
+}
+
+proc test_complexes {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global complex_name1 complex_name2
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+   global test_host
+
+   # Test setup
+
+   set host_config(complex_values) "$complex_name1=10,$complex_name2=10"
+   set_exechost host_config $test_host
+
+   # Submit advance reservation with queue1 AND 5 complex1 requests 
+   set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -pe mytestpe 5 -l $complex_name1=1 -d 36000"]
+   if {$prg_exit_state != 0} {
+      puts $CHECK_OUTPUT "qrsub: $output"
+   }
+   # Submit advance reservation with queue2 and NO complex request
+   # start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -pe mytestpe 5 -d 36000"
+
+   # Try to lower queue1 slot count. Should be rejected because 5 slots are reserved
+   set queue_settings(slots) "4"
+   set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
+   if {$result != -5} {
+      add_proc_error "test_complexes" -1 "lowering queue slots for reserved queue is not rejected(1)"
+   }
+   set result [replace_attr queue slots "4" $queue_name1 1 "" "" 0]
+   if {$result != -4} {
+      add_proc_error "test_complexes" -1 "lowering queue slots for reserved queue is not rejected(2)"
+   }
+
+   # Lower complex1 to 5, should be allowed
+   set host_config(complex_values) "$complex_name1=5,$complex_name2=10"
+   set result [set_exechost host_config $test_host]
+   if {$result != 0} {
+      add_proc_error "test_complexes" -1 "lowering reserved host consumable is wrongly rejected"
+   }
+   # Lower complex2 to 1, should be allowed
+   set host_config(complex_values) "$complex_name1=5,$complex_name2=1"
+   set result [set_exechost host_config $test_host]
+   if {$result != 0} {
+      add_proc_error "test_complexes" -1 "lowering unreserved host consumable is wrongly rejected"
+   }
+
+   # Lower complex1 to 1, should be rejected 
+   set host_config(complex_values) "$complex_name1=1,$complex_name2=1"
+   set result [set_exechost host_config $test_host 1 "" "" 0]
+   if {$result != -2} {
+      add_proc_error "test_complexes" -1 "lowering consumable smaller than reserved one is not rejected"
+   }
+   
+   # Try to lower queue2 slot count. Should be allowed
+   set queue_settings(slots) "4"
+   set result [mod_queue $queue_name2 "" queue_settings 1 "" "" 0]
+   if {$result != 0} {
+      add_proc_error "test_complexes" -1 "lowering queue slots on unreserved queue is wrongly rejected"
+   }
+
+   # Remove advance reservation and try again 
+   start_sge_bin "qrdel" "$ar_name1"
+
+   # Lower complex1 to 1, should be rejected 
+   set host_config(complex_values) "$complex_name1=1,$complex_name2=1"
+   set result [set_exechost host_config $test_host]
+   if {$result != 0} {
+      add_proc_error "test_complexes" -1 "lowering unreserved host comsumable is wrongly rejected"
+   }
+   # Try to lower queue1 slot count. Should be rejected because 5 slots are reserved
+   set queue_settings(slots) "4"
+   set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
+   if {$result != 0} {
+      add_proc_error "test_complexes" -1 "lowering queue slots for unreserved queue is wrongly rejected(1)"
+   }
+   set result [replace_attr queue slots "4" $queue_name1 1 "" "" 0]
+   if {$result != 0} {
+      add_proc_error "test_complexes" -1 "lowering queue slots for unreserved queue is wrongly rejected(2)"
+   }
+
+   # Cleanup
+   puts $CHECK_OUTPUT "doing cleanup"
+   set host_config(complex_values) "NONE"
+   set_exechost host_config $test_host
+}

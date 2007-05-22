@@ -205,7 +205,7 @@ proc get_pe {pe_name change_array} {
 #  SEE ALSO
 #     sge_procedures/add_pe()
 #*******************************************************************************
-proc set_pe {pe_obj change_array} {
+proc set_pe {pe_obj change_array {raise_error 1}} {
 
    global ts_config
    global env CHECK_ARCH
@@ -222,23 +222,25 @@ proc set_pe {pe_obj change_array} {
 
    set vi_commands [build_vi_command chgar]
 
-   set MODIFIED  [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
-   set ALREADY_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*" ]
+   set MODIFIED  [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
+   set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*" ]
+   set REJECTED_DUE_TO_AR_PE_SLOTS_U [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U "*"]
 
    if { $ts_config(gridengine_version) == 53 } {
-      set NOT_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS] "*" "*" "*" "*" ]
+      set NOT_EXISTS [translate_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS "*" "*" "*" "*" ]
    } else {
       # JG: TODO: is it the right message? It's the only one mentioning non 
       #           existing userset, but only for CQUEUE?
-      set NOT_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CQUEUE_UNKNOWNUSERSET_S] "*" ]
+      set NOT_EXISTS [translate_macro MSG_CQUEUE_UNKNOWNUSERSET_S "*" ]
    }
 
-   set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mp $pe_obj" $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_EXISTS ]
+   set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mp $pe_obj" $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_EXISTS $REJECTED_DUE_TO_AR_PE_SLOTS_U]
 
-   if {$result == -1 } { add_proc_error "set_pe" -1 "timeout error" }
-   if {$result == -2 } { add_proc_error "set_pe" -1 "parallel environment \"$pe_obj\" already exists" }
-   if {$result == -3 } { add_proc_error "set_pe" -1 "something (perhaps a queue) does not exist" }
-   if {$result != 0  } { add_proc_error "set_pe" -1 "could not change parallel environment \"$pe_obj\"" }
+   if {$result == -1 } { add_proc_error "set_pe" -1 "timeout error" $raise_error }
+   if {$result == -2 } { add_proc_error "set_pe" -1 "parallel environment \"$pe_obj\" already exists" $raise_error}
+   if {$result == -3 } { add_proc_error "set_pe" -1 "something (perhaps a queue) does not exist" $raise_error}
+   if {$result == -4 } { add_proc_error "set_pe" -1 "could not change pe because blocked by a advance reservation" $raise_error}
+   if {$result != 0  } { add_proc_error "set_pe" -1 "could not change parallel environment \"$pe_obj\"" $raise_error}
 
    return $result
 }
@@ -266,16 +268,16 @@ proc set_pe {pe_obj change_array} {
 #  SEE ALSO
 #     sge_procedures/add_pe()
 #*******************************
-proc del_pe {pe_name {raise_error 1} } {
+proc del_pe {pe_name {on_host ""} {as_user ""} {raise_error 1}} {
    global ts_config
    global CHECK_USER
 
-   unassign_queues_with_pe_object $pe_name
+   unassign_queues_with_pe_object $pe_name $on_host $as_user $raise_error
 
    set messages(index) "0"
    set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $pe_name "*"]
 
-   set output [start_sge_bin "qconf" "-dp $pe_name"]
+   set output [start_sge_bin "qconf" "-dp $pe_name" $on_host $as_user]
 
    set ret [handle_sge_errors "del_pe" "qconf -dp $pe_name" $output messages $raise_error]
    return $ret

@@ -321,7 +321,7 @@ proc share_tree_setup  {} {
    set test_queue [get_queue_instance "test" "$test_host"]
    set change_array(slots) "1"
    set change_array(load_thresholds) "none"
-   add_queue "test" $test_host change_array 1
+   add_queue "test" $test_host change_array
 
    set prj_setup(name) "project1"
    add_prj prj_setup

@@ -2594,28 +2594,24 @@ proc add_access_list { user_array list_name } {
 #  SEE ALSO
 # 
 #*******************************************************************************
-proc del_user_from_access_list { user_name list_name  } {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
-  global CHECK_CORE_MASTER CHECK_USER
+proc del_user_from_access_list { user_name list_name {on_host ""} {as_user ""} {raise_error 1}} {
+   global ts_config
+   global CHECK_OUTPUT
 
-  set result ""
-  set catch_return [ catch {  
-      eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -du $user_name $list_name" 
-  } result ]
-  puts $CHECK_OUTPUT $result
-  set NOT_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_GDI_USERNOTINACL_SS] $user_name $list_name]
-  set DELETED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_GDI_DELFROMACL_SS] $user_name $list_name]
+   set ret 0
 
-  if { $result == $NOT_EXISTS } {
-     return 1
-  } elseif { $result == $DELETED } {
-     return 0
-  } else {
-     add_proc_error "del_user_from_access_list" "-1" "Can not delete user $user_name from access list $list_name"
-     return -1
-  }
-  return 0
+   set result [start_sge_bin "qconf" "-du $user_name $list_name" $on_host $as_user]
+
+   if {$prg_exit_state != 0} {
+      set messages(index) "-1 -2 -3"
+      set messages(-1) [translate_macro MSG_GDI_USERNOTINACL_SS $user_name $list_name]
+      set messages(-2) [translate_macro MSG_GDI_DELFROMACL_SS $user_name $list_name]
+      set messages(-3) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
+
+      set ret [handle_sge_errors "del_access_list" "-du $user_name $list_name" $result messages $raise_error]
+   } 
+
+   return $ret
 }
 
 
@@ -2641,25 +2637,23 @@ proc del_user_from_access_list { user_name list_name  } {
 #     sge_procedures/add_access_list()
 # 
 #*******************************************************************************
-proc del_access_list { list_name {raise_error 1} } {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
-  global CHECK_CORE_MASTER CHECK_USER
+proc del_access_list { list_name {on_host ""} {as_user ""} {raise_error 1}} {
+   global ts_config
+   global CHECK_ARCH CHECK_OUTPUT
+   global CHECK_CORE_MASTER CHECK_USER
 
-  set result ""
-  set catch_return [ catch {  
-      eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -dul $list_name" 
-  } result ]
-   puts $CHECK_OUTPUT $result
-  set USER [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_OBJ_USERSET]]
-  set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $list_name $USER]
+   set ret 0
 
-  if { [ string match "*$REMOVED" $result ] == 0 } {
-     add_proc_error "add_access_list" "-1" "could not delete access_list $list_name" $raise_error
-     return -1
-  }
+   set result [start_sge_bin "qconf" "-dul $list_name" $on_host $as_user]
+   if {$prg_exit_state != 0} {
+      set USERSET [translate_macro MSG_OBJ_USERSET]]
+      set messages(index) "-1"
+      set messages(-1) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS $USERSET $list_name]
 
-  return 0
+      set ret [handle_sge_errors "del_access_list" "qconf -dul $list_name" $result messages $raise_error]
+   }
+   
+   return ret 
 }
 
 #                                                             max. column:     |
@@ -4195,12 +4189,12 @@ proc replace_attr { object attribute value target {fast_add 1} {on_host ""} {as_
       if {$prg_exit_state == 0} {
          set ret 0
       } else {
-         set ret [replace_attr_file_error $result $object $attribute $tmpfile $target $raise_error] }
-
+         set ret [replace_attr_file_error $result $object $attribute $tmpfile $target $raise_error]
+      }
    } else {
-   # add by -rattr
+      # add by -rattr
 
-   set result [start_sge_bin "qconf" "-rattr $object $attribute $value $target" $on_host $as_user ]
+      set result [start_sge_bin "qconf" "-rattr $object $attribute $value $target" $on_host $as_user ]
 
       if {$prg_exit_state == 0} {
          set ret 0
@@ -4266,8 +4260,11 @@ proc replace_attr_error {result object attribute value target raise_error} {
 proc replace_attr_file_error {result object attribute tmpfile target raise_error} {
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1"
+   set messages(index) "-1 -2 -3 -4"
    set messages(-1) "error: [translate_macro MSG_UNKNOWNATTRIBUTENAME_S $attribute ]"
+   set messages(-2) [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
+   set messages(-3) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
+   set messages(-4) [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
 
    set ret 0
    # now evaluate return code and raise errors

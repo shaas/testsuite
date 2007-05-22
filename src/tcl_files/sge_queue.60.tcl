@@ -454,9 +454,12 @@ proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user 
 proc mod_queue_error {result qname tmpfile raise_error} {
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1 -2"
+   set messages(index) "-1 -2 -3 -4 -5"
    set messages(-1) [translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
    set messages(-2) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "cluster queue" $qname]
+   set messages(-3) [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
+   set messages(-4) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
+   set messages(-5) [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
 
    set ret 0
    # now evaluate return code and raise errors
@@ -532,54 +535,42 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
    return 0
 }
 
-proc get_queue_list {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
-
-   set NO_QUEUE_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "cqueue list"]
-
+proc get_queue_list {{on_host ""} {as_user ""} {raise_error 1}} {
    # try to get queue list
-   if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sql" } result] != 0 } {
+   set ret 0
+   set result [start_sge_bin "qconf" "-sql" $on_host $as_user]
+
+   if {$prg_exit_state != 0} {
       # if command fails: output error
-      add_proc_error "get_queue_list" -1 "error reading queue list: $result"
-      set result {}
-   } else {
-      # command succeeded: queue list can be empty
-      if { [string first $NO_QUEUE_DEFINED $result] >= 0 } {
-         puts $CHECK_OUTPUT $result
-         set result {}
-      }
-   }
+      set messages(index) "-1"
+      set messages(-1) [translate_macro MSG_QCONF_NOXDEFINED_S "queue"]
+
+      set ret [handle_sge_errors "get_queue_list" "qconf -sql" $result messages $raise_error]
+      set result ""
+   } 
 
    return $result
 }
 
-proc get_qinstance_list {{filter ""}} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
-
-   set NO_QUEUE_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QSTAT_NOQUEUESREMAININGAFTERXQUEUESELECTION_S] "-pe"]
-
+proc get_qinstance_list {{filter ""} {on_host ""} {as_user ""} {raise_error 1}} {
    # try to get qinstance list
    if { $filter != "" } {
       set arg1 [lindex $filter 0]
       set arg2 [lindex $filter 1]
-      set ret [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qselect" "$arg1" "$arg2"} result]
+      set result [start_sge_bin "qselect" "$arg1 $arg2" $on_host $as_user]
       set command_line "qselect $arg1 $arg2"
    } else {
-      set ret [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qselect" } result]
+      set result [start_sge_bin "qselect" "" $on_host $as_user]
       set command_line "qselect"
    }
-   if { $ret != 0 } {
+   if {$prg_exit_state != 0} {
       # command failed because queue list is empty
-      if {[string match "*$NO_QUEUE_DEFINED*" $result]} {
-         puts $CHECK_OUTPUT $result
-         set result {}
-      } else {
-         # if command fails: output error
-         add_proc_error "get_qinstance_list" -1 "error reading queue list:\n$command_line\n$result"
-         set result {}
-      }
+      set messages(index) "-1"
+      set messages(-1) "*[translate_macro MSG_QSTAT_NOQUEUESREMAININGAFTERXQUEUESELECTION_S "*"]"
+
+      # this is no error
+      set ret [handle_sge_errors "get_qinstance_list" "$command_line" $result messages 0]
+      set result ""
    }
 
    return $result

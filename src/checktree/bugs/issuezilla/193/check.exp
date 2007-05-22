@@ -159,12 +159,12 @@ proc issue193_setup {} {
    set new_checkpointobj(ckpt_name)  "qmod_with_r"
    set new_checkpointobj(interface)  "userdefined"
    set new_checkpointobj(when) "r"
-   add_checkpointobj "new_checkpointobj"
+   add_checkpointobj new_checkpointobj
    assign_queues_with_ckpt_object $rerun_queue $rerun_host qmod_with_r
 
    set new_checkpointobj(ckpt_name)  "qmod_without_r"
    set new_checkpointobj(when) "s"
-   add_checkpointobj "new_checkpointobj"
+   add_checkpointobj new_checkpointobj
    assign_queues_with_ckpt_object $rerun_queue $rerun_host qmod_without_r
 
    # add pe_object for test
@@ -344,7 +344,7 @@ proc issue193_checkpointing {} {
    foreach elem $sched_jobs {
       wait_for_jobpending $elem "Sleeper" 80
    }
-   
+
    puts $CHECK_OUTPUT "jobs $no_sched_jobs should still run ..."
    foreach elem $no_sched_jobs {
       wait_for_jobstart $elem "Sleeper" 80

@@ -663,7 +663,7 @@ proc clean_up_checkpointing {} {
   set not_deleted ""
   set error 0
 
-  set result [ del_checkpointobj $migration_ckpt_name ] 
+  set result [del_checkpointobj $migration_ckpt_name]
   if { $result != 0 } {
     set not_deleted "$not_deleted $result"
     incr error 1

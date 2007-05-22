@@ -35,27 +35,21 @@
 # The current implemtation using aattr/dattr is destroying the default
 # settings in all.q
 
-proc unassign_queues_with_ckpt_object { ckpt_obj } {
+proc unassign_queues_with_ckpt_object { ckpt_obj {on_host ""} {as_user ""} {raise_error 1}} {
    global ts_config
    global CHECK_OUTPUT CHECK_ARCH
 
    puts $CHECK_OUTPUT "searching for references in cluster queues ..."
-   set queue_list [get_queue_list]
+   set queue_list [get_queue_list $on_host $as_user $raise_error]
    foreach elem $queue_list {
       puts $CHECK_OUTPUT "queue: $elem"
-      if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dattr" "queue" "ckpt_list" "$ckpt_obj" "$elem" } result] != 0 } {
-         # if command fails: output error
-         add_proc_error "unassign_queues_with_ckpt_object" -1 "error reading queue list: $result"
-      }
+      start_sge_bin "qconf" "-dattr queue ckpt_list $ckpt_obj $elem" $on_host $as_user
    }
    puts $CHECK_OUTPUT "searching for references in queue instances ..."
-   set queue_list [get_qinstance_list]
+   set queue_list [get_qinstance_list "" $on_host $as_user $raise_error]
    foreach elem $queue_list {
       puts $CHECK_OUTPUT "queue: $elem"
-      if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-dattr" "queue" "ckpt_list" "$ckpt_obj" "$elem" } result] != 0 } {
-         # if command fails: output error
-         add_proc_error "unassign_queues_with_ckpt_object" -1 "error changing ckpt_list: $result"
-      }
+      start_sge_bin "qconf" "-dattr queue ckpt_list $ckpt_obj $elem" $on_host $as_user
    }
 }
 
@@ -75,7 +69,8 @@ proc assign_queues_with_ckpt_object { qname hostlist ckpt_obj } {
 
    foreach queue $queue_list {
       puts $CHECK_OUTPUT "queue: $queue"
-      if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aattr" "queue" "ckpt_list" "$ckpt_obj" "$queue" } result] != 0 } {
+      set result [start_sge_bin "qconf" "-aattr queue ckpt_list $ckpt_obj $queue"]
+      if {$prg_exit_state != 0} {
          # if command fails: output error
          add_proc_error "assign_queues_with_ckpt_object" -1 "error changing ckpt_list: $result"
       }
