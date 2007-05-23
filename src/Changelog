@@ -1,3 +1,5 @@
+JG-2007-05-23-1: Bugfix:    Fixed cleanup function of consumable resources test.
+
 JG-2007-05-23-0: Bugfix:    Fixed reporting queue state test.
                  Enhancem.: Extended qconf -purge tests.
                  Review:    RD
