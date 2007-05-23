@@ -1,3 +1,5 @@
+RN-2007-05-23-0: Enhancem.: o Added new test for RFE 6355875 (issue no 916)
+
 JG-2007-05-23-1: Bugfix:    Fixed cleanup function of consumable resources test.
 
 JG-2007-05-23-0: Bugfix:    Fixed reporting queue state test.
