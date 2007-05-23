@@ -1115,8 +1115,8 @@ proc qconf_modify_hostgroup {} {
 #
 #  SYNOPSIS
 #     qconf_purge_queue { } - Call add_queue qconf_queue.q $CHECK_HOST new_queue
-#                                Use "qconf -purge queue qname qconf_queue.q"
-#                                Then clean up with "qconf -dq qconf_queue.q"
+#                             Use "qconf -purge queue qname qconf_queue.q"
+#                             Then clean up with "qconf -dq qconf_queue.q"
 #
 #  FUNCTION
 #     Check basic functionality of qconf
@@ -1128,64 +1128,104 @@ proc qconf_modify_hostgroup {} {
 # sge_procedures/get_qconf_show_list_error()
 #*******************************
 proc qconf_purge_queue {} {
-   global ts_config env
+   global ts_config
    global CHECK_OUTPUT CHECK_USER
 
-   # First add queue "qconf_queue.q". Set the new name to "qconf_queue.q,
-   # host to $host
-
-   set host [lindex $ts_config(execd_nodes) 0]
-   puts $CHECK_OUTPUT "Adding queue qconf_queue.q ...\n"
+   # add a test queue
+   set host [host_conf_get_suited_hosts]
+   set new_queue(load_thresholds) "np_load_avg=10"
    add_queue qconf_queue.q $host new_queue
-
-   # Now purge queue "qconf_queue.q"
-   puts $CHECK_OUTPUT "Positive test of qconf -purge hostlist ...\n"
-   set result33 [purge_queue "qconf_queue.q" $host "hostlist"]
-
-   if { ( $result33 == 0 ) } {
-      puts $CHECK_OUTPUT "qconf -purge queue hostlist qconf_queue.q succeded"
-   } else {
-      puts $CHECK_OUTPUT "result is $result33"
+   set qi [get_queue_instance "qconf_queue.q" $host]
+   
+   # negative test for the testsuite function - it shall only accept
+   # queue instances or queue domains
+   set ret [purge_queue "cluster_queue" "prolog" "" "" 0]
+   if {$ret != -5} {
+      add_proc_error "qconf_purge_queue" -1 "purge_queue accepted a cluster queue name"
+   }
+   
+   # negative test:
+   # purge without attribute name
+   set ret [purge_queue $qi "" "" "" 0]
+   if {$ret != -7} {
+      add_proc_error "qconf_purge_queue" -1 "purge_queue accepted an empty string as attribute"
    }
 
-   # Now purge queue "wrong_queue.q"
-   puts $CHECK_OUTPUT "Negative test of qconf -purge hostlist...\n"
-   set result34 [purge_queue "wrong_queue.q" $host "hostlist" result $host $CHECK_USER 0]
-
-   if { ( $result34 == -1 ) } {
-      puts $CHECK_OUTPUT "qconf -purge queue hostlist wrong_queue.q succeded "
-   } else {
-      puts $CHECK_OUTPUT "result is $result34"
+   # negative test: qconf -purge from non admin host
+   set non_cluster_host [host_conf_get_unused_host]
+   if {$non_cluster_host != ""} {
+      set ret [purge_queue $qi "load_thresholds" $non_cluster_host "" 0]
+      if {$ret == 0} {
+         add_proc_error "qconf_purge_queue" -1 "qconf -purge from $non_cluster_host (non cluster host) should have failed"
+      }
    }
 
-   # Now try load_thresholds for purge
+   # Now try load_thresholds for purge on a queue instance
+   # set queue instance specific value
+   mod_attr "queue" "load_thresholds" "load_avg=20" $qi
    puts $CHECK_OUTPUT "Positive test of qconf -purge load_thresholds ...\n"
-   set result35 [purge_queue "qconf_queue.q" $host "load_thresholds"]
-
-   if { ( $result35 == 0 ) } {
+   set result [purge_queue $qi "load_thresholds"]
+   if {$result == 0} {
       puts $CHECK_OUTPUT "qconf -purge queue load_thresholds qconf_queue.q succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result35"
+      puts $CHECK_OUTPUT "result is $result"
+   }
+
+   # negative test - purging it a second time may not work
+   set result [purge_queue $qi "load_thresholds" "" "" 0]
+   if {$result == -2} {
+      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds second call failed as expected"
+   } else {
+      add_proc_error "qconf_purge_queue" -1 "qconf -purge for the second time on the same attribute should have failed"
+   }
+
+   # Now try load_thresholds for purge on a queue domain
+   # set queue domain specific value
+   mod_attr "queue" "load_thresholds" "load_avg=20" "qconf_queue.q@@qconf_test"
+   puts $CHECK_OUTPUT "Positive test of qconf -purge load_thresholds ...\n"
+   set result [purge_queue "qconf_queue.q@@qconf_test" "load_thresholds"]
+   if {$result == 0} {
+      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds qconf_queue.q@@qconf_test succeded"
+   } else {
+      puts $CHECK_OUTPUT "result is $result"
+   }
+
+   # negative test - purging it a second time may not work
+   set result [purge_queue "qconf_queue.q@@qconf_test" "load_thresholds" "" "" 0]
+   if {$result == -2} {
+      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds second call failed as expected"
+   } else {
+      add_proc_error "qconf_purge_queue" -1 "qconf -purge for the second time on the same attribute should have failed"
    }
 
    # Now purge queue "wrong_queue.q"
    puts $CHECK_OUTPUT "Negative test of qconf -purge load_thresholds...\n"
-   set result36 [purge_queue "wrong_queue.q" $host "load_thresholds" result $host $CHECK_USER 0]
-
-   if { ( $result36 == -1 ) } {
-      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds wrong_queue.q succeded "
+   set result [purge_queue [get_queue_instance "wrong_queue.q" $host] "load_thresholds" "" "" 0]
+   if {$result == -1} {
+      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds wrong_queue.q failed as expected"
    } else {
-      puts $CHECK_OUTPUT "result is $result36"
+      add_proc_error "qconf_purge_queue" -1 "qconf -purge with a wrong queue didn't fail"
    }
+
+   # Now purge wrong queue domain
+   # it doesn't complain about the hostgroup not existing, but about not finding the value
+   puts $CHECK_OUTPUT "Negative test of qconf -purge load_thresholds...\n"
+   set result [purge_queue "qconf_queue.q@@non_existing_hgroup" "load_thresholds" "" "" 0]
+   if {$result == -2} {
+      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds wrong_queue.q failed as expected"
+   } else {
+      add_proc_error "qconf_purge_queue" -1 "qconf -purge with a wrong queue didn't fail"
+   }
+
 
    # Now delete queue "qconf_queue.q"
    puts $CHECK_OUTPUT "Positive test of qconf -dq qconf_queue.q...\n"
-   set result4 [del_queue  "qconf_queue.q" $host 1]
+   set result [del_queue "qconf_queue.q" $host 1]
 
-   if { ( $result4  == 0 )} {
+   if {$result == 0} {
       puts $CHECK_OUTPUT "qconf -dq qconf_queue.q succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result4"
+      puts $CHECK_OUTPUT "result is $result"
    }
 }
 
@@ -1220,7 +1260,7 @@ proc qconf_purge_queue {} {
 #*******************************
 proc qconf_de_check {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_USER CHECK env
+   global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_USER CHECK
    puts $CHECK_OUTPUT "testing qconf -de ..."
 
    # Setup

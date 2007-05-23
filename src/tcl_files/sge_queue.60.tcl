@@ -607,19 +607,17 @@ proc get_clear_queue_error_vdep {messages_var host} {
 
 #****** sge_queue.60/purge_queue() *****************************************
 #  NAME
-#     purge_queue() -- purge queue object queue@$host
+#     purge_queue() -- purge queue instance or queue domain
 #
 #  SYNOPSIS
-#     purge_queue { queue host object {output_var result} {on_host ""} {as_user ""} {raise_error 1}  }
+#     purge_queue { queue object {on_host ""} {as_user ""} {raise_error 1}}
 #
 #  FUNCTION
-#     Calls qconf -purge queue hostlist $queue@$host to clear purge $queue
+#     Calls qconf -purge queue attribute queue_instance|queue_domain.
 #
 #  INPUTS
-#     queue           - queue to be cleared
-#     host            - host instnace on which to purge queue
-#     object          - object to be purged: hostlist, load_threashold,...
-#     output_var      - result will be placed here
+#     queue           - queue instance or queue domain to purge
+#     object          - attribute to be purged: hostlist, load_threshold, ...
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
 #     {raise_error 1} - raise an error condition on error (default), or just
@@ -633,24 +631,11 @@ proc get_clear_queue_error_vdep {messages_var host} {
 #     sge_calendar/get_calendar()
 #     sge_calendar/get_calendar_error()
 #*******************************************************************************
-proc purge_queue {queue host object {output_var result}  {on_host ""} {as_user ""} {raise_error 1}} {
-
-   upvar $output_var out
-
-   # clear output variable
-   if {[info exists out]} {
-      unset out
-   }
-
+proc purge_queue {queue object {on_host ""} {as_user ""} {raise_error 1}} {
    set ret 0
-   set result [start_sge_bin "qconf" "-purge queue $object $queue@$host" $on_host $as_user]
 
-   # parse output or raise error
-   if {$prg_exit_state == 0} {
-      parse_simple_record result out
-   } else {
-      set ret [purge_queue_error $result $queue $host $object $raise_error]
-   }
+   set result [start_sge_bin "qconf" "-purge queue $object $queue" $on_host $as_user]
+   set ret [purge_queue_error $result $queue $object $raise_error]
 
    return $ret
 
@@ -674,35 +659,65 @@ proc purge_queue {queue host object {output_var result}  {on_host ""} {as_user "
 #     dependent.
 #
 #  INPUTS
-#     result      - qconf output
-#     queue       - queue for which qconf -purge has been called
-#     host        - host on which queue will be purged
+#     queue       - queue intance or queue domain for which qconf -purge 
+#                   has been called
 #     object      - object  which queue will be purged
 #     raise_error - do add_proc_error in case of errors
 #
 #  RESULT
 #     Returncode for purge_queue function:
-#      -1:  Cluster queue entry "queue" does not exist
-#     -99: other error
+#        0: the queue was modified
+#       -1: a cluster queue name was passed to purge_queue (handled in purge_queue)
+#       -2: cluster queue entry "queue" does not exist
+#     -999: other error
 #
 #  SEE ALSO
 #     sge_calendar/get_calendar
 #     sge_procedures/handle_sge_errors
 #*******************************************************************************
-proc purge_queue_error {result queue host object raise_error} {
+proc purge_queue_error {result queue object raise_error} {
+   global CHECK_OUTPUT CHECK_USER
 
-   global CHECK_OUTPUT
+   set pos [string first "@" $queue]
+   if {$pos < 0} {
+      set cqueue $queue
+      set host_or_group ""
+   } else {
+      set cqueue [string range $queue 0 [expr $pos -1]]
+      set host_or_group [string range $queue [expr $pos + 1] end]
+   }
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1 "
-   set messages(-1) [concat "error: " [translate_macro MSG_CQUEUE_DOESNOTEXIST_S $queue]]
+   set messages(index) 0
+   set messages(0) [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" $cqueue "*"]
 
-   # we might have version dependent, calendar specific error messages
+   lappend messages(index) -1
+   set messages(-1) "*[translate_macro MSG_CQUEUE_DOESNOTEXIST_S $cqueue]"
+
+   lappend messages(index) -2
+   set messages(-2) [translate_macro MSG_PARSE_ATTR_ARGS_NOT_FOUND $object $host_or_group]
+
+   lappend messages(index) -3
+   set messages(-3) [translate_macro MSG_QCONF_MODIFICATIONOFOBJECTNOTSUPPORTED_S]
+
+   lappend messages(index) -4
+   set messages(-4) "*[translate_macro MSG_QCONF_NOATTRIBUTEGIVEN]*"
+
+   lappend messages(index) -5
+   set messages(-5) "*[translate_macro MSG_QCONF_GIVENOBJECTINSTANCEINCOMPLETE_S "*"]*"
+
+   lappend messages(index) -6
+   set messages(-6) [translate_macro MSG_QCONF_MODIFICATIONOFHOSTNOTSUPPORTED_S "*"]
+
+   lappend messages(index) -7
+   set messages(-7) "*[translate_macro MSG_PARSE_NOOPTIONARGPROVIDEDTOX_S "*"]*"
+
+   # we might have version dependent, queue specific error messages
    get_clear_queue_error_vdep messages $queue
 
    set ret 0
    # now evaluate return code and raise errors
-   set ret [handle_sge_errors "purge_queue" "qconf -purge $object $queue@$host" $result messages $raise_error]
+   set ret [handle_sge_errors "purge_queue" "qconf -purge $object $queue" $result messages $raise_error]
 
    return $ret
 }
