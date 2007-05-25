@@ -159,6 +159,9 @@ proc issue_xxx {} {
    set rqs_name "issue_xxx"
    set rules ""
    lappend rules "queues $resource_quota_test_qname hosts $resource_quota_test_host to slots=1"
+   # Append two additional rules to cover Issue 2250
+   lappend rules "projects mytestproject to slots=1"
+   lappend rules "projects mytestproject to slots=1"
 
    # Add resource quota sets 
    set rqs_charray($rqs_name,limit) "$rules"
