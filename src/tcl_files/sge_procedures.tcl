@@ -4683,7 +4683,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
 
    # we first want to parse errors first, then the positive messages, 
    # as e.g. an immediate job might be correctly submitted, but then cannot be scheduled
-   set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33"
+   set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33 -34"
    append messages(index) " 0 1 2"
 
    # success messages:
@@ -4747,6 +4747,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    set messages(-31)    "*[translate_macro MSG_ANSWER_INVALIDOPTIONARGX_S "*"]*"
    set messages(-32)    "*[translate_macro MSG_JOB_PRJNOSUBMITPERMS_S "*"]*"
    set messages(-33)    "*[translate_macro MSG_STREE_USERTNOACCESS2PRJ_SS "*" "*"]*"
+   set messages(-34)    "*[translate_macro MSG_JOB_NOSUITABLEQ_S "*"]*"
 
    if {$show_args == 1} {
       puts $CHECK_OUTPUT "job submit args:\n$args"

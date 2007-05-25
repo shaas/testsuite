@@ -67,6 +67,8 @@ lappend check_functions "test_ckpt"
 lappend check_functions "test_cal"
 lappend check_functions "test_userlist"
 lappend check_functions "test_complexes"
+lappend check_functions "test_require_more_than_reserved"
+lappend check_functions "test_changing_ar_id"
 
 #TBD
 #lappend check_functions "qrdel_force"
@@ -77,8 +79,8 @@ global queue_name1 queue_name2
 global ckpt_name1 ckpt_name2
 global cal_name1 cal_name2
 global userset_name1 userset_name2
-global complex_name1 complex_name2
-global test_host
+global complex_name1 complex_name2 gr_cplx
+global test_host default_args
 
 proc advance_reservation_init_level {} {
    global CHECK_ACT_LEVEL ts_config
@@ -88,8 +90,8 @@ proc advance_reservation_init_level {} {
    global userset_name1 userset_name2
    global ar_name1 ar_name2
    global queue_name1 queue_name2
-   global complex_name1 complex_name2
-   global test_host
+   global complex_name1 complex_name2 gr_cplx
+   global test_host default_args job_output_dir
 
    set pe_name1 "pe_with_conflict"
    set pe_name2 "pe_without_conflict"
@@ -105,7 +107,11 @@ proc advance_reservation_init_level {} {
    set queue_name2 "queue_without_conflict"
    set complex_name1 "complex_with_conflict"
    set complex_name2 "complex_without_conflict"
+   set gr_cplx "graphics"
 
+   # set default jobargs
+   set default_args "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 60"
+ 
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
@@ -120,8 +126,10 @@ proc advance_reservation_init_level {} {
 proc advance_reservation_setup {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global queue_name1 queue_name2
-   global complex_name1 complex_name2
-   global test_host
+   global complex_name1 complex_name2 gr_cplx
+   global test_host 
+
+   set test_host [host_conf_get_suited_hosts]
 
    set test_host [host_conf_get_suited_hosts]
 
@@ -139,6 +147,7 @@ proc advance_reservation_setup {} {
    #           name            short  type    op.   requ.  cons. default  urgency
    set complex($complex_name1)  "cplx1    INT       <=    YES    NO   0        0"
    set complex($complex_name2)  "cplx2    INT       <=    YES    NO   0        0"
+   set complex($gr_cplx)        "gr       INT       <=    YES    YES  0        0"
    set_complex complex
 }
 
@@ -149,15 +158,14 @@ proc advance_reservation_cleanup {} {
    global cal_name1 cal_name2
    global userset_name1 userset_name2
    global ar_name1 ar_name2
-   global queue_name1 queue_name2
+   global queue_name1 queue_name2 gr_cplx
    global complex_name1 complex_name2
    global test_host
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   start_sge_bin "qrdel" "$ar_name1"
-   start_sge_bin "qrdel" "$ar_name2"
+   delete_all_ars
 
    del_queue $queue_name1 $test_host 0 1
    del_queue $queue_name2 $test_host 0 1
@@ -179,6 +187,7 @@ proc advance_reservation_cleanup {} {
 
    set complex_config($complex_name1)  ""
    set complex_config($complex_name2)  ""
+   set complex_config($gr_cplx)  ""
    set_complex complex_config 0
 }
 
@@ -545,3 +554,178 @@ proc test_complexes {} {
    set host_config(complex_values) "NONE"
    set_exechost host_config $test_host
 }
+
+proc test_require_more_than_reserved {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global complex_name1 complex_name2 gr_cplx
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+   global test_host default_args
+
+   # Test setup
+
+   set host_config(complex_values) "$gr_cplx=10"
+   set_exechost host_config $test_host
+
+   delete_all_ars
+
+   # Submit advance reservation with queue1 AND 5 complex1 requests 
+   set args "-l '$gr_cplx=2,h_rt=3600' -d 3600"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      return
+   }
+
+   # Positive tests
+   set args "-ar $ar_id -l $gr_cplx=2,h_rt=100 $default_args"
+   set job_id [submit_job $args]
+
+   # Negative tests 
+   set args "-ar $ar_id -l $gr_cplx=3,h_rt=100 $default_args"
+   set job_id [submit_job $args 0]
+   if {$job_id != -34} {
+      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+   }
+
+   set args "-ar $ar_id -l $gr_cplx=1,h_rt=10000 $default_args"
+   set job_id [submit_job $args 0]
+   if {$job_id != -34} {
+      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+   }
+
+   delete_all_ars
+   # Questionable behavior RESTRING
+   set args "-l 'a=sol-sparc64' -d 3600"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      return
+   }
+
+   set args "-ar $ar_id -l 'a=sol-sparc64' $default_args"
+   set job_id [submit_job $args]
+
+   set args "-ar $ar_id -l 'a=sol*' $default_args"
+   set job_id [submit_job $args]
+
+   set args "-l 'a=sol*' -d 3600"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      return
+   }
+   set args "-ar $ar_id -l 'a=sol-sparc64' $default_args"
+   set job_id [submit_job $args 0]
+   if {$job_id != -34} {
+      add_proc_error "test_require_more_than_reserved" -1 "error  'no suitable queues' was not shown"
+      return
+   }
+    
+   delete_all_ars
+   # Submit advance reservation with 6 consumable graphics 
+   set args "-pe mytestpe 3 -l $gr_cplx=6 -d 36000"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      return
+   }
+
+   # Positive tests
+   set args "-ar $ar_id -pe mytestpe 1 -l $gr_cplx=2 $default_args"
+   set job_id [submit_job $args]
+
+   set args "-ar $ar_id -pe mytestpe 3 -l $gr_cplx=2 $default_args"
+   set job_id [submit_job $args]
+
+   # Negative tests
+   set args "-ar $ar_id -pe mytestpe 4 -l $gr_cplx=2 $default_args"
+   set job_id [submit_job $args 0]
+   if {$job_id != -34} {
+      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+   }
+
+   set args "-ar $ar_id -pe mytestpe 2 -l $gr_cplx=4 $default_args"
+   set job_id [submit_job $args 0]
+   if {$job_id != -34} {
+      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+   }
+
+}
+
+proc test_changing_ar_id {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global complex_name1 complex_name2 gr_cplx
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+   global test_host default_args
+
+   # Test setup
+   set job_name "chjobr"
+
+   set args "-d 36000"
+   set ar_id1 [submit_ar $args]
+   if {$ar_id1 < 0} {
+      return
+   }
+
+   set args "-d 36000"
+   set ar_id2 [submit_ar $args]
+   if {$ar_id2 < 0} {
+      return
+   }
+
+   #  The tests
+   set args "-ar $ar_id1 -N $job_name $default_args"
+   set job_id [submit_job $args]
+   if {$job_id < 0} {
+      return
+   }
+
+   set res [wait_for_jobstart $job_id $job_name 300]
+   if {$res!=0} {
+      add_proc_error "test_changing_ar_id" -1 "job is not running"
+   }
+
+   
+      
+	puts $CHECK_OUTPUT "change the ar of running job\nrun qalter -ar $ar_id2 $job_id\n"
+   set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id" ]
+   if {$prg_exit_state==0} {
+      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on running job"
+      puts $CHECK_OUTPUT $result1
+   }
+
+   # Test setup
+   set job_name "chjobp"
+   delete_all_ars   
+
+   set args "-d 36000 -a 1001010101"
+   set ar_id1 [submit_ar $args]
+   if {$ar_id1 < 0} {
+      return
+   }
+
+   set args "-d 36000 -a 1101010101"
+   set ar_id2 [submit_ar $args]
+   if {$ar_id2 < 0} {
+      return
+   }
+
+   #  The tests
+   set args "-ar $ar_id1 -N $job_name $default_args"
+   set job_id [submit_job $args]
+   if {$job_id < 0} {
+      return
+   }
+
+   set res [wait_for_jobpending $job_id $job_name 300]
+   if {$res!=0} {
+      add_proc_error "test_changing_ar_id" -1 "job is not pending"
+   } 
+
+	puts $CHECK_OUTPUT "change the ar of pending job\nrun qalter -ar $ar_id2 $job_id\n"
+   set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id" ]
+   if {$prg_exit_state!=0} {
+      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on pending job"
+      puts $CHECK_OUTPUT $result1
+   }
+
+}
+

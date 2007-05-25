@@ -69,7 +69,6 @@ lappend check_functions "check_submit_ar"
 lappend check_functions "check_submit_ar_noargs"
 lappend check_functions "check_submit_ar_invalid_arg"
 lappend check_functions "check_submit_ar_invalid_option_arg"
-lappend check_functions "check_submit_all_qrstat_all"
 lappend check_functions "check_option_a"
 lappend check_functions "check_option_A"
 lappend check_functions "check_option_ckpt"
@@ -139,7 +138,6 @@ proc check_submit_ar {} {
    set options "-d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
@@ -157,7 +155,6 @@ proc check_submit_ar_noargs {} {
    set options ""
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : expected error 'no options argument'"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -36} {
@@ -176,7 +173,6 @@ proc check_submit_ar_invalid_arg {} {
    set options "dfdf -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : expected error 'invalid option argument'"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -32} {
@@ -193,76 +189,14 @@ proc check_submit_ar_invalid_option_arg {} {
    set options "-dl 1101010101 -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : expected error 'invalid option argument'"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -31} {
-     add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
-     return
+      add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
+      return
    }
    puts $CHECK_OUTPUT "test check_submit_ar_invalid_option_arg OK"
 
-}
-
-# will be moved to system_tests/clients/qrstat/check.62.exp
-proc check_submit_all_qrstat_all {} {
-   global ts_config
-   global actual_host  
-   global qinstance
-   global CHECK_OUTPUT
-   global CHECK_USER
-   global CHECK_REPORT_EMAIL_TO
-
-#  To be sure, no conflict exists
-   delete_all_ars   
-
-   set    args "-a 1101010101 "
-   append args "-e 1201010101 "
-   append args "-A test_ar_account "
-   append args "-ckpt test_ar_ckpt "
-   append args "-he yes "
-   append args "-l 'h_rt=200, h=${actual_host}' "
-   append args "-m abe "
-   append args "-masterq all.q "
-   append args "-M sgetest1@sun.com,$CHECK_REPORT_EMAIL_TO "
-   append args "-N test_ar_name "
-   append args "-w e "
-   append args "-pe mytestpe 3 "
-   append args "-q $qinstance "
-   append args "-u '!sgetest1,sgetest2,!root' "
-
-   puts $CHECK_OUTPUT "qrsub $args\n"
-   set ar_id [submit_ar "$args"]
-   if {$ar_id < 0} {
-    return
-   }
-
-   set check_values(id)                             "$ar_id"
-   set check_values(name)                           "test_ar_name"
-   set check_values(owner)                          "$CHECK_USER"  
-   set check_values(checkpoint_name)                "test_ar_ckpt"
-   set check_values(start_time)                     "01/01/2011 01:01:00"
-   set check_values(end_time)                       "01/01/2012 01:01:00"
-   set check_values(duration)                       "8760:00:00"
-   set check_values(group)                          "staff"
-   set check_values(account)                        "test_ar_account"
-   set check_values(resource_list)                  "h_rt=200, hostname=${actual_host}"
-   set check_values(error_handling)                 "true"
-   set check_values(granted_slots_list)             "$qinstance=3"
-   set check_values(granted_parallel_environment)   "mytestpe slots 3"
-   set check_values(checkpoint_name)                "test_ar_ckpt"
-   set check_values(mail_options)                   "abe"
-   set check_values(mail_list)                      "sgetest1@sun.com,$CHECK_REPORT_EMAIL_TO"
-   set check_values(acl_list)                       "sgetest2"
-   set check_values(xacl_list)                      "sgetest1,root"
-
-
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
-   set ret [parse_qrstat_check $ar_id check_values]
-   if {$ret != 0 } {
-    return
-   }
-   puts $CHECK_OUTPUT "test check_submit_all_qrstat_all OK"
 }
 
 proc check_option_a {} {
@@ -272,62 +206,57 @@ proc check_option_a {} {
    set options "-a 1201010101 -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(start_time)                     "01/01/2012 01:01:00"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
 
    # negative tests
    set options "-a 1201010101"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : error 'end time or duration' expected"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -55} {
-     add_proc_error "submit_ar" -1 "error 'end time or duration' was not shown"
-     return
+      add_proc_error "submit_ar" -1 "error 'end time or duration' was not shown"
+      return
    }
 
    set options "-a 0101010101 -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : error 'start time is in the past' expected"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -58} {
-     add_proc_error "submit_ar" -1 "error 'start time is in the past' was not shown"
-     return
+      add_proc_error "submit_ar" -1 "error 'start time is in the past' was not shown"
+      return
    }
 
    set options "-a 1301010101 -e 1201010101"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : error 'start time is later than end time' expected"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -57} {
-     add_proc_error "submit_ar" -1 "error 'start time is later than end time' was not shown"
-     return
+      add_proc_error "submit_ar" -1 "error 'start time is later than end time' was not shown"
+      return
    }
 
    set options "-a errl -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : error 'Wrong date/time format' expected"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -38} {
-     add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong date/time format' was not shown"
-     return
+      add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong date/time format' was not shown"
+      return
    }
    puts $CHECK_OUTPUT "test check_option_a OK"
 
@@ -341,10 +270,9 @@ proc check_option_A {} {
    set options "-d 1000 -A $elm"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -352,7 +280,7 @@ proc check_option_A {} {
    set check_values(account)                        "$elm"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_A OK"
 
@@ -368,17 +296,16 @@ proc check_option_ckpt {} {
    set options "-d 1000 -ckpt $elm"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(checkpoint_name)                        "$elm"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_ckpt OK"
 
@@ -393,10 +320,9 @@ proc check_option_d {} {
    set options "-d 3600"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
   
@@ -404,16 +330,15 @@ proc check_option_d {} {
    set check_values(duration)                     "01:00:00"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
 
    set options "-d 01:01:01"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -421,19 +346,18 @@ proc check_option_d {} {
    set check_values(duration)                     "01:01:01"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
 
    # negative tests
    set options "-d 01-01-01"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : error 'Wrong time format' expected"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -40} {
-     add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong time format' was not shown"
-     return
+      add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong time format' was not shown"
+      return
    }
    puts $CHECK_OUTPUT "test check_option_d OK"
 
@@ -447,10 +371,9 @@ proc check_option_e {} {
    set options "-e 1201010101 -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -458,7 +381,7 @@ proc check_option_e {} {
    set check_values(end_time)                     "01/01/2012 01:01:00"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
 
 
@@ -466,23 +389,21 @@ proc check_option_e {} {
    set options "-e 0101010101 -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : error 'start time is in the past' expected"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -58} {
-     add_proc_error "submit_ar" -1 "error 'start time is in the past' was not shown"
-     return
+      add_proc_error "submit_ar" -1 "error 'start time is in the past' was not shown"
+      return
    }
 
    set options "-e 01-01-01 -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args : error 'Invalid day specification.' expected"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -38} {
-     add_proc_error "submit_ar" -1 "error $ar_id: 'Invalid day specification.' was not shown"
-     return
+      add_proc_error "submit_ar" -1 "error $ar_id: 'Invalid day specification.' was not shown"
+      return
    }
    puts $CHECK_OUTPUT "test check_option_e OK"
 
@@ -496,12 +417,11 @@ proc check_option_help {} {
    set options "-help"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -2} {
-     add_proc_error "submit_ar" -1 "error in help $ar_id"
-     return
+      add_proc_error "submit_ar" -1 "error in help $ar_id"
+      return
    }
    puts $CHECK_OUTPUT "test check_option_help OK"
 
@@ -515,10 +435,9 @@ proc check_option_he {} {
    set options "-he yes -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -526,19 +445,18 @@ proc check_option_he {} {
    set check_values(error_handling)                     "true"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
 
    # negative tests
    set options "-he blaf"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args 0]
 
    if {$ar_id != -31} {
-     add_proc_error "submit_ar" -1 "invalid option error in -he blaf not shown"
-     return
+      add_proc_error "submit_ar" -1 "invalid option error in -he blaf not shown"
+      return
    }
    puts $CHECK_OUTPUT "test check_option_he OK"
 
@@ -552,10 +470,9 @@ proc check_option_l {} {
    set options "-l 'h=$actual_host, h_rt=1000' -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -563,7 +480,7 @@ proc check_option_l {} {
    set check_values(resource_list)                     "hostname=$actual_host, h_rt=1000"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_l OK"
 
@@ -577,10 +494,9 @@ proc check_option_m {} {
    set options "-m abe -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -588,7 +504,7 @@ proc check_option_m {} {
    set check_values(mail_options)                     "abe"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_m OK"
 
@@ -602,20 +518,18 @@ proc check_option_now {} {
    set options "-now y -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
    set options "-now n -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_now OK"
 
@@ -629,10 +543,9 @@ proc check_option_M {} {
    set options "-M $CHECK_REPORT_EMAIL_TO -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -640,7 +553,7 @@ proc check_option_M {} {
    set check_values(mail_list)                     "$CHECK_REPORT_EMAIL_TO"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_M OK"
 
@@ -652,10 +565,9 @@ proc check_option_N {} {
    set options "-N test_ar_name -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -663,7 +575,7 @@ proc check_option_N {} {
    set check_values(name)                     "test_ar_name"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_N OK"
 
@@ -683,10 +595,9 @@ proc check_option_pe {} {
    set options "-pe qrstat_pe 3 -d 1000 "
    set args "$options"
 
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -695,7 +606,7 @@ proc check_option_pe {} {
    set check_values(granted_slots_list)             "all.q@*=1,all.q@*=1,all.q@*=1"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_pe OK"
 
@@ -708,10 +619,9 @@ proc check_option_q {} {
    set options "-q $qinstance -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -719,7 +629,7 @@ proc check_option_q {} {
    set check_values(granted_slots_list)                     "$qinstance=1"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_q OK"
 
@@ -732,23 +642,21 @@ proc check_option_w {} {
    set options " -w e -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
 
    if {$ar_id < 0} {
-     add_proc_error "submit_ar" -1 "invalid submition message"
-     return
+      add_proc_error "submit_ar" -1 "invalid submition message"
+      return
    }
 
    set options " -w v -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
 
    if {$ar_id != 1} {
-     add_proc_error "submit_ar" -1 "invalid submition message"
-     return
+      add_proc_error "submit_ar" -1 "invalid submition message"
+      return
    }
    puts $CHECK_OUTPUT "test check_option_w OK"
 
@@ -761,10 +669,9 @@ proc check_option_u {} {
    set options " -u 'sgetest,!sgetest1,sgetest2,!root' -d 1000"
    set args "$options"
  
-   puts $CHECK_OUTPUT "Submit ar: $args"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-    return
+      return
    }
 
 
@@ -773,7 +680,7 @@ proc check_option_u {} {
    set check_values(xacl_list)              "sgetest1,root"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
-    return
+      return
    }
    puts $CHECK_OUTPUT "test check_option_u OK"
 

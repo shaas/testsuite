@@ -47,6 +47,7 @@
 #     args                - a string of qrsub arguments/parameters
 #     {do_error_check 1}  - if 1 (default): add global errors (add_proc_error) when error occured
 #                           if 0: do not add errors at all
+#     {show_args 1}       - show ar args 
 #
 #  RESULT
 #     This procedure returns:
@@ -64,7 +65,7 @@
 #     
 #
 #*******************************
-proc submit_ar {args {do_error_check 1} } {
+proc submit_ar {args {do_error_check 1} {show_args 1}} {
    global ts_config CHECK_OUTPUT
 
    # failure messages from jobs common valiation part:
@@ -109,7 +110,10 @@ proc submit_ar {args {do_error_check 1} } {
    foreach idx [lsort [array names messages]] {
       append messages(index) "$idx "
    }
-#   puts $CHECK_OUTPUT $messages(index)
+   
+   if {$show_args == 1} {
+      puts $CHECK_OUTPUT "Submit ar: $args\n"
+   }
 
    set output [start_sge_bin "qrsub" $args "" "" prg_exit_state]
 
@@ -154,7 +158,7 @@ proc delete_all_ars {} {
    global ts_config CHECK_OUTPUT CHECK_USER
 
    puts $CHECK_OUTPUT "deleting all ar"
-   set output [start_sge_bin "qrdel" "-u '*' "]
+   set output [start_sge_bin "qrdel" "-f -u '*' "]
    puts $CHECK_OUTPUT $output
 
    if {$prg_exit_state == 0} {

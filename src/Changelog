@@ -1,3 +1,7 @@
+PJ-2007-05-25-0  Bugfix:    Added message to submit_job
+                            Added tests to advance_reservation test
+                            Moved AR spooling test to spooling test
+
 RD-2007-05-25-1: Bugfix:    Fixed advance_reservation test
                  Review:    JG
 
