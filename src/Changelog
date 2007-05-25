@@ -1,3 +1,6 @@
+RD-2007-05-25-1: Bugfix:    Fixed advance_reservation test
+                 Review:    JG
+
 RN-2007-05-25-0: Bugfix   : o Modified qconf -sds test to test CR 6522273
                  Review:    JG
 

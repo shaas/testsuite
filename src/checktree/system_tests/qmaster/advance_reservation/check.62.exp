@@ -106,8 +106,6 @@ proc advance_reservation_init_level {} {
    set complex_name1 "complex_with_conflict"
    set complex_name2 "complex_without_conflict"
 
-   set test_host [host_conf_get_suited_hosts]
-
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
@@ -124,6 +122,8 @@ proc advance_reservation_setup {} {
    global queue_name1 queue_name2
    global complex_name1 complex_name2
    global test_host
+
+   set test_host [host_conf_get_suited_hosts]
 
    set queue_settings(slots) 10
    set queue_settings(pe_list) "mytestpe"
