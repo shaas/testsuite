@@ -1,3 +1,6 @@
+RN-2007-05-25-0: Bugfix   : o Modified qconf -sds test to test CR 6522273
+                 Review:    JG
+
 RD-2007-05-25-0: Enhancem.: Enhanced test to cover Issue 2250
                  Review:    JG
 

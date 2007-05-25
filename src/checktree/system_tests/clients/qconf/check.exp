@@ -113,6 +113,7 @@ lappend check_functions "qconf_modify_project";# Modify project
 lappend check_functions "qconf_modify_userlist";# Modify user list
 lappend check_functions "qconf_modify_sched_conf";# Modify scheduler config
 lappend check_functions "qconf_issue_2023"
+ 
 
 global queue_names
 
@@ -1031,18 +1032,50 @@ proc qconf_sconfl_check {} {
 
 proc qconf_sds_check {} {
 
-   global ts_config env
+   global ts_config env queue_names
    global CHECK_OUTPUT CHECK_USER CHECK_HOST CHECK_ARCH
   
    # First do a positive test
-   set result0 [get_detached_settings]
+   puts $CHECK_OUTPUT "1) Doing positive test!"
 
+   set result0 [get_detached_settings]
 
    if { ( $result0 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -sds succeded"
    } else {
       puts $CHECK_OUTPUT "result is $result0"
    }
+
+   #Now check if the error code is set incase of error
+   #for forcing the error we set the cq conf as:
+   #qconf -sq tq | head -3
+   # qname                 tq
+   # hostlist              NONE
+   # seq_no                0,[@allhosts=1]
+   puts $CHECK_OUTPUT "2) Doing exit code test in case of error!\n"
+
+   set nohost "NONE" 
+
+   # Just take the first queue name for testing!
+   set queue [lindex $queue_names 0]
+   set q_param(seq_no)	"0,\[@qconf_test=1\]"
+
+   puts $CHECK_OUTPUT "adding queue \"$queue\" with vi"
+   add_queue $queue $nohost q_param 0
+
+   #We know we are getting an error
+   set result0 [get_detached_settings output "" "" 0]
+
+   #Need to check if the error code is set to non-zero
+   if { ( $result0 == 0 ) } {
+      add_proc_error "qconf_sds_check" -1 "qconf -sds wrong exit code on error"
+   } else {
+      puts $CHECK_OUTPUT "qconf -sds exit code on error - succeded\n$result0"
+   }
+
+   #clean up the queue
+   del_queue $queue $nohost 0 1
+
 }
 
 #                                                      max. column:     |
