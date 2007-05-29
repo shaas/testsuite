@@ -390,7 +390,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       }
 
 
-      -i $sp_id "$qconf_error_msg" {
+      -i $sp_id -- "$qconf_error_msg" {
          set error $raise_error
          add_proc_error "handle_vi_edit"  -1 "$qconf_error_msg" $raise_error
          set result -9
@@ -402,13 +402,11 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          set error 1
          add_proc_error "handle_vi_edit" -2 "timeout - can't start vi"
       }
-      -i $sp_id  {[A-Za-z]*} {
+      -i $sp_id -- {[A-Za-z]*} {
          debug_puts "vi should run now ..."
       }
    }
 
-   
-   
    set timeout 1
    # wait for vi to startup and go to last line
    send -s -i $sp_id -- "G"
@@ -592,23 +590,23 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
                add_proc_error "handle_vi_edit" -1 "eof error:$expect_out(buffer)"
                set result -1
             }
-            -i $sp_id  "$expected_result" {
+            -i $sp_id -- "$expected_result" {
                set result 0
                exp_continue
             }
-            -i $sp_id  "$additional_expected_result" {
+            -i $sp_id -- "$additional_expected_result" {
                set result -2
                exp_continue
             }
-            -i $sp_id  "$additional_expected_result2" {
+            -i $sp_id -- "$additional_expected_result2" {
                set result -3
                exp_continue
             }
-            -i $sp_id  "$additional_expected_result3" {
+            -i $sp_id -- "$additional_expected_result3" {
                set result -4
                exp_continue
             }
-            -i $sp_id  "$additional_expected_result4" {
+            -i $sp_id -- "$additional_expected_result4" {
                set result -5
                exp_continue
             }

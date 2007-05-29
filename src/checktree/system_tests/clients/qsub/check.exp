@@ -117,7 +117,7 @@ lappend check_functions "check_qsub_ts_iz_72" ;# Testcase for TS IZ 72
  
 # test specific globals:
 global CHECK_JOB_OUTPUT_DIR job_output_dir
-global actual_host
+global test_host
 set job_output_dir $CHECK_JOB_OUTPUT_DIR
 
 
@@ -275,7 +275,7 @@ proc qsub_starter_method {} {
    global CHECK_PRODUCT_ROOT CHECK_ARCH
    global job_output_dir
    global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
-   global actual_host
+   global test_host
    global default_q_args default_h_args
 
    set ok 1
@@ -320,7 +320,7 @@ proc qsub_starter_method {} {
       puts $CHECK_OUTPUT "checking output file $outfilename"
 
       if { ![file exists $outfilename]} {
-         add_proc_error "qsub_starter_method" -1 "output file for job $result on host $actual_host does not exist"
+         add_proc_error "qsub_starter_method" -1 "output file for job $result on host $test_host does not exist"
          set ok 0
       } else {
          set f [open $outfilename r]
@@ -335,11 +335,11 @@ proc qsub_starter_method {} {
            }
          }
          if {$num_lines == 0} {
-            add_proc_error "qsub_starter_method" -1 "error reading from job output file for job $result on host $actual_host"
+            add_proc_error "qsub_starter_method" -1 "error reading from job output file for job $result on host $test_host"
             set ok 0
          } else {
            if {$files_ok == 0} {
-               add_proc_error "qsub_starter_method" -1 "starter method was not started for job $result on host $actual_host"
+               add_proc_error "qsub_starter_method" -1 "starter method was not started for job $result on host $test_host"
                set ok 0
            }
          }  
@@ -455,7 +455,7 @@ proc setup_output_directory {} {
 #     ???/???
 #*******************************
 proc check_hold {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
+   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir test_host
    global default_args
 
    set ok 1
@@ -548,48 +548,18 @@ proc check_hold {} {
 proc check_start_time {} {
    global CHECK_PRODUCT_ROOT CHECK_ARCH
    global job_output_dir
-   global CHECK_OUTPUT actual_host
+   global CHECK_OUTPUT test_host
 
    # first clean up output directory:  
    setup_output_directory
-   
-   set hour [exec date "+%H"]
-   set minute [exec date "+%M"]
+  
+   set now [clock seconds]
+   set then [expr $now + 120]
+  
+   set start [clock format $then -format "%Y%m%d%H%M.%S"]
 
-   if { [string first "0" $hour] == 0 } {
-      set hour [string index $hour 1 ]
-   }  
-   if { [string first "0" $minute] == 0 } {
-      set minute [string index $minute 1 ]
-   }  
+   set jobargs "-a $start -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10" 
 
-   if {$minute < 58 } {
-     set minute [expr ($minute + 2) ]
-   } else {
-     set minute [expr ($minute + 2 - 60) ]
- 
-     if {$hour < 23 } {
-        set hour [expr ($hour + 1) ]
-     } else {
-        set hour "00"
-     }
-   }
-
-   set rhour $hour
-   set rminute $minute
-
-   if {$hour < 10} {
-     set rhour "0$hour"
-   }
-   if {$minute < 10} {
-     set rminute "0$minute"
-   }
-   
-   set start "[exec date +\%Y\%m\%d]$rhour$rminute"
-
-   set jobargs "-a $start -l h=${actual_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 60" 
-
-   set time [timestamp]
    set seconds [exec date "+%S"]
    if { [string first "0" $seconds] == 0 } {
       set seconds [string index $seconds 1 ]
@@ -611,12 +581,10 @@ proc check_start_time {} {
    
    # calulate time until job should run
    if {$ok} {
-      set pend_time [expr ( [timestamp] - $time )]
-      set wait_time [expr ( 120 - $pend_time - $seconds - 10 ) ] ;# 10 seconds are ok  
+      set wait_time 10
       puts $CHECK_OUTPUT "check_start_time - job should not start the next $wait_time seconds"
-      set time [timestamp]
-      if { [wait_for_jobstart $result "leeper" $wait_time 0] != -1 } {
-         puts $CHECK_OUTPUT "check_start_time - time left: [expr ($wait_time - [expr ( [timestamp] - $time)] ) ]"
+      set now [clock seconds]
+      if {[wait_for_jobstart $result "leeper" $wait_time 0] != -1} {
          add_proc_error "check_start_time" -1 "check_start_time - job $result should not run until yet"
          set ok 0
       }
@@ -626,7 +594,7 @@ proc check_start_time {} {
    # wait for job to start
    if {$ok} {
       puts $CHECK_OUTPUT "check_start_time - ok now the job should start"
-      if { [wait_for_jobstart $result "leeper" 300] == -1 } {
+      if {[wait_for_jobstart $result "leeper" 300] == -1} {
          add_proc_error "check_start_time" -1 "check_start_time - job $result doesn't start"
          set ok 0
       }
@@ -639,7 +607,6 @@ proc check_start_time {} {
          set ok 0
       }
    }
-  
 
    # cleanup
    set back [del_job_files $result $job_output_dir 2]
@@ -685,7 +652,7 @@ proc check_start_time {} {
 proc check_deadline {} {
    global ts_config
    global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global actual_host
+   global test_host
    global CHECK_OUTPUT job_output_dir
 
    if {$ts_config(product_type) == "sge"} {
@@ -749,7 +716,7 @@ proc check_deadline {} {
    set deadline "[exec date +\%Y\%m\%d]$rhour$rminute"
 
    # deadline job (10 min) with deadline in 5 minutes
-   set jobargs "-dl $deadline -l h=${actual_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 500" 
+   set jobargs "-dl $deadline -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 500" 
    # start job
    set result [submit_job $jobargs] 
    if {$result < 0 } {
@@ -896,14 +863,14 @@ proc check_deadline {} {
 #*******************************
 proc check_option_ac {} {
    global job_output_dir CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
-   global CHECK_USER CHECK_HOST CHECK_ARCH actual_host
+   global CHECK_USER CHECK_HOST CHECK_ARCH test_host
 
    # first clean up output directory:  
    setup_output_directory
 
    set option "-ac myvar1=\"test 1\" -ac myvar2='test 2'"
    # We use a special job script which contains context variable settings
-   set jobargs "$option -l h=${actual_host} -o $job_output_dir -e $job_output_dir $CHECK_ACTUAL_TEST_PATH/sleeper.sh 60" 
+   set jobargs "$option -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_ACTUAL_TEST_PATH/sleeper.sh 60" 
   
    set result [submit_job $jobargs 0]  
 
@@ -2123,13 +2090,13 @@ proc check_option_pe {} {
 #*******************************
 proc check_option_q {} {
    global ts_config CHECK_OUTPUT
-   global default_args actual_host
+   global default_args test_host
 
    # first clean up output directory:  
    setup_output_directory
 
    # submission to a queue instance (5.3 queue)
-   set qinstance [get_queue_instance "all.q" $actual_host]
+   set qinstance [get_queue_instance "all.q" $test_host]
    qsub_submit_check "-q $qinstance $default_args" 0
 
    # beginning with 6.0, we can also submit
@@ -2137,7 +2104,7 @@ proc check_option_q {} {
    #  - to all queue instances on a host
    #  - to all qinstances of a hostgroup
    if {$ts_config(gridengine_version) >= 60} {
-      qsub_submit_check "-q *@${actual_host} $default_args" 0
+      qsub_submit_check "-q *@${test_host} $default_args" 0
       qsub_submit_check "-q *@@allhosts $default_args" 0
    }
 }
@@ -2606,7 +2573,7 @@ proc check_option_V {} {
 #     ???/???
 #*******************************
 proc check_option_w {} {
-   global job_output_dir CHECK_PRODUCT_ROOT CHECK_OUTPUT actual_host
+   global job_output_dir CHECK_PRODUCT_ROOT CHECK_OUTPUT test_host
    global default_args
 
    # first clean up output directory:  
@@ -2697,7 +2664,7 @@ proc check_option_@ {} {
 #*******************************
 proc check_huge_script {} {
    global job_output_dir CHECK_PROTOCOL_DIR CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH actual_host
+   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH test_host
    global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT steps_per_queue size_interval
    global default_q_args default_h_args
 
@@ -2735,7 +2702,7 @@ proc check_huge_script {} {
       set submit_size [file size $filename]
       puts $CHECK_OUTPUT "submitting job script of size $submit_size bytes allowing a timeout of $HUGE_SCRIPT_TIMEOUT s"
    
-      set jobargs "-l h=${actual_host} -o $job_output_dir -e $job_output_dir $filename 5" 
+      set jobargs "-l h=${test_host} -o $job_output_dir -e $job_output_dir $filename 5" 
       #puts $CHECK_OUTPUT "\njob has args: \"$jobargs\""
       
       set submit_start [clock seconds]
@@ -2774,7 +2741,7 @@ proc check_huge_script {} {
 proc qsub_setup {} {
    global ts_config
    global stored_configuration
-   global job_output_dir actual_host default_args default_q_args default_h_args
+   global job_output_dir test_host default_args default_q_args default_h_args
    global HUGE_SCRIPT_SIZE HUGE_SCRIPT_TIMEOUT HUGE_SCRIPT_STEPS steps_per_queue size_interval
    global HUGE_SCRIPT_MAX_SIZE
 
@@ -2782,14 +2749,13 @@ proc qsub_setup {} {
    set num_queues [llength $ts_config(unique_arch_nodes)] 
 
    # run host specific tests on a random host
-   set idx [expr [timestamp] % $num_queues]
-   set actual_host [lindex $ts_config(unique_arch_nodes) $idx] 
+   set test_host [host_conf_get_suited_hosts]
 
    # set default jobargs
    set default_args "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 5"
-   set qinstance [get_queue_instance "all.q" $actual_host]
+   set qinstance [get_queue_instance "all.q" $test_host]
    set default_q_args "-q $qinstance $default_args"
-   set default_h_args "-l h=${actual_host} $default_args"
+   set default_h_args "-l h=${test_host} $default_args"
 
    # setup huge_script test
    set steps_per_queue [expr $HUGE_SCRIPT_STEPS / $num_queues]

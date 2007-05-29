@@ -224,7 +224,11 @@ proc set_pe {pe_obj change_array {raise_error 1}} {
 
    set MODIFIED  [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
    set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*" ]
-   set REJECTED_DUE_TO_AR_PE_SLOTS_U [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U "*"]
+   if {$ts_config(gridengine_version) >= 62} {
+      set REJECTED_DUE_TO_AR_PE_SLOTS_U [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U "*"]
+   } else {
+      set REJECTED_DUE_TO_AR_PE_SLOTS_U "MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U message only in 6.2 or higher"
+   }
 
    if { $ts_config(gridengine_version) == 53 } {
       set NOT_EXISTS [translate_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS "*" "*" "*" "*" ]

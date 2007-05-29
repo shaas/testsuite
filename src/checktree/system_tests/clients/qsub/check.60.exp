@@ -36,17 +36,17 @@ lappend check_functions "check_option_sync_t"
 lappend check_functions "check_option_sync_ww"
 
 proc check_qhold_jobname {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir actual_host
+   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir test_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    # first clean up output directory:  
    setup_output_directory
 
    # submit jobs, second one depends on FIRST one
-   set jobargs "-h -l h=${actual_host} -N FIRST -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 90" 
+   set jobargs "-h -l h=${test_host} -N FIRST -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 90" 
    set hold_job1 [submit_job $jobargs] 
 
-   set jobargs "-hold_jid FIRST -l h=${actual_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-hold_jid FIRST -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job2 [submit_job $jobargs] 
 
 
@@ -93,24 +93,24 @@ proc check_qhold_jobname {} {
    }
 
    puts $CHECK_OUTPUT "Test wait for not existent job (job should immediately run)"
-   set jobargs "-hold_jid FIRST -l h=${actual_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set job_id [submit_job $jobargs] 
    wait_for_jobstart $job_id "Sleeper" 60
    wait_for_jobend $job_id "Sleeper" 60 0
 
    puts $CHECK_OUTPUT "additional job submit with same name test"
-   set jobargs "-h -l h=${actual_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job1 [submit_job $jobargs] 
 
    puts $CHECK_OUTPUT "additional job submit with same name test"
-   set jobargs "-h -l h=${actual_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job2 [submit_job $jobargs] 
 
 
    wait_for_jobpending $hold_job1 "FIRST" 60
    wait_for_jobpending $hold_job2 "FIRST" 60
 
-   set jobargs "-hold_jid FIRST -l h=${actual_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job3 [submit_job $jobargs 0]
    if { $hold_job3 <= 0 } {
       add_proc_error "check_qhold_jobname" -1 "job $hold_job3 should depend on multiple jobs, selected by name"
@@ -121,12 +121,12 @@ proc check_qhold_jobname {} {
    delete_job $hold_job1
 
    puts $CHECK_OUTPUT "submitting hold job ..."
-   set jobargs "-hold_jid FIRST -l h=${actual_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job3 [submit_job $jobargs]
     
 
    puts $CHECK_OUTPUT "submitting job with same name (FIRST) ..."
-   set jobargs "-h -l h=${actual_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    puts $CHECK_OUTPUT $jobargs
    set hold_job1 [submit_job $jobargs 0] 
    if { $hold_job1 <= 0 } {
@@ -143,12 +143,12 @@ proc check_qhold_jobname {} {
    puts $CHECK_OUTPUT "checking hold for foreign user ..."
 
    puts $CHECK_OUTPUT "submitting job with same name (FIRST) as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
-   set jobargs "-h -l h=${actual_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    puts $CHECK_OUTPUT $jobargs
    set hold_job1 [submit_job $jobargs 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER ] 
 
    puts $CHECK_OUTPUT "submitting hold job ..."
-   set jobargs "-hold_jid FIRST -l h=${actual_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job3 [submit_job $jobargs]
 
    wait_for_jobstart $hold_job3 "Sleeper" 75
@@ -156,12 +156,12 @@ proc check_qhold_jobname {} {
 
 
    puts $CHECK_OUTPUT "additional job submit with same name test"
-   set jobargs "-h -l h=${actual_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job2 [submit_job $jobargs] 
 
 
    puts $CHECK_OUTPUT "submitting hold job ..."
-   set jobargs "-hold_jid FIRST -l h=${actual_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
    set hold_job3 [submit_job $jobargs]
 
    if { [wait_for_jobstart $hold_job3 "Sleeper" 60 0] != -1 } {
@@ -210,13 +210,13 @@ proc check_qhold_jobname {} {
 #*******************************
 proc check_option_v {} {
    global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_ARCH 
-   global job_output_dir actual_host
+   global job_output_dir test_host
 
    # first clean up output directory:  
    setup_output_directory
 
    set option "-v DISPLAY,test_var1=hello=world,test_var2=hello=my=friend"
-   set jobargs "$option -l h=${actual_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5" 
+   set jobargs "$option -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5" 
   
    set result [submit_job $jobargs 0]  
    puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
@@ -283,7 +283,7 @@ proc check_option_v {} {
 proc check_option_sync {} {
    global ts_config CHECK_OUTPUT
    global ::errorCode
-   global job_output_dir CHECK_PRODUCT_ROOT actual_host CHECK_ARCH
+   global job_output_dir CHECK_PRODUCT_ROOT test_host CHECK_ARCH
 
    # first clean up output directory:  
    setup_output_directory
@@ -338,7 +338,7 @@ proc check_option_sync {} {
 proc check_option_sync_t {} {
    global ts_config CHECK_OUTPUT
    global ::errorCode
-   global job_output_dir CHECK_PRODUCT_ROOT actual_host CHECK_ARCH
+   global job_output_dir CHECK_PRODUCT_ROOT test_host CHECK_ARCH
 
    # first clean up output directory:  
    setup_output_directory
