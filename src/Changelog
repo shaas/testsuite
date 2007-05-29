@@ -1,3 +1,8 @@
+RD-2007-05-29-0: Enhancem:  Added messages changes for AR
+                 Review:    JG
+
+PJ-2007-05-25-0: Bugfix:    Added message to submit_job
+
 JG-2007-05-29-0: Bugfix:    Fixed test for qsub with start time.
                             Fixed set_pe.
                             Fixed handle_vi_edit with dashes in expected 
