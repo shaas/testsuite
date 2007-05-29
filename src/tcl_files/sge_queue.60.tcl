@@ -300,7 +300,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
       
          # change (or set) host specific values from chgar
          foreach unresolved_host $hostlist {
-            set host [resolve_host $unresolved_host 1]
+            set host [resolve_host $unresolved_host]
             puts $CHECK_OUTPUT "--> setting host_values($host) = $chgar($attribute)"
             set host_values($host) $chgar($attribute)
          }
@@ -452,14 +452,20 @@ proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user 
 #     sge_procedures/handle_sge_errors
 #******************************************************************************
 proc mod_queue_error {result qname tmpfile raise_error} {
+   global ts_config
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1 -2 -3 -4 -5"
+   set messages(index) "-1 -2"
    set messages(-1) [translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
    set messages(-2) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "cluster queue" $qname]
-   set messages(-3) [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
-   set messages(-4) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
-   set messages(-5) [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
+   if {$ts_config(gridengine_version) >= 62} {
+      lappend messages(index) -3
+      set messages(-3) [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
+      lappend messages(index) -4
+      set messages(-4) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
+      lappend messages(index) -5
+      set messages(-5) [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
+   }
 
    set ret 0
    # now evaluate return code and raise errors

@@ -74,7 +74,7 @@ proc client_override_init_level {} {
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
-      }      
+      }
    }
    return -1  ;# no other level
 }
@@ -83,35 +83,25 @@ proc client_override_init_level {} {
 
 proc client_override_setup {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global file_exists
 
-   # check if sge_request file already exists and saves it temporarily
-   if { ![file exists $ts_config(product_root)/$ts_config(cell)/common/sge_request]} {
-         set file_exists(sge_request) "1"
-         # save existing file
-         set id [start_remote_prog $ts_config(master_host) $CHECK_USER "mv" "-f  $ts_config(product_root)/$ts_config(cell)/common/sge_request /tmp/sge_request"]
-      }
-   set id1 [start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "-f  $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qsub/override/test_files/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"]
-   puts $CHECK_OUTPUT "sge_request file successfully backed-up"
+   # needn't backup the original sge_request file - the template is in $SGE_ROOT/util
+   start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "-f  $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qsub/override/test_files/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"
 }
 
 proc client_override_cleanup {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global file_exists
 
-   if { $file_exists(sge_request) !=  "0" } {
-      # restore sge_request file
-      set id [start_remote_prog $ts_config(master_host) $CHECK_USER "mv" "-f  /tmp/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"]
-   }
+   # restore sge_request file
+   start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "-f $ts_config(product_root)/util/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"
+
+   # cleanup
    delete_all_jobs
    wait_for_end_of_all_jobs
-   puts $CHECK_OUTPUT "cleanup function successfully run"
 }
 
 
 proc client_override_test1 {} {
    global ts_config
-   global CHECK_ACT_LEVEL
 
    set hostname [host_conf_get_suited_hosts]
    
@@ -123,5 +113,4 @@ proc client_override_test1 {} {
       set error_text "qsub did not set the correct queue: $hostname \n"
       add_proc_error "client_override_test1" -1 " overriding of default script file failed"
    }
-     
 }

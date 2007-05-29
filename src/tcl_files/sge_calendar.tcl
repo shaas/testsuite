@@ -398,14 +398,17 @@ proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_er
         set result [mod_calendar_error $ret $tmpfile $calendar $raise_error]
      }
    } else {
-
       puts $CHECK_OUTPUT "modifying calendar $calendar"
 
       set vi_commands [build_vi_command chgar]
 
       set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "*" "*"]
       set ALREADY_EXISTS [translate_macro  MSG_SGETEXT_ALREADYEXISTS_SS "*" "*" ]
-      set REJECTED_DUE_TO_AR_SSU [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
+      if {$ts_config(gridengine_version) >= 62} {
+         set REJECTED_DUE_TO_AR_SSU [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
+      } else {
+         set REJECTED_DUE_TO_AR_SSU "message MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU only exists in 6.2 or higher"
+      }
 
      # Now add using vi
      set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mcal $calendar" $vi_commands $MODIFIED $ALREADY_EXISTS $REJECTED_DUE_TO_AR_SSU]

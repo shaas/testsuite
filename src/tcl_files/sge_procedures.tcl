@@ -4258,13 +4258,20 @@ proc replace_attr_error {result object attribute value target raise_error} {
 
 
 proc replace_attr_file_error {result object attribute tmpfile target raise_error} {
+   global ts_config
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1 -2 -3 -4"
+   set messages(index) -1
    set messages(-1) "error: [translate_macro MSG_UNKNOWNATTRIBUTENAME_S $attribute ]"
-   set messages(-2) [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
-   set messages(-3) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
-   set messages(-4) [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
+
+   if {$ts_config(gridengine_version) >= 62} {
+      lappend messages(index) -2
+      set messages(-2) [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
+      lappend messages(index) -3
+      set messages(-3) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
+      lappend messages(index) -4
+      set messages(-4) [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
+   }
 
    set ret 0
    # now evaluate return code and raise errors

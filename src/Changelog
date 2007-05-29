@@ -1,3 +1,8 @@
+JG-2007-05-29-1: Bugfix:    Fixed qsub/override test, fixed AR handling in 
+                            multiple modules, improved error output in 
+                            bugs/issuezilla/440
+                 Review:    RD
+
 LP-2007-05-29-0: Enhancem.: Added new check 'jgdi_junit' to run all JGDI junit 
                             tests. 
                             Note: Testsuite hosts must have ant specified and it 

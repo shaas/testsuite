@@ -143,8 +143,11 @@ proc issue_440_check_qsub {} {
       
       # read job output/error files
       # wait for the file to appear - this might take some time due to slow NFS
-      read_file $output_file f_output 60
-      read_file $error_file  f_error 60
+      wait_for_file $output_file 60
+      wait_for_file $error_file 60
+      sleep 10
+      read_file $output_file f_output
+      read_file $error_file  f_error
    
 
       set nr_of_lines $f_output(0)
@@ -167,7 +170,7 @@ proc issue_440_check_qsub {} {
       set output [string trim $output]
       set arg_name [string trim $arg_name]
       if { [ string compare $output $arg_name ] != 0 } {
-         add_proc_error "issue_440_check_qsub" -1 "job output not equal to commandline input:\nstrlen(cmd_line) = [string length $arg_name]\nstrlen(output) = [string length $output] on host $check_440_host"
+         add_proc_error "issue_440_check_qsub" -1 "job output not equal to commandline input:\nstrlen(cmd_line) = [string length $arg_name]\nstrlen(output) = [string length $output] on host $check_440_host\ncmd_line: $arg_name\noutput: $output"
       }
 
       # check for further errors
