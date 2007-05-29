@@ -1,0 +1,250 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# global variables ... (defined in main check routine, but you can use it)
+#
+# global CHECK_ACTUAL_TEST_PATH  ;# this directory
+# global CHECK_USER              ;# user who start test
+# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
+# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+
+global check_name check_description check_needs check_functions check_highest_level
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "no"
+set check_name                 "jgdi_junit"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "Executes the JGDI junit tests"
+set check_description(100)     "Rebuilds JGDI and executes the JGDI junit tests" 
+# TODO: better to use jgdi.jar that is compiled with java 1.[56]
+set check_needs                ""                         ;# dependencies of this check (name of other check)
+set check_init_level_procedure "jgdi_junit_init_level"
+set check_functions            ""                                     ;# functions to call (in order)
+set check_highest_level	       100
+
+# setup and cleanup functions
+#set check_cleanup_function "jgdi_junit_cleanup"
+
+# test order
+lappend check_functions "jgdi_junit_14"
+lappend check_functions "jgdi_junit_15"
+lappend check_functions "jgdi_junit_16"
+
+proc jgdi_junit_init_level {} {
+  global CHECK_ACT_LEVEL
+  global do_jgdi_rebuild		;# if set to 1 jgdi "java.clean" will be called before "test" target
+  set do_jgdi_rebuild 0
+ 
+  switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+      "100" {
+	 set do_jgdi_rebuild 1
+         return 0
+      }
+   }
+   return -1  ;# no other level else
+}
+
+#****** jgdi_run_task() **************************************************
+#  NAME
+#    jgdi_run_task() -- start the jgdi build script
+#
+#  SYNOPSIS
+#    jgdi_run_task { target a_report } 
+#
+#  FUNCTION
+#     starts the jgdi build script
+#
+#  INPUTS
+#    target        -- the ant target
+#    a_report      -- the report object
+#
+#  RESULT
+#     0    -- succesfull build
+#     else -- failure
+
+#  EXAMPLE
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#*******************************************************************************
+proc jgdi_junit_run_task { target a_report { jgdi_build_timeout 60 } } {
+   global CHECK_OUTPUT CHECK_USER
+   global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR CHECK_ACT_LEVEL
+   global ts_config ts_host_config jgdi_config do_jgdi_rebuild
+   
+   upvar $a_report report
+
+   # setup environment
+   set env(ARCH)      [resolve_arch $jgdi_config(target_host)]
+   set env(JAVA_HOME) $jgdi_config(java_home)
+   set env_var env
+   
+   set output ""
+   
+   set task_nr [report_create_task report "jgdi_$target\_$jgdi_config(java_test_version)_level_$CHECK_ACT_LEVEL" $jgdi_config(target_host)]
+   report_task_add_message report $task_nr "---------------------------------------------"
+   report_task_add_message report $task_nr "-> starting JGDI $target on host $jgdi_config(target_host) using Java $jgdi_config(java_test_version) ..."
+
+   # run the tests (rebuild if instructed to)
+   if { $do_jgdi_rebuild == 1 } {
+	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) java.clean" prg_exit_state 60 0 "" $env_var]
+	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) $target" prg_exit_state 2400 0 "" $env_var]
+   } else {
+	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) $target" prg_exit_state 600 0 "" $env_var]
+   }
+   
+   set last_output_line [split $output "\n"]
+   set last_output_line [lindex $last_output_line [expr [llength $last_output_line] - 5]]
+   if { [string compare [string trimright $last_output_line] "     \[echo] JUnit tests succeeded."] != 0 } {
+        set error 1
+   } else {
+	set error 0
+   }
+   report_task_add_message report $task_nr "$output"
+   report_finish_task report $task_nr $error
+
+   if { $error != 0 } {
+      return -1
+   }
+   return 0
+}
+
+proc jgdi_junit_setup { JAVA_TEST_VERSION } {
+   global ts_config ts_host_config
+   global jgdi_config
+
+   #TODO: improve so the junit tests can be run in parallel on different architectures
+   set jgdi_config(target_host) [host_conf_get_java_compile_host]
+   set jgdi_config(ant) $ts_host_config($jgdi_config(target_host),ant)
+   set jgdi_config(java_test_version) $JAVA_TEST_VERSION
+   
+   set jgdi_config(cluster_config_file) [get_tmp_file_name]
+   jgdi_create_cluster_config_file $jgdi_config(target_host) $jgdi_config(cluster_config_file)
+   
+   #set ant_options " -Duse.classpath.from.sge.root=true"
+   set ant_options "-Dsge.root=$ts_config(product_root)"
+   append ant_options " -Dsge.srcdir=$ts_config(source_dir)"
+   append ant_options " -Djava.test.version=$JAVA_TEST_VERSION"
+   append ant_options " -Djunit.formatter=plain"
+   append ant_options " -Dcluster.config.file.location=$jgdi_config(cluster_config_file)"
+   append ant_options " -f $ts_config(source_dir)/libs/jgdi/build.xml"
+
+   set jgdi_config(ant_options) $ant_options
+}
+
+proc jgdi_junit_run { JAVA_VERSION } {
+   global jgdi_config CHECK_OUTPUT
+
+   jgdi_junit_setup "$JAVA_VERSION"
+
+   array set report {} 
+   report_create "JGDI_junit_tests using Java $JAVA_VERSION" report 1 0
+   
+   set jgdi_config(java_home) [get_java_home_for_host $jgdi_config(target_host) $JAVA_VERSION]
+   #Java 1.4 must be set. We skip other test because of missing java 1.5 or 1.6
+   if { $jgdi_config(java_home) == "" && ![string equal $JAVA_VERSION "1.4"] } {
+      report_add_message report "Skipping test because of missing Java $JAVA_VERSION on $jgdi_config(target_host)."
+      report_finish report -1
+      return 0
+   }
+   
+   set res [jgdi_junit_run_task "test" report]
+   jgdi_remove_cluster_config_file $jgdi_config(target_host) $jgdi_config(cluster_config_file)
+   
+   if { $res != 0 } {
+      report_add_message report "JGDI junit tests failed using Java $JAVA_VERSION"
+      report_finish report -1
+      add_proc_error "jgdi_junit_check" "-1" "JGDI junit tests failed using java $JAVA_VERSION"
+      return -1
+   } else {
+      report_add_message report "JGDI junit successfully executed using java $JAVA_VERSION"
+      report_finish report 0
+      return 0
+   }
+}
+
+proc jgdi_junit_14 {} {
+   jgdi_junit_run "1.4"
+}
+
+proc jgdi_junit_15 {} {
+   jgdi_junit_run "1.5"
+}
+
+proc jgdi_junit_16 {} {
+   jgdi_junit_run "1.6"
+}
+
+proc jgdi_create_cluster_config_file { host file } { 
+   global CHECK_USER
+   global ts_config jgdi_config
+
+   set is_csp_used "false"
+   if { $ts_config(product_feature) == "csp" } {
+      set is_csp_used "true"
+   }
+
+   set cluster_config "\"cluster\[0].sge_root=$ts_config(product_root)"
+   append cluster_config "\ncluster\[0].sge_cell=$ts_config(cell)"
+   append cluster_config "\ncluster\[0].qmaster_port=$ts_config(commd_port)"
+   append cluster_config "\ncluster\[0].execd_port=[expr $ts_config(commd_port) + 1]"
+   append cluster_config "\ncluster\[0].csp=$is_csp_used"
+   append cluster_config "\ncluster\[0].username=$CHECK_USER"
+   append cluster_config "\ncluster\[0].jass_login_context=jgdi"
+   append cluster_config "\ncluster\[0].keystore_password=changeit"
+   append cluster_config "\ncluster\[0].privatekey_password=changeit\""
+
+   set fd [open $file w+ 0777]
+   puts $fd $cluster_config
+   close $fd
+
+   wait_for_remote_file $host $CHECK_USER $file
+}
+
+proc jgdi_remove_cluster_config_file { host file } {
+   global CHECK_USER
+   global jgdi_config
+
+   delete_remote_file $host $CHECK_USER $file
+}

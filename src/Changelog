@@ -1,3 +1,9 @@
+LP-2007-05-29-0: Enhancem.: Added new check 'jgdi_junit' to run all JGDI junit 
+                            tests. 
+                            Note: Testsuite hosts must have ant specified and it 
+                                  has to have junit.jar in it's lib directory.
+                 Review:    JG
+
 RD-2007-05-29-0: Enhancem:  Added messages changes for AR
                  Review:    JG
 
