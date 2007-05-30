@@ -1,3 +1,7 @@
+JG-2007-05-30-0: Bugfix:    Fixed bugs/issuezilla/1104 with Gridengine 6.0u??.
+                            Improved error handling for calendar deletion.
+                 Review:    CR
+
 JG-2007-05-29-1: Bugfix:    Fixed qsub/override test, fixed AR handling in 
                             multiple modules, improved error output in 
                             bugs/issuezilla/440

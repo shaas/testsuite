@@ -499,17 +499,12 @@ proc mod_calendar_error {result tmpfile calendar raise_error} {
 #     sge_procedures/get_qconf_list()
 #*******************************************************************************
 proc del_calendar {calendar {on_host ""} {as_user ""} {raise_error 1}} {
+   set output [start_sge_bin "qconf" "-dcal $calendar" $on_host $as_user]
 
-   set ret 0
-   set result [start_sge_bin "qconf" "-dcal $calendar" $on_host $as_user]
-
-   # parse output or raise error
-   if {$prg_exit_state != 0} {
-      set ret [del_calendar_error $result $calendar $raise_error]
-   }
+   # parse output and/or raise error
+   set ret [del_calendar_error $output $calendar $raise_error $prg_exit_state]
 
    return $ret
-
 }
 
 #****** sge_calendar/del_calendar_error() ***************************************
@@ -544,18 +539,25 @@ proc del_calendar {calendar {on_host ""} {as_user ""} {raise_error 1}} {
 #     sge_calendar/get_calendar
 #     sge_procedures/handle_sge_errors
 #*******************************************************************************
-proc del_calendar_error {result calendar raise_error} {
+proc del_calendar_error {result calendar raise_error prg_exit_state} {
+   # recognize success
+   set messages(index) 0
+   set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS "*" "*" $calendar "calendar"]
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1"
+   lappend messages(index) -1
    set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
+   lappend messages(index) -2
+   set messages(-2) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "calendar" $calendar]
+   lappend messages(index) -3
+   set messages(-3) "*[translate_macro MSG_CALENDAR_REFINQUEUE_SS $calendar "*"]"
 
    # we might have version dependent, calendar specific error messages
    get_calendar_error_vdep messages $calendar
 
    set ret 0
    # now evaluate return code and raise errors
-   set ret [handle_sge_errors "del_calendar" "qconf -dcal $calendar" $result messages $raise_error]
+   set ret [handle_sge_errors "del_calendar" "qconf -dcal $calendar" $result messages $raise_error $prg_exit_state]
 
    return $ret
 }
