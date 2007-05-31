@@ -592,7 +592,7 @@ proc check_option_pe {} {
 
    delete_all_ars
 
-   set options "-pe qrstat_pe 3 -d 1000 "
+   set options "-pe qrsub_pe 3 -d 1000 "
    set args "$options"
 
    set ar_id [submit_ar $args]
@@ -602,7 +602,7 @@ proc check_option_pe {} {
 
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
-   set check_values(granted_parallel_environment)   "qrstat_pe slots 3"
+   set check_values(granted_parallel_environment)   "qrsub_pe slots 3"
    set check_values(granted_slots_list)             "all.q@*=1,all.q@*=1,all.q@*=1"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
