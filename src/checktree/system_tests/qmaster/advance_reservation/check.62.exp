@@ -69,6 +69,8 @@ lappend check_functions "test_userlist"
 lappend check_functions "test_complexes"
 lappend check_functions "test_require_more_than_reserved"
 lappend check_functions "test_changing_ar_id"
+lappend check_functions "test_waitingjob_future_ar"
+
 
 #TBD
 #lappend check_functions "qrdel_force"
@@ -589,39 +591,14 @@ proc test_require_more_than_reserved {} {
 
    set args "-ar $ar_id -l $gr_cplx=1,h_rt=10000 $default_args"
    set job_id [submit_job $args 0]
-   if {$job_id != -34} {
-      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+   if {$job_id != -35} {
+      add_proc_error "test_require_more_than_reserved" -1 "error 'job duration is longer than duration of AR' was not shown"
    }
 
-   delete_all_ars
-   # Questionable behavior RESTRING
-   set args "-l 'a=sol-sparc64' -d 3600"
-   set ar_id [submit_ar $args]
-   if {$ar_id < 0} {
-      return
-   }
-
-   set args "-ar $ar_id -l 'a=sol-sparc64' $default_args"
-   set job_id [submit_job $args]
-
-   set args "-ar $ar_id -l 'a=sol*' $default_args"
-   set job_id [submit_job $args]
-
-   set args "-l 'a=sol*' -d 3600"
-   set ar_id [submit_ar $args]
-   if {$ar_id < 0} {
-      return
-   }
-   set args "-ar $ar_id -l 'a=sol-sparc64' $default_args"
-   set job_id [submit_job $args 0]
-   if {$job_id != -34} {
-      add_proc_error "test_require_more_than_reserved" -1 "error  'no suitable queues' was not shown"
-      return
-   }
     
    delete_all_ars
    # Submit advance reservation with 6 consumable graphics 
-   set args "-pe mytestpe 3 -l $gr_cplx=6 -d 36000"
+   set args "-pe mytestpe 3 -l $gr_cplx=2 -d 1000"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
@@ -646,7 +623,6 @@ proc test_require_more_than_reserved {} {
    if {$job_id != -34} {
       add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
    }
-
 }
 
 proc test_changing_ar_id {} {
@@ -656,16 +632,22 @@ proc test_changing_ar_id {} {
    global queue_name1 queue_name2
    global test_host default_args
 
+   set now [clock seconds]
+   set then1 [expr $now + 10000]
+   set start1 [clock format $then1 -format "%Y%m%d%H%M.%S"]
+   set then2 [expr $now + 20000]
+   set start2 [clock format $then2 -format "%Y%m%d%H%M.%S"]
+    
    # Test setup
    set job_name "chjobr"
 
-   set args "-d 36000"
+   set args "-d 1000"
    set ar_id1 [submit_ar $args]
    if {$ar_id1 < 0} {
       return
    }
 
-   set args "-d 36000"
+   set args "-d 1000"
    set ar_id2 [submit_ar $args]
    if {$ar_id2 < 0} {
       return
@@ -688,21 +670,20 @@ proc test_changing_ar_id {} {
 	puts $CHECK_OUTPUT "change the ar of running job\nrun qalter -ar $ar_id2 $job_id\n"
    set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id" ]
    if {$prg_exit_state==0} {
-      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on running job"
-      puts $CHECK_OUTPUT $result1
+      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on running job should fail:\n$result1"
    }
 
    # Test setup
    set job_name "chjobp"
    delete_all_ars   
 
-   set args "-d 36000 -a 1001010101"
+   set args "-d 3600 -a $start1"
    set ar_id1 [submit_ar $args]
    if {$ar_id1 < 0} {
       return
    }
 
-   set args "-d 36000 -a 1101010101"
+   set args "-d 3600 -a $start2"
    set ar_id2 [submit_ar $args]
    if {$ar_id2 < 0} {
       return
@@ -723,9 +704,44 @@ proc test_changing_ar_id {} {
 	puts $CHECK_OUTPUT "change the ar of pending job\nrun qalter -ar $ar_id2 $job_id\n"
    set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id" ]
    if {$prg_exit_state!=0} {
-      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on pending job"
-      puts $CHECK_OUTPUT $result1
+      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on pending job\n$result1"
    }
 
 }
+
+
+proc test_waitingjob_future_ar  {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global complex_name1 complex_name2 gr_cplx
+   global ar_name1 ar_name2
+   global queue_name1 queue_name2
+   global test_host default_args
+
+   set now [clock seconds]
+   set then [expr $now + 1000]
+   set start [clock format $then -format "%Y%m%d%H%M.%S"]
+   
+   # Test setup
+   set ar_name "futurear"
+   delete_all_ars   
+
+   set args "-d 36000 -a $start -N $ar_name"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      return
+   }
+
+   set args "-ar $ar_id -N $ar_name $default_args"
+   set job_id [submit_job $args]
+   if {$job_id < 0} {
+      return
+   }
+   
+   set res [wait_for_jobstart $job_id $ar_name 30 0]
+   if {$res==0} {
+      add_proc_error "test_changing_ar_id" -1 "job expected to wait is running"
+    }
+
+}
+
 

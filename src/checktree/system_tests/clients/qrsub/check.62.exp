@@ -201,9 +201,16 @@ proc check_submit_ar_invalid_option_arg {} {
 
 proc check_option_a {} {
    global ts_config CHECK_OUTPUT
-
+   
+   set now [clock seconds]
+   set then [expr $now + 10000]
+   set start1 [clock format $then -format "%Y%m%d%H%M.%S"]
+   set starto [clock format $then -format "%m/%d/%Y %H:%M:%S"]
+   set then2 [expr $now + 20000]
+   set start2 [clock format $then2 -format "%Y%m%d%H%M.%S"]
+   
    # positive tests
-   set options "-a 1201010101 -d 1000"
+   set options "-a $start1 -d 1000"
    set args "$options"
  
    set ar_id [submit_ar $args]
@@ -212,14 +219,14 @@ proc check_option_a {} {
    }
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
-   set check_values(start_time)                     "01/01/2012 01:01:00"
+   set check_values(start_time)                     "$starto"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
 
    # negative tests
-   set options "-a 1201010101"
+   set options "-a $start1"
    set args "$options"
  
    set ar_id [submit_ar $args 0]
@@ -239,7 +246,7 @@ proc check_option_a {} {
       return
    }
 
-   set options "-a 1301010101 -e 1201010101"
+   set options "-a $start2 -e $start1"
    set args "$options"
  
    set ar_id [submit_ar $args 0]
@@ -366,9 +373,13 @@ proc check_option_d {} {
 proc check_option_e {} {
    global ts_config CHECK_OUTPUT
 
-
+   set now [clock seconds]
+   set then [expr $now + 20000]
+   set start1 [clock format $then -format "%Y%m%d%H%M.%S"]
+   set starto [clock format $then -format "%m/%d/%Y %H:%M:%S"]
+ 
    # positive tests
-   set options "-e 1201010101 -d 1000"
+   set options "-e $start1 -d 1000"
    set args "$options"
  
    set ar_id [submit_ar $args]
@@ -378,7 +389,7 @@ proc check_option_e {} {
 
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
-   set check_values(end_time)                     "01/01/2012 01:01:00"
+   set check_values(end_time)                     "$starto"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
@@ -390,9 +401,8 @@ proc check_option_e {} {
    set args "$options"
  
    set ar_id [submit_ar $args 0]
-
    if {$ar_id != -58} {
-      add_proc_error "submit_ar" -1 "error 'start time is in the past' was not shown"
+      add_proc_error "submit_ar" -1 "error 'end time is in the past' was not shown"
       return
    }
 
