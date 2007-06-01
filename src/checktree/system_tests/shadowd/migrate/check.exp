@@ -334,14 +334,16 @@ proc shadowd_migrate_test {} {
       if {$CHECK_ACT_LEVEL == 2} {
          puts $CHECK_OUTPUT "shutting down qmaster ..."
          
-         if { [is_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file] } {
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after shutdown of old qmaster"
          }
 
+         shutdown_system_daemon $ts_config(master_host) "sched"
          shutdown_system_daemon $ts_config(master_host) "qmaster"
 
+         # we have to remove the lockfile - this is an indication for shadowd, that
+         # qmaster has not exited gracefully and that it shall takeover
          wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file
-
          puts $CHECK_OUTPUT "deleting lock file ..."
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "rm" $qmaster_lock_file]
          puts $CHECK_OUTPUT $result
@@ -365,7 +367,7 @@ proc shadowd_migrate_test {} {
             flush stdout
          }
 
-         if {[is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file]} {
+         if {[wait_for_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after startup of new qmaster on host $new_act_qmaster"
          }
          wait_for_load_from_all_queues 120
@@ -374,10 +376,16 @@ proc shadowd_migrate_test {} {
          puts $CHECK_OUTPUT "shutting down qmaster on host $new_act_qmaster ..."
          shutdown_system_daemon $new_act_qmaster "qmaster"
 
-         puts $CHECK_OUTPUT "restarting qmaster on host $act_qmaster ..."
+         # wait until the lock file is visible on our master host
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 30 0] != 0} {
+            add_proc_error "shadowd_migrate_test" -1 "$new_act_qmaster didn't leave a lock file on shutdown"
+         }
+
+         puts $CHECK_OUTPUT "restarting qmaster on host $ts_config(master_host) ..."
          startup_qmaster
 
-         if {[is_remote_file $new_act_qmaster $CHECK_USER $qmaster_lock_file]} {
+         # wait for lock file to vanish (might be delayed due to slow NFS)
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after shutdown and restart of original qmaster on host $act_qmaster"
          }
          wait_for_load_from_all_queues 120
@@ -406,7 +414,7 @@ proc shadowd_migrate_test {} {
          wait_for_load_from_all_queues 120
 
 
-         if { [is_remote_file $migrate_host $CHECK_USER $qmaster_lock_file] } {
+         if {[wait_for_remote_file $migrate_host $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after -migrate on host $migrate_host"
          }
 
@@ -420,8 +428,7 @@ proc shadowd_migrate_test {} {
 
          wait_for_load_from_all_queues 120
 
- 
-         if { [is_remote_file $act_qmaster $CHECK_USER $qmaster_lock_file] } {
+         if {[wait_for_remote_file $act_qmaster $CHECK_USER $qmaster_lock_file 30 0 1] != 0} {
             add_proc_error "shadowd_migrate_test" -1 "found lock file after -migrate on host $act_qmaster"
          }
       }
@@ -436,8 +443,7 @@ proc shadowd_migrate_test {} {
          shutdown_system_daemon $ts_config(master_host) "qmaster"
 
          # check whether qmaster did write lock file
-         wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file
-         if { [is_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file] != 1 } {
+         if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $qmaster_lock_file 0 30] != 0} {
             add_proc_error "shadowd_migrate_test" -1 "found no lock file after shutdown of qmaster"
          }
 
@@ -448,7 +454,7 @@ proc shadowd_migrate_test {} {
 
 
          # check if file is removed
-         if { [is_remote_file $ts_config(master_host) $CHECK_USER  $act_qmaster_file ] } {
+         if {[is_remote_file $ts_config(master_host) $CHECK_USER $act_qmaster_file]} {
             add_proc_error "shadowd_migrate_test" -1 "can't delete act_qmaster file $act_qmaster_file"
          }
 
@@ -526,7 +532,7 @@ proc shadowd_migrate_test {} {
          }
 
          # restart qmaster
-         startup_qmaster 1
+         startup_qmaster 0
 
          # wait for all execd's to connect
          wait_for_load_from_all_queues 120
@@ -545,7 +551,7 @@ proc shadowd_migrate_test {} {
             add_proc_error "shadowd_migrate_test" -1 "can't delete act_qmaster file $act_qmaster_file"
          }
 
-
+         startup_scheduler
       }
 
       if { $CHECK_ACT_LEVEL == 8 } {
@@ -555,7 +561,7 @@ proc shadowd_migrate_test {} {
             set wrong_started_qmaster [lindex $ts_config(shadowd_hosts) 1]
          }
          puts $CHECK_OUTPUT "try to start qmaster on host $wrong_started_qmaster"
-         startup_qmaster 1 "" $wrong_started_qmaster
+         startup_qmaster 0 "" $wrong_started_qmaster
 
 
          set my_timeout [timestamp]

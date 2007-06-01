@@ -2574,39 +2574,40 @@ proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} 
    global CHECK_OUTPUT
 
    set is_ok 0
-   set my_mytimeout [ expr ( [timestamp] + $mytimeout ) ] 
+   set my_mytimeout [expr [timestamp] + $mytimeout] 
 
-   while { $is_ok == 0 } {
+   while {$is_ok == 0} {
       set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0]
-      if { $to_go_away == 0 } {
-         if { $prg_exit_state == 0 } {
+      if {$to_go_away == 0} {
+         if {$prg_exit_state == 0} {
             set is_ok 1
             break
          } 
       } else {
-         if { $prg_exit_state != 0 } {
+         if {$prg_exit_state != 0} {
             set is_ok 1
             break
          } 
       }
       puts -nonewline $CHECK_OUTPUT "."
       flush $CHECK_OUTPUT
-      if { [timestamp] > $my_mytimeout } {
+      if {[timestamp] > $my_mytimeout} {
          break
       }
       after 500
    }
-   if { $is_ok == 1 } {
-      if { $to_go_away == 0 } {
+   if {$is_ok == 1} {
+      if {$to_go_away == 0} {
          puts $CHECK_OUTPUT "ok - file exists on host $hostname"
       } else {
          puts $CHECK_OUTPUT "ok - file does not exist anymore on host $hostname"
       }
       return 0;
    } else {
-      puts $CHECK_OUTPUT "timeout"
-      if {$raise_error} {
-         add_proc_error "wait_for_remote_file" -1 "timeout while waiting for remote file $path on host $hostname"
+      if {$to_go_away == 0} {
+         add_proc_error "wait_for_remote_file" -1 "timeout while waiting for remote file $path on host $hostname to appear" $raise_error
+      } else {
+         add_proc_error "wait_for_remote_file" -1 "timeout while waiting for remote file $path on host $hostname to vanish" $raise_error
       }
       return -1;
    }
