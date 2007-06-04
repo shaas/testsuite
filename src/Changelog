@@ -1,3 +1,6 @@
+RD-2007-06-04-0: Enhancem.: Enhanced advance reservation test
+                 Review:    AA
+
 PJ-2007-06-01-0: Enhancem.: Improving the test usage of time limits
                             Adding one test to advance_reservation
                             Making the test outputs more readable
