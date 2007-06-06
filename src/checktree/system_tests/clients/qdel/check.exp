@@ -475,7 +475,7 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
    set do_continue 1
 
    if { [string first [concat "$string1 " [lindex $job_list 0] ] $result0] >= 0 ||
-        [string first [concat "$string2 " \"[lindex $job_list 0]\" "$string3"] $result0] >= 0 ||
+        [string first [concat "$string2 " "\"[lindex $job_list 0]\"" "$string3"] $result0] >= 0 ||
         [string first [concat "$string4 " [lindex $job_list 0] "$string5"] $result0] >= 0 } {
 
   	   puts $CHECK_OUTPUT "first delete OK"
@@ -496,8 +496,8 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
    }
 
    if ($do_continue) {
-      if { [string first [concat "$string1" \"[lindex $job_list 0]]\" $result00] >= 0 ||
-           [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result00] >= 0 ||
+      if { [string first [concat "$string1" "\"[lindex $job_list 0]\""] $result00] >= 0 ||
+           [string first [concat "$string2" "\"[lindex $job_list 0]\"" "$string3" ] $result00] >= 0 ||
            [string first [concat "$string4" [lindex $job_list 0] "$string5" ] $result00] >= 0 ||
            [string first [concat "$string2 " [lindex $job_list 0] "$string6"] $result00] >= 0 } {
 
@@ -513,8 +513,8 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
       set result000 [ start_remote_prog $hostname $CHECK_USER $qdel_program $job_list ]
 
       # Check that we get a response
-      if { [string first [concat "$string1"  \"[lindex $job_list 0]]\" $result000] >= 0 ||
-           [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result000] >= 0 ||
+      if { [string first [concat "$string1"  "\"[lindex $job_list 0]\""] $result000] >= 0 ||
+           [string first [concat "$string2" "\"[lindex $job_list 0]\"" "$string3" ] $result000] >= 0 ||
            [string first [concat "$string4"  [lindex $job_list 0] "$string5" ] $result000] >= 0 ||
            [string first [concat "$string2 " [lindex $job_list 0] "$string6"] $result00] >= 0 } {
          puts $CHECK_OUTPUT "third delete OK"
@@ -532,8 +532,8 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
       set result01 [ start_remote_prog $hostname $CHECK_USER $qdel_program $job_list ]
 
       # Check that we get a response
-      if { ( [string first [concat "$string1" \"[lindex $job_list 0]]\" $result01] >= 0 ) ||
-      ( [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result01] >= 0 ) ||
+      if { ( [string first [concat "$string1" "\"[lindex $job_list 0]\""] $result01] >= 0 ) ||
+      ( [string first [concat "$string2" "\"[lindex $job_list 0]\"" "$string3" ] $result01] >= 0 ) ||
       ( [string first [concat "$string4" [lindex $job_list 0] "$string5" ] $result01] >= 0 ) } {
          puts $CHECK_OUTPUT "fourth delete OK"
       } else {
@@ -548,8 +548,8 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
       set result011 [ start_remote_prog $hostname $CHECK_USER $qdel_program $job_list ]
 
       # Check that we get a response
-      if { ( [string first [concat "$string1" \"[lindex $job_list 0]]\" $result011] >= 0 ) ||
-      ( [string first [concat "$string2" \"[lindex $job_list 0]\" "$string3" ] $result011] >= 0 ) ||
+      if { ( [string first [concat "$string1" "\"[lindex $job_list 0]\""] $result011] >= 0 ) ||
+      ( [string first [concat "$string2" "\"[lindex $job_list 0]\"" "$string3" ] $result011] >= 0 ) ||
       ( [string first [concat "$string4"  [lindex $job_list 0] "$string5" ] $result011] >= 0 ) } {
          puts $CHECK_OUTPUT "fourth delete OK"
       } else {
@@ -671,7 +671,7 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
    (  [string first "$string4 \"$array_job_list\" $string5 \"7\" $string6"  $result4] >= 0 ) } { 
    } else {
       add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 6 - 7 failed"
-      puts $CHECK_OUTPUT  "My string is [concat "$string4" \"$array_job_list\" " $string5" \"6\" $string6"] "
+      puts $CHECK_OUTPUT  "My string is [concat "$string4" "\"$array_job_list\"" " $string5" "\"6\"" $string6"] "
       puts $CHECK_OUTPUT  "result is $result4"
    }
    # A little cleanup
