@@ -133,8 +133,6 @@ proc advance_reservation_setup {} {
 
    set test_host [host_conf_get_suited_hosts]
 
-   set test_host [host_conf_get_suited_hosts]
-
    set queue_settings(slots) 10
    set queue_settings(pe_list) "mytestpe"
    set queue_settings(load_thresholds) "np_load_avg=11.75"
@@ -693,7 +691,7 @@ proc test_changing_ar_id {} {
    }
 
 	puts $CHECK_OUTPUT "change the ar of running job\nrun qalter -ar $ar_id2 $job_id\n"
-   set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id" ]
+   set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id"]
    if {$prg_exit_state==0} {
       add_proc_error "test_changing_ar_id" -1 "error qalter -ar on running job should fail:\n$result1"
    }

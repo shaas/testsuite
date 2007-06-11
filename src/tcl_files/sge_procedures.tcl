@@ -2573,6 +2573,9 @@ proc add_access_list { user_array list_name } {
 #  INPUTS
 #     user_name - name of the user
 #     list_name - name of access list
+#     {on_host ""}    - execute qconf on host
+#     {as_user ""}    - execute qconf as user
+#     {raise_error 1} - send error mails
 #
 #  RESULT
 #      1  User was not in the access_list
@@ -2608,7 +2611,50 @@ proc del_user_from_access_list { user_name list_name {on_host ""} {as_user ""} {
       set messages(-2) [translate_macro MSG_GDI_DELFROMACL_SS $user_name $list_name]
       set messages(-3) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
 
-      set ret [handle_sge_errors "del_access_list" "-du $user_name $list_name" $result messages $raise_error]
+      set ret [handle_sge_errors "del_user_from_access_list" "-du $user_name $list_name" $result messages $raise_error]
+   } 
+
+   return $ret
+}
+
+#****** sge_procedures/add_user_to_access_list() *******************************
+#  NAME
+#     add_user_to_access_list() -- add a user to an access list
+#
+#  SYNOPSIS
+#     add_user_to_access_list { user_name list_name {on_host ""} {as_user ""} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     user_name       - name of the user
+#     list_name       - name of the user set
+#     {on_host ""}    - execute qconf on host
+#     {as_user ""}    - execute qconf as user
+#     {raise_error 1} - send error mails
+#
+#  RESULT
+#      0  User added to the access_list
+#     -1  User is already in the access_list
+#*******************************************************************************
+proc add_user_to_access_list { user_name list_name {on_host ""} {as_user ""} {raise_error 1}} {
+   global ts_config
+   global CHECK_OUTPUT
+
+   set ret 0
+
+   set result [start_sge_bin "qconf" "-au $user_name $list_name" $on_host $as_user]
+
+   set messages(index) "0 -1"
+   set messages(0) [translate_macro MSG_GDI_ADDTOACL_SS $user_name $list_name]
+   set messages(-1) [translate_macro MSG_GDI_USERINACL_SS $user_name $list_name]
+
+   set ret [handle_sge_errors "add_user_to_access_list" "-au $user_name $list_name" $result messages $raise_error]
+
+   if {($prg_exit_state != 0 && $ret >= 0) || ($prg_exit_state == 0 && $ret < 0)} {
+      add_prog_error "add_user_to_access_list" -1 "qconf -au return value and message does not match together"
    } 
 
    return $ret
@@ -4530,7 +4576,11 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
       set REGISTERED2 [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_REGDELJOB_SU] "*" "*" ]
    }
    set DELETED1  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_DELETETASK_SUU] "*" "*" "*"]
-   set DELETED2  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_DELETEJOB_SU] "*" "*" ]
+   if {$ts_config(gridengine_version) >= 62} {
+      set DELETED2  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_DELETEX_SSU] "*" "job" "*" ]
+   } else {
+      set DELETED2  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_JOB_DELETEJOB_SU] "*" "*" ]
+   }
 
    if {$ts_config(gridengine_version) == 53} {
       set UNABLETOSYNC "asldfja?sldkfj?ajf?ajf"

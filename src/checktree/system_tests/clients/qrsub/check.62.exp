@@ -155,7 +155,7 @@ proc check_submit_ar_noargs {} {
    set options ""
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -36} {
       add_proc_error "check_submit_ar_noargs" -1 "error 'no options argument' was not shown"
@@ -173,7 +173,7 @@ proc check_submit_ar_invalid_arg {} {
    set options "dfdf -d 1000"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -32} {
       add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
@@ -189,7 +189,7 @@ proc check_submit_ar_invalid_option_arg {} {
    set options "-dl 1101010101 -d 1000"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -31} {
       add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
@@ -229,7 +229,7 @@ proc check_option_a {} {
    set options "-a $start1"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -55} {
       add_proc_error "submit_ar" -1 "error 'end time or duration' was not shown"
@@ -239,7 +239,7 @@ proc check_option_a {} {
    set options "-a 0101010101 -d 1000"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -58} {
       add_proc_error "submit_ar" -1 "error 'start time is in the past' was not shown"
@@ -249,7 +249,7 @@ proc check_option_a {} {
    set options "-a $start2 -e $start1"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -57} {
       add_proc_error "submit_ar" -1 "error 'start time is later than end time' was not shown"
@@ -259,7 +259,7 @@ proc check_option_a {} {
    set options "-a errl -d 1000"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -38} {
       add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong date/time format' was not shown"
@@ -360,7 +360,7 @@ proc check_option_d {} {
    set options "-d 01-01-01"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -40} {
       add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong time format' was not shown"
@@ -400,7 +400,7 @@ proc check_option_e {} {
    set options "-e 0101010101 -d 1000"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
    if {$ar_id != -58} {
       add_proc_error "submit_ar" -1 "error 'end time is in the past' was not shown"
       return
@@ -409,7 +409,7 @@ proc check_option_e {} {
    set options "-e 01-01-01 -d 1000"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -38} {
       add_proc_error "submit_ar" -1 "error $ar_id: 'Invalid day specification.' was not shown"
@@ -427,7 +427,7 @@ proc check_option_help {} {
    set options "-help"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -2} {
       add_proc_error "submit_ar" -1 "error in help $ar_id"
@@ -462,7 +462,7 @@ proc check_option_he {} {
    set options "-he blaf"
    set args "$options"
  
-   set ar_id [submit_ar $args 0]
+   set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -31} {
       add_proc_error "submit_ar" -1 "invalid option error in -he blaf not shown"

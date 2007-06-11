@@ -38,16 +38,16 @@
 #     submit_ar -- submit a AR with qrsub
 #
 #  SYNOPSIS
-#     submit_ar { args {do_error_check 1} }
+#     submit_ar { args {on_host ""} {as_user ""} {raise_error 1}}
 #
 #  FUNCTION
 #     This procedure will submit a AR.
 #
 #  INPUTS
 #     args                - a string of qrsub arguments/parameters
-#     {do_error_check 1}  - if 1 (default): add global errors (add_proc_error) when error occured
-#                           if 0: do not add errors at all
-#     {show_args 1}       - show ar args 
+#     {on_host ""}        - execute on different host
+#     {as_user ""}        - execute as user
+#     {raise_error 1}     - create error message if something failes
 #
 #  RESULT
 #     This procedure returns:
@@ -65,7 +65,7 @@
 #     
 #
 #*******************************
-proc submit_ar {args {do_error_check 1} {show_args 1}} {
+proc submit_ar {args {on_host ""} {as_user ""} {raise_error 1}} {
    global ts_config CHECK_OUTPUT
 
    # failure messages from jobs common valiation part:
@@ -111,13 +111,9 @@ proc submit_ar {args {do_error_check 1} {show_args 1}} {
       append messages(index) "$idx "
    }
    
-   if {$show_args == 1} {
-      puts $CHECK_OUTPUT "Submit ar: $args\n"
-   }
+   set output [start_sge_bin "qrsub" $args $on_host $as_user]
 
-   set output [start_sge_bin "qrsub" $args "" "" prg_exit_state]
-
-   set ret [handle_sge_errors "submit_ar" "qrsub $args" $output messages $do_error_check]
+   set ret [handle_sge_errors "submit_ar" "qrsub $args" $output messages $raise_error]
    set ret_code $ret
 
    # some special handling
@@ -170,11 +166,76 @@ proc delete_all_ars {} {
    return $ret
 }
 
+#****** sge_ar.62/delete_ar() **************************************************
+#  NAME
+#     delete_ar() -- ??? 
+#
+#  SYNOPSIS
+#     delete_ar { ar_id {wait_for_end 0} {all_users 0} {on_host ""} 
+#     {as_user ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     deletes a advance reservation
+#
+#  INPUTS
+#     ar_id            - advance reservation to delete
+#     {wait_for_end 0} - wait for end of ar
+#     {all_users 0}    - delete for all users
+#     {on_host ""}     - execute qrdel on host
+#     {as_user ""}     - execute qrdel as user
+#     {raise_error 1}  - send error message
+#
+#  RESULT
+#      -2   general error
+#      -1   id does not exist
+#      0    deleted advance reservation 
+#      1    tagged advance reservation as deleted
+#
+#  SEE ALSO
+#     delete_job
+#*******************************************************************************
+proc delete_ar {ar_id {wait_for_end 0} {all_users 0} {on_host ""} {as_user ""} {raise_error 1}} {
+   global CHECK_OUTPUT
 
+   set ret 0
+   set args ""
+
+   if {$all_users} {
+      set args "-u '*'"
+   }
+
+   set messages(index) "-2 -1 0 1"
+   set messages(-2) [translate_macro MSG_SGETEXT_SPECIFYUSERORID_S "advance_reservation"]
+   set messages(-1) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "advance_reservation" $ar_id]
+   set messages(0) [translate_macro MSG_JOB_DELETEX_SSU "*" "advance_reservation" $ar_id]
+   set messages(1) [translate_macro MSG_JOB_REGDELX_SSU "*" "advance_reservation" $ar_id]
+
+   set output [start_sge_bin "qrdel" "$args $ar_id" $on_host $as_user]
+
+   set ret [handle_sge_errors "delete_ar" "qrdel $args $ar_id" $output messages $raise_error]
+
+   if {($prg_exit_state != 0 && $ret >= 0) || ($prg_exit_state == 0 && $ret < 0)} {
+      add_proc_error "delete_ar" -1 "qrdel return value and output does not match\nmessage:$output\nreturn_code: $prg_exit_state"
+   }
+
+   if {$wait_for_end != 0 && $ret >= 0} {
+      puts $CHECK_OUTPUT "waiting for end of ar $ar_id"
+      set timeout 60
+      while {[parse_qrstat $ar_id] == 0} {
+         after 1000
+         incr timeout -1
+         if {$timeout == 0} {
+            add_proc_error "delete_ar" -1 "timout waiting for ar end"
+            break;
+         }
+      }
+   }
+   return $ret
+}
 
 #****** sge_ar/submit_ar_parse_ar_id() *******************************
 #  NAME
-#     submit_ar_parse_ar_id() -- parse job id from qsub output
+#     submit_ar_parse_ar_id() -- parse ar id from qrsub output
 #
 #  SYNOPSIS
 #     submit_ar_parse_ar_id { output_var } 
@@ -246,15 +307,14 @@ proc submit_ar_parse_ar_id {output_var message} {
 #
 #***************************************************************************
 #
-proc parse_qrstat { ar_id output } {
+proc parse_qrstat {ar_id {output qrstat_info}} {
    global ts_config
    global CHECK_OUTPUT
 
    upvar $output out
 
-   set result [start_sge_bin qrstat "-ar $ar_id"]
+   set result [start_sge_bin qrstat "-u '*' -ar $ar_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "submit_qrstat" -1 "couldn't find qrstat or AR $ar_id does not exists"
       return -1
    }
 
@@ -292,6 +352,7 @@ proc parse_qrstat { ar_id output } {
          }  
       }
    }
+   return 0
 }
 
 #****** sge_ar/test_parse_qrstat() **********************************************
