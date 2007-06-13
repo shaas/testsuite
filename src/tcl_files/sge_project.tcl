@@ -314,7 +314,7 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
    if { $fast_add } {
       get_prj $project old_prj
       foreach elem [array names old_values] {
-         set old_prj($elem) "$old_values($elem)"
+         set old_prj($elem) $old_values($elem)
       }
       
       set tmpfile [dump_array_to_tmpfile old_prj]
@@ -325,9 +325,7 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
       } else {
          set ret [mod_project_error $result $tmpfile $raise_error]
       }
-
    } else {
-
       set vi_commands [build_vi_command old_values]
 
       set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "*" "*" ]
@@ -341,13 +339,13 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
       if {$result == -1 } { 
          add_proc_error "mod_project" -1 "timeout error" $raise_error
       } elseif {$result == -2 } { 
-         add_proc_error "mod_project" -1 "\"[set old_values(name)]\" already exists"  $raise_error
+         add_proc_error "mod_project" -1 "\"$old_values(name)\" already exists"  $raise_error
       } elseif {$result == -3 } { 
-         add_proc_error "mod_project" -1 "value not  u_long32 value"  $raise_error
+         add_proc_error "mod_project" -1 "value not u_long32 value"  $raise_error
       } elseif {$result == -4 } { 
-         add_proc_error "mod_project" -1 "unknown attribute "  $raise_error
+         add_proc_error "mod_project" -1 "unknown attribute"  $raise_error
       } elseif {$result != 0  } { 
-         add_proc_error "mod_project" -1 "could not add project \"[set old_values(name)]\""  
+         add_proc_error "mod_project" -1 "could not add project \"$old_values(name)\""  
       }
 
       set ret $result

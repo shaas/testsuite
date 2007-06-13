@@ -2319,10 +2319,9 @@ proc qconf_modify_exechost {} {
 # sge_project/get_project_list()
 #*******************************
 proc qconf_modify_project {} {
-   global ts_config env qconf_project
-   global CHECK_OUTPUT CHECK_USER
+   global ts_config qconf_project
+   global CHECK_OUTPUT
 
-   set host [lindex $ts_config(execd_nodes) 0]
    set my_project "$qconf_project"
 
    # Next modify fast
@@ -2330,7 +2329,7 @@ proc qconf_modify_project {} {
    set old_values(fshare) "0"
    set result1 [mod_project $my_project old_values]
 
-   if { ( $result1 == 0 ) } {
+   if {$result1 == 0} {
       puts $CHECK_OUTPUT "qconf -Mprj $my_project succeded"
    } else {
       puts $CHECK_OUTPUT "result is $result1"
@@ -2340,7 +2339,7 @@ proc qconf_modify_project {} {
    puts $CHECK_OUTPUT "Modify project $my_project slow ...\n"
    set result2 [mod_project $my_project old_values 0]
 
-   if { ( $result2 == 0 ) } {
+   if {$result2 == 0} {
       puts $CHECK_OUTPUT "qconf -mprj $my_project succeded"
    } else {
       puts $CHECK_OUTPUT "result is $result2"
@@ -2349,9 +2348,9 @@ proc qconf_modify_project {} {
    # Next modify fast wrong
    puts $CHECK_OUTPUT "Modify project $my_project fast with wrong attribute  ...\n"
    set old_values(stuff) "5"
-   set result21 [mod_project $my_project old_values 1 $host $CHECK_USER 0]
+   set result21 [mod_project $my_project old_values 1 "" "" 0]
 
-   if { ( $result21 == -1 ) } {
+   if {$result21 == -1} {
       puts $CHECK_OUTPUT "qconf -Mprj $my_project failed  correctly"
    } else {
       # See IZ 1968 on why this does not fail as expected
@@ -2362,9 +2361,9 @@ proc qconf_modify_project {} {
    puts $CHECK_OUTPUT "Modify project $my_project wrong fast again ...\n"
    set old_values(fshare) "-1"
 
-   set result3 [mod_project $my_project old_values 1 $host $CHECK_USER 0]
+   set result3 [mod_project $my_project old_values 1 "" "" 0]
 
-   if { ( $result3 == -2 ) } {
+   if {$result3 == -2} {
       puts $CHECK_OUTPUT "qconf -Mprj $my_project failed again correctly"
    } else {
       # See IZ 1968 on why this does not fail as expected
@@ -2373,9 +2372,9 @@ proc qconf_modify_project {} {
 
    # Next modify slow
    puts $CHECK_OUTPUT "Modify project $my_project  wrong slow ...\n"
-   set result4 [mod_project $my_project old_values 0 $host $CHECK_USER 0]
+   set result4 [mod_project $my_project old_values 0 "" "" 0]
 
-   if { ( $result4 == -3 ) } {
+   if {$result4 == -3} {
       puts $CHECK_OUTPUT "qconf -mprj $my_project failed  correctly"
    } else {
       puts $CHECK_OUTPUT "result is $result4"
