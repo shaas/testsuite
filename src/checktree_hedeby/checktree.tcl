@@ -49,7 +49,7 @@ set ts_checktree($hedeby_checktree_nr,setup_hooks_0_config_array) hedeby_config
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_init_func)    hedeby_init_config
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_verify_func)  hedeby_verify_config
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_save_func)    hedeby_save_configuration
-set ts_checktree($hedeby_checktree_nr,setup_hooks_0_filename)     $ACT_CHECKTREE/hedeby_defaults.sav
+set ts_checktree($hedeby_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "hedeby" ]
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.0"
 
 set ts_checktree($hedeby_checktree_nr,checktree_clean_hooks_0)  "hedeby_clean"

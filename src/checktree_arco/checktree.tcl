@@ -1,6 +1,40 @@
+#!/vol2/TCL_TK/glinux/bin/tclsh
+# expect script 
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
 
 global ts_checktree, arco_config
-global CHECK_OUTPUT
+global CHECK_OUTPUT CHECK_DEFAULTS_FILE
 global arco_checktree_nr
 global ACT_CHECKTREE
 
@@ -16,7 +50,8 @@ set ts_checktree($arco_checktree_nr,setup_hooks_0_config_array) arco_config
 set ts_checktree($arco_checktree_nr,setup_hooks_0_init_func)    arco_init_config
 set ts_checktree($arco_checktree_nr,setup_hooks_0_verify_func)  arco_verify_config
 set ts_checktree($arco_checktree_nr,setup_hooks_0_save_func)    arco_save_configuration
-set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     $ACT_CHECKTREE/arco_defaults.sav
+#set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     $ACT_CHECKTREE/arco_defaults.sav
+set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "arco" ]
 set ts_checktree($arco_checktree_nr,setup_hooks_0_version)      "1.2"
 
 set ts_checktree($arco_checktree_nr,checktree_clean_hooks_0)  "arco_clean"

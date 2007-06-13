@@ -283,7 +283,7 @@ proc postgres_init_arco_db {} {
 ## ----------- MySQL --------------------------------------------------------
 proc mysql_init_arco_db {} {
 
- global ts_config ts_host_config arco_config 
+   global ts_config ts_host_config arco_config 
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL CHECK_HOST
 
    if { [get_dbwriter_status 0] == 0} {
@@ -292,7 +292,7 @@ proc mysql_init_arco_db {} {
    
    set id [sqlutil_create]
    if { $id == "-1" } {
-      add_sql_error "mysql_init_arco_db" "-2" "Can not create sqlutil"
+      add_sql_error "mysql_init_arco_db" "-2" "Can't create sqlutil"
       return -2
    }   
    set sp_id [ lindex $id 1 ]
@@ -305,10 +305,11 @@ proc mysql_init_arco_db {} {
    }
    
    set db_name [get_database_name]
-   set sql "SELECT schema_name FROM information_schema.schemata where schema_name = '${db_name}'"
-   
    set column_names {}
    array set result_array {}
+   
+   # drop database ${db_name} if exists
+   set sql "SELECT schema_name FROM information_schema.schemata where schema_name = '${db_name}'"
    set res [sqlutil_query $sp_id $sql result_array column_names]
    if {$res < 0} {
       add_sql_error "mysql_init_arco_db" "-2" "can not query database name"
@@ -324,47 +325,61 @@ proc mysql_init_arco_db {} {
       }
    }
    
-   set hosts {}
-   lappend hosts "%"
-   lappend hosts "localhost"
-   lappend hosts "$CHECK_HOST"
-   lappend hosts "$arco_config(dbwriter_host)"
-
+   # drop user if exists
    set arco_write_user [get_arco_write_user]
-   set sql "SELECT user FROM mysql.user WHERE user = '${arco_write_user}'"
-
+   set sql "SELECT user, host FROM mysql.user WHERE user = '${arco_write_user}'"
    set res [sqlutil_query $sp_id "$sql" result_array column_names]
    if {$res < 0} {
-      add_sql_error "mysql_init_arco_db" "-2" "can not query arco_write_user"
+      add_sql_error "mysql_init_arco_db" "-2" "Can't query user $arco_write_user"
       close_spawn_process $id 
       return -2
    } elseif {$res > 0} {
       # user does exists => drop it
-      foreach host $hosts {
-         set sql "drop user '$arco_write_user'@'$host'"
-         if {[sqlutil_exec $sp_id "$sql"] != 0} {
-            add_sql_error "mysql_init_arco_db" "-2" "Can't drop user '$arco_write_user'@'$host'"
-            close_spawn_process $id 
-            return -2
+      foreach i [ array names result_array ] {
+         if { "$result_array($i)" != "${arco_write_user}" } {
+            # revoke user's privileges 
+            set sql "REVOKE ALL PRIVILEGES, GRANT OPTION FROM '${arco_write_user}'@'$result_array($i)'"
+            if {[sqlutil_exec $sp_id "$sql"] != 0} {
+               add_sql_error "mysql_init_arco_db" "-2" "Can't revoke privileges from user '$arco_write_user'@'$result_array($i)'"
+               close_spawn_process $id 
+#               return -2
+            }
+            # drop user 
+            set sql "drop user '$arco_write_user'@'$result_array($i)'"
+            if {[sqlutil_exec $sp_id "$sql"] != 0} {
+               add_sql_error "mysql_init_arco_db" "-2" "Can't drop user '$arco_write_user'@'$result_array($i)'"
+               close_spawn_process $id 
+               return -2
+            }
          }
       }
    }
-   
+
    set arco_read_user [get_arco_read_user]
-   set sql "SELECT user FROM mysql.user WHERE user = '${arco_read_user}'"
+   set sql "SELECT user, host FROM mysql.user WHERE user = '${arco_read_user}'"
    
    set res [sqlutil_query $sp_id "$sql" result_array column_names]
    if {$res < 0} {
-      add_sql_error "mysql_init_arco_db" "-2" "can not query arco_read_user"
+      add_sql_error "mysql_init_arco_db" "-2" "Can't query user $arco_read_user"
       close_spawn_process $id 
       return -2
    } elseif {$res > 0} {
-      foreach host $hosts {
-         set sql "drop user '$arco_read_user'@'$host'"
-         if {[sqlutil_exec $sp_id "$sql"] != 0} {
-            add_sql_error "mysql_init_arco_db" "-2" "Can't drop user '$arco_read_user'@'$host'"
-            close_spawn_process $id 
-            return -2
+      foreach i [ array names result_array ] {
+         if { "$result_array($i)" != "${arco_read_user}" } {
+            # before dropping the user we have to revoke his privileges 
+               set sql "REVOKE SELECT, SHOW VIEW on ${db_name}.* FROM '${arco_read_user}'@'$result_array($i)'"
+               if {[sqlutil_exec $sp_id "$sql"] != 0} {
+                  add_sql_error "mysql_init_arco_db" "-2" "Can't revoke privileges from user '${arco_read_user}'@'$result_array($i)'"
+                  close_spawn_process $id 
+#                  return -2
+               }
+            # drop user 
+            set sql "drop user '$arco_read_user'@'$result_array($i)'"
+            if {[sqlutil_exec $sp_id "$sql"] != 0} {
+               add_sql_error "mysql_init_arco_db" "-2" "Can't drop user '$arco_read_user'@'$result_array($i)'"
+               close_spawn_process $id 
+               return -2
+            }
          }
       }
    }
@@ -375,9 +390,16 @@ proc mysql_init_arco_db {} {
       close_spawn_process $id
       return -2
    }
-  
+
    # Note: 
+   # In MySQL database user is identified by the host from which he connects and his username
+   # We have to create users: 'username'@'%' 
+   #                          'username'@'database_host' [ mandatory if swc_host = database_host ]
    # The grant statement also creates the user in the database
+
+   set hosts {}
+   lappend hosts "%"
+   lappend hosts "$arco_config(database_host)"
     
    foreach host $hosts {
       set sql "GRANT ALL on *.* to '$arco_write_user'@'$host' IDENTIFIED BY 'secret' with GRANT OPTION"
@@ -404,9 +426,8 @@ proc mysql_init_arco_db {} {
       return -2
    }
    
-   
    close_spawn_process $id
-   set_error "0" "arco db initialized"
+#   add_proc_error "mysql_init_arco_db" 0 "arco db initialized"
    return 0
 
 }

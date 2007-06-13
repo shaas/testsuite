@@ -1,3 +1,13 @@
+AP-2007-06-13-0: Enhancem.: o Added function get_additional_config_file_path for
+                              the additional checktrees.
+                            o Set $GE_ROOT and SGE_CELL env. variables for
+                              arcorun
+                 Bugfix:    o ARCo install - revoke privileges before dropping
+                              users for mysql database
+                            o Added missing copyright
+                 Changed:   file_procedures.tcl, arcorun.tcl, checktree.tcl for
+                            arco and hedeby, arco install check.exp
+
 JG-2007-06-13-0: Bugfix:    Fixed CSP negative tests for 6.0.
                  Review:    RD
 

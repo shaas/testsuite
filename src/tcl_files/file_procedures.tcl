@@ -3677,3 +3677,48 @@ proc set_jobseqnum {jobseqnum} {
    
    return $ret
 }
+
+#****** file_procedures/get_additional_config_file_path() **********************
+#  NAME
+#     get_additional_config_file_path() -- get the path to the configuration file 
+#                                          of the additional project
+#
+#  SYNOPSIS
+#     get_additional_config_file_name { project_name } 
+#
+#  FUNCTION
+#     Returns the name of the configuration file for the additional project 
+#     if the testsuite configuration file has the path: $config_path/sge.conf,
+#     the function returns the path of the configuration file for the additional 
+#     project_name: $config_path/sge.$project_name.conf
+#
+#  INPUTS
+#     project_name - the name of the project, i.e. arco, hedeby
+#
+#  RESULT
+#     string containing the path to the file
+#
+#*******************************************************************************
+proc get_additional_config_file_path {project_name} {
+    global CHECK_DEFAULTS_FILE CHECK_OUTPUT
+    set ret ""
+
+    if { [ file isfile $CHECK_DEFAULTS_FILE] != 1 } {
+       # this should not happen
+       break
+    } else {
+       set path_list [ split $CHECK_DEFAULTS_FILE "/" ]
+       set last [ llength $path_list ]
+       incr last -1
+       # the name of the testsuite config file
+       set config_file_name [ lindex $path_list $last ]           
+       set var [ split $config_file_name "." ]
+       set index [llength $var ]
+       if { $index > 1 } { incr index -1 }
+       # the name of the addtional project config file
+       set add_config_file_name [ join [ linsert $var $index "$project_name" ] "." ]  
+       set ret [ join [ lreplace $path_list $last $last $add_config_file_name ] "/" ]
+    }
+    puts $CHECK_OUTPUT "Using configuration file for $project_name: $ret"
+    return $ret
+}
