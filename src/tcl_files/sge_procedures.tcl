@@ -4759,17 +4759,16 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       set messages(2)      "*[translate_macro MSG_JOB_SUBMITJOBARRAY_UUUUS "*" "*" "*" "*" "*"]*"
    }
 
-
    # failure messages:
-   if { $ts_config(gridengine_version) == 53 } {
+   if {$ts_config(gridengine_version) == 53} {
       set messages(-14)    "*[translate_macro MSG_JOB_MOD_JOBNETPREDECESSAMBIGUOUS_SUU "*" "*" "*"]*"
       set messages(-15)    "*[translate_macro MSG_JOB_MOD_JOBNAMEVIOLATESJOBNET_SSUU "*" "*" "*" "*"]*"
-      set messages(-24)    "blah blah blah no NAMETOOLONG in 5.3"
+      set messages(-24)    "blah blah blah no NAMETOOLONG in GE 5.3"
       set messages(-25)    "*[translate_macro MSG_JOB_JOBALREADYEXISTS_U "*"]*"
-      set messages(-26)    "blah blah blah no INVALID_JOB_REQUEST in 5.3"
+      set messages(-26)    "blah blah blah no INVALID_JOB_REQUEST in GE 5.3"
       set messages(-28)    "*[translate_macro MSG_JOB_QUNKNOWN_S "*"]*"
-      set messages(-29)    "blah blah blah no POSITIVE_PRIO in 5.3"
-      set messages(-35)    "blah blah blah no POSITIVE_PRIO in 5.3"
+      set messages(-29)    "blah blah blah no POSITIVE_PRIO in GE 5.3"
+      set messages(-35)    "blah blah blah no MSG_JOB_HRTLIMITTOOLONG_U in GE 5.3"
     } else {
       # 6.0 and higher
       set messages(-14)   "TODO: jobnet handling changed, old message NON_AMBIGUOUS"
@@ -4779,12 +4778,17 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       set messages(-26)    "*[translate_macro MSG_INVALIDJOB_REQUEST_S "*"]*"
       set messages(-28)    "*[translate_macro MSG_QREF_QUNKNOWN_S "*"]*"
 
-      if {$ts_config(gridengine_version) == 60} {
-         set messages(-29)    "blah blah blah no POSITIVE_PRIO in 6.0"
-         set messages(-35)    "blah blah blah no POSITIVE_PRIO in 6.0"
-       } else {
+      if {$ts_config(gridengine_version) < 61} {
+         set messages(-29)    "blah blah blah no MSG_JOB_NONADMINPRIO in GE < 6.1"
+      } else {
          # 6.1 and higher
          set messages(-29)    "*[translate_macro MSG_JOB_NONADMINPRIO]*"
+      }
+
+      if {$ts_config(gridengine_version) < 62} {
+         set messages(-35)    "blah blah blah no MSG_JOB_HRTLIMITTOOLONG_U in GE < 62"
+      } else {
+         # 6.2 and higher
          set messages(-35)    "*[translate_macro MSG_JOB_HRTLIMITTOOLONG_U "*"]*"
       }
    }

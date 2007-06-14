@@ -1,3 +1,6 @@
+JG-2007-06-14-0: Bugfix:    submit_job was broken for Grid Engine 6.1.
+                 Review:    RD
+
 AP-2007-06-13-0: Enhancem.: o Added function get_additional_config_file_path for
                               the additional checktrees.
                             o Set $GE_ROOT and SGE_CELL env. variables for
