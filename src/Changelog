@@ -1,3 +1,6 @@
+JG-2007-06-21-0: Enhancem.: New test bugs/issuezilla/2300.
+                 Review:    RD
+
 JG-2007-06-14-0: Bugfix:    submit_job was broken for Grid Engine 6.1.
                  Review:    RD
 

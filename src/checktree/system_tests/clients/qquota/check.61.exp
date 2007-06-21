@@ -64,8 +64,14 @@ set check_cleanup_function qquota_cleanup
 # define test's procedure order
 set check_functions ""
 lappend check_functions "qquota_help"                   ;# print this help
-lappend check_functions "qquota_option_u"
+#lappend check_functions "qquota_option_h"
 lappend check_functions "qquota_option_l"
+lappend check_functions "qquota_option_u"
+#lappend check_functions "qquota_option_pe"
+#lappend check_functions "qquota_option_P"
+#lappend check_functions "qquota_option_q"
+
+# TODO: Test all options, and the -xml switch (separate runlevel)
 
 proc qquota_init_level {} {
    global CHECK_ACT_LEVEL
@@ -266,3 +272,4 @@ proc qquota_option_l {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 20
 }
+

@@ -198,7 +198,7 @@ proc get_exechost {output_var {host global} {on_host ""} {as_user ""} {raise_err
 #  SEE ALSO
 #     sge_host/get_exechost()
 #*******************************
-proc set_exechost { change_array host {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
+proc set_exechost { change_array {host global} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
 # the array should look like this:
 #
 # set change_array(load_scaling) NONE

@@ -1,0 +1,328 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2300_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2300"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "qquota project filtering broken if -P project is not used"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2300_setup
+set check_cleanup_function issue_2300_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2300_P"
+lappend check_functions "issue_2300_PE"
+
+proc issue_2300_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2300_setup {} {
+   global ts_config CHECK_OUTPUT
+   global global_host_backup queue_backup
+
+   # backup the queue settings
+   get_queue "all.q" queue_backup
+
+   # create complexes F001...F010
+   unset -nocomplain complex_backup
+   for {set i 1} {$i <= 10} {incr i} {
+      set name [format "F%03d" $i]
+      set test_complex($name) "$name INT <= YES YES 0 0"
+   }
+   set_complex test_complex
+
+   # set complexes in global host
+   get_exechost global_host_backup
+   set complex_list {}
+   for {set i 1} {$i <= 10} {incr i} {
+      set name [format "F%03d" $i]
+      lappend complex_list "$name=100"
+   }
+   set global_host(complex_values) [join $complex_list ","]
+   set_exechost global_host
+
+   # create rqs
+   set limit_list {}
+   for {set i 1} {$i <= 10} {incr i} {
+      set name [format "F%03d" $i]
+      lappend limit_list "$name=1"
+   }
+   # per project limit
+   set rqs(iz_2300_P,limit) {}
+   lappend rqs(iz_2300_P,limit) "projects {*} to [join $limit_list ","]"
+   set rqs(iz_2300_P,enabled) "true"
+   # per pe limit
+   set rqs(iz_2300_PE,limit) {}
+   lappend rqs(iz_2300_PE,limit) "pes {*} to slots=100"
+   set rqs(iz_2300_PE,enabled) "true"
+   # general limit on slots
+   set rqs(iz_2300_s,limit) {}
+   lappend rqs(iz_2300_s,limit) "to slots=100"
+   set rqs(iz_2300_s,enabled) "true"
+   add_rqs rqs
+
+   # create projects
+   set prj(name) "P1"
+   add_prj prj
+   set prj(name) "P2"
+   add_prj prj
+   set prj(name) "P3"
+   add_prj prj
+
+   # create pe's and attach them to the all.q
+   set pe(slots)   100
+   set pe(pe_name) "PE1"
+   add_pe pe
+   set pe(pe_name) "PE2"
+   add_pe pe
+   set pe(pe_name) "PE3"
+   add_pe pe
+   mod_attr "queue" "pe_list" "PE1 PE2 PE3" "all.q"
+}
+
+proc issue_2300_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global global_host_backup queue_backup
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   trigger_scheduling
+
+   # restore the queue pe_list
+   #mod_attr "queue" "pe_list" $queue_backup(pe_list) "all.q"
+
+   # delete rqs
+   del_rqs "iz_2300_P"
+   del_rqs "iz_2300_PE"
+   del_rqs "iz_2300_s"
+
+   # delete projects
+   del_prj "P1"
+   del_prj "P2"
+   del_prj "P3"
+
+   # delete pes
+   del_pe "PE1"
+   del_pe "PE2"
+   del_pe "PE3"
+
+   # restore global host
+   set_exechost global_host_backup
+
+   # restore complex
+   for {set i 1} {$i <= 10} {incr i} {
+      set name [format "F%03d" $i]
+      set test_complex($name) ""
+   }
+   set_complex test_complex
+}
+
+
+#****** issue_2300/issue_2300_test() *********************************************
+#  NAME
+#     issue_2300_test() -- test IZ 2300 / CR 6539199
+#
+#  SYNOPSIS
+#     issue_2300_test { } 
+#
+#  FUNCTION
+#  The following setup is used
+#  
+#  > qconf -srqs jeder_nur_eins
+#  {
+#     name         jeder_nur_eins
+#     description  NONE
+#     enabled      TRUE
+#     limit        projects {*} to F001=1,F002=1,F003=1,F004=1,F005=1,F006=1, \
+#     F007=1,F008=1,F009=1,F010=1
+#  }
+#  
+#  > qconf -sc | grep "F0"
+#  F001                F001       INT         <=    YES         YES        0        0
+#  F002                F002       INT         <=    YES         YES        0        0
+#  F003                F003       INT         <=    YES         YES        0        0
+#  F004                F004       INT         <=    YES         YES        0        0
+#  F005                F005       INT         <=    YES         YES        0        0
+#  F006                F006       INT         <=    YES         YES        0        0
+#  F007                F007       INT         <=    YES         YES        0        0
+#  F008                F008       INT         <=    YES         YES        0        0
+#  F009                F009       INT         <=    YES         YES        0        0
+#  F010                F010       INT         <=    YES         YES        0        0
+#  
+#  > qconf -se global
+#  hostname              global
+#  load_scaling          NONE
+#  complex_values        F001=100,F002=100,F003=100,F004=100,F005=100,F006=100, \
+#                        F007=100,F008=100,F009=100,F010=100
+#  load_values           NONE
+#  processors            0
+#  user_lists            NONE
+#  xuser_lists           NONE
+#  projects              NONE
+#  xprojects             NONE
+#  usage_scaling         NONE
+#  report_variables      NONE
+#  
+#  the per project quotas are not printed if no -P option is used:
+#  
+#  submit a job requesting one of the consumables, and a project,
+#  wait for it to be running
+#
+#  > qquota
+#  (no output!)
+#  
+#  but specifying projects causes the rules be printed
+#  > qquota -P Project1
+#  resource quota rule limit                filter
+#  --------------------------------------------------------------------------------
+#  jeder_nur_eins/1   F001=1/1             projects Project1
+#  jeder_nur_eins/1   F002=1/1             projects Project1
+#  jeder_nur_eins/1   F003=1/1             projects Project1
+#  jeder_nur_eins/1   F004=1/1             projects Project1
+#  jeder_nur_eins/1   F005=1/1             projects Project1
+#  jeder_nur_eins/1   F006=1/1             projects Project1
+#  jeder_nur_eins/1   F007=1/1             projects Project1
+#  jeder_nur_eins/1   F008=1/1             projects Project1
+#  jeder_nur_eins/1   F009=1/1             projects Project1
+#  jeder_nur_eins/1   F010=1/1             projects Project1
+#*******************************************************************************
+proc issue_2300_P {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+
+   # submit a job for each project and wait for them to be running
+   set args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 600"
+
+   set job_1 [submit_job "-P P1 -l F001=1 $args"]
+   set job_2 [submit_job "-P P2 -l F002=1 $args"]
+   if {$job_1 <= 0 || $job_2 <= 0} {
+      return   ;# error has been raised in submit_job
+   }
+
+   # wait for jobs to be running
+   trigger_scheduling
+   if {[wait_for_jobstart $job_1 "" 20] != 0 ||
+       [wait_for_jobstart $job_2 "" 20] != 0 } {
+      return   ;# error has been raised in wait_for_jobstart
+   }
+
+   # call qquota, expect 2 jobs to be output (and we have 2 header lines)
+   set output [start_sge_bin "qquota" ""]
+   if {[llength [split [string trim $output] "\n"]] != 5} {
+      add_proc_error "" -1 "qquota failed, expected output for projects P1 and P2, but got:\n$output"
+   }
+
+   # call qquota -P P1, expect 1 jobs to be output
+   set output [start_sge_bin "qquota" "-P P1"]
+   if {[llength [split [string trim $output] "\n"]] != 4} {
+      add_proc_error "" -1 "qquota failed, expected output for project P1, but got:\n$output"
+   }
+
+   # call qquota -P P3, expect 0 jobs to be output
+   set output [start_sge_bin "qquota" "-P P3"]
+   if {[llength [split [string trim $output] "\n"]] != 3} {
+      add_proc_error "" -1 "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
+   }
+}
+
+proc issue_2300_PE {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+
+   # submit a job for each project and wait for them to be running
+   set args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 600"
+
+   set job_1 [submit_job "-pe PE1 2 $args"]
+   set job_2 [submit_job "-pe PE2 4 $args"]
+   if {$job_1 <= 0 || $job_2 <= 0} {
+      return   ;# error has been raised in submit_job
+   }
+
+   # wait for jobs to be running
+   trigger_scheduling
+   if {[wait_for_jobstart $job_1 "" 20] != 0 ||
+       [wait_for_jobstart $job_2 "" 20] != 0 } {
+      return   ;# error has been raised in wait_for_jobstart
+   }
+
+   # call qquota, expect 2 jobs to be output (and we have 2 header lines)
+   set output [start_sge_bin "qquota" ""]
+   if {[llength [split [string trim $output] "\n"]] != 5} {
+      add_proc_error "" -1 "qquota failed, expected output for pes PE1 and PE2, but got:\n$output"
+   }
+
+   # call qquota -pe PE1, expect 1 jobs to be output
+   set output [start_sge_bin "qquota" "-pe PE1"]
+   if {[llength [split [string trim $output] "\n"]] != 4} {
+      add_proc_error "" -1 "qquota failed, expected output for pe PE1, but got:\n$output"
+   }
+
+   # call qquota -pe PE3, expect 0 jobs to be output
+   set output [start_sge_bin "qquota" "-pe PE3"]
+   if {[llength [split [string trim $output] "\n"]] != 3} {
+      add_proc_error "" -1 "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
+   }
+}
+
