@@ -1317,6 +1317,7 @@ proc qconf_sprjl_check {} {
       puts $CHECK_OUTPUT "result is $result0"
    }
 }
+
 #                                                             max. column:     |
 #****** qconf/qconf_add_delete_manager() ******
 #
@@ -1405,7 +1406,7 @@ proc qconf_add_delete_manager {} {
 #*******************************
 proc qconf_add_show_mod_del_queue {} {
    global ts_config env 
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_ARCH CHECK_OUTPUT CHECK_USER 
 
    # First add queue "qconf_queue.q". Set the new name to "qconf_queue.q, 
    # host to $host
@@ -1413,6 +1414,32 @@ proc qconf_add_show_mod_del_queue {} {
    set host [lindex $ts_config(execd_nodes) 0]
    puts $CHECK_OUTPUT "Adding queue qconf_queue.q ...\n"
    add_queue qconf_queue.q $host new_queue 
+
+   #Now test for qconf -sq queue@host
+   #qconf -sq q@host | grep complex_values should show NONE
+   set qconf_qinst "qconf_queue.q@$host"
+   puts $CHECK_OUTPUT "Testing qconf -sq `$qconf_qinst'... \n"
+   set catch_return [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -sq ${qconf_qinst}" } result ]
+   if { $catch_return != 0 } {
+      add_proc_error "get_queue" "-1" "qconf error or binary not found"
+      return
+   }
+
+   # split each line as listelement
+   set op_rows [split $result "\n"]
+ 
+   #test if the complex_values attrib has any value!
+   foreach elem $op_rows {
+       if { [ string first "complex_values" $elem ] >=0 } {
+          puts $CHECK_OUTPUT "qconf -sq retured $elem"
+ 			if { [ string last "NONE" $elem ] >=0 } {
+ 				puts $CHECK_OUTPUT "qconf -sq queue@host successfull"
+ 			} else {
+ 				puts $CHECK_OUTPUT "qconf -sq queue@host failed"
+ 			}		
+ 			break
+ 		}
+   }
 
    # Now do positive test on qconf -sql
    puts $CHECK_OUTPUT "Positive test of qconf -sql ...\n"
