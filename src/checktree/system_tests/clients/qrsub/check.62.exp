@@ -85,6 +85,7 @@ lappend check_functions "check_option_pe"
 lappend check_functions "check_option_q"
 lappend check_functions "check_option_w"
 lappend check_functions "check_option_u"
+lappend check_functions "check_option_masterq"
 
 
 # test specific globals:
@@ -95,7 +96,6 @@ proc qrsub_setup {} {
    global ts_config CHECK_OUTPUT
    global actual_host 
    global qinstance 
-
 
    puts $CHECK_OUTPUT "qrsub test setup"
 
@@ -135,8 +135,7 @@ proc check_submit_ar {} {
    global ts_config CHECK_OUTPUT
  
    # positive tests
-   set options "-d 1000"
-   set args "$options"
+   set args "-d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
@@ -144,16 +143,13 @@ proc check_submit_ar {} {
    }
 
    puts $CHECK_OUTPUT "test check_submit_ar OK"
- 
 }
 
 proc check_submit_ar_noargs {} {
    global ts_config CHECK_OUTPUT
-
   
    # positive tests
-   set options ""
-   set args "$options"
+   set args ""
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -162,16 +158,13 @@ proc check_submit_ar_noargs {} {
       return
    }
    puts $CHECK_OUTPUT "test check_submit_ar_noargs OK"
- 
 }
 
 proc check_submit_ar_invalid_arg {} {
    global ts_config CHECK_OUTPUT
-
   
    # negative tests
-   set options "dfdf -d 1000"
-   set args "$options"
+   set args "dfdf -d 1000"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -179,15 +172,13 @@ proc check_submit_ar_invalid_arg {} {
       add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
    }
    puts $CHECK_OUTPUT "test check_submit_ar_invalid_arg OK"
- 
 }
 
 proc check_submit_ar_invalid_option_arg {} {
    global ts_config CHECK_OUTPUT
   
    # negative tests
-   set options "-dl 1101010101 -d 1000"
-   set args "$options"
+   set args "-dl 1101010101 -d 1000"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -196,7 +187,6 @@ proc check_submit_ar_invalid_option_arg {} {
       return
    }
    puts $CHECK_OUTPUT "test check_submit_ar_invalid_option_arg OK"
-
 }
 
 proc check_option_a {} {
@@ -210,8 +200,7 @@ proc check_option_a {} {
    set start2 [clock format $then2 -format "%Y%m%d%H%M.%S"]
    
    # positive tests
-   set options "-a $start1 -d 1000"
-   set args "$options"
+   set args "-a $start1 -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
@@ -226,8 +215,7 @@ proc check_option_a {} {
    }
 
    # negative tests
-   set options "-a $start1"
-   set args "$options"
+   set args "-a $start1"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -236,8 +224,7 @@ proc check_option_a {} {
       return
    }
 
-   set options "-a 0101010101 -d 1000"
-   set args "$options"
+   set args "-a 0101010101 -d 1000"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -246,8 +233,7 @@ proc check_option_a {} {
       return
    }
 
-   set options "-a $start2 -e $start1"
-   set args "$options"
+   set args "-a $start2 -e $start1"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -256,8 +242,7 @@ proc check_option_a {} {
       return
    }
 
-   set options "-a errl -d 1000"
-   set args "$options"
+   set args "-a errl -d 1000"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -266,7 +251,6 @@ proc check_option_a {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_a OK"
-
 }
 
 proc check_option_A {} {
@@ -274,14 +258,12 @@ proc check_option_A {} {
 
    # positive tests
    set elm "test_ar_account"
-   set options "-d 1000 -A $elm"
-   set args "$options"
+   set args "-d 1000 -A $elm"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(account)                        "$elm"
@@ -290,18 +272,14 @@ proc check_option_A {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_A OK"
-
 }
-
 
 proc check_option_ckpt {} {
    global ts_config CHECK_OUTPUT
 
-
    # positive tests
    set elm "test_ar_ckpt"
-   set options "-d 1000 -ckpt $elm"
-   set args "$options"
+   set args "-d 1000 -ckpt $elm"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
@@ -315,24 +293,19 @@ proc check_option_ckpt {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_ckpt OK"
-
-
 }
 
 proc check_option_d {} {
    global ts_config CHECK_OUTPUT
 
-
    # positive tests
-   set options "-d 3600"
-   set args "$options"
+   set args "-d 3600"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
 
-  
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(duration)                     "01:00:00"
    set ret [parse_qrstat_check $ar_id check_values]
@@ -340,14 +313,12 @@ proc check_option_d {} {
       return
    }
 
-   set options "-d 01:01:01"
-   set args "$options"
+   set args "-d 01:01:01"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(duration)                     "01:01:01"
@@ -357,8 +328,7 @@ proc check_option_d {} {
    }
 
    # negative tests
-   set options "-d 01-01-01"
-   set args "$options"
+   set args "-d 01-01-01"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -367,7 +337,6 @@ proc check_option_d {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_d OK"
-
 }
 
 proc check_option_e {} {
@@ -379,8 +348,7 @@ proc check_option_e {} {
    set starto [clock format $then -format "%m/%d/%Y %H:%M:%S"]
  
    # positive tests
-   set options "-e $start1 -d 1000"
-   set args "$options"
+   set args "-e $start1 -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
@@ -395,10 +363,8 @@ proc check_option_e {} {
       return
    }
 
-
    # negative tests
-   set options "-e 0101010101 -d 1000"
-   set args "$options"
+   set args "-e 0101010101 -d 1000"
  
    set ar_id [submit_ar $args "" "" 0]
    if {$ar_id != -58} {
@@ -406,8 +372,7 @@ proc check_option_e {} {
       return
    }
 
-   set options "-e 01-01-01 -d 1000"
-   set args "$options"
+   set args "-e 01-01-01 -d 1000"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -416,16 +381,13 @@ proc check_option_e {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_e OK"
-
 }
 
 proc check_option_help {} {
    global ts_config CHECK_OUTPUT
 
-
    # positive tests
-   set options "-help"
-   set args "$options"
+   set args "-help"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -434,22 +396,18 @@ proc check_option_help {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_help OK"
-
 }
 
 proc check_option_he {} {
    global ts_config CHECK_OUTPUT
 
-
    # positive tests
-   set options "-he yes -d 1000"
-   set args "$options"
+   set args "-he yes -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(error_handling)                     "true"
@@ -459,8 +417,7 @@ proc check_option_he {} {
    }
 
    # negative tests
-   set options "-he blaf"
-   set args "$options"
+   set args "-he blaf"
  
    set ar_id [submit_ar $args "" "" 0]
 
@@ -469,7 +426,6 @@ proc check_option_he {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_he OK"
-
 }
 
 proc check_option_l {} {
@@ -477,14 +433,12 @@ proc check_option_l {} {
    global actual_host
 
    # positive tests
-   set options "-l 'h=$actual_host, h_rt=1000' -d 1000"
-   set args "$options"
+   set args "-l 'h=$actual_host, h_rt=1000' -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(resource_list)                     "hostname=$actual_host, h_rt=1000"
@@ -493,22 +447,18 @@ proc check_option_l {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_l OK"
-
 }
 
 proc check_option_m {} {
    global ts_config CHECK_OUTPUT
 
-
    # positive tests
-   set options "-m abe -d 1000"
-   set args "$options"
+   set args "-m abe -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(mail_options)                     "abe"
@@ -517,47 +467,38 @@ proc check_option_m {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_m OK"
-
 }
 
 proc check_option_now {} {
    global ts_config CHECK_OUTPUT
 
-
    # positive tests
-   set options "-now y -d 1000"
-   set args "$options"
+   set args "-now y -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
 
-
-   set options "-now n -d 1000"
-   set args "$options"
+   set args "-now n -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_now OK"
-
 }
-
 
 proc check_option_M {} {
    global ts_config CHECK_OUTPUT 
    global CHECK_REPORT_EMAIL_TO
 
-   set options "-M $CHECK_REPORT_EMAIL_TO -d 1000"
-   set args "$options"
+   set args "-M $CHECK_REPORT_EMAIL_TO -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(mail_list)                     "$CHECK_REPORT_EMAIL_TO"
@@ -566,20 +507,17 @@ proc check_option_M {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_M OK"
-
 }
 
 proc check_option_N {} {
    global ts_config CHECK_OUTPUT
 
-   set options "-N test_ar_name -d 1000"
-   set args "$options"
+   set args "-N test_ar_name -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(name)                     "test_ar_name"
@@ -588,7 +526,6 @@ proc check_option_N {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_N OK"
-
 }
 
 proc check_option_pe {} {
@@ -602,14 +539,12 @@ proc check_option_pe {} {
 
    delete_all_ars
 
-   set options "-pe qrsub_pe 3 -d 1000 "
-   set args "$options"
+   set args "-pe qrsub_pe 3 -d 1000 "
 
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(granted_parallel_environment)   "qrsub_pe slots 3"
@@ -619,15 +554,13 @@ proc check_option_pe {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_pe OK"
-
 }
 
 proc check_option_q {} {
    global ts_config CHECK_OUTPUT
    global qinstance
 
-   set options "-q $qinstance -d 1000"
-   set args "$options"
+   set args "-q $qinstance -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
@@ -642,15 +575,12 @@ proc check_option_q {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_q OK"
-
 }
-
 
 proc check_option_w {} {
    global ts_config CHECK_OUTPUT
 
-   set options " -w e -d 1000"
-   set args "$options"
+   set args " -w e -d 1000"
  
    set ar_id [submit_ar $args]
 
@@ -659,8 +589,7 @@ proc check_option_w {} {
       return
    }
 
-   set options " -w v -d 1000"
-   set args "$options"
+   set args " -w v -d 1000"
  
    set ar_id [submit_ar $args]
 
@@ -669,21 +598,18 @@ proc check_option_w {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_w OK"
-
 }
 
 proc check_option_u {} {
    global ts_config CHECK_OUTPUT
    global CHECK_USER
 
-   set options " -u 'sgetest,!sgetest1,sgetest2,!root' -d 1000"
-   set args "$options"
+   set args " -u 'sgetest,!sgetest1,sgetest2,!root' -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
       return
    }
-
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
    set check_values(acl_list)               "sgetest,sgetest2"
@@ -693,5 +619,25 @@ proc check_option_u {} {
       return
    }
    puts $CHECK_OUTPUT "test check_option_u OK"
+}
 
+proc check_option_masterq {} {
+   global ts_config CHECK_OUTPUT
+
+   foreach host $ts_config(execd_nodes) {
+      set masterq "all.q@$host"
+      set args " -pe mytestpe 1 -masterq $masterq -d 1000"
+      set ar_id [submit_ar $args]
+      if {$ar_id < 0} {
+         return
+      }
+      set check_values(master hard queue_list) "$masterq"
+      set check_values(granted_slots_list)     "$masterq=1"
+      set ret [parse_qrstat_check $ar_id check_values]
+      if {$ret != 0 } {
+         return
+      }
+      delete_ar $ar_id
+   }
+   puts $CHECK_OUTPUT "test check_option_masterq OK"
 }

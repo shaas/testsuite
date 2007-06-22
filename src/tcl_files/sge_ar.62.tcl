@@ -225,7 +225,8 @@ proc delete_ar {ar_id {wait_for_end 0} {all_users 0} {on_host ""} {as_user ""} {
          after 1000
          incr timeout -1
          if {$timeout == 0} {
-            add_proc_error "delete_ar" -1 "timout waiting for ar end"
+            add_proc_error "delete_ar" -1 "timout waiting for ar end" $raise_error
+            set ret = -999
             break;
          }
       }
@@ -336,7 +337,7 @@ proc parse_qrstat {ar_id {output qrstat_info}} {
    set    match_text(acl_list)          acl_list*
    set    match_text(xacl_list)         xacl_list*
    set    match_text(error_handling)    error_handling*
-
+   set    match_text(master_hard_queue_list)    master hard queue_list*
 
    set lines [split $result "\n"]
    foreach line $lines {

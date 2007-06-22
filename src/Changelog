@@ -1,3 +1,7 @@
+RD-2007-06-22-0: Enhancem:  - added test for qdel+qrdel race condition
+                            - added test qrsub -masterq
+                 Review:    AA
+
 CR-2007-06-22-0: Enhancem.: support for multipe GE clusters
                  Cleanup:   o removed globals:
                               CHECK_PRODUCT_ROOT, CHECK_SOURCE_DIR
@@ -38,8 +42,9 @@ GH-2007-06-22-0: Enhancem.: New test bugs/issuezilla/2304.
                  Review:    JG
 
 RN-2007-06-21-0: Bugfix:    qconf -sq all.q@myhost or all.q@@allhosts produces
-                 no value at all for complex_values (not even NONE)
-                 modified qconf test for testing o/p of qconf -sq queue@host
+                            no value at all for complex_values (not even NONE)
+                            modified qconf test for testing o/p of qconf -sq
+                            queue@host
                  Issue :    2307 
                  Review:    JG
 
