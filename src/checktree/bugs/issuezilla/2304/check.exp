@@ -1,0 +1,340 @@
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2304_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2304"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_highest_level   0
+set check_description(0)  "NFS write error on trace file"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function   "issue_2304_setup"
+set check_cleanup_function "issue_2304_cleanup"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2304_check"
+
+proc issue_2304_init_level {} {
+   global CHECK_ACT_LEVEL
+   #
+   # Just level 0 and 1 are valid.
+   #
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1
+}
+
+proc issue_2304_setup {} {
+
+   global CHECK_OUTPUT
+   global CHECK_ACT_LEVEL
+   global execd_host
+   global ts_config
+   global admin_user_list
+   global qname
+   global init_ok
+
+
+   set init_ok 0
+   #
+   # Get list of SGE admin users to for check
+   # of file ownership.
+   #
+   set admin_user_list [start_sge_bin "qconf" "-sm"]
+   set uid_list {} 
+   foreach elem $admin_user_list {
+      set uid_string [ exec /usr/bin/id $elem ]
+      set left [ string first "=" $uid_string ]
+      set right [ string first "(" $uid_string ]
+      incr left +1
+      incr right -1
+      set uid [ string range $uid_string $left $right ]
+      lappend uid_list $uid
+ 
+   }
+
+   #
+   # Make sure that we are running this test in a config with
+   # global (NFS mounted) spool directory. We also require 
+   # execd not co-located with qmaster. Plus, the cell 
+   # specific directory (and hopefully everything 
+   # underneath) needs to be owned by an admin user.
+   # Finally, we need to check for the appropriate NFSv3
+   # mount point.
+   #
+   set qmaster_host $ts_config(master_host)
+   set execd_host_found 0
+   set user_ok 0
+   foreach execd_host $ts_config(execd_nodes) {
+      set arch [ host_conf_get_arch $execd_host ]
+      if { $arch != "sol-sparc64" } {
+         puts $CHECK_OUTPUT "Skipping execd on $execd_host with arch $arch"
+         continue
+      }
+      set local_spool_dir [ get_local_spool_dir $execd_host "execd" ]
+      set spool_dir [ get_spool_dir $execd_host "execd" ]
+      #
+      #
+      #
+      file stat $spool_dir spool_dir_stat
+      set poo $spool_dir_stat(uid)
+      foreach elem $uid_list {
+         if { $elem == "root" } continue
+         if { $elem == $poo } {
+            set user_ok 1
+            break
+         }
+      }
+      if { $execd_host == $qmaster_host || $local_spool_dir != "" || $user_ok == 0} continue 
+      set execd_host_found 1
+      break
+   }
+   if { $execd_host_found == 0 } { 
+      add_proc_error "issue_2304_init_level" \
+                     -3 \
+                     "Can not run test because prerequisites are not fullfilled"
+      return -1
+   }
+   #
+   # Next, determine NFS version. We need to make sure that we running
+   # this test with v3, since v4 does not generate an error message (the
+   # bug still exists, though)
+   # 
+   set fs [ start_remote_prog $execd_host [lindex $admin_user_list 0] "/usr/bin/nfsstat"  "-m" ] 
+   set running_index 0
+   foreach elem [split $fs "\n"] {
+      foreach member [split $elem " ,"] {
+         set is_mountpoint [string first $member $spool_dir]
+         if { $is_mountpoint == 0 } {
+            break
+         } 
+      }
+      if { $is_mountpoint == 0 } {
+         break
+      }
+   }
+   incr running_index +1
+   set fslist [split $fs "\n"]
+   #set version_line [ lindex $fslist $running_index ]
+   set version_line [ lindex [split $fs "\n"] $running_index ]
+   set left [string first "vers=" $version_line]
+   set right [string first ",proto=" $version_line]
+   incr right -1
+   set nfs_version [string range $version_line $left $right]
+   if { $nfs_version != "vers=3" } {
+      add_proc_error "issue_2304_init_level" \
+                     -3 \
+                     "Can not run test: NFSv3 required [$nfs_version]"
+      return -1
+   }
+   
+   puts $CHECK_OUTPUT "Selected $execd_host as test host\n"
+   #
+   # Create dummy queue used for this test.
+   #
+   set testq(slots) 10
+   add_queue test.q $execd_host testq
+   set qname [get_queue_instance test.q $execd_host]
+   puts $CHECK_OUTPUT "Created test queue $qname"
+   set init_ok 1
+   return 0
+}
+
+# -------- local test procedures -----------------------------------------------
+
+proc issue_2304_cleanup  {} {
+   global CHECK_OUTPUT 
+   global execd_host
+   global qname
+
+   puts $CHECK_OUTPUT "issue_2304_cleanup called\n"
+   #
+   # ... wait till dust is down....
+   #
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   #
+   # Clean up test.q if it's still around.
+   #
+   if {[lsearch [get_queue_list] "test.q"] != -1} {
+      puts $CHECK_OUTPUT "Deleting test.q"
+      del_queue test.q $execd_host 0 1
+   }
+}
+
+proc issue_2304_check {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_PRODUCT_ROOT
+   global  CHECK_USER
+   global execd_host
+   global admin_user_list
+   global qname
+   global init_ok
+  
+   if { $init_ok == 0 } {
+      add_proc_error "issue_2304_check" \
+                     -3 \
+                     "Can not run test because prerequisites are not fullfilled"
+      return -1
+   }
+   #
+   # This is the test plan:
+   # ======================
+   # 
+   # The test as such is very simple, but we need to check for
+   # a number of prerequisites to establish the scenario that
+   # tickles the bug.
+   #
+   # * first we need to select a Solaris execd host spooling
+   #   on NFS file system.
+   # * we also require that all files in the cell specific
+   #   directory are owned by an SGE admin user.
+   # * start dummy job for any non-sge_admin user 
+   # * get startup time for this job
+   # * wait for job completion and  remember finish time
+   # * scan /var/adm/message for corresponding NFS error message
+   #   generated in the time frame between job startup and
+   #   completion time
+   # * if found, exit with success. Otherwise report error.
+   #
+   set job_id_list {}
+   set job_args "-o /dev/null -e /dev/null -q $qname"
+   set user "root" 
+   set job_id [submit_job "$job_args $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 60" 1 30 "" $user]
+      if {$job_id <= 0} {
+         add_proc_error "issue_2304_check" \
+                        -1 \
+                        "can't start job for test user $user"
+         return -1
+   }
+   lappend job_id_list $job_id
+   #
+   # wait for the jobs to run
+   #
+   trigger_scheduling
+   foreach job_id $job_id_list {
+      wait_for_jobstart $job_id "Sleeper" 20
+   }
+   set result [ get_standard_job_info $job_id ]
+   foreach elem $result {
+      set startup_time [lindex $elem 6]
+   }
+   
+   set result [start_sge_bin "qstat" "-f -u $user"]
+   puts $CHECK_OUTPUT $result
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   #
+   # Understood: this is just a good guess for the real completion
+   # time.
+   #
+   set end_time [clock seconds ] 
+   #
+   # OK, job just finished. Now we need to check system message file
+   # for any NFS related error logs. Find any SGE admin user to read
+   # message file.
+   #
+   set test_ok 1
+   set sge_admin_user [ lindex $admin_user_list 0 ]
+   get_message_file $execd_host $sge_admin_user "/var/adm/messages" 
+   for { set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+      set line $file_array($i)
+      set date [lindex $line 2]
+      set boo 0
+      set error_message_found 0
+      set error_time [ clock scan $date ]
+      set start_time [ clock scan $startup_time ]
+      set nfs_error_found [ string match "*NFS write error*" $line ]
+      if { $nfs_error_found > 0 &&  $error_time < $end_time && $error_time > $start_time } {
+         #
+         # Oops, we are still seeing this bug. Print out offending message
+         # record and setup exit code.
+         #
+         set test_ok 0
+         puts $CHECK_OUTPUT "Unexpected NFS error message:  $line" 
+         break
+      }
+   }
+   if { $test_ok == 0 } {
+      #
+      # Indicate failure
+      #
+      add_proc_error "issue_2304_check" \
+                     -1 \
+                     "Found unexpected NFS error message"
+      return -1
+   } else {
+      return 0
+   }
+}
+
+proc get_message_file { host  user file { file_a "file_array" } } {
+
+   global CHECK_OUTPUT
+   upvar $file_a back
+
+   set program_name "tail"
+   set program_args "-10l $file"
+   set output [ start_remote_prog $host $user $program_name $program_args ]
+   set lcounter 0
+   foreach line [split $output "\n"] {
+      incr lcounter 1
+      set back($lcounter) $line
+  }
+  set back(0) $lcounter
+}
+
+
