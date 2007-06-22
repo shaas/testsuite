@@ -1,9 +1,13 @@
+RD-2007-06-22-0: CVS        Created TS_PRIOR_MULTICLUSTER_TAG
+-------------------------------------------------------------
+
 GH-2007-06-22-0: Enhancem.: New test bugs/issuezilla/2304.
                  Review:    JG
 
-RN-2007-06-21-0: Bugfix:    qconf -sq all.q@myhost or all.q@@allhosts produces no value at all for complex_values (not even NONE)
-			    modified qconf test for testing o/p of qconf -sq queue@host
-		 Issue :    2307 
+RN-2007-06-21-0: Bugfix:    qconf -sq all.q@myhost or all.q@@allhosts produces
+                 no value at all for complex_values (not even NONE)
+                 modified qconf test for testing o/p of qconf -sq queue@host
+                 Issue :    2307 
                  Review:    JG
 
 JG-2007-06-21-0: Enhancem.: New test bugs/issuezilla/2300.
