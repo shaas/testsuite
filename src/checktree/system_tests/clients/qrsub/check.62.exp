@@ -631,7 +631,7 @@ proc check_option_masterq {} {
       if {$ar_id < 0} {
          return
       }
-      set check_values(master hard queue_list) "$masterq"
+      set check_values(master_hard_queue_list) "$masterq"
       set check_values(granted_slots_list)     "$masterq=1"
       set ret [parse_qrstat_check $ar_id check_values]
       if {$ret != 0 } {
