@@ -64,7 +64,7 @@ proc issue_1146_init_level {} {
 }
 
 proc issue_1146_run  {} {
-   global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    set qname "thisis@atest"
    
@@ -81,5 +81,6 @@ proc issue_1146_run  {} {
    # add by handling vi
    set vi_commands [build_vi_command qparam]
 
-   handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aq" $vi_commands $INVALID
+   set master_arch [resolve_arch $ts_config(master_host)]
+   handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-aq" $vi_commands $INVALID
 }

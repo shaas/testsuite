@@ -141,10 +141,11 @@ proc get_dir_names { path } {
 #     file_procedures/get_tmp_file_name()
 #*******************************************************************************
 proc get_tmp_directory_name { { hostname "" } { type "default" } { dir_ext "tmp" } { not_in_results 0 } } {
-   global CHECK_MAIN_RESULTS_DIR CHECK_HOST CHECK_USER CHECK_OUTPUT last_file_extention
+   global CHECK_MAIN_RESULTS_DIR CHECK_USER CHECK_OUTPUT last_file_extention
 
+   set local_host [gethostname]
    if { $hostname == "" } {
-      set hostname $CHECK_HOST
+      set hostname $local_host
    }
 
    if { [info exists last_file_extention] == 0 } {
@@ -208,10 +209,11 @@ proc get_tmp_directory_name { { hostname "" } { type "default" } { dir_ext "tmp"
 #*******************************************************************************
 proc get_tmp_file_name { { hostname "" } { type "default" } { file_ext "tmp" } { not_in_results 0 } } {
    
-   global CHECK_MAIN_RESULTS_DIR CHECK_HOST CHECK_USER CHECK_OUTPUT last_file_extention
+   global CHECK_MAIN_RESULTS_DIR CHECK_USER CHECK_OUTPUT last_file_extention
 
    if { $hostname == "" } {
-      set hostname $CHECK_HOST
+      set local_host [gethostname]
+      set hostname $local_host
    }
 
    if { [info exists last_file_extention] == 0 } {
@@ -427,11 +429,14 @@ proc print_xy_array {columns rows data_array {empty_cell ""} {column_len_var ""}
 #
 #*******************************************************************************
 proc create_gnuplot_xy_gif { data_array_name row_array_name } {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_HOST
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $data_array_name data
    upvar $row_array_name rows
+
+   
+   set local_host [gethostname]
 
 
    # generate data files
@@ -486,7 +491,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    puts $test_file "set terminal gif" 
    flush $test_file
    close $test_file
-   set result [start_remote_prog $CHECK_HOST $CHECK_USER gnuplot $test_file_name prg_exit_state 60 0 "" "" 1 0 0]
+   set result [start_remote_prog $local_host $CHECK_USER gnuplot $test_file_name prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state != 0 } {
       puts $CHECK_OUTPUT "gnuplot does not support gif terminal, using png terminal ..."
       set terminal_type "png"
@@ -515,7 +520,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
    }
    close $cmd_file
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_USER gnuplot $command_file prg_exit_state 60 0 "" "" 1 0 0]
+   set result [start_remote_prog $local_host $CHECK_USER gnuplot $command_file prg_exit_state 60 0 "" "" 1 0 0]
    if { $prg_exit_state == 0 } {
       return $data(output_file)
    } else {
@@ -1667,10 +1672,10 @@ proc create_shell_script { scriptfile
                            {without_start_output 0}
                            {without_sge_single_line 0}
                          } {
-   global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
+   global CHECK_OUTPUT CHECK_PRODUCT_TYPE
    global CHECK_DEBUG_LEVEL 
 
+   get_current_cluster_config_array ts_config
    if {$envlist != ""} {
       upvar $envlist users_env
    }
@@ -1696,10 +1701,12 @@ proc create_shell_script { scriptfile
    append script_content "# The script will execute a special command with arguments\n"
    append script_content "# and it should be deleted after use. So if this file exists, please delete it\n"
 
+
    if { $no_setup == 0 } {
       # script command
       append script_content "trap 'echo \"_exit_status_:(1) script: $script_tail_name\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
       append script_content "umask 022\n"
+
 
       if { $set_shared_lib_path == 1 } {
          append script_content "# settup shared library path\n"
@@ -1712,12 +1719,14 @@ proc create_shell_script { scriptfile
          append script_content "   export $shared_var\n"
          append script_content "fi\n"
       }
+
       if { $source_settings_file == 1 } {
          append script_content "# source settings file\n"
-         append script_content "if \[ -f $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/settings.sh \]; then\n"
-         append script_content "   . $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/settings.sh\n"
+         append script_content "if \[ -f $ts_config(product_root)/$ts_config(cell)/common/settings.sh \]; then\n"
+         append script_content "   . $ts_config(product_root)/$ts_config(cell)/common/settings.sh\n"
          append script_content "else\n"
       }
+
       append script_content "# set testsuite environment\n"
       append script_content "   unset GRD_ROOT\n"
       append script_content "   unset CODINE_ROOT\n"
@@ -1732,8 +1741,9 @@ proc create_shell_script { scriptfile
          append script_content "   SGE_EXECD_PORT=$my_execd_port\n"
          append script_content "   export SGE_EXECD_PORT\n"
       }
-      if { [info exists CHECK_PRODUCT_ROOT] } {
-         append script_content "   SGE_ROOT=$CHECK_PRODUCT_ROOT\n"
+
+      if { [info exists ts_config(product_root)] } {
+         append script_content "   SGE_ROOT=$ts_config(product_root)\n"
          append script_content "   export SGE_ROOT\n"
       }
       append script_content "   SGE_CELL=$ts_config(cell)\n"
@@ -1742,6 +1752,7 @@ proc create_shell_script { scriptfile
       if { $source_settings_file == 1 } {
          append script_content "fi\n"
       }
+
 
       if { $without_sge_single_line == 0 } {
          append script_content "# don't break long lines with qstat\n"
@@ -1757,6 +1768,7 @@ proc create_shell_script { scriptfile
 #      append script_content "export SGE_LONG_QNAMES\n"
 
       # change directory, if requested
+
       if {$cd_dir != ""} {
          append script_content "# change into working directory\n"
          append script_content "cd $cd_dir\n"
@@ -1779,6 +1791,7 @@ proc create_shell_script { scriptfile
       }
    }
 
+
    # don't try to find which,cd, test and other shell commands
    # don't try to do anything if $no_setup is set
    # don't try to do a which if exec_command contains a space or ;
@@ -1792,6 +1805,7 @@ proc create_shell_script { scriptfile
          append script_content "echo \"script done. (_END_OF_FILE_)\"\n"
       }
    }
+
    puts -nonewline $script $script_content
    flush $script
    close $script
@@ -1808,6 +1822,7 @@ proc create_shell_script { scriptfile
          wait_for_enter
       }
    }
+
 }
 
 
@@ -2019,8 +2034,8 @@ proc copy_directory { source target } {
 #     file_procedures/delete_directory()
 #*******************************
 proc cleanup_spool_dir { topleveldir subdir } {
-   global ts_config
    global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    set spooldir "$topleveldir"
 
@@ -2073,7 +2088,8 @@ proc cleanup_spool_dir { topleveldir subdir } {
 
 
 proc check_local_spool_directories { { do_delete 0 } } {
-   global ts_host_config ts_config CHECK_OUTPUT
+   global ts_host_config CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    if { [have_root_passwd] == -1 } {
       puts $CHECK_OUTPUT "need root access ..."
@@ -2154,8 +2170,8 @@ proc check_local_spool_directories { { do_delete 0 } } {
 #     file_procedures/cleanup_spool_dir()
 #*******************************************************************************
 proc cleanup_spool_dir_for_host {hostname topleveldir subdir} {
-   global ts_config
    global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    set spooldir "$topleveldir"
 
@@ -2276,7 +2292,8 @@ proc check_for_core_files {hostname path} {
 }
 
 proc remote_delete_directory {hostname path {win_local_user 0}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    set return_value -1
    
@@ -2368,7 +2385,8 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
 #     file_procedures/delete_directory
 #*******************************
 proc delete_file_at_startup {filename} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
    if {![file isfile $del_file_name]} {
@@ -2414,7 +2432,8 @@ proc delete_file_at_startup {filename} {
 #     file_procedures/delete_directory
 #*******************************
 proc delete_file { filename { do_wait_for_file 1 } } {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    if { $do_wait_for_file == 1 } {
       wait_for_file "$filename" 60 0 0 ;# wait for file, no error reporting!
@@ -2709,15 +2728,19 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
 #     file_procedures/wait_for_file()
 #     file_procedures/wait_for_remote_file()
 #*******************************************************************************
-proc is_remote_file { hostname user path } {
+proc is_remote_file { hostname user path {be_quiet 0} } {
    global CHECK_OUTPUT
 
    set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0]
    if { $prg_exit_state == 0 } {
-      puts $CHECK_OUTPUT "found file: $hostname:$path"
+      if {$be_quiet == 0} {
+         puts $CHECK_OUTPUT "found file: $hostname:$path"
+      }
       return 1;
    } 
-   puts $CHECK_OUTPUT "file not found: $hostname:$path"
+   if {$be_quiet == 0} {
+      puts $CHECK_OUTPUT "file not found: $hostname:$path"
+   }
    return 0;
 }
 
@@ -2830,8 +2853,10 @@ proc delete_remote_file {hostname user path {win_local_user 0}} {
 #*******************************
 
 proc delete_directory { path } { 
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_HOST
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
+
+   set local_host [gethostname]
 
    set return_value -1
    puts $CHECK_OUTPUT "path to delete: \"$path\""
@@ -2841,7 +2866,7 @@ proc delete_directory { path } {
 
    if {[file isdirectory "$path"] != 1} {
       puts $CHECK_OUTPUT "delete_directory - no such directory: \"$path\""
-      add_proc_error "delete_directory" -1 "$CHECK_HOST: no such directory: \"$path\""
+      add_proc_error "delete_directory" -1 "$local_host: no such directory: \"$path\""
       return -1     
    }
  
@@ -2854,7 +2879,7 @@ proc delete_directory { path } {
          set file_attributes [file attributes $path/$dir]
          if { [string match "*owner $CHECK_USER*" $file_attributes] != 1 } {
             puts $CHECK_OUTPUT "directory $path/$dir not owned by user $CHECK_USER"
-            start_remote_prog $CHECK_HOST "root" chown "-R $CHECK_USER $path/$dir" prg_exit_state 60 0 "" "" 1 0 0
+            start_remote_prog $local_host "root" chown "-R $CHECK_USER $path/$dir" prg_exit_state 60 0 "" "" 1 0 0
             if { $prg_exit_state == 0 } {
                puts $CHECK_OUTPUT "set directory owner to $CHECK_USER"
             } else {
@@ -2871,7 +2896,7 @@ proc delete_directory { path } {
          set file_attributes [file attributes $file]
          if { [string match "*owner $CHECK_USER*" $file_attributes] != 1 } {
             puts $CHECK_OUTPUT "$file not owned by user $CHECK_USER"
-            start_remote_prog $CHECK_HOST "root" chown "$CHECK_USER $file" prg_exit_state 60 0 "" "" 1 0 0
+            start_remote_prog $local_host "root" chown "$CHECK_USER $file" prg_exit_state 60 0 "" "" 1 0 0
             if { $prg_exit_state == 0 } {
                puts $CHECK_OUTPUT "set file owner to $CHECK_USER"
             } else {
@@ -2894,7 +2919,7 @@ proc delete_directory { path } {
          if { $catch_return != 0 } {
             puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder!"
             puts $CHECK_OUTPUT $result
-            add_proc_error "delete_directory" -1 "$CHECK_HOST: could not mv/cp directory \"$path\" to trash folder, $result"
+            add_proc_error "delete_directory" -1 "$local_host: could not mv/cp directory \"$path\" to trash folder, $result"
             set return_value -1
          } else { 
             puts $CHECK_OUTPUT "copy ok -  removing directory"
@@ -2903,7 +2928,7 @@ proc delete_directory { path } {
             } result ] 
             if { $catch_return != 0 } {
                puts $CHECK_OUTPUT "could not remove directory \"$path\", $result"
-               add_proc_error "delete_directory" -1 "$CHECK_HOST: could not remove directory \"$path\", $result"
+               add_proc_error "delete_directory" -1 "$local_host: could not remove directory \"$path\", $result"
                set return_value -1
             } else {
                puts $CHECK_OUTPUT "done"
@@ -2915,10 +2940,11 @@ proc delete_directory { path } {
       }
    } else {
       puts $CHECK_OUTPUT "delete_directory - path is to short. Will not delete\n\"$path\""
-      add_proc_error "delete_directory" "-1" "$CHECK_HOST: path is to short. Will not delete\n\"$path\""
+      add_proc_error "delete_directory" "-1" "$local_host: path is to short. Will not delete\n\"$path\""
       set return_value -1
    }
-  return $return_value
+   puts $CHECK_OUTPUT "delete_directory - done"
+   return $return_value
 }
 
 #****** file_procedures/init_logfile_wait() ************************************
@@ -3290,9 +3316,10 @@ proc check_output_is_tty {} {
 #     file_procedures/get_spool_dir()
 #*******************************************************************************
 proc get_local_spool_dir {host subdir {do_cleanup 1}} {
-   global ts_config ts_host_config 
+   global ts_host_config 
    global CHECK_OUTPUT
    global check_do_not_use_spool_config_entries
+   get_current_cluster_config_array ts_config
 
    set spooldir ""
 
@@ -3359,9 +3386,10 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
 #
 #*******************************************************************************
 proc get_execd_spooldir { host type { only_base 0 } } {
-   global ts_config ts_host_config 
+   global ts_host_config 
    global CHECK_OUTPUT
    global check_do_not_use_spool_config_entries
+   get_current_cluster_config_array ts_config
 
    set spooldir ""
 
@@ -3532,8 +3560,8 @@ proc get_file_gid { user host file } {
 #     file_procedures/get_local_spool_dir()
 #*******************************************************************************
 proc get_spool_dir {host subdir} {
-   global ts_config
    global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    # first try to get a local spooldir
    set spooldir [get_local_spool_dir $host $subdir 0]
@@ -3582,7 +3610,7 @@ proc get_spool_dir {host subdir} {
 #     The spool directory.
 #*******************************************************************************
 proc get_bdb_spooldir {{host ""} {only_local 0}} {
-   global ts_config
+   get_current_cluster_config_array ts_config
 
    # default host is master host
    if {$host == ""} {
@@ -3645,7 +3673,8 @@ proc get_fstype {path {host ""}} {
 }
 
 proc get_jobseqnum {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    set ret -1
 
@@ -3662,7 +3691,8 @@ proc get_jobseqnum {} {
 }
 
 proc set_jobseqnum {jobseqnum} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    set ret 0
    set qmaster_spool_dir [get_qmaster_spool_dir]

@@ -94,15 +94,15 @@ lappend pe_alloc_rule "\$fill_up"
 
 
 proc qmod_reschedule_init_level {} {
-   global CHECK_ACT_LEVEL CHECK_HOST hold_state pending_state queue
-   global rerun_host no_rerun_host CHECK_CORE_EXECD CHECK_OUTPUT
+   global CHECK_ACT_LEVEL hold_state pending_state queue
+   global rerun_host no_rerun_host CHECK_OUTPUT ts_config
 
-   if { [ llength $CHECK_CORE_EXECD ] < 2 } {
+   if { [ llength $ts_config(execd_hosts) ] < 2 } {
       return -1
    }
 
-   set rerun_host    [ lindex $CHECK_CORE_EXECD 0  ]
-   set no_rerun_host [ lindex $CHECK_CORE_EXECD 1  ]
+   set rerun_host    [ lindex $ts_config(execd_hosts) 0  ]
+   set no_rerun_host [ lindex $ts_config(execd_hosts) 1  ]
 
    switch -- $CHECK_ACT_LEVEL {
       "0" { return 0 } 
@@ -146,7 +146,7 @@ proc qmod_reschedule_init_level {} {
 proc reschedule_setup {} {
    global pe_names pe_alloc_rule
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_CORE_EXECD stored_configuration rerun_queue2
+   global stored_configuration rerun_queue2 ts_config
 
    set schedd_config(schedule_interval) "0:0:4"
    set_schedd_config schedd_config
@@ -159,7 +159,7 @@ proc reschedule_setup {} {
    set_config myconfig
 
    puts $CHECK_OUTPUT "disabling all cluster queues"
-   foreach host $CHECK_CORE_EXECD {
+   foreach host $ts_config(execd_hosts) {
       puts ${host}
       disable_queue [get_queue_instance all.q $host]
    }
@@ -240,26 +240,26 @@ proc reschedule_setup {} {
 #
 proc reschedule_submit_jobs {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_EXECD
+   global ts_config
   
    set jobs ""
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
 
-   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
 
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
 
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
  
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
 
    set jobs_string ""
@@ -278,8 +278,7 @@ proc reschedule_submit_jobs {} {
    
    # send qmod -r to each job
    puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string" } output ]
-   
+   set output [start_sge_bin "qmod" "-r $jobs_string"]
    puts $CHECK_OUTPUT $output
 
   
@@ -296,7 +295,7 @@ proc reschedule_submit_jobs {} {
    }
 
    puts $CHECK_OUTPUT "using force flag for job [lindex $jobs 1] ..."
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -f -r [lindex $jobs 1]" } output ]
+   set output [start_sge_bin "qmod" "-f -r [lindex $jobs 1]"]
    puts $CHECK_OUTPUT $output
    puts $CHECK_OUTPUT "waiting for job [lindex $jobs 1] to get in pending state ..."
    wait_for_jobpending [lindex $jobs 1] "Sleeper" 60
@@ -316,7 +315,7 @@ proc reschedule_submit_jobs {} {
 
    # send qmod -r to each job in queue 
    puts $CHECK_OUTPUT "sending qmod -r to queues $no_rerun_queue and $rerun_queue"   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r [get_queue_instance $no_rerun_queue $no_rerun_host] [get_queue_instance $rerun_queue $rerun_host]" } output ]
+   set output [start_sge_bin "qmod" "-r [get_queue_instance $no_rerun_queue $no_rerun_host] [get_queue_instance $rerun_queue $rerun_host]"]
    puts $CHECK_OUTPUT $output
 
    puts $CHECK_OUTPUT "jobs $sched_jobs should be pending ..."
@@ -330,7 +329,7 @@ proc reschedule_submit_jobs {} {
    }
 
    puts $CHECK_OUTPUT "using force flag for job [lindex $jobs 1] ..."
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -f -r [lindex $jobs 1]" } output ]
+   set output [start_sge_bin "qmod" "-f -r [lindex $jobs 1]"]
    puts $CHECK_OUTPUT $output
    puts $CHECK_OUTPUT "waiting for job [lindex $jobs 1] to get in pending state ..."
    wait_for_jobpending [lindex $jobs 1] "Sleeper" 60
@@ -383,20 +382,20 @@ proc reschedule_submit_jobs {} {
 #
 proc reschedule_checkpointing {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_EXECD
+   global ts_config
    
    set jobs ""
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -ckpt qmod_with_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
 
-   set arguments "$my_outputs -ckpt qmod_with_r -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
 
    set jobs_string ""
@@ -413,7 +412,7 @@ proc reschedule_checkpointing {} {
    
    # send qmod -r to each job
    puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string" } output ]
+   set output [start_sge_bin "qmod" "-r $jobs_string"]
    
    puts $CHECK_OUTPUT $output
   
@@ -440,7 +439,7 @@ proc reschedule_checkpointing {} {
 
    # send qmod -r to each job in queue 
    puts $CHECK_OUTPUT "sending qmod -r to queue $rerun_queue"   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r [get_queue_instance $rerun_queue $rerun_host]" } output ]
+   set output [start_sge_bin "qmod" "-r [get_queue_instance $rerun_queue $rerun_host]"]
    puts $CHECK_OUTPUT $output
 
 
@@ -470,20 +469,20 @@ proc reschedule_checkpointing {} {
 
 proc reschedule_checkpointing_forced {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_EXECD
+   global ts_config
  
    set jobs ""
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -ckpt qmod_with_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
 
-   set arguments "$my_outputs -ckpt qmod_with_r -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [ submit_job $arguments ]
  
 
@@ -504,8 +503,7 @@ proc reschedule_checkpointing_forced {} {
    
    # send qmod -r to each job
    puts $CHECK_OUTPUT "sending qmod -f -r to jobs $jobs_string"   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -f -r $jobs_string" } output ]
-   
+   set output [start_sge_bin "qmod" "-f -r $jobs_string"]
    puts $CHECK_OUTPUT $output
 
   
@@ -532,7 +530,7 @@ proc reschedule_checkpointing_forced {} {
 
    # send qmod -r to each job in queue 
    puts $CHECK_OUTPUT "sending qmod -f -r to queue $rerun_queue"   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -f -r [get_queue_instance $rerun_queue $rerun_host]" } output ]
+   set output [start_sge_bin "qmod" "-f -r [get_queue_instance $rerun_queue $rerun_host]"]
    puts $CHECK_OUTPUT $output
 
 
@@ -594,19 +592,21 @@ proc reschedule_checkpointing_forced {} {
 #
 proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_DEBUG_LEVEL CHECK_USER CHECK_USER
-   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_CORE_EXECD CHECK_HOST
+   global ts_config CHECK_DEBUG_LEVEL CHECK_USER CHECK_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
-   # JG: TODO: use open_remote_spawn_process - we could run out of filehandles here
-   set qrsh_id    [open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
-   set qrsh_id2   [open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host] sleep 10000"]
-   set qsh_id     [open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
-     
+   # TODO: use open_remote_spawn_process
+   set local_arch [resolve_arch [gethostname]]
+   set qrsh_id    [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
+   set qrsh_id2   [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host] sleep 10000"]
+   set qsh_id     [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
+   
+  
    set qlogin_out_file [get_tmp_file_name "" "qlogin" "txt"]
 
-   puts $CHECK_OUTPUT "try to scripts/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
+   puts $CHECK_OUTPUT "try to scripts/qlogin.sh $qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
 
-   set qlogin_id  [open_spawn_process "scripts/qlogin.sh $qlogin_out_file $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
+   set qlogin_id  [open_spawn_process "scripts/qlogin.sh $qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
    set qlogin_spawn_id [lindex $qlogin_id 1]
    set no_jobs 4
    set result ""
@@ -628,7 +628,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
           add_proc_error "reschedule_qsh_qlogin_qrsh_qrlogin" -1 "qlogin error, expected login:, received $result"
       }
      
-      ts_send $qlogin_spawn_id "$CHECK_USER\n" $CHECK_HOST 1
+      ts_send $qlogin_spawn_id "$CHECK_USER\n" $ts_config(master_host) 1
       set timeout 5
       expect {
          -i $qlogin_spawn_id eof { 
@@ -693,7 +693,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
 
    # send qmod -r to each job
    puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
-   set result [catch {eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $jobs_string"} output]
+   set output [start_sge_bin "qmod" "-r $jobs_string"]
    puts $CHECK_OUTPUT $output
     
    puts $CHECK_OUTPUT "jobs $jobs_string should still run ..."
@@ -753,8 +753,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
 proc reschedule_pe_jobs {} {
    global ts_config
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_CORE_EXECD stored_configuration rerun_queue2 pe_names
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_EXECD
+   global stored_configuration rerun_queue2 pe_names
 
    if { $ts_config(gridengine_version) == 53 } {
       add_proc_error reschedule_pe_jobs -3 "test would fail in 5.3 systems, as queue names are truncated in qstat output\nWould have to call qstat -f to figure out master and slave queues"
@@ -765,7 +764,7 @@ proc reschedule_pe_jobs {} {
 
        puts $CHECK_OUTPUT "submitting job to pe $pe ..."
        set my_outputs "-o /dev/null -e /dev/null"
-       set my_job "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5000"
+       set my_job "$ts_config(product_root)/examples/jobs/sleeper.sh 5000"
        set arguments "$my_outputs -pe $pe 2 -masterq [get_queue_instance $rerun_queue $rerun_host] $my_job"
        set job [submit_job $arguments]
        puts $CHECK_OUTPUT "job $job submitted"
@@ -824,7 +823,7 @@ proc reschedule_pe_jobs {} {
 
        if { [ string compare $slave_queue $master_queue ] != 0 } {
           puts $CHECK_OUTPUT "rescheduling SLAVE task queue \"$slave_queue\""     
-          set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $slave_queue" } output ]
+          set output [start_sge_bin "qmod" "-r $slave_queue"]
           puts $CHECK_OUTPUT $output
 
           sleep 10          
@@ -834,7 +833,7 @@ proc reschedule_pe_jobs {} {
        } 
  
        puts $CHECK_OUTPUT "rescheduling MASTER task queue \"$master_queue\""     
-       set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $master_queue" } output ]
+       set output [start_sge_bin "qmod" "-r $master_queue"]
        puts $CHECK_OUTPUT $output
 
        wait_for_jobpending $job "Sleeper" 60
@@ -934,14 +933,14 @@ proc reschedule_pe_jobs {} {
 #
 proc reschedule_deleted_job {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_CORE_EXECD stored_configuration rerun_queue2
+   global stored_configuration rerun_queue2
    global pe_names pe_alloc_rule CHECK_ADMIN_USER_SYSTEM
-   global CHECK_PRODUCT_ROOT CHECK_PRODUCT_TYPE CHECK_ARCH
-   global CHECK_ADMIN_USER_SYSTEM CHECK_CORE_EXECD
+   global ts_config CHECK_PRODUCT_TYPE
+   global CHECK_ADMIN_USER_SYSTEM
 
    puts $CHECK_OUTPUT "submitting job to queue $no_rerun_queue ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id [ submit_job $arguments ]
 
    wait_for_jobstart $job_id "Sleeper" 100
@@ -950,8 +949,8 @@ proc reschedule_deleted_job {} {
 
    # shutdown execd
    puts $CHECK_OUTPUT "shutdown execd on host $no_rerun_host ..."
-   catch {exec $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -ke $no_rerun_host} output
-   puts $output
+   set output [start_sge_bin "qconf" "-ke $no_rerun_host"]
+   puts $CHECK_OUTPUT $output
 
    puts $CHECK_OUTPUT "deleting job $job_id ..."
    delete_job $job_id
@@ -964,7 +963,7 @@ proc reschedule_deleted_job {} {
 
 
    puts $CHECK_OUTPUT "reschedule of job $job_id ..."
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -r $job_id" } output ]
+   set output [start_sge_bin "qmod" "-r $job_id"]
    puts $CHECK_OUTPUT $output
 
    
@@ -1010,8 +1009,8 @@ proc reschedule_deleted_job {} {
 #
 proc reschedule_cleanup {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_CORE_EXECD stored_configuration rerun_queue2
-   global pe_names pe_alloc_rule CHECK_CORE_EXECD
+   global stored_configuration rerun_queue2
+   global pe_names pe_alloc_rule ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -1033,7 +1032,7 @@ proc reschedule_cleanup {} {
    del_queue $rerun_queue2 $no_rerun_host 0 1
 
    puts $CHECK_OUTPUT "enabling queues ..."
-   foreach host $CHECK_CORE_EXECD {
+   foreach host $ts_config(execd_hosts) {
       puts $host
       enable_queue [get_queue_instance all.q $host]
    }

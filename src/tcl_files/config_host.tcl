@@ -91,11 +91,13 @@ if {![info exists ts_host_config]} {
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_hostlist { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
 
    upvar $config_array config
 
    set description   $config($name,desc)
+
+   set local_host [gethostname]
 
    if {$only_check == 0} {
       set not_ready 1
@@ -136,9 +138,9 @@ proc host_config_hostlist { only_check name config_array } {
                set not_ready 0
             }
             4 {
-               set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $CHECK_HOST prg_exit_state 60 0 "" "" 1 0]
+               set result [start_remote_prog $local_host $CHECK_USER "nslookup" $local_host prg_exit_state 60 0 "" "" 1 0]
                if {$prg_exit_state == 0} {
-                  set pos1 [string first $CHECK_HOST $result]
+                  set pos1 [string first $local_host $result]
                   set ip [string range $result $pos1 end]
                   set pos1 [string first ":" $ip]
                   incr pos1 1
@@ -152,7 +154,7 @@ proc host_config_hostlist { only_check name config_array } {
                   for {set i 1} {$i <= 254} {incr i 1} {
                      set ip_run "$ip.$i"
                      puts -nonewline $CHECK_OUTPUT "\r$ip_run"
-                     set result [start_remote_prog $CHECK_HOST $CHECK_USER "nslookup" $ip_run prg_exit_state 25 0 "" "" 1 0]
+                     set result [start_remote_prog $local_host $CHECK_USER "nslookup" $ip_run prg_exit_state 25 0 "" "" 1 0]
                      set pos1 [string first "Name:" $result]   
                      if {$pos1 >= 0} {
                         incr pos1 5
@@ -205,7 +207,7 @@ proc host_config_hostlist { only_check name config_array } {
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_NFS-ROOT2NOBODY { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global fast_setup
 
    upvar $config_array config
@@ -267,7 +269,7 @@ proc host_config_NFS-ROOT2NOBODY { only_check name config_array } {
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_NFS-ROOT2ROOT { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global fast_setup
 
    upvar $config_array config
@@ -328,7 +330,7 @@ proc host_config_NFS-ROOT2ROOT { only_check name config_array } {
 #     check/host_config_hostlist_show_compile_hosts()
 #*******************************************************************************
 proc host_config_hostlist_show_hosts {array_name} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
 
    upvar $array_name config
 
@@ -408,7 +410,7 @@ proc host_config_hostlist_show_hosts {array_name} {
 #     check/host_config_hostlist_show_hosts()
 #*******************************************************************************
 proc host_config_hostlist_show_compile_hosts {array_name save_array} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    upvar $array_name config
    upvar $save_array back
 
@@ -1254,7 +1256,7 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
 #*******************************************************************************
 proc update_ts_host_config_version { filename } {
    global actual_ts_host_config_version
-   global ts_host_config ts_config
+   global ts_host_config
    global CHECK_OUTPUT CHECK_USER
 
    if { [string compare $ts_host_config(version)  "1.0"] == 0 } {
@@ -2078,10 +2080,10 @@ proc host_conf_get_unused_host {{raise_error 1}} {
 #
 #  EXAMPLE
 #
-#     set java_home [get_java_home_for_host $CHECK_HOST "1.6"]
+#     set java_home [get_java_home_for_host $ts_config(master_host) "1.6"]
 #
 #     if { $java_home == "" } {
-#         puts "java not configurated for host $CHECK_HOST"
+#         puts "java not configurated for host $ts_config(master_host)"
 #     }
 #
 #  NOTES
@@ -2154,7 +2156,7 @@ proc get_testsuite_java_version { {version "1.4"} } {
 proc host_conf_get_cluster_hosts {} {
    global ts_config CHECK_OUTPUT
 
-   set hosts "$ts_config(master_host) $ts_config(execd_hosts) $ts_config(execd_nodes) $ts_config(submit_only_hosts) $ts_config(bdb_server)"
+   set hosts "$ts_config(master_host) $ts_config(execd_hosts) $ts_config(execd_nodes) $ts_config(submit_only_hosts) $ts_config(bdb_server) $ts_config(shadowd_hosts)"
    set cluster_hosts [lsort -dictionary -unique $hosts]
    set none_elem [lsearch $cluster_hosts "none"]
    if {$none_elem >= 0} {
@@ -2265,9 +2267,11 @@ proc host_conf_is_java_compile_host {host {config_var ""}} {
 #  RESULT
 #     an architecture string, e.g. sol-sparc64, darwin, ...
 #*******************************************************************************
+# CR checked
 proc host_conf_get_arch {host {config_var ""}} {
-   global ts_config ts_host_config CHECK_OUTPUT
-   
+   global ts_host_config CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
+
    # we might work on a temporary config
    if {$config_var == ""} { 
       upvar 0 ts_host_config config
@@ -2921,9 +2925,11 @@ proc host_get_id_a_command {host} {
 #        but cannot use Linux on Itanic.
 #*******************************************************************************
 proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_archs {}} {excluded_archs {}}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_PREFERRED_ARCHS
+   get_current_cluster_config_array ts_config
 
+   
    # preferred archs as option to the function call will override
    # globally defined preferred archs (through commandline option at testsuite start).
    if {$preferred_archs == {} && $CHECK_PREFERRED_ARCHS != {}} {
@@ -2960,9 +2966,12 @@ proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_ar
 #     config_host/host_conf_get_suited_hosts()
 #*******************************************************************************
 proc host_conf_get_suited_hosts_rebuild_cache {} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global suited_host_cache suited_arch_cache
    global suited_exec_node_backup
+ 
+   get_current_cluster_config_array ts_config
+
 
    # first call, initialize some variables
    if {![info exists suited_exec_node_backup]} {
@@ -2973,6 +2982,7 @@ proc host_conf_get_suited_hosts_rebuild_cache {} {
          puts $CHECK_OUTPUT "the exec node list was modified - rebuilding suited host cache"
          unset -nocomplain suited_host_cache
          unset -nocomplain suited_arch_cache
+         set suited_exec_node_backup $ts_config(execd_nodes)
       }
    }
 

@@ -134,7 +134,6 @@ proc resource_reservation_setup {} {
    global ts_config
    global binary_path
    global CHECK_OUTPUT
-   global CHECK_SOURCE_DIR
 
    puts $CHECK_OUTPUT "resource_reservation_setup" 
 
@@ -199,7 +198,7 @@ proc resource_reservation_setup {} {
 
    set compile_arch_mt [resolve_build_arch_installed_libs $rr_host 0]
    
-   set binary_path "$CHECK_SOURCE_DIR/$compile_arch_mt"
+   set binary_path "$ts_config(source_dir)/$compile_arch_mt"
   
    puts $CHECK_OUTPUT "host is $rr_host has arch $compile_arch_mt mt bin path $binary_path"
 }
@@ -210,9 +209,7 @@ proc resource_reservation_level_setup {} {
    global rr_host
    global ts_config
    global CHECK_OUTPUT
-   global CHECK_SOURCE_DIR
    global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_ROOT
 
    if {$CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 4} {
       # setup needed pe
@@ -243,7 +240,7 @@ proc resource_reservation_level_setup {} {
          set no_rr_host [lindex $ts_config(execd_nodes) 1]
 
          # submit jobs into that queue
-         set job_options "-j y -o /dev/null -q $rr_cal_queue_name -l h=$no_rr_host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+         set job_options "-j y -o /dev/null -q $rr_cal_queue_name -l h=$no_rr_host $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
          set job_id [submit_job "$job_options"]
          trigger_scheduling
          wait_for_jobstart $job_id "Sleeper" 60 1 1
@@ -315,7 +312,6 @@ proc resource_reservation_cleanup {  } {
    global ts_config
    global rr_host
    global CHECK_OUTPUT
-   global CHECK_SOURCE_DIR
 
    # reset the scheduler configuration
    reset_schedd_config
@@ -349,7 +345,6 @@ proc resource_reservation_level_cleanup {} {
    global rr_host
    global ts_config
    global CHECK_OUTPUT
-   global CHECK_SOURCE_DIR
    global CHECK_ACT_LEVEL
 
    puts $CHECK_OUTPUT "resource_reservation_level_cleanup"

@@ -177,8 +177,8 @@ proc arco_dbwriter_performance_cleanup  {} {
 
 
 proc arco_dbwriter_performance_execute {} {
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST CHECK_ACT_LEVEL 
-   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_CORE_MASTER
+   global CHECK_OUTPUT CHECK_USER CHECK_ACT_LEVEL 
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global ts_config check_description sqlutil_sp_id
    
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
@@ -216,7 +216,7 @@ proc arco_dbwriter_performance_execute {} {
    
    foreach project $projects {
       foreach user $users {
-         set res [submit_job "$job_args -P $project" 1 60 $CHECK_HOST $user]
+         set res [submit_job "$job_args -P $project" 1 60 $ts_config(master_host) $user]
          if { $res < 0 } {
             add_proc_error "arco_dbwriter_performance_execute" -1 "submission of job failed"
             return -1

@@ -79,14 +79,15 @@ proc issue_478_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_478_check {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    # initialize parameter
    set job_name "n1"
    set N_option "-N $job_name"
    set h_option "-h"
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 120"
-   set qstat_command "$ts_config(product_root)/bin/$CHECK_ARCH/qstat"
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set qstat_command "$ts_config(product_root)/bin/$master_arch/qstat"
 
    if {$ts_config(gridengine_version) == 53} {
       set grep_pattern "Predecessor Jobs:"
@@ -111,7 +112,9 @@ proc issue_478_check {} {
 
    # qstat -r output has to contain following output: 
    #    "Predecessor Jobs: <job_id1>,n1"
-   set qstatresult [catch { eval exec "$qstat_command -r \| grep \"$grep_pattern\"" } qstatoutput]
+   set qstatoutput [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_command "-r | grep \"$grep_pattern\""]
+   set qstatresult $prg_exit_state
+
    scan $qstatoutput $formatstring out_id out_name
 
    if {[string compare $job_id1 $out_id] != 0 || \

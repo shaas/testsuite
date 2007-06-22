@@ -36,8 +36,8 @@
 # settings in all.q
 
 proc unassign_queues_with_pe_object { pe_obj {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
    global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    puts $CHECK_OUTPUT "searching for references in cluster queues ..."
    set queue_list [get_queue_list $on_host $as_user $raise_error]
@@ -58,8 +58,8 @@ proc unassign_queues_with_pe_object { pe_obj {on_host ""} {as_user ""} {raise_er
 
 
 proc assign_queues_with_pe_object { qname hostlist pe_obj } {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    set queue_list {}
    # if we have no hostlist: change cluster queue
@@ -73,10 +73,12 @@ proc assign_queues_with_pe_object { qname hostlist pe_obj } {
 
    foreach queue $queue_list {
       puts $CHECK_OUTPUT "queue: $queue"
-      if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aattr" "queue" "pe_list" "$pe_obj" "$queue" } result] != 0 } {
+      set result [start_sge_bin "qconf" "-aattr queue pe_list $pe_obj $queue" ]
+      if { $prg_exit_state != 0 } {
          # if command fails: output error
          add_proc_error "assign_queues_with_pe_object" -1 "error changing pe_list: $result"
       }
+
    }
 }
 

@@ -55,7 +55,7 @@
 #     0 on success, an error code on error
 #*******************************************************************************
 proc get_rqs {output_var {rqs ""} {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
+   get_current_cluster_config_array ts_config
    upvar $output_var out
 
    # clear output variable
@@ -157,9 +157,9 @@ proc get_rqs_error {result rqs raise_error} {
 #     0 on success, an error code on error.
 #*******************************************************************************
 proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global env CHECK_ARCH
-   global CHECK_CORE_MASTER
+   global CHECK_OUTPUT CHECK_USER
+   global env
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -199,8 +199,8 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
       set UNKNOWN_ATTRIBUTE [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_UNKNOWNATTRIBUTENAME_S] "*"]
 
       set vi_commands [build_rqs_vi_array chgar]
-
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-arqs $rqs_names" $vi_commands $ADDED $ALREADY_EXISTS $UNKNOWN_ATTRIBUTE]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-arqs $rqs_names" $vi_commands $ADDED $ALREADY_EXISTS $UNKNOWN_ATTRIBUTE]
       if { $result != 0 } {
          add_proc_error "add_rqs" -1 "could not add resource quota set (error: $result)" $raise_error
       }
@@ -231,9 +231,9 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
 #     0 on success, an error code on error.
 #*******************************************************************************
 proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global env CHECK_ARCH
-   global CHECK_CORE_MASTER
+   global CHECK_OUTPUT CHECK_USER
+   global env
+   get_current_cluster_config_array ts_config
    
    upvar $change_array chgar
 
@@ -255,17 +255,16 @@ proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {rai
       set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
 
       set vi_commands [build_rqs_vi_array chgar]
-
+      set master_arch [resolve_arch $ts_config(master_host)]
       if { $name != "" } {
-         set ret [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mrqs $name" $vi_commands $MODIFIED $ADDED $NOT_MODIFIED]
+         set ret [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mrqs $name" $vi_commands $MODIFIED $ADDED $NOT_MODIFIED]
       } else {
-         set ret [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mrqs $name" $vi_commands $ADDED $MODIFIED $NOT_MODIFIED]
+         set ret [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mrqs $name" $vi_commands $ADDED $MODIFIED $NOT_MODIFIED]
       }
       if { $ret != 0 } {
          add_proc_error "mod_rqs" -1 "could not modify resource quota set (error: $result)" $raise_error
       }
    }
-
    return $ret
 }
 
@@ -289,8 +288,9 @@ proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {rai
 #     0 on success, an error code on error.
 #*******************************************************************************
 proc del_rqs {rqs_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_USER
-   
+   global CHECK_USER
+   get_current_cluster_config_array ts_config
+
    set messages(index) "0"
    set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $rqs_name "*"]
 

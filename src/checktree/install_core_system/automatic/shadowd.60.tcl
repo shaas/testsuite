@@ -60,13 +60,13 @@
 #     ???/???
 #*******************************
 proc install_shadowd {} {
-   global ts_config
    global CHECK_OUTPUT CHECK_CORE_SHADOWD CORE_INSTALLED
-   global check_use_installed_system CHECK_ARCH
+   global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
-   global CHECK_COMMD_PORT CHECK_CORE_MASTER
-   global CHECK_MAIN_RESULTS_DIR CHECK_SUBMIT_ONLY_HOSTS
+   global CHECK_COMMD_PORT
+   global CHECK_MAIN_RESULTS_DIR
+   global ts_config
 
    set CORE_INSTALLED "" 
    read_install_list
@@ -78,7 +78,7 @@ proc install_shadowd {} {
          set feature_install_options "-csp"
          set my_csp_host_list $CHECK_CORE_SHADOWD
          foreach shadow_host $my_csp_host_list {
-            if {$shadow_host == $CHECK_CORE_MASTER} {
+            if {$shadow_host == $ts_config(master_host)} {
                continue;
             }
             copy_certificates $shadow_host

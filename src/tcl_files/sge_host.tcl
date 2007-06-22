@@ -106,8 +106,8 @@ proc get_exechost_error {result host raise_error} {
 #     sge_host/get_exechost_error()
 #*******************************************************************************
 proc get_exechost {output_var {host global} {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
    upvar $output_var out
+   get_current_cluster_config_array ts_config
 
    # clear output variable
    if {[info exists out]} {
@@ -218,9 +218,9 @@ proc set_exechost { change_array {host global} {fast_add 1} {on_host ""} {as_use
 # -1   on timeout
 # 0    if ok
 
-   global ts_config CHECK_OUTPUT
-   global env CHECK_ARCH 
-   global CHECK_CORE_MASTER
+   global CHECK_OUTPUT
+   global env
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
  
@@ -269,8 +269,9 @@ proc set_exechost { change_array {host global} {fast_add 1} {on_host ""} {as_use
       set PROJ_DS_NT_EXST [translate_macro MSG_SGETEXT_UNKNOWNPROJECT_SSSS $project $attributes $elem $host ]
       set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "*" "*" ]
 
-       # User raise_error to report errors or not
-         set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-me $host" $vi_commands $MODIFIED $CHANGED $PROJ_DS_NT_EXST]
+      # User raise_error to report errors or not
+      set master_arch [resolve_arch $ts_config(master_host)]      
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-me $host" $vi_commands $MODIFIED $CHANGED $PROJ_DS_NT_EXST]
 
       # $CHANGED is really success
       if { $result == -2 } {
@@ -616,8 +617,7 @@ proc del_adminhost_error {result host on_host raise_error} {
 #*******************************************************************************
 proc del_adminhost {host  {on_host ""} {as_user ""} {raise_error 1}} {
 
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    set ret 0
    set result [start_sge_bin "qconf" "-dh $host" $on_host $as_user]
 
@@ -658,8 +658,7 @@ proc del_adminhost {host  {on_host ""} {as_user ""} {raise_error 1}} {
 #*******************************************************************************
 proc add_adminhost {host  {on_host ""} {as_user ""} {raise_error 1}} {
 
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    set ret 0
    set result [start_sge_bin "qconf" "-ah $host" $on_host $as_user]
 

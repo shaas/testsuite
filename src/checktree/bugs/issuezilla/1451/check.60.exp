@@ -94,14 +94,14 @@ proc execd_uninstall_init_level {} {
 
 
 proc execd_uninstall_setup  {} {
-   global CHECK_OUTPUT CHECK_HOST ts_config check_execd CHECK_USER
+   global CHECK_OUTPUT ts_config check_execd CHECK_USER
 
    set exit_state 1
 
    set check_execd "unknown"
 
    foreach tmp_check_execd $ts_config(execd_nodes) {
-      set DENIED [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_CANTDELADMINQMASTER_S] "*" ]
+      set DENIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_CANTDELADMINQMASTER_S] "*" ]
       puts $CHECK_OUTPUT "Try to remove host $tmp_check_execd from adminhost list!" 
       set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-dh $tmp_check_execd" exit_state 60 ]
       puts $CHECK_OUTPUT $output
@@ -133,11 +133,11 @@ proc execd_uninstall_cleanup  {} {
 proc issue_1451_uninstall_execd {} {
    global ts_config
    global CHECK_OUTPUT CORE_INSTALLED
-   global check_use_installed_system CHECK_ARCH
+   global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
-   global CHECK_COMMD_PORT CHECK_CORE_MASTER
-   global CHECK_MAIN_RESULTS_DIR CHECK_SUBMIT_ONLY_HOSTS check_execd
+   global CHECK_COMMD_PORT
+   global CHECK_MAIN_RESULTS_DIR check_execd
 
    set CORE_INSTALLED ""
    set LOCAL_ALREADY_CHECKED 0 

@@ -353,7 +353,7 @@ proc arco_dbwriter_job_log_reuse_execute {} {
 
 
 proc arco_dbwriter_job_log_reuse_reset_job_number { job_number } {
-   global CHECK_OUTPUT ts_config CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_USER
    
    delete_all_jobs
    wait_for_end_of_all_jobs 60

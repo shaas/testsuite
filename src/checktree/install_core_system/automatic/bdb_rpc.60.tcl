@@ -60,11 +60,11 @@
 #     ???/???
 #*******************************
 proc install_bdb_rpc {} {
-   global ts_config
-   global CHECK_OUTPUT check_use_installed_system CHECK_ARCH
+   global CHECK_OUTPUT check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
-   global CHECK_DEBUG_LEVEL CHECK_CORE_MASTER
-   global CHECK_MAIN_RESULTS_DIR CHECK_SUBMIT_ONLY_HOSTS
+   global CHECK_DEBUG_LEVEL
+   global CHECK_MAIN_RESULTS_DIR 
+   global ts_config
 
    set CORE_INSTALLED "" 
 
@@ -111,8 +111,8 @@ proc install_bdb_rpc {} {
    set RPC_INSTALL_RC_SCRIPT        [translate $bdb_host 0 1 0 [sge_macro DISTINST_RPC_INSTALL_RC_SCRIPT] ]
    set RPC_SERVER_COMPLETE          [translate $bdb_host 0 1 0 [sge_macro DISTINST_RPC_SERVER_COMPLETE] ]
    set HIT_RETURN_TO_CONTINUE       [translate $bdb_host 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
-   set INSTALL_SCRIPT               [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
-   set DNS_DOMAIN_QUESTION          [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ]
+   set INSTALL_SCRIPT               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
+   set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ]
 
    set prod_type_var "SGE_ROOT"
 

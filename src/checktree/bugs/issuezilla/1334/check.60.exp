@@ -117,10 +117,9 @@ proc issue_1334_cleanup  {} {
 }
 
 proc issue_1334_run {} {
-   global ts_config CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
    global issue_1334_job_stdout_file issue_1334_job_stderr_file
    
-
    set option "-o $issue_1334_job_stdout_file -e $issue_1334_job_stderr_file"
    
    #
@@ -139,7 +138,7 @@ proc issue_1334_run {} {
    }
   
    puts $CHECK_OUTPUT "waiting for file $issue_1334_job_stdout_file"
-   set res [wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120]
+   set res [wait_for_remote_file $ts_config(master_host) $CHECK_USER $issue_1334_job_stdout_file 120]
    
    if {$res != 0} {
       add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
@@ -150,7 +149,7 @@ proc issue_1334_run {} {
    # Hence the job starter had been invoked the stdout file must contain
    # the pattern SGE_STARTER_SHELL_PATH
    #
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
    if {[string match "*SGE_STARTER_SHELL_PATH*" $output] != 1} {
       add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (1)"
       return
@@ -177,7 +176,7 @@ proc issue_1334_run {} {
    }
   
    puts $CHECK_OUTPUT "waiting for file $issue_1334_job_stdout_file"
-   set res [wait_for_remote_file $CHECK_HOST $CHECK_USER $issue_1334_job_stdout_file 120]
+   set res [wait_for_remote_file $ts_config(master_host) $CHECK_USER $issue_1334_job_stdout_file 120]
    
    if {$res != 0} {
       add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
@@ -188,7 +187,7 @@ proc issue_1334_run {} {
    # Hence the job starter had been invoked the stdout file must contain
    # the pattern SGE_STARTER_SHELL_PATH
    #
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
    if {[string match "*SGE_STARTER_SHELL_PATH*" $output] != 1} {
       add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (2)"
       return

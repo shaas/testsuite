@@ -184,27 +184,27 @@ proc issue193_setup {} {
 
 proc issue193_submit_jobs {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST ts_user_config
+   global ts_config
+   global ts_user_config
   
    set jobs ""
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
-   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $rerun_queue $rerun_host] $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
  
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
    set jobs_string ""
@@ -300,21 +300,21 @@ proc issue193_submit_jobs {} {
 
 proc issue193_checkpointing {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST ts_user_config
+   global ts_config
+   global ts_user_config
    
    set jobs ""
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -ckpt qmod_with_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
-   set arguments "$my_outputs -ckpt qmod_with_r -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
    set jobs_string ""
@@ -391,21 +391,21 @@ proc issue193_checkpointing {} {
 
 proc issue193_checkpointing_forced {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST ts_user_config
+   global ts_config
+   global ts_user_config
  
    set jobs ""
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -ckpt qmod_with_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
-   set arguments "$my_outputs -ckpt qmod_with_r -r n $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_with_r -r n $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
    
-   set arguments "$my_outputs -ckpt qmod_without_r -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set arguments "$my_outputs -ckpt qmod_without_r -r y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    lappend jobs [submit_job $arguments]
 
    set jobs_string ""
@@ -501,13 +501,13 @@ proc issue193_get_queue_instance {queue} {
 proc issue193_pe_jobs {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
    global stored_configuration rerun_queue2 pe_names
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST ts_user_config
+   global ts_config
+   global ts_user_config
 
    foreach pe $pe_names {
        puts $CHECK_OUTPUT "submitting job to pe $pe ..."
        set my_outputs "-o /dev/null -e /dev/null"
-       set my_job "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5000"
+       set my_job "$ts_config(product_root)/examples/jobs/sleeper.sh 5000"
        set arguments "$my_outputs -pe $pe 2 -masterq [get_queue_instance $rerun_queue $rerun_host] $my_job"
        set job [submit_job $arguments]
        puts $CHECK_OUTPUT "job $job submitted"
@@ -656,13 +656,13 @@ proc issue193_deleted_job {} {
    global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
    global stored_configuration rerun_queue2
    global pe_names pe_alloc_rule CHECK_ADMIN_USER_SYSTEM
-   global CHECK_PRODUCT_ROOT CHECK_PRODUCT_TYPE CHECK_ARCH
+   global ts_config CHECK_PRODUCT_TYPE
    global CHECK_ADMIN_USER_SYSTEM
-   global CHECK_HOST ts_user_config
+   global ts_user_config
 
    puts $CHECK_OUTPUT "submitting job to queue $no_rerun_queue ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10000"
+   set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id [submit_job $arguments]
 
    wait_for_jobstart $job_id "Sleeper" 100

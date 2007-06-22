@@ -87,7 +87,7 @@ proc sgepasswd_init_level {} {
 
 proc sgepasswd_setup {} {
    global ts_config
-   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_ACTUAL_TEST_PATH 
+   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH 
    global log_user
    global file_exists 
    global actual_time
@@ -103,11 +103,11 @@ proc sgepasswd_setup {} {
    }
 
    #check if sgepasswd file is present and save it
-   set exist [glob -nocomplain $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd]
+   set exist [glob -nocomplain $ts_config(product_root)/$ts_config(cell)/common/sgepasswd]
    if {$exist != {} } {
       set file_exists(sgepasswd) "1"
       #save existing file
-      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd /tmp/sgepasswd_$actual_time"]
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  $ts_config(product_root)/$ts_config(cell)/common/sgepasswd /tmp/sgepasswd_$actual_time"]
    }
 
    #check if there is cerificate directory for this installation and save it
@@ -118,16 +118,16 @@ proc sgepasswd_setup {} {
       set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f /var/sgeCA/$ts_config(commd_port) /tmp/sgeCA_$ts_config(commd_port)_$actual_time"]
    }
 
-   set exist [glob -nocomplain -type d $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA]
+   set exist [glob -nocomplain -type d $ts_config(product_root)/$ts_config(cell)/common/sgeCA]
    if {$exist != {} } {
       set file_exists(common_sgeCA) "1"
       #save existing directory
-      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA /tmp/GE_sgeCA_$actual_time"]
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  $ts_config(product_root)/$ts_config(cell)/common/sgeCA /tmp/GE_sgeCA_$actual_time"]
    }
 
 
    #create new certificates for testing SGEPASSWD
-   set id [open_remote_spawn_process $ts_config(master_host) "root" "$CHECK_PRODUCT_ROOT/util/sgeCA/sge_ca" "-init"]
+   set id [open_remote_spawn_process $ts_config(master_host) "root" "$ts_config(product_root)/util/sgeCA/sge_ca" "-init"]
    set sp_id [lindex $id 1]
    set timeout 10
       expect {
@@ -166,7 +166,7 @@ proc sgepasswd_setup {} {
 proc sgepasswd_cleanup {} {
 
    global ts_config
-   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_ACTUAL_TEST_PATH CHECK_USER
+   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER
    global log_user
    global file_exists
    global actual_time
@@ -181,7 +181,7 @@ proc sgepasswd_cleanup {} {
 
    #clean up certificate directories
    set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  /var/sgeCA/$ts_config(commd_port)"]
-   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA"]
+   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $ts_config(product_root)/$ts_config(cell)/common/sgeCA"]
 
    #restore saved directories
    if { $file_exists(var_sgeCA) !=  "0" } {
@@ -198,16 +198,16 @@ proc sgepasswd_cleanup {} {
    }
    if { $file_exists(common_sgeCA) !=  "0" } {
       #restore $SGE_ROOT/$(cell)/common/sgeCA directory
-      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/GE_sgeCA_$actual_time $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgeCA"]
+      set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/GE_sgeCA_$actual_time $ts_config(product_root)/$ts_config(cell)/common/sgeCA"]
    }
 
 
    #clean up sgepasswd file
-   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+   set id [start_remote_prog $ts_config(master_host) "root" "rm" "-rf  $ts_config(product_root)/$ts_config(cell)/common/sgepasswd"]
 
    if { $file_exists(sgepasswd) !=  "0" } {
    #restore sgepasswd file
-   set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/sgepasswd_$actual_time $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+   set id [start_remote_prog $ts_config(master_host) "root" "mv" "-f  /tmp/sgepasswd_$actual_time $ts_config(product_root)/$ts_config(cell)/common/sgepasswd"]
    }
 
    #switch off debug mode 
@@ -243,7 +243,7 @@ proc sgepasswd_cleanup {} {
 #*******************************
 proc sgepasswd_6472859 {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_ACTUAL_TEST_PATH 
+   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH 
 
 
    if { $ts_config(product_feature) == "csp" } {
@@ -265,17 +265,18 @@ proc sgepasswd_6472859 {} {
 
    foreach filename $files {
       #clean sgepasswd file before copying new test file
-      set id [start_remote_prog $ts_config(master_host) "root" "rm" "-f  $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+      set id [start_remote_prog $ts_config(master_host) "root" "rm" "-f  $ts_config(product_root)/$ts_config(cell)/common/sgepasswd"]
       
       #copy new test file
-      set id [start_remote_prog $ts_config(master_host) "root" "cp" "-f  $filename $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sgepasswd"]
+      set id [start_remote_prog $ts_config(master_host) "root" "cp" "-f  $filename $ts_config(product_root)/$ts_config(cell)/common/sgepasswd"]
 
       #get only name of file for notifications 
       set name [file tail $filename]
       puts $CHECK_OUTPUT "Testing file: $name ..."
  
       #run sgepasswd program and test it
-      set id [open_remote_spawn_process $ts_config(master_host) "root" "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/sgepasswd" "root"]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set id [open_remote_spawn_process $ts_config(master_host) "root" "$ts_config(product_root)/bin/$master_arch/sgepasswd" "root"]
       set sp_id [lindex $id 1]
       set timeout 10
 

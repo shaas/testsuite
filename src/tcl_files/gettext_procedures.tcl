@@ -222,14 +222,15 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
 
 
 proc get_macro_messages_file_name { } {
-  global CHECK_PROTOCOL_DIR CHECK_SOURCE_CVS_RELEASE CHECK_OUTPUT
+  global CHECK_PROTOCOL_DIR CHECK_OUTPUT ts_config
   
   puts $CHECK_OUTPUT "checking messages file ..."
   if { [ file isdirectory $CHECK_PROTOCOL_DIR] != 1 } {
      file mkdir $CHECK_PROTOCOL_DIR
      puts $CHECK_OUTPUT "creating directory: $CHECK_PROTOCOL_DIR"
   }
-  set filename $CHECK_PROTOCOL_DIR/source_code_macros_${CHECK_SOURCE_CVS_RELEASE}.dump
+  set release $ts_config(source_cvs_release)
+  set filename $CHECK_PROTOCOL_DIR/source_code_macros_${release}.dump
   return $filename
 }
 
@@ -289,7 +290,7 @@ proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
 #     gettext_procedures/update_macro_messages_list()
 #*******************************************************************************
 proc check_c_source_code_files_for_macros {} {
-   global CHECK_OUTPUT CHECK_SOURCE_DIR macro_messages_list check_name
+   global CHECK_OUTPUT macro_messages_list check_name ts_config
 
    puts $CHECK_OUTPUT "check_name: $check_name"
 
@@ -301,26 +302,26 @@ proc check_c_source_code_files_for_macros {} {
    set c_files ""
    set second_run_files ""
 
-   set dirs [get_all_subdirectories $CHECK_SOURCE_DIR ]
+   set dirs [get_all_subdirectories $ts_config(source_dir) ]
    foreach dir $dirs {
-      set files [get_file_names $CHECK_SOURCE_DIR/$dir "*.c"]
+      set files [get_file_names $ts_config(source_dir)/$dir "*.c"]
       foreach file $files { 
          if { [string first "qmon" $file] >= 0 } {
-            lappend second_run_files $CHECK_SOURCE_DIR/$dir/$file
+            lappend second_run_files $ts_config(source_dir)/$dir/$file
             continue
          }
          if { [string first "3rdparty" $dir] >= 0 } {
-            lappend second_run_files $CHECK_SOURCE_DIR/$dir/$file
+            lappend second_run_files $ts_config(source_dir)/$dir/$file
             continue
          }
-         lappend c_files $CHECK_SOURCE_DIR/$dir/$file
+         lappend c_files $ts_config(source_dir)/$dir/$file
       }
-      set files [get_file_names $CHECK_SOURCE_DIR/$dir "*.h"]
+      set files [get_file_names $ts_config(source_dir)/$dir "*.h"]
       foreach file $files { 
          if { [string match -nocase msg_*.h $file] } {
             continue
          }
-         lappend second_run_files $CHECK_SOURCE_DIR/$dir/$file
+         lappend second_run_files $ts_config(source_dir)/$dir/$file
       }
    }
 
@@ -347,7 +348,7 @@ proc check_c_source_code_files_for_macros {} {
    if { [llength $search_list ] > 0 } {
       set full_answer ""
       append full_answer "following macros seems not to be used in source code:\n"
-      append full_answer "$CHECK_SOURCE_DIR\n\n"
+      append full_answer "$ts_config(source_dir)\n\n"
       append full_answer "---------------------------------------------------------------\n"
       append full_answer $answer
       append full_answer "---------------------------------------------------------------\n"
@@ -405,14 +406,13 @@ proc check_c_source_code_files_for_macros {} {
 }
 
 proc get_source_msg_files {} {
-   global CHECK_SOURCE_DIR
-
+   global ts_config
    set msg_files {}
-   set dirs [get_all_subdirectories $CHECK_SOURCE_DIR]
+   set dirs [get_all_subdirectories $ts_config(source_dir)]
    foreach dir $dirs {
-      set files [get_file_names $CHECK_SOURCE_DIR/$dir "msg_*.h"]
+      set files [get_file_names $ts_config(source_dir)/$dir "msg_*.h"]
       foreach file $files {
-         lappend msg_files $CHECK_SOURCE_DIR/$dir/$file
+         lappend msg_files $ts_config(source_dir)/$dir/$file
       }
    }
 
@@ -440,9 +440,9 @@ proc get_source_msg_files {} {
 #     check/compile_source()
 #*******************************************************************************
 proc update_macro_messages_list {} {
-   global CHECK_OUTPUT CHECK_SOURCE_DIR macro_messages_list
-   global CHECK_PROTOCOL_DIR CHECK_SOURCE_CVS_RELEASE 
-   global fast_setup
+   global CHECK_OUTPUT macro_messages_list
+   global CHECK_PROTOCOL_DIR
+   global fast_setup ts_config
 
    if {[info exists macro_messages_list]} {
       unset macro_messages_list
@@ -478,11 +478,11 @@ proc update_macro_messages_list {} {
          read_array_from_file $filename "macro_messages_list" macro_messages_list 1
 
          # Verify that the messages file comes from the correct source directory.
-         if {[string compare $macro_messages_list(source_code_directory) $CHECK_SOURCE_DIR] != 0} {
+         if {[string compare $macro_messages_list(source_code_directory) $ts_config(source_dir)] != 0} {
             puts $CHECK_OUTPUT "source code directory from macro spool file:"
             puts $CHECK_OUTPUT $macro_messages_list(source_code_directory)
             puts $CHECK_OUTPUT "actual source code directory:"
-            puts $CHECK_OUTPUT $CHECK_SOURCE_DIR
+            puts $CHECK_OUTPUT $ts_config(source_dir)
             puts $CHECK_OUTPUT "the macro spool dir doesn't match to actual source code directory."
             puts $CHECK_OUTPUT "start parsing new source code directory ..."
             if {[info exists macro_messages_list]} {
@@ -632,7 +632,7 @@ proc update_macro_messages_list {} {
 
   puts $CHECK_OUTPUT "saving macro file ..."
   
-  set macro_messages_list(source_code_directory) $CHECK_SOURCE_DIR
+  set macro_messages_list(source_code_directory) $ts_config(source_dir)
   
   spool_array_to_file $filename "macro_messages_list" macro_messages_list
   check_c_source_code_files_for_macros
@@ -722,13 +722,14 @@ proc get_internal_message_number_from_id { id } {
 
 
 proc translate_all_macros {} {
-  global  CHECK_OUTPUT macro_messages_list
-  global CHECK_SOURCE_DIR CHECK_HOST CHECK_USER
+  global CHECK_OUTPUT macro_messages_list
+  global CHECK_USER ts_config
   if { [info exists macro_messages_list] == 0 } {
      update_macro_messages_list
   }
   set not_localized ""
   set max_mess $macro_messages_list(0)
+
   
 #  set max_mess [get_internal_message_number_from_id 43262]
   set max_mess 2270 
@@ -737,7 +738,7 @@ proc translate_all_macros {} {
      puts $CHECK_OUTPUT "-------$i---------------"
      set format_string $macro_messages_list($i,string)
 
-     set localized [translate $CHECK_HOST 0 0 1 $format_string]
+     set localized [translate $ts_config(master_host) 0 0 1 $format_string]
      set localized [ replace_string $localized "\r" "__REP_1_DUMMY_"]
      set localized [ replace_string $localized "\t" "__REP_2_DUMMY_"]
      set localized [ replace_string $localized "\n" "__REP_3_DUMMY_"]
@@ -771,7 +772,7 @@ proc translate_all_macros {} {
         lappend not_localized $i
         # JG: TODO: This depends on environment variables C and H being set!
         #           There should be better solutions, e.g. using find.
-        set back [start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $CHECK_SOURCE_DIR ; grep $macro_messages_list($i,macro) \$C \$H\""] 
+        set back [start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $ts_config(source_dir) ; grep $macro_messages_list($i,macro) \$C \$H\""] 
         puts $back
         if { [ string first "\.c:" $back ] >= 0 } {
            puts $CHECK_OUTPUT "used in C file !!!"
@@ -868,8 +869,7 @@ proc replace_string { input_str what with {only_count 0}} {
 #     gettext_procedures/sge_macro()
 #*******************************************************************************
 proc translate_macro {macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""} {par6 ""}} {
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    set msg [sge_macro $macro]
    set ret [translate $ts_config(master_host) 1 0 0 $msg $par1 $par2 $par3 $par4 $par5 $par6]
 
@@ -904,14 +904,15 @@ proc translate_macro {macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""} {p
 #     localized string with optional parameters
 #
 #  EXAMPLE
-#     set SHARETREE [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_OBJ_SHARETREE] ]
+#     set SHARETREE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_OBJ_SHARETREE] ]
 #
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
 proc translate { host remove_control_signs is_script no_input_parsing msg_txt { par1 "" } { par2 ""} { par3 "" } { par4 ""} { par5 ""} { par6 ""} } {
 
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_USER l10n_raw_cache l10n_install_cache
+   global CHECK_OUTPUT CHECK_USER l10n_raw_cache l10n_install_cache
+   get_current_cluster_config_array ts_config
 
    set msg_text $msg_txt
    if { $no_input_parsing != 1 } {
@@ -935,7 +936,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
           debug_puts "reading message from l10n raw cache ..."
       } else {
           puts $CHECK_OUTPUT "translating message ..."
-          set back [start_remote_prog $host "ts_def_con_translate" $CHECK_PRODUCT_ROOT/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
+          set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
           set l10n_raw_cache($msg_text) $back
           debug_puts "adding message to l10n raw cache ..." 
       }
@@ -955,7 +956,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
          debug_puts "reading message from l10n install cache ..."
       } else {
          puts $CHECK_OUTPUT "translating message ..."
-         set back [start_remote_prog $host "ts_def_con_translate" $CHECK_PRODUCT_ROOT/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
+         set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
          set l10n_install_cache($msg_text) $back
          debug_puts "adding message to l10n install cache ..." 
       }
@@ -1053,8 +1054,9 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
 #*******************************************************************************
 proc perform_simple_l10n_test { } {
 
-   global CHECK_CORE_MASTER CHECK_USER CHECK_L10N ts_host_config ts_config
-   global CHECK_OUTPUT CHECK_ARCH l10n_raw_cache
+   global CHECK_USER CHECK_L10N ts_host_config
+   global CHECK_OUTPUT l10n_raw_cache
+   get_current_cluster_config_array ts_config
    puts $CHECK_OUTPUT ""
    flush $CHECK_OUTPUT
 
@@ -1065,12 +1067,10 @@ proc perform_simple_l10n_test { } {
    if { [ info exists l10n_raw_cache] } {
       unset l10n_raw_cache
    }
-   set no_l10n  [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro SGE_INFOTEXT_TESTSTRING_S_L10N ] " $CHECK_USER " ]
+   set no_l10n  [translate $ts_config(master_host) 1 0 0 [sge_macro SGE_INFOTEXT_TESTSTRING_S_L10N ] " $CHECK_USER " ]
    set CHECK_L10N 1
    unset l10n_raw_cache
-   set with_l10n  [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro SGE_INFOTEXT_TESTSTRING_S_L10N ] " $CHECK_USER " ]
-
-#   puts $CHECK_OUTPUT [translate $CHECK_CORE_MASTER 0 0 0 [sge_macro MSG_QSUB_YOURQSUBREQUESTCOULDNOTBESCHEDULEDDTRYLATER ]]
+   set with_l10n  [translate $ts_config(master_host) 1 0 0 [sge_macro SGE_INFOTEXT_TESTSTRING_S_L10N ] " $CHECK_USER " ]
 
    puts $CHECK_OUTPUT "\n------------------------------------------------------------------------\n"
    puts $CHECK_OUTPUT $with_l10n

@@ -3,8 +3,6 @@
 #
 # gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
 # global CHECK_USER              ;# user who start test
-# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
-# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
 #___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -284,7 +282,7 @@ proc postgres_init_arco_db {} {
 proc mysql_init_arco_db {} {
 
    global ts_config ts_host_config arco_config 
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL CHECK_HOST
+   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
 
    if { [get_dbwriter_status 0] == 0} {
       shutdown_dbwriter

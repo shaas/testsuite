@@ -79,15 +79,15 @@ proc issue_509_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_509_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_USER
 
    # 1
-   set arguments "-t 2,4,6,8 $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10"
+   set arguments "-t 2,4,6,8 $ts_config(product_root)/examples/jobs/sleeper.sh 10"
    set job_id1 [submit_job "$arguments"]
    wait_for_end_of_all_jobs 60
 
    # 2
-   set arguments "-t 2,3,6 $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10"
+   set arguments "-t 2,3,6 $ts_config(product_root)/examples/jobs/sleeper.sh 10"
    set job_id1 [submit_job "$arguments" 0]
    if {[string compare "$job_id1" "-18"] == -1} {
       add_proc_error "issue_509_check" "-1" "qsub command did not fail"

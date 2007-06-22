@@ -1,3 +1,36 @@
+CR-2007-06-22-0: Enhancem.: support for multipe GE clusters
+                 Cleanup:   o removed globals:
+                              CHECK_PRODUCT_ROOT, CHECK_SOURCE_DIR
+                              CHECK_SOURCE_CVS_RELEASE, CHECK_SOURCE_HOSTNAME
+                              CHECK_DIST_INSTALL_OPTIONS, CHECK_ARCH, CHECK_HOST
+                              CHECK_CORE_EXECD, CHECK_SUBMIT_ONLY_HOSTS,
+                              CHECK_CORE_MASTER (use ts_config array instead)  
+                            o removed procedures:
+                               dump_ts_config() and get_setup_change_state()
+                            o updated affected tests
+                            o added test for correct display setting into 
+                              "testsuite" test
+                            o arco checktree:
+                              - updated affected arco checktree
+                              - using java compile host from testsuite config
+                            o hedeby checktree:
+                              - completely new integration and configuration
+                                (not finished)
+                              - dummy test for testing multi clustering support 
+                                of testsuite (name: dummy_test)
+                            o added new deprecated names into 
+                              scripts/find_deprecated.exp
+                            o tcl_files:
+                              - support for additional cluster compile in html
+                                report
+                              - new procedure: config_generic()
+                                used to get a generic configuration parameter
+                                like "hosts", "host", "string", "port" or 
+                                "directory"
+                              - new proceduer: get_xterm_path()
+                                find out path to xterm binary on remote host
+                 Review:    JG
+
 RD-2007-06-22-0: CVS        Created TS_PRIOR_MULTICLUSTER_TAG
 -------------------------------------------------------------
 

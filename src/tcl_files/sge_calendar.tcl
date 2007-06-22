@@ -207,11 +207,10 @@ proc get_calender_list { {on_host ""} {as_user ""} {raise_error 1}} {
 #     sge_procedures/get_qconf_list()
 #*******************************
 proc add_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global ts_config CHECK_OUTPUT CHECK_USER
-  global env CHECK_ARCH open_spawn_buffer
-  global CHECK_CORE_MASTER
-
+  global CHECK_OUTPUT CHECK_USER
+  global env open_spawn_buffer
   upvar $change_array chgar
+  get_current_cluster_config_array ts_config
 
   set values [array names chgar]
 
@@ -257,7 +256,8 @@ proc add_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_er
       set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*"]
 
      # Now add using vi
-     set ret [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-acal $calendar" $vi_commands  $ADDED $ALREADY_EXISTS  ]
+     set arch [resolve_arch $ts_config(master_host)]
+     set ret [ handle_vi_edit "$ts_config(product_root)/bin/$arch/qconf" "-acal $calendar" $vi_commands  $ADDED $ALREADY_EXISTS  ]
      if { $ret == -1 } { add_proc_error "add_calendar" -1 "timeout error" }
      if { $ret == -2 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" already exists" }
      if { $ret != 0  } { add_proc_error "add_calendar" -1 "could not add calendar \"[set $calendar]\"" }
@@ -365,9 +365,9 @@ proc add_calender_error {result tmpfile calendar raise_error} {
 #     sge_procedures/get_qconf_list()
 #*******************************
 proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global ts_config CHECK_USER CHECK_OUTPUT
-  global env CHECK_ARCH open_spawn_buffer
-  global CHECK_CORE_MASTER
+  global CHECK_USER CHECK_OUTPUT
+  global env open_spawn_buffer
+  get_current_cluster_config_array ts_config
 
   upvar $change_array chgar
 
@@ -411,7 +411,8 @@ proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_er
       }
 
      # Now add using vi
-     set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mcal $calendar" $vi_commands $MODIFIED $ALREADY_EXISTS $REJECTED_DUE_TO_AR_SSU]
+     set arch [resolve_arch $ts_config(master_host)]
+     set result [handle_vi_edit "$ts_config(product_root)/bin/$arch/qconf" "-mcal $calendar" $vi_commands $MODIFIED $ALREADY_EXISTS $REJECTED_DUE_TO_AR_SSU]
      if { $result == -1 } { add_proc_error "add_calendar" -1 "timeout error" }
      if { $result == -2 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" already exists" }
      if { $result == -3 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" rejected because of advance reservation" }

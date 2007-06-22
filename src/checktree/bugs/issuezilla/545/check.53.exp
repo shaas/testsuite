@@ -93,7 +93,7 @@ proc issue_545_cleanup {} {
 }
 
 proc issue_545_check {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    # submit one job
    puts $CHECK_OUTPUT "Submitting 1 sleeper (3600s) ..."

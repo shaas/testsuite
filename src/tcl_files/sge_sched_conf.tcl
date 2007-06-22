@@ -84,8 +84,7 @@
 #     sge_procedures/set_schedd_config()
 #*******************************
 proc reset_schedd_config {} {
-   global ts_config
- 
+   get_current_cluster_config_array ts_config
    set default_array(algorithm)                  "default"
    set default_array(schedule_interval)          "0:0:10"
    set default_array(maxujobs)                   "0"
@@ -187,8 +186,8 @@ proc reset_schedd_config {} {
 #*******************************
 
 proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global ts_config
-  global env CHECK_ARCH 
+  global env
+  get_current_cluster_config_array ts_config
 
   upvar $change_array chgar
 
@@ -222,8 +221,8 @@ proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
       } else {
          set NOTULONG [translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
       }
-
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-msconf" $vi_commands $CHANGED_SCHEDD_CONFIG $NOTULONG]  
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-msconf" $vi_commands $CHANGED_SCHEDD_CONFIG $NOTULONG]  
 
       if { $result == -1 } { 
          add_proc_error "set_schedd_config" -1 "timeout error" $raise_error 
@@ -232,11 +231,8 @@ proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
       } elseif { $result != 0 } { 
          add_proc_error "set_schedd_config" -1 "error changing scheduler configuration" $raise_error
       }
-     
    }
-  
   return $result
-  
 }
 
 #****** sge_sched_conf/set_schedd_config_error() ***************************************
@@ -272,8 +268,7 @@ proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
 #     sge_procedures/handle_sge_errors
 #*******************************************************************************
 proc set_schedd_config_error {result tmpfile raise_error} {
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    # build up needed vars
    if {$ts_config(gridengine_version) > 53} {
       set messages(index) "-1"
@@ -381,8 +376,7 @@ proc mod_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
 #     sge_procedures/set_schedd_config()
 #*******************************
 proc get_schedd_config { change_array } {
-  global ts_config
-  global CHECK_ARCH
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
    unset -nocomplain chgar

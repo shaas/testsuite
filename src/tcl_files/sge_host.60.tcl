@@ -376,9 +376,9 @@ proc get_hostgroup_resolved_error {result group raise_error} {
 #*******************************************************************************
 proc mod_hostgroup { group attribute value {fast_add 1} {on_host ""} {as_user ""}  {raise_error 1} } {
 
-   global ts_config CHECK_OUTPUT
-   global env CHECK_ARCH
-   global CHECK_CORE_MASTER
+   global CHECK_OUTPUT
+   global env
+   get_current_cluster_config_array ts_config
 
    get_hostgroup $group old_values 
    set old_values($attribute) "$value"
@@ -403,7 +403,8 @@ proc mod_hostgroup { group attribute value {fast_add 1} {on_host ""} {as_user ""
 
 
       set vi_commands [build_vi_command old_values]
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mhgrp $group" $vi_commands $MODIFIED $ALREADY_EXISTS $UNKNOWNHOST $UNKNOWN_ATTRIBUTE $NOT_MODIFIED]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mhgrp $group" $vi_commands $MODIFIED $ALREADY_EXISTS $UNKNOWNHOST $UNKNOWN_ATTRIBUTE $NOT_MODIFIED]
 
       if { $result == -1 } { 
          add_proc_error "mod_hostgroup" -1 "timeout error" $raise_error
@@ -503,11 +504,10 @@ proc mod_hostgroup_error {result attribute value tmpfile raise_error} {
 #     sge_procedures/get_qconf_list()
 #*******************************************************************************
 proc add_hostgroup {group change_array {fast_add 1} {on_host ""} {as_user ""}} {
-   global ts_config CHECK_OUTPUT
-   global env CHECK_ARCH
-   global CHECK_CORE_MASTER
-
+   global CHECK_OUTPUT
+   global env
    upvar $change_array chgar
+   get_current_cluster_config_array ts_config
 
    # Modify hostgroup from file?
    if { $fast_add } {
@@ -517,9 +517,10 @@ proc add_hostgroup {group change_array {fast_add 1} {on_host ""} {as_user ""}} {
    } else {
    # Use vi
       set vi_commands [build_vi_command chgar]
-      set CHANGED  [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_EXEC_HOSTENTRYOFXCHANGEDINEXE
+      set CHANGED  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_EXEC_HOSTENTRYOFXCHANGEDINEXE
 CLIST_S] "*" ]
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-ahgrp $group" $vi_commands "modified" $CHANGED]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ahgrp $group" $vi_commands "modified" $CHANGED]
       if { $result == -2 } {
          set result 0
       }
@@ -555,8 +556,8 @@ CLIST_S] "*" ]
 #     sge_procedures/handle_sge_errors()
 #*******************************************************************************
 proc del_hostgroup {group} {
-   global ts_config
    global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    set messages(index) "0"
    set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $group "*"]

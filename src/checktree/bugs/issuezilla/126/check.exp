@@ -77,7 +77,7 @@ lappend check_functions "issue_126_check"
 
 proc issue_126_init_level {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_ACT_LEVEL CHECK_HOST
+   global CHECK_OUTPUT CHECK_ACT_LEVEL
    global check_126_loops check_126_num_hosts
 
    set majorlevel [expr $CHECK_ACT_LEVEL / 100]
@@ -145,8 +145,8 @@ proc issue_126_setup {} {
 }
 
 proc issue_126_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_ACTUAL_TEST_PATH
-   global check_126_host check_126_loops ts_config CHECK_USER CHECK_HOST CHECK_ARCH
+   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global check_126_host check_126_loops ts_config CHECK_USER
 
    # ps command is broken on darwin.
    # It shows suspended jobs as running!
@@ -212,7 +212,7 @@ proc issue_126_check {} {
       set job_name1 "IZ126_1"
       set job_name2 "IZ126_2"
       set work_script "$ts_config(testsuite_root_dir)/scripts/work_pid.sh 360"
-      set sleep_script "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 360"
+      set sleep_script "$ts_config(product_root)/examples/jobs/sleeper.sh 360"
 
       set job1_args "-o /dev/null -j y -N $job_name1 -l q=$q1 "
       set job1_id [submit_job "$job1_args $work_script"]

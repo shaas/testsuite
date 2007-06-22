@@ -236,23 +236,16 @@ global CHECK_JOB_OUTPUT_DIR        ;# directory for qsub job outputs
 ############################################################################
 
 global CHECK_ACTUAL_TEST_PATH      ;# directory of current running test
-global CHECK_PRODUCT_ROOT          ;# path to sge system
 global CHECK_OUTPUT                ;# output from testsuite 
 global CHECK_CURRENT_WORKING_DIR   ;# current work directory
 global CHECK_HTML_DIRECTORY        ;# directory for HTML output of testsuite 
 set CHECK_HTML_DIRECTORY ""
 # globals for source code specific staff
-global CHECK_SOURCE_DIR            ;# path to source code directory (c4)
-global CHECK_SOURCE_CVS_RELEASE    ;# release name to check out e.g. V52_BRANCH
-set CHECK_SOURCE_CVS_RELEASE "maintrunk"    ;# default is "maintrunk"
-global CHECK_SOURCE_HOSTNAME       ;# name of host with cvs installed on (e.g. fangorn)
-global CHECK_DIST_INSTALL_OPTIONS     ;# optional: mydistinst options
 global CHECK_PACKAGE_DIRECTORY        ;# optional: no compile directory, use distribution (tar or sun packages)
 global CHECK_PACKAGE_TYPE             ;# zip or tar
 set CHECK_PACKAGE_TYPE "tar"
 global CHECK_QMASTER_INSTALL_OPTIONS  ;# optional: qmaster install parameter
 global CHECK_EXECD_INSTALL_OPTIONS    ;# optional: execd install parameter 
-set CHECK_DIST_INSTALL_OPTIONS "-allall"
 set CHECK_PACKAGE_DIRECTORY "none"
 set CHECK_QMASTER_INSTALL_OPTIONS ""
 set CHECK_EXECD_INSTALL_OPTIONS   ""
@@ -276,17 +269,8 @@ global CHECK_PRODUCT_VERSION_NUMBER ;# version string of qstat -help of tested s
 set CHECK_PRODUCT_VERSION_NUMBER "unknown"
 global CHECK_PRODUCT_TYPE           ;# "sgeee" or "sge" 
 global CHECK_COMMD_PORT            ;# commd port
-global CHECK_ARCH                  ;# architecture of this system (e.g. irix6)
-set CHECK_ARCH "unknown"
 global CHECK_USER                  ;# user who start test
 global CHECK_GROUP                 ;# group of user who start test
-global CHECK_HOST                  ;# hostname of this system (e.g. DWAIN)
-global CHECK_CORE_EXECD            ;# known execd hostnames
-set CHECK_CORE_EXECD ""
-global CHECK_SUBMIT_ONLY_HOSTS     ;# list of submithosts (no execd/commd running)
-set CHECK_SUBMIT_ONLY_HOSTS ""
-global CHECK_CORE_MASTER           ;# qmaster hostname
-set CHECK_CORE_MASTER ""
 global CHECK_ACT_LEVEL             ;# actual check level ( value from 0 up to xxx )
 global CHECK_SPOOL_DIR_CONFIG_FILE ;# file for local spooldirs in $CHECK_CONFIG_DIR path
 set CHECK_SPOOL_DIR_CONFIG_FILE "local-spool.conf"
@@ -460,20 +444,22 @@ set CHECK_OUTPUT stdout
 #
 proc debug_puts { args } {
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
-   global CHECK_CUR_PROC_NAME CHECK_HOST last_debug_msec
+   global CHECK_CUR_PROC_NAME last_debug_msec
 
    if { $CHECK_DEBUG_LEVEL == 0 } {
       return
    }
 
+   if { [llength [info procs "gethostname"]] != 0 } {
+      set local_host [gethostname 0]
+   } else {
+      set local_host "unknown"
+   }
    set output ""
    foreach elem $args {
       set output "$output $elem"
    }   
 
-   if { [info exists CHECK_HOST ] == 0 } {
-      set CHECK_HOST "unknown"
-   }
    if { [info exists CHECK_CUR_PROC_NAME] == 0 } {
       set CHECK_CUR_PROC_NAME "unknown"
    }
@@ -482,66 +468,8 @@ proc debug_puts { args } {
 
    set last_debug_msec [clock clicks -milliseconds]
 
-   puts $CHECK_OUTPUT "\[$time $CHECK_HOST:$CHECK_CUR_PROC_NAME\] $output" 
+   puts $CHECK_OUTPUT "\[$time $local_host:$CHECK_CUR_PROC_NAME\] $output" 
 }
-
-#
-#                                                             max. column:     |
-#****** check/dump_ts_config() ******
-#  NAME
-#     dump_ts_config -- dump the testsuite configuration
-#
-#  SYNOPSIS
-#     dump_ts_config { outputfile } 
-#
-#  FUNCTION
-#     Dumps the contents of the ts_config array holding the testsuite 
-#     configuration.
-#     It is written to a file with the given outputfile name in a 
-#     TAB separated ASCII file format:
-#     The fields Name, Value and Description are written where
-#     - Name is the name of the parameter
-#     - Value is the value of the parameter in the current configuration
-#     - Description is the testsuite internal description of the parameter
-#
-#  INPUTS
-#     outputfile - name of the output file 
-#
-#  EXAMPLE
-#     A call of
-#     expect check.exp execute_func dump_ts_config ts_config.txt
-#
-#     will generate a file as follows:
-#
-#     Name    Value   Description
-#     add_compile_archs       none    Forced compilation for architectures
-#     aimk_compile_options    -secure Aimk compile options
-#     checktree_root_dir   ...
-#
-#*******************************
-#
-proc dump_ts_config {outputfile} {
-   global ts_config
-  
-   set output [open "$outputfile" w]
-  
-   set names {}
-   
-   foreach name [array names ts_config] {
-      if {[string first "," $name] == -1} {
-         lappend names $name
-      }
-   }
-
-   puts $output "Name\tValue\tDescription\t"
-   foreach name [lsort -dictionary $names] {
-      puts $output [format "%s\t%s\t%s" "$name" "$ts_config($name)" "$ts_config($name,desc)"]
-   }
-
-   close $output
-}
-
-
 
 #                                                             max. column:     |
 #****** check/get_current_working_dir() ******
@@ -808,7 +736,7 @@ proc print_errors {} {
 #     ???/???
 #*******************************
 proc have_ssh_access {} {
-  global CHECK_CORE_EXECD CHECK_OUTPUT have_ssh_access_state CHECK_USE_SSH CHECK_HOST
+  global CHECK_OUTPUT have_ssh_access_state CHECK_USE_SSH ts_config
 
   if { $have_ssh_access_state != -1 } {
      return $have_ssh_access_state
@@ -818,19 +746,19 @@ proc have_ssh_access {} {
      set have_ssh_access_state 0
      return $have_ssh_access_state
   }
-
+  set local_host [gethostname]
   set run_again 0
-  if { [ info exists CHECK_CORE_EXECD ] != 1 } {
+  if { [ info exists ts_config(execd_hosts) ] != 1 } {
      puts $CHECK_OUTPUT "no execd hosts defined, checking only local ssh connection"
      set run_again 1
-     set host_array $CHECK_HOST 
+     set host_array $local_host 
   } else {
-     set host_array $CHECK_CORE_EXECD
+     set host_array $ts_config(execd_hosts)
   }
 
-  set ssh_binary [get_binary_path $CHECK_HOST ssh]
+  set ssh_binary [get_binary_path $local_host ssh]
   if { $ssh_binary == "" } {
-     add_proc_error "have_ssh_access" "-1" "--> no ssh binary configured for host $CHECK_HOST - please update your testsuite host configuration"
+     add_proc_error "have_ssh_access" "-1" "--> no ssh binary configured for host $local_host - please update your testsuite host configuration"
      return 0
   }
 
@@ -930,9 +858,10 @@ proc init_stored_passwd {} {
 #     check/get_root_passwd
 #*******************************
 proc set_root_passwd {} {
-   global global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global stored_passwd
+   global ts_config
 
    # initialize stored password database
    if {![info exists stored_passwd]} {
@@ -1036,7 +965,7 @@ proc get_user_passwd_hooks {} {
 #     check/get_root_passwd()
 #*******************************************************************************
 proc set_passwd {user root_host win_host} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM
    global stored_passwd
 
@@ -1141,63 +1070,6 @@ proc get_passwd {user {raise_error 1}} {
 # 0 no action
 # 1 new pre_install
 # 2 only shutdown system
-proc get_setup_change_state {} {
-   global CHECK_OUTPUT CHECK_SETUP_CHANGES CHECK_SETUP_NAMES
-   global CHECK_SETTINGS_VERSION CHECK_CURRENT_SETTINGS_VERSION
-   global CHECK_CORE_MASTER CHECK_CORE_EXECD
-   global CHECK_SUBMIT_ONLY_HOSTS CHECK_COMMD_PORT
-   global CHECK_MAIN_RESULTS_DIR CHECK_PRODUCT_TYPE 
-   global CHECK_PRODUCT_ROOT CHECK_DEFAULTS_FILE
-   global CHECK_SOURCE_DIR CHECK_SOURCE_HOSTNAME
-   global CHECK_DIST_INSTALL_OPTIONS
-   global CHECK_PACKAGE_DIRECTORY CHECK_PACKAGE_TYPE
-   global CHECK_QMASTER_INSTALL_OPTIONS CHECK_EXECD_INSTALL_OPTIONS
-   global CHECK_DNS_DOMAINNAME CHECK_REMOTE_ENVIRONMENT
-   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER 
-   global CHECK_FIRST_FOREIGN_SYSTEM_GROUP CHECK_SECOND_FOREIGN_SYSTEM_GROUP
-   global CHECK_DEFAULT_DOMAIN
-   global CHECK_MAILX_HOST 
-   global CHECK_REPORT_EMAIL_TO CHECK_REPORT_EMAIL_CC  CHECK_USE_SSH CHECK_SOURCE_CVS_RELEASE
-   global CHECK_OUTPUT CHECK_SETUP_NAMES CHECK_CONFIG_DIR CHECK_SEND_ERROR_MAILS
-   global CHECK_MAX_ERROR_MAILS CHECK_HOST CHECK_USER
-   global CHECK_SETUP_CHANGES
-
-   set restart 0
-   set pre_install 0
-
-   foreach change $CHECK_SETUP_CHANGES {
-      puts $CHECK_OUTPUT "cange of $change"
-      puts $CHECK_OUTPUT "  old value: \"$CHECK_SETUP_NAMES($change,old)\""
-      puts $CHECK_OUTPUT "  new value: \"[ set $CHECK_SETUP_NAMES($change)]\""
-
-      switch -- $change {
-         "qmaster_host" { 
-            set help $CHECK_CORE_MASTER
-            set  CHECK_CORE_MASTER $CHECK_SETUP_NAMES($change,old)
-            puts $CHECK_OUTPUT "shutting down old system ..."  
-            shutdown_core_system
-            set CHECK_CORE_MASTER $help
-         }
-         "list_of_execution_hosts" {
-            set help $CHECK_CORE_EXECD
-            set  CHECK_CORE_EXECD  $CHECK_SETUP_NAMES($change,old)
-            puts $CHECK_OUTPUT "shutting down old system ..."
-            shutdown_core_system
-            set CHECK_CORE_EXECD $help
-         }
-      }
- 
-      switch -- $CHECK_SETUP_NAMES($change,reinstall) {
-         1 { incr pre_install  }
-         2 { incr restart }
-      }
-   }
-   set CHECK_SETUP_CHANGES ""
-   if { $restart == 0 && $pre_install == 0 } { return 0 }
-   if { $pre_install > 0 } { return 1 }
-   if { $restart > 0 } { return 2 }
-
-}
 
 
 #                                                             max. column:     |
@@ -1342,10 +1214,10 @@ proc mail_report { subject body } {
 #     check/mail_report
 #*******************************
 proc send_mail { address cc subject body } {
-   global ts_config
    global CHECK_MAILX_HOST CHECK_OUTPUT
    global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_USER CHECK_MAX_ERROR_MAILS
    global write_mail_to_file CHECK_MAIL_OUTPUT_FILE CHECK_ENABLE_MAIL
+   global ts_config
 
    if { $write_mail_to_file != 0 } {
       set fd [ open $CHECK_MAIL_OUTPUT_FILE "a" ]
@@ -1555,7 +1427,7 @@ proc get_testsuite_root_dir_from_file { filename } {
 #     ???/???
 #*******************************
 proc edit_defaults {} {
-  global CHECK_OUTPUT CHECK_DEFAULTS_FILE CHECK_HOST CHECK_CONFIG_DIR
+  global CHECK_OUTPUT CHECK_DEFAULTS_FILE CHECK_CONFIG_DIR
   global env
 
   load_defaults
@@ -1564,12 +1436,13 @@ proc edit_defaults {} {
      puts $CHECK_OUTPUT "error open file \"$def_edit_file\" for writing"
      return -1
   }
+  set local_host [gethostname]
 
   puts $def_edit_file
   set exit_edit_loop 0
   while { $exit_edit_loop == 0 } {
      if { $CHECK_CONFIG_DIR != "" } {
-        set vim_binary [get_binary_path "$CHECK_HOST" "vim"]
+        set vim_binary [get_binary_path $local_host "vim"]
      } else {
         puts $CHECK_OUTPUT "config directory path not set ..."
         set env_variable "EDITOR"
@@ -1712,7 +1585,8 @@ proc get_local_hostname {} {
 #     check/setup2()
 #*******************************************************************************
 proc check_executable_files {  } {
-   global ts_config CHECK_OUTPUT CHECK_SOURCE_DIR
+   global CHECK_OUTPUT
+   global ts_config
 
    set scripts_dir "$ts_config(testsuite_root_dir)/scripts"
    set filelist ""
@@ -1830,7 +1704,8 @@ proc check_executable_files {  } {
 #*******************************************************************************
 proc set_users_environment { node {variable_name env} { show_variables 0 } } {
    global CHECK_REMOTE_ENVIRONMENT CHECK_OUTPUT env 
-   global CHECK_L10N ts_host_config ts_config
+   global CHECK_L10N ts_host_config
+   global ts_config
 
    upvar $variable_name environment
 
@@ -2397,22 +2272,14 @@ proc setup2 { } {
    global CHECK_USER CHECK_CURRENT_WORKING_DIR
    global CHECK_PRODUCT_TYPE
    global CHECK_PRODUCT_VERSION_NUMBER
-   global CHECK_PRODUCT_ROOT
    global CHECK_COMMD_PORT
    global CHECK_CONFIG_DIR
    global CHECK_MAIN_RESULTS_DIR
    global CHECK_JOB_OUTPUT_DIR
    global CHECK_PROTOCOL_DIR
-   global CHECK_CORE_MASTER
-   global CHECK_CORE_EXECD
-   global CHECK_SUBMIT_ONLY_HOSTS
    global CHECK_USER
    global CHECK_GROUP
    global CHECK_CURRENT_WORKING_DIR
-   global CHECK_SOURCE_DIR
-   global CHECK_SOURCE_CVS_RELEASE
-   global CHECK_SOURCE_HOSTNAME
-   global CHECK_DIST_INSTALL_OPTIONS
    global CHECK_PACKAGE_DIRECTORY
    global CHECK_PACKAGE_TYPE
    global CHECK_QMASTER_INSTALL_OPTIONS
@@ -2555,7 +2422,6 @@ proc setup2 { } {
       }
       setup2
    }
-
 }
 
 #****** check/enhanced_setup() *************************************************
@@ -2573,27 +2439,28 @@ proc setup2 { } {
 #     check/setup2()
 #*******************************************************************************
 proc enhanced_setup {} {
-   global ts_config
    global CHECK_ENABLED_RUNLEVELS
    global CHECK_ENABLED_CATEGORIES CHECK_OUTPUT check_name
    global be_quiet CHECK_PACKAGE_DIRECTORY
-   global env CHECK_COMMD_PORT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST
+   global env CHECK_COMMD_PORT
+   global ts_config
 
    if { $be_quiet == 0 } { 
-      puts "   starting enhanced setup ..."
+      puts "   starting enhanced setup (SGE_ROOT=$ts_config(product_root)) ..."
    }
    set check_name "enhanced_setup"
+   set local_host [gethostname]
 
    set env(COMMD_PORT) $CHECK_COMMD_PORT;
    set env(SGE_QMASTER_PORT) $CHECK_COMMD_PORT;
    set env(SGE_EXECD_PORT) [expr ( $CHECK_COMMD_PORT + 1 ) ];
-   set env(SGE_ROOT) $CHECK_PRODUCT_ROOT;
+   set env(SGE_ROOT) $ts_config(product_root);
    set env(SGE_CELL) $ts_config(cell)
    set env(SGE_SINGLE_LINE) 1
 #   don't enable this without rework of qstat parsing
 #   set env(SGE_LONG_QNAMES) 40
 
-   set_users_environment $CHECK_HOST
+   set_users_environment $local_host
 
 # now search for further checktree configurations
 # ===============================================
@@ -2610,6 +2477,7 @@ proc enhanced_setup {} {
 
    puts "   setting up checktree ..."
    if {[build_checktree] != 0} {
+      modify_setup2
       exit 1
    }
 
@@ -2630,12 +2498,13 @@ proc enhanced_setup {} {
    check_executable_files
    
    if { $be_quiet == 0 } { 
-      puts "   architecture: $CHECK_ARCH";
-      puts "   local host:   $CHECK_HOST";
+      puts "   architecture: [resolve_arch $local_host]";
+      puts "   local host:   $local_host";
    }
 
    puts "   reading message macros ..."
    update_macro_messages_list
+
 #
 # uncomment the following line, if the unused macros should be removed from source code
 # ======================================================================================  
@@ -2646,8 +2515,9 @@ proc enhanced_setup {} {
 
 
 proc build_checktree {} {
-   global ts_config ts_checktree
+   global ts_checktree
    global CHECK_OUTPUT ACT_CHECKTREE
+   global ts_config
    
    if { [info exists ts_checktree] } {
       unset ts_checktree
@@ -2745,7 +2615,8 @@ proc build_checktree {} {
 
          if { [file exists $filename] == 0 } {
             
-            puts $CHECK_OUTPUT "file $ts_checktree($i,setup_hooks_${ii}_name) not found, create new configuration"
+            puts $CHECK_OUTPUT "file \"$filename\" for \"$ts_checktree($i,setup_hooks_${ii}_name)\" not found."
+            puts $CHECK_OUTPUT "creating new configuration ..."
             wait_for_enter
             
             $ts_checktree($i,setup_hooks_${ii}_init_func) $config_array
@@ -2809,7 +2680,6 @@ proc build_checktree {} {
 proc read_checktree_nodes { path } {
    global ts_checktree CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
    global CHECK_OUTPUT
-   global ts_config
    global check_highest_level check_init_level_procedure check_name
    global check_category 
    global CHECK_ACT_LEVEL DISABLE_ADD_PROC_ERROR
@@ -3363,15 +3233,14 @@ proc get_test_result {filename} {
 #*******************************
 proc create_report {file goodbad} {
   global CHECK_RESULT_DIR CHECK_BAD_RESULT_DIR
-  global CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT
-
+  global CHECK_PRODUCT_VERSION_NUMBER ts_config
 
   set output [open $file "WRONLY APPEND CREAT"]
   puts $output "\n checksystem report"
   puts $output " ==================\n"
   puts $output " Date: [exec date]\n\n"
   puts $output " Version: $CHECK_PRODUCT_VERSION_NUMBER"
-  puts $output " Installed in: $CHECK_PRODUCT_ROOT"
+  puts $output " Installed in: $ts_config(product_root)"
   if {$goodbad == 0} { 
      set total [print_results $CHECK_RESULT_DIR $output]
      puts $output "\nTotal number of test functions: $total"
@@ -3610,6 +3479,7 @@ proc delete_tests {path {only_if_not_there 0}} {
    set selected_tests [get_tests_from_checktree $path]
 
    foreach elem $selected_tests {
+      flush $CHECK_OUTPUT
       set check_highest_level 0
       set check_name ""
       set check_init_level_procedure "--"
@@ -3681,11 +3551,14 @@ proc delete_tests {path {only_if_not_there 0}} {
 #     ???/???
 #*******************************
 proc run_tests {path runcompleted} {
-   global CHECK_OUTPUT CHECK_HOST check_errstr CHECK_RESULT_DIR
+   global CHECK_OUTPUT check_errstr CHECK_RESULT_DIR
    global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_MAX_ERROR_MAILS
-   global CHECK_ACT_PATH check_use_installed_system ts_config
-   global check_reinit_on_tcl_error CHECK_CORE_MASTER CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_ACT_PATH check_use_installed_system
+   global check_reinit_on_tcl_error
+   global ts_config
 
+
+   set local_host [gethostname]
    set CHECK_MAILS_SENT 0  ;# clear mail counter
  
    set check_directories [get_tests_from_checktree $path]
@@ -3840,7 +3713,7 @@ proc run_tests {path runcompleted} {
    puts $CHECK_OUTPUT "Number of unsupported tests   : [llength $check_warning_name]"
    puts $CHECK_OUTPUT "Number of dependencies errors : [llength $check_missing_dep]"
 
-   set mail_body "Testsuite run on host $CHECK_HOST complete\n\n"
+   set mail_body "Testsuite run on host $local_host complete\n\n"
 
    # dependencies errors
    if {[llength $check_missing_dep] > 0} {
@@ -3927,20 +3800,22 @@ proc run_tests {path runcompleted} {
 #     ???/???
 #*******************************
 proc lock_testsuite {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_HOST CHECK_MAIN_RESULTS_DIR
+   global CHECK_OUTPUT CHECK_USER
+   global CHECK_MAIN_RESULTS_DIR
    global CHECK_TESTSUITE_LOCKFILE
+   global ts_config
 
+   set local_host [gethostname]
     set pid [getpid]
     
-    debug_puts "-> lock_testsuite: pid=$pid host=$CHECK_HOST user=$CHECK_USER"
+    debug_puts "-> lock_testsuite: pid=$pid host=$local_host user=$CHECK_USER"
 
     set result 1
     set time [expr [timestamp] + 60]
     while {$result != 0} {
        puts $CHECK_OUTPUT "waiting for lock ..."
        set result [catch {
-          exec -- $ts_config(testsuite_root_dir)/scripts/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $CHECK_HOST $CHECK_USER
+          exec -- $ts_config(testsuite_root_dir)/scripts/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $local_host $CHECK_USER
        } catch_output]
        debug_puts "======================================="
        debug_puts "lock.sh returned $result:\n$catch_output"
@@ -3967,7 +3842,7 @@ proc lock_testsuite {} {
           set owner_user [lindex $data 2]
 
           debug_puts "testsuite is locked by user $owner_user, process $owner_pid on host $owner_host!"
-          if {[lindex $data 0] == $pid && [lindex $data 1] == $CHECK_HOST && [lindex $data 2] == $CHECK_USER} {
+          if {[lindex $data 0] == $pid && [lindex $data 1] == $local_host && [lindex $data 2] == $CHECK_USER} {
               debug_puts "thats me, so we have the lock"
               set result 0
               continue
@@ -3997,10 +3872,10 @@ proc lock_testsuite {} {
                close $input }
  
        debug_puts "pid  [lindex $data 0] == $pid"
-       debug_puts "host [lindex $data 1] == $CHECK_HOST"
+       debug_puts "host [lindex $data 1] == $local_host"
        debug_puts "user [lindex $data 2] == $CHECK_USER"
  
-       if {[lindex $data 0] == $pid && [lindex $data 1] == $CHECK_HOST && [lindex $data 2] == $CHECK_USER} {
+       if {[lindex $data 0] == $pid && [lindex $data 1] == $local_host && [lindex $data 2] == $CHECK_USER} {
           incr tries 1
           if {$tries >= 2} {
              set ok 1
@@ -4121,8 +3996,9 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    global check_errstr CHECK_OUTPUT check_description check_functions check_errno 
    global CHECK_CUR_PROC_NAME
    global CHECK_CURRENT_WORKING_DIR check_init_level_procedure CHECK_ACT_LEVEL
-   global errorInfo CHECK_CORE_MASTER
+   global errorInfo
    global check_setup_level_function check_cleanup_level_function
+   global ts_config
    
    # do not run already completed tests
    debug_puts "runcompleted is $runcompleted"
@@ -4160,7 +4036,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    # unless we are in install - check if system is running
    if {[string compare $check_name "init_core_system"] != 0 &&
        [string compare $check_needs "" ] != 0} {
-      if {[is_scheduler_alive $CHECK_CORE_MASTER [get_qmaster_spool_dir]] != 1} {
+      if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
          add_proc_error "run_test_level" -1 "scheduler is not alive"
       }
       wait_for_load_from_all_queues 60
@@ -4304,7 +4180,8 @@ proc check_root_access {path} {
 }
 
 proc delete_temp_script_files { } {
-  global ts_config CHECK_OUTPUT
+  global CHECK_OUTPUT
+  global ts_config
 
   puts -nonewline $CHECK_OUTPUT "deleting temporary used files ..."
   set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
@@ -4441,14 +4318,14 @@ proc execute_setup_cleanup_function {func_name type} {
 #     ???/???
 #*******************************
 proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } } {
-   global ts_config  
    global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
    global check_errstr CHECK_OUTPUT check_description check_functions check_errno 
    global CHECK_CUR_PROC_NAME check_root_access_needs
    global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT
+   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER
    global check_category CHECK_GROUP DISABLE_ADD_PROC_ERROR
    global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
+   global ts_config
 
    cd $CHECK_CURRENT_WORKING_DIR
 
@@ -4685,7 +4562,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
          append mail_body "product type:     $CHECK_PRODUCT_TYPE\n"
          append mail_body "product feature:  $ts_config(product_feature)\n"
          append mail_body "product version:  $CHECK_PRODUCT_VERSION_NUMBER\n"
-         append mail_body "product root:     $CHECK_PRODUCT_ROOT\n"
+         append mail_body "product root:     $ts_config(product_root)\n"
          append mail_body "cell:             $ts_config(cell)\n"
          append mail_body "runlevel:         [get_run_level_name $my_current_runlevel]\n"
          append mail_body "max. runlevel:    [get_run_level_name $check_highest_level]\n"
@@ -4954,24 +4831,34 @@ proc select_runlevel {} {
      } 
 }
 proc check_display {} {
-     global CHECK_DISPLAY_OUTPUT CHECK_CORE_MASTER CHECK_USER 
+     global CHECK_DISPLAY_OUTPUT CHECK_USER 
 
      if { [ string compare $CHECK_DISPLAY_OUTPUT "undefined" ] == 0 } {
         puts "no debug x display set"
         return -1
      } 
-     start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 1"
+
+     if { [ have_root_passwd ] != 0 } {
+         set_root_passwd
+     }
+
+     puts $CHECK_OUTPUT "using display: $CHECK_DISPLAY_OUTPUT"
+   
+     set local_host [gethostname]
+     set xterm_path [get_xterm_path $local_host]
+
+     start_remote_prog $local_host "$CHECK_USER" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 1"
      if { $prg_exit_state != 0 } {
-         puts "can't open display $CHECK_DISPLAY_OUTPUT as user $CHECK_USER from host $CHECK_CORE_MASTER"    
+         puts "can't open display $CHECK_DISPLAY_OUTPUT as user $CHECK_USER from host $local_host"    
          return -1
      }
 
      if { [ have_root_passwd ] != 0 } {
          set_root_passwd
      }
-     start_remote_prog "$CHECK_CORE_MASTER" "root" "/usr/bin/X11/xterm" "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 1"
+     start_remote_prog "$local_host" "root" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 1"
      if { $prg_exit_state != 0 } {
-         puts "can't open display $CHECK_DISPLAY_OUTPUT as user root from host $CHECK_CORE_MASTER"    
+         puts "can't open display $CHECK_DISPLAY_OUTPUT as user root from host $local_host"    
          return -1
      }
      return 0
@@ -5463,8 +5350,13 @@ proc get_run_level_time { level } {
 #     ???/???
 #*******************************
 proc clear_screen {} {
-  set clear_sequence [ format "%c%c%c%c%c%c%c" 0x1b 0x5b 0x48 0x1b 0x5b 0x32 0x4a 0x00 ]
-  puts -nonewline $clear_sequence
+   global CHECK_DEBUG_LEVEL
+   if { $CHECK_DEBUG_LEVEL == 0 } {
+      set clear_sequence [ format "%c%c%c%c%c%c%c" 0x1b 0x5b 0x48 0x1b 0x5b 0x32 0x4a 0x00 ]
+      puts -nonewline $clear_sequence
+   } else {
+      debug_puts "ignoring clear_screen() call! We are in debug mode!"
+   }
 }
 
 #                                                             max. column:     |
@@ -5498,14 +5390,16 @@ proc clear_screen {} {
 #*******************************
 proc print_menu_header {} {
   global CHECK_ACT_PATH CHECK_RESULT_DIR 
-  global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_HOST CHECK_BAD_RESULT_DIR 
+  global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_BAD_RESULT_DIR 
   global CHECK_MAIN_RESULTS_DIR 
   global CHECK_ENABLED_RUNLEVELS CHECK_PRODUCT_VERSION_NUMBER
   global CHECK_ENABLED_CATEGORIES CHECK_USER CHECK_GROUP
-  global ts_config ts_checktree
+  global ts_checktree
+  global ts_config
 
+  set local_host [gethostname]
   clear_screen
-  set_users_environment $CHECK_HOST env 1
+  set_users_environment $local_host env 1
   get_version_info
   puts "===============================================================================" 
 
@@ -5652,8 +5546,14 @@ proc print_menu_header {} {
 #     The string the user entered, or "", if he just pressed enter.
 #*******************************
 proc wait_for_enter {{no_text 0} {second_try 0}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
+   global ts_config
    flush $CHECK_OUTPUT
+
+   set have_config 1
+   if { [info exists ts_config(testsuite_root_dir)] == 0 } {
+      set have_config 0
+   }
 
    # output some message
    if {$no_text == 0} {
@@ -5661,7 +5561,7 @@ proc wait_for_enter {{no_text 0} {second_try 0}} {
    }
 
    # wait for the user to press enter
-   if { $ts_config(testsuite_root_dir) == "" } {
+   if { $have_config == 0 || $ts_config(testsuite_root_dir) == "" } {
       set current_dir [pwd]
       debug_puts "ts config not set, using current directory ($current_dir) for testsuite_root_dir"
       set wait_script "$current_dir/scripts/wait_for_enter.sh"
@@ -5671,9 +5571,7 @@ proc wait_for_enter {{no_text 0} {second_try 0}} {
 
 
    set output ""
-   set en_result [catch {
-      set output [eval exec $wait_script]
-   } catch_output]
+   set en_result [catch { set output [eval exec $wait_script] } catch_output]
 
    # if wait_for_enter.sh cannot be executed (e.g. due to incorrect file permissions),
    # exit testsuite.
@@ -5740,14 +5638,15 @@ proc wait_for_start_time { substring } {
 # returns -1: error
 # returns 0 : no error
 proc prepare_packages { } {
-   global ts_config
    global CHECK_PACKAGE_DIRECTORY CHECK_OUTPUT CHECK_DEFAULTS_FILE
-   global CHECK_PRODUCT_ROOT CHECK_JOB_OUTPUT_DIR CHECK_HOST CHECK_PACKAGE_TYPE
-   global CHECK_USER CHECK_PRODUCT_TYPE CHECK_CORE_EXECD CHECK_PROTOCOL_DIR
+   global CHECK_JOB_OUTPUT_DIR CHECK_PACKAGE_TYPE
+   global CHECK_USER CHECK_PRODUCT_TYPE CHECK_PROTOCOL_DIR
    global CHECK_GROUP check_name CHECK_CUR_PROC_NAME
+   global ts_config
 
    set check_name "prepare_packages"
    set CHECK_CUR_PROC_NAME "prepare_packages"
+   set local_host [gethostname]
 
 
    #do pre checks like in compile
@@ -5791,32 +5690,32 @@ proc prepare_packages { } {
 
       set restore_host_aliases_file 0
       # copy pos. host_aliases file 
-      if { [ file isfile "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases"] == 1 } {
+      if { [ file isfile "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"] == 1 } {
          puts $CHECK_OUTPUT "saving host_aliases file ..."
          set restore_host_aliases_file 1
-         catch { exec "cp" "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
+         catch { exec "cp" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
          puts $result
       } 
       # now delete install directory
-      puts $CHECK_OUTPUT "moving directory \"$CHECK_PRODUCT_ROOT\" to testsuite_trash"
-      if { [delete_directory "$CHECK_PRODUCT_ROOT"] != 0 } {
-         add_proc_error "prepare_packages" -2 "could not delete $CHECK_PRODUCT_ROOT directory, critical error - stop"
+      puts $CHECK_OUTPUT "moving directory \"$ts_config(product_root)\" to testsuite_trash"
+      if { [delete_directory "$ts_config(product_root)"] != 0 } {
+         add_proc_error "prepare_packages" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
          return -1
       }
       # checking permissions
-      catch { exec "mkdir" "$CHECK_PRODUCT_ROOT"  } result
+      catch { exec "mkdir" "$ts_config(product_root)"  } result
       puts $result
-      catch { exec "chmod" "755" "$CHECK_PRODUCT_ROOT"  } result
+      catch { exec "chmod" "755" "$ts_config(product_root)"  } result
       puts $result
 
-      catch { file mkdir "$CHECK_PRODUCT_ROOT/$ts_config(cell)" } 
-      catch { file mkdir "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common" } 
+      catch { file mkdir "$ts_config(product_root)/$ts_config(cell)" } 
+      catch { file mkdir "$ts_config(product_root)/$ts_config(cell)/common" } 
 
       # copy pos. host_aliases file to new product root /cell/common
       if { [ file isfile "$CHECK_JOB_OUTPUT_DIR/host_aliases"] == 1 && 
            $restore_host_aliases_file == 1 } {
          puts $CHECK_OUTPUT "restoring host_aliases file ..."
-         catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases" } result
+         catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" } result
          puts $result
       }
 
@@ -5827,7 +5726,7 @@ proc prepare_packages { } {
          puts -nonewline $CHECK_OUTPUT [washing_machine $i]
          flush $CHECK_OUTPUT
          incr i 1
-         file copy $CHECK_PACKAGE_DIRECTORY/$file $CHECK_PRODUCT_ROOT
+         file copy $CHECK_PACKAGE_DIRECTORY/$file $ts_config(product_root)
       } 
       puts $CHECK_OUTPUT ""
 
@@ -5838,7 +5737,7 @@ proc prepare_packages { } {
          puts -nonewline $CHECK_OUTPUT [washing_machine $i]
          flush $CHECK_OUTPUT
          incr i 1
-         set catch_out [catch { exec "gunzip" "$CHECK_PRODUCT_ROOT/$file"  } result]
+         set catch_out [catch { exec "gunzip" "$ts_config(product_root)/$file"  } result]
          if { $catch_out != 0 } {
             puts $CHECK_OUTPUT $result
          }
@@ -5855,7 +5754,7 @@ proc prepare_packages { } {
          set help [ string first ".gz" $file ]
          incr help -1
          set file_no_gz [string range $file 0 $help]
-         set result [start_remote_prog $CHECK_HOST $CHECK_USER "tar" "-xvf $file_no_gz" prg_exit_state 60 0 $ts_config(product_root)]
+         set result [start_remote_prog $local_host $CHECK_USER "tar" "-xvf $file_no_gz" prg_exit_state 60 0 $ts_config(product_root)]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT $result
          }
@@ -5868,25 +5767,25 @@ proc prepare_packages { } {
          set help [ string first ".gz" $file ]
          incr help -1
          set file_no_gz [string range $file 0 $help]
-         delete_file $CHECK_PRODUCT_ROOT/$file_no_gz
+         delete_file $ts_config(product_root)/$file_no_gz
       } 
       puts $CHECK_OUTPUT ""
 
       # checking for correct system 
       set sys_info "unkown"
-      if { [ file isfile $CHECK_PRODUCT_ROOT/inst_sge ] } {
+      if { [ file isfile $ts_config(product_root)/inst_sge ] } {
          set sys_info "sge"
       }
-      if { [ file isfile $CHECK_PRODUCT_ROOT/inst_sgeee ] } {
+      if { [ file isfile $ts_config(product_root)/inst_sgeee ] } {
          set sys_info "sgeee"
       }
 
       puts $CHECK_OUTPUT "system       : $sys_info"      
 
       # checking for installed archs
-      set sys_archs [get_dir_names $CHECK_PRODUCT_ROOT/utilbin ]
+      set sys_archs [get_dir_names $ts_config(product_root)/utilbin ]
       
-      set local_host_arch [ resolve_arch $CHECK_HOST ]
+      set local_host_arch [ resolve_arch $local_host ]
       set local_arch_ok 0
       puts -nonewline $CHECK_OUTPUT "architectures:"
      
@@ -5900,7 +5799,7 @@ proc prepare_packages { } {
       
       # check for testsuite host binaries
       if { $local_arch_ok != 1 } {
-         add_proc_error "prepare_packages" -1 "host architecture for host $CHECK_HOST not installed"
+         add_proc_error "prepare_packages" -1 "host architecture for host $local_host not installed"
          return -1
       }
 
@@ -5912,7 +5811,7 @@ proc prepare_packages { } {
 
       # check all archs to appear in execd host list and vice versa
       set execd_archs ""
-      foreach elem $CHECK_CORE_EXECD {
+      foreach elem $ts_config(execd_hosts) {
          set host_arch [ resolve_arch $elem ]
          if { [string compare $host_arch "unkown" ] == 0 } {
             add_proc_error "prepare_packages" -1 "could not resolve host \"$elem\"!"
@@ -5962,47 +5861,47 @@ proc prepare_packages { } {
 
       set restore_host_aliases_file 0
       # copy pos. host_aliases file 
-      if { [ file isfile "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases"] == 1 } {
+      if { [ file isfile "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"] == 1 } {
          puts $CHECK_OUTPUT "saving host_aliases file ..."
          set restore_host_aliases_file 1
-         catch { exec "cp" "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
+         catch { exec "cp" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
          puts $result
       } 
       # now delete install directory
-      puts $CHECK_OUTPUT "moving directory \"$CHECK_PRODUCT_ROOT\" to testsuite_trash"
-      if { [delete_directory "$CHECK_PRODUCT_ROOT"] != 0 } {
-         add_proc_error "prepare_packages" -2 "could not delete $CHECK_PRODUCT_ROOT directory, critical error - stop"
+      puts $CHECK_OUTPUT "moving directory \"$ts_config(product_root)\" to testsuite_trash"
+      if { [delete_directory "$ts_config(product_root)"] != 0 } {
+         add_proc_error "prepare_packages" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
          return -1
       }
       # checking permissions
-      catch { exec "mkdir" "$CHECK_PRODUCT_ROOT"  } result
+      catch { exec "mkdir" "$ts_config(product_root)"  } result
       puts $result
-      catch { exec "chmod" "755" "$CHECK_PRODUCT_ROOT"  } result
+      catch { exec "chmod" "755" "$ts_config(product_root)"  } result
       puts $result
 
-      catch { file mkdir "$CHECK_PRODUCT_ROOT/$ts_config(cell)" } 
-      catch { file mkdir "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common" } 
+      catch { file mkdir "$ts_config(product_root)/$ts_config(cell)" } 
+      catch { file mkdir "$ts_config(product_root)/$ts_config(cell)/common" } 
 
       # copy pos. host_aliases file to new product root /$SGE_CELL/common
       if { [ file isfile "$CHECK_JOB_OUTPUT_DIR/host_aliases"] == 1 && 
            $restore_host_aliases_file == 1 } {
          puts $CHECK_OUTPUT "restoring host_aliases file ..."
-         catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases" } result
+         catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" } result
          puts $result
       }
 
       # copy package files to product root directory
       puts $CHECK_OUTPUT "copy package files to product root directory ..."
       set i 0
-      if { [catch { file mkdir "$CHECK_PRODUCT_ROOT/tmp_zip_copy" }] != 0 } {
-         puts $CHECK_OUTPUT "could not create directory \"$CHECK_PRODUCT_ROOT/tmp_zip_copy\""
+      if { [catch { file mkdir "$ts_config(product_root)/tmp_zip_copy" }] != 0 } {
+         puts $CHECK_OUTPUT "could not create directory \"$ts_config(product_root)/tmp_zip_copy\""
          return -1    
       }
       foreach file $zip_files { 
          puts -nonewline $CHECK_OUTPUT [washing_machine $i]
          flush $CHECK_OUTPUT
          incr i 1
-         file copy $CHECK_PACKAGE_DIRECTORY/$file $CHECK_PRODUCT_ROOT/tmp_zip_copy
+         file copy $CHECK_PACKAGE_DIRECTORY/$file $ts_config(product_root)/tmp_zip_copy
       } 
       puts $CHECK_OUTPUT ""
 
@@ -6014,7 +5913,7 @@ proc prepare_packages { } {
          puts -nonewline $CHECK_OUTPUT [washing_machine $i]
          flush $CHECK_OUTPUT
          incr i 1
-         set catch_out [catch { exec "unzip" "$CHECK_PRODUCT_ROOT/tmp_zip_copy/$file" "-d" "$CHECK_PRODUCT_ROOT/tmp_zip_copy"  } result]
+         set catch_out [catch { exec "unzip" "$ts_config(product_root)/tmp_zip_copy/$file" "-d" "$ts_config(product_root)/tmp_zip_copy"  } result]
          if { $catch_out != 0 } {
             puts $CHECK_OUTPUT $result
          }
@@ -6024,13 +5923,13 @@ proc prepare_packages { } {
       # delete untared package files
       puts $CHECK_OUTPUT "delete untared package files ..."
       foreach file $zip_files { 
-         delete_file $CHECK_PRODUCT_ROOT/tmp_zip_copy/$file
+         delete_file $ts_config(product_root)/tmp_zip_copy/$file
       } 
       puts $CHECK_OUTPUT ""
 
 
       # now check if packages are already installed and remove installed ones
-      set package_names [ get_dir_names $CHECK_PRODUCT_ROOT/tmp_zip_copy ]
+      set package_names [ get_dir_names $ts_config(product_root)/tmp_zip_copy ]
       puts -nonewline $CHECK_OUTPUT "Found following packages:"
       foreach pkg $package_names {
          puts -nonewline $CHECK_OUTPUT " $pkg" 
@@ -6038,8 +5937,8 @@ proc prepare_packages { } {
       puts $CHECK_OUTPUT "\n"
       set user_key "unknown"
       foreach pkg $package_names {
-         puts -nonewline $CHECK_OUTPUT "Checking if package \"$pkg\" is already installed on host \"$CHECK_HOST\" ... "
-         set output [start_remote_prog $CHECK_HOST "root" "pkginfo" "$pkg"]
+         puts -nonewline $CHECK_OUTPUT "Checking if package \"$pkg\" is already installed on host \"$local_host\" ... "
+         set output [start_remote_prog $local_host "root" "pkginfo" "$pkg"]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT "not installed"
          } else {
@@ -6051,7 +5950,7 @@ proc prepare_packages { } {
             }
             if { $user_key == "yes" } {
                puts $CHECK_OUTPUT "removing package \"$pkg\" ..."
-               set output [start_remote_prog $CHECK_HOST "root" "pkgrm" "-n $pkg"]
+               set output [start_remote_prog $local_host "root" "pkgrm" "-n $pkg"]
                puts $CHECK_OUTPUT $output
                if { $prg_exit_state != 0 } {
                   puts $CHECK_OUTPUT "error uninstalling package \"$pkg\""
@@ -6070,7 +5969,7 @@ proc prepare_packages { } {
       set send_speed .1
       set send_slow "1 $send_speed"
       foreach pkg $package_names {
-         set id [open_remote_spawn_process "$CHECK_HOST" "root" "pkgadd" "-d $CHECK_PRODUCT_ROOT/tmp_zip_copy $pkg" ]
+         set id [open_remote_spawn_process "$local_host" "root" "pkgadd" "-d $ts_config(product_root)/tmp_zip_copy $pkg" ]
          log_user 1
          set sp_id [ lindex $id 1 ]
          set timeout 60
@@ -6106,8 +6005,8 @@ proc prepare_packages { } {
                }
                -i $sp_id "default /gridware/sge*]" {
                   flush $CHECK_OUTPUT
-                  if { [ string length $CHECK_PRODUCT_ROOT ] >= 5  } {
-                     send -s -i $sp_id "$CHECK_PRODUCT_ROOT\n"
+                  if { [ string length $ts_config(product_root) ] >= 5  } {
+                     send -s -i $sp_id "$ts_config(product_root)\n"
                   } else {
                      add_proc_error "prepare_packages" -1 "can't use product root directory (shorter than 5 chars)"
                      close_spawn_process $id
@@ -6132,7 +6031,7 @@ proc prepare_packages { } {
                   flush $CHECK_OUTPUT
                } 
                -i $sp_id "Waiting for pkgadd of*" {
-                  add_proc_error "prepare_packages" -1 "$CHECK_HOST: another pkgadd session is running...\n$expect_out(buffer)"
+                  add_proc_error "prepare_packages" -1 "$local_host: another pkgadd session is running...\n$expect_out(buffer)"
                   close_spawn_process $id
                   return -1
                }
@@ -6157,19 +6056,19 @@ proc prepare_packages { } {
 
       # checking for correct system 
       set sys_info "unkown"
-      if { [ file isfile $CHECK_PRODUCT_ROOT/inst_sge ] } {
+      if { [ file isfile $ts_config(product_root)/inst_sge ] } {
          set sys_info "sge"
       }
-      if { [ file isfile $CHECK_PRODUCT_ROOT/inst_sgeee ] } {
+      if { [ file isfile $ts_config(product_root)/inst_sgeee ] } {
          set sys_info "sgeee"
       }
 
       puts $CHECK_OUTPUT "system       : $sys_info"      
 
       # checking for installed archs
-      set sys_archs [get_dir_names $CHECK_PRODUCT_ROOT/utilbin ]
+      set sys_archs [get_dir_names $ts_config(product_root)/utilbin ]
       
-      set local_host_arch [ resolve_arch $CHECK_HOST ]
+      set local_host_arch [ resolve_arch $local_host ]
       set local_arch_ok 0
       puts -nonewline $CHECK_OUTPUT "architectures:"
      
@@ -6183,7 +6082,7 @@ proc prepare_packages { } {
       
       # check for testsuite host binaries
       if { $local_arch_ok != 1 } {
-         add_proc_error "prepare_packages" -1 "host architecture for host $CHECK_HOST not installed"
+         add_proc_error "prepare_packages" -1 "host architecture for host $local_host not installed"
          return -1
       }
 
@@ -6195,7 +6094,7 @@ proc prepare_packages { } {
 
       # check all archs to appear in execd host list and vice versa
       set execd_archs ""
-      foreach elem $CHECK_CORE_EXECD {
+      foreach elem $ts_config(execd_hosts) {
          set host_arch [ resolve_arch $elem ]
          if { [string compare $host_arch "unkown" ] == 0 } {
             add_proc_error "prepare_packages" -1 "could not resolve host \"$elem\"!"
@@ -6322,9 +6221,10 @@ proc check_packages_directory { path { mode "check_both" } { get_files "no" } } 
 }
 
 proc build_distribution { arch_list } {
-   global ts_config CHECK_OUTPUT CHECK_HOST CHECK_USER
-   global CHECK_SOURCE_DIR 
-   
+   global CHECK_OUTPUT CHECK_USER
+   global ts_config
+
+   set local_host [gethostname]
    if { $ts_config(package_type) == "create_tar" &&
         $ts_config(package_directory) != "none" } {
       
@@ -6350,7 +6250,7 @@ proc build_distribution { arch_list } {
 
       puts $CHECK_OUTPUT "starting mk_dist $args $arch_list"
       # start mk_dist
-      set open_spawn [open_remote_spawn_process $CHECK_HOST $CHECK_USER "./scripts/mk_dist" "$args $arch_list" 0 $CHECK_SOURCE_DIR]
+      set open_spawn [open_remote_spawn_process $local_host $CHECK_USER "./scripts/mk_dist" "$args $arch_list" 0 $ts_config(source_dir)]
       set sp_id [ lindex $open_spawn 1 ]
       set timeout -1
       set done 0
@@ -6376,16 +6276,17 @@ proc build_distribution { arch_list } {
 }
 
 proc install_binaries { arch_list a_report } {
-   global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
-   global ts_config CHECK_JOB_OUTPUT_DIR CHECK_SOURCE_DIR CHECK_DIST_INSTALL_OPTIONS
-   global CHECK_HOST CHECK_USER CHECK_CORE_EXECD
-   
+   global CHECK_OUTPUT CHECK_PRODUCT_TYPE
+   global CHECK_JOB_OUTPUT_DIR
+   global CHECK_USER ts_config
    upvar $a_report report
+
+   set local_host [gethostname]
    set was_error 0
 
-   set task_nr [ report_create_task report "install_binaries" $CHECK_HOST ]
+   set task_nr [ report_create_task report "install_binaries" $local_host ]
    
-   # install to $CHECK_PRODUCT_ROOT
+   # install to ts_config(product_root)
    if { $ts_config(gridengine_version) == 53 } {
       if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0 } {
          set link_name "myinst"
@@ -6397,49 +6298,60 @@ proc install_binaries { arch_list a_report } {
    }
 
    # copy pos. host_aliases file to trash_
-   if { [ file isfile "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases"] == 1 } {
+   if { [ file isfile "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"] == 1 } {
       report_task_add_message report $task_nr "saving host_aliases file ..."
-      catch { exec "cp" "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
+      catch { exec "cp" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
       puts $result
       report_task_add_message report $task_nr $result
    } 
 
    # now delete install directory
-   report_task_add_message report $task_nr "moving directory \"$CHECK_PRODUCT_ROOT\" to testsuite_trash"
-   if { [delete_directory "$CHECK_PRODUCT_ROOT"] != 0 } {
-      add_proc_error "compile_source" -2 "could not delete $CHECK_PRODUCT_ROOT directory, critical error - stop"
-      report_task_add_message report $task_nr "could not delete $CHECK_PRODUCT_ROOT directory, critical error - stop"
+   report_task_add_message report $task_nr "moving directory \"$ts_config(product_root)\" to testsuite_trash"
+   if { [delete_directory "$ts_config(product_root)"] != 0 } {
+      add_proc_error "compile_source" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
+      report_task_add_message report $task_nr "could not delete $ts_config(product_root) directory, critical error - stop"
       report_finish_task report $task_nr -1
       return -1
    }
  
    # wait for nfs updates
+   puts $CHECK_OUTPUT "waiting for nfs ..."
    after 5000
+   puts $CHECK_OUTPUT "starting installation ..."
+   
 
-   catch { exec "mkdir" "$CHECK_PRODUCT_ROOT"  } result
+   catch { exec "mkdir" "$ts_config(product_root)"  } result
    report_task_add_message report $task_nr $result
-   catch { exec "touch" "$CHECK_PRODUCT_ROOT"  } result
+   catch { exec "touch" "$ts_config(product_root)"  } result
    report_task_add_message report $task_nr $result
-   catch { exec "chmod" "755" "$CHECK_PRODUCT_ROOT"  } result
+   catch { exec "chmod" "755" "$ts_config(product_root)"  } result
    report_task_add_message report $task_nr $result
  
    if { $ts_config(gridengine_version) == 53 } {
       report_task_add_message report $task_nr "\ncreating link \"$link_name\""
-      set return_state [ catch { eval exec ln -s $CHECK_SOURCE_DIR/scripts/distinst $CHECK_SOURCE_DIR/$link_name } output ]
+      set return_state [ catch { eval exec ln -s $ts_config(source_dir)/scripts/distinst $ts_config(source_dir)/$link_name } output ]
    }
 
  
    report_task_add_message report $task_nr "\ninstalling product binaries"
   
    set inst_env(SGE_ROOT) $ts_config(product_root)
-   if { $ts_config(gridengine_version) == 53 } {
-      set open_spawn [open_remote_spawn_process $CHECK_HOST $CHECK_USER "./$link_name" "$sgeee_param $CHECK_DIST_INSTALL_OPTIONS $arch_list" 0 $CHECK_SOURCE_DIR inst_env]
+
+   if { [ string compare "none" $ts_config(dist_install_options) ] == 0  } {
+      set dist_inst_options ""
    } else {
-      set open_spawn [open_remote_spawn_process $CHECK_HOST $CHECK_USER "./scripts/distinst" "-local -noexit $CHECK_DIST_INSTALL_OPTIONS $arch_list" 0 $CHECK_SOURCE_DIR inst_env]
+      set dist_inst_options $ts_config(dist_install_options)
+   }
+
+   if { $ts_config(gridengine_version) == 53 } {
+      set open_spawn [open_remote_spawn_process $local_host $CHECK_USER "./$link_name" "$sgeee_param $dist_inst_options $arch_list" 0 $ts_config(source_dir) inst_env]
+   } else {
+      set open_spawn [open_remote_spawn_process $local_host $CHECK_USER "./scripts/distinst" "-local -noexit $dist_inst_options $arch_list" 0 $ts_config(source_dir) inst_env]
    }
    set sp_id [ lindex $open_spawn 1 ]
    set timeout -1
    set done 0
+   puts -nonewline $CHECK_OUTPUT "installing "
    while { $done != 1 } {
       expect_user {
          -i $sp_id full_buffer {
@@ -6459,13 +6371,16 @@ proc install_binaries { arch_list a_report } {
          }
          -i $sp_id "*\n" {
             report_task_add_message report $task_nr $expect_out(0,string)
+            puts -nonewline $CHECK_OUTPUT "."
+            flush $CHECK_OUTPUT
          }
       }
    }
    close_spawn_process $open_spawn
+   puts $CHECK_OUTPUT " done"
    puts $CHECK_OUTPUT ""
 
-   foreach elem $CHECK_CORE_EXECD {
+   foreach elem $ts_config(execd_hosts) {
       set host_arch [ resolve_arch $elem 1]
       if { ([string compare $host_arch ""] != 0) && ([string compare $host_arch "unknown" ] != 0) } {
          report_task_add_message report $task_nr " arch on host $elem is $host_arch - successfully installed binaries"
@@ -6474,26 +6389,25 @@ proc install_binaries { arch_list a_report } {
          set was_error 1
       }
    }
-   
 
-   catch { file mkdir "$CHECK_PRODUCT_ROOT/man" } 
-   catch { file mkdir "$CHECK_PRODUCT_ROOT/catman" } 
-   catch { file mkdir "$CHECK_PRODUCT_ROOT/$ts_config(cell)" } 
-   catch { file mkdir "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common" } 
+   catch { file mkdir "$ts_config(product_root)/man" } 
+   catch { file mkdir "$ts_config(product_root)/catman" } 
+   catch { file mkdir "$ts_config(product_root)/$ts_config(cell)" } 
+   catch { file mkdir "$ts_config(product_root)/$ts_config(cell)/common" } 
 
   
    # copy pos. host_aliases file to new product root /$SGE_CELL/common
    if { [ file isfile "$CHECK_JOB_OUTPUT_DIR/host_aliases"] == 1 } {
         report_task_add_message report $task_nr "restoring host_aliases file ..."
-        catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/host_aliases" } result
+        catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" } result
         report_task_add_message report $task_nr $result
    }
   
    # copy source/dist/util/arch to $SGE_ROOT/util.
    # When we compiled our own binaries (including non distributed architectures like 
    # lx26-x86 or hp11-64, source/dist/util/arch will give us the correct arch strings.
-   set arch_script_src "$CHECK_SOURCE_DIR/dist/util/arch"
-   set arch_script_dst "$CHECK_PRODUCT_ROOT/util/arch"
+   set arch_script_src "$ts_config(source_dir)/dist/util/arch"
+   set arch_script_dst "$ts_config(product_root)/util/arch"
    report_task_add_message report $task_nr "installing $arch_script_src ..."
    catch { exec cp $arch_script_src $arch_script_dst} result
  
@@ -6514,8 +6428,8 @@ proc install_binaries { arch_list a_report } {
 #    update_source { a_html_body } 
 #
 #  FUNCTION
-#     Updates the sources at CHECK_SOURCE_DIR
-#     The cvs commands is executed at CHECK_SOURCE_HOSTNAME
+#     Updates the sources at ts_config(source_dir)
+#     The cvs commands is executed at $ts_config(source_cvs_hostname)
 #     For the result a report is emailed
 #  INPUTS
 #    a_html_body   -- html body where error messages will be appended
@@ -6536,11 +6450,11 @@ proc install_binaries { arch_list a_report } {
 #     check/compile_source
 #******
 proc update_source { a_report } {
-   global do_not_update CHECK_OUTPUT
+   global do_not_update CHECK_OUTPUT ts_config
    upvar $a_report report
    if { $do_not_update == 0 } {
-      global CHECK_OUTPUT CHECK_SOURCE_HOSTNAME CHECK_USER
-      global CHECK_SOURCE_DIR CHECK_OUTPUT
+      global CHECK_OUTPUT CHECK_USER
+      global CHECK_OUTPUT
       
       set tries 1
 
@@ -6549,7 +6463,7 @@ proc update_source { a_report } {
       set prg_exit_state 0
       set conflict_files {}
       
-      set task_nr [report_create_task report "cvs_update" $CHECK_SOURCE_HOSTNAME]
+      set task_nr [report_create_task report "cvs_update" $ts_config(source_cvs_hostname)]
 
       puts $CHECK_OUTPUT "updating sources (-q -z 9 update -dP) ..."
       
@@ -6557,16 +6471,16 @@ proc update_source { a_report } {
          
          report_task_add_message report $task_nr "------------------------------------------"
          report_task_add_message report $task_nr "$tries. cvs update try ..."
-         report_task_add_message report $task_nr "updating gridengine directory $CHECK_SOURCE_DIR/.. on host $CHECK_SOURCE_HOSTNAME ..."
+         report_task_add_message report $task_nr "updating gridengine directory $ts_config(source_dir)/.. on host $ts_config(source_cvs_hostname) ..."
          
-         set open_spawn [open_remote_spawn_process $CHECK_SOURCE_HOSTNAME $CHECK_USER "cvs" "-q -z 9 update -dP" 0 "$CHECK_SOURCE_DIR/.."]
+         set open_spawn [open_remote_spawn_process $ts_config(source_cvs_hostname) $CHECK_USER "cvs" "-q -z 9 update -dP" 0 "$ts_config(source_dir)/.."]
          set spawn_list [lindex $open_spawn 1]
          
          set frame_work_script_update 0
          set testsuite_update 0
          set cvs_change_log ""
          
-         set cvs_output [ open "$CHECK_SOURCE_DIR/cvs_update.log.[timestamp]" "w" ]
+         set cvs_output [ open "$ts_config(source_dir)/cvs_update.log.[timestamp]" "w" ]
          
          set use_output 0
          set timeout 600
@@ -6593,7 +6507,7 @@ proc update_source { a_report } {
             }
             -i $spawn_list "_start_mark_:(0)" {
                set use_output 1
-               report_task_add_message report $task_nr "cd $CHECK_SOURCE_DIR/.. ; cvs -q -z 9 update -dP"
+               report_task_add_message report $task_nr "cd $ts_config(source_dir)/.. ; cvs -q -z 9 update -dP"
                exp_continue
             }
             -i $spawn_list -re {^C .*?\n} { ;# conflict files
@@ -6703,8 +6617,8 @@ proc update_source { a_report } {
 #  SEE ALSO
 #*******************************************************************************
 proc compile_depend { compile_hosts a_report } {
-   global ts_host_config CHECK_OUTPUT
-   global CHECK_USER CHECK_SOURCE_DIR
+   global ts_host_config CHECK_OUTPUT ts_config
+   global CHECK_USER
    
    upvar $a_report report
  
@@ -6728,7 +6642,7 @@ proc compile_depend { compile_hosts a_report } {
    
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting scripts/zerodepend on host $depend_host_name ..."
-   set output [start_remote_prog $depend_host_name $CHECK_USER "scripts/zerodepend" "" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
+   set output [start_remote_prog $depend_host_name $CHECK_USER "scripts/zerodepend" "" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "return state: $prg_exit_state"
    report_task_add_message report $task_nr "------------------------------------------"
@@ -6749,7 +6663,7 @@ proc compile_depend { compile_hosts a_report } {
    set my_compile_options [get_compile_options_string]
    report_task_add_message report $task_nr "-> starting aimk -only-depend on host $depend_host_name ..."
 
-   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "-only-depend" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0 ]
+   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "-only-depend" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0 ]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "return state: $prg_exit_state"
    report_task_add_message report $task_nr "------------------------------------------"
@@ -6767,7 +6681,7 @@ proc compile_depend { compile_hosts a_report } {
    set task_nr [report_create_task report "depend" $depend_host_name]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> starting aimk $my_compile_options depend on host $depend_host_name ..."
-   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "$my_compile_options depend" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
+   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "$my_compile_options depend" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0]
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "return state: $prg_exit_state"
    report_task_add_message report $task_nr "------------------------------------------"
@@ -6814,8 +6728,7 @@ proc compile_depend { compile_hosts a_report } {
 #     ???/???
 #*******************************
 proc run_all_at_starttime {} {
-
-   global CHECK_ACT_PATH CHECK_REPORT_FILE
+   global CHECK_ACT_PATH CHECK_REPORT_FILE ts_config
 
    set start_time 0
    set should_we_compile 0
@@ -6951,7 +6864,7 @@ proc get_user_input { what } {
 #*******************************************************************************
 proc restart_debug_daemons { { shutdown 0 } } {
    global daemon_debug master_debug schedd_debug
-   global CHECK_CORE_MASTER
+   global ts_config
 
    if { [ have_root_passwd ] != 0 } {
       set_root_passwd
@@ -6961,7 +6874,7 @@ proc restart_debug_daemons { { shutdown 0 } } {
       if { [info exists config_tmp(qmaster_spool_dir) ] != 1 } { 
          return 
       }
-      shutdown_master_and_scheduler $CHECK_CORE_MASTER $config_tmp(qmaster_spool_dir) 
+      shutdown_master_and_scheduler $ts_config(master_host) $config_tmp(qmaster_spool_dir) 
    }
    startup_qmaster 
    wait_for_load_from_all_queues 300 
@@ -7043,15 +6956,15 @@ proc ask_user_yes_or_no { question } {
 #     ???/???
 #*******************************
 proc menu {} {
-   global ts_config
   global CHECK_ACT_PATH CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT CHECK_RESULT_DIR 
-  global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_HOST CHECK_BAD_RESULT_DIR 
+  global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_BAD_RESULT_DIR 
   global CHECK_MAIN_RESULTS_DIR 
   global CHECK_ENABLED_RUNLEVELS CHECK_PRODUCT_VERSION_NUMBER CHECK_SETUP_NAMES
   global daemon_debug CHECK_DEBUG_LEVEL CHECK_DEFAULTS_FILE CHECK_DO_SETUP
   global CHECK_PACKAGE_DIRECTORY CHECK_SETUP_CHANGES CHECK_PACKAGE_TYPE
-  global check_reinit_on_tcl_error ts_checktree CHECK_ENABLED_CATEGORIES
+  global check_reinit_on_tcl_error ts_checktree CHECK_ENABLED_CATEGORIES ts_config
 
+  set local_host [gethostname]
   delete_temp_script_files
 
   print_menu_header
@@ -7066,7 +6979,7 @@ proc menu {} {
   puts "  (8) create check report"
   puts "  (9) run all tests at a special starttime"
   if { [ string compare "stdout" $CHECK_OUTPUT ] == 0 } {
-     puts " (10) use file \"${CHECK_HOST}.checklog\" for output" 
+     puts " (10) use file \"${local_host}.checklog\" for output" 
   } else {
      puts " (10) use \"stdout\" for output"
   }
@@ -7119,12 +7032,20 @@ proc menu {} {
 
   switch -- $input {
      "19" {
+           if { [have_root_passwd] == -1 } {
+              puts $CHECK_OUTPUT "need root access ..."
+              set_root_passwd
+           }
+
+           # first install additional clusters
+           operate_additional_clusters install
+
+           # now start all checks with INSTALL category
            set org_categories $CHECK_ENABLED_CATEGORIES
            set CHECK_ENABLED_CATEGORIES "INSTALL"
            set runcompleted 1
            run_tests "root" $runcompleted
            set CHECK_ENABLED_CATEGORIES $org_categories
-           operate_additional_clusters install
            wait_for_enter
          }
     "20" { restart_debug_daemons } 
@@ -7185,6 +7106,8 @@ proc menu {} {
          }
     "26" {  
             modify_setup2
+            source_tcl_files
+            build_checktree
             wait_for_enter
          }
     "27" {
@@ -7283,7 +7206,7 @@ proc menu {} {
         }
     "10" {
            if { [ string compare "stdout" $CHECK_OUTPUT ] == 0 } {
-              set CHECK_OUTPUT [open "$CHECK_MAIN_RESULTS_DIR/$CHECK_HOST.checklog" "w"]  
+              set CHECK_OUTPUT [open "$CHECK_MAIN_RESULTS_DIR/$local_host.checklog" "w"]  
            } else {
               close $CHECK_OUTPUT
               set CHECK_OUTPUT stdout
@@ -7335,14 +7258,15 @@ proc update_compile_html_output { content } {
 
 proc get_shared_lib_path { host name path } {
 
-   global CHECK_PRODUCT_ROOT
    upvar $name var_name
    upvar $path var_value
 
+   get_current_cluster_config_array ts_config
+
    set host_arch [resolve_arch $host ]
    set var_name [get_shared_lib_path_variable_name $host_arch]
-   if { [info exists CHECK_PRODUCT_ROOT ] } {
-      set var_value $CHECK_PRODUCT_ROOT/lib/$host_arch
+   if { [info exists ts_config(product_root) ] } {
+      set var_value $ts_config(product_root)/lib/$host_arch
    } else {
       set var_value ""
    }
@@ -7369,14 +7293,16 @@ proc get_shared_lib_path_variable_name { arch } {
 }
 
 proc setup_shared_lib_path {} {
-   global env CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT
+   global env CHECK_OUTPUT
    global be_quiet
+   get_current_cluster_config_array ts_config
 
-   set name [get_shared_lib_path_variable_name $CHECK_ARCH]
+   set local_arch [resolve_arch [gethostname]]
+   set name [get_shared_lib_path_variable_name $local_arch]
    if { [info exists env($name)] } {
-      set env($name) "$env($name):$CHECK_PRODUCT_ROOT/lib/$CHECK_ARCH"
+      set env($name) "$env($name):$ts_config(product_root)/lib/$local_arch"
    } else {
-      set env($name) "$CHECK_PRODUCT_ROOT/lib/$CHECK_ARCH"
+      set env($name) "$ts_config(product_root)/lib/$local_arch"
    }
    if { $be_quiet == 0 } { 
       puts $CHECK_OUTPUT "   set environment variable $name to $env($name)"
@@ -7384,6 +7310,7 @@ proc setup_shared_lib_path {} {
 }
 
 proc source_tcl_files {} {
+   global CHECK_OUTPUT
    global ts_config
 
    if [info exists ts_config] {
@@ -7407,6 +7334,7 @@ proc source_tcl_files {} {
    ts_source $libdir/gettext_procedures
    ts_source $libdir/remote_procedures
    ts_source $libdir/control_procedures
+   ts_source $libdir/cluster_procedures
    ts_source $libdir/coverage
    ts_source $libdir/parser
    ts_source $libdir/parser_xml
@@ -7458,16 +7386,21 @@ proc source_tcl_files {} {
 #     classes/test/com/sun/grid/Settings.java
 #*******************************
 proc build_java_env_list {} {
-   global CHECK_USER CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST CHECK_CURRENT_WORKING_DIR
+   global CHECK_USER CHECK_ACTUAL_TEST_PATH
+   global CHECK_CURRENT_WORKING_DIR
    global CHECK_PRODUCT_VERSION_NUMBER
-   global env ts_config
+   global env
+
+   get_current_cluster_config_array ts_config
+
+   set local_host [gethostname]
+   set local_arch [resolve_arch $local_host]
 
    set env_list "-Dgets.user=\"$CHECK_USER\""
    set env_list "$env_list -Dgets.test_path=\"$CHECK_ACTUAL_TEST_PATH\""
-   set env_list "$env_list -Dgets.sge_root=\"$CHECK_PRODUCT_ROOT\""
-   set env_list "$env_list -Dgets.arch=\"$CHECK_ARCH\""
-   set env_list "$env_list -Dgets.hostname=\"$CHECK_HOST\""
+   set env_list "$env_list -Dgets.sge_root=\"$ts_config(product_root)\""
+   set env_list "$env_list -Dgets.arch=\"$local_arch\""
+   set env_list "$env_list -Dgets.hostname=\"$local_host\""
    set env_list "$env_list -Dgets.gets_root=\"$ts_config(testsuite_root_dir)\""
    set env_list "$env_list -Dgets.cwd=\"$CHECK_CURRENT_WORKING_DIR\""
    set env_list "$env_list -Dgets.scripts_dir=\"$ts_config(testsuite_root_dir)/scripts\""
@@ -7511,8 +7444,9 @@ proc load_additional_packages {} {
 #     check/operate_add_cluster()
 #*******************************************************************************
 proc operate_additional_clusters {operation} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global check_use_installed_system last_shell_script_file
+   global CHECK_OUTPUT CHECK_USER
+   global check_use_installed_system
+   global ts_config
 
    if {$ts_config(additional_config) != "none"} {
       foreach filename $ts_config(additional_config) {
@@ -7540,16 +7474,23 @@ proc operate_additional_clusters {operation} {
 #                      kill: kill system which was started
 #                      compile: compile sources
 #                      install: install system (basic installation)
+#                      execute_func: start remote tcl function call with command specified in arguments
+#                      procedure return values are stored in execute_func_return
 #     {atimeout 120} - timeout for operation outputs
+#     {execute_func_return rpc_retval} - remote procedure return values
+#                                        when execute_func is used
 #
 #  SEE ALSO
 #     check/operate_additional_clusters()
 #*******************************************************************************
-proc operate_add_cluster {filename operation {atimeout 120}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global check_use_installed_system last_shell_script_file 
-   global check_do_clean_compile do_not_update
+proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {execute_func_return rpc_retval} } {
+   global CHECK_OUTPUT CHECK_USER CHECK_HTML_DIRECTORY
+   global check_use_installed_system
+   global check_do_clean_compile do_not_update ts_config
+   upvar $execute_func_return rpcret
 
+
+   set rpcret ""
    set return_value 0
    if {$ts_config(additional_config) != "none"} {
       # clear previously read config
@@ -7565,7 +7506,8 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
       # start testsuite with install option on the cluster's master host
       puts $CHECK_OUTPUT "\n${operation}ing cluster of additional configuration $filename"
       puts $CHECK_OUTPUT "on host $add_config(master_host) as user $CHECK_USER"
-      set args "check.exp file $filename fast_setup quiet $operation"
+
+      set args "check.exp file $filename fast_setup quiet"
       if {$operation == "install" && $check_use_installed_system} {
          append args " re_init"
       }
@@ -7578,16 +7520,25 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
          append args " no_update"
       }
 
+      if {$CHECK_HTML_DIRECTORY != ""} {
+         remote_file_mkdir $add_config(master_host) $CHECK_HTML_DIRECTORY/$add_config(master_host)
+         append args " html_dir $CHECK_HTML_DIRECTORY/$add_config(master_host)" 
+      }
+  
+      # The "execute_func" has to be the last argument!!!
+      append args " $operation"
+      if {$operation == "execute_func" } {
+         append args " $execute_func"
+      }
 
-
-      puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $$add_config(master_host) ..."
+      puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $add_config(master_host) ..."
       set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
-      set script_tail_name [file tail $last_shell_script_file]
+      set script_tail_name [file tail $shell_script_name]
       set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
       puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""
 
       if {$id == ""} {
-         add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\ngot no spawn id"
+         add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\ngot no spawn id"
          continue
       }
       
@@ -7596,17 +7547,18 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
       set timeout $atimeout
       set found_end 0
       set error_found 0
+      set proc_found 0
       set error_text ""
 
       expect {
          -i $spawn_id timeout {
-            add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\ntimeout"
+            add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\ntimeout"
          }
          -i $spawn_id full_buffer {
-            add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\nbuffer overflow"
+            add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\nbuffer overflow"
          }
          -i $spawn_id eof {
-            add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\nunexpected eof"
+            add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\nunexpected eof"
          }
 
          -i $spawn_id -- "*\n" {
@@ -7627,7 +7579,7 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
                         }
 
                         if {$passwd == ""} {
-                           add_proc_error "operate_add_cluster $operation" -1 "${operation}ing of additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
+                           add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
                            set stop 1
                         } else {
                            ts_send $spawn_id "$passwd\n" 1 1
@@ -7662,6 +7614,15 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
                         puts $CHECK_OUTPUT "found error report end"
                         set error_found 0
                      }
+                     "PROCEDURE REPORT - START" {
+                        puts $CHECK_OUTPUT "found procedure report start"
+                        set proc_found 1
+                     }
+                     "PROCEDURE REPORT - DONE" {
+                        puts $CHECK_OUTPUT "found procedure report end"
+                        set proc_found 0
+                     }
+
                   }
                   if { $error_found == 2 } {
                      append error_text "$line\n"
@@ -7669,6 +7630,13 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
                   if { $error_found == 1 } {
                      incr error_found 1
                   }
+                  if { $proc_found == 2 } {
+                     append rpcret $line
+                  }
+                  if { $proc_found == 1 } {
+                     incr proc_found 1
+                  }
+
 
                }
             }
@@ -7680,14 +7648,14 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
       }
       close_spawn_process $id
       if { $error_text != "" } {
-         puts $CHECK_OUTPUT "remote operation \"$operation\" in remote testsuite [file tail $filename] failed:"
+         puts $CHECK_OUTPUT "remote operation \"$args\" in remote testsuite [file tail $filename] failed:"
          puts $CHECK_OUTPUT $error_text
          set proc_error_text ""
-         append proc_error_text "remote operation \"$operation\" in testsuite [file tail $filename] failed:\n"
+         append proc_error_text "remote operation \"$args\" in testsuite [file tail $filename] failed:\n"
          append proc_error_text $error_text
          add_proc_error "operate_add_cluster" -1 "$proc_error_text"
       } else {
-         puts $CHECK_OUTPUT "remote operation \"$operation\" in remote testsuite [file tail $filename] finished successfully"
+         puts $CHECK_OUTPUT "remote operation \"$args\" in remote testsuite [file tail $filename] finished successfully"
       }
    } else {
       puts $CHECK_OUTPUT "no additional clusters defined"
@@ -7696,46 +7664,6 @@ proc operate_add_cluster {filename operation {atimeout 120}} {
 }
 
 
-#****** check/get_additional_cluster_type() ************************************
-#  NAME
-#     get_additional_cluster_type() -- find out type of additional cluster config
-#
-#  SYNOPSIS
-#     get_additional_cluster_type { filename additional_config } 
-#
-#  FUNCTION
-#     reads specified cluster configuration and returns its type.
-#
-#  INPUTS
-#     filename          - cluster config file 
-#     additional_config - upvar variable where to read config 
-#
-#  RESULT
-#     "" on error, "cell" for cell cluster, "independent" for standalone cluster 
-#*******************************************************************************
-proc get_additional_cluster_type { filename additional_config } {
-   global ts_config
-   upvar $additional_config add_config
-
-   # clear previously read config
-   if {[info exists add_config]} {
-      unset add_config
-   }
-
-   # read additional config file
-   if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-      add_proc_error "get_additional_cluster_type" -1 "cannot read additonal configuration file $filename"
-      return ""
-   }
-
-   # check whether it is cell cluster or independed cluster
-   if { $ts_config(product_root) == $add_config(product_root) &&
-        $ts_config(source_dir)   == $add_config(source_dir) } {
-      return "cell"
-   } else {
-      return "independent"
-   }
-}
 
 
 # Main programm:
@@ -8081,17 +8009,20 @@ for { set i 0 } { $i < $argc } { incr i } {
       if { [ llength $do_one_test_level ] != 1 || [ llength $do_one_test_name ] != 1} {
          puts $CHECK_OUTPUT "used check parameter without runlevel or checkname"
          setup2
+         set local_host [gethostname]
+         set local_arch [resolve_arch $local_host]
          set mail_body "$mail_body product version is [get_version_info]\n"
          set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
-         set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
-         set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
+         set mail_body "$mail_body check is running on host \"$local_host\" architecture is \"$local_arch\"\n"
+         set mail_body "$mail_body product root directory is \"$ts_config(product_root)\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
          mail_report $mail_subject "$mail_body used check parameter without runlevel or checkname" 
          exit -1
       }
       incr i
       continue
-   } 
+   }
+ 
    if { ( [string compare [lindex $argv $i] "--all"] == 0 ) || ([string compare [lindex $argv $i] "all"] == 0 ) } {
       set do_all 1
       set ru_lev [ expr (1 + $i) ] 
@@ -8099,10 +8030,12 @@ for { set i 0 } { $i < $argc } { incr i } {
       if { [ llength $do_all_runlevel ] != 1 } {
          puts $CHECK_OUTPUT "used all parameter without runlevel"
          setup2
+         set local_host [gethostname]
+         set local_arch [resolve_arch $local_host]
          set mail_body "$mail_body product version is [get_version_info]\n"
          set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
-         set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
-         set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
+         set mail_body "$mail_body check is running on host \"$local_host\" architecture is \"$local_arch\"\n"
+         set mail_body "$mail_body product root directory is \"$ts_config(testsuite_root_dir)\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
          mail_report $mail_subject "$mail_body used all parameter without runlevel" 
          exit -1
@@ -8118,10 +8051,12 @@ for { set i 0 } { $i < $argc } { incr i } {
       if { [ llength $do_category_list ] == 0 } {
          puts $CHECK_OUTPUT "used category parameter without category list"
          setup2
+         set local_host [gethostname]
+         set local_arch [resolve_arch $local_host]
          set mail_body "$mail_body product version is [get_version_info]\n"
          set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
-         set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
-         set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
+         set mail_body "$mail_body check is running on host \"$local_host\" architecture is \"$local_arch\"\n"
+         set mail_body "$mail_body product root directory is \"$ts_config(testsuite_root_dir)\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
          mail_report $mail_subject "$mail_body used category parameter without category list" 
          exit -1
@@ -8183,7 +8118,6 @@ if {$CHECK_COVERAGE != {} && $CHECK_COVERAGE_DIR == ""} {
 
 # load defaults file
 #__setup   ;# old setup
-
 source_tcl_files
 
 if { $do_only_diff_macros == 1 } {
@@ -8193,7 +8127,6 @@ if { $do_only_diff_macros == 1 } {
 setup2
 load_additional_packages
 source_tcl_files
-
 # fill sge_config array with minimal information
 bootstrap_sge_config
 
@@ -8202,11 +8135,13 @@ if { $do_category == 1 } {
 }
 set CHECK_ACT_PATH "root"
 
+set local_host [gethostname]
+set local_arch [resolve_arch $local_host]
 
 set mail_body "$mail_body product version is [get_version_info]\n"
 set mail_body "$mail_body testsuite root directory is \"$ts_config(testsuite_root_dir)\"\n"
-set mail_body "$mail_body check is running on host \"$CHECK_HOST\" architecture is \"$CHECK_ARCH\"\n"
-set mail_body "$mail_body product root directory is \"$CHECK_PRODUCT_ROOT\"\n-------\n"
+set mail_body "$mail_body check is running on host \"$local_host\" architecture is \"$local_arch\"\n"
+set mail_body "$mail_body product root directory is \"$ts_config(product_root)\"\n-------\n"
 set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
 
 
@@ -8219,7 +8154,9 @@ if { $no_action == 1 } {
 if { $do_prog_start == 1 } {
    puts $CHECK_OUTPUT "starting $exec_args ..."
    set exit_value [eval $exec_args]
+   puts $CHECK_OUTPUT "PROCEDURE REPORT - START"
    puts $exit_value
+   puts $CHECK_OUTPUT "PROCEDURE REPORT - DONE"
    exit 0
 }
 
@@ -8289,7 +8226,7 @@ if { $do_all } {
 
 if { $do_install } {
    # ts_checktree ok
-   puts "installing core system on host $CHECK_HOST ..."
+   puts "installing core system on host [gethostname] ..."
    set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
    run_test $CHECK_ACT_PATH 1
    operate_additional_clusters install

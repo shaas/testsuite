@@ -52,10 +52,11 @@ set check_init_level_procedure "ts_performance_test_init_level"
 # define test's name and run level descriptions
 set check_name            "ts_performance_test"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   2
-set check_description(2)  "dummy test"
-set check_description(1)  "test testsuite average execution time on each cluster host"
+set check_highest_level   3
 set check_description(0)  "test system time on each cluster daemon host"
+set check_description(1)  "test testsuite average execution time on each cluster host"
+set check_description(2)  "dummy test"
+set check_description(3)  "test correct testsuite display settings for all users"
 
 
 # define test's dependencies
@@ -95,7 +96,9 @@ proc ts_performance_test_init_level {} {
       "2" {
          return 0
       }
-
+      "3" {
+         return 0
+      }
    } 
 
    return -1  ;# no other level 
@@ -157,8 +160,8 @@ proc ts_performance_test_cleanup2  {} {
 
 
 proc ts_performance_test_test {} {
-   global ts_performance_test_test_hosts check_description CHECK_ARCH CHECK_USER CHECK_HOST
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global ts_performance_test_test_hosts check_description CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
    global ts_user_config
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
@@ -235,6 +238,49 @@ proc ts_performance_test_test {} {
    if {$CHECK_ACT_LEVEL == 2} {
       dump_spawn_rlogin_sessions
 #      reset_schedd_config
+   }
+
+   if {$CHECK_ACT_LEVEL == 3} {
+      set users [user_conf_get_cluster_users]
+      set hosts [host_conf_get_cluster_hosts]
+      foreach user $users {
+         puts $CHECK_OUTPUT "user: $user"
+         foreach host $hosts {
+            puts -nonewline $CHECK_OUTPUT "   open xterm on host $host: "
+            flush $CHECK_OUTPUT
+            set xterm_path [get_xterm_path $host]
+            set output [start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 0"]
+            if { $prg_exit_state != 0 } {
+               set disp_result($user,$host) 0
+               set error_result($user,$host,out) $output
+               set error_result($user,$host,cmd) "${host}(${user}): $xterm_path -bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 0"
+
+                
+               puts $CHECK_OUTPUT "xterm returned exit state: $prg_exit_state\nOutput:\n$output"
+            } else {
+               set disp_result($user,$host) 1
+               puts $CHECK_OUTPUT "ok"
+               # just for fun !!!
+               start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 3" prg_exit_state 60 1
+
+            } 
+         }
+      }
+      puts $CHECK_OUTPUT [print_xy_array $users $hosts disp_result]
+      set error_text ""
+      foreach user $users {
+         foreach host $hosts {
+            if { $disp_result($user,$host) == 0 } {
+               append error_text "====================================================\n"
+               append error_text "Error for user $user on host $host:\n"
+               append error_text "   starting xterm with display $CHECK_DISPLAY_OUTPUT returned:\n$error_result($user,$host,out)\n"
+               append error_text "   commandline (sh) was:\n$error_result($user,$host,cmd)\n"
+            }
+         }
+      }
+      if { $error_text != "" } {
+         add_proc_error "ts_performance_test_test" -1 $error_text
+      }
    }
 }
 

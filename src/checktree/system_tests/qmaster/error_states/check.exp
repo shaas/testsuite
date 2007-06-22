@@ -95,11 +95,10 @@ global error_states_check_queue
 
 proc error_states_setup  {} {
    global CHECK_OUTPUT
-   global CHECK_CORE_EXECD
    global error_states_qconfig
-   global error_states_check_queue
+   global error_states_check_queue ts_config
 
-   set error_states_check_queue "[lindex $CHECK_CORE_EXECD 0 ].q"
+   set error_states_check_queue "[lindex $ts_config(execd_hosts) 0 ].q"
    puts $CHECK_OUTPUT "saving configuration for queue $error_states_check_queue"
    get_queue $error_states_check_queue error_states_qconfig
 }
@@ -107,10 +106,9 @@ proc error_states_setup  {} {
 
 proc error_states_prolog {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT
-   global error_states_check_queue CHECK_ARCH
+   global error_states_check_queue
 
-   set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" 
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
 
 
    set my_conf(prolog) "/tmp/no_such_file.23"
@@ -125,7 +123,7 @@ proc error_states_prolog {} {
    set_queue $error_states_check_queue my_conf 
 
    puts $CHECK_OUTPUT "clearing error state $q_state of queue $error_states_check_queue"
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod" "-c $error_states_check_queue" } catch_result
+   set catch_result [start_sge_bin "qmod" "-c $error_states_check_queue"]
    puts $CHECK_OUTPUT $catch_result
 
    trigger_scheduling
@@ -136,7 +134,7 @@ proc error_states_prolog {} {
    set_queue $error_states_check_queue my_conf 
 
    puts $CHECK_OUTPUT "clearing error state $q_state of queue $error_states_check_queue"
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod" "-c $error_states_check_queue" } catch_result
+   set catch_result [start_sge_bin "qmod" "-c $error_states_check_queue"]
    puts $CHECK_OUTPUT $catch_result
 
    trigger_scheduling
@@ -158,10 +156,9 @@ proc error_states_prolog {} {
 
 proc error_states_epilog {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT
    global error_states_check_queue
 
-   set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" 
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
 
 
    set my_conf(epilog) "/tmp/no_such_file.23"
@@ -217,9 +214,9 @@ proc error_states_epilog {} {
 
 proc error_states_no_job_shell {} {
    global CHECK_OUTPUT error_states_check_queue
-   global CHECK_PRODUCT_ROOT
+   global ts_config
 
-   set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" 
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
       
    set job_id [submit_job "-S /tmp/no_such_file.23 -q $error_states_check_queue $jobargs 10" ]
    wait_for_jobpending $job_id "leeper" 60 1
@@ -231,7 +228,6 @@ proc error_states_no_job_shell {} {
 proc error_states_no_default_queue_shell {} {
    global ts_config CHECK_OUTPUT
    global error_states_check_queue
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
 
    set jobargs "-o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/exit_00.sh" 
 
@@ -253,7 +249,7 @@ proc error_states_no_default_queue_shell {} {
    set_queue $error_states_check_queue my_conf 
 
    puts $CHECK_OUTPUT "clearing error state $q_state of queue $error_states_check_queue"
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod" "-c $error_states_check_queue" } catch_result
+   set catch_result [start_sge_bin "qmod" "-c $error_states_check_queue"]
    puts $CHECK_OUTPUT $catch_result
 
 
@@ -274,7 +270,6 @@ proc error_states_no_default_queue_shell {} {
 proc error_states_no_unix_shell_script {} {
    global ts_config CHECK_OUTPUT
    global error_states_check_queue
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
 
 
    get_queue $error_states_check_queue org_conf
@@ -302,8 +297,8 @@ proc error_states_no_unix_shell_script {} {
 
 proc error_states_wrong_pe {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_PRODUCT_TYPE CHECK_CORE_EXECD
-   global error_states_check_queue CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_PRODUCT_TYPE
+   global error_states_check_queue
 
    set wrong_start_pe(pe_name)    "wrong_start_pe"
 #   set wrong_start_pe(queue_list) $error_states_check_queue
@@ -336,13 +331,13 @@ proc error_states_wrong_pe {} {
 
 
 
-   set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" 
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
    set job_id [submit_job "-pe wrong_start_pe 1-4 $jobargs 5" ]
    wait_for_jobpending $job_id "leeper" 60 1
    set q_state [ wait_for_queue_state $error_states_check_queue "E" 60 ]
    
    puts $CHECK_OUTPUT "clearing error state $q_state of queue $error_states_check_queue"
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod" "-c $error_states_check_queue" } catch_result
+   set catch_result [start_sge_bin "qmod" "-c $error_states_check_queue"]
    puts $CHECK_OUTPUT $catch_result
    delete_job $job_id
    set q_state [get_queue_state $error_states_check_queue]
@@ -369,13 +364,13 @@ proc error_states_wrong_pe {} {
    }
    
  
-   set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" 
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
    set job_id [submit_job "-pe error_start_pe 1-4 $jobargs 5" ]
    wait_for_jobpending $job_id "leeper" 60 1
    set q_state [ wait_for_queue_state $error_states_check_queue "E" 60 ]
    
    puts $CHECK_OUTPUT "clearing error state $q_state of queue $error_states_check_queue"
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod" "-c $error_states_check_queue" } catch_result
+   set catch_result [start_sge_bin "qmod" "-c $error_states_check_queue"]
    puts $CHECK_OUTPUT $catch_result
    delete_job $job_id
    set q_state [get_queue_state $error_states_check_queue]
@@ -439,9 +434,8 @@ proc error_states_submit_error_script {} {
 
 proc error_states_job_output {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_HOST CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global error_states_check_queue
-   global CHECK_CORE_EXECD
 
 
    set test_dir  [get_tmp_directory_name "" temp "dir" 1]
@@ -452,31 +446,31 @@ proc error_states_job_output {} {
    puts $CHECK_OUTPUT "test_file:      $test_file"
    puts $CHECK_OUTPUT "test_local_dir: $test_local_dir"
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "mkdir" $test_dir]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_FIRST_FOREIGN_SYSTEM_USER "mkdir" $test_dir]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error creating directory $test_dir"
    }
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "touch" $test_file]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_FIRST_FOREIGN_SYSTEM_USER "touch" $test_file]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error creating file $test_file"
    }
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "700 $test_dir"]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "700 $test_dir"]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error chmod $test_dir"
    }
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "600 $test_file"]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_FIRST_FOREIGN_SYSTEM_USER "chmod" "600 $test_file"]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error chmod $test_file"
    }
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_USER "mkdir" $test_local_dir]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_USER "mkdir" $test_local_dir]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error creating directory $test_local_dir"
@@ -511,12 +505,12 @@ proc error_states_job_output {} {
    delete_job $job_id
 
 
-   if { [ llength $CHECK_CORE_EXECD ] < 2 } {
+   if { [ llength $ts_config(execd_hosts) ] < 2 } {
       add_proc_error "error_states_job_output" -3 "need min. 2 execd hosts for this check" 
    } else {
       # error queue
-      set error_run_queue "[lindex $CHECK_CORE_EXECD 1].q"
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_run_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
+      set error_run_queue "[lindex $ts_config(execd_hosts) 1].q"
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "-cwd -q $error_run_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
       puts $CHECK_OUTPUT $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1
@@ -524,32 +518,32 @@ proc error_states_job_output {} {
       delete_job $job_id
 
       #no error queue
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "qsub" "-cwd -q $error_states_check_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "-cwd -q $error_states_check_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
       puts $CHECK_OUTPUT $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1
       wait_for_jobstart $job_id "leeper" 60
       wait_for_jobend $job_id "leeper" 60 0
       
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "cat" $test_local_dir/Sleeper.o${job_id}]
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $test_local_dir/Sleeper.o${job_id}]
       puts $CHECK_OUTPUT "job output file: $result"
       if { [string first "here is the error" $result] < 0 } {
          add_proc_error "error_states_job_output" -1 "wrong or no job output"
       }
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "cat" $test_local_dir/Sleeper.e${job_id}]
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $test_local_dir/Sleeper.e${job_id}]
       puts $CHECK_OUTPUT "job error file: $result"
       if { [string first "biNnN" $result] < 0 } {
          add_proc_error "error_states_job_output" -1 "wrong or no job error output"
       }
    }
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "rmdir" $test_dir]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_FIRST_FOREIGN_SYSTEM_USER "rmdir" $test_dir]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error deleting directory $test_dir"
    }
 
-   set result [start_remote_prog $CHECK_HOST $CHECK_FIRST_FOREIGN_SYSTEM_USER "rm" $test_file]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_FIRST_FOREIGN_SYSTEM_USER "rm" $test_file]
    puts $CHECK_OUTPUT $result
    if { $prg_exit_state != 0 } {
       add_proc_error "error_states_job_output" -1 "error deleting file $test_file"
@@ -559,7 +553,7 @@ proc error_states_job_output {} {
 }
 
 proc error_states_cleanup  {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_OUTPUT ts_config
    global error_states_qconfig error_states_check_queue
 
 
@@ -569,7 +563,7 @@ proc error_states_cleanup  {} {
 
  
    puts $CHECK_OUTPUT "clearing pos. error state of queue $error_states_check_queue"
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod" "-c $error_states_check_queue" } catch_result
+   set catch_result [start_sge_bin "qmod" "-c $error_states_check_queue"]
    puts $CHECK_OUTPUT $catch_result
 
 

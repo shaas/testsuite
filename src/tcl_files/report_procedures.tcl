@@ -458,7 +458,7 @@ proc report_send_mail { report } {
 #*******************************************************************************
 proc report_write_html { report } {
 
-   global CHECK_HTML_DIRECTORY
+   global CHECK_HTML_DIRECTORY CHECK_OUTPUT
    
    
    if { $CHECK_HTML_DIRECTORY == "" } {

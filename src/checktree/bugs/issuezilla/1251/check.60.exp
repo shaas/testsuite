@@ -91,7 +91,7 @@ proc issue_1251_cleanup {} {
 }
 
 proc issue_1251_run {} {
-   global ts_config CHECK_OUTPUT CHECK_HOST 
+   global ts_config CHECK_OUTPUT
    global prj_count node_count stree
 
    set prj_count 0
@@ -106,7 +106,7 @@ proc issue_1251_run {} {
    close $f
 
    # Add new share tree
-   set result [start_sge_bin "qconf" "-Astree $tmp_name" $CHECK_HOST]
+   set result [start_sge_bin "qconf" "-Astree $tmp_name" $ts_config(master_host)]
 
    # Print share tree
    set result [start_sge_bin "qconf" "-sstree"]

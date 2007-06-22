@@ -84,7 +84,7 @@ proc issue_1914_init_level {} {
 
 
 proc issue_1914_setup {} {
-   global CHECK_CORE_EXECD test_host test_queue act_time backup_config
+   global test_host test_queue act_time backup_config
 
    #define variable based on current time to create unique file/queue names
    set act_time [timestamp]
@@ -116,7 +116,6 @@ proc issue_1914_cleanup {} {
 
 proc issue_1914_submit_test_job {job_type host user test_path} {
    global ts_config CHECK_OUTPUT
-   global CHECK_ARCH
    global CHECK_DISPLAY_OUTPUT
 
    #cleaning up queues before submit test
@@ -214,7 +213,7 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                }
                #when rlogin_daemon set to "none" >> "none" is treated as some keyword and it should be a CR is created
                #once the bug is fixed this condition should be removed and the test is ok
-               -i $sp_id "*rlogin_daemon \"$ts_config(product_root)/utilbin/$CHECK_ARCH/rlogind\" can't be read*" {
+               -i $sp_id "*rlogin_daemon \"$ts_config(product_root)/utilbin/*/rlogind\" can't be read*" {
                   set daemon_error 1
                }
 

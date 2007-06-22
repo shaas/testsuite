@@ -211,8 +211,8 @@ proc get_userset_list {output_var {on_host ""} {as_user ""} {raise_error 1}} {
 #*******************************************************************************
 
 proc get_ulist { userlist change_array {raise_error 1}} {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
 
   upvar $change_array chgar
 
@@ -263,8 +263,8 @@ proc get_ulist { userlist change_array {raise_error 1}} {
 #
 #*******************************************************************************
 proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
-   global CHECK_ARCH CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $array current_ul
 
@@ -286,7 +286,6 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
       }
 
    } else {
-
       # do the work via vi
       set vi_commands [build_vi_command current_ul]
       set args "-mu $userlist"
@@ -296,8 +295,8 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
       set ALREADY_EXISTS [ translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*"]
       set UNKNOWN_ATTRIBUTE [ translate_macro MSG_UNKNOWNATTRIBUTENAME_S "*" ]
       set NOTULONG [ translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
-
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG]
       if { $result == -1 } { 
          add_proc_error "mod_userlist" -1 "timeout error" $raise_error
       } elseif { $result == -2 } { 
@@ -309,11 +308,8 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
       } elseif { $result != 0  } { 
          add_proc_error "mod_userlist" -1 "could not modify userlist " $raise_error
       }
-
       set ret $result
-
    }
-
    return $ret
 }
 
@@ -399,7 +395,8 @@ proc get_user_list {output_var {on_host ""} {as_user ""} {raise_error 1}} {
 }
 
 proc get_user {output_var user {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    upvar $output_var out
 
@@ -431,7 +428,8 @@ proc get_user {output_var user {on_host ""} {as_user ""} {raise_error 1}} {
 }
 
 proc del_user {user {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    if {$ts_config(product_type) == "sge"} {
       add_proc_error "" -3 "del_user (qconf -duser) not available for sge systems" $raise_error

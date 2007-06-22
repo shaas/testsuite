@@ -39,8 +39,8 @@ proc validate_checkpointobj { change_array } {
 }
 
 proc assign_queues_with_ckpt_object { qname hostlist ckpt_obj } {
-   global ts_config
    global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    if { $hostlist == "" } {
       set hostlist $ts_config(execd_nodes)
@@ -100,9 +100,9 @@ proc assign_queues_with_ckpt_object { qname hostlist ckpt_obj } {
 #*******************************************************************************
 
 proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}} {
-   global ts_config
-   global CHECK_ARCH open_spawn_buffer
+   global open_spawn_buffer
    global CHECK_USER CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -126,7 +126,8 @@ proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}} {
 
       set REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWNQUEUE_SSSS] "*" "*" "*" "*"]
 
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT ]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT ]
 
       if { $result == -1 } { add_proc_error "mod_checkpointobj" -1 "timeout error" }
       if { $result == -2 } { add_proc_error "mod_checkpointobj" -1 "already exists" }

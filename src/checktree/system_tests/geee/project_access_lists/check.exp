@@ -228,7 +228,8 @@ proc test_job_run {id_string job_id} {
 }
 
 proc run_user_denied_jobs { id_string jobargs A_ok B_ok C_ok D_ok { E_ok "-1" } } {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT project_access_lists_host CHECK_USER
+   global ts_config
+   global CHECK_OUTPUT project_access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global project_access_lists_queue
 
@@ -299,7 +300,7 @@ proc run_user_denied_jobs { id_string jobargs A_ok B_ok C_ok D_ok { E_ok "-1" } 
 
 proc check_user_job_info { job_id } {
 
-   global CHECK_HOST CHECK_L10N CHECK_OUTPUT
+   global CHECK_L10N CHECK_OUTPUT
 
    if {$CHECK_L10N == 1} {
       set NOT_THE_CORRECT_PROJECT [translate_macro MSG_SCHEDD_INFO_HASINCORRECTPRJ_SSS "*" "*" "*"]
@@ -335,9 +336,9 @@ proc check_user_job_info { job_id } {
 }
 
 proc run_user_jobs {id_string jobargs A_ok B_ok C_ok D_ok { E_ok "-1"} } {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT project_access_lists_host CHECK_USER
+   global CHECK_OUTPUT project_access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
-   global project_access_lists_queue CHECK_HOST
+   global project_access_lists_queue
 
    # "userA_project_group"   A
    # "userB_project_group"   B
@@ -444,13 +445,13 @@ proc run_user_jobs {id_string jobargs A_ok B_ok C_ok D_ok { E_ok "-1"} } {
 }
 
 proc project_access_lists_global_host {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT project_access_lists_host CHECK_USER
+   global ts_config CHECK_OUTPUT project_access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP 
    global project_access_lists_queue
 
-   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" 
+   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30" 
 
    # testing user and group
    set project_access_lists {userA_project_name userB_project_name}
@@ -538,12 +539,12 @@ proc project_access_lists_global_host {} {
 }
 
 proc project_access_lists_exec_host {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT project_access_lists_host CHECK_USER
+   global ts_config CHECK_OUTPUT project_access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP project_access_lists_queue
 
-   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30"
+   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"
 
    # testing user and group
    set project_access_lists "{userA_project_name userB_project_name }"
@@ -631,13 +632,13 @@ proc project_access_lists_exec_host {} {
 }
 
 proc project_access_lists_queue {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP
    global project_access_lists_queue project_access_lists_host
 
-   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30"
+   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"
 
    # testing user and group
    set project_access_lists "{userA_project_name userB_project_name }"
@@ -725,13 +726,13 @@ proc project_access_lists_queue {} {
 }
 
 proc project_access_lists_cluster_config {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT project_access_lists_queue CHECK_USER
+   global ts_config CHECK_OUTPUT project_access_lists_queue CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP project_access_lists_queue
   
 
-   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30"  
+   set jobargs "-o /dev/null -e /dev/null -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"  
 
    # testing user and group
    set project_access_lists "{userA_project_name userB_project_name }"
@@ -820,12 +821,12 @@ proc project_access_lists_cluster_config {} {
 }
 
 proc project_access_lists_project {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT project_access_lists_queue CHECK_USER
+   global ts_config CHECK_OUTPUT project_access_lists_queue CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP
 
-   set jobargs "-o /dev/null -e /dev/null -P access_test_project -q $project_access_lists_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30"
+   set jobargs "-o /dev/null -e /dev/null -P access_test_project -q $project_access_lists_queue $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    # second -P switch will overwrite first one in run_user_denied_jobs !
 
    set my_project(name)     "access_test_project"

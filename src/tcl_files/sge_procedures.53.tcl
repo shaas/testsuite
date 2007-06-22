@@ -61,9 +61,8 @@
 #
 #*******************************************************************************
 proc set_complex { change_array complex_list {raise_error 1} } {
-  global ts_config
-  global env CHECK_ARCH CHECK_OUTPUT
-  global CHECK_CORE_MASTER
+  global env CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
   set values [array names chgar]
 
@@ -94,15 +93,15 @@ proc set_complex { change_array complex_list {raise_error 1} } {
         lappend vi_commands "A\n$elem  $newVal[format "%c" 27]"
      }
   } 
-  set EDIT_FAILED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_PARSE_EDITFAILED]]
-  set MODIFIED    [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_MULTIPLY_MODIFIEDIN]]
-  set ADDED       [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_MULTIPLY_ADDEDTO]]
+  set EDIT_FAILED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_PARSE_EDITFAILED]]
+  set MODIFIED    [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_MULTIPLY_MODIFIEDIN]]
+  set ADDED       [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_MULTIPLY_ADDEDTO]]
 
-
+  set master_arch [resolve_arch $ts_config(master_host)
   if { $create == 0 } {
-     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc $complex_list" $vi_commands $MODIFIED $EDIT_FAILED $ADDED "___ABCDEFG___"  "___ABCDEFG___" $raise_error]
+     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$master_arch/qconf -mc $complex_list" $vi_commands $MODIFIED $EDIT_FAILED $ADDED "___ABCDEFG___"  "___ABCDEFG___" $raise_error]
   } else {
-     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -ac $complex_list" $vi_commands $ADDED $EDIT_FAILED $MODIFIED "___ABCDEFG___"  "___ABCDEFG___" $raise_error]
+     set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$master_arch/qconf -ac $complex_list" $vi_commands $ADDED $EDIT_FAILED $MODIFIED "___ABCDEFG___"  "___ABCDEFG___" $raise_error]
   }
   if { $result != 0  } {
      add_proc_error "set_complex" -1 "could not modify complex $complex_list ($result)" $raise_error
@@ -136,13 +135,13 @@ proc set_complex { change_array complex_list {raise_error 1} } {
 #    
 #*******************************************************************************
 proc get_complex { change_array complex_list } {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
-  set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sc" "$complex_list"} result ]
-  if { $catch_result != 0 } {
-     add_proc_error "get_complex" "-1" "qconf error or binary not found ($ts_config(product_root)/bin/$CHECK_ARCH/qconf)\n$result"
+  set result [start_sge_bin "qconf" "-sc $complex_list"]
+  if { $prg_exit_state != 0 } {
+     add_proc_error "get_complex" "-1" "qconf error or binary not found\n$result"
      return
   } 
 
@@ -198,9 +197,9 @@ proc get_complex { change_array complex_list } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc startup_shadowd { hostname {env_list ""} } {
-  global ts_config
    global CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   global CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   get_current_cluster_config_array ts_config
 
    if {$env_list != ""} {
       upvar $env_list envlist
@@ -267,9 +266,9 @@ proc startup_shadowd { hostname {env_list ""} } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc startup_execd { hostname } {
-  global ts_config
    global CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   global CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   get_current_cluster_config_array ts_config
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
  
@@ -285,9 +284,9 @@ proc startup_execd { hostname } {
    puts $CHECK_OUTPUT "starting up execd on host \"$hostname\" as user \"$startup_user\""
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/rcsge" "-execd" prg_exit_state 180]
 
-   set ALREADY_RUNNING [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_COMMPROC_ALREADY_STARTED_S] "*"]
+   set ALREADY_RUNNING [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_COMMPROC_ALREADY_STARTED_S] "*"]
 
-   if { [string match "*$ALREADY_RUNNING" $output ] } {
+   if { [string match "*$ALREADY_RUNNING*" $output ] } {
       add_proc_error "startup_execd" -1 "execd on host $hostname is already running"
       return -1
    }

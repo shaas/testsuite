@@ -78,7 +78,7 @@ proc issue_314_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_314_check {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    set A_option "-A \":\""
    set the_command "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3600"

@@ -32,7 +32,7 @@
 
 
 proc vdep_set_sched_conf_defaults { change_array } {
-   global ts_config
+   get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
    set chgar(flush_submit_sec)        "0"

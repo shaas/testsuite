@@ -74,7 +74,6 @@ global file_parsing_job_host
 proc file_parsing_init_level {} {
    global ts_config CHECK_OUTPUT
   global CHECK_ACT_LEVEL
-  global CHECK_PRODUCT_ROOT
   global env
   global CHECK_JOB_OUTPUT_DIR
   global file_parsing_single_test
@@ -85,7 +84,7 @@ proc file_parsing_init_level {} {
   global file_parsing_job_host
 
  
-  set file_parsing_cluster_request_file "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_request"
+  set file_parsing_cluster_request_file "$ts_config(product_root)/$ts_config(cell)/common/sge_request"
   set file_parsing_home_request_file    "$env(HOME)/.sge_request"
   set file_parsing_local_request_file   "$CHECK_JOB_OUTPUT_DIR/.sge_request"
   set file_parsing_job_script           "$CHECK_JOB_OUTPUT_DIR/request_job.sh"

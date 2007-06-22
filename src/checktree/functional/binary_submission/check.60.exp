@@ -79,14 +79,12 @@ proc binary_submission_init_level {} {
 
 proc binary_submission_setup  {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
    global CHECK_OUTPUT 
-   global CHECK_CORE_MASTER
 
    #
    # Save sge_aliases file which was created during installation
    #
-   set sge_aliases "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_aliases"
+   set sge_aliases "$ts_config(product_root)/$ts_config(cell)/common/sge_aliases"
    if { ([ file isfile "${sge_aliases}.sav" ] == 1) } { 
       file delete ${sge_aliases}.sav
    }
@@ -99,14 +97,14 @@ proc binary_submission_setup  {} {
 
 proc binary_submission_cleanup  {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
+   global CHECK_OUTPUT
 
    puts $CHECK_OUTPUT "binary_submission_cleanup ..."
 
    #
    # Restore sge_aliases file
    #
-   set sge_aliases "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_aliases"
+   set sge_aliases "$ts_config(product_root)/$ts_config(cell)/common/sge_aliases"
    if { ([ file isfile "${sge_aliases}.sav" ] == 1) } {
       if { ([ file isfile "${sge_aliases}" ] == 1) } {
          delete_file ${sge_aliases}
@@ -120,8 +118,8 @@ proc binary_submission_cleanup  {} {
 
 proc binary_submission_check {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT
+   global CHECK_USER
    global qrsh_hostlist
  
    puts $CHECK_OUTPUT "binary_submission_check ..."
@@ -273,7 +271,7 @@ proc binary_submission_check {} {
       # delete default file or delete file used in last scenario
       # create new sge_aliases file if it it necessary for this scenario
       #
-      set sge_aliases "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_aliases"
+      set sge_aliases "$ts_config(product_root)/$ts_config(cell)/common/sge_aliases"
       if { ( [ file isfile ${sge_aliases}] == 1) } {
          delete_file "$sge_aliases" 
       }
@@ -281,7 +279,7 @@ proc binary_submission_check {} {
          set data(src-path,0)    "/xxx/"
          set data(sub-host,0)    "*"
          set data(exec-host,0)   "*"
-         set data(replacement,0) "$CHECK_PRODUCT_ROOT/examples/jobs/"
+         set data(replacement,0) "$ts_config(product_root)/examples/jobs/"
          create_path_aliasing_file $sge_aliases data 1
          set cwd_parameter "-cwd"
       } else {
@@ -317,7 +315,7 @@ proc binary_submission_check {} {
       if { $s_exist == 0 } {
          set jcommand "/xxx/sleeper.sh $sleep_t"
       } elseif { $s_exist == 1 } {
-         set jcommand "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh $sleep_t"
+         set jcommand "$ts_config(product_root)/examples/jobs/sleeper.sh $sleep_t"
       } elseif { $s_exist == 2 } {
          set jcommand "/bin/echo \'\$JOB_NAME\'"
       } elseif { $s_exist == 3 } {
@@ -340,7 +338,7 @@ proc binary_submission_check {} {
          #
          if { $job_id == -1 } {
             set t_io_parameter "-o /dev/null -e /dev/null"
-            set t_cmd "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh $sleep_t"
+            set t_cmd "$ts_config(product_root)/examples/jobs/sleeper.sh $sleep_t"
             set t_qsub_arguments "$t_io_parameter $t_cmd"
             set job_id [submit_job $t_qsub_arguments ]
             delete_job $job_id
@@ -348,7 +346,8 @@ proc binary_submission_check {} {
          incr job_id 1
 
          puts "qrsh arguments: $qsub_arguments"
-         set output [start_remote_prog "$CHECK_HOST" "$CHECK_USER" "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh" "$qsub_arguments"]
+         set master_arch [resolve_arch $ts_config(master_host)]
+         set output [start_remote_prog $ts_config(master_host) "$CHECK_USER" "$ts_config(product_root)/bin/$master_arch/qrsh" "$qsub_arguments"]
          set output [string trim $output] 
          set result $prg_exit_state
       }

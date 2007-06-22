@@ -99,19 +99,16 @@ proc migration_cleanup {} {
    clean_up_queues
 }
 proc calendardisable_queue { queue_list } {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
    set return_value [mqattr "calendar" "always_disabled" "$queue_list"]
    return $return_value
 }
 
 proc calendarclear_queue { queue_list } {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
    set return_value [mqattr "calendar" "NONE" "$queue_list"]
    return $return_value
 }
 
 proc calendarsuspend_queue { queue_list } {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
    set return_value [mqattr "calendar" "always_suspend" "$queue_list"]
    return $return_value
 }

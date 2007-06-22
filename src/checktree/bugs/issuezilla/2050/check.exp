@@ -84,7 +84,7 @@ proc issue_2050_init_level {} {
 
 
 proc issue_2050_setup  {} {
-   global CHECK_CORE_EXECD test_host
+   global test_host
    global test_queue act_time 
    set test_host [host_conf_get_suited_hosts]
 

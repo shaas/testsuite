@@ -132,7 +132,6 @@ proc issue_1802_cleanup  {} {
 
 proc issue_1802_test {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_ARCH CHECK_HOST
    global CHECK_OUTPUT ts_config CHECK_USER
 
 
@@ -164,7 +163,7 @@ proc issue_1802_test {} {
       puts $CHECK_OUTPUT "now make user certificate for user $CHECK_USER invalid ..."
       puts $CHECK_OUTPUT "starting sge_ca $command_options as root user ..."
       
-      set output [start_remote_prog $CHECK_HOST "root" $sge_ca_bin $command_options]
+      set output [start_remote_prog $ts_config(master_host) "root" $sge_ca_bin $command_options]
       if {$prg_exit_state != 0} {
          add_proc_error "issue_1802_test" -1 "sge_ca $command_options exit state is $prg_exit_state, expected 0\n$output"
       }

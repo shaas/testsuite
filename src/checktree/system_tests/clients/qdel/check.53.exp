@@ -76,7 +76,6 @@ proc qdel_verify {} {
 
    set arch [resolve_arch $ts_config(master_host)]
    set qdel_output [start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qdel" "-verify $job_list" result]
-#  set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel -verify $job_list" } qdel_output ] 
 
    puts $CHECK_OUTPUT "qdel_result = $result"
    puts $CHECK_OUTPUT "qdel_output = $qdel_output"
@@ -106,7 +105,6 @@ proc qdel_verify {} {
       delete_job $job
    }
 
-  #catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel $job_list" }  
 }
 
 

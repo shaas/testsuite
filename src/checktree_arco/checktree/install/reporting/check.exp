@@ -3,8 +3,6 @@
 #
 # gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
 # global CHECK_USER              ;# user who start test
-# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
-# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
 #___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -73,7 +71,7 @@ proc arco_reporting_install_init_level {} {
 
 
 proc arco_reporting_install {} {
-   global CHECK_CORE_MASTER CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
+   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
    global ts_config arco_config ts_host_config ts_user_config
    
    
@@ -99,9 +97,9 @@ proc arco_reporting_install {} {
    }
    
    
-   set HIT_RETURN_TO_CONTINUE       [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
-   set CURRENT_GRID_ROOT_DIRECTORY  [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
-   set CELL_NAME_FOR_QMASTER        [translate $CHECK_CORE_MASTER 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
+   set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
+   set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
+   set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
    
     set user_count 0 ;# how many uses has already been added
     set users { }

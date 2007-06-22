@@ -77,7 +77,7 @@ proc issue_2158_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2158_test {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    set result [start_sge_bin "qconf" "-mattr queue slots 10 @allhosts"]
    if {$prg_exit_state != 1} {

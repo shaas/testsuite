@@ -1,13 +1,5 @@
 #!/vol2/TCL_TK/glinux/bin/expect --
 # expect script 
-# global variables ... (defined in main check routine, but you can use it)
-#
-# global CHECK_PRODUCT_ROOT  ;# path to sge/sgeee system
-# global CHECK_PRODUCT_TYPE       ;# "sgeee" or "sge"         
-# global CHECK_COMMD_PORT        ;# commd port
-# global CHECK_USER              ;# user who start test
-# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
-# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
 #___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -79,10 +71,11 @@ global long_flag
 global stored_configuration
 
 proc general_perf_init_level {} {
-  global CHECK_ACT_LEVEL CHECK_CORE_EXECD CHECK_OUTPUT
+  global CHECK_ACT_LEVEL CHECK_OUTPUT
   global perf_jobs perf_jobtime long_flag
+  global ts_config
 
-  set num_hosts [llength $CHECK_CORE_EXECD]
+  set num_hosts [llength $ts_config(execd_hosts)]
 
   switch -- $CHECK_ACT_LEVEL {
   "0"  { set perf_jobs $num_hosts ; set perf_jobtime 1 ; set long_flag 0 ; return 0  }
@@ -138,10 +131,10 @@ proc general_perf_init_level {} {
 #     ???/???
 #*******************************
 proc setup_queues {} {
-   global CHECK_CORE_EXECD save_queue_values
+   global save_queue_values ts_config
 
    set save_queue_values ""
-   foreach elem $CHECK_CORE_EXECD {
+   foreach elem $ts_config(execd_hosts) {
       set change_array(slots) "0" 
       get_queue "$elem.q" "change_array"
       lappend save_queue_values [set change_array(slots)]
@@ -189,11 +182,11 @@ proc setup_schedd_params {} {
 #     ???/???
 #*******************************
 proc cleanup_queues {} {
-   global CHECK_CORE_EXECD save_queue_values
+   global save_queue_values ts_config
 
    set change_array(slots) "1"
    set i 0
-   foreach elem $CHECK_CORE_EXECD {
+   foreach elem $ts_config(execd_hosts) {
       set change_array(slots) [lindex $save_queue_values $i] 
       set_queue "$elem.q" "change_array"
       incr i 1
@@ -238,19 +231,19 @@ proc cleanup_schedd_params {} {
 #     ???/???
 #*******************************
 proc submit_jobs { job_count job_time } {
-   global CHECK_PRODUCT_ROOT last_job CHECK_CORE_EXECD 
+   global ts_config last_job
 
-   set max_execd [llength $CHECK_CORE_EXECD]
+   set max_execd [llength $ts_config(execd_hosts)]
    set cur_execd 0
    for { set i 0 } { $i < $job_count } { incr i 1 } {
 
-     set elem [lindex $CHECK_CORE_EXECD $cur_execd]
+     set elem [lindex $ts_config(execd_hosts) $cur_execd]
      incr cur_execd 1
      if { $cur_execd == $max_execd } {
         set cur_execd 0
      }
 
-     set jobargs "-q ${elem}.q -o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh $job_time"
+     set jobargs "-q ${elem}.q -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh $job_time"
      set last_job [submit_job $jobargs] 
      if {$last_job < 0 } {
         return -1
@@ -293,9 +286,9 @@ proc submit_jobs { job_count job_time } {
 #*******************************
 proc performance_test {job_count_loops job_run_loops} {
 
-   global last_job CHECK_OUTPUT CHECK_CORE_EXECD CHECK_ACT_LEVEL
+   global last_job CHECK_OUTPUT CHECK_ACT_LEVEL
    global perf_jobs CHECK_PROTOCOL_DIR
-   global perf_jobtime
+   global perf_jobtime ts_config
 
    if { [expr $CHECK_ACT_LEVEL % 100] == 0 } {
       catch { eval exec "mv $CHECK_PROTOCOL_DIR/performance.data $CHECK_PROTOCOL_DIR/performance.data.[timestamp]" }
@@ -347,7 +340,7 @@ proc performance_test {job_count_loops job_run_loops} {
          set submit_time [expr ( $end_time - $start_time) ] 
       
          set job_decr 0 
-         foreach elem $CHECK_CORE_EXECD {
+         foreach elem $ts_config(execd_hosts) {
             while { [ was_job_running [ expr ( $last_job - $job_decr) ] 0] == -1 } {
                puts $CHECK_OUTPUT "waiting for last job to run ..."
                sleep 5
@@ -370,7 +363,7 @@ proc performance_test {job_count_loops job_run_loops} {
             set runs_per_second "-"
          }
          # overhead
-         set real_time [ expr ( $cur_job_count * $cur_job_time / [llength $CHECK_CORE_EXECD].0 ) ]
+         set real_time [ expr ( $cur_job_count * $cur_job_time / [llength $ts_config(execd_hosts)].0 ) ]
         
          if {$real_time > 0} { 
             set overhead [ expr ( $run_time.0 / ($real_time ) ) ] 

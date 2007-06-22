@@ -84,8 +84,8 @@ proc issue_1473_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1473_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_PROTOCOL_DIR CHECK_ARCH
-   global num_queues complex_backup
+   global ts_config CHECK_OUTPUT CHECK_PROTOCOL_DIR
+   global num_queues complex_backup CHECK_USER
 
    # create a high number of queues - this will make the bug showing up more likely
    set num_queues 20
@@ -99,8 +99,9 @@ proc issue_1473_setup {} {
    unset -nocomplain complex_backup
    set complex_backup "$CHECK_PROTOCOL_DIR/complex.txt"
    puts $CHECK_OUTPUT "backup current complex to $complex_backup"
-   set ret [catch { eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -sc > $complex_backup" } output]
-   if {$ret != 0} {
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $ts_config(product_root)/bin/$master_arch/qconf "-sc > $complex_backup"]
+   if {$prg_exit_state != 0} {
       add_proc_error issue_1473_setup -1 "backing up complex failed: $output"
    }
 }
@@ -121,7 +122,7 @@ proc issue_1473_cleanup {} {
 }
 
 proc modify_complex_from_file {filename {time_var dummy}} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    upvar $time_var time
 
@@ -132,7 +133,8 @@ proc modify_complex_from_file {filename {time_var dummy}} {
       puts $CHECK_OUTPUT "modify complex from file $filename"
       set time_start [clock clicks -milliseconds]
       puts $CHECK_OUTPUT "start ..."
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER $ts_config(product_root)/bin/$CHECK_ARCH/qconf "-Mc $filename"]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER $ts_config(product_root)/bin/$master_arch/qconf "-Mc $filename"]
       set time_end [clock clicks -milliseconds]
       set time [expr ($time_end - $time_start) / 1000.0]
 

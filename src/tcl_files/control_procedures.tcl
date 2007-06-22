@@ -35,6 +35,8 @@
 global module_name
 set module_name "control_procedures.tcl"
 
+global local_hostname_cache
+set local_hostname_cache ""
 # update an array with values of a second array
 proc update_change_array { target_array change_array } {
    global CHECK_OUTPUT
@@ -53,7 +55,6 @@ proc update_change_array { target_array change_array } {
 
 # dump an array to a temporary file, return filename
 proc dump_array_to_tmpfile { change_array } {
-   global ts_config
 
    upvar $change_array chgar
 
@@ -73,7 +74,7 @@ proc dump_array_to_tmpfile { change_array } {
 }
 
 proc dump_rqs_array_to_tmpfile { change_array } {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
 
    upvar $change_array chgar
    set tmpfile ""
@@ -327,7 +328,7 @@ proc build_rqs_vi_array { change_array } {
 #     ???/???
 #*******************************
 proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result {additional_expected_result "___ABCDEFG___"} {additional_expected_result2 "___ABCDEFG___"} {additional_expected_result3 "___ABCDEFG___"} {additional_expected_result4 "___ABCDEFG___"} {qconf_error_msg "___ABCDEFG___"} {raise_error 1}} {
-   global CHECK_OUTPUT env CHECK_HOST CHECK_DEBUG_LEVEL CHECK_USER
+   global CHECK_OUTPUT env CHECK_DEBUG_LEVEL CHECK_USER ts_config
 
    set expected_result              [string trimright $expected_result "*"]
    set additional_expected_result   [string trimright $additional_expected_result "*"]
@@ -337,12 +338,13 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    set qconf_error_msg  [string trimright $qconf_error_msg "*"]
 
    # we want to start a certain configured vi, and have no backslash continued lines
-   set vi_env(EDITOR) [get_binary_path "$CHECK_HOST" "vim"]
+   set host_for_vi $ts_config(master_host)
+   set vi_env(EDITOR) [get_binary_path $host_for_vi "vim"]
    set result -100
 
    debug_puts "using EDITOR=$vi_env(EDITOR)"
    # start program (e.g. qconf)
-   set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER $prog_binary "$prog_args" 0 "" vi_env]
+   set id [open_remote_spawn_process $host_for_vi $CHECK_USER $prog_binary "$prog_args" 0 "" vi_env]
    set sp_id [ lindex $id 1 ] 
    if {$CHECK_DEBUG_LEVEL != 0} {
       log_user 1
@@ -974,11 +976,11 @@ proc ps_grep { forwhat { host "local" } { variable ps_info } } {
 #     control_procedures/ps_grep
 #*******************************
 proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_run 0} } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    upvar $variable psinfo
 
    if { [string compare $host "local" ] == 0 } {
-      set host $CHECK_HOST
+      set host [gethostname]
    } 
 
    set psinfo($pid,error) -1
@@ -1459,71 +1461,85 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
    }
 }
 
-#                                                             max. column:     |
-#****** control_procedures/gethostname() ******
-# 
-#  NAME
-#     gethostname -- ??? 
-#
-#  SYNOPSIS
-#     gethostname { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc gethostname {} {
-  global ts_config CHECK_ARCH CHECK_OUTPUT env
+proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
+   global env local_hostname_cache ts_config
+   if { $local_hostname_cache != "" } {
+      return $local_hostname_cache
+   }
 
-  set catch_return [ catch { exec "$ts_config(product_root)/utilbin/$CHECK_ARCH/gethostname" "-name"} result ]
-  if { $catch_return == 0 } {
-     set result [split $result "."]
-     set newname [lindex $result 0]
-     return $newname
-  } else {
-     debug_puts "proc gethostname - gethostname error or binary not found"
-     debug_puts "error: $result"
-     debug_puts "error: $catch_return"
-     debug_puts "trying local hostname call ..."
-     set catch_return [ catch { exec "hostname" } result ]
-     if { $catch_return == 0 } {
-        set result [split $result "."]
-        set newname [lindex $result 0]
-        debug_puts "got hostname: \"$newname\""
-        return $newname
-     } else {
-        debug_puts "local hostname error or binary not found"
-        debug_puts "error: $result"
-        debug_puts "error: $catch_return"
-        debug_puts "trying local HOST environment variable ..."
-        if { [ info exists env(HOST) ] } {
-           set result [split $env(HOST) "."]
-           set newname [lindex $result 0]
-           if { [ string length $newname ] > 0 } {
+   if { $source_dir_path != "" } {
+      set my_source_dir $source_dir_path
+   } else {
+      set my_source_dir $ts_config(source_dir)
+   }
+
+   set my_product_root $ts_config(product_root)
+
+   # we have a arch script and gethostname
+   if { $my_product_root != "" || $my_source_dir != "" } {
+      if {[file exists "$my_product_root/util/arch"]} {
+         set arch_script "$my_product_root/util/arch"
+      } else {
+         set arch_script "$my_source_dir/dist/util/arch"
+      }
+      set prg_exit_state [ catch { exec $arch_script} result ]
+      if { $prg_exit_state != 0 } {
+         set arch "unknown"
+      } else {
+         set arch [parse_arch_output $result]
+      }
+      if { $my_product_root != "" } {
+         set prg_exit_state [ catch { exec "$my_product_root/utilbin/$arch/gethostname" "-name"} result ]
+         if { $prg_exit_state == 0 } {
+            set result [split $result "."]
+            set newname [lindex $result 0]
+            # only use cache for GE gethostname binary!
+            set local_hostname_cache $newname
+            return $newname
+         } else {
+            if { $do_debug_puts } {
+               debug_puts "proc gethostname - gethostname error or binary not found"
+               debug_puts "error: $result"
+               debug_puts "error: $prg_exit_state"
+               debug_puts "trying local hostname call ..."
+            }
+         }
+      }
+   }
+
+   #
+   # here we try to find out the hostname without having gethostname binary ...
+   #
+   # we don't want to have this value in the hostname cache!!!
+   set local_hostname_cache ""
+   set prg_exit_state [ catch { exec "hostname" } result ]
+   if { $prg_exit_state == 0 } {
+      set result [split $result "."]
+      set newname [lindex $result 0]
+      if { $do_debug_puts } {
+         debug_puts "got hostname: \"$newname\""
+      }
+      return $newname
+   } else {
+      if { $do_debug_puts } {
+         debug_puts "local hostname error or binary not found"
+         debug_puts "error: $result"
+         debug_puts "error: $prg_exit_state"
+         debug_puts "trying local HOST environment variable ..."
+      }
+      if { [ info exists env(HOST) ] } {
+         set result [split $env(HOST) "."]
+         set newname [lindex $result 0]
+         if { [ string length $newname ] > 0 } {
+            if { $do_debug_puts } {
                debug_puts "got hostname_ \"$newname\""
                return $newname
-           } 
-        }
-     }
-     return "unknown"
-  }
-} 
+            }
+         } 
+      }
+   }
+   return "unknown"
+}
 
 
 
@@ -1551,7 +1567,7 @@ proc gethostname {} {
 #
 #  INPUTS
 #     {node "none"}     - return architecture of this host.
-#                         If "none", resolve architecture of CHECK_HOST.
+#                         If "none", resolve architecture of [gethostname].
 #     {use_source_arch} - use <source_dir>/dist/util/arch script.
 #
 #  RESULT
@@ -1560,15 +1576,16 @@ proc gethostname {} {
 #  SEE ALSO
 #     control_procedures/resolve_arch_clear_cache()
 #*******************************
-proc resolve_arch {{node "none"} {use_source_arch 0}} {
-   global ts_config CHECK_OUTPUT
-   global CHECK_USER CHECK_SOURCE_DIR CHECK_HOST
+proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
+   global CHECK_OUTPUT
+   global CHECK_USER
    global arch_cache
-
+   global ts_config
+                     
    set host [node_get_host $node]
-
-   if {[info exists arch_cache($host)]} {
-      return $arch_cache($host)
+   set nr [get_current_cluster_config_nr]
+   if {[info exists arch_cache($nr,$host)]} {
+      return $arch_cache($nr,$host)
    }
 
    if { [ info exists CHECK_USER ] == 0 } {
@@ -1576,61 +1593,77 @@ proc resolve_arch {{node "none"} {use_source_arch 0}} {
       return "unknown"
    }
   
-   if { [ info exists CHECK_SOURCE_DIR ] == 0 } {
-      debug_puts "source directory not set, aborting"
-      return "unknown"
+   if { [ info exists ts_config(source_dir) ] == 0 } {
+      if { $source_dir_value == "" } {
+         puts $CHECK_OUTPUT "source directory not set, aborting"
+         return "unknown"
+      }
    }
+
+   set util_arch_dir ""
+   if {[file exists "$ts_config(product_root)/util/arch"] && ! $use_source_arch} {
+      set util_arch_dir $ts_config(product_root)
+   } else {
+      if { $source_dir_value == "" } {
+         set util_arch_dir $ts_config(source_dir)/dist
+      } else {
+         set util_arch_dir $source_dir_value/dist
+      }
+   }
+
+   set arch_script "$util_arch_dir/util/arch"
 
    if {$host == "none"} {
-      set host $CHECK_HOST
+      set host [gethostname]
    }
-
-   # if $SGE_ROOT/util/arch is available, use this one,
-   # otherwise use the one from the distribution
-   if {[file exists "$ts_config(product_root)/util/arch"] && ! $use_source_arch} {
-      set arch_script "$ts_config(product_root)/util/arch"
-   } else {
-      set arch_script "$CHECK_SOURCE_DIR/dist/util/arch"
-   }
-
    # try to retrieve architecture
    set result [start_remote_prog $host $CHECK_USER $arch_script "" prg_exit_state 60 0 "" "" 1 0 0]
    if {$prg_exit_state != 0} {
       return "unknown"
    }
-
-  set result [string trim $result]
-  set result2 [split $result "\n"]
-  if { [ llength $result2 ] > 1 } {
-     puts $CHECK_OUTPUT "util/arch script returns more than 1 line output ..."
-     foreach elem $result2  {
-        puts $CHECK_OUTPUT "\"$elem\""
-        if { [string first " " $elem ] < 0  } {
-           set result $elem
-           puts $CHECK_OUTPUT "using \"$result\" as architecture"
-           break
-        }
-     }
-  }
-  if { [ llength $result2 ] < 1 } {
-      puts $CHECK_OUTPUT "util/arch script returns no value ..."
-      return "unknown"
-  }
-  if { [string first ":" $result] >= 0 } {
-     puts $CHECK_OUTPUT "architecture or file \"$CHECK_SOURCE_DIR/dist/util/arch\" not found"
-     return "unknown"
-  }
-  set result [lindex $result 0]  ;# remove CR
-
-  if { [ string compare $result "" ] == 0 } {
-     puts $CHECK_OUTPUT "architecture or file \"$CHECK_SOURCE_DIR/dist/util/arch\" not found"
-     return "unknown"
-  } 
-
-  set arch_cache($host) [lindex $result 0]
-  
-  return $arch_cache($host)
+   set result [parse_arch_output $result]
+   if { $result != "unknown" } {
+      set arch_cache($nr,$host) [lindex $result 0]
+   }
+   return $arch_cache($nr,$host)
 }
+
+
+proc parse_arch_output { arch_output } {
+   global CHECK_OUTPUT
+
+   set result [string trim $arch_output]
+   set result2 [split $result "\n"]
+   if { [ llength $result2 ] > 1 } {
+      puts $CHECK_OUTPUT "util/arch script returns more than 1 line output ..."
+      foreach elem $result2  {
+         puts $CHECK_OUTPUT "\"$elem\""
+         if { [string first " " $elem ] < 0  } {
+            set result $elem
+            puts $CHECK_OUTPUT "using \"$result\" as architecture"
+            break
+         }
+      }
+   }
+   if { [ llength $result2 ] < 1 } {
+       puts $CHECK_OUTPUT "util/arch script returns no value ..."
+       return "unknown"
+   }
+   if { [string first ":" $result] >= 0 } {
+      puts $CHECK_OUTPUT "architecture or file /dist/util/arch\" not found"
+      return "unknown"
+   }
+   set result [lindex $result 0]
+ 
+   if { [ string compare $result "" ] == 0 } {
+      puts $CHECK_OUTPUT "architecture or file /dist/util/arch\" not found"
+      return "unknown"
+   } 
+ 
+   return $result
+}
+
+
 
 #****** control_procedures/resolve_arch_clear_cache() **************************
 #  NAME
@@ -1691,13 +1724,17 @@ proc resolve_arch_clear_cache {} {
 #     ???/???
 #*******************************
 proc resolve_build_arch { host } {
-  global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT build_arch_cache CHECK_SOURCE_DIR
+  global CHECK_OUTPUT build_arch_cache
   global CHECK_USER
-  if { [info exists build_arch_cache($host) ] } {
-     return $build_arch_cache($host)
+
+  get_current_cluster_config_array ts_config
+  set nr [get_current_cluster_config_nr]
+
+  if { [info exists build_arch_cache($nr,$host) ] } {
+     return $build_arch_cache($nr,$host)
   }
 
-  set result [start_remote_prog $host $CHECK_USER "./aimk" "-no-mk" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
+  set result [start_remote_prog $host $CHECK_USER "./aimk" "-no-mk" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0]
  
   set result [split $result "\n"]
   set result [join $result ""]
@@ -1705,13 +1742,13 @@ proc resolve_build_arch { host } {
   set result [join $result ""]
 
   if { $prg_exit_state != 0 } {
-     add_proc_error "resolve_build_arch" "-1" "architecture not found or aimk not found in $CHECK_SOURCE_DIR"
+     add_proc_error "resolve_build_arch" "-1" "architecture not found or aimk not found in $ts_config(source_dir)"
      return ""
   }
-  set build_arch_cache($host) $result
+  set build_arch_cache($nr,$host) $result
   puts $CHECK_OUTPUT "build arch is \"$result\""
 
-  return $build_arch_cache($host)
+  return $build_arch_cache($nr,$host)
 }
 
 #                                                             max. column:     |
@@ -1739,8 +1776,9 @@ proc resolve_build_arch { host } {
 #
 #*******************************
 proc resolve_lib_path_name { host {use_source_arch 0}} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT libpath_cache ts_config
+   global CHECK_OUTPUT libpath_cache
    global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    if { [info exists libpath_cache($host) ] } {
       return $libpath_cache($host)
@@ -1769,7 +1807,8 @@ proc resolve_lib_path_name { host {use_source_arch 0}} {
 }
 
 proc resolve_build_arch_installed_libs {host {raise_error 1}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    set build_arch [resolve_build_arch $host]
 
@@ -1837,8 +1876,10 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
 #     ???/???
 #*******************************
 proc resolve_host {name {long 0}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global resolve_host_cache
+
+   get_current_cluster_config_array ts_config
 
    # we cannot resolve hostgroups.
    if {[string range $name 0 0] == "@"} {
@@ -2010,7 +2051,7 @@ proc parse_cpu_time {s_cpu} {
 #
 #  INPUTS
 #     operation_name - the name of the lock
-#     host           - the name of the host to lock. Defaults to $CHECK_HOST
+#     host           - the name of the host to lock. Defaults to [gethostname]
 #     lock_location  - where to store the locks.  Defaults to /tmp.
 #
 #  RESULTS
@@ -2022,17 +2063,18 @@ proc parse_cpu_time {s_cpu} {
 #
 #*******************************************************************************
 proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
-   global CHECK_USER CHECK_HOST CHECK_OUTPUT
+   global CHECK_USER CHECK_OUTPUT
 
+   set local_host [gethostname]
    if {$host == ""} {
-      set host $CHECK_HOST
+      set host $local_host
    }
 
    set pid [pid]
    set lock "$lock_location/lock.$operation_name.$pid"
    set all_locks "$lock_location/lock.$operation_name.*"
 
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "touch" $lock result]
+   set output [start_remote_prog $local_host $CHECK_USER "touch" $lock result]
 
    if {$result != 0} {
       add_proc_error "operational_lock" -1 "Could not update lock: $output"
@@ -2042,7 +2084,7 @@ proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
    # ls -crt behaves approximately the same on all platforms.  On HP-UX and
    # IRIX, symbolic links are not included in the sorting, but since we're not
    # using symbolic links, it shouldn't be an issue.
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "ls" "-crt $all_locks | head -1" result]
+   set output [start_remote_prog $local_host $CHECK_USER "ls" "-crt $all_locks | head -1" result]
 
    if {$result != 0} {
       add_proc_error "operational_lock" -1 "Could not read locks: $output"
@@ -2053,7 +2095,7 @@ proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
       puts $CHECK_OUTPUT "Waiting for lock"
       after 1000
 
-      set output [start_remote_prog $CHECK_HOST $CHECK_USER "ls" "-crt $all_locks | head -1" result]
+      set output [start_remote_prog $local_host $CHECK_USER "ls" "-crt $all_locks | head -1" result]
 
       if {$result != 0} {
          add_proc_error "operational_lock" -1 "Could not read locks: $output"
@@ -2078,7 +2120,7 @@ proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
 #
 #  INPUTS
 #     operation_name - the name of the lock
-#     host           - the name of the host to lock. Defaults to $CHECK_HOST
+#     host           - the name of the host to lock. Defaults to [gethostname]
 #     lock_location  - where to store the locks.  Defaults to /tmp.
 #
 #  RESULTS
@@ -2090,16 +2132,17 @@ proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
 #
 #*******************************************************************************
 proc operational_unlock {operation_name {host ""} {lock_location "/tmp"}} {
-   global CHECK_USER CHECK_HOST
+   global CHECK_USER
 
+   set local_host [gethostname]
    if {$host == ""} {
-      set host $CHECK_HOST
+      set host $local_host
    }
 
    set pid [pid]
    set lock "$lock_location/lock.$operation_name.$pid"
 
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "rm" $lock result]
+   set output [start_remote_prog $local_host $CHECK_USER "rm" $lock result]
 
    if {$result != 0} {
       add_proc_error "operational_lock" -1 "Could not release lock: $output"
@@ -2147,7 +2190,7 @@ proc operational_unlock {operation_name {host ""} {lock_location "/tmp"}} {
 #     ???/???
 #*******************************************************************************
 proc scale_timeout {timeout {does_computation 1} {does_spooling 1} {process_invocations 1}} {
-   global ts_config
+   get_current_cluster_config_array ts_config
 
    set ret $timeout
 

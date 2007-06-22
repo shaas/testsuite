@@ -85,8 +85,8 @@ proc LSB_lockfile_test_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc LSB_lockfile_test {} {
-   global LSB_lockfile_test_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL CHECK_USER
+   global LSB_lockfile_test_test_hosts check_description
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_USER
 
    set prod_type_var "SGE_ROOT"
    set my_timeout 500

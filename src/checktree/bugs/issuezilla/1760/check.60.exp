@@ -87,30 +87,31 @@ proc issue_1760_init_level {} {
 # here the actual test is done
 proc issue_1760_check {} {
    global ts_config issue_1760_fake_host issue_1760_milestone issue_1760_group
-   global CHECK_HOST CHECK_ARCH CHECK_USER CHECK_CORE_MASTER issue_1760_qname
+   global CHECK_USER issue_1760_qname
 
    set pid [pid]
-   set qconf "$ts_config(product_root)/bin/$CHECK_ARCH/qconf"
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set qconf "$ts_config(product_root)/bin/$master_arch/qconf"
    set issue_1760_milestone 0
 
    set issue_1760_fake_host "issue1760_$pid"
    set envlist(SGE_COMMLIB_DEBUG_RESOLVE) "$issue_1760_fake_host"
 
    # Shutdown qmaster
-   shutdown_qmaster $CHECK_CORE_MASTER [ get_qmaster_spool_dir ]
+   shutdown_qmaster $ts_config(master_host) [ get_qmaster_spool_dir ]
 
    # Restart qmaster with envlist set
    startup_qmaster 0 envlist
 
    # Add config for fake host
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-sconf $CHECK_HOST | tail +2 > /tmp/$issue_1760_fake_host" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-sconf $ts_config(master_host) | tail +2 > /tmp/$issue_1760_fake_host" result]
 
    if {$result != 0} {
-      add_proc_error "issue_1760_check" -1 "Unable to show configuration for $CHECK_HOST: $output"
+      add_proc_error "issue_1760_check" -1 "Unable to show configuration for $ts_config(master_host): $output"
       return -1
    }
 
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-Aconf /tmp/$issue_1760_fake_host" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-Aconf /tmp/$issue_1760_fake_host" result]
 
    if {$result != 0} {
       add_proc_error "issue_1760_check" -1 "Unable to add configuration for fake host: $output"
@@ -121,14 +122,14 @@ proc issue_1760_check {} {
 
    # Add hostgroup with fake host and local host
    set issue_1760_group "@hg_issue1760_$pid"
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"group_name $issue_1760_group\nhostlist $CHECK_HOST $issue_1760_fake_host\n\" > /tmp/hg_issue1760.$pid" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "\"group_name $issue_1760_group\nhostlist $ts_config(master_host) $issue_1760_fake_host\n\" > /tmp/hg_issue1760.$pid" result]
 
    if {$result != 0} {
       add_proc_error "issue_1760_check" -1 "Unable to write hostgroup file: $output"
       return -1
    }
 
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-Ahgrp /tmp/hg_issue1760.$pid" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-Ahgrp /tmp/hg_issue1760.$pid" result]
 
    if {$result != 0} {
       add_proc_error "issue_1760_check" -1 "Unable to add hostgroup: $output"
@@ -142,19 +143,19 @@ proc issue_1760_check {} {
    set qparam(qname)     "$issue_1760_qname"
    set qparam(hostlist)  "$issue_1760_group"
 
-   # localize messages -- handle_vi_edit is executed on $CHECK_HOST
-   # add a "*" to $CHECK_HOST because the host may resolve it's name long
-   set VALID [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$CHECK_HOST*" $issue_1760_qname "cluster queue" ]
+   # localize messages -- handle_vi_edit is executed on $ts_config(master_host)
+   # add a "*" to $ts_config(master_host) because the host may resolve it's name long
+   set VALID [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$ts_config(master_host)*" $issue_1760_qname "cluster queue" ]
 
    # add by handling vi
    set vi_commands [build_vi_command qparam]
 
-   handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aq" $vi_commands $VALID
+   handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-aq" $vi_commands $VALID
 
    set issue_1760_milestone 3
 
    # Add queue slots entry for fake host
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-aattr queue slots \"\[$issue_1760_fake_host=1\]\" $issue_1760_qname" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-aattr queue slots \"\[$issue_1760_fake_host=1\]\" $issue_1760_qname" result]
 
    if {$result != 0} {
       add_proc_error "issue_1760_check" -1 "Unable to add 'slots' entry for fake host: $output"
@@ -162,12 +163,12 @@ proc issue_1760_check {} {
    }
 
    # Shutdown qmaster
-   shutdown_qmaster $CHECK_CORE_MASTER [ get_qmaster_spool_dir ]
+   shutdown_qmaster $ts_config(master_host) [ get_qmaster_spool_dir ]
    # Restart qmaster without envlist set
    startup_qmaster 0
 
    # Remove queue
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dq $issue_1760_qname" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-dq $issue_1760_qname" result]
 
    if {$result != 0} {
       add_proc_error "issue_1760_check" -1 "Unable to remove queue -- issue 1760 still exists: $output"
@@ -177,7 +178,7 @@ proc issue_1760_check {} {
    set issue_1760_milestone 4
 
    # Remove hostgroup
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dhgrp $issue_1760_group" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-dhgrp $issue_1760_group" result]
 
    if {$result != 0} {
       add_proc_error "issue_1760_check" -1 "Unable to remove hostgroup -- issue 1760 still exists: $output"
@@ -187,7 +188,7 @@ proc issue_1760_check {} {
    set issue_1760_milestone 5
 
    # Remove configuration
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dconf $issue_1760_fake_host" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-dconf $issue_1760_fake_host" result]
 
    if {$result != 0} {
       add_proc_error "issue_1760_check" -1 "Unable to remove host configuration -- issue 1760 still exists: $output"
@@ -198,42 +199,43 @@ proc issue_1760_check {} {
 }
 
 proc issue_1760_cleanup {} {
-   global CHECK_HOST CHECK_ARCH CHECK_USER CHECK_CORE_MASTER
+   global CHECK_USER
    global ts_config issue_1760_fake_host issue_1760_qname issue_1760_group
    global issue_1760_milestone
 
    set pid [pid]
-   set qconf "$ts_config(product_root)/bin/$CHECK_ARCH/qconf"
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set qconf "$ts_config(product_root)/bin/$master_arch/qconf"
 
    set envlist(SGE_COMMLIB_DEBUG_RESOLVE) "$issue_1760_fake_host"
 
    # Remove config files
-   start_remote_prog $CHECK_HOST $CHECK_USER "rm" "/tmp/$issue_1760_fake_host" result
-   start_remote_prog $CHECK_HOST $CHECK_USER "rm" "/tmp/hg_issue1760.$pid" result
+   start_remote_prog $ts_config(master_host) $CHECK_USER "rm" "/tmp/$issue_1760_fake_host" result
+   start_remote_prog $ts_config(master_host) $CHECK_USER "rm" "/tmp/hg_issue1760.$pid" result
 
    # Remove leftover objects
    if {($issue_1760_milestone >= 1) && ($issue_1760_milestone < 6)} {
       # Shutdown qmaster
-      shutdown_qmaster $CHECK_CORE_MASTER [ get_qmaster_spool_dir ]
+      shutdown_qmaster $ts_config(master_host) [ get_qmaster_spool_dir ]
 
       # Restart qmaster with envlist set
       startup_qmaster 0 envlist
 
       # Remove queue
-      start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dq $issue_1760_qname" result
+      start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-dq $issue_1760_qname" result
 
       if {($issue_1760_milestone >= 2) && ($issue_1760_milestone < 5)} {
          # Remove hostgroup
-         start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dhgrp $issue_1760_group" result
+         start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-dhgrp $issue_1760_group" result
 
          if {($issue_1760_milestone >= 3) && ($issue_1760_milestone < 4)} {
             # Remove configuration
-            start_remote_prog $CHECK_HOST $CHECK_USER $qconf "-dconf $issue_1760_fake_host" result
+            start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-dconf $issue_1760_fake_host" result
          }
       }
 
       # Shutdown qmaster
-      shutdown_qmaster $CHECK_CORE_MASTER [ get_qmaster_spool_dir ]
+      shutdown_qmaster $ts_config(master_host) [ get_qmaster_spool_dir ]
 
       # Restart qmaster without envlist set
       startup_qmaster 0

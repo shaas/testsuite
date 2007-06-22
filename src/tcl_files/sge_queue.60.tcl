@@ -82,8 +82,8 @@ proc vdep_set_queue_defaults { change_array } {
 #
 #*******************************************************************************
 proc validate_queue { change_array } {
-   global ts_config CHECK_OUTPUT
-
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
    if {[info exists chgar(qtype)]} {
@@ -144,8 +144,8 @@ proc qinstance_to_cqueue { change_array } {
 #
 #*******************************************************************************
 proc add_queue { qname hostlist change_array {fast_add 1} } {
-   global ts_config
-   global CHECK_ARCH CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -181,20 +181,19 @@ proc add_queue { qname hostlist change_array {fast_add 1} } {
    } else {
       # add by handling vi
       set vi_commands [build_vi_command chgar]
-
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aq" $vi_commands $ADDED $ALREADY_EXISTS ]  
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-aq" $vi_commands $ADDED $ALREADY_EXISTS ]  
       if { $result != 0 } {
          add_proc_error "add_queue" -1 "could not add queue [set chgar(qname)] (error: $result)"
       }
    }
-
    return $result
 }
 
 # set_queue_work - no public interface
 proc set_queue_work { qname change_array {raise_error 1} } {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -207,9 +206,8 @@ proc set_queue_work { qname change_array {raise_error 1} } {
    set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" $qname "cluster queue" ]
    set UNKNOWN_ATTRIBUTE [ translate_macro MSG_UNKNOWNATTRIBUTENAME_S $qname ]
    set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
-
-   #set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mq ${qname}" $vi_commands $MODIFIED]
-   set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mq ${qname}" $vi_commands $MODIFIED $NOT_MODIFIED $UNKNOWN_ATTRIBUTE ]
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mq ${qname}" $vi_commands $MODIFIED $NOT_MODIFIED $UNKNOWN_ATTRIBUTE ]
    if { $result == -2 } {
       add_proc_error "set_queue_work" -1 "queue $qname not modified" $raise_error
    }
@@ -363,9 +361,8 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 #
 #*******************************************************************************
 proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
-
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
    # queue_type is version dependent
@@ -452,8 +449,7 @@ proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user 
 #     sge_procedures/handle_sge_errors
 #******************************************************************************
 proc mod_queue_error {result qname tmpfile raise_error} {
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    # recognize certain error messages and return special return code
    set messages(index) "-1 -2"
    set messages(-1) [translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
@@ -507,33 +503,25 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
 #####
 
 proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
-  global ts_config
-  global CHECK_ARCH CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT
+  global CHECK_USER CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
 
    if {!$ignore_hostlist} {
       # delete individual queue instances or queue domaines
       foreach host $hostlist {
-         set result ""
-         set catch_return [ catch {
-            eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -dattr queue hostlist $host $q_name" 
-            } result ]
-         if { $catch_return != 0 } {
+         set result [start_sge_bin "qconf" "-dattr queue hostlist $host $q_name"]
+         if { $prg_exit_state != 0 } {
             add_proc_error "del_queue" "-1" "could not delete queue instance or queue domain: $result"
          }
       }
    }
 
    if {$ignore_hostlist || $del_cqueue} {
-      set result ""
-      set catch_return [ catch {  
-         eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -dq ${q_name}" 
-      } result ]
-
+      set result [start_sge_bin "qconf" "-dq ${q_name}"]
       # JG: TODO: object name is taken from c_gdi object structure, not I18Ned!!
-      set QUEUE [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
-      set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $q_name "cluster queue" ]
-   
-      if { [string match "*$REMOVED" $result ] == 0 } {
+      set QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
+      set REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $q_name "cluster queue" ]
+      if { [string match "*$REMOVED*" $result ] == 0 } {
          add_proc_error "del_queue" "-1" "could not delete queue $q_name: (error: $result)"
          return -1
       } 

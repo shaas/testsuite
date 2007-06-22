@@ -66,7 +66,7 @@
 #
 #*******************************
 proc submit_ar {args {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
 
    # failure messages from jobs common valiation part:
    set messages(-3)       "*[translate_macro MSG_GDI_USAGE_USAGESTRING] qrsub*"
@@ -151,7 +151,7 @@ proc submit_ar {args {on_host ""} {as_user ""} {raise_error 1}} {
 #
 #*******************************
 proc delete_all_ars {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
 
    puts $CHECK_OUTPUT "deleting all ar"
    set output [start_sge_bin "qrdel" "-f -u '*' "]
@@ -255,7 +255,7 @@ proc delete_ar {ar_id {wait_for_end 0} {all_users 0} {on_host ""} {as_user ""} {
 #     sge_ar/submit_ar()
 #*******************************************************************************
 proc submit_ar_parse_ar_id {output_var message} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
 
    upvar $output_var output
 
@@ -308,7 +308,6 @@ proc submit_ar_parse_ar_id {output_var message} {
 #***************************************************************************
 #
 proc parse_qrstat {ar_id {output qrstat_info}} {
-   global ts_config
    global CHECK_OUTPUT
 
    upvar $output out

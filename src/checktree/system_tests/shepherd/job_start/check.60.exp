@@ -176,8 +176,8 @@ proc job_start_cleanup  {} {
 
 
 proc job_start_test {} {
-   global job_start_test_hosts check_description CHECK_ARCH CHECK_USER ts_user_config
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global job_start_test_hosts check_description CHECK_USER ts_user_config
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
    global CHECK_DISPLAY_OUTPUT
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 

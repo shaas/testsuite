@@ -61,7 +61,7 @@
 #     ???/???
 #*******************************
 proc install_qmaster {} {
- global ts_config CHECK_OUTPUT CHECK_USER
+ global CHECK_OUTPUT CHECK_USER
  global CORE_INSTALLED CORE_INSTALLED
  global env CHECK_COMMD_PORT local_master_spool_set
  global check_use_installed_system CHECK_ADMIN_USER_SYSTEM CHECK_DEFAULT_DOMAIN
@@ -69,6 +69,8 @@ proc install_qmaster {} {
  global CHECK_REPORT_EMAIL_TO CHECK_MAIN_RESULTS_DIR CHECK_FIRST_FOREIGN_SYSTEM_USER
  global CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_REPORT_EMAIL_TO CHECK_DNS_DOMAINNAME
  global CHECK_PROTOCOL_DIR
+ 
+ global ts_config
 
  puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
 

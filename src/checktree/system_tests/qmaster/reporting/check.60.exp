@@ -166,7 +166,7 @@ proc reporting_cleanup {} {
 }
 
 proc reporting_do_accounting_test {scenario} {
-   global ts_config CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_USER CHECK_HOST
+   global ts_config CHECK_USER
    global CHECK_OUTPUT reporting_acct_file
 
    # Check accounting file size
@@ -243,7 +243,7 @@ proc reporting_reporting_accounting_test {} {
 }
 
 proc reporting_immediate_accounting_test {} {
-   global ts_config CHECK_ARCH CHECK_PRODUCT_ROOT CHECK_USER CHECK_HOST
+   global ts_config CHECK_USER
    global CHECK_OUTPUT reporting_acct_file
 
    # Set accounting_flush_time to 00:00:00

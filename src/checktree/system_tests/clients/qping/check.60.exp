@@ -151,8 +151,8 @@ proc qping_cleanup  {} {
 
 
 proc qping_issue_1810 {} {
-   global qping_test_hosts check_description CHECK_ARCH CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global qping_test_hosts check_description CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
 
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)

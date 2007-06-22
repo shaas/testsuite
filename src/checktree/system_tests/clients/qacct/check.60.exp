@@ -56,15 +56,16 @@ proc qacct_issue1720 {} {
 }
 
 proc qacct_issue2127 {} {
-   global CHECK_HOST CHECK_ARCH
+   global ts_config
 
-   set output [start_sge_bin qacct "-l h=$CHECK_HOST"]
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set output [start_sge_bin qacct "-l h=$ts_config(master_host)"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qacct_issue2127" -1 "qacct -l h=$CHECK_HOST output:\n$output"
+      add_proc_error "qacct_issue2127" -1 "qacct -l h=$ts_config(master_host) output:\n$output"
    }
 
-   set output [start_sge_bin qacct "-l a=$CHECK_ARCH"]
+   set output [start_sge_bin qacct "-l a=$master_arch"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qacct_issue2127" -1 "qacct -l a=$CHECK_ARCH output:\n$output"
+      add_proc_error "qacct_issue2127" -1 "qacct -l a=$master_arch output:\n$output"
    }
 }

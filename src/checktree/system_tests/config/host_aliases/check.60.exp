@@ -142,8 +142,8 @@ proc parse_gethostbyname_output { output {result host_name_array}} {
 }
 
 proc host_aliases_test_test1 {} {
-   global host_aliases_test_test_hosts check_description CHECK_ARCH CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL have_host_aliases
+   global host_aliases_test_test_hosts check_description CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL have_host_aliases
 
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)

@@ -69,8 +69,6 @@ proc copy_certs_setup {} {
    global ts_config
    global CHECK_OUTPUT 
    global CHECK_USER
-   global CHECK_PRODUCT_ROOT
-   global CHECK_CORE_MASTER
 
    set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
    set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
@@ -84,7 +82,10 @@ proc copy_certs_setup {} {
    set CSP_COPY_RSH_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_RSH_FAILED]]
 
    set remote_host "$ts_config(master_host)"
-   set submit_hosts "$ts_config(submit_only_hosts)"
+   set submit_hosts ""
+   if { $ts_config(submit_only_hosts) != "none" } {
+      set submit_hosts "$ts_config(submit_only_hosts)"
+   }
    set hostcount 0
 
    # start submithost install 

@@ -61,20 +61,20 @@
 #     ???/???
 #*******************************
 proc install_qmaster {} {
-   global ts_config
    global CHECK_USER
-   global CHECK_CORE_MASTER CORE_INSTALLED CHECK_OUTPUT 
+   global CORE_INSTALLED CHECK_OUTPUT 
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
+   global ts_config
 
-   puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $CHECK_CORE_MASTER ..."
+   puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
 
    if {$check_use_installed_system != 0} {
-      puts "no need to install qmaster on host $CHECK_CORE_MASTER, noinst parameter is set"
+      puts "no need to install qmaster on host $ts_config(master_host), noinst parameter is set"
       set CORE_INSTALLED "" 
       if {[startup_qmaster] == 0} {
-         lappend CORE_INSTALLED $CHECK_CORE_MASTER
+         lappend CORE_INSTALLED $ts_config(master_host)
          write_install_list
       }
       return
@@ -109,10 +109,10 @@ proc install_qmaster {} {
 
    puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
    if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
-      set output [start_remote_prog "$CHECK_CORE_MASTER" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+      set output [start_remote_prog "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    } else {
       puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-      set output [start_remote_prog "$CHECK_CORE_MASTER" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+      set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
    }
 
    log_user 1
@@ -125,7 +125,7 @@ proc install_qmaster {} {
    }
 
    if {$exit_val == 0} {
-      lappend CORE_INSTALLED $CHECK_CORE_MASTER
+      lappend CORE_INSTALLED $ts_config(master_host)
       write_install_list
       return
    } else { 
@@ -135,7 +135,8 @@ proc install_qmaster {} {
 }
 
 proc write_autoinst_config {filename host {do_cleanup 1}} {
-   global ts_config CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT local_execd_spool_set
+   global CHECK_USER CHECK_OUTPUT local_execd_spool_set
+   global ts_config
 
    set execd_port [expr $ts_config(commd_port) + 1]
    set gid_range [get_gid_range $CHECK_USER $ts_config(commd_port)]
@@ -182,7 +183,11 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "DB_SPOOLING_SERVER=\"$bdb_server\""
    puts $fdo "DB_SPOOLING_DIR=\"$db_dir\""
    puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
-   puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
+   if { $ts_config(submit_only_hosts) != "none" } {
+      puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
+   } else {
+      puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes)\""
+   }
    puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
    set spooldir [get_local_spool_dir $host execd 0]
    if {$spooldir != ""} {
@@ -246,12 +251,12 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
 #     ???/???
 #*******************************
 proc create_autoinst_config {} {
-   global ts_config
    global CHECK_USER
-   global CHECK_CORE_MASTER CORE_INSTALLED CHECK_OUTPUT 
+   global CORE_INSTALLED CHECK_OUTPUT 
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
+   global ts_config
 
    set config_file "$ts_config(product_root)/autoinst_config.conf"
 

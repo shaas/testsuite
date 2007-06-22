@@ -89,7 +89,7 @@ proc check_dtrace_probes {} {
    set output [start_remote_prog "$ts_config(master_host)" "root" "uname" "-r -s"]
    set output [string trim $output]
    if { [string match "SunOS 5.10" $output ] } { 
-      set result [ start_remote_prog "$ts_config(master_host)" "root" "cd" "$ts_config(product_root)/dtrace ; ./monitor.sh -interval 1sec -verify" ]
+      set result [start_remote_prog "$ts_config(master_host)" "root" "cd" "$ts_config(product_root)/dtrace ; ./monitor.sh -interval 1sec -verify -cell $ts_config(cell)"]
       if { $prg_exit_state != 0 } {
          add_proc_error "check_dtrace_probes" -1 "dtrace probe verification failed"
       }

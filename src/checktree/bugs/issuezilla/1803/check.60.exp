@@ -150,8 +150,8 @@ proc issue_1803_cleanup {} {
 
 
 proc issue_1803_test {} {
-   global check_description CHECK_ARCH CHECK_USER ts_user_config
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global check_description CHECK_USER ts_user_config
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
    global CHECK_DISPLAY_OUTPUT
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 

@@ -31,9 +31,11 @@
 #___INFO__MARK_END__
 
 proc bootstrap_sge_config {} {
-   global sge_config ts_config
+   global sge_config
    global CHECK_USER CHECK_DEFAULT_DOMAIN
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT
+   global CHECK_OUTPUT
+
+   get_current_cluster_config_array ts_config
 
    # start from scratch
    if [info exists sge_config] {
@@ -41,7 +43,7 @@ proc bootstrap_sge_config {} {
    }
 
    # read bootstrapping info from file
-   set bootstrap_file "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/bootstrap"
+   set bootstrap_file "$ts_config(product_root)/$ts_config(cell)/common/bootstrap"
    if {[file exists $bootstrap_file]} {
       puts $CHECK_OUTPUT "reading bootstrap file $bootstrap_file"
       set f [open $bootstrap_file r]
@@ -64,8 +66,8 @@ proc bootstrap_sge_config {} {
       set sge_config(spooling_method)   "unknown"
       set sge_config(spooling_lib)      "unknown"
       set sge_config(spooling_params)   "unknown"
-      set sge_config(binary_path)       "$CHECK_PRODUCT_ROOT/bin"
-      set sge_config(qmaster_spool_dir) "$CHECK_PRODUCT_ROOT/$ts_config(cell)/spool/qmaster"
+      set sge_config(binary_path)       "$ts_config(product_root)/bin"
+      set sge_config(qmaster_spool_dir) "$ts_config(product_root)/$ts_config(cell)/spool/qmaster"
       set sge_config(product_mode)      "$ts_config(product_type)"
    }
 }

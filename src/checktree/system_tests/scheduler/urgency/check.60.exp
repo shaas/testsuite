@@ -204,7 +204,6 @@ proc urgency_calculation_cleanup {  } {
 
 proc urgency_calculation { } {
    
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
    global CHECK_OUTPUT CHECK_USER
    global CHECK_ACT_LEVEL
    global ts_config
@@ -292,7 +291,7 @@ proc urgency_calculation { } {
 
 proc urgency_check_values { jobs job_count value_names } {
    
-   global CHECK_OUTPUT ts_config CHECK_ARCH
+   global CHECK_OUTPUT ts_config
    
    upvar $jobs tmp_jobs
    
@@ -347,7 +346,7 @@ proc urgency_submit_jobs { jobs job_count } {
    
    global ts_config urgency_job_name
    global urgency_queue_name urgency_job_name urgency_pe_name
-   global CHECK_USER CHECK_HOST CHECK_OUTPUT
+   global CHECK_USER CHECK_OUTPUT
     
    upvar $jobs tmp_jobs
    

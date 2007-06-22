@@ -183,7 +183,8 @@ proc job_environment_cleanup {} {
 #     0 -> ok   1 -> error
 ################################################################################
 proc job_environment_parse_env_test_output { file array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   global ts_config
 
    upvar $array job_env_array
 
@@ -191,8 +192,8 @@ proc job_environment_parse_env_test_output { file array } {
       unset job_env_array
    }
 
-   puts $CHECK_OUTPUT "waiting for file $file on host $CHECK_HOST as user $CHECK_USER ..."
-   if {[wait_for_remote_file $CHECK_HOST $CHECK_USER $file] == 0} {
+   puts $CHECK_OUTPUT "waiting for file $file on host $ts_config(master_host) as user $CHECK_USER ..."
+   if {[wait_for_remote_file $ts_config(master_host) $CHECK_USER $file] == 0} {
       set o_file [ open "$file" "r" ]
       
       set variable_names_list ""
@@ -291,14 +292,14 @@ proc job_environment_qsub_job { jobname array arguments } {
 ################################################################################
 proc job_environment_qresub_job { jobname array arguments } {
    global ts_config CHECK_OUTPUT
-   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_PROTOCOL_DIR CHECK_USER
    global queue
 
    upvar $array job_env_array
    set job_id [ submit_job "$arguments -q $queue -h $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR" ]
-   
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qresub" "$job_id" } result
+   set result [start_sge_bin "qresub" "$job_id"]
    puts $CHECK_OUTPUT $result
+
    set new_job_id [expr $job_id + 1]
    wait_for_jobstart $new_job_id $jobname 60 1 1
    wait_for_jobend $new_job_id $jobname 60 0
@@ -331,15 +332,17 @@ proc job_environment_qresub_job { jobname array arguments } {
 ################################################################################
 proc job_environment_qalter_job { jobname array qsub_args qalter_args } {
    global ts_config CHECK_OUTPUT
-   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_PROTOCOL_DIR
    global queue
 
    upvar $array job_env_array
    set job_id [ submit_job "$qsub_args -q $queue -h $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR" ]
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter" $qalter_args $job_id } result
+   set result [start_sge_bin "qalter" "$qalter_args $job_id"]
    puts $CHECK_OUTPUT $result
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrls" $job_id } result
+
+   set result [start_sge_bin "qrls" "$job_id"]
    puts $CHECK_OUTPUT $result
+
    wait_for_jobstart $job_id $jobname 60 1 1
    wait_for_jobend $job_id $jobname 60 0
    job_environment_parse_env_test_output $CHECK_PROTOCOL_DIR/job_env.out job_env_array
@@ -368,13 +371,14 @@ proc job_environment_qalter_job { jobname array qsub_args qalter_args } {
 ################################################################################
 proc job_environment_qrsh_job { array arguments } {
    global ts_config CHECK_OUTPUT
-   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH 
+   global CHECK_PROTOCOL_DIR
    global queue
 
    upvar $array job_env_array
    
-   catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qrsh" "$arguments -q $queue" $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR } result
+   set result [start_sge_bin "qrsh" "$arguments -q $queue $ts_config(testsuite_root_dir)/scripts/jobenv.sh $CHECK_PROTOCOL_DIR"]
    puts $CHECK_OUTPUT $result
+
    job_environment_parse_env_test_output $CHECK_PROTOCOL_DIR/job_env.out job_env_array
 }
 
@@ -401,7 +405,7 @@ proc job_environment_qrsh_job { array arguments } {
 ################################################################################
 proc job_environment_qsh_job { array arguments } {
    global ts_config CHECK_OUTPUT
-   global CHECK_PROTOCOL_DIR CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
+   global CHECK_PROTOCOL_DIR CHECK_USER
    global queue job_environment_exec_host
 
    upvar $array job_env_array
@@ -417,7 +421,7 @@ proc job_environment_qsh_job { array arguments } {
    wait_for_remote_file $job_environment_exec_host $CHECK_USER $script_name
 
    puts $CHECK_OUTPUT "starting qsh $arguments -q $queue -S $script_name ..."
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qsh" "$arguments -q $queue -S $script_name"]
+   set output [start_sge_bin "qsh" "$arguments -q $queue -S $script_name"]
    puts $CHECK_OUTPUT $output
 
    # check results

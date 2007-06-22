@@ -160,8 +160,7 @@ proc create_stree2_1874 {} {
 }
 
 proc issue_1874_run  {} {
-   global ts_config CHECK_USER CHECK_HOST CHECK_PRODUCT_ROOT CHECK_OUTPUT
-   global CHECK_ARCH
+   global ts_config CHECK_USER CHECK_OUTPUT
    global stree
 
    # create file containing sharetree
@@ -177,7 +176,8 @@ proc issue_1874_run  {} {
    set CHANGED_SHARETREE [translate_macro MSG_TREE_CHANGEDSHARETREE]
    set CAN_T_READ [translate_macro MSG_QCONF_CANTREADSHARETREEX_S "*"]
 
-   set result [handle_vi_edit "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-mstree" $vi_commands $CHANGED_SHARETREE]
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mstree" $vi_commands $CHANGED_SHARETREE]
    
    if {$result != 0} {
       add_proc_error "issue_1874_run" -1 "qconf failed: issue 1874 might exist"

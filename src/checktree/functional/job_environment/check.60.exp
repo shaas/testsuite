@@ -60,7 +60,7 @@ lappend check_functions "job_environment_SET_LIB_PATH"
 #     job_environment_setup()
 ################################################################################
 proc job_environment_setup_60 {} {
-   global CHECK_CORE_EXECD CHECK_OUTPUT
+   global CHECK_OUTPUT
    global job_environment_exec_host job_environment_libpath
    global job_environment_libvar ts_config
 

@@ -36,9 +36,8 @@ proc unassign_queues_with_pe_object { pe_obj } {
 }
 
 proc assign_queues_with_pe_object { qname hostlist pe_obj } {
-   global ts_config
    global CHECK_OUTPUT
-
+   get_current_cluster_config_array ts_config
    if { $hostlist == "" } {
       set hostlist $ts_config(execd_nodes)
    }

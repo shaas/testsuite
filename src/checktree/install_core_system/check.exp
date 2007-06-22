@@ -3,8 +3,6 @@
 #
 # gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
 # global CHECK_USER              ;# user who start test
-# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
-# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
 #___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -51,7 +49,8 @@ set check_root_access_needs  "yes"
 set check_name          "init_core_system"
 set check_category      "COMPATIBILITY SYSTEM L10N VERIFIED INSTALL"
 set check_description(0)   "install a default system (bdb_rpc/master/execution/shadow daemon on local host and start them up)"
-set check_needs         ""                              ;# dependencies of this check (name of other check)
+set check_needs         ""           ;# let the testsuite test run before this test to check evlt. errors before running
+                                                        ;# all tests
 set install_mode        "$CHECK_TESTSUITE_INSTALL_MODE" ;# sets the install mode. allowed are: automatic and manual
 set check_functions     ""                              ;# functions to call (in order)
 if { $install_mode == "automatic" } {

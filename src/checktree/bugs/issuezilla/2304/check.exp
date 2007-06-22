@@ -217,8 +217,7 @@ proc issue_2304_cleanup  {} {
 
 proc issue_2304_check {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT
-   global  CHECK_USER
+   global CHECK_USER
    global execd_host
    global admin_user_list
    global qname
@@ -253,7 +252,7 @@ proc issue_2304_check {} {
    set job_id_list {}
    set job_args "-o /dev/null -e /dev/null -q $qname"
    set user "root" 
-   set job_id [submit_job "$job_args $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 60" 1 30 "" $user]
+   set job_id [submit_job "$job_args $ts_config(product_root)/examples/jobs/sleeper.sh 60" 1 30 "" $user]
       if {$job_id <= 0} {
          add_proc_error "issue_2304_check" \
                         -1 \

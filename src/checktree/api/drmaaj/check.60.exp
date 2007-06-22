@@ -101,10 +101,13 @@ proc drmaaj_init_level {} {
 proc drmaaj_check {} {
    global ts_config env
    global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
-   global CHECK_HOST CHECK_ARCH CHECK_USER CHECK_ACT_LEVEL
+   global CHECK_USER CHECK_ACT_LEVEL
 
-   puts $CHECK_OUTPUT "arch is $CHECK_ARCH"
-   puts $CHECK_OUTPUT "host is $CHECK_HOST"
+   set local_host [gethostname]
+   set local_arch [resolve_arch $local_host]
+
+   puts $CHECK_OUTPUT "arch is $local_arch"
+   puts $CHECK_OUTPUT "host is $local_host"
 
    # make sure that we have a drmaa.jar, drmaa-test.jar and
    # suspendable_sleeper.sh

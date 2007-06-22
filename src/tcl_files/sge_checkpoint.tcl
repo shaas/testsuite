@@ -72,13 +72,14 @@
 #     sge_procedures/set_queue()
 #*******************************************************************************
 proc get_checkpointobj { ckpt_obj change_array } {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
-  set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sckpt" "$ckpt_obj"} result ]
-  if { $catch_result != 0 } {
-     add_proc_error "get_checkpointobj" "-1" "qconf error or binary not found ($ts_config(product_root)/bin/$CHECK_ARCH/qconf)\n$result"
+   
+  set result [start_sge_bin "qconf" "-sckpt $ckpt_obj" ]
+  if { $prg_exit_state != 0 } {
+     add_proc_error "get_checkpointobj" "-1" "qconf error or binary not found!\n$result"
      return
   } 
 
@@ -141,8 +142,8 @@ proc get_checkpointobj { ckpt_obj change_array } {
 #     sge_checkpoint/add_checkpointobj()
 #*******************************
 proc del_checkpointobj {checkpoint_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
    global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    unassign_queues_with_ckpt_object $checkpoint_name $on_host $as_user $raise_error
 
@@ -202,9 +203,8 @@ proc del_checkpointobj {checkpoint_name {on_host ""} {as_user ""} {raise_error 1
 #     sge_checkpoint/del_checkpointobj()
 #*******************************
 proc add_checkpointobj { change_array } {
-   global ts_config
-   global CHECK_ARCH
    global CHECK_USER CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -218,12 +218,12 @@ proc add_checkpointobj { change_array } {
    set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" $ckpt_name]
    set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" $ckpt_name "checkpoint interface" ]
 
+   set master_arch [resolve_arch $ts_config(master_host)]
    if { $ts_config(gridengine_version) == 53 } {
       set REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT [translate_macro MSG_SGETEXT_UNKNOWNQUEUE_SSSS "*" "*" "*" "*"] 
-
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" $args $vi_commands $ADDED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT ] 
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $ADDED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT ] 
    } else {
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" $args $vi_commands $ADDED $ALREADY_EXISTS ] 
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $ADDED $ALREADY_EXISTS ] 
 
    }
 

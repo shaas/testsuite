@@ -169,7 +169,7 @@ proc subordinate_cleanup  {} {
 }
 
 proc subordinate_submit_jobs_and_wait { job_arguments job_count run_job_count job_arguments2 case { schedd_info "" } { queue_state "" } { schedd_info_err "" } } {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    if { $job_arguments2 == "" } {
       for { set i 0 } { $i < $job_count } { incr i 1 } {
@@ -251,14 +251,14 @@ proc subordinate_submit_jobs_and_wait { job_arguments job_count run_job_count jo
 }
 
 proc subordinate_test {} {
-   global subordinate_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global subordinate_test_hosts check_description
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
 
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 
    if { $CHECK_ACT_LEVEL == 0 } {
-      set RUNATHOST  [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SCHEDD_INFO_QUEUENOTAVAIL_]  "*"]
+      set RUNATHOST  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_QUEUENOTAVAIL_]  "*"]
 
       set job_arguments "-o /dev/null -e /dev/null"
       set job_count 4

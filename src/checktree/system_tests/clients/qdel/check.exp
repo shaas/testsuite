@@ -175,7 +175,7 @@ proc qdel_setup {} {
 #*******************************
 proc qdel_cleanup {} {
    global ts_config
-   global queue CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT
+   global queue CHECK_OUTPUT
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER 
    global CHECK_SECOND_FOREIGN_SYSTEM_USER
 
@@ -186,16 +186,16 @@ proc qdel_cleanup {} {
 
    puts $CHECK_OUTPUT "do qmod -c for all queues"
    foreach hostname $ts_config(execd_nodes) {
-      set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -c [get_queue_instance all.q $hostname]" } output ]
+      set output [start_sge_bin "qmod" "-c [get_queue_instance all.q $hostname]"]
       puts $CHECK_OUTPUT $output
    }
 }
 
 proc qdel_submit_delete_when_transfered {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_OUTPUT
    global submit_del_qconfig submit_del_check_queue CHECK_USER
-   global CHECK_HOST CHECK_PRODUCT_ROOT CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    global CHECK_ACT_LEVEL
 
    # we only execute this check in runlevel 0 - the other runlevels have no meaning here
@@ -207,7 +207,7 @@ proc qdel_submit_delete_when_transfered {} {
       # we submit sleeper jobs and delete them immediately after they entered
       # transfering / running state
       # we do this 25 times for every architecture
-      set job_script "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh"
+      set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh"
       set runs 25
       while { $runs > 0 } { 
          foreach elem $ts_config(unique_arch_nodes) {
@@ -332,8 +332,8 @@ proc are_jobs_deleted { job_list } {
 #*******************************
 proc submit_testjobs { { user "" } { additional_job_args "" } {testjob_count "4" } {array_job ""} {check_job_state 1}} {
    global ts_config CHECK_OUTPUT CHECK_USER
-  global CHECK_PRODUCT_ROOT queue hold_state pending_state
-  global CHECK_ARCH CHECK_HOST ts_config
+  global queue hold_state pending_state
+  global ts_config
 
   set joblist ""
   set year [exec date "+%Y"] 
@@ -349,7 +349,7 @@ proc submit_testjobs { { user "" } { additional_job_args "" } {testjob_count "4"
      }
   }
  
-  set jobargs "$additional_job_args $jobargs -q [get_queue_instance $queue [lindex $ts_config(execd_nodes) 0]] $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3000"
+  set jobargs "$additional_job_args $jobargs -q [get_queue_instance $queue [lindex $ts_config(execd_nodes) 0]] $ts_config(product_root)/examples/jobs/sleeper.sh 3000"
 
    if {$user == ""} {
       set user $CHECK_USER
@@ -447,13 +447,13 @@ proc submit_testjobs { { user "" } { additional_job_args "" } {testjob_count "4"
 #*******************************
 proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state
-   global CHECK_ARCH CHECK_HOST ts_config
+   global queue hold_state pending_state
+   global ts_config
    global queue
   
    set hostname $ts_config(master_host) 
    set arch [resolve_arch $hostname]
-   set qdel_program "$CHECK_PRODUCT_ROOT/bin/$arch/qdel"
+   set qdel_program "$ts_config(product_root)/bin/$arch/qdel"
 
    # 2) Submit a job. Delete it once....
 
@@ -565,13 +565,13 @@ proc qdel_iz_125_case_2 { { user "" } { additional_job_args "" }} {
 proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
 
 
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state
-   global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
-   global queue CHECK_HOST CHECK_USER
+   global queue hold_state pending_state
+   global CHECK_OUTPUT ts_config
+   global queue CHECK_USER
 
    set hostname $ts_config(master_host)
    set arch [resolve_arch $hostname]
-   set qdel_program "$CHECK_PRODUCT_ROOT/bin/$arch/qdel"
+   set qdel_program "$ts_config(product_root)/bin/$arch/qdel"
 
 	
    # 3) Setup list of tasks to be deleted: the first 5; the remaing 5 are
@@ -682,13 +682,13 @@ proc qdel_iz_125_case_3 { { user "" } { additional_job_args "" }} {
 #*******************************
 proc qdel_iz_125_case_4 { { user "" } { additional_job_args "" }} {
 
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state
-   global CHECK_OUTPUT CHECK_ARCH CHECK_HOST ts_config
-   global queue CHECK_HOST CHECK_USER
+   global queue hold_state pending_state
+   global CHECK_OUTPUT ts_config
+   global queue CHECK_USER
 
    set hostname  [lindex $ts_config(execd_nodes) 0]
    set arch [resolve_arch $hostname]
-   set qdel_program "$CHECK_PRODUCT_ROOT/bin/$arch/qdel"
+   set qdel_program "$ts_config(product_root)/bin/$arch/qdel"
 
 
    # Create queues for -pe jobs 
@@ -717,17 +717,17 @@ proc qdel_iz_125_case_4 { { user "" } { additional_job_args "" }} {
 
    set job_id_list ""
    set arguments "-o /dev/null -e /dev/null -h -pe mype1 2"
-   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3000" ]
+   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 3000" ]
    lappend job_id_list $job_id
-   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3000" ]
+   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 3000" ]
    lappend job_id_list $job_id
-   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3000" ]
+   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 3000" ]
    lappend job_id_list $job_id
 
 
    puts $CHECK_OUTPUT "submitting job requesting pe mype2 ..."
    set arguments "-o /dev/null -e /dev/null -h -pe mype2 2"
-   set job_id [ submit_job "$arguments $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3000" ]
+   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 3000" ]
    lappend job_id_list $job_id
 
    # Now delete them
@@ -761,13 +761,12 @@ proc qdel_iz_125_case_4 { { user "" } { additional_job_args "" }} {
 
 proc qdel_iz_125_case_5 { { user "" } { additional_job_args "" }} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state
-   global CHECK_ARCH
-   global queue CHECK_HOST
+   global queue hold_state pending_state
+   global queue 
 
    set hostname  [lindex $ts_config(execd_nodes) 0]
    set arch [resolve_arch $hostname]
-   set qdel_program "$CHECK_PRODUCT_ROOT/bin/$arch/qdel"
+   set qdel_program "$ts_config(product_root)/bin/$arch/qdel"
 
    # Submit 1000 jobs. Use submit_testjobs 1000, which submits jobs in sets of 20
    # Use 100 for now
@@ -880,18 +879,16 @@ proc qdel_iz_125_case_5 { { user "" } { additional_job_args "" }} {
 #*******************************
 proc qdel_delete_task_range {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state
-   global CHECK_ARCH CHECK_HOST
+   global queue hold_state pending_state
    global queue
 
    set hostname  [lindex $ts_config(execd_nodes) 0]
    set arch [resolve_arch $hostname]
-   set qdel_program "$CHECK_PRODUCT_ROOT/bin/$arch/qdel"
-   set qstat_program "$CHECK_PRODUCT_ROOT/bin/$arch/qstat"
+   set qdel_program "$ts_config(product_root)/bin/$arch/qdel"
+   set qstat_program "$ts_config(product_root)/bin/$arch/qstat"
 
 
    # Submit a task array of 10 tasks
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT
    set job_id_10 [submit_testjobs "" "" 1 "-t 1:10" ]
    set job_range [concat [lindex $job_id_10 0].1-10]
 
@@ -954,19 +951,16 @@ proc qdel_delete_task_range {} {
 #     ???/???
 #*******************************
 proc qdel_delete_job_0 {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
 
-   set state [ catch {exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel" "0" } output ]
-   
-   puts $CHECK_OUTPUT "qdel output    : \n---\n$output\n---"
-   puts $CHECK_OUTPUT "qdel exit state: $state"  
- 
-   if {$state != 1 } {
-      add_proc_error "qdel_delete_job" -1 "exit state is not 1"
+   set output [start_sge_bin "qdel" "0"]
+   puts $CHECK_OUTPUT $output
+   if {$prg_exit_state != 1 } {
+      add_proc_error "qdel_delete_job" -1 "exit prg_exit_state is not 1"
    }
 
    set output_length [string length $output]
@@ -1008,7 +1002,7 @@ proc qdel_delete_job_0 {} {
 #     ???/???
 #*******************************
 proc qdel_help {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
+   global ts_config CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
    global qdel_help_lines
 
    delete_all_jobs
@@ -1072,24 +1066,20 @@ proc qdel_help {} {
 #*******************************
 proc qdel_job_task_list {} {
 
-    global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH env
+    global CHECK_OUTPUT ts_config env
 
     delete_all_jobs
     wait_for_end_of_all_jobs 60
 
     # submit jobs to delete
     set job_list [submit_testjobs]
-
-    set result 0
-
-    set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel $job_list" } qdel_output ] 
-    
-    puts $CHECK_OUTPUT "qdel_result = $result"
+    set qdel_output [start_sge_bin "qdel" "$job_list"]
+    puts $CHECK_OUTPUT "qdel_result = $prg_exit_state"
     puts $CHECK_OUTPUT "qdel_output = $qdel_output"
 
     # Errorhandling not functional yet because qdel returns always 0 it doesn't matter if the job exists or not
-    if { $result != 0 } {
-       add_proc_error "qdel_job_task_list" -1 "could not delete jobs (exit status: $result) "
+    if { $prg_exit_state != 0 } {
+       add_proc_error "qdel_job_task_list" -1 "could not delete jobs (exit status: $prg_exit_state) "
     }
 
     set time [timestamp]
@@ -1131,7 +1121,7 @@ proc qdel_job_task_list {} {
 #*******************************
 proc qdel_delete_unknown_jobid {} {
    global ts_config
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
+   global CHECK_USER
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -1143,9 +1133,9 @@ proc qdel_delete_unknown_jobid {} {
    set unknown_jobid [ expr ( [ lindex $job_list [ expr ( [ llength $job_list] - 1 ) ] ] + 1 ) ]
    lappend job_list $unknown_jobid 
    if {$ts_config(gridengine_version) == 53} {
-      set default_output [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXIST_SU] "job" $unknown_jobid ]  
+      set default_output [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXIST_SU] "job" $unknown_jobid ]  
    } else {
-      set default_output [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXIST_SS] "job" $unknown_jobid]  
+      set default_output [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXIST_SS] "job" $unknown_jobid]  
    }
 
    qdel_delete_unknown_jobid_proc $job_list "$default_output"
@@ -1158,9 +1148,9 @@ proc qdel_delete_unknown_jobid {} {
    set unknown_taskid 5
    set job_list [lreplace $job_list end end "$last_jobid.$unknown_taskid"]
    if {$ts_config(gridengine_version) == 53} {
-      set default_output [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASK_UU] $last_jobid $unknown_taskid] 
+      set default_output [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASK_UU] $last_jobid $unknown_taskid] 
    } else {
-      set default_output [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASK_SU] $last_jobid $unknown_taskid] 
+      set default_output [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASK_SU] $last_jobid $unknown_taskid] 
    }
    qdel_delete_unknown_jobid_proc $job_list "$default_output"
    delete_job $last_jobid
@@ -1173,9 +1163,9 @@ proc qdel_delete_unknown_jobid {} {
    set empty_taskrange "5-10:2"
    set job_list [lreplace $job_list end end "$last_jobid.$empty_taskrange"]
    if {$ts_config(gridengine_version) == 53} {
-      set default_output [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASKRANGE_UUUU] $last_jobid "5" "10" "2"]
+      set default_output [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASKRANGE_UUUU] $last_jobid "5" "10" "2"]
    } else {
-      set default_output [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASKRANGE_SUUU] $last_jobid "5" "9" "2"]
+      set default_output [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXISTTASKRANGE_SUUU] $last_jobid "5" "9" "2"]
    }
    qdel_delete_unknown_jobid_proc $job_list "$default_output"
    delete_job $last_jobid 1
@@ -1184,11 +1174,19 @@ proc qdel_delete_unknown_jobid {} {
 }
 
 proc qdel_delete_unknown_jobid_proc {job_list default_output} {
-  global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH env
+  global CHECK_OUTPUT ts_config env
 
-  set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel $job_list" } qdel_output ] 
-
-  puts $CHECK_OUTPUT "qdel_result = $result"
+  set qdel_output ""
+  start_sge_bin "qdel" "$job_list"
+  incr output_lines(0) -1 ;# ignore last "\n"
+  for { set i 1 } { $i <= $output_lines(0) } { incr i 1 } {
+     append qdel_output "$output_lines($i)"
+     if { $i != $output_lines(0) } {
+        append qdel_output "\n"
+     }
+  }
+  
+  puts $CHECK_OUTPUT "qdel_result = $prg_exit_state"
   puts $CHECK_OUTPUT "qdel_output = $qdel_output"
 
   if { [string first "\[" $qdel_output ] == 0  } {
@@ -1201,7 +1199,7 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
   }
  
 
-  if { $result != 0 } {
+  if { $prg_exit_state != 0 } {
      add_proc_error "qdel_delete_unknown_jobid_proc" -1 "exit state is not 0"
   } 
 
@@ -1269,18 +1267,18 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
 #     ???/???
 #*******************************
 proc qdel_delete_negative_jobid {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
 
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
-   set state [ catch {exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel" "-1" } output ]
+   set output [start_sge_bin "qdel" "-1"]
    
    puts $CHECK_OUTPUT "qdel output    : \n---\n$output\n---"
-   puts $CHECK_OUTPUT "qdel exit state: $state"  
+   puts $CHECK_OUTPUT "qdel exit state: $prg_exit_state"  
  
-   if {$state != 1 } {
+   if {$prg_exit_state != 1 } {
       add_proc_error "qdel_delete_negative_jobid" -1 "exit state is not 1"
    }
 
@@ -1323,18 +1321,15 @@ proc qdel_delete_negative_jobid {} {
 #*******************************
 proc qdel_all {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST
+   global CHECK_OUTPUT CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
    if {$ts_config(gridengine_version) == 53} {
       set all_args "all"
-      set all_args_remote "all"
    } else {
-      set all_args "*"
-      set all_args_remote "'*'"
+      set all_args "'*'"
    }
 
    # submit jobs to delete
@@ -1347,11 +1342,11 @@ proc qdel_all {} {
  
    
    # now delete jobs of user 1
-   set result [ catch { exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel" "$all_args" } qdel_output ] 
-   puts $CHECK_OUTPUT "qdel_result = $result"
+   set qdel_output [start_sge_bin "qdel" "$all_args"]
+   puts $CHECK_OUTPUT "qdel_result = $prg_exit_state"
    puts $CHECK_OUTPUT "qdel_output = $qdel_output" 
-   if { $result != 0 } {
-       add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $result) "
+   if { $prg_exit_state != 0 } {
+       add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $prg_exit_state) "
    }
 
    set time [timestamp] 
@@ -1378,7 +1373,6 @@ proc qdel_all {} {
        sleep 1 
    }    
 
-
    # now check if user2 has still his jobs
    foreach job_id $job_list_user2 {
           set result [ is_job_running $job_id "qdel_check" ]
@@ -1392,7 +1386,7 @@ proc qdel_all {} {
    puts $CHECK_OUTPUT "user 1 has jobs $job_list_user1"
 
    # now delete jobs of user 2
-   set result [start_sge_bin "qdel" "$all_args_remote" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   set result [start_sge_bin "qdel" "$all_args" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    puts $CHECK_OUTPUT "qdel_output = \n$result" 
 
    set time [timestamp] 
@@ -1428,11 +1422,11 @@ proc qdel_all {} {
    } 
 
    # now delete jobs of user1
-   set result [ catch { exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel" "$all_args" } qdel_output ] 
-   puts $CHECK_OUTPUT "qdel_result = $result"
+   set qdel_output [start_sge_bin "qdel" "$all_args"]
+   puts $CHECK_OUTPUT "qdel_result = $prg_exit_state"
    puts $CHECK_OUTPUT "qdel_output = $qdel_output" 
-   if { $result != 0 } {
-       add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $result) "
+   if { $prg_exit_state != 0 } {
+       add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $prg_exit_state) "
    }
 
    set time [timestamp] 
@@ -1492,8 +1486,7 @@ proc qdel_all {} {
 proc qdel_uall {} {
    global ts_config
    global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER 
-   global CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST
+   global CHECK_SECOND_FOREIGN_SYSTEM_USER
 
    if { [have_root_passwd] == -1 } {
       add_proc_error "qdel_uall" -3 "root access required"
@@ -1597,8 +1590,8 @@ proc qdel_uall {} {
 #*******************************
 proc qdel_user_list {} {
 
-   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_HOST
-   global CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_SECOND_FOREIGN_SYSTEM_USER ts_config
    if { [have_root_passwd] == -1 } {
       add_proc_error "qdel_user_list" -3 "root access required"
       return
@@ -1685,14 +1678,12 @@ proc qdel_user_list {} {
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3"
 
    # now delete all jobs as user 1 (manager)
-   set result [ catch { 
-      eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel -u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER" 
-   } qdel_output ] 
+   set qdel_output [start_sge_bin "qdel" "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"]
    puts $CHECK_OUTPUT "starting qdel -u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"
-   puts $CHECK_OUTPUT "qdel_result = $result"
+   puts $CHECK_OUTPUT "qdel_result = $prg_exit_state"
    puts $CHECK_OUTPUT "qdel_output = $qdel_output" 
-   if { $result != 0 } {
-       add_proc_error "qdel_user_list" -1 "Could not delete jobs $job_list_user1 (exit status: $result)"
+   if { $prg_exit_state != 0 } {
+       add_proc_error "qdel_user_list" -1 "Could not delete jobs $job_list_user1 (exit status: $prg_exit_state)"
    }
 
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3" 
@@ -1742,8 +1733,8 @@ proc qdel_user_list {} {
 proc qdel_force {} {
    global ts_config
    global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER 
-   global CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_PRODUCT_ROOT CHECK_ARCH 
-   global CHECK_HOST pending_state CHECK_PRODUCT_TYPE CHECK_COMMD_PORT
+   global CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global pending_state CHECK_PRODUCT_TYPE CHECK_COMMD_PORT
 
    if { [have_root_passwd] == -1 } {
       add_proc_error "qdel_force" -3 "root access required"

@@ -28,10 +28,9 @@
 #     ???/???
 #*******************************
 proc kill_running_system {} {
-   global ts_config
-   global CHECK_ARCH 
    global CHECK_OUTPUT CORE_INSTALLED
    global check_use_installed_system
+   global ts_config
  
    set result [check_all_system_times]
    puts $CHECK_OUTPUT "check_all_system_times returned $result"
@@ -91,11 +90,11 @@ proc reread_bootstrap {} {
 
 # generating all testsuite cluster user keys and certificates
 proc make_user_cert {} {
-   global ts_config 
    global check_use_installed_system
   global CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR
   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_REPORT_EMAIL_TO
   global CHECK_USER CHECK_DEBUG_LEVEL
+  global ts_config
 
    if { !$check_use_installed_system } {
       if { $ts_config(product_feature) == "csp" } {
@@ -124,15 +123,15 @@ proc make_user_cert {} {
 
 
 proc cleanup_system {} {
-   global ts_config
-   global CHECK_ARCH env
+   global env
    global check_use_installed_system CHECK_OUTPUT CHECK_USER
+   global ts_config
 
 #puts "press RETURN"
 #set anykey [wait_for_enter 1]
    # check if the system is running and qmaster accessable
-   set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" } result ]
-   if { $catch_return != 0 } {
+   set result [start_sge_bin "qstat" ""]
+   if { $prg_exit_state != 0 } {
       add_proc_error "cleanup_system" -2 "error connecting qmaster: $result"
       return
    }
@@ -164,7 +163,8 @@ proc cleanup_system {} {
   puts $CHECK_OUTPUT "\nremoving ckpt objects ..."
   set NO_CKPT_INTERFACE_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "ckpt interface definition"]
    
-  catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sckptl" } result
+  set result [start_sge_bin "qconf" "-sckptl"]
+
   if { [string first $NO_CKPT_INTERFACE_DEFINED $result] >= 0 } {
      puts $CHECK_OUTPUT "no ckpt interface definition defined"
   } else {
@@ -177,7 +177,8 @@ proc cleanup_system {} {
    # remove all parallel environments
   puts $CHECK_OUTPUT "\nremoving PE objects ..."
   set NO_PARALLEL_ENVIRONMENT_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "parallel environment"]
-  catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-spl" } result
+  set result [start_sge_bin "qconf" "-spl"]
+
   if { [string first $NO_PARALLEL_ENVIRONMENT_DEFINED $result] >= 0 } {
      puts $CHECK_OUTPUT "no parallel environment defined"
   } else {
@@ -191,7 +192,8 @@ proc cleanup_system {} {
   puts $CHECK_OUTPUT "\nremoving calendars ..."
   # JG: TODO: calendars can be referenced in queues - first remove all references!
   set NO_CALENDAR_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "calendar"]
-  catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-scall" } result
+  set result [start_sge_bin "qconf" "-scall"]
+
   if { [string first $NO_CALENDAR_DEFINED $result] >= 0 } {
      puts $CHECK_OUTPUT "no calendar defined"
   } else {
@@ -205,7 +207,8 @@ proc cleanup_system {} {
   if { [ string compare $ts_config(product_type) "sgeee" ] == 0 } {
      puts $CHECK_OUTPUT "\nremoving project objects ..."
      set NO_PROJECT_LIST_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "project list"]
-     catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sprjl" } result
+     set result [start_sge_bin "qconf" "-sprjl"]
+
      if { [string first $NO_PROJECT_LIST_DEFINED $result] >= 0 } {
         puts $CHECK_OUTPUT "no project list defined"
      } else {
@@ -223,7 +226,8 @@ proc cleanup_system {} {
    #           there!
   puts $CHECK_OUTPUT "\nremoving access lists ..."
   set NO_ACCESS_LIST_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "userset list"]
-  catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sul" } result
+  set result [start_sge_bin "qconf" "-sul"]
+
   if { [string first $NO_ACCESS_LIST_DEFINED $result] >= 0 } {
      puts $CHECK_OUTPUT "no userset list defined"
   } else {
@@ -290,13 +294,13 @@ proc cleanup_system {} {
 #     ???/???
 #*******************************
 proc setup_queues {} {
-   global ts_config
-   global CHECK_ARCH env
+   global env
    global check_use_installed_system CHECK_OUTPUT CHECK_USER
+   global ts_config
 
    # check if qmaster can be accessed
-   set catch_return [ catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" } result ]
-   if { $catch_return != 0 } {
+   set result [start_sge_bin "qstat" ""]
+   if { $prg_exit_state != 0 } {
       add_proc_error "setup_queues" -2 "error connecting qmaster: $result"
       return
    }
@@ -378,8 +382,6 @@ proc setup_queues {} {
 #     ???/???
 #*******************************
 proc setup_testcheckpointobject {} {
-   global ts_config
-
    set change(ckpt_name)  "testcheckpointobject"
    add_checkpointobj change
    assign_queues_with_ckpt_object "all.q" "" "testcheckpointobject"
@@ -415,12 +417,12 @@ proc setup_testcheckpointobject {} {
 #     ???/???
 #*******************************
 proc setup_conf {} {
-   global ts_config
-  global CHECK_ARCH
   global CHECK_DEFAULT_DOMAIN 
   global CHECK_REPORT_EMAIL_TO 
   global CHECK_USER 
   global CHECK_DNS_DOMAINNAME
+
+  global ts_config
 
   get_config old_config
   set params(reschedule_unknown) "00:00:00"
@@ -560,10 +562,9 @@ proc setup_conf {} {
 #     ???/???
 #*******************************************************************************
 proc setup_execd_conf {} {
-   global ts_config
-  global CHECK_ARCH
   global CHECK_DEFAULT_DOMAIN
   global CHECK_OUTPUT
+  global ts_config
 
   foreach host $ts_config(execd_nodes) {
      puts $CHECK_OUTPUT "get configuration for host $host ..."
@@ -700,9 +701,9 @@ proc setup_execd_conf {} {
 #     ???/???
 #*******************************
 proc setup_mytestproject {} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
   global check_arch env
- 
+  global ts_config
 
   if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
       puts $CHECK_OUTPUT "not supported on sge systems"
@@ -746,12 +747,9 @@ proc setup_mytestproject {} {
 #     ???/???
 #*******************************
 proc setup_mytestpe {} {
-   global ts_config
-
    set change(pe_name) "mytestpe"
    set change(slots) "5"
    add_pe change
-
    assign_queues_with_pe_object "all.q" "" "mytestpe"
 }
 
@@ -787,10 +785,8 @@ proc setup_mytestpe {} {
 #     ???/???
 #*******************************
 proc setup_deadlineuser {} {
-   global ts_config
-  global CHECK_ARCH CHECK_USER
-
-  add_access_list $CHECK_USER deadlineusers
+   global CHECK_USER
+   add_access_list $CHECK_USER deadlineusers
 }
 
 
@@ -824,12 +820,13 @@ proc setup_deadlineuser {} {
 #     ???/???
 #*******************************
 proc setup_schedconf {} {
+   global env CHECK_USER
+   global CHECK_OUTPUT
+
    global ts_config
-  global CHECK_ARCH env CHECK_USER
-  global CHECK_OUTPUT
 
   # always create global complex list if not existing
-  catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-scl" } result
+  set result [start_sge_bin "qconf" "-scl"]
 
   puts $CHECK_OUTPUT "result: $result"
 
@@ -913,8 +910,8 @@ proc setup_schedconf {} {
 #     ???/???
 #*******************************
 proc setup_default_calendars {} {
-   global ts_config
-  global CHECK_ARCH env CHECK_USER
+  global env CHECK_USER
+  global ts_config
 
 
   set calendar_param(calendar_name)          "always_suspend"              ;# always in calendar suspend
@@ -968,11 +965,11 @@ proc setup_default_calendars {} {
 #     ???/???
 #*******************************
 proc setup_check_user_permissions {} {
-   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM
    global check_use_installed_system 
+   global ts_config
 
    if {$check_use_installed_system} {
       return
@@ -1036,10 +1033,10 @@ proc setup_check_user_permissions {} {
 
 
 proc setup_check_messages_files {} {
-   global ts_config
    global CHECK_OUTPUT
    global CHECK_USER
    global check_use_installed_system 
+   global ts_config
 
    if {$check_use_installed_system} {
       return
@@ -1108,9 +1105,9 @@ proc setup_check_messages_files {} {
 #     ???/???
 #*******************************
 proc setup_inhouse_cluster {} {
-   global ts_config
-   global CHECK_ARCH env CHECK_USER
+   global env CHECK_USER
    global CHECK_OUTPUT
+   global ts_config
 
    # reset_schedd_config has global error reporting
    if {[lsearch -exact [info procs] "inhouse_cluster_post_install"] != -1} {
@@ -1140,8 +1137,9 @@ proc setup_inhouse_cluster {} {
 #     init_cluster/setup_win_user()
 #*******************************************************************************
 proc setup_win_users {} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global ts_config
 
    if {[host_conf_have_windows]} {
       set win_users "$CHECK_USER Administrator $CHECK_FIRST_FOREIGN_SYSTEM_USER $CHECK_SECOND_FOREIGN_SYSTEM_USER"
@@ -1173,8 +1171,9 @@ proc setup_win_users {} {
 #     check/set_root_passwd()
 #*******************************************************************************
 proc setup_win_user_passwd {user} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_USER CHECK_DEBUG_LEVEL
+   global ts_config
 
    puts -nonewline $CHECK_OUTPUT "setting sgepasswd of user $user ..."
    
@@ -1227,8 +1226,10 @@ proc setup_win_user_passwd {user} {
 }
 
 proc cleanup_tmpdirs {} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
+
+   global ts_config
 
    set tmpdir "/tmp/testsuite_$ts_config(commd_port)"
 

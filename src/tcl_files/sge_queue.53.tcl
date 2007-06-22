@@ -53,7 +53,7 @@ proc get_queue_instance {queue host} {
 #     sge_procedures/queue/set_queue_defaults()
 #*******************************************************************************
 proc vdep_set_queue_defaults { change_array } {
-   global ts_config
+   get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
    set chgar(hostname)             "hostname"
@@ -80,8 +80,7 @@ proc vdep_set_queue_defaults { change_array } {
 #
 #*******************************************************************************
 proc validate_queue { change_array } {
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
    # create cluster dependent tmpdir
@@ -111,8 +110,8 @@ proc validate_queue { change_array } {
 #
 #*******************************************************************************
 proc add_queue { qname hostlist change_array {fast_add 1} } {
-   global ts_config
-   global CHECK_ARCH CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -141,14 +140,10 @@ proc add_queue { qname hostlist change_array {fast_add 1} } {
       if { $fast_add } {
          set_queue_defaults default_array
          update_change_array default_array chgar
-
          set tmpfile [dump_array_to_tmpfile default_array]
-
-         set result 0
-         set catch_return [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -Aq ${tmpfile}" } result ]
+         set result [start_sge_bin "qconf" "-Aq ${tmpfile}" $ts_config(master_host)]
          puts $CHECK_OUTPUT $result
-
-         if { [string match "*$ADDED" $result ] == 0 } {
+         if { [string match "*$ADDED*" $result ] == 0 } {
             add_proc_error "add_queue" "-1" "qconf error or binary not found"
             set result -1
             break
@@ -156,22 +151,21 @@ proc add_queue { qname hostlist change_array {fast_add 1} } {
       } else {
          # add by handling vi
          set vi_commands [build_vi_command chgar]
-
-         set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aq" $vi_commands $ADDED $ALREADY_EXISTS ]  
+         set master_arch [resolve_arch $ts_config(master_host)]
+         set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-aq" $vi_commands $ADDED $ALREADY_EXISTS ]  
          if { $result != 0 } {
             add_proc_error "add_queue" -1 "could not add queue $chgar(qname) (error: $result)"
             break
          }
       }
    }
-
    return $result
 }
 
 # set_queue_work - no public interface
 proc set_queue_work { qname change_array } {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -182,7 +176,8 @@ proc set_queue_work { qname change_array } {
    set QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
    set NOT_A_QUEUENAME [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_XISNOTAQUEUENAME_S] $qname ]
    set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" $qname $QUEUE ]
-   set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mq ${qname}" $vi_commands $MODIFIED $NOT_A_QUEUENAME]
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mq ${qname}" $vi_commands $MODIFIED $NOT_A_QUEUENAME]
    if { $result == -2 } {
       add_proc_error "set_queue" -1 "$qname is not a queue"
    }
@@ -216,8 +211,8 @@ proc set_queue_work { qname change_array } {
 #
 #*******************************************************************************
 proc set_queue { qname hostlist change_array } {
-   global ts_config
-   global CHECK_ARCH CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -243,8 +238,8 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
 }
 
 proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
-  global ts_config
-  global CHECK_ARCH CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT
+  global CHECK_USER CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
 
    # we just get one queue name (queue instance)
    set queue_list {}
@@ -261,32 +256,26 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
    }
 
    foreach queue $queue_list {
-      set result ""
-      set catch_return [ catch {  
-         eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -dq ${queue}" 
-      } result ]
-
-      set QUEUE [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
-      set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $queue $QUEUE ]
-
-      if { [string match "*$REMOVED" $result ] == 0 } {
+      set result [start_sge_bin "qconf" "-dq ${queue}"]
+      set QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
+      set REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $queue $QUEUE ]
+      if { [string match "*$REMOVED*" $result ] == 0 } {
          add_proc_error "del_queue" "-1" "could not delete queue $queue: (error: $result)"
          return -1
       } 
   }
-
   return 0
 }
 
 proc get_queue_list {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    set NO_QUEUE_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "queue"]
 
    # try to get queue list
-   if { [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sql" } result] != 0 } {
-      # if command fails: output error
+   set result [start_sge_bin "qconf" "-sql"]
+   if { $prg_exit_state != 0} {
       add_proc_error "get_queue_list" -1 "error reading queue list: $result"
       set result {}
    } else {
@@ -296,7 +285,6 @@ proc get_queue_list {} {
          set result {}
       }
    }
-
    return $result
 }
 

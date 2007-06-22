@@ -83,15 +83,14 @@ proc issue_360_init_level {} {
 
 proc issue_360_setup  {} {
    global CHECK_OUTPUT 
-   global CHECK_CORE_MASTER
 }
 
 
 proc issue_360_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
 }
 
 proc issue_360_cleanup  {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_CORE_MASTER
+   global CHECK_OUTPUT
 }
 

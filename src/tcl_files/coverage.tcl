@@ -251,8 +251,7 @@ proc coverage_analyis {} {
 #     /tmp/insure/<qmaster commd port number>.
 #*******************************************************************************
 proc insure_get_local_basedir {} {
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    return "/tmp/insure/$ts_config(commd_port)"
 }
 
@@ -273,8 +272,10 @@ proc insure_get_local_basedir {} {
 #     coverage/coverage_initialize()
 #*******************************************************************************
 proc insure_initialize {{clean 0}} {
-   global ts_config CHECK_OUTPUT
-   global CHECK_COVERAGE_DIR CHECK_HOST
+   global CHECK_OUTPUT
+   global CHECK_COVERAGE_DIR
+
+   get_current_cluster_config_array ts_config
 
    if { [have_root_passwd] == -1 } {
       puts $CHECK_OUTPUT "need root access ..."
@@ -339,8 +340,10 @@ proc insure_initialize {{clean 0}} {
 }
 
 proc insure_join_dirs {} {
-   global ts_config CHECK_OUTPUT
-   global CHECK_COVERAGE_DIR CHECK_HOST
+   global CHECK_OUTPUT
+   global CHECK_COVERAGE_DIR
+
+   get_current_cluster_config_array ts_config
 
    if { [have_root_passwd] == -1 } {
       puts $CHECK_OUTPUT "need root access ..."
@@ -386,8 +389,7 @@ proc insure_compute_coverage {} {
 #     /tmp/tcov<qmaster commd port number>.
 #*******************************************************************************
 proc tcov_get_local_basedir {} {
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    return "/tmp/tcov/$ts_config(commd_port)"
 }
 
@@ -409,9 +411,12 @@ proc tcov_get_local_basedir {} {
 #     coverage/tcov_per_process_setup()
 #*******************************************************************************
 proc tcov_initialize {{clean 0}} {
-   global ts_config CHECK_OUTPUT
-   global CHECK_COVERAGE_DIR CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT
+   global CHECK_COVERAGE_DIR CHECK_USER
    global env
+   get_current_cluster_config_array ts_config
+
+   set local_host [gethostname]
 
    if { [have_root_passwd] == -1 } {
       puts $CHECK_OUTPUT "need root access ..."
@@ -431,7 +436,7 @@ proc tcov_initialize {{clean 0}} {
 
    # setup the environment to use the profile directory
    # for processes started directly by expect (eval exec)
-   tcov_per_process_setup $CHECK_HOST $CHECK_USER env
+   tcov_per_process_setup $local_host $CHECK_USER env
 }
 
 #****** coverage/tcov_per_process_setup() **********************************
@@ -485,8 +490,9 @@ proc tcov_per_process_setup {host user env_var} {
 #     coverage/coverage_join_dirs()
 #*******************************************************************************
 proc tcov_join_dirs {} {
-   global ts_config CHECK_OUTPUT
-   global CHECK_COVERAGE_DIR CHECK_HOST
+   global CHECK_OUTPUT
+   global CHECK_COVERAGE_DIR
+   get_current_cluster_config_array ts_config
 
    if { [have_root_passwd] == -1 } {
       puts $CHECK_OUTPUT "need root access ..."
@@ -690,8 +696,8 @@ proc tcov_dump_coverage {dirname} {
 #     code file.
 #*******************************************************************************
 proc tcov_compute_coverage {} {
-   global ts_config
    global CHECK_OUTPUT CHECK_PROTOCOL_DIR
+   get_current_cluster_config_array ts_config
 
    cd $ts_config(source_dir)
 
@@ -825,11 +831,12 @@ proc tcov_recursive_coverage {node subdirs_var files_var result_var} {
 #     result_var - name of TCL array to store the coverage information
 #*******************************************************************************
 proc tcov_call_tcov {file result_var} {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global CHECK_COVERAGE CHECK_COVERAGE_DIR CHECK_PROTOCOL_DIR
 
    upvar $result_var result
 
+   set local_host [gethostname]
    set result($file,error) 0
    set result($file,blocks) 0
    set result($file,blocks_executed) 0
@@ -844,7 +851,7 @@ proc tcov_call_tcov {file result_var} {
       file delete $tcovfile
    }
    set CHECK_COVERAGE "none"
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "tcov" "-x $profile -o $tcovfile $file"]
+   set output [start_remote_prog $local_host $CHECK_USER "tcov" "-x $profile -o $tcovfile $file"]
    set CHECK_COVERAGE "tcov"
    if {$prg_exit_state == 0} {
       puts -nonewline $CHECK_OUTPUT "+" ; flush $CHECK_OUTPUT

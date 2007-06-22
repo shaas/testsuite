@@ -72,18 +72,16 @@ proc backup_restore_setup {} {
    global ts_config
    global CHECK_OUTPUT 
    global CHECK_USER
-   global CHECK_PRODUCT_ROOT
-   global CHECK_CORE_MASTER
 
    set spooling_method $ts_config(spooling_method)
-   set master_spool_dir [get_spool_dir $CHECK_CORE_MASTER qmaster]
+   set master_spool_dir [get_spool_dir $ts_config(master_host) qmaster]
    if {$spooling_method == "berkeleydb" && $ts_config(bdb_server) != "none"} {
       puts $CHECK_OUTPUT "\nberkeleydb rpc spooling detected"
       set remote_host $ts_config(bdb_server)
       set spool_dir [get_bdb_spooldir $remote_host]
    } else {
       set remote_host "$ts_config(master_host)"
-      set spool_dir [get_spool_dir $CHECK_CORE_MASTER spooldb]
+      set spool_dir [get_spool_dir $ts_config(master_host) spooldb]
       if { $spooling_method == "classic" } {
          puts $CHECK_OUTPUT "\n classic spooling detected"
       } else {
@@ -277,17 +275,17 @@ proc backup_restore_setup {} {
 }
 
 proc backup_restore_cleanup {} {
-   global CHECK_USER ts_config CHECK_OUTPUT CHECK_CORE_MASTER
+   global CHECK_USER ts_config CHECK_OUTPUT
 
    set spooling_method $ts_config(spooling_method)
-   set master_spool_dir [get_spool_dir $CHECK_CORE_MASTER qmaster]
+   set master_spool_dir [get_spool_dir $ts_config(master_host) qmaster]
    if { $spooling_method == "berkeleydb" && $ts_config(bdb_server) != "none" } {
       puts $CHECK_OUTPUT "\nberkeleydb rpc spooling detected"
       set remote_host "$ts_config(bdb_server)"
       set spool_dir "$ts_config(bdb_dir)"
    } else {
       set remote_host "$ts_config(master_host)"
-      set spool_dir [get_spool_dir $CHECK_CORE_MASTER spooldb]
+      set spool_dir [get_spool_dir $ts_config(master_host) spooldb]
       if { $spooling_method == "classic" } {
          puts $CHECK_OUTPUT "\n classic spooling detected"
       } else {
@@ -299,7 +297,7 @@ proc backup_restore_cleanup {} {
 
    if { $result != 0 } {
        
-       set master_spool_dir [get_spool_dir $CHECK_CORE_MASTER qmaster]
+       set master_spool_dir [get_spool_dir $ts_config(master_host) qmaster]
 
        shutdown_core_system
        puts $CHECK_OUTPUT [ start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $ts_config(product_root)/$ts_config(cell)" ]

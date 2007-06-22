@@ -64,14 +64,14 @@ proc issue_1780_init_level {} {
 }
 
 proc issue_1780_run  {} {
-   global ts_config CHECK_ARCH CHECK_OUTPUT CHECK_USER CHECK_HOST
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    set tmp_file [get_tmp_file_name]
    set arch [resolve_arch $ts_config(master_host)]
 
 
    puts $CHECK_OUTPUT "retrieving hosts via ypcat"
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "ypcat" "hosts" result]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "ypcat" "hosts" result]
    if {$result != 0} {
       add_proc_error "issue_1780_run" -3 "couldn't call ypcat - skipping this test:\n$output"
       return

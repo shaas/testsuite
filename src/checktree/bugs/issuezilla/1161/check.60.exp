@@ -65,7 +65,7 @@ proc issue_1161_init_level {} {
 }
 
 proc issue_1161_run {} {
-   global ts_config CHECK_ARCH
+   global ts_config
 
    set vi_commands ""
    lappend vi_commands "A\ncomplex1161[format "%c" 27]"
@@ -74,5 +74,6 @@ proc issue_1161_run {} {
    set INVALID [translate_macro MSG_SGETEXT_UNKNOWN_ATTR_TYPE_U 0]
 
    # add by handling vi
-   handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc" $vi_commands $INVALID
+   set master_arch [resolve_arch $ts_config(master_host)]
+   handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$master_arch/qconf -mc" $vi_commands $INVALID
 }

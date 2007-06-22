@@ -75,7 +75,6 @@ proc ts_source {filebase {extension tcl}} {
       # read a version independent file first, then the version dependent
       set version $ts_config(gridengine_version)
       set filename "${filebase}.${extension}"
-
       if {[file exists $filename]} {
          debug_puts "reading file $filename"
          set time_now [timestamp]
@@ -136,22 +135,23 @@ proc ts_source {filebase {extension tcl}} {
 #     ???/???
 #*******************************
 proc get_version_info {} {
-   global ts_config
    global sge_config
-   global CHECK_PRODUCT_VERSION_NUMBER CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_PRODUCT_VERSION_NUMBER
    global CHECK_PRODUCT_TYPE CHECK_OUTPUT
 
-   if { [info exists CHECK_PRODUCT_ROOT] != 1 } {
+   get_current_cluster_config_array ts_config
+
+
+   if { [info exists ts_config(product_root)] != 1 } {
       set CHECK_PRODUCT_VERSION_NUMBER "system not running"
       return $CHECK_PRODUCT_VERSION_NUMBER
    }
-   
-   if { [file isfile "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf"] } {
-      set qmaster_running [ catch { 
-         eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf -sh" 
-      } result ]
-
-      catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-help" } result
+ 
+   set master_arch [resolve_arch $ts_config(master_host)]  
+   if { [file isfile "$ts_config(product_root)/bin/$master_arch/qconf"] } {
+      set result [start_sge_bin "qconf" "-sh"]
+      set qmaster_running $prg_exit_state
+      set result [start_sge_bin "qconf" "-help"]
       set help [ split $result "\n" ] 
       if { ([ string first "fopen" [ lindex $help 0] ] >= 0)        || 
            ([ string first "error" [ lindex $help 0] ] >= 0)        || 
@@ -167,8 +167,8 @@ proc get_version_info {} {
          if {$ts_config(gridengine_version) == 53} {
             # SGE(EE) 5.x: we have a product mode file
             set product_mode "unknown"
-            if { [file isfile $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/product_mode ] == 1 } {
-               set product_mode_file [ open $CHECK_PRODUCT_ROOT/$ts_config(cell)/common/product_mode "r" ]
+            if { [file isfile $ts_config(product_root)/$ts_config(cell)/common/product_mode ] == 1 } {
+               set product_mode_file [ open $ts_config(product_root)/$ts_config(cell)/common/product_mode "r" ]
                gets $product_mode_file product_mode
                close $product_mode_file
             } else {
@@ -192,7 +192,7 @@ proc get_version_info {} {
                 if { [ string first "sgeee" $product_mode ] < 0 } {
                     puts $CHECK_OUTPUT "get_version_info - no sgeee system"
                     puts $CHECK_OUTPUT "please remove the file"
-                    puts $CHECK_OUTPUT "\n$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/product_mode"
+                    puts $CHECK_OUTPUT "\n$ts_config(product_root)/$ts_config(cell)/common/product_mode"
                     puts $CHECK_OUTPUT "\nif you want to install a new sge system"
                     puts $CHECK_OUTPUT "testsuite setup error - stop"
                     exit -1

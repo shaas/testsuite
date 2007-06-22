@@ -126,15 +126,15 @@ proc exec_compile_clean_hooks { compile_hosts a_report } {
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
       for {set ii 0} {[info exists ts_checktree($i,compile_clean_hooks_${ii})]} {incr ii 1} {
          
-         set compile_proc $ts_checktree($i,compile_clean_hooks_${ii})
+         set compile_clean_proc $ts_checktree($i,compile_clean_hooks_${ii})
          
-         if { [info procs $compile_proc ] != $compile_proc } {
+         if { [info procs $compile_clean_proc ] != $compile_clean_proc } {
             report_add_message report "Can not execute compile_clean hook ${ii} of checktree $ts_checktree($i,dir_name), compile proc not found"
             return -1
          } else {
-            set res [$compile_proc $compile_hosts report]
+            set res [$compile_clean_proc $compile_hosts report]
             if { $res != 0 } {
-               report_add_message report "compile_clean hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $compile_proc returned $res\n"
+               report_add_message report "compile_clean hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $compile_clean_proc returned $res\n"
                incr error_count
             }
          }

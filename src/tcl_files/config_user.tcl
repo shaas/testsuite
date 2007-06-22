@@ -108,7 +108,7 @@ if {![info exists ts_user_config]} {
 #
 #*******************************************************************************
 proc user_config_first_foreign_user { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_USER
    global fast_setup
@@ -121,6 +121,12 @@ proc user_config_first_foreign_user { only_check name config_array } {
    set value $actual_value
    if { $actual_value == "" } {
       set value $default_value
+   }
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
    }
 
    if { $only_check == 0 } {
@@ -152,7 +158,7 @@ proc user_config_first_foreign_user { only_check name config_array } {
          }
       }
       
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $local_host $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "id $value returns error. User $value not existing?"
          return -1
@@ -187,7 +193,7 @@ proc user_config_first_foreign_user { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_second_foreign_user { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global fast_setup
@@ -200,6 +206,12 @@ proc user_config_second_foreign_user { only_check name config_array } {
    set value $actual_value
    if { $actual_value == "" } {
       set value $default_value
+   }
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
    }
 
    if { $only_check == 0 } {
@@ -230,7 +242,7 @@ proc user_config_second_foreign_user { only_check name config_array } {
             return -1
          }
       }
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $local_host $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "id $value returns error. User $value not existing?"
          return -1
@@ -264,7 +276,7 @@ proc user_config_second_foreign_user { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_first_foreign_group { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP
    global fast_setup
@@ -279,6 +291,14 @@ proc user_config_first_foreign_group { only_check name config_array } {
    if { $actual_value == "" } {
       set value $default_value
    }
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
+
+   
 
    if { $only_check == 0 } {
       # do setup
@@ -330,14 +350,14 @@ proc user_config_first_foreign_group { only_check name config_array } {
       set group1 [lindex $value 0]
       set group2 [lindex $value 1]
       
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $local_host $CHECK_USER "id" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
       debug_puts $result
       if { [string first $group1 $result ] < 0 } {
          puts $CHECK_OUTPUT "first testsuite user ($CHECK_FIRST_FOREIGN_SYSTEM_USER) has not \"$group1\" as main group"
          return -1
       }
 
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "groups" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $local_host $CHECK_USER "groups" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
       debug_puts $result
       if { $prg_exit_state == 0 } {
          if { [string first $group2 $result] < 0 } { 
@@ -383,7 +403,7 @@ proc user_config_first_foreign_group { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_second_foreign_group { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_GROUP CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP do_nomain
    global fast_setup
@@ -398,6 +418,13 @@ proc user_config_second_foreign_group { only_check name config_array } {
    if { $actual_value == "" } {
       set value $default_value
    }
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
+
 
    if { $only_check == 0 } {
       # do setup
@@ -430,7 +457,7 @@ proc user_config_second_foreign_group { only_check name config_array } {
          }
       }
 
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "id" "$CHECK_SECOND_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $local_host $CHECK_USER "id" "$CHECK_SECOND_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
       debug_puts $result
       if { [string first $value $result ] < 0 && $do_nomain == 0 } {
          puts $CHECK_OUTPUT "second testsuite user ($CHECK_SECOND_FOREIGN_SYSTEM_USER) has not \"$value\" as main group"
@@ -474,7 +501,7 @@ proc user_config_second_foreign_group { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_userlist { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
    global CHECK_REMOTE_ENVIRONMENT
    
    upvar $config_array config
@@ -647,7 +674,7 @@ proc user_config_userlist_add_user { array_name { have_user "" } } {
 proc user_config_userlist_edit_user { array_name { has_user "" } } {
    global CHECK_OUTPUT
    upvar $array_name config
-   global CHECK_USER CHECK_HOST
+   global CHECK_USER
    global CHECK_REMOTE_ENVIRONMENT
 
    set goto 0
@@ -655,6 +682,8 @@ proc user_config_userlist_edit_user { array_name { has_user "" } } {
    if { $has_user != "" } {
       set goto $has_user
    } 
+
+   set local_host [gethostname]
 
    while { 1 } {
 
@@ -743,7 +772,7 @@ proc user_config_userlist_edit_user { array_name { has_user "" } } {
          puts -nonewline $CHECK_OUTPUT "\nPlease enter new $input value: "
          set value [ wait_for_enter 1 ]
          set CHECK_REMOTE_ENVIRONMENT $value
-         set back [ set_users_environment $CHECK_HOST]
+         set back [ set_users_environment $local_host]
          if { $back == 0 } {
             set config($user,$input) $value
          }

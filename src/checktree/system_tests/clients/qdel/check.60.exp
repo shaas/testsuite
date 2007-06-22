@@ -73,29 +73,28 @@ lappend check_functions "qdel_delete_by_job_wildcard"            ;# Add another 
 #*******************************
 proc delete_by_job_name { { delete_name "test_job" } { testjob_count "10" } } {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_PRODUCT_ROOT queue hold_state pending_state
-   global CHECK_ARCH CHECK_HOST
+   global queue hold_state pending_state
    global queue actual_host
 
    set hostname [lindex $ts_config(execd_nodes) 0]
    set arch [resolve_arch $hostname]
 
-   set qdel_program "$CHECK_PRODUCT_ROOT/bin/$arch/qdel"
-   set qstat_program "$CHECK_PRODUCT_ROOT/bin/$arch/qstat"
+   set qdel_program "$ts_config(product_root)/bin/$arch/qdel"
+   set qstat_program "$ts_config(product_root)/bin/$arch/qstat"
 
    # submit jobs to delete
    set job_args "-o /dev/null -e /dev/null"
 
    # submit jobs with name "test_job" 
    for {set count7 1} {$count7 <= $testjob_count} {incr count7 +1} {
-      set job_id7 [ submit_job "$job_args -N test_job $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3000"  ] 
+      set job_id7 [ submit_job "$job_args -N test_job $ts_config(product_root)/examples/jobs/sleeper.sh 3000"  ] 
    }
    #puts $CHECK_OUTPUT "qsub_result = $job_id7"
 
    # submit jobs with name "test_do_not_delete"
   
    for {set count8 1} {$count8 <= $testjob_count} {incr count8 +1} {
-      set job_id8 [ submit_job "$job_args -N test_do_not_delete $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3000"  ] 
+      set job_id8 [ submit_job "$job_args -N test_do_not_delete $ts_config(product_root)/examples/jobs/sleeper.sh 3000"  ] 
    }
 
    # Now delete the jobs with name "$delete_name"

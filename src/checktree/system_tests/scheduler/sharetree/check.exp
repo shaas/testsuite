@@ -294,9 +294,6 @@ proc share_tree_setup  {} {
    global ts_config
    global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE
-   global CHECK_ARCH
-   global CHECK_PRODUCT_ROOT
-   global CHECK_HOST 
    global sharetree_stored_configuration test_queue test_host
 
    if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] != 0} {
@@ -342,10 +339,11 @@ proc share_tree_setup  {} {
 
    del_sharetree
  
-   set CHANGED_SHARETREE [translate $CHECK_HOST 1 0 0 [sge_macro MSG_TREE_CHANGEDSHARETREE]]
-   set CAN_T_READ [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QCONF_CANTREADSHARETREEX_S] "*"]
+   set CHANGED_SHARETREE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_TREE_CHANGEDSHARETREE]]
+   set CAN_T_READ [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_CANTREADSHARETREEX_S] "*"]
 
-   set result [ handle_vi_edit "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-astree" $vi_commands $CHANGED_SHARETREE $CAN_T_READ ]  
+   set qmaster_arch [resolve_arch $ts_config(master_host)]
+   set result [ handle_vi_edit "$ts_config(product_root)/bin/$qmaster_arch/qconf" "-astree" $vi_commands $CHANGED_SHARETREE $CAN_T_READ ]  
    if { $result != 0 } {
       add_proc_error "share_tree_setup" -1 "could not add sharetree (error: $result)"
    }
@@ -382,9 +380,7 @@ proc get_project_member { prj1 prj2 prj3 job_id } {
 
 proc share_tree_test {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT
    global CHECK_PRODUCT_TYPE 
-   global CHECK_ARCH
    global share_tree_job_counter CHECK_PROTOCOL_DIR
    global share_tree_percentage_variation
    global prj1_id_list prj2_id_list prj3_id_list
@@ -499,7 +495,7 @@ proc share_tree_test {} {
          continue
       }
 
-      set catch_return [ catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat -s r" } result ]
+      set result [start_sge_bin "qstat" "-s r"]
       set rjobout [split $result "\n"]
       set running_jobs [llength $rjobout]
       if { $running_jobs > 0 } {
@@ -580,8 +576,6 @@ proc share_tree_cleanup  {} {
    global ts_config
    global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE 
-   global CHECK_ARCH 
-   global CHECK_PRODUCT_ROOT
    global prj1_id_list prj2_id_list prj3_id_list
    global sharetree_stored_configuration test_host
 

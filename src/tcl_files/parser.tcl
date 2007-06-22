@@ -1226,7 +1226,7 @@ proc rule_max { a b } {
 #***************************************************************************
 #
 proc parse_qstat {input output {jobid ""} {ext 0} {do_replace_NA 1 } } {
-   global ts_config
+   get_current_cluster_config_array ts_config
    upvar $input  in
    upvar $output out
 
@@ -1513,7 +1513,7 @@ proc parse_qconf_se { input output hostname } {
    upvar $input  in
    upvar $output out
  
-    process_named_record in out "no_delemiter___" 
+   process_named_record in out "no_delemiter___" 
 }
 
 #                                                             max. column:     |
@@ -1739,9 +1739,10 @@ proc qstat_urg_plain_parse { output  } {
 #*******************************
 
 proc qstat_f_urg_plain_parse { output {param ""} } {
-   global  CHECK_OUTPUT ts_config 
+   global  CHECK_OUTPUT 
 
    upvar $output qstat_output
+   get_current_cluster_config_array ts_config
 
    set qstat_output(jobid_list) ""
    
@@ -2373,9 +2374,10 @@ proc qstat_r_plain_parse { output  } {
 #*******************************
 
 proc qstat_f_r_plain_parse { output } {
-   global CHECK_OUTPUT jobid ts_config
+   global CHECK_OUTPUT jobid
 
    upvar $output qstat_output
+   get_current_cluster_config_array ts_config
 
    set qstat_output(jobid_list) ""
    
@@ -2525,9 +2527,10 @@ proc qstat_f_r_plain_parse { output } {
 #*******************************
 
 proc qstat_f_plain_parse { output {param ""} } {
-   global CHECK_OUTPUT ts_config   
+   global CHECK_OUTPUT
 
    upvar $output qstat_output
+   get_current_cluster_config_array ts_config
 
    set qstat_output(jobid_list) ""
    
@@ -2632,9 +2635,10 @@ proc qstat_f_plain_parse { output {param ""} } {
 #*******************************
 
 proc qstat_g_c_plain_parse { output  } {
-   global CHECK_OUTPUT ts_config   
+   global CHECK_OUTPUT
 
    upvar $output qstat_output
+   get_current_cluster_config_array ts_config
 
    set qstat_output(queue_list) ""
    
@@ -2763,9 +2767,10 @@ proc qstat_special_parse {input_string } {
 #*******************************
 
 proc qstat_ext_plain_parse { output {param ""} } {
-   global CHECK_OUTPUT ts_config   
+   global CHECK_OUTPUT
 
    upvar $output qstat_output
+   get_current_cluster_config_array ts_config
 
    set qstat_output(jobid_list) ""
    
@@ -2917,9 +2922,10 @@ proc qstat_ext_plain_parse { output {param ""} } {
 #     parser/parse_qstat
 #*******************************
 proc qstat_F_plain_parse {  output {params ""} } {
-   global CHECK_OUTPUT queue_name ts_config
+   global CHECK_OUTPUT queue_name
 
    upvar $output qstat_output
+   get_current_cluster_config_array ts_config
 
    set qstat_output(jobid_list) ""
 
@@ -3231,10 +3237,12 @@ proc test_parse_qstat {jobid opt} {
 #     sge_sharetree/sge_share_mon()
 #*******************************************************************************
 proc parse_csv {output_var input_var delimiter index} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
 
    upvar $output_var out
    upvar $input_var  in
+
+   get_current_cluster_config_array ts_config
 
    if {![info exists in]} {
       add_proc_error "parse_csv" -1 "input variable $input_var does not exist"

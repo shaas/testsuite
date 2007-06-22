@@ -53,7 +53,8 @@
 #    -1 - at least for one host, no compile host is configured
 #*******************************************************************************
 proc compile_check_compile_hosts {host_list} {
-   global ts_config ts_host_config
+   global ts_host_config ts_config
+
 
    # remember already resolved compile archs
    set compile_archs {}
@@ -80,6 +81,7 @@ proc compile_check_compile_hosts {host_list} {
 
    return 0
 }
+
 
 #****** compile/compile_host_list() ********************************************
 #  NAME
@@ -108,12 +110,18 @@ proc compile_check_compile_hosts {host_list} {
 #     compile/compile_search_compile_host()
 #*******************************************************************************
 proc compile_host_list {} {
-   global ts_config ts_host_config
+   global ts_host_config
    global CHECK_OUTPUT
+   global ts_config
   
+   set submit_hosts ""
+   if { $ts_config(submit_only_hosts) != "none" } {
+      set submit_hosts $ts_config(submit_only_hosts)
+   }
+   
    # build host list according to cluster requirements
    set host_list [concat $ts_config(master_host) $ts_config(execd_hosts) \
-                         $ts_config(shadowd_hosts) $ts_config(submit_only_hosts) \
+                         $ts_config(shadowd_hosts) $submit_hosts \
                          $ts_config(bdb_server) \
                          [checktree_get_required_hosts]]
 
@@ -132,7 +140,9 @@ proc compile_host_list {} {
             puts $CHECK_OUTPUT "$filename"
             puts $CHECK_OUTPUT "to compile host list. This cluster will be installed as GE Cell!"
             foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
-               append host_list " $add_config($param)"
+               if { $add_config($param) != "none" } {
+                  append host_list " $add_config($param)"
+               }
             }
          }
       }
@@ -199,7 +209,8 @@ proc compile_host_list {} {
 #     string containing compile options
 #*******************************************************************************
 proc get_compile_options_string { } {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT 
+   global ts_config
 
    set options $ts_config(aimk_compile_options)
 
@@ -301,13 +312,13 @@ proc compile_search_compile_host {arch} {
 #     ???/???
 #*******************************************************************************
 proc compile_source { { do_only_hooks 0} } {
-   global ts_config ts_host_config
-   global CHECK_SOURCE_DIR CHECK_OUTPUT CHECK_SOURCE_HOSTNAME
-   global CHECK_PRODUCT_TYPE CHECK_PRODUCT_ROOT
+   global ts_host_config ts_config
+   global CHECK_OUTPUT
+   global CHECK_PRODUCT_TYPE
    global CHECK_HTML_DIRECTORY
-   global CHECK_DEFAULTS_FILE CHECK_SOURCE_CVS_RELEASE do_not_update check_name
-   global CHECK_DIST_INSTALL_OPTIONS CHECK_JOB_OUTPUT_DIR
-   global CHECK_CORE_EXECD CHECK_PROTOCOL_DIR CHECK_USER CHECK_HOST check_do_clean_compile
+   global CHECK_DEFAULTS_FILE do_not_update check_name
+   global CHECK_JOB_OUTPUT_DIR
+   global CHECK_PROTOCOL_DIR CHECK_USER check_do_clean_compile
 
    # settings for mail
    set check_name "compile_source"
@@ -317,28 +328,34 @@ proc compile_source { { do_only_hooks 0} } {
    } else {
       set NFS_sleep_time 0
    }
-
-   # for additional configurations, we might want to start remote operation
-   # (for independed clusters)
-   if {$ts_config(additional_config) != "none"} {
-      foreach filename $ts_config(additional_config) {
-         set cl_type [get_additional_cluster_type $filename add_config]
-
-         if { $cl_type == "" } {
-            continue
-         }
-         if { $cl_type == "independent" } {
-            puts $CHECK_OUTPUT "Found $cl_type additional cluster, starting remote compile ..."
-            operate_add_cluster $filename "compile" 3600
-         }
-      }
-   }
-
    array set report {}
    report_create "Compiling source" report
    
    report_write_html report
-   
+
+
+   # for additional configurations, we might want to start remote operation
+   # (for independed clusters)
+   if { $do_only_hooks == 0 } {
+      if {$ts_config(additional_config) != "none"} {
+         foreach filename $ts_config(additional_config) {
+            set cl_type [get_additional_cluster_type $filename add_config]
+            if { $cl_type == "" } {
+               continue
+            }
+            if { $cl_type == "independent" } {
+               puts $CHECK_OUTPUT "Found $cl_type additional cluster, starting remote compile ..."
+               set task_nr [report_create_task report "build additional $cl_type cluster" $add_config(master_host)]
+               report_task_add_message report $task_nr "------------------------------------------"
+               report_task_add_message report $task_nr "-> starting remote build of additional configuration $filename ..."
+               report_task_add_message report $task_nr "-> see report in $CHECK_HTML_DIRECTORY/$add_config(master_host)/index.html"
+               set error [operate_add_cluster $filename "compile" 3600]
+               report_finish_task report $task_nr $error
+            }
+         }
+      }
+   }
+
    set error_count 0
    set cvs_change_log ""
 
@@ -369,14 +386,14 @@ proc compile_source { { do_only_hooks 0} } {
    set compile_hosts [compile_unify_host_list $compile_hosts]
 
    # check source directory
-   if { ( [ string compare $CHECK_SOURCE_DIR "unknown" ] == 0 ) || ( [ string compare $CHECK_SOURCE_DIR "" ] == 0 ) } {
+   if { ( [ string compare $ts_config(source_dir) "unknown" ] == 0 ) || ( [ string compare $ts_config(source_dir) "" ] == 0 ) } {
       report_add_message report "source directory unknown - check defaults file"
       report_finish report -1 
       return -1
    }
 
    # check compile host
-   if { ( [ string compare $CHECK_SOURCE_HOSTNAME "unknown" ] == 0 ) || ( [ string compare $CHECK_SOURCE_HOSTNAME "" ] == 0  ) } {          
+   if { ( [ string compare $ts_config(source_cvs_hostname) "unknown" ] == 0 ) || ( [ string compare $ts_config(source_cvs_hostname) "" ] == 0  ) } {          
       report_add_message report "host for cvs checkout unknown - check defaults file"
       report_finish report -1
       return -1
@@ -393,14 +410,12 @@ proc compile_source { { do_only_hooks 0} } {
    set compile_arch_list ""
    foreach chost $compile_hosts {
       puts $CHECK_OUTPUT "\n-> checking architecture for host $chost ..."
-      set output [start_remote_prog $chost $CHECK_USER "./aimk" "-no-mk" prg_exit_state 60 0 $CHECK_SOURCE_DIR "" 1 0]
-      puts $CHECK_OUTPUT "return state: $prg_exit_state"
-      if { $prg_exit_state != 0 } {
-         report_add_message report "error starting \"aimk -no-mk\" on host $chost"
+      set output [resolve_build_arch $chost]
+      if { $output == "" } {
+         report_add_message report "error resolving build architecture for host $chost"
          report_finish report -1
          return -1
       }
-      puts $CHECK_OUTPUT "host $chost will build [string trim $output] binaries"
       lappend compile_arch_list $output
    }
 
@@ -550,7 +565,7 @@ proc compile_source { { do_only_hooks 0} } {
    # delete the build_testsuite.properties
    compile_delete_java_properties
 
-   # install to $CHECK_PRODUCT_ROOT
+   # install
    if {$error_count == 0} {
       report_add_message report "Installing binaries ...."
       report_write_html report
@@ -606,7 +621,7 @@ proc compile_source { { do_only_hooks 0} } {
    report_add_message report "${compiled_mail_architectures}\n"
    
    report_add_message report "init_core_system check will install the $CHECK_PRODUCT_TYPE execd at:"
-   foreach elem $CHECK_CORE_EXECD {
+   foreach elem $ts_config(execd_hosts) {
       set host_arch [ resolve_arch $elem ]
       report_add_message report "$elem ($host_arch)"
    }
@@ -662,12 +677,10 @@ proc compile_source { { do_only_hooks 0} } {
 #     ???/???
 #*******************************************************************************
 proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_SOURCE_DIR
-   global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
-   
-   upvar $a_report report
+   global CHECK_OUTPUT CHECK_USER
+   global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR ts_config
 
+   upvar $a_report report
    set my_compile_options [get_compile_options_string]
    if { [string length $aimk_options] > 0 } {
       append my_compile_options " $aimk_options"
@@ -677,9 +690,9 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    array set host_array {}
    
    set cvs_tag "maintrunk"
-   if {[file isfile "${CHECK_SOURCE_DIR}/CVS/Tag"]} {
+   if {[file isfile "${ts_config(source_dir)}/CVS/Tag"]} {
       set cvs_tag "no_tag_dir" 
-      set tag_state [catch {eval exec "cat ${CHECK_SOURCE_DIR}/CVS/Tag"} cvs_tag]
+      set tag_state [catch {eval exec "cat ${ts_config(source_dir)}/CVS/Tag"} cvs_tag]
    }
 
    # we'll pass a build number into aimk to distinguish our binaries
@@ -699,7 +712,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
       puts $CHECK_OUTPUT "-> starting $task_name on host $host ..."
 
       set prog "$ts_config(testsuite_root_dir)/scripts/remotecompile.sh"
-      set par1 "$CHECK_SOURCE_DIR"
+      set par1 "$ts_config(source_dir)"
       set par2 "-DDAILY_BUILD_NUMBER=$build_number $my_compile_options"
 
       # For SGE 6.0, we want to build the drmaa.jar.
@@ -980,7 +993,6 @@ proc get_build_number {} {
 #*******************************************************************************
 proc delete_build_number_object {host build} {
    global ts_config
-
    set arch [resolve_build_arch $host]
    set filename "$ts_config(source_dir)/$arch/sge_feature.o"
 
@@ -1010,7 +1022,7 @@ proc delete_build_number_object {host build} {
 #
 #*******************************************************************************
 proc compile_create_java_properties { compile_hosts } {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER ts_config
 
    if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
@@ -1041,7 +1053,7 @@ proc compile_create_java_properties { compile_hosts } {
 #
 #*******************************************************************************
 proc compile_delete_java_properties {} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT ts_config
 
    if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"

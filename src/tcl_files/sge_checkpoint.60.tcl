@@ -36,8 +36,8 @@
 # settings in all.q
 
 proc unassign_queues_with_ckpt_object { ckpt_obj {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    puts $CHECK_OUTPUT "searching for references in cluster queues ..."
    set queue_list [get_queue_list $on_host $as_user $raise_error]
@@ -54,8 +54,8 @@ proc unassign_queues_with_ckpt_object { ckpt_obj {on_host ""} {as_user ""} {rais
 }
 
 proc assign_queues_with_ckpt_object { qname hostlist ckpt_obj } {
-   global ts_config
-   global CHECK_OUTPUT CHECK_ARCH
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    set queue_list {}
    # if we have no hostlist: change cluster queue
@@ -121,11 +121,10 @@ proc validate_checkpointobj { change_array } {
 #     sge_checkpoint/get_checkpointobj()
 #*******************************************************************************
 proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}  {raise_error 1}} {
- global ts_config
-   global CHECK_ARCH open_spawn_buffer
-   global CHECK_USER CHECK_OUTPUT CHECK_HOST
-
+   global open_spawn_buffer
+   global CHECK_USER CHECK_OUTPUT
    upvar $change_array chgar
+   get_current_cluster_config_array ts_config
 
    validate_checkpointobj chgar
  
@@ -176,8 +175,8 @@ proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}  {r
       set CHCKPT_NOT_IF  [translate_macro MSG_CKPT_XISNOTCHKPINTERFACEDEF_S $ckpt_obj]
 
        # User raise_error to report errors or not
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS "___ABCDEFG___" "___ABCDEFG___" "___ABCDEFG___"  $CHCKPT_NOT_IF $raise_error]
-      #set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS ]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS "___ABCDEFG___" "___ABCDEFG___" "___ABCDEFG___"  $CHCKPT_NOT_IF $raise_error]
     
       if { $result == -1 } { 
          add_proc_error "mod_checkpointobj" -1 "timeout error"  $raise_error

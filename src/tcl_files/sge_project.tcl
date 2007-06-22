@@ -32,7 +32,7 @@
 #___INFO__MARK_END__
 
 proc set_project_defaults {change_array} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
 
    upvar $change_array prj
 
@@ -75,8 +75,8 @@ proc set_project_defaults {change_array} {
 #     sge_procedures/get_sge_error()
 #*******************************************************************************
 proc add_prj {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT
-   global CHECK_ARCH 
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -107,8 +107,8 @@ proc add_prj {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
       }
    } else {
       set vi_commands [build_vi_command chgar]
-
-      set ret [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-aprj" $vi_commands $ADDED $ALREADY_EXISTS]
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set ret [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-aprj" $vi_commands $ADDED $ALREADY_EXISTS]
   
       if {$ret == -1} { add_proc_error "add_prj" -1 "timeout error" $raise_error }
       if {$ret == -2} { add_proc_error "add_prj" -1 "project \"$chgar(name)\" already exists" $raise_error }
@@ -119,13 +119,12 @@ proc add_prj {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
 }
 
 proc get_prj { prj_name change_array } {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
-
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
-  set catch_return [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -sprj ${prj_name}" } result ]
-  if { $catch_return != 0 } {
+  set result [start_sge_bin "qconf" "-sprj ${prj_name}"]
+  if { $prg_exit_state != 0 } {
      add_proc_error "get_prj" "-1" "qconf error: $result"
      return
   }
@@ -180,8 +179,8 @@ proc get_prj { prj_name change_array } {
 #     ???/???
 #*******************************
 proc del_prj { prj_name {raise_error 1} } {
-   global ts_config
    global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    set messages(index) "0"
    set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $prj_name "*"]
@@ -303,10 +302,9 @@ proc get_project_list {{output_var result} {on_host ""} {as_user ""} {raise_erro
 #     sge_procedures/get_qconf_list()
 #*******************************
 proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global ts_config
-
-   global CHECK_ARCH CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_USER
+   global CHECK_OUTPUT
+   global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $change_array old_values
 
@@ -333,9 +331,8 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
       set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
       set NOTULONG [ translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
       set UNKNOWN_ATTRIBUTE [ translate_macro MSG_UNKNOWNATTRIBUTENAME_S "*" ]
-
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mprj $project" $vi_commands $MODIFIED $ALREADY_EXISTS $NOTULONG $UNKNOWN_ATTRIBUTE $NOT_MODIFIED]
-
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mprj $project" $vi_commands $MODIFIED $ALREADY_EXISTS $NOTULONG $UNKNOWN_ATTRIBUTE $NOT_MODIFIED]
       if {$result == -1 } { 
          add_proc_error "mod_project" -1 "timeout error" $raise_error
       } elseif {$result == -2 } { 
@@ -402,7 +399,8 @@ proc mod_project_error {result tmpfile raise_error} {
 }
 
 proc test_project {} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    # test adding projects
    set project(name) "test1"

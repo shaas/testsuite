@@ -79,11 +79,11 @@ proc issue_403_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_403_check {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_HOST CHECK_USER
+   global CHECK_USER
    global ts_config CHECK_OUTPUT
 
    set priority 0
-   set the_command "-h $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 3600"
+   set the_command "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3600"
 
    # submit a job in hold state
    set qsub_arguments "$the_command"
@@ -105,7 +105,7 @@ proc issue_403_check {} {
          # resolve the expected macro
          set macro [sge_macro MSG_JOB_PRIOSET_SSUI]
       }
-      set EXPECTED_MESSAGE [translate $CHECK_HOST 1 0 0 $macro $CHECK_USER "*" $job_id $priority]
+      set EXPECTED_MESSAGE [translate $ts_config(master_host) 1 0 0 $macro $CHECK_USER "*" $job_id $priority]
 
       # do qalter -p -2
       set qalteroutput [start_sge_bin "qalter" "$p_option $job_id"]

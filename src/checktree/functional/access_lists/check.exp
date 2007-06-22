@@ -94,10 +94,9 @@ proc access_lists_setup  {} {
 
    global access_lists_schedd_conf
 
-   global CHECK_OUTPUT CHECK_CORE_MASTER
+   global CHECK_OUTPUT
    global CHECK_FIRST_FOREIGN_SYSTEM_GROUP CHECK_SECOND_FOREIGN_SYSTEM_GROUP
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
-   global CHECK_PRODUCT_ROOT
 
    # setup an own queue - we'll change a lot of config params - better not touch all.q
    set access_lists_queue "access"
@@ -135,11 +134,11 @@ proc access_lists_setup  {} {
 
  
 
-   if { [is_scheduler_alive $CHECK_CORE_MASTER [get_qmaster_spool_dir]] != 1 } {
+   if { [is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1 } {
       add_proc_error "access_lists_setup" -1 "scheduler is not alive"
    }
 
-   set jobargs "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15"  
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15"  
    set id [ submit_job $jobargs ]
    wait_for_jobstart $id "leeper" 60 1 1
    wait_for_jobend $id "leeper" 60 0
@@ -150,7 +149,7 @@ proc access_lists_setup  {} {
 }
 
 proc test_job_run { id_string job_id } {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    set had_error 0
 
@@ -165,7 +164,9 @@ proc test_job_run { id_string job_id } {
    }
 
    if {  $had_error == 1 } {
-      catch {  eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qstat" "-f" } catch_result
+      set master_arch [resolve_arch $ts_config(master_host)]
+      set qstat_command "$ts_config(product_root)/bin/$master_arch/qstat"
+      set catch_result [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_command "-f"]
       puts $CHECK_OUTPUT $catch_result
       add_proc_error "test_job_run" -1 "$id_string, job $job_id should be dispatched:\n$catch_result"
    } 
@@ -174,9 +175,9 @@ proc test_job_run { id_string job_id } {
 }
 
 proc run_user_denied_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT access_lists_host CHECK_USER
+   global CHECK_OUTPUT access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
-   global access_lists_queue
+   global access_lists_queue ts_config
 
    puts $CHECK_OUTPUT "======================="
    puts $CHECK_OUTPUT "id_string is $id_string"
@@ -219,7 +220,8 @@ proc run_user_denied_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
 }
 
 proc check_user_job_info { job_id } {
-   global CHECK_OUTPUT CHECK_HOST CHECK_L10N
+   global CHECK_OUTPUT CHECK_L10N
+   global ts_config
 
    set had_error 0
 
@@ -240,9 +242,9 @@ proc check_user_job_info { job_id } {
       set scheduling_info_text [get_scheduling_info $job_id]
 
       if { $CHECK_L10N == 1 } {
-         set  HASNOPERMISSION [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SCHEDD_INFO_HASNOPERMISSION_SS] "*" "*" ]
-         set  NOACCESSTOPE1   [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOACCESSTOPE] ]
-         set  NOACCESSTOPE2   [translate $CHECK_HOST 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOACCESSTOPE_S] "*" ]
+         set  HASNOPERMISSION [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_HASNOPERMISSION_SS] "*" "*" ]
+         set  NOACCESSTOPE1   [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOACCESSTOPE] ]
+         set  NOACCESSTOPE2   [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOACCESSTOPE_S] "*" ]
 
 
          set match1 [string match "*$HASNOPERMISSION*" $scheduling_info_text ]
@@ -267,7 +269,7 @@ proc check_user_job_info { job_id } {
 }
 
 proc run_user_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT access_lists_host CHECK_USER
+   global ts_config CHECK_OUTPUT access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global access_lists_queue
 
@@ -328,14 +330,14 @@ proc run_user_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
 }
 
 proc access_lists_global_host {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT access_lists_host CHECK_USER
+   global ts_config CHECK_OUTPUT access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP 
    global access_lists_queue access_lists_host
 
    set submit_queue [get_queue_instance $access_lists_queue $access_lists_host]
-   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000" 
+   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 
 
 
    # testing user and group
@@ -452,13 +454,13 @@ proc access_lists_global_host {} {
 }
 
 proc access_lists_exec_host {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT access_lists_host CHECK_USER
+   global ts_config CHECK_OUTPUT access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP access_lists_queue access_lists_host
 
    set submit_queue [get_queue_instance $access_lists_queue $access_lists_host]
-   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
 
    # testing user and group
@@ -572,14 +574,14 @@ proc access_lists_exec_host {} {
 }
 
 proc access_lists_queue {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP
    global access_lists_queue access_lists_host
 
    set submit_queue [get_queue_instance $access_lists_queue $access_lists_host]
-   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
    # testing user and group
    set access_lists "{userA_name userB_name 0} {userA_group userB_group 1}"
@@ -691,13 +693,13 @@ proc access_lists_queue {} {
 }
 
 proc access_lists_cluster_config {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT access_lists_queue CHECK_USER
+   global ts_config CHECK_OUTPUT access_lists_queue CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP access_lists_queue access_lists_host
   
    set submit_queue [get_queue_instance $access_lists_queue $access_lists_host]
-   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"  
+   set jobargs "-o /dev/null -e /dev/null -q $submit_queue $ts_config(product_root)/examples/jobs/sleeper.sh 1000"  
    
    # testing user and group
    set access_lists "{userA_name userB_name 0} {userA_group userB_group 1}"
@@ -810,13 +812,13 @@ proc access_lists_cluster_config {} {
 }
 
 proc access_lists_pe {} {
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global CHECK_GROUP
    global access_lists_queue access_lists_host
 
-   set jobargs "-o /dev/null -e /dev/null -pe access_test_pe 2 $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 1000"
+   set jobargs "-o /dev/null -e /dev/null -pe access_test_pe 2 $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
    set my_pe(pe_name)     "access_test_pe"
    set my_pe(slots)       "8"

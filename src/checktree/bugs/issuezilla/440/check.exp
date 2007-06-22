@@ -274,10 +274,10 @@ proc issue_440_check_qrsh {} {
 }
 
 proc issue_440_cleanup {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_OUTPUT ts_config
 
    # check if system is running normal
-   set command_line "-o /dev/null -e /dev/null $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+   set command_line "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 5"
    set jobid [submit_job $command_line]
    wait_for_jobstart  $jobid "leeper" 60 1 1
    wait_for_jobend $jobid "leeper" 60 0

@@ -66,10 +66,10 @@ lappend check_functions    "qmod_verify"
 proc qmod_verify {} {
    global ts_config
    global CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT CHECK_ARCH test_queue 
+   global test_queue 
   
-   set result [ catch { eval exec "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qmod -verify -s $test_queue" } output ]
-   if {$result != 0} {
+   set output [start_sge_bin "qmod" "-verify -s $test_queue"]
+   if {$prg_exit_state != 0} {
      add_proc_error "qmod_verify" -1 "exit state of \"qmod -verify -s $test_queue\" is not 0"
    }            
    

@@ -120,8 +120,8 @@ proc xauthority_issue_cleanup {} {
 
 
 proc xauthority_issue_test1 {} {
-   global xauthority_issue_test_hosts CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global xauthority_issue_test_hosts
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
    global ts_user_config
 
    if {$CHECK_ACT_LEVEL == 0} {

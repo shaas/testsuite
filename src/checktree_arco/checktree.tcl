@@ -335,18 +335,20 @@ proc arco_get_required_hosts {} {
 #*******************************************************************************
 proc arco_install_binaries { arch_list a_report } {
    
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST
+   global CHECK_OUTPUT CHECK_USER
    global ts_config ts_host_config arco_config
    
    upvar $a_report report
-   set task_nr [ report_create_task report "install_dbwriter_binaries" $CHECK_HOST ]
+
+
+   set task_nr [ report_create_task report "install_dbwriter_binaries" $ts_config(master_host) ]
    
-   set tar $ts_host_config($CHECK_HOST,tar)
+   set tar $ts_host_config($ts_config(master_host),tar)
    set tar_args "xzf $arco_config(arco_source_dir)/dbwriter/dbwriter.tar.gz -C $ts_config(product_root)"
    
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> $tar $tar_args"
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "$tar" "$tar_args" prg_exit_state]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "$tar" "$tar_args" prg_exit_state]
    if { $prg_exit_state != 0 } {
       report_task_add_message report $task_nr "------------------------------------------"
       report_task_add_message report $task_nr "return state: $prg_exit_state"
@@ -358,13 +360,13 @@ proc arco_install_binaries { arch_list a_report } {
    }
    report_finish_task report $task_nr 0
 
-   set task_nr [ report_create_task report "install_reporting_binaries" $CHECK_HOST ]
+   set task_nr [ report_create_task report "install_reporting_binaries" $ts_config(master_host) ]
    
    set tar_args "xzf $arco_config(arco_source_dir)/reporting/reporting.tar.gz -C $ts_config(product_root)"
    
    report_task_add_message report $task_nr "------------------------------------------"
    report_task_add_message report $task_nr "-> $tar $tar_args"
-   set output [start_remote_prog $CHECK_HOST $CHECK_USER "$tar" "$tar_args" prg_exit_state]
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "$tar" "$tar_args" prg_exit_state]
    if { $prg_exit_state != 0 } {
       report_task_add_message report $task_nr "------------------------------------------"
       report_task_add_message report $task_nr "return state: $prg_exit_state"
@@ -417,7 +419,7 @@ proc arco_save_configuration { filename } {
 
 proc arco_init_config { config_array } {
    global arco_config arco_checktree_nr ts_checktree
-   global CHECK_CURRENT_WORKING_DIR CHECK_HOST
+   global CHECK_CURRENT_WORKING_DIR
    
    upvar $config_array config
    # arco_config defaults 
@@ -443,7 +445,7 @@ proc arco_init_config { config_array } {
    set parameter "dbwriter_host"
    set config($parameter)            ""
    set config($parameter,desc)       "Host where dbwriter should run"
-   set config($parameter,default)    "$CHECK_HOST"
+   set config($parameter,default)    "check_host"   ;# config_generic will resolve the host
    set config($parameter,setup_func) "config_$parameter"
    set config($parameter,onchange)   "stop"
    set config($parameter,pos)        $ts_pos
@@ -553,12 +555,11 @@ proc arco_init_config { config_array } {
 }
 
 proc arco_config_upgrade_1_1 { config_array } {
-   
+   global CHECK_OUTPUT   
+
    upvar $config_array config
 
    if { $config(version) == "1.0" } {
-      global CHECK_HOST CHECK_OUTPUT   
-   
       puts $CHECK_OUTPUT "Upgrade to version 1.1"
       # insert new parameter after arco_dbwriter_interval parameter
       set insert_pos $config(arco_dbwriter_interval,pos)
@@ -576,7 +577,7 @@ proc arco_config_upgrade_1_1 { config_array } {
       set parameter "swc_host"
       set config($parameter)            ""
       set config($parameter,desc)       "Java Web Console Host"
-      set config($parameter,default)    "$CHECK_HOST"
+      set config($parameter,default)    "check_host" ;# config_generic will resolve the host
       set config($parameter,setup_func) "config_$parameter"
       set config($parameter,onchange)   "install"
       set config($parameter,pos) $insert_pos
@@ -592,7 +593,6 @@ proc arco_config_upgrade_1_2 { config_array } {
    upvar $config_array config
 
    if { $config(version) == "1.1" } {
-      global CHECK_HOST   
    
       puts $CHECK_OUTPUT "Upgrade to version 1.2"
 
@@ -709,18 +709,16 @@ proc arco_config_upgrade_1_2 { config_array } {
 proc config_generic { only_check name config_array help_text } {
    global CHECK_OUTPUT 
    global CHECK_USER 
-   global CHECK_SOURCE_HOSTNAME
-   global CHECK_HOST
    global fast_setup
 
    upvar $config_array config
    
-#   puts $CHECK_OUTPUT "$name"
-#   foreach name [array names config] {
-#      puts $CHECK_OUTPUT "config($name)=$config($name)"
-#   }
    set actual_value  $config($name)
    set default_value $config($name,default)
+   ;# resolve the host if default is "check_host"
+   if { $default_value == "check_host" } {
+      set default_value [gethostname]
+   }
    set description   $config($name,desc)
    set value $actual_value
    if { $actual_value == "" } {

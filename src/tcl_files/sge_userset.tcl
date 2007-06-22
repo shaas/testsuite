@@ -76,9 +76,8 @@
 #
 #*******************************
 proc add_userset { change_array } {
-   global ts_config
-   global CHECK_ARCH
-   global CHECK_CORE_MASTER CHECK_USER CHECK_HOST CHECK_USER CHECK_OUTPUT
+   global CHECK_USER CHECK_USER CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
    upvar $change_array chgar
    set values [array names chgar]
   
@@ -86,8 +85,8 @@ proc add_userset { change_array } {
      add_proc_error "add_userset" -1 "not possible for sge systems"
      return -3
    }
-   set ADDED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-   set ALREADY_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*"]
+   set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
+   set ALREADY_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*"]
   
  set f_name [get_tmp_file_name]
    set fd [open $f_name "w"]
@@ -106,17 +105,17 @@ proc add_userset { change_array } {
    }
    close $fd
    puts $CHECK_OUTPUT "using file $f_name"
-   set result [start_remote_prog $CHECK_HOST $CHECK_USER "qconf" "-Au $f_name"]
+   set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-Au $f_name"]
    if { $prg_exit_state != 0 } {
      add_proc_error "add_userset" -1 "error running qconf -Au"
    }
    set result [string trim $result]
    puts $CHECK_OUTPUT "\"$result\""
    #     puts $CHECK_OUTPUT "\"$ADDED\""
-   if { [ string match "*$ADDED" $result] } {
+   if { [ string match "*$ADDED*" $result] } {
      return 0
    }
-   if { [ string match "*$ALREADY_EXISTS" $result] } {
+   if { [ string match "*$ALREADY_EXISTS*" $result] } {
      add_proc_error "add_user" -1 "\"[set chgar(name)]\" already exists"
      return -2
    }

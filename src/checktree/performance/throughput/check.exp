@@ -466,8 +466,7 @@ proc throughput_set_share_tree {} {
 
 proc throughput_setup_sharetree {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_HOST
+   global CHECK_OUTPUT
 
    puts $CHECK_OUTPUT "setup sharetree ..."
 
@@ -493,11 +492,12 @@ proc throughput_setup_sharetree {} {
    # delete a possibly existing sharetree
    del_sharetree
  
-   set CHANGED_SHARETREE [translate $CHECK_HOST 1 0 0 [sge_macro MSG_TREE_CHANGEDSHARETREE]]
-   set CAN_T_READ [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QCONF_CANTREADSHARETREEX_S] "*"]
+   set CHANGED_SHARETREE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_TREE_CHANGEDSHARETREE]]
+   set CAN_T_READ [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_CANTREADSHARETREEX_S] "*"]
 
    # create new sharetree
-   set result [ handle_vi_edit "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-astree" $vi_commands $CHANGED_SHARETREE $CAN_T_READ ]  
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-astree" $vi_commands $CHANGED_SHARETREE $CAN_T_READ ]  
    if { $result != 0 } {
       add_proc_error "throughput_setup_sharetree" -1 "could not add sharetree (error: $result)"
    }
@@ -518,7 +518,7 @@ proc throughput_setup_sharetree {} {
 
 proc throughput_cleanup_sharetree {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_OUTPUT
 
    puts $CHECK_OUTPUT "cleanup sharetree ..."
 
@@ -584,7 +584,6 @@ proc throughput_cleanup_functional_policy {} {
 proc throughput_setup {} {
    global ts_config
    global CHECK_OUTPUT
-   global CHECK_SOURCE_DIR
    global nr_queues queue_list host_list submit_hosts nr_slots
    global stored_configuration FLUSH_SUBMIT_SEC FLUSH_FINISH_SEC run_throughput_test_SCHEDULE_INTERVAL
    global global_job_run_time ps_interval
@@ -710,7 +709,7 @@ proc throughput_setup {} {
 proc throughput_cleanup {} {
    global ts_config
    global CHECK_OUTPUT
-   global host_list queue_list CHECK_ARCH  CHECK_PRODUCT_ROOT
+   global host_list queue_list
    global stored_configuration throughput_sharetree functional_policy nr_queues parallel_jobs reservation
 
    # delete all jobs
@@ -775,9 +774,9 @@ proc get_event_client_time { string  } {
 
 proc run_throughput_test {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_OUTPUT
    global queue_list
-   global enable_queues_job_count CHECK_SOURCE_DIR 
+   global enable_queues_job_count
    global end_job_count host_list submit_hosts
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global throughput_sharetree functional_policy
@@ -795,7 +794,7 @@ proc run_throughput_test {} {
 
    # evaluate path to qevent binary
    set up_arch [resolve_build_arch $ts_config(master_host)]
-   set event_client_bin $CHECK_SOURCE_DIR/$up_arch/qevent
+   set event_client_bin $ts_config(source_dir)/$up_arch/qevent
    if { [file isfile $event_client_bin] != 1 } {
       add_proc_error "run_throughput_test" -3 "could not open event client binary: $event_client_bin"
       return -3
@@ -909,7 +908,7 @@ proc run_throughput_test {} {
    foreach host $submit_hosts {
       set expect_bin [get_binary_path $host "expect"]
       puts $CHECK_OUTPUT "starting submitter process on host $host"
-      set id [ open_remote_spawn_process $host $CHECK_USER "$expect_bin" "-f $ts_config(testsuite_root_dir)/scripts/submitter.tcl $ts_config(product_root) $host" ]
+      set id [ open_remote_spawn_process $host "ts_def_con3" "$expect_bin" "-f $ts_config(testsuite_root_dir)/scripts/submitter.tcl $ts_config(product_root) $host" ]
       set spawn_id [lindex $id 1]
       lappend spawn_list $spawn_id
       lappend remote_spawn_list $id

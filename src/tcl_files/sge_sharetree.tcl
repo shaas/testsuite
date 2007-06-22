@@ -912,8 +912,9 @@ proc stree_buffer_dump {stree_var} {
 #     sge_sharetree/stree_buffer_dump()
 #*******************************************************************************
 proc test_stree_buffer {} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    # make sure, CHECK_USER has been created
    submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh"
@@ -1022,7 +1023,8 @@ proc test_stree_buffer {} {
 #     parser/parse_csv()
 #*******************************************************************************
 proc sge_share_mon {output_var {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    upvar $output_var out
 

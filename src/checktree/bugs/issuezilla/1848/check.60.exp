@@ -147,8 +147,6 @@ proc issue_1848_run {} {
    global ts_config
    global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE 
-   global CHECK_ARCH 
-   global CHECK_PRODUCT_ROOT
 
    # tail -f to qmaster messages file
    puts $CHECK_OUTPUT "tail -f to qmaster messages file"

@@ -54,7 +54,7 @@ set sqlutil_errors {}
 #
 #  EXAMPLE
 #
-#  set id [open_remote_spawn_process $CHECK_HOST $CHECK_USER  "ls" ]
+#  set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER  "ls" ]
 #  set sp_id [ lindex $id 1 ]
 #
 #  set timeout 30
@@ -164,15 +164,17 @@ proc get_sqlutil_classpath {} {
 #     ???/???
 #*******************************************************************************
 proc sqlutil_create { { user "" } } {
-   global ts_host_config arco_config CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_HOST
+   global ts_host_config arco_config CHECK_DEBUG_LEVEL CHECK_OUTPUT
    global CHECK_USER
    
    if { $user == "" } {
       set user $CHECK_USER
    }
+   set java_build_host [host_conf_get_java_compile_host]
+   puts $CHECK_OUTPUT "java build host is \"$java_build_host\""
    
 # TODO - change the method for getting java   
-   set cmd [get_binary_path $CHECK_HOST "java14"]
+   set cmd [get_binary_path $java_build_host "java14"]
    set args "com.sun.grid.util.SQLUtil"
 
    set sql_utilenv(CLASSPATH) [get_sqlutil_classpath]
@@ -183,7 +185,7 @@ proc sqlutil_create { { user "" } } {
       log_user 1
    }
    
-   set id [open_remote_spawn_process $CHECK_HOST $user "$cmd" "$args" 0 "" sql_utilenv]
+   set id [open_remote_spawn_process $java_build_host $user "$cmd" "$args" 0 "" sql_utilenv]
    set sp_id [ lindex $id 1 ]
    
    set error_count 0

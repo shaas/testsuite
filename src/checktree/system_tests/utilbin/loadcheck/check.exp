@@ -93,12 +93,12 @@ proc loadcheck_init_level {} {
 #     ???/???
 #*******************************
 proc get_numb_proc { hostname } {
-  global CHECK_PRODUCT_ROOT CHECK_USER
+  global ts_config CHECK_USER
 
   set result ""
   set remote_arch [ resolve_arch $hostname ]
 
-  set result [start_remote_prog $hostname $CHECK_USER "$CHECK_PRODUCT_ROOT/utilbin/$remote_arch/loadcheck" ""]
+  set result [start_remote_prog $hostname $CHECK_USER "$ts_config(product_root)/utilbin/$remote_arch/loadcheck" ""]
    
   # split each line as listelement
   set help [split $result "\n"]

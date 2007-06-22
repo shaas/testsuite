@@ -393,9 +393,9 @@ proc qstat_F_xml_parse { output {params ""} } {
 #*******************************
 
 proc qstat_j_xml_jobid { node1  output} {
-   global CHECK_OUTPUT ts_config
-
+   global CHECK_OUTPUT 
    upvar $output output_xml_qstat
+   get_current_cluster_config_array ts_config
    
    set node121 [$node1 firstChild]  ; # <SME_message_list/>
 

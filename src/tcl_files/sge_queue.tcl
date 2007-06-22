@@ -229,8 +229,7 @@
 #     sge_procedures/enable_queue()
 #*******************************
 proc set_queue_defaults { change_array } {
-   global ts_config
-
+   get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
    set chgar(qname)                "queuename"
@@ -414,14 +413,12 @@ proc set_queue_defaults { change_array } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc get_queue { q_name change_array } {
-  global ts_config
-
-
-  global CHECK_ARCH CHECK_OUTPUT
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
-  set catch_return [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf -sq ${q_name}" } result ]
-  if { $catch_return != 0 } {
+  set result [start_sge_bin "qconf" "-sq ${q_name}"]
+  if { $prg_exit_state != 0 } {
      add_proc_error "get_queue" "-1" "qconf error or binary not found"
      return
   }
@@ -473,20 +470,21 @@ proc get_queue { q_name change_array } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc suspend_queue { qname } {
-  global ts_config
- global CHECK_ARCH CHECK_HOST CHECK_USER
- global CHECK_OUTPUT
+  global CHECK_USER
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   log_user 0 
    if { $ts_config(gridengine_version) == 53 } {
-      set WAS_SUSPENDED [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QUEUE_SUSPENDQ_SSS] "*" "*" "*" ]
+      set WAS_SUSPENDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_SUSPENDQ_SSS] "*" "*" "*" ]
    } else {
-      set WAS_SUSPENDED [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QINSTANCE_SUSPENDED]]
+      set WAS_SUSPENDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QINSTANCE_SUSPENDED]]
    }
 
   
   # spawn process
-  set program "$ts_config(product_root)/bin/$CHECK_ARCH/qmod"
-  set sid [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-s $qname"]
+  set master_arch [resolve_arch $ts_config(master_host)]
+  set program "$ts_config(product_root)/bin/$master_arch/qmod"
+  set sid [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $program "-s $qname"]
   set sp_id [ lindex $sid 1 ]
   set result -1	
 
@@ -550,22 +548,23 @@ proc suspend_queue { qname } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc unsuspend_queue { queue } {
-  global ts_config
-   global CHECK_ARCH CHECK_HOST CHECK_USER
+   global CHECK_USER
    global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
   set timeout 30
   log_user 0 
    
    if { $ts_config(gridengine_version) == 53 } {
-      set UNSUSP_QUEUE [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QUEUE_UNSUSPENDQ_SSS] "*" "*" "*" ]
+      set UNSUSP_QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_UNSUSPENDQ_SSS] "*" "*" "*" ]
    } else {
-      set UNSUSP_QUEUE [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QINSTANCE_NSUSPENDED]]
+      set UNSUSP_QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QINSTANCE_NSUSPENDED]]
    }
 
   # spawn process
-  set program "$ts_config(product_root)/bin/$CHECK_ARCH/qmod"
-  set sid [open_remote_spawn_process $CHECK_HOST $CHECK_USER $program "-us $queue"]
+  set master_arch [resolve_arch $ts_config(master_host)]
+  set program "$ts_config(product_root)/bin/$master_arch/qmod"
+  set sid [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $program "-us $queue"]
   set sp_id [ lindex $sid 1 ]
   set result -1	
   log_user 0 
@@ -627,10 +626,9 @@ proc unsuspend_queue { queue } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc disable_queue { queuelist } {
-  global ts_config
-  global CHECK_ARCH
-  global CHECK_OUTPUT CHECK_HOST CHECK_USER
-  global CHECK_CORE_MASTER CHECK_USER
+  global CHECK_OUTPUT CHECK_USER
+  global CHECK_USER
+  get_current_cluster_config_array ts_config
   
   set return_value ""
   # spawn process
@@ -656,20 +654,21 @@ proc disable_queue { queuelist } {
         incr i -1
      }   
      
-     set result ""
-     set catch_return [ catch { eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qmod -d $queues" } result ]
+     set result [start_sge_bin "qmod" "-d $queues"]
+     puts $CHECK_OUTPUT "do qmod -d $queues ..."
      debug_puts $CHECK_OUTPUT "disable queue(s) $queues"
      set res_split [ split $result "\n" ]   
      foreach elem $res_split {
-        if { [ string first "has been disabled" $result ] >= 0 } {
+        puts $CHECK_OUTPUT "line: $elem"
+        if { [ string first "has been disabled" $elem ] >= 0 } {
            incr nr_disabled 1 
         } else {
            # try to find localized output
            foreach q_name $queues {
               if { $ts_config(gridengine_version) == 53 } {
-                set HAS_DISABLED [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QUEUE_DISABLEQ_SSS] $q_name $CHECK_USER "*" ]
+                set HAS_DISABLED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_DISABLEQ_SSS] $q_name $CHECK_USER "*" ]
               } else {
-                set HAS_DISABLED [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QINSTANCE_DISABLED]]
+                set HAS_DISABLED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QINSTANCE_DISABLED]]
               }
 
               if { [ string match "*${HAS_DISABLED}*" $elem ] } {
@@ -721,9 +720,8 @@ proc disable_queue { queuelist } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc enable_queue { queuelist } {
-  global ts_config
-  global CHECK_ARCH
-  global CHECK_OUTPUT CHECK_HOST CHECK_USER CHECK_CORE_MASTER 
+  global CHECK_OUTPUT CHECK_USER
+  get_current_cluster_config_array ts_config
   
   set return_value ""
   # spawn process
@@ -748,22 +746,23 @@ proc enable_queue { queuelist } {
         }
         incr i -1
      }   
-     set result ""
-     set catch_return [ catch { eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qmod -e $queues" } result ]
+     set result [start_sge_bin "qmod" "-e $queues"]
+     puts $CHECK_OUTPUT "do qmod -e $queues ..."
      debug_puts $CHECK_OUTPUT "enable queue(s) $queues"
      set res_split [ split $result "\n" ]   
      foreach elem $res_split {
-        if { [ string first "has been enabled" $result ] >= 0 } {
+        puts $CHECK_OUTPUT "line: $elem"
+        if { [ string first "has been enabled" $elem ] >= 0 } {
            incr nr_enabled 1 
         } else {
            # try to find localized output
            foreach q_name $queues {
               if { $ts_config(gridengine_version) == 53 } {
-                 set BEEN_ENABLED  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QUEUE_ENABLEQ_SSS] $q_name $CHECK_USER "*" ]
+                 set BEEN_ENABLED  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_ENABLEQ_SSS] $q_name $CHECK_USER "*" ]
               } else {
-                 set BEEN_ENABLED  [translate $CHECK_HOST 1 0 0 [sge_macro MSG_QINSTANCE_NDISABLED]]
+                 set BEEN_ENABLED  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QINSTANCE_NDISABLED]]
               }
-              if { [ string match "*${BEEN_ENABLED}*" $result ] } {
+              if { [ string match "*${BEEN_ENABLED}*" $elem ] } {
                  incr nr_enabled 1
                  break
               } 
@@ -773,7 +772,7 @@ proc enable_queue { queuelist } {
   }    
 
   if { $nr_of_queues != $nr_enabled } {
-     add_proc_error "enable_queue" "-1" "could not enable all queues"
+     add_proc_error "enable_queue" "-1" "could not enable all queues nr. queues: $nr_of_queues, nr_enabled: $nr_enabled"
      return -1
   }
   return 0
@@ -811,17 +810,12 @@ proc enable_queue { queuelist } {
 #
 #*******************************
 proc get_queue_state { queue_name } {
-  global ts_config
-
-  global CHECK_ARCH
+  get_current_cluster_config_array ts_config
 
   # resolve the queue name
   set queue [resolve_queue $queue_name]
-  set catch_return [ catch { 
-     eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat -f -q $queue" 
-  } result ]
-
-  if { $catch_return != 0 } {
+  set result [start_sge_bin "qstat" "-f -q $queue"]
+  if { $prg_exit_state != 0 } {
      add_proc_error "get_queue_state" "-1" "qstat error or binary not found"
      return ""
   }

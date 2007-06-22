@@ -120,7 +120,7 @@ proc tight_integration_init_level {} {
 global submit_command
 
 proc tight_integration_parse_execd_messages {mode} {
-   global CHECK_PRODUCT_ROOT TIGHT_INTEGRATION_MASSIVE_SLOTS
+   global TIGHT_INTEGRATION_MASSIVE_SLOTS
    global ts_config CHECK_OUTPUT CHECK_USER
    global TIGHT_INTEGRATION_ERROR_MESSAGES TIGHT_INTEGRATION_WARNING_MESSAGES
    global tight_master_node
@@ -185,7 +185,7 @@ proc tight_integration_parse_execd_messages {mode} {
 
 
 proc tight_integration_check_messages {mode1 mode2 scenario} {
-   global CHECK_PRODUCT_ROOT TIGHT_INTEGRATION_MASSIVE_SLOTS
+   global TIGHT_INTEGRATION_MASSIVE_SLOTS
    global ts_config CHECK_OUTPUT CHECK_USER
    global TIGHT_INTEGRATION_ERROR_MESSAGES TIGHT_INTEGRATION_WARNING_MESSAGES
 

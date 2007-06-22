@@ -293,7 +293,7 @@ proc deadline_submit_jobs { jobs job_count } {
    
    global ts_config
    global deadline_queue_name deadline_job_name
-   global CHECK_USER CHECK_HOST CHECK_OUTPUT
+   global CHECK_USER CHECK_OUTPUT
     
    upvar $jobs tmp_jobs
    
@@ -327,16 +327,13 @@ proc deadline_submit_jobs { jobs job_count } {
 
 proc deadline_set_slot_count { slot_count } {
 
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST
+   global CHECK_OUTPUT CHECK_USER
    global ts_config
    global deadline_queue_name
    
    # setup the host list
    
    set first 1
-   set qconf_cmd "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf"
-   
    foreach host $ts_config(execd_nodes) {
       if { $first != 0 } {
          set first 0
@@ -344,7 +341,7 @@ proc deadline_set_slot_count { slot_count } {
       } else {
          set qconf_args "-mattr queue slots 0 $deadline_queue_name\@$host"
       }
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "$qconf_cmd" "$qconf_args" exit_state ]
+      set result [ start_sge_bin "qconf" $qconf_args $ts_config(master_host) $CHECK_USER exit_state]
       if { $exit_state != 0 } {
         add_proc_error "deadline_set_slot_count" -1 "qconf -mattr failed ($exit_state) ----\n $result \n -----"
         return -1

@@ -94,7 +94,6 @@ proc path_alias_setup {} {
    global CHECK_OUTPUT CHECK_USER
    global PATH_ALIAS_OUTPUT1
    global PATH_ALIAS_OUTPUT2
-   global CHECK_PRODUCT_ROOT
    global path_alias_test
    global env CHECK_PROTOCOL_DIR
   
@@ -119,7 +118,7 @@ proc path_alias_setup {} {
    set do_it 0
    if { $path_alias_test == 1 } {
       set do_it 1
-      set file_name "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_aliases"
+      set file_name "$ts_config(product_root)/$ts_config(cell)/common/sge_aliases"
    }
 
    if { $path_alias_test == 2 } {
@@ -223,7 +222,6 @@ proc path_alias_main {} {
    global PATH_ALIAS_OUTPUT1
    global PATH_ALIAS_OUTPUT2
    global CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT
    global CHECK_USER
 
 
@@ -231,7 +229,7 @@ proc path_alias_main {} {
    set files2_old [get_file_names $PATH_ALIAS_OUTPUT2]
 
 
-   set job_script "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10"
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 10"
    foreach elem $ts_config(unique_arch_nodes) {
       puts $CHECK_OUTPUT "submitting job(s) for host $elem"
 
@@ -307,7 +305,6 @@ proc path_alias_cleanup {} {
    global PATH_ALIAS_OUTPUT1
    global PATH_ALIAS_OUTPUT2
    global CHECK_OUTPUT
-   global CHECK_PRODUCT_ROOT
    global env
 
    delete_all_jobs
@@ -327,7 +324,7 @@ proc path_alias_cleanup {} {
    set do_it 0 
 
    if { $path_alias_test == 1 } {
-      set file_name "$CHECK_PRODUCT_ROOT/$ts_config(cell)/common/sge_aliases"
+      set file_name "$ts_config(product_root)/$ts_config(cell)/common/sge_aliases"
       set do_it 1
    } 
    if { $path_alias_test == 2 } {

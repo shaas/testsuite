@@ -60,13 +60,13 @@
 #     ???/???
 #*******************************
 proc install_execd {} {
-   global ts_config
    global CHECK_OUTPUT CORE_INSTALLED
-   global check_use_installed_system CHECK_ARCH
+   global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
-   global CHECK_COMMD_PORT CHECK_CORE_MASTER
-   global CHECK_MAIN_RESULTS_DIR CHECK_SUBMIT_ONLY_HOSTS
+   global CHECK_COMMD_PORT
+   global CHECK_MAIN_RESULTS_DIR
+   global ts_config
 
    set CORE_INSTALLED "" 
    read_install_list
@@ -75,11 +75,13 @@ proc install_execd {} {
    if { $ts_config(product_feature) == "csp" } {
          set feature_install_options "-csp"
          set my_csp_host_list $ts_config(execd_nodes)
-         foreach elem $CHECK_SUBMIT_ONLY_HOSTS {
-           lappend my_csp_host_list $elem
+         if { $ts_config(submit_only_hosts) != "none" } {
+            foreach elem $ts_config(submit_only_hosts) {
+              lappend my_csp_host_list $elem
+            }
          }
          foreach exec_host $my_csp_host_list {
-         if { $exec_host == $CHECK_CORE_MASTER } {
+         if { $exec_host == $ts_config(master_host) } {
             continue;
          }
          set remote_arch [resolve_arch $exec_host]    
@@ -88,7 +90,7 @@ proc install_execd {} {
          puts $CHECK_OUTPUT "host:         $exec_host"
          puts $CHECK_OUTPUT "architecture: $remote_arch"
          puts $CHECK_OUTPUT "port:         $CHECK_COMMD_PORT"
-         puts $CHECK_OUTPUT "source:       \"/var/sgeCA/port${CHECK_COMMD_PORT}/\" on host $CHECK_CORE_MASTER"
+         puts $CHECK_OUTPUT "source:       \"/var/sgeCA/port${CHECK_COMMD_PORT}/\" on host $ts_config(master_host)"
          puts $CHECK_OUTPUT "target:       \"/var/sgeCA/port${CHECK_COMMD_PORT}/\" on host $exec_host"
 
          if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
@@ -96,26 +98,26 @@ proc install_execd {} {
              set CA_ROOT_DIR "/var/sgeCA/"
 
              puts $CHECK_OUTPUT "removing poss. existing tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-             set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
+             set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
              puts $CHECK_OUTPUT $result
 
              puts $CHECK_OUTPUT "taring Certificate Authority (CA) directory into \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\""
-             set tar_bin [get_binary_path $CHECK_CORE_MASTER "tar"]
+             set tar_bin [get_binary_path $ts_config(master_host) "tar"]
              set remote_command_param "$CA_ROOT_DIR; ${tar_bin} -cvf port${CHECK_COMMD_PORT}.tar ./port${CHECK_COMMD_PORT}/*"
-             set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "cd" "$remote_command_param"]
+             set result [start_remote_prog "$ts_config(master_host)" "root" "cd" "$remote_command_param"]
              puts $CHECK_OUTPUT $result
 
              if { $prg_exit_state != 0 } {
                  add_proc_error "install_execd" -2 "could not tar Certificate Authority (CA) directory into \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\""
              } else {
                  puts $CHECK_OUTPUT "changing permissions for tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-                 set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "chmod" "700 $CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
+                 set result [start_remote_prog "$ts_config(master_host)" "root" "chmod" "700 $CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
                  puts $CHECK_OUTPUT $result
                  if { $prg_exit_state != 0 } {
                     add_proc_error "install_execd" -2 "could not change file permissions for \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\""
                  } else {
                     puts $CHECK_OUTPUT "copy tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\"\nto \"$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-                    set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "cp" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar $CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar"]
+                    set result [start_remote_prog "$ts_config(master_host)" "root" "cp" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar $CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar"]
                     puts $CHECK_OUTPUT $result
                     
                     puts $CHECK_OUTPUT "copy tar file \"$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar\"\nto \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" on host $exec_host ..."
@@ -140,7 +142,7 @@ proc install_execd {} {
                     puts $CHECK_OUTPUT $result
 
                     puts $CHECK_OUTPUT "removing tar file \"$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-                    set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar"]
+                    set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$CHECK_MAIN_RESULTS_DIR/port${CHECK_COMMD_PORT}.tar"]
                     puts $CHECK_OUTPUT $result
 
                  }
@@ -148,7 +150,7 @@ proc install_execd {} {
              }
              
              puts $CHECK_OUTPUT "removing existing tar file \"$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar\" ..."
-             set result [start_remote_prog "$CHECK_CORE_MASTER" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
+             set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$CA_ROOT_DIR/port${CHECK_COMMD_PORT}.tar"]
              puts $CHECK_OUTPUT $result
          } else {
             puts $CHECK_OUTPUT "can not copy this files as user $CHECK_USER"

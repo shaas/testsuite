@@ -130,7 +130,7 @@ global stored_auto_reschedule_host1_config
 
 
 proc qmod_auto_reschedule_init_level {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL CHECK_HOST
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
    global global_resch auto_reschedule_host1 auto_reschedule_host2
   
    if { [ llength $ts_config(execd_nodes) ] < 2 } {
@@ -138,7 +138,7 @@ proc qmod_auto_reschedule_init_level {} {
    }
 
    # This test only works if auto_reschedule_host2 is not the testsuite host
-   if { [lindex $ts_config(execd_nodes) 0] != $CHECK_HOST } {
+   if { [lindex $ts_config(execd_nodes) 0] != $ts_config(master_host) } {
       set auto_reschedule_host2  [ lindex $ts_config(execd_nodes) 0  ]
       set auto_reschedule_host1  [ lindex $ts_config(execd_nodes) 1  ]
    } else {
@@ -162,8 +162,9 @@ proc qmod_auto_reschedule_init_level {} {
 
 proc auto_reschedule_setup {} {
    global queue1 queue2 CHECK_OUTPUT auto_reschedule_host1 auto_reschedule_host2 CHECK_USER
-   global CHECK_CORE_EXECD stored_configuration CHECK_CORE_MASTER
-   global stored_auto_reschedule_host1_config global_resch CHECK_PRODUCT_ROOT CHECK_ACT_LEVEL
+   global stored_configuration
+   global stored_auto_reschedule_host1_config global_resch CHECK_ACT_LEVEL
+   global ts_config
 
    set new_queue(rerun)    "TRUE"
    set new_queue(qtype)    "BATCH INTERACTIVE PARALLEL CHECKPOINTING"
@@ -194,7 +195,7 @@ proc auto_reschedule_setup {} {
 
    puts $CHECK_OUTPUT "waiting for change on host $auto_reschedule_host2 ..."
    set messages_name "$tmp_config(execd_spool_dir)/$auto_reschedule_host2/messages"
-   set tail_id [open_remote_spawn_process $auto_reschedule_host2 $CHECK_USER "/usr/bin/tail" "-f $messages_name"]
+   set tail_id [open_remote_spawn_process $auto_reschedule_host2 "ts_def_con3" "/usr/bin/tail" "-f $messages_name"]
    set sp_id [ lindex $tail_id 1 ] 
 
 
@@ -223,7 +224,7 @@ proc auto_reschedule_setup {} {
    puts $CHECK_OUTPUT "changed config for host $auto_reschedule_host1"
 
    puts $CHECK_OUTPUT "disabling all cluster queues"
-   foreach host $CHECK_CORE_EXECD {
+   foreach host $ts_config(execd_hosts) {
       set q [get_queue_instance all.q $host]
       puts $CHECK_OUTPUT $q
       disable_queue $q
@@ -250,12 +251,12 @@ proc auto_reschedule_setup {} {
    wait_for_load_from_all_queues 200 
    puts $CHECK_OUTPUT "submitting job to queue $queue1 ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue1 -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30"
+   set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set job_id1 [ submit_job $arguments ]
 
    puts $CHECK_OUTPUT "submitting job to queue $queue2 ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue2 -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 60"
+   set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 60"
    set job_id2 [ submit_job $arguments ]
 
    wait_for_jobstart $job_id1 "Sleeper" 100
@@ -267,18 +268,19 @@ proc auto_reschedule_setup {} {
 
 proc auto_reschedule_unknown_check_master {} {
    global queue1 queue2 CHECK_OUTPUT auto_reschedule_host1 auto_reschedule_host2
-   global CHECK_CORE_EXECD stored_configuration CHECK_PRODUCT_ROOT
-   global CHECK_ADMIN_USER_SYSTEM CHECK_ARCH CHECK_PRODUCT_TYPE
-   global global_resch CHECK_CORE_MASTER
+   global stored_configuration
+   global CHECK_ADMIN_USER_SYSTEM CHECK_PRODUCT_TYPE
+   global global_resch
+   global ts_config
 
    puts $CHECK_OUTPUT "submitting job to queue $queue1 ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue1 -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10000"
+   set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id1 [ submit_job $arguments ]
 
    puts $CHECK_OUTPUT "submitting job to queue $queue2 ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue2 -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10000"
+   set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id2 [ submit_job $arguments ]
    
    wait_for_jobstart $job_id1 "Sleeper" 100
@@ -287,7 +289,7 @@ proc auto_reschedule_unknown_check_master {} {
    wait_for_end_of_transfer $job_id1 100
    wait_for_end_of_transfer $job_id2 100
 
-   shutdown_master_and_scheduler $CHECK_CORE_MASTER [get_qmaster_spool_dir]
+   shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
 
    puts $CHECK_OUTPUT "master and scheduler must be down now"
 
@@ -337,18 +339,19 @@ proc auto_reschedule_unknown_check_master {} {
 
 proc auto_reschedule_unknown_check {} {
    global queue1 queue2 CHECK_OUTPUT auto_reschedule_host1 auto_reschedule_host2
-   global CHECK_CORE_EXECD stored_configuration CHECK_PRODUCT_ROOT
-   global CHECK_ADMIN_USER_SYSTEM CHECK_ARCH CHECK_PRODUCT_TYPE
+   global stored_configuration
+   global CHECK_ADMIN_USER_SYSTEM CHECK_PRODUCT_TYPE
    global global_resch 
+   global ts_config
 
    puts $CHECK_OUTPUT "submitting job to queue $queue1 ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue1 -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10000"
+   set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id1 [ submit_job $arguments ]
 
    puts $CHECK_OUTPUT "submitting job to queue $queue2 ..."
    set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue2 -r y $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10000"
+   set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id2 [ submit_job $arguments ]
 
    wait_for_jobstart $job_id1 "Sleeper" 100
@@ -414,7 +417,7 @@ proc auto_reschedule_unknown_check {} {
 
 proc auto_reschedule_cleanup {} {
    global queue1 queue2 CHECK_OUTPUT auto_reschedule_host1 auto_reschedule_host2
-   global CHECK_CORE_EXECD stored_configuration
+   global stored_configuration ts_config
    global stored_auto_reschedule_host1_config CHECK_USER
 
    delete_all_jobs
@@ -428,7 +431,7 @@ proc auto_reschedule_cleanup {} {
    }
 
    set messages_name "$tmp_config(execd_spool_dir)/$auto_reschedule_host2/messages"
-   set tail_id [open_remote_spawn_process $auto_reschedule_host2 $CHECK_USER "/usr/bin/tail" "-f $messages_name"]
+   set tail_id [open_remote_spawn_process $auto_reschedule_host2 "ts_def_con3" "/usr/bin/tail" "-f $messages_name"]
    set sp_id [ lindex $tail_id 1 ] 
    
    set_config stored_configuration
@@ -439,7 +442,7 @@ proc auto_reschedule_cleanup {} {
    del_queue queue2 $auto_reschedule_host2 0 1
 
    puts $CHECK_OUTPUT "enabling queues ..."
-   foreach host $CHECK_CORE_EXECD {
+   foreach host $ts_config(execd_hosts) {
       puts $CHECK_OUTPUT $host
       enable_queue [get_queue_instance all.q $host]
    }

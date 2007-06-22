@@ -117,9 +117,9 @@ proc add_pe { change_array { version_check 1 } } {
 # control_slaves    FALSE
 # job_is_first_task TRUE
 
-   global ts_config
-  global env CHECK_ARCH
-  global CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT
+  global env
+  global CHECK_USER CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
 
   upvar $change_array chgar
 
@@ -135,15 +135,15 @@ proc add_pe { change_array { version_check 1 } } {
 
   set vi_commands [build_vi_command chgar]
 
-  set ADDED  [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set ALREADY_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*" ]
+  set ADDED  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
+  set ALREADY_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*" ]
 # JG: TODO: have to create separate add_pe in sge_procedures.60.tcl as this message no
 #           longer exists
-#  set NOT_EXISTS [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS] "*" "*" "*" "*" ]
+#  set NOT_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS] "*" "*" "*" "*" ]
 
 
-#  set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-ap [set chgar(pe_name)]" $vi_commands $ADDED $ALREADY_EXISTS $NOT_EXISTS ]
-  set result [ handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-ap [set chgar(pe_name)]" $vi_commands $ADDED $ALREADY_EXISTS ]
+  set master_arch [resolve_arch $ts_config(master_host)]
+  set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ap [set chgar(pe_name)]" $vi_commands $ADDED $ALREADY_EXISTS ]
 
   if {$result == -1 } { add_proc_error "add_pe" -1 "timeout error" }
   if {$result == -2 } { add_proc_error "add_pe" -1 "parallel environment \"[set chgar(pe_name)]\" already exists" }
@@ -154,13 +154,13 @@ proc add_pe { change_array { version_check 1 } } {
 }
 
 proc get_pe {pe_name change_array} {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
+  global CHECK_OUTPUT
   upvar $change_array chgar
+  get_current_cluster_config_array ts_config
 
-  set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sp" "$pe_name"} result ]
-  if { $catch_result != 0 } {
-     add_proc_error "get_config" "-1" "qconf error or binary not found ($ts_config(product_root)/bin/$CHECK_ARCH/qconf)\n$result"
+  set result [start_sge_bin "qconf" "-sp $pe_name" ]
+  if { $prg_exit_state != 0 } {
+     add_proc_error "get_config" "-1" "qconf error or binary not found\n$result"
      return
   }
 
@@ -207,9 +207,9 @@ proc get_pe {pe_name change_array} {
 #*******************************************************************************
 proc set_pe {pe_obj change_array {raise_error 1}} {
 
-   global ts_config
-   global env CHECK_ARCH
-   global CHECK_CORE_MASTER CHECK_USER CHECK_OUTPUT
+   global env
+   global CHECK_USER CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
 
@@ -237,8 +237,9 @@ proc set_pe {pe_obj change_array {raise_error 1}} {
       #           existing userset, but only for CQUEUE?
       set NOT_EXISTS [translate_macro MSG_CQUEUE_UNKNOWNUSERSET_S "*" ]
    }
-
-   set result [handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mp $pe_obj" $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_EXISTS $REJECTED_DUE_TO_AR_PE_SLOTS_U]
+ 
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mp $pe_obj" $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_EXISTS $REJECTED_DUE_TO_AR_PE_SLOTS_U]
 
    if {$result == -1 } { add_proc_error "set_pe" -1 "timeout error" $raise_error }
    if {$result == -2 } { add_proc_error "set_pe" -1 "parallel environment \"$pe_obj\" already exists" $raise_error}
@@ -273,8 +274,8 @@ proc set_pe {pe_obj change_array {raise_error 1}} {
 #     sge_procedures/add_pe()
 #*******************************
 proc del_pe {pe_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
    global CHECK_USER
+   get_current_cluster_config_array ts_config
 
    unassign_queues_with_pe_object $pe_name $on_host $as_user $raise_error
 

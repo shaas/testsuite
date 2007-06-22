@@ -79,10 +79,10 @@ proc issue_524_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_524_check {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_USER
 
    puts $CHECK_OUTPUT "Submitting sleeper ..."
-   set arguments "-h $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+   set arguments "-h $ts_config(product_root)/examples/jobs/sleeper.sh 5"
    set job_id1 [submit_job "$arguments"]
 
    puts "Submitting 2000 jobs (one '.' represents 100 jobs)"

@@ -6,6 +6,17 @@ lappend deprecated "CHECK_TESTSUITE_ROOT"
 lappend deprecated "CHECK_CHECKTREE_ROOT"
 lappend deprecated "CHECK_SCRIPT_FILE_DIR"
 lappend deprecated "CHECK_TCL_SCRIPTFILE_DIR"
+lappend deprecated "CHECK_ARCH"
+lappend deprecated "CHECK_PRODUCT_ROOT"
+lappend deprecated "CHECK_CORE_EXECD"
+lappend deprecated "CHECK_CORE_MASTER"
+lappend deprecated "CHECK_HOST"
+lappend deprecated "CHECK_SOURCE_DIR"
+lappend deprecated "CHECK_SOURCE_CVS_RELEASE"
+lappend deprecated "CHECK_SOURCE_HOSTNAME"
+lappend deprecated "CHECK_DIST_INSTALL_OPTIONS"
+lappend deprecated "CHECK_SUBMIT_ONLY_HOSTS"
+
 
 # build a list of files to analyze (.tcl and .exp)
 set files ""

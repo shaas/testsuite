@@ -95,13 +95,13 @@ proc issue_1933_cleanup  {} {
 
 proc issue_1933_test {} {
    global queue_name
-   global CHECK_OUTPUT ts_config CHECK_PRODUCT_ROOT CHECK_ACT_LEVEL
-   global CHECK_HOST CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global CHECK_USER
 
    set host [host_conf_get_suited_hosts]
 
    # submit testjob to set the queue in error
-   set job_id [submit_job "-o /dev/null -e /dev/null -q ${queue_name}@$host $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 15"]
+   set job_id [submit_job "-o /dev/null -e /dev/null -q ${queue_name}@$host $ts_config(product_root)/examples/jobs/sleeper.sh 15"]
 
    # wait for queue to get in error state
    set time [timestamp]

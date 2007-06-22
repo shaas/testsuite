@@ -114,6 +114,7 @@ lappend check_functions "check_option_@"
 lappend check_functions "check_huge_script"
 lappend check_functions "check_qhold_jobname"
 lappend check_functions "check_qsub_ts_iz_72" ;# Testcase for TS IZ 72
+
  
 # test specific globals:
 global CHECK_JOB_OUTPUT_DIR job_output_dir
@@ -272,7 +273,7 @@ proc check_submit {} {
 
 
 proc qsub_starter_method {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
+   global ts_config
    global job_output_dir
    global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
    global test_host
@@ -455,7 +456,7 @@ proc setup_output_directory {} {
 #     ???/???
 #*******************************
 proc check_hold {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH CHECK_OUTPUT job_output_dir test_host
+   global CHECK_OUTPUT job_output_dir test_host
    global default_args
 
    set ok 1
@@ -546,7 +547,7 @@ proc check_hold {} {
 #     ???/???
 #*******************************
 proc check_start_time {} {
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
+   global ts_config
    global job_output_dir
    global CHECK_OUTPUT test_host
 
@@ -558,7 +559,7 @@ proc check_start_time {} {
   
    set start [clock format $then -format "%Y%m%d%H%M.%S"]
 
-   set jobargs "-a $start -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 10" 
+   set jobargs "-a $start -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 10" 
 
    set seconds [exec date "+%S"]
    if { [string first "0" $seconds] == 0 } {
@@ -651,7 +652,6 @@ proc check_start_time {} {
 #*******************************
 proc check_deadline {} {
    global ts_config
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
    global test_host
    global CHECK_OUTPUT job_output_dir
 
@@ -716,7 +716,7 @@ proc check_deadline {} {
    set deadline "[exec date +\%Y\%m\%d]$rhour$rminute"
 
    # deadline job (10 min) with deadline in 5 minutes
-   set jobargs "-dl $deadline -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 500" 
+   set jobargs "-dl $deadline -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 500" 
    # start job
    set result [submit_job $jobargs] 
    if {$result < 0 } {
@@ -739,7 +739,7 @@ proc check_deadline {} {
         if { [ lindex $line 17 ] > 0 } {
             incr nub_deadline_jobs
             if {$nub_deadline_jobs > 1} {
-               catch { exec $CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qdel [lindex $line 0] }
+               start_sge_bin "qdel" "[lindex $line 0]"
                puts $CHECK_OUTPUT "check_deadline - delete job [lindex $line 0] "
                # retry if deleted job is from me
                if { $result == [lindex $line 0] } {
@@ -862,8 +862,8 @@ proc check_deadline {} {
 #     ???/???
 #*******************************
 proc check_option_ac {} {
-   global job_output_dir CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
-   global CHECK_USER CHECK_HOST CHECK_ARCH test_host
+   global job_output_dir CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global CHECK_USER test_host
 
    # first clean up output directory:  
    setup_output_directory
@@ -2573,7 +2573,7 @@ proc check_option_V {} {
 #     ???/???
 #*******************************
 proc check_option_w {} {
-   global job_output_dir CHECK_PRODUCT_ROOT CHECK_OUTPUT test_host
+   global job_output_dir CHECK_OUTPUT test_host
    global default_args
 
    # first clean up output directory:  
@@ -2663,8 +2663,9 @@ proc check_option_@ {} {
 #     ???/???
 #*******************************
 proc check_huge_script {} {
+   global ts_config
    global job_output_dir CHECK_PROTOCOL_DIR CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_ROOT CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH test_host
+   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH test_host
    global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT steps_per_queue size_interval
    global default_q_args default_h_args
 
@@ -2690,7 +2691,7 @@ proc check_huge_script {} {
    for { set step 0 } { $step < $steps_per_queue } { incr step } {
       # create a huge sleeper.sh
       set filename "$job_output_dir/sleeper.sh"
-      file copy -force "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh" "$filename"
+      file copy -force "$ts_config(product_root)/examples/jobs/sleeper.sh" "$filename"
       set f [open $filename a]
       puts $f "exit 0"
       set times [expr ($CHECK_ACT_LEVEL * $size_interval * $steps_per_queue + $size_interval * $step) / [string length "$HUGE_SCRIPT_PATTERN"]]
@@ -2815,7 +2816,7 @@ proc qsub_cleanup {} {
 #*******************************************************************************
 
 proc check_qsub_ts_iz_72 {} {
-	global ts_config CHECK_OUTPUT CHECK_PRODUCT_ROOT   
+	global ts_config CHECK_OUTPUT
 
 	set hostname [lindex $ts_config(execd_nodes) 0]
       
@@ -2825,7 +2826,7 @@ proc check_qsub_ts_iz_72 {} {
 # 1. submit an array job in hold
 
    set result0 [start_sge_bin "qsub" "-h -t 1:2 -o /dev/null -j y -N TS_IZ_72 \
-					 $CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 30" ]
+					 $ts_config(product_root)/examples/jobs/sleeper.sh 30" ]
 
 # Wait a little for jobs to be scheduled.
    sleep 15
@@ -2879,9 +2880,6 @@ proc check_qsub_ts_iz_72 {} {
 		puts $CHECK_OUTPUT "Task in system hold is still around as expected.. \n"
 	} 
 	
-	set_error 0 "ok"
-	
 	delete_all_jobs
-   
-   sleep 25
+   wait_for_end_of_all_jobs
 }	

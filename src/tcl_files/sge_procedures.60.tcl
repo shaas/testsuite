@@ -36,13 +36,13 @@
 # settings in all.q
 
 proc get_complex { change_array } {
-  global ts_config
-  global CHECK_ARCH CHECK_OUTPUT
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
-  set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-sc" } result ]
-  if { $catch_result != 0 } {
-     add_proc_error "get_complex" "-1" "qconf error or binary not found ($ts_config(product_root)/bin/$CHECK_ARCH/qconf)\n$result"
+  set result [start_sge_bin "qconf" "-sc"]
+  if { $prg_exit_state != 0 } {
+     add_proc_error "get_complex" "-1" "qconf error or binary not found\n$result"
      return
   } 
 
@@ -104,9 +104,9 @@ proc get_complex { change_array } {
 #     ???/???
 #*******************************************************************************
 proc set_complex { change_array {raise_error 1}} {
-  global ts_config CHECK_USER
-  global env CHECK_ARCH CHECK_OUTPUT
-  global CHECK_CORE_MASTER
+  global CHECK_USER
+  global env CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
   upvar $change_array chgar
   set values [array names chgar]
 
@@ -145,14 +145,15 @@ proc set_complex { change_array {raise_error 1}} {
 #     puts $CHECK_OUTPUT "\"$vi_com\""
 #  }
 
-  set MODIFIED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set ADDED    [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set REMOVED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set STILLREF [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CENTRYREFINQUEUE_SS] "*" "*"]
-  set NOT_MODIFIED [translate $CHECK_CORE_MASTER 1 0 0 [sge_macro MSG_CENTRY_NOTCHANGED]]
-  
+  set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
+  set ADDED    [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
+  set REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" "*" "*"]
+  set STILLREF [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_CENTRYREFINQUEUE_SS] "*" "*"]
+  set NOT_MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_CENTRY_NOTCHANGED]]
+ 
+  set master_arch [resolve_arch $ts_config(master_host)] 
   set result [handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport
-  SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$CHECK_ARCH/qconf -mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF "___ABCDEFG___" $raise_error]
+  SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$master_arch/qconf -mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF "___ABCDEFG___" $raise_error]
   if { $result != 0 && $result != -2 && $result != -3 && $result != -4 } {
      add_proc_error "set_complex" -1 "could not modify complex: ($result)" $raise_error
   }
@@ -293,7 +294,7 @@ proc switch_to_normal_user_system {} {
 #     file_procedures/get_execd_spooldir()
 #*******************************************************************************
 proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
-   global CHECK_OUTPUT CHECK_HOST
+   global CHECK_OUTPUT ts_config
 
    set spool_dir [get_execd_spooldir $host $spool_type]
    set base_spool_dir [get_execd_spooldir $host $spool_type 1]
@@ -328,7 +329,7 @@ proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
    if { [ remote_file_isdirectory $host $base_spool_dir ] != 1 } {
       puts $CHECK_OUTPUT "creating not existing base spool directory:\n\"$base_spool_dir\""
       remote_file_mkdir $host $base_spool_dir
-      wait_for_remote_dir $CHECK_HOST "ts_def_con2" $base_spool_dir
+      wait_for_remote_dir $ts_config(master_host) "ts_def_con2" $base_spool_dir
    }
 
    puts $CHECK_OUTPUT "cleaning up spool dir $spool_dir ..."
@@ -379,9 +380,9 @@ proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
 #     sge_procedures/startup_execd()
 #*******************************
 proc startup_shadowd { hostname {env_list ""} } {
-   global ts_config
    global CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   global CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   get_current_cluster_config_array ts_config
 
    if {$env_list != ""} {
       upvar $env_list envlist
@@ -430,7 +431,8 @@ proc startup_shadowd { hostname {env_list ""} } {
 #     "some error text" - if there are problems
 #*******************************************************************************
 proc check_shadowd_settings { shadowd_host } {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
    set nr_shadowds [llength $ts_config(shadowd_hosts)]
    puts $CHECK_OUTPUT "$nr_shadowds shadowd host configured ..." 
 
@@ -573,9 +575,9 @@ proc check_shadowd_settings { shadowd_host } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc startup_execd { hostname {envlist ""}} {
-   global ts_config
    global CHECK_OUTPUT
-   global CHECK_CORE_MASTER CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   global CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   get_current_cluster_config_array ts_config
 
    upvar $envlist my_envlist
 
@@ -634,9 +636,9 @@ proc startup_execd { hostname {envlist ""}} {
 #     sge_procedures/startup_bdb_rpc()
 #*******************************
 proc startup_bdb_rpc { hostname } {
-  global ts_config
    global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   get_current_cluster_config_array ts_config
 
    if { $hostname == "none" } {
       return -1
@@ -711,17 +713,13 @@ proc startup_bdb_rpc { hostname } {
 #     sge_procedures/get_extended_job_info()
 #*******************************
 proc get_urgency_job_info {jobid {variable job_info} { do_replace_NA 1 } } {
-  global ts_config
-   global CHECK_ARCH
+   get_current_cluster_config_array ts_config
    upvar $variable jobinfo
-
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qstat" "-urg"} result]
-
-   if { $exit_code == 0 } {
+   set result [start_sge_bin "qstat" "-urg" ]
+   if { $prg_exit_state == 0 } {
       parse_qstat result jobinfo $jobid 2 $do_replace_NA
       return 1
    }
-  
    return 0
 }
 
@@ -745,7 +743,7 @@ proc get_sge_error_generic_vdep {messages_var} {
 #     drmaa_redirect_lib() -- change drmaa lib version
 #
 #  SYNOPSIS
-#     drmaa_redirect_lib { version {host CHECK_HOST} } 
+#     drmaa_redirect_lib { version host } 
 #
 #  FUNCTION
 #     This function re-links the drmaa library for the specified host to
@@ -753,7 +751,7 @@ proc get_sge_error_generic_vdep {messages_var} {
 #
 #  INPUTS
 #     version           - "0.95" or "1.0"
-#     {host CHECK_HOST} - hostname
+#     host              - hostname
 #
 #  SEE ALSO
 #     sge_procedures.60/get_current_drmaa_lib_extension()
@@ -761,17 +759,19 @@ proc get_sge_error_generic_vdep {messages_var} {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc drmaa_redirect_lib {version host } {
-   global ts_config CHECK_USER CHECK_HOST CHECK_OUTPUT
+   global CHECK_USER CHECK_OUTPUT ts_config
+   get_current_cluster_config_array ts_config
 
    puts $CHECK_OUTPUT "Using DRMAA version $version on $host"
+
 
    set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]
    set lib_ext [get_current_drmaa_lib_extension $host]
-   start_remote_prog $CHECK_HOST "root" "/bin/rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   start_remote_prog $ts_config(master_host) "root" "/bin/rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
    start_remote_prog $host "root" "/bin/rm" "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
    start_remote_prog $host "root" "/bin/ln" "-s libdrmaa.$lib_ext.$version $ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
-   wait_for_remote_file $CHECK_HOST $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
+   wait_for_remote_file $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/lib/$install_arch/libdrmaa.$lib_ext"
 }
 
 #****** sge_procedures.60/get_current_drmaa_mode() *****************************
@@ -797,7 +797,8 @@ proc drmaa_redirect_lib {version host } {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc get_current_drmaa_mode { host } {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
    puts $CHECK_OUTPUT "checking DRMAA version on $host ..."
    
    set compile_arch [resolve_build_arch_installed_libs $host]
@@ -846,7 +847,8 @@ proc get_current_drmaa_mode { host } {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc get_current_drmaa_lib_extension { host } {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
    
    set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]

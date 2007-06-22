@@ -105,13 +105,13 @@ proc eval_expression_cleanup {} {
 
 
 proc qsub_queue_expression_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global ts_config CHECK_OUTPUT CHECK_USER
    global eval_expression_test_hosts check_description
    global CHECK_ACT_LEVEL
 
    set remote_host_arg "-q 'a*&!excluded@*'"
    set output_argument "-o /dev/null -e /dev/null"
-   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+   set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
    puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub qinstance
@@ -121,13 +121,13 @@ proc qsub_queue_expression_test {} {
 
 
 proc qsub_host_expression_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global ts_config CHECK_OUTPUT CHECK_USER
    global eval_expression_test_hosts check_description
    global CHECK_ACT_LEVEL
 
    set remote_host_arg "-q '*@*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
-   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+   set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
    puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub qhost
@@ -137,13 +137,13 @@ proc qsub_host_expression_test {} {
 
 
  proc qsub_group_expression_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global ts_config CHECK_OUTPUT CHECK_USER
    global eval_expression_test_hosts check_description
    global CHECK_ACT_LEVEL
 
    set remote_host_arg "-q '*@@*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
-   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+   set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
    puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub group
@@ -152,13 +152,13 @@ proc qsub_host_expression_test {} {
 }
  
 proc qsub_complex_expression_test1 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global ts_config CHECK_OUTPUT CHECK_USER
    global eval_expression_test_hosts check_description
    global CHECK_ACT_LEVEL
 
    set remote_host_arg "-l 'h=*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
-   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+   set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
    puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub comlex host
@@ -168,13 +168,13 @@ proc qsub_complex_expression_test1 {} {
     
     
 proc qsub_complex_expression_test2 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_PRODUCT_ROOT
+   global ts_config CHECK_OUTPUT CHECK_USER
    global eval_expression_test_hosts check_description
    global CHECK_ACT_LEVEL
 
    set remote_host_arg "-l 'arch=*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
-   set job_argument "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh 5"
+   set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
    puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub comlex host

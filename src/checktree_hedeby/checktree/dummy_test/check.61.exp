@@ -3,8 +3,6 @@
 #
 # gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
 # global CHECK_USER              ;# user who start test
-# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
-# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
 
 # ___INFO__MARK_BEGIN__
 ##########################################################################
@@ -80,14 +78,51 @@ proc dummy_test_setup {} {
 
 proc dummy_test_cleanup {} {
    global CHECK_USER CHECK_OUTPUT
-
    puts $CHECK_OUTPUT "doing cleanup ..."
+
+   set_current_cluster_config_nr 0
 }
 
 proc dummy_test_check {} {
    global CHECK_OUTPUT
    
    puts $CHECK_OUTPUT "doing test ..."
+
+   set cluster 0
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      get_current_cluster_config_array ts_config
+      puts $CHECK_OUTPUT "cluster #$cluster runs in cell \"$ts_config(cell)\" on master host \"$ts_config(master_host)\" (SGE_ROOT=$ts_config(product_root))!"
+      puts $CHECK_OUTPUT "   This cluster should have the following execd hosts:"
+      foreach host $ts_config(execd_hosts) {
+         puts $CHECK_OUTPUT "   o \"$host\""
+         get_qconf_se_info $host
+         puts $CHECK_OUTPUT "        processors:  $qconf_se_info(processors)"
+         puts $CHECK_OUTPUT "        load_values: $qconf_se_info(load_values)"
+      }
+
+      set job_id($cluster) [ submit_job "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 600" ] 
+      incr cluster 1
+   }
+
+   set cluster 0
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      wait_for_jobstart $job_id($cluster) "leeper" 60 
+      incr cluster 1
+   }
+
+   set cluster 0
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      delete_job $job_id($cluster)
+      incr cluster 1
+   }
+
+   set cluster 0
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      wait_for_jobend $job_id($cluster) "leeper" 60 0
+      incr cluster 1
+   }
+
+
 }
 
 

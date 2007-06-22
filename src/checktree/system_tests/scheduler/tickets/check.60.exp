@@ -155,7 +155,6 @@ proc tight_calculation_cleanup {  } {
 
 proc ticket_for_jobs { } {
    
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
    global CHECK_OUTPUT CHECK_USER
    global CHECK_ACT_LEVEL
 
@@ -545,7 +544,7 @@ proc ticket_scheduler_setup { } {
 
 proc ticket_submit_job_and_check_share { jobs job_count job_start_order } {
 
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
    
    upvar $jobs job
    
@@ -698,7 +697,7 @@ proc ticket_submit_jobs { jobs job_count } {
    
    global ts_config
    global ticket_queue_name ticket_job_name
-   global CHECK_USER CHECK_HOST CHECK_OUTPUT
+   global CHECK_USER CHECK_OUTPUT
     
    upvar $jobs tmp_jobs
    
@@ -736,7 +735,7 @@ proc ticket_submit_jobs { jobs job_count } {
 
 proc ticket_check_job_share { jobs job_count } {
    
-   global CHECK_OUTPUT ts_config CHECK_ARCH
+   global CHECK_OUTPUT ts_config
 
    upvar $jobs job
 
@@ -824,13 +823,11 @@ proc ticket_check_start_order { job_start_order } {
 
 proc ticket_set_overwrite_tickets_for_job { job_id  otickets } {
 
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_OUTPUT CHECK_HOST CHECK_USER
+   global ts_config
+   global CHECK_OUTPUT CHECK_USER
    
-   set qalter_cmd "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qalter"
    set qalter_args "-ot $otickets $job_id"
-   
-   set result [ start_remote_prog $CHECK_HOST $CHECK_USER "$qalter_cmd" "$qalter_args" exit_state ]
+   set result [ start_sge_bin "qalter" $qalter_args $ts_config(master_host) $CHECK_USER exit_state]
    if { $exit_state != 0 } {
       add_proc_error "ticket_set_overwrite_tickets_for_job" -1 "qalter of job $job_id failed ($exit_state)-----\n $result\n ----------- "
       return -1
@@ -841,16 +838,13 @@ proc ticket_set_overwrite_tickets_for_job { job_id  otickets } {
 
 proc ticket_set_slot_count { slot_count } {
 
-   global CHECK_PRODUCT_ROOT CHECK_ARCH
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST
+   global CHECK_OUTPUT CHECK_USER
    global ts_config
    global ticket_queue_name
    
    # setup the host list
    
    set first 1
-   set qconf_cmd "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf"
-   
    foreach host $ts_config(execd_nodes) {
       if { $first != 0 } {
          set first 0
@@ -858,7 +852,7 @@ proc ticket_set_slot_count { slot_count } {
       } else {
          set qconf_args "-mattr queue slots 0 $ticket_queue_name\@$host"
       }
-      set result [ start_remote_prog $CHECK_HOST $CHECK_USER "$qconf_cmd" "$qconf_args" exit_state ]
+      set result [ start_sge_bin "qconf" "$qconf_args" $ts_config(master_host) $CHECK_USER exit_state]
       if { $exit_state != 0 } {
         add_proc_error "ticket_set_slot_count" -1 "qconf -mattr failed ($exit_state) ----\n$result\n -----"
         return -1

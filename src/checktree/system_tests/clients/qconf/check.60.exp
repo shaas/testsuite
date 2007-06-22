@@ -35,7 +35,7 @@
 # Define the global veriables to give them back
 global check_functions 
 
-# define test's procedure order
+#### define test's procedure order
 lappend check_functions "qconf_de_check"
 lappend check_functions "qconf_backslash_default_space_check"  ;# functions to call (in order)
 lappend check_functions "qconf_backslash_default_comma_check"
@@ -465,7 +465,7 @@ proc qconf_backslash_custom_comma_check {} {
 #
 #*******************************
 proc qconf_backslash_space_output_check {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_USER env
+   global ts_config CHECK_OUTPUT CHECK_USER env
 
    puts $CHECK_OUTPUT "testing qconf backslash line continuation in output"
    set master_host [resolve_host $ts_config(master_host)]
@@ -499,7 +499,8 @@ proc qconf_backslash_space_output_check {} {
       set short_name [string range $name 0 99]
       set ADDED [translate $master_host 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$master_host*" $short_name "host group"]
       # add by handling vi
-      handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-ahgrp $name" "" $ADDED
+      set master_arch [resolve_arch $ts_config(master_host)]
+      handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ahgrp $name" "" $ADDED
    }
 
    puts $CHECK_OUTPUT "done adding host groups"
@@ -532,7 +533,8 @@ proc qconf_backslash_space_output_check {} {
          # localize messages
          set ADDED [translate $master_host 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$master_host*" $groupname "host group"]
          # add by handling vi
-         handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-ahgrp $groupname" $vi_commands $ADDED
+         set master_arch [resolve_arch $ts_config(master_host)]
+         handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ahgrp $groupname" $vi_commands $ADDED
          
          # Check the output
          # The test suite sets the SGE_SINGLE_LINE variable before every action,
@@ -659,7 +661,7 @@ proc qconf_backslash_space_output_check {} {
 #
 #*******************************
 proc qconf_backslash_comma_output_check {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH CHECK_USER env
+   global ts_config CHECK_OUTPUT CHECK_USER env
 
    set master_host [resolve_host $ts_config(master_host)]
 
@@ -681,7 +683,8 @@ proc qconf_backslash_comma_output_check {} {
       # add by handling vi
       set vi_commands ""
       lappend vi_commands "O$name cv$count RESTRING == YES NO NONE 0[format "%c" 27]"
-      handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mc" $vi_commands $ADDED
+      set master_arch [resolve_arch $ts_config(master_host)]
+      handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $ADDED
       lappend names $name
    }
 
@@ -861,7 +864,8 @@ proc qconf_backslash_comma_output_check {} {
    set REMOVED [translate $master_host 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "$master_host*" [lrange $names end end] "complex"]
    set vi_commands ""
    lappend vi_commands "/complexvar\n5dd"
-   handle_vi_edit "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" "-mc" $vi_commands $REMOVED
+   set master_arch [resolve_arch $ts_config(master_host)]
+   handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $REMOVED
 
    if {$failed} {
       add_proc_error "qconf_backslash_comma_output_check" "-1" "error printing hostgroup in qconf_backslash_comma_output_check -- failed for $failures"
@@ -918,41 +922,42 @@ proc check_double_output { string1 string2 } {
 #     check_double_output
 #*******************************************************************************
 proc qconf_issue1767 {} {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
    
    set master_host [resolve_host $ts_config(master_host)]
 
    set tmp_file1 [ get_tmp_file_name ]
    set tmp_file2 [ get_tmp_file_name ]
 
+   set local_arch [resolve_arch [gethostname]]
    #invalid urgency_slots setting
    set REJECTED [translate $master_host 1 0 0 [ sge_macro MSG_PE_REJECTINGURGENCYSLOTS_S ] "invalid" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -sp mytestpe > $tmp_file1  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe > $tmp_file1  } result ]
    set exit_code [catch { exec sed "s/min/invalid/" $tmp_file1 > $tmp_file2  } result ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -Mp $tmp_file2  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file2  } result ]
    check_double_output $REJECTED $result
 
    #invalid pe name
    set REJECTED [translate $master_host 1 0 0 [ sge_macro MSG_PE_INVALIDCHARACTERINPE_S ] ".mytestpe" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -sp mytestpe > $tmp_file1  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe > $tmp_file1  } result ]
    set exit_code [catch { exec sed "s/mytestpe/.mytestpe/" $tmp_file1 > $tmp_file2  } result ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -Ap $tmp_file2  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Ap $tmp_file2  } result ]
    check_double_output $REJECTED $result
 
    #invalid startprocargs 
    set REJECTED [translate $master_host 1 0 0 [ sge_macro  MSG_PE_STARTPROCARGS_SS ] "mytestpe" "unknown variable \"invalid\"" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -sp mytestpe | sed /start_proc_args/d > $tmp_file1  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe | sed /start_proc_args/d > $tmp_file1  } result ]
    set exit_code [catch { exec echo "start_proc_args '\$invalid'" >> $tmp_file1 } result ]
    puts $CHECK_OUTPUT $result
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -Mp $tmp_file1  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file1  } result ]
    check_double_output $REJECTED $result
 
    #invalid stopprocargs 
    set REJECTED [translate $master_host 1 0 0 [ sge_macro MSG_PE_STOPPROCARGS_SS ] "mytestpe" "unknown variable \"invalid\"" ]
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -sp mytestpe | sed /stop_proc_args/d > $tmp_file1  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe | sed /stop_proc_args/d > $tmp_file1  } result ]
    set exit_code [catch { exec echo "stop_proc_args '\$invalid'" >> $tmp_file1 } result ]
    puts $CHECK_OUTPUT $result
-   set exit_code [catch { exec "$ts_config(product_root)/bin/$CHECK_ARCH/qconf" -Mp $tmp_file1  } result ]
+   set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file1  } result ]
    check_double_output $REJECTED $result
 }
 
@@ -974,7 +979,7 @@ proc qconf_issue1767 {} {
 #*******************************
 proc qconf_shgrp_tree_check {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST CHECK_ARCH
+   global CHECK_OUTPUT CHECK_USER
 
    # First do a positive test
    puts $CHECK_OUTPUT "Positive test for qconf -shgrp_tree ...\n"
@@ -988,7 +993,7 @@ proc qconf_shgrp_tree_check {} {
 
    # next do a negative test
    puts $CHECK_OUTPUT "Negative test for qconf -shgrp_tree ...\n"
-   set result1 [get_hostgroup_tree "wrong_hostgroup" result $CHECK_HOST $CHECK_USER 0]
+   set result1 [get_hostgroup_tree "wrong_hostgroup" result $ts_config(master_host) $CHECK_USER 0]
 
    if { ( $result1 == -1 ) } {
       puts $CHECK_OUTPUT "qconf -shgrp_tree wrong_hostgroup succeded"
@@ -1004,7 +1009,7 @@ proc qconf_shgrp_tree_check {} {
 #
 #  SYNOPSIS
 #     qconf_shgrp_resolved_check { } - Call "qconf -shgrp_resolved @qconf_test"
-#                            Check that the output contains   "$CHECK_HOST"
+#                            Check that the output contains   "$ts_config(master_host)"
 #
 #  FUNCTION
 #     Check basic functionality of qconf
@@ -1015,7 +1020,7 @@ proc qconf_shgrp_tree_check {} {
 #*******************************
 proc qconf_shgrp_resolved_check {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER CHECK_HOST CHECK_ARCH
+   global CHECK_OUTPUT CHECK_USER
 
    # First do a positive test
    puts $CHECK_OUTPUT "Positive test for qconf -shgrp_resolved ...\n"
@@ -1028,7 +1033,7 @@ proc qconf_shgrp_resolved_check {} {
 
    # next do a negative test
    puts $CHECK_OUTPUT "Negative test for qconf -shgrp_resolved ...\n"
-   set result1 [get_hostgroup_resolved "wrong_hostgroup" result $CHECK_HOST $CHECK_USER 0]
+   set result1 [get_hostgroup_resolved "wrong_hostgroup" result $ts_config(master_host) $CHECK_USER 0]
 
    if { ( $result1 == -1 ) } {
       puts $CHECK_OUTPUT "qconf -shgrp_resolved wrong_hostgroup succeded"
@@ -1114,7 +1119,7 @@ proc qconf_modify_hostgroup {} {
 #     qconf_purge_queue - Purge queue "qconf_queue.q"
 #
 #  SYNOPSIS
-#     qconf_purge_queue { } - Call add_queue qconf_queue.q $CHECK_HOST new_queue
+#     qconf_purge_queue { } - Call add_queue qconf_queue.q $ts_config(master_host) new_queue
 #                             Use "qconf -purge queue qname qconf_queue.q"
 #                             Then clean up with "qconf -dq qconf_queue.q"
 #

@@ -80,7 +80,7 @@ proc issue_423_init_level {} {
 
 proc issue_423_check {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_ROOT CHECK_ARCH
+   global CHECK_OUTPUT
  
    #
    # Scenario:
@@ -90,7 +90,7 @@ proc issue_423_check {} {
    #     -> now we can be really sure that the bug is not here
    #
    set job_name "Sleeper"
-   set job_script "$CHECK_PRODUCT_ROOT/examples/jobs/sleeper.sh"
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh"
    set job_sleep_time "10"
    set qsub_arguments "-t 1-2:0 $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]

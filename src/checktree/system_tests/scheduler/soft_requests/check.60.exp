@@ -121,7 +121,7 @@ proc soft_requests_setup  {} {
 }
 
 proc soft_requests_cleanup  {} {
-   global CHECK_OUTPUT CHECK_ARCH ts_config
+   global CHECK_OUTPUT ts_config
    global soft_requests_test_hosts
    global soft_requests_saved_slot_count
    global consumable_complex_backup
@@ -151,7 +151,7 @@ proc soft_requests_cleanup  {} {
 }
 
 proc soft_requests_submit_pejobs_and_wait { request host_list } {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    set job_id [submit_job "-o /dev/null -e /dev/null -pe round_robin 2 -soft -l $request $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
@@ -197,7 +197,7 @@ proc soft_requests_submit_pejobs_and_wait { request host_list } {
 }
 
 proc soft_requests_submit_jobs_and_wait { request host_list } {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    set job_id [submit_job "-o /dev/null -e /dev/null -soft -l $request $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
@@ -243,7 +243,7 @@ proc soft_requests_submit_jobs_and_wait { request host_list } {
 }
 
 proc soft_requests_submit_pejobs_and_wait2 { } {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    foreach host $ts_config(execd_nodes) {
       set arch [resolve_arch $host]
@@ -314,7 +314,7 @@ proc soft_requests_submit_pejobs_and_wait2 { } {
 }
 
 proc soft_requests_submit_jobs_and_wait2 { } {
-   global ts_config CHECK_OUTPUT CHECK_ARCH
+   global ts_config CHECK_OUTPUT
 
    foreach host $ts_config(execd_nodes) {
       set arch [resolve_arch $host]
@@ -385,8 +385,8 @@ proc soft_requests_submit_jobs_and_wait2 { } {
 }
 
 proc soft_requests_test {} {
-   global soft_requests_test_hosts check_description CHECK_ARCH
-   global CHECK_OUTPUT ts_config CHECK_CORE_MASTER CHECK_ACT_LEVEL
+   global soft_requests_test_hosts check_description
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
 
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 

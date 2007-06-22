@@ -60,13 +60,13 @@
 #     ???/???
 #*******************************
 proc install_execd {} {
-   global ts_config
    global CHECK_OUTPUT CORE_INSTALLED
-   global check_use_installed_system CHECK_ARCH
+   global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
-   global CHECK_COMMD_PORT CHECK_CORE_MASTER
-   global CHECK_MAIN_RESULTS_DIR CHECK_SUBMIT_ONLY_HOSTS
+   global CHECK_COMMD_PORT
+   global CHECK_MAIN_RESULTS_DIR
+   global ts_config
 
    set CORE_INSTALLED ""
    set INST_VERSION 0 
@@ -86,19 +86,23 @@ proc install_execd {} {
 
    if {!$check_use_installed_system} {
       set feature_install_options ""
-      foreach elem $CHECK_SUBMIT_ONLY_HOSTS {
-         puts $CHECK_OUTPUT "do a qconf -as $elem ..."
-         set result [start_sge_bin "qconf" "-as $elem" $ts_config(master_host)]
-         puts $CHECK_OUTPUT $result
+      if { $ts_config(submit_only_hosts) != "none" } {
+         foreach elem $ts_config(submit_only_hosts) {
+            puts $CHECK_OUTPUT "do a qconf -as $elem ..."
+            set result [start_sge_bin "qconf" "-as $elem" $ts_config(master_host)]
+            puts $CHECK_OUTPUT $result
+         }
       }
       if {$ts_config(product_feature) == "csp" || $have_windows_host} {
          set feature_install_options "-csp"
          set my_csp_host_list $ts_config(execd_nodes)
-         foreach elem $CHECK_SUBMIT_ONLY_HOSTS {
-           lappend my_csp_host_list $elem
+         if { $ts_config(submit_only_hosts) != "none" } {
+            foreach elem $ts_config(submit_only_hosts) {
+              lappend my_csp_host_list $elem
+            }
          }
          foreach exec_host $my_csp_host_list {
-            if { $exec_host == $CHECK_CORE_MASTER } {
+            if { $exec_host == $ts_config(master_host) } {
                continue
             }
             copy_certificates $exec_host

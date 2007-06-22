@@ -61,6 +61,8 @@ proc verify_config { config_array only_check parameter_error_list } {
    return [verify_config2 config $only_check error_list $actual_ts_config_version]
 }
 
+
+
 proc verify_config2 { config_array only_check parameter_error_list expected_version } {
 
    global CHECK_OUTPUT be_quiet
@@ -78,6 +80,14 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
    }
 
    if { $config(version) != $expected_version } {
+      # CR: TODO implement update hook for additional checktrees 
+      #          They are called when the version doesn't match
+      #          The update hook may be implemented like in setup2 which is
+      #          calling update_ts_config_version() till the version matches
+      #          the setup_hooks_0_version specified in additional checktree.tcl file
+      #          It seems to be the case that some checktrees (arco) already have
+      #          a configuration update procedure. But this is not defined global.
+      #          It has to be evaluated if this solution should be used in general!
       puts $CHECK_OUTPUT "Configuration file version \"$config(version)\" not supported."
       puts $CHECK_OUTPUT "Expected version is \"$expected_version\""
       lappend error_list "unexpected version"
@@ -497,14 +507,12 @@ proc modify_setup2 {} {
    global ts_checktree ts_config ts_host_config ts_user_config CHECK_ACT_LEVEL
    global CHECK_OUTPUT CHECK_PACKAGE_DIRECTORY check_name
 
-   global CHECK_CORE_EXECD CHECK_CORE_MASTER CHECK_PRODUCT_ROOT
-
 
    lock_testsuite
 
-   set old_exed $CHECK_CORE_EXECD
-   set old_master $CHECK_CORE_MASTER
-   set old_root $CHECK_PRODUCT_ROOT
+   set old_exed $ts_config(execd_hosts)
+   set old_master $ts_config(master_host)
+   set old_root $ts_config(product_root)
 
    set change_level ""
    
@@ -592,32 +600,23 @@ proc modify_setup2 {} {
       wait_for_enter
    }
 
-   set new_exed $CHECK_CORE_EXECD
-   set new_master $CHECK_CORE_MASTER
-   set new_root $CHECK_PRODUCT_ROOT
-
-   set CHECK_CORE_EXECD $old_exed
-   set CHECK_CORE_MASTER $old_master
-   set CHECK_PRODUCT_ROOT $old_root
-
-   set CHECK_CORE_EXECD $new_exed
-   set CHECK_CORE_MASTER $new_master
-   set CHECK_PRODUCT_ROOT $new_root
-
 
    # onchange:   "", "compile", "install", "stop"
    debug_puts "change_level: \"$change_level\""
 
    if { [string length $change_level] != 0 } { 
       puts $CHECK_OUTPUT "modification needs shutdown of old grid engine system"
-      set CHECK_CORE_EXECD $old_exed
-      set CHECK_CORE_MASTER $old_master
-      set CHECK_PRODUCT_ROOT $old_root
-      shutdown_core_system
+      set new_exed $ts_config(execd_hosts)
+      set new_master $ts_config(master_host)
+      set new_root $ts_config(product_root)
+      set ts_config(execd_hosts)  $old_exed
+      set ts_config(master_host)  $old_master
+      set ts_config(product_root) $old_root
+      shutdown_core_system 0 1
       delete_tests $ts_config(checktree_root_dir)/install_core_system
-      set CHECK_CORE_EXECD $new_exed
-      set CHECK_CORE_MASTER $new_master
-      set CHECK_PRODUCT_ROOT $new_root
+      set ts_config(execd_hosts)  $new_exed
+      set ts_config(master_host)  $new_master
+      set ts_config(product_root) $new_root
    }
 
    if { [ string first "stop" $change_level ] >= 0 } {
@@ -636,6 +635,130 @@ proc modify_setup2 {} {
    }
    unlock_testsuite
    return $change_level
+}
+
+proc config_generic { only_check name config_array help_text check_type } {
+   global CHECK_OUTPUT CHECK_USER ts_host_config ts_user_config
+   global fast_setup 
+
+   upvar $config_array config
+
+#   puts $CHECK_OUTPUT "$name"
+#   foreach name [array names config] {
+#      puts $CHECK_OUTPUT "config($name)=$config($name)"
+#   }
+
+   set actual_value  $config($name)
+   set default_value $config($name,default)
+   set description   $config($name,desc)
+   set value $actual_value
+   if { $actual_value == "" && $check_type != "host" && $check_type != "hosts"} {
+      set value $default_value
+      if { $default_value == "" } {
+         set value "none"
+      }
+   }
+  
+   if { $only_check == 0 } {
+      switch -- $check_type {
+         "hosts" {
+            set value [config_select_host_list config $name $value $help_text]
+         }
+         "host" {
+            set value [config_select_host_list config $name $value $help_text 1]
+         }
+         default {
+            # do setup  
+            foreach elem $help_text { puts $CHECK_OUTPUT $elem }
+            puts $CHECK_OUTPUT "(default: $value)"
+            puts -nonewline $CHECK_OUTPUT "> "
+            set input [ wait_for_enter 1]
+            if { [ string length $input] > 0 } {
+               set value $input
+            } else {
+               puts $CHECK_OUTPUT "using default value"
+            }
+         }
+      }
+   } 
+
+   # now verify
+   if {!$fast_setup} {
+         switch -- $check_type {
+         "port" {
+            # check that user has a port list
+            if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
+               puts $CHECK_OUTPUT "User $CHECK_USER has not portlist entry in user configuration"
+               return -1
+            }
+            # check that port value is >= 0
+            if { $value < 0  } {
+               puts $CHECK_OUTPUT "Port \"$value\" is not >= 0"
+               return -1;
+            }
+            # check that string is an integer
+            if { [string is integer $value] == 0 } {
+               puts $CHECK_OUTPUT "Port \"$value\" is not a integer"
+               return -1;
+            }
+            # check that value is <= 65535
+            if { $value > 65535 } {
+               puts $CHECK_OUTPUT "Port \"$value\" is > 65535"
+               return -1;
+            }
+            # check that user has the portlist entry
+            if { $value != 0 } {
+               if { [ expr ( $value % 2 ) == 0 ] } {
+                  # an even port - ok
+                  if { [ lsearch $ts_user_config($CHECK_USER,portlist) $value] < 0 } {
+                     puts $CHECK_OUTPUT "Port \"$value\" not in portlist of user $CHECK_USER" 
+                     return -1
+                  }
+               } else {
+                  # NOT an even port - this is a workaround, because user can only add even ports!
+                  set even_port_value $value
+                  incr even_port_value -1
+                  if { [ lsearch $ts_user_config($CHECK_USER,portlist) $even_port_value] < 0 } {
+                     puts $CHECK_OUTPUT "Port \"$value\" not in portlist of user $CHECK_USER" 
+                     return -1
+                  }
+               }
+            }
+         }
+         "directory" {
+            # is full path ?
+            if { [ string first "/" $value ] != 0 } {
+               puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
+               return -1
+            }
+       
+            if { [tail_directory_name $value] != $value } {
+               puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
+               return -1
+            }
+
+            # is directory ?
+            if { [ file isdirectory $value ] != 1 } {
+               puts $CHECK_OUTPUT "Directory \"$value\" not found"
+               return -1
+            }
+         }
+         "host" {
+            # this must be a testsuite host
+         }
+         "hosts" {
+            # this must be a testsuite host list
+         }
+         "string" {
+            # do we want to check strings ?
+         }
+         default {
+            add_proc_error "hedeby_conf_generic" -2 "unexpected generic config type: $check_type"
+            return -1
+         }
+      }
+   }
+   return $value
 }
 
 #****** config/config_testsuite_root_dir() **************************************
@@ -755,7 +878,7 @@ proc config_testsuite_root_dir { only_check name config_array } {
 proc config_checktree_root_dir { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_USER CHECK_HOST
+   global CHECK_USER
    global CHECK_GROUP
    global env fast_setup
 
@@ -791,13 +914,6 @@ proc config_checktree_root_dir { only_check name config_array } {
 
    # now verify
 
-   set local_host [ gethostname ]
-   if { $local_host == "unknown" } {
-      puts $CHECK_OUTPUT "Could not get local host name" 
-      return -1
-   }
-   set CHECK_HOST $local_host
-
    if {!$fast_setup} {
       # is full path ?
       if { [ string first "/" $value ] != 0 } {
@@ -825,7 +941,7 @@ proc config_checktree_root_dir { only_check name config_array } {
 proc config_additional_checktree_dirs { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_USER CHECK_HOST
+   global CHECK_USER
    global CHECK_GROUP
    global env fast_setup
 
@@ -908,7 +1024,7 @@ proc config_additional_checktree_dirs { only_check name config_array } {
 proc config_additional_config { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_USER CHECK_HOST
+   global CHECK_USER
    global CHECK_GROUP
    global env fast_setup
 
@@ -1008,7 +1124,7 @@ proc config_additional_config { only_check name config_array } {
                }
                # now make sure that the additional configurations can work together
                # the following parameters have to be the same for all configs
-               set same_params "gridengine_version source_dir source_cvs_release host_config_file product_root"
+               set same_params "gridengine_version source_dir source_cvs_release host_config_file user_config_file product_root testsuite_root_dir"
                # the following parameters have to differ between all configs
                set diff_params "results_dir commd_port cell"
             } else {
@@ -1017,7 +1133,7 @@ proc config_additional_config { only_check name config_array } {
                }
                # now make sure that the additional configurations can work together
                # the following parameters have to be the same for all configs
-               set same_params "host_config_file"
+               set same_params "host_config_file user_config_file testsuite_root_dir"
                # the following parameters have to differ between all configs
                set diff_params "results_dir commd_port product_root source_dir"
             }
@@ -1094,7 +1210,6 @@ proc config_results_dir { only_check name config_array } {
    global CHECK_RESULT_DIR 
    global CHECK_BAD_RESULT_DIR 
    global CHECK_REPORT_FILE 
-   global CHECK_HOST
    global fast_setup
 
 
@@ -1108,6 +1223,12 @@ proc config_results_dir { only_check name config_array } {
       if { $default_value == "" } {
          set value $config(testsuite_root_dir)/results
       }
+   }
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
    }
 
    if { $only_check == 0 } {
@@ -1156,9 +1277,9 @@ proc config_results_dir { only_check name config_array } {
    set CHECK_PROTOCOL_DIR $CHECK_MAIN_RESULTS_DIR/protocols
    set CHECK_JOB_OUTPUT_DIR "$CHECK_MAIN_RESULTS_DIR/testsuite_job_outputs"
 
-   set CHECK_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$CHECK_HOST.completed"
-   set CHECK_BAD_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$CHECK_HOST.uncompleted"
-   set CHECK_REPORT_FILE "$CHECK_MAIN_RESULTS_DIR/$CHECK_HOST.report"
+   set CHECK_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$local_host.completed"
+   set CHECK_BAD_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$local_host.uncompleted"
+   set CHECK_REPORT_FILE "$CHECK_MAIN_RESULTS_DIR/$local_host.report"
  
    if {[file isdirectory "$CHECK_RESULT_DIR"] != 1} {
         file mkdir "$CHECK_RESULT_DIR"
@@ -1196,7 +1317,6 @@ proc config_use_ssh {only_check name config_array} {
    global CHECK_OUTPUT 
    global CHECK_USE_SSH
    global CHECK_USER
-   global CHECK_HOST
    global fast_setup
 
    upvar $config_array config
@@ -1230,7 +1350,6 @@ proc config_use_ssh {only_check name config_array} {
       puts $CHECK_OUTPUT "Could not get local host name" 
       return -1
    }
-   set CHECK_HOST $local_host
 
    if {$value == "yes"} {
       set CHECK_USE_SSH 1
@@ -1240,14 +1359,14 @@ proc config_use_ssh {only_check name config_array} {
    }
 
    if {!$fast_setup} {
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"hello $CHECK_HOST\"" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $local_host $CHECK_USER "echo" "\"hello $local_host\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "rlogin/ssh to host $CHECK_HOST doesn't work correctly"
+         puts $CHECK_OUTPUT "rlogin/ssh to host $local_host doesn't work correctly"
          return -1
       }
-      if { [ string first "hello $CHECK_HOST" $result ] < 0 } {
+      if { [ string first "hello $local_host" $result ] < 0 } {
          puts $CHECK_OUTPUT "$result"
-         puts $CHECK_OUTPUT "echo \"hello $CHECK_HOST\" doesn't work"
+         puts $CHECK_OUTPUT "echo \"hello $local_host\" doesn't work"
          return -1
       }
    }
@@ -1277,8 +1396,6 @@ proc config_use_ssh {only_check name config_array} {
 #*******************************************************************************
 proc config_source_dir { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_SOURCE_DIR
-   global CHECK_ARCH
    global fast_setup
 
    upvar $config_array config
@@ -1337,18 +1454,11 @@ proc config_source_dir { only_check name config_array } {
       }
    }
  
-   # set global values
-   set CHECK_SOURCE_DIR $value
-
-   set local_arch [ resolve_arch ]
+   set local_arch [ resolve_arch "none" 1 $value]
    if { $local_arch == "unknown" } {
       puts $CHECK_OUTPUT "Could not resolve local system architecture" 
       return -1
    }
-   set CHECK_ARCH $local_arch
-
-
-
    return $value
 }
 
@@ -1375,11 +1485,16 @@ proc config_source_dir { only_check name config_array } {
 proc config_source_cvs_hostname { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_USER 
-   global CHECK_SOURCE_HOSTNAME
-   global CHECK_HOST
    global fast_setup
 
    upvar $config_array config
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
+
    set actual_value  $config($name)
    set default_value $config($name,default)
    set description   $config($name,desc)
@@ -1387,7 +1502,7 @@ proc config_source_cvs_hostname { only_check name config_array } {
    if { $actual_value == "" } {
       set value $default_value
       if { $default_value == "" } {
-         set value $CHECK_HOST
+         set value $local_host
       }
    }
    if { $only_check == 0 } {
@@ -1427,10 +1542,6 @@ proc config_source_cvs_hostname { only_check name config_array } {
          debug_puts "found cvs command"
       }
    }
-
-   # set global values
-   set  CHECK_SOURCE_HOSTNAME $value
-
    return $value
 }
 
@@ -1457,8 +1568,6 @@ proc config_source_cvs_hostname { only_check name config_array } {
 proc config_source_cvs_release {only_check name config_array} {
    global CHECK_OUTPUT 
    global CHECK_USER 
-   global CHECK_SOURCE_CVS_RELEASE
-   global CHECK_SOURCE_HOSTNAME
    global fast_setup
 
    upvar $config_array config
@@ -1480,7 +1589,7 @@ proc config_source_cvs_release {only_check name config_array} {
    if {$actual_value == ""} {
       set value $default_value
       if {$default_value == ""} {
-         set result [start_remote_prog $CHECK_SOURCE_HOSTNAME $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
+         set result [start_remote_prog $config(source_cvs_hostname) $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
          set result [string trim $result]
          if {$prg_exit_state == 0} {
             if {[string first "T" $result] == 0} {
@@ -1507,19 +1616,15 @@ proc config_source_cvs_release {only_check name config_array} {
    } 
 
    if {!$fast_setup} {
-      set result [start_remote_prog $CHECK_SOURCE_HOSTNAME $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $config(source_cvs_hostname) $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
       set result [string trim $result]
       if {$prg_exit_state == 0} {
          if {[string compare $result "T$value"] != 0 && [string compare $result "N$value"] != 0} {
-            puts $CHECK_OUTPUT "CVS/Tag entry doesn't match cvs release tag \"$value\" in directory $CHECK_SOURCE_HOSTNAME"
+            puts $CHECK_OUTPUT "CVS/Tag entry doesn't match cvs release tag \"$value\" in directory $config(source_cvs_hostname)"
             return -1
          }
       }
    }
-
-   # set global values
-   set  CHECK_SOURCE_CVS_RELEASE $value
-
    return $value
 }
 
@@ -1705,8 +1810,6 @@ proc config_user_config_file { only_check name config_array } {
 #*******************************************************************************
 proc config_master_host { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_HOST
-   global CHECK_CORE_MASTER
    global ts_host_config do_nomain
    global fast_setup
 
@@ -1721,26 +1824,25 @@ proc config_master_host { only_check name config_array } {
       puts $CHECK_OUTPUT "Could not get local host name" 
       return -1
    }
-   set CHECK_HOST $local_host
 
    if {$actual_value == ""} {
       set value $default_value
       if {$default_value == ""} {
-         set value $CHECK_HOST
+         set value $local_host
       }
    }
 
    # master host must be check_host !!!
    if {$only_check == 0} {
       config_select_host $value config
-      puts $CHECK_OUTPUT "Press enter to use host \"$CHECK_HOST\" as qmaster host"
+      puts $CHECK_OUTPUT "Press enter to use host \"$value\" as qmaster host"
       wait_for_enter
-      set value $CHECK_HOST
+      set value $local_host
    } 
 
    if {!$fast_setup} {
       debug_puts "master host: $value"
-      if {[string compare $value $CHECK_HOST] != 0 && $do_nomain == 0} {
+      if {[string compare $value $local_host] != 0 && $do_nomain == 0} {
          puts $CHECK_OUTPUT "Master host must be local host"
          return -1
       }
@@ -1761,7 +1863,6 @@ proc config_master_host { only_check name config_array } {
       }
    }
 
-   set CHECK_CORE_MASTER $value
 
    return $value
 }
@@ -1788,13 +1889,15 @@ proc config_master_host { only_check name config_array } {
 #*******************************************************************************
 proc config_execd_hosts { only_check name config_array } {
    global CHECK_OUTPUT do_nomain
-   global CHECK_HOST
-   global CHECK_CORE_EXECD
    global ts_host_config fast_setup
 
-   set CHECK_CORE_EXECD ""
-
    upvar $config_array config
+   
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
    set value $config($name)
 
    if {$only_check == 0} {
@@ -1802,7 +1905,7 @@ proc config_execd_hosts { only_check name config_array } {
       if {$value == ""} {
          set value $config($name,default)
          if {$value == ""} {
-            set value $CHECK_HOST
+            set value $local_host
          }
       }
 
@@ -1818,7 +1921,6 @@ proc config_execd_hosts { only_check name config_array } {
    }
 
    # set host lists
-   # set CHECK_CORE_EXECD $value
    # we need a mapping from node to physical hosts
    foreach host $value {
       node_set_host $host $host
@@ -1843,10 +1945,6 @@ proc config_execd_hosts { only_check name config_array } {
    set config(execd_nodes) [lsort -dictionary $config(execd_nodes)]
    set config(unique_execd_nodes) [lsort -dictionary $config(unique_execd_nodes)]
    set config(unique_arch_nodes) [lsort -dictionary $config(unique_arch_nodes)]
-
-   # for compatibility, we set CHECK_CORE_EXECD to the node list
-   # TODO: should be eliminated, use $ts_config(execd_nodes) instead
-   set CHECK_CORE_EXECD $config(execd_nodes)
 
    return $value
 }
@@ -1874,8 +1972,6 @@ proc config_execd_hosts { only_check name config_array } {
 #*******************************************************************************
 proc config_submit_only_hosts { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_CORE_EXECD
-   global CHECK_SUBMIT_ONLY_HOSTS
    global ts_host_config fast_setup
 
    upvar $config_array config
@@ -1916,12 +2012,7 @@ proc config_submit_only_hosts { only_check name config_array } {
             }
          }
       }
-
-      set CHECK_SUBMIT_ONLY_HOSTS $value
-   } else {
-      set CHECK_SUBMIT_ONLY_HOSTS ""
    }
-
    return $value
 }
 
@@ -2172,7 +2263,6 @@ proc config_reserved_port { only_check name config_array } {
 #*******************************************************************************
 proc config_product_root { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_PRODUCT_ROOT
    global fast_setup
 
    upvar $config_array config
@@ -2234,8 +2324,6 @@ proc config_product_root { only_check name config_array } {
            return -1
       }
    }
-
-   set CHECK_PRODUCT_ROOT $value
 
    return $value
 }
@@ -2447,7 +2535,6 @@ proc config_aimk_compile_options { only_check name config_array } {
 #*******************************************************************************
 proc config_dist_install_options { only_check name config_array } {
    global CHECK_OUTPUT 
-   global CHECK_DIST_INSTALL_OPTIONS 
    global fast_setup
 
    upvar $config_array config
@@ -2475,11 +2562,6 @@ proc config_dist_install_options { only_check name config_array } {
    }
 
    # set global values
-   set CHECK_DIST_INSTALL_OPTIONS $value
-   if { [ string compare "none" $value ] == 0  } {
-      set  CHECK_DIST_INSTALL_OPTIONS ""
-   }
-
    return $value
 }
 
@@ -2790,12 +2872,17 @@ proc config_package_type { only_check name config_array } {
 proc config_dns_domain { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_DNS_DOMAINNAME
-   global CHECK_ARCH
    global CHECK_USER
-   global CHECK_HOST
    global fast_setup
 
    upvar $config_array config
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
+
    set actual_value  $config($name)
    set default_value $config($name,default)
    set description   $config($name,desc)
@@ -2820,23 +2907,20 @@ proc config_dns_domain { only_check name config_array } {
       }
    } 
 
-   debug_puts "local system : $CHECK_ARCH"
-   debug_puts "local host   : $CHECK_HOST"   
-
    if {!$fast_setup} {
-      set result [start_remote_prog $CHECK_HOST $CHECK_USER "echo" "\"hello $CHECK_HOST\"" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $local_host $CHECK_USER "echo" "\"hello $local_host\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "rlogin to host $CHECK_HOST doesn't work correctly"
+         puts $CHECK_OUTPUT "rlogin to host $local_host doesn't work correctly"
          return -1
       }
-      if { [ string first "hello $CHECK_HOST" $result ] < 0 } {
+      if { [ string first "hello $local_host" $result ] < 0 } {
          puts $CHECK_OUTPUT "$result"
-         puts $CHECK_OUTPUT "echo \"hello $CHECK_HOST\" doesn't work"
+         puts $CHECK_OUTPUT "echo \"hello $local_host\" doesn't work"
          return -1
       }
 
       debug_puts "domain check ..."
-      set host "$CHECK_HOST.$value"
+      set host "$local_host.$value"
       debug_puts "hostname with dns domain: \"$host\""
 
       set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
@@ -2881,12 +2965,17 @@ proc config_dns_domain { only_check name config_array } {
 proc config_dns_for_install_script { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_DEFAULT_DOMAIN
-   global CHECK_ARCH
    global CHECK_USER
-   global CHECK_HOST
    global fast_setup
 
    upvar $config_array config
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
+
    set actual_value  $config($name)
    set default_value $config($name,default)
    set description   $config($name,desc)
@@ -2915,11 +3004,9 @@ proc config_dns_for_install_script { only_check name config_array } {
    if {!$fast_setup} {
       # only check domain if not none
       if { [string compare "none" $value] != 0 } {
-         debug_puts "local system : $CHECK_ARCH"
-         debug_puts "local host   : $CHECK_HOST"   
 
          debug_puts "domain check ..."
-         set host "$CHECK_HOST.$value"
+         set host "$local_host.$value"
          debug_puts "hostname with dns domain: \"$host\""
       
          set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
@@ -2965,7 +3052,6 @@ proc config_mail_application { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_USER 
    global CHECK_MAILX_HOST
-   global CHECK_HOST
    global fast_setup
 
    upvar $config_array config
@@ -3023,7 +3109,6 @@ proc config_mailx_host { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_USER 
    global CHECK_MAILX_HOST
-   global CHECK_HOST
    global fast_setup
 
    upvar $config_array config
@@ -3031,10 +3116,17 @@ proc config_mailx_host { only_check name config_array } {
    set default_value $config($name,default)
    set description   $config($name,desc)
    set value $actual_value
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
+
    if { $actual_value == "" } {
       set value $default_value
       if { $default_value == "" } {
-         set value $CHECK_HOST
+         set value $local_host
       }
    }
    if { $only_check == 0 } {
@@ -3112,7 +3204,6 @@ proc config_report_mail_to { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_USER 
    global CHECK_MAILX_HOST
-   global CHECK_HOST
    global CHECK_REPORT_EMAIL_TO
    global fast_setup
 
@@ -3327,7 +3418,6 @@ proc config_enable_error_mails { only_check name config_array } {
 proc config_l10n_test_locale { only_check name config_array } {
    global CHECK_OUTPUT 
    global CHECK_L10N ts_host_config ts_config
-   global CHECK_CORE_MASTER CHECK_SUBMIT_ONLY_HOSTS 
    global fast_setup
 
    upvar $config_array config
@@ -3367,13 +3457,13 @@ proc config_l10n_test_locale { only_check name config_array } {
            if {!$fast_setup} {
               set was_error 0
 
-              if { [ info exist ts_host_config($CHECK_CORE_MASTER,${value}_locale)] != 1 } {
-                 puts $CHECK_OUTPUT "can't read ts_host_config($CHECK_CORE_MASTER,${value}_locale)"
+              if { [ info exist ts_host_config($ts_config(master_host),${value}_locale)] != 1 } {
+                 puts $CHECK_OUTPUT "can't read ts_host_config($ts_config(master_host),${value}_locale)"
                  return -1
               }
 
-              if { $ts_host_config($CHECK_CORE_MASTER,${value}_locale) == "" } {
-                 puts $CHECK_OUTPUT "locale not defined for master host $CHECK_CORE_MASTER"
+              if { $ts_host_config($ts_config(master_host),${value}_locale) == "" } {
+                 puts $CHECK_OUTPUT "locale not defined for master host $ts_config(master_host)"
                  incr was_error 1
               }
               foreach host $config(execd_hosts) {
@@ -3382,7 +3472,7 @@ proc config_l10n_test_locale { only_check name config_array } {
                     incr was_error 1
                  }
               }
-              foreach host $CHECK_SUBMIT_ONLY_HOSTS {
+              foreach host $ts_config(submit_only_hosts) {
                  if { $ts_host_config($host,${value}_locale) == "" } {
                     puts $CHECK_OUTPUT "locale not defined for submit host $host"
                     incr was_error 1
@@ -3885,7 +3975,6 @@ proc config_add_compile_archs { only_check name config_array } {
 #*******************************************************************************
 proc config_shadowd_hosts { only_check name config_array } {
    global CHECK_OUTPUT
-   global CHECK_HOST
    global CHECK_CORE_SHADOWD
    global ts_host_config
    global fast_setup
@@ -3894,13 +3983,19 @@ proc config_shadowd_hosts { only_check name config_array } {
 
    upvar $config_array config
    set value $config($name)
+ 
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
 
    if {$only_check == 0} {
       # initialize value from defaults, if not yet set
       if {$value == ""} {
          set value $config($name,default)
          if {$value == ""} {
-            set value $CHECK_HOST
+            set value $local_host
          }
       }
 
@@ -4596,18 +4691,29 @@ proc config_select_host {host config_var} {
 #  SEE ALSO
 #     config/config_select_host()
 #*******************************************************************************
-proc config_select_host_list {config_var name selected} {
+proc config_select_host_list {config_var name selected {help_descr ""} {only_one_host 0} } {
    global ts_config ts_host_config CHECK_OUTPUT
 
    upvar $config_var config
 
    set description   $config($name,desc)
 
+   if { $only_one_host != 0 } {
+      if { [llength $selected] > 1} {
+         add_proc_error "config_select_host_list" -1 "please select only one host"
+         return ""
+      }
+   }
+
    while {1} {
       # output description and host lists
       clear_screen
       puts $CHECK_OUTPUT "----------------------------------------------------------"
       puts $CHECK_OUTPUT $description
+      if { $help_descr != "" } {
+         puts $CHECK_OUTPUT "----------------------------------------------------------"
+         foreach elem $help_descr { puts $CHECK_OUTPUT $elem }
+      }
       puts $CHECK_OUTPUT "----------------------------------------------------------"
         
       set selected [lsort $selected]
@@ -4628,6 +4734,18 @@ proc config_select_host_list {config_var name selected} {
 
       # user pressed return for exit
       if {[string length $host] == 0} {
+         if { $only_one_host != 0 } {
+            if {[llength $selected] > 1 } {
+               puts $CHECK_OUTPUT "only one host allowed, please select only one host!"
+               wait_for_enter
+               continue
+            } 
+            if {[llength $selected] < 1 } {
+               puts $CHECK_OUTPUT "please select a host!"
+               wait_for_enter
+               continue
+            } 
+         }
          break
       }
 
@@ -4676,6 +4794,8 @@ proc config_select_host_list {config_var name selected} {
          set selected [lreplace $selected $index $index]
       }
    }
+
+   
    
    # make sure we have compile hosts for all selected hosts
    if {[compile_check_compile_hosts $selected] != 0} {
@@ -4689,30 +4809,34 @@ proc config_select_host_list {config_var name selected} {
 
 #****** config/config_check_host_in_hostlist() *********************************
 #  NAME
-#     config_check_host_in_hostlist() -- ensure CHECK_HOST is first in list
+#     config_check_host_in_hostlist() -- ensure [gethostname] is first in list
 #
 #  SYNOPSIS
 #     config_check_host_in_hostlist { hostlist } 
 #
 #  FUNCTION
-#     The function ensures, that CHECK_HOST is the first host in a given
+#     The function ensures, that [gethostname] is the first host in a given
 #     host list.
 #
 #  INPUTS
 #     hostlist - host list to verify
 #
 #  RESULT
-#     a new host list, with CHECK_HOST as first element
+#     a new host list, with [gethostname] as first element
 #*******************************************************************************
 proc config_check_host_in_hostlist {hostlist} {
-   global CHECK_HOST
 
-   # make sure, $CHECK_HOST is the first host in list
-   set index [lsearch $hostlist $CHECK_HOST]
+   # make sure, [gethostname] is the first host in list
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return -1
+   }
+   set index [lsearch $hostlist $local_host]
    if {$index >= 0} {
       set hostlist [lreplace $hostlist $index $index]
    }
-   set hostlist [linsert $hostlist 0 $CHECK_HOST]
+   set hostlist [linsert $hostlist 0 $local_host]
 
    return $hostlist
 }
@@ -4728,14 +4852,14 @@ proc config_check_host_in_hostlist {hostlist} {
 #     Verifies correctness of a list of host names:
 #     - the hosts must be configured in the testsuite host configuration
 #     - compile hosts must be known for all the hosts architectures
-#     - if requested (argument check_host_first), CHECK_HOST has to be the
+#     - if requested (argument check_host_first), [gethostname] has to be the
 #       first host in the given host list
 #     
 #  INPUTS
 #     hostlist             - the list to verify
 #     name                 - name of the testsuite configuration item, e.g.
 #                            "execd_hosts", or "submit_only_hosts"
-#     {check_host_first 0} - has CHECK_HOST to be the first list element?
+#     {check_host_first 0} - has [gethostname] to be the first list element?
 #
 #  RESULT
 #     0: host list is invalid, reasons will be output to $CHECK_OUTPUT
@@ -4748,11 +4872,16 @@ proc config_check_host_in_hostlist {hostlist} {
 #*******************************************************************************
 proc config_verify_hostlist {hostlist name {check_host_first 0}} {
    global ts_config CHECK_OUTPUT
-   global CHECK_HOST
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts $CHECK_OUTPUT "Could not get local host name" 
+      return 0
+   }
 
    if {$check_host_first} {
-      # CHECK_HOST must be first host
-      if {[lindex $hostlist 0] != $CHECK_HOST} {
+      # [gethostname] must be first host
+      if {[lindex $hostlist 0] != $local_host} {
          puts $CHECK_OUTPUT "First $name host must be local host"
          return 0
       }
@@ -4772,6 +4901,8 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
    return 1
 }
+
+
 
 
 # MAIN

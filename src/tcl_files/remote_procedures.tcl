@@ -37,7 +37,14 @@ global rlogin_spawn_session_buffer
 set module_name "remote_procedures.tcl"
 global rlogin_max_open_connections
 set rlogin_max_open_connections 20
-global last_shell_script_file last_spawn_command_arguments
+global open_remote_spawn_script_cache
+
+# if file is resourced, delete xterm_path_cache
+global xterm_path_cache
+if { [info exists xterm_path_cache] } {
+   unset xterm_path_cache
+}
+
 
 global CHECK_SHELL_PROMPT CHECK_LOGIN_LINE
 # initialize prompt handling, see expect manpage
@@ -168,8 +175,9 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
 #     remote_procedures/cleanup_qping_dump_output()
 #*******************************************************************************
 proc setup_qping_dump { log_array  } {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT
    upvar $log_array used_log_array
+   get_current_cluster_config_array ts_config
 
    set master_host $ts_config(master_host)
    set master_host_arch [resolve_arch $master_host]
@@ -226,6 +234,31 @@ proc setup_qping_dump { log_array  } {
 }
 
 
+proc get_xterm_path { host } {
+   global ts_config CHECK_USER xterm_path_cache
+
+   if { [info exists xterm_path_cache($host)] } {
+      return $xterm_path_cache($host)
+   }
+
+   set xterm_path [start_remote_prog $host $CHECK_USER "which" "xterm" ]
+   if { [is_remote_file $host $CHECK_USER $xterm_path 1] } {
+      set xterm_path_cache($host) $xterm_path
+      return $xterm_path
+   }
+   set xterm_candidate_path "/usr/bin/X11/xterm"
+   if { [is_remote_file $host $CHECK_USER $xterm_candidate_path 1] } {
+      set xterm_path_cache($host) $xterm_candidate_path
+      return $xterm_candidate_path
+   }
+   set xterm_candidate_path "/usr/openwin/bin/xterm"
+   if { [is_remote_file $host $CHECK_USER $xterm_candidate_path 1] } {
+      set xterm_path_cache($host) $xterm_candidate_path
+      return $xterm_candidate_path
+   }
+   return "xterm"
+}
+
 #****** remote_procedures/check_all_system_times() **********************************
 #  NAME
 #     check_all_system_times() -- check clock synchronity on each cluster deamon host
@@ -241,7 +274,8 @@ proc setup_qping_dump { log_array  } {
 #     0 on success, 1 on error
 #************************************************************************************
 proc check_all_system_times {} {
-   global CHECK_USER CHECK_OUTPUT ts_config
+   global CHECK_USER CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
 
    set return_value 0
    set host_list [host_conf_get_cluster_hosts]
@@ -298,8 +332,9 @@ proc check_all_system_times {} {
 #     remote_procedures/cleanup_qping_dump_output()
 #*******************************************************************************
 proc get_qping_dump_output { log_array } {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT
    upvar $log_array used_log_array
+   get_current_cluster_config_array ts_config
    set return_value 0
 
 
@@ -425,8 +460,9 @@ proc get_qping_dump_output { log_array } {
 #     remote_procedures/cleanup_qping_dump_output()
 #*******************************************************************************
 proc cleanup_qping_dump_output { log_array } {
-   global CHECK_OUTPUT ts_config
+   global CHECK_OUTPUT
    upvar $log_array used_log_array
+   get_current_cluster_config_array ts_config
 
    if { $ts_config(gridengine_version) >= 60 } {
       close_spawn_process $used_log_array(spawn_sid)
@@ -469,9 +505,9 @@ proc cleanup_qping_dump_output { log_array } {
 #     ???/???
 #*******************************
 proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
-   global ts_config
    global CHECK_DEFAULTS_FILE
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   get_current_cluster_config_array ts_config
  
    log_user 1
    puts $CHECK_OUTPUT "--- start_remote_tcl_prog start ---"
@@ -555,7 +591,7 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
 #     set envlist(COLUMNS) 500
 #     start_remote_prog "ahost" "auser" "ls" "-la" "prg_exit_state" "60" "0" "envlist"
 #*******************************
-#
+# CR checked
 proc start_remote_prog { hostname
                          user
                          exec_command
@@ -574,7 +610,6 @@ proc start_remote_prog { hostname
                          {without_sge_single_line 0}
                        } {
    global CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR CHECK_DEBUG_LEVEL 
-   global CHECK_HOST
    upvar $exit_var back_exit_state
 
    if {$envlist != ""} {
@@ -771,7 +806,8 @@ proc start_remote_prog { hostname
 #     ???/???
 #*******************************************************************************
 proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" } { replyto "" } { organisation "" } { force_mail 0 } } {
-   global CHECK_HOST CHECK_USER CHECK_OUTPUT ts_config CHECK_ENABLE_MAIL CHECK_MAILS_SENT CHECK_MAX_ERROR_MAILS
+   global CHECK_USER CHECK_OUTPUT CHECK_ENABLE_MAIL CHECK_MAILS_SENT CHECK_MAX_ERROR_MAILS
+   get_current_cluster_config_array ts_config
 
    if { $CHECK_ENABLE_MAIL != 1 && $force_mail == 0 } {
      puts $CHECK_OUTPUT "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
@@ -851,7 +887,9 @@ proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" }
 
 
 proc sendmail_wrapper { address cc subject body } {
-   global CHECK_HOST CHECK_OUTPUT ts_config CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
+
 
 #   set html_text ""
 #   foreach line [split $body "\n"] {
@@ -922,9 +960,12 @@ proc create_error_message {err_string} {
 
 
 proc show_proc_error {result new_error} {
-   global ts_config CHECK_OUTPUT check_name
-   global CHECK_ARCH CHECK_HOST CHECK_PRODUCT_ROOT CHECK_ACT_LEVEL CHECK_CORE_MASTER CHECK_CORE_EXECD
+   global CHECK_OUTPUT check_name
+   global CHECK_ACT_LEVEL
    global CHECK_SEND_ERROR_MAILS
+
+   get_current_cluster_config_array ts_config
+
 
    if { $result != 0 } {
       set category "error"
@@ -948,11 +989,11 @@ proc show_proc_error {result new_error} {
          append mail_body "check_name      : $check_name\n"
          append mail_body "category        : $category\n"
          append mail_body "runlevel        : [get_run_level_name $CHECK_ACT_LEVEL] (level: $CHECK_ACT_LEVEL)\n"
-         append mail_body "check host      : $CHECK_HOST\n"
+         append mail_body "check host      : $ts_config(master_host)\n"
          append mail_body "product version : [get_version_info]\n"
-         append mail_body "SGE_ROOT        : $CHECK_PRODUCT_ROOT\n"
-         append mail_body "master host     : $CHECK_CORE_MASTER\n"
-         append mail_body "execution hosts : $CHECK_CORE_EXECD\n\n"
+         append mail_body "SGE_ROOT        : $ts_config(product_root)\n"
+         append mail_body "master host     : $ts_config(master_host)\n"
+         append mail_body "execution hosts : $ts_config(execd_hosts)\n\n"
 
          append mail_body "$error_output"
          catch {
@@ -1241,6 +1282,7 @@ proc map_special_users {hostname user win_local_user} {
 #     remote_procedures/close_spawn_id()
 #     remote_procedures/map_special_users()
 #*******************************************************************************
+# CR checked
 proc open_remote_spawn_process { hostname
                                  user
                                  exec_command
@@ -1255,14 +1297,17 @@ proc open_remote_spawn_process { hostname
                                  {win_local_user 0}
                                  {without_start_output 0}
                                  {without_sge_single_line 0}
+                                 {shell_script_name_var shell_script_name}
                                } {
 
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global CHECK_HOST
+   global CHECK_OUTPUT CHECK_USER
    global CHECK_EXPECT_MATCH_MAX_BUFFER CHECK_DEBUG_LEVEL
    global CHECK_LOGIN_LINE
-   global last_shell_script_file last_spawn_command_arguments
+   global open_remote_spawn_script_cache
+   upvar $shell_script_name_var used_script_name
+   get_current_cluster_config_array ts_config
 
+   set testsuite_root_dir $ts_config(testsuite_root_dir)
    debug_puts "open_remote_spawn_process on host \"$hostname\""
    debug_puts "user:           $user"
    debug_puts "exec_command:   $exec_command"
@@ -1307,33 +1352,30 @@ proc open_remote_spawn_process { hostname
    # if the same script is executed multiple times, don't recreate it
    set re_use_script 0
    # we check for a combination of all parameters
-   set spawn_command_arguments "$hostname$user$exec_command$exec_arguments$background$cd_dir$envlist$source_settings_file$set_shared_lib_path$win_local_user"
-   if {[info exists last_spawn_command_arguments]} {
-      # compare last command with this command
-      if {[string compare $spawn_command_arguments $last_spawn_command_arguments] == 0} {
-         # check if the script is still available
-         if {[file isfile $last_shell_script_file]} {
-            set re_use_script 1
-         }
+   set spawn_command_arguments "$hostname$user$exec_command$exec_arguments$background$cd_dir$envlist$source_settings_file$set_shared_lib_path$win_local_user$without_start_output$without_sge_single_line"
+   if {[info exists open_remote_spawn_script_cache($spawn_command_arguments)]} {
+      if {[file isfile $open_remote_spawn_script_cache($spawn_command_arguments)]} {
+         set re_use_script 1
+      } else {
+         # script file does not exist anymore - remove from cache
+         unset open_remote_spawn_script_cache($spawn_command_arguments)
       }
    }
 
-   # now remember this argument string for use in the next call to open_remote_spawn_process
-   set last_spawn_command_arguments $spawn_command_arguments
-
    # either use the previous script, or create a new one
    if {$re_use_script} {
-      set script_name $last_shell_script_file
+      set script_name $open_remote_spawn_script_cache($spawn_command_arguments)
       debug_puts "re-using script $script_name"
    } else {
       set command_name [file tail $exec_command]
       set script_name [get_tmp_file_name $hostname $command_name "sh"]
+      # add script name to cache
+      set open_remote_spawn_script_cache($spawn_command_arguments) $script_name
       create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line
       debug_puts "created $script_name"
-
-      # remember name of script file for use in the next call to open_remote_spawn_process
-      set last_shell_script_file $script_name
    }
+   set used_script_name $script_name
+
 
    # get info about an already open rlogin connection
    get_open_spawn_rlogin_session $hostname $user $win_local_user con_data
@@ -1405,7 +1447,7 @@ proc open_remote_spawn_process { hostname
             log_user 1
          }
          if {$tmp_help} {
-            set ssh_binary [get_binary_path $CHECK_HOST ssh]
+            set ssh_binary [get_binary_path $ts_config(master_host) ssh]
             set pid [spawn $ssh_binary "-l" $connect_full_user $hostname]
          } else {
             set pid [spawn "rlogin" $hostname "-l" $connect_full_user]
@@ -1517,7 +1559,7 @@ proc open_remote_spawn_process { hostname
          set catch_return [catch {
             set num_tries $nr_of_tries
             # try to start the shell_start_output.sh script
-            ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $hostname
+            ts_send $spawn_id "$testsuite_root_dir/scripts/shell_start_output.sh\n" $hostname
             set timeout 2
             expect {
                -i $spawn_id eof {
@@ -1532,7 +1574,7 @@ proc open_remote_spawn_process { hostname
                   incr num_tries -1
                   if {$num_tries > 0} {
                      # try to restart the shell_start_output.sh script
-                     ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/shell_start_output.sh\n" $hostname
+                     ts_send $spawn_id "$testsuite_root_dir/scripts/shell_start_output.sh\n" $hostname
                      increase_timeout
                      exp_continue
                   } else {
@@ -1593,7 +1635,7 @@ proc open_remote_spawn_process { hostname
       # now we know that we have a connection and can start a shell script
       # try to check login id
       set catch_return [ catch {
-         ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
+         ts_send $spawn_id "$testsuite_root_dir/scripts/check_identity.sh\n" $hostname
          set num_tries $nr_of_tries
          set timeout 2
          expect {
@@ -1608,7 +1650,7 @@ proc open_remote_spawn_process { hostname
             -i $spawn_id timeout {
                incr num_tries -1
                if {$num_tries > 0} {
-                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
+                  ts_send $spawn_id "$testsuite_root_dir/scripts/check_identity.sh\n" $hostname
                   increase_timeout
                   exp_continue
                } else {
@@ -1704,7 +1746,7 @@ proc open_remote_spawn_process { hostname
          # now we should have the id of the target user
          # check login id
          set catch_return [catch {
-            ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
+            ts_send $spawn_id "$testsuite_root_dir/scripts/check_identity.sh\n" $hostname
             set num_tries $nr_of_tries
             set timeout 2
             expect {
@@ -1719,7 +1761,7 @@ proc open_remote_spawn_process { hostname
                -i $spawn_id timeout {
                   incr num_tries -1
                   if {$num_tries > 0} {
-                     ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $hostname
+                     ts_send $spawn_id "$testsuite_root_dir/scripts/check_identity.sh\n" $hostname
                      increase_timeout
                      exp_continue
                   } else {
@@ -1781,7 +1823,7 @@ proc open_remote_spawn_process { hostname
    # we wait for some time, as the it might take some time until the command is visible (NFS)
    if {$re_use_script == 0} {
       set catch_return [catch {
-         ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/file_check.sh $script_name\n" $hostname
+         ts_send $spawn_id "$testsuite_root_dir/scripts/file_check.sh $script_name\n" $hostname
          set connect_errors 0
          set num_tries $nr_of_tries
          set timeout 2
@@ -1797,7 +1839,7 @@ proc open_remote_spawn_process { hostname
             -i $spawn_id timeout {
                incr num_tries -1
                if {$num_tries > 0} {
-                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/file_check.sh $script_name\n" $hostname
+                  ts_send $spawn_id "$testsuite_root_dir/scripts/file_check.sh $script_name\n" $hostname
                   increase_timeout
                   exp_continue
                } else {
@@ -1891,8 +1933,9 @@ proc open_remote_spawn_process { hostname
 #     - second element is the spawn id
 #
 #  EXAMPLE
+#     set arch [resolve_arch [gethostname]]
 #     set id [ 
-#       open_spawn_process "$CHECK_PRODUCT_ROOT/bin/$CHECK_ARCH/qconf" "-dq" "$q_name"
+#       open_spawn_process "$ts_config(product_root)/bin/$arch/qconf" "-dq" "$q_name"
 #     ]
 #     expect {
 #       ...
@@ -2570,7 +2613,8 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
 #     remote_procedures/check_rlogin_session
 #*******************************************************************************
 proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 0} {raise_error 1}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER
+   get_current_cluster_config_array ts_config
 
    debug_puts "check_rlogin_session: $spawn_id $pid $hostname $user $nr_of_shells $only_check"
    if {![is_spawn_id_rlogin_session $spawn_id]} {
@@ -2756,9 +2800,10 @@ proc is_spawn_process_in_use {spawn_id} {
 #     remote_procedures/start_remote_prog
 #*******************************
 proc close_spawn_process {id {check_exit_state 0}} {
-   global ts_config CHECK_OUTPUT
+   global CHECK_OUTPUT
    global CHECK_DEBUG_LEVEL
    global CHECK_SHELL_PROMPT
+   get_current_cluster_config_array ts_config
  
    set pid      [lindex $id 0]
    set spawn_id [lindex $id 1]

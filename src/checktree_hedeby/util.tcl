@@ -52,7 +52,7 @@
 #
 #  EXAMPLE
 #
-#   set id [open_remote_spawn_process "$CHECK_HOST" "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
+#   set id [open_remote_spawn_process $ts_config(master_host) "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
 #   set sp_id [ lindex $id 1 ]
 #
 #   set exit_state [do_ssh_login sp_id "n1sm_user" "n1sm_host"]
@@ -78,12 +78,12 @@
 #      util/do_sftp_login()
 #*******************************************************************************
 proc do_ssh_login { spawn_id user host } {
-   global haithabu_config CHECK_OUTPUT
-   global haithabu_passwd CHECK_HOST CHECK_USER CHECK_SHELL_PROMPT
+   global haithabu_config CHECK_OUTPUT ts_config
+   global haithabu_passwd CHECK_USER CHECK_SHELL_PROMPT
 
    upvar sp_id $spawn_id
 
-   # set id [open_remote_spawn_process "$CHECK_HOST" "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
+   # set id [open_remote_spawn_process $ts_config(master_host) "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
    set exit_state 1
    log_user 1
 
@@ -137,12 +137,12 @@ proc do_ssh_login { spawn_id user host } {
 }
 
 proc do_sftp_login { spawn_id user host } {
-   global haithabu_config CHECK_OUTPUT
-   global haithabu_passwd CHECK_HOST CHECK_USER CHECK_SHELL_PROMPT
+   global haithabu_config CHECK_OUTPUT ts_config
+   global haithabu_passwd CHECK_USER CHECK_SHELL_PROMPT
 
    upvar sp_id $spawn_id
 
-   # set id [open_remote_spawn_process "$CHECK_HOST" "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
+   # set id [open_remote_spawn_process $ts_config(master_host) "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
    set exit_state 1
    log_user 1
 
@@ -185,6 +185,25 @@ proc do_sftp_login { spawn_id user host } {
 
 #   close_spawn_process $id
    return $exit_state
+}
+
+# return != 0 on error
+proc shutdown_hedeby {} {
+   add_proc_error "shutdown_hedeby" -3 "not implemented"
+   return 0
+}
+
+proc startup_hedeby {} {
+   add_proc_error "startup_hedeby" -3 "not implemented"
+   return 0
+}
+
+proc reset_hedeby {} {
+   add_proc_error "reset_hedeby" -3 "not implemented"
+   # shutdown hedeby system ?
+   # reset all resources to install state = OK (same as after install with cleanup system)
+   # startup hedeby system ?
+   return 0
 }
 
 
