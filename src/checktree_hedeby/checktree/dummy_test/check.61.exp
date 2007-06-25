@@ -95,9 +95,12 @@ proc dummy_test_check {} {
       puts $CHECK_OUTPUT "   This cluster should have the following execd hosts:"
       foreach host $ts_config(execd_hosts) {
          puts $CHECK_OUTPUT "   o \"$host\""
-         get_qconf_se_info $host
-         puts $CHECK_OUTPUT "        processors:  $qconf_se_info(processors)"
-         puts $CHECK_OUTPUT "        load_values: $qconf_se_info(load_values)"
+         if { [get_qconf_se_info $host] } {
+            puts $CHECK_OUTPUT "        processors:  $qconf_se_info(processors)"
+            puts $CHECK_OUTPUT "        load_values: $qconf_se_info(load_values)"
+         } else {
+            puts $CHECK_OUTPUT "cannot get execd host information"
+         }
       }
 
       set job_id($cluster) [ submit_job "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 600" ] 

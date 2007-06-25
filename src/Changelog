@@ -1,3 +1,10 @@
+CR-2007-06-25-0: Bugfix:    o Fixed procedure restart_debug_daemons() (used by
+                              menu choice 20/21 to startup master and scheduler
+                            o added missing CHECK_OUTPUT variable
+                            o dummy_test (hedeby checktree) produced tcl error
+                              if get_qconf_se_info() fails
+                 Review:    AA
+
 JG-2007-06-25-0: Enhancem.: Enhancements / cleanup in 
                             bugs/issuezilla/2300 and system_tests/clients/qstat.
                  Review:    RD

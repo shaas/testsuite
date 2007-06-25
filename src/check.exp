@@ -4831,7 +4831,7 @@ proc select_runlevel {} {
      } 
 }
 proc check_display {} {
-     global CHECK_DISPLAY_OUTPUT CHECK_USER 
+     global CHECK_DISPLAY_OUTPUT CHECK_USER CHECK_OUTPUT
 
      if { [ string compare $CHECK_DISPLAY_OUTPUT "undefined" ] == 0 } {
         puts "no debug x display set"
@@ -6870,11 +6870,8 @@ proc restart_debug_daemons { { shutdown 0 } } {
       set_root_passwd
    }
    if { $shutdown == 0 } {
-      get_config config_tmp
-      if { [info exists config_tmp(qmaster_spool_dir) ] != 1 } { 
-         return 
-      }
-      shutdown_master_and_scheduler $ts_config(master_host) $config_tmp(qmaster_spool_dir) 
+      set spooldir [get_qmaster_spool_dir]
+      shutdown_master_and_scheduler $ts_config(master_host) $spooldir
    }
    startup_qmaster 
    wait_for_load_from_all_queues 300 
