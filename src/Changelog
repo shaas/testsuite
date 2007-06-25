@@ -1,3 +1,5 @@
+CR-2007-06-25-1: Cleanup:   added adoc header for config_generic()
+
 CR-2007-06-25-0: Bugfix:    o Fixed procedure restart_debug_daemons() (used by
                               menu choice 20/21 to startup master and scheduler
                             o added missing CHECK_OUTPUT variable

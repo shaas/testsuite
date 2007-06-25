@@ -637,16 +637,66 @@ proc modify_setup2 {} {
    return $change_level
 }
 
+#****** config/config_generic() ************************************************
+#  NAME
+#     config_generic() -- Get generic configuration values
+#
+#  SYNOPSIS
+#     config_generic { only_check name config_array help_text check_type } 
+#
+#  FUNCTION
+#     This procedure is used to get standard (generic) testsuite configuration
+#     values for setting up the testsuite. Possible values are e.g. getting
+#     a list of hosts from testsuite host configuration file, a string value,
+#     a filename, ...
+#
+#  INPUTS
+#     only_check   - If set no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#     help_text    - A description of the configuration value for the user
+#     check_type   - The values data type requested from the user.
+#                    Possible types are:
+#                    "host":      request a host from host config
+#                    "hosts":     request a list of hosts from host config
+#                    "port":      request a valid portnumber
+#                    "directory": request a directory path
+#                    "string":    request a string value
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  EXAMPLE
+#     proc config_hedeby_product_root { only_check name config_array } {
+#        global CHECK_OUTPUT fast_setup
+#        upvar $config_array config
+#        
+#        set help_text { "Please enter the path where the testsuite should install Hedeby,"
+#                        "or press >RETURN< to use the default value." 
+#                        "WARNING: The compile option will remove the content of this directory" 
+#                        "and store it to \"testsuite_trash\" directory!!!" }
+#      
+#        set value [config_generic $only_check $name config $help_text "directory" ]
+#        if {!$fast_setup} {
+#           # to be able to find processes with ps command, don't allow to long
+#           # directory path:
+#           set add_path "/bin/sol-sparc64/abcdef"
+#           set path_length [ string length $add_path ]
+#           if { [string length "$value/$add_path"] > 60 } {
+#                puts $CHECK_OUTPUT "path for hedeby dist directory is too long (must be <= [expr ( 60 - $path_length )] chars)"
+#                puts $CHECK_OUTPUT "The testsuite tries to find processes via ps output most ps output is truncated"
+#                puts $CHECK_OUTPUT "for longer lines."
+#                return -1
+#           }
+#        }
+#        return $value
+#     }
+#*******************************************************************************
 proc config_generic { only_check name config_array help_text check_type } {
    global CHECK_OUTPUT CHECK_USER ts_host_config ts_user_config
    global fast_setup 
 
    upvar $config_array config
-
-#   puts $CHECK_OUTPUT "$name"
-#   foreach name [array names config] {
-#      puts $CHECK_OUTPUT "config($name)=$config($name)"
-#   }
 
    set actual_value  $config($name)
    set default_value $config($name,default)
