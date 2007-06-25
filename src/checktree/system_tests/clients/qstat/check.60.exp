@@ -535,46 +535,38 @@ proc qstat_option_U {} {
 }
 
 proc qstat_option_s {} {
-  global ts_config CHECK_OUTPUT CHECK_USER 
-
-  set arch [resolve_arch $ts_config(master_host)]
+  global ts_config CHECK_OUTPUT
 
   puts $CHECK_OUTPUT "submitting a long running batch job ..."   
-  set job_id_list ""
   set arguments "-o /dev/null -e /dev/null"
   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100000"]
   wait_for_jobstart $job_id "Sleeper" 60
 
   puts $CHECK_OUTPUT "submitting & suspending a batch job ..."   
-  set job_id_list ""
   set arguments "-o /dev/null -e /dev/null"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100000" ]
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100000"]
   wait_for_jobstart $job_id "Sleeper" 60
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qmod" "-s $job_id" exit_code ]
+  set result [start_sge_bin "qmod" "-s $job_id"]
 
   puts $CHECK_OUTPUT "submitting an user hold batch job ..."   
-  set job_id_list ""
   set arguments "-h -o /dev/null -e /dev/null"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
 
   puts $CHECK_OUTPUT "submitting an system hold batch job ..."   
-  set job_id_list ""
   set arguments "-h -o /dev/null -e /dev/null"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-h s $job_id" exit_code ]
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-h U $job_id" exit_code ]
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
+  set result [start_sge_bin "qalter" "-h s $job_id"]
+  set result [start_sge_bin "qalter" "-h U $job_id"]
 
   puts $CHECK_OUTPUT "submitting an operator hold batch job ..."   
-  set job_id_list ""
   set arguments "-h -o /dev/null -e /dev/null"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-h o $job_id" exit_code ]
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-h U $job_id" exit_code ]
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
+  set result [start_sge_bin "qalter" "-h o $job_id"]
+  set result [start_sge_bin "qalter" "-h U $job_id"]
 
   puts $CHECK_OUTPUT "submitting an dependency hold batch job ..."   
-  set job_id_list ""
   set arguments "-hold_jid \"Sleeper\" -o /dev/null -e /dev/null"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
 
   #-s a
   qstat_count_jobs "qstat_option_s" "-s a" 6
@@ -603,15 +595,22 @@ proc qstat_option_s {} {
   #-s s 
   qstat_count_jobs "qstat_option_s" "-s s" 1 
 
+  # some combinations
+  qstat_count_jobs "qstat_option_s" "-s hss" 2
+  qstat_count_jobs "qstat_option_s" "-s hr"  5
+  qstat_count_jobs "qstat_option_s" "-s hhs" 4
+  qstat_count_jobs "qstat_option_s" "-s hsh" 4
+  qstat_count_jobs "qstat_option_s" "-s huhshohj" 4
+
+
   #-s ha
   puts $CHECK_OUTPUT "submitting an date hold batch job ..."   
-  set job_id_list ""
   #
   # Set duetime well in the future. No hard coded values, please.
   # 
-  set duetime [clock format [clock scan "next week"] -format "%m%d%H%M" ]
+  set duetime [clock format [clock scan "next week"] -format "%m%d%H%M"]
   set arguments "-a $duetime -o /dev/null -e /dev/null"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
   qstat_count_jobs "qstat_option_s" "-s ha" 1 
 
   #TODO test critical states & combinations

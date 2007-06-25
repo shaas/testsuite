@@ -286,6 +286,9 @@ proc issue_2300_P {} {
    if {[llength [split [string trim $output] "\n"]] != 3} {
       add_proc_error "" -1 "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
    }
+
+   delete_job $job_1 1
+   delete_job $job_2 1
 }
 
 proc issue_2300_PE {} {
@@ -324,5 +327,8 @@ proc issue_2300_PE {} {
    if {[llength [split [string trim $output] "\n"]] != 3} {
       add_proc_error "" -1 "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
    }
+
+   delete_job $job_1 1
+   delete_job $job_2 1
 }
 
