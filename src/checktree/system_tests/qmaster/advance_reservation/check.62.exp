@@ -42,7 +42,7 @@ global check_init_level_procedure
 global check_root_access_needs
 global env
 
-#set check_root_access_needs "yes"
+set check_root_access_needs "yes"
 
 # define a level initialization procedure:
 set check_init_level_procedure "advance_reservation_init_level"
@@ -70,10 +70,9 @@ lappend check_functions "test_complexes"
 lappend check_functions "test_require_more_than_reserved"
 lappend check_functions "test_changing_ar_id"
 lappend check_functions "test_waitingjob_future_ar"
-
-
-#TBD
-#lappend check_functions "qrdel_force"
+lappend check_functions "test_ar_access_list"
+lappend check_functions "test_job_runtime_limit"
+lappend check_functions "test_masterq"
 
 global pe_name1 pe_name2
 global ar_name1 ar_name2
@@ -94,6 +93,7 @@ proc advance_reservation_init_level {} {
    global queue_name1 queue_name2
    global complex_name1 complex_name2 gr_cplx
    global test_host default_args job_output_dir
+   global schedd_conf
 
    set pe_name1 "pe_with_conflict"
    set pe_name2 "pe_without_conflict"
@@ -130,6 +130,9 @@ proc advance_reservation_setup {} {
    global queue_name1 queue_name2
    global complex_name1 complex_name2 gr_cplx
    global test_host 
+   global schedd_conf
+
+   get_schedd_config schedd_conf
 
    set test_host [host_conf_get_suited_hosts]
 
@@ -161,6 +164,9 @@ proc advance_reservation_cleanup {} {
    global queue_name1 queue_name2 gr_cplx
    global complex_name1 complex_name2
    global test_host
+   global schedd_conf
+
+   mod_schedd_config schedd_conf
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -729,11 +735,9 @@ proc test_changing_ar_id {} {
    if {$prg_exit_state!=0} {
       add_proc_error "test_changing_ar_id" -1 "error qalter -ar on pending job\n$result1"
    }
-
 }
 
-
-proc test_waitingjob_future_ar  {} {
+proc test_waitingjob_future_ar {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global complex_name1 complex_name2 gr_cplx
    global ar_name1 ar_name2
@@ -764,7 +768,170 @@ proc test_waitingjob_future_ar  {} {
    if {$res==0} {
       add_proc_error "test_changing_ar_id" -1 "job expected to wait is running"
     }
-
 }
 
+proc test_ar_access_list {} {
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global userset_name1 userset_name2
+   global default_args
 
+   # Test setup
+   set userset(name)         "$userset_name1"
+   set userset(entries)      "$CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   add_userset userset
+
+   # 1) test user access
+   set args "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER -d 36000"
+   set ar_id [submit_ar $args]
+
+   set job_id [submit_job "-ar $ar_id $default_args" 0]
+   if {$job_id != -34} {
+      add_proc_error "test_ar_access_list" -1 "(1) error 'no suitable queues' was not shown"
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-ar $ar_id $default_args" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if {$job_id < 0} {
+      add_proc_error "test_ar_access_list" -1 "(1) job was wrongly rejected"
+   } else {
+      delete_job $job_id
+   }
+
+   delete_ar $ar_id
+
+   # 2) test xuser access
+   set args "-u \!$CHECK_FIRST_FOREIGN_SYSTEM_USER -d 36000"
+   set ar_id [submit_ar $args]
+     
+   set job_id [submit_job "-ar $ar_id $default_args" 1]
+   if {$job_id < 0} {
+      add_proc_error "test_ar_access_list" -1 "(2) job was wrongly rejected"
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-ar $ar_id $default_args" 0 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if {$job_id != -34} {
+      add_proc_error "test_ar_access_list" -1 "(2) error 'no suitable queues' was not shown"
+      delete_job $job_id
+   }
+
+   delete_ar $ar_id
+
+   # 3) test acl access
+   set args "-u @$userset_name1 -d 36000"
+   set ar_id [submit_ar $args]
+
+   set job_id [submit_job "-ar $ar_id $default_args" 0]
+   if {$job_id != -34} {
+      add_proc_error "test_ar_access_list" -1 "(1) error 'no suitable queues' was not shown"
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-ar $ar_id $default_args" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if {$job_id < 0} {
+      add_proc_error "test_ar_access_list" -1 "(1) job was wrongly rejected"
+   } else {
+      delete_job $job_id
+   }
+
+   delete_ar $ar_id
+
+   # 4) test xacl access
+   set args "-u \!@$userset_name1 -d 36000"
+   set ar_id [submit_ar $args]
+     
+   set job_id [submit_job "-ar $ar_id $default_args"]
+   if {$job_id < 0} {
+      add_proc_error "test_ar_access_list" -1 "(2) job was wrongly rejected"
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-ar $ar_id $default_args" 0 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if {$job_id != -34} {
+      add_proc_error "test_ar_access_list" -1 "(2) error 'no suitable queues' was not shown"
+      delete_job $job_id
+   }
+
+   delete_ar $ar_id
+
+   # Test cleanup
+   del_access_list $userset_name1
+}
+
+proc test_job_runtime_limit {} {
+   global default_args
+
+   set schedconf(params) "DURATION_OFFSET=120"
+   mod_schedd_config schedconf
+
+   # 1) 
+   # job should should run at least 20 seconds and should be killed by execd after
+   # 30 seconds (ar_duration - duration_offset)
+   # to be safe we wait 10 seconds longer
+   set ar_id [submit_ar "-d 150"]
+   set job_id [submit_job "-ar $ar_id $default_args"]
+   trigger_scheduling
+   sleep 20
+   set run_result [is_job_running $job_id "leeper"]
+   if {$run_result != 1} {
+       add_proc_error "test_job_runtime_limit" -1 "job was wrongly killed or not scheduled"
+   } else { 
+      wait_for_job_end $job_id 20
+   }
+   delete_ar $ar_id
+
+   # 2)
+   # wait 30 seconds for job submit after AR creation.
+   set ar_id [submit_ar "-d 180"]
+   sleep 30
+   set job_id [submit_job "-ar $ar_id $default_args"]
+   trigger_scheduling
+   sleep 20
+   set run_result [is_job_running $job_id "leeper"]
+   if {$run_result != 1} {
+       add_proc_error "test_job_runtime_limit" -1 "job was wrongly killed or not scheduled"
+   } else { 
+      wait_for_job_end $job_id 20
+   }
+   delete_ar $ar_id
+
+   set schedconf(params) "none"
+   mod_schedd_config schedconf
+
+   delete_all_ars
+}
+
+proc test_masterq {} {
+   global default_args
+   global pe_name1 queue_name1 queue_name2
+
+   # Test setup
+   set pe(slots)             "2"
+   set pe(allocation_rule)   "\$round_robin"
+   set pe(pe_name)           "$pe_name1"
+   add_pe pe
+
+   set queue_settings(pe_list)          "$pe_name1"
+   mod_queue $queue_name1 "" queue_settings
+   set queue_settings(pe_list)          "$pe_name1"
+   mod_queue $queue_name2 "" queue_settings
+
+   set test_args "-pe $pe_name1 2 -masterq $queue_name1"
+
+   set ar_id [submit_ar "$test_args -d 3600"]
+
+   set job_id [submit_job "-ar $ar_id $test_args $default_args"]
+   if {$job_id < 0} {
+      add_proc_error "test_masterq" -1 "masterq job is not scheduled properly"
+   } else {
+      trigger_scheduling
+      if {[is_job_running $job_id "leeper"] != 1} {
+          add_proc_error "test_masterq" -1 "job was wrongly killed or not scheduled"
+      }
+      delete_job $job_id
+   }
+
+   delete_ar $ar_id
+}

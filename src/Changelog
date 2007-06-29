@@ -1,3 +1,6 @@
+RD-2007-06-29-0: Enhancem:  added some AR tests
+                 Review:    PJ
+
 CR-2007-06-25-1: Cleanup:   added adoc header for config_generic()
 
 CR-2007-06-25-0: Bugfix:    o Fixed procedure restart_debug_daemons() (used by
