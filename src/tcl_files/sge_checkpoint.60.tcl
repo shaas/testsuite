@@ -40,7 +40,7 @@ proc unassign_queues_with_ckpt_object { ckpt_obj {on_host ""} {as_user ""} {rais
    get_current_cluster_config_array ts_config
 
    puts $CHECK_OUTPUT "searching for references in cluster queues ..."
-   set queue_list [get_queue_list $on_host $as_user $raise_error]
+   get_queue_list queue_list $on_host $as_user $raise_error
    foreach elem $queue_list {
       puts $CHECK_OUTPUT "queue: $elem"
       start_sge_bin "qconf" "-dattr queue ckpt_list $ckpt_obj $elem" $on_host $as_user

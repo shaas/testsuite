@@ -507,7 +507,7 @@ proc get_queue_config_list {{output_var result} {on_host ""} {as_user ""} {arg "
 
    upvar $output_var out
 
-   return [get_qconf_list "get_queue_list" "-sconfl" out $on_host $as_user $raise_error]
+   return [get_qconf_list "get_queue_config_list" "-sconfl" out $on_host $as_user $raise_error]
 
 }
 #****** sge_host/get_processor_list() *****************************************

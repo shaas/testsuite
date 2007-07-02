@@ -70,7 +70,8 @@ proc qmaster_failover_setup {} {
    #
    # ... just in case we could not cleanup preceeding test environment.
    #
-   if {[lsearch [get_queue_list] "test.q"] != -1} {
+   get_queue_list queue_list
+   if {[lsearch $queue_list "test.q"] != -1} {
       puts $CHECK_OUTPUT "Deleting test.q"
       del_queue test.q $test_hostname 0 1
    }
@@ -83,7 +84,8 @@ proc qmaster_failover_cleanup {} {
    #
    # Clean up test.q if it's still around.
    #
-   if {[lsearch [get_queue_list] "test.q"] != -1} {
+   get_queue_list queue_list
+   if {[lsearch $queue_list "test.q"] != -1} {
       puts $CHECK_OUTPUT "Deleting test.q"
       del_queue test.q $test_hostname 0 1
    }

@@ -175,7 +175,7 @@ proc qconf_setup {} {
    }
 
    # Save initial queue list; make it a global var, to be used in cleanup
-   set qconf_orig_queues [get_queue_list]
+   get_queue_list qconf_orig_queues
 
    set qconf_project "qconf_project"
    # Create new project
@@ -236,7 +236,7 @@ proc qconf_cleanup {} {
    # Get list of new queues. Those created during the
    # tests will be deleted here.
 
-   set qconf_new_queues [get_queue_list]
+   get_queue_list qconf_new_queues
 
    puts $CHECK_OUTPUT "Deleting queues created during qconf... \n"
    foreach elem  $qconf_orig_queues {
@@ -1399,16 +1399,16 @@ proc qconf_add_show_mod_del_queue {} {
    # host to $host
 
    set host [lindex $ts_config(execd_nodes) 0]
-   puts $CHECK_OUTPUT "Adding queue qconf_queue.q ...\n"
+   puts $CHECK_OUTPUT "Adding queue qconf_queue.q ..."
    add_queue qconf_queue.q $host new_queue 
 
    #Now test for qconf -sq queue@host
    #qconf -sq q@host | grep complex_values should show NONE
    set qconf_qinst "qconf_queue.q@$host"
-   puts $CHECK_OUTPUT "Testing qconf -sq `$qconf_qinst'... \n"
+   puts $CHECK_OUTPUT "Testing qconf -sq `$qconf_qinst'..."
    set result [start_sge_bin "qconf" "-sq $qconf_qinst"]
-   if { $prg_exit_state != 0 } {
-      add_proc_error "get_queue" "-1" "qconf error or binary not found"
+   if {$prg_exit_state != 0} {
+      add_proc_error "qconf_add_show_mod_del_queue" "-1" "qconf error or binary not found"
       return
    }
 
@@ -1417,112 +1417,102 @@ proc qconf_add_show_mod_del_queue {} {
  
    #test if the complex_values attrib has any value!
    foreach elem $op_rows {
-       if { [ string first "complex_values" $elem ] >=0 } {
+       if {[string first "complex_values" $elem] >=0} {
           puts $CHECK_OUTPUT "qconf -sq retured $elem"
- 			if { [ string last "NONE" $elem ] >=0 } {
+ 			if {[string last "NONE" $elem] >=0} {
  				puts $CHECK_OUTPUT "qconf -sq queue@host successfull"
  			} else {
- 				puts $CHECK_OUTPUT "qconf -sq queue@host failed"
+            add_proc_error "qconf_add_show_mod_del_queue" "-1" "qconf -sq queue@host should have output NONE for complex_values, but output was:\n$result"
  			}		
  			break
  		}
    }
 
    # Now do positive test on qconf -sql
-   puts $CHECK_OUTPUT "Positive test of qconf -sql ...\n"
-   set result2 [get_queue_list]
+   puts $CHECK_OUTPUT "Positive test of qconf -sql ..."
+   set result [get_queue_list queue_list]
 
-   if { ( $result2 == 0 ) } {
+   if {$result == 0} {
       puts $CHECK_OUTPUT "qconf -sql succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result2"
+      puts $CHECK_OUTPUT "qconf -sql succeded" ;# error raised in get_queue_list
    }
 
    # Now modify queue qconf_queue.q
    set new_queue(seq_no)  "2"
-   puts $CHECK_OUTPUT "Modifying information for qconf_queue.q ...\n"
-   set result21 [mod_queue "qconf_queue.q" "" new_queue ]
+   puts $CHECK_OUTPUT "Modifying information for qconf_queue.q ..."
+   set result [mod_queue "qconf_queue.q" "" new_queue]
 
-   if { ( $result21 == 0 ) } {
+   if {$result == 0} {
       puts $CHECK_OUTPUT "qconf -Mq succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result21"
+      puts $CHECK_OUTPUT "result is $result" ;# error raised in mod_queue
    }
  
    # Now modify queue qconf_queue.q slow
    set new_queue(seq_no)  "1"
-   puts $CHECK_OUTPUT "Modifying information for qconf_queue.q slow...\n"
-   set result22 [mod_queue "qconf_queue.q" "" new_queue 0]
+   puts $CHECK_OUTPUT "Modifying information for qconf_queue.q slow..."
+   set result [mod_queue "qconf_queue.q" "" new_queue 0]
 
-   if { ( $result22 == 0 ) } {
+   if {$result == 0} {
       puts $CHECK_OUTPUT "qconf -mq succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result22"
+      puts $CHECK_OUTPUT "result is $result" ;# error raised in mod_queue
    }
 
    #  Now try to modify a invalid seq. no
    set new_queue(seq_no) "-1"
-   puts $CHECK_OUTPUT "Negative test of qconf -Mq qconf_queue.q, seq.  number...\n"
-   set result23 [mod_queue "qconf_queue.q" "" new_queue 1  $host $CHECK_USER 0]
+   puts $CHECK_OUTPUT "Negative test of qconf -Mq qconf_queue.q, seq.  number..."
+   set result [mod_queue "qconf_queue.q" "" new_queue 1  $host $CHECK_USER 0]
+puts $CHECK_OUTPUT "----> $result"
 
-   if { ( $result23 == -1 ) } {
+   if {$result < 0} {
       puts $CHECK_OUTPUT "qconf -Mq wrong_project failed successfully"
    } else {
       # handle_sge_errors will retun -999 due to multiple line
       # response from qconf. See IZ 1982
-      puts $CHECK_OUTPUT "result is $result23"
+      add_proc_error "qconf_add_show_mod_del_queue" "-1" "mod_queue with invalid sequence number should have failed, but exit code (from handle_sge_errors) was $result"
    }
  
+puts $CHECK_OUTPUT "----> $result"
    # Now clear queue "qconf_queue.q"
-   set new_queue(qname) "qconf_queue.q"
-   set new_queue(projects) "none"
    puts $CHECK_OUTPUT "Clearing queue qconf_queue.q ... - "
-   set result3 [clear_queue "qconf_queue.q"]
+   set result [clear_queue "qconf_queue.q" cq_output]
 
-   if { ( $result3 == 0 ) } {
-      puts $CHECK_OUTPUT "OK\n"
+   if {$result == 0} {
+      puts $CHECK_OUTPUT "OK"
    } else {
-      puts $CHECK_OUTPUT "failed\n"
+      puts $CHECK_OUTPUT "failed" ;# error raised in clear_queue
    }
    
    # Now try to clear it again!
    puts $CHECK_OUTPUT "Clearing queue qconf_queue.q again... - "
-   set result4 [clear_queue "qconf_queue.q"]
+   set result [clear_queue "qconf_queue.q" cq_output]
 
-   if { ( $result4 == 0 ) } {
-      puts $CHECK_OUTPUT "OK\n"
+   if {$result == 0} {
+      puts $CHECK_OUTPUT "OK"
    } else {
-      puts $CHECK_OUTPUT "failed\n"
+      puts $CHECK_OUTPUT "failed" ;# error raised in clear_queue
    }
 
    #  Now try to clear a non-existing queue, "wrong_queue.q"
    puts $CHECK_OUTPUT "Negative test of qconf -cq wrong_queue.q ... - "
-   set result5 [clear_queue "wrong_queue.q" result $host $CHECK_USER 0]
+   set result [clear_queue "wrong_queue.q" cq_output $host $CHECK_USER 0]
 
-   if { ( $result5 == -1 ) } {
-      puts $CHECK_OUTPUT "OK\n"
+   if {$result == -1} {
+      puts $CHECK_OUTPUT "OK"
    } else {
-      puts $CHECK_OUTPUT "failed (IZ 1976)\n"
+      add_proc_error "qconf_add_show_mod_del_queue" "-1" "clear_queue with non existing queue name should have failed, but exit code (from handle_sge_errors) was $result"
    }
 
    # Now delete queue "qconf_queue.q"
    puts $CHECK_OUTPUT "Positive test of qconf -dq qconf_queue.q... -"
-   set result4 [del_queue  "qconf_queue.q" $host 1]
+   set result [del_queue "qconf_queue.q" $host 1 1]
 
-   if { ( $result4  == 0 )} {
-      puts $CHECK_OUTPUT "OK\n"
+   if {$result == 0} {
+      puts $CHECK_OUTPUT "OK"
    } else {
-      puts $CHECK_OUTPUT "failed\n"
-   }
-
-   # Now try to clear a non-existant queue
-   puts $CHECK_OUTPUT "Negative test of qconf -cq qconf_queue.q... - "
-   set result5 [clear_queue "qconf_queue.q" result $host $CHECK_USER 0]
-
-   if { ( $result5 == -1 ) } {
-      puts $CHECK_OUTPUT "OK\n"
-   } else {
-      puts $CHECK_OUTPUT "failed (IZ 1976)\n"
+      puts $CHECK_OUTPUT "failed" ;# error raised in del_queue
    }
 }
 #                                                             max. column:     |

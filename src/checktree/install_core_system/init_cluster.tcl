@@ -243,7 +243,7 @@ proc cleanup_system {} {
 
    # remove all queues
    puts $CHECK_OUTPUT "\nremoving queues ..."
-   set queue_list [get_queue_list]
+   get_queue_list queue_list
    foreach elem $queue_list {
       puts $CHECK_OUTPUT "removing queue $elem."
       del_queue $elem "" 1 1

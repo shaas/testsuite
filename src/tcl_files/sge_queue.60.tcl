@@ -529,23 +529,6 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
    return 0
 }
 
-proc get_queue_list {{on_host ""} {as_user ""} {raise_error 1}} {
-   # try to get queue list
-   set ret 0
-   set result [start_sge_bin "qconf" "-sql" $on_host $as_user]
-
-   if {$prg_exit_state != 0} {
-      # if command fails: output error
-      set messages(index) "-1"
-      set messages(-1) [translate_macro MSG_QCONF_NOXDEFINED_S "queue"]
-
-      set ret [handle_sge_errors "get_queue_list" "qconf -sql" $result messages $raise_error]
-      set result ""
-   } 
-
-   return $result
-}
-
 proc get_qinstance_list {{filter ""} {on_host ""} {as_user ""} {raise_error 1}} {
    # try to get qinstance list
    if { $filter != "" } {

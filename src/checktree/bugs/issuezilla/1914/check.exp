@@ -362,7 +362,7 @@ proc issue_1914_check_host_state {host} {
    # delay so the queue state would be updated
    sleep 2
 
-   set queues [get_queue_list]
+   get_queue_list queues
    foreach queue $queues {
       set queue_state [get_queue_state [get_queue_instance $queue $host]]
       if {[string compare $queue_state "E"] != 0} {

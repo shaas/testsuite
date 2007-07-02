@@ -267,27 +267,6 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
   return 0
 }
 
-proc get_queue_list {} {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
-
-   set NO_QUEUE_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "queue"]
-
-   # try to get queue list
-   set result [start_sge_bin "qconf" "-sql"]
-   if { $prg_exit_state != 0} {
-      add_proc_error "get_queue_list" -1 "error reading queue list: $result"
-      set result {}
-   } else {
-      # command succeeded: queue list can be empty
-      if { [string first $NO_QUEUE_DEFINED $result] >= 0 } {
-         puts $CHECK_OUTPUT $result
-         set result {}
-      }
-   }
-   return $result
-}
-
 # queue for -q request or as subordinate queue
 # is the 5.3 queue
 proc get_requestable_queue { queue host } {

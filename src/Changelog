@@ -1,3 +1,6 @@
+JG-2007-07-02-0: Bugfix:    Fixed multiple implementations of get_queue_list.
+                 Review:    CR
+
 RD-2007-06-29-0: Enhancem:  added some AR tests
                  Review:    PJ
 
