@@ -1,0 +1,411 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# global variables ... (defined in main check routine, but you can use it)
+#
+# global CHECK_ACTUAL_TEST_PATH  ;# this directory
+# global CHECK_USER              ;# user who start test
+# global CHECK_ARCH              ;# architecture of this system (e.g. irix6)
+# global CHECK_HOST              ;# hostname of this system (e.g. DWAIN)
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+
+global check_name check_description check_needs check_functions check_highest_level
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+global jgdi_setup
+
+# This file shows some check specific things
+set check_root_access_needs    "yes" ;# to start scheduler, etc.
+set check_name                 "jgdi_shell_qconf"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "Compares output of the client and jgdi_shell implementation"
+set check_description(100)     "To be specified" 
+set check_needs                ""                         ;# dependencies of this check (name of other check)
+set check_init_level_procedure "jgdi_shell_init_level"
+set check_functions            ""                                     ;# functions to call (in order)
+set check_highest_level	       100
+
+# setup and cleanup functions
+set check_setup_function "jgdi_shell_setup"
+set check_cleanup_function "jgdi_shell_cleanup"
+
+# test order
+lappend check_functions "add_implemented_untested_options_for_statistics"
+lappend check_functions "jgdi_shell_run_single_options"
+lappend check_functions "jgdi_shell_run_batch_configuration_1" ;#Not OK
+lappend check_functions "jgdi_shell_run_batch_test_manager_1" 
+lappend check_functions "jgdi_shell_run_batch_test_operator_1"
+lappend check_functions "jgdi_shell_run_batch_test_userlist_1"
+lappend check_functions "jgdi_shell_run_batch_test_queue_1"
+lappend check_functions "jgdi_shell_run_batch_test_kill-scheduler_1"
+lappend check_functions "jgdi_shell_show_test_statistics"
+#lappend check_functions "temp_test"
+
+proc jgdi_shell_init_level {} {
+  global CHECK_ACT_LEVEL jgdi_config
+#  jgdi_setup
+  switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1  ;# no other level else
+}
+
+# This includes implemeted, but not yet tested options to the statistics
+# If you implement a test that uses one of these options remove them from here
+proc add_implemented_untested_options_for_statistics {} {
+   global jgdi_config
+   if { [array names jgdi_config qconf,notest_opts] == "" } {
+         set jgdi_config(qconf,notest_opts) ""
+   }
+
+   append jgdi_config(qconf,notest_opts) "-kec -km -ke -kej "
+
+   #CALENDAR
+   append jgdi_config(qconf,notest_opts) "-acal -Acal -mcal -Mcal -scal -dcal "
+
+   #CHECKPOINT
+   append jgdi_config(qconf,notest_opts) "-ackpt -Ackpt -mckpt -Mckpt -sckpt -dckpt "
+
+   #CONFIGURATION
+   append jgdi_config(qconf,notest_opts) "-aconf -mconf "
+
+   #EXECHOST
+   append jgdi_config(qconf,notest_opts) "-ae -Ae -me -Me -sel -se -de "
+
+   #HOSTGROUP
+   append jgdi_config(qconf,notest_opts) "-ahgrp -Ahgrp -mhgrp -Mhgrp -shgrp -dhgrp "
+
+   #RESOURCE QUOTA SET
+   append jgdi_config(qconf,notest_opts) "-arqs -Arqs -mrqs -Mrqs -srqs -drqs "
+
+   #PARALLEL ENVIRONMENT
+   append jgdi_config(qconf,notest_opts) "-ap -Ap -mp -Mp -sp -dp "
+
+   #PROJECT
+   append jgdi_config(qconf,notest_opts) "-aprj -Aprj -mprj -Mprj -sprj -dprj "
+
+   #CLUSTERQUEUE
+   append jgdi_config(qconf,notest_opts) "-aq -mq "
+
+   #!!!SHARE TREE!!! not working at all
+   append jgdi_config(qconf,notest_opts) "-astree -Astree -mstree -Mstree -sstree -dstree "
+
+   #USER
+   append jgdi_config(qconf,notest_opts) "-auser -Auser -muser -Muser -suser -duser "
+
+   #USERSET
+   append jgdi_config(qconf,notest_opts) "-au -mu"
+}
+  
+
+#Single options
+proc jgdi_shell_run_single_options { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+   
+   #Prepare the tests
+   list qconf_opts {}
+   lappend qconf_opts "qconf -help"
+   lappend qconf_opts "qconf -clearusage"
+   lappend qconf_opts "qconf -sc"
+   lappend qconf_opts "qconf -cq all.q"
+   lappend qconf_opts "qconf -scall"
+   lappend qconf_opts "qconf -sckptl"
+   lappend qconf_opts "qconf -sconf global"
+   lappend qconf_opts "qconf -sconfl"
+   lappend qconf_opts "qconf -secl"
+   lappend qconf_opts "qconf -sel"
+   lappend qconf_opts "qconf -sep"
+   lappend qconf_opts "qconf -shgrpl"
+   lappend qconf_opts "qconf -sds"
+   lappend qconf_opts "qconf -srqsl"
+   lappend qconf_opts "qconf -spl"
+   lappend qconf_opts "qconf -sprjl"
+   lappend qconf_opts "qconf -sq all.q"
+   lappend qconf_opts "qconf -sql"
+   lappend qconf_opts "qconf -sh"
+   lappend qconf_opts "qconf -ss"
+   lappend qconf_opts "qconf -sss"
+   lappend qconf_opts "qconf -ssconf"
+   lappend qconf_opts "qconf -sul"
+   lappend qconf_opts "qconf -suserl"
+   lappend qconf_opts "qconf -tsm"
+
+   set total_num [llength $qconf_opts]
+   set ok_num 0
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+
+   foreach opts $qconf_opts {
+      set res [compare_jgdi [list $opts]]
+      if { [string match "*:   ERROR\n*" $res] != 1  } {
+         incr ok_num 1
+      }
+      report_add_message report $res
+   }
+   report_add_message report "\nPASSED: $ok_num/$total_num tests"
+   if { $ok_num != $total_num  } {
+      report_finish report -1 
+      return -1
+   } else {
+      report_finish report 0
+      return 0
+   }
+}
+
+#CONFIGURATIONS
+proc jgdi_shell_run_batch_configuration_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+
+   #Setup
+   start_sge_bin "qconf" "-dconf localhost" $jgdi_config(target_host) $CHECK_USER
+   set fn "/net/latte2.czech/export/workspace1/lp195527/grid/testsuite/src/results/localhost"
+   set jgdi_config(config_file) $fn
+   jgdi_create_config_file $jgdi_config(target_host) "test TEST_VALUE" $fn
+   #Prepare the test
+   set batch {}   
+   lappend batch "qconf -sconfl"
+   lappend batch "qconf -Aconf $jgdi_config(config_file)"
+   lappend batch "qconf -sconfl"
+   lappend batch "qconf -sconf localhost"
+   lappend batch "qconf -dconf localhost"
+   lappend batch "qconf -sconfl"
+
+   set res [compare_jgdi $batch]
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+#MANAGERS
+proc jgdi_shell_run_batch_test_manager_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+
+   #Setup
+   start_sge_bin "qconf" "-do NewGridEngineManagerDummy,SecondManagerDummy,ThirdManagerDummy" $jgdi_config(target_host) $CHECK_USER
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -sm"
+   lappend batch "qconf -am NewGridEngineManagerDummy,,SecondManagerDummy,ThirdManagerDummy"
+   lappend batch "qconf -sm"
+   lappend batch "qconf -dm SecondManagerDummy"
+   lappend batch "qconf -sm"
+   lappend batch "qconf -dm NewGridEngineManagerDummy,,ThirdManagerDummy"
+   lappend batch "qconf -sm"
+
+   set res [compare_jgdi $batch]
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+#OPERATORS
+proc jgdi_shell_run_batch_test_operator_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+
+   #Setup
+   start_sge_bin "qconf" "-do NewGridEngineOperatorDummy,SecondOperatorDummy,ThirdOperatorDummy" $jgdi_config(target_host) $CHECK_USER
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -so"
+   lappend batch "qconf -ao NewGridEngineOperatorDummy,,SecondOperatorDummy,ThirdOperatorDummy"
+   lappend batch "qconf -so"
+   lappend batch "qconf -do SecondOperatorDummy"
+   lappend batch "qconf -so"
+   lappend batch "qconf -do NewGridEngineOperatorDummy,,ThirdOperatorDummy"
+   lappend batch "qconf -so"
+
+   set res [compare_jgdi $batch]
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+#USERLISTS
+proc jgdi_shell_run_batch_test_userlist_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config CHECK_CUR_PROC_NAME
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+   #Setup
+   start_sge_bin "qconf" "-dul userlist1,userlist2,userlist3,areallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallylonguserlist" $jgdi_config(target_host) $CHECK_USER
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -sul"
+   lappend batch "qconf -Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist1"
+   lappend batch "qconf -Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist2"
+   lappend batch "qconf -Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist3"
+   lappend batch "qconf -Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist4"
+   lappend batch "qconf -au testUser1 userlist1"
+   lappend batch "qconf -au testUser3 userlist3"
+   lappend batch "qconf -sul"
+   lappend batch "qconf -su userlist1,userlist2,userlist3"
+   lappend batch "qconf -Mu $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist1"
+   lappend batch "qconf -su userlist1"
+   lappend batch "qconf -su areallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallylonguserlist"
+   lappend batch "qconf -du testUser1 userlist1"
+   lappend batch "qconf -su userlist1"
+   lappend batch "qconf -dul userlist1,userlist2,userlist3"
+   lappend batch "qconf -dul areallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallylonguserlist"
+   lappend batch "qconf -sul"
+
+   set res [compare_jgdi $batch]
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+#QUEUES
+proc jgdi_shell_run_batch_test_queue_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+   
+   #Setup
+   start_sge_bin "qconf" "-dq queue1,queue10" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist1" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist2" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist3" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-Au $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_setup_userlist4" $jgdi_config(target_host) $CHECK_USER
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -sql"
+   lappend batch "qconf -Aq $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_comma_queue1"
+   lappend batch "qconf -Aq $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_comma_queue10"
+   lappend batch "qconf -sql"
+   lappend batch "qconf -sq queue1,queue10"
+   lappend batch "qconf -Mq $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qconf/backslash_comma_queue1"
+   lappend batch "qconf -sq queue1"
+   lappend batch "qconf -dq queue1"
+   lappend batch "qconf -sql"
+   lappend batch "qconf -dq queue10"
+   lappend batch "qconf -sql"
+
+   set res [compare_jgdi $batch]
+
+   #Remove UserLists
+   start_sge_bin "qconf" "-dul userlist1,userlist2,userlist3" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-dul areallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallyreallylonguserlist" $jgdi_config(target_host) $CHECK_USER
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+#Kill Scheduler
+proc jgdi_shell_run_batch_test_kill-scheduler_1 { } {
+   global ts_config jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -tsm"
+   lappend batch "qconf -ks"
+   #lappend batch "rsh -l $CHECK_USER $ts_config(master_host) $ts_config(product_root)/bin/[resolve_arch $ts_config(master_host)]/sge_schedd"
+
+   set res [compare_jgdi $batch]
+
+   #Start the scheduler again
+   startup_scheduler
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+proc temp_test {} {
+   global CHECK_OUTPUT
+   set target [list a b c]
+   puts $CHECK_OUTPUT [remove_values_from_list [list "b"] $target]
+}

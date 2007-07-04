@@ -147,31 +147,8 @@ proc jgdi_junit_run_task { target a_report { jgdi_build_timeout 60 } } {
    return 0
 }
 
-proc jgdi_junit_setup { JAVA_TEST_VERSION } {
-   global ts_config ts_host_config
-   global jgdi_config
-
-   #TODO: improve so the junit tests can be run in parallel on different architectures
-   set jgdi_config(target_host) [host_conf_get_java_compile_host]
-   set jgdi_config(ant) $ts_host_config($jgdi_config(target_host),ant)
-   set jgdi_config(java_test_version) $JAVA_TEST_VERSION
-   
-   set jgdi_config(cluster_config_file) [get_tmp_file_name]
-   jgdi_create_cluster_config_file $jgdi_config(target_host) $jgdi_config(cluster_config_file)
-   
-   #set ant_options " -Duse.classpath.from.sge.root=true"
-   set ant_options "-Dsge.root=$ts_config(product_root)"
-   append ant_options " -Dsge.srcdir=$ts_config(source_dir)"
-   append ant_options " -Djava.test.version=$JAVA_TEST_VERSION"
-   append ant_options " -Djunit.formatter=plain"
-   append ant_options " -Dcluster.config.file.location=$jgdi_config(cluster_config_file)"
-   append ant_options " -f $ts_config(source_dir)/libs/jgdi/build.xml"
-
-   set jgdi_config(ant_options) $ant_options
-}
-
 proc jgdi_junit_run { JAVA_VERSION } {
-   global jgdi_config CHECK_OUTPUT
+   global jgdi_config CHECK_OUTPUT CHECK_USER
 
    jgdi_junit_setup "$JAVA_VERSION"
 
@@ -187,7 +164,7 @@ proc jgdi_junit_run { JAVA_VERSION } {
    }
    
    set res [jgdi_junit_run_task "test" report]
-   jgdi_remove_cluster_config_file $jgdi_config(target_host) $jgdi_config(cluster_config_file)
+   delete_remote_file $jgdi_config(target_host) $CHECK_USER $jgdi_config(cluster_config_file)
    
    if { $res != 0 } {
       report_add_message report "JGDI junit tests failed using Java $JAVA_VERSION"
@@ -211,37 +188,4 @@ proc jgdi_junit_15 {} {
 
 proc jgdi_junit_16 {} {
    jgdi_junit_run "1.6"
-}
-
-proc jgdi_create_cluster_config_file { host file } { 
-   global CHECK_USER
-   global ts_config jgdi_config
-
-   set is_csp_used "false"
-   if { $ts_config(product_feature) == "csp" } {
-      set is_csp_used "true"
-   }
-
-   set cluster_config "\"cluster\[0].sge_root=$ts_config(product_root)"
-   append cluster_config "\ncluster\[0].sge_cell=$ts_config(cell)"
-   append cluster_config "\ncluster\[0].qmaster_port=$ts_config(commd_port)"
-   append cluster_config "\ncluster\[0].execd_port=[expr $ts_config(commd_port) + 1]"
-   append cluster_config "\ncluster\[0].csp=$is_csp_used"
-   append cluster_config "\ncluster\[0].username=$CHECK_USER"
-   append cluster_config "\ncluster\[0].jass_login_context=jgdi"
-   append cluster_config "\ncluster\[0].keystore_password=changeit"
-   append cluster_config "\ncluster\[0].privatekey_password=changeit\""
-
-   set fd [open $file w+ 0777]
-   puts $fd $cluster_config
-   close $fd
-
-   wait_for_remote_file $host $CHECK_USER $file
-}
-
-proc jgdi_remove_cluster_config_file { host file } {
-   global CHECK_USER
-   global jgdi_config
-
-   delete_remote_file $host $CHECK_USER $file
 }

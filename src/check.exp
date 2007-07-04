@@ -7329,6 +7329,7 @@ proc source_tcl_files {} {
    ts_source $libdir/compile
    ts_source $libdir/file_procedures
    ts_source $libdir/gettext_procedures
+   ts_source $libdir/jgdi_shell
    ts_source $libdir/remote_procedures
    ts_source $libdir/control_procedures
    ts_source $libdir/cluster_procedures
