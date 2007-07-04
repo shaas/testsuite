@@ -1,3 +1,7 @@
+MD-2007-07-04-0: Enhancem:  added qsub -S functionality to qsub test
+                            CR 6232759
+                 Review:    HP
+
 RD-2007-07-04-0: Bugfix:    fixed xterm path for darwin
                  Review:    JG
 

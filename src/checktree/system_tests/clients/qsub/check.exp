@@ -2303,8 +2303,9 @@ proc check_option_soft {} {
 #     ???/???
 #*******************************
 proc check_option_S {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT CHECK_USER
    global default_args
+   global job_output_dir
 
    # first clean up output directory:  
    setup_output_directory
@@ -2312,6 +2313,32 @@ proc check_option_S {} {
    set option "-S /bin/sh"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 0
+
+   set windows_host ""
+   if {[host_conf_have_windows]} {
+      set windows_host [host_conf_get_windows_host]
+      #ToDo: Use get_system32_dir function
+      set shell_option "-S /dev/fs/C/WINDOWS/system32/cmd.exe"
+      set host_option "-l h=$windows_host"
+
+      set result [start_remote_prog $windows_host $CHECK_USER "ls" "/net/es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe" prg_exit_state 60 0 "" "" 1 1 1 1 1]
+
+      if { $prg_exit_state == 1 } {
+       puts $CHECK_OUTPUT "The binary submission test is currently not working in environments outside of SUN.\n RFE 77 will fix this issue. Try again later, please!!!"
+      } else {
+         set bin_option "-b y"
+         set job_script "-o $job_output_dir -e $job_output_dir \"//es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe\" \"5\""
+         set jobargs "$bin_option $shell_option $host_option $job_script"
+
+         qsub_submit_check $jobargs 0
+      }
+
+
+      set job_script "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/hello.bat"
+      
+      set jobargs "$shell_option $host_option $job_script"
+      qsub_submit_check $jobargs 0
+   }
 }
 
 #                                                             max. column:     |
