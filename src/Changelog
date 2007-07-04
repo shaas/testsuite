@@ -1,3 +1,6 @@
+RD-2007-07-04-0: Bugfix:    fixed xterm path for darwin
+                 Review:    JG
+
 JG-2007-07-02-0: Bugfix:    Fixed multiple implementations of get_queue_list.
                  Review:    CR
 

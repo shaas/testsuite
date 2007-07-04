@@ -256,6 +256,11 @@ proc get_xterm_path { host } {
       set xterm_path_cache($host) $xterm_candidate_path
       return $xterm_candidate_path
    }
+   set xterm_candidate_path "/usr/X11R6/bin/xterm"
+   if { [is_remote_file $host $CHECK_USER $xterm_candidate_path 1] } {
+      set xterm_path_cache($host) $xterm_candidate_path
+      return $xterm_candidate_path
+   }
    return "xterm"
 }
 
