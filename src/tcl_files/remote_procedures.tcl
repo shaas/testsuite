@@ -538,7 +538,7 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
    debug_puts "remote_args: $remote_args"
    log_user 1
 
-   set result [start_remote_prog "$host" "$user" "$tcl_prog" "$remote_args" prg_exit_state 600 0 "" "" 1 0 1]
+   set result [start_remote_prog "$host" "$user" "$tcl_prog" "$remote_args" prg_exit_state 600 0 "" "" 1 0 0]
    if { [string first "Error in procedure" $result] >= 0 } {
       add_proc_error "start_remote_tcl_prog" -2 "error in $tcl_file, proc $tcl_procedure $tcl_procargs"
    }
@@ -608,7 +608,7 @@ proc start_remote_prog { hostname
                          {envlist ""}
                          {do_file_check 1}
                          {source_settings_file 1}
-                         {set_shared_lib_path 1}
+                         {set_shared_lib_path 0}
                          {raise_error 1}
                          {win_local_user 0}
                          {without_start_output 0}
@@ -1297,7 +1297,7 @@ proc open_remote_spawn_process { hostname
                                  {envlist ""}
                                  {source_settings_file 1}
                                  {nr_of_tries 15}
-                                 {set_shared_lib_path 1}
+                                 {set_shared_lib_path 0}
                                  {raise_error 1}
                                  {win_local_user 0}
                                  {without_start_output 0}

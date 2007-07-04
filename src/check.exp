@@ -1011,7 +1011,7 @@ proc set_passwd {user root_host win_host} {
 
                # try to connect to host and execute "id"
                puts $CHECK_OUTPUT "--> testing $user access to host $host ..."
-               set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" "" 1 1 1 0]
+               set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" "" 1 1 0 0]
                puts $CHECK_OUTPUT "--> id as $user output:\n$result"
 
                # on error: allow reentering of passwd, or

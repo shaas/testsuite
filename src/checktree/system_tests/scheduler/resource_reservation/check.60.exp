@@ -465,13 +465,13 @@ proc drmaa_test { test_name arguments } {
    set user $CHECK_USER
 
    puts $CHECK_OUTPUT "$binary_path/$drmaa_version $test_name $arguments"
-   set test_output [ start_remote_prog $rr_host $user $binary_path/$drmaa_version "$test_name $arguments" prg_exit_state 500 ]
+   set test_output [ start_remote_prog $rr_host $user $binary_path/$drmaa_version "$test_name $arguments" prg_exit_state 500 0 "" "" 1 0 1]
 
    puts $CHECK_OUTPUT "exit status was $prg_exit_state"
    puts $CHECK_OUTPUT "output was\n$test_output"
 
    if { $prg_exit_state != 0 } {
-      add_proc_error drmaa_check -1 "$binary_path/$drmaa_version $test_name $arguments failed at host $rr_host"
+      add_proc_error drmaa_check -1 "$binary_path/$drmaa_version $test_name $arguments failed at host $rr_host\n$test_output"
    }
 }
 

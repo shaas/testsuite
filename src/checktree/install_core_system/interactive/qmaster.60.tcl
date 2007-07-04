@@ -189,11 +189,18 @@ proc install_qmaster {} {
 
  puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"
 
+ set set_ld_library_path 0
+ set arch [resolve_arch $ts_config(master_host)]
+ if { $arch == "lx26-x86" } {
+    add_proc_error "install_qmaster" -3 "have to set LD_LIBRARY_PATH for \"$arch\" compilations!"
+    set set_ld_library_path 1
+ }
+
  if { $CHECK_ADMIN_USER_SYSTEM == 0 } {
-    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 1 15 1 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 $set_ld_library_path 1 1]
  } else {
     puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-    set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 1 15 1 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 $set_ld_library_path 1 1]
  }
  set sp_id [ lindex $id 1 ] 
 

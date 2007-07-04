@@ -70,18 +70,21 @@ proc job_environment_setup_60 {} {
    # Set marker var
    set job_environment_libvar [get_shared_lib_var $job_environment_exec_host]
 
+    # The test suite will add the SGE path to the lib path
+   set arch [resolve_arch $job_environment_exec_host]
+   set sge_path "$ts_config(product_root)/lib/$arch/../$arch"
+   set job_environment_libpath ".:$sge_path"
+
+
    set my_environment(THISIS) "atest"
-   set my_environment($job_environment_libvar) "."
+   set my_environment($job_environment_libvar) "$job_environment_libpath"
 
    # Restart execd
    startup_execd $job_environment_exec_host my_environment
 
-   # The test suite will add the SGE path to the lib path
-   set arch [resolve_arch $job_environment_exec_host]
-   set sge_path "$ts_config(product_root)/lib/$arch"
-   set job_environment_libpath "$my_environment($job_environment_libvar):$sge_path"
    puts $CHECK_OUTPUT "************************************************************"
-   puts $CHECK_OUTPUT "$job_environment_libvar is set to $job_environment_libpath"
+   puts $CHECK_OUTPUT "$job_environment_libvar before starting of execd on \"$job_environment_exec_host\""
+   puts $CHECK_OUTPUT "is set to \"$job_environment_libpath\""
    puts $CHECK_OUTPUT "************************************************************"
 }
 
@@ -129,12 +132,12 @@ proc job_environment_cleanup_60 {} {
 #     job_environment_amount()
 #*******************************************************************************
 proc job_environment_amount_uninherited {} {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT job_environment_exec_host
 
    puts $CHECK_OUTPUT "Testing list of environment variables with INHERIT_ENV=false"
 
    set new_config(execd_params) "INHERIT_ENV=false"
-   set_config_and_propagate new_config
+   set_config_and_propagate new_config $job_environment_exec_host
 
    set errors ""
 
@@ -180,13 +183,13 @@ proc job_environment_amount_uninherited {} {
 #     job_environment_JOB_NAME()
 #*******************************************************************************
 proc job_environment_JOB_NAME_uninherited {} {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT job_environment_exec_host
 
    puts $CHECK_OUTPUT "Testing presence of job env vars with INHERIT_ENV=false"
 
    # Set INHERIT_ENV=false
    set new_config(execd_params) "INHERIT_ENV=false"
-   set_config_and_propagate new_config
+   set_config_and_propagate new_config $job_environment_exec_host
 
    # Run JOB_NAME test
    job_environment_JOB_NAME 0
@@ -219,7 +222,7 @@ proc job_environment_INHERIT_ENV {} {
 
    # Set INHERIT_ENV=false
    set new_config(execd_params) "INHERIT_ENV=false"
-   set_config_and_propagate new_config
+   set_config_and_propagate new_config $job_environment_exec_host
 
    # Submit job
    if {[job_environment_qsub_job "jobenv.sh" job_env $args]} {
@@ -235,7 +238,7 @@ proc job_environment_INHERIT_ENV {} {
 
    # Set exced_params=none
    set new_config(execd_params) "none"
-   set_config_and_propagate new_config
+   set_config_and_propagate new_config $job_environment_exec_host
 
    # Submit job
    if {[job_environment_qsub_job "jobenv.sh" job_env $args]} {
@@ -251,7 +254,7 @@ proc job_environment_INHERIT_ENV {} {
 
    # Set INHERIT_ENV=true
    set new_config(execd_params) "INHERIT_ENV=true"
-   set_config_and_propagate new_config
+   set_config_and_propagate new_config $job_environment_exec_host
 
    # Submit job
    if {[job_environment_qsub_job "jobenv.sh" job_env $args]} {
@@ -267,7 +270,7 @@ proc job_environment_INHERIT_ENV {} {
 
    # Set exced_params=none
    set new_config(execd_params) "none"
-   set_config_and_propagate new_config
+   set_config_and_propagate new_config $job_environment_exec_host
 
    # Submit job
    if {[job_environment_qsub_job "jobenv.sh" job_env $args]} {
@@ -282,6 +285,83 @@ proc job_environment_INHERIT_ENV {} {
    if {$errors != ""} {
       add_proc_error "job_environment_INHERIT_ENV" -1 [string trim $errors]
    }
+}
+
+#****** check.60/test_job_environment_lib_path() *******************************
+#  NAME
+#     test_job_environment_lib_path() -- used by job_environment_SET_LIB_PATH
+#
+#  SYNOPSIS
+#     test_job_environment_lib_path { error_var execd_params expected_lib_path 
+#     } 
+#
+#  FUNCTION
+#     starts job with specified execd_params and tests for correct
+#     expected lib path
+#
+#  INPUTS
+#     error_var         - string for reporting errors (upvared)
+#     execd_params      - execd_params to set before starting job
+#     expected_lib_path - expected LD_LIBRARY_PATH
+#                         if expected_lib_path set to "TEST_UNSET" the
+#                         procedure assumes that no LD_LIBRARY_PATH
+#                         is set at all
+#
+#*******************************************************************************
+proc test_job_environment_lib_path { error_var execd_params expected_lib_path  } {
+   global CHECK_OUTPUT job_environment_exec_host job_environment_libvar
+   upvar $error_var errors
+
+   set args "-l h=$job_environment_exec_host -o /dev/null -j yes"
+
+   puts $CHECK_OUTPUT ""
+   set new_config(execd_params) "$execd_params"
+   set_config_and_propagate new_config $job_environment_exec_host
+   puts $CHECK_OUTPUT "Testing with execd_params set to $new_config(execd_params)"
+   puts $CHECK_OUTPUT "Expected SGE lib path is \"$expected_lib_path\" on host $job_environment_exec_host"
+
+   set errors ""
+   # Test that lib path is "SGE lib path":"execd path"
+   if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
+      append errors "\nFailed submitting job, with $new_config(execd_params)"
+      return
+   }
+
+   if { $expected_lib_path == "TEST_UNSET" } {
+      # library path should not be set at all
+      if {[info exists job_env($job_environment_libvar)]} {
+         append errors "\nShared library IS set, with $new_config(execd_params) (host=$job_environment_exec_host)"
+         append errors "\n   expected $job_environment_libvar not to be set!"
+         append errors "\n   $job_environment_libvar is wrongly set to \"$job_env($job_environment_libvar)\""
+         return
+      } else {
+         puts $CHECK_OUTPUT "**************************************************"
+         puts $CHECK_OUTPUT "libpath correctly NOT set at all for execd_params"
+         puts $CHECK_OUTPUT "set to \"$execd_params\""
+         puts $CHECK_OUTPUT "**************************************************"
+         return
+      }
+   } else {
+      # library path should be set
+      if {[info exists job_env($job_environment_libvar)] == 0} {
+         append errors "\nShared library path NOT set, with $new_config(execd_params) (host=$job_environment_exec_host)"
+         append errors "\n   expected \"$expected_lib_path\""
+         return
+      }
+   }
+
+   if {$job_env($job_environment_libvar) != $expected_lib_path} {
+      # problem
+      append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with $new_config(execd_params)"
+      append errors "\n   Should be set to \"$expected_lib_path\""
+      return
+   }
+   puts $CHECK_OUTPUT "**************************************************"
+   puts $CHECK_OUTPUT "libpath correctly set set to"
+   puts $CHECK_OUTPUT "\"$expected_lib_path\""
+   puts $CHECK_OUTPUT "for execd_params"
+   puts $CHECK_OUTPUT "set to \"$execd_params\""
+   puts $CHECK_OUTPUT "**************************************************"
 }
 
 #****** job_environment_SET_LIB_PATH() *****************************************
@@ -303,80 +383,32 @@ proc job_environment_INHERIT_ENV {} {
 proc job_environment_SET_LIB_PATH {} {
    global ts_config CHECK_OUTPUT
    global job_environment_exec_host job_environment_libvar
-   global job_environment_libpath queue
+   global job_environment_libpath
 
-   set args "-l h=$job_environment_exec_host -o /dev/null -j yes"
    set arch [resolve_arch $job_environment_exec_host]
    set sge_path "$ts_config(product_root)/lib/$arch"
-   puts $CHECK_OUTPUT "expected SGE lib path is $sge_path"
 
-   puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=true, SET_LIB_PATH=true"
-
-   # Set INHERIT_ENV=true, SET_LIB_PATH=true
-   set new_config(execd_params) "INHERIT_ENV=true,SET_LIB_PATH=true"
-   set_config_and_propagate new_config
-
-   set errors ""
-
-   # Test that lib path is "SGE lib path":"execd path"
-   if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
-      append errors "\nFailed submitting job, with INHERIT_ENV=true,SET_LIB_PATH=true"
-   } elseif {[info exists job_env($job_environment_libvar)] == 0} {
-      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=true (queue=$queue)\nexpected \"$sge_path:$job_environment_libpath\""
-   } elseif {$job_env($job_environment_libvar) != "$sge_path:$job_environment_libpath"} {
-      append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=true,SET_LIB_PATH=true"
-   } else {
-      puts $CHECK_OUTPUT "libpath with INHERIT_ENV=true,SET_LIB_PATH=true is set to \"$job_env($job_environment_libvar)\""
-   }
-
-   puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=true, SET_LIB_PATH=false"
-
-   # Set INHERIT_ENV=true, SET_LIB_PATH=false
-   set new_config(execd_params) "INHERIT_ENV=true,SET_LIB_PATH=false"
-   set_config_and_propagate new_config
-
-   # Test that lib path contains only the execd's lib path
-   if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
-      append errors "\nFailed submitting job, with INHERIT_ENV=true,SET_LIB_PATH=false"
-   } elseif {[info exists job_env($job_environment_libvar)] == 0} {
-      append errors "\nShared library path is unset, with INHERIT_ENV=true,SET_LIB_PATH=false (queue=$queue)\nexpected \"$job_environment_libpath\""
-   } elseif {$job_env($job_environment_libvar) != $job_environment_libpath} {
-      append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=true,SET_LIB_PATH=false"
-   }
-   if { $errors != "" } {
-      puts $CHECK_OUTPUT "errors:\n$errors"
-   }
-
-   puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=false, SET_LIB_PATH=true"
-
-   # Set INHERIT_ENV=false, SET_LIB_PATH=true
-   set new_config(execd_params) "INHERIT_ENV=false,SET_LIB_PATH=true"
-   set_config_and_propagate new_config
-
-   # Test that lib path contains only SGE lib path
-   if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
-      append errors "\nFailed submitting job, with INHERIT_ENV=false,SET_LIB_PATH=true"
-   } elseif {[info exists job_env($job_environment_libvar)] == 0} {
-      append errors "\nShared library path is unset, with INHERIT_ENV=false,SET_LIB_PATH=true (queue=$queue)\nexpected \"$sge_path\""
-   } elseif {$job_env($job_environment_libvar) != $sge_path} {
-      append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=false,SET_LIB_PATH=true"
-   }
-
-   puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=false, SET_LIB_PATH=false"
-
-   # Set INHERIT_ENV=false, SET_LIB_PATH=false
-   set new_config(execd_params) "INHERIT_ENV=false,SET_LIB_PATH=false"
-   set_config_and_propagate new_config
-
-   # Test that lib path doesn't exist
-   if {[job_environment_qsub_job "jobenv.sh" job_env $args] == 0} {
-      append errors "\nFailed submitting job, with INHERIT_ENV=false,SET_LIB_PATH=false (queue=$queue)"
-   } elseif {[info exists job_env($job_environment_libvar)] == 1} {
-      append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with INHERIT_ENV=false,SET_LIB_PATH=false"
-   }
-
+   # test 1
+   test_job_environment_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=true" "$sge_path:$job_environment_libpath"
    if {$errors != ""} {
-      append errors "\nThe expected execd lib path is \"$job_environment_libpath\""
+      add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
+   }
+  
+   # test 2
+   test_job_environment_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=false" "$job_environment_libpath"
+   if {$errors != ""} {
+      add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
+   }
+
+   # test 3
+   test_job_environment_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=true" "$sge_path"
+   if {$errors != ""} {
+      add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
+   }
+
+   # test 4
+   test_job_environment_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=false" "TEST_UNSET"
+   if {$errors != ""} {
       add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
    }
 }

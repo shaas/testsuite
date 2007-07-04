@@ -1643,8 +1643,8 @@ proc del_job_files {jobid job_output_directory expected_file_count} {
 #     { source_settings_file 1 } - if 1 (default): source the file
 #                                                  $SGE_ROOT/$SGE_CELL/settings.csh
 #                                  if not 1:       don't source settings file
-#     { set_shared_lib_path 1 }  - if 1 (default): set shared lib path
-#                                  if not 1:       don't set shared lib path
+#     { set_shared_lib_path 1 }  - if 1:           set shared lib path
+#                                  if 0(default):  don't set shared lib path
 #     { without_start_output 0 } - if 0 (default): put out start/end mark of output
 #                                  if not 0:       don't print out start/end marks
 #     { without_sge_single_line 0} - if 0 (default): set SGE_SINGLE_LINE=1 and export it 
@@ -1668,7 +1668,7 @@ proc create_shell_script { scriptfile
                            {script_path "/bin/sh"}
                            {no_setup 0}
                            {source_settings_file 1}
-                           {set_shared_lib_path 1}
+                           {set_shared_lib_path 0}
                            {without_start_output 0}
                            {without_sge_single_line 0}
                          } {
@@ -1709,15 +1709,22 @@ proc create_shell_script { scriptfile
 
 
       if { $set_shared_lib_path == 1 } {
-         append script_content "# settup shared library path\n"
-         get_shared_lib_path $host shared_var shared_value
-         append script_content "if \[ x\$$shared_var = x \]; then\n"
-         append script_content "   $shared_var=$shared_value\n"
-         append script_content "   export $shared_var\n"
-         append script_content "else\n"
-         append script_content "   $shared_var=\$$shared_var:$shared_value\n"
-         append script_content "   export $shared_var\n"
-         append script_content "fi\n"
+         if { $source_settings_file != 0 } {
+            puts $CHECK_OUTPUT "********************************************************************************"
+            puts $CHECK_OUTPUT "WARNING: setting shared lib path should not be done if settings file is sourced!"
+            puts $CHECK_OUTPUT "Will not set the shared lib path!"
+            puts $CHECK_OUTPUT "********************************************************************************"
+         } else {
+            append script_content "# settup shared library path\n"
+            get_shared_lib_path $host shared_var shared_value
+            append script_content "if \[ x\$$shared_var = x \]; then\n"
+            append script_content "   $shared_var=$shared_value\n"
+            append script_content "   export $shared_var\n"
+            append script_content "else\n"
+            append script_content "   $shared_var=\$$shared_var:$shared_value\n"
+            append script_content "   export $shared_var\n"
+            append script_content "fi\n"
+         }
       }
 
       if { $source_settings_file == 1 } {
@@ -2232,7 +2239,7 @@ proc cleanup_spool_dir_for_host {hostname topleveldir subdir} {
 # return 0 if not
 # return 1 if is directory
 proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
-  start_remote_prog $hostname "ts_def_con2" "cd" "$dir" prg_exit_state 60 0 "" "" 1 0 1 1 $win_local_user
+  start_remote_prog $hostname "ts_def_con2" "cd" "$dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user
   if { $prg_exit_state == 0 } {
      return 1  
   }
@@ -2240,7 +2247,7 @@ proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
 }
 
 proc remote_file_mkdir {hostname dir {win_local_user 0}} {
-  start_remote_prog $hostname "ts_def_con2" "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 1 1 $win_local_user
+  start_remote_prog $hostname "ts_def_con2" "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user
 }
 
 proc check_for_core_files {hostname path} {
@@ -2254,7 +2261,7 @@ proc check_for_core_files {hostname path} {
    }
 
    # try to find core files in path
-   set core_files [start_remote_prog $hostname "ts_def_con2" "find" "$path -name core -print" prg_exit_state 60 0 "" "" 1 0 1 1 1]
+   set core_files [start_remote_prog $hostname "ts_def_con2" "find" "$path -name core -print" prg_exit_state 60 0 "" "" 1 0 0 1 1]
    if { $prg_exit_state != 0 } {
       add_proc_error "check_for_core_files" -1 "find core files in directory $path on host $hostname failed: $core_files"
    } else {
@@ -2273,7 +2280,7 @@ proc check_for_core_files {hostname path} {
             }
 
             # get file info of core file
-            set core_info [start_remote_prog $hostname "root" "file" "$core" prg_exit_state 60 0 "" "" 1 0 1]
+            set core_info [start_remote_prog $hostname "root" "file" "$core" prg_exit_state 60 0 "" "" 1 0 0]
             if {$prg_exit_state != 0} {
                add_proc_error "check_for_core_files" -1 "determining file type of core file $core on host $hostname failed: $core_info"
             } else {
@@ -2282,7 +2289,7 @@ proc check_for_core_files {hostname path} {
 
             # chown core to $CHECK_USER.
             puts $CHECK_OUTPUT "changing owner of core file $core to $CHECK_USER"
-            set output [start_remote_prog $hostname "root" "chown" "$CHECK_USER $core" prg_exit_state 60 0 "" "" 1 0 1]
+            set output [start_remote_prog $hostname "root" "chown" "$CHECK_USER $core" prg_exit_state 60 0 "" "" 1 0 0]
             if {$prg_exit_state != 0} {
                add_proc_error "check_for_core_files" -1 "changing owner of core file $core on host $hostname failed: $output"
             }
@@ -2318,18 +2325,18 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
       set new_name [file tail $path] 
 
       # we move the directory as CHECK_USER (admin user)
-      start_remote_prog $hostname "ts_def_con2" "mv" "$path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
+      start_remote_prog $hostname "ts_def_con2" "mv" "$path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT "delete_directory - mv error"
          puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
-         start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user
+         start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder"
             add_proc_error "remote_delete_directory" -1 "$hostname: could not mv/cp directory \"$path\" to trash folder"
             set return_value -1
          } else {
             puts $CHECK_OUTPUT "copy ok -  removing directory"
-            set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 1 1 $win_local_user]
+            set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
             if { $prg_exit_state != 0 } {
                puts $CHECK_OUTPUT "could not remove directory \"$path\""
                add_proc_error "remote_delete_directory" -1 "$hostname (ts_def_con2=$CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"

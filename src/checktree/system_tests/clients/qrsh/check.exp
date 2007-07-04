@@ -149,8 +149,7 @@ proc qrsh_function {} {
    puts $CHECK_OUTPUT "qrsh functional test"
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh \
-                                      "-l hostname=$host echo qrsh sucessfully started"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
       set sp_id [ lindex $qrsh_id 1 ] 
   
       set timeout 60
@@ -202,8 +201,7 @@ proc qrsh_h {} {
 
    incr job_id 1       ;# job id of next job !
    set arch [resolve_arch $qrsh_submithost]
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh \
-                "-h echo qrsh sucessfully started"]
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-h echo qrsh sucessfully started"]
    set sp_id [ lindex $qrsh_id 1 ] 
   
    trigger_scheduling
@@ -291,8 +289,7 @@ proc qrsh_hold_jid {} {
    set hold_job_id [submit_job $arguments] 
    set job_id [ expr ( $hold_job_id + 1 )]
    set arch [resolve_arch $qrsh_submithost]
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh \
-                "-hold_jid $hold_job_id echo qrsh sucessfully started"]
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-hold_jid $hold_job_id echo qrsh sucessfully started"]
    set sp_id [ lindex $qrsh_id 1 ] 
   
    trigger_scheduling
@@ -454,8 +451,7 @@ proc qrsh_starter_method {} {
    mod_queue all.q "" change_array
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh \
-                                      "-l hostname=$host echo qrsh sucessfully started"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
       set sp_id [ lindex $qrsh_id 1 ] 
   
       set done 0

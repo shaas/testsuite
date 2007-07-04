@@ -138,10 +138,10 @@ proc install_shadowd {} {
       puts $CHECK_OUTPUT "inst_sge -sm"
 
       if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-         set id [open_remote_spawn_process "$shadow_host" "root"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 1 1 1]
+         set id [open_remote_spawn_process "$shadow_host" "root"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 0 1 1]
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set id [open_remote_spawn_process "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 1 1 1]
+         set id [open_remote_spawn_process "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 0 1 1]
       }
 
 

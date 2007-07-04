@@ -106,18 +106,18 @@ proc generic_module_tests_run {} {
       set compile_arch [resolve_build_arch $host]
       foreach module_test $generic_module_tests {
          set command "$ts_config(source_dir)/$compile_arch/$module_test"
-         puts -nonewline $CHECK_OUTPUT "$module_test ..."
-         flush $CHECK_OUTPUT
+         puts $CHECK_OUTPUT "$module_test:"
          if {[wait_for_remote_file $host $CHECK_USER $command 1 0] != 0} {
             add_proc_error "generic_module_tests_run" -3 "module test binary $command doesn't exist on host $host"
             continue
          } else {
-            set output [start_remote_prog $host $CHECK_USER $command "" ret 300]
+            puts $CHECK_OUTPUT "starting $module_test ..."
+            set output [start_source_bin $module_test "" $host $CHECK_USER ret 300]
          }
          if {$ret == 0} {
-            puts "ok"
+            puts "   => $module_test ok"
          } else {
-            puts "failed"
+            puts "   => $module_test failed"
             add_proc_error "generic_module_tests_run" -1 "module test $module_test failed:\n$output"
          }
       }

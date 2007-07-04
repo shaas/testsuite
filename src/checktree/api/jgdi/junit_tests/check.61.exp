@@ -114,9 +114,8 @@ proc jgdi_junit_run_task { target a_report { jgdi_build_timeout 60 } } {
    upvar $a_report report
 
    # setup environment
-   set env(ARCH)      [resolve_arch $jgdi_config(target_host)]
-   set env(JAVA_HOME) $jgdi_config(java_home)
-   set env_var env
+   set env_var(ARCH)      [resolve_arch $jgdi_config(target_host)]
+   set env_var(JAVA_HOME) $jgdi_config(java_home)
    
    set output ""
    
@@ -126,10 +125,10 @@ proc jgdi_junit_run_task { target a_report { jgdi_build_timeout 60 } } {
 
    # run the tests (rebuild if instructed to)
    if { $do_jgdi_rebuild == 1 } {
-	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) java.clean" prg_exit_state 60 0 "" $env_var]
-	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) $target" prg_exit_state 2400 0 "" $env_var]
+	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) java.clean" prg_exit_state 60 0 "" env_var]
+	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) $target" prg_exit_state 2400 0 "" env_var]
    } else {
-	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) $target" prg_exit_state 600 0 "" $env_var]
+	append output [start_remote_prog $jgdi_config(target_host) $CHECK_USER  "$jgdi_config(ant)" "$jgdi_config(ant_options) $target" prg_exit_state 600 0 "" env_var]
    }
    
    set last_output_line [split $output "\n"]

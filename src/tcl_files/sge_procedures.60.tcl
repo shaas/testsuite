@@ -593,7 +593,7 @@ proc startup_execd { hostname {envlist ""}} {
    }
 
    puts $CHECK_OUTPUT "starting up execd on host \"$hostname\" as user \"$startup_user\""
-   set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "start" prg_exit_state 60 0 "" my_envlist 1 1 1]
+   set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "start" prg_exit_state 60 0 "" my_envlist ]
 
    return 0
 }
@@ -760,8 +760,6 @@ proc get_sge_error_generic_vdep {messages_var} {
 #*******************************************************************************
 proc drmaa_redirect_lib {version host } {
    global CHECK_USER CHECK_OUTPUT ts_config
-   get_current_cluster_config_array ts_config
-
    puts $CHECK_OUTPUT "Using DRMAA version $version on $host"
 
 
@@ -797,8 +795,7 @@ proc drmaa_redirect_lib {version host } {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc get_current_drmaa_mode { host } {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
+   global CHECK_OUTPUT ts_config
    puts $CHECK_OUTPUT "checking DRMAA version on $host ..."
    
    set compile_arch [resolve_build_arch_installed_libs $host]
@@ -847,8 +844,7 @@ proc get_current_drmaa_mode { host } {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc get_current_drmaa_lib_extension { host } {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
+   global CHECK_OUTPUT ts_config
    
    set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]

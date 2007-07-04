@@ -540,7 +540,7 @@ proc qconf_backslash_space_output_check {} {
          # The test suite sets the SGE_SINGLE_LINE variable before every action,
          # so in order to test backslash line continuation, we first have to
          # unset the env var.
-         set output [start_remote_prog $master_host $CHECK_USER "qconf" "-shgrp $groupname" prg_exit_state 60 0 "" "" 1 1 1 1 0 0 1]
+         set output [start_remote_prog $master_host $CHECK_USER "qconf" "-shgrp $groupname" prg_exit_state 60 0 "" "" 1 1 0 1 0 0 1]
          # I love TCL.  The next line does the following:
          # 1. Break the output up by lines
          # 2. Remove the first line, the group name
@@ -767,7 +767,7 @@ proc qconf_backslash_comma_output_check {} {
          # The test suite sets the SGE_SINGLE_LINE variable before every action,
          # so in order to test backslash line continuation, we first have to
          # unset the env var.
-         set output [start_remote_prog $master_host $CHECK_USER "qconf" "-se global" prg_exit_state 60 0 "" "" 1 1 1 1 0 0 1]
+         set output [start_remote_prog $master_host $CHECK_USER "qconf" "-se global" prg_exit_state 60 0 "" "" 1 1 0 1 0 0 1]
 
          # I love TCL.  The next line does the following:
          # 1. Replace \r\n with \n

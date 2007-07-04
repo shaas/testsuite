@@ -797,7 +797,7 @@ proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {t
 
    debug_puts "executing $binary $args\nas user $user on host $host"
    # Add " around $args if there are more the 1 args....
-   set result [start_remote_prog $host $user $binary "$args" exit_state $timeout $background "" $env_var]
+   set result [start_remote_prog $host $user $binary "$args" exit_state $timeout $background "" $env_var 1 0 1]
 
    return $result
 }
@@ -6477,7 +6477,7 @@ proc startup_execd_raw { hostname {envlist ""}} {
 
    set my_environment(COMMD_HOST) $ts_config(master_host)
 
-   set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/bin/$remote_arch/sge_execd" "-nostart-commd" prg_exit_state 60 0 "" my_environment 1 1 1]
+   set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/bin/$remote_arch/sge_execd" "-nostart-commd" prg_exit_state 60 0 "" my_environment]
 
    set ALREADY_RUNNING [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_COMMPROC_ALREADY_STARTED_S] "*"]
 
