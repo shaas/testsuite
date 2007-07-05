@@ -97,7 +97,8 @@ proc hedeby_install_binaries { arch_list a_report } {
 proc check_private_propterties_file { build_host } {
    global hedeby_config CHECK_OUTPUT CHECK_USER
    global ts_config
-   
+   set return_value 0
+
    puts $CHECK_OUTPUT "hedeby source dir: $hedeby_config(hedeby_source_dir)"
    puts $CHECK_OUTPUT "hedeby dist dir:   $hedeby_config(hedeby_product_root)"
    puts $CHECK_OUTPUT "used SGE_ROOT dir: $ts_config(product_root)"
@@ -142,14 +143,14 @@ proc check_private_propterties_file { build_host } {
  
       if { $found_sge_root != $ts_config(product_root) } {
          add_proc_error "check_private_propterties_file" -1 "$property_path does not contain sge.root=$ts_config(product_root)"
-         return -1
+         set return_value -1
       }
       if { $found_distinst_dir != $hedeby_config(hedeby_product_root) } {
          add_proc_error "check_private_propterties_file" -1 "$property_path does not contain distinst.dir=$hedeby_config(hedeby_product_root)"
-         return -1
+         set return_value -1
       }
    }
-   return 0
+   return $return_value
 }
 
 
