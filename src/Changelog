@@ -1,3 +1,7 @@
+JG-2007-07-05-0: Enhancem.: Added test bugs/issuezilla/2325,
+                            added test_sge_uidgid to module tests.
+                 Review:    RD
+
 LP-2007-07-04:0: Enhancem:  Added jgdi shell tests for qconf
                  Review:    JG
 
