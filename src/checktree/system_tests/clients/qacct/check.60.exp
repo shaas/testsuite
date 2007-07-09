@@ -36,6 +36,7 @@ global check_functions
 lappend check_functions "qacct_issue1720"
 lappend check_functions "qacct_issue1686"
 lappend check_functions "qacct_issue2127"
+lappend check_functions "qacct_issue2189"
 
 proc qacct_issue1686 {} {
    global ts_config
@@ -68,4 +69,83 @@ proc qacct_issue2127 {} {
    if {$prg_exit_state != 0} {
       add_proc_error "qacct_issue2127" -1 "qacct -l a=$master_arch output:\n$output"
    }
+}
+
+proc qacct_issue2189 {} {
+   global ts_config CHECK_OUTPUT
+
+   # create a new queue
+   set test_qname "test_issue2189.q"
+   set test_host [lindex $ts_config(execd_nodes) 0]
+   set test_queue(qname)     "$test_qname"
+   set test_queue(hostlist)  "$test_host"
+   add_queue "$test_qname" $test_host test_queue
+
+   # we need at least one job submitted to this queue
+   set job_id [submit_job "-o /dev/null -j y -q $test_qname@$test_host $ts_config(product_root)/examples/jobs/sleeper.sh 10"]
+   if {$job_id < 0} {
+      return
+   }
+
+   # wait for job end - now accounting should be written
+   if {[wait_for_jobstart $job_id "" 60 1 1] != 0} {
+      return
+   }
+   if {[wait_for_jobend $job_id "" 60 0 1] != 0} {
+      return
+   }
+ 
+   # delete queue $test_qname
+   set result [del_queue "$test_qname" "$test_host" 0 1]
+   if {$result != 0} {
+      return
+   }    
+   
+   puts $CHECK_OUTPUT "Counting of expected ignored jobs ..."
+   set ignored_jobs 0    
+   #  for all jobs find out if the queue for the spec. host exists
+   set jobs_list [split [start_sge_bin qacct "-j | grep jobnumber"] "\n"]
+   set exist_queues {}
+   set non_exist_queues {}
+   foreach job $jobs_list {
+      set job_number [lrange $job 1 end]
+      if {[string compare "$job_number" ""] != 0} {
+         # get the queue name where the job was running
+         set job_qacct [start_sge_bin qacct "-j $job_number"]
+         parse_simple_record job_qacct output_qacct
+         set qname $output_qacct(qname)@$output_qacct(hostname)
+         # check if the queue exists
+         if {[lsearch $exist_queues $qname] == -1} {
+            if {[lsearch $non_exist_queues $qname] == -1} {
+               set queue_info [start_sge_bin qconf "-sq $qname"]
+               set msg_if_not_exist [translate_macro MSG_CQUEUE_NOQMATCHING_S "$qname"]
+               if { [string match "$msg_if_not_exist" [string trim "$queue_info"]] == 1 } {
+                  # queue doesn't exists, count it and add it to the list of non-existing queues
+                  incr ignored_jobs 1
+                  lappend non_exist_queues "$qname"
+               } else {
+                  # queue exists, add it to the list of existing queues
+                  lappend exist_queues "$qname"
+               }
+            } else {
+               # queue doesn't exist, it's already listed among non-existing queues
+               incr ignored_jobs 1 
+            }
+         }
+      }
+   }
+   puts $CHECK_OUTPUT "$ignored_jobs jobs should be ignored for accounting" 
+
+   # get qacct result after deleting queue
+   set qacct_res_after_qdel [start_sge_bin qacct "-l hostname=$test_host"]
+   # number of ignored jobs should be at least 1, the condition added just for sure
+   if {$ignored_jobs != 0} {
+      set expected_output [translate_macro MSG_HISTORY_IGNORINGJOBXFORACCOUNTINGMASTERQUEUEYNOTEXISTS_IS "$ignored_jobs"]
+      if { [string match "$expected_output*" "$qacct_res_after_qdel"] == 0 } {
+         add_proc_error "qacct_issue2189" -1 "number of ignored jobs should be $ignored_jobs, the qacct result is: $qacct_res_after_qdel"
+      }
+   } else {
+      add_proc_error "qacct_issue2189" -1 "at least one job should be ignored..."
+   }
+
 }
