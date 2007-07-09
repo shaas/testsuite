@@ -2416,7 +2416,7 @@ proc qconf_modify_userlist {} {
    set current_ul($attribute) "$value"
 
    # Now modify fast
-   puts $CHECK_OUTPUT "Modify userlist $userlist fast ...\n"
+   puts $CHECK_OUTPUT "1) Modify userlist $userlist fast ...\n"
    set result1 [mod_userlist $userlist current_ul ]
 
    if { ( $result1 == 0 ) } {
@@ -2429,7 +2429,7 @@ proc qconf_modify_userlist {} {
    set attribute "entries"
    set value "NONE"
    set current_ul($attribute) "$value"
-   puts $CHECK_OUTPUT "Modify userlist $userlist slow ...\n"
+   puts $CHECK_OUTPUT "2) Modify userlist $userlist slow ...\n"
 
    set result2 [mod_userlist $userlist current_ul 0]
    if { ( $result2 == 0 ) } {
@@ -2444,7 +2444,7 @@ proc qconf_modify_userlist {} {
    set attribute "oticket"
    set value "-1"
    set current_ul($attribute) "$value"
-   puts $CHECK_OUTPUT "Modify attribute $attribute wrong slow ...\n"
+   puts $CHECK_OUTPUT "3) Modify attribute $attribute wrong slow ...\n"
    set result4 [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
 
    if { ( $result4 == -4 ) } {
@@ -2454,7 +2454,7 @@ proc qconf_modify_userlist {} {
    }
 
    # Now modify fast with wrong value
-   puts $CHECK_OUTPUT "Modify userlist $userlist wrong fast ...\n"
+   puts $CHECK_OUTPUT "4) Modify userlist $userlist wrong fast ...\n"
    set result3 [mod_userlist $userlist current_ul 1 $host $CHECK_USER 0]
 
    if { ( $result3 == -1 ) } {
@@ -2463,6 +2463,35 @@ proc qconf_modify_userlist {} {
       # See IZ 1983 on why this does not fail as expected
       puts $CHECK_OUTPUT "result is $result3"
    }
+
+   #test if setting wrong value in userset type throws error
+   set attribute "oticket"
+   set value "0"
+   set current_ul($attribute) "$value"
+   set attribute "type"
+   set value "BADTYPE"
+   set current_ul($attribute) "$value"
+   puts $CHECK_OUTPUT "5) Setting invalid type for userset ...\n"
+   set result5 [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
+
+   if { ( $result5 == -5 ) } {
+      puts $CHECK_OUTPUT "qconf -mu for invalid userset type failed successfully"
+   } else {
+      puts $CHECK_OUTPUT "result is $result5"
+   }
+
+   #test if setting blank value in userset type throws error
+   set value "    "
+   set current_ul($attribute) "$value"
+   puts $CHECK_OUTPUT "6) Setting blank type for userset ...\n"
+   set result6 [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
+
+   if { ( $result6 == -6 ) } {
+      puts $CHECK_OUTPUT "qconf -mu for blank userset type failed successfully"
+   } else {
+      puts $CHECK_OUTPUT "result is $result6"
+   }
+ 
 }
 
 #****** qconf/qconf_modify_sched_conf() ******

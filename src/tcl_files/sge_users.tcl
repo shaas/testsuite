@@ -293,10 +293,11 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
       set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "$userlist" "userset" ]
       set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
       set ALREADY_EXISTS [ translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*"]
-      set UNKNOWN_ATTRIBUTE [ translate_macro MSG_UNKNOWNATTRIBUTENAME_S "*" ]
+      set UNKNOWN_SPECIFIER [translate_macro MSG_GDI_READCONFIGFILEUNKNOWNSPEC_SS "*" "*"]
+      set EMPTY_SPECIFIER [ translate_macro MSG_GDI_READCONFIGFILEEMPTYSPEC_S "*" ]
       set NOTULONG [ translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
       set master_arch [resolve_arch $ts_config(master_host)]
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG]
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG $UNKNOWN_SPECIFIER $EMPTY_SPECIFIER]
       if { $result == -1 } { 
          add_proc_error "mod_userlist" -1 "timeout error" $raise_error
       } elseif { $result == -2 } { 
@@ -304,7 +305,11 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
       } elseif { $result == -3 } { 
          add_proc_error "mod_userlist" -1 "not modified " $raise_error
       } elseif { $result == -4 } { 
-         add_proc_error "mod_userlist" -1 "not  u_long32 value" $raise_error
+         add_proc_error "mod_userlist" -1 "not u_long32 value" $raise_error
+      } elseif { $result == -5 } { 
+         add_proc_error "mod_userlist" -1 "invalid specifier" $raise_error
+      } elseif { $result == -6 } { 
+         add_proc_error "mod_userlist" -1 "empty specifier" $raise_error
       } elseif { $result != 0  } { 
          add_proc_error "mod_userlist" -1 "could not modify userlist " $raise_error
       }

@@ -327,7 +327,7 @@ proc build_rqs_vi_array { change_array } {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result {additional_expected_result "___ABCDEFG___"} {additional_expected_result2 "___ABCDEFG___"} {additional_expected_result3 "___ABCDEFG___"} {additional_expected_result4 "___ABCDEFG___"} {qconf_error_msg "___ABCDEFG___"} {raise_error 1}} {
+proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result {additional_expected_result "___ABCDEFG___"} {additional_expected_result2 "___ABCDEFG___"} {additional_expected_result3 "___ABCDEFG___"} {additional_expected_result4 "___ABCDEFG___"} {additional_expected_result5 "___ABCDEFG___"} {qconf_error_msg "___ABCDEFG___"} {raise_error 1}} {
    global CHECK_OUTPUT env CHECK_DEBUG_LEVEL CHECK_USER ts_config
 
    set expected_result              [string trimright $expected_result "*"]
@@ -335,6 +335,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    set additional_expected_result2  [string trimright $additional_expected_result2 "*"]
    set additional_expected_result3  [string trimright $additional_expected_result3 "*"]
    set additional_expected_result4  [string trimright $additional_expected_result4 "*"]
+   set additional_expected_result5  [string trimright $additional_expected_result5 "*"]
    set qconf_error_msg  [string trimright $qconf_error_msg "*"]
 
    # we want to start a certain configured vi, and have no backslash continued lines
@@ -610,6 +611,10 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
             }
             -i $sp_id -- "$additional_expected_result4" {
                set result -5
+               exp_continue
+            }
+            -i $sp_id -- "$additional_expected_result5" {
+               set result -6
                exp_continue
             }
             
