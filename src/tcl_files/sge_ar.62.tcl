@@ -338,6 +338,7 @@ proc parse_qrstat {ar_id {output qrstat_info}} {
    set    match_text(xacl_list)         xacl_list*
    set    match_text(error_handling)    error_handling*
    set    match_text(master_hard_queue_list)    "master hard queue_list*"
+   set    match_text(message)           message*
 
    set lines [split $result "\n"]
    foreach line $lines {

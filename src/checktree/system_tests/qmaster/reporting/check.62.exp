@@ -1,0 +1,225 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_functions 
+
+#### define test's procedure order
+lappend check_functions "reporting_ar_error_state_test"
+lappend check_functions "reporting_ar_warning_state_test"
+
+proc reporting_wait_for_pattern {pattern {timeout 10}} {
+   set output [logfile_wait $pattern $timeout 0]
+   if {$logfile_wait_error != 0} {
+      add_proc_error "reporting_wait_for_pattern" -1 "there were no pattern '$pattern' in the reporting file, got only\n$output"
+   }
+}
+
+proc reporting_ar_error_state_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global reporting_file reporting_test_host
+
+   delete_all_ars
+
+   # activate reporting and set short reporting flush time
+   set new_config(reporting_params) "reporting=true flush_time=00:00:1"
+   set_config new_config
+
+   # tail -f reporting file
+   init_logfile_wait $ts_config(master_host) $reporting_file
+
+   ################
+   # test AR submit
+   ################
+   set ar_id [submit_ar "-q reporting -d 3600"]
+   if {$ar_id <= 0} {
+      add_proc_error "reporting_ar_error_state_test" -1 "AR submit failed"
+      close_logfile_wait
+      return
+   }
+   set pattern ":new_ar:*:${ar_id}:$CHECK_USER"
+   reporting_wait_for_pattern $pattern
+   set pattern ":ar_attr:*:${ar_id}::sge:*:*::NONE"
+   reporting_wait_for_pattern $pattern
+
+   ###############
+   # test AR start
+   ###############
+   set pattern ":ar_log:*:${ar_id}:r:START TIME REACHED:start time of AR reached"
+   reporting_wait_for_pattern $pattern
+
+   ######################################
+   # test AR error state on queue disable
+   ######################################
+   disable_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:E:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   enable_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:r:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   ######################################
+   # test AR error state on queue suspend
+   ######################################
+   suspend_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:E:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   unsuspend_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:r:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   ######################################
+   # test AR error state on queue unknown
+   ######################################
+   start_sge_bin "qconf" "-ke $reporting_test_host"
+   set pattern ":ar_log:*:${ar_id}:E:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   startup_execd $reporting_test_host
+   wait_for_load_from_all_queues 60
+   set pattern ":ar_log:*:${ar_id}:r:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   ####################################
+   # test AR error state on queue error
+   ####################################
+   replace_attr "queue" "prolog" "non_existing_prolog" "reporting"
+   set job_id [submit_job "-ar $ar_id -o /dev/null -j y -q reporting -b y echo test"]
+   trigger_scheduling
+   set pattern ":ar_log:*:${ar_id}:E:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   delete_job $job_id
+   replace_attr "queue" "prolog" "NONE" "reporting"
+   start_sge_bin "qmod" "-c reporting"
+   set pattern ":ar_log:*:${ar_id}:r:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   delete_ar $ar_id
+
+   set pattern "*:ar_log:*:${ar_id}:d:DELETED:AR deleted"
+   reporting_wait_for_pattern $pattern
+
+   set pattern "*:ar_acct:*:${ar_id}:reporting:$reporting_test_host:1"
+   reporting_wait_for_pattern $pattern
+   
+   # shutdown tail -f
+   close_logfile_wait
+}
+
+proc reporting_ar_warning_state_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global reporting_file reporting_test_host
+
+   delete_all_ars
+
+   # activate reporting and set short reporting flush time
+   set new_config(reporting_params) "reporting=true flush_time=00:00:1"
+   set_config new_config
+  
+   # compute start time 
+   set now [clock seconds]
+   set then [expr $now + 86400]; # next day
+   set start [clock format $then -format "%Y%m%d%H%M.%S"]
+
+   # tail -f reporting file
+   init_logfile_wait $ts_config(master_host) $reporting_file
+
+   ################
+   # test AR submit
+   ################
+   set ar_id [submit_ar "-a $start -q reporting -d 3600"]
+   if {$ar_id <= 0} {
+      add_proc_error "reporting_ar_warning_state_test" -1 "AR submit failed"
+      close_logfile_wait
+      return
+   }
+   set pattern ":new_ar:*:${ar_id}:$CHECK_USER"
+   reporting_wait_for_pattern $pattern
+   set pattern ":ar_attr:*:${ar_id}::sge:*:*::NONE"
+   reporting_wait_for_pattern $pattern
+
+   ########################################
+   # test AR warning state on queue disable
+   ########################################
+   disable_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:W:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   enable_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:w:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   ########################################
+   # test AR warning state on queue suspend
+   ########################################
+   suspend_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:W:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   unsuspend_queue "reporting"
+   set pattern ":ar_log:*:${ar_id}:w:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   ########################################
+   # test AR warning state on queue unknown
+   ########################################
+   start_sge_bin "qconf" "-ke $reporting_test_host"
+   set pattern ":ar_log:*:${ar_id}:W:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   startup_execd $reporting_test_host
+   wait_for_load_from_all_queues 60
+   set pattern ":ar_log:*:${ar_id}:w:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   ######################################
+   # test AR warning state on queue error
+   ######################################
+   replace_attr "queue" "prolog" "non_existing_prolog" "reporting"
+   set job_id [submit_job "-l h_rt=10 -o /dev/null -j y -q reporting -b y echo test"]
+   trigger_scheduling
+   set pattern ":ar_log:*:${ar_id}:W:RESOURCES UNSATISFIED:AR resources unsatisfied"
+   reporting_wait_for_pattern $pattern
+   delete_job $job_id
+   replace_attr "queue" "prolog" "NONE" "reporting"
+   start_sge_bin "qmod" "-c reporting"
+   set pattern ":ar_log:*:${ar_id}:w:RESOURCES SATISFIED:AR resources satisfied"
+   reporting_wait_for_pattern $pattern
+
+   delete_ar $ar_id
+
+   set pattern "*:ar_log:*:${ar_id}:d:DELETED:AR deleted"
+   reporting_wait_for_pattern $pattern
+
+   set pattern "*:ar_acct:*:${ar_id}:reporting:$reporting_test_host:1"
+   reporting_wait_for_pattern $pattern
+   
+   # shutdown tail -f
+   close_logfile_wait
+}

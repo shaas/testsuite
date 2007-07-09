@@ -1,5 +1,9 @@
-RN-2007-07-09-0: Bugfix:  - Creating a userset with NONE as a type results in a core dump
-	                  - Userset type should not accept empty string value
+RD-2007-07-09-0: Enhancem:  - Added some tests for Advance Reservation
+                 Review:    JG
+
+RN-2007-07-09-0: Bugfix:    - Creating a userset with NONE as a type results
+                              in a core dump
+                            - Userset type should not accept empty string value
                  Issue :    2323,2324
                  Review:    JG
 

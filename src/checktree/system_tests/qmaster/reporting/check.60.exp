@@ -161,6 +161,10 @@ proc reporting_cleanup {} {
    del_calendar "reporting"
    del_hostgroup "@reporting"
 
+   # disable reporting
+   set new_config(reporting_params) "accounting=true reporting=false"
+   set_config new_config
+
    # delete the reporting file
    file delete -force $reporting_file
 }

@@ -4578,27 +4578,28 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
    get_current_cluster_config_array ts_config
 
 
-   set REGISTERED1 [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_REGDELTASK_SUU] "*" "*" "*"]
+   set ALREADYDELETED [translate_macro MSG_JOB_ALREADYDELETED_U "*"]
+   set REGISTERED1 [translate_macro MSG_JOB_REGDELTASK_SUU "*" "*" "*"]
    if { $ts_config(gridengine_version) >= 62 } {
-      set REGISTERED2 [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_REGDELX_SSU] "*" "job" "*" ]
+      set REGISTERED2 [translate_macro MSG_JOB_REGDELX_SSU "*" "job" "*" ]
    } else {
-      set REGISTERED2 [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_REGDELJOB_SU] "*" "*" ]
+      set REGISTERED2 [translate_macro MSG_JOB_REGDELJOB_SU "*" "*" ]
    }
-   set DELETED1  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_DELETETASK_SUU] "*" "*" "*"]
+   set DELETED1  [translate_macro MSG_JOB_DELETETASK_SUU "*" "*" "*"]
    if {$ts_config(gridengine_version) >= 62} {
-      set DELETED2  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_DELETEX_SSU] "*" "job" "*" ]
+      set DELETED2  [translate_macro MSG_JOB_DELETEX_SSU "*" "job" "*" ]
    } else {
-      set DELETED2  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_DELETEJOB_SU] "*" "*" ]
+      set DELETED2  [translate_macro MSG_JOB_DELETEJOB_SU "*" "*" ]
    }
 
    if {$ts_config(gridengine_version) == 53} {
       set UNABLETOSYNC "asldfja?sldkfj?ajf?ajf"
    } else {
-      set UNABLETOSYNC [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_COM_NOSYNCEXECD_SU] $CHECK_USER $jobid]
+      set UNABLETOSYNC [translate_macro MSG_COM_NOSYNCEXECD_SU $CHECK_USER $jobid]
    }
 
    set result -100
-   if { [ is_job_id $jobid] } {
+   if { [is_job_id $jobid] } {
       # spawn process
       set program "$ts_config(product_root)/bin/[resolve_arch $ts_config(master_host)]/qdel"
 
@@ -4647,6 +4648,10 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
              set result 0
           }
           -i $sp_id "has deleted job" {
+             puts $CHECK_OUTPUT $expect_out(0,string)
+             set result 0
+          }
+          -i $sp_id $ALREADYDELETED {
              puts $CHECK_OUTPUT $expect_out(0,string)
              set result 0
           }

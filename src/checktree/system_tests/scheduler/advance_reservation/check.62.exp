@@ -1,0 +1,375 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+global test_host
+global queue_name
+global complex_queue_name
+global gcplx hcplx
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "scheduler_advance_reservation_init_level"
+
+# define test's name and run level descriptions
+set check_name            "scheduler_advance_reservation"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function scheduler_advance_reservation_setup
+set check_cleanup_function scheduler_advance_reservation_cleanup
+
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "scheduler_ar_unlimited_runtime_job"
+lappend check_functions "scheduler_ar_parallel_consuamble"
+lappend check_functions "scheduler_ar_rqs"
+
+proc scheduler_advance_reservation_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc scheduler_advance_reservation_setup {} {
+   global ts_config CHECK_OUTPUT
+   global queue_name test_host
+   global complex_queue_name
+   global gcplx hcplx
+
+   set test_host [host_conf_get_suited_hosts]
+   set queue_name "ar_schedd_queue"
+   set complex_queue_name "ar_schedd_complex_queue"
+   set gcplx "global_consumable"
+   set hcplx "host_consumable"
+
+   set pe_settings(slots)  4
+   set pe_settings(allocation_rule) "\$fill_up"
+   set pe_settings(pe_name) "ar_pe" 
+   add_pe pe_settings
+
+   set queue_settings(slots) 4
+   set queue_settings(pe_list) "ar_pe"
+   set queue_settings(load_thresholds) "np_load_avg=11.75"
+
+   # add queue_name
+   add_queue $queue_name $test_host queue_settings
+   puts $CHECK_OUTPUT "added queue $queue_name for hosts $test_host"
+
+   # create new complex attributes
+   #           name            short  type    op.   requ.  cons. default  urgency
+   set complex($gcplx)  "c1     INT       <=    YES    YES   1        0"
+   set complex($hcplx)  "c2     INT       <=    YES    YES   1        0"
+   set_complex complex
+   
+   # add global complex
+   set config(complex_values) "$gcplx=4"
+   set_exechost config "global"
+
+   # add complex_queue_name
+   set complex_test_hosts [host_conf_get_suited_hosts 2]
+   set queue_settings(slots) 1
+   set queue_settings(complex_values) "$hcplx=2"
+   add_queue $complex_queue_name $complex_test_hosts queue_settings
+   puts $CHECK_OUTPUT "added queue $complex_queue_name for hosts $complex_test_hosts"
+
+}
+
+proc scheduler_advance_reservation_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global queue_name test_host
+   global complex_queue_name
+   global gcplx hcplx
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   delete_all_ars
+
+   # remove global complex
+   set config(complex_values) "none"
+   set_exechost config "global"
+
+   #äremove queues
+   del_queue $queue_name $test_host 0 1
+   del_queue $complex_queue_name $test_host 0 1
+
+   del_pe "ar_pe"
+
+   # delete our test complex attributes
+   set complex($gcplx)  ""
+   set complex($hcplx)   ""
+   set_complex complex
+
+   # remove resource quota
+   del_rqs "ar_schedd_test" "" "" 0
+}
+
+
+proc scheduler_ar_unlimited_runtime_job {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global scheduler_advance_reservation_test_hosts check_description
+   global CHECK_ACT_LEVEL
+   global queue_name test_host
+
+   set ar_job_args "-q $queue_name"
+   set job_args "$ar_job_args -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   set ar_args "$ar_job_args -d 1000"
+
+   # Submit two sequential jobs with unlimited runtime and two sequential ARs
+   set job_id [submit_job "$job_args"]
+   trigger_scheduling
+   set job_state [wait_for_jobstart $job_id "leeper" 20]
+   if {$job_state == -1} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting job(1)"
+      return
+   }
+   set job_id [submit_job "$job_args"]
+   trigger_scheduling
+   set job_state [wait_for_jobstart $job_id "leeper" 20]
+   if {$job_state == -1} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting job(2)"
+      return
+   }
+   set ar_id1 [submit_ar "$ar_args"]
+   if {$ar_id1 <= 0} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting AR(1)"
+      return
+   }
+   set ar_id2 [submit_ar "$ar_args"]
+   if {$ar_id2 <= 0} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting AR(2)"
+      return
+   }
+
+   # The queue is now full with slots and reservations
+   # all other requests should be denied
+   set job_id [submit_job "$job_args"]
+   trigger_scheduling
+   set job_state [wait_for_jobstart $job_id "leeper" 20 0]
+   if {$job_state != -1} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "sequential job was scheduled into a full cluster"
+   }
+
+   set job_id [submit_job "-pe mytestpe 2 $job_args"]
+   trigger_scheduling
+   set job_state [wait_for_jobstart $job_id "leeper" 20 0]
+   if {$job_state != -1} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "parallel job was scheduled into a full cluster"
+   }
+
+   set ar_id [submit_ar "$ar_args" "" "" 0]
+   if {$ar_id > 0} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "sequential AR was not rejecteced"
+   }
+
+   set ar_id [submit_ar "-pe mytestpe 2 $ar_args" "" "" 0]
+   if {$ar_id > 0} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "sequential AR was not rejecteced"
+   }
+
+   # But jobs using two slots into the AR should work
+   set job_id [submit_job "-ar $ar_id1 $job_args"]
+   trigger_scheduling
+   set job_state [wait_for_jobstart $job_id "leeper" 20 0]
+   if {$job_state == -1} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "ar job was not scheduled(1)"
+   }
+
+   set job_id [submit_job "-ar $ar_id2 $job_args"]
+   trigger_scheduling
+   set job_state [wait_for_jobstart $job_id "leeper" 20 0]
+   if {$job_state == -1} {
+      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "ar job was not scheduled(2)"
+   }
+   
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   delete_all_ars
+}
+
+proc scheduler_ar_parallel_consuamble {} {
+   global complex_queue_name
+   global gcplx hcplx
+   global ts_config
+
+   wait_for_enter
+
+   # Submit AR and request all hcplx and gcplx
+   set ar_id [submit_ar "-pe ar_pe 2 -l $hcplx=2,$gcplx=2 -d 3600"]
+   if {$ar_id <= 0} {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "AR submit failed"
+      return
+   }
+
+   set job_args "-ar $ar_id -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+
+   # Positive Tests
+   set job_id [submit_job "$job_args"]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (1)"
+      return
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-pe mytestpe 2 $job_args"]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (2)"
+      return
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-pe mytestpe 2 -l $hcplx=2 $job_args"]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (3)"
+      return
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-pe mytestpe 2 -l $gcplx=2 $job_args"]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (4)"
+      return
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-pe mytestpe 2 -l $gcplx=2,$hcplx=2 $job_args"]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (5)"
+      return
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-l $hcplx=1 $job_args"]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (7)"
+      return
+   } else {
+      delete_job $job_id
+   }
+
+   # Negative Tests
+   set job_id [submit_job "-l $gcplx=5 $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (1)"
+      return
+   }
+
+   set job_id [submit_job "-l $hcplx=3 $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (2)"
+      return
+   } 
+
+   set job_id [submit_job "-pe mytestpe 2 -l $gcplx=3 $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (3)"
+      return
+   }
+
+   delete_ar $ar_id
+}
+
+proc scheduler_ar_rqs {} {
+   global ts_config
+
+   # add a resource quota that denies all
+   set rqs_name "ar_schedd_test"
+   set rules ""
+   lappend rules "to slots=0"
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   add_rqs rqs_charray
+
+   set job_args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+
+   set ar_id [submit_ar "-d 3600"]
+   if {$ar_id <= 0} {
+      add_proc_error "scheduler_ar_rqs" -1 "sequential AR is wronlgy denied because of a RQS"
+   } else {
+      set job_id [submit_job "-ar $ar_id $job_args"]
+      if {$job_id > 0} {
+         trigger_scheduling
+         wait_for_jobstart $job_id "leeper" 20
+      } else {
+         add_proc_error "scheduler_ar_rqs" -1 "sequential AR job is wronlgy denied because of a RQS"
+      }
+   }
+
+   set ar_id [submit_ar "-pe mytestpe 2 -d 3600"]
+   if {$ar_id <= 0} {
+      add_proc_error "scheduler_ar_rqs" -1 "parallel AR is wronlgy denied because of a RQS"
+   } else {
+      set job_id [submit_job "-ar $ar_id -pe mytestpe 2 $job_args"]
+      if {$job_id > 0} {
+         trigger_scheduling
+         wait_for_jobstart $job_id "leeper" 20
+      } else {
+         add_proc_error "scheduler_ar_rqs" -1 "parallel AR job is wronlgy denied because of a RQS"
+      }
+   }
+
+   # remove resource quota
+   del_rqs "ar_schedd_test" "" "" 0
+}

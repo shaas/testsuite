@@ -768,6 +768,8 @@ proc test_waitingjob_future_ar {} {
    if {$res==0} {
       add_proc_error "test_changing_ar_id" -1 "job expected to wait is running"
     }
+
+   delete_ar $ar_id
 }
 
 proc test_ar_access_list {} {
@@ -933,5 +935,14 @@ proc test_masterq {} {
       delete_job $job_id
    }
 
+   # Submit a job requesting a not reserved masterq
+   set test_args "-pe $pe_name1 2 -masterq $queue_name2"
+   set job_id [submit_job "-ar $ar_id $test_args $default_args" 0]
+   if {$job_id > 0} {
+      add_proc_error "test_masterq" -1 "job requesting different master is not rejected"
+      delete_job $job_id
+   }
+
+   # Test cleanup 
    delete_ar $ar_id
 }

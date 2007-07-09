@@ -602,9 +602,11 @@ proc check_option_w {} {
 
 proc check_option_u {} {
    global ts_config CHECK_OUTPUT
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_USER
 
-   set args " -u 'sgetest,!sgetest1,sgetest2,!root' -d 1000"
+   set args " -u '$CHECK_USER,!$CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER,!root' -d 1000"
  
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
@@ -612,8 +614,8 @@ proc check_option_u {} {
    }
 
    puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
-   set check_values(acl_list)               "sgetest,sgetest2"
-   set check_values(xacl_list)              "sgetest1,root"
+   set check_values(acl_list)               "$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"
+   set check_values(xacl_list)              "$CHECK_FIRST_FOREIGN_SYSTEM_USER,root"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
