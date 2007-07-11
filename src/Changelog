@@ -1,3 +1,6 @@
+PJ-2007-07-11-0: Enhancem.: qsh, qrsh, qlogin -ar tests
+                 Review:    JG
+                 
 JG-2007-07-10-0: Bugfix:    When testsuite did an install re_init after a test
                             failed, and the installation raised a warning, 
                             testsuite did a full reinstall.

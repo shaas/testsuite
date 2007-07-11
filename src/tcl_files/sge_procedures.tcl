@@ -4714,7 +4714,7 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
 #
 #  SYNOPSIS
 #     submit_job { args {do_error_check 1} {submit_timeout 60} {host ""} 
-#                  {user ""} { cd_dir ""} { show_args 1 }  }
+#                  {user ""} { cd_dir ""} { show_args 1 } {qcmd "qsub"} }
 #
 #  FUNCTION
 #     This procedure will submit a job.
@@ -4727,7 +4727,8 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
 #     {host ""}           - host on which to execute qsub (default $ts_config(master_host))
 #     {user ""}           - user who shall submit job (default $CHECK_USER)
 #     {cd_dir ""}         - optional: do cd to given directory first
-#     { show_args 1 }     - optional: show job arguments
+#     {show_args 1 }      - optional: show job arguments
+#     {qcmd "qsub"}       - optional: to allow different command as f.e. qsh, qrsh  
 #
 #  RESULT
 #     This procedure returns:
@@ -4760,7 +4761,7 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
 #     sge_procedures/delete_job()
 #     sge_procedures/submit_job_parse_job_id()
 #*******************************
-proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1}} {
+proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1} {qcmd "qsub"}} {
    global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
@@ -4843,9 +4844,9 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       puts $CHECK_OUTPUT "job submit args:\n$args"
    }
 
-   set output [start_sge_bin "qsub" $args $host $user prg_exit_state $submit_timeout $cd_dir]
+   set output [start_sge_bin $qcmd $args $host $user prg_exit_state $submit_timeout $cd_dir]
 
-   set ret [handle_sge_errors "submit_job" "qsub $args" $output messages $raise_error]
+   set ret [handle_sge_errors "submit_job" "$qcmd $args" $output messages $raise_error]
 
    # some special handling
    switch -exact -- $ret {

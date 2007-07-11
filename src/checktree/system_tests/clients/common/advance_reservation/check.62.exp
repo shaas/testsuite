@@ -1,0 +1,284 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "client_ar_init_level"
+
+# define test's name and run level descriptions
+set check_name            "client_ar"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "common clients -ar switch checks (qsh, qrsh, qlogin)"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function client_ar_setup
+set check_cleanup_function client_ar_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "test_qsh_ar_switch"
+lappend check_functions "test_qrsh_ar_switch"
+lappend check_functions "test_qlogin_ar_switch"
+
+global default_args
+
+proc client_ar_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc client_ar_setup {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global job_output_dir default_args
+   
+   # set default jobargs
+   set default_args "-o $job_output_dir -e $job_output_dir"
+  
+}
+
+proc client_ar_cleanup {} {
+   global ts_config CHECK_OUTPUT
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   delete_all_ars
+}
+
+
+proc test_qsh_ar_switch {} {
+   global ts_config CHECK_OUTPUT CHECK_USER default_args
+
+   # Test setup
+   delete_all_ars   
+   
+   # Submit advance reservation 
+   set args "-d 36000"
+   set cmd "qsh"
+   set job_name "test_${cmd}"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      add_proc_error "test_qsh_ar_switch" -3 "submit ar failed"
+      return
+   }
+   
+   # Submit qsh job with advance reservation 
+   set args  "-ar $ar_id -N $job_name $default_args"
+   set job_id [submit_job $args 1 60 "" "" "" 1 $cmd]
+   if {$job_id < 0} {
+      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submited"
+      return
+   }
+   
+   # start job
+   trigger_scheduling
+
+   
+   #job should be running
+   set run_result [wait_for_jobstart $job_id  $job_name 20]
+   if {$run_result != 0} {
+       add_proc_error "${job_name}_ar_switch" -1 "job was not scheduled to with ar option"
+   } 
+   puts $CHECK_OUTPUT "delete AR: $ar_id and job should ends soon"
+   delete_ar $ar_id
+   wait_for_job_end $job_id 60
+
+   #job for deleted ar should NOT be running
+   set args  "-ar $ar_id -N $job_name $default_args"
+   set job_id [submit_job $args 0 60 "" "" "" 1 $cmd]
+   if {$job_id > 0} {
+      add_proc_error "${job_name}_ar_switch" -1 "interactive job should not be submited"
+      delete_job $job_id
+      return
+   }
+   puts $CHECK_OUTPUT "${job_name}_ar_switch OK"
+ 
+}
+
+proc test_qrsh_ar_switch {} {
+   global ts_config CHECK_OUTPUT CHECK_USER  default_args
+
+   # Test setup
+   delete_all_ars   
+   
+   # Submit advance reservation 
+   set args "-d 36000"
+   set cmd "qrsh"
+   set job_name "test_${cmd}"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      add_proc_error "test_qrsh_ar_switch" -3 "submit ar failed"
+      return
+   }
+   
+   # Submit qsh job with advance reservation,  simulate the right output 
+   set echo [translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_S "*"]
+   set args  "-ar $ar_id -N $job_name $default_args echo '$echo'"
+   set job_id [submit_job $args 0 60 "" "" "" 1 $cmd]
+   if {$job_id < 0} {
+      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submited"
+      return
+   }
+   puts $CHECK_OUTPUT "delete AR: $ar_id and job should ends soon"
+   delete_ar $ar_id
+   wait_for_job_end $job_id 60
+
+   set job_id [submit_job $args 0 60 "" "" "" 1 $cmd]
+   if {$job_id == 0} {
+      add_proc_error "${job_name}_ar_switch" -1 "interactive job submited for non existing AR!"
+      return
+   }
+   puts $CHECK_OUTPUT "${job_name}_ar_switch OK"
+}
+
+proc test_qlogin_ar_switch {} {
+   global ts_config CHECK_OUTPUT CHECK_USER  default_args
+
+   # Test setup
+   delete_all_ars   
+   
+   # Submit advance reservation 
+   set args "-d 36000"
+   set cmd "qlogin"
+   set job_name "test_${cmd}"
+   set ar_id [submit_ar $args]
+   if {$ar_id < 0} {
+      add_proc_error "${job_name}_ar_switch" -3 "submit ar failed"
+      return
+   }
+
+
+   set ret [qlogin_ar_call $ar_id $job_name]
+   if {$ret != 0} {
+      add_proc_error "${job_name}_ar_switch" -1 "submit of qlogin with -ar switch failed!"
+      return
+   }
+   
+   #delete the ar
+   puts $CHECK_OUTPUT "delete AR: $ar_id and job should ends soon"
+   delete_ar $ar_id
+
+   set ret [qlogin_ar_call $ar_id $job_name]
+   if {$ret == 0} {
+      add_proc_error "${job_name}_ar_switch" -1 "submit of qlogin with not existing ar not failed!"
+      return
+   }
+   puts $CHECK_OUTPUT "${job_name}_ar_switch OK"
+}
+
+
+proc qlogin_ar_call {ar_id job_name} {
+   global ts_config CHECK_OUTPUT CHECK_USER  default_args
+   global local_arch
+
+   # Submit qsh job with advance reservation 
+   set args  "-ar $ar_id  -N $job_name $default_args"
+   set host $ts_config(master_host)
+
+   #The message must be presented in the result
+   set messages(-2)     "*[translate_macro MSG_JOB_NOAREXISTS_U "*"]*"
+   set messages(-1)     "*[translate_macro MSG_JOB_ARNOLONGERAVAILABE_U "*"]*"
+   set messages(0)      "*[translate_macro MSG_QSH_INTERACTIVEJOBHASBEENSCHEDULED_S "*"]*"
+   set messages(index)  ""
+   foreach idx [lsort [array names messages]] {
+      append messages(index) "$idx "
+   }
+   
+
+   # Submit qlogin
+   puts $CHECK_OUTPUT "open_remote_spawn_process $host $CHECK_USER qlogin $args"
+#   set pr_id  [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qlogin" "$args"]
+   set pr_id  [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qlogin" "$args"]
+   set sp_id  [lindex $pr_id 1]
+   set timeout 20
+   set do_stop 0
+   set output ""
+   while { $do_stop == 0 } {
+      expect {
+         -i $sp_id full_buffer {     ;# input buffer default size is 2000 byte 
+            set do_stop 1
+            add_proc_error "qlogin_ar_call" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         }
+         -i $sp_id "login:" {
+#            set output "$output$expect_out(0,string)"
+            ts_send $sp_id "\004" $host ;# CTRL-D
+            set do_stop 1
+         }
+         -i $sp_id "script done." {
+            set output "$output$expect_out(0,string)"
+            set do_stop 1
+         }
+         -i $sp_id timeout { set do_stop 1 }
+         -i $sp_id eof { set do_stop 1 }
+         -i $sp_id "*\r" {
+            set output "$output$expect_out(0,string)"
+         }
+      }
+   }  
+   puts $CHECK_OUTPUT "close_spawn_process $pr_id\n"
+   close_spawn_process $pr_id
+ 
+   puts $CHECK_OUTPUT ">>> qlogin output start <<<"
+   puts $CHECK_OUTPUT $output
+   puts $CHECK_OUTPUT ">>> qlogin output end <<<\n"
+   
+   set ret [handle_sge_errors "qlogin_ar_call" "qlogin" $output messages 0]
+   puts $CHECK_OUTPUT "qlogin_ar_call ret: $ret"
+ 
+   return $ret
+}
