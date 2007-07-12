@@ -148,7 +148,7 @@ proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}  {r
    }
 
    # add queue from file?
-   if { $fast_add } {
+   if {$fast_add} {
       set tmpfile [dump_array_to_tmpfile old_values]
       set result [start_sge_bin "qconf" "-Mckpt $tmpfile" $on_host $as_user]
 
@@ -157,26 +157,23 @@ proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}  {r
 
          # Until IZ 1965 if fixed, will have this workaround in place.
          set message [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "checkpoint interface" $ckpt_obj]
-	 if { ( [string first "$message" $result] >= 0 ) } {
-	     set ret -1
+	      if {[string first "$message" $result] >= 0} {
+	         set ret -1
          }
-
       } else {
          set ret [mod_checkpointobj_error $result $ckpt_obj $tmpfile $raise_error]
       }
-
    } else {
-
       set vi_commands [build_vi_command old_values]
       set args "-mckpt $ckpt_obj"
 
-      set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" $ckpt_obj]
-      set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" $ckpt_obj "checkpoint interface" ]
-      set CHCKPT_NOT_IF  [translate_macro MSG_CKPT_XISNOTCHKPINTERFACEDEF_S $ckpt_obj]
+      set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" $ckpt_obj]
+      set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" $ckpt_obj "checkpoint interface"]
+      set CHCKPT_NOT_IF [translate_macro MSG_CKPT_XISNOTCHKPINTERFACEDEF_S $ckpt_obj]
 
        # User raise_error to report errors or not
       set master_arch [resolve_arch $ts_config(master_host)]
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS "___ABCDEFG___" "___ABCDEFG___" "___ABCDEFG___"  $CHCKPT_NOT_IF $raise_error]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS "___ABCDEFG___" "___ABCDEFG___" "___ABCDEFG___" "___ABCDEFG___" $CHCKPT_NOT_IF $raise_error]
     
       if { $result == -1 } { 
          add_proc_error "mod_checkpointobj" -1 "timeout error"  $raise_error

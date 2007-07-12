@@ -121,13 +121,12 @@ proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}} {
       set vi_commands [build_vi_command chgar]
       set args "-mckpt $ckpt_obj"
 
-      set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" $ckpt_obj]
-      set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" $ckpt_obj "checkpoint interface" ]
-
-      set REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWNQUEUE_SSSS] "*" "*" "*" "*"]
+      set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" $ckpt_obj]
+      set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" $ckpt_obj "checkpoint interface"]
+      set REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT [translate_macro MSG_SGETEXT_UNKNOWNQUEUE_SSSS "*" "*" "*" "*"]
 
       set master_arch [resolve_arch $ts_config(master_host)]
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT ]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT]
 
       if { $result == -1 } { add_proc_error "mod_checkpointobj" -1 "timeout error" }
       if { $result == -2 } { add_proc_error "mod_checkpointobj" -1 "already exists" }

@@ -323,6 +323,7 @@ proc set_exechost { change_array {host global} {fast_add 1} {on_host ""} {as_use
 #     sge_procedures/handle_sge_errors
 #*******************************************************************************
 proc set_exechost_error {result old_values tmpfile  raise_error} {
+   global ts_config
 
    # build up needed vars
    if {[info exists old_values(projects)]} {
@@ -338,9 +339,13 @@ proc set_exechost_error {result old_values tmpfile  raise_error} {
       set host "unknown"
    }
 
-   set messages(index) "-1 -2"
-   set messages(-1) [translate_macro MSG_SGETEXT_UNKNOWNPROJECT_SSSS $attributes $project $elem $host ]
-   set messages(-2) [translate_macro MSG_QUEUE_MODCMPLXDENYDUETOAR_SS "*" "*" ]
+   set messages(index) "-1"
+   set messages(-1) [translate_macro MSG_SGETEXT_UNKNOWNPROJECT_SSSS $attributes $project $elem $host]
+
+   if {$ts_config(gridengine_version) >= 62} {
+      lappend messages(index) -2
+      set messages(-2) [translate_macro MSG_QUEUE_MODCMPLXDENYDUETOAR_SS "*" "*"]
+   }
 
    set ret 0
    # now evaluate return code and raise errors

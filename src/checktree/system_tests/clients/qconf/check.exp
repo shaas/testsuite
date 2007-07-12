@@ -2127,7 +2127,7 @@ proc qconf_modify_checkpoint {} {
 
    # First let's create queue qconf_queue.q
    set queue_name "qconf_queue.q"
-   puts $CHECK_OUTPUT "Create  queue $queue_name ...\n"
+   puts $CHECK_OUTPUT "Create  queue $queue_name ..."
 
    set new_queue(qname) "$queue_name"
    set host [lindex $ts_config(execd_nodes) 0]
@@ -2141,7 +2141,7 @@ proc qconf_modify_checkpoint {} {
 
    # Next, let's create a checkpoint
    set myarray(ckpt_name) "qconf_ckpt_name"
-   puts $CHECK_OUTPUT "Create  checkpoint  $myarray(ckpt_name) ...\n"
+   puts $CHECK_OUTPUT "Create  checkpoint  $myarray(ckpt_name) ..."
 
    set result1 [add_checkpointobj myarray]
 
@@ -2153,7 +2153,7 @@ proc qconf_modify_checkpoint {} {
 
    # Now modify it using set_checkpointobj
    set myarray(clean_command) "ls"
-   puts $CHECK_OUTPUT "Modify  checkpoint  $myarray(ckpt_name) ...\n"
+   puts $CHECK_OUTPUT "Modify checkpoint $myarray(ckpt_name) ..."
    set result2 [mod_checkpointobj myarray 1]
 
    if {$result2 == 0} {
@@ -2164,18 +2164,18 @@ proc qconf_modify_checkpoint {} {
 
    # Now modify it using CLI
    set myarray(clean_command) "none"
-   puts $CHECK_OUTPUT "Modify  checkpoint  $myarray(ckpt_name) using CLI...\n"
+   puts $CHECK_OUTPUT "Modify checkpoint $myarray(ckpt_name) using CLI..."
    set result21 [mod_checkpointobj myarray 0]
 
    if {$result21 == 0} {
-      puts $CHECK_OUTPUT "qconf -mckpt  succeded"
+      puts $CHECK_OUTPUT "qconf -mckpt succeded"
    } else {
       puts $CHECK_OUTPUT "result is $result21"
    }
 
    # Now try to modify using a non-existent checkpoint
    set myarray(ckpt_name) "qconf_ckpt_wrong"
-   puts $CHECK_OUTPUT "Modify wrong checkpoint $myarray(ckpt_name) ...\n"
+   puts $CHECK_OUTPUT "Modify wrong checkpoint $myarray(ckpt_name) ..."
    set result21 [mod_checkpointobj myarray 1 "" "" 0]
 
    if {$result21 == -1} {

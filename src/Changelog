@@ -1,3 +1,7 @@
+JG-2007-07-12-0: Bugfix:    Fixes for usage test, modifying checkpoint objects,
+                            modifying projects, cleanup.
+                 Review:    MD
+
 PJ-2007-07-11-0: Enhancem.: qsh, qrsh, qlogin -ar tests
                  Review:    JG
                  

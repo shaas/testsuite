@@ -7645,6 +7645,7 @@ proc delete_operator {anOperator} {
 #     tail_host     - host on which a tail to the output file will be done.
 #                     This may be important, it should be the host where the job, or
 #                     the master task of the job is run to avoid NFS latencies.
+#     {user ""}     - the user who is submitting the job - default is the CHECK_USER
 #
 #  RESULT
 #     a session id from open_spawn_process, or an empty string ("") on error
@@ -7654,11 +7655,15 @@ proc delete_operator {anOperator} {
 #
 #*******************************
 #
-proc submit_with_method {submit_method options script args tail_host} {
+proc submit_with_method {submit_method options script args tail_host {user ""}} {
    global CHECK_OUTPUT CHECK_USER 
    global CHECK_PROTOCOL_DIR
    get_current_cluster_config_array ts_config
-  
+ 
+   if {$user == ""} {
+      set user $CHECK_USER
+   }
+ 
    # preprocessing args - it is treated as list for some reason - options not.
    set job_args [lindex $args 0]
    foreach arg [lrange $args 1 end] {
@@ -7684,7 +7689,7 @@ proc submit_with_method {submit_method options script args tail_host} {
          set cmd_args "-noshell $options $script $job_args"
 #set command ls
 #set cmd_args "-la"
-         set sid [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "$command" "$cmd_args"]
+         set sid [open_remote_spawn_process $ts_config(master_host) $user "$command" "$cmd_args"]
          set sp_id [lindex $sid 1]
          set done 0
          while {!$done} {
