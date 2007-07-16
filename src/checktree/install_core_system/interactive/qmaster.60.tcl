@@ -1155,7 +1155,7 @@ proc install_qmaster {} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
           }
-          add_proc_error "rsh_failure" "-3" "We received a rsh/ssh failure. This error happends, if the rsh/ssh connection\nto any executio host was not possible, due to the missing permissions for user\nroot to connect via rsh/ssh without entering a password. This warning shows,\nthat the tested error handling code is working. To prevent this warning make\nsure the you qmaster host allows rsh/ssh connction for root without asking for\na password." 
+          add_proc_error "rsh_failure" "-3" "We received a rsh/ssh failure. This error happends, if the rsh/ssh connection\nto any execution host was not possible, due to the missing permissions for user\nroot to connect via rsh/ssh without entering a password. This warning shows,\nthat the tested error handling code is working. To prevent this warning make\nsure the you qmaster host allows rsh/ssh connction for root without asking for\na password." 
           continue
        }
        -i $sp_id default {

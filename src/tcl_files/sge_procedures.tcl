@@ -7834,7 +7834,7 @@ proc copy_certificates { host } {
       set my_timeout [timestamp]
       incr my_timeout 600
       while { 1 } {
-         set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f"]
+         set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f" prg_exit_state 60 0 "" "" 1 0 1]
          puts $CHECK_OUTPUT $result
          if { $prg_exit_state == 0 } {
             puts $CHECK_OUTPUT "qstat -f works, fine!"
