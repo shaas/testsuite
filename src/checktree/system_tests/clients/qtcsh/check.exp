@@ -248,7 +248,7 @@ proc qtcsh_spawn {{option ""} {command "hostname"}} {
          return -1
       }
       -i $qtcsh_sp_id timeout {
-         add_proc_error "qtcsh_spawn" -1 "timeout error"
+         add_proc_error "qtcsh_spawn" -1 "timeout error(1)"
          close_spawn_process $qtcsh_id
          return -1
       }
@@ -291,9 +291,8 @@ proc qtcsh_spawn {{option ""} {command "hostname"}} {
       puts $CHECK_OUTPUT "testsuite send -> qrshmode $option\\n" 
       ts_send $qtcsh_sp_id "qrshmode $option\n"
    }
-   puts $CHECK_OUTPUT "testsuite send -> $command; echo _command_finished_\\n" 
+   puts $CHECK_OUTPUT "testsuite send -> $command; echo \"AA\${?}AA\"\n"
    ts_send $qtcsh_sp_id "$command; echo \"AA\${?}AA\"\n"
-
 
    # Now, depending on the result, we set our last output
    set do_stop 0
@@ -310,7 +309,7 @@ proc qtcsh_spawn {{option ""} {command "hostname"}} {
          -i $qtcsh_sp_id timeout {
             incr counter -1
             if { $counter <= 0 } {
-               add_proc_error "qtcsh_spawn" -1 "timeout error"
+               add_proc_error "qtcsh_spawn" -1 "timeout error(2)"
                set do_stop 1
             } 
          }

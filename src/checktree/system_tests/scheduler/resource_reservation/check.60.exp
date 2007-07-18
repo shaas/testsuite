@@ -48,12 +48,13 @@ set check_init_level_procedure "resource_reservation_init_level"
 # define test's name and run level descriptions
 set check_name            "resource_reservation"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   4
+set check_highest_level   5
 set check_description(0)  "check resource reservation (drmaa version 0.95)"
 set check_description(1)  "check resource reservation with resource quota sets (drmaa version 0.95)"
 set check_description(2)  "check resource reservation (drmaa version 1.0)"
 set check_description(3)  "check resource reservation with resource quota sets (drmaa version 1.0)"
 set check_description(4)  "check resource reservation with calendar disabled queue (drmaa version 1.0)"
+set check_description(5)  "check resource reservation inside an advance reservation (drmaa version 1.0)"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -119,6 +120,15 @@ proc resource_reservation_init_level {} {
          } else {
             set drmaa_version "test_drmaa.1.0"
             return 0;      # Tests resource_reservation
+         }
+      }
+      "5" {
+         set drmaa_version "test_drmaa.1.0"
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0;   # Tests resource_reservation with resource quota sets
+         } else {
+            add_proc_error "resource_reservation_init_level" -3 "need version >= 62"
+            return -1;
          }
       }
    }
@@ -296,6 +306,30 @@ proc resource_reservation_level_setup {} {
       add_rqs rqs_charray
    }
 
+   if {$CHECK_ACT_LEVEL == 5} {
+      # setup needed pe
+      set pe(pe_name)           "round_robin"
+      set pe(slots)             "5"
+      set pe(allocation_rule)   "\$round_robin"
+      add_pe pe
+
+      set pe(pe_name)           "fill_up"
+      set pe(slots)             "5"
+      set pe(allocation_rule)   "\$fill_up"
+      add_pe pe
+
+      set pe(pe_name)           "pe_slots"
+      set pe(slots)             "5"
+      set pe(allocation_rule)   "\$pe_slots"
+      add_pe pe
+
+      # setup the rr test queue
+      set queue_conf(slots)            "100"
+      set queue_conf(load_thresholds)  "NONE"
+      set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
+      set queue_conf(complex_values)   "myslots=100"
+   }
+
    puts $CHECK_OUTPUT "Add queue $rr_queue_name"
    add_queue $rr_queue_name "@allhosts" queue_conf 1
  
@@ -379,7 +413,7 @@ proc resource_reservation_level_cleanup {} {
 
 # -------- local test procedures: initialization ------------------------------
 
-proc get_job_descriptions { test1 test2 } {
+proc get_job_descriptions { test1 test2 {ar_id 0} } {
    global job_desc
    global CHECK_OUTPUT
    global ts_config
@@ -395,41 +429,48 @@ proc get_job_descriptions { test1 test2 } {
       set drmaa_mode "ST_BACKFILL_FINISH_ORDER"
    }
 
+   if {$ar_id != 0} {
+      set args "-R y -ar $ar_id"
+   } else {
+      set args "-R y"
+   }
+   
+
    switch -exact $test1 { 
       "license" {
-         set job_desc1 "-R y -N L4_BF -p 100 -l h_rt=$runtime_def,license=4"
-         set job_desc2 "-R y -N L5_BF -p 0 -l h_rt=$runtime_def,license=5"
-         set job_desc3 "-R y -N L1_BF -p 0 -l h_rt=$runtime_long,license=1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=4"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,license=5"
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,license=1"
       }
       "array" {
-         set job_desc1 "-R y -N L4_BF -p 100 -l h_rt=$runtime_def,license=4"
-         set job_desc2 "-t 1-2 -R y -N L5_BF -p 0 -l h_rt=$runtime_def,license=2.5"
-         set job_desc3 "-R y -N L1_BF -p 0 -l h_rt=$runtime_long,license=1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=4"
+         set job_desc2 "$args -t 1-2 -N L5_BF -p 0 -l h_rt=$runtime_def,license=2.5"
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,license=1"
       }
       "memory" {
-         set job_desc1 "-R y -N L4_BF -p 100 -l h_rt=$runtime_def,h_vmem=4G"
-         set job_desc2 "-R y -N L5_BF -p 0 -l h_rt=$runtime_def,h_vmem=5G" 
-         set job_desc3 "-R y -N L1_BF -p 0 -l h_rt=$runtime_long,h_vmem=1G"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,h_vmem=4G"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,h_vmem=5G" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,h_vmem=1G"
       }
       "myslots" {
-         set job_desc1 "-R y -N L4_BF -p 100 -l h_rt=$runtime_def,myslots=4"
-         set job_desc2 "-R y -N L5_BF -p 0 -l h_rt=$runtime_def,myslots=5" 
-         set job_desc3 "-R y -N L1_BF -p 0 -l h_rt=$runtime_long,myslots=1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,myslots=4"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,myslots=5" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,myslots=1"
       }
       "round_robin" {
-         set job_desc1 "-R y -N L4_BF -p 100 -l h_rt=$runtime_def -pe round_robin 4"
-         set job_desc2 "-R y -N L5_BF -p 0 -l h_rt=$runtime_def -pe round_robin 5" 
-         set job_desc3 "-R y -N L1_BF -p 0 -l h_rt=$runtime_long -pe round_robin 1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe round_robin 4"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe round_robin 5" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe round_robin 1"
       }
       "fill_up" {
-         set job_desc1 "-R y -N L4_BF -p 100 -l h_rt=$runtime_def -pe fill_up 4"
-         set job_desc2 "-R y -N L5_BF -p 0 -l h_rt=$runtime_def -pe fill_up 5" 
-         set job_desc3 "-R y -N L1_BF -p 0 -l h_rt=$runtime_long -pe fill_up 1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe fill_up 4"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe fill_up 5" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe fill_up 1"
       }
       "pe_slots" {
-         set job_desc1 "-R y -N L4_BF -p 100 -l h_rt=$runtime_def -pe pe_slots 4"
-         set job_desc2 "-R y -N L5_BF -p 0 -l h_rt=$runtime_def -pe pe_slots 5" 
-         set job_desc3 "-R y -N L1_BF -p 0 -l h_rt=$runtime_long -pe pe_slots 1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe pe_slots 4"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe pe_slots 5" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe pe_slots 1"
       }
    }
    
@@ -477,34 +518,96 @@ proc drmaa_test { test_name arguments } {
 
 proc resource_reservation_basic { } {
    global job_desc
+   global rr_queue_name rr_host
+   global CHECK_ACT_LEVEL
 
-   get_job_descriptions "license" "backfill"
+   set ar_id 0
+
+   if {$CHECK_ACT_LEVEL == 5} {
+      delete_all_ars
+
+      set qname [get_queue_instance $rr_queue_name $rr_host]
+      set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G -d 3600"
+
+      set ar_id [submit_ar "$ar_args -pe round_robin 5"]
+      if { $ar_id <= 0} {
+         add_proc_error drmaa_check -1 "couldn't submit required advance reservation"
+         return
+      }
+   }
+   get_job_descriptions "license" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "memory" "backfill"
+   get_job_descriptions "memory" "backfill" $ar_id
    drmaa_test "" $job_desc
-   get_job_descriptions "myslots" "backfill"
+   get_job_descriptions "myslots" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "round_robin" "backfill"
+   get_job_descriptions "round_robin" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "fill_up" "backfill"
+   if {$CHECK_ACT_LEVEL == 5} {
+      delete_ar $ar_id 1
+      set ar_id [submit_ar "$ar_args -pe fill_up 5"]
+      if { $ar_id <= 0} {
+         add_proc_error drmaa_check -1 "couldn't submit required advance reservation"
+         return
+      }
+   }
+   get_job_descriptions "fill_up" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "pe_slots" "backfill"
+   if {$CHECK_ACT_LEVEL == 5} {
+      delete_ar $ar_id 1
+      set ar_id [submit_ar "$ar_args -pe pe_slots 5"]
+      if { $ar_id <= 0} {
+         add_proc_error drmaa_check -1 "couldn't submit required advance reservation"
+         return
+      }
+   }
+
+   get_job_descriptions "pe_slots" "backfill" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "array" "backfill"
+   get_job_descriptions "array" "backfill" $ar_id
    drmaa_test "" $job_desc 
   
-   get_job_descriptions "license" "reservation"  
+   get_job_descriptions "license" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "memory" "reservation"    
+
+   get_job_descriptions "memory" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "myslots" "reservation"
+   get_job_descriptions "myslots" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "round_robin" "reservation"
+   if {$CHECK_ACT_LEVEL == 5} {
+      delete_ar $ar_id 1
+      set ar_id [submit_ar "$ar_args -pe round_robin 5"]
+      if { $ar_id <= 0} {
+         add_proc_error drmaa_check -1 "couldn't submit required advance reservation"
+         return
+      }
+   }
+   get_job_descriptions "round_robin" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "fill_up" "reservation"
+
+   if {$CHECK_ACT_LEVEL == 5} {
+      delete_ar $ar_id 1
+      set ar_id [submit_ar "$ar_args -pe fill_up 5"]
+      if { $ar_id <= 0} {
+         add_proc_error drmaa_check -1 "couldn't submit required advance reservation"
+         return
+      }
+   }
+   get_job_descriptions "fill_up" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "pe_slots" "reservation"
+   if {$CHECK_ACT_LEVEL == 5} {
+      delete_ar $ar_id 1
+      set ar_id [submit_ar "$ar_args -pe pe_slots 5"]
+      if { $ar_id <= 0} {
+         add_proc_error drmaa_check -1 "couldn't submit required advance reservation"
+         return
+      }
+   }
+   get_job_descriptions "pe_slots" "reservation" $ar_id
    drmaa_test "" $job_desc 
-   get_job_descriptions "array" "reservation"
+   get_job_descriptions "array" "reservation" $ar_id
    drmaa_test "" $job_desc 
+   if {$CHECK_ACT_LEVEL == 5} {
+      delete_ar $ar_id 1
+   }
 }

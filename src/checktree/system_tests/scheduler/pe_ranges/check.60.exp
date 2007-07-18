@@ -89,7 +89,7 @@ proc pe_ranges_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 
-proc pe_ranges_setup  {} {
+proc pe_ranges_setup {} {
    global ts_config
    global pe_ranges_test_hosts
    global consumable_complex_backup
@@ -129,7 +129,7 @@ proc pe_ranges_setup  {} {
    puts $CHECK_OUTPUT "added queue $qname for hosts $pe_ranges_test_hosts"
 }
 
-proc pe_ranges_cleanup  {} {
+proc pe_ranges_cleanup {} {
    global CHECK_OUTPUT ts_config
    global pe_ranges_test_hosts
    global consumable_complex_backup

@@ -54,7 +54,9 @@ set check_init_level_procedure "scheduler_advance_reservation_init_level"
 # define test's name and run level descriptions
 set check_name            "scheduler_advance_reservation"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   0
+set check_highest_level   1
+set check_description(0)  "check advance reservation"
+set check_description(1)  "check advance reservation with enabled resource reservation"
 
 
 # define test's dependencies
@@ -64,18 +66,25 @@ set check_needs           "init_core_system"
 set check_setup_function scheduler_advance_reservation_setup
 set check_cleanup_function scheduler_advance_reservation_cleanup
 
+# per level setup and cleanup functions
+set check_setup_level_function scheduler_advance_reservation_level_setup
+set check_cleanup_level_function scheduler_advance_reservation_level_cleanup
 
 # define test's procedure order
 set check_functions {}
 lappend check_functions "scheduler_ar_unlimited_runtime_job"
 lappend check_functions "scheduler_ar_parallel_consuamble"
 lappend check_functions "scheduler_ar_rqs"
+lappend check_functions "scheduler_pending_ar_jobs"
 
 proc scheduler_advance_reservation_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
       "0" {
+         return 0
+      }
+      "1" {
          return 0
       }
    }
@@ -97,7 +106,7 @@ proc scheduler_advance_reservation_setup {} {
    set gcplx "global_consumable"
    set hcplx "host_consumable"
 
-   set pe_settings(slots)  4
+   set pe_settings(slots)  10 
    set pe_settings(allocation_rule) "\$fill_up"
    set pe_settings(pe_name) "ar_pe" 
    add_pe pe_settings
@@ -158,12 +167,32 @@ proc scheduler_advance_reservation_cleanup {} {
    del_rqs "ar_schedd_test" "" "" 0
 }
 
+proc scheduler_advance_reservation_level_setup {} {
+   global CHECK_ACT_LEVEL
+
+   if {$CHECK_ACT_LEVEL == 1} {
+      set schedconf(max_reservation)            "10"
+      set_schedd_config schedconf
+   }
+}
+
+proc scheduler_advance_reservation_level_cleanup {} {
+   global CHECK_ACT_LEVEL
+
+   if {$CHECK_ACT_LEVEL == 1} {
+      set schedconf(max_reservation)            "0"
+      set_schedd_config schedconf
+   }
+}
+
 
 proc scheduler_ar_unlimited_runtime_job {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global scheduler_advance_reservation_test_hosts check_description
    global CHECK_ACT_LEVEL
    global queue_name test_host
+
+   delete_all_ars
 
    set ar_job_args "-q $queue_name"
    set job_args "$ar_job_args -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
@@ -246,7 +275,7 @@ proc scheduler_ar_parallel_consuamble {} {
    global gcplx hcplx
    global ts_config
 
-   wait_for_enter
+   delete_all_ars
 
    # Submit AR and request all hcplx and gcplx
    set ar_id [submit_ar "-pe ar_pe 2 -l $hcplx=2,$gcplx=2 -d 3600"]
@@ -334,6 +363,8 @@ proc scheduler_ar_parallel_consuamble {} {
 proc scheduler_ar_rqs {} {
    global ts_config
 
+   delete_all_ars
+
    # add a resource quota that denies all
    set rqs_name "ar_schedd_test"
    set rules ""
@@ -372,4 +403,76 @@ proc scheduler_ar_rqs {} {
 
    # remove resource quota
    del_rqs "ar_schedd_test" "" "" 0
+   delete_all_ars
+}
+
+proc scheduler_pending_ar_jobs {} {
+   global ts_config
+   global queue_name
+
+   delete_all_ars
+
+   # 1) test sequential scheduling
+   # create simple AR
+   set ar_id [submit_ar "-q $queue_name -d 3600"]
+   set job_args "-ar $ar_id -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+
+   # fill up AR with
+   set job_id_r [submit_job "$job_args"]
+   if {$job_id_r > 0} {
+      trigger_scheduling
+      set job_state [wait_for_jobstart $job_id_r "leeper" 10 0]
+      if {$job_state != 0} {
+         add_proc_error "scheduler_pending_ar_jobs" -1 "submitted sequential job did not start"
+         return
+      }
+   }
+
+   # next job should stay pending
+   set job_id [submit_job "$job_args"]
+   if {$job_id > 0} {
+      trigger_scheduling
+      set job_state [wait_for_jobstart $job_id "leeper" 10 0]
+      if {$job_state == 0} {
+         add_proc_error "scheduler_ar_parallel_consuamble" -1 "sequential job was wrongly scheduled"
+         return
+      }
+      delete_job $job_id
+   } else {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "sequential job submit was wrongly rejected"
+   }
+   delete_job $job_id_r
+   delete_ar $ar_id
+
+   # 2) test parallel scheduling
+   # create simple AR
+   set ar_id [submit_ar "-pe ar_pe 1 -q $queue_name -d 3600"]
+   set job_args "-ar $ar_id -pe ar_pe 1 -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+
+   # fill up AR with
+   set job_id_r [submit_job "$job_args"]
+   if {$job_id_r > 0} {
+      trigger_scheduling
+      set job_state [wait_for_jobstart $job_id_r "leeper" 10 0]
+      if {$job_state != 0} {
+         add_proc_error "scheduler_pending_ar_jobs" -1 "submitted parallel job did not start"
+         return
+      }
+   }
+
+   # next job should stay pending
+   set job_id [submit_job "$job_args"]
+   if {$job_id > 0} {
+      trigger_scheduling
+      set job_state [wait_for_jobstart $job_id "leeper" 10 0]
+      if {$job_state == 0} {
+         add_proc_error "scheduler_ar_parallel_consuamble" -1 "parallel job was wrongly scheduled"
+         return
+      }
+      delete_job $job_id
+   } else {
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "parallel job submit was wrongly rejected"
+   }
+   delete_job $job_id_r
+   delete_ar $ar_id
 }

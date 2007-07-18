@@ -145,6 +145,8 @@ proc qrstat_help {} {
 }
 
 proc qrstat_count_entries { qrstat_options expected_entries } {
+   global CHECK_OUTPUT
+
    puts $CHECK_OUTPUT "\nrunning qrstat $qrstat_options"
    set result [start_sge_bin "qrstat" "$qrstat_options" "" "" exit_code]
    puts $CHECK_OUTPUT $result

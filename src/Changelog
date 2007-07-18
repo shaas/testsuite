@@ -1,3 +1,6 @@
+RD-2007-07-18-0: Enhancem:  Added test for AR resource reservation
+                 Review:    JG
+
 JG-2007-07-16-0: Bugfix:    Fixed installation in CSP mode.
                  Review:    CR
 
