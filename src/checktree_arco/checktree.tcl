@@ -706,7 +706,7 @@ proc arco_config_upgrade_1_2 { config_array } {
 #
 #*******************************
 #
-proc config_generic { only_check name config_array help_text } {
+proc config_generic { only_check name config_array help_text check_type } {
    global CHECK_OUTPUT 
    global CHECK_USER 
    global fast_setup
@@ -715,7 +715,7 @@ proc config_generic { only_check name config_array help_text } {
    
    set actual_value  $config($name)
    set default_value $config($name,default)
-   ;# resolve the host if default is "check_host"
+   # resolve the host if default is "check_host"
    if { $default_value == "check_host" } {
       set default_value [gethostname]
    }
@@ -754,7 +754,7 @@ proc config_arco_source_dir { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "directory" ]
 }
 
 proc config_dbwriter_host { only_check name config_array } {
@@ -766,7 +766,7 @@ proc config_dbwriter_host { only_check name config_array } {
    set help_text {  "Please enter hostname where dbwriter should run, or press >RETURN<"
                     "to use the default value." }
                     
-   set dbwriter_host [ config_generic $only_check $name config $help_text ]
+   set dbwriter_host [ config_generic $only_check $name config $help_text "host" ]
    
    if {$fast_setup == 0} {
       if {![host_conf_is_known_host $dbwriter_host]} {
@@ -795,7 +795,7 @@ proc config_database_type { only_check name config_array } {
                     "Valid values are \"postgres\", \"oracle\" or \"mysql\"" }
                     
        
-   set db_type [config_generic $only_check $name config $help_text]
+   set db_type [config_generic $only_check $name config $help_text "string" ]
 
    if { $db_type == "postgres" || $db_type == "oracle" || $db_type == "mysql" } {
       return $db_type
@@ -812,7 +812,7 @@ proc config_database_host { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "host" ]
 }
 
 proc config_database_port { only_check name config_array } {
@@ -824,7 +824,7 @@ proc config_database_port { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "port" ]
 }
 
 proc config_database_name { only_check name config_array } {
@@ -836,7 +836,7 @@ proc config_database_name { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_database_schema { only_check name config_array } {
@@ -848,7 +848,7 @@ proc config_database_schema { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_database_write_user { only_check name config_array } {
@@ -860,7 +860,7 @@ proc config_database_write_user { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_database_read_user { only_check name config_array } {
@@ -872,7 +872,7 @@ proc config_database_read_user { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_database_write_pw { only_check name config_array } {
@@ -884,7 +884,7 @@ proc config_database_write_pw { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_database_read_pw { only_check name config_array } {
@@ -896,7 +896,7 @@ proc config_database_read_pw { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_arco_spool_dir { only_check name config_array } {
@@ -908,7 +908,7 @@ proc config_arco_spool_dir { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "directory" ]
 }
 
 proc config_arco_dbwriter_debug_level { only_check name config_array } {
@@ -921,7 +921,7 @@ proc config_arco_dbwriter_debug_level { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 
@@ -935,7 +935,7 @@ proc config_arco_dbwriter_interval { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_jdbc_driver { only_check name config_array } {
@@ -945,7 +945,7 @@ proc config_jdbc_driver { only_check name config_array } {
    set help_text {  "Please enter the path to the JDBC driver or press >RETURN<"
                     "to use the default value."  }
      
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "string" ]
    
 }
 
@@ -957,7 +957,7 @@ proc config_swc_host {only_check name config_array} {
    set help_text {"Please enter the name of your the host where the Java Web Console is installed, or press >RETURN<"
                   "to use the default value."}
    
-   set swc_host [config_generic $only_check $name config $help_text]
+   set swc_host [config_generic $only_check $name config $help_text "host" ]
       
    if {$fast_setup == 0} {
       if {![host_conf_is_known_host $swc_host]} {
@@ -990,7 +990,7 @@ proc config_java_home { only_check name config_array } {
    set help_text {  "Please enter the JAVA_HOME path or press >RETURN<"
                     "to use the default value."  }
      
-   return [ config_generic $only_check $name config $help_text ]
+   return [ config_generic $only_check $name config $help_text "directory" ]
    
 }
 
