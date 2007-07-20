@@ -69,9 +69,12 @@ lappend check_functions "jgdi_shell_run_batch_test_manager_1"
 lappend check_functions "jgdi_shell_run_batch_test_operator_1"
 lappend check_functions "jgdi_shell_run_batch_test_userlist_1"
 lappend check_functions "jgdi_shell_run_batch_test_queue_1"
+#lappend check_functions "jgdi_shell_run_batch_test_adminhost_1"
+#lappend check_functions "jgdi_shell_run_batch_test_submithost_1"
+#lappend check_functions "jgdi_shell_run_batch_test_hostgroup_1"
+#lappend check_functions "jgdi_shell_run_batch_test_schedconf_1"
 lappend check_functions "jgdi_shell_run_batch_test_kill-scheduler_1"
 lappend check_functions "jgdi_shell_show_test_statistics"
-#lappend check_functions "temp_test"
 
 proc jgdi_shell_init_level {} {
   global CHECK_ACT_LEVEL jgdi_config
@@ -128,7 +131,10 @@ proc add_implemented_untested_options_for_statistics {} {
    append jgdi_config(qconf,notest_opts) "-auser -Auser -muser -Muser -suser -duser "
 
    #USERSET
-   append jgdi_config(qconf,notest_opts) "-au -mu"
+   append jgdi_config(qconf,notest_opts) "-au -mu "
+
+   #SCHEDULER CONFIGURATION
+   append jgdi_config(qconf,notest_opts) "-msconf"
 }
   
 
@@ -199,19 +205,24 @@ proc jgdi_shell_run_batch_configuration_1 { } {
 
    #Setup
    start_sge_bin "qconf" "-dconf localhost" $jgdi_config(target_host) $CHECK_USER
-   set fn "/net/latte2.czech/export/workspace1/lp195527/grid/testsuite/src/results/localhost"
-   set jgdi_config(config_file) $fn
+   set dir [get_tmp_directory_name]
+   start_remote_prog $jgdi_config(target_host) $CHECK_USER "mkdir" "-p $dir"
+   set fn "$dir/localhost"
    jgdi_create_config_file $jgdi_config(target_host) "test TEST_VALUE" $fn
+
    #Prepare the test
    set batch {}   
    lappend batch "qconf -sconfl"
-   lappend batch "qconf -Aconf $jgdi_config(config_file)"
+   lappend batch "qconf -Aconf $fn"
    lappend batch "qconf -sconfl"
    lappend batch "qconf -sconf localhost"
    lappend batch "qconf -dconf localhost"
    lappend batch "qconf -sconfl"
 
    set res [compare_jgdi $batch]
+
+   #Cleanup
+   start_remote_prog $jgdi_config(target_host) $CHECK_USER "rm" "-r $dir"
 
    array set report {}
    report_create "JGDI_shell_test_$name" report 1 0
@@ -376,6 +387,243 @@ proc jgdi_shell_run_batch_test_queue_1 { } {
    return 0
 }
 
+#ADMINHOST
+proc jgdi_shell_run_batch_test_adminhost_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config ts_host_config CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0 
+   
+   #Setup
+   set hostlist $ts_host_config(hostlist)
+   set num_hosts [llength $hostlist]
+   if { $num_hosts < 5 } {
+      report_add_message report "WARNING: Testsuite configuration has less than 5 execd - $hostlist. Unable to run this test!"
+      report_finish report -1
+      return -1
+   }
+   set host1 [lindex $hostlist 0]
+   set host2 [lindex $hostlist 1]
+   set host3 [lindex $hostlist 2]
+   set host4 [lindex $hostlist 3]
+   start_sge_bin "qconf" "-dh $host1,$host2,$host3,$host4" $jgdi_config(target_host) $CHECK_USER
+   set orig_list [start_sge_bin "qconf" "-sh" $jgdi_config(target_host) $CHECK_USER]
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -sh"
+   lappend batch "qconf -ah $host1,$host2"
+   lappend batch "qconf -sh"
+   lappend batch "qconf -ah $host1,$host2,$host3,$host4"
+   lappend batch "qconf -sh"
+   lappend batch "qconf -dh $host1,$host2,$host4"
+   lappend batch "qconf -sh"
+   lappend batch "qconf -dh $host3,$host4"
+   lappend batch "qconf -sh"
+
+   #Run test
+   set res [compare_jgdi $batch]
+
+   #Cleanup
+   start_sge_bin "qconf" "-dh $host1,$host2,$host3,$host4" $jgdi_config(target_host) $CHECK_USER
+   foreach host $orig_list {
+      start_sge_bin "qconf" "-ah $host" $jgdi_config(target_host) $CHECK_USER
+   }
+
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+#SUBMITHOST
+proc jgdi_shell_run_batch_test_submithost_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config ts_host_config CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0 
+
+   #Setup
+   set hostlist $ts_host_config(hostlist)
+   set num_hosts [llength $hostlist]
+   if { $num_hosts < 5 } {
+      report_add_message report "WARNING: Testsuite configuration has less than 5 execd - $hostlist. Unable to run this test!"
+      report_finish report -1
+      return -1
+   }
+   set host1 [lindex $hostlist 0]
+   set host2 [lindex $hostlist 1]
+   set host3 [lindex $hostlist 2]
+   set host4 [lindex $hostlist 3]
+   start_sge_bin "qconf" "-ds $host1,$host2,$host3,$host4" $jgdi_config(target_host) $CHECK_USER
+   set orig_list [start_sge_bin "qconf" "-ss" $jgdi_config(target_host) $CHECK_USER]
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -ss"
+   lappend batch "qconf -as $host1,$host2"
+   lappend batch "qconf -ss"
+   lappend batch "qconf -as $host1,$host2,$host3,$host4"
+   lappend batch "qconf -ss"
+   lappend batch "qconf -ds $host1,$host2,$host4"
+   lappend batch "qconf -ss"
+   lappend batch "qconf -ds $host3,$host4"
+   lappend batch "qconf -ss"
+
+   #Run test
+   set res [compare_jgdi $batch]
+
+   #Cleanup
+   start_sge_bin "qconf" "-ds $host1,$host2,$host3,$host4" $jgdi_config(target_host) $CHECK_USER
+   foreach host $orig_list {
+      start_sge_bin "qconf" "-as $host" $jgdi_config(target_host) $CHECK_USER
+   }
+
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+#HOSTGROUP
+proc jgdi_shell_run_batch_test_hostgroup_1 { } {
+global jgdi_config CHECK_OUTPUT CHECK_USER ts_host_config CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0 
+   
+   #Setup
+   set hostlist $ts_host_config(hostlist)
+   set num_hosts [llength $hostlist]
+   if { $num_hosts < 5 } {
+      report_add_message report "WARNING: Testsuite configuration has less than 5 execd - $hostlist. Unable to run this test!"
+      report_finish report -1
+      return -1
+   }
+
+   set name_template "group_name "
+   set host_template "hostlist "
+   set a "@test_hgroup_A"
+   set al [lindex $hostlist 0]
+   set b "@test_hgroup_B"
+   set bl "[lindex $hostlist 1] [lindex $hostlist 2]"
+   set c "@test_hgroup_C"
+   set cl "$a $b"
+   set d "@test_hgroup_D"
+   set dl "$c [lindex $hostlist 3] [lindex $hostlist 4]"
+   #Setup hostgroup files
+   set dir [get_tmp_directory_name]
+   start_remote_prog $jgdi_config(target_host) $CHECK_USER "mkdir" "-p $dir"
+   set fa "$dir/hgrpA"
+   set fam "$dir/hgrpAm"
+   set fb "$dir/hgrpB"
+   set fc "$dir/hgrpC"
+   set fd "$dir/hgrpD"
+   jgdi_create_config_file $jgdi_config(target_host) "$name_template $a\n$host_template $al" $fa
+   jgdi_create_config_file $jgdi_config(target_host) "$name_template $a\n$host_template $al $b" $fam
+   jgdi_create_config_file $jgdi_config(target_host) "$name_template $b\n$host_template $bl" $fb
+   jgdi_create_config_file $jgdi_config(target_host) "$name_template $c\n$host_template $cl" $fc
+   jgdi_create_config_file $jgdi_config(target_host) "$name_template $d\n$host_template $dl" $fd
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -shgrpl"
+   lappend batch "qconf -Ahgrp $fa"
+   lappend batch "qconf -Ahgrp $fb"
+   lappend batch "qconf -shgrp $a"
+   lappend batch "qconf -Mhgrp $fam"
+   lappend batch "qconf -shgrp $a"
+   lappend batch "qconf -Ahgrp $fc"
+   lappend batch "qconf -Ahgrp $fd"
+   lappend batch "qconf -shgrpl"
+   lappend batch "qconf -shgrp $d"
+   lappend batch "qconf -shgrp_tree $d"
+   lappend batch "qconf -shgrp_resolved $d"
+   lappend batch "qconf -dhgrp $d"
+   lappend batch "qconf -shgrpl"
+   lappend batch "qconf -dhgrp $c"
+   lappend batch "qconf -shgrpl"
+   lappend batch "qconf -dhgrp $a"
+   lappend batch "qconf -shgrpl"
+   lappend batch "qconf -dhgrp $b"
+   lappend batch "qconf -shgrpl"
+
+   #Run test
+   set res [compare_jgdi $batch]
+
+   #Cleanup
+   start_sge_bin "qconf" "-dhgrp $d" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-dhgrp $c" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-dhgrp $a" $jgdi_config(target_host) $CHECK_USER
+   start_sge_bin "qconf" "-dhgrp $b" $jgdi_config(target_host) $CHECK_USER
+   start_remote_prog $jgdi_config(target_host) $CHECK_USER "rm" "-r $dir"
+
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
+
+#SCHEDULER CONFIGURATION
+proc jgdi_shell_run_batch_test_schedconf_1 { } {
+   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config CHECK_CUR_PROC_NAME
+
+   set temp [split $CHECK_CUR_PROC_NAME "_"]
+   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
+   
+   #Setup
+   set dir [get_tmp_directory_name]
+   start_remote_prog $jgdi_config(target_host) $CHECK_USER "mkdir" "-p $dir"
+   set fo "$dir/OriginalSchedConfig"
+   set fa "$dir/AlternatineSchedConfig"
+   set orig [start_sge_bin "qconf" "-ssconf" $jgdi_config(target_host) $CHECK_USER]
+   jgdi_create_config_file $jgdi_config(target_host) "$orig" $fo
+   set alter [string map {TRUE FALSE} $orig]
+   jgdi_create_config_file $jgdi_config(target_host) "$alter" $fa
+
+   #Prepare the test
+   set batch {}
+   lappend batch "qconf -ssconf"
+   lappend batch "qconf -Msconf $fa"
+   lappend batch "qconf -ssconf"
+   lappend batch "qconf -Msconf $fo"
+   lappend batch "qconf -ssconf"
+
+   #Run test
+   set res [compare_jgdi $batch]
+
+   #Cleanup
+   start_sge_bin "qconf" "-Msconf $fo" $jgdi_config(target_host) $CHECK_USER
+   start_remote_prog $jgdi_config(target_host) $CHECK_USER "rm" "-r $dir"
+
+   array set report {}
+   report_create "JGDI_shell_test_$name" report 1 0
+   report_add_message report $res
+   if { [string match "*:   ERROR\n*" $res] == 1  } {
+      report_finish report -1 
+      return -1
+   }
+   report_finish report 0
+   return 0
+}
+
 #Kill Scheduler
 proc jgdi_shell_run_batch_test_kill-scheduler_1 { } {
    global ts_config jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
@@ -386,7 +634,6 @@ proc jgdi_shell_run_batch_test_kill-scheduler_1 { } {
    set batch {}
    lappend batch "qconf -tsm"
    lappend batch "qconf -ks"
-   #lappend batch "rsh -l $CHECK_USER $ts_config(master_host) $ts_config(product_root)/bin/[resolve_arch $ts_config(master_host)]/sge_schedd"
 
    set res [compare_jgdi $batch]
 
@@ -402,10 +649,4 @@ proc jgdi_shell_run_batch_test_kill-scheduler_1 { } {
    }
    report_finish report 0
    return 0
-}
-
-proc temp_test {} {
-   global CHECK_OUTPUT
-   set target [list a b c]
-   puts $CHECK_OUTPUT [remove_values_from_list [list "b"] $target]
 }

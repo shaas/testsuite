@@ -61,7 +61,6 @@ proc jgdi_shell_setup { } {
    set jgdi_config(classpath) "-cp $ts_config(product_root)/lib/jgdi.jar"
    set jgdi_config(connect_cmd) "bootstrap://$ts_config(product_root)@$ts_config(cell):$ts_config(commd_port)"
    set jgdi_config(logging_config_file) [get_tmp_file_name $jgdi_config(target_host) "jgdi" "properties"]
-   #set jgdi_config(logging_config_file) "/net/latte2.czech/export/workspace1/lp195527/grid/testsuite/src/results/lp195527_mocca2-grid50_jgdi_logging.properties"
    jgdi_create_logging_config_file $jgdi_config(target_host) $jgdi_config(logging_config_file)
    set jgdi_config(flags) "-Djava.library.path=$ts_config(product_root)/lib/$arch -Djava.util.logging.config.file=$jgdi_config(logging_config_file)"
    #TODO: Check if 64 at the end safe?
@@ -238,7 +237,9 @@ proc jgdi_create_config_file { host content filename } {
    puts $CHECK_OUTPUT "creating on $host $filename"
 
    set fd [open $filename w+ 0777]
-   puts $fd $content
+   foreach line [split $content "\n"] {
+      puts $fd [string trim $line]
+   }
    close $fd
 
    puts $CHECK_OUTPUT "done"
@@ -366,7 +367,7 @@ proc compare_jgdi { commands } {
       return $result
    }
    #puts $CHECK_OUTPUT "$res1\n$res2"
-   append result "$res1\n$res2"
+   append result "$res1$res2"
    return $result
 }
 
@@ -436,7 +437,7 @@ proc compare_client_vs_java { client_output jgdi_output cmd_list opt_list } {
          set out ""
          #If all java ok, option might pass
          if { $jgdi_config($cmd,$option,java_ok)  == 1 } {
-            #append out "\"$cmd $option\" client vs java:   "
+            append out "\"$cmd $option\" client vs java:   "
 #puts $CHECK_OUTPUT "client $cmd,$option:\n$client($cmd,$option)"
 #puts $CHECK_OUTPUT "$oldest_java $cmd,$option:\n$jgdi($oldest_java,$cmd,$option)"
             set cout [compare_output $client($cmd,$option) $jgdi($oldest_java,$cmd,$option)]
@@ -450,7 +451,6 @@ proc compare_client_vs_java { client_output jgdi_output cmd_list opt_list } {
                set jgdi_config($cmd,passed_opts) [lsort -unique [concat $jgdi_config($cmd,passed_opts) $option]]
             #Remove from passed and add to failed
             } else {
-               set out "\"$cmd $option\" client vs java:   $out"
                set jgdi_config($cmd,passed_opts) [remove_values_from_list [list $option] $jgdi_config($cmd,passed_opts)]
                set jgdi_config($cmd,failed_opts) [lsort -unique [concat $jgdi_config($cmd,failed_opts) [list $option]]]
             }
@@ -460,9 +460,7 @@ proc compare_client_vs_java { client_output jgdi_output cmd_list opt_list } {
                append out "\"$cmd $option\" client vs $java:   "
                set cout [compare_output $client($cmd,$option) $jgdi($java,$cmd,$option)]
                append out [get_diff_result $cout]
-               append out "\n"
             }
-            #remove last "\n"
             set out [string range $out 0 [expr [string length $out] - 1]]
             #Remove from passed and add to failed
             set jgdi_config($cmd,passed_opts) [remove_values_from_list [list $option] $jgdi_config($cmd,passed_opts)]
@@ -471,7 +469,7 @@ proc compare_client_vs_java { client_output jgdi_output cmd_list opt_list } {
          append tout $out
       }
    }
-   set tout [string range $tout 0 [expr [string length $tout] - 1]]
+   #set tout [string range $tout 0 [expr [string length $tout] - 1]]
    return $tout
 }
 
@@ -512,26 +510,25 @@ proc compare_java { jgdi_output cmd_list opt_list} {
       foreach option $opt($cmd) {
          set out ""
          if { $has14 >= 0 && $has15 >= 0 } {
-            append out "\"$cmd $option\" java14 vs java15: "
+            append out "\"$cmd $option\" java14 vs java15:   "
             set cout [compare_output $jgdi(java14,$cmd,$option) $jgdi(java15,$cmd,$option)]
             append out [get_diff_result $cout]
          }
 
          if { $has14 >= 0 && $has16 >= 0 } {
-            append out "\"$cmd $option\" java14 vs java16: "
+            append out "\"$cmd $option\" java14 vs java16:   "
             set cout [compare_output $jgdi(java14,$cmd,$option) $jgdi(java16,$cmd,$option)]
             append out [get_diff_result $cout]
          }
 
          if { $has15 >= 0 && $has16 >= 0 } {
-            append out "\"$cmd $option\" java15 vs java16: "
+            append out "\"$cmd $option\" java15 vs java16:   "
             set cout [compare_output $jgdi(java15,$cmd,$option) $jgdi(java16,$cmd,$option)]
             append out [get_diff_result $cout]
          }
-
          #If OK print just 1 line
          if { [all_ok $out] == 0 } {
-            append tout "\"$cmd $option\" all java vs java: OK\n"
+            append tout "\"$cmd $option\" all java vs java:   OK\n"
             set jgdi_config($cmd,$option,java_ok) 1
          } else {
             append tout $out
@@ -541,7 +538,7 @@ proc compare_java { jgdi_output cmd_list opt_list} {
    }
    #If OK print just 1 line
    if { [all_ok $tout] == 0 } {
-      set tout "all java vs java: OK\n"
+      set tout "all java vs java:   OK\n"
    }
    return $tout
 }
@@ -571,7 +568,7 @@ proc get_diff_result { cout } {
    } else {
       append out "OK"
    }
-   return $out
+   return "$out\n"
 }
 
 #****** all_ok() ******************************************************
@@ -588,20 +585,22 @@ proc get_diff_result { cout } {
 #    out    -- string holding the formatted differences
 #
 #  RETURN
-#     -1    - no differences (OK)
-#     0     - differences exist (ERROR)
+#     0     - no differences (OK)
+#    -1     - differences exist (ERROR)
 #*******************************************************************************
 proc all_ok { out } {
    global CHECK_OUTPUT
    set lines [split $out "\n"]
-   set lines [lrange $lines 0 [expr [llength $lines] - 2]]
-   set res 0
    foreach line $lines {
-      if { [string match "*: OK" $line] == 0 } {
-         set res -1
+      #Match only lines with length >1 (skiping empty lines)
+      if { [string length $line] > 1 } {
+         #If not found return error
+         if { [string match "*:   OK" $line] == 0 } {
+            return -1
+         }
       }
    }
-   return $res
+   return 0
 }
 
 #****** compare_output() *******************************************************
@@ -612,7 +611,7 @@ proc all_ok { out } {
 #    compare_output { a b } 
 #
 #  FUNCTION
-#     Compares outputs a and b
+#     Compares outputs a and b. Adds the length of each line to the end.
 #
 #  INPUTS
 #    a    -- string a to compare
@@ -656,7 +655,7 @@ proc compare_output { a b } {
    set out ""
    foreach line $ar {
       if { [string length $line] > 0 } {
-        append out "[string length $line]: $line\n"
+        append out "[string length $line]:   $line\n"
         #append out "123 $line abc\n"
       }
    }
@@ -667,7 +666,7 @@ proc compare_output { a b } {
       set res 0
    }
    foreach line $br {
-      append out "[string length $line]: $line\n"
+      append out "[string length $line]:   $line\n"
    }
    return $out
 }

@@ -1,3 +1,6 @@
+LP-2007-07-20-0: Enhancem:  Improved jgdi_shell tests
+                 Review:    PJ
+
 AP-2007-07-19-0: Bugfix:    Error when modifying additional checktree directory 
                             items.
                  Issue:     135
