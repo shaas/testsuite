@@ -10,7 +10,6 @@
 #
 #
 #  Sun Industry Standards Source License Version 1.2
-#  =================================================
 #  The contents of this file are subject to the Sun Industry Standards
 #  Source License Version 1.2 (the "License"); You may not use this file
 #  except in compliance with the License. You may obtain a copy of the
@@ -100,7 +99,7 @@ if {$ts_config(gridengine_version) >= 61} {
 }
 
 if {$ts_config(gridengine_version) >= 62} {
-   set ARCO_VIEWS { view_job_times view_jobs_completed
+   set ARCO_VIEWS { view_ar_time_usage view_job_times view_jobs_completed
                  view_job_log view_department_values view_group_values view_host_values
                  view_project_values view_queue_values view_user_values view_user_values
                  view_ar_time_usage view_ar_attribute view_ar_log view_ar_usage 
@@ -445,7 +444,7 @@ proc arco_init_config { config_array } {
    set parameter "dbwriter_host"
    set config($parameter)            ""
    set config($parameter,desc)       "Host where dbwriter should run"
-   set config($parameter,default)    "check_host"   ;# config_generic will resolve the host
+   set config($parameter,default)    "check_host"   ;# config_arco_generic will resolve the host
    set config($parameter,setup_func) "config_$parameter"
    set config($parameter,onchange)   "stop"
    set config($parameter,pos)        $ts_pos
@@ -577,7 +576,7 @@ proc arco_config_upgrade_1_1 { config_array } {
       set parameter "swc_host"
       set config($parameter)            ""
       set config($parameter,desc)       "Java Web Console Host"
-      set config($parameter,default)    "check_host" ;# config_generic will resolve the host
+      set config($parameter,default)    "check_host" ;# config_arco_generic will resolve the host
       set config($parameter,setup_func) "config_$parameter"
       set config($parameter,onchange)   "install"
       set config($parameter,pos) $insert_pos
@@ -675,12 +674,12 @@ proc arco_config_upgrade_1_2 { config_array } {
 
 
 #                                                             
-#****** arco/config_generic ****************************************************
+#****** arco/config_arco_generic ****************************************************
 #  NAME
-#     config_generic
+#     config_arco_generic
 #
 #  SYNOPSIS
-#     config_generic { only_check name config_array help_text }
+#     config_arco_generic { only_check name config_array help_text }
 #
 #  FUNCTION
 #     Generic function which read a configuration parameter
@@ -702,7 +701,7 @@ proc arco_config_upgrade_1_2 { config_array } {
 #   set help_text {  "Please enter the value of parameter foo, or press >RETURN<"
 #                    "to use the default value." }
 #   
-#   set foo [config_generic $only_check $name config $help_text ]
+#   set foo [config_arco_generic $only_check $name config $help_text ]
 #
 #*******************************
 #
