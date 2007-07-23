@@ -7283,6 +7283,11 @@ proc get_shared_lib_path_variable_name { arch } {
       hp11 {
          set name SHLIB_PATH
       }
+      darwin -
+      darwin-x86 -
+      darwin-ppc {
+         set name DYLD_LIBRARY_PATH
+      }
       default {
          set name LD_LIBRARY_PATH
       }

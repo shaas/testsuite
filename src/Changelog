@@ -1,3 +1,6 @@
+RD-2007-07-23-0: Bugfix:    fixed wrong dynamic library path on darwin
+                 Review:    JG
+
 JO-2007-07-20-0: Bugfix:    Changed order in which views are dropped to reflect
                             new dependencies
                  Review:    JP
