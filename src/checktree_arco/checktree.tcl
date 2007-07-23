@@ -672,78 +672,6 @@ proc arco_config_upgrade_1_2 { config_array } {
    }
 }
 
-
-#                                                             
-#****** arco/config_arco_generic ****************************************************
-#  NAME
-#     config_arco_generic
-#
-#  SYNOPSIS
-#     config_arco_generic { only_check name config_array help_text }
-#
-#  FUNCTION
-#     Generic function which read a configuration parameter
-#    from stdin
-#
-#  INPUTS
-#     only_check   --  If only_check is set to 1 no parameter is read
-#     name         --  Name of the configuration parameter
-#     config_array --  The configuration array where the value is stored
-#     help_text    --  List of strings which will be printed out as help text
-#
-#  RESULT
-#     The value of the configuration parameter
-#
-#  EXAMPLE
-#   set name "foo"
-#   upvar $config_array config
-#
-#   set help_text {  "Please enter the value of parameter foo, or press >RETURN<"
-#                    "to use the default value." }
-#   
-#   set foo [config_arco_generic $only_check $name config $help_text ]
-#
-#*******************************
-#
-proc config_generic { only_check name config_array help_text check_type } {
-   global CHECK_OUTPUT 
-   global CHECK_USER 
-   global fast_setup
-
-   upvar $config_array config
-   
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   # resolve the host if default is "check_host"
-   if { $default_value == "check_host" } {
-      set default_value [gethostname]
-   }
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } {
-         set value "none"
-      }
-   }
-  
-   if { $only_check == 0 } {
-      # do setup  
-      foreach elem $help_text { puts $CHECK_OUTPUT $elem }
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   return $value
-}
-
-
 proc config_arco_source_dir { only_check name config_array } {
    
    upvar $config_array config
@@ -823,7 +751,7 @@ proc config_database_port { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text "port" ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_database_name { only_check name config_array } {
