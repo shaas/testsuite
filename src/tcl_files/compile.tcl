@@ -142,6 +142,7 @@ proc compile_host_list {} {
             foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
                if { $add_config($param) != "none" } {
                   append host_list " $add_config($param)"
+                  puts $CHECK_OUTPUT "appending $param host \"$add_config($param)\""
                }
             }
          }

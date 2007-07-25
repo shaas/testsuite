@@ -2491,8 +2491,6 @@ proc enhanced_setup {} {
 
    delete_tests "root" 1
 
-   puts "   setting up shared library path ..."
-   setup_shared_lib_path
    
    puts "   checking all shell scripts to be executable ..."
    check_executable_files

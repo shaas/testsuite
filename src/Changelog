@@ -1,3 +1,10 @@
+CR-2007-07-25-0: Enhancem.: o fixed some parsing errors
+                            o added "*.sav.*" and "*.sav" to .cvsignore file
+                            o removed setting of shared library path in 
+                              enhanced_setup() procedure (global check.exp)
+                            o fixed wrong file length in get_file_content()
+                 Review:    RD
+
 AP-2007-07-23-0: Bugfix:    testsuite configuration procedures should use 
                             config_generic
                  Issue:     133

@@ -161,6 +161,7 @@ proc get_version_info {} {
           return $CHECK_PRODUCT_VERSION_NUMBER
       }
       set CHECK_PRODUCT_VERSION_NUMBER [ lindex $help 0]
+      set CHECK_PRODUCT_VERSION_NUMBER [string trim $CHECK_PRODUCT_VERSION_NUMBER]
       if { [ string first "exit" $CHECK_PRODUCT_VERSION_NUMBER ] >= 0 } {
          set CHECK_PRODUCT_VERSION_NUMBER "system not running"
       } else {

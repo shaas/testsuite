@@ -1858,6 +1858,9 @@ proc get_file_content { host user file { file_a "file_array" } } {
 
    upvar $file_a back
 
+   if {[info exists back]} {
+      unset back
+   }
    set program "cat"
    set program_arg $file
    set output [start_remote_prog $host $user $program $program_arg]
@@ -1870,6 +1873,7 @@ proc get_file_content { host user file { file_a "file_array" } } {
          incr lcounter 1
          set back($lcounter) $line
       }
+      incr lcounter -1 ;# we have one line more because of start_remote_prog!
    }
    set back(0) $lcounter
 }
@@ -3313,7 +3317,7 @@ proc check_output_is_tty {} {
 #
 #  INPUTS
 #     host           - hostname
-#     subdir         - "execd" or "qmaster"
+#     subdir         - "execd" or "qmaster" or "hedeby_spool"
 #     {do_cleanup 1} - if 1: delete spool dir contents
 #
 #  RESULT
@@ -3348,7 +3352,7 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
    # if we have a toplevel spooldir, we can construct the real spooldir
    # and trigger cleanup if requested
    if {$spooldir != ""} {
-      puts $CHECK_OUTPUT "host $host has local toplevel spool directory $spooldir"
+      debug_puts "host \"$host\" has local toplevel spool directory $spooldir"
       if { $do_cleanup == 1 } {
          debug_puts "cleanup spooldir!"
          set result "cleanup spooldir"
