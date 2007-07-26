@@ -52,14 +52,21 @@ set check_description(0)         "install hedeby system components and start the
 set check_needs                  "init_core_system"
 set check_highest_level          0 
 set check_init_level_procedure   "hedeby_install_init_level"
-set check_functions              ""     ;# functions to call (in order)
-
+set check_functions              {}  ;# functions to call (in order)
 set check_setup_function "hedeby_install_setup"
 set check_cleanup_function "hedeby_install_cleanup"
 
-lappend check_functions "hedeby_install_ca"
+lappend check_functions "hedeby_cleanup_system"
+lappend check_functions "hedeby_install_master_host"
+lappend check_functions "hedeby_startup_master_host"
+lappend check_functions "hedeby_install_managed_hosts"
+lappend check_functions "hedeby_startup_managed_hosts"
+
+
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
+
+global install_current_cluster_config
 
 proc hedeby_install_init_level {} {
    global CHECK_ACT_LEVEL
@@ -73,23 +80,244 @@ proc hedeby_install_init_level {} {
 }
 
 proc hedeby_install_setup {} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global install_current_cluster_config
+   global install_user
 
-   add_proc_error "hedeby_install_setup" -3 "not implemented"
+   set install_current_cluster_config [get_current_cluster_config_nr]
+
+   if { [get_hedeby_pref_type] == "user" } {
+      set install_user $CHECK_USER
+   } else {
+      set install_user "root"
+   }
+
+   # print out system information:
+   puts $CHECK_OUTPUT "======================================="
+   puts $CHECK_OUTPUT "sys_name:          [get_hedeby_system_name]"
+   puts $CHECK_OUTPUT "installation mode: [get_hedeby_pref_type]"
+   puts $CHECK_OUTPUT "admin user:        [get_hedeby_admin_user]"
+   puts $CHECK_OUTPUT "======================================="
+
+
 }
 
 proc hedeby_install_cleanup {} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global install_current_cluster_config 
 
-   add_proc_error "hedeby_install_cleanup" -3 "not implemented"
+   # set the current cluster config to the one used when starting
+   # the test
+   set_current_cluster_config_nr $install_current_cluster_config
 }
 
-proc hedeby_install_ca {} {
-   global CHECK_USER CHECK_OUTPUT
+proc hedeby_cleanup_system {} {
 
-   add_proc_error "hedeby_install_ca" -3 "not implemented"
+   # first shutdown possible running system ...
+   if { [shutdown_hedeby] != 0 } {
+      add_proc_error "hedeby_cleanup_system" -2 "error shutting down hedeby system. skip hard here."
+      return
+   }
+   
+   # then remove system from preferences ... 
+   #    we don't want a error reporting, because
+   #    the system might not be installed at all
+   remove_hedeby 0
+}
+
+proc hedeby_install_master_host {} {
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global hedeby_config
+   global install_user
+
+   puts $CHECK_OUTPUT "installing hedeby master host on host \"$hedeby_config(hedeby_master_host)\""
+
+   # first we make sure to work on the first cluster config
+   set_current_cluster_config_nr 0
+   get_current_cluster_config_array ts_config
+
+   # now setup some basics ...
+   # full path to sdmadm binary (script)
+   set sdmadm_path [get_hedeby_binary_path "sdmadm" $install_user]
+
+   # get distribution path
+   set dist_path $hedeby_config(hedeby_product_root)
+
+   # create and/or delete local spool directory for hedeby master host ...
+   # (the spool_dir itself should not be existing)
+   set spool_dir [cleanup_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+   
+
+   # get CS prot
+   set cs_port $hedeby_config(hedeby_cs_port)
+
+   # ca setup ... 
+   set ca_admin_mail $ts_config(report_mail_to)
+   set ca_location "Regensburg"
+   set ca_country  "DE"
+   set ca_org      "Sun Microsystems"
+   set ca_org_unit "Development"
+   set ca_state    "Germany"
+   set sge_root $ts_config(product_root)
+
+
+   puts $CHECK_OUTPUT "==Install params==========================="
+   puts $CHECK_OUTPUT "sdmadm_path:      $sdmadm_path"
+   puts $CHECK_OUTPUT "dist_path:        $dist_path" 
+   puts $CHECK_OUTPUT "spool_dir:        $spool_dir"
+   puts $CHECK_OUTPUT "cs_port:          $cs_port"
+   puts $CHECK_OUTPUT "sge_root:         $sge_root"
+   puts $CHECK_OUTPUT "   ca_admin_mail: $ca_admin_mail"
+   puts $CHECK_OUTPUT "   ca_location:   $ca_location"
+   puts $CHECK_OUTPUT "   ca_country:    $ca_country"
+   puts $CHECK_OUTPUT "   ca_org:        $ca_org"
+   puts $CHECK_OUTPUT "   ca_org_unit:   $ca_org_unit"
+   puts $CHECK_OUTPUT "   ca_state:      $ca_state"
+   puts $CHECK_OUTPUT "======================================="
+
+   # install new system ...
+   set arguments "-s [get_hedeby_system_name]\
+                  -p [get_hedeby_pref_type]\
+                  inst_master\
+                  -ca_admin_mail \"$ca_admin_mail\"\
+                  -ca_state \"$ca_state\"\
+                  -ca_country \"$ca_country\"\
+                  -ca_location \"$ca_location\"\
+                  -ca_org_unit \"$ca_org_unit\"\
+                  -ca_org \"$ca_org\"\
+                  -a [get_hedeby_admin_user]\
+                  -d $dist_path\
+                  -cs_port $cs_port\
+                  -l $spool_dir\
+                  -sge_root $sge_root"
+
+   set install_master_output [start_remote_prog $hedeby_config(hedeby_master_host) $install_user $sdmadm_path $arguments prg_exit_state 60 0 "" "" 1 0 0]
+   if { $prg_exit_state != 0 } {
+      add_proc_error "hedeby_install_master_host" -1 "$hedeby_config(hedeby_master_host)($install_user): sdmadm $arguments failed:\n$install_master_output"
+   }
+   puts $CHECK_OUTPUT "output:"
+   puts $CHECK_OUTPUT $install_master_output
 }
 
 
+proc hedeby_startup_master_host {} {
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global hedeby_config
+   global install_user
 
+   if { [startup_hedeby_host "master" $hedeby_config(hedeby_master_host) $install_user] != 0} {
+      add_proc_error "hedeby_startup_master_host" -2 "error starting master host \"$hedeby_config(hedeby_master_host)\"!\nSkip hard here."
+      return
+   }
+}
+
+
+proc hedeby_startup_managed_hosts {} {
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global hedeby_config
+   global install_user
+
+   foreach host $hedeby_config(hedeby_host_resources) {
+      set val [startup_hedeby_host "managed" $host $install_user]
+      if { $val != 0 } {
+         set ret_val 1
+      }
+   }
+}
+
+
+proc hedeby_install_managed_hosts {} {
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global hedeby_config
+   global install_user
+
+   # first we make sure to work on the first cluster config
+   set_current_cluster_config_nr 0
+   get_current_cluster_config_array ts_config
+
+   # full path to sdmadm binary (script)
+   set sdmadm_path [get_hedeby_binary_path "sdmadm" $install_user]
+
+   # get distribution path
+   set dist_path $hedeby_config(hedeby_product_root)
+
+   # get CS port
+   set cs_url [get_hedeby_cs_url]
+
+   # set sge_root
+   set sge_root $ts_config(product_root)
+
+   # TODO: switch between interactive and copy cert mode when installing managed hosts
+
+   # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
+   if {[get_hedeby_pref_type] == "user"} {
+      set check_dirs 1
+      set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+   } else {
+      set check_dirs 0
+   }
+   foreach managed_host $hedeby_config(hedeby_host_resources) {
+      if { $check_dirs } {
+         # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
+         set mHostSpoolDir [get_hedeby_local_spool_dir $managed_host]
+         if { $master_spool_dir != $mHostSpoolDir } {
+            add_proc_error "hedeby_install_managed_hosts" -2 "local spool dir not unique for user pref mode!"
+            return
+         }
+      }
+      # create and/or delete local spool directory for hedeby master host ...
+      # (the spool_dir itself should not be existing)
+      set spool_dir [cleanup_hedeby_local_spool_dir $managed_host]
+
+      puts $CHECK_OUTPUT "==Install params==========================="
+      puts $CHECK_OUTPUT "sdmadm_path:      $sdmadm_path"
+      puts $CHECK_OUTPUT "dist_path:        $dist_path" 
+      puts $CHECK_OUTPUT "spool_dir:        $spool_dir"
+      puts $CHECK_OUTPUT "cs_url:           $cs_url"
+      puts $CHECK_OUTPUT "======================================="
+
+      # ./sdmadm --keystore /home/cr114091/tmp/cr114091.keystore --cacert /home/cr114091/tmp/cacert.pem
+
+      # now copy keystor and cacert from master host (testsuite results dir must be shared!)
+      # the tmp files are deleted with the next test!
+      set ca_file [get_tmp_file_name "" "ca"]
+      set admin_keystore_file [get_tmp_file_name "" "keystore"]
+      set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+      set cp_keystore_cmd "$master_spool_dir ; cp ./security/users/$install_user.keystore $admin_keystore_file ; cp ./security/ca/ca_top/cacert.pem $ca_file"  
+      set result [start_remote_prog "$hedeby_config(hedeby_master_host)" $install_user "cd" "$cp_keystore_cmd"]
+      puts $CHECK_OUTPUT "copy ca result:"
+      puts $CHECK_OUTPUT $result
+      puts $CHECK_OUTPUT "admin_keystore file should be at $admin_keystore_file"
+      puts $CHECK_OUTPUT "ca cert file should be at $ca_file"
+
+      wait_for_remote_file $managed_host $install_user $admin_keystore_file
+      wait_for_remote_file $managed_host $install_user $ca_file
+
+      # install new system ...
+      set arguments "-s [get_hedeby_system_name]\
+                     -p [get_hedeby_pref_type]\
+                     --keystore $admin_keystore_file\
+                     --cacert $ca_file\
+                     inst_managed_host\
+                     -a [get_hedeby_admin_user]\
+                     -d $dist_path\
+                     -l $spool_dir\
+                     -cs_url $cs_url"
+
+
+      # TODO: make installation of managed host interactive - we have to trust the certificate in a question
+      set output [start_remote_prog $managed_host $install_user $sdmadm_path $arguments prg_exit_state 60 0 "" "" 1 0 0]
+      if { $prg_exit_state != 0 } {
+         add_proc_error "hedeby_install_master_host" -1 "${managed_host}($install_user): sdmadm $arguments failed:\n$output"
+      }
+      puts $CHECK_OUTPUT "output:"
+      puts $CHECK_OUTPUT $output
+   }
+}
 

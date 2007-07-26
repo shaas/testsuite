@@ -394,13 +394,13 @@ proc config_hedeby_master_host { only_check name config_array } {
    }
    return $value
 }
-proc config_hedeby_root_jvm_port { only_check name config_array } {
+proc config_hedeby_cs_port { only_check name config_array } {
    global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
    global ts_config
    upvar $config_array config
   
    set help_text { "Please enter the port number value the testsuite should use"
-                   "for components which are started in the root JVM."
+                   "for the Configuraiton Service."
                    "or press >RETURN< to use the default value." }
    set value [config_generic $only_check $name config $help_text "port"]
    if {!$fast_setup} {
@@ -456,7 +456,7 @@ proc config_hedeby_user_jvm_port { only_check name config_array } {
    if {!$fast_setup} {
       # now check that the port is not equal to hedeby_user_jvm_port
       if { $value != 0 } {
-         if { $value == $config(hedeby_root_jvm_port) } {
+         if { $value == $config(hedeby_cs_port) } {
             puts $CHECK_OUTPUT "root JVM port must be different to $CHECK_USER JVM port!"
             return -1
          }
@@ -682,9 +682,9 @@ proc hedeby_init_config { config_array } {
    set config($parameter,pos)        $ts_pos
    incr ts_pos 1
 
-   set parameter "hedeby_root_jvm_port"
+   set parameter "hedeby_cs_port"
    set config($parameter)            ""
-   set config($parameter,desc)       "Java JMX Port used for root JVMs"
+   set config($parameter,desc)       "Java JMX Port used for Configuraiton Service (CS)"
    set config($parameter,default)    ""
    set config($parameter,setup_func) "config_$parameter"
    set config($parameter,onchange)   "install"
@@ -772,35 +772,80 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
          puts $CHECK_OUTPUT "            type:   $hedeby_enhanced_config(cluster,type,$i)"
       } 
    }
+
+   # TODO: now check all local spool directories to have the same path
+   # TODO: this can be removed if hedeby supports host specific
+   # TODO: spool directories in the user preferences installation
+   if { [get_hedeby_pref_type] == "user" } {
+      set main_spool_dir ""
+      set error_text ""
+      foreach host [hedeby_get_all_hosts] {
+         set spool_dir [get_hedeby_local_spool_dir $host]
+         puts $CHECK_OUTPUT "local spooldir for host \"$host\": $spool_dir"
+         if { $main_spool_dir == ""} {
+            set main_spool_dir $spool_dir
+         } else {
+            if { $spool_dir != $main_spool_dir } {
+               append error_text "local spool directory on host \"$host\" is not set to\n"
+               append error_text "\"$main_spool_dir\".\n"
+               append error_text "The local spool dir on host \"$host\" is set to\n"
+               append error_text "\"$spool_dir\".\n\n"
+            }
+         }
+      }
+
+      if { $error_text != "" } {
+         append error_text "==> Hedeby currently does require to have the same local spool dir for user preferences mode!\n\n"
+         add_proc_error "hedeby_get_required_hosts" -3 $error_text
+      }
+   }
+
    return $retval
 }
 
-
-proc hedeby_get_required_hosts {} {
+proc hedeby_get_all_hosts {} {
    global hedeby_config CHECK_OUTPUT
    global hedeby_enhanced_config
    set res {}
-   set enhanced_res {}
-   
    # required hosts for hedeby
    lappend res $hedeby_config(hedeby_master_host)
-   
    # all master hosts
    foreach host [get_all_qmaster_hosts] {
       lappend res $host
    }
-
    # all execd hosts
    foreach host [get_all_execd_hosts] {
       lappend res $host
    }
-
-
    # host resources (all additional checktree configs must have 
    # these hosts in their additional compile host list, since
    # they are exchanged between the clusters)
    foreach host $hedeby_config(hedeby_host_resources) {
       lappend res $host
+   }
+
+    # make host entries unique
+   set result {}
+   foreach host $res {
+      if {[lsearch -exact $result $host] < 0} {
+         lappend result $host
+      }
+   }
+
+   return $result
+}
+
+proc hedeby_get_required_hosts {} {
+   global hedeby_config CHECK_OUTPUT
+   global hedeby_enhanced_config
+   set enhanced_res {}
+
+   set res [hedeby_get_all_hosts]
+   
+   # host resources (all additional checktree configs must have 
+   # these hosts in their additional compile host list, since
+   # they are exchanged between the clusters)
+   foreach host $hedeby_config(hedeby_host_resources) {
       lappend enhanced_res $host
    }
 

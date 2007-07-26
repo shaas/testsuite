@@ -1,3 +1,7 @@
+CR-2007-07-26-0: Enhancme.: o added hedeby installation support and a test
+                              for issue 67
+                 Review:    TBD
+
 CR-2007-07-25-0: Enhancem.: o fixed some parsing errors
                             o added "*.sav.*" and "*.sav" to .cvsignore file
                             o removed setting of shared library path in 

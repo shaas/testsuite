@@ -60,6 +60,8 @@ lappend check_functions "dummy_test_check"
 
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
+global dummy_test_current_cluster_config
+
 
 proc dummy_test_init_level {} {
   global CHECK_ACT_LEVEL
@@ -71,16 +73,22 @@ proc dummy_test_init_level {} {
 }
 
 proc dummy_test_setup {} {
-   global CHECK_USER CHECK_OUTPUT
-
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global dummy_test_current_cluster_config
+   
    puts $CHECK_OUTPUT "doing setup ..."
+   set dummy_test_current_cluster_config [get_current_cluster_config_nr]
 }
 
 proc dummy_test_cleanup {} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER 
+   global CHECK_OUTPUT
+   global dummy_test_current_cluster_config
+
    puts $CHECK_OUTPUT "doing cleanup ..."
 
-   set_current_cluster_config_nr 0
+   set_current_cluster_config_nr $dummy_test_current_cluster_config
 }
 
 proc dummy_test_check {} {
