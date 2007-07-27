@@ -64,15 +64,17 @@ set check_cleanup_function urgency_calculation_cleanup
 set check_functions ""
 lappend check_functions "urgency_calculation"
 
-
 proc urgency_calculation_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
    
    switch -exact -- $CHECK_ACT_LEVEL {
-      0 {  return 0 }
-      default { return -1 }      
+      0 {
+         return 0
+      }
    }
+
+   return -1
 }
 
 # -------- local test procedures: initialization------------------------------
@@ -83,7 +85,6 @@ global urgency_org_slots_complex
 global urgency_pe_name
 
 proc urgency_calculation_setup {  } {
-
    global urgency_queue_name urgency_job_name urgency_pe_name 
    global urgency_org_slots_complex
    global ts_config
@@ -93,27 +94,23 @@ proc urgency_calculation_setup {  } {
    set urgency_pe_name    "urgpe"
    
    # Setup the scheduler
-   
    set schedd_conf(weight_ticket)        "0.000000"
    set schedd_conf(weight_waiting_time)  "0.000000"
    set schedd_conf(weight_deadline)      "0.000000"
    set schedd_conf(weight_urgency)       "1.000000"
    set schedd_conf(weight_priority)      "0.000000"
    
-   set result [ set_schedd_config schedconf ]
-   if { $result != 0 } {
+   set result [set_schedd_config schedconf]
+   if {$result != 0} {
       add_proc_error "urgency_calculation_setup" -1 "setup of scheduler failed"
       return -1
    }
-   
    puts $CHECK_OUTPUT "Scheduler configured"
 
    # setup the test queue
    set urgency_queue_name "urg_queue"   
    set queue_conf(slots) 0
-
    puts $CHECK_OUTPUT "Add queue $urgency_queue_name"
-   
    add_queue $urgency_queue_name "@allhosts" queue_conf 1
    
    # Disable all queue instances of the urgency_queue
@@ -125,23 +122,19 @@ proc urgency_calculation_setup {  } {
    
    # Save original complexes
    get_complex urgency_org_complexes
-   
    set urgency_org_slots_complex $urgency_org_complexes(slots)
    
    # Setup the complexes
-   
    set tmp_complex(slots) "s INT <= YES YES 1 1000"
    set tmp_complex(dummy) "du1 INT <= YES YES 1 500"
-   
-   set result [ set_complex tmp_complex ]
-   if { $result < -4 } {
-       add_proc_error "urgency_calculation_setup" -1 "set complexes failed ($result)"
-       return -1
+   set result [set_complex tmp_complex]
+   if {$result < -4} {
+      add_proc_error "urgency_calculation_setup" -1 "set complexes failed ($result)"
+      return -1
    }
    puts $CHECK_OUTPUT "complexes setup complete"
    
    # setup pe
-   
    set pe_conf(pe_name)            $urgency_pe_name
    set pe_conf(slots)              0
    set pe_conf(user_lists)         "NONE"
@@ -151,8 +144,7 @@ proc urgency_calculation_setup {  } {
    set pe_conf(allocation_rule)    "\$pe_slots"
    set pe_conf(control_slaves)     "TRUE"
    set pe_conf(job_is_first_task)  "FALSE"
-   
-   set result [ add_pe pe_conf ]
+   set result [add_pe pe_conf]
    if { $result < 0 } {
       add_proc_error "urgency_calculation_setup" -1 "add_pe failed ($result)"
       return -1
@@ -161,52 +153,47 @@ proc urgency_calculation_setup {  } {
    assign_queues_with_pe_object $urgency_queue_name $ts_config(master_host) $urgency_pe_name   
 }
 
-proc urgency_calculation_cleanup {  } {
-
+proc urgency_calculation_cleanup {} {
+   global ts_config CHECK_OUTPUT
    global urgency_queue_name urgency_org_slots_complex urgency_pe_name
-   global ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
    after 5000
-   
+
    # unassign pe with queue
    unassign_queues_with_pe_object $urgency_pe_name
    after 1000
 
-   set result [ del_pe $urgency_pe_name ]
-   if { $result != 0 } {
+   set result [del_pe $urgency_pe_name]
+   if {$result != 0} {
       add_proc_error "urgency_calculation_cleanup" -1 "deletion of pe failed"
    }
-   
+
    # reset the scheduler configuration
-   set result [ reset_schedd_config ]
-   if { $result != 0 } {
+   set result [reset_schedd_config]
+   if {$result != 0} {
       add_proc_error "urgency_calculation_cleanup" -1 "result scheduler failed ($result)"
    }
-   
-   set result [ del_queue $urgency_queue_name "@allhosts" 0 1 ]
-   if { $result != 0 } {
+
+   set result [del_queue $urgency_queue_name "" 1 1]
+   if {$result != 0} {
       add_proc_error "urgency_calculation_cleanup" -1 "del_queue failed ($result)"
    }
-   
+
    # Reset slots complex    
    set tmp_complex(slots) $urgency_org_slots_complex
    set tmp_complex(dummy) ""
-   
-   set result [ set_complex tmp_complex ]
-   if { $result < -4 } {
+   set result [set_complex tmp_complex]
+   if {$result < -4} {
       add_proc_error "urgency_calculation_cleanup" -1 "reset of slots complex failed ($result)"
    }
 }
 
 
 
-proc urgency_calculation { } {
-   
-   global CHECK_OUTPUT CHECK_USER
-   global CHECK_ACT_LEVEL
-   global ts_config
+proc urgency_calculation {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    set value_names { slots urg nurg rrcontr }
 
@@ -230,15 +217,15 @@ proc urgency_calculation { } {
    urgency_build_job_array_entry jobs "rrcontr"  $rrcontr
    
    # Submit the jobs
-   set result [ urgency_submit_jobs jobs $job_count ]
-   if { $result != 0 } {
+   set result [urgency_submit_jobs jobs $job_count]
+   if {$result != 0} {
       add_proc_error "urgency_calculation" -1 "submit jobs failed"
       return -1
    }
    
-   set result [ urgency_check_values jobs $job_count $value_names ]
+   set result [urgency_check_values jobs $job_count $value_names]
    
-   if { $result != 0 } {
+   if {$result != 0} {
       return -1
    }
    
@@ -246,7 +233,7 @@ proc urgency_calculation { } {
    # Urgency must not be changed   
    puts $CHECK_OUTPUT "Delete job(3) $jobs(3,id)"
    set result [delete_job $jobs(3,id) 60]
-   if { $result != 0 } {
+   if {$result != 0} {
       add_proc_error "delete job 3 (id=$jobs(3,id)) failed"
       return -1
    }
@@ -254,9 +241,9 @@ proc urgency_calculation { } {
    # set id of job 3 to zero, urgency_check_values will skip this job
    set jobs(3,id) 0
    
-   set result [ urgency_check_values jobs $job_count $value_names ]
+   set result [urgency_check_values jobs $job_count $value_names]
    
-   if { $result != 0 } {
+   if {$result != 0} {
       return -1
    }
    
@@ -265,7 +252,7 @@ proc urgency_calculation { } {
    
    puts $CHECK_OUTPUT "Delete job(2) $jobs(2,id)"
    set result [delete_job $jobs(2,id) 60]
-   if { $result != 0 } {
+   if {$result != 0} {
       add_proc_error "delete job 2 (id=$jobs(2,id)) failed"
       return -1
    }
@@ -282,15 +269,14 @@ proc urgency_calculation { } {
    urgency_build_job_array_entry jobs "nurg"     $nurg
    urgency_build_job_array_entry jobs "rrcontr"  $rrcontr
     
-   set result [ urgency_check_values jobs $job_count $value_names ]
+   set result [urgency_check_values jobs $job_count $value_names]
    
-   if { $result != 0 } {
+   if {$result != 0} {
       return -1
    }
 }
 
-proc urgency_check_values { jobs job_count value_names } {
-   
+proc urgency_check_values {jobs job_count value_names} {
    global CHECK_OUTPUT ts_config
    
    upvar $jobs tmp_jobs
@@ -299,22 +285,22 @@ proc urgency_check_values { jobs job_count value_names } {
    after 5000
    
    set error_count 0
-   for { set i 0 } { $i < $job_count } { incr i 1 } {
-      if { $tmp_jobs($i,id) == 0 } {
+   for {set i 0} {$i < $job_count} {incr i 1} {
+      if {$tmp_jobs($i,id) == 0} {
          puts $CHECK_OUTPUT "skip job $i $tmp_jobs($i,id)"
          continue
       }
-      set result [ get_urgency_job_info $tmp_jobs($i,id) ]
+      set result [get_urgency_job_info $tmp_jobs($i,id)]
       if { $result == 0 } {
          add_proc_error "urgency_calculation" -1 "job($i) $tmp_jobs($i,id) unknown"
          return -1
-      } elseif { $result != 1 } {
+      } elseif {$result != 1} {
          add_proc_error "urgency_calculation" -1 "get_urgency_job_info for job($i) $tmp_jobs($i,id) failed ($result)"
          return -1
       }
       
       foreach value_name $value_names {
-         if { $job_info($value_name) != $tmp_jobs($i,$value_name) } {
+         if {$job_info($value_name) != $tmp_jobs($i,$value_name)} {
             add_proc_error "urgency_calculation" -1 "Invalid $value_name $job_info($value_name) for job $i $tmp_jobs($i,id) (expected was $tmp_jobs($i,$value_name))"
             incr error_count 1
          } else {
@@ -323,15 +309,14 @@ proc urgency_check_values { jobs job_count value_names } {
       }
    }
    
-   if { $error_count == 0 } {
+   if {$error_count == 0} {
       return 0
    } else {
       return [expr 0 - $error_count]
    }
 }
 
-proc urgency_build_job_array_entry { jobs entry_name entry_list } {
-   
+proc urgency_build_job_array_entry {jobs entry_name entry_list} {
    upvar $jobs tmp_jobs
    
    set entry_count [llength $entry_list]
@@ -342,8 +327,7 @@ proc urgency_build_job_array_entry { jobs entry_name entry_list } {
    }
 }
 
-proc urgency_submit_jobs { jobs job_count } {
-   
+proc urgency_submit_jobs {jobs job_count} {
    global ts_config urgency_job_name
    global urgency_queue_name urgency_job_name urgency_pe_name
    global CHECK_USER CHECK_OUTPUT
@@ -353,18 +337,17 @@ proc urgency_submit_jobs { jobs job_count } {
    set pre_args  "-e /dev/null -o /dev/null -q $urgency_queue_name -N $urgency_job_name"
    set post_args " $ts_config(product_root)/examples/jobs/sleeper.sh 3600" 
    
-   for {set i 0} {$i < $job_count} { incr i 1 } {
-      
+   for {set i 0} {$i < $job_count} {incr i} {
       set job_args $pre_args
-      if { $tmp_jobs($i,dummy) != 0 } {
+      if {$tmp_jobs($i,dummy) != 0} {
          append job_args " -hard -l dummy=$tmp_jobs($i,dummy)"
       }
-      if { $tmp_jobs($i,pe) != 0 } {
+      if {$tmp_jobs($i,pe) != 0} {
          append job_args " -pe $urgency_pe_name $tmp_jobs($i,pe)"
       }
       append job_args " $post_args"
-      set result [ submit_job $job_args 1 60 "" "" ]
-      if { $result <= 0 } {
+      set result [submit_job $job_args 1 60 "" ""]
+      if {$result <= 0} {
          add_proc_error "ticket_submit_jobs" -1 "submit_job failed ($result)"
          return -1
       }
@@ -372,6 +355,7 @@ proc urgency_submit_jobs { jobs job_count } {
       
       puts $CHECK_OUTPUT "job\($i\) has id $tmp_jobs($i,id)"
    }
+
    return 0
 }
 

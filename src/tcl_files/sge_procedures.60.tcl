@@ -103,61 +103,56 @@ proc get_complex { change_array } {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc set_complex { change_array {raise_error 1}} {
-  global CHECK_USER
-  global env CHECK_OUTPUT
-  get_current_cluster_config_array ts_config
-  upvar $change_array chgar
-  set values [array names chgar]
+proc set_complex {change_array {raise_error 1}} {
+   global CHECK_USER
+   global env CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
+   upvar $change_array chgar
+   set values [array names chgar]
 
-  get_complex old_values
+   get_complex old_values
+   # parray old_values
 
-#  set names [array names old_values]
-#  foreach name $names {
-#     puts $CHECK_OUTPUT "$name = $old_values($name)"
-#  }
-
-  set vi_commands {}
-  foreach elem $values {
-     # this will quote any / to \/  (for vi - search and replace)
-     set newVal $chgar($elem)
-     if {[info exists old_values($elem)]} {
-        # if old and new config have the same value, create no vi command,
-        # if they differ, add vi command to ...
-        if { [compare_complex $old_values($elem) $newVal] != 0 } {
-           if { $newVal == "" } {
-              # ... delete config entry (replace by comment)
-              lappend vi_commands ":%s/^$elem .*$/#/\n"
-           } else {
-              # ... change config entry
-              set newVal1 [split $newVal {/}]
-              set newVal [join $newVal1 {\/}]
-              lappend vi_commands ":%s/^$elem .*$/$elem  $newVal/\n"
-           }
-        }
-     } else {
-        # if the config entry didn't exist in old config: append a new line
-        lappend vi_commands "A\n$elem  $newVal[format "%c" 27]"
-     }
-  }
+   set vi_commands {}
+   foreach elem $values {
+      # this will quote any / to \/  (for vi - search and replace)
+      set newVal $chgar($elem)
+      if {[info exists old_values($elem)]} {
+         # if old and new config have the same value, create no vi command,
+         # if they differ, add vi command to ...
+         if { [compare_complex $old_values($elem) $newVal] != 0 } {
+            if {$newVal == ""} {
+               # ... delete config entry (replace by comment)
+               lappend vi_commands ":%s/^$elem .*$/#/\n"
+            } else {
+               # ... change config entry
+               set newVal1 [split $newVal {/}]
+               set newVal [join $newVal1 {\/}]
+               lappend vi_commands ":%s/^$elem .*$/$elem  $newVal/\n"
+            }
+         }
+      } else {
+         # if the config entry didn't exist in old config: append a new line
+         lappend vi_commands "A\n$elem  $newVal[format "%c" 27]"
+      }
+   }
 
 #  foreach vi_com $vi_commands {
 #     puts $CHECK_OUTPUT "\"$vi_com\""
 #  }
 
-  set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set ADDED    [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set STILLREF [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_CENTRYREFINQUEUE_SS] "*" "*"]
-  set NOT_MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_CENTRY_NOTCHANGED]]
+   set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
+   set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
+   set REMOVED [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
+   set STILLREF [translate_macro MSG_CENTRYREFINQUEUE_SS "*" "*"]
+   set NOT_MODIFIED [translate_macro MSG_CENTRY_NOTCHANGED]
  
-  set master_arch [resolve_arch $ts_config(master_host)] 
-  set result [handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport
-  SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$master_arch/qconf -mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF "___ABCDEFG___" $raise_error]
-  if { $result != 0 && $result != -2 && $result != -3 && $result != -4 } {
-     add_proc_error "set_complex" -1 "could not modify complex: ($result)" $raise_error
-  }
-  return $result
+   set master_arch [resolve_arch $ts_config(master_host)] 
+   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF "___ABCDEFG___" "___ABCDEFG___" $raise_error]
+   if {$result != 0 && $result != -2 && $result != -3 && $result != -4} {
+      add_proc_error "set_complex" -1 "could not modify complex: ($result)" $raise_error
+   }
+   return $result
 }
 
 

@@ -105,7 +105,6 @@ lappend check_functions "check_option_sc"
 lappend check_functions "check_option_soft"
 lappend check_functions "check_option_S"
 lappend check_functions "check_option_t"
-lappend check_functions "check_option_terse"
 lappend check_functions "check_option_v"
 lappend check_functions "check_option_verify"
 lappend check_functions "check_option_V"
@@ -2394,83 +2393,6 @@ proc check_option_t {} {
    set option "-t 1-500000"
    set jobargs "$option $default_args"
    qsub_submit_check $jobargs 1
-}
-
-#                                                             max. column:     |
-#****** qsub/check_option_terse() ******
-# 
-#  NAME
-#     check_option_terse -- Check to see if the terse option works
-#
-#  SYNOPSIS
-#     check_option_terse { } 
-#
-#  FUNCTION
-#     The function tries to submit a job with -terse option to see if it throws
-#     only the job id in case of successfull job submission.
-#     It further check to verify if the -terse is working by,
-#     -  checks to see if the result of start_sge_bin throws the o/p starting
-#       with "Your job", if yes then the option is not working.
-#     -  checks to see if the result when passed to get_extended_job_info as
-#       job-id gives positive result
-#
-#  INPUTS
-#     NONE
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     qsub -terse sleeper.sh
-#
-#  NOTES
-#     This is for RFE 6355875 
-#     "-terse" that would have qsub just display the job number, and none of the
-#     '[Yy]our job number...' stuff.
-#
-#     If there are errors, they should continue to be submitted via stderr.
-#
-#     Thus, the output of qsub would look like:
-#
-#     $ qsub -terse -cwd -t 1:5 ./runme.sh
-#     1321772.1-5:1
-#
-#     $ qsub -terse -cwd ./runme.sh
-#     1321775
-#
-#     If the user doesn't specify '-terse' the behaviour should be the same as it is
-#     today.
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-
-proc check_option_terse {} {
-   global ts_config CHECK_OUTPUT
-   global default_args
-
-   puts $CHECK_OUTPUT "Testing qsub -terse option"
-   set job_args "-terse $default_args"
-   set output ""
-   set not_expected "*[translate_macro MSG_QSUB_YOURJOBHASBEENSUBMITTED_SS "*" "*"]*"
-   puts $CHECK_OUTPUT "Running qsub -terse option: $job_args"
-   set output [start_sge_bin "qsub" $job_args]
-   #now check if the output contained "Your job ", which means the option is not
-   #working
-   #Do a second check to see if the job has been submitted, and $output has jobid
-   if { $prg_exit_state == 0 } {
-      if { [string first $not_expected $output] == 0  && [get_extended_job_info $output] == 1} {
-         add_proc_error "check_option_terse" -1 "not working:\n$output"
-      } else {
-         puts $CHECK_OUTPUT "The -terse is working!!!!\n$output)"    
-      }
-   } else {
-      add_proc_error "check_option_terse" -1 "qsub error or binary not found:\n$output"
-   }
-
 }
 
 #                                                             max. column:     |
