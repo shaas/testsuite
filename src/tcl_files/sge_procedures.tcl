@@ -6940,7 +6940,7 @@ proc shutdown_all_shadowd { hostname } {
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
-         add_proc_error "shutdown_all_shadowd" "-3" "could not shutdown shadowd at host $elem with term signal"
+         add_proc_error "shutdown_all_shadowd" "-3" "could not shutdown shadowd at host $hostname with term signal"
          puts $CHECK_OUTPUT "Killing process with kill signal [ set ps_info(pid,$elem) ] ..."
          if { [ have_root_passwd ] == -1 } {
             set_root_passwd 
@@ -6956,7 +6956,7 @@ proc shutdown_all_shadowd { hostname } {
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
-         add_proc_error "shutdown_all_shadowd" "-1" "could not shutdown shadowd at host $elem with kill signal"
+         add_proc_error "shutdown_all_shadowd" "-1" "could not shutdown shadowd at host $hostname with kill signal"
       }
    }
 

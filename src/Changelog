@@ -1,3 +1,8 @@
+RD-2007-07-27-0: Bugfix:    - fixed dtrace test
+                 Enhancem.: - added more complex range list for AR in
+                              qmaster/spooling test
+                 Review:    JG
+
 JG-2007-07-27-0: Bugfix:    Fixed set_complex, cleanup.
                  Review:    MD
 

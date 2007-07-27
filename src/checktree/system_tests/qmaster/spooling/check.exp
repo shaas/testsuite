@@ -97,6 +97,9 @@ proc qmaster_spooling_cleanup {} {
          }
       }
    }
+   if {$ts_config(gridengine_version) >= 62} {
+      delete_all_ars
+   }
 }
 
 # JG: TODO: move to sge_procedures
@@ -223,7 +226,7 @@ proc qmaster_spooling_ar_restart {} {
       append args "-M $CHECK_FIRST_FOREIGN_SYSTEM_USER@sun.com,$CHECK_SECOND_FOREIGN_SYSTEM_USER@sun.com "
       append args "-N test_ar_name "
       append args "-w e "
-      append args "-pe mytestpe 3 "
+      append args "-pe mytestpe 3-8,10- "
       append args "-q $qinstance "
       append args "-u '!$CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER,!root' "
 
@@ -245,7 +248,7 @@ proc qmaster_spooling_ar_restart {} {
       set check_values(resource_list)                  "h_rt=200, hostname=${actual_host}"
       set check_values(error_handling)                 "true"
       set check_values(granted_slots_list)             "$qinstance=3"
-      set check_values(granted_parallel_environment)   "mytestpe slots 3"
+      set check_values(granted_parallel_environment)   "mytestpe slots 3-8,10-9999999"
       set check_values(checkpoint_name)                "test_ar_ckpt"
       set check_values(mail_options)                   "abe"
       set check_values(mail_list)                      "$CHECK_FIRST_FOREIGN_SYSTEM_USER@sun.com,$CHECK_SECOND_FOREIGN_SYSTEM_USER@sun.com"
