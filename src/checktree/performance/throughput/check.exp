@@ -795,14 +795,14 @@ proc run_throughput_test {} {
    # evaluate path to qevent binary
    set up_arch [resolve_build_arch $ts_config(master_host)]
    set event_client_bin $ts_config(source_dir)/$up_arch/qevent
-   if { [file isfile $event_client_bin] != 1 } {
+   if {[file isfile $event_client_bin] != 1} {
       add_proc_error "run_throughput_test" -3 "could not open event client binary: $event_client_bin"
       return -3
    }
    puts $CHECK_OUTPUT "using event client: $event_client_bin"
 
    # start event client on master host, using special user ts_def_con2
-   set event_client_sid [ open_remote_spawn_process $ts_config(master_host) "ts_def_con2" $event_client_bin ""]
+   set event_client_sid [open_remote_spawn_process $ts_config(master_host) "ts_def_con2" $event_client_bin "" 0 "" "" 0 15 1]
    set event_client_id [lindex $event_client_sid 1]
 
    set timeout 30
@@ -836,11 +836,11 @@ proc run_throughput_test {} {
       }
    }
 
-   if { $is_old_version == 0 } {
+   if {$is_old_version == 0} {
       close_spawn_process $event_client_sid
       puts $CHECK_OUTPUT "starting event client with -ts option ..."
       # start event client with -ts option
-      set event_client_sid [ open_remote_spawn_process $ts_config(master_host) "ts_def_con2" $event_client_bin "-ts"]
+      set event_client_sid [open_remote_spawn_process $ts_config(master_host) "ts_def_con2" $event_client_bin "-ts" 0 "" "" 0 15 1]
       set event_client_id [lindex $event_client_sid 1]
    }
 
@@ -894,7 +894,7 @@ proc run_throughput_test {} {
       set qping_host [lindex $host_list 0]
       set qping_arch [resolve_arch $qping_host]
       puts $CHECK_OUTPUT "starting qping monitor on host $qping_host"
-      set id [ open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1"]
+      set id [open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1" 0 "" "" 0 15 1]
       set spawn_id [lindex $id 1]
       lappend spawn_list $spawn_id
       lappend remote_spawn_list $id

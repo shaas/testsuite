@@ -1,3 +1,8 @@
+JG-2007-07-27-1: Bugfix:    Tests calling qevent (throughput, various issue
+                            tests) failed in CSP mode.
+                            Cleanup.
+                 Review:    RD
+
 RD-2007-07-27-0: Bugfix:    - fixed dtrace test
                  Enhancem.: - added more complex range list for AR in
                               qmaster/spooling test

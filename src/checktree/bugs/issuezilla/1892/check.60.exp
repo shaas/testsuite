@@ -74,9 +74,6 @@ proc issue_1892_run  {} {
    global ts_config CHECK_OUTPUT
 
    # Run test binary
-   set failed 0
-   set pid [pid]
-
    foreach host $ts_config(unique_arch_nodes) {
       set output [start_source_bin "test_drmaa_issue1892" "/bin/date" $host]
       # If we segfault on any architecture, the bug still exists.
