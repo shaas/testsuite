@@ -1,3 +1,6 @@
+JG-2007-07-30-0: Bugfix:    Fixed bugs/issuezilla/2304.
+                 Review:    RD
+
 JG-2007-07-27-1: Bugfix:    Tests calling qevent (throughput, various issue
                             tests) failed in CSP mode.
                             Cleanup.

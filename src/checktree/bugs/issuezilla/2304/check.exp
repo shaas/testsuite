@@ -78,7 +78,6 @@ proc issue_2304_init_level {} {
 }
 
 proc issue_2304_setup {} {
-
    global CHECK_OUTPUT
    global CHECK_ACT_LEVEL
    global execd_host
@@ -86,7 +85,6 @@ proc issue_2304_setup {} {
    global admin_user_list
    global qname
    global init_ok
-
 
    set init_ok 0
    #
@@ -96,14 +94,13 @@ proc issue_2304_setup {} {
    set admin_user_list [start_sge_bin "qconf" "-sm"]
    set uid_list {} 
    foreach elem $admin_user_list {
-      set uid_string [ exec /usr/bin/id $elem ]
-      set left [ string first "=" $uid_string ]
-      set right [ string first "(" $uid_string ]
+      set uid_string [exec /usr/bin/id $elem]
+      set left [string first "=" $uid_string]
+      set right [string first "(" $uid_string]
       incr left +1
       incr right -1
-      set uid [ string range $uid_string $left $right ]
+      set uid [string range $uid_string $left $right]
       lappend uid_list $uid
- 
    }
 
    #
@@ -119,33 +116,37 @@ proc issue_2304_setup {} {
    set execd_host_found 0
    set user_ok 0
    foreach execd_host $ts_config(execd_nodes) {
-      set arch [ host_conf_get_arch $execd_host ]
-      if { $arch != "sol-sparc64" } {
+      set arch [resolve_arch $execd_host]
+      if {$arch != "sol-sparc64"} {
          puts $CHECK_OUTPUT "Skipping execd on $execd_host with arch $arch"
          continue
       }
-      set local_spool_dir [ get_local_spool_dir $execd_host "execd" ]
-      set spool_dir [ get_spool_dir $execd_host "execd" ]
+
+      # test works only with non local spooldir
+      set local_spool_dir [get_local_spool_dir $execd_host "execd" 0]
+      if {$local_spool_dir != ""} {
+         continue
+      }
+
+      set spool_dir [get_spool_dir $execd_host "execd"]
       #
       #
       #
       file stat $spool_dir spool_dir_stat
       set poo $spool_dir_stat(uid)
       foreach elem $uid_list {
-         if { $elem == "root" } continue
-         if { $elem == $poo } {
+         if {$elem == "root"} continue
+         if {$elem == $poo} {
             set user_ok 1
             break
          }
       }
-      if { $execd_host == $qmaster_host || $local_spool_dir != "" || $user_ok == 0} continue 
+      if {$execd_host == $qmaster_host || $local_spool_dir != "" || $user_ok == 0} continue 
       set execd_host_found 1
       break
    }
-   if { $execd_host_found == 0 } { 
-      add_proc_error "issue_2304_init_level" \
-                     -3 \
-                     "Can not run test because prerequisites are not fullfilled"
+   if {$execd_host_found == 0} { 
+      add_proc_error "issue_2304_init_level" -3 "Can not run test because prerequisites are not fullfilled"
       return -1
    }
    #
@@ -153,23 +154,23 @@ proc issue_2304_setup {} {
    # this test with v3, since v4 does not generate an error message (the
    # bug still exists, though)
    # 
-   set fs [ start_remote_prog $execd_host [lindex $admin_user_list 0] "/usr/bin/nfsstat"  "-m" ] 
+   set fs [start_remote_prog $execd_host [lindex $admin_user_list 0] "/usr/bin/nfsstat"  "-m"] 
    set running_index 0
    foreach elem [split $fs "\n"] {
       foreach member [split $elem " ,"] {
          set is_mountpoint [string first $member $spool_dir]
-         if { $is_mountpoint == 0 } {
+         if {$is_mountpoint == 0} {
             break
          } 
       }
-      if { $is_mountpoint == 0 } {
+      if {$is_mountpoint == 0} {
          break
       }
    }
    incr running_index +1
    set fslist [split $fs "\n"]
    #set version_line [ lindex $fslist $running_index ]
-   set version_line [ lindex [split $fs "\n"] $running_index ]
+   set version_line [lindex [split $fs "\n"] $running_index]
    set left [string first "vers=" $version_line]
    set right [string first ",proto=" $version_line]
    incr right -1
@@ -181,7 +182,7 @@ proc issue_2304_setup {} {
       return -1
    }
    
-   puts $CHECK_OUTPUT "Selected $execd_host as test host\n"
+   puts $CHECK_OUTPUT "Selected $execd_host as test host"
    #
    # Create dummy queue used for this test.
    #
@@ -224,7 +225,7 @@ proc issue_2304_check {} {
    global qname
    global init_ok
   
-   if { $init_ok == 0 } {
+   if {$init_ok == 0} {
       add_proc_error "issue_2304_check" \
                      -3 \
                      "Can not run test because prerequisites are not fullfilled"
@@ -254,11 +255,9 @@ proc issue_2304_check {} {
    set job_args "-o /dev/null -e /dev/null -q $qname"
    set user "root" 
    set job_id [submit_job "$job_args $ts_config(product_root)/examples/jobs/sleeper.sh 60" 1 30 "" $user]
-      if {$job_id <= 0} {
-         add_proc_error "issue_2304_check" \
-                        -1 \
-                        "can't start job for test user $user"
-         return -1
+   if {$job_id <= 0} {
+      add_proc_error "issue_2304_check" -1 "can't start job for test user $user"
+      return -1
    }
    lappend job_id_list $job_id
    #
@@ -288,17 +287,17 @@ proc issue_2304_check {} {
    # message file.
    #
    set test_ok 1
-   set sge_admin_user [ lindex $admin_user_list 0 ]
+   set sge_admin_user [lindex $admin_user_list 0]
    get_message_file $execd_host $sge_admin_user "/var/adm/messages" 
-   for { set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+   for {set i 1} {$i <= $file_array(0)} {incr i 1} {
       set line $file_array($i)
       set date [lindex $line 2]
       set boo 0
       set error_message_found 0
       set error_time [ clock scan $date ]
       set start_time [ clock scan $startup_time ]
-      set nfs_error_found [ string match "*NFS write error*" $line ]
-      if { $nfs_error_found > 0 &&  $error_time < $end_time && $error_time > $start_time } {
+      set nfs_error_found [string match "*NFS write error*" $line]
+      if {$nfs_error_found > 0 && $error_time < $end_time && $error_time > $start_time} {
          #
          # Oops, we are still seeing this bug. Print out offending message
          # record and setup exit code.
@@ -308,33 +307,30 @@ proc issue_2304_check {} {
          break
       }
    }
-   if { $test_ok == 0 } {
+   if {$test_ok == 0} {
       #
       # Indicate failure
       #
-      add_proc_error "issue_2304_check" \
-                     -1 \
-                     "Found unexpected NFS error message"
+      add_proc_error "issue_2304_check" -1 "Found unexpected NFS error message"
       return -1
    } else {
       return 0
    }
 }
 
-proc get_message_file { host  user file { file_a "file_array" } } {
-
+proc get_message_file {host user file {file_a "file_array"}} {
    global CHECK_OUTPUT
    upvar $file_a back
 
    set program_name "tail"
    set program_args "-10l $file"
-   set output [ start_remote_prog $host $user $program_name $program_args ]
+   set output [start_remote_prog $host $user $program_name $program_args]
    set lcounter 0
    foreach line [split $output "\n"] {
       incr lcounter 1
       set back($lcounter) $line
-  }
-  set back(0) $lcounter
+   }
+   set back(0) $lcounter
 }
 
 
