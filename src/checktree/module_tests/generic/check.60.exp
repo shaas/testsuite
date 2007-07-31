@@ -85,17 +85,17 @@ proc generic_module_tests_init_level {} {
    global generic_module_tests_test_hosts
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          set generic_module_tests_test_hosts $ts_config(master_host)
          return 0
-      } 
+      }
       "100" {
          set generic_module_tests_test_hosts $ts_config(unique_arch_nodes)
          return 0
       }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 proc generic_module_tests_run {} {

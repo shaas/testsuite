@@ -40,19 +40,18 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
-global env
 global ts_config
 
 set check_root_access_needs "yes"
 
 # some global settings
-global LARGE_CLUSTER_HOST_PREFIX 
-global LARGE_CLUSTER_HOSTS_PER_HOST 
-global LARGE_CLUSTER_QUEUES_PER_HOST 
+global LARGE_CLUSTER_HOST_PREFIX
+global LARGE_CLUSTER_HOSTS_PER_HOST
+global LARGE_CLUSTER_QUEUES_PER_HOST
 global LARGE_CLUSTER_SLOTS_PER_QUEUE
 global LARGE_CLUSTER_JOB_SIZES
 global LARGE_CLUSTER_JOB_DURATION
-global LARGE_CLUSTER_POLICIES_PROJECTS 
+global LARGE_CLUSTER_POLICIES_PROJECTS
 global LARGE_CLUSTER_POLICIES_JOBS
 
 set LARGE_CLUSTER_HOST_PREFIX       "lchost_"
@@ -70,7 +69,7 @@ set check_init_level_procedure "large_cluster_init_level"
 # define test's name and run level descriptions
 set check_name            "large_cluster"
 set check_category        "PERFORMANCE"
-set check_highest_level   [expr ( [llength $ts_config(execd_hosts)] - 2 + 300 ) ]
+set check_highest_level   [expr ( [llength $ts_config(execd_nodes)] - 2 + 300 ) ]
 for {set i 300} {$i <= $check_highest_level} {incr i} {
    set check_description($i) "check performance with [expr ( $i - 300 + 1 ) * $LARGE_CLUSTER_HOSTS_PER_HOST] queues"
 }
@@ -107,7 +106,7 @@ proc large_cluster_init_level {} {
    # done correctly on all involved hosts
 
    if { $CHECK_ACT_LEVEL >= 300 && $CHECK_ACT_LEVEL <= $check_highest_level } {
-      set real_hosts [lrange $ts_config(execd_hosts) 1 [expr 1 + $CHECK_ACT_LEVEL - 300]]
+      set real_hosts [lrange $ts_config(execd_nodes) 1 [expr 1 + $CHECK_ACT_LEVEL - 300]]
       return 0 
    }
 
@@ -258,7 +257,7 @@ proc large_cluster_submit_jobs {size {users ""} {projects ""}} {
       }
    }
 
-   set submit_host_list [lrange $ts_config(execd_hosts) 1 10]
+   set submit_host_list [lrange $ts_config(execd_nodes) 1 10]
 
    # submit first bunch of jobs
    # keep a list of expect spawn id's for expect calls

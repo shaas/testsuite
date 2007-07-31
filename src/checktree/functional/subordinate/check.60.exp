@@ -47,7 +47,6 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
-global env
 
 #set check_root_access_needs "yes"
 
@@ -57,7 +56,7 @@ set check_init_level_procedure "subordinate_init_level"
 # define test's name and run level descriptions
 set check_name            "subordinate"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   8
+set check_highest_level   0
 set check_description(0)  "Consumable resources on global level"
 
 # define test's dependencies
@@ -70,7 +69,6 @@ set check_cleanup_function subordinate_cleanup
 # define test's procedure order
 set check_functions "subordinate_test"
 
-
 global subordinate_test_hosts
 global subordinate_saved_slot_count
 
@@ -78,17 +76,17 @@ proc subordinate_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          return 0
-      } 
-   } 
+      }
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization------------------------------
 
-proc subordinate_setup  {} {
+proc subordinate_setup {} {
    global ts_config
    global subordinate_test_hosts
    global subordinate_saved_slot_count
@@ -98,16 +96,10 @@ proc subordinate_setup  {} {
    # backup complex - we will modify it during the test
    get_complex consumable_complex_backup
 
-   set subordinate_test_hosts {}
    set subordinate_saved_slot_count ""
-   set execd_count 0
-   foreach host $ts_config(execd_nodes) {
-      if { $execd_count < 2 } {
-         incr execd_count 1
-         lappend subordinate_test_hosts "$host"
-         puts $CHECK_OUTPUT "using host $host"
-      } 
-   }
+
+   set subordinate_test_hosts [host_conf_get_suited_hosts 2]
+   puts $CHECK_OUTPUT "using hosts $subordinate_test_hosts"
 
    set queue_list {}
    foreach host $ts_config(execd_nodes) {
@@ -138,7 +130,7 @@ proc subordinate_setup  {} {
    puts $CHECK_OUTPUT "mod queue $qname for hosts $subordinate_test_hosts"
 }
 
-proc subordinate_cleanup  {} {
+proc subordinate_cleanup {} {
    global CHECK_OUTPUT ts_config
    global subordinate_test_hosts
    global subordinate_saved_slot_count
@@ -168,80 +160,80 @@ proc subordinate_cleanup  {} {
    set_complex consumable_complex_backup
 }
 
-proc subordinate_submit_jobs_and_wait { job_arguments job_count run_job_count job_arguments2 case { schedd_info "" } { queue_state "" } { schedd_info_err "" } } {
+proc subordinate_submit_jobs_and_wait {job_arguments job_count run_job_count job_arguments2 case {schedd_info ""} {queue_state ""} {schedd_info_err ""}} {
    global ts_config CHECK_OUTPUT
 
-   if { $job_arguments2 == "" } {
-      for { set i 0 } { $i < $job_count } { incr i 1 } {
+   if {$job_arguments2 == ""} {
+      for {set i 0} {$i < $job_count} {incr i 1} {
          set job_id($i) [submit_job "$job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
       }
    } else {
-      for { set i 0 } { $i < $job_count } { incr i 1 } {
+      for {set i 0} {$i < $job_count} {incr i 1} {
          set job_id($i) [submit_job "$job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
          incr i 1
          set job_id($i) [submit_job "$job_arguments2 $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
       }
    }
 
-   while { 1 } {
+   while {1} {
       trigger_scheduling
       set running_jobs 0
       set error 0
-      for { set i 0 } { $i < $job_count } { incr i 1 } {
+      for {set i 0} {$i < $job_count} {incr i 1} {
          set job_state [is_job_running $job_id($i) "leeper"]
          set job_id($i,running) $job_state
-         if { $job_state == 1 } {
+         if {$job_state == 1} {
             incr running_jobs 1
          }
-         if { $job_state == -1 } {
+         if {$job_state == -1} {
             add_proc_error "case $case) subordinate_submit_jobs_and_wait" -2 "job was not submitted - stop"
             set error 1
             break
          }
       }
       puts $CHECK_OUTPUT "running jobs count: $running_jobs"
-      if { $running_jobs == $run_job_count || $error != 0 } {
+      if {$running_jobs == $run_job_count || $error != 0} {
          break
       }
    }
 
-   if { $queue_state != "" } {
+   if {$queue_state != ""} {
       wait_for_queue_state [lindex $queue_state 0] [lindex $queue_state 1] 60
    }
 
-   if { $job_count != $run_job_count } {
-      if { $schedd_info == "" } {
+   if {$job_count != $run_job_count} {
+      if {$schedd_info == ""} {
          add_proc_error "case $case) subordinate_submit_jobs_and_wait" -2 "got not running job, but no schedule info to search for"
       } else {
          set sched_info_tries 10
          set ok 0
-         while { $sched_info_tries > 0 } {      
+         while {$sched_info_tries > 0} {      
             trigger_scheduling
-            for { set i 0 } { $i < $job_count } { incr i 1 } {
-               if { $job_id($i,running) == 0 } {
+            for {set i 0} {$i < $job_count} {incr i 1} {
+               if {$job_id($i,running) == 0} {
                   puts $CHECK_OUTPUT "job $job_id($i) is not running, checking schedd job info message ..."
                   puts $CHECK_OUTPUT "looking for \"$schedd_info\" of job $job_id($i)"
                   get_qstat_j_info $job_id($i)
-                  if { $schedd_info_err != "" } {
-                     if { [string match "*$schedd_info_err*" $qstat_j_info(scheduling info)] } {
+                  if {$schedd_info_err != ""} {
+                     if {[string match "*$schedd_info_err*" $qstat_j_info(scheduling info)]} {
                         add_proc_error "subordinate_submit_jobs_and_wait_error" -2 "found issue 1894 (scheduling info contains: $schedd_info_err) - stop"
                         set error 1
                         set ok 1
                      }
                   }
-                  if { [string match "*$schedd_info*" $qstat_j_info(scheduling info)] } {
+                  if {[string match "*$schedd_info*" $qstat_j_info(scheduling info)]} {
                      puts $CHECK_OUTPUT "found matching scheduling info"
                      set ok 1
                   }
                }
             }
-            if { $ok == 1 } {
+            if {$ok == 1} {
                break
             }
             incr sched_info_tries -1
             after 1000
          }
-         if { $ok != 1 } {
+         if {$ok != 1} {
             add_proc_error "case $case) subordinate_submit_jobs_and_wait" -2 "can't find matching scheduler info:\nexpected: $schedd_info\ngot: $qstat_j_info(scheduling info)"
          }
       }
@@ -254,15 +246,10 @@ proc subordinate_test {} {
    global subordinate_test_hosts check_description
    global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
 
+   set RUNATHOST [translate_macro MSG_SCHEDD_INFO_QUEUENOTAVAIL_ "*"]
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
-
-   if { $CHECK_ACT_LEVEL == 0 } {
-      set RUNATHOST  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_QUEUENOTAVAIL_]  "*"]
-
-      set job_arguments "-o /dev/null -e /dev/null"
-      set job_count 4
-      set run_job_count 2
-      subordinate_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a" $RUNATHOST
-   }
+   set job_arguments "-o /dev/null -e /dev/null"
+   set job_count 4
+   set run_job_count 2
+   subordinate_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "a" $RUNATHOST
 }

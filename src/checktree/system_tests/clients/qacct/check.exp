@@ -61,7 +61,6 @@ set check_needs           "init_core_system qsub"
 set check_setup_function qacct_setup
 set check_cleanup_function qacct_cleanup
 
-
 # define test's procedure order
 set check_functions ""
 lappend check_functions "qacct_basic"
@@ -71,19 +70,16 @@ proc qacct_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          return 0
       }
    }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
-
-
-
 # -------- local test procedures: initialization------------------------------
-proc qacct_setup  {} {
+proc qacct_setup {} {
    global ts_config CHECK_OUTPUT
    global qacct_reporting_backup
 
@@ -97,12 +93,12 @@ proc qacct_setup  {} {
    delete_file "$ts_config(product_root)/$ts_config(cell)/common/accounting"
 }
 
-proc qacct_cleanup  {} {
+proc qacct_cleanup {} {
    global ts_config CHECK_OUTPUT
    global qacct_reporting_backup
 
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    if {$ts_config(gridengine_version) != 53} {
       set new_config(reporting_params) $qacct_reporting_backup

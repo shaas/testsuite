@@ -102,22 +102,20 @@ proc tight_integration_init_level {} {
    }
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          set submit_command qsub
-         return 0    
-      } 
+         return 0
+      }
       "1" {
          set submit_command qrsh
          return 0
       }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization------------------------------
-
-global submit_command
 
 proc tight_integration_parse_execd_messages {mode} {
    global TIGHT_INTEGRATION_MASSIVE_SLOTS
@@ -131,17 +129,17 @@ proc tight_integration_parse_execd_messages {mode} {
    puts $CHECK_OUTPUT "check messages file from qmaster on $tight_master_node..."
    set TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode) 0
    set TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode) 0
-   set messages [ get_qmaster_messages_file ]
+   set messages [get_qmaster_messages_file]
    get_file_content $tight_master_node $CHECK_USER $messages
-   if { $file_array(0) < 1 } {
+   if {$file_array(0) < 1} {
       add_proc_error "tight_integration_setup" -1 "no qmaster(host=$tight_master_node) messages file:\n$messages"
    }
-   for {set i 1 } { $i <= $file_array(0) } { incr i 1 } {
-      if { [string match "*|E|*" $file_array($i)] } {
+   for {set i 1} {$i <= $file_array(0)} {incr i 1} {
+      if {[string match "*|E|*" $file_array($i)]} {
          incr TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode) 1
          set TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode,$TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode)) $file_array($i)
       }
-      if { [string match "*|W|*" $file_array($i)] } {
+      if {[string match "*|W|*" $file_array($i)]} {
          incr TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode) 1
          set TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode,$TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode)) $file_array($i)
       }
@@ -153,9 +151,9 @@ proc tight_integration_parse_execd_messages {mode} {
       puts $CHECK_OUTPUT "check messages file from execd $execd ..."
       set TIGHT_INTEGRATION_ERROR_MESSAGES($execd,$mode) 0
       set TIGHT_INTEGRATION_WARNING_MESSAGES($execd,$mode) 0
-      set messages [ get_execd_messages_file $execd ]
+      set messages [get_execd_messages_file $execd]
       get_file_content $execd $CHECK_USER $messages 
-      if { $file_array(0) < 1 } {
+      if {$file_array(0) < 1} {
          add_proc_error "tight_integration_setup" -1 "no execd(host=$execd) messages file:\n$messages"
       }
       for {set i 1} {$i <= $file_array(0)} {incr i} {
@@ -193,36 +191,36 @@ proc tight_integration_check_messages {mode1 mode2 scenario} {
    #
    # OK, check if number of qmaster error messages has changed since test startup
    #
-   if { $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode1) != $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2) } {
+   if {$TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode1) != $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2)} {
       set header_written 0
-      for { set i [expr ( $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode1) + 1 ) ] } \
-       { $i <= $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2) } { incr i 1 } {
+      for {set i [expr ( $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode1) + 1 )]} \
+       {$i <= $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2)} {incr i} {
          #
          # Loop over qmaster error messages generated during test run.
          #
          set message $TIGHT_INTEGRATION_ERROR_MESSAGES("qmaster",$mode2,$i)
-         set mstart [ string last "|" $message ]
+         set mstart [string last "|" $message]
          incr mstart 1
          set skip_message 0
          #
          # We need to blank out qmaster messages that originate from fault injection.
          # There is one check per fault injections scenario.
          #
-         if { $scenario == "master_killed" && \
-               ( [ string match "*master task of job*" $message ] == 1 || \
-                 [ string match "*died through signal KILL*" $message ] == 1 ) } {
+         if {$scenario == "master_killed" && \
+               ([string match "*master task of job*" $message] == 1 || \
+                [string match "*died through signal KILL*" $message] == 1)} {
             set skip_message 1
-         } elseif { ( $scenario == "wallclock_test" || \
-                      $scenario == "slave_killed" ) && \
-                      ( [ string match "*killing job*" $message ] == 1 || \
-                        [ string match "*died through signal KILL*" $message ] == 1 ) } {
+         } elseif {($scenario == "wallclock_test" || \
+                    $scenario == "slave_killed" ) && \
+                    ([string match "*killing job*" $message] == 1 || \
+                     [string match "*died through signal KILL*" $message] == 1)} {
             set skip_message 1
          }
          #
          # Write out any unexpected error message and header, if required.
          #
-         if { $skip_message == 0 } {
-            if { $header_written == 0 } {
+         if {$skip_message == 0} {
+            if {$header_written == 0} {
                append error_text "tight integration check produced qmaster error messages at dagored:\n"
                set header_written 1
             }
@@ -233,35 +231,35 @@ proc tight_integration_check_messages {mode1 mode2 scenario} {
    #
    # Next, check if number of qmaster warning messages has changed since test startup
    #
-   if { $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode1) != $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2) } {
+   if {$TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode1) != $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2)} {
       set header_written 0
-      for { set i [expr ( $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode1) + 1 ) ] } \
-       { $i <= $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2) } { incr i 1 } {
+      for {set i [expr ($TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode1) + 1)]} \
+       {$i <= $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2)} {incr i 1} {
          #
          # Loop over qmaster error messages generated during test run.
          #
          set message $TIGHT_INTEGRATION_WARNING_MESSAGES("qmaster",$mode2,$i)
-         set mstart [ string last "|" $message ]
+         set mstart [string last "|" $message]
          incr mstart 1
          set skip_message 0
          #
          # We need to blank out qmaster messages that originate from fault injection.
          # There is one check per fault injections scenario.
          #
-         if { ( $scenario == "reschedule_test" || \
-                $scenario == "slave_killed" || \
-                $scenario == "wallclock_test" || \
-                $scenario == "master_killed" ) &&  \
-              ( [ string match "*rescheduling because*" $message ] == 1 || \
-                [ string match "*rescheduling job*" $message ] == 1 || \
-                [ string match "*died through signal KILL*" $message ] == 1 ) } {
+         if {($scenario == "reschedule_test" || \
+              $scenario == "slave_killed" || \
+              $scenario == "wallclock_test" || \
+              $scenario == "master_killed") && \
+              ([string match "*rescheduling because*" $message] == 1 || \
+               [string match "*rescheduling job*" $message] == 1 || \
+               [string match "*died through signal KILL*" $message] == 1)} {
             set skip_message 1
          }
          #
          # Write out any unexpected warning message and header, if required.
          #
-         if { $skip_message == 0 } {
-            if { $header_written == 0 } {
+         if {$skip_message == 0} {
+            if {$header_written == 0} {
                append error_text "tight integration check produced qmaster warning messages at dagored:\n"
                set header_written 1
             }
@@ -293,19 +291,19 @@ proc tight_integration_check_messages {mode1 mode2 scenario} {
             set mstart [string last "|" $message]
             incr mstart 1
             set skip_message 0
-            set poo [ string map {" " "_"} $message ]
+            set poo [string map {" " "_"} $message]
             #
             # We need to blank out execd messages that originate from fault injection.
             # There is one check per fault injections scenario.
             #
-            if { $scenario == "wallclock_test" && [ string match "*exceeded_hard_wallclock*" $poo ] } {
+            if {$scenario == "wallclock_test" && [string match "*exceeded_hard_wallclock*" $poo]} {
                set skip_message 1
             }
             #
             # Write out any unexpected error message and header, if required.
             #
-            if { $skip_message == 0 } {
-               if { $header_written == 0 } {
+            if {$skip_message == 0} {
+               if {$header_written == 0} {
                   puts $CHECK_OUTPUT "tight integration check produced execd warning messages at $execd:"
                   append error_text "tight integration check produced execd warning messages at $execd:\n"
                   set header_written 1
@@ -328,7 +326,7 @@ proc tight_integration_init_messages_check {} {
    tight_integration_parse_execd_messages startup
 }
 
-proc tight_integration_messages_check { scenario } {
+proc tight_integration_messages_check {scenario} {
    global CHECK_OUTPUT
 
    get_config global_config
@@ -357,13 +355,6 @@ proc tight_integration_setup {} {
    set tight_master_node $ts_config(master_host)
    set tight_masterq [get_queue_instance "tight.q" $tight_master_node]
 
-   # shutdown and restart an execd
-   # JG: Why?
-if {0} {
-   set execd_host [ lindex $ts_config(execd_nodes) 0 ]
-   shutdown_system_daemon $execd_host execd
-   startup_execd $execd_host
-}
    # create parallel environment
    set pe(pe_name)            tight
    set pe(slots)              1000
@@ -685,10 +676,7 @@ proc tight_integration_iz_1916 {} {
 
    # reschedule job
    puts $CHECK_OUTPUT "sending qmod -rj to job $jobid"   
-   
-   set arch [resolve_arch $ts_config(master_host)]
-   set qmod "$ts_config(product_root)/bin/$arch/qmod"
-   set result [start_remote_prog $ts_config(master_host) $CHECK_USER $qmod "-rj $jobid"]
+   set result [start_sge_bin "qmod" "-rj $jobid"]
    
    #  puts $CHECK_OUTPUT $output
    puts $CHECK_OUTPUT "qmod returns $result"
@@ -884,8 +872,7 @@ proc tight_integration_slave_killed {} {
 
    set failures ""
    set ok_text ""
-   while { [llength $hosts_to_check] > 0 } {
-
+   while {[llength $hosts_to_check] > 0} {
       set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
       set started 0
@@ -907,11 +894,11 @@ proc tight_integration_slave_killed {} {
          # wait for job to be running
          wait_for_job_state $jobid "r" 120
 
-         for {set i 0 } {$i < [llength $ts_config(execd_nodes) ]} {incr i 1} {
+         for {set i 0} {$i < [llength $ts_config(execd_nodes)]} {incr i 1} {
             puts $CHECK_OUTPUT "task host $i: $info($i,host)"
             puts $CHECK_OUTPUT "             pid: $info($i,pid)"
             set resolved_host [resolve_host $info($i,host)]
-            if { [string compare [lindex $hosts_to_check 0] $resolved_host] == 0 } {
+            if {[string compare [lindex $hosts_to_check 0] $resolved_host] == 0} {
                set kill_task_nr $i
                puts $CHECK_OUTPUT "killing task $i this time (host=$resolved_host)!"
                set hosts_to_check [lrange $hosts_to_check 1 end]
@@ -934,7 +921,7 @@ proc tight_integration_slave_killed {} {
       set sp_id [lindex $id 1]
       close_spawn_process $id
 
-      if { $success == 0 } {
+      if {$success == 0} {
          append failures "failed slave task does not cause the job to be deleted when task was killed on host $info($kill_task_nr,host)\n"
          delete_job $jobid
       } else {
@@ -942,7 +929,7 @@ proc tight_integration_slave_killed {} {
       }
       wait_for_jobend $jobid tightf 60 0 1
    }
-   if { $failures != "" } {
+   if {$failures != ""} {
       add_proc_error "tight_integration_slave_killed" -1 "failures:\n$failures\ntest was ok for:\n$ok_text"
    }
    #

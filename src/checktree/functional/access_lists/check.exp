@@ -109,17 +109,17 @@ proc access_lists_setup  {} {
    }
 
    # we'll use this execd as test host
-   set access_lists_host  [lindex $ts_config(execd_nodes) 0]
+   set access_lists_host [host_conf_get_suited_hosts]
 
    puts $CHECK_OUTPUT "using queue $access_lists_queue"
    puts $CHECK_OUTPUT "using host $access_lists_host"
 
    #saving original configurations
-   get_schedd_config                      access_lists_schedd_conf
+   get_schedd_config access_lists_schedd_conf
 
    set my_schedd_config(schedule_interval)       "0:0:01"
-   if { [ string compare $ts_config(product_type) sgeee] == 0 } {
-      if { $ts_config(gridengine_version) == 53 } {
+   if {[string compare $ts_config(product_type) sgeee] == 0} {
+      if {$ts_config(gridengine_version) == 53} {
          set my_schedd_config(sgeee_schedule_interval) "0:0:02"
       }
    }
@@ -132,49 +132,44 @@ proc access_lists_setup  {} {
    add_access_list "$CHECK_FIRST_FOREIGN_SYSTEM_USER"   userA_name
    add_access_list "$CHECK_SECOND_FOREIGN_SYSTEM_USER"  userB_name
 
- 
-
-   if { [is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1 } {
+   if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
       add_proc_error "access_lists_setup" -1 "scheduler is not alive"
    }
 
    set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15"  
-   set id [ submit_job $jobargs ]
+   set id [submit_job $jobargs]
    wait_for_jobstart $id "leeper" 60 1 1
    wait_for_jobend $id "leeper" 60 0
 
-   if { [string first "unknown" $CHECK_GROUP] >= 0 } {
+   if {[string first "unknown" $CHECK_GROUP] >= 0} {
       add_proc_error "access_lists_setup" -1 "CHECK_GROUP set to unknown"
    }
 }
 
-proc test_job_run { id_string job_id } {
+proc test_job_run {id_string job_id} {
    global ts_config CHECK_OUTPUT CHECK_USER
 
    set had_error 0
 
    # we need to see the job either pending or already running
-   if { [wait_for_jobpending $job_id "leeper" 30 1] != 0 } {
+   if {[wait_for_jobpending $job_id "leeper" 30 1] != 0} {
       set had_error 1
    }
 
    # wait until the job is running, do a qconf -tsm before
-   if { [wait_for_jobstart $job_id "leeper" 120 1 1] != 0 } {
+   if {[wait_for_jobstart $job_id "leeper" 120 1 1] != 0} {
       set had_error 1
    }
 
-   if {  $had_error == 1 } {
-      set master_arch [resolve_arch $ts_config(master_host)]
-      set qstat_command "$ts_config(product_root)/bin/$master_arch/qstat"
-      set catch_result [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_command "-f"]
-      puts $CHECK_OUTPUT $catch_result
-      add_proc_error "test_job_run" -1 "$id_string, job $job_id should be dispatched:\n$catch_result"
+   if {$had_error == 1} {
+      set output [start_sge_bin "qstat" "-f"]
+      add_proc_error "test_job_run" -1 "$id_string, job $job_id should be dispatched:\n$output"
    } 
 
    delete_job $job_id 1 1
 }
 
-proc run_user_denied_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
+proc run_user_denied_jobs {id_string jobargs A_ok B_ok {C_ok "-1" }} {
    global CHECK_OUTPUT access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global access_lists_queue ts_config
@@ -184,91 +179,90 @@ proc run_user_denied_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
    puts $CHECK_OUTPUT "jobargs are: $jobargs"
    puts $CHECK_OUTPUT "======================="
 
-
    sleep 2
-   set job_id_A [ submit_job $jobargs 0 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER  ]
-   if { $A_ok == 1 } {
+   set job_id_A [submit_job $jobargs 0 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if {$A_ok == 1} {
       test_job_run "$id_string (A)" $job_id_A
    }
-   set job_id_B [ submit_job $jobargs 0 30 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER ]
-   if { $B_ok == 1 } {
+   set job_id_B [submit_job $jobargs 0 30 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER]
+   if {$B_ok == 1} {
       test_job_run "$id_string (B)" $job_id_B
    }
 
-   if { $C_ok != -1 } {
-      set job_id_C [ submit_job $jobargs 0 30 "" $CHECK_USER ]
-      if { $C_ok == 1 } {
+   if {$C_ok != -1} {
+      set job_id_C [submit_job $jobargs 0 30 "" $CHECK_USER]
+      if {$C_ok == 1} {
          test_job_run "$id_string (C)" $job_id_C
       } else {
-         if { $job_id_C != -11 } {
+         if {$job_id_C != -11} {
             add_proc_error "run_user_denied_jobs" "-1" "$id_string, job $job_id_C (C) should not run"
          } 
       }
    }
 
-   if { $A_ok == 0 } {
-      if { $job_id_A != -11 } {
+   if {$A_ok == 0} {
+      if {$job_id_A != -11} {
          add_proc_error "run_user_denied_jobs" "-1" "$id_string, job $job_id_A (A) should not run"
       }
    }
  
-   if { $B_ok == 0 } {
-      if { $job_id_B != -11 } {
+   if {$B_ok == 0} {
+      if {$job_id_B != -11} {
          add_proc_error "run_user_denied_jobs" "-1" "$id_string, job $job_id_B (B) should not run"
       }
    }
 }
 
-proc check_user_job_info { job_id } {
+proc check_user_job_info {job_id} {
    global CHECK_OUTPUT CHECK_L10N
    global ts_config
 
    set had_error 0
 
    # was the submit successfull?
-   if { [wait_for_jobpending $job_id "leeper" 30 1] != 0 } {
+   if {[wait_for_jobpending $job_id "leeper" 30 1] != 0} {
       add_proc_error "check_user_job_info" "-1" "no pending job $job_id"
       set had_error 1
    }
 
    # the job shall not start - do a qconf -tsm and wait 10 secs
-   if { [wait_for_jobstart $job_id "leeper" 10 0 1] == 0 } {
+   if {[wait_for_jobstart $job_id "leeper" 10 0 1] == 0} {
       add_proc_error "check_user_job_info" "-1" "job $job_id shouldn't have started"
       set had_error 1
    }
 
-   if {  $had_error == 0 } {
+   if {$had_error == 0} {
       # if job is pending as expected, analyze scheduling info
       set scheduling_info_text [get_scheduling_info $job_id]
 
-      if { $CHECK_L10N == 1 } {
-         set  HASNOPERMISSION [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_HASNOPERMISSION_SS] "*" "*" ]
-         set  NOACCESSTOPE1   [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOACCESSTOPE] ]
-         set  NOACCESSTOPE2   [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOACCESSTOPE_S] "*" ]
+      if {$CHECK_L10N == 1} {
+         set HASNOPERMISSION [translate_macro MSG_SCHEDD_INFO_HASNOPERMISSION_SS "*" "*" ]
+         set NOACCESSTOPE1   [translate_macro MSG_SCHEDD_INFO_NOACCESSTOPE]
+         set NOACCESSTOPE2   [translate_macro MSG_SCHEDD_INFO_NOACCESSTOPE_S "*" ]
 
 
-         set match1 [string match "*$HASNOPERMISSION*" $scheduling_info_text ]
-         set match2 [string match "*$NOACCESSTOPE1*"   $scheduling_info_text ]
-         set match3 [string match "*$NOACCESSTOPE2*"   $scheduling_info_text ]
+         set match1 [string match "*$HASNOPERMISSION*" $scheduling_info_text]
+         set match2 [string match "*$NOACCESSTOPE1*"   $scheduling_info_text]
+         set match3 [string match "*$NOACCESSTOPE2*"   $scheduling_info_text]
 
          puts $CHECK_OUTPUT $match1
          puts $CHECK_OUTPUT $match2
          puts $CHECK_OUTPUT $match2
 
-         if { $match1 != 1 && $match2 != 1 && $match3 != 1 } {
+         if {$match1 != 1 && $match2 != 1 && $match3 != 1} {
             set had_error 1
          }
-     } else {
-        if { [string first "no permission" $scheduling_info_text ] < 0 && [string first "no access" $scheduling_info_text ] < 0 } {
-           set had_error 1
-        }
-     }
-  }
+      } else {
+         if {[string first "no permission" $scheduling_info_text] < 0 && [string first "no access" $scheduling_info_text] < 0} {
+            set had_error 1
+         }
+      }
+   }
 
-  return $had_error
+   return $had_error
 }
 
-proc run_user_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
+proc run_user_jobs {id_string jobargs A_ok B_ok {C_ok "-1"}} {
    global ts_config CHECK_OUTPUT access_lists_host CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER   
    global access_lists_queue
@@ -276,22 +270,22 @@ proc run_user_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
    puts $CHECK_OUTPUT "id_string is $id_string"
    puts $CHECK_OUTPUT "jobargs are: $jobargs"
    sleep 2
-   set job_id_A [ submit_job $jobargs 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER  ]
-   if { $A_ok == 1 } {
+   set job_id_A [submit_job $jobargs 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+   if {$A_ok == 1} {
       test_job_run "$id_string (A)" $job_id_A
    }
 
-   set job_id_B [ submit_job $jobargs 1 30 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER ]
-   if { $B_ok == 1 } {
+   set job_id_B [submit_job $jobargs 1 30 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER]
+   if {$B_ok == 1} {
       test_job_run "$id_string (B)" $job_id_B
    }
 
-   if { $C_ok != -1 } {
-      set job_id_C [ submit_job $jobargs 1 30 "" $CHECK_USER ]
-      if { $C_ok == 1 } {
+   if {$C_ok != -1} {
+      set job_id_C [submit_job $jobargs 1 30 "" $CHECK_USER]
+      if {$C_ok == 1} {
          test_job_run "$id_string (C)" $job_id_C
       } else {
-         if { [check_user_job_info $job_id_C] == 1 } {
+         if {[check_user_job_info $job_id_C] == 1} {
             add_proc_error "run_user_jobs" "-1" "$id_string, job $job_id_C (C) should not run"
          }
          wait_for_jobpending $job_id_C "leeper" 30
@@ -299,16 +293,16 @@ proc run_user_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
       }
    }
 
-   if { $A_ok == 0 } {
-      if { [check_user_job_info $job_id_A] == 1 } {
+   if {$A_ok == 0} {
+      if {[check_user_job_info $job_id_A] == 1} {
          add_proc_error "run_user_jobs" "-1" "$id_string, job $job_id_A (A) should not run"
       }
       wait_for_jobpending $job_id_A "leeper" 30
       delete_job $job_id_A 1 1
    }
  
-   if { $B_ok == 0 } {
-      if { [check_user_job_info $job_id_B] == 1 } {
+   if {$B_ok == 0} {
+      if {[check_user_job_info $job_id_B] == 1} {
          add_proc_error "run_user_jobs" "-1" "$id_string, job $job_id_B (B) should not run"
       }
       wait_for_jobpending $job_id_B "leeper" 30
@@ -322,7 +316,7 @@ proc run_user_jobs { id_string jobargs A_ok B_ok { C_ok "-1" } } {
       lappend job_ids $job_id_C
    }
    foreach job_id $job_ids {
-      while { [get_qstat_j_info $job_id ] != 0 } {
+      while {[get_qstat_j_info $job_id] != 0} {
          puts $CHECK_OUTPUT "waiting for job $job_id to leave qmaster"
          after 2000
       }
@@ -338,7 +332,6 @@ proc access_lists_global_host {} {
 
    set submit_queue [get_queue_instance $access_lists_queue $access_lists_host]
    set jobargs "-o /dev/null -e /dev/null -q $submit_queue $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 
-
 
    # testing user and group
    set access_lists "{userA_name userB_name 0} {userA_group userB_group 1}"
@@ -383,14 +376,14 @@ proc access_lists_global_host {} {
       set my_global_host(xuser_lists) "$A_USER $B_USER"
       set my_global_host(user_lists)  "NONE"
       set_exechost my_global_host "global"
-      if { $group_test == 1 } {
+      if {$group_test == 1} {
          puts $CHECK_OUTPUT "group_test=1"
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
          puts $CHECK_OUTPUT "check_group = $CHECK_GROUP"
          puts $CHECK_OUTPUT "group1 = $group1"
          puts $CHECK_OUTPUT "group2 = $CHECK_SECOND_FOREIGN_SYSTEM_GROUP"
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 0
          } else {
             set C_run 1
@@ -405,10 +398,10 @@ proc access_lists_global_host {} {
       set my_global_host(xuser_lists) "NONE"
       set my_global_host(user_lists)  "$A_USER $B_USER"
       set_exechost my_global_host "global"
-      if { $group_test == 1 } {
-         set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+      if {$group_test == 1} {
+         set group1 [lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0]
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 1
          } else {
             set C_run 0
@@ -506,10 +499,10 @@ proc access_lists_exec_host {} {
       set my_exec_host(xuser_lists) "$A_USER $B_USER"
       set my_exec_host(user_lists)  "NONE"
       set_exechost my_exec_host $access_lists_host
-      if { $group_test == 1 } {
-         set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+      if {$group_test == 1} {
+         set group1 [lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0]
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 0
          } else {
             set C_run 1
@@ -523,10 +516,10 @@ proc access_lists_exec_host {} {
       set my_exec_host(xuser_lists) "NONE"
       set my_exec_host(user_lists)  "$A_USER $B_USER"
       set_exechost my_exec_host $access_lists_host
-      if { $group_test == 1 } {
-         set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+      if {$group_test == 1} {
+         set group1 [lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0]
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 1
          } else {
             set C_run 0
@@ -542,11 +535,8 @@ proc access_lists_exec_host {} {
       set_exechost my_exec_host $access_lists_host
    }
 
-
    # test group/user combinations
    # userA_name userB_name userA_group userB_group
-
-
    set my_exec_host(xuser_lists) "userA_group"
    set my_exec_host(user_lists)  "userA_name"
    set_exechost my_exec_host $access_lists_host
@@ -626,10 +616,10 @@ proc access_lists_queue {} {
       set my_queue_conf(xuser_lists) "$A_USER $B_USER"
       set my_queue_conf(user_lists)  "NONE"
       mod_queue  $access_lists_queue $access_lists_host my_queue_conf
-      if { $group_test == 1 } {
-         set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+      if {$group_test == 1} {
+         set group1 [lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0]
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 0
          } else {
             set C_run 1
@@ -643,10 +633,10 @@ proc access_lists_queue {} {
       set my_queue_conf(xuser_lists) "NONE"
       set my_queue_conf(user_lists)  "$A_USER $B_USER"
       mod_queue  $access_lists_queue $access_lists_host my_queue_conf
-      if { $group_test == 1 } {
+      if {$group_test == 1} {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 1
          } else {
             set C_run 0
@@ -659,13 +649,11 @@ proc access_lists_queue {} {
       #restore
       set my_queue_conf(xuser_lists) "NONE"
       set my_queue_conf(user_lists)  "NONE"
-      mod_queue  $access_lists_queue $access_lists_host my_queue_conf
+      mod_queue $access_lists_queue $access_lists_host my_queue_conf
    }
-
 
    # test group/user combinations
    # userA_name userB_name userA_group userB_group
-
    set my_queue_conf(xuser_lists) "userA_group"
    set my_queue_conf(user_lists)  "userA_name"
    mod_queue  $access_lists_queue $access_lists_host my_queue_conf
@@ -744,10 +732,10 @@ proc access_lists_cluster_config {} {
       set my_cluster_conf(xuser_lists) "$A_USER $B_USER"
       set my_cluster_conf(user_lists)  "NONE"
       set_config my_cluster_conf "global"
-      if { $group_test == 1 } {
+      if {$group_test == 1} {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 0
          } else {
             set C_run 1
@@ -761,10 +749,10 @@ proc access_lists_cluster_config {} {
       set my_cluster_conf(xuser_lists) "NONE"
       set my_cluster_conf(user_lists)  "$A_USER $B_USER"
       set_config my_cluster_conf "global"
-      if { $group_test == 1 } {
+      if {$group_test == 1} {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 1
          } else {
             set C_run 0
@@ -880,10 +868,10 @@ proc access_lists_pe {} {
       set my_pe(xuser_lists) "$A_USER $B_USER"
       set my_pe(user_lists)  "NONE"
       set_pe "access_test_pe" my_pe
-      if { $group_test == 1 } {
+      if {$group_test == 1} {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 0
          } else {
             set C_run 1
@@ -899,10 +887,10 @@ proc access_lists_pe {} {
       set my_pe(xuser_lists) "NONE"
       set my_pe(user_lists)  "$A_USER $B_USER"
       set_pe "access_test_pe" my_pe
-      if { $group_test == 1 } {
+      if {$group_test == 1} {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
-         if { [string first $CHECK_GROUP $group1] >= 0 ||
-              [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0 } {
+         if {[string first $CHECK_GROUP $group1] >= 0 ||
+             [string first $CHECK_GROUP $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] >= 0} {
             set C_run 1
          } else {
             set C_run 0
@@ -943,12 +931,13 @@ proc access_lists_pe {} {
 }
 
 
-proc access_lists_cleanup  {} {
+proc access_lists_cleanup {} {
    global ts_config
    global access_lists_schedd_conf access_lists_queue
    global CHECK_OUTPUT
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
 
    set_schedd_config access_lists_schedd_conf
 

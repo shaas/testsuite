@@ -72,23 +72,19 @@ proc qalter_h {} {
    
    set option "-h n"
    set qalteroutput [start_sge_bin "qalter" "$option $hold_job_D $hold_job_U.1-4"]
-   set qalterresult $prg_exit_state
-   if {$qalterresult == 1} {
-      add_proc_error "qalter_h" -1 "qalter $option - $qalteroutput"
+   if {$prg_exit_state != 0} {
+      add_proc_error "qalter_h" -1 "qalter $option failed:\n$qalteroutput"
       return
    }
    
    #
    # Set a user hold as nonadmin user
    # 
-   
    set option       "-h u"
-   
    puts $CHECK_OUTPUT "set user hold as non admin user $nonadmin_user for job $nonadmin_hold_job"
-   set qalterresult [ start_sge_bin "qhold" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
-                     
-   if { $prg_exit_state != 0 } {
-      add_proc_error "qalter_h" -1 "qhold as non admin user failed($option)"
+   set qalterresult [start_sge_bin "qhold" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
+   if {$prg_exit_state != 0} {
+      add_proc_error "qalter_h" -1 "qhold $option as non admin user failed:\n$qalterresult"
       return
    }
    
@@ -96,11 +92,10 @@ proc qalter_h {} {
    # Remove a user hold as nonadmin user 
    #
    set option       "-h u"
-   
    puts $CHECK_OUTPUT "release user hold as non admin user $nonadmin_user for job $nonadmin_hold_job"
-   set qalterresult [ start_sge_bin "qrls" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
-   if { $prg_exit_state != 0 } {
-      add_proc_error "qalter_h" -1 "qrls as non admin user failed($option)"
+   set qalterresult [start_sge_bin "qrls" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
+   if {$prg_exit_state != 0} {
+      add_proc_error "qalter_h" -1 "qrls $option as non admin user failed:\n$qalterresult"
       return
    }
    
@@ -110,9 +105,9 @@ proc qalter_h {} {
    #
    set option       "-h o"
    puts $CHECK_OUTPUT "set operator hold as user $nonadmin_user for job $nonadmin_hold_job"
-   set qalterresult [ start_sge_bin "qhold" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
-   if { $prg_exit_state == 0 } {
-      add_proc_error "qalter_h" -1 "illegal set of operator hold as non admin user succeeded (qhold $option)"
+   set qalterresult [start_sge_bin "qhold" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
+   if {$prg_exit_state == 0} {
+      add_proc_error "qalter_h" -1 "illegal set of operator hold as non admin user succeeded (qhold $option):\n$qalterresult"
       return
    }
    
@@ -122,9 +117,9 @@ proc qalter_h {} {
    #
    set option       "-h s"
    puts $CHECK_OUTPUT "set system hold as non admin user $nonadmin_user for job $nonadmin_hold_job"
-   set qalterresult [ start_sge_bin "qhold" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
-   if { $prg_exit_state == 0 } {
-      add_proc_error "qalter_h" -1 "illegal set of system hold as non admin user succeeded (qhold $option)"
+   set qalterresult [start_sge_bin "qhold" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
+   if {$prg_exit_state == 0} {
+      add_proc_error "qalter_h" -1 "illegal set of system hold as non admin user succeeded (qhold $option):\n$qalterresult"
       return
    }
    
@@ -133,10 +128,9 @@ proc qalter_h {} {
    #
    set option       "-h s"
    puts $CHECK_OUTPUT "set system hold as admin user $CHECK_USER for job $nonadmin_hold_job"
-   set qalteroutput [ start_sge_bin "qhold" "$option $nonadmin_hold_job" ]
-   set qalterresult $prg_exit_state
-   if {$qalterresult == 1} {
-      add_proc_error "qalter_h" -1 "system hold as admin user failed ($option - $qalteroutput)"
+   set qalteroutput [start_sge_bin "qhold" "$option $nonadmin_hold_job"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "qalter_h" -1 "system hold as admin user failed (qhold $option):\n$qalteroutput"
       return
    }
 
@@ -158,10 +152,9 @@ proc qalter_h {} {
    #
    set option       "-h o"
    puts $CHECK_OUTPUT "set operator hold as admin user $CHECK_USER for job $nonadmin_hold_job"
-   set qalteroutput [ start_sge_bin "qhold" "$option $nonadmin_hold_job" ]
-   set qalterresult $prg_exit_state
-   if {$qalterresult == 1} {
-      add_proc_error "qalter_h" -1 "system hold as admin user failed ($option - $qalteroutput)"
+   set qalteroutput [start_sge_bin "qhold" "$option $nonadmin_hold_job"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "qalter_h" -1 "system hold as admin user failed (qhold $option):\n$qalteroutput"
       return
    }
    
@@ -171,9 +164,9 @@ proc qalter_h {} {
    #
    set option       "-h o"
    puts $CHECK_OUTPUT "release operator hold as non admin user $nonadmin_user for job $nonadmin_hold_job"
-   set qalterresult [ start_sge_bin "qrls" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
-   if { $prg_exit_state == 0 } {
-      add_proc_error "qalter_h" -1 "illegal remove of operator hold as non admin user succeeded (qhold $option)"
+   set qalterresult [start_sge_bin "qrls" "$option $nonadmin_hold_job" $ts_config(master_host) $nonadmin_user]
+   if {$prg_exit_state == 0} {
+      add_proc_error "qalter_h" -1 "illegal remove of operator hold as non admin user succeeded (qhold $option):\n$qalterresult"
       return
    }
 }
@@ -214,32 +207,23 @@ proc qalter_t {} {
    global hold_job_T
    global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
 
-   # TODO: move to .60 file
-   if { $ts_config(gridengine_version) == 53 } {
-      add_proc_error "qalter_t" -3 "qalter -t not available for SGE(EE) 5.3"
-   } else {
-      set option "-h n"
-      set qalteroutput [ start_sge_bin "qalter" "$option $hold_job_T -t 1-4" ]
-      set qalterresult $prg_exit_state
-      if {$qalterresult == 1} {
-         add_proc_error "qalter_t" -1 "qalter $option - $qalteroutput"
-         return
-      }
+   set option "-h n"
+   set qalteroutput [start_sge_bin "qalter" "$option $hold_job_T -t 1-4"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "qalter_t" -1 "qalter $option failed:\n$qalteroutput"
+      return
+   }
 
-      # Test invalid uses
-      set qalteroutput [ start_sge_bin "qalter" "$option $hold_job_T -t 1-4 -t 1-4" ]
-      set qalterresult $prg_exit_state
-      if {$qalterresult == 0} {
-         add_proc_error "qalter_t" -1 "qalter $option - allowed invalid -t switch"
-         return
-      }
+   # Test invalid uses
+   set qalteroutput [start_sge_bin "qalter" "$option $hold_job_T -t 1-4 -t 1-4"]
+   if {$prg_exit_state == 0} {
+      add_proc_error "qalter_t" -1 "qalter $option - allowed invalid -t switch:\n$qalteroutput"
+      return
+   }
 
-      set qalteroutput [ start_sge_bin "qalter" "$option -t 1-4 $hold_job_T -t 1-4" ]
-      set qalterresult $prg_exit_state
-      if {$qalterresult == 0} {
-         add_proc_error "qalter_t" -1 "qalter $option - allowed invalid -t switch"
-         return
-      }
+   set qalteroutput [start_sge_bin "qalter" "$option -t 1-4 $hold_job_T -t 1-4"]
+   if {$prg_exit_state == 0} {
+      add_proc_error "qalter_t" -1 "qalter $option - allowed invalid -t switch\n$qalteroutput"
+      return
    }
 }
-

@@ -560,11 +560,6 @@ proc check_start_time {} {
 
    set jobargs "-a $start -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 10" 
 
-   set seconds [exec date "+%S"]
-   if { [string first "0" $seconds] == 0 } {
-      set seconds [string index $seconds 1 ]
-   }     
-
    set ok 1
 
    # submit job

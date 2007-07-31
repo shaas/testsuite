@@ -63,8 +63,10 @@ lappend check_functions "clean_up_checkpoint_job"
 global ts_config checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_pe_name migration_ckpt_name
 global checkpoint_job_id 
 
-set checkpoint_host1 [lindex $ts_config(execd_nodes) 0] 
-set checkpoint_host2 [lindex $ts_config(execd_nodes) 1]
+
+set checkpoint_hosts [host_conf_get_suited_hosts 2]
+set checkpoint_host1 [lindex $checkpoint_hosts 0]
+set checkpoint_host2 [lindex $checkpoint_hosts 1]
 set q1 "ckpt_mig-1"
 set q2 "ckpt_mig-2"
 set q3 "ckpt_mig-3"
@@ -76,12 +78,13 @@ set checkpoint_job_id -1
 proc migration_init_level {} {
    global CHECK_ACT_LEVEL
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { 
-           return 0    
-     } 
-  } 
-  return -1  ;# no other level else
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level else
 }
 
 proc migration_setup {} {
@@ -127,26 +130,25 @@ proc threshold_suspend_queue_clear { queue_list } {
 proc start_checkpoint_job {} {
    global CHECK_ACTUAL_TEST_PATH checkpoint_job_id CHECK_OUTPUT
    
-   if { [check_test_dependencies] != 0 } {
-     return
-  }
-
+   if {[check_test_dependencies] != 0} {
+      return
+   }
 
    # delete migratewascalled - file
    file delete $CHECK_ACTUAL_TEST_PATH/migratewascalled
 
    set jobargs "-pe ckpt_mig_pe 2 -cwd -ckpt ckpt_mig_ckptobj checkpt_job.sh"
-   set result [ submit_job $jobargs 1 30 "" "" $CHECK_ACTUAL_TEST_PATH ]
+   set result [submit_job $jobargs 1 30 "" "" $CHECK_ACTUAL_TEST_PATH]
    set checkpoint_job_id $result 
-   set result [ wait_for_jobstart $checkpoint_job_id "DEMO" 300]
+   set result [wait_for_jobstart $checkpoint_job_id "DEMO" 300]
 }
 
 proc check_slave_migration {} {
    global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
    global all_queue_list
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
    # wait for job to start running
@@ -208,8 +210,8 @@ proc check_calendardisable_migration_on_slavequeue_suspend {} {
    global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH q1 q2
    global all_queue_list ckpt_queue_list
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
    # wait for job to start running
@@ -272,8 +274,8 @@ proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
    global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH q1 q2
    global all_queue_list ckpt_queue_list
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
    # wait for job to start running
@@ -340,11 +342,11 @@ proc check_master_migration {} {
    global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
    global all_queue_list
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
-    # wait for job to start running
+   # wait for job to start running
    wait_for_end_of_transfer $checkpoint_job_id 100
 
    # find out where the master task is running
@@ -354,7 +356,6 @@ proc check_master_migration {} {
    suspend_queue $master_queue
 
    # wait for migration command
-
    wait_for_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled" 300
 
    # check if job is now pending
@@ -404,8 +405,8 @@ proc check_calendarsuspend_master_migration {} {
    global checkpoint_job_id CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT
    global all_queue_list
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
    # wait for job to start running
@@ -467,8 +468,8 @@ proc check_calendarsuspend_slave_migration {} {
    global checkpoint_job_id CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT
    global all_queue_list
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
    # wait for job to start running
@@ -492,8 +493,6 @@ proc check_calendarsuspend_slave_migration {} {
 
    # now calendar un-suspend the slave queue
    mqattr "calendar" "NONE" $slave_queue
-   #set queue_param(calendar)                  "NONE" 
-   #set_queue $slave_queue "" queue_param
 
    # wait for restart  
    wait_for_jobstart $checkpoint_job_id "DEMO" 300
@@ -533,12 +532,12 @@ proc check_calendarsuspend_slave_migration {} {
 proc clean_up_checkpoint_job {} {
    global checkpoint_job_id CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
 
-   if { $checkpoint_job_id < 0 } {
+   if {$checkpoint_job_id < 0} {
       add_proc_error "clean_up_checkpoint_job" -1 "no checkpoint job started" 
       return
    }
@@ -547,14 +546,14 @@ proc clean_up_checkpoint_job {} {
    wait_for_end_of_transfer $checkpoint_job_id 60
    sleep 2
 
-   set result [ delete_job $checkpoint_job_id 1]
+   set result [delete_job $checkpoint_job_id 1]
    
-   if { $result != 0 } {
+   if {$result != 0} {
       add_proc_error "clean_up_checkpoint_job" -1 "could not delete job $checkpoint_job_id" 
       return
    }
 
-   set files [ glob -nocomplain $CHECK_ACTUAL_TEST_PATH/DEMO.* ] 
+   set files [glob -nocomplain $CHECK_ACTUAL_TEST_PATH/DEMO.*] 
   
    foreach elem $files { 
       delete_file $elem
@@ -591,28 +590,28 @@ proc clean_up_checkpoint_job {} {
 #     ???/???
 #*******************************
 proc setup_checkpointing {} {
-  global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_ckpt_name CHECK_ACTUAL_TEST_PATH
-  global ckpt_queue_list
+   global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_ckpt_name CHECK_ACTUAL_TEST_PATH
+   global ckpt_queue_list
 
-  if { [check_test_dependencies] != 0 } {
-     return
-  }
+   if {[check_test_dependencies] != 0} {
+      return
+   }
 
-  set ckpt_param(ckpt_name)         "$migration_ckpt_name"
-  set ckpt_param(interface)         "CPR"
-  set ckpt_param(ckpt_command)      "none"
-  set ckpt_param(migr_command)      "$CHECK_ACTUAL_TEST_PATH/migrate.sh"
-  set ckpt_param(restart_command)   "none"
-  set ckpt_param(clean_command)     "none"
-  set ckpt_param(ckpt_dir)          "/tmp"
-  set ckpt_param(signal)            "none"
-  set ckpt_param(when)              "sx"
+   set ckpt_param(ckpt_name)         "$migration_ckpt_name"
+   set ckpt_param(interface)         "CPR"
+   set ckpt_param(ckpt_command)      "none"
+   set ckpt_param(migr_command)      "$CHECK_ACTUAL_TEST_PATH/migrate.sh"
+   set ckpt_param(restart_command)   "none"
+   set ckpt_param(clean_command)     "none"
+   set ckpt_param(ckpt_dir)          "/tmp"
+   set ckpt_param(signal)            "none"
+   set ckpt_param(when)              "sx"
 
-  set result [ add_checkpointobj "ckpt_param" ]
-  if { $result != 0 } {
-     add_proc_error "setup_checkpointing" -1 "could not add checkpoint ENV $migration_ckpt_name (result of add_checkpointobj: $result)"
-     return
-  }
+   set result [add_checkpointobj "ckpt_param"]
+   if {$result != 0} {
+      add_proc_error "setup_checkpointing" -1 "could not add checkpoint ENV $migration_ckpt_name (result of add_checkpointobj: $result)"
+      return
+   }
  
    assign_queues_with_ckpt_object $q1 $checkpoint_host1 $migration_ckpt_name
    assign_queues_with_ckpt_object $q2 $checkpoint_host2 $migration_ckpt_name
@@ -651,24 +650,24 @@ proc setup_checkpointing {} {
 #     ???/???
 #*******************************
 proc clean_up_checkpointing {} {
-  global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_ckpt_name
+   global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_ckpt_name
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
-  set not_deleted ""
-  set error 0
+   set not_deleted ""
+   set error 0
 
-  set result [del_checkpointobj $migration_ckpt_name]
-  if { $result != 0 } {
-    set not_deleted "$not_deleted $result"
-    incr error 1
-  }
+   set result [del_checkpointobj $migration_ckpt_name]
+   if {$result != 0} {
+      set not_deleted "$not_deleted $result"
+      incr error 1
+   }
 
-  if { $error != 0 } {
-     add_proc_error "clean_up_checkpointing" -1 "could not delete pe(s) $not_deleted"
-  }
+   if {$error != 0} {
+      add_proc_error "clean_up_checkpointing" -1 "could not delete pe(s) $not_deleted"
+   }
 }
 
 
@@ -687,9 +686,10 @@ proc check_test_dependencies { } {
    global ts_config
 
    if {[llength $ts_config(execd_nodes)] < 2} {
-     add_proc_error "check_test_dependencies" -3 "need 2 execution daemons"
-     return 1
+      add_proc_error "check_test_dependencies" -3 "need 2 execution daemons"
+      return 1
    }
+
    return 0
 }
 
@@ -725,14 +725,11 @@ proc check_test_dependencies { } {
 proc setup_pe {} {
   global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_pe_name
   
-  if { [check_test_dependencies] != 0 } {
+  if {[check_test_dependencies] != 0} {
      return
   }
 
-  
-
   set pe_param(pe_name)           "$migration_pe_name"
-#  set pe_param(queue_list)        "$q1 $q2"
   set pe_param(slots)             "2"
   set pe_param(user_lists)        "NONE"
   set pe_param(xuser_lists)       "NONE"
@@ -742,8 +739,8 @@ proc setup_pe {} {
   set pe_param(control_slaves)    "FALSE"
   set pe_param(job_is_first_task) "TRUE"
 
-  set result [ add_pe pe_param ]
-  if { $result != 0 } {
+  set result [add_pe pe_param]
+  if {$result != 0} {
      add_proc_error "setup_pe" -1 "could not add PE $migration_pe_name (result of add_pe: $result)"
      return
   }
@@ -785,22 +782,22 @@ proc setup_pe {} {
 proc clean_up_pe {} {
   global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_pe_name
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
-  set not_deleted ""
-  set error 0
+   set not_deleted ""
+   set error 0
 
-  set result [ del_pe $migration_pe_name ] 
-  if { $result != 0 } {
-    set not_deleted "$not_deleted $result"
-    incr error 1
-  }
+   set result [del_pe $migration_pe_name] 
+   if {$result != 0} {
+      set not_deleted "$not_deleted $result"
+      incr error 1
+   }
 
-  if { $error != 0 } {
-     add_proc_error "clean_up_pe" -1 "could not delete pe(s) $not_deleted"
-  }
+   if {$error != 0} {
+      add_proc_error "clean_up_pe" -1 "could not delete pe(s) $not_deleted"
+   }
 }
 
 #                                                             max. column:     |
@@ -836,7 +833,7 @@ proc setup_queues {} {
   global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4
   global all_queue_list
 
-  if { [check_test_dependencies] != 0 } {
+  if {[check_test_dependencies] != 0} {
      return
   }
 
@@ -852,30 +849,30 @@ proc setup_queues {} {
   set q_param(suspend_interval)      "00:00:30"
   
   lappend all_queue_list [get_queue_instance $q1 $checkpoint_host1]
-  set result [ add_queue $q1 $checkpoint_host1 q_param ]
-  if { ($result != 0)  } {
+  set result [add_queue $q1 $checkpoint_host1 q_param]
+  if {$result != 0} {
      add_proc_error "setup_queues" -1 "could not add queue $q1"
      return
   }
 
   lappend all_queue_list [get_queue_instance $q3 $checkpoint_host1]
-  set result [ add_queue $q3 $checkpoint_host1 q_param ]
-  if { $result != 0  } {
+  set result [add_queue $q3 $checkpoint_host1 q_param]
+  if {$result != 0} {
      add_proc_error "setup_queues" -1 "could not add queue $q3"
      return
   }
 
   # queues on host 2
   lappend all_queue_list [get_queue_instance $q2 $checkpoint_host2]
-  set result [ add_queue $q2 $checkpoint_host2 q_param ]
-  if { $result != 0  } {
+  set result [add_queue $q2 $checkpoint_host2 q_param]
+  if {$result != 0} {
      add_proc_error "setup_queues" -1 "could not add queue $q2"
      return
   }
   
   lappend all_queue_list [get_queue_instance $q4 $checkpoint_host2]
-  set result [ add_queue $q4 $checkpoint_host2 q_param ]
-  if { $result != 0  } {
+  set result [add_queue $q4 $checkpoint_host2 q_param]
+  if {$result != 0} {
      add_proc_error "setup_queues" -1 "could not add queue $q4"
      return
   } 
@@ -913,35 +910,35 @@ proc setup_queues {} {
 proc clean_up_queues {} {
   global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4
 
-   if { [check_test_dependencies] != 0 } {
-     return
+   if {[check_test_dependencies] != 0} {
+      return
    }
 
-  set not_deleted ""
-  set error 0
+   set not_deleted ""
+   set error 0
 
-  set result [ del_queue $q1 $checkpoint_host1 0 1] 
-  if { $result != 0 } {
-    set not_deleted "$not_deleted $result"
-    incr error 1
-  }
-  set result [ del_queue $q2 $checkpoint_host2 0 1] 
-  if { $result != 0 } {
-    set not_deleted "$not_deleted $result"
-    incr error 1
-  }
-  set result [ del_queue $q3 $checkpoint_host1 0 1] 
-  if { $result != 0 } {
-    set not_deleted "$not_deleted $result"
-    incr error 1
-  }
-  set result [ del_queue $q4 $checkpoint_host2 0 1] 
-  if { $result != 0 } {
-    set not_deleted "$not_deleted $result"
-    incr error 1
-  }
+   set result [del_queue $q1 $checkpoint_host1 0 1] 
+   if {$result != 0} {
+      set not_deleted "$not_deleted $result"
+      incr error 1
+   }
+   set result [del_queue $q2 $checkpoint_host2 0 1] 
+   if {$result != 0} {
+      set not_deleted "$not_deleted $result"
+      incr error 1
+   }
+   set result [del_queue $q3 $checkpoint_host1 0 1] 
+   if {$result != 0} {
+      set not_deleted "$not_deleted $result"
+      incr error 1
+   }
+   set result [del_queue $q4 $checkpoint_host2 0 1] 
+   if {$result != 0} {
+      set not_deleted "$not_deleted $result"
+      incr error 1
+   }
 
-  if { $error != 0 } {
-     add_proc_error "clean_up_queues" -1 "could not delete queue(s) $not_deleted"
-  }
+   if {$error != 0} {
+      add_proc_error "clean_up_queues" -1 "could not delete queue(s) $not_deleted"
+   }
 }

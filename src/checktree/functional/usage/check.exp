@@ -89,9 +89,11 @@ set check_init_level_procedure "usage_init_level"
 # define test's name and run level descriptions
 set check_name            "usage"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   1
-set check_description(0)  "check reserved usage of jobs submitted with qsub"
-set check_description(1)  "check reserved usage of jobs submitted with qrsh"
+set check_highest_level   101
+set check_description(0)  "check reserved usage of jobs submitted with qsub (random host)"
+set check_description(1)  "check reserved usage of jobs submitted with qrsh (random host)"
+set check_description(100)  "check reserved usage of jobs submitted with qsub (all architectures)"
+set check_description(101)  "check reserved usage of jobs submitted with qrsh (all architectures)"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -99,7 +101,7 @@ set check_needs           "init_core_system"
 # setup and cleanup functions
 set check_setup_function "usage_setup"
 set check_cleanup_function "usage_cleanup"
-#set check_setup_level_function "usage_setup_level"
+set check_setup_level_function "usage_setup_level"
 #set check_cleanup_level_function "usage_cleanup_level"
 
 # define test's procedure order
@@ -112,25 +114,55 @@ lappend check_functions "usage_loose2"
 proc usage_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
-   global submit_command
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         set submit_command qsub
-         return 0    
-      } 
-      "1" {
-         set submit_command qrsh
+      "0" {
          return 0
       }
-   } 
+      "1" {
+         return 0
+      }
+      "100" {
+         return 0
+      }
+      "101" {
+         return 0
+      }
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
 # -------- local test procedures: initialization------------------------------
 
-proc usage_setup  {} {
+proc usage_setup_level {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_ACT_LEVEL
+   global submit_command usage_master_hosts
+
+   switch -exact $CHECK_ACT_LEVEL {
+      0 {
+         set submit_command "qsub"
+         set usage_master_hosts [host_conf_get_suited_hosts]
+      }
+      1 {
+         set submit_command "qrsh"
+         set usage_master_hosts [host_conf_get_suited_hosts]
+      }
+      100 {
+         set submit_command "qsub"
+         set usage_master_hosts $ts_config(unique_arch_nodes)
+      }
+      101 {
+         set submit_command "qrsh"
+         set usage_master_hosts $ts_config(unique_arch_nodes)
+      }
+   }
+
+   puts $CHECK_OUTPUT "testing $submit_command on host(s) $usage_master_hosts"
+}
+
+proc usage_setup {} {
    global ts_config
    global CHECK_OUTPUT
    global saved_config
@@ -139,7 +171,7 @@ proc usage_setup  {} {
    get_config saved_config
 
    # set scheduler flushing params
-   if { $ts_config(gridengine_version) == 53 } {
+   if {$ts_config(gridengine_version) == 53} {
       set new_config(schedd_params) "$saved_config(schedd_params) flush_submit_secs=0"
    } else {
       set my_schedd_conf(flush_submit_sec) "1"
@@ -150,7 +182,7 @@ proc usage_setup  {} {
    set new_config(load_report_time) "0:0:5"
    set new_config(execd_params) "$saved_config(execd_params) acct_reserved_usage=1 sharetree_reserved_usage=1"
    set_config new_config
-   after 15000
+   sleep 30
 
    # create parallel environments
    set pe(pe_name)            tight
@@ -162,17 +194,14 @@ proc usage_setup  {} {
    set pe(allocation_rule)    "\$round_robin"
    set pe(control_slaves)     TRUE
    set pe(job_is_first_task)  FALSE
-
    add_pe pe
 
    set pe(pe_name)            loose1
    set pe(control_slaves)     FALSE
-
    add_pe pe
 
    set pe(pe_name)            loose2
    set pe(job_is_first_task)  TRUE
-
    add_pe pe
 
    set queue_conf(load_thresholds) "np_load_avg=11"
@@ -184,7 +213,7 @@ proc usage_setup  {} {
    add_queue "usage.q" "@allhosts" queue_conf
 }
 
-proc usage_cleanup  {} {
+proc usage_cleanup {} {
    global ts_config
    global saved_config
 
@@ -198,7 +227,7 @@ proc usage_cleanup  {} {
       reset_schedd_config;
    }
    
-   after 15000
+   sleep 15
 
    del_queue usage.q "" 0 1
 
@@ -247,7 +276,7 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
       # individual line.
       -i $sp_id "?*\n" {
          #puts $CHECK_OUTPUT "entered default branch, data: $expect_out(0,string)"
-         foreach line [ string trim [split $expect_out(0,string) "\n"]] {
+         foreach line [string trim [split $expect_out(0,string) "\n"]] {
             set line [string trim $line]
             if {[string length $line] > 0} {
                #puts $CHECK_OUTPUT "processing line: $line"
@@ -301,7 +330,6 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
                      puts $CHECK_OUTPUT "got \"script done.\" from remote prog shell script"
                   }
 
-
                   default {
                      puts $CHECK_OUTPUT "skipping unexpected job output $line"
                   }
@@ -343,7 +371,7 @@ proc usage_job_finished {job_state} {
 
 
 proc usage_check {jobid qstat_j_info slots} {
-   global CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
 
    upvar $qstat_j_info online_info
 
@@ -351,6 +379,10 @@ proc usage_check {jobid qstat_j_info slots} {
    set online_mem $online_info(mem)
 
    # get accounting record
+   # on SGE >= 60, the accounting file is buffered - wait for all records being written
+   if {$ts_config(gridengine_version) >= 60} {
+      sleep 10
+   }
    get_qacct $jobid
    set acct_cpu $qacct_info(cpu)
    set acct_mem $qacct_info(mem)
@@ -470,11 +502,11 @@ proc usage_monitor_check {id test_name slots} {
 proc usage_single {} {
    global ts_config
    global CHECK_OUTPUT
-   global submit_command
+   global submit_command usage_master_hosts
    global master_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
-   foreach master_host $ts_config(unique_arch_nodes) {
+   foreach master_host $usage_master_hosts {
       puts $CHECK_OUTPUT "usage: single cpu job submitted with $submit_command to run on host $master_host"
 
       set queue [get_queue_instance "usage.q" $master_host]
@@ -487,7 +519,7 @@ proc usage_single {} {
 proc usage_tight {} {
    global ts_config
    global CHECK_OUTPUT
-   global submit_command
+   global submit_command usage_master_hosts
    global master_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
@@ -495,7 +527,7 @@ proc usage_tight {} {
    if {$ts_config(gridengine_version) == 53 && $ts_config(product_feature) == "csp"} {
       add_proc_error usage_tight -3 "tight integration is not available in SGE(EE) 5.3 with CSP enabled"
    } else {
-      foreach master_host $ts_config(unique_arch_nodes) {
+      foreach master_host $usage_master_hosts {
          puts $CHECK_OUTPUT "usage: tightly integrated parallel job submitted with $submit_command, master_host is $master_host"
 
          set queue [get_queue_instance "usage.q" $master_host]
@@ -509,11 +541,11 @@ proc usage_tight {} {
 proc usage_loose {pe expected_slots} {
    global ts_config
    global CHECK_OUTPUT
-   global submit_command
+   global submit_command usage_master_hosts
    global master_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
-   foreach master_host $ts_config(unique_arch_nodes) {
+   foreach master_host $usage_master_hosts {
       puts $CHECK_OUTPUT "usage: parallel job in pe $pe submitted with $submit_command, master_host is $master_host"
 
       set queue [get_queue_instance "usage.q" $master_host]

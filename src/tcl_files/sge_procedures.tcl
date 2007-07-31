@@ -5576,18 +5576,29 @@ proc get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_er
    upvar $variable qacctinfo
   
    # clear output variable
-   if { [info exists qacctinfo] } {
+   if {[info exists qacctinfo]} {
       unset qacctinfo
    }
 
-   set ret 0
-   set result [start_sge_bin "qacct" "-j $job_id" $on_host $as_user]
+   # beginning with SGE 6.0, writing the accounting file may be buffered
+   # accept getting errors for some seconds
+   set repeat 1
+   if {$ts_config(gridengine_version) >= 60} {
+      set repeat 10
+   }
+   while {$repeat > 0} {
+      set ret 0
+      set result [start_sge_bin "qacct" "-j $job_id" $on_host $as_user]
 
-   # parse output or raise error
-   if {$prg_exit_state == 0} {
-      parse_qacct result qacctinfo $job_id
-   } else {
-      set ret [get_qacct_error $result $job_id $raise_error]
+      # parse output or raise error
+      if {$prg_exit_state == 0} {
+         parse_qacct result qacctinfo $job_id
+         set repeat 0
+      } else {
+         set ret [get_qacct_error $result $job_id $raise_error]
+         incr repeat -1
+         sleep 1
+      }
    }
 
    return $ret

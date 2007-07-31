@@ -51,8 +51,9 @@ set check_category      "COMPATIBILITY SYSTEM L10N VERIFIED INSTALL"
 set check_description(0)   "install a default system (bdb_rpc/master/execution/shadow daemon on local host and start them up)"
 set check_needs         ""           ;# let the testsuite test run before this test to check evlt. errors before running
                                                         ;# all tests
-set install_mode        "$CHECK_TESTSUITE_INSTALL_MODE" ;# sets the install mode. allowed are: automatic and manual
+set install_mode        $CHECK_TESTSUITE_INSTALL_MODE ;# sets the install mode. allowed are: automatic and manual
 set check_functions     ""                              ;# functions to call (in order)
+
 if { $install_mode == "automatic" } {
    ts_source $CHECK_ACTUAL_TEST_PATH/automatic/bdb_rpc
    ts_source $CHECK_ACTUAL_TEST_PATH/automatic/qmaster
@@ -63,7 +64,8 @@ if { $install_mode == "automatic" } {
    ts_source $CHECK_ACTUAL_TEST_PATH/interactive/qmaster
    ts_source $CHECK_ACTUAL_TEST_PATH/interactive/execd
    ts_source $CHECK_ACTUAL_TEST_PATH/interactive/shadowd
-   }
+}
+
 lappend check_functions "kill_running_system"
 if { $install_mode == "automatic" } {
    lappend check_functions "create_autoinst_config"
@@ -181,7 +183,7 @@ proc read_install_list {} {
    global CORE_INSTALLED CORE_INSTALLED_TIME
    global CHECK_MAIN_RESULTS_DIR 
 
-   if { [file isfile "$CHECK_MAIN_RESULTS_DIR/cluster.$ts_config(master_host).inst"] == 1 } {
+   if {[file isfile "$CHECK_MAIN_RESULTS_DIR/cluster.$ts_config(master_host).inst"] == 1} {
       set myfile [open "$CHECK_MAIN_RESULTS_DIR/cluster.$ts_config(master_host).inst" "r"]
       gets $myfile CORE_INSTALLED
       close $myfile

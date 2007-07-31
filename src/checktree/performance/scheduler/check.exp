@@ -118,7 +118,7 @@ proc scheduler_setup {} {
       get_config stored_configuration
    
       set scheduler_queue_list ""
-      foreach host $ts_config(execd_hosts) {
+      foreach host $ts_config(execd_nodes) {
          # disable default queues
          disable_queue $host.q
          set queue(hostname) $host
@@ -182,7 +182,7 @@ proc scheduler_setup {} {
          for { set i 2 } { $i <= $scheduler_complex_count} { incr i 1} {
             append my_host_config(complex_values) ",complex_$i=20000"
          }
-         foreach host $ts_config(execd_hosts) {
+         foreach host $ts_config(execd_nodes) {
             set_exechost my_host_config $host
          }
       }
@@ -348,7 +348,6 @@ proc scheduler_measurement { repeat_count job_count } {
 
 
 proc scheduler_test_run {} {
-
    global CHECK_OUTPUT ts_config
    global scheduler_test_level CHECK_PROTOCOL_DIR check_name
 
@@ -655,7 +654,7 @@ proc scheduler_cleanup {} {
          del_queue $queue
       }
       puts $CHECK_OUTPUT "enable default queues ..."
-      foreach host $ts_config(execd_hosts) {
+      foreach host $ts_config(execd_nodes) {
          enable_queue $host.q
       }
 
@@ -663,7 +662,7 @@ proc scheduler_cleanup {} {
       if { [string match "host_complexes" $scheduler_test_level] } {
          puts $CHECK_OUTPUT "setting host_complexes to NONE"
          set my_host_config(complex_values) "NONE"
-         foreach host $ts_config(execd_hosts) {
+         foreach host $ts_config(execd_nodes) {
             set_exechost my_host_config $host
          }
 

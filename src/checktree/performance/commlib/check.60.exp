@@ -45,6 +45,7 @@ set check_needs               "init_core_system"      ;# dependencies of this ch
 set check_root_access_needs   "yes"
 
 # setup and cleanup functions
+set check_setup_function "cl_throughput_setup"
 set check_cleanup_function "cl_throughput_cleanup"
 
 # define test's procedure order
@@ -55,17 +56,14 @@ lappend check_functions       "cl_throughput_analyze"
 set check_highest_level       100
 
 proc commlib_perf_init_level {} {
-   global CHECK_ACT_LEVEL ts_config CHECK_PROTOCOL_DIR
-   global cl_throughput_prot_output_dir check_name
+   global CHECK_ACT_LEVEL
 
-    # setup levels 
+   # setup levels
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
-         set cl_throughput_prot_output_dir "$CHECK_PROTOCOL_DIR/$check_name/level_$CHECK_ACT_LEVEL"
+      "0" {
          return 0
       }
       "100" {
-         set cl_throughput_prot_output_dir "$CHECK_PROTOCOL_DIR/$check_name/level_$CHECK_ACT_LEVEL"
          return 0
       }
    }
@@ -73,7 +71,18 @@ proc commlib_perf_init_level {} {
    return -1
 }
 
+proc cl_throughput_setup {} {
+   global ts_config CHECK_ACT_LEVEL CHECK_PROTOCOL_DIR
+   global cl_throughput_prot_output_dir check_name
 
+   set cl_throughput_prot_output_dir "$CHECK_PROTOCOL_DIR/$check_name/level_$CHECK_ACT_LEVEL"
+}
+
+proc cl_throughput_cleanup {} {
+   global ts_config 
+
+   startup_core_system
+}
 
 proc cl_throughput_shutdown_sge {} {
    global ts_config cl_throughput_ge_version
@@ -82,7 +91,7 @@ proc cl_throughput_shutdown_sge {} {
    shutdown_core_system
 }
 
-proc cl_throughput_start_clients { host count user binary args} {
+proc cl_throughput_start_clients {host count user binary args} {
    global CHECK_OUTPUT ts_config
    upvar $args arguments
 
@@ -92,7 +101,7 @@ proc cl_throughput_start_clients { host count user binary args} {
    puts $CHECK_OUTPUT "$user is starting \"$start_script $script_arguments\""
    set retval [start_remote_prog $host $user $start_script $script_arguments prg_exit_state 120 0]
    puts $CHECK_OUTPUT $retval
-   if { [string match "*not found*" $retval ] } {
+   if {[string match "*not found*" $retval]} {
       add_proc_error "cl_throughput_start_clients" -1 "$retval"
    }
 
@@ -108,12 +117,12 @@ proc cl_throughput_start_clients { host count user binary args} {
 #   }
 }
 
-proc cl_throughput_parse_next { dline } {
+proc cl_throughput_parse_next {dline} {
    upvar $dline line
    set data ""
 
    set start [string first "|" $line]
-   if { $start >= 0 } {
+   if {$start >= 0} {
       incr start 1
       set line [string range $line $start end]
       set next [string first "|" $line]
@@ -124,7 +133,7 @@ proc cl_throughput_parse_next { dline } {
    return $data
 }
 
-proc cl_throughput_parse_result { ff evc gdi dresult darray} {
+proc cl_throughput_parse_result {ff evc gdi dresult darray} {
    global CHECK_OUTPUT cl_throughput_ge_version
    upvar $dresult result
    upvar $darray data
@@ -134,11 +143,11 @@ proc cl_throughput_parse_result { ff evc gdi dresult darray} {
    
    set help [split $result "\n"]
    set ai 0
-   for { set i 0 } { $i < [llength $help] } { incr i} {
+   for {set i 0} {$i < [llength $help]} {incr i} {
       set line [lindex $help $i]
       puts $CHECK_OUTPUT $line
       set next [cl_throughput_parse_next line]
-      if { $next != "" } {
+      if {$next != ""} {
          set data($ff,$evc,$gdi,$ai,time) $next
          set next [cl_throughput_parse_next line]
          set next [cl_throughput_parse_next line]
@@ -211,11 +220,10 @@ proc cl_throughput_parse_result { ff evc gdi dresult darray} {
       puts $CHECK_OUTPUT "error test test test:"
       add_proc_error "cl_throughput_parse_result" -1 "got not enough data lines"
    }
-
 }
 
 
-proc cl_throughput_plot_gdi { udata local dir} {
+proc cl_throughput_plot_gdi {udata local dir} {
    upvar $udata data
 
    set dc 0
@@ -235,16 +243,16 @@ proc cl_throughput_plot_gdi { udata local dir} {
    set xyr($p4,title)    "event rate"
 
    set nec $data(ne_start)
-   for { set ngc $data(ng_start) } { $ngc <= $data(ng_end) } { incr ngc $data(ng_step) } {
-      set last_row [expr ( $data(lines) - 1 ) ]
-      set xyr($p1,$dc,x)   $ngc
-      set xyr($p1,$dc,y)   $data($local,$nec,$ngc,$last_row,rcv_sec)
-      set xyr($p2,$dc,x)   $ngc
-      set xyr($p2,$dc,y)   $data($local,$nec,$ngc,$last_row,snd_sec)
-      set xyr($p3,$dc,x)   $ngc
-      set xyr($p3,$dc,y)   $data($local,$nec,$ngc,$last_row,ev_snd_sec)
-      set xyr($p4,$dc,x)   $ngc
-      set xyr($p4,$dc,y)   [expr ($data($local,$nec,$ngc,$last_row,evc_no) * 60)]
+   for {set ngc $data(ng_start)} {$ngc <= $data(ng_end)} {incr ngc $data(ng_step)} {
+      set last_row [expr $data(lines) - 1]
+      set xyr($p1,$dc,x) $ngc
+      set xyr($p1,$dc,y) $data($local,$nec,$ngc,$last_row,rcv_sec)
+      set xyr($p2,$dc,x) $ngc
+      set xyr($p2,$dc,y) $data($local,$nec,$ngc,$last_row,snd_sec)
+      set xyr($p3,$dc,x) $ngc
+      set xyr($p3,$dc,y) $data($local,$nec,$ngc,$last_row,ev_snd_sec)
+      set xyr($p4,$dc,x) $ngc
+      set xyr($p4,$dc,y) [expr $data($local,$nec,$ngc,$last_row,evc_no) * 60]
       incr dc 1
    }
 
@@ -259,7 +267,7 @@ proc cl_throughput_plot_gdi { udata local dir} {
    create_gnuplot_xy_gif plt_dat xyr
 }
 
-proc cl_throughput_plot_evc { udata local dir} {
+proc cl_throughput_plot_evc {udata local dir} {
    upvar $udata data
 
    set dc 0
@@ -279,16 +287,16 @@ proc cl_throughput_plot_evc { udata local dir} {
    set xyr($p4,title)    "event rate"
 
    set ngc $data(ng_start)
-   for { set nec $data(ne_start) } { $nec <= $data(ne_end) } { incr nec $data(ne_step) } {
-      set last_row [expr ( $data(lines) - 1 ) ]
-      set xyr($p1,$dc,x)   $nec
-      set xyr($p1,$dc,y)   $data($local,$nec,$ngc,$last_row,rcv_sec)
-      set xyr($p2,$dc,x)   $nec
-      set xyr($p2,$dc,y)   $data($local,$nec,$ngc,$last_row,snd_sec)
-      set xyr($p3,$dc,x)   $nec
-      set xyr($p3,$dc,y)   $data($local,$nec,$ngc,$last_row,ev_snd_sec)
-      set xyr($p4,$dc,x)   $nec
-      set xyr($p4,$dc,y)   [expr ($data($local,$nec,$ngc,$last_row,evc_no) * 60)]
+   for {set nec $data(ne_start)} {$nec <= $data(ne_end)} {incr nec $data(ne_step)} {
+      set last_row [expr $data(lines) - 1]
+      set xyr($p1,$dc,x) $nec
+      set xyr($p1,$dc,y) $data($local,$nec,$ngc,$last_row,rcv_sec)
+      set xyr($p2,$dc,x) $nec
+      set xyr($p2,$dc,y) $data($local,$nec,$ngc,$last_row,snd_sec)
+      set xyr($p3,$dc,x) $nec
+      set xyr($p3,$dc,y) $data($local,$nec,$ngc,$last_row,ev_snd_sec)
+      set xyr($p4,$dc,x) $nec
+      set xyr($p4,$dc,y) [expr $data($local,$nec,$ngc,$last_row,evc_no) * 60]
       incr dc 1
    }
 
@@ -303,7 +311,7 @@ proc cl_throughput_plot_evc { udata local dir} {
    create_gnuplot_xy_gif plt_dat xyr
 }
 
-proc cl_throughput_plot_test_history { udata index local dir} {
+proc cl_throughput_plot_test_history {udata index local dir} {
    global CHECK_OUTPUT
    upvar $udata history
 
@@ -335,11 +343,8 @@ proc cl_throughput_plot_test_history { udata index local dir} {
    set xy_rows($pos8,title)    "avg. sent gdi request (1 gdi / host )"
    set xy_rows($pos9,drawmode) "linespoints"
    set xy_rows($pos9,title)    "avg. events sent (1 gdi / host )"
-
-
-   
  
-   for { set dr 0 } { $dr < $index } { incr dr 1 } {
+   for {set dr 0} {$dr < $index} {incr dr} {
       set xy_rows($pos1,$dr,x) $dr   
       set xy_rows($pos1,$dr,y) $history($local,$dr,all_gdi_rcv)   
 
@@ -386,7 +391,7 @@ proc cl_throughput_plot_test_history { udata index local dir} {
 }
 
 
-proc cl_throughput_plot_test_run { udata nec ngc local dir } {
+proc cl_throughput_plot_test_run {udata nec ngc local dir} {
    global CHECK_OUTPUT
    upvar $udata data
 
@@ -410,28 +415,28 @@ proc cl_throughput_plot_test_run { udata nec ngc local dir } {
    set xy_rows($pos6,drawmode) "lines"
    set xy_rows($pos6,title)    "buffered send messages"
  
-   for { set ai 1 } { $ai < $data(lines) } { incr ai 1 } {
+   for {set ai 1} {$ai < $data(lines)} {incr ai} {
       puts $CHECK_OUTPUT "$data($local,$nec,$ngc,$ai,time) $data($local,$nec,$ngc,$ai,rcv_sec) $data($local,$nec,$ngc,$ai,snd_sec) $data($local,$nec,$ngc,$ai,ev_snd_sec) $data($local,$nec,$ngc,$ai,evc_no) $data($local,$nec,$ngc,$ai,rcv_buf) $data($local,$nec,$ngc,$ai,snd_buf)"
 
       set dr $ai
       incr dr -1
-      set xy_rows($pos1,$dr,x)    $data($local,$nec,$ngc,$ai,time)
-      set xy_rows($pos1,$dr,y)    $data($local,$nec,$ngc,$ai,rcv_sec)
-      
-      set xy_rows($pos2,$dr,x)    $data($local,$nec,$ngc,$ai,time)
-      set xy_rows($pos2,$dr,y)    $data($local,$nec,$ngc,$ai,snd_sec)
-      
-      set xy_rows($pos3,$dr,x)    $data($local,$nec,$ngc,$ai,time)
-      set xy_rows($pos3,$dr,y)    $data($local,$nec,$ngc,$ai,ev_snd_sec)
-      
-      set xy_rows($pos4,$dr,x)    $data($local,$nec,$ngc,$ai,time)
-      set xy_rows($pos4,$dr,y)    [expr ($data($local,$nec,$ngc,$ai,evc_no) * 60)]
-      
-      set xy_rows($pos5,$dr,x)    $data($local,$nec,$ngc,$ai,time)
-      set xy_rows($pos5,$dr,y)    $data($local,$nec,$ngc,$ai,rcv_buf)
-      
-      set xy_rows($pos6,$dr,x)    $data($local,$nec,$ngc,$ai,time)
-      set xy_rows($pos6,$dr,y)    $data($local,$nec,$ngc,$ai,snd_buf)
+      set xy_rows($pos1,$dr,x) $data($local,$nec,$ngc,$ai,time)
+      set xy_rows($pos1,$dr,y) $data($local,$nec,$ngc,$ai,rcv_sec)
+
+      set xy_rows($pos2,$dr,x) $data($local,$nec,$ngc,$ai,time)
+      set xy_rows($pos2,$dr,y) $data($local,$nec,$ngc,$ai,snd_sec)
+
+      set xy_rows($pos3,$dr,x) $data($local,$nec,$ngc,$ai,time)
+      set xy_rows($pos3,$dr,y) $data($local,$nec,$ngc,$ai,ev_snd_sec)
+
+      set xy_rows($pos4,$dr,x) $data($local,$nec,$ngc,$ai,time)
+      set xy_rows($pos4,$dr,y) [expr $data($local,$nec,$ngc,$ai,evc_no) * 60]
+
+      set xy_rows($pos5,$dr,x) $data($local,$nec,$ngc,$ai,time)
+      set xy_rows($pos5,$dr,y) $data($local,$nec,$ngc,$ai,rcv_buf)
+
+      set xy_rows($pos6,$dr,x) $data($local,$nec,$ngc,$ai,time)
+      set xy_rows($pos6,$dr,y) $data($local,$nec,$ngc,$ai,snd_buf)
    }
    set plot_data(xlabel) "time\[s\]"
    set plot_data(ylabel) "values"
@@ -447,7 +452,7 @@ proc cl_throughput_plot_test_run { udata nec ngc local dir } {
 }
 
 proc cl_throughput_analyze {} {
-   global ts_config  CHECK_OUTPUT cl_throughput_prot_output_dir
+   global ts_config CHECK_OUTPUT cl_throughput_prot_output_dir
 
    puts $CHECK_OUTPUT "analyze output directory:"
    puts $CHECK_OUTPUT "$cl_throughput_prot_output_dir"
@@ -460,7 +465,7 @@ proc cl_throughput_analyze {} {
       set full_name "$cl_throughput_prot_output_dir/$file"
       puts $CHECK_OUTPUT "dirs: $dirs"
       puts $CHECK_OUTPUT "file: $file_root_name"
-      if { [string match "*$file_root_name*" $dirs] } {
+      if {[string match "*$file_root_name*" $dirs]} {
          puts $CHECK_OUTPUT "skipping directory creation for file: $file"
          set do_report 0
       } else {
@@ -479,7 +484,7 @@ proc cl_throughput_analyze {} {
       puts $CHECK_OUTPUT "measured data lines: $data(lines)"
 
       
-      if { $history_index != 0 } {
+      if {$history_index != 0} {
          if { $last_master  != $data(test_host)     ||
               $last_clients != $data(test_hostlist) ||
               $last_loop1   != $data(ne_start)      ||
@@ -506,7 +511,7 @@ proc cl_throughput_analyze {} {
       }
 
 
-      if { $do_report == 0 } {
+      if {$do_report == 0} {
          puts $CHECK_OUTPUT "skipping chart creation for file $file (analyze directory already exists)"
       } else {
          cl_throughput_plot_gdi data "local" "$cl_throughput_prot_output_dir/$file_root_name"
@@ -524,27 +529,26 @@ proc cl_throughput_analyze {} {
          set evc_sum($elem) 0
          set max_ngc 0 
          set max_nec 0
-         for { set nec $data(ne_start) } { $nec <= $data(ne_end) } { incr nec $data(ne_step)  } {
-            for { set ngc $data(ng_start) } { $ngc <= $data(ng_end) } { incr ngc $data(ng_step) } {
-       
+         for {set nec $data(ne_start)} {$nec <= $data(ne_end)} {incr nec $data(ne_step)} {
+            for {set ngc $data(ng_start)} {$ngc <= $data(ng_end)} {incr ngc $data(ng_step)} {
                set ai $data(lines)
                incr ai -1
                incr test_runs 1
 
-               set rcv_sum($elem) [ expr ( $rcv_sum($elem)  + $data($elem,$nec,$ngc,$ai,rcv_sec) ) ]
-               set snd_sum($elem) [ expr ( $snd_sum($elem)  + $data($elem,$nec,$ngc,$ai,snd_sec) ) ]
-               set evc_sum($elem) [ expr ( $evc_sum($elem)  + $data($elem,$nec,$ngc,$ai,ev_snd_sec) ) ]
+               set rcv_sum($elem) [expr $rcv_sum($elem)  + $data($elem,$nec,$ngc,$ai,rcv_sec)]
+               set snd_sum($elem) [expr $snd_sum($elem)  + $data($elem,$nec,$ngc,$ai,snd_sec)]
+               set evc_sum($elem) [expr $evc_sum($elem)  + $data($elem,$nec,$ngc,$ai,ev_snd_sec)]
 
-               if { $max_ngc < $ngc } {
+               if {$max_ngc < $ngc} {
                   set max_ngc $ngc
                } 
-               if { $max_nec < $nec } {
+               if {$max_nec < $nec} {
                   set max_nec $nec
                }
             }
          }
 
-         if { $do_report == 0 } {
+         if {$do_report == 0} {
             puts $CHECK_OUTPUT "skipping chart creation for file $file (analyze directory already exists)"
          } else {
             cl_throughput_plot_test_run data $max_nec $max_ngc $elem "$cl_throughput_prot_output_dir/$file_root_name"
@@ -552,12 +556,12 @@ proc cl_throughput_analyze {} {
 
 
          puts $CHECK_OUTPUT "\n=== results of >$elem< test run ==="
-         puts $CHECK_OUTPUT "avg. received gdi requests \[1/s\]: [ expr ( $rcv_sum($elem) / $test_runs ) ]"
-         puts $CHECK_OUTPUT "avg. sent gdi request      \[1/s\]: [ expr ( $snd_sum($elem) / $test_runs ) ]"
-         puts $CHECK_OUTPUT "avg. events sent           \[1/s\]: [ expr ( $evc_sum($elem) / $test_runs ) ]"
-         set history($elem,$history_index,all_gdi_rcv) [ expr ( $rcv_sum($elem) / $test_runs ) ]
-         set history($elem,$history_index,all_gdi_snd) [ expr ( $snd_sum($elem) / $test_runs ) ]
-         set history($elem,$history_index,all_evc_snd) [ expr ( $evc_sum($elem) / $test_runs ) ]
+         puts $CHECK_OUTPUT "avg. received gdi requests \[1/s\]: [expr $rcv_sum($elem) / $test_runs]"
+         puts $CHECK_OUTPUT "avg. sent gdi request      \[1/s\]: [expr $snd_sum($elem) / $test_runs]"
+         puts $CHECK_OUTPUT "avg. events sent           \[1/s\]: [expr $evc_sum($elem) / $test_runs]"
+         set history($elem,$history_index,all_gdi_rcv) [expr $rcv_sum($elem) / $test_runs]
+         set history($elem,$history_index,all_gdi_snd) [expr $snd_sum($elem) / $test_runs]
+         set history($elem,$history_index,all_evc_snd) [expr $evc_sum($elem) / $test_runs]
       }
       
       foreach elem "local remote" {
@@ -566,23 +570,22 @@ proc cl_throughput_analyze {} {
          set snd_sum($elem) 0
          set evc_sum($elem) 0
          set nec $data(ne_start)
-         for { set ngc $data(ng_start) } { $ngc <= $data(ng_end) } { incr ngc $data(ng_step) } {
-       
+         for {set ngc $data(ng_start)} {$ngc <= $data(ng_end)} {incr ngc $data(ng_step)} {
             set ai $data(lines)
             incr ai -1
             incr test_runs 1
 
-            set rcv_sum($elem) [ expr ( $rcv_sum($elem)  + $data($elem,$nec,$ngc,$ai,rcv_sec) ) ]
-            set snd_sum($elem) [ expr ( $snd_sum($elem)  + $data($elem,$nec,$ngc,$ai,snd_sec) ) ]
-            set evc_sum($elem) [ expr ( $evc_sum($elem)  + $data($elem,$nec,$ngc,$ai,ev_snd_sec) ) ]
+            set rcv_sum($elem) [expr $rcv_sum($elem) + $data($elem,$nec,$ngc,$ai,rcv_sec)]
+            set snd_sum($elem) [expr $snd_sum($elem) + $data($elem,$nec,$ngc,$ai,snd_sec)]
+            set evc_sum($elem) [expr $evc_sum($elem) + $data($elem,$nec,$ngc,$ai,ev_snd_sec)]
          }
          puts $CHECK_OUTPUT "\n=== results of >$elem< test run ( with 1 event client ) ==="
-         puts $CHECK_OUTPUT "avg. received gdi requests \[1/s\]: [ expr ( $rcv_sum($elem) / $test_runs ) ]"
-         puts $CHECK_OUTPUT "avg. sent gdi request      \[1/s\]: [ expr ( $snd_sum($elem) / $test_runs ) ]"
-         puts $CHECK_OUTPUT "avg. events sent           \[1/s\]: [ expr ( $evc_sum($elem) / $test_runs ) ]"
-         set history($elem,$history_index,1ec_gdi_rcv) [ expr ( $rcv_sum($elem) / $test_runs ) ]
-         set history($elem,$history_index,1ec_gdi_snd) [ expr ( $snd_sum($elem) / $test_runs ) ]
-         set history($elem,$history_index,1ec_evc_snd) [ expr ( $evc_sum($elem) / $test_runs ) ]
+         puts $CHECK_OUTPUT "avg. received gdi requests \[1/s\]: [expr $rcv_sum($elem) / $test_runs]"
+         puts $CHECK_OUTPUT "avg. sent gdi request      \[1/s\]: [expr $snd_sum($elem) / $test_runs]"
+         puts $CHECK_OUTPUT "avg. events sent           \[1/s\]: [expr $evc_sum($elem) / $test_runs]"
+         set history($elem,$history_index,1ec_gdi_rcv) [expr $rcv_sum($elem) / $test_runs]
+         set history($elem,$history_index,1ec_gdi_snd) [expr $snd_sum($elem) / $test_runs]
+         set history($elem,$history_index,1ec_evc_snd) [expr $evc_sum($elem) / $test_runs]
       }
 
       foreach elem "local remote" {
@@ -592,37 +595,37 @@ proc cl_throughput_analyze {} {
          set evc_sum($elem) 0
           
          set ngc $data(ng_start)
-         for { set nec $data(ne_start) } { $nec <= $data(ne_end) } { incr nec $data(ne_step)  } {
+         for {set nec $data(ne_start)} {$nec <= $data(ne_end)} {incr nec $data(ne_step)} {
             set ai $data(lines)
             incr ai -1
             incr test_runs 1
-            set rcv_sum($elem) [ expr ( $rcv_sum($elem)  + $data($elem,$nec,$ngc,$ai,rcv_sec) ) ]
-            set snd_sum($elem) [ expr ( $snd_sum($elem)  + $data($elem,$nec,$ngc,$ai,snd_sec) ) ]
-            set evc_sum($elem) [ expr ( $evc_sum($elem)  + $data($elem,$nec,$ngc,$ai,ev_snd_sec) ) ]
+            set rcv_sum($elem) [expr $rcv_sum($elem) + $data($elem,$nec,$ngc,$ai,rcv_sec)]
+            set snd_sum($elem) [expr $snd_sum($elem) + $data($elem,$nec,$ngc,$ai,snd_sec)]
+            set evc_sum($elem) [expr $evc_sum($elem) + $data($elem,$nec,$ngc,$ai,ev_snd_sec)]
          }
          puts $CHECK_OUTPUT "\n=== results of >$elem< test run ( with 1 gdi client ) ==="
-         puts $CHECK_OUTPUT "avg. received gdi requests \[1/s\]: [ expr ( $rcv_sum($elem) / $test_runs ) ]"
-         puts $CHECK_OUTPUT "avg. sent gdi request      \[1/s\]: [ expr ( $snd_sum($elem) / $test_runs ) ]"
-         puts $CHECK_OUTPUT "avg. events sent           \[1/s\]: [ expr ( $evc_sum($elem) / $test_runs ) ]"
-         set history($elem,$history_index,1gc_gdi_rcv) [ expr ( $rcv_sum($elem) / $test_runs ) ]
-         set history($elem,$history_index,1gc_gdi_snd) [ expr ( $snd_sum($elem) / $test_runs ) ]
-         set history($elem,$history_index,1gc_evc_snd) [ expr ( $evc_sum($elem) / $test_runs ) ]
+         puts $CHECK_OUTPUT "avg. received gdi requests \[1/s\]: [expr $rcv_sum($elem) / $test_runs]"
+         puts $CHECK_OUTPUT "avg. sent gdi request      \[1/s\]: [expr $snd_sum($elem) / $test_runs]"
+         puts $CHECK_OUTPUT "avg. events sent           \[1/s\]: [expr $evc_sum($elem) / $test_runs]"
+         set history($elem,$history_index,1gc_gdi_rcv) [expr $rcv_sum($elem) / $test_runs]
+         set history($elem,$history_index,1gc_gdi_snd) [expr $snd_sum($elem) / $test_runs]
+         set history($elem,$history_index,1gc_evc_snd) [expr $evc_sum($elem) / $test_runs]
       }
       
       incr history_index 1
    }
 
-   if { $history_index != 0 } {
+   if {$history_index != 0} {
       cl_throughput_plot_test_history history $history_index "local" $cl_throughput_prot_output_dir
       cl_throughput_plot_test_history history $history_index "remote" $cl_throughput_prot_output_dir
    }
 }
 
-proc cl_throughput_run  {} {
+proc cl_throughput_run {} {
    global ts_config  CHECK_OUTPUT CHECK_USER cl_throughput_prot_output_dir
    global CHECK_ACT_LEVEL
 
-   if { $ts_config(commd_port) < 1024 } {
+   if {$ts_config(commd_port) < 1024} {
       set user "root"
    } else {
       set user $CHECK_USER
@@ -639,11 +642,11 @@ proc cl_throughput_run  {} {
    set vevc_binary       $ts_config(source_dir)/$up_arch/test_virtual_event_client
    set vgdi_binary       $ts_config(source_dir)/$up_arch/test_virtual_gdi_client
 
-   if { [info exists host_list] } {
+   if {[info exists host_list]} {
       unset host_list 
    }
    foreach host $ts_config(execd_nodes) {
-      if { $host != $vqmaster_host } {
+      if {$host != $vqmaster_host} {
          lappend host_list $host
       }
    }
@@ -653,29 +656,11 @@ proc cl_throughput_run  {} {
       "100" {
          set vqmaster_interval 60
          set data(ne_start) 1
-#         set data(ne_end) [ expr ( 5 / $nr_of_remote_hosts ) ]
-#         if { $data(ne_end) < 1 } {
-#            set data(ne_end) 1
-#         }
          set data(ne_end) 5
-
-#         set data(ne_step) [ expr ( $data(ne_end) / 5 ) ] 
-#         if { $data(ne_step) < 1 } {
-#            set data(ne_step) 1
-#         }
          set data(ne_step) 1
-
          set data(ng_start) 1
-#         set data(ng_end) [ expr ( 20 / $nr_of_remote_hosts ) ]
-#         if { $data(ng_end) < 1 } {
-#            set data(ng_end) 1
-#         }
          set data(ng_end) 10
-
-         set data(ng_step) [ expr ( $data(ng_end) / 5 ) ] 
-#         if { $data(ng_step) < 1 } {
-#            set data(ng_step) 1
-#         }
+         set data(ng_step) [expr $data(ng_end) / 5] 
          set data(ng_step) 1
       }
       default {
@@ -696,15 +681,14 @@ proc cl_throughput_run  {} {
 
    puts $CHECK_OUTPUT "$data(ne_start) $data(ne_step) $data(ne_end) | $data(ng_start) $data(ng_step) $data(ng_end)"
 
-   for { set nr_event_clients $data(ne_start) } { $nr_event_clients <= $data(ne_end) } { incr nr_event_clients $data(ne_step)  } {
-      for { set nr_gdi_clients $data(ng_start) } { $nr_gdi_clients <= $data(ng_end) } { incr nr_gdi_clients $data(ng_step) } {
-      
+   for {set nr_event_clients $data(ne_start)} {$nr_event_clients <= $data(ne_end)} {incr nr_event_clients $data(ne_step)} {
+      for {set nr_gdi_clients $data(ng_start)} {$nr_gdi_clients <= $data(ng_end)} {incr nr_gdi_clients $data(ng_step)} {
          puts $CHECK_OUTPUT "\n\nstarting measurement of local host \"$vqmaster_host\" ..."
          puts $CHECK_OUTPUT "============================================================"
 
          set up_arch [resolve_build_arch $vqmaster_host]
-         set vevc_binary       $ts_config(source_dir)/$up_arch/test_virtual_event_client
-         set vgdi_binary       $ts_config(source_dir)/$up_arch/test_virtual_gdi_client
+         set vevc_binary $ts_config(source_dir)/$up_arch/test_virtual_event_client
+         set vgdi_binary $ts_config(source_dir)/$up_arch/test_virtual_gdi_client
          #first check local host
          set vevc_args "$vqmaster_debug $vqmaster_port $vqmaster_host no_output"
          cl_throughput_start_clients $vqmaster_host $nr_event_clients $CHECK_USER $vevc_binary vevc_args
@@ -713,28 +697,27 @@ proc cl_throughput_run  {} {
       
       
          # give clients time to startup
-         set vqmaster_args     "$vqmaster_debug $vqmaster_port $vqmaster_interval"
+         set vqmaster_args "$vqmaster_debug $vqmaster_port $vqmaster_interval"
          puts $CHECK_OUTPUT "waiting for 5 secs ..."
          after 5000
          puts $CHECK_OUTPUT "running $vqmaster_binary $vqmaster_args"
-         set result [start_remote_prog $vqmaster_host $user $vqmaster_binary $vqmaster_args prg_exit_state 120 ]
+         set result [start_remote_prog $vqmaster_host $user $vqmaster_binary $vqmaster_args prg_exit_state 120]
          puts $CHECK_OUTPUT $result
          cl_throughput_parse_result "local" $nr_event_clients $nr_gdi_clients result data
          set data(test_host) "$vqmaster_host"
-         if { $CHECK_ACT_LEVEL != 0 } {
+         if {$CHECK_ACT_LEVEL != 0} {
             puts $CHECK_OUTPUT "waiting for 60 secs to let systems time to release file descriptors again ..."
             after 60000
          }
 
-    
          puts $CHECK_OUTPUT "\n\nstarting measurement with remote hosts ..."
          puts $CHECK_OUTPUT "=========================================="
          foreach host $host_list {
             puts $CHECK_OUTPUT "\n$host ..."
       
             set up_arch [resolve_build_arch $host]
-            set vevc_binary       $ts_config(source_dir)/$up_arch/test_virtual_event_client
-            set vgdi_binary       $ts_config(source_dir)/$up_arch/test_virtual_gdi_client
+            set vevc_binary $ts_config(source_dir)/$up_arch/test_virtual_event_client
+            set vgdi_binary $ts_config(source_dir)/$up_arch/test_virtual_gdi_client
       
             set vevc_args "$vqmaster_debug $vqmaster_port $vqmaster_host no_output"
             cl_throughput_start_clients $host $nr_event_clients $CHECK_USER $vevc_binary vevc_args
@@ -743,14 +726,14 @@ proc cl_throughput_run  {} {
          }
       
          # give clients time to startup
-         set vqmaster_args     "$vqmaster_debug $vqmaster_port $vqmaster_interval"
+         set vqmaster_args "$vqmaster_debug $vqmaster_port $vqmaster_interval"
          puts $CHECK_OUTPUT "waiting for 5 secs ..."
          after 5000
          puts $CHECK_OUTPUT "running $vqmaster_binary $vqmaster_args"
-         set result [start_remote_prog $vqmaster_host $user $vqmaster_binary $vqmaster_args prg_exit_state 120 ]
+         set result [start_remote_prog $vqmaster_host $user $vqmaster_binary $vqmaster_args prg_exit_state 120]
          cl_throughput_parse_result "remote" $nr_event_clients $nr_gdi_clients result data
          set data(test_hostlist) "$host_list"
-         if { $CHECK_ACT_LEVEL != 0 } {
+         if {$CHECK_ACT_LEVEL != 0} {
             puts $CHECK_OUTPUT "waiting for 60 secs to let systems time to release file descriptors again ..."
             after 60000
          }
@@ -765,19 +748,4 @@ proc cl_throughput_run  {} {
    puts $CHECK_OUTPUT "output file is\n$prot_output_file"
    spool_array_to_file $prot_output_file "data" data
 }
-
-
-proc cl_throughput_cleanup {} {
-   global ts_config 
-
-   startup_core_system
-}
-
-
-
-
-
-
-
-
 

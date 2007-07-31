@@ -75,7 +75,7 @@ proc general_perf_init_level {} {
   global perf_jobs perf_jobtime long_flag
   global ts_config
 
-  set num_hosts [llength $ts_config(execd_hosts)]
+  set num_hosts [llength $ts_config(execd_nodes)]
 
   switch -- $CHECK_ACT_LEVEL {
   "0"  { set perf_jobs $num_hosts ; set perf_jobtime 1 ; set long_flag 0 ; return 0  }
@@ -134,7 +134,7 @@ proc setup_queues {} {
    global save_queue_values ts_config
 
    set save_queue_values ""
-   foreach elem $ts_config(execd_hosts) {
+   foreach elem $ts_config(execd_nodes) {
       set change_array(slots) "0" 
       get_queue "$elem.q" "change_array"
       lappend save_queue_values [set change_array(slots)]
@@ -186,7 +186,7 @@ proc cleanup_queues {} {
 
    set change_array(slots) "1"
    set i 0
-   foreach elem $ts_config(execd_hosts) {
+   foreach elem $ts_config(execd_nodes) {
       set change_array(slots) [lindex $save_queue_values $i] 
       set_queue "$elem.q" "change_array"
       incr i 1
@@ -233,11 +233,11 @@ proc cleanup_schedd_params {} {
 proc submit_jobs { job_count job_time } {
    global ts_config last_job
 
-   set max_execd [llength $ts_config(execd_hosts)]
+   set max_execd [llength $ts_config(execd_nodes)]
    set cur_execd 0
    for { set i 0 } { $i < $job_count } { incr i 1 } {
 
-     set elem [lindex $ts_config(execd_hosts) $cur_execd]
+     set elem [lindex $ts_config(execd_nodes) $cur_execd]
      incr cur_execd 1
      if { $cur_execd == $max_execd } {
         set cur_execd 0
@@ -340,7 +340,7 @@ proc performance_test {job_count_loops job_run_loops} {
          set submit_time [expr ( $end_time - $start_time) ] 
       
          set job_decr 0 
-         foreach elem $ts_config(execd_hosts) {
+         foreach elem $ts_config(execd_nodes) {
             while { [ was_job_running [ expr ( $last_job - $job_decr) ] 0] == -1 } {
                puts $CHECK_OUTPUT "waiting for last job to run ..."
                sleep 5
@@ -363,7 +363,7 @@ proc performance_test {job_count_loops job_run_loops} {
             set runs_per_second "-"
          }
          # overhead
-         set real_time [ expr ( $cur_job_count * $cur_job_time / [llength $ts_config(execd_hosts)].0 ) ]
+         set real_time [ expr ( $cur_job_count * $cur_job_time / [llength $ts_config(execd_nodes)].0 ) ]
         
          if {$real_time > 0} { 
             set overhead [ expr ( $run_time.0 / ($real_time ) ) ] 

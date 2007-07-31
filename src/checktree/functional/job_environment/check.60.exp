@@ -30,7 +30,6 @@
 #
 ##########################################################################
 #___INFO__MARK_END__
-global job_environment_60
 global job_environment_exec_host
 global job_environment_libpath
 global job_environment_libvar
@@ -75,9 +74,8 @@ proc job_environment_setup_60 {} {
    set sge_path "$ts_config(product_root)/lib/$arch/../$arch"
    set job_environment_libpath ".:$sge_path"
 
-
    set my_environment(THISIS) "atest"
-   set my_environment($job_environment_libvar) "$job_environment_libpath"
+   set my_environment($job_environment_libvar) $job_environment_libpath
 
    # Restart execd
    startup_execd $job_environment_exec_host my_environment
@@ -308,7 +306,7 @@ proc job_environment_INHERIT_ENV {} {
 #                         is set at all
 #
 #*******************************************************************************
-proc test_job_environment_lib_path { error_var execd_params expected_lib_path  } {
+proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
    global CHECK_OUTPUT job_environment_exec_host job_environment_libvar
    upvar $error_var errors
 

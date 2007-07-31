@@ -147,7 +147,6 @@ set check_cleanup_function consumable_resources_cleanup
 # define test's procedure order
 set check_functions "consumable_resources_test"
 
-
 global consumable_resources_test_hosts
 global consumable_resources_saved_slot_count
 
@@ -155,9 +154,9 @@ proc consumable_resources_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          return 0
-      } 
+      }
       "1" {
          return 0
       }
@@ -182,16 +181,12 @@ proc consumable_resources_init_level {} {
       "8" {
          return 0
       }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
-
-
-
 # -------- local test procedures: initialization------------------------------
-
 
 proc consumable_resources_setup {} {
    global ts_config
@@ -203,25 +198,16 @@ proc consumable_resources_setup {} {
    # backup complex - we will modify it during the test
    get_complex consumable_complex_backup
 
-   set consumable_resources_test_hosts {}
+   set consumable_resources_test_hosts [host_conf_get_suited_hosts 2]
    set consumable_resources_saved_slot_count ""
-   set execd_count 0
-   foreach host $ts_config(execd_nodes) {
-      if { $execd_count < 2 } {
-         incr execd_count 1
-         lappend consumable_resources_test_hosts "$host"
-         puts $CHECK_OUTPUT "using host $host"
-      } 
-   }
 
    set queue_list {}
    foreach host $ts_config(execd_nodes) {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
-
    disable_queue $queue_list
    puts $CHECK_OUTPUT "disabled $queue_list"
-   
+
    set pe(pe_name)           "round_robin"
    set pe(slots)             "999"
    set pe(allocation_rule)   "\$round_robin"
@@ -235,7 +221,7 @@ proc consumable_resources_setup {} {
    puts $CHECK_OUTPUT "added queue $qname for hosts $consumable_resources_test_hosts"
 }
 
-proc consumable_resources_cleanup  {} {
+proc consumable_resources_cleanup {} {
    global CHECK_OUTPUT ts_config
    global consumable_resources_test_hosts
    global consumable_resources_saved_slot_count
@@ -251,9 +237,8 @@ proc consumable_resources_cleanup  {} {
    enable_queue $queue_list
    puts $CHECK_OUTPUT "disabled $queue_list"
 
-
    set qname "res.q"
-   del_queue $qname $consumable_resources_test_hosts  0 1
+   del_queue $qname $consumable_resources_test_hosts 0 1
 
    if {[del_pe "round_robin" "" "" 0]} {
       sleep 5
@@ -277,72 +262,69 @@ proc check_qhost_broken {complex count} {
    }
 }
 
-proc consumable_resources_submit_jobs_and_alter { job_arguments resource resource2 case } {
+proc consumable_resources_submit_jobs_and_alter {job_arguments resource resource2 case} {
    global ts_config CHECK_OUTPUT CHECK_USER
 
    set job_id [submit_job "$job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
-   while { 1 } {
+   while {1} {
       trigger_scheduling
       set running_jobs 0
       set error 0
 
       set job_state [is_job_running $job_id "leeper"]
-      if { $job_state == 1 } {
+      if {$job_state == 1} {
          incr running_jobs 1
       }
-      if { $job_state == -1 } {
+      if {$job_state == -1} {
          add_proc_error "case $case) consumable_resources_submit_jobs_and_wait" -2 "job was not submitted - stop"
          set error 1
          break
       }
 
       puts $CHECK_OUTPUT "running jobs count: $running_jobs"
-      if { $running_jobs == 1 || $error != 0 } {
+      if {$running_jobs == 1 || $error != 0} {
          break
       }
    }
 
-   
-   set arch [resolve_arch $ts_config(master_host)]
-
-   set alter_result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-l $resource=4 $job_id" exit_code ]
-   if { $exit_code != 1 } {
+   set alter_result [start_sge_bin "qalter" "-l $resource=4 $job_id"]
+   if {$prg_exit_state != 1} {
       puts $CHECK_OUTPUT "Issue 1761 found!"
       puts $CHECK_OUTPUT "qalter -l $resource=4 $job_id"
-      puts $CHECK_OUTPUT "qalter result: $alter_result - $exit_code"
+      puts $CHECK_OUTPUT "qalter result: $alter_result - $prg_exit_state"
       set error 1
    }
 
-   set alter_result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-l $resource=4,$resource2=2 $job_id" exit_code ]
-   if { $exit_code != 1 } {
+   set alter_result [start_sge_bin "qalter" "-l $resource=4,$resource2=2 $job_id"]
+   if {$prg_exit_state != 1} {
       puts $CHECK_OUTPUT "Issue 1761 found!"
       puts $CHECK_OUTPUT "qalter -l $resource=4 $job_id"
-      puts $CHECK_OUTPUT "qalter result: $alter_result - $exit_code"
+      puts $CHECK_OUTPUT "qalter result: $alter_result - $prg_exit_state"
       set error 1
    }
 
-   set alter_result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-l $resource2=1 $job_id" exit_code ]
-   if { $exit_code != 1 } {
+   set alter_result [start_sge_bin "qalter" "-l $resource2=1 $job_id"]
+   if {$prg_exit_state != 1} {
       puts $CHECK_OUTPUT "Issue 1761 found!"
       puts $CHECK_OUTPUT "qalter -l $resource=4 $job_id"
-      puts $CHECK_OUTPUT "qalter result: $alter_result - $exit_code"
+      puts $CHECK_OUTPUT "qalter result: $alter_result - $prg_exit_state"
       set error 1
    }
 
-   set alter_result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-l $resource=1 $job_id" exit_code ]
-   if { $exit_code != 0 } {
+   set alter_result [start_sge_bin "qalter" "-l $resource=1 $job_id"]
+   if {$prg_exit_state != 0} {
       puts $CHECK_OUTPUT "Issue 1761 found!"
       puts $CHECK_OUTPUT "qalter -l $resource=1 $job_id"
-      puts $CHECK_OUTPUT "qalter result: $alter_result - $exit_code"
+      puts $CHECK_OUTPUT "qalter result: $alter_result - $prg_exit_state"
       set error 1
    }
 
-   set alter_result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-l \"\" $job_id" exit_code ]
-   if { $exit_code != 1 } {
+   set alter_result [start_sge_bin "qalter" "-l \"\" $job_id"]
+   if {$prg_exit_state != 1} {
       puts $CHECK_OUTPUT "Issue 1761 found!"
       puts $CHECK_OUTPUT "qalter -l \"\" $job_id"
-      puts $CHECK_OUTPUT "qalter result: $alter_result - $exit_code"
+      puts $CHECK_OUTPUT "qalter result: $alter_result - $prg_exit_state"
       set error 1
    }
  
@@ -350,34 +332,33 @@ proc consumable_resources_submit_jobs_and_alter { job_arguments resource resourc
    wait_for_end_of_all_jobs
 }
 
-proc consumable_resources_submit_pejobs_and_wait { job_arguments job_count run_job_count case } {
+proc consumable_resources_submit_pejobs_and_wait {job_arguments job_count run_job_count case} {
    global ts_config CHECK_OUTPUT
 
    set job_id [submit_job "-pe round_robin 1-$job_count $job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
-   while { 1 } {
+   while {1} {
       trigger_scheduling
       set running_jobs 0
       set error 0
       
       set job_state [is_job_running $job_id "leeper"]
-      if { $job_state == 1 } {
-         set job_std_state [get_standard_job_info  $job_id 1 ]
-
+      if {$job_state == 1} {
+         set job_std_state [get_standard_job_info $job_id 1]
          set running_jobs [llength $job_std_state]
       }
 
-      if { $job_state == -1 } {
+      if {$job_state == -1} {
          add_proc_error "case $case) consumable_resources_submit_pejobs_and_wait" -2 "job was not submitted - stop"
          set error 1
          break
       }
 
       puts $CHECK_OUTPUT "running jobs count: $running_jobs"
-      if { $running_jobs == $run_job_count || $error != 0 } {
+      if {$running_jobs == $run_job_count || $error != 0} {
          break
       }
-      if { $running_jobs != 0 } {
+      if {$running_jobs != 0} {
          add_proc_error "case $case) consumable_resources_submit_pejobs_and_wait" -2 "job ran with the wrong slot count $running_jobs expected $run_job_count"
          set error 1
          break
@@ -481,12 +462,8 @@ proc consumable_resources_test {} {
    global consumable_resources_test_hosts check_description CHECK_USER
    global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
 
-
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
-
-   if { $CHECK_ACT_LEVEL == 0 } {
-
-      set GLOBALLY [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS] "*" "*test1=0*"]
+   if {$CHECK_ACT_LEVEL == 0} {
+      set GLOBALLY [translate_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS "*" "*test1=0*"]
    
       # case a)
       #           all jobs will run
@@ -541,9 +518,8 @@ proc consumable_resources_test {} {
 
       # case e)
       #        2 jobs run, 4 have to wait
-      set GLOBALLY [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_QUEUEOVERLOADED_SS] "*" "*"]
+      set GLOBALLY [translate_macro MSG_SCHEDD_INFO_QUEUEOVERLOADED_SS "*" "*"]
 
-      
       puts $CHECK_OUTPUT "\ncase e)"
       set job_arguments "-o /dev/null -e /dev/null"
       set queue_settings(load_thresholds) "test1=3"
@@ -552,11 +528,12 @@ proc consumable_resources_test {} {
       set run_job_count 2
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "e" $GLOBALLY
 
-# this tests issue 1745. enable the code, when the issue is fixed.
-      puts $CHECK_OUTPUT "---> found issue 1745"
-#      consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count 
+      # this tests issue 1745.
+      if {$ts_config(gridengine_version) >= 62} {
+         consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count 
+      }
       
-      #clean up
+      # clean up
       set queue_settings(load_thresholds) "np_load_avg=11.75"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
       
@@ -568,8 +545,8 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "done"
    }
 
-   if { $CHECK_ACT_LEVEL == 1 } {
-      set RUNATHOST  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNATHOST_SSS]  "*" "*" "*test2=0*"]
+   if {$CHECK_ACT_LEVEL == 1} {
+      set RUNATHOST  [translate_macro MSG_SCHEDD_INFO_CANNOTRUNATHOST_SSS  "*" "*" "*test2=0*"]
 
       # case a)
       #           all jobs will run
@@ -580,7 +557,7 @@ proc consumable_resources_test {} {
       set test2_complex(test3) "t3 int <= YES YES 0 1000"
       set_complex test2_complex
 
-      set host_a [lindex $consumable_resources_test_hosts 0]
+      set host_a [host_conf_get_suited_hosts]
 
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
@@ -618,7 +595,6 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "\ncase c)"
       set test2_complex(test2) "t2 INT <= YES YES 1 1000"
       set_complex test2_complex
-
       
       set job_arguments "-l h=$host_a -o /dev/null -e /dev/null"
       set job_count 6
@@ -638,7 +614,7 @@ proc consumable_resources_test {} {
       # case e)
       #        2 jobs run, 4 have to wait
       
-      set RUNATHOST [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_QUEUEOVERLOADED_SS] "*" "*"]
+      set RUNATHOST [translate_macro MSG_SCHEDD_INFO_QUEUEOVERLOADED_SS "*" "*"]
 
       puts $CHECK_OUTPUT "\ncase e)"
       set job_arguments "-o /dev/null -e /dev/null"
@@ -662,8 +638,8 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "done"
    }
 
-   if { $CHECK_ACT_LEVEL == 2 } {
-      set RUNINQUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNINQUEUE_SSS] "*" "*" "*test3=0*"]
+   if {$CHECK_ACT_LEVEL == 2} {
+      set RUNINQUEUE [translate_macro MSG_SCHEDD_INFO_CANNOTRUNINQUEUE_SSS "*" "*" "*test3=0*"]
   
       # case a)
       #           all jobs will run
@@ -686,7 +662,7 @@ proc consumable_resources_test {} {
       consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "a"  
 
       # case b
-      set WRONGGLOBAL [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS] "*" "*"]
+      set WRONGGLOBAL [translate_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS "*" "*"]
       puts $CHECK_OUTPUT "\ncase b)"
       puts $CHECK_OUTPUT $WRONGGLOBAL
       set job_arguments "-l test3=1 -o /dev/null -e /dev/null"
@@ -706,7 +682,7 @@ proc consumable_resources_test {} {
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "c" $RUNINQUEUE
       consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "c"  
 
-      set RUNINQUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNINQUEUE_SSS] "*" "*" "*test3=2*"]
+      set RUNINQUEUE [translate_macro MSG_SCHEDD_INFO_CANNOTRUNINQUEUE_SSS "*" "*" "*test3=2*"]
       #case d
       puts $CHECK_OUTPUT "\ncase d)"
       set job_arguments "-l test3=3 -o /dev/null -e /dev/null"
@@ -718,7 +694,6 @@ proc consumable_resources_test {} {
       set queue_settings(complex_values) "NONE"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
 
-
       # remove test3 complex 
       set test3_complex(test3) ""
       set_complex test3_complex
@@ -726,10 +701,10 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "done"
    }
 
-   if { $CHECK_ACT_LEVEL == 3 } {
-      set RUNINQUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNINQUEUE_SSS] "*" "*" "*test1=0*"]
-      set RUNATHOST  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_CANNOTRUNATHOST_SSS]  "*" "*" "*test1=0*"]
-      set GLOBALLY [translate $ts_config(master_host) 1 0 0   [sge_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS] "*" "*test1=0*"]
+   if {$CHECK_ACT_LEVEL == 3} {
+      set RUNINQUEUE [translate_macro MSG_SCHEDD_INFO_CANNOTRUNINQUEUE_SSS "*" "*" "*test1=0*"]
+      set RUNATHOST  [translate_macro MSG_SCHEDD_INFO_CANNOTRUNATHOST_SSS  "*" "*" "*test1=0*"]
+      set GLOBALLY [translate_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS "*" "*test1=0*"]
 
       # create complex
       set test1_complex(test1) "t2 INT <= YES YES 0 1000"
@@ -741,7 +716,7 @@ proc consumable_resources_test {} {
       set global_host(complex_values) "test1=5"
       set_exechost global_host global
 
-      set host_a [lindex $consumable_resources_test_hosts 0]
+      set host_a [host_conf_get_suited_hosts]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
        # modify complex_values of host_a host
@@ -817,8 +792,8 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "done"
    }
    
-   if { $CHECK_ACT_LEVEL == 4 } {
-      set FORCED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOTREQFORCEDRES_SS] "test1" "*"]
+   if {$CHECK_ACT_LEVEL == 4} {
+      set FORCED [translate_macro MSG_SCHEDD_INFO_NOTREQFORCEDRES_SS "test1" "*"]
 
       # create complex
       set test1_complex(test1) "t1 INT <= FORCED YES 0 1000"
@@ -857,7 +832,7 @@ proc consumable_resources_test {} {
    }
     
 
-   if { $CHECK_ACT_LEVEL == 5 } {
+   if {$CHECK_ACT_LEVEL == 5} {
       # create complex
       set test1_complex(test1) "t1 INT <= YES YES 0 1000"
       set_complex test1_complex
@@ -868,7 +843,7 @@ proc consumable_resources_test {} {
       set global_host(complex_values) "test1=5"
       set_exechost global_host global
 
-      set host_a [lindex $consumable_resources_test_hosts 0]
+      set host_a [host_conf_get_suited_hosts]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
       # modify complex_values of host_a host
@@ -910,7 +885,7 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "done"
    }
 
-   if { $CHECK_ACT_LEVEL == 6 } {
+   if {$CHECK_ACT_LEVEL == 6} {
 
       # create complex
       set test1_complex(test1) "t1 INT <= YES YES 0 1000"
@@ -922,7 +897,7 @@ proc consumable_resources_test {} {
       set global_host(complex_values) "test1=5"
       set_exechost global_host global
 
-      set host_a [lindex $consumable_resources_test_hosts 0]
+      set host_a [host_conf_get_suited_hosts]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
        # modify complex_values of host_a host
@@ -933,41 +908,34 @@ proc consumable_resources_test {} {
       set queue_settings(load_thresholds) "np_load_avg=11.75,test1=2"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
 
-      set master_arch [resolve_arch $ts_config(master_host)]
-      set qstat_prog "$ts_config(product_root)/bin/$master_arch/qstat"
-      set qmod_prog  "$ts_config(product_root)/bin/$master_arch/qmod"
-
-      set qstat_F_1 [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_prog "-F | grep test"]
+      set qstat_F_1 [start_sge_bin "qstat" "-F | grep test"]
       set job_id [submit_job "-l test1=1,h=$host_a -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
       wait_for_jobstart $job_id "leeper" 60
 
-      set qstat_F_2 [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_prog "-F | grep test"]
-
-
+      set qstat_F_2 [start_sge_bin "qstat" "-F | grep test"]
 
       puts $CHECK_OUTPUT "setting hold state of job $job_id"
       hold_job $job_id
 
       puts $CHECK_OUTPUT "reschedule job $job_id"
-      set catch_result [start_remote_prog $ts_config(master_host) $CHECK_USER $qmod_prog "-f -r $job_id"]
+      set catch_result [start_sge_bin "qmod" "-f -r $job_id"]
 
       puts $CHECK_OUTPUT $catch_result
 
       wait_for_jobpending $job_id "leeper" 60
       set state [get_queue_state "res.q@$host_a"]
       puts $CHECK_OUTPUT "queue state of queue \"res.q@$host_a\": \"$state\""
-      if { $state != "" } {
+      if {$state != ""} {
          add_proc_error "consumable_resources_test" -1 "queue did not free alarm state"
       }
       
-      set qstat_F_3 [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_prog "-F | grep test"]
-
+      set qstat_F_3 [start_sge_bin "qstat" "-F | grep test"]
 
       puts $CHECK_OUTPUT "qstat1 (before job was started)   :\n$qstat_F_1"
       puts $CHECK_OUTPUT "qstat2 (when job is running)      :\n$qstat_F_2"
       puts $CHECK_OUTPUT "qstat3 (after job was rescheduled):\n$qstat_F_3"
 
-      if { [string compare $qstat_F_1 $qstat_F_3] != 0 } {
+      if {[string compare $qstat_F_1 $qstat_F_3] != 0} {
          puts $CHECK_OUTPUT "resource wasn't freed"
          add_proc_error "consumable_resources_test" -1 "resources of rescheduled job wasn't freed"
       }
@@ -978,7 +946,6 @@ proc consumable_resources_test {} {
       set queue_settings(load_thresholds) "np_load_avg=11.75"
       set queue_settings(complex_values) "NONE"
       set_queue "res.q" $consumable_resources_test_hosts queue_settings
-
 
       set host_a_host(complex_values) $orig_host_a_host(complex_values)
       set_exechost host_a_host $host_a
@@ -994,9 +961,9 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "done"
    }
    
-   if { $CHECK_ACT_LEVEL == 7 } {
+   if {$CHECK_ACT_LEVEL == 7} {
       # this is our test host
-      set host_a [lindex $consumable_resources_test_hosts 0]
+      set host_a [host_conf_get_suited_hosts]
 
       # reduce the load report time to stabilize and speedup the test
       # prepare cleanup - get original global host coniguration
@@ -1031,32 +998,27 @@ proc consumable_resources_test {} {
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
       sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
 
-      catch { eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh" } output
+      set output [start_remote_prog $host_a $CHECK_USER "ln" "-s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"]
       puts $CHECK_OUTPUT "created link output: $output"
-      wait_for_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
+      wait_for_remote_file $host_a $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"
 
       # now set the load sensor
       set load_sensor_script_path "$ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"
-      if { [info exists execd_config_a_host(load_sensor)] } {
+      if {[info exists execd_config_a_host(load_sensor)]} {
          set new_config_a_host(load_sensor) "$execd_config_a_host(load_sensor),$load_sensor_script_path"
       } else {
          set new_config_a_host(load_sensor) "$load_sensor_script_path"
       }
       set_config new_config_a_host $host_a
 
-
       # check for reported load value
       set retries 30
       set ok 0
-      set master_arch [resolve_arch $ts_config(master_host)]
-      set qstat_prog "$ts_config(product_root)/bin/$master_arch/qstat"
-      set qconf_prog "$ts_config(product_root)/bin/$master_arch/qconf"
-      while { $retries > 0 } {
-         set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_prog "-l h=$host_a -F | grep test1"]
-         
+      while {$retries > 0} {
+         set test_grep [start_sge_bin "qstat" "-l h=$host_a -F | grep test1"]
          puts $CHECK_OUTPUT "waiting for hc:test1=6 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test1=6*" $test_grep] } {
+         if {[string match "*hc:test1=6*" $test_grep]} {
             puts $CHECK_OUTPUT "resource test1 is set to value 6 - ok"
             set ok 1
             break
@@ -1065,35 +1027,33 @@ proc consumable_resources_test {} {
          incr retries -1
       }
 
-      if { $ok != 1 } {
+      if {$ok != 1} {
          add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=6 by qstat -F on host $host_a"
       }
-      set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf_prog "-se $host_a | grep test1"]
 
-      if { [string match "*test1=6*" $test_grep] == 0 } {
+      set test_grep [start_sge_bin "qconf" "-se $host_a | grep test1"]
+      if {[string match "*test1=6*" $test_grep] == 0} {
          add_proc_error "consumable_resources_test" -1 "qconf -se doesn't show test1=6 load value"
       }
 
-      delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
+      delete_remote_file $host_a $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"
 
       # make sure the new loadsensor has a different timestamp than the old one
       # otherwise execd won't recognize it as a new load sensor
-      catch { eval exec "touch $ts_config(testsuite_root_dir)/scripts/resource_test1_3_loadsensor.sh" } output
+      set output [start_remote_prog $host_a $CHECK_USER "touch" "$ts_config(testsuite_root_dir)/scripts/resource_test1_3_loadsensor.sh"]
       puts $CHECK_OUTPUT "touch output: $output"
-      catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test1_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh" } output
+      set output [start_remote_prog $host_a $CHECK_USER "ln" "-s $ts_config(testsuite_root_dir)/scripts/resource_test1_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"]
       puts $CHECK_OUTPUT "created link output: $output"
-      wait_for_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh
-
+      wait_for_remote_file $host_a $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link.sh"
       
       # check for reported load value
       set retries 30
       set ok 0
-      while { $retries > 0 } {
-         set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_prog "-l h=$host_a -F | grep test1"]
-
+      while {$retries > 0} {
+         set test_grep [start_sge_bin "qstat" "-l h=$host_a -F | grep test1"]
          puts $CHECK_OUTPUT "waiting for hc:test1=3 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test1=3*" $test_grep] } {
+         if {[string match "*hc:test1=3*" $test_grep]} {
             puts $CHECK_OUTPUT "resource test1 is set to value 3 - ok"
             set ok 1
             break
@@ -1102,13 +1062,12 @@ proc consumable_resources_test {} {
          incr retries -1
       }
 
-      if { $ok != 1 } {
+      if {$ok != 1} {
          add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=3 by qstat -F on host $host_a"
       }
 
-      set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf_prog "-se $host_a | grep test1"]
-
-      if { [string match "*test1=3*" $test_grep] == 0 } {
+      set test_grep [start_sge_bin "qconf" "-se $host_a | grep test1"]
+      if {[string match "*test1=3*" $test_grep] == 0} {
          add_proc_error "consumable_resources_test" -1 "qconf -se doesn't show test1=3 load value"
       }
 
@@ -1127,12 +1086,11 @@ proc consumable_resources_test {} {
       set test_grep "test1" 
       set retries 45
       set ok 0
-      while { $retries > 0 } {
-         set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf_prog "-se $host_a | grep test1"]
-
+      while {$retries > 0} {
+         set test_grep [start_sge_bin "qconf" "-se $host_a | grep test1"]
          puts $CHECK_OUTPUT "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          puts $CHECK_OUTPUT "grep output: $test_grep"
-         if { [string match "*test1*" $test_grep] == 0 } {
+         if {[string match "*test1*" $test_grep] == 0} {
             puts $CHECK_OUTPUT "resource test1 disappeared!"
             set ok 1
             break
@@ -1141,7 +1099,7 @@ proc consumable_resources_test {} {
          incr retries -1
       }
 
-      if { $ok != 1 } {
+      if {$ok != 1} {
          add_proc_error "consumable_resources_test" -1 "load sensor report test1 does not disappear"
       }
       
@@ -1153,9 +1111,9 @@ proc consumable_resources_test {} {
       puts $CHECK_OUTPUT "done"
    }
    
-   if { $CHECK_ACT_LEVEL == 8 } {
+   if {$CHECK_ACT_LEVEL == 8} {
       # this is our test host
-      set host_a [lindex $consumable_resources_test_hosts 0]
+      set host_a [host_conf_get_suited_hosts]
 
       # create complex
       set test1_complex(test1) "t1 INT <= YES YES 0 1000"
@@ -1182,44 +1140,38 @@ proc consumable_resources_test {} {
             
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh
       sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
-      catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh" } output
+      set output [start_remote_prog $host_a $CHECK_USER "ln" "-s $ts_config(testsuite_root_dir)/scripts/resource_test1_6_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh"]
       puts $CHECK_OUTPUT "ln -s output: $output"
       wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh
       sleep 10 ;# wait at least 1 sec. so that execd knows that the file has changed via stat() command
-      catch {  eval exec "ln -s $ts_config(testsuite_root_dir)/scripts/resource_test2_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh" } output
+      set output [start_remote_prog $host_a $CHECK_USER "ln" "-s $ts_config(testsuite_root_dir)/scripts/resource_test2_3_loadsensor.sh $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh"]
       puts $CHECK_OUTPUT "ln -s output: $output"
       wait_for_remote_file  $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh
 
       set load_sensor_script_path "$ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh,$ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh"
-      if { [info exists execd_config_a_host(load_sensor)] } {
+      if {[info exists execd_config_a_host(load_sensor)]} {
          set new_config_a_host(load_sensor) "$execd_config_a_host(load_sensor),$load_sensor_script_path"
       } else {
          set new_config_a_host(load_sensor) "$load_sensor_script_path"
          set execd_config_a_host(load_sensor) ""
       }
-      if { [info exists execd_config_a_host(load_report_time)] == 0 } {
+      if {[info exists execd_config_a_host(load_report_time)] == 0} {
          set execd_config_a_host(load_report_time) ""
       }
 
       set new_config_a_host(load_report_time) "00:00:05"
       set_config new_config_a_host $host_a
 
-
       # check for reported load value
       set retries 30
       set ok 0
-      set master_arch [resolve_arch $ts_config(master_host)]
-      set qstat_prog "$ts_config(product_root)/bin/$master_arch/qstat"
-      set qconf_prog "$ts_config(product_root)/bin/$master_arch/qconf"
-
-      while { $retries > 0 } {
-         set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_prog "-l h=$host_a -F | grep test1"]
-
+      while {$retries > 0} {
+         set test_grep [start_sge_bin "qstat" "-l h=$host_a -F | grep test1"]
          puts $CHECK_OUTPUT "waiting for hc:test1=6 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
-         if { [string match "*hc:test1=6*" $test_grep] } {
+         if {[string match "*hc:test1=6*" $test_grep]} {
             puts $CHECK_OUTPUT "resource test1 is set to value 6 - ok"
             set ok 1
             break
@@ -1227,14 +1179,12 @@ proc consumable_resources_test {} {
          sleep 5
          incr retries -1
       }
-      if { $ok != 1 } {
+      if {$ok != 1} {
          add_proc_error "consumable_resources_test" -1 "can't find load value hc:test1=6 by qstat -F on host $host_a"
       }
 
-      set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf_prog "-se $host_a | grep test1"]
-
-
-      if { [string match "*test1=6*" $test_grep] == 0 } {
+      set test_grep [start_sge_bin "qconf" "-se $host_a | grep test1"]
+      if {[string match "*test1=6*" $test_grep] == 0} {
          add_proc_error "consumable_resources_test" -1 "qconf -se doesn't show test1=6 load value"
       }
 
@@ -1242,8 +1192,7 @@ proc consumable_resources_test {} {
       set retries 30
       set ok 0
       while {$retries > 0} {
-         set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qstat_prog "-l h=$host_a -F | grep test2"]
-
+         set test_grep [start_sge_bin "qstat" "-l h=$host_a -F | grep test2"]
          puts $CHECK_OUTPUT "waiting for hc:test2=3 load value (retry count: $retries) ..."
          puts $CHECK_OUTPUT $test_grep
          if {[string match "*hc:test2=3*" $test_grep]} {
@@ -1258,16 +1207,13 @@ proc consumable_resources_test {} {
          add_proc_error "consumable_resources_test" -1 "can't find load value hc:test2=3 by qstat -F on host $host_a"
       }
 
-      set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf_prog "-se $host_a | grep test2"]
-
-
-      if { [string match "*test2=3*" $test_grep] == 0 } {
+      set test_grep [start_sge_bin "qconf" "-se $host_a | grep test2"]
+      if {[string match "*test2=3*" $test_grep] == 0} {
          add_proc_error "consumable_resources_test" -1 "qconf -se doesn't show test2=3 load value"
       }
 
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link6.sh
       delete_remote_file $host_a $CHECK_USER $ts_config(testsuite_root_dir)/scripts/resource_loadsensor_link3.sh
-
 
       # restore execd config
       set_config execd_config_a_host $host_a
@@ -1284,8 +1230,7 @@ proc consumable_resources_test {} {
       set test_grep "test1" 
       set retries 45
       while {[string match "*test1*" $test_grep] && $retries > 0} {
-         set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf_prog "-se $host_a | grep test1"]
-
+         set test_grep [start_sge_bin "qconf" "-se $host_a | grep test1"]
          puts $CHECK_OUTPUT "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          puts $CHECK_OUTPUT "$test_grep"
          incr retries -1
@@ -1299,8 +1244,7 @@ proc consumable_resources_test {} {
       set test_grep "test2" 
       set retries 45
       while {[string match "*test2*" $test_grep] && $retries > 0} {
-         set test_grep [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf_prog "-se $host_a | grep test2"]
-
+         set test_grep [start_sge_bin "qconf" "-se $host_a | grep test2"]
          puts $CHECK_OUTPUT "\nwaiting for test resource report to disappear (retry count: $retries) ..."
          puts $CHECK_OUTPUT "$test_grep"
          incr retries -1

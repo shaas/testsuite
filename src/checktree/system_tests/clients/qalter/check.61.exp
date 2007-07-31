@@ -43,7 +43,7 @@ lappend check_functions "qalter_wd"         ;# test the -wd <dir>/-cwd options
 #
 #*******************************
 proc qalter_wd {} {
-   global CHECK_OUTPUT ts_config env
+   global ts_config CHECK_OUTPUT
 
    puts $CHECK_OUTPUT "check if -wd/-cwd is set correctly"
 
@@ -56,16 +56,14 @@ proc qalter_wd {} {
    set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1] 
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
-      set error_text "qsub did not set the correct working dir: $cwdir != $qstat_j_info(cwd)\n"
+      set error_text "qsub did not set the correct working dir: $cwdir != $qstat_j_info(cwd)"
       add_proc_error "qalter_wd" -1 $error_text
    }
    set result1 [start_sge_bin qalter "-wd $wdir $hold_job1"]
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$wdir"] != 0} {
-      set error_text "qalter did not set the correct working dir: $wdir != $qstat_j_info(cwd)\n"
+      set error_text "qalter did not set the correct working dir: $wdir != $qstat_j_info(cwd)"
       add_proc_error "qalter_wd" -1 $error_text
    }
    delete_job $hold_job1 1
-
-   # wait_for_end_of_all_jobs 30 
 }

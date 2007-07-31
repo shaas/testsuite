@@ -43,12 +43,13 @@ set check_category             "PERFORMANCE"
 set check_description(0)       "cluster_perf job count (functional)"
 set check_description(300)     "cluster_perf job counts with 5000 jobs"
 
+set check_setup_function      "cluster_perf_setup"
+set check_cleanup_function    "cluster_perf_cleanup"
 
 set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
-set check_functions           "cluster_perf_setup"          ;# functions to call (in order)
+set check_functions {}
 lappend check_functions       "cluster_perf_do_perform_test"
 lappend check_functions       "cluster_perf_make_analysis"
-lappend check_functions       "cluster_perf_cleanup"
 set check_highest_level       300
 
 global job_steps
@@ -94,40 +95,40 @@ global schedule_interval
 #     ???/???
 #*******************************
 proc cluster_perf_init_level {} {
-  global CHECK_ACT_LEVEL CHECK_OUTPUT
-  global nr_queues 
-  global max_jobs
-  global pending_jobs schedule_interval schedule_results
-  global job_times submit_results job_steps
-  global scan_time FLUSH_FINISH_SEC FLUSH_SUBMIT_SEC
+   global CHECK_ACT_LEVEL CHECK_OUTPUT
+   global nr_queues
+   global max_jobs
+   global pending_jobs schedule_interval schedule_results
+   global job_times submit_results job_steps
+   global scan_time FLUSH_FINISH_SEC FLUSH_SUBMIT_SEC
 
-  set submit_results ""
-  set schedule_results ""
-  set schedule_interval "00:00:05"
+   set submit_results ""
+   set schedule_results ""
+   set schedule_interval "00:00:05"
   
-  switch -- $CHECK_ACT_LEVEL {
-  "0"   { 
-           set nr_queues 24
-           set max_jobs  50
-           set job_steps 2
-           set job_times "30"
-           set FLUSH_SUBMIT_SEC 0
-           set FLUSH_FINISH_SEC 0
-           return 0  
-        }
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         set nr_queues 24
+         set max_jobs  50
+         set job_steps 2
+         set job_times "30"
+         set FLUSH_SUBMIT_SEC 0
+         set FLUSH_FINISH_SEC 0
+         return 0
+      }
 
-  "300" { 
-           set nr_queues 50
-           set max_jobs  100
-           set job_steps 5
-           set job_times "30"
-           set FLUSH_SUBMIT_SEC 0
-           set FLUSH_FINISH_SEC 0
-           return  0 
-        }
-  }
+      "300" {
+         set nr_queues 50
+         set max_jobs  100
+         set job_steps 5
+         set job_times "30"
+         set FLUSH_SUBMIT_SEC 0
+         set FLUSH_FINISH_SEC 0
+         return  0
+      }
+   }
 
-  return -1
+   return -1
 }
 
 #                                                             max. column:     |
@@ -169,7 +170,7 @@ proc cluster_perf_setup {} {
    global FLUSH_FINISH_SEC FLUSH_SUBMIT_SEC
 
   
-   if { [info exists stored_configuration] } {
+   if {[info exists stored_configuration]} {
       unset stored_configuration
    }
    get_config stored_configuration
@@ -177,18 +178,17 @@ proc cluster_perf_setup {} {
    set myconfig(loglevel)         "log_warning"
    set myconfig(load_report_time) "0:0:60"
   
-   if { $ts_config(gridengine_version) == 53 } {
-      if { $FLUSH_SUBMIT_SEC == -1 && $FLUSH_FINISH_SEC == -1 } {
+   if {$ts_config(gridengine_version) == 53} {
+      if {$FLUSH_SUBMIT_SEC == -1 && $FLUSH_FINISH_SEC == -1} {
          set myconfig(schedd_params)    $stored_configuration(schedd_params)
       } else {
          set myconfig(schedd_params)    "$stored_configuration(schedd_params),FLUSH_SUBMIT_SEC=${FLUSH_SUBMIT_SEC},FLUSH_FINISH_SEC=${FLUSH_FINISH_SEC}"
       }
-   }  
-   else {
-      if { $FLUSH_SUBMIT_SEC > 0}  {
+   } else {
+      if {$FLUSH_SUBMIT_SEC > 0} {
          set my_schedd_config(flush_submit_sec)    "$FLUSH_SUBMIT_SEC"
       }
-      if { $FLUSH_FINISH_SEC > 0}  {
+      if {$FLUSH_FINISH_SEC > 0}  {
          set my_schedd_config(flush_finish_sec)    "$FLUSH_FINISH_SEC"
       }
    }
@@ -202,7 +202,7 @@ proc cluster_perf_setup {} {
   
    set host_list ""
    set dis_list ""
-   foreach elem $ts_config(execd_hosts) {
+   foreach elem $ts_config(execd_nodes) {
       lappend dis_list $elem.q
       lappend host_list $elem
    }
@@ -245,9 +245,8 @@ proc cluster_perf_cleanup {} {
    global stored_configuration
    global ts_config
 
-
    set en_list ""
-   foreach elem $ts_config(execd_hosts) {
+   foreach elem $ts_config(execd_nodes) {
       lappend en_list $elem.q
    }
    enable_queue $en_list 
@@ -255,15 +254,12 @@ proc cluster_perf_cleanup {} {
    set_config stored_configuration
 }
 
-
-
-
-proc cluster_perf_add_submit_results { hostlist } {
+proc cluster_perf_add_submit_results {hostlist} {
    global submit_results CHECK_PROTOCOL_DIR
 
    foreach elem $hostlist {
       set file_p [open "$CHECK_PROTOCOL_DIR/$elem.submit.log" "r" ]
-      while { [gets $file_p line] >= 0 } {
+      while {[gets $file_p line] >= 0} {
          append submit_results "$line\n"
       }
       close $file_p
