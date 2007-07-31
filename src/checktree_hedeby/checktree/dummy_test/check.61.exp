@@ -1,9 +1,4 @@
 #!/vol2/TCL_TK/glinux/bin/expect
-# global variables ... (defined in main check routine, but you can use it)
-#
-# gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
-# global CHECK_USER              ;# user who start test
-
 # ___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -73,7 +68,6 @@ proc dummy_test_init_level {} {
 }
 
 proc dummy_test_setup {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global dummy_test_current_cluster_config
    
@@ -82,7 +76,6 @@ proc dummy_test_setup {} {
 }
 
 proc dummy_test_cleanup {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global dummy_test_current_cluster_config
 

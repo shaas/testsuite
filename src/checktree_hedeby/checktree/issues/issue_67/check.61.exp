@@ -68,7 +68,6 @@ proc issue_67_init_level {} {
 }
 
 proc issue_67_setup {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global issue_67_current_cluster_config
    
@@ -77,7 +76,6 @@ proc issue_67_setup {} {
 }
 
 proc issue_67_cleanup {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global issue_67_current_cluster_config
 

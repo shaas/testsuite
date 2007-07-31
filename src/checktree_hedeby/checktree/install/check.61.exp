@@ -1,9 +1,4 @@
 #!/vol2/TCL_TK/glinux/bin/expect
-# global variables ... (defined in main check routine, but you can use it)
-#
-# gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
-# global CHECK_USER              ;# user who start test
-
 # ___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -80,18 +75,13 @@ proc hedeby_install_init_level {} {
 }
 
 proc hedeby_install_setup {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global install_current_cluster_config
    global install_user
 
    set install_current_cluster_config [get_current_cluster_config_nr]
 
-   if { [get_hedeby_pref_type] == "user" } {
-      set install_user $CHECK_USER
-   } else {
-      set install_user "root"
-   }
+   set install_user [get_hedeby_startup_user]
 
    # print out system information:
    puts $CHECK_OUTPUT "======================================="
@@ -104,7 +94,6 @@ proc hedeby_install_setup {} {
 }
 
 proc hedeby_install_cleanup {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global install_current_cluster_config 
 
@@ -128,7 +117,6 @@ proc hedeby_cleanup_system {} {
 }
 
 proc hedeby_install_master_host {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global hedeby_config
    global install_user
@@ -194,7 +182,7 @@ proc hedeby_install_master_host {} {
                   -l $spool_dir\
                   -sge_root $sge_root"
 
-   set install_master_output [start_remote_prog $hedeby_config(hedeby_master_host) $install_user $sdmadm_path $arguments prg_exit_state 60 0 "" "" 1 0 0]
+   set install_master_output [sdmadm_command $hedeby_config(hedeby_master_host) $install_user $arguments]
    if { $prg_exit_state != 0 } {
       add_proc_error "hedeby_install_master_host" -1 "$hedeby_config(hedeby_master_host)($install_user): sdmadm $arguments failed:\n$install_master_output"
    }
@@ -204,7 +192,6 @@ proc hedeby_install_master_host {} {
 
 
 proc hedeby_startup_master_host {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global hedeby_config
    global install_user
@@ -217,7 +204,6 @@ proc hedeby_startup_master_host {} {
 
 
 proc hedeby_startup_managed_hosts {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global hedeby_config
    global install_user
@@ -232,7 +218,6 @@ proc hedeby_startup_managed_hosts {} {
 
 
 proc hedeby_install_managed_hosts {} {
-   global CHECK_USER 
    global CHECK_OUTPUT
    global hedeby_config
    global install_user
@@ -289,7 +274,8 @@ proc hedeby_install_managed_hosts {} {
       set ca_file [get_tmp_file_name "" "ca"]
       set admin_keystore_file [get_tmp_file_name "" "keystore"]
       set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
-      set cp_keystore_cmd "$master_spool_dir ; cp ./security/users/$install_user.keystore $admin_keystore_file ; cp ./security/ca/ca_top/cacert.pem $ca_file"  
+      set admin_user [get_hedeby_admin_user]
+      set cp_keystore_cmd "$master_spool_dir ; cp ./security/users/$admin_user.keystore $admin_keystore_file ; cp ./security/ca/ca_top/cacert.pem $ca_file"  
       set result [start_remote_prog "$hedeby_config(hedeby_master_host)" $install_user "cd" "$cp_keystore_cmd"]
       puts $CHECK_OUTPUT "copy ca result:"
       puts $CHECK_OUTPUT $result
@@ -312,7 +298,7 @@ proc hedeby_install_managed_hosts {} {
 
 
       # TODO: make installation of managed host interactive - we have to trust the certificate in a question
-      set output [start_remote_prog $managed_host $install_user $sdmadm_path $arguments prg_exit_state 60 0 "" "" 1 0 0]
+      set output [sdmadm_command $managed_host $install_user $arguments]
       if { $prg_exit_state != 0 } {
          add_proc_error "hedeby_install_master_host" -1 "${managed_host}($install_user): sdmadm $arguments failed:\n$output"
       }

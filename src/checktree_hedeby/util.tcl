@@ -201,15 +201,10 @@ proc remove_hedeby {{raise_error 1}} {
 # return != 0 on error
 proc shutdown_hedeby {} {
    global CHECK_OUTPUT
-   global CHECK_USER
    global hedeby_config
 
    set ret_val 0
-   if { [get_hedeby_pref_type] == "user" } {
-      set shutdown_user $CHECK_USER
-   } else {
-      set shutdown_user "root"
-   }
+   set shutdown_user [get_hedeby_startup_user]
 
    # first step: shutdown all managed hosts
    foreach host [get_all_hedeby_managed_hosts] {
@@ -231,16 +226,10 @@ proc shutdown_hedeby {} {
 # return != 0 on error
 proc startup_hedeby {} {
    global CHECK_OUTPUT
-   global CHECK_USER
    global hedeby_config
 
    set ret_val 0
-
-   if { [get_hedeby_pref_type] == "user" } {
-      set startup_user $CHECK_USER
-   } else {
-      set startup_user "root"
-   }
+   set startup_user [get_hedeby_startup_user]
 
    # first step: startup hedeby master host
    set val [startup_hedeby_host "master" $hedeby_config(hedeby_master_host) $startup_user]
@@ -261,7 +250,6 @@ proc startup_hedeby {} {
 
 proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
    global hedeby_config
-   global CHECK_USER
    
    get_current_cluster_config_array ts_config
 
@@ -270,7 +258,7 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
       set hostname $hedeby_config(hedeby_master_host)
    }
    if { $user_name == "" } {
-      set user_name $CHECK_USER
+      set user_name [get_hedeby_admin_user]
    }
 
    set path ""
@@ -301,7 +289,7 @@ proc get_hedeby_pref_type { } {
    global CHECK_ADMIN_USER_SYSTEM
 
    return "user"
-   # TODO: add support for system !!!
+   # TODO: add support for system !!! (question: what is the name of the admin user - root or testsuite user ???
 
    if {$CHECK_ADMIN_USER_SYSTEM == 0} {
       return "system"
@@ -325,7 +313,6 @@ proc get_bundle_string { id } {
    return "cannot find bundle name!"
 }
 
-# TODO: use this procedure for getting the startup user everywhere
 proc get_hedeby_startup_user { } {
    global CHECK_OUTPUT
    global CHECK_USER
@@ -350,6 +337,20 @@ proc get_hedeby_local_spool_dir { host } {
 }
 
 proc cleanup_hedeby_local_spool_dir { host } {
+   global CHECK_OUTPUT 
+   global CHECK_USER
+   # to be able to cleanup (delete) the spooldir the file
+   # permissions have to be set to the testsuite user
+   set local_spool_dir [get_hedeby_local_spool_dir $host]
+   if { $local_spool_dir != "" } {
+      set comargs "-R $CHECK_USER $local_spool_dir"
+      puts $CHECK_OUTPUT "${host}(root): doing chown $comargs ..."
+      set output [start_remote_prog $host "root" "chown" $comargs]
+      puts $CHECK_OUTPUT $output
+      if { $prg_exit_state != 0 } {
+         add_proc_error "cleanup_hedeby_local_spool_dir" -1 "doing chown $comargs returned exit code: $prg_exit_state\n$output"
+      }
+   }
    set spool_dir [get_local_spool_dir $host "hedeby_spool" 1 ]
    remote_delete_directory $host $spool_dir
    return $spool_dir
@@ -473,7 +474,7 @@ proc shutdown_hedeby_host { type host user } {
             add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is the master host!"
             return 1
          }
-         set ret [sdmadm_shutdown $host $user [get_hedeby_pref_type] [get_hedeby_system_name]]
+         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]]
          if { $ret != 0 } {
             set ret_val 1
          }
@@ -483,7 +484,7 @@ proc shutdown_hedeby_host { type host user } {
             add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is NOT the master host!"
             return 1
          }
-         set ret [sdmadm_shutdown $host $user [get_hedeby_pref_type] [get_hedeby_system_name]]
+         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]]
          if { $ret != 0 } {
             set ret_val 1
          }
@@ -579,18 +580,14 @@ proc startup_hedeby_host { type host user } {
 
 proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
    global CHECK_OUTPUT 
-   global CHECK_USER
 
    set pref_type [get_hedeby_pref_type]
    set sys_name [get_hedeby_system_name]
    puts $CHECK_OUTPUT "removing \"$pref_type\" preferences for hedeby system \"$sys_name\" on host \"$host\" ..."
 
-   if { $pref_type == "system" } {
-      set remove_user "root"
-   } else {
-      set remove_user $CHECK_USER
-   }
-   sdmadm_remove_system $host $remove_user $pref_type $sys_name $raise_error
+   set remove_user [get_hedeby_startup_user]
+
+   sdmadm_remove_system $host $remove_user output $pref_type $sys_name $raise_error
 }
 
 
@@ -603,7 +600,15 @@ proc reset_hedeby {} {
    return 0
 }
 
-# TODO: make all sdmadm_xxx procedures looking like this:
+proc sdmadm_command { host user arg_line {exit_var prg_exit_state} } {
+   upvar $exit_var back_exit_state
+   global CHECK_OUTPUT
+   puts $CHECK_OUTPUT "${host}($user): starting \"sdmadm $arg_line\" ..."
+   set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
+   set my_env(JAVA_HOME) [get_java_home_for_host $host "1.5"]
+   return [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0]
+}
+
 proc sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $output output_return
@@ -626,8 +631,7 @@ proc sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} {
       append arg_line " -j $jvm_name"
    }
 
-   set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
-   set output [start_remote_prog $host $user $sdmadm_path $arg_line prg_exit_state 60 0 "" "" 1 0 0]
+   set output [sdmadm_command $host $user $arg_line]
    puts $CHECK_OUTPUT $output
    
    if { $prg_exit_state != 0 } {
@@ -638,8 +642,9 @@ proc sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} {
    return $prg_exit_state
 }
 
-proc sdmadm_shutdown { host user {preftype ""} {sys_name ""} {jvm_name ""} {raise_error 1} } {
+proc sdmadm_shutdown { host user output {preftype ""} {sys_name ""} {jvm_name ""} {raise_error 1} } {
    global CHECK_OUTPUT
+   upvar $output output_return
    set args {}
    if { $preftype != "" } {
       lappend args "-p $preftype"
@@ -659,19 +664,22 @@ proc sdmadm_shutdown { host user {preftype ""} {sys_name ""} {jvm_name ""} {rais
       append arg_line " -j $jvm_name"
    }
 
-   set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
-   set output [start_remote_prog $host $user $sdmadm_path $arg_line prg_exit_state 60 0 "" "" 1 0 0]
+   set output [sdmadm_command $host $user $arg_line]
    puts $CHECK_OUTPUT $output
+
    if { $prg_exit_state != 0 } {
       add_proc_error "sdmadm_shutdown" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-      return 1
    }
-   return 0
+
+   set output_return $output  ;# set the output
+   return $prg_exit_state
 }
 
 
-proc sdmadm_remove_system { host user {preftype ""} {sys_name ""} {raise_error 1} } {
+proc sdmadm_remove_system { host user output {preftype ""} {sys_name ""} {raise_error 1} } {
    global CHECK_OUTPUT
+   upvar $output output_return
+
    set args {}
    if { $preftype != "" } {
       lappend args "-p $preftype"
@@ -686,12 +694,14 @@ proc sdmadm_remove_system { host user {preftype ""} {sys_name ""} {raise_error 1
    }
    append arg_line "remove_system"
 
-   set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
-   set output [start_remote_prog $host $user $sdmadm_path $arg_line prg_exit_state 60 0 "" "" 1 0 0]
+   set output [sdmadm_command $host $user $arg_line]
    puts $CHECK_OUTPUT $output
+
    if { $prg_exit_state != 0 } {
       add_proc_error "sdmadm_remove_system" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
    }
-}
 
+   set output_return $output  ;# set the output
+   return $prg_exit_state
+}
 
