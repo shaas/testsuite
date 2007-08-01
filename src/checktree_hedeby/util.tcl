@@ -305,12 +305,164 @@ proc get_hedeby_admin_user { } {
 
 proc get_bundle_string { id } {
    # TODO: find a way to get the bundle messages for parsing the output of the command
+   set ret_val ""
    switch -exact -- $id {
-      "bootstrap.log.info.jvm_started" { return "Jvm * started\r\n" }
-      "ParentStartupService.skipRunningJvm" { return "Can not start jvm *: pid file * already exists\r\n" }
-      "ParentStartupService.skippedRunningJvms" { return "Can not start following already running jvms: *\r\n" }
+      "bootstrap.log.info.jvm_started" { set ret_val "Jvm {0} started\r\n" }
+      "ParentStartupService.skipRunningJvm" { set ret_val "Can not start jvm {0}: pid file {1} already exists\r\n" }
+      "ParentStartupService.skippedRunningJvms" { set ret_val "Can not start following already running jvms: {0}\r\n" }
+      "client.status.other" { set ret_val "Other:\r\n" }
+      "client.status.service" { set ret_val "{0}: {1} -- status: {2}\r\n"}
    }
-   return "cannot find bundle name!"
+   if { $ret_val == "" } {
+      add_proc_error "get_bundle_string" -1 "cannot find bundle string \"$id\""
+      set ret_val "This is a return value for a unknown bundle string"
+   }
+   set ret_val [string trim $ret_val]
+   return $ret_val
+}
+
+
+proc create_bundle_string { id {params_array "params"} {default_param ""} } {
+   global CHECK_OUTPUT
+   upvar $params_array params
+   # get bundle string
+   set bundle_string [get_bundle_string $id]
+   set result_string $bundle_string
+
+   # puts $CHECK_OUTPUT "bundle string: \"$result_string\""
+   # get number of params in bundle string
+   set i 0
+   while { [string match "*{$i}*" $bundle_string] } {
+      incr i 1
+   }
+   # puts $CHECK_OUTPUT "bundle string has $i parameter"
+   for { set x 0 } { $x < $i } { incr x 1 } {
+      set par_start [string first "{$x}" $result_string]
+      set par_end $par_start
+      incr par_end 2
+      if { [info exists params($x)] && $use_asterisk == 0} {
+         set param_string $params($x)
+      } else {
+         if { $default_param != "" } {
+            set param_string $default_param
+         } else {
+            add_proc_error "create_bundle_string" -1 "parameter $x is missing in params array"
+            set param_string "{$x}"
+         }
+      }
+      set result_string [string replace $result_string $par_start $par_end $param_string]
+      #puts $CHECK_OUTPUT "result $x: \"$result_string\""
+   }
+   # puts $CHECK_OUTPUT "output string: \"$result_string\""
+   return $result_string
+}
+
+proc parse_bundle_string_params { output id {params_array params}  } {
+   global CHECK_OUTPUT
+   upvar $params_array par
+
+   if { [info exists par] } {
+      unset par
+   }
+
+   set par(count) 0
+
+   set bundle_string [get_bundle_string $id]
+   #puts $CHECK_OUTPUT "output: $output"
+   #puts $CHECK_OUTPUT "bundle: $bundle_string"
+   set i 0
+   while { [string match "*{$i}*" $bundle_string] } {
+      incr i 1
+   }
+   set par(count) $i
+
+   set max_pos 0
+
+   for { set x 0 } { $x < $i } { incr x 1 } {
+      set par($x,index) [string first "{$x}" $bundle_string]
+      if { $max_pos > $par($x,index) } {
+         add_proc_error "parse_bundle_string_params" -1 "This parser currently expects the bundle string parameters in the correct order!"
+      }
+      set max_pos $par($x,index)
+      set irange_end $par($x,index)
+      incr irange_end -1
+      if { $irange_end < 0 } {
+         set irange_end 0
+      }
+      if {$x > 0 } {
+         set prev_par $x
+         incr prev_par -1
+         set irange_start $par($prev_par,index)
+         incr irange_start 3
+      } else {
+         set irange_start 0
+      }
+      # here we have the string before the current parameter
+      if { $irange_start != $irange_end } {
+         set par($x,before) [string range $bundle_string $irange_start $irange_end]
+      } else {
+         set par($x,before) ""
+      }
+      #puts $CHECK_OUTPUT "before $x ($irange_start - $irange_end): \"$par($x,before)\""
+   }
+
+   set last_static_string ""
+   incr x -1
+   set endOfLastParam $par($x,index)
+   incr endOfLastParam 3
+   set bundleStrLength [string length $bundle_string]
+   set restString ""
+   if { $endOfLastParam != $bundleStrLength} {
+      # handle situations where the last param is not the last string content
+      set restString [string range $bundle_string $endOfLastParam end ]
+   }
+   #puts $CHECK_OUTPUT "rest string: \"$restString\""
+
+   
+
+   set parse_string $output
+   for { set x 0 } { $x < $i } { incr x 1 } {
+      set before $par($x,before)
+      set before_length [string length $before]
+      if { $before_length > 0 } {
+         if { [string first $before $parse_string] != 0 } {
+            set error_text "error parsing string can't find before sequence of param $x!\n"
+            append error_text "   bundle string: \"$bundle_string\"\n"
+            append error_text "   parse string:  \"$output\""
+            add_proc_error "parse_bundle_string_params" -1 $error_text
+         } else {
+            set parse_string [string range $parse_string $before_length end]
+            #puts $CHECK_OUTPUT "remaining parse string: \"$parse_string\"" 
+         }
+      }
+      set next_param $x
+      incr next_param 1
+       
+      if { $next_param < $i } {
+         # now we copy from begining to the start of the next param
+         set next_str $par($next_param,before)
+         if { $next_str == "" } {
+            add_proc_error "parse_bundle_string_params" -1 "error parsing string some of the parameters have no separator string"
+         }
+      } else {
+         # we use the rest for the last param
+         set next_str $restString
+      }
+
+      if { $next_str == "" } {
+         # this is the last param, use the rest of the parse string for last param
+         set par($x) $parse_string
+         set parse_string ""
+      } else {
+         set index [string first $next_str $parse_string]
+         incr index -1
+         set par($x) [string range $parse_string 0 $index]
+         incr index 1
+         set parse_string [string range $parse_string $index end]
+      }
+      #puts $CHECK_OUTPUT "par($x) = \"$par($x)\""
+      #puts $CHECK_OUTPUT "remaining parse string: \"$parse_string\"" 
+   }
 }
 
 proc get_hedeby_startup_user { } {
@@ -547,15 +699,15 @@ proc startup_hedeby_host { type host user } {
          if { $ret != 0 } {
             set ret_val 1
          } 
-         set match_string [get_bundle_string "bootstrap.log.info.jvm_started" ]
+         set match_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz "*"]
       }
       "master" {
          set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]]
          if { $ret != 0 } {
             set ret_val 1
          }
-         set help [get_bundle_string "bootstrap.log.info.jvm_started" ]
-         set match_string "$help$help"  ;# we expect 2
+         set help [create_bundle_string "bootstrap.log.info.jvm_started" xzy "*"]
+         set match_string "$help\r\n$help"  ;# we expect 2
       }
       default {
          add_proc_error "startup_hedeby_host" -1 "unexpected host type: \"$type\" supported are \"managed\" or \"master\""
@@ -704,4 +856,75 @@ proc sdmadm_remove_system { host user output {preftype ""} {sys_name ""} {raise_
    set output_return $output  ;# set the output
    return $prg_exit_state
 }
+
+proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_error 1} } {
+   global CHECK_OUTPUT
+   upvar $output output_return
+
+   set args {}
+   if { $preftype != "" } {
+      lappend args "-p $preftype"
+   }
+   if { $sys_name != "" } {
+      lappend args "-s $sys_name"
+   }
+   set arg_line ""
+   foreach arg $args {
+      append arg_line $arg
+      append arg_line " "
+   }
+   append arg_line "show_status"
+
+   set output [sdmadm_command $host $user $arg_line]
+   puts $CHECK_OUTPUT $output
+
+   if { $prg_exit_state != 0 } {
+      add_proc_error "sdmadm_remove_system" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+   }
+
+   set output_return $output  ;# set the output
+   return $prg_exit_state
+}
+
+proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
+   global CHECK_OUTPUT
+   upvar $output_var out
+   upvar $status_array ss
+
+    set help [split $out "\n"]
+
+    set ss(showed_status_count) 0
+
+    # get string for other line
+    set other_string [create_bundle_string "client.status.other"]
+    
+    # get match string for service output line
+    set comp_string [create_bundle_string "client.status.service" xyz "*"]
+
+    set section ""
+    set help [split $out "\n"]
+
+    foreach ls $help {
+       set line [string trim $ls]
+#       puts $CHECK_OUTPUT "parse line: \"$line\""
+       if { [string match $other_string $line] } {
+          set section "other"
+          debug_puts "found section \"$section\""
+          continue
+       }
+       if { $section == "other" } {
+          if { [string match $comp_string $line] } {
+             parse_bundle_string_params $line "client.status.service" params
+             set host   $params(0)
+             set comp   $params(1)
+             set status $params(2)
+             set ss($host,$comp,status)  $status
+             set ss($host,$comp,section) $section
+             incr ss(showed_status_count) 1
+             debug_puts "section $section: found comp \"$comp\" on host \"$host\" with status \"$status\""
+          }
+       }
+    }
+}
+
 

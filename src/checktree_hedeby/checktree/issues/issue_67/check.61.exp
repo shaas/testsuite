@@ -91,9 +91,9 @@ proc issue_67_check {} {
    set host $hedeby_config(hedeby_master_host)
    set user [get_hedeby_startup_user]
 
-   set match_str  [get_bundle_string "ParentStartupService.skipRunningJvm"]
-   set match_str2 [get_bundle_string "ParentStartupService.skippedRunningJvms"]
-   set expected_str "WARNING: ${match_str}WARNING: ${match_str}$match_str2"
+   set match_str  [create_bundle_string "ParentStartupService.skipRunningJvm" xyz "*"]
+   set match_str2 [create_bundle_string "ParentStartupService.skippedRunningJvms" xyz "*"]
+   set expected_str "WARNING: ${match_str}\r\nWARNING: ${match_str}\r\n${match_str2}"
 
    # start system on master host again, don't raise errors ...
    set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" 0]
