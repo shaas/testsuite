@@ -895,6 +895,13 @@ proc config_testsuite_root_dir { only_check name config_array } {
       set env(USER) $CHECK_USER
    } 
 
+   # if USER env. variable is empty
+   if { $CHECK_USER == "" } {
+      set CHECK_USER [file attributes $value/check.exp -owner]
+      puts $CHECK_OUTPUT "\nNo USER is set!\n(default: $CHECK_USER)\n"
+      set env(USER) $CHECK_USER
+   }
+
    if {[catch {set CHECK_GROUP [set env(GROUP)] }] != 0} {
       set CHECK_GROUP [file attributes $value/check.exp -group]
       puts $CHECK_OUTPUT "\nNo GROUP is set!\n(default: $CHECK_GROUP)\n"
