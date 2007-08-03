@@ -60,9 +60,8 @@ set check_needs           "init_core_system"
 set check_setup_function qhost_setup
 set check_cleanup_function qhost_cleanup
 
-
 # define test's procedure order
-set check_functions ""
+set check_functions {}
 lappend check_functions "qhost_issue1306"
 
 
@@ -75,37 +74,26 @@ proc qhost_init_level {} {
       }
    }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
-
-
-
 
 # -------- local test procedures: initialization------------------------------
 
-
-proc qhost_setup  {} {
+proc qhost_setup {} {
    global CHECK_OUTPUT ts_config
 }
 
-proc qhost_cleanup  {} {
+proc qhost_cleanup {} {
    global CHECK_OUTPUT ts_config
 }
-
 
 proc qhost_issue1306 {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_USER
 
-   set arch [resolve_arch $ts_config(master_host)]
-   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qhost" "-l bla"]
-   puts $CHECK_OUTPUT $output
+   set output [start_sge_bin "qhost" "-l bla"]
+   set expected_output [translate_macro MSG_SGETEXT_UNKNOWN_RESOURCE_S "bla"]
 
-   set expected_output [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWN_RESOURCE_S] "bla"]
-
-   if { [string match "*$expected_output" [string trim $output]] == 0 } {
-      add_proc_error "-1" "qhost_issue1306" "qhost does not recognize unknown complex: $output"
+   if {[string match "*$expected_output" [string trim $output]] == 0} {
+      add_proc_error "-1" "qhost_issue1306" "qhost does not recognize unknown complex:\n$output"
    }
 }
-
-

@@ -1,3 +1,6 @@
+JG-2007-08-03-0: Enhancem.: Use start_sge_bin where possible, cleanup.
+                 Review:    RD
+
 CR-2007-08-02-0: Bugfix:    Fixed bug in compile_source():
                             before starting compilation of other compile hooks
                             (used e.g. for arco or hedeby checktree)

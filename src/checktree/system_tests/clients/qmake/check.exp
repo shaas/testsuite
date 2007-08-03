@@ -44,7 +44,6 @@ global env
 
 # set check_root_access_needs "yes"
 
-
 # define a level initialization procedure:
 set check_init_level_procedure "qmake_init_level"
 
@@ -63,108 +62,131 @@ set check_needs           "init_core_system"
 set check_setup_function "qmake_setup"
 set check_cleanup_function "qmake_cleanup"
 
+set check_setup_level_function "qmake_setup_level"
+set check_cleanup_level_function "qmake_cleanup_level"
+
 # define test's procedure order
-set check_functions ""
+set check_functions {}
 lappend check_functions "qmake_sequential"
 lappend check_functions "qmake_parallel"
 lappend check_functions "qmake_flags"
 lappend check_functions "qmake_recursive"
-lappend check_functions "qmake_rreq" ;# only for dynamic allocation mode
+lappend check_functions "qmake_rreq"         ;# only for dynamic allocation mode
 
 proc qmake_init_level {} {
-   global ts_config
+   global ts_config CHECK_OUTPUT
    global CHECK_ACT_LEVEL
-   global qmake_options pe_options
-
-   set arch [resolve_arch $ts_config(master_host)]
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
-         set qmake_options ""
-         set pe_options ""
-         return 0
-      } 
-      "1" {
-         set qmake_options "-l a=$arch -cwd -v PATH --"
-         set pe_options "-pe make"
+      0 -
+      1 {
          return 0
       }
-      "2" {
+      2 {
          # dynamic allocation mode is not supported in SGE 5.3
-         if { $ts_config(gridengine_version) == 53 } {
+         if {$ts_config(gridengine_version) == 53} {
             return -1
          }
-         set qmake_options "-l a=$arch -cwd -v PATH --"
-         set pe_options ""
          return 0
       }
-  }
+   }
 
-  return -1  ;# no other level else
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
 
-proc qmake_setup  {} {
-   global ts_config
-   global CHECK_OUTPUT 
+proc qmake_setup {} {
+   global ts_config CHECK_OUTPUT 
 
    # create a qmake queue
    set queue(load_thresholds) "np_load_avg=11"
    set queue(slots)           10
    add_queue qmake.q "@allhosts" queue
-
-   # create a make pe
-   set pe(pe_name)            make
-   set pe(slots)              10
-   set pe(user_lists)         none
-   set pe(xuser_lists)        none
-   set pe(start_proc_args)    none
-   set pe(stop_proc_args)     none
-   set pe(allocation_rule)    "\$round_robin"
-   set pe(control_slaves)     TRUE
-   set pe(job_is_first_task)  FALSE
-   add_pe pe
-
-   # assign pe with queue
-   assign_queues_with_pe_object qmake.q "" make
 }
 
-proc qmake_cleanup  {} {
-   global ts_config
-   global CHECK_OUTPUT
+proc qmake_setup_level {} {
+   global ts_config CHECK_OUTPUT 
+   global CHECK_ACT_LEVEL
+   global qmake_options pe_options qmake_host
 
-   after 5000
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60
-   after 5000
+   # choose a test host
+   set qmake_host [host_conf_get_suited_hosts]
 
-   # unassign pe with queue
-   unassign_queues_with_pe_object make
+   # level specific config
+   switch -- $CHECK_ACT_LEVEL {
+      0 { 
+         set qmake_options ""
+         set pe_options ""
+      } 
+      1 {
+         set arch [resolve_arch $qmake_host]
+         set qmake_options "-l a=$arch -cwd -v PATH --"
+         set pe_options "-pe make"
 
-   after 1000
+         # create a make pe
+         set pe(pe_name)            make
+         set pe(slots)              10
+         set pe(user_lists)         none
+         set pe(xuser_lists)        none
+         set pe(start_proc_args)    none
+         set pe(stop_proc_args)     none
+         set pe(allocation_rule)    "\$round_robin"
+         set pe(control_slaves)     TRUE
+         set pe(job_is_first_task)  FALSE
+         add_pe pe
 
-   # delete pe
-   del_pe make
+         # assign pe with queue
+         assign_queues_with_pe_object qmake.q "" make
+      }
+      2 {
+         set arch [resolve_arch $qmake_host]
+         set qmake_options "-l a=$arch -cwd -v PATH --"
+         set pe_options ""
+      }
+   }
+}
+
+proc qmake_cleanup {} {
+   global ts_config CHECK_OUTPUT
 
    # delete queue
    del_queue qmake.q "" 0 1
 }
 
-proc qmake_submit {slots target {variables ""}} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_USER CHECK_ACTUAL_TEST_PATH
-   global qmake_options pe_options
+proc qmake_cleanup_level {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_ACT_LEVEL
 
-   if { $pe_options == "" } {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # make sure all jobs left qmaster - we remove config objects
+   trigger_scheduling ; sleep 1
+
+   if {$CHECK_ACT_LEVEL == 1} {
+      # unassign pe with queue
+      unassign_queues_with_pe_object make
+
+      # delete pe
+      del_pe make
+   }
+}
+
+proc qmake_submit {slots target {variables ""}} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_USER CHECK_ACTUAL_TEST_PATH
+   global qmake_options pe_options qmake_host
+
+   if {$pe_options == ""} {
       set arguments "$qmake_options -j $slots $target $variables"
    } else {
       set arguments "$pe_options $slots $qmake_options $target $variables"
    }
 
    puts $CHECK_OUTPUT "cd $CHECK_ACTUAL_TEST_PATH"
-   puts $CHECK_OUTPUT "$ts_config(master_host)($CHECK_USER) submitting qmake $arguments"
-   set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "qmake" "$arguments" 0 $CHECK_ACTUAL_TEST_PATH]
+   puts $CHECK_OUTPUT "$CHECK_USER@$qmake_host submitting qmake $arguments"
+   set id [open_remote_spawn_process $qmake_host $CHECK_USER "sleep" "1 ; qmake $arguments" 0 $CHECK_ACTUAL_TEST_PATH]
    set sp_id [lindex $id 1]
    set done 0
    while {!$done} {
@@ -183,7 +205,7 @@ proc qmake_submit {slots target {variables ""}} {
             set done 1
          }
          -i $sp_id  "?*\n" {
-            foreach line [string trim [split $expect_out(0,string) "\n"]] {
+            foreach line [split $expect_out(0,string) "\n"] {
                set line [string trim $line]
                if {$line != ""} {
                   switch -glob -- $line {
@@ -201,7 +223,7 @@ proc qmake_submit {slots target {variables ""}} {
                   }
                }
             }
-         } 
+         }
       }
    }
 
@@ -214,7 +236,7 @@ proc qmake_close_channel {id} {
 }
 
 proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
-   global CHECK_OUTPUT ts_config CHECK_USER CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_OUTPUT CHECK_USER
 
    upvar $check_vars_name check_vars
 
@@ -238,7 +260,7 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
             set done 1
          }
          -i $sp_id  "?*\n" {
-            foreach line [string trim [split $expect_out(0,string) "\n"]] {
+            foreach line [split $expect_out(0,string) "\n"] {
                set line [string trim $line]
                if {$line != ""} {
                   switch -glob -- $line {
@@ -297,7 +319,6 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
                      }
                      default {
                         puts $CHECK_OUTPUT "qmake_monitor: unexpected output: $line"
-#                        add_proc_error "qmake_monitor" -3 "\nsubmit host: $ts_config(master_host)($CHECK_USER)\nqmake was started in $CHECK_ACTUAL_TEST_PATH\nunexpected output: $line"
                      }
                   }
                }
@@ -309,10 +330,10 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
    # now check if make run was ok
    # check variables
    foreach var [array names check_vars] {
-      if { ! [info exists variables($var)] } {
+      if {![info exists variables($var)]} {
          add_proc_error $scenario -1 "variable $var hasn't been set in make task environment"
       } else {
-         if { [string compare $variables($var) $check_vars($var)] != 0} {
+         if {[string compare $variables($var) $check_vars($var)] != 0} {
             add_proc_error $scenario -1 "variable $var should have value \"$check_vars($var)\", but has \"$variables($var)\""
          }
       }
@@ -321,14 +342,14 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
    # check sequential/parallel execution
    # doesn't apply to all tests, so check first if we have compile data
    if {[info exists compile(1,start)]} {
-      if { $parallel } {
+      if {$parallel} {
          # compile runs must be parallel (run 2 has to start before run 1 end)
-         if { $compile(2,start) >= $compile(1,end) } {
+         if {$compile(2,start) >= $compile(1,end)} {
             add_proc_error $scenario -1 "compile runs didn't run in parallel (run 1 ended at [clock format $compile(1,end)], run 2 started at [clock format $compile(2,start)]"
          }
       } else {
          # compile runs must be sequential (run 2 may not start before run 1 end)
-         if { $compile(2,start) < $compile(1,end) } {
+         if {$compile(2,start) < $compile(1,end)} {
             add_proc_error $scenario -1 "compile runs didn't run sequentially (run 1 ended at [clock format $compile(1,end)], run 2 started at [clock format $compile(2,start)]"
          }
       }
@@ -375,7 +396,7 @@ proc qmake_recursive {} {
 proc qmake_rreq {} {
    global CHECK_OUTPUT CHECK_ACT_LEVEL
 
-   if { $CHECK_ACT_LEVEL != 2} {
+   if {$CHECK_ACT_LEVEL != 2} {
       puts $CHECK_OUTPUT "qmake_rreq - resource requests only available in dynamic allocation mode"
    } else {
       set check_vars(QMAKE_TEST) rreq

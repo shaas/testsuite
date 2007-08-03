@@ -276,12 +276,12 @@ proc qconf_auser {} {
 
    puts $CHECK_OUTPUT "testing qconf -auser ..."
 
-   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0 } {
+   if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0} {
       set new_user(name) "qconf_test_user"
       set new_user(default_project) "mytestproject"
       add_user new_user
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser qconf_test_user" ]
-      if { [string first "mytestproject" $output] < 0  } {
+      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      if {[string first "mytestproject" $output] < 0} {
          add_proc_error "qconf_auser" -1 "error showing user qconf_test_user"
       }
    }
@@ -293,11 +293,11 @@ proc qconf_duser {} {
 
    puts $CHECK_OUTPUT "testing qconf -duser ..."
 
-   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0 } {
+   if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0} {
       del_user "qconf_test_user"
 
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser qconf_test_user" ]
-      if { [string first "mytestproject" $output] >= 0  } {
+      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      if {[string first "mytestproject" $output] >= 0} {
          add_proc_error "qconf_auser" -1 "error user qconf_test_user should have been deleted"
       }
    }
@@ -310,12 +310,12 @@ proc qconf_Auser {} {
 
    puts $CHECK_OUTPUT "testing qconf -Auser ..."
 
-   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0 } {
+   if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0} {
       set new_user(name) "qconf_test_user"
       set new_user(default_project) "mytestproject"
       add_user new_user 1
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser qconf_test_user" ]
-      if { [string first "mytestproject" $output] < 0  } {
+      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      if {[string first "mytestproject" $output] < 0} {
          add_proc_error "qconf_auser" -1 "error showing user qconf_test_user"
       }
       del_user "qconf_test_user"
@@ -329,11 +329,11 @@ proc qconf_muser {} {
 
    puts $CHECK_OUTPUT "testing qconf -muser ..."
 
-   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0 } {
+   if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0} {
       set new_user(name) "qconf_test_user"
       set new_user(default_project) "mytestproject"
       add_user new_user
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser qconf_test_user" ]
+      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
       if { [string first "mytestproject" $output] < 0  } {
          add_proc_error "qconf_muser" -1 "error showing user qconf_test_user"
       }
@@ -341,9 +341,9 @@ proc qconf_muser {} {
       set new_conf(name)  "qconf_test_user"
       set new_conf(default_project) "NONE"
       mod_user new_conf 
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser qconf_test_user" ]
+      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
       puts $CHECK_OUTPUT $output
-      if { [string first "mytestproject" $output] >= 0  } {
+      if {[string first "mytestproject" $output] >= 0} {
          add_proc_error "qconf_muser" -1 "error modify user qconf_test_user"
       }
 
@@ -358,11 +358,11 @@ proc qconf_Muser {} {
 
    puts $CHECK_OUTPUT "testing qconf -Muser ..."
 
-   if { [ string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0 } {
+   if {[string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0} {
       set new_user(name) "qconf_test_user"
       set new_user(default_project) "mytestproject"
       add_user new_user
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser qconf_test_user" ]
+      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
       if { [string first "mytestproject" $output] < 0  } {
          add_proc_error "qconf_Muser" -1 "error showing user qconf_test_user"
       }
@@ -370,9 +370,9 @@ proc qconf_Muser {} {
       set new_conf(name)  "qconf_test_user"
       set new_conf(default_project) "NONE"
       mod_user new_conf 1
-      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser qconf_test_user" ]
+      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
       puts $CHECK_OUTPUT $output
-      if { [string first "mytestproject" $output] >= 0  } {
+      if {[string first "mytestproject" $output] >= 0} {
          add_proc_error "qconf_Muser" -1 "error modify user qconf_test_user"
       }
 
@@ -414,12 +414,12 @@ proc qconf_Muser {} {
 #     ???/???
 #*******************************
 proc qconf_addqueues {} {
-   global ts_config
-   global queue_names CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
+   global queue_names test_host
 
    set q_param(load_thresholds)       "np_load_avg=7.00"
 
-   set test_host [lindex $ts_config(execd_nodes) 0]
+   set test_host [host_conf_get_suited_hosts]
 
    set count 0
    foreach queue $queue_names {
@@ -467,10 +467,8 @@ proc qconf_addqueues {} {
 #     ???/???
 #*******************************
 proc qconf_removequeues {} {
-   global ts_config
-   global queue_names CHECK_OUTPUT
-
-   set test_host [lindex $ts_config(execd_nodes) 0]
+   global ts_config CHECK_OUTPUT
+   global queue_names test_host
 
    foreach queue $queue_names {
      puts $CHECK_OUTPUT "deleting queue \"$queue\""
@@ -828,7 +826,7 @@ proc qconf_se {} {
    global ts_config
   
    # test hosts
-   set cluster_host [lindex $ts_config(execd_nodes) 0]
+   set cluster_host [host_conf_get_suited_hosts]
    set non_cluster_host [host_conf_get_unused_host]
 
    # fields delivered by qconf -se
@@ -1398,7 +1396,7 @@ proc qconf_add_show_mod_del_queue {} {
    # First add queue "qconf_queue.q". Set the new name to "qconf_queue.q, 
    # host to $host
 
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
    puts $CHECK_OUTPUT "Adding queue qconf_queue.q ..."
    add_queue qconf_queue.q $host new_queue 
 
@@ -1540,8 +1538,9 @@ proc qconf_add_show_delete_host {} {
    global ts_config env CHECK_ACTUAL_TEST_PATH
    global CHECK_OUTPUT CHECK_USER 
 
-   set host [lindex $ts_config(execd_nodes) 0]
-   set other_host [lindex $ts_config(execd_nodes) 1]
+   set hosts [host_conf_get_suited_hosts 2]
+   set host       [lindex $hosts 0]
+   set other_host [lindex $hosts 1]
 
 
    # First delete host $other_host. 
@@ -1621,8 +1620,9 @@ proc qconf_add_show_delete_stnode {} {
    global ts_config env 
    global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
-   set host [lindex $ts_config(execd_nodes) 0]
-   set other_host [lindex $ts_config(execd_nodes) 1]
+   set hosts [host_conf_get_suited_hosts 2]
+   set host       [lindex $hosts 0]
+   set other_host [lindex $hosts 1]
 
    set project "mytestproject"
 
@@ -1921,7 +1921,7 @@ proc qconf_add_delete_modify_replace_attr {} {
    global CHECK_OUTPUT CHECK_USER 
 
    set queue_name "qconf_queue.q"
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
 
    # First create the queue
    puts $CHECK_OUTPUT "Create  queue $queue_name ...\n"
@@ -2130,7 +2130,7 @@ proc qconf_modify_checkpoint {} {
    puts $CHECK_OUTPUT "Create  queue $queue_name ..."
 
    set new_queue(qname) "$queue_name"
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
    set result0 [add_queue $queue_name $host new_queue ]
 
    if {$result0 == 0} {
@@ -2238,7 +2238,7 @@ proc qconf_modify_exechost {} {
    global ts_config env
    global CHECK_OUTPUT CHECK_USER
 
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
 
    # Save the initial values
    get_exechost old_values $host
@@ -2403,7 +2403,7 @@ proc qconf_modify_userlist {} {
    global ts_config env qconf_userlist
    global CHECK_OUTPUT CHECK_USER
 
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
   
    set userlist "qconf_userlist"
    set attribute "entries"
@@ -2512,7 +2512,7 @@ proc qconf_modify_sched_conf {} {
    global ts_config env 
    global CHECK_OUTPUT CHECK_USER
 
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
 
    # Next modify fast
    set mysched_config(maxujobs) "10"
@@ -2576,7 +2576,7 @@ proc qconf_issue_2023 {} {
    global ts_config env qconf_userlist
    global CHECK_OUTPUT CHECK_USER
 
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
   
    set userlist "qconf_userlist"
    set attribute "entries"

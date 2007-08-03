@@ -119,7 +119,7 @@ proc qconf_backslash_default_space_check {} {
       lappend added_groups $groupname
 
       # Check that the hostgroup was added correctly
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-shgrp $groupname" ]
+      set output [start_sge_bin "qconf" "-shgrp $groupname" ]
 
       if { [regexp {hostlist[ \t]+([^\n]+)} $output match hostlist] == 0 } {
          add_proc_error "qconf_backslash_default_space_check" -1 "error parsing file \"$group\" in qconf_backslash_default_space_check"
@@ -150,7 +150,7 @@ proc qconf_backslash_default_space_check {} {
 
    # Remove groups
    foreach group "$added_groups $required_groups" {
-      start_remote_prog $master_host $CHECK_USER "qconf" "-dhgrp $group"
+      start_sge_bin "qconf" "-dhgrp $group"
    }
 }
 
@@ -199,8 +199,8 @@ proc qconf_backslash_default_comma_check {} {
       }
       puts $CHECK_OUTPUT "added userlist $userlistname"
       # Check that the userlist was added correctly
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-su $userlistname" ]
-      start_remote_prog $master_host $CHECK_USER "qconf" "-dul $userlistname"
+      set output [start_sge_bin "qconf" "-su $userlistname"]
+      start_sge_bin "qconf" "-dul $userlistname"
 
       if { [regexp {entries[ \t]+([^\n]+)} $output match users] == 0 } {
          add_proc_error "qconf_backslash_default_comma_check" -1 "error parsing file \"$userlist\" in qconf_backslash_comma_check"
@@ -300,8 +300,8 @@ proc qconf_backslash_custom_space_check {} {
       puts $CHECK_OUTPUT "added queue $queuename"
 
       # Check that the hostgroup was added correctly
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-sq $queuename" ]
-      start_remote_prog $master_host $CHECK_USER "qconf" "-dq $queuename"
+      set output [start_sge_bin "qconf" "-sq $queuename"]
+      start_sge_bin "qconf" "-dq $queuename"
 
       if { [regexp {user_lists[ \t]+([^\n]+)} $output match userlist] == 0 } {
          add_proc_error "qconf_backslash_custom_space_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
@@ -331,7 +331,7 @@ proc qconf_backslash_custom_space_check {} {
 
    # Remove userlists
    foreach user $required_users {
-      start_remote_prog $master_host $CHECK_USER "qconf" "-dul $user"
+      start_sge_bin "qconf" "-dul $user"
    }
 }
 
@@ -406,8 +406,8 @@ proc qconf_backslash_custom_comma_check {} {
       lappend added_queues $queuename
 
       # Check that the hostgroup was added correctly
-      set output [start_remote_prog $master_host $CHECK_USER "qconf" "-sq $queuename" ]
-      start_remote_prog $master_host $CHECK_USER "qconf" "-dq $queuename"
+      set output [start_sge_bin "qconf" "-sq $queuename"]
+      start_sge_bin "qconf" "-dq $queuename"
 
       if { [regexp {user_lists[ \t]+([^\n]+)} $output match userlist] == 0 } {
          add_proc_error "qconf_backslash_custom_comma_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
@@ -437,7 +437,7 @@ proc qconf_backslash_custom_comma_check {} {
 
    # Remove userlists
    foreach user $required_users {
-      start_remote_prog $master_host $CHECK_USER "qconf" "-dul $user"
+      start_sge_bin "qconf" "-dul $user"
    }
 }
 
@@ -620,16 +620,16 @@ proc qconf_backslash_space_output_check {} {
          }
 
          # Remove the host group
-         start_remote_prog $master_host $CHECK_USER "qconf" "-dhgrp $groupname"
+         start_sge_bin "qconf" "-dhgrp $groupname"
       }
    }
 
    # Remove all host groups
-   start_remote_prog $master_host $CHECK_USER "qconf" "-dhgrp $mname"
-   start_remote_prog $master_host $CHECK_USER "qconf" "-dhgrp $lname"
+   start_sge_bin "qconf" "-dhgrp $mname"
+   start_sge_bin "qconf" "-dhgrp $lname"
 
    foreach name $names {
-      start_remote_prog $master_host $CHECK_USER "qconf" "-dhgrp $name"
+      start_sge_bin "qconf" "-dhgrp $name"
    }
 
    if {$failed} {
@@ -761,7 +761,7 @@ proc qconf_backslash_comma_output_check {} {
          }
 
          # Added the complex vars to the global host
-         start_remote_prog $master_host $CHECK_USER "qconf" "-rattr exechost complex_values \"$permuted_names\" global"
+         start_sge_bin "qconf" "-rattr exechost complex_values \"$permuted_names\" global"
 
          # Check the output
          # The test suite sets the SGE_SINGLE_LINE variable before every action,
@@ -857,7 +857,7 @@ proc qconf_backslash_comma_output_check {} {
    }
 
    # Restore global host
-   start_remote_prog $master_host $CHECK_USER "qconf" "-rattr exechost complex_values NONE global"
+   start_sge_bin "qconf" "-rattr exechost complex_values NONE global"
 
    # Remove all complex variables
    # localize messages
@@ -1059,7 +1059,7 @@ proc qconf_modify_hostgroup {} {
    global ts_config env
    global CHECK_OUTPUT CHECK_USER
 
-   set host [lindex $ts_config(execd_nodes) 0]
+   set host [host_conf_get_suited_hosts]
 
    # Now modify the host list
    puts $CHECK_OUTPUT "Modify host group  @qconf_test  from file ...\n"
@@ -1269,7 +1269,7 @@ proc qconf_de_check {} {
    puts $CHECK_OUTPUT "testing qconf -de ..."
 
    # Setup
-   set execd [lindex $ts_config(execd_nodes) 0]
+   set execd [host_conf_get_suited_hosts]
    set arch [resolve_arch $ts_config(master_host)]
 
    puts $CHECK_OUTPUT "using execd host $execd"
