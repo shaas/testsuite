@@ -296,6 +296,27 @@ proc compile_search_compile_host {arch} {
    return "none"
 }
 
+
+proc compile_rebuild_arch_cache { compile_hosts {al "arch_list"} } {
+   global CHECK_OUTPUT
+   upvar $al arch_list
+   if { [info exists arch_list] } {
+      unset arch_list
+   }
+   resolve_arch_clear_cache
+   set arch_list {}
+   set compiled_mail_architectures ""
+   puts -nonewline $CHECK_OUTPUT "\narchitectures: "
+   foreach elem $compile_hosts {
+      set output [resolve_arch $elem 1]
+      lappend arch_list $output 
+      puts -nonewline $CHECK_OUTPUT "$output "
+      append compiled_mail_architectures "\n$elem ($output)"
+   }
+   puts ""
+   return $compiled_mail_architectures
+}
+
 #****** compile/compile_source() ***********************************************
 #  NAME
 #     compile_source() -- compile source code
@@ -544,9 +565,25 @@ proc compile_source { { do_only_hooks 0} } {
             if {[compile_with_aimk $compile_hosts report "compile"] != 0} {
                incr error_count
             }
+            if { $error_count == 0 } {
+               # we have to install the GE system here because other compile
+               # hooks might need it
+               report_add_message report "Installing GE binaries ...."
+               report_write_html report
+               # We need to evaluate the architectures to install.
+               # We might have cached architecture strings from an old
+               # $SGE_ROOT/util/arch. Clear the cache and resolve 
+               # architecture names using dist/util/arch script.
+               set compiled_mail_architectures [compile_rebuild_arch_cache $compile_hosts arch_list]
+               if { [ install_binaries $arch_list report] != 0 } {
+                  report_add_message report "install_binaries failed\n"
+                  incr error_count
+               } 
+            }
          } else {
             puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
          }
+         report_write_html report
          if {$error_count == 0} {
             # new all registered compile_hooks of the checktree
             set res [exec_compile_hooks $compile_hosts report]
@@ -568,34 +605,13 @@ proc compile_source { { do_only_hooks 0} } {
 
    # install
    if {$error_count == 0} {
-      report_add_message report "Installing binaries ...."
-      report_write_html report
-     
-      # We need to evaluate the architectures to install.
-      # We might have cached architecture strings from an old
-      # $SGE_ROOT/util/arch. Clear the cache and resolve 
-      # architecture names using dist/util/arch script.
-      resolve_arch_clear_cache
-      set arch_list {}
-      set compiled_mail_architectures ""
-      puts -nonewline $CHECK_OUTPUT "\narchitectures: "
-      foreach elem $compile_hosts {
-         set output [resolve_arch $elem 1]
-         lappend arch_list $output 
-         puts -nonewline $CHECK_OUTPUT "$output "
-         append compiled_mail_architectures "\n$elem ($output)"
-      }
-      puts ""
-      
-      if { $do_only_hooks == 0 } {
-         if { [ install_binaries $arch_list report] != 0 } {
-            report_add_message report "install_binaries failed\n"
-            incr error_count
-         } 
-      } else {
-         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
-      }
       if { $error_count == 0 } {
+         # We need to evaluate the architectures to install.
+         # We might have cached architecture strings from an old
+         # $SGE_ROOT/util/arch. Clear the cache and resolve 
+         # architecture names using dist/util/arch script.
+         set compiled_mail_architectures [compile_rebuild_arch_cache $compile_hosts arch_list]
+
          # new all registered compile_hooks of the checktree
          set res [exec_install_binaries_hooks $arch_list report]
          if { $res < 0 } {
