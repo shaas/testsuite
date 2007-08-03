@@ -1,3 +1,7 @@
+CR-2007-08-02-1: Enhancem.: Changed shutdown_hedeby_host to support new
+                            hedeby shutdown behaviour
+                 Review:    MB
+
 JG-2007-08-03-0: Enhancem.: Use start_sge_bin where possible, cleanup.
                  Review:    RD
 

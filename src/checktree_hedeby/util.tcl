@@ -604,13 +604,27 @@ proc shutdown_hedeby_host { type host user } {
       foreach component $running_components {
          set comp_file $run_dir/$component
          get_file_content $host $user $comp_file
-         if { $file_array(0) == 1} {
+         if { $file_array(0) == 2} {
              set pid [string trim $file_array(1)]
              lappend pid_list $pid
              set run_list($pid,comp) $component
              puts $CHECK_OUTPUT "component $run_list($pid,comp) has pid \"$pid\""
+             
+             set url [string trim $file_array(2)]
+             puts $CHECK_OUTPUT "component $run_list($pid,comp) has url \"$url\""
+             if {[string match "*$host*" $url]} {
+                puts $CHECK_OUTPUT "url string contains hostname \"$host\""
+             } else {
+                add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct hostname \"$host\""
+             }
+             set sysname [get_hedeby_system_name]
+             if {[string match "*$sysname*" $url]} {
+                puts $CHECK_OUTPUT "url string contains system name \"$sysname\""
+             } else {
+                add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct system name \"$sysname\""
+             }
          } else {
-             add_proc_error "shutdown_hedeby_host" -1 "runfile for component $component on host $host contains more than one line"
+             add_proc_error "shutdown_hedeby_host" -1 "runfile for component $component on host $host contains not the expected 2 lines"
              return 1
          }
       }
