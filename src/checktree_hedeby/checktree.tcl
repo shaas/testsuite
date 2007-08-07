@@ -70,19 +70,156 @@ set ts_checktree($hedeby_checktree_nr,shutdown_hooks_0)         "hedeby_shutdown
 # Here we have all basic system installation specific
 # procedures
 ##############################################################
+#****** checktree_hedeby/hedeby_startup() *********************************************
+#  NAME
+#     hedeby_startup() -- startup hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_startup { } 
+#
+#  FUNCTION
+#     This hook is used to startup the hedeby system from testsuite framework
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#     util/startup_hedeby()
+#*******************************************************************************
 proc hedeby_startup { } {
    return [startup_hedeby]
 }
 
+#****** checktree_hedeby/hedeby_shutdown() ********************************************
+#  NAME
+#     hedeby_shutdown() -- shutdown hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_shutdown { } 
+#
+#  FUNCTION
+#     This hook is used to shutdown the hedeby system from testsuite framework
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#     util/shutdown_hedeby()
+#*******************************************************************************
 proc hedeby_shutdown { }  {
    return [shutdown_hedeby]
 }
 
 # This should reset the hedeby system (testsuite install re_init)
+#****** checktree_hedeby/hedeby_checktree_clean() *************************************
+#  NAME
+#     hedeby_checktree_clean() -- checktree_clean_hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_checktree_clean { } 
+#
+#  FUNCTION
+#     This hook is used to reset the hedeby system configurations and is used from
+#     the testsuite framework.
+#
+#     Mainly useful to setup a clean configuration without shutting down the hedeby
+#     system.
+#
+#     Used to bypass complete installation when testsuite parameter "re_init" is used.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  NOTES
+#     Currently the called procedure is not implemented
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#     util/reset_hedeby()
+#*******************************************************************************
 proc hedeby_checktree_clean {} {
    return [reset_hedeby]
 }
 
+#****** checktree_hedeby/hedeby_install_binaries() ************************************
+#  NAME
+#     hedeby_install_binaries() -- install binary hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_install_binaries { arch_list a_report } 
+#
+#  FUNCTION
+#     This procedure is used by the testsuite framework to install the
+#     hedeby distribution after compilation of the code.
+#
+#     The parameters contain information about where to write errors or info
+#     messages (report array) and which architectures should be installed.
+#
+#     The procidure will call the hedeby procedure hedeby_build() which
+#     calls the ant target "distinst" on the testsuite java compile host.
+#
+#  INPUTS
+#     arch_list - list of architectures which should be installed. This
+#                 parameter is currently not used. (all compiled architectures
+#                 are installed)
+#     a_report  - name of a report array where messages and infos should be
+#                 printed (see report_XXXXXX procedures)
+#
+#  RESULT
+#     0 - on success
+#    -1 - on error
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#     checktree_hedeby/hedeby_build()
+#*******************************************************************************
 proc hedeby_install_binaries { arch_list a_report } {
    global CHECK_OUTPUT 
    upvar $a_report report
@@ -94,6 +231,36 @@ proc hedeby_install_binaries { arch_list a_report } {
    return $ret
 }
 
+
+#****** checktree_hedeby/check_private_propterties_file() *****************************
+#  NAME
+#     check_private_propterties_file() -- check private properties file
+#
+#  SYNOPSIS
+#     check_private_propterties_file { build_host } 
+#
+#  FUNCTION
+#     This procedure is used in the hedeby_build() procedure to verify
+#     the settings in the "build_private.properties" which is stored in the
+#     hedeby source directory. It contains information about SGE_ROOT
+#     directory and the used Distribution directory. These informations
+#     are used for the ant build targets.
+#
+#     If the "build_private.properties" file is not existing the testsuite
+#     will automatically create it.
+#
+#  INPUTS
+#     build_host - the build host is needed to verfiy that the file also
+#                  is available on the specified host which should be set
+#                  to the java build host.
+#
+#  RESULT
+#     -1 - on error
+#      0 - on success
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_build()
+#*******************************************************************************
 proc check_private_propterties_file { build_host } {
    global hedeby_config CHECK_OUTPUT CHECK_USER
    global ts_config
@@ -166,11 +333,19 @@ proc check_private_propterties_file { build_host } {
 #     sources compiled. Testsuite is calling all compile hooks when 
 #     compile_source is started.
 #
+#     First the ant target "dist" is called on the testsuite java
+#     compile host.
+#
+#     After that for each compile host the ant target "native.build"
+#     is remotely executed.
+#
+#     Then the ant target "tar" is started on the java build host
+#     to create the distribution.
+#
 #     After successfull compiling all *.properties files in the
 #     hedeby source directory are parsed to fill up the testsuite
 #     internal bundle_cache which contains all L10N bundle ids and their
 #     strings to be used by the bundle procedures.
-#     
 #
 #  INPUTS
 #     compile_hosts - all hosts for which the sources should be build
@@ -182,7 +357,18 @@ proc check_private_propterties_file { build_host } {
 #    -1 - on error
 #
 #  SEE ALSO
-#    util/parse_bundle_properties_files()
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/check_private_propterties_file()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#     util/parse_bundle_properties_files()
 #*******************************************************************************
 proc hedeby_compile { compile_hosts a_report } {
    global CHECK_OUTPUT
@@ -233,8 +419,39 @@ proc hedeby_compile { compile_hosts a_report } {
 }
 
 
-# clean is done on java build host - assuming that all
-# code is cleaned (also native code)
+#****** checktree_hedeby/hedeby_compile_clean() ***************************************
+#  NAME
+#     hedeby_compile_clean() -- compile clean hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_compile_clean { compile_hosts a_report } 
+#
+#  FUNCTION
+#     This hook is used by testsuite framework to cleanup the hedeby build.
+#
+#  INPUTS
+#     compile_hosts - hosts for which the build should be cleaned. Currently
+#                     not used (hedeby clean target currently cleans all).
+#     a_report      - name of a report variable where reports should be
+#                     written in (see report_XXXXXX procedures)
+#
+#  RESULT
+#     0 - on success
+#    -1 - on error
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#     checktree_hedeby/check_private_propterties_file()
+#*******************************************************************************
 proc hedeby_compile_clean { compile_hosts a_report } {
    global CHECK_OUTPUT 
    upvar $a_report report
@@ -248,6 +465,35 @@ proc hedeby_compile_clean { compile_hosts a_report } {
 }
 
 
+
+#****** checktree_hedeby/hedeby_build() ***********************************************
+#  NAME
+#     hedeby_build() -- helper procedure to call ant build targets
+#
+#  SYNOPSIS
+#     hedeby_build { build_host target a_report { ant_options "" } 
+#     { hedeby_build_timeout 300 } } 
+#
+#  FUNCTION
+#     This procedure is used to start an ant target on the specified build
+#     host and create reports for it.
+#
+#  INPUTS
+#     build_host                   - the host where the ant target should be
+#                                    started
+#     target                       - the name of the ant target
+#     a_report  - name of a report array where messages and infos should be
+#                 printed (see report_XXXXXX procedures)
+#     { ant_options "" }           - optional ant options (default "")
+#     { hedeby_build_timeout 300 } - build timeout value (default 300 sec)
+#
+#  RESULT
+#     0 - on success
+#    -1 - on error
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_compile()
+#*******************************************************************************
 proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build_timeout 300 } } {
    global CHECK_OUTPUT CHECK_USER
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
@@ -334,12 +580,39 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
 
 
 
-
-
-
 ##############################################################
 # Here we start with configuration for hedeby
 ##############################################################
+#****** checktree_hedeby/hedeby_save_configuration() **********************************
+#  NAME
+#     hedeby_save_configuration() -- hook for saving hedeby configuration
+#
+#  SYNOPSIS
+#     hedeby_save_configuration { filename } 
+#
+#  FUNCTION
+#     This testsuite hook is used to save the hedeby configuration in the testsuite
+#     framework (menu 26) after the hedeby configuration settings was done. 
+#
+#  INPUTS
+#     filename - ??? 
+#
+#  RESULT
+#     0 - on success
+#    -1 - on error
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#*******************************************************************************
 proc hedeby_save_configuration { filename } {
    global hedeby_config ts_checktree hedeby_checktree_nr
    global CHECK_OUTPUT
@@ -364,6 +637,35 @@ proc hedeby_save_configuration { filename } {
    return 0
 }
 
+#****** checktree_hedeby/config_hedeby_product_root() *********************************
+#  NAME
+#     config_hedeby_product_root() -- configure procedure for "hedeby_product_root"
+#
+#  SYNOPSIS
+#     config_hedeby_product_root { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_product_root) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
 proc config_hedeby_product_root { only_check name config_array } {
    global CHECK_OUTPUT fast_setup
    upvar $config_array config
@@ -389,7 +691,35 @@ proc config_hedeby_product_root { only_check name config_array } {
    return $value
 }
 
-
+#****** checktree_hedeby/config_hedeby_source_dir() *********************************
+#  NAME
+#     config_hedeby_source_dir() -- configure procedure for "hedeby_source_dir"
+#
+#  SYNOPSIS
+#     config_hedeby_source_dir { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_source_dir) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
 proc config_hedeby_source_dir { only_check name config_array } {
    global CHECK_OUTPUT
    upvar $config_array config
@@ -400,6 +730,35 @@ proc config_hedeby_source_dir { only_check name config_array } {
    return [config_generic $only_check $name config $help_text "directory" ]
 }
 
+#****** checktree_hedeby/config_hedeby_master_host() **********************************
+#  NAME
+#     config_hedeby_master_host() -- configure procedure for "hedeby_master_host"
+#
+#  SYNOPSIS
+#     config_hedeby_master_host { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_master_host) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
 proc config_hedeby_master_host { only_check name config_array } {
    global CHECK_OUTPUT ts_host_config fast_setup
    global ts_config
@@ -425,6 +784,36 @@ proc config_hedeby_master_host { only_check name config_array } {
    }
    return $value
 }
+
+#****** checktree_hedeby/config_hedeby_cs_port() *********************************
+#  NAME
+#     config_hedeby_cs_port() -- configure procedure for "hedeby_cs_port"
+#
+#  SYNOPSIS
+#     config_hedeby_cs_port { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_cs_port) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
 proc config_hedeby_cs_port { only_check name config_array } {
    global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
    global ts_config
@@ -475,6 +864,36 @@ proc config_hedeby_cs_port { only_check name config_array } {
    return $value
 }
 
+
+#****** checktree_hedeby/config_hedeby_user_jvm_port() *********************************
+#  NAME
+#     config_hedeby_user_jvm_port() -- configure procedure for "hedeby_user_jvm_port"
+#
+#  SYNOPSIS
+#     config_hedeby_user_jvm_port { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_user_jvm_port) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
 proc config_hedeby_user_jvm_port { only_check name config_array } {
    global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
    global ts_config
@@ -527,10 +946,35 @@ proc config_hedeby_user_jvm_port { only_check name config_array } {
    return $value
 }
 
-
-
-
-
+#****** checktree_hedeby/config_hedeby_host_resources() *********************************
+#  NAME
+#     config_hedeby_host_resources() -- configure procedure for "hedeby_host_resources"
+#
+#  SYNOPSIS
+#     config_hedeby_host_resources { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_host_resources) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
 proc config_hedeby_host_resources { only_check name config_array } {
    global CHECK_OUTPUT ts_host_config fast_setup
    global ts_config
@@ -565,7 +1009,35 @@ proc config_hedeby_host_resources { only_check name config_array } {
 }
 
 
-
+#****** checktree_hedeby/config_hedeby_source_cvs_release() *********************************
+#  NAME
+#     config_hedeby_source_cvs_release() -- configure procedure for "hedeby_source_cvs_release"
+#
+#  SYNOPSIS
+#     config_hedeby_source_cvs_release { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(hedeby_source_cvs_release) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
 proc config_hedeby_source_cvs_release { only_check name config_array } {
    global CHECK_OUTPUT fast_setup CHECK_USER ts_config
 
@@ -614,15 +1086,25 @@ proc config_hedeby_source_cvs_release { only_check name config_array } {
 }
 
 
-#proc hedeby_config_dist { only_check name config_array } {
-#   
-#   upvar $config_array config
-#   
-#   set help_text {  "Please enter the directory GRM dist directory >RETURN<" }
-#                    
-#   return [ config_generic $only_check $name config $help_text ]
-#}
-
+#****** checktree_hedeby/hedeby_get_version() *****************************************
+#  NAME
+#     hedeby_get_version() -- returns the testsuite internal version id of build
+#
+#  SYNOPSIS
+#     hedeby_get_version { { cvstagname "" } } 
+#
+#  FUNCTION
+#     Returns the internal testsuite version number of the hedeby source code. This
+#     might be used to create version depended tests.
+#
+#  INPUTS
+#     { cvstagname "" } - if not set to "" the version number for this cvs tag
+#                         is returned
+#
+#  RESULT
+#     string containing the internal testsuite version
+#
+#*******************************************************************************
 proc hedeby_get_version { { cvstagname "" } } {
    global hedeby_config CHECK_OUTPUT
 
@@ -652,6 +1134,35 @@ proc hedeby_get_version { { cvstagname "" } } {
 }
 
 
+#****** checktree_hedeby/hedeby_init_config() *****************************************
+#  NAME
+#     hedeby_init_config() -- init configuration hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_init_config { config_array } 
+#
+#  FUNCTION
+#     This hook is used to create a hedeby configuration array for the hedeby system.
+#     All hedeby configuration parameters from hedeby_config have to be defined here.
+#
+#  INPUTS
+#     config_array - the array where the configuration values should be stored
+#
+#  RESULT
+#     none
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#*******************************************************************************
 proc hedeby_init_config { config_array } {
    global hedeby_config hedeby_checktree_nr ts_checktree
    global CHECK_CURRENT_WORKING_DIR
@@ -761,6 +1272,16 @@ proc hedeby_init_config { config_array } {
 #    -1 - on error
 #
 #  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
 #     util/read_bundle_properties_cache()
 #     checktree_hedeby/hedeby_compile()
 #*******************************************************************************
@@ -881,6 +1402,28 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
    return $retval
 }
 
+
+
+#****** checktree_hedeby/hedeby_get_all_hosts() ***************************************
+#  NAME
+#     hedeby_get_all_hosts() -- get all hosts used for hedeby
+#
+#  SYNOPSIS
+#     hedeby_get_all_hosts { } 
+#
+#  FUNCTION
+#     Returns all hosts which are used for the hedeby setup. The returned
+#     list contains all qmaster hosts, execd hosts, etc. from the additional
+#     cluster configurations, the hedeby managed hosts and hedeby master hosts.
+#
+#  INPUTS
+#
+#  RESULT
+#     list with uniq host entries 
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_get_all_hosts()
+#*******************************************************************************
 proc hedeby_get_all_hosts {} {
    global hedeby_config CHECK_OUTPUT
    global hedeby_enhanced_config
@@ -913,6 +1456,35 @@ proc hedeby_get_all_hosts {} {
    return $result
 }
 
+#****** checktree_hedeby/hedeby_get_required_hosts() **********************************
+#  NAME
+#     hedeby_get_required_hosts() -- required hosts hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_get_required_hosts { } 
+#
+#  FUNCTION
+#     The testsuite framework script is calling this procedure to find out which 
+#     hosts are used be hedeby to find out which architectures have to be compiled
+#     for the gridengine clusters.
+#
+#  INPUTS
+#
+#  RESULT
+#     list of required (used) host
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#*******************************************************************************
 proc hedeby_get_required_hosts {} {
    global hedeby_config CHECK_OUTPUT
    global hedeby_enhanced_config
@@ -963,6 +1535,38 @@ proc hedeby_get_required_hosts {} {
    return $res
 }
 
+#****** checktree_hedeby/hedeby_get_required_passwords() ******************************
+#  NAME
+#     hedeby_get_required_passwords() -- password hook for hedeby
+#
+#  SYNOPSIS
+#     hedeby_get_required_passwords { } 
+#
+#  FUNCTION
+#     Called by testsuite framework to set all passwords (call to set_passwd)
+#     for needed hedeby user passwords
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - on success
+#    -1 - on error
+#
+#  NOTES
+#     currently not implemented
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_startup()
+#     checktree_hedeby/hedeby_shutdown()
+#     checktree_hedeby/hedeby_checktree_clean()
+#     checktree_hedeby/hedeby_install_binaries()
+#     checktree_hedeby/hedeby_compile_clean()
+#     checktree_hedeby/hedeby_compile()
+#     checktree_hedeby/hedeby_save_configuration()
+#     checktree_hedeby/hedeby_init_config()
+#     checktree_hedeby/hedeby_get_required_hosts()
+#     checktree_hedeby/hedeby_get_required_passwords()
+#*******************************************************************************
 proc hedeby_get_required_passwords {} {
    global hedeby_config CHECK_OUTPUT
    puts $CHECK_OUTPUT "only standard testsuite users needed by hedeby"

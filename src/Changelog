@@ -1,4 +1,7 @@
-CR-2007-08-07-0  Bugfix:    Enhanced check for additional cell cluster
+CR-2007-08-07-1: Cleanup:   Added ADOC headers for checktree_hedeby/checktree.tcl
+                            and checktree_hedeby/util.tcl 
+
+CR-2007-08-07-0: Bugfix:    Enhanced check for additional cell cluster
                             configuration. Testsuite currently doesn't support
                             additional cell clusters which using the same
                             cluster hosts.

@@ -199,6 +199,36 @@ proc remove_hedeby {{raise_error 1}} {
 }
 
 # return != 0 on error
+#****** util/shutdown_hedeby() *************************************************
+#  NAME
+#     shutdown_hedeby() -- Shutdown running hedeby system
+#
+#  SYNOPSIS
+#     shutdown_hedeby { } 
+#
+#  FUNCTION
+#     This procedure is used to shutdown the complete hedeby system. The system
+#     must be completely configured by the testsuite. This is done by the
+#     "hedeby_install" test.
+#
+#     The "hedeby_install" tests is setting up the hedeby sytem and already
+#     starting it up. So this procedure is usefule when the system should be
+#     completely shutdown.
+#
+#     In order to re-start the system the procedure startup_hedeby() might be
+#     called.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  SEE ALSO
+#     util/startup_hedeby()
+#     util/shutdown_hedeby()
+#     util/reset_hedeby()
+#*******************************************************************************
 proc shutdown_hedeby {} {
    global CHECK_OUTPUT
    global hedeby_config
@@ -223,7 +253,36 @@ proc shutdown_hedeby {} {
 }
 
 
-# return != 0 on error
+#****** util/startup_hedeby() **************************************************
+#  NAME
+#     startup_hedeby() -- Startup installed and configured hedeby system
+#
+#  SYNOPSIS
+#     startup_hedeby { } 
+#
+#  FUNCTION
+#     This procedure is used to startup the complete hedeby system. The system
+#     must be completely configured by the testsuite. This is done by the
+#     "hedeby_install" test.
+#     
+#     The "hedeby_install" tests is setting up the hedeby sytem and already
+#     starting it up. So this procedure is usefule when the system was shutdown
+#     with shutdown_hedeby().
+#
+#     The procedure will first startup the hedeby master host components and
+#     after that all managed hedeby host resources.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  SEE ALSO
+#     util/startup_hedeby()
+#     util/shutdown_hedeby()
+#     util/reset_hedeby()
+#*******************************************************************************
 proc startup_hedeby {} {
    global CHECK_OUTPUT
    global hedeby_config
@@ -1083,6 +1142,31 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 }
 
 
+#****** util/reset_hedeby() ****************************************************
+#  NAME
+#     reset_hedeby() -- reset hedeby system configuration
+#
+#  SYNOPSIS
+#     reset_hedeby { } 
+#
+#  FUNCTION
+#     Used to reset the hedeby configuration without shutting down hededby
+#     components.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  NOTES
+#     This procedure is currently not implemented
+#
+#  SEE ALSO
+#     util/startup_hedeby()
+#     util/shutdown_hedeby()
+#     util/reset_hedeby()
+#*******************************************************************************
 proc reset_hedeby {} {
    add_proc_error "reset_hedeby" -3 "not implemented"
    # shutdown hedeby system ?
