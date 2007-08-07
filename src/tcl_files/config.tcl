@@ -1174,6 +1174,7 @@ proc config_additional_config { only_check name config_array } {
             #    is done via operate_additional_clusters call. This means
             #    gridengine version, and cvs release may be different
 
+            set allow_master_as_execd 1
             if { $add_config(product_root) == $config(product_root) && 
                  $add_config(source_dir)   == $config(source_dir) } {
                if { $only_check == 0 } {
@@ -1181,9 +1182,15 @@ proc config_additional_config { only_check name config_array } {
                }
                # now make sure that the additional configurations can work together
                # the following parameters have to be the same for all configs
-               set same_params "gridengine_version source_dir source_cvs_release host_config_file user_config_file product_root testsuite_root_dir"
+               set same_params "gridengine_version source_dir source_cvs_release host_config_file user_config_file product_root testsuite_root_dir product_feature aimk_compile_options dist_install_options qmaster_install_options execd_install_options package_directory package_type"
                # the following parameters have to differ between all configs
-               set diff_params "results_dir commd_port cell"
+               # TODO (Issue #139): remove master_host and execd_hosts from this list if issue #139 is fixed
+               set diff_params "results_dir commd_port cell master_host execd_hosts"
+
+               # TODO (Issue #139): also remove this allow_master_as_execd check if issue #139 is fixed
+               # since testsuite has problems with shutdown different cell clusters (because of same SGE_ROOT directory)
+               # we also don't allow the qmaster host be an exed host in an additional cluster
+               set allow_master_as_execd 0
             } else {
                if { $only_check == 0 } {
                   puts -nonewline $CHECK_OUTPUT "   (independent cluster) ..."
@@ -1202,12 +1209,16 @@ proc config_additional_config { only_check name config_array } {
 
             # create joined_config
             foreach param "$same_params $diff_params" {
-               set joined_config($param) $config($param)
+               set helpval {}
+               lappend helpval $config($param) 
+               set joined_config($param) $helpval
             }
 
             # add the params to be checked to our joined config
             foreach param "$same_params $diff_params" {
-               lappend joined_config($param) $add_config($param)
+               set helpval {}
+               lappend helpval $add_config($param)
+               lappend joined_config($param) $helpval
             }
 
             # now we check for equality or difference
@@ -1220,11 +1231,31 @@ proc config_additional_config { only_check name config_array } {
             }
             foreach param $diff_params {
                if {[llength [lsort -unique $joined_config($param)]] != 2} {
-                  puts $CHECK_OUTPUT "\nThe parameter \"$param\" has to be different for configuration\n\"$filename\","
+                  puts $CHECK_OUTPUT "\nThe parameter \"$param\" (=\"$config($param)\") has to be different for configuration\n\"$filename\","
                   puts $CHECK_OUTPUT "but has the following values:\n$joined_config($param)"
                   return -1
                }
+               # now if param is a list check content
+               if {[llength $add_config($param)] > 1 || [llength $config($param)] > 1} {
+                  foreach val $add_config($param) {
+                     if { [string first $val $config($param)] >= 0 } {
+                        puts $CHECK_OUTPUT "\nFound value \"$val\" of configuration\n\"$filename\"\nin configuration for parameter \"$param\" in testsuite config"
+                        return -1
+                     }
+                  }
+               }
             }
+
+            if {$allow_master_as_execd == 0} {
+               # since testsuite has problems with shutdown different cell clusters (because of same SGE_ROOT directory)
+               # we also don't allow the qmaster host be an exed host in an additional cluster
+               if { [string first $config(master_host) $add_config(execd_hosts) ] >= 0 } {
+                  puts $CHECK_OUTPUT "\nThe master host ($config(master_host)) of the testsuite configuration"
+                  puts $CHECK_OUTPUT "is not a supported cell execd host for config \"$filename\""
+                  return -1
+               }
+            }
+
             if { $only_check == 0 } {
                puts $CHECK_OUTPUT "ok"
             }

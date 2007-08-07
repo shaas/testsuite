@@ -1,4 +1,10 @@
-CR-2007-08-06-0: Enhancem.: Fixed TODO in hedeby util.tcl:
+CR-2007-08-07-0  Bugfix:    Enhanced check for additional cell cluster
+                            configuration. Testsuite currently doesn't support
+                            additional cell clusters which using the same
+                            cluster hosts.
+                 Review:    RD
+
+CR-2007-08-07-0: Enhancem.: Fixed TODO in hedeby util.tcl:
                             Added message bundle cache implementation
                  Review:    RD
 
