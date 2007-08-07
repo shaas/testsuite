@@ -303,25 +303,299 @@ proc get_hedeby_admin_user { } {
    return $CHECK_USER
 }
 
+#****** util/read_bundle_properties_cache() ************************************
+#  NAME
+#     read_bundle_properties_cache() -- used to read bundle_cache from disk
+#
+#  SYNOPSIS
+#     read_bundle_properties_cache { } 
+#
+#  FUNCTION
+#     The procedure is used to read the internal message bundle cache produced
+#     by parse_bundle_properties_files() in the results directory after
+#     compiling the sources.
+#     The bundle cache is used for parsing expected output of hedeby cli
+#     commands and/or log files.
+#     The bundle cache is an array containing the bundle id 
+#     (e.g."bootstrap.error.message1") and the corr. error text.
+#     If the cache file is not extisting parse_bundle_properties_files() 
+#     is called to re-create the file.
+#
+#  INPUTS
+#
+#  RESULT
+#     The internal cache contains the bundle messages after successfully
+#     reading the cache file.
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     util/read_bundle_properties_cache()
+#     util/parse_bundle_properties_files()
+#     util/get_properties_messages_file_name()
+#     util/get_bundle_string()
+#     util/create_bundle_string()
+#     util/parse_bundle_string_params()
+#*******************************************************************************
+proc read_bundle_properties_cache { } {
+   global bundle_cache
+   global hedeby_config
+   global CHECK_USER
+   if { [info exists bundle_cache] } {
+      unset bundle_cache
+   }
+   set filename [get_properties_messages_file_name]
+   
+   if {[is_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $filename]} {
+      read_array_from_file $filename "bundle_cache" bundle_cache 1
+   } else {
+      parse_bundle_properties_files $hedeby_config(hedeby_source_dir)
+   }
+}
+
+#****** util/parse_bundle_properties_files() ***********************************
+#  NAME
+#     parse_bundle_properties_files() -- create cache for bundle file entries
+#
+#  SYNOPSIS
+#     parse_bundle_properties_files { source_dir } 
+#
+#  FUNCTION
+#     The procedure is used to parse the specified source directory path for
+#     files ending with "*.properties" in order to find all used bundle ids
+#     of the source code. All found property entries are stored in a global
+#     cache which is also stored to disk in the results directory for the
+#     next testsuite startup.
+#
+#  INPUTS
+#     source_dir - full path to the hedeby source directory
+#
+#  SEE ALSO
+#     util/read_bundle_properties_cache()
+#     util/parse_bundle_properties_files()
+#     util/get_properties_messages_file_name()
+#     util/get_bundle_string()
+#     util/create_bundle_string()
+#     util/parse_bundle_string_params()
+#*******************************************************************************
+proc parse_bundle_properties_files { source_dir } {
+   global bundle_cache
+   global CHECK_OUTPUT
+   global CHECK_USER
+   global hedeby_config
+
+   # TODO: reparse messages if one file timestamp is newer than the file stamp
+   #       of the cached files (same as for GE message files)        
+   if {[info exists bundle_cache]} {
+      unset bundle_cache
+   }
+   set filename [get_properties_messages_file_name]
+   if {[is_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $filename]} {
+      delete_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $filename
+   }
+
+   puts $CHECK_OUTPUT "looking for properties files in dir \"$source_dir\" ..."
+   
+   # get all files ending with .properties in all subdirectories
+   set prop_files {}
+   set dirs [get_all_subdirectories $source_dir]
+   foreach dir $dirs {
+      set files [get_file_names $source_dir/$dir "*.properties"]
+      foreach file $files {
+         lappend prop_files $source_dir/$dir/$file
+      }
+   }
+
+   set error_text ""
+   foreach propFile $prop_files {
+      set file_p [ open $propFile r ]
+      set property ""
+      while { [gets $file_p line] >= 0 } {
+         set strLength [string length $line]
+         set help $strLength
+         incr help -1
+         if { [string last "\\" $line] == $help } {
+            incr help -1
+            set help [string range $line 0 $help]
+            append property $help
+            continue
+         }
+         append property $line
+         set property [string trim $property]
+         if { [string first "#" $property] == 0 } {
+            set property ""
+            continue
+         }
+ 
+         if { [string length $property] == 0} {
+            set property ""
+            continue
+         }
+
+         set equalpos [string first "=" $property] 
+         if { $equalpos > 0 } {
+            set befpos $equalpos
+            incr befpos -1
+            set aftpos $equalpos 
+            incr aftpos 1
+            set propId  [string trim [string range $property 0 $befpos]]
+            set propTxt [string trim [string range $property $aftpos end]]
+
+            if {[info exists bundle_cache($propId)]} {
+               append error_text "property \"$propId\" defined twice!\n"
+            }
+            set bundle_cache($propId) $propTxt
+         }
+         set property ""
+      }
+      close $file_p
+   }
+   if { $error_text != "" } {
+      add_proc_error "parse_bundle_properties_files" -3 $error_text
+   }
+
+   # store parsed bundle ids
+   spool_array_to_file $filename "bundle_cache" bundle_cache
+
+   # wait remote for file ... 
+   wait_for_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $filename
+}
+
+#****** util/get_properties_messages_file_name() *******************************
+#  NAME
+#     get_properties_messages_file_name() -- get file name of bundle cache file
+#
+#  SYNOPSIS
+#     get_properties_messages_file_name { } 
+#
+#  FUNCTION
+#     This procedure creates the file path to the file containting the bundle
+#     cache messages from the hedeby properties files.
+#
+#  INPUTS
+#
+#  RESULT
+#     Full path to cache file
+#
+#  SEE ALSO
+#     util/read_bundle_properties_cache()
+#     util/parse_bundle_properties_files()
+#     util/get_properties_messages_file_name()
+#     util/get_bundle_string()
+#     util/create_bundle_string()
+#     util/parse_bundle_string_params()
+#*******************************************************************************
+proc get_properties_messages_file_name { } {
+   global CHECK_PROTOCOL_DIR 
+   global CHECK_OUTPUT
+   global hedeby_config
+  
+   puts $CHECK_OUTPUT "checking properties file ..."
+   if { [ file isdirectory $CHECK_PROTOCOL_DIR] != 1 } {
+      file mkdir $CHECK_PROTOCOL_DIR
+      puts $CHECK_OUTPUT "creating directory: $CHECK_PROTOCOL_DIR"
+   }
+   set release $hedeby_config(hedeby_source_cvs_release)
+   set filename $CHECK_PROTOCOL_DIR/source_code_properties_${release}.dump
+   return $filename
+}
+
+#****** util/get_bundle_string() ***********************************************
+#  NAME
+#     get_bundle_string() -- get belonging to specified bundle id
+#
+#  SYNOPSIS
+#     get_bundle_string { id } 
+#
+#  FUNCTION
+#     The procedure tries to find the specified string in the bundle_cache
+#     array and returns the bundle text.
+#
+#  INPUTS
+#     id - bundle id, e.g.: "bootstrap.exception.constructor_of_not_allowed"
+#  RESULT
+#     corr. text, defined by the bundle id. E.g.:
+#     "Not allowed to create instance if {0} for component {1}."
+#
+#  NOTES
+#     This procedure is used more internally by create_bundle_string() and
+#     parse_bundle_string_params()
+#
+#  SEE ALSO
+#     util/read_bundle_properties_cache()
+#     util/parse_bundle_properties_files()
+#     util/get_properties_messages_file_name()
+#     util/get_bundle_string()
+#     util/create_bundle_string()
+#     util/parse_bundle_string_params()
+#*******************************************************************************
 proc get_bundle_string { id } {
-   # TODO: find a way to get the bundle messages for parsing the output of the command
+   global bundle_cache
+
    set ret_val ""
-   switch -exact -- $id {
-      "bootstrap.log.info.jvm_started" { set ret_val "Jvm {0} started\r\n" }
-      "ParentStartupService.skipRunningJvm" { set ret_val "Can not start jvm {0}: pid file {1} already exists\r\n" }
-      "ParentStartupService.skippedRunningJvms" { set ret_val "Can not start following already running jvms: {0}\r\n" }
-      "client.status.other" { set ret_val "Other:\r\n" }
-      "client.status.service" { set ret_val "{0}: {1} -- status: {2}\r\n"}
+   if { [info exists bundle_cache($id)] } {
+      set ret_val $bundle_cache($id)
    }
    if { $ret_val == "" } {
       add_proc_error "get_bundle_string" -1 "cannot find bundle string \"$id\""
       set ret_val "This is a return value for a unknown bundle string"
    }
-   set ret_val [string trim $ret_val]
    return $ret_val
 }
 
 
+#****** util/create_bundle_string() ********************************************
+#  NAME
+#     create_bundle_string() -- create message from bundle id by setting parameters
+#
+#  SYNOPSIS
+#     create_bundle_string { id {params_array "params"} {default_param ""} } 
+#
+#  FUNCTION
+#     This procedure is used to generate a message build out of the bundle id
+#     text and the specified parameters.
+#     The resulting string can be used for string matching options when it is
+#     necessary to test cli output of commands.
+#
+#  INPUTS
+#     id                      - bundle id
+#     {params_array "params"} - array containing the parameters
+#     {default_param ""}      - if set the array is not used. All found
+#                               parameters will be replaced by the specified
+#                               string
+#
+#  RESULT
+#     A string where all the parameters from the bundle text are replaced
+#     by the specified params from the array or (if default_param != "")
+#     replaced by the default_param string.
+#
+#  EXAMPLE
+#     set match_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz "*"]
+#     puts $match_string
+#
+#     # bundle text of "bootstrap.log.info.jvm_started" is "Jvm {0} started"
+#     # Since the default parameter is set to "*" the {0} parameter is replaced
+#     # by "*"
+#     output: "Jvm * started"
+#
+#     The following lines would exactly produce the same output:
+#
+#     set xyz(0) "*"
+#     set match_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz]
+#
+#     set params(0) "*"
+#     set match_string [create_bundle_string "bootstrap.log.info.jvm_started"]
+#
+#
+#  SEE ALSO
+#     util/read_bundle_properties_cache()
+#     util/parse_bundle_properties_files()
+#     util/get_properties_messages_file_name()
+#     util/get_bundle_string()
+#     util/create_bundle_string()
+#     util/parse_bundle_string_params()
+#*******************************************************************************
 proc create_bundle_string { id {params_array "params"} {default_param ""} } {
    global CHECK_OUTPUT
    upvar $params_array params
@@ -357,6 +631,58 @@ proc create_bundle_string { id {params_array "params"} {default_param ""} } {
    return $result_string
 }
 
+#****** util/parse_bundle_string_params() **************************************
+#  NAME
+#     parse_bundle_string_params() -- parse output with matching bundle text
+#
+#  SYNOPSIS
+#     parse_bundle_string_params { output id {params_array params} } 
+#
+#  FUNCTION
+#     This procedure is used to parse the output of a cli command and get the
+#     parameters used when creating the output. Se the EXAMPLE section for a
+#     better description.
+#
+#  INPUTS
+#     output                - output which should be parsed (compared) to bundle
+#                             string
+#     id                    - bundle id
+#     {params_array params} - array to store results
+#
+#  RESULT
+#     result is stored in the named array. 
+#     array_name(count) contains the number of params found
+#     array_name(x) contains the parsed parameters
+#
+#  EXAMPLE
+#     The output of a cli command is looking as follows:
+#     "tuor: executor_vm -- status: started"
+#
+#     When using the message id "client.status.service" the procedure will use
+#     the bundle text ("{0}: {1} -- status: {2}") to parse the output and try
+#     to return the parameters used when the output was generated.
+#
+#     The parsed parameters are stored in the specified params array. After
+#     the call the array contains the parameter count stored in params(count)
+#     and the values in params(0), params(1), params(2), ...
+#
+#     Code example:
+#     =============
+#     ...
+#     parse_bundle_string_params $line "client.status.service" params
+#     set host   $params(0)
+#     set comp   $params(1)
+#     set status $params(2)
+#
+#
+#  SEE ALSO
+#     util/read_bundle_properties_cache()
+#     util/parse_bundle_properties_files()
+#     util/get_properties_messages_file_name()
+#     util/get_bundle_string()
+#     util/create_bundle_string()
+#     util/parse_bundle_string_params()
+#*******************************************************************************
 proc parse_bundle_string_params { output id {params_array params}  } {
    global CHECK_OUTPUT
    upvar $params_array par

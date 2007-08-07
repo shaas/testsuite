@@ -154,11 +154,39 @@ proc check_private_propterties_file { build_host } {
 }
 
 
-##############################################################
-# Here we have all the compile procedures
-##############################################################
+#****** checktree_hedeby/hedeby_compile() *********************************************
+#  NAME
+#     hedeby_compile() -- compile hook for testsuite
+#
+#  SYNOPSIS
+#     hedeby_compile { compile_hosts a_report } 
+#
+#  FUNCTION
+#     This procedure is the implemented compile hook to get the hedeby
+#     sources compiled. Testsuite is calling all compile hooks when 
+#     compile_source is started.
+#
+#     After successfull compiling all *.properties files in the
+#     hedeby source directory are parsed to fill up the testsuite
+#     internal bundle_cache which contains all L10N bundle ids and their
+#     strings to be used by the bundle procedures.
+#     
+#
+#  INPUTS
+#     compile_hosts - all hosts for which the sources should be build
+#     a_report      - name of a report variable where reports should be
+#                     written in
+#
+#  RESULT
+#     0 - on success
+#    -1 - on error
+#
+#  SEE ALSO
+#    util/parse_bundle_properties_files()
+#*******************************************************************************
 proc hedeby_compile { compile_hosts a_report } {
    global CHECK_OUTPUT
+   global hedeby_config
    upvar $a_report report 
 
    
@@ -198,6 +226,9 @@ proc hedeby_compile { compile_hosts a_report } {
    } else {
       puts $CHECK_OUTPUT "done."
    }
+
+   # here we parse our properties files
+   parse_bundle_properties_files $hedeby_config(hedeby_source_dir)
    return 0
 }
 
@@ -703,6 +734,36 @@ proc hedeby_init_config { config_array } {
 }
 
 
+#****** checktree_hedeby/hedeby_verify_config() ***************************************
+#  NAME
+#     hedeby_verify_config() -- verify function hook for testsuite integration
+#
+#  SYNOPSIS
+#     hedeby_verify_config { config_array only_check parameter_error_list } 
+#
+#  FUNCTION
+#     This procedure is called from the testsuite framework to verify the hedeby
+#     testsuite configuration.
+# 
+#     After verifying the hedeby_config the bundle_cache is re-created by reading
+#     the bundle_cache file from the results directory. The bundle cache file
+#     is re-created and spooled to disk every time the hedeby sources are builded.
+#
+#  INPUTS
+#     config_array         - tcl array containing the hedeby configuration to be
+#                            verified
+#     only_check           - if only_check is not 0 no modifications are possible
+#     parameter_error_list - used to identify errors and contains verify errors
+#                            after the verification
+#
+#  RESULT
+#     0 - on success
+#    -1 - on error
+#
+#  SEE ALSO
+#     util/read_bundle_properties_cache()
+#     checktree_hedeby/hedeby_compile()
+#*******************************************************************************
 proc hedeby_verify_config { config_array only_check parameter_error_list } {
    global ts_checktree hedeby_checktree_nr CHECK_OUTPUT hedeby_enhanced_config
    global CHECK_DEFAULTS_FILE
@@ -814,6 +875,8 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
          add_proc_error "hedeby_get_required_hosts" -3 $error_text
       }
    }
+
+   read_bundle_properties_cache
 
    return $retval
 }
