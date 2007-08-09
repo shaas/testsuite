@@ -7812,7 +7812,15 @@ for { set i 0 } { $i < $argc } { incr i } {
       puts "                      please use quotes, when specifying multiple architectures, e.g."
       puts "                      preferred_archs sol-sparc64, or preferred_archs \"hp11 hp11-64\""
       puts ""
-
+      puts "send_speed <value>    specify the used testsuite send speed. This value overwrites"
+      puts "                      the settings from the host configurations. A send_speed value of"
+      puts "                      0.0 disables sending out expect strings slow."
+      puts "                      A really slow send_speed would be \"0.01\"."
+      puts "                      The testsuite test \"testsuite\" can be started to get information"
+      puts "                      about current remote script execution times."
+      puts "                      If some hosts have unexpected connection errors the send_speed"
+      puts "                      value can be used to prevent errors."
+      puts ""
       exit 1
    }
 
@@ -7999,6 +8007,24 @@ for { set i 0 } { $i < $argc } { incr i } {
       puts $CHECK_OUTPUT " ---> using \"$CHECK_COVERAGE_DIR\" for coverage profiles <---"
       continue
    }
+
+   if { ( [string compare [lindex $argv $i] "--send_speed"] == 0 ) || ([string compare [lindex $argv $i] "send_speed"] == 0 ) } {
+      incr i
+      set help_var [lindex $argv $i]
+      set GLOBAL_SEND_SPEED [ string trim $help_var ]
+
+      if { [llength $GLOBAL_SEND_SPEED] != 1 } {
+         puts $CHECK_OUTPUT "can't use \"send_speed\" option without value!"
+         exit -1 
+      }
+
+      if { $GLOBAL_SEND_SPEED <= 0.0 } {
+         set GLOBAL_SEND_SPEED 0.0
+      }
+      puts $CHECK_OUTPUT " ---> using \"$GLOBAL_SEND_SPEED\" for send_speed <---"
+      continue
+   }
+
 
    if { ( [string compare [lindex $argv $i] "--check"] == 0 ) || ([string compare [lindex $argv $i] "check"] == 0 ) } {
       set do_one_test 1

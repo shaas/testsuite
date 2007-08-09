@@ -1,3 +1,12 @@
+CR-2007-08-09-0: Enhancem.: o The current default value for send_speed in the
+                              host configuration is to slow. Changed default value
+                              to "0.0" which means that the send speed is not
+                              limited.
+                            o added new command line parameter "send_speed" to
+                              overwrite the send_speed settings from host config
+                              file.
+                 Review:    AA
+
 CR-2007-08-07-1: Cleanup:   Added ADOC headers for checktree_hedeby/checktree.tcl
                             and checktree_hedeby/util.tcl 
 

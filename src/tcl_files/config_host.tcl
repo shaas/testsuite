@@ -596,7 +596,7 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
    set config($new_host,ja_locale)     ""
    set config($new_host,zh_locale)     ""
    set config($new_host,zones)         ""
-   set config($new_host,send_speed)    0.001
+   set config($new_host,send_speed)    0.0
 
    if {$have_host == ""} {
       host_config_hostlist_edit_host config $new_host
@@ -1471,8 +1471,8 @@ wait_for_enter
       puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.8 to 1.9 ..."
 
       foreach host $ts_host_config(hostlist) {
-         # we now expect send speed property - use a pretty slow default
-         set ts_host_config($host,send_speed) 0.001
+         # we now expect send speed property - disable send speed
+         set ts_host_config($host,send_speed) 0.0
       }
       set ts_host_config(version) "1.9"
      
@@ -2740,14 +2740,14 @@ proc host_conf_get_java_compile_host {{raise_error 1}} {
 #     for the physical host is returned.
 #
 #     If the host is not (yet) known, e.g. while it is added to the host config,
-#     a default value of 0.001 is returned.
+#     a default value of 0.0 is returned.
 #
 #  INPUTS
 #     host - name of the host or zone
 #            if "" is given as hostname, the default value will be returned
 #
 #  RESULT
-#     send_speed configured in host configuration, or default 0.001
+#     send_speed configured in host configuration, or default 0.0
 #     Meant to set as "send_slow" before calls to "send -s".
 #
 #  SEE ALSO
@@ -2755,10 +2755,15 @@ proc host_conf_get_java_compile_host {{raise_error 1}} {
 #*******************************************************************************
 proc host_conf_get_send_speed {host_in} {
    global ts_host_config
+   global GLOBAL_SEND_SPEED
+
+   if { [info exists GLOBAL_SEND_SPEED] } {
+      return $GLOBAL_SEND_SPEED
+   }
 
    # if we don' know the host: return default
    if {$host_in == ""} {
-      return 0.001
+      return 0.0
    }
 
    # remove domain part of hostname
@@ -2771,7 +2776,7 @@ proc host_conf_get_send_speed {host_in} {
    }
 
    # don't know the host yet (e.g. when adding a new host): return default
-   return 0.001
+   return 0.0
 }
 
 #****** config_host/host_has_newgrp() ******************************************
