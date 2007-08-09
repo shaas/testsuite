@@ -113,7 +113,7 @@ proc hedeby_cleanup_system {} {
    # then remove system from preferences ... 
    #    we don't want a error reporting, because
    #    the system might not be installed at all
-   remove_hedeby 0
+   remove_hedeby_preferences 0
 }
 
 proc hedeby_install_master_host {} {

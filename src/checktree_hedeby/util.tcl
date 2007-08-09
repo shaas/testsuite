@@ -32,162 +32,75 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-#****** util/do_ssh_login() ****************************************************
+# Functions
+###########
+#     system specific:
+#     ================
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#     util/kill_hedeby_process()
+#     util/shutdown_hedeby_host()
+#     util/startup_hedeby_host()
+#     util/remove_hedeby_preferences()
+#     util/remove_prefs_on_hedeby_host()
+#     util/shutdown_hedeby()
+#     util/startup_hedeby()
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#
+#     output parsing specific:
+#     ========================
+#     util/parse_sdmadm_show_status_output()
+#
+#     file specific:
+#     ==============
+#     util/get_hedeby_binary_path()
+# 
+#     L10N - messages specific:
+#     =========================
+#     util/read_bundle_properties_cache()
+#     util/parse_bundle_properties_files()
+#     util/get_properties_messages_file_name()
+#     util/get_bundle_string()
+#     util/create_bundle_string()
+#     util/parse_bundle_string_params()
+#
+
+#****** util/remove_hedeby_preferences() ***************************************
 #  NAME
-#     do_ssh_login() -- do ssl login on open spawn id
+#     remove_hedeby_preferences() -- remove all preferences entries
 #
 #  SYNOPSIS
-#     do_ssh_login { spawn_id user host } 
+#     remove_hedeby_preferences { {raise_error 1} } 
 #
 #  FUNCTION
-#     This procedure is used to login via ssh
+#     This procedure is used to remove all hedeby preferences entries for
+#     the testsuite hedeby system. 
 #
 #  INPUTS
-#     spawn_id - spawn id of open spawn process
-#     user     - user name for haithabu_passwd array
-#     host     - host name for haithabu_passwd array
+#     {raise_error 1} - optional parameter which allows to switch of error
+#                       reporting when error occurs. Default value is 
+#                       1(=report errors) if set to 0 no errors are reported.
 #
 #  RESULT
-#     0 on success 
-#
-#  EXAMPLE
-#
-#   set id [open_remote_spawn_process $ts_config(master_host) "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
-#   set sp_id [ lindex $id 1 ]
-#
-#   set exit_state [do_ssh_login sp_id "n1sm_user" "n1sm_host"]
-#   
-#   if { $exit_state == 0 } {
-#      send -i $sp_id -- "exit\n"
-#
-#      expect {
-#         -i $sp_id "_exit_status_:*\n" {
-#                set exit_state [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
-#                puts $CHECK_OUTPUT "exit state is: \"$exit_state\""
-#            }
-#      }
-#   }
-#   close_spawn_process $id
-#
-#
-#  NOTES
-#     very specific haithabu function
+#     none
 #
 #  SEE ALSO
-#      util/do_ssh_login()
-#      util/do_sftp_login()
+#     util/remove_hedeby_preferences()
+#     util/remove_prefs_on_hedeby_host()
 #*******************************************************************************
-proc do_ssh_login { spawn_id user host } {
-   global haithabu_config CHECK_OUTPUT ts_config
-   global haithabu_passwd CHECK_USER CHECK_SHELL_PROMPT
-
-   upvar sp_id $spawn_id
-
-   # set id [open_remote_spawn_process $ts_config(master_host) "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
-   set exit_state 1
-   log_user 1
-
-   set exit_state -1
-   expect {
-         -i $sp_id full_buffer { 
-            add_proc_error "haithabu_get_required_passwords" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-         }
-
-         -i $sp_id timeout {
-            add_proc_error "haithabu_get_required_passwords" -1 "unexpected timeout"
-         } 
-         -i $sp_id eof {
-            add_proc_error "haithabu_get_required_passwords" -1 "unexpected eof"
-         } 
-         -i $sp_id "_exit_status_:*\n" {
-            set exit_state [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
-            puts $CHECK_OUTPUT "exit state is: \"$exit_state\""
-            puts $CHECK_OUTPUT "process should not have finished here"
-
-         }
-         -i $sp_id "password:" {
-            log_user 0
-            send -i $sp_id -- "$haithabu_passwd($haithabu_config($user),$haithabu_config($host))\n"
-            log_user 1
-            puts $CHECK_OUTPUT "password send"
-         } 
-   }
-
-   set timeout 1
-   set nr_of_timeouts 0
-   expect {
-         -i $sp_id "$haithabu_config($user)*gid" {
-            puts $CHECK_OUTPUT "got user name"
-            set exit_state 0
-         }
-         -i $sp_id timeout {
-            puts $CHECK_OUTPUT "sending id command ..."
-            send -i $sp_id -- "id\n"
-            incr nr_of_timeouts 1
-            if { $nr_of_timeouts > 15 } {
-               add_proc_error "haithabu_get_required_passwords" -1 "unexpected timeout"
-               break
-            }
-            exp_continue
-         } 
-   }
-
-#   close_spawn_process $id
-   return $exit_state
-}
-
-proc do_sftp_login { spawn_id user host } {
-   global haithabu_config CHECK_OUTPUT ts_config
-   global haithabu_passwd CHECK_USER CHECK_SHELL_PROMPT
-
-   upvar sp_id $spawn_id
-
-   # set id [open_remote_spawn_process $ts_config(master_host) "$CHECK_USER" "ssh" "$haithabu_config(n1sm_user)@$haithabu_config(n1sm_host)" ]
-   set exit_state 1
-   log_user 1
-
-   set exit_state -1
-   expect {
-         -i $sp_id full_buffer { 
-            add_proc_error "haithabu_get_required_passwords" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-         }
-
-         -i $sp_id timeout {
-            add_proc_error "haithabu_get_required_passwords" -1 "unexpected timeout"
-         } 
-         -i $sp_id eof {
-            add_proc_error "haithabu_get_required_passwords" -1 "unexpected eof"
-         } 
-         -i $sp_id "_exit_status_:*\n" {
-            set exit_state [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
-            puts $CHECK_OUTPUT "exit state is: \"$exit_state\""
-            puts $CHECK_OUTPUT "process should not have finished here"
-
-         }
-         -i $sp_id "password:" {
-            log_user 0
-            send -i $sp_id -- "$haithabu_passwd($haithabu_config($user),$haithabu_config($host))\n"
-            log_user 1
-            puts $CHECK_OUTPUT "password send"
-         } 
-   }
-
-   expect {
-         -i $sp_id "sftp>" {
-            puts $CHECK_OUTPUT "got shell prompt"
-            set exit_state 0
-         }
-         -i $sp_id timeout {
-            add_proc_error "haithabu_get_required_passwords" -1 "unexpected timeout"
-         } 
-   }
-
-
-#   close_spawn_process $id
-   return $exit_state
-}
-
-proc remove_hedeby {{raise_error 1}} {
+proc remove_hedeby_preferences {{raise_error 1}} {
    global hedeby_config
    # first step: remove preferences for all managed hosts
    foreach host [get_all_hedeby_managed_hosts] {
@@ -198,7 +111,6 @@ proc remove_hedeby {{raise_error 1}} {
    remove_prefs_on_hedeby_host $hedeby_config(hedeby_master_host) $raise_error
 }
 
-# return != 0 on error
 #****** util/shutdown_hedeby() *************************************************
 #  NAME
 #     shutdown_hedeby() -- Shutdown running hedeby system
@@ -307,6 +219,34 @@ proc startup_hedeby {} {
    return $ret_val
 }
 
+#****** util/get_hedeby_binary_path() ******************************************
+#  NAME
+#     get_hedeby_binary_path() -- Get the full path name to a hedeby cli binary
+#
+#  SYNOPSIS
+#     get_hedeby_binary_path { binary_name {user_name ""} {hostname ""} } 
+#
+#  FUNCTION
+#     Get the full path name of a hedeby cli binary. The procedure returns
+#     the full path to the specified hedeby binary. Currently only "sdmadm"
+#     is supported.
+#
+#  INPUTS
+#     binary_name    - name of the hedeby binary. 
+#                      Currently supported names: "sdmadm"
+#     {user_name ""} - optional: User name which should have access to the
+#                      binary if not used the hedeby admin user performs the
+#                      directory commands.
+#     {hostname ""}  - optional: Hostname on which the binary path should be
+#                      created. If not used the hedeby master host is used
+#                      to perform the directory commands.
+#
+#  RESULT
+#     Full path to the hededby binary 
+#
+#  SEE ALSO
+#     util/get_hedeby_binary_path()
+#*******************************************************************************
 proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
    global hedeby_config
    
@@ -337,6 +277,33 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
    return $path
 }
 
+#****** util/get_hedeby_system_name() ******************************************
+#  NAME
+#     get_hedeby_system_name() -- get the testsuite hedeby system name
+#
+#  SYNOPSIS
+#     get_hedeby_system_name { } 
+#
+#  FUNCTION
+#     Returns the hedeby system name used by the testsuite. The name is a
+#     combination of ts_+preferences_type+CS_port.
+#
+#  INPUTS
+#
+#  RESULT
+#     system name used by testsuite
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc get_hedeby_system_name { } {
    global hedeby_config
    set pref_type [get_hedeby_pref_type]
@@ -344,6 +311,40 @@ proc get_hedeby_system_name { } {
    return $sys_name
 }
 
+#****** util/get_hedeby_pref_type() ********************************************
+#  NAME
+#     get_hedeby_pref_type() -- get the preferences type of the hedeby system
+#
+#  SYNOPSIS
+#     get_hedeby_pref_type { } 
+#
+#  FUNCTION
+#     Returns the hedeby preferences type used by testsuite. The type may be
+#     "user" or "system". If the testsuite was started as admin user system
+#     (which happens when the root password wasn't provided) the testsuite
+#     will install hedeby in user preferences. If the testsuite has the root
+#     password the hedeby bootstrap information will be installed in the
+#     "system" preferences.
+#
+#  INPUTS
+#
+#  NOTES
+#     Currently the testsuite only supports the "user" preferences mode
+#
+#  RESULT
+#     "user" or "system"
+#    
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc get_hedeby_pref_type { } {
    global CHECK_ADMIN_USER_SYSTEM
 
@@ -357,10 +358,39 @@ proc get_hedeby_pref_type { } {
    }
 }
 
+#****** util/get_hedeby_admin_user() *******************************************
+#  NAME
+#     get_hedeby_admin_user() -- get the name of the hedeby admin user
+#
+#  SYNOPSIS
+#     get_hedeby_admin_user { } 
+#
+#  FUNCTION
+#     This procedure returns the username of the hedeby admin user. This is
+#     currently the CHECK_USER variable. The CHECK_USER is the user which
+#     started the testsuite.
+#
+#  INPUTS
+#
+#  RESULT
+#     name of the hedeby admin user
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc get_hedeby_admin_user { } {
    global CHECK_USER
    return $CHECK_USER
 }
+
 
 #****** util/read_bundle_properties_cache() ************************************
 #  NAME
@@ -850,6 +880,36 @@ proc parse_bundle_string_params { output id {params_array params}  } {
    }
 }
 
+#****** util/get_hedeby_startup_user() *****************************************
+#  NAME
+#     get_hedeby_startup_user() -- get name of user for starting hedeby
+#
+#  SYNOPSIS
+#     get_hedeby_startup_user { } 
+#
+#  FUNCTION
+#     This procedure returns the name of the hedeby startup user. The startup
+#     user is used for starting the system. The user depends on the system
+#     preferences type. For "user" systems the $CHECK_USER is returned (=user
+#     which started testsuite). For "system" installations the user "root" is
+#     returned.
+#
+#  INPUTS
+#
+#  RESULT
+#     Name of hedeby startup user
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc get_hedeby_startup_user { } {
    global CHECK_OUTPUT
    global CHECK_USER
@@ -862,17 +922,105 @@ proc get_hedeby_startup_user { } {
    return $user
 }
 
+#****** util/get_hedeby_cs_url() ***********************************************
+#  NAME
+#     get_hedeby_cs_url() -- return url of configuration service
+#
+#  SYNOPSIS
+#     get_hedeby_cs_url { } 
+#
+#  FUNCTION
+#     The url is build of hedeby master host and the hedeby cs port specified
+#     in the testsuite configuration (e.g. "hostfoo:43434").
+#
+#  INPUTS
+#
+#  RESULT
+#     url string
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc get_hedeby_cs_url { } {
    global hedeby_config
    return "$hedeby_config(hedeby_master_host):$hedeby_config(hedeby_cs_port)"
 }
 
 
+#****** util/get_hedeby_local_spool_dir() **************************************
+#  NAME
+#     get_hedeby_local_spool_dir() -- get the hedeby local spool directory path
+#
+#  SYNOPSIS
+#     get_hedeby_local_spool_dir { host } 
+#
+#  FUNCTION
+#     This procedure returns the path to the local spool directory for the
+#     specified host. This path depends on the testsuite host configuration and
+#     adds the subdirectory "hedeby_spool" to the path.
+#
+#  INPUTS
+#     host - name of the host for which the local spooldir should be returned
+#
+#  RESULT
+#     spool directory path
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc get_hedeby_local_spool_dir { host } {
    set spool_dir [get_local_spool_dir $host "hedeby_spool" 0 ]
    return $spool_dir
 }
 
+#****** util/cleanup_hedeby_local_spool_dir() **********************************
+#  NAME
+#     cleanup_hedeby_local_spool_dir() -- delete the hedeby local spool dir
+#
+#  SYNOPSIS
+#     cleanup_hedeby_local_spool_dir { host } 
+#
+#  FUNCTION
+#     This procedure is used to delete the local spool directory of the
+#     specified host. The procedure is using get_hedeby_local_spool_dir()
+#     to get the path to be deleted. After that all files are recursivle
+#     chown'ed to the $CHECK_USER by using the root account.
+#   
+#     After that the directory is completely deleted.
+#
+#  INPUTS
+#     host - name of the host for which the local spooldir should be deleted
+#
+#  RESULT
+#     path to the deleted spool directory
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc cleanup_hedeby_local_spool_dir { host } {
    global CHECK_OUTPUT 
    global CHECK_USER
@@ -895,6 +1043,33 @@ proc cleanup_hedeby_local_spool_dir { host } {
 
 
 # this procedure returns all possible managed hosts!!!
+#****** util/get_all_hedeby_managed_hosts() ************************************
+#  NAME
+#     get_all_hedeby_managed_hosts() -- get all possible managed host names
+#
+#  SYNOPSIS
+#     get_all_hedeby_managed_hosts { } 
+#
+#  FUNCTION
+#     The procedure returns a list of all possible managed host candidates of
+#     the specified GE clusters including all hedeby (host) resources.
+#
+#  INPUTS
+#
+#  RESULT
+#     list with host names
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc get_all_hedeby_managed_hosts {} {
    global hedeby_config
    set host_list [get_all_execd_hosts]
@@ -908,10 +1083,39 @@ proc get_all_hedeby_managed_hosts {} {
          lappend new_host_list  $host
       }
    }
-
    return $new_host_list
 }
 
+#****** util/is_hedeby_process_running() ***************************************
+#  NAME
+#     is_hedeby_process_running() -- check a process is running
+#
+#  SYNOPSIS
+#     is_hedeby_process_running { host pid } 
+#
+#  FUNCTION
+#     This procedure is using the get_ps_info() call for the specified pid to
+#     find out if the specified process is running.
+#
+#  INPUTS
+#     host - host where the process is checked 
+#     pid  - pid of process which should be checked
+#
+#  RESULT
+#     1 - process is running
+#     0 - process is NOT running
+#
+#  SEE ALSO
+#     util/get_hedeby_system_name()
+#     util/get_hedeby_pref_type()
+#     util/get_hedeby_admin_user()
+#     util/get_hedeby_startup_user()
+#     util/get_hedeby_cs_url()
+#     util/get_hedeby_local_spool_dir()
+#     util/cleanup_hedeby_local_spool_dir()
+#     util/get_all_hedeby_managed_hosts()
+#     util/is_hedeby_process_running()
+#*******************************************************************************
 proc is_hedeby_process_running { host pid } {
    global CHECK_OUTPUT
 
@@ -926,12 +1130,49 @@ proc is_hedeby_process_running { host pid } {
         puts $CHECK_OUTPUT "pid $pid not found!"
         set result 0
    }
-
    return $result
 }
 
+#****** util/kill_hedeby_process() *********************************************
+#  NAME
+#     kill_hedeby_process() -- kill a hedeby components java process
+#
+#  SYNOPSIS
+#     kill_hedeby_process { host user component pid {atimeout 60} } 
+#
+#  FUNCTION
+#     This procedure is used to send the SIGTERM signal to the specified
+#     pid of a component. If the process doesn't stop within the default
+#     wait time of 60 seconds the process is killed with SIGKILL signal.
+#
+#  INPUTS
+#     host          - host of the component
+#     user          - user which should send the signals
+#     component     - name of the component pid file
+#                     (e.g. "executor_vm@hostFoo")
+#     pid           - process id of java process 
+#     {atimeout 60} - optional timeout waiting for process end after 
+#                     sending SIGTERM signal
+#
+#  RESULT
+#     none
+#
+#  SEE ALSO
+#     util/is_hedeby_process_running()
+#     util/kill_hedeby_process()
+#     util/shutdown_hedeby_host()
+#     util/startup_hedeby_host()
+#     util/shutdown_hedeby()
+#     util/startup_hedeby()
+#*******************************************************************************
 proc kill_hedeby_process { host user component pid {atimeout 60}} {
    global CHECK_OUTPUT
+
+   set del_pid_file [get_hedeby_local_spool_dir $host]
+   append del_pid_file "/run/$component"
+   if { [is_remote_file $host $user $del_pid_file] == 0 } {
+      puts $CHECK_OUTPUT "cannot find pid file of component $component in the hedeby run directory"
+   }
 
    set delete_pid_file 0
    puts $CHECK_OUTPUT "***********************************************************************"
@@ -962,14 +1203,41 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
    }
    # components should have delete the pidfiles by itself here (SIGTERM is normal shutdown)
    if { $delete_pid_file } {
-      set del_pid_file [get_hedeby_local_spool_dir $host]
-      append del_pid_file "/run/$component"
       puts $CHECK_OUTPUT "delete pid file \"$del_pid_file\"\nfor component \"$component\" on host \"$host\" as user \"$user\" ..."
       delete_remote_file $host $user $del_pid_file
    }
 }
 
-# return 0 on success, 1 on error
+#****** util/shutdown_hedeby_host() ********************************************
+#  NAME
+#     shutdown_hedeby_host() -- shutdown complete hedeby host
+#
+#  SYNOPSIS
+#     shutdown_hedeby_host { type host user } 
+#
+#  FUNCTION
+#     This procedure is used to shutdown all hedeby components on the specified
+#     host. First try will shutdown components using sdmadm command. If this
+#     doesn't help SIGTERM and if also this does not help SIGKILL is send to
+#     the java processes on the specified host.
+#
+#  INPUTS
+#     type - type of hedeby host: "master" or "managed"
+#     host - name of the host where the components should be stopped
+#     user - user which should stop the components
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  SEE ALSO
+#     util/is_hedeby_process_running()
+#     util/kill_hedeby_process()
+#     util/shutdown_hedeby_host()
+#     util/startup_hedeby_host()
+#     util/shutdown_hedeby()
+#     util/startup_hedeby()
+#*******************************************************************************
 proc shutdown_hedeby_host { type host user } {
    global CHECK_OUTPUT 
    global hedeby_config
@@ -1081,7 +1349,38 @@ proc shutdown_hedeby_host { type host user } {
    return $ret_val
 }
 
-# return 0 on success, 1 on error
+#****** util/startup_hedeby_host() *********************************************
+#  NAME
+#     startup_hedeby_host() -- startup all components on the hedeby host
+#
+#  SYNOPSIS
+#     startup_hedeby_host { type host user } 
+#
+#  FUNCTION
+#     This procedure is used to start all configured hedeby components on the
+#     specified host. The processes are started under the specified user account.
+#
+#  INPUTS
+#     type - type of hedeby host: "master" or "managed"
+#     host - name of the host where the components should be started
+#     user - user which should start the components
+#
+#  RESULT
+#     0 - on success
+#     1 - on error
+#
+#  NOTES
+#     Currently this proceder doesn't check if the processes are runing after
+#     startup and if the pid files were written! (see TODOs)
+#
+#  SEE ALSO
+#     util/is_hedeby_process_running()
+#     util/kill_hedeby_process()
+#     util/shutdown_hedeby_host()
+#     util/startup_hedeby_host()
+#     util/shutdown_hedeby()
+#     util/startup_hedeby()
+#*******************************************************************************
 proc startup_hedeby_host { type host user } {
    global CHECK_OUTPUT 
     
@@ -1129,6 +1428,28 @@ proc startup_hedeby_host { type host user } {
 }
 
 
+#****** util/remove_prefs_on_hedeby_host() *************************************
+#  NAME
+#     remove_prefs_on_hedeby_host() -- remove preference settings on hedeby host
+#
+#  SYNOPSIS
+#     remove_prefs_on_hedeby_host { host {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is used to remove the testsuite preference settings on the
+#     specified host.
+#
+#  INPUTS
+#     host            - host where the testsuite preferences should be removed
+#     {raise_error 1} - optional parameter to disable error reporting
+#
+#  RESULT
+#     none
+#
+#  SEE ALSO
+#     util/remove_hedeby_preferences()
+#     util/remove_prefs_on_hedeby_host()
+#*******************************************************************************
 proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
    global CHECK_OUTPUT 
 
@@ -1176,6 +1497,37 @@ proc reset_hedeby {} {
    return 0
 }
 
+#****** util/sdmadm_command() **************************************************
+#  NAME
+#     sdmadm_command() -- start sdmadm command
+#
+#  SYNOPSIS
+#     sdmadm_command { host user arg_line {exit_var prg_exit_state} } 
+#
+#  FUNCTION
+#     This procedure is used to start a "raw" sdmadm command on the specified
+#     host under the specified user account. The complete argument line has
+#     to be specified. The sdmadm command is started with JAVA_HOME settings
+#     from testsuite host configuration.
+#
+#  INPUTS
+#     host                      - host where sdmadm should be started
+#     user                      - user account used for starting sdmadm
+#     arg_line                  - complete argument list
+#     {exit_var prg_exit_state} - default parameter specifying the variable where
+#                                 to save the exit state
+#
+#  RESULT
+#     The output of the sdmadm command
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#*******************************************************************************
 proc sdmadm_command { host user arg_line {exit_var prg_exit_state} } {
    upvar $exit_var back_exit_state
    global CHECK_OUTPUT
@@ -1185,6 +1537,42 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} } {
    return [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0]
 }
 
+#****** util/sdmadm_start() ****************************************************
+#  NAME
+#     sdmadm_start() -- command wrapper for sdmadm start command
+#
+#  SYNOPSIS
+#     sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is used to setup the argument parameters for sdmadm start
+#     command. It reflects all supported sdmadm start parameters and uses
+#     sdmadm_command() to start the command. 
+#
+#  INPUTS
+#     host            - host where sdmadm should be started
+#     user            - user account used for starting sdmadm
+#     output          - variable name where the output of sdmadm should be 
+#                       stored 
+#     {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#     {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#     {jvm_name ""}   - optional: jvm name. If not set no -j switch is used.
+#     {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     exit state of sdmadm start command
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#*******************************************************************************
 proc sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $output output_return
@@ -1218,6 +1606,42 @@ proc sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} {
    return $prg_exit_state
 }
 
+#****** util/sdmadm_shutdown() *************************************************
+#  NAME
+#     sdmadm_shutdown() -- command wrapper for sdmadm shutdown command
+#
+#  SYNOPSIS
+#     sdmadm_shutdown { host user output {preftype ""} {sys_name ""} 
+#     {jvm_name ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is used to setup the argument parameters for sdmadm 
+#     shutdown command. It reflects all supported sdmadm shutdown parameters
+#     and uses sdmadm_command() to start the command. 
+#
+#  INPUTS
+#     host            - host where sdmadm should be started
+#     user            - user account used for starting sdmadm
+#     output          - variable name where the output of sdmadm should be 
+#                       stored 
+#     {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#     {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#     {jvm_name ""}   - optional: jvm name. If not set no -j switch is used.
+#     {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     exit state of sdmadm start command
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#*******************************************************************************
 proc sdmadm_shutdown { host user output {preftype ""} {sys_name ""} {jvm_name ""} {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $output output_return
@@ -1252,6 +1676,42 @@ proc sdmadm_shutdown { host user output {preftype ""} {sys_name ""} {jvm_name ""
 }
 
 
+#****** util/sdmadm_remove_system() ********************************************
+#  NAME
+#     sdmadm_remove_system() -- command wrapper for sdmadm remove_system
+#
+#  SYNOPSIS
+#     sdmadm_remove_system { host user output {preftype ""} {sys_name ""} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is used to setup the argument parameters for sdmadm 
+#     remove_system command.
+#     It reflects all supported sdmadm remove_system parameters and uses
+#     sdmadm_command() to start the command. 
+#
+#  INPUTS
+#     host            - host where sdmadm should be started
+#     user            - user account used for starting sdmadm
+#     output          - variable name where the output of sdmadm should be 
+#                       stored 
+#     {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#     {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#     {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     exit state of sdmadm start command
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#*******************************************************************************
 proc sdmadm_remove_system { host user output {preftype ""} {sys_name ""} {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $output output_return
@@ -1281,6 +1741,41 @@ proc sdmadm_remove_system { host user output {preftype ""} {sys_name ""} {raise_
    return $prg_exit_state
 }
 
+#****** util/sdmadm_show_status() **********************************************
+#  NAME
+#     sdmadm_show_status() -- command wrapper for sdmadm show_status command
+#
+#  SYNOPSIS
+#     sdmadm_show_status { host user output {preftype ""} {sys_name ""} 
+#     {raise_error 1} } 
+#
+#     This procedure is used to setup the argument parameters for sdmadm 
+#     show_status command.
+#     It reflects all supported sdmadm show_status parameters and uses
+#     sdmadm_command() to start the command. 
+#
+#  INPUTS
+#     host            - host where sdmadm should be started
+#     user            - user account used for starting sdmadm
+#     output          - variable name where the output of sdmadm should be 
+#                       stored 
+#     {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#     {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#     {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     exit state of sdmadm start command
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#*******************************************************************************
 proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $output output_return
@@ -1310,6 +1805,57 @@ proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_er
    return $prg_exit_state
 }
 
+#****** util/parse_sdmadm_show_status_output() *********************************
+#  NAME
+#     parse_sdmadm_show_status_output() -- parse sdmadm show_status output
+#
+#  SYNOPSIS
+#     parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } 
+#
+#  FUNCTION
+#     This procedure is used to parse the output of the sdmadm show_status
+#     command and return the parsed values in the specified result array.
+#
+#  INPUTS
+#     output_var               - output of the sdmadm show_status cli command
+#     {status_array "ss_out" } - name of the array were the parsed information
+#                                should be stored. 
+#                                The array (default="ss_out") has the following
+#                                settings:
+#                                ss_out(HOSTNAME,COMPONENT_NAME,status)
+#                                ss_out(HOSTNAME,COMPONENT_NAME,section)
+#
+#  RESULT
+#     none
+#
+#  EXAMPLE
+#     # taken from procedure show_status_check()
+#     foreach jvm $expected_jvms($host) {
+#        puts $CHECK_OUTPUT "   checking jvm status of jvm \"$jvm\" on host \"$host\" ..."
+#        if { [info exists ss_out($host,$jvm,status)] } {
+#           set status $ss_out($host,$jvm,status)
+#           set section $ss_out($host,$jvm,section)
+#           puts $CHECK_OUTPUT "   status:  $status"
+#           puts $CHECK_OUTPUT "   section: $section"
+#           if { $status != $expected_component_status } {
+#              append error_text "jvm \"$jvm\" on host \"$host\" reports status \"$status\".\n"
+#              append error_text "Expected status is \"$expected_component_status\"!\n"
+#           }
+#        } else {
+#           append error_text "can't find jvm \"$jvm\" on host \"$host\"!\n"
+#        }
+#        incr nr_of_jvms 1
+#     }
+#     
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#*******************************************************************************
 proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
    global CHECK_OUTPUT
    upvar $output_var out
