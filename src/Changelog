@@ -1,3 +1,6 @@
+JG-2007-08-09-0: Bugfix:    Fixed consumable_resources test.
+                 Review:    MD
+
 CR-2007-08-09-1: Cleanup:   o Added ADOC headers for checktree_hedeby/util.tcl
                             o renamed remove_hedeby() to
                               remove_hedeby_preferences()

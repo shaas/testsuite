@@ -154,31 +154,15 @@ proc consumable_resources_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
-         return 0
-      }
-      "1" {
-         return 0
-      }
-      "2" {
-         return 0
-      }
-      "3" {
-         return 0
-      }
-      "4" {
-         return 0
-      }
-      "5" {
-         return 0
-      }
-      "6" {
-         return 0
-      }
-      "7" {
-         return 0
-      }
-      "8" {
+      0 -
+      1 -
+      2 -
+      3 -
+      4 -
+      5 -
+      6 -
+      7 -
+      8 {
          return 0
       }
    }
@@ -189,11 +173,10 @@ proc consumable_resources_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc consumable_resources_setup {} {
-   global ts_config
+   global ts_config CHECK_OUTPUT
    global consumable_resources_test_hosts
    global consumable_resources_saved_slot_count
    global consumable_complex_backup
-   global CHECK_OUTPUT
 
    # backup complex - we will modify it during the test
    get_complex consumable_complex_backup
@@ -222,7 +205,7 @@ proc consumable_resources_setup {} {
 }
 
 proc consumable_resources_cleanup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config CHECK_OUTPUT
    global consumable_resources_test_hosts
    global consumable_resources_saved_slot_count
    global consumable_complex_backup
@@ -459,8 +442,9 @@ proc consumable_resources_submit_jobs_and_wait {job_arguments job_count run_job_
 }
 
 proc consumable_resources_test {} {
+   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
    global consumable_resources_test_hosts check_description CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global consumable_resources_test_hosts
 
    if {$CHECK_ACT_LEVEL == 0} {
       set GLOBALLY [translate_macro MSG_SCHEDD_INFO_CANNOTRUNGLOBALLY_SS "*" "*test1=0*"]
@@ -557,7 +541,7 @@ proc consumable_resources_test {} {
       set test2_complex(test3) "t3 int <= YES YES 0 1000"
       set_complex test2_complex
 
-      set host_a [host_conf_get_suited_hosts]
+      set host_a [lindex $consumable_resources_test_hosts 0]
 
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
@@ -716,7 +700,7 @@ proc consumable_resources_test {} {
       set global_host(complex_values) "test1=5"
       set_exechost global_host global
 
-      set host_a [host_conf_get_suited_hosts]
+      set host_a [lindex $consumable_resources_test_hosts 0]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
        # modify complex_values of host_a host
@@ -843,7 +827,7 @@ proc consumable_resources_test {} {
       set global_host(complex_values) "test1=5"
       set_exechost global_host global
 
-      set host_a [host_conf_get_suited_hosts]
+      set host_a [lindex $consumable_resources_test_hosts 0]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
       # modify complex_values of host_a host
@@ -897,7 +881,7 @@ proc consumable_resources_test {} {
       set global_host(complex_values) "test1=5"
       set_exechost global_host global
 
-      set host_a [host_conf_get_suited_hosts]
+      set host_a [lindex $consumable_resources_test_hosts 0]
       # get original host_a host coniguration
       get_exechost orig_host_a_host $host_a
        # modify complex_values of host_a host
@@ -963,7 +947,7 @@ proc consumable_resources_test {} {
    
    if {$CHECK_ACT_LEVEL == 7} {
       # this is our test host
-      set host_a [host_conf_get_suited_hosts]
+      set host_a [lindex $consumable_resources_test_hosts 0]
 
       # reduce the load report time to stabilize and speedup the test
       # prepare cleanup - get original global host coniguration
@@ -1113,7 +1097,7 @@ proc consumable_resources_test {} {
    
    if {$CHECK_ACT_LEVEL == 8} {
       # this is our test host
-      set host_a [host_conf_get_suited_hosts]
+      set host_a [lindex $consumable_resources_test_hosts 0]
 
       # create complex
       set test1_complex(test1) "t1 INT <= YES YES 0 1000"
