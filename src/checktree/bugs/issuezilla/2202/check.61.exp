@@ -106,7 +106,6 @@ proc issue_2202_setup {} {
    add_rqs rqs_conf
 
    # backup and set config
-   unset -nocomplain backup_config
    get_config backup_config
 
    set new_config(qmaster_params) "simulate_hosts=1"

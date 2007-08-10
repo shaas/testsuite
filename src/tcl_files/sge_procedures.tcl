@@ -2178,14 +2178,25 @@ proc set_config_and_propagate {config {host global}} {
 
       # get host and spooldir of an execd - where to look for messages file
       if {$conf_host == "global"} {
-         set conf_host [lindex $ts_config(execd_hosts) 0]
+         set conf_host [lindex $ts_config(execd_nodes) 0]
       }
       set spool_dir [get_spool_dir $conf_host "execd"]
 
-      # Begin watching messages file for changes
+      # Begin watching messages file for changes,
+      # consume the lines output immediately by tail -f
       set messages_name "$spool_dir/messages"
       set tail_id [open_remote_spawn_process $conf_host $ts_user_config(first_foreign_user) "/usr/bin/tail" "-f $messages_name"]
       set sp_id [lindex $tail_id 1]
+      set timeout 5
+      expect {
+         -i $sp_id full_buffer {
+          add_proc_error "job_environment_set_config" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         }
+         -i $sp_id timeout {
+         }
+         -i $sp_id "*\n" {
+         }
+      }
 
       # Make configuration change
       set_config my_config $host
@@ -2193,7 +2204,19 @@ proc set_config_and_propagate {config {host global}} {
       # Wait for change to propagate
       puts $CHECK_OUTPUT "Waiting for configuration change to propagate to execd"
 
-      set last_name [lindex [array names my_config] end]
+      # choose a config to wait for
+      # if it is an empty string (e.g. as we deleted an entry), use wildcards
+      set value ""
+      foreach name [array names my_config] {
+         if {$my_config($name) != ""} {
+            set value $my_config($name)
+            break
+         }
+      }
+      if {$value == ""} {
+         set name "*"
+         set value "*"
+      }
 
       set timeout 90
 
@@ -2204,14 +2227,13 @@ proc set_config_and_propagate {config {host global}} {
          -i $sp_id timeout {
             add_proc_error "job_environment_set_config" -1 "setup failed (timeout waiting for config to change)"
          }
-         -i $sp_id "\|execd\|$conf_host\|I\|using \"$my_config($last_name)\" for $last_name" {
-            puts $CHECK_OUTPUT "Configuration changed: $last_name = \"$my_config($last_name)\""
+         -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
+            puts $CHECK_OUTPUT "Configuration changed: $name = \"$value\""
          }
       }
 
       # Stop watching
       close_spawn_process $tail_id
-      wait_for_load_from_all_queues 200 
    }
 }
 
@@ -3462,22 +3484,20 @@ proc wait_for_queue_state {queue state wait_timeout} {
 #  SEE ALSO
 #     sge_procedures/shutdown_system_daemon()
 #*******************************************************************************
-proc soft_execd_shutdown { host } {
- 
-   global CHECK_OUTPUT
-   global CHECK_USER
+proc soft_execd_shutdown {host} {
+   global CHECK_OUTPUT CHECK_USER
    get_current_cluster_config_array ts_config
 
    set tries 0
-   while { $tries <= 8 } {   
+   while {$tries <= 8} {
       incr tries 1
       set result [start_sge_bin "qconf" "-ke $host" $ts_config(master_host) $CHECK_USER]
-      if { $prg_exit_state != 0 } {
+      if {$prg_exit_state != 0} {
          puts $CHECK_OUTPUT "qconf -ke $host returned $prg_exit_state, hard killing execd"
          shutdown_system_daemon $host execd
       }
       set load [wait_for_unknown_load 15 "${host}.q" 0]
-      if { $load == 0 } {
+      if {$load == 0} {
          puts $CHECK_OUTPUT "execd on host $host reports 99.99 load value"
          return 0
       }
@@ -4559,9 +4579,11 @@ proc is_job_id { job_id } {
 #     This procedure will delete the job with the given jobid
 #
 #  INPUTS
-#     jobid              - job identification number
-#     { wait_for_end 0 } - optional, if not 0: wait for end of job 
+#     jobid            - job identification number
+#     {wait_for_end 0} - optional, if not 0: wait for end of job 
 #                          (till qstat -f $jobid returns "job not found")
+#     {all_users 0}    - delete jobs of all users (as administrator), default no
+#     {raise_error 1}  - raise an error condition on error, default yes
 #
 #  RESULT
 #     0   - ok
@@ -4572,11 +4594,10 @@ proc is_job_id { job_id } {
 #  SEE ALSO
 #     sge_procedures/submit_job()
 #*******************************
-proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
+proc delete_job { jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
    global CHECK_OUTPUT
    global CHECK_USER
    get_current_cluster_config_array ts_config
-
 
    set ALREADYDELETED [translate_macro MSG_JOB_ALREADYDELETED_U "*"]
    set REGISTERED1 [translate_macro MSG_JOB_REGDELTASK_SUU "*" "*" "*"]
@@ -4619,13 +4640,13 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
       while { $result == -100 } {
       expect {
           -i $sp_id timeout {
-             add_proc_error "delete_job" "-1" "timeout waiting for qdel"
+             add_proc_error "delete_job" "-1" "timeout waiting for qdel" $raise_error
              set result -5
           }
 
           -i $sp_id full_buffer {
              set result -5
-             add_proc_error "delete_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+             add_proc_error "delete_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
           }
           -i $sp_id $REGISTERED1 {
              puts $CHECK_OUTPUT $expect_out(0,string)
@@ -4656,7 +4677,7 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
              set result 0
           }
           -i $sp_id $UNABLETOSYNC {
-            add_proc_error "delete_job" -1 "$UNABLETOSYNC"
+            add_proc_error "delete_job" -1 "$UNABLETOSYNC" $raise_error
             set result -1
           }
           -i default {
@@ -4672,10 +4693,10 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
       close_spawn_process $id 1
       log_user 1
    } else {
-      add_proc_error "delete_job" -1 "job id is no integer"
+      add_proc_error "delete_job" -1 "job id is no integer" $raise_error
    }
    if { $result != 0 } {
-      add_proc_error "delete_job" -1 "could not delete job $jobid\nresult=$result"
+      add_proc_error "delete_job" -1 "could not delete job $jobid\nresult=$result" $raise_error
    }
    if { $wait_for_end != 0 && $result == 0 } {
       set my_timeout [timestamp]
@@ -4687,8 +4708,8 @@ proc delete_job { jobid {wait_for_end 0} {all_users 0}} {
       after 500
       while { [get_qstat_j_info $jobid ] != 0 } {
           if { [timestamp] > $my_timeout } {
-             add_proc_error "delete_job" -1 "timeout while waiting for jobend"
-             break;
+             add_proc_error "delete_job" -1 "timeout while waiting for jobend" $raise_error
+             break
           }
           if { [timestamp] > $my_second_qdel_timeout } {
              puts $CHECK_OUTPUT "timeout - deleting job!"
@@ -5151,32 +5172,32 @@ proc get_job_info { jobid } {
 # complete joblist if jobid is -1
    get_current_cluster_config_array ts_config
 
-   if { [string compare $ts_config(product_type) "sge"] == 0 } {
+   if {[string compare $ts_config(product_type) "sge"] == 0} {
       add_proc_error "get_job_info" -1 "this call is not accepted for sge system"
-      return "" 
+      return ""
    }
 
-   set result [start_sge_bin "qstat" "-ext" ]
-   if { $prg_exit_state != 0 } {
-      add_proc_error "get_job_info" -1 "qstat error or binary not found"
+   set result [start_sge_bin "qstat" "-ext"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "get_job_info" -1 "qstat -ext failed:\n$result"
       return ""
    }
 
    # split each line as listelement
    set back ""
    set help [split $result "\n"]
-   foreach line $help { 
-      if { [lindex $line 0] == $jobid } {
+   foreach line $help {
+      if {[lindex $line 0] == $jobid} {
          set back $line
          return $back
       }
    }
 
-   if { ($jobid == -1) && ( [ llength $help ] > 2 ) } {
-      
+   if {$jobid == -1 && [llength $help] > 2} {
       set help [lreplace $help 0 1]
       return $help
    }
+
    return $back
 }
 
@@ -5363,7 +5384,7 @@ proc get_extended_job_info {jobid {variable job_info} { do_replace_NA 1 } } {
       set ext 0
    }
 
-   if { $exit_code == 0 } {
+   if {$exit_code == 0} {
       parse_qstat result jobinfo $jobid $ext $do_replace_NA
       return 1
    }

@@ -83,7 +83,9 @@ proc issue_1977_setup {} {
    set test_host [host_conf_get_suited_hosts]
 
    # backup complex - we will modify it during the test
-   unset -nocomplain consumable_complex_backup
+   if {[info exists consumable_complex_backup]} {
+      unset consumable_complex_backup
+   }
    get_complex consumable_complex_backup
 
    # create test complex

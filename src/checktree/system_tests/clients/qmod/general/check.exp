@@ -48,7 +48,7 @@ set check_setup_function "qmod_setup"
 set check_cleanup_function "qmod_cleanup"
 
 # define test's procedure order
-set check_functions    "" 
+set check_functions    {}
 lappend check_functions    "qmod_check_default_status"
 lappend check_functions    "qmod_help"
 lappend check_functions    "qmod_disable"
@@ -62,16 +62,11 @@ lappend check_functions    "qmod_wildcard_disable"
 lappend check_functions    "qmod_wildcard_enable"
 lappend check_functions    "qmod_issue_1131"
 
-global qmod_num_help_lines
-global test_queue
 global qmod_test_queues
-
-set qmod_test_queues ""
+set qmod_test_queues {}
 lappend qmod_test_queues "qmod0"
 lappend qmod_test_queues "qmod1"
 lappend qmod_test_queues "qmod2"
-
-
 
 proc qmod_general_init_level {} {
    global CHECK_ACT_LEVEL
@@ -86,44 +81,28 @@ proc qmod_general_init_level {} {
 }
 
 #                                                             max. column:     |
-#****** qmod/qmod_addqueues() ******
+#****** qmod/qmod_setup() ******
 # 
 #  NAME
-#     qmod_addqueues -- ??? 
+#     qmod_setup -- setup for qmod general test
 #
 #  SYNOPSIS
-#     qmod_addqueues { } 
+#     qmod_setup { } 
 #
 #  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
 #     Adds all queues from qmod_test_queues to
 #     the cluster
-#
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
-#     ???/???
+#     qmod/qmod_cleanup()
 #*******************************
 proc qmod_setup {} {
-   global ts_config
-   global CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
    global test_host test_queue qmod_test_queues 
 
-   set test_host [lindex $ts_config(execd_nodes) 0]
+   set test_host [host_conf_get_suited_hosts]
    foreach queue_name $qmod_test_queues {
       set q_param(slots)                 "2"
-      set q_param(load_thresholds)       "np_load_avg=6.75"      
+      set q_param(load_thresholds)       "np_load_avg=6.75"
       add_queue $queue_name $test_host q_param
    }
 
@@ -131,34 +110,20 @@ proc qmod_setup {} {
 }
 
 #                                                             max. column:     |
-#****** qmod/qmod_removequeues() ******
+#****** qmod/qmod_cleanup() ******
 # 
 #  NAME
-#     qmod_removequeues -- ??? 
+#     qmod_cleanup -- cleanup after qmod general test
 #
 #  SYNOPSIS
-#     qmod_removequeues { } 
+#     qmod_cleanup { } 
 #
 #  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
 #     Removes all queues from qmod_test_queues from
 #     the cluster
 #
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
-#     ???/???
+#     qmod/qmod_setup()
 #*******************************
 proc qmod_cleanup {} {
    global test_host qmod_test_queues
@@ -200,8 +165,8 @@ proc qmod_cleanup {} {
 #     ???/???
 #*******************************
 proc qmod_wildcard_enable {} {
-   global ts_config
-   global CHECK_OUTPUT qmod_test_queues test_host
+   global ts_config CHECK_OUTPUT
+   global qmod_test_queues test_host
    
    #enable all queues on the test host
    set queue_name "qmod*"
@@ -209,16 +174,16 @@ proc qmod_wildcard_enable {} {
    set output [start_sge_bin "qmod" "-e $queue_name"]
    if {$prg_exit_state != 0} {
      add_proc_error "qmod_wildcard_enable" -1 "exit state of \"qmod -e $queue_name\" is not 0"
-   }            
+   }
    
    foreach queue_name $qmod_test_queues {
       set queue_instance [get_queue_instance $queue_name $test_host]
       puts $CHECK_OUTPUT "get state of queue \"$queue_instance\""
-      set state [ get_queue_state $queue_instance ] 
-      if { [ string compare $state "" ] != 0  } {
+      set state [get_queue_state $queue_instance]
+      if {[string compare $state ""] != 0} {
          add_proc_error "qmod_wildcard_enable" -1 "queue $queue_name is not in original state"
          return
-      }      
+      }
    }
 }
 
@@ -251,24 +216,24 @@ proc qmod_wildcard_enable {} {
 #     ???/???
 #*******************************
 proc qmod_wildcard_disable { } {
-   global ts_config
-   global CHECK_OUTPUT test_host qmod_test_queues
+   global ts_config CHECK_OUTPUT
+   global test_host qmod_test_queues
    
    #disable all queues on the test host
-   set queue_name [get_queue_instance "qmod*" $test_host] 
+   set queue_name [get_queue_instance "qmod*" $test_host]
    set output [start_sge_bin "qmod" "-d $queue_name"]
    if {$prg_exit_state != 0} {
      add_proc_error "qmod_wildcard_disable" -1 "exit state of \"qmod -e $queue_name\" is not 0"
-   }            
-   
+   }
+
    foreach queue_name $qmod_test_queues {
-      set queue_instance [get_queue_instance $queue_name $test_host] 
+      set queue_instance [get_queue_instance $queue_name $test_host]
       puts $CHECK_OUTPUT "get state of queue \"$queue_instance\""
-      set state [ get_queue_state $queue_instance ] 
-      if { [ string compare $state "d" ] != 0  } {
+      set state [get_queue_state $queue_instance]
+      if {[string compare $state "d"] != 0} {
          add_proc_error "qmod_wildcard_disable" -1 "queue $queue_instance is not disabled"
          return
-      }      
+      }
    }
 }
 
@@ -290,24 +255,19 @@ proc qmod_wildcard_disable { } {
 #  NOTES
 #     Tests the qmod -e "@<host>" call which causes a segmentation
 #     fault in N1GE 6.0.
-#
-#  BUGS
-#       1131
-#
 #*******************************
 proc qmod_issue_1131 {} {
-   global ts_config
-   global CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
    global test_host
 
    set queue_name "@$test_host"
    set output [start_sge_bin "qmod" "-d $queue_name"]
-   if { $prg_exit_state != 0 } {
-     add_proc_error "qmod_issue_1131" -1 "exit state of \"qmod -e $queue_name\" is not 0"
+   if {$prg_exit_state != 0} {
+      add_proc_error "qmod_issue_1131" -1 "exit state of \"qmod -e $queue_name\" is not 0"
    }
 
-   set INVALID_QUEUE_NAME [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_INVALIDQ_S] $queue_name]
-   if { [string match "*$INVALID_QUEUE_NAME*" $output] == 0 } {
+   set INVALID_QUEUE_NAME [translate_macro MSG_QUEUE_INVALIDQ_S $queue_name]
+   if {[string match "*$INVALID_QUEUE_NAME*" $output] == 0} {
       add_proc_error "qmod_issue_1131" -2 "issue 1131 still exists, qmod -e \"@<host>\" crashes qmaster"
    }
 }
@@ -342,15 +302,16 @@ proc qmod_issue_1131 {} {
 #     ???/???
 #*******************************
 proc qmod_check_default_status {} {
-  global CHECK_OUTPUT test_queue
+   global ts_config CHECK_OUTPUT
+   global test_queue
 
-  puts $CHECK_OUTPUT "try to get queue state of $test_queue"
-  set status [ get_queue_state "$test_queue" ]
-  puts $CHECK_OUTPUT $status
+   puts $CHECK_OUTPUT "try to get queue state of $test_queue"
+   set status [get_queue_state "$test_queue"]
+   puts $CHECK_OUTPUT $status
 
-  if { [string compare $status ""] != 0 } {
-     add_proc_error "qmod_check_default_status" -1 "queue $test_queue is not in default status (= no state)"
-  } 
+   if {[string compare $status ""] != 0} {
+      add_proc_error "qmod_check_default_status" -1 "queue $test_queue is not in default status (= no state)"
+   }
 }
 
 #                                                             max. column:     |
@@ -383,32 +344,24 @@ proc qmod_check_default_status {} {
 #     ???/???
 #*******************************
 proc qmod_help {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
+   global ts_config CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
    global qmod_num_help_lines
 
    set output [start_sge_bin "qmod" "-help"]
-   puts $CHECK_OUTPUT "qmod output    : \n---\n$output\n---"
-   puts $CHECK_OUTPUT "qmod exit state: $prg_exit_state"
-
    if {$prg_exit_state != 0} {
-      add_proc_error "qmod_help" -1 "exit state is not 0"
+      add_proc_error "qmod_help" -1 "exit state is not 0:\n$output"
    }
 
-   if { [ string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0 } {
-      add_proc_error "qmod_help" -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
-   } 
+   if {[string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0} {
+      add_proc_error "qmod_help" -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found:\n$output"
+   }
  
    set nr_of_lines $output_lines(0)
-   puts $CHECK_OUTPUT "Output has $nr_of_lines lines:"
-   for {set i 1} { $i <= $nr_of_lines } { incr i 1 } {
-      puts $CHECK_OUTPUT "line($i): \"$output_lines($i)\""
-   }
-   if { $output_lines($nr_of_lines) == "" } {
+   if {$output_lines($nr_of_lines) == ""} {
       incr nr_of_lines -1                        ;# the last line comes from start_sge_bin !
    }
-   if { $nr_of_lines != $qmod_num_help_lines } {
-      add_proc_error "qmod_help" -1 "help output has not $qmod_num_help_lines lines"
+   if {$nr_of_lines != $qmod_num_help_lines} {
+      add_proc_error "qmod_help" -1 "help output has not $qmod_num_help_lines lines:\n$output"
    }
 }
 
@@ -442,15 +395,15 @@ proc qmod_help {} {
 #     ???/???
 #*******************************
 proc qmod_disable {} {
-   global ts_config test_queue 
+   global ts_config test_queue
    
    set output [start_sge_bin "qmod" "-d $test_queue"]
    if {$prg_exit_state != 0} {
-     add_proc_error "qmod_disable" -1 "exit state of \"qmod -d $test_queue\" is not 0"
-   }            
-   
-   set state [ get_queue_state $test_queue ] 
-   if { [ string first $state "d" ] < 0  } {
+      add_proc_error "qmod_disable" -1 "exit state of \"qmod -d $test_queue\" is not 0:\n$output"
+   }
+
+   set state [get_queue_state $test_queue]
+   if {[string first $state "d"] < 0} {
       add_proc_error "qmod_disable" -1 "queue $test_queue is not disabled"
    }
 }
@@ -485,16 +438,16 @@ proc qmod_disable {} {
 #     ???/???
 #*******************************
 proc qmod_enable {} {
-   global ts_config test_queue 
-   
+   global ts_config test_queue
+
    set output [start_sge_bin "qmod" "-e $test_queue"]
-   
+
    if {$prg_exit_state != 0} {
-     add_proc_error "qmod_enable" -1 "exit state of \"qmod -e $test_queue\" is not 0"
-   }            
-   
-   set state [ get_queue_state $test_queue ] 
-   if { [ string compare $state "" ] != 0  } {
+      add_proc_error "qmod_enable" -1 "exit state of \"qmod -e $test_queue\" is not 0:\n$output"
+   }
+
+   set state [get_queue_state $test_queue]
+   if {[string compare $state ""] != 0} {
       add_proc_error "qmod_enable" -1 "queue $test_queue is not in original state"
    }
 }
@@ -529,15 +482,15 @@ proc qmod_enable {} {
 #     ???/???
 #*******************************
 proc qmod_suspend {} {
-   global ts_config test_queue 
-   
+   global ts_config test_queue
+
    set output [start_sge_bin "qmod" "-s $test_queue"]
    if {$prg_exit_state != 0} {
-     add_proc_error "qmod_suspend" -1 "exit state of \"qmod -s $test_queue\" is not 0"
-   }            
-   
-   set state [ get_queue_state $test_queue ] 
-   if { [ string first $state "s" ] < 0 } {
+     add_proc_error "qmod_suspend" -1 "exit state of \"qmod -s $test_queue\" is not 0:\n$output"
+   }
+
+   set state [get_queue_state $test_queue]
+   if {[string first $state "s"] < 0} {
       add_proc_error "qmod_suspend" -1 "queue $test_queue is not in suspend state"
    }
 }
@@ -572,21 +525,19 @@ proc qmod_suspend {} {
 #     ???/???
 #*******************************
 proc qmod_unsuspend {} {
-   global ts_config test_queue 
-   
+   global ts_config test_queue
+
    set output [start_sge_bin "qmod" "-us $test_queue"]
-   
+
    if {$prg_exit_state != 0} {
-     add_proc_error "qmod_unsuspend" -1 "exit state of \"qmod -us $test_queue\" is not 0"
-   }            
-   
-   set state [ get_queue_state $test_queue ] 
-   if { [ string compare $state "" ] != 0  } {
+     add_proc_error "qmod_unsuspend" -1 "exit state of \"qmod -us $test_queue\" is not 0:\n$output"
+   }
+
+   set state [get_queue_state $test_queue]
+   if {[string compare $state ""] != 0} {
       add_proc_error "qmod_unsuspend" -1 "queue $test_queue is not in original state"
    }
 }
-
-
 
 #                                                             max. column:     |
 #****** qmod/qmod_clearerrorstate() ******
@@ -618,26 +569,27 @@ proc qmod_unsuspend {} {
 #     ???/???
 #*******************************
 proc qmod_clearerrorstate {} {
-   global CHECK_OUTPUT CHECK_PRODUCT_TYPE ts_config test_queue 
+   global ts_config CHECK_OUTPUT CHECK_PRODUCT_TYPE
+   global test_queue
 
    # set queue prolog to a non existing script - this will produce an error state
    mqattr prolog "/tmp/foo/bar/non_existing_prolog.sh" $test_queue
 
    # submit testjob to set the queue in error
-   set job_id [ submit_job "-o /dev/null -e /dev/null -q $test_queue $ts_config(product_root)/examples/jobs/sleeper.sh 15" ] 
+   set job_id [submit_job "-o /dev/null -e /dev/null -q $test_queue $ts_config(product_root)/examples/jobs/sleeper.sh 15"] 
 
    # wait for queue to get in error state
    set time [timestamp]
    while {1} {
-      set state [ get_queue_state $test_queue ] 
-      if { [ string first "E" $state ] >=  0  } {
+      set state [get_queue_state $test_queue] 
+      if {[string first "E" $state] >= 0} {
          break
       }
 
-      set runtime [expr ( [timestamp] - $time) ]
-      if { $runtime >= 300 } {
+      set runtime [expr [timestamp] - $time]
+      if {$runtime >= 60} {
          add_proc_error "qmod_clearerrorstate" -1 "timeout waiting for queue $test_queue to get in error state"
-         break;
+         break
       }
 
       sleep 1
@@ -647,7 +599,7 @@ proc qmod_clearerrorstate {} {
    mqattr prolog none $test_queue
 
    # now wait for jobstart - should not happen as queue is in error state
-   set res [wait_for_jobstart $job_id "leeper" 120 0]
+   set res [wait_for_jobstart $job_id "leeper" 60 0]
    if {$res != -1} {
       add_proc_error "qmod_clearerrorstate" -1 "job $job_id should not start until yet"
    }
@@ -655,17 +607,17 @@ proc qmod_clearerrorstate {} {
    # clear error state
    set output [start_sge_bin "qmod" "-c $test_queue"]
    if {$prg_exit_state != 0} {
-     add_proc_error "qmod_clearerrorstate" -1 "exit state of \"qmod -c $test_queue\" is not 0"
-   }            
-   
-   set state [ get_queue_state $test_queue ] 
-   if { [ string compare $state "" ] != 0  } {
+     add_proc_error "qmod_clearerrorstate" -1 "exit state of \"qmod -c $test_queue\" is not 0:\n$output"
+   }
+
+   set state [get_queue_state $test_queue]
+   if {[string compare $state ""] != 0} {
       add_proc_error "qmod_clearerrorstate" -1 "queue $test_queue is not in original state"
    }
  
    # now wait for jobend
-   wait_for_jobstart $job_id "leeper" 300
-   wait_for_jobend   $job_id "leeper" 300 0
+   wait_for_jobstart $job_id "leeper" 60
+   wait_for_jobend   $job_id "leeper" 60 0
 
    qmod_clear_all_error_states
 }
@@ -678,12 +630,10 @@ proc qmod_clear_all_error_states {} {
 
    set queue_list $qmod_test_queues
    lappend queue_list "all.q"
-   
+
    foreach queue $queue_list {
       set qinstance [get_queue_instance $queue $test_host]
-      puts $CHECK_OUTPUT "clear error state of $qinstance"
       set output [start_sge_bin "qmod" "-c $qinstance"]
-      puts $CHECK_OUTPUT "$output"
    }
 }
 
@@ -725,53 +675,50 @@ proc qmod_clear_all_error_states {} {
 #     ???/???
 #*******************************
 proc qmod_forceaction {} {
-   global ts_config
-   global CHECK_USER test_host test_queue CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global test_host test_queue
 
    # the characters used in ps output for the suspenede state may vary from arch to arch
    set suspended_states [host_get_suspended_states $test_host]
 
    # submit testjob to set the queue in error
-   set job_id [ submit_job "-N QMOD -q $test_queue -o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/work_pid.sh 300" ] 
+   set job_id [submit_job "-N QMOD -q $test_queue -o /dev/null -e /dev/null $ts_config(testsuite_root_dir)/scripts/work_pid.sh 300"] 
    # now wait for jobstart
-   wait_for_jobstart $job_id "QMOD" 300
-   wait_for_end_of_transfer $job_id 300 
-  
+   wait_for_jobstart $job_id "QMOD" 60
+   wait_for_end_of_transfer $job_id 60
 
    # now wait for 5 processes in this process group
-   set time_out [ expr ( [timestamp] + 60 ) ]
+   set time_out [expr [timestamp] + 60]
    set procgroup_ok 0
-   while { [timestamp] < $time_out } {
+   while {[timestamp] < $time_out} {
       set state [get_suspend_state_of_job $job_id $test_host "pid_list" 0] 
       set grppid [get_grppid_of_job $job_id $test_host]
       puts $CHECK_OUTPUT "Job has real state \"$state\""
       puts $CHECK_OUTPUT "Job has grp pid \"$grppid\""
       puts $CHECK_OUTPUT "pid_list is $pid_list and has length [llength $pid_list]"
-      if { [llength $pid_list] == 1 } {
+      if {[llength $pid_list] == 1} {
          puts $CHECK_OUTPUT "found 1 process member - ok"
          set procgroup_ok 1
-         break;
+         break
       }
    }
-   if { $procgroup_ok != 1 } {
+   if {$procgroup_ok != 1} {
       add_proc_error "qmod_forceaction" -1 "not 1 process in processgroup \"$grppid\""
    }
- 
 
    # set job in suspend mode
    puts $CHECK_OUTPUT "suspend job ..."
    suspend_job $job_id
  
    set state [string index [get_suspend_state_of_job $job_id $test_host] 0]
-   set grppid [ get_grppid_of_job $job_id $test_host]
+   set grppid [get_grppid_of_job $job_id $test_host]
    puts $CHECK_OUTPUT "Job has real state \"$state\""
    puts $CHECK_OUTPUT "Job has grp pid \"$grppid\""
-  
+
    puts $CHECK_OUTPUT "Suspend states for host $test_host are \"$suspended_states\""
    if {[string first $state $suspended_states] == -1} {
       add_proc_error "qmod_forceaction" -1 "job $job_id (grppid: $grppid) is not in suspend state"
    }
-
 
    puts $CHECK_OUTPUT "unsuspend job with kill command ..."
    # unsunspend job per kill command
@@ -781,24 +728,18 @@ proc qmod_forceaction {} {
             start_remote_prog $test_host $CHECK_USER "/bin/kill" "-CONT $pidnr"
          }
       }
-      "alinux" {
-         # on our alinux they have confused the CONT and STOP signal numbers ;-)
-         start_remote_prog $test_host $CHECK_USER "/bin/kill" "-STOP -$grppid"
-      }
 
       default {
          start_remote_prog $test_host $CHECK_USER "kill" "-CONT -$grppid"
       }
    }
 
-#   sleep 5
-
    set state [string index [get_suspend_state_of_job $job_id $test_host] 0]
    puts $CHECK_OUTPUT "Job has real state \"$state\""
 
    if {[string first $state $suspended_states] >= 0} {
       add_proc_error "qmod_forceaction" -1 "job $job_id (grppid: $grppid) is still in suspend state"
-   }   
+   }
 
    # set job in suspend mode (is already in suspend (in SGE system))
    puts $CHECK_OUTPUT "suspend job (queueing system thinks it is still suspended) ..."
@@ -809,18 +750,18 @@ proc qmod_forceaction {} {
    
    if {[string first $state $suspended_states] >= 0} {
       add_proc_error "qmod_forceaction" -1 "job $job_id (grppid: $grppid) is still in suspend state without force flag"
-   }    
+   }
  
    # set job in suspend mode (is already in suspend (in SGE system)) with force flag set
-   puts $CHECK_OUTPUT "suspend job with force flag ..." 
+   puts $CHECK_OUTPUT "suspend job with force flag ..."
    suspend_job $job_id 1
 
    set state [string index [get_suspend_state_of_job $job_id $test_host] 0]
    puts $CHECK_OUTPUT "Job has real state \"$state\""
-   
+
    if {[string first $state $suspended_states] == -1} {
       add_proc_error "qmod_forceaction" -1 "job $job_id (grppid: $grppid) is still not in suspend state with using force flag"
-   }    
+   }
 
    # ok unsuspend the job
    puts $CHECK_OUTPUT "unsuspend job"
@@ -832,11 +773,11 @@ proc qmod_forceaction {} {
 
    # let's see if all processes are killed
    get_ps_info 0 $test_host
-   
-   for {set i 0} {$i < $ps_info(proc_count) } {incr i 1} {
+
+   for {set i 0} {$i < $ps_info(proc_count)} {incr i 1} {
       puts $CHECK_OUTPUT "ps_info(pgid,$i)     = $ps_info(pgid,$i), command is \"$ps_info(command,$i)\""
-      
-      if { $ps_info(pgid,$i) == $grppid } {
+
+      if {$ps_info(pgid,$i) == $grppid} {
          puts $CHECK_OUTPUT "process $ps_info(pid,$i) is still in ps list"
          add_proc_error "qmod_forceaction" -1 "process $ps_info(pid,$i) is still in ps list"
       }

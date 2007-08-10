@@ -84,7 +84,6 @@ proc issue_1640_setup  {} {
    global backup_global_host
 
    # backup the global host - we are going to modify it
-   unset -nocomplain backup_global_host
    get_exechost backup_global_host "global"
 }
 

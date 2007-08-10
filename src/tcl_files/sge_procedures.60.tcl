@@ -711,7 +711,7 @@ proc get_urgency_job_info {jobid {variable job_info} { do_replace_NA 1 } } {
    get_current_cluster_config_array ts_config
    upvar $variable jobinfo
    set result [start_sge_bin "qstat" "-urg" ]
-   if { $prg_exit_state == 0 } {
+   if {$prg_exit_state == 0} {
       parse_qstat result jobinfo $jobid 2 $do_replace_NA
       return 1
    }

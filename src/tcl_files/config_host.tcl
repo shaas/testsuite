@@ -2985,8 +2985,12 @@ proc host_conf_get_suited_hosts_rebuild_cache {} {
       # if the exec_node_list changed, clear cache
       if {$suited_exec_node_backup != $ts_config(execd_nodes)} {
          puts $CHECK_OUTPUT "the exec node list was modified - rebuilding suited host cache"
-         unset -nocomplain suited_host_cache
-         unset -nocomplain suited_arch_cache
+         if {[info exists suited_host_cache]} {
+            unset suited_host_cache
+         }
+         if {[info exists suited_arch_cache]} {
+            unset suited_arch_cache
+         }
          set suited_exec_node_backup $ts_config(execd_nodes)
       }
    }

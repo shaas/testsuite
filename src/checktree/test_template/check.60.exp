@@ -67,7 +67,6 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
-global env
 
 #set check_root_access_needs "yes"
 
@@ -77,17 +76,9 @@ set check_init_level_procedure "__TESTSUITE_TEST_NAME_init_level"
 # define test's name and run level descriptions
 set check_name            "__TESTSUITE_TEST_NAME"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   8
+set check_highest_level   1
 set check_description(0)  ""
 set check_description(1)  ""
-set check_description(2)  ""
-set check_description(3)  ""
-set check_description(4)  ""
-set check_description(5)  ""
-set check_description(6)  ""
-set check_description(7)  ""
-set check_description(8)  ""
-
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -96,48 +87,19 @@ set check_needs           "init_core_system"
 set check_setup_function __TESTSUITE_TEST_NAME_setup
 set check_cleanup_function __TESTSUITE_TEST_NAME_cleanup
 
-
-
 # define test's procedure order
 set check_functions {}
 lappend check_functions "__TESTSUITE_TEST_NAME_test1"
 #lappend check_functions "__TESTSUITE_TEST_NAME_test2"
 #lappend check_functions "__TESTSUITE_TEST_NAME_test3"
 
-
-global __TESTSUITE_TEST_NAME_test_hosts
-global __TESTSUITE_TEST_NAME_saved_slot_count
-
 proc __TESTSUITE_TEST_NAME_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 -
+      1 {
          return 0
-      }
-      "1" {
-         return 0
-      }
-      "2" {
-         return -1
-      }
-      "3" {
-         return -1
-      }
-      "4" {
-         return -1
-      }
-      "5" {
-         return -1
-      }
-      "6" {
-         return -1
-      }
-      "7" {
-         return -1
-      }
-      "8" {
-         return -1
       }
    }
 
@@ -148,29 +110,44 @@ proc __TESTSUITE_TEST_NAME_init_level {} {
 
 proc __TESTSUITE_TEST_NAME_setup {} {
    global ts_config CHECK_OUTPUT
+   global __TESTSUITE_TEST_NAME_hosts __TESTSUITE_TEST_NAME_backup
 
-   puts $CHECK_OUTPUT "this is a dummy setup function"
+   # let's assume we need 2 test hosts
+   set __TESTSUITE_TEST_NAME_hosts [host_conf_get_suited_hosts 2]
+
+   # we want to modify the global config - make a backup
+   get_config __TESTSUITE_TEST_NAME_backup
 }
 
 proc __TESTSUITE_TEST_NAME_cleanup {} {
    global ts_config CHECK_OUTPUT
+   global __TESTSUITE_TEST_NAME_hosts __TESTSUITE_TEST_NAME_backup
 
-#   delete_all_jobs
-#   wait_for_end_of_all_jobs
-   puts $CHECK_OUTPUT "this is a dummy cleanup function"
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # restore config
+   set_config __TESTSUITE_TEST_NAME_backup
+
+   # unset our test's global variables
+   foreach var "__TESTSUITE_TEST_NAME_hosts __TESTSUITE_TEST_NAME_backup" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
 }
 
 
 proc __TESTSUITE_TEST_NAME_test1 {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global __TESTSUITE_TEST_NAME_test_hosts check_description
+   global __TESTSUITE_TEST_NAME_hosts
    global CHECK_ACT_LEVEL
 
-   if { $CHECK_ACT_LEVEL == 0 } {
+   if {$CHECK_ACT_LEVEL == 0} {
       puts $CHECK_OUTPUT "this is the test for runlevel $CHECK_ACT_LEVEL"
    }
 
-   if { $CHECK_ACT_LEVEL == 1 } {
+   if {$CHECK_ACT_LEVEL == 1} {
       puts $CHECK_OUTPUT "runlevel 1 produces a warning:"
       add_proc_error "__TESTSUITE_TEST_NAME_test" -3 "this is a dummy warning"
       # this would be a error:

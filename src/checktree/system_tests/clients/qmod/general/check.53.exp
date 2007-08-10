@@ -31,7 +31,10 @@
 ##########################################################################
 #___INFO__MARK_END__
 
+global qmod_num_help_lines
 set qmod_num_help_lines 15
+
+global check_functions
 lappend check_functions    "qmod_verify"
 
 #                                                             max. column:     |
@@ -64,8 +67,7 @@ lappend check_functions    "qmod_verify"
 #     ???/???
 #*******************************
 proc qmod_verify {} {
-   global ts_config
-   global CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT
    global test_queue 
   
    set output [start_sge_bin "qmod" "-verify -s $test_queue"]
@@ -73,10 +75,9 @@ proc qmod_verify {} {
      add_proc_error "qmod_verify" -1 "exit state of \"qmod -verify -s $test_queue\" is not 0"
    }            
    
-   set state [ get_queue_state $test_queue ] 
-   if { [ string compare $state "" ] != 0  } {
+   set state [get_queue_state $test_queue]
+   if {[string compare $state ""] != 0} {
       add_proc_error "qmod_verify" -1 "queue $test_queue is not in original state"
    }
 }
-
 

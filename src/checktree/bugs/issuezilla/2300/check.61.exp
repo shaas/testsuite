@@ -88,7 +88,6 @@ proc issue_2300_setup {} {
    get_queue "all.q" queue_backup
 
    # create complexes F001...F010
-   unset -nocomplain complex_backup
    for {set i 1} {$i <= 10} {incr i} {
       set name [format "F%03d" $i]
       set test_complex($name) "$name INT <= YES YES 0 0"

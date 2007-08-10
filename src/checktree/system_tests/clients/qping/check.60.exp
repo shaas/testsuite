@@ -32,15 +32,14 @@
 #___INFO__MARK_END__
 
 # define global variable in this namespace
-global check_name 
-global check_category 
-global check_description 
+global check_name
+global check_category
+global check_description
 global check_needs
-global check_functions 
+global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
-global env
 
 set check_root_access_needs "yes"
 
@@ -68,160 +67,92 @@ set check_name            "qping"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0
 set check_description(0)  "check qping core dump with enabled message content dump (issue 1810)"
-set check_description(1)  ""
-set check_description(2)  ""
-set check_description(3)  ""
-set check_description(4)  ""
-set check_description(5)  ""
-set check_description(6)  ""
-set check_description(7)  ""
-set check_description(8)  ""
-
-
-
 
 # define test's dependencies
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_function qping_setup
-set check_cleanup_function qping_cleanup
-
-
-
-
 
 # define test's procedure order
-set check_functions ""
+set check_functions {}
 lappend check_functions "qping_issue_1810"
-
-
-global qping_test_hosts
-global qping_saved_slot_count
 
 proc qping_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      0 {
          return 0
-      } 
-      "1" {
-         return -1
       }
-      "2" {
-         return -1
-      }
-      "3" {
-         return -1
-      }
-      "4" {
-         return -1
-      }
-      "5" {
-         return -1
-      }
-      "6" {
-         return -1
-      }
-      "7" {
-         return -1
-      }
-      "8" {
-         return -1
-      }
-   } 
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
-
-
-
 
 # -------- local test procedures: initialization------------------------------
 
-
-proc qping_setup  {} {
-   global CHECK_OUTPUT ts_config
-}
-
-proc qping_cleanup  {} {
-   global CHECK_OUTPUT ts_config
-}
-
-
 proc qping_issue_1810 {} {
-   global qping_test_hosts check_description CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_OUTPUT CHECK_USER
 
+   # we have to start qping as root on the master host
+   set host $ts_config(master_host)
+   set arch [resolve_arch $host]
+   set qping_path $ts_config(product_root)/bin/$arch/qping
+   puts $CHECK_OUTPUT "qping path: $qping_path"
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   set qping_env(SGE_QPING_OUTPUT_FORMAT) "s:12"
+   set id [open_remote_spawn_process $host "root" $qping_path "-dump $host $ts_config(commd_port) qmaster 1" 0 "" qping_env]
+   set sp_id [lindex $id 1]
+   set timeout 15
+   set sirm_received 0
+   set sim_sent 0
 
-   if { $CHECK_ACT_LEVEL == 0 } {
-      set host $ts_config(master_host)
-      set arch [resolve_arch $host]
-      set qping_path $ts_config(product_root)/bin/$arch/qping
-      puts "qping path: $CHECK_OUTPUT $qping_path"
+   while {$sirm_received == 0} {
+      expect {
+         -i $sp_id full_buffer {
+            set return_value -1
+            add_proc_error "qping_issue_1810" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            break
+         }
+         -i $sp_id timeout {
+            add_proc_error "qping_issue_1810" "-1" "got timeout(1) error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
+            break
+         }
+         -i $sp_id eof {
+            add_proc_error "qping_issue_1810" "-1" "got eof error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
+            break
+         }
 
-      set qping_env(SGE_QPING_OUTPUT_FORMAT) "s:12"
-      set id [open_remote_spawn_process "$host" "root" $qping_path "-dump $host $ts_config(commd_port) qmaster 1" 0 "" qping_env]
-      set sp_id [ lindex $id 1 ]
-      set timeout 15
-      set sirm_received 0
-      set sim_sent 0
+         -i $sp_id -- "<sim version*</sim>" {
+            puts $CHECK_OUTPUT $expect_out(0,string)
+            puts $CHECK_OUTPUT "found sim!"
+         }
 
-      while { $sirm_received == 0 } {
-         expect {
-            -i $sp_id full_buffer {
-               set return_value -1    
-               add_proc_error "qping_issue_1810" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-               break
-            }
-            -i $sp_id timeout {
-               puts $CHECK_OUTPUT "qping_issue_1810 - timeout(1)"
-               add_proc_error "qping_issue_1810" "-1" "got timeout(1) error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
-               break
-            }
-            -i $sp_id eof {
-               add_proc_error "qping_issue_1810" "-1" "got eof error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
-               break
-            }
-            -i $sp_id -- "<sim version*</sim>" {
+         -i $sp_id -- "<sirm version*</sirm>" {
+            if {$sim_sent == 1} {
                puts $CHECK_OUTPUT $expect_out(0,string)
-               puts $CHECK_OUTPUT "found sim!"
-               flush $CHECK_OUTPUT
+               puts $CHECK_OUTPUT "found sirm - ok"
+               set sirm_received 1
             }
+         }
 
-            -i $sp_id -- "<sirm version*</sirm>" {
-               if { $sim_sent == 1 } {
-                  puts $CHECK_OUTPUT $expect_out(0,string)
-                  puts $CHECK_OUTPUT "found sirm - ok"
-                  flush $CHECK_OUTPUT
-                  set sirm_received 1
-               }
-            }
+         -i $sp_id "_exit_status_" {
+            puts $CHECK_OUTPUT $expect_out(0,string)
+            add_proc_error "qping_issue_1810" "-1" "got unexpected exit_status output:\n\"$expect_out(buffer)\""
+            break
+         }
 
-
-            -i $sp_id "_exit_status_" {
-               puts $CHECK_OUTPUT $expect_out(0,string)
-               flush $CHECK_OUTPUT
-               add_proc_error "qping_issue_1810" "-1" "got unexpected exit_status output:\n\"$expect_out(buffer)\""
-               break
-            }
-
-            "debug_client" {
-               if { $sim_sent == 0 } {
-                  puts $CHECK_OUTPUT "starting standard qping -info ..."
-                  set output [start_remote_prog $host "$CHECK_USER" $qping_path "-info $host $ts_config(commd_port) qmaster 1"]
-                  puts $CHECK_OUTPUT $output
-                  set sim_sent 1
-               }
+         "debug_client" {
+            if {$sim_sent == 0} {
+               puts $CHECK_OUTPUT "starting standard qping -info ..."
+               set output [start_remote_prog $host "$CHECK_USER" $qping_path "-info $host $ts_config(commd_port) qmaster 1"]
+               puts $CHECK_OUTPUT $output
+               set sim_sent 1
             }
          }
       }
-
-      close_spawn_process $id
    }
-}
 
+   close_spawn_process $id
+}
 

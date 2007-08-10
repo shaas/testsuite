@@ -1594,7 +1594,7 @@ proc qstat_plain_parse { output  {params ""} } {
    # Run usual command
    set result [start_sge_bin "qstat" $params]
 
-   parse_qstat result  qstat_output
+   parse_qstat result qstat_output
 }
 
 #                                                             max. column:     |

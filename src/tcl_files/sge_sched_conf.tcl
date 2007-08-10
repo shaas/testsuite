@@ -379,8 +379,10 @@ proc get_schedd_config { change_array } {
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
-   unset -nocomplain chgar
-  
+   if {[info exists chgar]} {
+      unset chgar
+   }
+
   set result [start_sge_bin "qconf" "-ssconf"]
   if {$prg_exit_state != 0} {
      add_proc_error "get_schedd_config" "-1" "qconf -ssconf failed:\n$output"

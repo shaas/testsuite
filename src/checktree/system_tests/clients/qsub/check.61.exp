@@ -43,17 +43,15 @@ lappend check_functions "qsub_wd"         ;# test the -wd <dir>/-cwd options
 #
 #*******************************
 proc qsub_wd {} {
-   global CHECK_OUTPUT ts_config env
-
-   puts $CHECK_OUTPUT "check if -wd/-cwd is set correctly"
+   global ts_config CHECK_OUTPUT
 
    # Set a directory
    set wdir "/tmp"
    set cwdir [pwd]
 
    # Test1 -wd $wdir
-   set jobargs "-h -wd $wdir -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90" 
-   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1] 
+   set jobargs "-h -wd $wdir -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90"
+   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1]
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$wdir"] != 0} {
       set error_text "qsub did not set the correct working dir(1): $wdir != $qstat_j_info(cwd)\n"
@@ -62,8 +60,8 @@ proc qsub_wd {} {
    delete_job $hold_job1
 
    # Test2 -cwd
-   set jobargs "-h -cwd -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90" 
-   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1] 
+   set jobargs "-h -cwd -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90"
+   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1]
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
       set error_text "qsub did not set the correct working dir(2): $cwdir != $qstat_j_info(cwd)\n"
@@ -72,8 +70,8 @@ proc qsub_wd {} {
    delete_job $hold_job1
 
    # Test3 -cwd -wd $wdir
-   set jobargs "-h -cwd -wd $wdir -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90" 
-   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1] 
+   set jobargs "-h -cwd -wd $wdir -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90"
+   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1]
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$wdir"] != 0} {
       set error_text "qsub did not set the correct working dir(3): $wdir != $qstat_j_info(cwd)\n"
@@ -82,14 +80,13 @@ proc qsub_wd {} {
    delete_job $hold_job1
 
    # Test4 -wd $wdir -cwd
-   set jobargs "-h -wd $wdir -cwd -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90" 
-   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1] 
+   set jobargs "-h -wd $wdir -cwd -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 90"
+   set hold_job1 [submit_job $jobargs 1 60 "" "" $cwdir 1]
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
       set error_text "qsub did not set the correct working dir(4): $cwdir != $qstat_j_info(cwd)\n"
       add_proc_error "qsub_wd" -1 $error_text
    }
    delete_job $hold_job1
-
-   wait_for_end_of_all_jobs 30 
+   wait_for_end_of_all_jobs
 }

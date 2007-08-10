@@ -86,7 +86,9 @@ proc issue_2145_setup {} {
    global complex_backup
 
    # backup complex
-   unset -nocomplain complex_backup
+   if {[info exists complex_backup]} {
+      unset complex_backup
+   }
    get_complex complex_backup
 }
 

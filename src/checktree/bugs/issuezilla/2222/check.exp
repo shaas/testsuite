@@ -95,7 +95,6 @@ proc issue_2222_setup {} {
    set issue_2222_host [host_conf_get_suited_hosts]
 
    # backup the hosts configuration
-   unset -nocomplain config_backup
    get_config config_backup $issue_2222_host
 
    # activate SHARETREE_RESERVED_USAGE,

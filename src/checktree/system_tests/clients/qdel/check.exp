@@ -1555,7 +1555,7 @@ proc qdel_user_list {} {
 proc qdel_force {} {
    global ts_config CHECK_OUTPUT 
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
-   global pending_state
+   global pending_state qdel_host
 
    if {[have_root_passwd] == -1} {
       add_proc_error "qdel_force" -3 "root access required"
@@ -1581,11 +1581,9 @@ proc qdel_force {} {
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
 
-   set test_host [host_conf_get_suited_hosts]
 
    # shutdown execd
-   set output [start_sge_bin "qconf" "-ke $test_host"]
-   sleep 2
+   soft_execd_shutdown $qdel_host
 
    # now test if his jobs still running or pending 
    set all_jobs "$job_list_user1 $job_list_user2"
@@ -1620,7 +1618,7 @@ proc qdel_force {} {
       }
 
       # now restart execd
-      startup_execd $test_host
+      startup_execd $qdel_host
    }
 
    # wait for deletion of the jobs
@@ -1630,7 +1628,7 @@ proc qdel_force {} {
 
    if {$pending_state != 0} {
       # now restart execd
-      startup_execd $test_host
+      startup_execd $qdel_host
    }
 
    # ok - qdel without execd is ok, now check the -f option 
@@ -1643,8 +1641,7 @@ proc qdel_force {} {
    puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
 
    # shutdown execd
-   set output [start_sge_bin "qconf" "-ke $test_host"]
-   sleep 2
+   soft_execd_shutdown $qdel_host
 
    # now test if his jobs still running or pending
    set all_jobs "$job_list_user1 $job_list_user2"
@@ -1705,7 +1702,7 @@ proc qdel_force {} {
    puts $CHECK_OUTPUT "qmaster_params set to $change_array(qmaster_params)"
 
    # now restart execd
-   startup_execd $test_host
+   startup_execd $qdel_host
    wait_for_load_from_all_queues 300
 }
 

@@ -96,7 +96,9 @@ proc issue_1473_setup {} {
    }
 
    # backup old complex
-   unset -nocomplain complex_backup
+   if {[info exists complex_backup]} {
+      unset complex_backup
+   }
    set complex_backup "$CHECK_PROTOCOL_DIR/complex.txt"
    puts $CHECK_OUTPUT "backup current complex to $complex_backup"
    set master_arch [resolve_arch $ts_config(master_host)]

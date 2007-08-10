@@ -106,8 +106,9 @@ proc get_exechost_error {result host raise_error} {
 #     sge_host/get_exechost_error()
 #*******************************************************************************
 proc get_exechost {output_var {host global} {on_host ""} {as_user ""} {raise_error 1}} {
-   upvar $output_var out
    get_current_cluster_config_array ts_config
+
+   upvar $output_var out
 
    # clear output variable
    if {[info exists out]} {

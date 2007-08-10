@@ -37,21 +37,9 @@ global check_category
 global check_highest_level check_init_level_procedure
 global ts_config
 global check_root_access_needs
-
-# some parameters to huge_script test
-global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT
-global HUGE_SCRIPT_STEPS HUGE_SCRIPT_MAX_SIZE
-
 set check_root_access_needs "yes"
 
-set HUGE_SCRIPT_MIN_SIZE 0
-set HUGE_SCRIPT_MAX_SIZE [expr 16 * 1024 * 1024]
-set HUGE_SCRIPT_STEPS    100
-set HUGE_SCRIPT_TIMEOUT  1000
-set HUGE_SCRIPT_PATTERN  "generated huge script file for testsuite, 100 characters per line .............................. end"
-
 # setup check's highest level
-
 set check_highest_level 0
 
 # set description for each level
@@ -72,7 +60,6 @@ lappend check_functions "check_submit"
 lappend check_functions "qsub_starter_method"
 lappend check_functions "check_start_time"  
 lappend check_functions "check_hold"           
-#lappend check_functions "check_deadline" 
 lappend check_functions "check_option_ac"
 lappend check_functions "check_option_A"
 lappend check_functions "check_option_clear"
@@ -113,14 +100,7 @@ lappend check_functions "check_option_@"
 lappend check_functions "check_huge_script"
 lappend check_functions "check_qhold_jobname"
 lappend check_functions "check_qsub_ts_iz_72" ;# Testcase for TS IZ 72
-
  
-# test specific globals:
-global CHECK_JOB_OUTPUT_DIR job_output_dir
-global test_host
-set job_output_dir $CHECK_JOB_OUTPUT_DIR
-
-
 #                                                             max. column:     |
 #****** qsub/qsub_init_level() ******
 # 
@@ -160,6 +140,82 @@ proc qsub_init_level {} {
    return -1 
 }
 
+proc qsub_setup {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_JOB_OUTPUT_DIR
+   global stored_configuration
+   global job_output_dir test_host default_args default_q_args default_h_args
+   global steps_per_queue size_interval
+   global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT
+   global HUGE_SCRIPT_STEPS HUGE_SCRIPT_MAX_SIZE
+
+   # set some global variables
+   set num_queues [llength $ts_config(unique_arch_nodes)] 
+   set job_output_dir $CHECK_JOB_OUTPUT_DIR
+
+   # run host specific tests on a random host
+   set test_host [host_conf_get_suited_hosts]
+
+   # set default jobargs
+   set default_args "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 5"
+   set qinstance [get_queue_instance "all.q" $test_host]
+   set default_q_args "-q $qinstance $default_args"
+   set default_h_args "-l h=${test_host} $default_args"
+
+   # setup huge_script test
+   set HUGE_SCRIPT_MIN_SIZE 0
+   set HUGE_SCRIPT_MAX_SIZE [expr 16 * 1024 * 1024]
+   set HUGE_SCRIPT_STEPS    100
+   set HUGE_SCRIPT_TIMEOUT  1000
+   set HUGE_SCRIPT_PATTERN  "generated huge script file for testsuite, 100 characters per line .............................. end"
+   set steps_per_queue [expr $HUGE_SCRIPT_STEPS / $num_queues]
+   if {[expr $steps_per_queue * $num_queues] < $HUGE_SCRIPT_STEPS} {
+      incr steps_per_queue
+   }
+   set steps_total [expr $steps_per_queue * $num_queues]
+   set size_interval [expr $HUGE_SCRIPT_MAX_SIZE / $steps_total]
+
+   # backup global config
+   get_config stored_configuration
+  
+   # set config for fast scheduling / fast writing of accounting record
+   if {$ts_config(gridengine_version) == 53} {
+      set my_config(schedd_params) "$stored_configuration(schedd_params),FLUSH_SUBMIT_SEC=0"
+   } else {
+      set my_config(reporting_params) "accounting=true reporting=false flush_time=00:00:01 joblog=true sharelog=00:10:00"
+   }
+   set_config my_config
+
+   if {$ts_config(gridengine_version) >= 60} {
+      set my_schedd_conf(flush_submit_sec) "1"
+      set_schedd_config my_schedd_conf 
+   }
+}
+
+proc qsub_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global stored_configuration
+   global job_output_dir test_host default_args default_q_args default_h_args
+   global steps_per_queue size_interval
+   global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT
+   global HUGE_SCRIPT_STEPS HUGE_SCRIPT_MAX_SIZE
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   if {$ts_config(gridengine_version) >= 60} {
+      reset_schedd_config
+   }
+   set_config stored_configuration
+
+   # unset our test global variables
+   foreach var "stored_configuration job_output_dir test_host default_args default_q_args default_h_args steps_per_queue size_interval HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT HUGE_SCRIPT_STEPS HUGE_SCRIPT_MAX_SIZE" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
 proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_files 2}} {
    global ts_config CHECK_OUTPUT CHECK_FIRST_FOREIGN_SYSTEM_USER
    global job_output_dir
@@ -169,9 +225,9 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
       set user $CHECK_FIRST_FOREIGN_SYSTEM_USER
    }
 
-   # default submit host is the master host
+   # default submit host is "any host"
    if {$host == ""} {
-      set host $ts_config(master_host)
+      set host [host_conf_get_suited_hosts]
    }
 
    # if we expect a submit error, submit_job shall not do error checking
@@ -197,10 +253,10 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
    }
 
    # wait for job accounting record and expect 1 or 2 ($output_files) output/error files
-   set time [expr ([timestamp] + 300)] 
+   set time [expr [timestamp] + 300] 
    while {[timestamp] < $time}  {
       sleep 1
-      set back [was_job_running $job_id 0] 
+      set back [was_job_running $job_id 0]
       if {$back != -1} {
          set back [del_job_files $job_id $job_output_dir $output_files]
          if {$back != $output_files} {
@@ -254,7 +310,7 @@ proc check_submit {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
    
    # submit from every architecture
@@ -270,17 +326,14 @@ proc check_submit {} {
    }
 }
 
-
 proc qsub_starter_method {} {
-   global ts_config
-   global job_output_dir
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
-   global test_host
+   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global job_output_dir test_host
    global default_q_args default_h_args
 
    set ok 1
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
   
    # set starter method
@@ -288,7 +341,7 @@ proc qsub_starter_method {} {
    mod_queue all.q "" change_array
 
    set jobargs $default_q_args
-   set result [submit_job $jobargs] 
+   set result [submit_job $jobargs]
 
    if {$result < 0} {
       add_proc_error "qsub_starter_method" -1 "could not submit job: $jobargs"
@@ -319,7 +372,7 @@ proc qsub_starter_method {} {
       set outfilename "$job_output_dir/Sleeper.o$result"
       puts $CHECK_OUTPUT "checking output file $outfilename"
 
-      if { ![file exists $outfilename]} {
+      if {![file exists $outfilename]} {
          add_proc_error "qsub_starter_method" -1 "output file for job $result on host $test_host does not exist"
          set ok 0
       } else {
@@ -327,21 +380,21 @@ proc qsub_starter_method {} {
          set files_ok 0
          set num_lines 0
          while {[gets $f line] >= 0} {
-          incr num_lines
-          puts $CHECK_OUTPUT $line
-           if {[string compare $line "starter method started"] == 0} {
-             set files_ok 1
-             break
-           }
+            incr num_lines
+            puts $CHECK_OUTPUT $line
+               if {[string compare $line "starter method started"] == 0} {
+               set files_ok 1
+               break
+            }
          }
          if {$num_lines == 0} {
             add_proc_error "qsub_starter_method" -1 "error reading from job output file for job $result on host $test_host"
             set ok 0
          } else {
-           if {$files_ok == 0} {
+            if {$files_ok == 0} {
                add_proc_error "qsub_starter_method" -1 "starter method was not started for job $result on host $test_host"
                set ok 0
-           }
+            }
          }  
          close $f
       }
@@ -349,10 +402,10 @@ proc qsub_starter_method {} {
 
    # cleanup
    set back [del_job_files $result $job_output_dir 2]
-   if { $back != 2 } {
+   if {$back != 2} {
       add_proc_error "qsub_starter_method" -1 "job $result did not produce error and output file\njobargs: $jobargs"
    }
-   if {! $ok && $result > 0} {
+   if {!$ok && $result > 0} {
       delete_job $result
    }
 
@@ -360,8 +413,6 @@ proc qsub_starter_method {} {
    set change_array(starter_method) "none"
    mod_queue all.q "" change_array
 }
-
-
 
 #                                                             max. column:     |
 #****** qsub/setup_output_directory() ******
@@ -393,13 +444,14 @@ proc qsub_starter_method {} {
 #     ???/???
 #*******************************
 proc setup_output_directory {} {
-   global CHECK_OUTPUT job_output_dir 
+   global ts_config CHECK_OUTPUT
+   global job_output_dir 
    
    if {[string length $job_output_dir] < 5} {
       add_proc_error "setup_output_directory" -1 "job output dir path must at least have 5 characters\ngot \"$job_output_dir\""
       return -1
    }
-  
+
    # create directory, if it does not yet exist
    # if it already exists, delete all files in it
    set files_deleted 0
@@ -408,21 +460,21 @@ proc setup_output_directory {} {
       puts $CHECK_OUTPUT "new output directory \"$job_output_dir\" generated!"
    } else {
       puts $CHECK_OUTPUT "deleting all files in output directory \"$job_output_dir\"!"
-      set files [ glob -nocomplain $job_output_dir/* ]
+      set files [glob -nocomplain $job_output_dir/*]
       foreach elem $files {
          puts $CHECK_OUTPUT $elem
-         if { [ file isfile $elem ] == 1 } {
+         if {[file isfile $elem] == 1 } {
             puts $CHECK_OUTPUT "deleting file $elem"
             incr files_deleted
             delete_file $elem
-         } 
+         }
       }
    }
 
    # make sure every user may create output files here
    file attributes $job_output_dir -permissions "a+rwx"
-   
-   return $files_deleted 
+
+   return $files_deleted
 }
 
 #                                                             max. column:     |
@@ -455,8 +507,8 @@ proc setup_output_directory {} {
 #     ???/???
 #*******************************
 proc check_hold {} {
-   global CHECK_OUTPUT job_output_dir test_host
-   global default_args
+   global ts_config CHECK_OUTPUT
+   global job_output_dir test_host default_args
 
    set ok 1
 
@@ -473,16 +525,16 @@ proc check_hold {} {
    if {[wait_for_jobpending $result "leeper" 200] != 0} {
       add_proc_error "check_hold" -1 "job $result is not in pending state"
       set ok 0
-   } 
+   }
 
    # job should not run within the next 2 minutes 
    if {$ok} {
       puts $CHECK_OUTPUT "check_hold - set hold for job $result, job should not start"
-      if { [wait_for_jobstart $result "leeper" 120 0] != -1 } {
+      if {[wait_for_jobstart $result "leeper" 120 0] != -1} {
          add_proc_error "check_hold" -1 "job $result should not run until yet"
          set ok 0
-      } 
-   } 
+      }
+   }
 
    # release job
    if {$ok} {
@@ -505,7 +557,7 @@ proc check_hold {} {
          set ok 0
       }
    }
-   
+
    # cleanup
    set back [del_job_files $result $job_output_dir 2]
    if {$back != 2} {
@@ -546,24 +598,23 @@ proc check_hold {} {
 #     ???/???
 #*******************************
 proc check_start_time {} {
-   global ts_config
-   global job_output_dir
-   global CHECK_OUTPUT test_host
+   global ts_config CHECK_OUTPUT
+   global job_output_dir test_host
 
    # first clean up output directory:  
    setup_output_directory
-  
+
    set now [clock seconds]
    set then [expr $now + 120]
-  
+
    set start [clock format $then -format "%Y%m%d%H%M.%S"]
 
-   set jobargs "-a $start -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 10" 
+   set jobargs "-a $start -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 10"
 
    set ok 1
 
    # submit job
-   set result [submit_job $jobargs] 
+   set result [submit_job $jobargs]
    if {$result < 0} {
       add_proc_error "check_start_time" -1 "error submitting job \"$jobargs\"\nerror $result"
    }
@@ -572,8 +623,8 @@ proc check_start_time {} {
    if {[wait_for_jobpending $result "leeper" 200] != 0} {
       add_proc_error "check_start_time" -1 "job $result is not in pending state"
       set ok 0
-   } 
-   
+   }
+
    # calulate time until job should run
    if {$ok} {
       set wait_time 10
@@ -584,7 +635,6 @@ proc check_start_time {} {
          set ok 0
       }
    }
-
 
    # wait for job to start
    if {$ok} {
@@ -610,219 +660,6 @@ proc check_start_time {} {
    }
    if {!$ok && $result > 0} {
       delete_job $result
-   }
-}
-
-
-
-#                                                             max. column:     |
-#****** qsub/check_deadline() ******
-# 
-#  NAME
-#     check_deadline -- ??? 
-#
-#  SYNOPSIS
-#     check_deadline { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc check_deadline {} {
-   global ts_config
-   global test_host
-   global CHECK_OUTPUT job_output_dir
-
-   if {$ts_config(product_type) == "sge"} {
-      add_proc_error "check_deadline" -3 "not possible in sge system"
-      return
-   }
-
-   # Wait for zero deadlinejobs
-   set nub_deadline_jobs 1
-   while { $nub_deadline_jobs != 0 } {
-      set nub_deadline_jobs 0 
-      set job_list [ get_job_info -1 ]
-      foreach line $job_list { 
-        if { [ lindex $line 17 ] > 0 } {
-            incr nub_deadline_jobs 
-        }  
-      }
-      puts $CHECK_OUTPUT "waiting for zero deadline job count"
-      sleep 1
-   }
-
-   # get current hour
-   set hour [exec date "+%H"]
-   if { [string first "0" $hour] == 0 } {
-      set hour [string index $hour 1 ]
-   }  
-
-   # get current minute
-   set minute [exec date "+%M"]
-   if { [string first "0" $minute] == 0 } {
-      set minute [string index $minute 1 ]
-   }  
-
-
-   # add 5 minutes
-   set future_time 5
-
-   if {$minute < [expr (60 - $future_time )] } {
-     set minute [expr ($minute + $future_time) ]
-   } else {
-     set minute [expr ($minute + $future_time - 60) ]
- 
-     if {$hour < 23 } {
-        set hour [expr ($hour + 1) ]
-     } else {
-        set hour "0"
-     }
-   }
-
-   # use rhour and rminute for command string
-   set rhour $hour
-   set rminute $minute
-   if {$hour < 10} {
-     set rhour "0$hour"
-   }
-   if {$minute < 10} {
-     set rminute "0$minute"
-   }
-  
-   # finally get command option string 
-   set deadline "[exec date +\%Y\%m\%d]$rhour$rminute"
-
-   # deadline job (10 min) with deadline in 5 minutes
-   set jobargs "-dl $deadline -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 500" 
-   # start job
-   set result [submit_job $jobargs] 
-   if {$result < 0 } {
-      add_proc_error "check_deadline" -1 "could not submit job"
-      return
-   }
-
-
-   # now job is in queueing system (get timestamp now)
-   set time [timestamp]
-
-   # look if only one job is running
-   # if not delete the hob with higher jobid 
-   set nub_deadline_jobs 0
-   while { $nub_deadline_jobs != 1 } {
-      sleep 2
-      set nub_deadline_jobs 0 
-      set job_list [ get_job_info -1 ]
-      foreach line $job_list { 
-        if { [ lindex $line 17 ] > 0 } {
-            incr nub_deadline_jobs
-            if {$nub_deadline_jobs > 1} {
-               start_sge_bin "qdel" "[lindex $line 0]"
-               puts $CHECK_OUTPUT "check_deadline - delete job [lindex $line 0] "
-               # retry if deleted job is from me
-               if { $result == [lindex $line 0] } {
-                  check_deadline
-                  return
-               }
-            } 
-        }  
-      }
-      
-      puts $CHECK_OUTPUT "check_deadline - waiting for 1 deadline job (current count: $nub_deadline_jobs)"
-   }
-  
-   puts $CHECK_OUTPUT "looking for job id $result"
-   
-   set old_tickets 0
-   set deadl_jobs 1
-   while {1} {
-      set nub_deadline_jobs 0
-      set job_tickets 0
-      set job_info "none"
-      set run_time [ expr ( [timestamp] - $time ) ]
-      set job_list [ get_job_info -1 ]
-      set found 0
-      foreach line $job_list { 
-         if { [lindex $line 0] == $result } {
-            set job_info $line
-            set job_tickets [ lindex $line 17 ]
-            set found 1
-         } 
-         if { [ lindex $line 17 ] > 0 } {
-            incr nub_deadline_jobs 
-         } 
-      }     
-      
-      if { ([was_job_running $result 0] != -1) } {
-         set back [ del_job_files $result $job_output_dir 2 ] 
-         if { $back != 2 } {
-            add_proc_error "check_deadline" -1 "job $result did not produce error and output file"
-         }
-         return
-      }       
- 
-      if { $found == 0 } {
-         continue
-      }
-
-      if { $job_tickets == 0 } {
-         incr nub_deadline_jobs 1  
-      } 
-      set max_tickets 10000
-      if { $nub_deadline_jobs > 1 } {
-         set max_tickets [ expr ($max_tickets / $nub_deadline_jobs) ]
-      }      
-
-      puts $CHECK_OUTPUT "runtime: $run_time"
-      puts $CHECK_OUTPUT "number of deadline jobs: $nub_deadline_jobs"
-      puts $CHECK_OUTPUT "current tickets: $job_tickets"
- 
-      if { $deadl_jobs != $nub_deadline_jobs} {
-         puts $CHECK_OUTPUT "deadline job count canched - can't use this run"
-         set deadl_jobs $nub_deadline_jobs
-      } else {
-         # use dlcontr in case of 6.0
-         if { ($run_time < 90) && ($job_tickets > [expr ($max_tickets / 2) ]  ) } {
-            add_proc_error "check_deadline" -1 "check_deadline - job shouldn't have so much tickets until yet"
-            return 
-         }
-         
-         if { ($run_time > 200) && ($job_tickets < [expr ($max_tickets / 2) ] ) } {
-            add_proc_error "check_deadline" -1 "check_deadline - job should have more tickets at this point of time"  
-            return 
-         }
-
-         if { ($run_time > 400) && ($job_tickets < $max_tickets ) } {
-            add_proc_error "check_deadline" -1 "check_deadline - job should have all tickets now"
-            return   
-         }
-          
-      }
-
-      puts $CHECK_OUTPUT "$job_info"
-      set old_tickets $job_tickets
-
-      sleep 15
-   }
-   set back [ del_job_files $result $job_output_dir  2 ] 
-   if { $back != 2 } {
-      add_proc_error "check_deadline" -1 "job $result did not produce error and output file"
    }
 }
 
@@ -856,17 +693,16 @@ proc check_deadline {} {
 #     ???/???
 #*******************************
 proc check_option_ac {} {
-   global job_output_dir CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
-   global CHECK_USER test_host
+   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global job_output_dir test_host
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-ac myvar1=\"test 1\" -ac myvar2='test 2'"
    # We use a special job script which contains context variable settings
-   set jobargs "$option -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_ACTUAL_TEST_PATH/sleeper.sh 60" 
-  
-   set result [submit_job $jobargs 0]  
+   set jobargs "$option -l h=${test_host} -o $job_output_dir -e $job_output_dir $CHECK_ACTUAL_TEST_PATH/sleeper.sh 60"
+   set result [submit_job $jobargs 0]
 
    if {$result < 0} {
       add_proc_error "check_option_ac" -1 "error submitting job \"$jobargs\"\nerror $result"
@@ -906,8 +742,7 @@ proc check_option_ac {} {
       return
    }
 
-   set time [expr [timestamp] + 300] 
-
+   set time [expr [timestamp] + 300]
    while {[timestamp] < $time}  {
       sleep 1
       set back [was_job_running $result 0]
@@ -922,7 +757,6 @@ proc check_option_ac {} {
  
    add_proc_error "check_option_ac" -1 "timeout while waiting for job accounting"
 }
-
 
 #                                                             max. column:     |
 #****** qsub/check_option_A() ******
@@ -957,14 +791,13 @@ proc check_option_A {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
-  
+
    # positive tests
    foreach string [valid_job_has_valid_account_string "-A"] {
       set option "-A '$string'"
       set jobargs "$option $default_args"
-    
       set job_id [qsub_submit_check $jobargs 0]
 
       if {$job_id > 0} {
@@ -980,11 +813,9 @@ proc check_option_A {} {
    foreach string [invalid_job_has_valid_account_string "-A"] {
       set option "-A '$string'"
       set jobargs "$option $default_args"
-    
       set job_id [qsub_submit_check $jobargs 1]
    }
 }
-
 
 #                                                             max. column:     |
 #****** qsub/check_option_clear() ******
@@ -1019,7 +850,7 @@ proc check_option_clear {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-A blahblah -clear"
@@ -1033,8 +864,6 @@ proc check_option_clear {} {
       }
    }
 }
-
-
 
 #                                                             max. column:     |
 #****** qsub/check_option_c() ******
@@ -1069,7 +898,7 @@ proc check_option_c {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-c n"
@@ -1110,7 +939,7 @@ proc check_option_ckpt {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-ckpt testcheckpointobject"
@@ -1151,7 +980,7 @@ proc check_option_cwd {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-cwd"
@@ -1192,7 +1021,7 @@ proc check_option_C {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-C TESTPREFIX"
@@ -1233,7 +1062,7 @@ proc check_option_dc {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-dc myvar,myvar2"
@@ -1274,7 +1103,7 @@ proc check_option_e {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # we submit just with default args - they contain the -e option
@@ -1314,7 +1143,7 @@ proc check_option_hard {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-hard"
@@ -1355,7 +1184,7 @@ proc check_option_help {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-help"
@@ -1396,7 +1225,7 @@ proc check_option_hold_jid {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-hold_jid 1,2,3"
@@ -1444,7 +1273,7 @@ proc check_option_j_y {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-j y"
@@ -1485,7 +1314,7 @@ proc check_option_j_n {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-j n"
@@ -1526,7 +1355,7 @@ proc check_option_l {} {
    global ts_config CHECK_OUTPUT
    global default_h_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # the default_h_args contain -l h=...
@@ -1567,7 +1396,7 @@ proc check_option_m {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-m beas"
@@ -1608,7 +1437,7 @@ proc check_option_notify {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-notify"
@@ -1649,39 +1478,38 @@ proc check_option_now_yes {} {
    global ts_config CHECK_OUTPUT
    global default_args job_output_dir
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-now yes"
    set jobargs "$option $default_args"
-  
 
-   for { set i 1} { $i <= 3 } { incr i 1 } {
+   for {set i 1} {$i <= 3} {incr i 1} {
       set result [submit_job $jobargs 0]
-      if { $result != -6 } {
-         break;
+      if {$result != -6} {
+         break
       } else {
          add_proc_error "check_option_now_yes" -3 "bugtraq id: 4938859 ->\nqsub -now yes returned job could not be scheduled, try later - error - trying again ... (try $i)"
          puts $CHECK_OUTPUT "sleeping 5 sec ..."
          sleep 5
       }
    }
-   
+ 
    puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
 
-   if { $result < 0 } {
+   if {$result < 0} {
       add_proc_error "check_option_now_yes" -1 "could not submit job\n -> return value of submit_job: $result"
       return
    }
 
-   set time [ expr ( [timestamp] + 300  ) ] 
+   set time [expr [timestamp] + 300]
 
-   while { [timestamp] < $time }  {
+   while {[timestamp] < $time} {
       sleep 1
-      set back [was_job_running $result 0] 
+      set back [was_job_running $result 0]
       if {$back != -1} {
-         set back [ del_job_files $result $job_output_dir 2 ] 
-         if { $back != 2 } {
+         set back [del_job_files $result $job_output_dir 2]
+         if {$back != 2} {
             add_proc_error "check_option_now_yes" -1 "job $result did not produce error and output file\njobargs: $jobargs"
             return
          } else {
@@ -1734,7 +1562,7 @@ proc check_option_now_no {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-now no"
@@ -1772,17 +1600,16 @@ proc check_option_now_no {} {
 #     ???/???
 #*******************************
 proc check_option_M {} {
-   global ts_config CHECK_OUTPUT 
-   global CHECK_REPORT_EMAIL_TO
+   global ts_config CHECK_OUTPUT CHECK_REPORT_EMAIL_TO
    global default_args
 
    # can't run the check, if no email address has been configured
    if {[string compare $CHECK_REPORT_EMAIL_TO "none"] == 0} {
-      add_proc_error "check_option_M" -3 "no email address configured - can't run qsub -M check"  
+      add_proc_error "check_option_M" -3 "no email address configured - can't run qsub -M check"
       return
    }
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-M $CHECK_REPORT_EMAIL_TO"
@@ -1823,14 +1650,13 @@ proc check_option_N {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # positive tests
    foreach string [valid_job_has_valid_account_string "-N"] {
       set option "-N '$string'"
       set jobargs "$option $default_args"
-    
       set job_id [qsub_submit_check $jobargs 0]
 
       if {$job_id > 0} {
@@ -1846,11 +1672,9 @@ proc check_option_N {} {
    foreach string [invalid_job_has_valid_account_string "-N"] {
       set option "-N '$string'"
       set jobargs "$option $default_args"
-    
       set job_id [qsub_submit_check $jobargs 1]
    }
 }
-
 
 #                                                             max. column:     |
 #****** qsub/check_option_o() ******
@@ -1885,7 +1709,7 @@ proc check_option_o {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # the default args already contain a -o option
@@ -1925,7 +1749,7 @@ proc check_option_P {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-P mytestproject"
@@ -1973,13 +1797,13 @@ proc check_option_p {} {
    global ts_config CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # test -p option:
    # any user must be allowed to submit with negative -p
    # only superuser may submit with positive -p
-   
+
    # set as admin user: complete range
    qsub_submit_check "-p -1023 $default_args" 0 $CHECK_USER ;# IZ 2055
    qsub_submit_check "-p 0 $default_args" 0 $CHECK_USER
@@ -2035,7 +1859,7 @@ proc check_option_pe {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-pe mytestpe 1-3"
@@ -2086,7 +1910,7 @@ proc check_option_q {} {
    global ts_config CHECK_OUTPUT
    global default_args test_host
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # submission to a queue instance (5.3 queue)
@@ -2136,7 +1960,7 @@ proc check_option_r_y {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-r y"
@@ -2177,7 +2001,7 @@ proc check_option_r_n {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-r n"
@@ -2218,7 +2042,7 @@ proc check_option_sc {} {
    global ts_config
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-sc myvar=test3"
@@ -2259,7 +2083,7 @@ proc check_option_soft {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-soft"
@@ -2298,10 +2122,9 @@ proc check_option_soft {} {
 #*******************************
 proc check_option_S {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global default_args
-   global job_output_dir
+   global default_args job_output_dir
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-S /bin/sh"
@@ -2317,19 +2140,16 @@ proc check_option_S {} {
 
       set result [start_remote_prog $windows_host $CHECK_USER "ls" "/net/es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe" prg_exit_state 60 0 "" "" 1 1 1 1 1]
 
-      if { $prg_exit_state == 1 } {
+      if {$prg_exit_state == 1} {
        puts $CHECK_OUTPUT "The binary submission test is currently not working in environments outside of SUN.\n RFE 77 will fix this issue. Try again later, please!!!"
       } else {
          set bin_option "-b y"
          set job_script "-o $job_output_dir -e $job_output_dir \"//es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe\" \"5\""
          set jobargs "$bin_option $shell_option $host_option $job_script"
-
          qsub_submit_check $jobargs 0
       }
 
-
       set job_script "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/hello.bat"
-      
       set jobargs "$shell_option $host_option $job_script"
       qsub_submit_check $jobargs 0
    }
@@ -2368,7 +2188,7 @@ proc check_option_t {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # positive tests
@@ -2423,7 +2243,7 @@ proc check_option_verify {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-verify"
@@ -2431,7 +2251,7 @@ proc check_option_verify {} {
 
    # cannot use submit_job - it would fail on -verify
    set output [start_sge_bin "qsub" $jobargs]
-   
+
    # expect certain output:
    set found 0
    foreach line [split $output "\n"] {
@@ -2479,7 +2299,7 @@ proc check_option_V {} {
    global ts_config CHECK_OUTPUT
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-V"
@@ -2517,10 +2337,10 @@ proc check_option_V {} {
 #     ???/???
 #*******************************
 proc check_option_w {} {
-   global job_output_dir CHECK_OUTPUT test_host
-   global default_args
+   global job_output_dir CHECK_OUTPUT
+   global test_host default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-w e"
@@ -2564,15 +2384,14 @@ proc check_option_@ {} {
    global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
    global default_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    set option "-@ $CHECK_ACTUAL_TEST_PATH/commandfile.txt"
    set jobargs "$option $default_args"
-  
-   set result [submit_job $jobargs 0]  
+   set result [submit_job $jobargs 0]
 
-   if { $result != -2 } {
+   if {$result != -2} {
       add_proc_error "check_option_@" -1 "no help output on -@ commandfile option"
    }
 }
@@ -2607,39 +2426,33 @@ proc check_option_@ {} {
 #     ???/???
 #*******************************
 proc check_huge_script {} {
-   global ts_config
-   global job_output_dir CHECK_PROTOCOL_DIR CHECK_ACT_LEVEL
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH test_host
+   global ts_config CHECK_OUTPUT CHECK_PROTOCOL_DIR
+   global job_output_dir test_host
    global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT steps_per_queue size_interval
-   global default_q_args default_h_args
 
-   # first clean up output directory:  
+   # first clean up output directory:
    setup_output_directory
 
    # protocol
    set protocol_filename "$CHECK_PROTOCOL_DIR/qsub_huge_script.txt"
-   if { $CHECK_ACT_LEVEL == 0 } {
-      set protocol [open $protocol_filename "w"]
-      puts $protocol "submitting huge scripts"
-      puts $protocol "size       = size of the script"
-      puts $protocol "submittime = time needed to submit the script, timeout after $HUGE_SCRIPT_TIMEOUT s"
-      puts $protocol "schedtime  = time the job needs to startup"
-      puts $protocol "runtime    = runtime of the job"
-      puts $protocol ""
-      puts $protocol "size\tsubmittime\tschedtime\truntime"
-      flush $protocol
-   } else {
-      set protocol [open $protocol_filename "a"]
-   }
+   set protocol [open $protocol_filename "w"]
+   puts $protocol "submitting huge scripts"
+   puts $protocol "size       = size of the script"
+   puts $protocol "submittime = time needed to submit the script, timeout after $HUGE_SCRIPT_TIMEOUT s"
+   puts $protocol "schedtime  = time the job needs to startup"
+   puts $protocol "runtime    = runtime of the job"
+   puts $protocol ""
+   puts $protocol "size\tsubmittime\tschedtime\truntime"
+   flush $protocol
 
-   for { set step 0 } { $step < $steps_per_queue } { incr step } {
+   for {set step 0} {$step < $steps_per_queue} {incr step} {
       # create a huge sleeper.sh
       set filename "$job_output_dir/sleeper.sh"
       file copy -force "$ts_config(product_root)/examples/jobs/sleeper.sh" "$filename"
       set f [open $filename a]
       puts $f "exit 0"
-      set times [expr ($CHECK_ACT_LEVEL * $size_interval * $steps_per_queue + $size_interval * $step) / [string length "$HUGE_SCRIPT_PATTERN"]]
-      for { set i 0 } { $i < $times } { incr i} {
+      set times [expr $size_interval * $step / [string length $HUGE_SCRIPT_PATTERN]]
+      for {set i 0} {$i < $times} {incr i} {
          puts $f "$HUGE_SCRIPT_PATTERN"
       }
       close $f
@@ -2647,12 +2460,10 @@ proc check_huge_script {} {
       set submit_size [file size $filename]
       puts $CHECK_OUTPUT "submitting job script of size $submit_size bytes allowing a timeout of $HUGE_SCRIPT_TIMEOUT s"
    
-      set jobargs "-l h=${test_host} -o $job_output_dir -e $job_output_dir $filename 5" 
-      #puts $CHECK_OUTPUT "\njob has args: \"$jobargs\""
-      
+      set jobargs "-l h=${test_host} -o $job_output_dir -e $job_output_dir $filename 5"
       set submit_start [clock seconds]
       set result [submit_job $jobargs 1 $HUGE_SCRIPT_TIMEOUT]
-      if { $result < 0 } {
+      if {$result < 0} {
          add_proc_error "check_huge_script" -1 "could not submit job (result: $result)"
          close $protocol
          return
@@ -2669,9 +2480,9 @@ proc check_huge_script {} {
          puts $protocol "$submit_size\t$submit_time\t$sched_time\t$run_time"
          flush $protocol
       }
-   
+
       file delete $filename
-   
+
       set back [del_job_files $result $job_output_dir 2]
       if {$back != 2} {
          add_proc_error "check_huge_script" -1 "job $result did not produce error and output file\njobargs: $jobargs"
@@ -2682,64 +2493,6 @@ proc check_huge_script {} {
 
    close $protocol
 }
-
-proc qsub_setup {} {
-   global ts_config
-   global stored_configuration
-   global job_output_dir test_host default_args default_q_args default_h_args
-   global HUGE_SCRIPT_SIZE HUGE_SCRIPT_TIMEOUT HUGE_SCRIPT_STEPS steps_per_queue size_interval
-   global HUGE_SCRIPT_MAX_SIZE
-
-   # set some global variables
-   set num_queues [llength $ts_config(unique_arch_nodes)] 
-
-   # run host specific tests on a random host
-   set test_host [host_conf_get_suited_hosts]
-
-   # set default jobargs
-   set default_args "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 5"
-   set qinstance [get_queue_instance "all.q" $test_host]
-   set default_q_args "-q $qinstance $default_args"
-   set default_h_args "-l h=${test_host} $default_args"
-
-   # setup huge_script test
-   set steps_per_queue [expr $HUGE_SCRIPT_STEPS / $num_queues]
-   if {[expr $steps_per_queue * $num_queues] < $HUGE_SCRIPT_STEPS} {
-      incr steps_per_queue
-   }
-   set steps_total [expr $steps_per_queue * $num_queues]
-   set size_interval [expr $HUGE_SCRIPT_MAX_SIZE / $steps_total]
-
-   # backup global config
-   get_config stored_configuration
-  
-   # set config for fast scheduling / fast writing of accounting record
-   if {$ts_config(gridengine_version) == 53} {
-      set my_config(schedd_params) "$stored_configuration(schedd_params),FLUSH_SUBMIT_SEC=0"
-   } else {
-      set my_config(reporting_params) "accounting=true reporting=false flush_time=00:00:01 joblog=true sharelog=00:10:00"
-   }
-   set_config my_config
-
-   if {$ts_config(gridengine_version) >= 60} {
-      set my_schedd_conf(flush_submit_sec) "1"
-      set_schedd_config my_schedd_conf 
-   }
-}
-
-proc qsub_cleanup {} {
-   global ts_config
-   global stored_configuration
-
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60
-
-   if {$ts_config(gridengine_version) >= 60} {
-      reset_schedd_config
-   }
-   set_config stored_configuration
-}
-
 #
 #
 #****** qsub/check_qsub_ts_iz_72() ***********************************************
@@ -2758,70 +2511,52 @@ proc qsub_cleanup {} {
 #  INPUTS
 #
 #*******************************************************************************
-
 proc check_qsub_ts_iz_72 {} {
 	global ts_config CHECK_OUTPUT
 
-	set hostname [lindex $ts_config(execd_nodes) 0]
-      
-# Delete any remaining jobs
+   # Delete any remaining jobs
    delete_all_jobs
       
-# 1. submit an array job in hold
-
-   set result0 [start_sge_bin "qsub" "-h -t 1:2 -o /dev/null -j y -N TS_IZ_72 \
-					 $ts_config(product_root)/examples/jobs/sleeper.sh 30" ]
-
-# Wait a little for jobs to be scheduled.
-   sleep 15
+   # 1. submit an array job in hold
+   submit_job "-h -t 1-2 -o /dev/null -j y -N TS_IZ_72 $ts_config(product_root)/examples/jobs/sleeper.sh 30"
 	
-# Get the jobid with qstat_plain_parse
-
+   # Get the jobid with qstat_plain_parse
    # qstat_plain_output contains the plain qstat output in an assoc. array
    # qstat_plain_output(jobid) contains a list of jobids.
-   set result1 [qstat_plain_parse qstat_plain_output]
-      
-   puts $CHECK_OUTPUT "qstat array .... \n"
+   qstat_plain_parse qstat_plain_output
+   puts $CHECK_OUTPUT "qstat array ..."
    parray qstat_plain_output
-      
 
    # Now let's compare them by jobid. 
-   set jobid_list  $qstat_plain_output(index)
-	
+   set jobid_list $qstat_plain_output(index)
 	set jobid [lindex $jobid_list 0]
-   puts $CHECK_OUTPUT "get the jobid .... \n"
+   puts $CHECK_OUTPUT "get the jobid ..."
 	
-# 2. qalter one task into system hold
-
-   set result2 [start_sge_bin "qalter" "-h s $jobid.1" ]
-	puts $CHECK_OUTPUT "run qalter -h s.... \n"
+   # 2. qalter one task into system hold
+   start_sge_bin "qalter" "-h s $jobid.1"
 	
-# 	3. qalter one task into pending state
-
-   set result3 [start_sge_bin "qalter" "-h n $jobid.2" ]
-	puts $CHECK_OUTPUT "run qalter -h n .... \n"
+   # 3. qalter one task into pending state
+   start_sge_bin "qalter" "-h n $jobid.2"
 	
-# 	4. wait until the task has finsihed
-
+   # 4. wait until the task has finished
    sleep 60
 	
-# 	5. check, if the task in system hold is still there.
-
-   set result4 [qstat_plain_parse qstat_plain_output1]
+   # 5. check, if the task in system hold is still there.
+   qstat_plain_parse qstat_plain_output1
       
    puts $CHECK_OUTPUT "qstat array at the end .... \n"
    parray qstat_plain_output1
 	
-	if { ($qstat_plain_output1($jobid,state) != "hqw") } {
-		add_proc_error "check_qsub_ts_iz_72" -1 "Job 2 not in hold state .."
-	} elseif { ($qstat_plain_output1($jobid,jatask) == "2") } {
-		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still around .."
-	} elseif { ($qstat_plain_output1($jobid,jatask) == "1,2")} {
-		add_proc_error "check_qsub_ts_iz_72" -1 "Job 2 was never scheduled .."
-	} elseif { ([llength $qstat_plain_output1($jobid,jatask)] == 2) } {
-	   add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still  around .."
+	if {$qstat_plain_output1($jobid,state) != "hqw"} {
+		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 not in hold state"
+	} elseif {$qstat_plain_output1($jobid,jatask) == "2"} {
+		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still around"
+	} elseif {$qstat_plain_output1($jobid,jatask) == "1,2"} {
+		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 was never scheduled"
+	} elseif {[llength $qstat_plain_output1($jobid,jatask)] == 2} {
+	   add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still around"
 	} else {
-		puts $CHECK_OUTPUT "Task in system hold is still around as expected.. \n"
+		puts $CHECK_OUTPUT "Task in system hold is still around as expected"
 	} 
 	
 	delete_all_jobs

@@ -34,23 +34,22 @@
 
 # Define the global veriables to give them back
 global check_name check_description check_needs check_functions
-global check_category check_root_access_needs  check_highest_level
+global check_category check_root_access_needs check_highest_level
 
 set check_root_access_needs  "yes"
-
 
 set check_name           "qstat"
 set check_category       "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_highest_level  0
 set check_description(0) "checking qstat functionality (with and without -xml)"
 set check_needs          "init_core_system "      ;# dependencies of this check (name of other check)
+
 # define a level initialization procedure:
 set check_init_level_procedure "qstat_init_level"
 
 # setup and cleanup functions
 set check_setup_function "qstat_setup"
 set check_cleanup_function "qstat_cleanup"
-
 
 set check_functions      {}
 lappend check_functions  "check_core_queues"     ;# functions to call (in order)
@@ -95,14 +94,26 @@ lappend check_functions "qstat_u_valid_plain_xml_comparison" ;# Compare the two 
 lappend check_functions "qstat_u_invalid_plain_xml_comparison" ;# Compare the two qstat -u wrong_user commands
 lappend check_functions "qstat_U_valid_plain_xml_comparison" ;# Compare the two qstat -U $CHECK_USER commands
 
+proc qstat_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1
+}
+
 proc qstat_setup {} {
-   global ts_config
-   global CHECK_OUTPUT CHECK_HAVE_TDOM
+   global ts_config CHECK_OUTPUT CHECK_HAVE_TDOM
+   global first_host last_host
 
    # First add queues "error" with one host (last).
    # Set prolog to non-existent path, and np_load_avg to 10
-
-   if { [llength $ts_config(execd_nodes)] < 2 } {
+   if {[llength $ts_config(execd_nodes)] < 2} {
+      add_proc_error "qstat_setup" -3 "we need a minumum of 2 hosts to run the qstat test"
       return -1
    }
 
@@ -110,61 +121,35 @@ proc qstat_setup {} {
    if {$CHECK_HAVE_TDOM == 0} {
       add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the qstat -xml tests!"
    }
-  
-   set first_host [lindex $ts_config(execd_nodes) 0]
-   set last_host [lindex $ts_config(execd_nodes) 1]
-                  
-   puts $CHECK_OUTPUT "Adding queue wrong.q...\n"
+
+   # our test hosts
+   set hosts [host_conf_get_suited_hosts 2]
+   set first_host [lindex $hosts 0]
+   set last_host  [lindex $hosts 1]
+
+   # some test queues
    set wrong_queue "wrong.q"
-   #set new_wrong_queue(hostlist)  "$last_host"
-   add_queue $wrong_queue $last_host new_wrong_queue
-   
-   puts $CHECK_OUTPUT "Modifying information for wrong.q queue ...\n"
    set new_wrong_queue(prolog)  "/non/existent/path"
    set new_wrong_queue(load_thresholds)  "np_load_avg=10"
-   set result1 [mod_queue $wrong_queue "" new_wrong_queue]
-   
-   # Add queue "empty with first host.
-   # Set pe_list to NONE, and np_load_avg to 10
+   add_queue $wrong_queue $last_host new_wrong_queue
 
-   puts $CHECK_OUTPUT "Adding queue empty...\n"
-   #set new_empty_queue(hostlist)  "$first_host"
    set empty_queue "empty.q"
-   add_queue $empty_queue $first_host new_empty_queue
-   
    set new_empty_queue(pe_list)  "NONE"
    set new_empty_queue(load_thresholds)  "np_load_avg=10"
-   puts $CHECK_OUTPUT "Modifying information for empty queue ...\n"
-   set result2 [mod_queue $empty_queue "" new_empty_queue]
-
-   # Check that both results are 0. If not, we return -1
-   
-   if { ($result1 == 0) && ($result2 == 0) } { 
-      return 0
-   } else {
-      return -1
-   }
+   add_queue $empty_queue $first_host new_empty_queue
 }
 
 proc qstat_cleanup {} {
-   global CHECK_OUTPUT
-   global hostname job_id_list
-   global ts_config
+   global ts_config CHECK_OUTPUT
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   set first_host [lindex $ts_config(execd_nodes) 0]
-   set last_host [lindex $ts_config(execd_nodes) 1]
-
-   puts $CHECK_OUTPUT "Deleting  wrong.q queue ...\n"
-   del_queue "wrong.q" $last_host 1
-   
-   puts $CHECK_OUTPUT "Deleting  empty.q queue ...\n"
-   del_queue "empty.q" $first_host 1
+   del_queue "wrong.q" "" 1 1
+   del_queue "empty.q" "" 1 1
 
    # remove files / queues from qstat_profile test
-   set home [glob ~/]
+   set home [glob "~/"]
    #
    # Delete regardless....
    #
@@ -174,26 +159,11 @@ proc qstat_cleanup {} {
    # Clean up test.q if it's still around.
    #
    get_queue_list queue_list
-   if {[lsearch $queue_list "test.q"] != -1} {
-      puts $CHECK_OUTPUT "Deleting test.q"
-      del_queue test.q $hostname 0 1
-   }
-}
-
-#
-# Use level 1 when package tDOM is present. Otherwise, use level 0
-#
-
-proc qstat_init_level {} {
-   global CHECK_ACT_LEVEL
-
-   switch -- $CHECK_ACT_LEVEL {
-      0 { 
-         return 0 
+   foreach queue $queue_list {
+      if {$queue != "all.q"} {
+         del_queue $queue "" 1 1
       }
    }
-
-   return -1
 }
 
 #****** check/qstat_count_jobs() ***********************************************
@@ -214,16 +184,17 @@ proc qstat_init_level {} {
 #
 #*******************************************************************************
 proc qstat_count_jobs {func_name qstat_options expected_jobs} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_OUTPUT
    
    puts $CHECK_OUTPUT "\nrunning qstat $qstat_options"
-   set result [start_sge_bin "qstat" "$qstat_options" "" "" exit_code]
-   puts $CHECK_OUTPUT $result
-   if {$exit_code == 0} {
+   set output [start_sge_bin "qstat" "$qstat_options"]
+   puts $CHECK_OUTPUT $output
+
+   if {$prg_exit_state == 0} {
       if {[info exists jobinfo]} {
          unset jobinfo
       }  
-      parse_qstat result jobinfo
+      parse_qstat output jobinfo
       set shown_jobs $jobinfo(index)
       set nr_jobs [llength $shown_jobs]
 
@@ -270,11 +241,7 @@ proc check_core_queues {} {
   global CHECK_OUTPUT
   global ts_config CHECK_USER
 
-  set check_host [lindex $ts_config(execd_nodes) 0]
-
-  wait_for_load_from_all_queues 300
-
-  set result ""
+  set check_host [host_conf_get_suited_hosts]
 
   set result [start_sge_bin "qstat" "-f -q all.q"]
 #
@@ -317,7 +284,7 @@ proc check_core_queues {} {
   set len [llength $help]
   for {set ind 0} {$ind < $len } {incr ind 1} {
      if {[lsearch [lindex $help $ind] "------*"] >= 0 } {
-        lappend data [lindex $help [expr ( $ind + 1 )]] 
+        lappend data [lindex $help [expr $ind + 1]]
      }
   }
 
@@ -331,30 +298,31 @@ proc check_core_queues {} {
      set linedata $elem
      lappend qnames [lindex $linedata 0]
      set used_tot [lindex $linedata 2]
-     set pos1 [ expr ([string last "/" $used_tot] + 1)]
-     set pos2 [ expr ([string length $used_tot]   - 1)]
+     set pos1 [expr [string last "/" $used_tot] + 1]
+     set pos2 [expr [string length $used_tot]   - 1]
 
      lappend slots [string range $used_tot $pos1 $pos2 ]
      lappend load [lindex $linedata 3]
   }
 
   # check if number of queues matches core system queue count
-  if {[llength $ts_config(execd_hosts)] != $qcount} {
-     add_proc_error "check_core_queues" -1 "queue count doesn't match (number of queues should be [llength $ts_config(execd_hosts)])"
+  if {[llength $ts_config(execd_nodes)] != $qcount} {
+     add_proc_error "check_core_queues" -1 "queue count doesn't match (number of queues should be [llength $ts_config(execd_nodes)])"
      return
   }
 
   # check if slots for host $check_host are correct (needs successfully tested "loadcheck" check)
   set numofproc [node_get_processors $check_host]
-  set queue_name "all.q@[resolve_host $check_host 1]"
   puts $CHECK_OUTPUT "got $numofproc slots"
-  set reported_slots [lindex $slots [lsearch $qnames $queue_name]]
-  if { $reported_slots != [expr ( $numofproc * 10 )] } {
-     add_proc_error "check_core_queues" -1 "queue $queue_name should have [expr ($numofproc * 10)] slots) (cpu count * 10)\nqstat reported $reported_slots"
-     return
-  } 
 
-  # check if load of an host is set > 99 (no exed report)
+  set queue_name [get_queue_instance "all.q" [resolve_host $check_host 1]]
+  set reported_slots [lindex $slots [lsearch $qnames $queue_name]]
+  if {$reported_slots != [expr $numofproc * 10]} {
+     add_proc_error "check_core_queues" -1 "queue $queue_name should have [expr $numofproc * 10] slots) (cpu count * 10)\nqstat reported $reported_slots"
+     return
+  }
+
+  # check if load of an host is set > 99 (no execd report)
   set ind 0
   foreach elem $load {
     if {$elem >= 99} {
@@ -368,109 +336,89 @@ proc check_core_queues {} {
 }
 
 proc qstat_option_l {} {
-  global CHECK_OUTPUT ts_config
+  global ts_config CHECK_OUTPUT
 
-  puts $CHECK_OUTPUT "checking qstat -l option ..."
+   set check_host [host_conf_get_suited_hosts]
+   set my_arch [resolve_arch $check_host]
 
-  set my_arch [resolve_arch $ts_config(master_host)]
+   puts $CHECK_OUTPUT "submitting job requesting arch=$my_arch ..."   
+   set arguments "-o /dev/null -e /dev/null -h -l arch=$my_arch"
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
-  puts $CHECK_OUTPUT "submitting job requesting arch=$my_arch ..."   
-  
-  set job_id_list ""
-  set arguments "-o /dev/null -e /dev/null -h -l arch=$my_arch"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-  lappend job_id_list $job_id
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-  lappend job_id_list $job_id
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-  lappend job_id_list $job_id
+   puts $CHECK_OUTPUT "submitting job requesting arch=undefined_arch ..."  
+   set arguments "-o /dev/null -e /dev/null -h -l arch=undefined_arch"
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
-  puts $CHECK_OUTPUT "submitting job requesting arch=undefined_arch ..."  
-  set arguments "-o /dev/null -e /dev/null -h -l arch=undefined_arch"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-  lappend job_id_list $job_id
-    
    qstat_count_jobs "qstat_option_l" "-l arch=$my_arch" 3 
-
    qstat_count_jobs "qstat_option_l" "-l arch=undefined_arch" 0 
 
-  delete_all_jobs
+   delete_all_jobs
 }
 
 proc qstat_option_q {} {
-  global CHECK_OUTPUT ts_config
-
-  puts $CHECK_OUTPUT "checking qstat -q option ..."
+  global ts_config CHECK_OUTPUT
 
   puts $CHECK_OUTPUT "submitting jobs requesting each queue ..."   
-  set job_id_list ""
-  set counter 0
-  foreach host $ts_config(execd_hosts) {
-     set qname [get_queue_instance all.q ${host}]
-     puts $CHECK_OUTPUT "\nsubmitting -q $qname ..."
-     
+  foreach host $ts_config(execd_nodes) {
+     set qname [get_queue_instance "all.q" $host]
      set arguments "-o /dev/null -e /dev/null -h -q $qname"
-     set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-     lappend job_id_list $job_id
-     set queue_job_array($qname) $job_id
+     submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
   }
 
-  foreach host $ts_config(execd_hosts) {
-     set qname [get_queue_instance all.q ${host}]
+  foreach host $ts_config(execd_nodes) {
+     set qname [get_queue_instance "all.q" $host]
      qstat_count_jobs "qstat_option_q" "-q $qname" 1 
   }
 
   delete_all_jobs
- 
   wait_for_end_of_all_jobs
 }
 
 
 proc qstat_option_pe {} {
-   global CHECK_OUTPUT ts_config 
+   global ts_config CHECK_OUTPUT
 
-   puts $CHECK_OUTPUT "checking qstat -pe option ..."
-
-   set hostname $ts_config(master_host) 
+   set hostname [host_conf_get_suited_hosts]
 
    set testq(load_thresholds) "np_load_avg=7.00"
    set testq(slots) 10
-   add_queue test1.q $hostname testq
+   add_queue "test1.q" $hostname testq
+   add_queue "test2.q" $hostname testq
 
    set mype1(pe_name) "mype1"
    set mype1(slots) 6 
    set mype1(allocation_rule) "\$pe_slots"
    add_pe mype1
-   assign_queues_with_pe_object test1.q $hostname mype1
-
-   add_queue test2.q $hostname testq
+   assign_queues_with_pe_object "test1.q" $hostname mype1
 
    set mype2(pe_name) "mype2"
    set mype2(slots) 2
    set mype2(allocation_rule) "\$pe_slots"
    add_pe mype2
-   assign_queues_with_pe_object test2.q $hostname mype2
+   assign_queues_with_pe_object "test2.q" $hostname mype2
 
-   puts $CHECK_OUTPUT "submitting job requesting pe mype1 ..."   
-  
    set job_id_list ""
+   puts $CHECK_OUTPUT "submitting job requesting pe mype1 ..."   
    set arguments "-o /dev/null -e /dev/null -pe mype1 2"
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
    lappend job_id_list $job_id
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
    lappend job_id_list $job_id
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
    lappend job_id_list $job_id
-
 
    puts $CHECK_OUTPUT "submitting job requesting pe mype2 ..."  
    set arguments "-o /dev/null -e /dev/null -pe mype2 2"
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
    lappend job_id_list $job_id
-   wait_for_jobstart $job_id "Sleeper" 60
+
+   foreach jobid $job_id_list {
+      wait_for_jobstart $jobid "Sleeper" 60
+   }
   
    qstat_count_jobs "qstat_option_pe" "-pe mype1" 3
-   
    qstat_count_jobs "qstat_option_pe" "-pe mype2" 1 
    
    delete_all_jobs
@@ -479,43 +427,33 @@ proc qstat_option_pe {} {
       wait_for_jobend $jobid "Sleeper" 60 0 1
    }
       
-   del_pe mype1
-   del_pe mype2
+   del_pe "mype1"
+   del_pe "mype2"
 
-   del_queue test1.q $hostname 0 1
-   del_queue test2.q $hostname 0 1
+   del_queue "test1.q" $hostname 0 1
+   del_queue "test2.q" $hostname 0 1
 }
-
 
 proc qstat_option_U {} {
    global ts_config CHECK_OUTPUT
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
-   puts $CHECK_OUTPUT "checking qstat -U option ..."
-
-   set hostname $ts_config(master_host)
-
+   set hostname [host_conf_get_suited_hosts]
    set testq(load_thresholds) "np_load_avg=7.00"
    set testq(slots) 10
    set testq(user_lists) deadlineusers 
-   add_queue test.q $hostname testq
-   set qname [get_queue_instance test.q $hostname]
+   add_queue "test.q" $hostname testq
+   set qname [get_queue_instance "test.q" $hostname]
 
    puts $CHECK_OUTPUT "submitting jobs as user $CHECK_USER ..."   
-
-   set job_id_list ""
    set arguments "-o /dev/null -e /dev/null  -q $qname"
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
-   lappend job_id_list $job_id
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
-   lappend job_id_list $job_id
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER]
-   lappend job_id_list $job_id
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER
 
-   puts $CHECK_OUTPUT "submitting job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."  
+   puts $CHECK_OUTPUT "submitting job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
    set arguments "-o /dev/null -e /dev/null -h -q $qname"
-   set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   lappend job_id_list $job_id
+   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    qstat_count_jobs "qstat_option_U" "-u '*' -U $CHECK_USER" 4
 
@@ -529,10 +467,8 @@ proc qstat_option_U {} {
    qstat_count_jobs "qstat_option_U" "-U $CHECK_FIRST_FOREIGN_SYSTEM_USER" 0
 
    delete_all_jobs
-
    wait_for_end_of_all_jobs
-
-   del_queue test.q $hostname 0 1
+   del_queue "test.q" 1 1
 }
 
 proc qstat_option_s {} {
@@ -551,7 +487,7 @@ proc qstat_option_s {} {
 
   puts $CHECK_OUTPUT "submitting an user hold batch job ..."   
   set arguments "-h -o /dev/null -e /dev/null"
-  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
+  submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
   puts $CHECK_OUTPUT "submitting an system hold batch job ..."   
   set arguments "-h -o /dev/null -e /dev/null"
@@ -567,7 +503,7 @@ proc qstat_option_s {} {
 
   puts $CHECK_OUTPUT "submitting an dependency hold batch job ..."   
   set arguments "-hold_jid \"Sleeper\" -o /dev/null -e /dev/null"
-  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
+  submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
   #-s a
   qstat_count_jobs "qstat_option_s" "-s a" 6
@@ -611,45 +547,40 @@ proc qstat_option_s {} {
   # 
   set duetime [clock format [clock scan "next week"] -format "%m%d%H%M"]
   set arguments "-a $duetime -o /dev/null -e /dev/null"
-  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
+  submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
   qstat_count_jobs "qstat_option_s" "-s ha" 1 
 
-  #TODO test critical states & combinations
+  # TODO test critical states & combinations
 
   delete_all_jobs
+  wait_for_end_of_all_jobs
 }
 
 proc qstat_issue1800 {} {
   global ts_config CHECK_OUTPUT CHECK_USER 
+  global first_host
 
-  set arch [ resolve_arch $ts_config(master_host) ]
-  set first_host [ lindex $ts_config(execd_nodes) 0 ]
-   
   puts $CHECK_OUTPUT "submitting an array job ..."   
-  set job_id_list ""
   set arguments "-l h=$first_host -o /dev/null -e /dev/null -t 1-1000"
-  set job_id [ submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" ]
-
+  set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
   wait_for_jobstart $job_id "Sleeper" 60
+
   qstat_count_jobs "qstat_issue1800" "-s p" 1 
 
   qstat_count_jobs "qstat_issue1800" "-s hu" 0 
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-h u $job_id" exit_code ]
+  start_sge_bin "qalter" "-h u $job_id"
   qstat_count_jobs "qstat_issue1800" "-s hu" 1 
 
   qstat_count_jobs "qstat_issue1800" "-s hs" 0 
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-h s $job_id" exit_code ]
+  start_sge_bin "qalter" "-h s $job_id"
   qstat_count_jobs "qstat_issue1800" "-s hs" 1 
    
   qstat_count_jobs "qstat_issue1800" "-s ho" 0 
-  set result [ start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qalter" "-h o $job_id" exit_code ]
+  start_sge_bin "qalter" "-h o $job_id"
   qstat_count_jobs "qstat_issue1800" "-s ho" 1 
 
-  delete_all_jobs
+  delete_job $job_id 1
 }
-
-
-
 
 #
 #****** qstat/qstat_plain_xml_comparison() ***********************************************

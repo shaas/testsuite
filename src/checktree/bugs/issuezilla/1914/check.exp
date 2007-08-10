@@ -63,7 +63,6 @@ set check_cleanup_function issue_1914_cleanup
 global test_host
 global test_queue
 global act_time
-global backup_config
 # define test's procedure order
 set check_functions ""
 lappend check_functions "issue_1914_test"
@@ -93,7 +92,6 @@ proc issue_1914_setup {} {
    set test_queue "test.$act_time"
    
    # save orig config
-   unset -nocomplain backup_config
    get_config backup_config $test_host
 
    #add new test queue
