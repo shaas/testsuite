@@ -115,11 +115,9 @@ proc ts_source {filebase {extension tcl}} {
    return $sourced
 }
 
-#                                                             max. column:     |
-#****** sge_procedures/get_version_info() ******
-# 
+#****** sge_procedures/get_version_info() *********************************************
 #  NAME
-#     get_version_info -- get version number of the cluster software
+#     get_version_info() -- get version number of the cluster software
 #
 #  SYNOPSIS
 #     get_version_info { } 
@@ -127,13 +125,14 @@ proc ts_source {filebase {extension tcl}} {
 #  FUNCTION
 #     This procedure will return the version string
 #
+#  INPUTS
+#
 #  RESULT
 #     returns the first line of "qconf -help" (this is the version number of 
 #     the SGEEE/SGE system).
 #
 #  SEE ALSO
-#     ???/???
-#*******************************
+#*******************************************************************************
 proc get_version_info {} {
    global sge_config
    global CHECK_PRODUCT_VERSION_NUMBER

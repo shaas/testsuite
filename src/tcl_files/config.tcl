@@ -662,6 +662,7 @@ proc modify_setup2 {} {
 #                    "port":      request a valid portnumber
 #                    "directory": request a directory path
 #                    "string":    request a string value
+#                    "boolean":   request "true" or "false" string
 #
 #  RESULT
 #     The value of the configuration parameter or "-1" on error
@@ -801,6 +802,13 @@ proc config_generic { only_check name config_array help_text check_type } {
          }
          "string" {
             # do we want to check strings ?
+         }
+         "boolean" {
+            # this must be "true" or "false"
+            if { $value != "true" && $value != "false" } {
+               puts $CHECK_OUTPUT "Boolean must be \"true\" or \"false\""
+               return -1
+            }
          }
          default {
             add_proc_error "hedeby_conf_generic" -2 "unexpected generic config type: $check_type"

@@ -416,9 +416,6 @@ proc get_hedeby_admin_user { } {
 #     The internal cache contains the bundle messages after successfully
 #     reading the cache file.
 #
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
 #     util/read_bundle_properties_cache()
 #     util/parse_bundle_properties_files()
@@ -1383,6 +1380,7 @@ proc shutdown_hedeby_host { type host user } {
 #*******************************************************************************
 proc startup_hedeby_host { type host user } {
    global CHECK_OUTPUT 
+   global hedeby_config
     
    set ret_val 0
    puts $CHECK_OUTPUT "startup \"$type\" host \"$host\" ..."
@@ -1390,6 +1388,14 @@ proc startup_hedeby_host { type host user } {
    # TODO: add more checking for "managed" and "master"
    # TODO: test with get_ps_info if the processes have started
    # TODO: check that all pid are written and no one is missing
+
+   if { $hedeby_config(security_disable) == "true" } {
+      puts $CHECK_OUTPUT "WARNING! Setting security disable property for host $host"
+      set ret [sdmadm_set_system_property $host $user output "ssl_disable" "true" [get_hedeby_pref_type] [get_hedeby_system_name]]
+      if { $ret != 0 } {
+         return $ret
+      } 
+   }
 
    switch -exact -- $type {
       "managed" {
@@ -1741,6 +1747,76 @@ proc sdmadm_remove_system { host user output {preftype ""} {sys_name ""} {raise_
    return $prg_exit_state
 }
 
+
+#****** util/sdmadm_set_system_property() **************************************
+#  NAME
+#     sdmadm_set_system_property() -- wrapper sdmadm set_system_property command
+#
+#  SYNOPSIS
+#     sdmadm_set_system_property { host user output property_name value 
+#     {preftype ""} {sys_name ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is used to setup the argument parameters for sdmadm 
+#     set_system_property command.
+#     It reflects all supported sdmadm set_system_property parameters and uses
+#     sdmadm_command() to start the command. 
+#
+#  INPUTS
+#     host            - host where sdmadm should be started
+#     user            - user account used for starting sdmadm
+#     output          - variable name where the output of sdmadm should be 
+#                       stored 
+#     property_name   - name of the property to set 
+#                       ("auto_start" or "ssl_disable") 
+#     value           - "true" or "false" 
+#     {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#     {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#     {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     exit state of sdmadm start command
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/sdmadm_start()
+#     util/sdmadm_shutdown()
+#     util/sdmadm_remove_system()
+#     util/sdmadm_start()
+#     util/sdmadm_show_status()
+#     util/sdmadm_set_system_property()
+#*******************************************************************************
+proc sdmadm_set_system_property { host user output property_name value  {preftype ""} {sys_name ""} {raise_error 1} } {
+   global CHECK_OUTPUT
+   upvar $output output_return
+
+   set args {}
+   if { $preftype != "" } {
+      lappend args "-p $preftype"
+   }
+   if { $sys_name != "" } {
+      lappend args "-s $sys_name"
+   }
+   set arg_line ""
+   foreach arg $args {
+      append arg_line $arg
+      append arg_line " "
+   }
+   append arg_line "set_system_property -n $property_name -v $value"
+
+   set output [sdmadm_command $host $user $arg_line]
+   puts $CHECK_OUTPUT $output
+
+   if { $prg_exit_state != 0 } {
+      add_proc_error "sdmadm_remove_system" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+   }
+
+   set output_return $output  ;# set the output
+   return $prg_exit_state
+}
+
 #****** util/sdmadm_show_status() **********************************************
 #  NAME
 #     sdmadm_show_status() -- command wrapper for sdmadm show_status command
@@ -1749,6 +1825,8 @@ proc sdmadm_remove_system { host user output {preftype ""} {sys_name ""} {raise_
 #     sdmadm_show_status { host user output {preftype ""} {sys_name ""} 
 #     {raise_error 1} } 
 #
+#
+#  FUNCTION
 #     This procedure is used to setup the argument parameters for sdmadm 
 #     show_status command.
 #     It reflects all supported sdmadm show_status parameters and uses

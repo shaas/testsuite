@@ -51,7 +51,7 @@ set ts_checktree($hedeby_checktree_nr,setup_hooks_0_init_func)    hedeby_init_co
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_verify_func)  hedeby_verify_config               
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_save_func)    hedeby_save_configuration        
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "hedeby" ]
-set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.0"
+set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.1"
 
 set ts_checktree($hedeby_checktree_nr,checktree_clean_hooks_0)  "hedeby_checktree_clean"            
 set ts_checktree($hedeby_checktree_nr,compile_hooks_0)          "hedeby_compile"                    
@@ -595,7 +595,7 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
 #     framework (menu 26) after the hedeby configuration settings was done. 
 #
 #  INPUTS
-#     filename - ??? 
+#     filename - filename of configuration
 #
 #  RESULT
 #     0 - on success
@@ -1008,6 +1008,55 @@ proc config_hedeby_host_resources { only_check name config_array } {
    return $value
 }
 
+#****** checktree_hedeby/config_security_disable() ************************************
+#  NAME
+#     config_security_disable() -- configure procedure for "security_disable"
+#
+#  SYNOPSIS
+#     config_security_disable { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(security_disable) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#     checktree_hedeby/config_security_disable()
+#*******************************************************************************
+proc config_security_disable { only_check name config_array } {
+global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
+   global ts_config
+   upvar $config_array config
+
+   set help_text { "Please enter if hedeby should be installed with or without"
+                   "security. If hedeby should be installed WITHOUT security"
+                   "set this value to \"true\""
+                   "press >RETURN< to use the default value." }
+   set value [config_generic $only_check $name config $help_text "boolean"]
+   if {!$fast_setup} {
+      if { $value == "true" } {
+         puts $CHECK_OUTPUT "\n******************************************************************"
+         puts $CHECK_OUTPUT "* WARNING! Testsuite will install hedeby NOT in security mode!!! *"  
+         puts $CHECK_OUTPUT "******************************************************************"
+      }
+   }
+   return $value
+}
 
 #****** checktree_hedeby/config_hedeby_source_cvs_release() *********************************
 #  NAME
@@ -1291,6 +1340,8 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
    global ts_config
    upvar $config_array config
    upvar $parameter_error_list param_error_list
+
+   hedeby_config_upgrade_1_1 config
    
    set retval [verify_config2 config $only_check param_error_list $ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)]
    puts $CHECK_OUTPUT "   hedeby configuration verify result: $retval"
@@ -1573,4 +1624,54 @@ proc hedeby_get_required_passwords {} {
    return 0
 }
 
+
+#****** checktree_hedeby/hedeby_config_upgrade_1_1() **********************************
+#  NAME
+#     hedeby_config_upgrade_1_1() -- upgrade procedure to version 1.1
+#
+#  SYNOPSIS
+#     hedeby_config_upgrade_1_1 { config_array } 
+#
+#  FUNCTION
+#     This procedure is used to update (if necessary) the hedeby configuration
+#     version 1.0 to config version 1.1
+#
+#  INPUTS
+#     config_array - current configuration 
+#
+#  RESULT
+#     none
+#*******************************************************************************
+proc hedeby_config_upgrade_1_1 { config_array } {
+   global CHECK_OUTPUT   
+
+   upvar $config_array config
+
+   if { $config(version) == "1.0" } {
+      puts $CHECK_OUTPUT "Upgrade to version 1.1"
+      # insert new parameter after hedeby_product_root
+      set insert_pos $config(hedeby_product_root,pos)
+      incr insert_pos 1
+      
+      # move positions of following parameters
+      set names [array names config "*,pos"]
+      foreach name $names {
+         if { $config($name) >= $insert_pos } {
+            set config($name) [ expr ( $config($name) + 1 ) ]
+         }
+      }
+   
+      # new parameter security_enabled
+      set parameter "security_disable"
+      set config($parameter)            ""
+      set config($parameter,desc)       "Security disable parameter"
+      set config($parameter,default)    "false" ;# config_arco_generic will resolve the host
+      set config($parameter,setup_func) "config_$parameter"
+      set config($parameter,onchange)   "install"
+      set config($parameter,pos) $insert_pos
+   
+      # now we have a configuration version 1.1
+      set config(version) "1.1"
+   }
+}
 

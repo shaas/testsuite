@@ -1,4 +1,18 @@
-JG-2007-08-10-0: Enhancem.: Removed unset -complain - it caused problems with older TCL versions.
+CR-2007-08-10-2: Bugfix:    Hedeby checktree:
+                            Add switch or configuration parameter to disable
+                            security
+                 Issue:     77
+                 Review:    TBD
+
+CR-2007-08-10-1: Cleanup:   o Fixed some adoc headers
+
+CR-2007-08-10-0: Enhancem.: o added boolean type for generic_config()
+                            o added new hedeby configuration parameter:
+                              security_disable
+                 Review:    AA
+
+JG-2007-08-10-0: Enhancem.: Removed unset -complain - it caused problems with 
+                            older TCL versions.
                             Use start_sge_bin where possible, cleanup.
                             Fixed qdel check (qdel_force).
                  Review:    MD, RD

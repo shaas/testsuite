@@ -2149,12 +2149,12 @@ proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
    return $result
 }
 
-#****** set_config_and_propagate() *********************************************
+#****** sge_procedures/set_config_and_propagate() ******************************
 #  NAME
 #     set_config_and_propagate() -- set the config for the given host
 #
 #  SYNOPSIS
-#     set_config_and_propagate { my_config {host global} } 
+#     set_config_and_propagate { config {host global} } 
 #
 #  FUNCTION
 #     Set the given config for the given host, and wait until the change has
@@ -2164,8 +2164,8 @@ proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
 #     opens a remote process as $ts_user_config(first_foreign_user).
 #
 #  INPUTS
-#     config    the configuration to set
-#     host      the host for which the configuration should be set.  Defaults
+#     config        - the configuration to set
+#     {host global} - the host for which the configuration should be set.  Defaults
 #               to global
 #*******************************************************************************
 proc set_config_and_propagate {config {host global}} {
