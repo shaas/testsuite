@@ -367,7 +367,7 @@ proc compile_source { { do_only_hooks 0} } {
             }
             if { $cl_type == "independent" } {
                puts $CHECK_OUTPUT "Found $cl_type additional cluster, starting remote compile ..."
-               set task_nr [report_create_task report "build additional $cl_type cluster" $add_config(master_host)]
+               set task_nr [report_create_task report "build_additional_${cl_type}_cluster" $add_config(master_host) "$add_config(master_host)/index.html"]
                report_task_add_message report $task_nr "------------------------------------------"
                report_task_add_message report $task_nr "-> starting remote build of additional configuration $filename ..."
                report_task_add_message report $task_nr "-> see report in $CHECK_HTML_DIRECTORY/$add_config(master_host)/index.html"

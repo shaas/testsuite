@@ -7524,6 +7524,8 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
 
       if {$CHECK_HTML_DIRECTORY != ""} {
          remote_file_mkdir $add_config(master_host) $CHECK_HTML_DIRECTORY/$add_config(master_host)
+         wait_for_remote_dir $add_config(master_host) $CHECK_USER $CHECK_HTML_DIRECTORY/$add_config(master_host)
+         wait_for_remote_dir $ts_config(master_host) $CHECK_USER $CHECK_HTML_DIRECTORY/$add_config(master_host)
          append args " html_dir $CHECK_HTML_DIRECTORY/$add_config(master_host)" 
       }
   
@@ -7944,11 +7946,27 @@ for { set i 0 } { $i < $argc } { incr i } {
       incr i
       set help_var [lindex $argv $i]
       set CHECK_HTML_DIRECTORY [ string trim $help_var ]
-
       if { [llength $CHECK_HTML_DIRECTORY] != 1 } {
          puts $CHECK_OUTPUT "can't use \"html_dir\" option without filename!"
          exit -1 
       }
+
+      if { [string first "/" $CHECK_HTML_DIRECTORY] != 0 } {
+         puts $CHECK_OUTPUT "your specified HTML directory \"$CHECK_HTML_DIRECTORY\" seems not to be an absolute path"
+         puts $CHECK_OUTPUT "please enter the full path to your HTML directory."
+         exit -1 
+      }
+
+      if {[file isdirectory $CHECK_HTML_DIRECTORY] == 0} {
+         puts $CHECK_OUTPUT "HTML directory $CHECK_HTML_DIRECTORY not existing. Creating ..."
+         catch {file mkdir $CHECK_HTML_DIRECTORY} blub
+         puts $CHECK_OUTPUT "file mkdir $CHECK_HTML_DIRECTORY returned:\n$blub"
+         if {[file isdirectory $CHECK_HTML_DIRECTORY] == 0} {
+            puts $CHECK_OUTPUT "cannot create HTML directory: \"$CHECK_HTML_DIRECTORY\""
+            exit -1 
+         }
+      }
+
       puts $CHECK_OUTPUT " ---> using \"$CHECK_HTML_DIRECTORY\" for HTML output <---"
       continue
    }

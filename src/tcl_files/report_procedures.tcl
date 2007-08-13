@@ -202,8 +202,8 @@ proc report_clear_messages { report } {
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
-proc report_create_task { report name host } {
-   global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR
+proc report_create_task { report name host {link ""}} {
+   global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR CHECK_USER
 
    upvar $report report_array
    set task_nr $report_array(task_count)
@@ -215,17 +215,19 @@ proc report_create_task { report name host } {
    set report_array(task_$task_nr,date)   [exec date]
    
    set relative_filename "${host}_${name}.txt"
-   
    if { $CHECK_HTML_DIRECTORY != "" } {
       set myfilename "$CHECK_HTML_DIRECTORY/$relative_filename"
    } else {
       set myfilename "$CHECK_PROTOCOL_DIR/$relative_filename"
    }
-   catch { file delete $myfilename }
+   delete_remote_file $host $CHECK_USER $myfilename
+   
    set report_array(task_$task_nr,filename) $myfilename
    set report_array(task_$task_nr,relative_filename) $relative_filename
    set report_array(task_$task_nr,file) [open $myfilename w]
-
+   if { $link != "" } {
+      set report_array(task_$task_nr,link) $link
+   }
 
    foreach handler $report_array(task_progress_handler) { 
       $handler report_array
@@ -499,7 +501,11 @@ proc report_write_html { report } {
             set html_table($row_count,BGCOLOR) "#009900"
             set html_table($row_count,FNCOLOR) "#FFFFFF"
          }
-         set html_table($row_count,1) $report_array(task_$task_nr,name)
+         if { [info exists report_array(task_$task_nr,link)] } {
+            set html_table($row_count,1) [create_html_link $report_array(task_$task_nr,name) $report_array(task_$task_nr,link)]
+         } else {
+            set html_table($row_count,1) $report_array(task_$task_nr,name)
+         }
          set html_table($row_count,2) $report_array(task_$task_nr,host)
          set html_table($row_count,3) [resolve_arch $report_array(task_$task_nr,host)]
          set html_table($row_count,4) $report_array(task_$task_nr,status)

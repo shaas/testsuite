@@ -1,3 +1,10 @@
+CR-2007-08-13-0: Bugfix:    o html directory creation for additional clusters
+                              no working
+                 Enhancem.: o Enhanced html report with possiblity to specify
+                              links for tasks
+                 Issue:     78
+                 Review:    RH
+
 CR-2007-08-10-2: Bugfix:    Hedeby checktree:
                             Add switch or configuration parameter to disable
                             security
