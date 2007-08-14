@@ -232,12 +232,12 @@ proc hedeby_install_binaries { arch_list a_report } {
 }
 
 
-#****** checktree_hedeby/check_private_propterties_file() *****************************
+#****** checktree_hedeby/create_testsuite_properties_file() *****************************
 #  NAME
-#     check_private_propterties_file() -- check private properties file
+#     create_testsuite_properties_file() -- check private properties file
 #
 #  SYNOPSIS
-#     check_private_propterties_file { build_host } 
+#     create_testsuite_properties_file { build_host } 
 #
 #  FUNCTION
 #     This procedure is used in the hedeby_build() procedure to verify
@@ -261,7 +261,7 @@ proc hedeby_install_binaries { arch_list a_report } {
 #  SEE ALSO
 #     checktree_hedeby/hedeby_build()
 #*******************************************************************************
-proc check_private_propterties_file { build_host } {
+proc create_testsuite_properties_file { property_path build_host } {
    global hedeby_config CHECK_OUTPUT CHECK_USER
    global ts_config
    set return_value 0
@@ -270,53 +270,18 @@ proc check_private_propterties_file { build_host } {
    puts $CHECK_OUTPUT "hedeby dist dir:   $hedeby_config(hedeby_product_root)"
    puts $CHECK_OUTPUT "used SGE_ROOT dir: $ts_config(product_root)"
 
-   set property_file "build_private.properties"
-   set property_path $hedeby_config(hedeby_source_dir)/$property_file
-   if { [is_remote_file $build_host $CHECK_USER $property_path] == 0 } {
-      puts $CHECK_OUTPUT "no $property_file file found!"
-      puts $CHECK_OUTPUT "creating default property_file ..."
-      set date [clock format [clock seconds] -format "%d. %b %Y - %H:%M:%S"]
-      set data(0) 6
-      set data(1) "# automatic generated build_private.properties file from"
-      set data(2) "# testsuite. ($date)"
-      set data(3) "sge.root=$ts_config(product_root)" 
-      set data(4) "distinst.dir=$hedeby_config(hedeby_product_root)"
-      set data(5) "#nfs.server=<enter name of nfs server host>"
-      set data(6) "#remote.starter=rsh"
-      save_file $property_path data
-      wait_for_remote_file $build_host $CHECK_USER $property_path
-   } else {
-      puts $CHECK_OUTPUT "found $property_file file!"
-      # check content
-      get_file_content $build_host $CHECK_USER $property_path priv_prop 
-      set nr_of_lines $priv_prop(0)
-      set found_sge_root     ""
-      set found_distinst_dir ""
-      for { set i 1 } { $i <= $nr_of_lines } { incr i 1 } {
-         # sge.root and distinst.dir have to start in the first column !!!
-         if { [string match "sge.root=*" $priv_prop($i) ] } {
-            set found_sge_root [get_string_value_between "sge.root=" -1 $priv_prop($i)]
-            set found_sge_root [string trim $found_sge_root]
-         }
-         if { [string match "distinst.dir=*" $priv_prop($i) ] } {
-            set found_distinst_dir [get_string_value_between "distinst.dir=" -1 $priv_prop($i)]
-            set found_distinst_dir [string trim $found_distinst_dir]
-         }
-      }
-      # need sge.root=$ts_config(product_root)
-      # need distinst.dir=$hedeby_config(hedeby_product_root)
-      puts $CHECK_OUTPUT "sge.root=$found_sge_root"
-      puts $CHECK_OUTPUT "distinst.dir=$found_distinst_dir"
- 
-      if { $found_sge_root != $ts_config(product_root) } {
-         add_proc_error "check_private_propterties_file" -1 "$property_path does not contain sge.root=$ts_config(product_root)"
-         set return_value -1
-      }
-      if { $found_distinst_dir != $hedeby_config(hedeby_product_root) } {
-         add_proc_error "check_private_propterties_file" -1 "$property_path does not contain distinst.dir=$hedeby_config(hedeby_product_root)"
-         set return_value -1
-      }
-   }
+   puts $CHECK_OUTPUT "creating testsuite property_file ..."
+   set date [clock format [clock seconds] -format "%d. %b %Y - %H:%M:%S"]
+   set data(0) 6
+   set data(1) "# automatic generated build_testsuite.properties file from"
+   set data(2) "# testsuite. ($date)"
+   set data(3) "sge.root=$ts_config(product_root)" 
+   set data(4) "distinst.dir=$hedeby_config(hedeby_product_root)"
+   set data(5) "#nfs.server=<enter name of nfs server host>"
+   set data(6) "#remote.starter=rsh"
+   save_file $property_path data
+   wait_for_remote_file $build_host $CHECK_USER $property_path
+
    return $return_value
 }
 
@@ -365,7 +330,7 @@ proc check_private_propterties_file { build_host } {
 #     checktree_hedeby/hedeby_compile()
 #     checktree_hedeby/hedeby_save_configuration()
 #     checktree_hedeby/hedeby_init_config()
-#     checktree_hedeby/check_private_propterties_file()
+#     checktree_hedeby/create_testsuite_properties_file()
 #     checktree_hedeby/hedeby_get_required_hosts()
 #     checktree_hedeby/hedeby_get_required_passwords()
 #     util/parse_bundle_properties_files()
@@ -450,7 +415,7 @@ proc hedeby_compile { compile_hosts a_report } {
 #     checktree_hedeby/hedeby_init_config()
 #     checktree_hedeby/hedeby_get_required_hosts()
 #     checktree_hedeby/hedeby_get_required_passwords()
-#     checktree_hedeby/check_private_propterties_file()
+#     checktree_hedeby/create_testsuite_properties_file()
 #*******************************************************************************
 proc hedeby_compile_clean { compile_hosts a_report } {
    global CHECK_OUTPUT 
@@ -501,7 +466,10 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    global ts_config
    upvar $a_report report
 
-   if { [check_private_propterties_file $build_host] != 0 } {
+   set property_file "build_testsuite.properties"
+   set property_path $hedeby_config(hedeby_source_dir)/$property_file
+
+   if { [create_testsuite_properties_file $property_path $build_host] != 0 } {
       return -1
    }
    puts $CHECK_OUTPUT "starting $build_host:ant $target $ant_options in dir $hedeby_config(hedeby_source_dir)"
@@ -566,6 +534,8 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    
    close_spawn_process $open_spawn
    report_finish_task report $task_nr $error
+
+   delete_remote_file $build_host $CHECK_USER $property_path
 
    if { $error != 0 } {
       puts $CHECK_OUTPUT "------------------------------------------\n"
