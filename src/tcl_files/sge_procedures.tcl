@@ -3918,6 +3918,7 @@ proc mod_attr { object attribute value target {fast_add 1} {on_host ""} {as_user
 #  RESULT
 #     Returncode for mod_attr function:
 #      -1: "wrong_attr" is not an attribute
+#      -2: "empty or invalid file" supplied
 #     -99: other error
 #
 #  SEE ALSO
@@ -3927,8 +3928,9 @@ proc mod_attr { object attribute value target {fast_add 1} {on_host ""} {as_user
 proc mod_attr_file_error {result object attribute tmpfile target raise_error} {
 
    # recognize certain error messages and return special return code
-   set messages(index) "-1"
-   set messages(-1) "error: [translate_macro MSG_UNKNOWNATTRIBUTENAME_S $attribute ]"
+   set messages(index) "-1 -2"
+   set messages(-1) [translate_macro MSG_UNKNOWNATTRIBUTENAME_S $attribute ]
+   set messages(-2) [translate_macro MSG_FILE_ERRORREADINGINFILE ]
 
    set ret 0
    # now evaluate return code and raise errors

@@ -1935,11 +1935,24 @@ proc qconf_add_delete_modify_replace_attr {} {
       puts $CHECK_OUTPUT "result is $result0"
    }
 
-   # Now modify attribute slots for obj_spec queue: -mattr queue slots 0 
+   # Now test if qconf rejects an empty file for Mattr
    set obj_spec "queue"
+   set attr_name ""
+   set val ""
+   set target [get_queue_instance $queue_name $host]
+
+   puts $CHECK_OUTPUT "Try fast add with empty file ..."
+   set result01 [mod_attr  $obj_spec $attr_name $val $target 1 $host $CHECK_USER 0]
+
+   if {$result01 != -2} {
+      add_proc_error "qconf_add_delete_modify_replace_attr" -1 "Negative testr qconf -Mattr <emptyfile> Failed! $result01"
+   } else {
+      puts $CHECK_OUTPUT "Negative test:qconf -Mattr <emptyfile> Success!"
+   }   
+
+   # Now modify attribute slots for obj_spec queue: -mattr queue slots 0 
    set attr_name "slots"
    set val "1"
-   set target "$queue_name\@$host"
 
    puts $CHECK_OUTPUT "Modify $obj_spec  $attr_name  ..."
    set result01 [mod_attr  $obj_spec $attr_name $val $target]

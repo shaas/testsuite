@@ -1,3 +1,9 @@
+RN-2007-08-16-0: Bugfix:    o Added extra test in qconf -Mattr in
+                              qconf_add_delete_modify_replace_attr 
+                 Issue:     2327
+                 Bugster:   6578213
+                 Review:    JG
+
 RH-2007-08-14-0: Bugfix:    o hedeby_build uses build_testsuite.properties
                               for hedeby build configuration
                  Issue:     80 (hedeby issuzilla)
