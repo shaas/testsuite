@@ -84,17 +84,30 @@ global complex_name1 complex_name2 gr_cplx
 global test_host default_args
 
 proc advance_reservation_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc advance_reservation_setup {} {
+   global ts_config CHECK_OUTPUT
+   global queue_name1 queue_name2
+   global complex_name1 complex_name2 gr_cplx
+   global test_host 
+   global schedd_conf CHECK_JOB_OUTPUT_DIR
+   global default_args
    global pe_name1 pe_name2
    global ckpt_name1 ckpt_name2
    global cal_name1 cal_name2
    global userset_name1 userset_name2
    global ar_name1 ar_name2
-   global queue_name1 queue_name2
-   global complex_name1 complex_name2 gr_cplx
-   global test_host default_args job_output_dir 
-   global CHECK_JOB_OUTPUT_DIR
-   global schedd_conf
 
    set pe_name1 "pe_with_conflict"
    set pe_name2 "pe_without_conflict"
@@ -112,31 +125,7 @@ proc advance_reservation_init_level {} {
    set complex_name2 "complex_without_conflict"
    set gr_cplx "graphics"
 
-   set job_output_dir $CHECK_JOB_OUTPUT_DIR
-
-   # set default jobargs
-   set default_args "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 60"
- 
-   switch -- $CHECK_ACT_LEVEL {
-      "0" {
-         return 0
-      }
-   }
-
-   return -1  ;# no other level
-}
-
-# -------- local test procedures: initialization------------------------------
-
-proc advance_reservation_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
-   global queue_name1 queue_name2
-   global complex_name1 complex_name2 gr_cplx
-   global test_host 
-   global schedd_conf
-
    get_schedd_config schedd_conf
-
    set test_host [host_conf_get_suited_hosts]
 
    set queue_settings(slots) 10
@@ -155,6 +144,9 @@ proc advance_reservation_setup {} {
    set complex($complex_name2)  "cplx2    INT       <=    YES    NO   0        0"
    set complex($gr_cplx)        "gr       INT       <=    YES    YES  0        0"
    set_complex complex
+
+   # set default jobargs
+   set default_args "-o $CHECK_JOB_OUTPUT_DIR -e $CHECK_JOB_OUTPUT_DIR $ts_config(product_root)/examples/jobs/sleeper.sh 60"
 }
 
 proc advance_reservation_cleanup {} {

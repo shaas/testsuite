@@ -1,3 +1,11 @@
+CR-2007-08-16-0: Cleanup:   qmaster/advance_reservation test:
+                            The "check_init_level_procedure" was used to
+                            setup test specific environment. This is not the
+                            intention of this callback. Test specific
+                            settings should be done in the 
+                            "check_setup_function".
+                 Review:    AA
+
 LP-2007-08-16-0: Bugfix:    Testsuite works again with maintrunk
                  Review:    MB
 
