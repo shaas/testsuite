@@ -92,7 +92,8 @@ proc advance_reservation_init_level {} {
    global ar_name1 ar_name2
    global queue_name1 queue_name2
    global complex_name1 complex_name2 gr_cplx
-   global test_host default_args job_output_dir
+   global test_host default_args job_output_dir 
+   global CHECK_JOB_OUTPUT_DIR
    global schedd_conf
 
    set pe_name1 "pe_with_conflict"
@@ -110,6 +111,8 @@ proc advance_reservation_init_level {} {
    set complex_name1 "complex_with_conflict"
    set complex_name2 "complex_without_conflict"
    set gr_cplx "graphics"
+
+   set job_output_dir $CHECK_JOB_OUTPUT_DIR
 
    # set default jobargs
    set default_args "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 60"

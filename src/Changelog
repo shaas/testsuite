@@ -1,3 +1,6 @@
+LP-2007-08-16-0: Bugfix:    Testsuite works again with maintrunk
+                 Review:    MB
+
 RN-2007-08-16-0: Bugfix:    o Added extra test in qconf -Mattr in
                               qconf_add_delete_modify_replace_attr 
                  Issue:     2327
