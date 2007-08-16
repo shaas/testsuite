@@ -222,12 +222,41 @@ proc hedeby_checktree_clean {} {
 #*******************************************************************************
 proc hedeby_install_binaries { arch_list a_report } {
    global CHECK_OUTPUT 
+   global CHECK_USER
+   global hedeby_config
+   global ts_config
    upvar $a_report report
+
+   # fix for hedeby testsuite issue #76 (Part 1/2)
+   # first delete distribution directory
+   set task_nr [report_create_task report "hedeby_delete_dist" $hedeby_config(hedeby_master_host)]
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "deleting dist directory: $hedeby_config(hedeby_product_root)"
+
+   set del_ret_val [remote_delete_directory $hedeby_config(hedeby_master_host) $hedeby_config(hedeby_product_root)]
+   remote_file_mkdir $hedeby_config(hedeby_master_host) $hedeby_config(hedeby_product_root)
+   if { $del_ret_val != 0 } {
+      report_task_add_message report $task_nr "remote_delete_directory returned: $del_ret_val"
+      report_task_add_message report $task_nr "------------------------------------------"
+      report_finish_task report $task_nr 0
+      return -1
+   }
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_finish_task report $task_nr 0
 
    set java_build_host [host_conf_get_java_compile_host]
    puts $CHECK_OUTPUT "java build host is \"$java_build_host\""
 
    set ret [hedeby_build $java_build_host "distinst" report]
+
+   # fix for hedeby testsuite issue #76 (Part 2/2)
+   set sdm_adm_path [get_hedeby_binary_path "sdmadm" $CHECK_USER $hedeby_config(hedeby_master_host)]
+   if { ![is_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $sdm_adm_path 1]} {
+      set task_nr [report_create_task report "hedeby_check_dist" $hedeby_config(hedeby_master_host)]
+      report_task_add_message report $task_nr "File \"$sdm_adm_path\" not installed after installing the distribution"
+      report_finish_task report $task_nr 1
+      return -1
+   }
    return $ret
 }
 

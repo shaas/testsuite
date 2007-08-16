@@ -470,6 +470,7 @@ proc parse_bundle_properties_files { source_dir } {
    global CHECK_OUTPUT
    global CHECK_USER
    global hedeby_config
+   global ts_config
 
    # TODO: reparse messages if one file timestamp is newer than the file stamp
    #       of the cached files (same as for GE message files)        
@@ -479,6 +480,9 @@ proc parse_bundle_properties_files { source_dir } {
    set filename [get_properties_messages_file_name]
    if {[is_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $filename]} {
       delete_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $filename
+
+      # fix for hedeby testsuite issue #81
+      wait_for_remote_file $ts_config(master_host) $CHECK_USER $filename 70 1 1
    }
 
    puts $CHECK_OUTPUT "looking for properties files in dir \"$source_dir\" ..."

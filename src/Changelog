@@ -1,3 +1,13 @@
+CR-2007-08-14-0: Cleanup:   o compile_source(): if only compile hooks are
+                                 executed (ts-menu 50) ) the update_source
+                                 procedure is skipped for GE source update
+                 Bugfix:    o hedeby: tcl error when compile hedeby binaries
+                 Bugfix:    o hedeby: Add check that dist is installed after 
+                                      compilation
+                 Issue:     81 (hedeby issue)
+                 Issue:     76 (hedeby issue)
+                 Review:    RH
+
 CR-2007-08-16-0: Cleanup:   qmaster/advance_reservation test:
                             The "check_init_level_procedure" was used to
                             setup test specific environment. This is not the
@@ -17,20 +27,20 @@ RN-2007-08-16-0: Bugfix:    o Added extra test in qconf -Mattr in
 
 RH-2007-08-14-0: Bugfix:    o hedeby_build uses build_testsuite.properties
                               for hedeby build configuration
-                 Issue:     80 (hedeby issuzilla)
+                 Issue:     80 (hedeby issue)
                  Review:    CR
 
 CR-2007-08-13-0: Bugfix:    o html directory creation for additional clusters
                               no working
                  Enhancem.: o Enhanced html report with possiblity to specify
                               links for tasks
-                 Issue:     78
+                 Issue:     78 (hedeby issue)
                  Review:    RH
 
 CR-2007-08-10-2: Bugfix:    Hedeby checktree:
                             Add switch or configuration parameter to disable
                             security
-                 Issue:     77
+                 Issue:     77 (hedeby issue)
                  Review:    TBD
 
 CR-2007-08-10-1: Cleanup:   o Fixed some adoc headers

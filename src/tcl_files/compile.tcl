@@ -478,7 +478,8 @@ proc compile_source { { do_only_hooks 0} } {
    set compile_depend_done "false"
 
    # update sources
-   set res [update_source report]      
+   set res [update_source report $do_only_hooks]      
+
    if {$res == 1} {
       # make dependencies before compile clean
       if {$do_only_hooks == 0} {
