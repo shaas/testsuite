@@ -6,6 +6,7 @@ CR-2007-08-17-0: Enhancem.: o hedeby: added error message for distinst
                  Bugfix:    o hedeby: testsuite tries to chown not existent
                               spool directory
                  Issue:     90 (hedeby issue)
+                 Issue:     86 (hedeby issue)
                  Review:    RH
 
 CR-2007-08-14-0: Cleanup:   o compile_source(): if only compile hooks are
