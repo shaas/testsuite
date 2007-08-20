@@ -1878,6 +1878,47 @@ proc get_file_content { host user file { file_a "file_array" } } {
    set back(0) $lcounter
 }
 
+#****** file_procedures/write_remote_file() **************************************************
+#  NAME
+#    write_remote_file() -- Write a file on a remote user
+#
+#  SYNOPSIS
+#    write_remote_file { host user file array_name } 
+#
+#  FUNCTION
+#     Stores the content of a data array in the tmp directory (shared directory)
+#     and copies this file on a remote host into a local directory
+#
+#  INPUTS
+#    host -- the remote host
+#    user -- the user
+#    file -- the on the remote host filename
+#    array_name -- array with the content of the file
+#
+#  RESULT
+#     the exit code of the copy command 
+#
+#  EXAMPLE
+#     set data(0) 2
+#     set data(1) "first line"
+#     set data(2) "second line"
+#     write_remote_file "foo.bar" $CHECK_USER /tmp/test.txt data
+#
+#
+#  SEE ALSO
+#     file_procedures/save_file
+#*******************************************************************************
+proc write_remote_file { host user file array_name } {
+   upvar $array_name data
+
+   set tmp_file [get_tmp_file_name $host $user]
+   save_file $tmp_file data
+   set program "cp"
+   set program_arg "$tmp_file $file"
+   start_remote_prog $host $user $program $program_arg
+   return $prg_exit_state
+} 
+
 #                                                             max. column:     |
 #****** file_procedures/get_binary_path() ******
 # 

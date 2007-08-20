@@ -704,15 +704,14 @@ proc create_bundle_string { id {params_array "params"} {default_param ""} } {
       set par_start [string first "{$x}" $result_string]
       set par_end $par_start
       incr par_end 2
-      if { [info exists params($x)] && $use_asterisk == 0} {
+
+      if { $default_param != "" } {
+         set param_string $default_param
+      } elseif { [info exists params($x)] } {
          set param_string $params($x)
       } else {
-         if { $default_param != "" } {
-            set param_string $default_param
-         } else {
-            add_proc_error "create_bundle_string" -1 "parameter $x is missing in params array"
-            set param_string "{$x}"
-         }
+         add_proc_error "create_bundle_string" -1 "parameter $x is missing in params array"
+         set param_string "{$x}"
       }
       set result_string [string replace $result_string $par_start $par_end $param_string]
       #puts $CHECK_OUTPUT "result $x: \"$result_string\""
@@ -1258,31 +1257,28 @@ proc shutdown_hedeby_host { type host user } {
          return $ret_val
       }
       foreach component $running_components {
-         set comp_file $run_dir/$component
-         get_file_content $host $user $comp_file
-         if { $file_array(0) == 2} {
-             set pid [string trim $file_array(1)]
-             lappend pid_list $pid
-             set run_list($pid,comp) $component
-             puts $CHECK_OUTPUT "component $run_list($pid,comp) has pid \"$pid\""
-             
-             set url [string trim $file_array(2)]
-             puts $CHECK_OUTPUT "component $run_list($pid,comp) has url \"$url\""
-             if {[string match "*$host*" $url]} {
-                puts $CHECK_OUTPUT "url string contains hostname \"$host\""
-             } else {
-                add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct hostname \"$host\""
-             }
-             set sysname [get_hedeby_system_name]
-             if {[string match "*$sysname*" $url]} {
-                puts $CHECK_OUTPUT "url string contains system name \"$sysname\""
-             } else {
-                add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct system name \"$sysname\""
-             }
-         } else {
-             add_proc_error "shutdown_hedeby_host" -1 "runfile for component $component on host $host contains not the expected 2 lines"
-             return 1
+         if {[read_hedeby_jvm_pid_file pid_info $host $user $run_dir/$component] != 0} {
+            return 1
          }
+         set pid $pid_info(pid)
+         set url $pid_info(url)
+         
+         lappend pid_list $pid
+         set run_list($pid,comp) $component
+         puts $CHECK_OUTPUT "component $run_list($pid,comp) has pid \"$pid\""
+         puts $CHECK_OUTPUT "component $run_list($pid,comp) has url \"$url\""
+         
+          if {[string match "*$host*" $url]} {
+             puts $CHECK_OUTPUT "url string contains hostname \"$host\""
+          } else {
+             add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct hostname \"$host\""
+          }
+          set sysname [get_hedeby_system_name]
+          if {[string match "*$sysname*" $url]} {
+             puts $CHECK_OUTPUT "url string contains system name \"$sysname\""
+          } else {
+             add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct system name \"$sysname\""
+          }
       }
    } else {
       debug_puts "no hedeby run directory found on host $host!"
@@ -1654,7 +1650,7 @@ proc sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} {
 #     util/sdmadm_start()
 #     util/sdmadm_show_status()
 #*******************************************************************************
-proc sdmadm_shutdown { host user output {preftype ""} {sys_name ""} {jvm_name ""} {raise_error 1} } {
+proc sdmadm_shutdown { host user output {preftype ""} {sys_name ""} {jvm_name ""} { host_name "" } {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $output output_return
    set args {}
@@ -1674,6 +1670,10 @@ proc sdmadm_shutdown { host user output {preftype ""} {sys_name ""} {jvm_name ""
 
    if { $jvm_name != "" } {
       append arg_line " -j $jvm_name"
+   }
+   
+   if { $host_name != "" } {
+      append arg_line " -h $host_name"
    }
 
    set output [sdmadm_command $host $user $arg_line]
@@ -1982,3 +1982,137 @@ proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
 }
 
 
+#****** util/read_hedeby_jvm_pid_info() **************************************************
+#  NAME
+#    read_hedeby_jvm_pid_info() -- Read the pid file of a hedeby jvm
+#
+#  SYNOPSIS
+#    read_hedeby_jvm_pid_info { a_pid_info host user jvm_name }
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#    a_pid_info -- The info from the pid file is stored in this array 
+#    host       --  the host where the jvm is running
+#    user       --  user who has access to the pid file
+#    jvm_name   -- Name of the jvm
+#
+#  RESULT
+#     0  if the pid info has been read
+#
+#  EXAMPLE
+#     
+#   set host $hedeby_config(hedeby_master_host)
+#   set jvm_name "executor_vm"
+#
+#   if {[read_hedeby_jvm_pid_info pid_info $host $jvm_name] != 0} {
+#      puts $CHECK_OUTPUT "pid file for jvm $jvm_name at $host not found"
+#   } else {
+#      puts $CHECK_OUTPUT "pid is $pid_info(pid)"
+#      puts $CHECK_OUTPUT "url is $pid_info(url)"
+#   }
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     util/read_hedeby_jvm_pid_file
+#*******************************************************************************
+proc read_hedeby_jvm_pid_info { a_pid_info host user jvm_name } {
+   global CHECK_OUTPUT 
+   global hedeby_config
+   
+   upvar pid_info $a_pid_info
+
+   set pid_file [get_pid_file_for_jvm $host $jvm_name]
+   
+   return [read_hedeby_jvm_pid_file pid_info $host $user $pid_file]
+}
+
+#****** util/get_pid_file_for_jvm() **************************************************
+#  NAME
+#    get_pid_file_for_jvm() -- get the path to the pid file of a jvm
+#
+#  SYNOPSIS
+#    get_pid_file_for_jvm { } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#    host     -- the host where the jvm is running
+#    jvm_name -- the name of the jvm
+#
+#  RESULT
+#    
+#    path to the pid file
+#
+#  EXAMPLE
+
+#     set pid_file [get_pid_file_for_jvm "foo.bar" "executor_vm"]
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc get_pid_file_for_jvm { host jvm_name } {
+   set spool_dir [get_hedeby_local_spool_dir $host]
+   return "${spool_dir}/run/${jvm_name}@${host}"
+}
+
+#****** util/read_hedeby_jvm_pid_file() **************************************************
+#  NAME
+#    read_hedeby_jvm_pid_file() -- Read the pid file of a hedeby jvm
+#
+#  SYNOPSIS
+#    read_hedeby_jvm_pid_file { a_pid_info host user pid_file } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#    a_pid_info --  The info from the pid file is stored in this array
+#    host       --  the host where the jvm is running
+#    user       --  user who has access to the pid file
+#    pid_file   --  path to the pid file
+#
+#  RESULT
+#     0   if pid file has been read
+#     else error
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
+   
+   global CHECK_OUTPUT 
+   upvar pid_info $a_pid_info
+   
+   get_file_content $host $user $pid_file
+   if { $file_array(0) == 2} {
+       set pid_info(pid) [string trim $file_array(1)]
+       set pid_info(url) [string trim $file_array(2)]
+       return 0
+   } else {
+       add_proc_error "read_hedeby_jvm_pid_file" -1 "runfile $pid_file on host $host contains not the expected 2 lines"
+       return 1
+   }
+}
