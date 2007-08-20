@@ -6583,126 +6583,20 @@ proc update_source { a_report do_only_hooks } {
             report_add_message report "                    Resourcing it !!!\n"
          }
          report_finish_task report $task_nr 0
+
+         # TODO: next task is update additional checktree sources (see issue#82 issue#141)
          return 1
       } else {
-         puts $CHECK_OUTPUT "Skip cvs update , I am on do_only_hooks mode"
-         # TODO: update additional checktree sources (see issue#82 issue#141)
-         return 0
+         puts $CHECK_OUTPUT "Skip GE cvs update , I am on do_only_hooks mode"
+         
+         # TODO: only update additional checktree sources (see issue#82 issue#141)
+         return 1
       }
    } else {
       return 0
    }
 }
 
-#****** check/compile_depend() **************************************************
-#  NAME
-#    compile_depend() -- ???
-#
-#  SYNOPSIS
-#    compile_depend { } 
-#
-#  FUNCTION
-#     Executes scripts/zero-depend, aimk --only-depend and aimk depend
-#     on a preferred compile host
-#
-#  INPUTS
-#    compile_hosts -- list of compile hosts
-#    a_html_body   -- html body buffer for reporting
-#
-#  RESULT
-#     0  -  on success
-#     -1 -  on failure
-#
-#  EXAMPLE
-#
-#  NOTES
-#
-#  BUGS
-#
-#  SEE ALSO
-#*******************************************************************************
-proc compile_depend { compile_hosts a_report } {
-   global ts_host_config CHECK_OUTPUT ts_config
-   global CHECK_USER
-   
-   upvar $a_report report
- 
-   puts $CHECK_OUTPUT "building dependencies ..."
- 
-   # we prefer building the dependencies on a sol-sparc64 host
-   # to avoid automounter issues like having a heading /tmp_mnt in paths
-   set depend_host_name [lindex $compile_hosts 0] 
-   foreach help_host $compile_hosts {
-      set help_arch [host_conf_get_arch $help_host]
-      if { [ string compare $help_arch "solaris64"] == 0 || 
-           [ string compare $help_arch "sol-sparc64"] == 0 } {
-         puts $CHECK_OUTPUT "using host $help_host to create dependencies"
-         set depend_host_name $help_host
-      }
-   }
-
-   set task_nr [report_create_task report "zerodepend" $depend_host_name]
-   
-   # clean dependency files (zerodepend)
-   
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "-> starting scripts/zerodepend on host $depend_host_name ..."
-   set output [start_remote_prog $depend_host_name $CHECK_USER "scripts/zerodepend" "" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0]
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "return state: $prg_exit_state"
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "output:\n$output"
-   report_task_add_message report $task_nr "------------------------------------------"
-   
-   report_finish_task report $task_nr $prg_exit_state
-   if { $prg_exit_state != 0 } {
-      report_add_message report "------------------------------------------"
-      report_add_message report "Error: scripts/zerodepend (exit code $prg_exit_state)"
-      report_add_message report "------------------------------------------"
-      return -1
-   }
-   
-
-   set task_nr [report_create_task report "only_depend" $depend_host_name]
-   # build the depencency building program
-   set my_compile_options [get_compile_options_string]
-   report_task_add_message report $task_nr "-> starting aimk -only-depend on host $depend_host_name ..."
-
-   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "-only-depend" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0 ]
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "return state: $prg_exit_state"
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "output:\n$output"
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_finish_task report $task_nr $prg_exit_state
-   if { $prg_exit_state != 0 } {
-      report_add_message report "------------------------------------------"
-      report_add_message report "Error: aimk -only-depend failed (exit code $prg_exit_state)"
-      report_add_message report "------------------------------------------"
-      return -1
-   }
-
-   # build the dependencies
-   set task_nr [report_create_task report "depend" $depend_host_name]
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "-> starting aimk $my_compile_options depend on host $depend_host_name ..."
-   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "$my_compile_options depend" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0]
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "return state: $prg_exit_state"
-   report_task_add_message report $task_nr "------------------------------------------"
-   report_task_add_message report $task_nr "output:\n$output"
-   report_task_add_message report $task_nr "------------------------------------------"
-
-   report_finish_task report $task_nr $prg_exit_state
-   if { $prg_exit_state != 0 } {
-      report_add_message report "------------------------------------------"
-      report_add_message report "Error: aimk depend failed (exit code $prg_exit_state)"
-      report_add_message report "------------------------------------------"
-      return -1
-   }
-
-   return 0
-}
 #                                                             max. column:     |
 #****** check/run_all_at_starttime() ******
 # 

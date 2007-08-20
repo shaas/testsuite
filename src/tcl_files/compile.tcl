@@ -317,6 +317,140 @@ proc compile_rebuild_arch_cache { compile_hosts {al "arch_list"} } {
    return $compiled_mail_architectures
 }
 
+#****** compile/compile_depend() **************************************************
+#  NAME
+#    compile_depend() -- ???
+#
+#  SYNOPSIS
+#    compile_depend { } 
+#
+#  FUNCTION
+#     Executes scripts/zero-depend, aimk --only-depend and aimk depend
+#     on a preferred compile host
+#
+#  INPUTS
+#    compile_hosts -- list of compile hosts
+#    a_html_body   -- html body buffer for reporting
+#
+#  RESULT
+#     0  -  on success
+#     -1 -  on failure
+#
+#  EXAMPLE
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#*******************************************************************************
+proc compile_depend { compile_hosts a_report do_clean } {
+   global ts_host_config CHECK_OUTPUT ts_config
+   global CHECK_USER
+   
+   upvar $a_report report
+ 
+   puts $CHECK_OUTPUT "building dependencies ..."
+ 
+   # we prefer building the dependencies on a sol-sparc64 host
+   # to avoid automounter issues like having a heading /tmp_mnt in paths
+   set depend_host_name [lindex $compile_hosts 0] 
+   foreach help_host $compile_hosts {
+      set help_arch [host_conf_get_arch $help_host]
+      if { [ string compare $help_arch "solaris64"] == 0 || 
+           [ string compare $help_arch "sol-sparc64"] == 0 } {
+         puts $CHECK_OUTPUT "using host $help_host to create dependencies"
+         set depend_host_name $help_host
+      }
+   }
+
+   set task_nr [report_create_task report "zerodepend" $depend_host_name]
+   
+   # clean dependency files (zerodepend)
+   
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "-> starting scripts/zerodepend on host $depend_host_name ..."
+   set output [start_remote_prog $depend_host_name $CHECK_USER "scripts/zerodepend" "" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0]
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "return state: $prg_exit_state"
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "output:\n$output"
+   report_task_add_message report $task_nr "------------------------------------------"
+   
+   report_finish_task report $task_nr $prg_exit_state
+   if { $prg_exit_state != 0 } {
+      report_add_message report "------------------------------------------"
+      report_add_message report "Error: scripts/zerodepend (exit code $prg_exit_state)"
+      report_add_message report "------------------------------------------"
+      return -1
+   }
+   
+
+   if { $do_clean } {
+      set task_nr [report_create_task report "only_depend_clean" $depend_host_name]
+      # clean the depencency building program
+      set my_compile_options [get_compile_options_string]
+      report_task_add_message report $task_nr "-> starting aimk -only-depend clean on host $depend_host_name ..."
+
+      set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "-only-depend clean" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0 ]
+      report_task_add_message report $task_nr "------------------------------------------"
+      report_task_add_message report $task_nr "return state: $prg_exit_state"
+      report_task_add_message report $task_nr "------------------------------------------"
+      report_task_add_message report $task_nr "output:\n$output"
+      report_task_add_message report $task_nr "------------------------------------------"
+      report_finish_task report $task_nr $prg_exit_state
+      if { $prg_exit_state != 0 } {
+         report_add_message report "------------------------------------------"
+         report_add_message report "Error: aimk -only-depend clean failed (exit code $prg_exit_state)"
+         report_add_message report "------------------------------------------"
+         return -1
+      }
+   }
+
+
+   set task_nr [report_create_task report "only_depend" $depend_host_name]
+   # build the depencency building program
+   set my_compile_options [get_compile_options_string]
+   report_task_add_message report $task_nr "-> starting aimk -only-depend on host $depend_host_name ..."
+
+   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "-only-depend" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0 ]
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "return state: $prg_exit_state"
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "output:\n$output"
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_finish_task report $task_nr $prg_exit_state
+   if { $prg_exit_state != 0 } {
+      report_add_message report "------------------------------------------"
+      report_add_message report "Error: aimk -only-depend failed (exit code $prg_exit_state)"
+      report_add_message report "------------------------------------------"
+      return -1
+   }
+
+   # build the dependencies
+   set task_nr [report_create_task report "depend" $depend_host_name]
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "-> starting aimk $my_compile_options depend on host $depend_host_name ..."
+   set output [start_remote_prog $depend_host_name $CHECK_USER "./aimk" "$my_compile_options depend" prg_exit_state 60 0 $ts_config(source_dir) "" 1 0]
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "return state: $prg_exit_state"
+   report_task_add_message report $task_nr "------------------------------------------"
+   report_task_add_message report $task_nr "output:\n$output"
+   report_task_add_message report $task_nr "------------------------------------------"
+
+   report_finish_task report $task_nr $prg_exit_state
+   if { $prg_exit_state != 0 } {
+      report_add_message report "------------------------------------------"
+      report_add_message report "Error: aimk depend failed (exit code $prg_exit_state)"
+      report_add_message report "------------------------------------------"
+      return -1
+   }
+
+   return 0
+}
+
+
+
 #****** compile/compile_source() ***********************************************
 #  NAME
 #     compile_source() -- compile source code
@@ -352,9 +486,10 @@ proc compile_source { { do_only_hooks 0} } {
    }
    array set report {}
    report_create "Compiling source" report
-   
    report_write_html report
 
+   set error_count 0
+   set cvs_change_log ""
 
    # for additional configurations, we might want to start remote operation
    # (for independed clusters)
@@ -373,24 +508,27 @@ proc compile_source { { do_only_hooks 0} } {
                report_task_add_message report $task_nr "-> see report in $CHECK_HTML_DIRECTORY/$add_config(master_host)/index.html"
                set error [operate_add_cluster $filename "compile" 3600]
                report_finish_task report $task_nr $error
+               if { $error != 0 } {
+                  incr error_count 1
+               }
             }
+         }
+         if { $error_count != 0 } {
+            report_add_message report "skip compilation because of errors!\n"
+            report_finish report -1
+            return -1
          }
       }
    }
 
-   set error_count 0
-   set cvs_change_log ""
-
+   
    # if we configured to install precompiled packages - stop
    if { $ts_config(package_directory) != "none" && 
-        ($ts_config(package_type) == "tar" || $ts_config(package_type) == "zip") } {
-           
+       ($ts_config(package_type)      == "tar" || $ts_config(package_type) == "zip") } {
       report_add_message report "will not compile but use precompiled packages\n"
       report_add_message report "set package_directory to \"none\" or set package_type to \"create_tar\"\n"
       report_add_message report "if compilation (and package creation) should be done"
-      
       report_finish report -1
-      
       return -1
    }
 
@@ -480,13 +618,21 @@ proc compile_source { { do_only_hooks 0} } {
    # update sources
    set res [update_source report $do_only_hooks]      
 
+   set aimk_clean_done 0
+
+   if { $check_do_clean_compile } {
+      set do_aimk_depend_clean 1
+   } else {
+      set do_aimk_depend_clean 0
+   }
    if {$res == 1} {
       # make dependencies before compile clean
       if {$do_only_hooks == 0} {
-         if {[compile_depend $compile_hosts report] != 0} {
-            incr error_count
+         if {[compile_depend $compile_hosts report 1] != 0} {
+            incr error_count 1
          } else {
             set compile_depend_done "true"
+            set do_aimk_depend_clean 0
          }
       } else {
          puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
@@ -494,16 +640,23 @@ proc compile_source { { do_only_hooks 0} } {
 
       # after an update, do an aimk clean
       if {$do_only_hooks == 0} {
-         compile_with_aimk $compile_hosts report "compile_clean" "clean"
+         if {[compile_with_aimk $compile_hosts report "compile_clean" "clean"] != 0} {
+            incr error_count 1
+         } else {
+            set aimk_clean_done 1
+         }
       } else {
          puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
       }
+
       # execute all registered compile_clean hooks of the checktree
       set res [exec_compile_clean_hooks $compile_hosts report]
       if {$res < 0} {
          report_add_message report "exec_compile_clean_hooks returned fatal error"
+         incr error_count 1
       } elseif { $res > 0 } {
          report_add_message report "$res compile_clean hooks failed\n"
+         incr error_count 1
       } else {
          report_add_message report "All compile_clean hooks successfully executed\n"
       }
@@ -513,19 +666,25 @@ proc compile_source { { do_only_hooks 0} } {
 
       # after an update, delete macro messages file to have it updated
       set macro_messages_file [get_macro_messages_file_name]
-      puts $CHECK_OUTPUT "deleting macro messages file after update!"
-      puts $CHECK_OUTPUT "file: $macro_messages_file"
-      if {[file isfile $macro_messages_file]} {
+      # only clean macro file if GE sources were updated!
+      if {[file isfile $macro_messages_file] && $do_only_hooks == 0} {
+         puts $CHECK_OUTPUT "deleting macro messages file after update!"
+         puts $CHECK_OUTPUT "file: $macro_messages_file"
          file delete $macro_messages_file
       }
       update_macro_messages_list
    } elseif {$res < 0} {
-      incr error_count
+      incr error_count 1
    }
 
-   if {$error_count == 0 && $check_do_clean_compile == 1} {
+   # do clean (if not already done)
+   if {$error_count == 0 && $check_do_clean_compile == 1 && $aimk_clean_done == 0} {
       if {$do_only_hooks == 0} {
-         compile_with_aimk $compile_hosts report "compile_clean" "clean"
+         if {[compile_with_aimk $compile_hosts report "compile_clean" "clean"] != 0} {
+            incr error_count 1
+         } else {
+            set aimk_clean_done 1
+         }
       } else {
          puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
       }
@@ -533,8 +692,10 @@ proc compile_source { { do_only_hooks 0} } {
       set res [exec_compile_clean_hooks $compile_hosts report]
       if {$res < 0} {
          report_add_message report "exec_compile_clean_hooks returned fatal error"
+         incr error_count 1
       } elseif {$res > 0} {
          report_add_message report "$res compile_clean hooks failed\n"
+         incr error_count 1
       } else {
          report_add_message report "All compile_clean hooks successfully executed\n"
       }
@@ -548,8 +709,8 @@ proc compile_source { { do_only_hooks 0} } {
    } else {
       if {$do_only_hooks == 0} {
          if { $compile_depend_done == "false" } {
-            if {[compile_depend $compile_hosts report] != 0} {
-               incr error_count
+            if {[compile_depend $compile_hosts report $do_aimk_depend_clean] != 0} {
+               incr error_count 1
             } 
          } else {
             puts $CHECK_OUTPUT "Skip second depend, already done!"
@@ -564,7 +725,7 @@ proc compile_source { { do_only_hooks 0} } {
          # start build process
          if {$do_only_hooks == 0} {
             if {[compile_with_aimk $compile_hosts report "compile"] != 0} {
-               incr error_count
+               incr error_count 1
             }
             if { $error_count == 0 } {
                # we have to install the GE system here because other compile
@@ -578,7 +739,7 @@ proc compile_source { { do_only_hooks 0} } {
                set compiled_mail_architectures [compile_rebuild_arch_cache $compile_hosts arch_list]
                if { [ install_binaries $arch_list report] != 0 } {
                   report_add_message report "install_binaries failed\n"
-                  incr error_count
+                  incr error_count 1
                } 
             }
          } else {
@@ -590,16 +751,16 @@ proc compile_source { { do_only_hooks 0} } {
             set res [exec_compile_hooks $compile_hosts report]
             if { $res < 0 } {
                puts $CHECK_OUTPUT "exec_compile_hooks returned fatal error\n"
-               incr error_count
+               incr error_count 1
             } elseif { $res > 0 } {
                puts $CHECK_OUTPUT "$res compile hooks failed\n"
-               incr error_count
+               incr error_count 1
             } else {
                puts $CHECK_OUTPUT "All compile hooks successfully executed\n"
             }
          }
       }
-   } 
+   }
 
    # delete the build_testsuite.properties
    compile_delete_java_properties
@@ -617,10 +778,10 @@ proc compile_source { { do_only_hooks 0} } {
          set res [exec_install_binaries_hooks $arch_list report]
          if { $res < 0 } {
             report_add_message report "exec_install_binaries_hooks returned fatal error\n"
-            incr error_count
+            incr error_count 1
          } elseif { $res > 0 } {
             report_add_message report "$res install_binaries hooks failed\n"
-            incr error_count
+            incr error_count 1
          } else {
             report_add_message report "All install_binaries hooks successfully executed\n"
          }
@@ -651,11 +812,13 @@ proc compile_source { { do_only_hooks 0} } {
    report_finish report 0
 
    # try to resolve hostnames in settings file
-   set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
-   if { $catch_return != 0 } { 
-        puts "could not copy defaults file"
-        return -1
-   }
+   # TODO (CR): not sure for what reason the file is copied - uncommented the following lines 17-08-2007
+   #       if not used - remove code completely
+   #set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
+   #if { $catch_return != 0 } { 
+   #     puts "could not copy defaults file"
+   #     return -1
+   #}
 
    # if required, build distribution
    build_distribution $arch_list
@@ -738,13 +901,13 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
       if {$ts_config(gridengine_version) == 60 && $host == $java_compile_host} {
          set par2 "-java $par2"
       }
-      
+   
       puts $CHECK_OUTPUT "$prog $par1 '$par2'"
       set open_spawn [open_remote_spawn_process $host $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0 15 0]
       set spawn_id [lindex $open_spawn 1]
-      
+
       set host_array($spawn_id,host) $host
-      set host_array($spawn_id,task_nr) [report_create_task report $task_name $host]      
+      set host_array($spawn_id,task_nr) [report_create_task report $task_name $host]
       set host_array($spawn_id,open_spawn) $open_spawn 
       lappend spawn_list $spawn_id
 

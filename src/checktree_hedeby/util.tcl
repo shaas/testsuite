@@ -1029,12 +1029,14 @@ proc cleanup_hedeby_local_spool_dir { host } {
    # permissions have to be set to the testsuite user
    set local_spool_dir [get_hedeby_local_spool_dir $host]
    if { $local_spool_dir != "" } {
-      set comargs "-R $CHECK_USER $local_spool_dir"
-      puts $CHECK_OUTPUT "${host}(root): doing chown $comargs ..."
-      set output [start_remote_prog $host "root" "chown" $comargs]
-      puts $CHECK_OUTPUT $output
-      if { $prg_exit_state != 0 } {
-         add_proc_error "cleanup_hedeby_local_spool_dir" -1 "doing chown $comargs returned exit code: $prg_exit_state\n$output"
+      if {[is_remote_path $host $CHECK_USER $local_spool_dir]} {
+         set comargs "-R $CHECK_USER $local_spool_dir"
+         puts $CHECK_OUTPUT "${host}(root): doing chown $comargs ..."
+         set output [start_remote_prog $host "root" "chown" $comargs]
+         puts $CHECK_OUTPUT $output
+         if { $prg_exit_state != 0 } {
+            add_proc_error "cleanup_hedeby_local_spool_dir" -1 "doing chown $comargs returned exit code: $prg_exit_state\n$output"
+         }
       }
    }
    set spool_dir [get_local_spool_dir $host "hedeby_spool" 1 ]
