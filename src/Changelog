@@ -1,3 +1,7 @@
+RH-2007-08-21-0: Enhancem.: o test for hedeby issue 88 added
+                 Issue:     88 (hedeby issue)
+                 Review:    CR
+
 RH-2007-08-20-0: Enhancem.: o methods for reading hedeby pid files added
                             o new method write_remote_file added
                  Review:    CR
