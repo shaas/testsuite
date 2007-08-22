@@ -293,14 +293,12 @@ proc check_all_system_times {} {
 
    set test_start [timestamp]
    foreach host $host_list {
-      set tcl_bin [ get_binary_path $host "expect"]
-      set time_script "$ts_config(testsuite_root_dir)/scripts/time.tcl"
       puts $CHECK_OUTPUT "test remote system time on host $host ..."
-      set result [string trim [start_remote_prog $host $CHECK_USER $tcl_bin $time_script]]
-      puts $CHECK_OUTPUT $result
-      set time($host) [get_string_value_between "current time is" -1 $result]
+      set time($host) [get_remote_time $host]
+      debug_puts "$host: remote time: $time($host)"
       # fix remote execution time difference
       set time($host) [expr ( $time($host) - [expr ( [timestamp] - $test_start ) ] )] 
+      debug_puts "$host: corrected time because of execution time: $time($host)"
    }
 
    set reference_time $time($ts_config(master_host))
@@ -316,6 +314,37 @@ proc check_all_system_times {} {
    }
    return $return_value
 }
+
+#****** remote_procedures/get_remote_time() ************************************
+#  NAME
+#     get_remote_time() -- get tcl timestamp on remote host
+#
+#  SYNOPSIS
+#     get_remote_time { host } 
+#
+#  FUNCTION
+#     This procedure returns the output of expect timestamp command on the
+#     specified host
+#
+#  INPUTS
+#     host - host where timestamp should be returned
+#
+#  RESULT
+#     unix timestamp number
+#
+#  SEE ALSO
+#     remote_procedures/check_all_system_times()
+#*******************************************************************************
+proc get_remote_time { host } {
+   global ts_config 
+   global CHECK_USER
+   set tcl_bin [ get_binary_path $host "expect"]
+   set time_script "$ts_config(testsuite_root_dir)/scripts/time.tcl"
+   set result [string trim [start_remote_prog $host $CHECK_USER $tcl_bin $time_script]]
+   set time [get_string_value_between "current time is" -1 $result]
+   return $time
+}
+
 
 #****** remote_procedures/get_qping_dump_output() ******************************
 #  NAME

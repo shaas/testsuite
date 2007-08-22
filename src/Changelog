@@ -1,3 +1,9 @@
+CR-2007-08-22-0: Enhancem.: o added new remote procedure:
+                              get_remote_time()
+                            o using new procedure in:
+                              check_all_system_times() 
+                 Review:    AA
+
 RH-2007-08-21-0: Enhancem.: o test for hedeby issue 88 added
                  Issue:     88 (hedeby issue)
                  Review:    CR
