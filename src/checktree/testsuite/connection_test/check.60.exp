@@ -1,0 +1,181 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "connection_test_init_level"
+
+# define test's name and run level descriptions
+set check_name            "connection_test"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "dummy test"
+
+
+# define test's dependencies
+set check_needs           "" 
+
+# setup and cleanup functions
+set check_setup_function connection_test_setup
+set check_cleanup_function connection_test_cleanup
+
+set check_setup_level_function connection_test_setup2
+set check_cleanup_level_function connection_test_cleanup2
+
+
+# define test's procedure order
+set check_functions "connection_test_test"
+
+
+global connection_test_dummy_act_level_counter
+set connection_test_dummy_act_level_counter 0
+
+global connection_test_dummy_act_level_counter2
+set connection_test_dummy_act_level_counter2 0
+
+global connection_test_test_hosts
+global connection_test_saved_slot_count
+
+proc connection_test_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      } 
+   } 
+
+   return -1  ;# no other level 
+}
+
+
+
+
+# -------- local test procedures: initialization------------------------------
+
+
+proc connection_test_setup  {} {
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+
+   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   puts $CHECK_OUTPUT "this is a dummy setup function"
+}
+
+proc connection_test_setup2  {} {
+   global CHECK_OUTPUT ts_config 
+   global CHECK_ACT_LEVEL
+   global connection_test_dummy_act_level_counter2
+
+   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   if { $CHECK_ACT_LEVEL != $connection_test_dummy_act_level_counter2 } {
+      add_proc_error "connection_test_setup" -1 "CHECK_ACT_LEVEL is not set correctly"
+   }
+
+   incr connection_test_dummy_act_level_counter2 1
+
+
+   puts $CHECK_OUTPUT "this is a dummy level setup function"
+}
+
+
+proc connection_test_cleanup  {} {
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   puts $CHECK_OUTPUT "this is a dummy cleanup function"
+}
+
+
+proc connection_test_cleanup2  {} {
+   global CHECK_OUTPUT CHECK_ACT_LEVEL CHECK_ACT_LEVEL 
+   global ts_config connection_test_dummy_act_level_counter
+   if { $CHECK_ACT_LEVEL != $connection_test_dummy_act_level_counter } {
+      puts $CHECK_OUTPUT "CHECK_ACT_LEVEL is not set correctly"
+   }
+   incr connection_test_dummy_act_level_counter 1
+   puts $CHECK_OUTPUT "this is a dummy level cleanup function"
+}
+
+
+proc connection_test_test {} {
+   global connection_test_test_hosts check_description CHECK_USER
+   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
+   global ts_user_config
+
+   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+
+   set host_list_short [get_all_hosts]
+   set host_list {}
+   foreach host $host_list_short {
+      lappend host_list "$host.$ts_config(dns_domain)"
+      lappend host_list $host
+   }
+
+   set user_list [user_conf_get_cluster_users]
+   set sessions  [get_open_rlogin_sessions]
+   # examine all open sessions
+   foreach session $sessions {
+      # get detailed session information
+      get_spawn_id_rlogin_session $session connection
+      lappend host_list $connection(hostname)
+      if { [lsearch $user_list $connection(user)] < 0 } {
+         lappend user_list $connection(user)
+      }
+   }
+
+   
+   puts $CHECK_OUTPUT ""
+   puts $CHECK_OUTPUT "starting remote echo calls ..."
+   foreach user $user_list {
+      foreach host $host_list {
+         puts $CHECK_OUTPUT "$host,$user ..."
+         set result [start_remote_prog $host $user "echo" "hallo"]
+      }
+   }
+   dump_spawn_rlogin_sessions
+}
+
+

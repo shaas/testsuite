@@ -212,3 +212,50 @@ proc get_all_qmaster_hosts { } {
 }
 
 
+#****** cluster_procedures/get_all_hosts() *************************************
+#  NAME
+#     get_all_hosts() -- get all configured and used hosts
+#
+#  SYNOPSIS
+#     get_all_hosts { } 
+#
+#  FUNCTION
+#     This procedure returns all hostnames which are used for additional
+#     clusters and additional checktrees.
+#
+#*******************************************************************************
+proc get_all_hosts { } {
+   global ts_config CHECK_OUTPUT
+
+   set host_list [host_conf_get_cluster_hosts]
+   # all additional checktrees
+   if {$ts_config(additional_config) != "none"} {
+      foreach filename $ts_config(additional_config) {
+         get_additional_config $filename add_config
+
+         set hosts "$add_config(master_host) $add_config(execd_hosts) $add_config(execd_nodes) $add_config(submit_only_hosts) $add_config(bdb_server) $add_config(shadowd_hosts)"
+         set add_cluster_hosts [lsort -dictionary -unique $hosts]
+         set none_elem [lsearch $add_cluster_hosts "none"]
+         if {$none_elem >= 0} {
+            set add_cluster_hosts [lreplace $add_cluster_hosts $none_elem $none_elem]
+         }
+         foreach add_host $add_cluster_hosts {
+            # check for no duplicate entries
+            if { [lsearch $host_list $add_host] < 0 } {
+               lappend host_list $add_host
+            }
+         }
+      }
+   }
+
+   foreach host [checktree_get_required_hosts] {
+      # check for no duplicate entries
+      if { [lsearch $host_list $host] < 0 } {
+         lappend host_list $host
+      }
+   }
+   return $host_list
+}
+
+
+

@@ -1,3 +1,10 @@
+CR-2007-08-22-1: Enhancem.: o added new cluster procedure:
+                              get_all_hosts()
+                            o check_all_system_times() now tests
+                              system times on all cluster hosts
+                            o split testsuite test to 4 subtests
+                 Review:    AA
+
 CR-2007-08-22-0: Enhancem.: o added new remote procedure:
                               get_remote_time()
                             o using new procedure in:

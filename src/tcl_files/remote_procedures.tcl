@@ -283,7 +283,7 @@ proc check_all_system_times {} {
    get_current_cluster_config_array ts_config
 
    set return_value 0
-   set host_list [host_conf_get_cluster_hosts]
+   set host_list [get_all_hosts]
 
    foreach host $host_list {
       puts $CHECK_OUTPUT "test connection to $host ..."
