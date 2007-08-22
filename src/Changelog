@@ -1,3 +1,15 @@
+CR-2007-08-22-2: Bugfix:    o hedeby shutdown hook should not report
+                              errors which might effect init_core_system
+                              test
+                            o standard hedeby shutdown now waits for
+                              components
+                            o only still running components are killed
+                              after standard hedeby shutdown
+                            o install hedeby test fails on not time 
+                              syncronized hosts
+                 Issue:     93 (hedeby issue)
+                 Review:    RH
+
 CR-2007-08-22-1: Enhancem.: o added new cluster procedure:
                               get_all_hosts()
                             o check_all_system_times() now tests

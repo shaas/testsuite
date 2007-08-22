@@ -133,7 +133,7 @@ proc hedeby_startup { } {
 #     util/shutdown_hedeby()
 #*******************************************************************************
 proc hedeby_shutdown { }  {
-   return [shutdown_hedeby]
+   return [shutdown_hedeby 1]
 }
 
 # This should reset the hedeby system (testsuite install re_init)

@@ -116,7 +116,7 @@ proc remove_hedeby_preferences {{raise_error 1}} {
 #     shutdown_hedeby() -- Shutdown running hedeby system
 #
 #  SYNOPSIS
-#     shutdown_hedeby { } 
+#     shutdown_hedeby { { only_raise_cannot_kill_error 0 } } 
 #
 #  FUNCTION
 #     This procedure is used to shutdown the complete hedeby system. The system
@@ -131,6 +131,10 @@ proc remove_hedeby_preferences {{raise_error 1}} {
 #     called.
 #
 #  INPUTS
+#     { only_raise_cannot_kill_error 0 } - if 1 the procedure only reports
+#                                          error if process cannot be killed
+#                                          other problems are reported as 
+#                                          warnings
 #
 #  RESULT
 #     0 - on success
@@ -141,7 +145,7 @@ proc remove_hedeby_preferences {{raise_error 1}} {
 #     util/shutdown_hedeby()
 #     util/reset_hedeby()
 #*******************************************************************************
-proc shutdown_hedeby {} {
+proc shutdown_hedeby { { only_raise_cannot_kill_error 0 } } {
    global CHECK_OUTPUT
    global hedeby_config
 
@@ -150,14 +154,14 @@ proc shutdown_hedeby {} {
 
    # first step: shutdown all managed hosts
    foreach host [get_all_hedeby_managed_hosts] {
-      set val [shutdown_hedeby_host "managed" $host $shutdown_user]
+      set val [shutdown_hedeby_host "managed" $host $shutdown_user $only_raise_cannot_kill_error]
       if { $val != 0 } {
          set ret_val 1
       }
    }
 
    # second step: shutdown hedeby master host
-   set val [shutdown_hedeby_host "master" $hedeby_config(hedeby_master_host) $shutdown_user]
+   set val [shutdown_hedeby_host "master" $hedeby_config(hedeby_master_host) $shutdown_user $only_raise_cannot_kill_error]
    if { $val != 0 } {
       set ret_val 1
    }
@@ -1197,7 +1201,7 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
       start_remote_prog $host $user "kill" "-9 $pid"
       set is_pid_running [is_hedeby_process_running $host $pid]
       if { $is_pid_running } {
-         add_proc_error "shutdown_hedeby_host" -1 "cannot shutdown component \"$component\" on host \"$host\" as user \"$user\""
+         add_proc_error "kill_hedeby_process" -1 "cannot shutdown component \"$component\" on host \"$host\" as user \"$user\""
       } else {
          # we killed with SIGKILL, we have to delete the pid file
          set delete_pid_file 1
@@ -1240,7 +1244,7 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
 #     util/shutdown_hedeby()
 #     util/startup_hedeby()
 #*******************************************************************************
-proc shutdown_hedeby_host { type host user } {
+proc shutdown_hedeby_host { type host user { only_raise_cannot_kill_error 0 } } {
    global CHECK_OUTPUT 
    global hedeby_config
 
@@ -1286,13 +1290,19 @@ proc shutdown_hedeby_host { type host user } {
    }
    puts $CHECK_OUTPUT "shutting down \"$type\" host \"$host\" ..."
 
+   if {$only_raise_cannot_kill_error} {
+      set raise_error 0
+   } else {
+      set raise_error 1
+   }
+
    switch -exact -- $type {
       "managed" {
          if { $host == $hedeby_config(hedeby_master_host) } {
             add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is the master host!"
             return 1
          }
-         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]]
+         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" $host $raise_error]
          if { $ret != 0 } {
             set ret_val 1
          }
@@ -1302,7 +1312,7 @@ proc shutdown_hedeby_host { type host user } {
             add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is NOT the master host!"
             return 1
          }
-         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]]
+         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" $host $raise_error]
          if { $ret != 0 } {
             set ret_val 1
          }
@@ -1332,17 +1342,44 @@ proc shutdown_hedeby_host { type host user } {
    } else {
       # check pid files and processes
       puts $CHECK_OUTPUT "check that no pid is running after sdmadm shutdown and pid files are removed ..."
+      set my_timeout [timestamp]
+      incr my_timeout 60
+
+      set pids_to_check {}
       foreach pid $pid_list {
-         set is_pid_running [is_hedeby_process_running $host $pid]
-         if { $is_pid_running } {
-            set ret_val 1
-            add_proc_error "shutdown_hedeby_host" -1 "cannot shutdown component \"$run_list($pid,comp)\" on host \"$host\" as user \"$user\".\n(process with pid \"$pid\" is still running)"
+         lappend pids_to_check $pid
+      }
+      while { [timestamp] < $my_timeout } {
+         set not_removed_pids {}
+         foreach pid $pids_to_check {
+            set is_pid_running [is_hedeby_process_running $host $pid]
+            if { $is_pid_running } {
+               lappend not_removed_pids $pid
+            }
          }
+         set pids_to_check {}
+         foreach pid $not_removed_pids {
+            lappend pids_to_check $pid
+         }
+
+         if { [llength $pids_to_check] == 0 } {
+            break
+         }
+
+         puts $CHECK_OUTPUT "waiting ..."
+         after 1000
+      }
+      foreach pid $pids_to_check {
+         set ret_val 1
+         add_proc_error "shutdown_hedeby_host" -1 "cannot shutdown component \"$run_list($pid,comp)\" on host \"$host\" as user \"$user\".\n(process with pid \"$pid\" is still running)"
+         kill_hedeby_process $host $user $run_list($pid,comp) $pid
+      }
+
+      foreach pid $pid_list {
          set pid_file "$run_dir/$run_list($pid,comp)"
          if { [is_remote_file $host $user $pid_file] } {
             add_proc_error "shutdown_hedeby_host" -1 "cannot shutdown component \"$run_list($pid,comp)\" on host \"$host\" as user \"$user\"\n(pid file \"$pid_file\" wasn't removed)"
          }
-         kill_hedeby_process $host $user $run_list($pid,comp) $pid
       }
    }
    return $ret_val
@@ -2105,7 +2142,9 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
    
    global CHECK_OUTPUT 
    upvar pid_info $a_pid_info
-   
+   if { [info exists pid_info] } {
+      unset pid_info
+   }
    get_file_content $host $user $pid_file
    if { $file_array(0) == 2} {
        set pid_info(pid) [string trim $file_array(1)]

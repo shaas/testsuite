@@ -120,6 +120,7 @@ proc hedeby_install_master_host {} {
    global CHECK_OUTPUT
    global hedeby_config
    global install_user
+   global certificate_creation_time_on_master_host
 
    puts $CHECK_OUTPUT "installing hedeby master host on host \"$hedeby_config(hedeby_master_host)\""
 
@@ -186,6 +187,9 @@ proc hedeby_install_master_host {} {
    if { $prg_exit_state != 0 } {
       add_proc_error "hedeby_install_master_host" -1 "$hedeby_config(hedeby_master_host)($install_user): sdmadm $arguments failed:\n$install_master_output"
    }
+   # save certificate creation time to be able to check if the certs are 
+   # valid on remote managed hosts when installing manages hosts later
+   set certificate_creation_time_on_master_host [get_remote_time $hedeby_config(hedeby_master_host)]
    puts $CHECK_OUTPUT "output:"
    puts $CHECK_OUTPUT $install_master_output
 }
@@ -221,6 +225,7 @@ proc hedeby_install_managed_hosts {} {
    global CHECK_OUTPUT
    global hedeby_config
    global install_user
+   global certificate_creation_time_on_master_host
 
    # first we make sure to work on the first cluster config
    set_current_cluster_config_nr 0
@@ -243,10 +248,23 @@ proc hedeby_install_managed_hosts {} {
    # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
    if {[get_hedeby_pref_type] == "user"} {
       set check_dirs 1
-      set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
    } else {
       set check_dirs 0
    }
+
+   # first get tmp keystore and cacert files
+   # the tmp files are deleted with the next test!
+   set ca_file [get_tmp_file_name "" "ca"]
+   set admin_keystore_file [get_tmp_file_name "" "keystore"]
+   set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+   set admin_user [get_hedeby_admin_user]
+   set cp_keystore_cmd "$master_spool_dir ; cp ./security/users/$admin_user.keystore $admin_keystore_file ; cp ./security/ca/ca_top/cacert.pem $ca_file"
+   set result [start_remote_prog "$hedeby_config(hedeby_master_host)" $install_user "cd" "$cp_keystore_cmd"]
+   puts $CHECK_OUTPUT "copy ca result:"
+   puts $CHECK_OUTPUT $result
+   puts $CHECK_OUTPUT "admin_keystore file should be at $admin_keystore_file"
+   puts $CHECK_OUTPUT "ca cert file should be at $ca_file"
+
    foreach managed_host $hedeby_config(hedeby_host_resources) {
       if { $check_dirs } {
          # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
@@ -267,23 +285,18 @@ proc hedeby_install_managed_hosts {} {
       puts $CHECK_OUTPUT "cs_url:           $cs_url"
       puts $CHECK_OUTPUT "======================================="
 
-      # ./sdmadm --keystore /home/cr114091/tmp/cr114091.keystore --cacert /home/cr114091/tmp/cacert.pem
-
-      # now copy keystor and cacert from master host (testsuite results dir must be shared!)
-      # the tmp files are deleted with the next test!
-      set ca_file [get_tmp_file_name "" "ca"]
-      set admin_keystore_file [get_tmp_file_name "" "keystore"]
-      set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
-      set admin_user [get_hedeby_admin_user]
-      set cp_keystore_cmd "$master_spool_dir ; cp ./security/users/$admin_user.keystore $admin_keystore_file ; cp ./security/ca/ca_top/cacert.pem $ca_file"  
-      set result [start_remote_prog "$hedeby_config(hedeby_master_host)" $install_user "cd" "$cp_keystore_cmd"]
-      puts $CHECK_OUTPUT "copy ca result:"
-      puts $CHECK_OUTPUT $result
-      puts $CHECK_OUTPUT "admin_keystore file should be at $admin_keystore_file"
-      puts $CHECK_OUTPUT "ca cert file should be at $ca_file"
-
+      # check that NFS has transported the keystore and cacert file to the managed host ...
       wait_for_remote_file $managed_host $install_user $admin_keystore_file
       wait_for_remote_file $managed_host $install_user $ca_file
+
+      # check that managed host time is older than creation time of certificates ...
+      set local_time [get_remote_time $managed_host]
+      while { $local_time < $certificate_creation_time_on_master_host } {
+         set time_diff [expr ( $local_time - $certificate_creation_time_on_master_host )]
+         puts $CHECK_OUTPUT "time difference between certificate creation time on master host \"$hedeby_config(hedeby_master_host)\" and managed host \"$managed_host\": $time_diff"
+         after 2000
+         set local_time [get_remote_time $managed_host]
+      }
 
       # install new system ...
       set arguments "-s [get_hedeby_system_name]\
