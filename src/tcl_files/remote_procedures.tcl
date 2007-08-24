@@ -1546,26 +1546,52 @@ proc open_remote_spawn_process { hostname
                      exp_continue
                   }
                }
-               -i $spawn_id "The authenticity of host*" {
+               -i $spawn_id -- "The authenticity of host*" {
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
-               -i $spawn_id "Are you sure you want to continue connecting (yes/no)?*" {
+               -i $spawn_id -- "Are you sure you want to continue connecting (yes/no)?*" {
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
-               -i $spawn_id "Please type 'yes' or 'no'*" {
+               -i $spawn_id -- "Please type 'yes' or 'no'*" {
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
+               }
+               -i $spawn_id -- "onnection reset by peer*" {
+                  set error_message    "${error_info}\nConnection reseted by peer ($ts_config(master_host) -> $hostname):"
+                  append error_message "\n"
+                  append error_message "\n    It could be that (x)inetd on host $hostname limits the number of parallel connections"
+                  append error_message "\n    Please check your (x)inetd configuration"
+                  append error_message "\n"
+                  append error_message "\n    On some linuxes the configuration of xinetd is stored in /etc/xinetd.conf"
+                  append error_message "\n    Search for the \"instances\" parameter."
+                  append error_message "\n    --------------------------------------"
+                  append error_message "\n    defaults"
+                  append error_message "\n    { ..."
+                  append error_message "\n            instances       = 30"
+                  append error_message "\n            ^^^^^^^^^^^^^^^^^^^^"
+                  append error_message "\n    ... }"
+                  append error_message "\n    --------------------------------------"
+                  append error_message "\n    To find out how many rlogin connections are already open you can use"
+                  append error_message "\n    the following command:"
+                  append error_message "\n    # ps -ef \| grep xinetd"
+                  append error_message "\n    root      2076     1  0 Jul25 \?        00:00:02 /usr/sbin/xinetd"
+                  append error_message "\n    # pstree -p 2076 \| wc -l"
+                  append error_message "\n         23"
+                  append error_message "\n"
+
+                  add_proc_error "open_remote_spawn_process (startup)" -2 "$error_message" $raise_error
+                  set connect_errors 1
                }
                -i $spawn_id "in.rlogind: Forkpty: Permission denied." {
                   # interix (windows) rlogind doesn't let us login
                   # sleep a while and retry
                   puts -nonewline $CHECK_OUTPUT "x" ; flush $CHECK_OUTPUT
                   sleep 10
-                  continue
+                  exp_continue
                }
-               -i $spawn_id $CHECK_LOGIN_LINE {
+               -i $spawn_id -- $CHECK_LOGIN_LINE {
                   # recognized shell prompt - now we can continue / leave this expect loop
                   # on interix (when we have a password to send), do not leave the loop,
                   # but wait for password prompt. After the password has been sent,
@@ -1574,6 +1600,11 @@ proc open_remote_spawn_process { hostname
                   if {$passwd != "" && !$password_sent} {
                      exp_continue
                   }
+               }
+               -i $spawn_id -re {^.*?\n} {
+                  set line [ string trimright $expect_out(buffer) "\n\r" ]
+                  debug_puts "Got unrecordnized output: $line"
+                  exp_continue
                }
             }
          } catch_error_message]

@@ -1,3 +1,8 @@
+RH-2007-08-24-0: Bugfix:    o open_remote_spawn_process does not handle 
+                              "Connection reseted by peer message"
+                 Issue:     144
+                 Review:    CR
+
 CR-2007-08-22-2: Bugfix:    o hedeby shutdown hook should not report
                               errors which might effect init_core_system
                               test
