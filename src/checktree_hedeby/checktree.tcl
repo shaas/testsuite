@@ -251,6 +251,7 @@ proc hedeby_install_binaries { arch_list a_report } {
 
    # fix for hedeby testsuite issue #76 (Part 2/2)
    set sdm_adm_path [get_hedeby_binary_path "sdmadm" $CHECK_USER $hedeby_config(hedeby_master_host)]
+   wait_for_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $sdm_adm_path
    if { ![is_remote_file $hedeby_config(hedeby_master_host) $CHECK_USER $sdm_adm_path 1]} {
       add_proc_error "hedeby_install_binaries" -1 "The ant target \"distinst\" did not install hedeby distribution!"
       set task_nr [report_create_task report "hedeby_check_dist" $hedeby_config(hedeby_master_host)]

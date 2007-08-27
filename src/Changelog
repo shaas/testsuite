@@ -1,3 +1,7 @@
+CR-2007-08-27-1: Bugfix:    fixed NFS timeout problem when installing
+                            hedeby distribution
+                 Review:    RH
+
 CR-2007-08-27-0: Cleanup:   o removed not necessary check for additional
                               configurations:
                               independent cluster now might have the same
