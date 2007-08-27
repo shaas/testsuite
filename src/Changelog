@@ -1,3 +1,10 @@
+CR-2007-08-27-0: Cleanup:   o removed not necessary check for additional
+                              configurations:
+                              independent cluster now might have the same
+                              source directory like the main testsuite
+                              cluster.
+                 Review:    RH
+
 RH-2007-08-24-0: Bugfix:    o open_remote_spawn_process does not handle 
                               "Connection reseted by peer message"
                  Issue:     144

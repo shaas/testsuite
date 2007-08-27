@@ -1207,7 +1207,7 @@ proc config_additional_config { only_check name config_array } {
                # the following parameters have to be the same for all configs
                set same_params "host_config_file user_config_file testsuite_root_dir"
                # the following parameters have to differ between all configs
-               set diff_params "results_dir commd_port product_root source_dir"
+               set diff_params "results_dir commd_port product_root"
             }
 
             # clear previously joined_config
