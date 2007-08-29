@@ -1,3 +1,7 @@
+CR-2007-08-29-0: Enhancem.: o added possibility to show additional cluster
+                              configurations in menu item 26)
+                 Review:    RD
+
 CR-2007-08-28-1: Bugfix:    o fixed problem with deleting hedeby spool dir
                               introduced with CR-2007-08-28-0
                  Cleanup:   o removed not used global ts_config line

@@ -539,6 +539,7 @@ proc modify_setup2 {} {
    set setup_hook(3,filename)     "$ts_config(user_config_file)"
    
    set numSetups 3
+   set numAddConfigs [llength $ts_config(additional_config)]
    
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
       for {set ii 0} {[info exists ts_checktree($i,setup_hooks_${ii}_name)]} {incr ii 1} {
@@ -567,7 +568,16 @@ proc modify_setup2 {} {
       
       for { set i 1 } { $i <= $numSetups } { incr i 1 } {
          puts $CHECK_OUTPUT [format "    (%d) %-26s (%ds) %s" $i $setup_hook($i,name) $i $setup_hook($i,name)]
-      }      
+      }   
+         
+      puts $CHECK_OUTPUT ""
+      for { set a 1 } { $a <= $numAddConfigs } { incr a 1 } {
+         set key [expr ($numSetups + $a)]
+         set addConfig($key,name) [file tail [lindex $ts_config(additional_config) [expr ($a -1)]]]
+         set addConfig($key,fullName) [lindex $ts_config(additional_config) [expr ($a -1)]]
+         puts $CHECK_OUTPUT [format "    (%ds) %s" $key "configuration for $addConfig($key,name)"]
+      }
+      puts $CHECK_OUTPUT ""
       puts -nonewline $CHECK_OUTPUT "Please enter a number or press return to exit: "
       set input [ wait_for_enter 1]
       if { [string compare $input ""] == 0 } {
@@ -579,7 +589,7 @@ proc modify_setup2 {} {
          incr pos -1
          set input [string range $input 0 $pos]
       }
-      if { $input > 0 && $input <= $numSetups } {
+      if { $input > 0 && $input <= $numSetups && [info exists setup_hook($input,config_array)] } {
          if { $do_show == 0 } {
             set do_save [edit_setup $setup_hook($input,config_array) $setup_hook($input,verify_func) tmp_string]
             if { $do_save == 0 } {
@@ -595,7 +605,13 @@ proc modify_setup2 {} {
             show_config $setup_hook($input,config_array)
          }
       } else {
-         puts $CHECK_OUTPUT "no valid number ($input)"
+         if { $input > $numSetups && $input <= [expr ($numAddConfigs+$numSetups)] && $do_show != 0} {
+            puts $CHECK_OUTPUT "configuration for additional config file:\n$addConfig($input,fullName)"
+            get_additional_config $addConfig($input,fullName) add_configuration
+            show_config add_configuration
+         } else {
+            puts $CHECK_OUTPUT "no valid number ($input)"
+         }
       }
       wait_for_enter
    }
