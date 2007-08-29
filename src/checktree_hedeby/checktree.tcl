@@ -51,7 +51,7 @@ set ts_checktree($hedeby_checktree_nr,setup_hooks_0_init_func)    hedeby_init_co
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_verify_func)  hedeby_verify_config               
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_save_func)    hedeby_save_configuration        
 set ts_checktree($hedeby_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "hedeby" ]
-set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.1"
+set ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)      "1.2"
 
 set ts_checktree($hedeby_checktree_nr,checktree_clean_hooks_0)  "hedeby_checktree_clean"            
 set ts_checktree($hedeby_checktree_nr,compile_hooks_0)          "hedeby_compile"                    
@@ -1059,6 +1059,61 @@ global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
    return $value
 }
 
+#****** checktree_hedeby/config_preferences_mode() ************************************
+#  NAME
+#     config_preferences_mode() -- configure procedure for "preferences_mode"
+#
+#  SYNOPSIS
+#     config_preferences_mode { only_check name config_array } 
+#
+#  FUNCTION
+#     Used by testsuite configuration framework to setup the 
+#     hedeby_config(preferences_mode) parameter
+#
+#  INPUTS
+#     only_check   - If set != 0: no parameter is read from stdin (startup check mode)
+#     name         - Configuration parameter name
+#     config_array - The configuration array where the value is stored
+#
+#  RESULT
+#     The value of the configuration parameter or "-1" on error
+#
+#  SEE ALSO
+#     config/config_generic()
+#     checktree_hedeby/config_hedeby_product_root()
+#     checktree_hedeby/config_hedeby_source_dir()
+#     checktree_hedeby/config_hedeby_master_host()
+#     checktree_hedeby/config_hedeby_cs_port()
+#     checktree_hedeby/config_hedeby_user_jvm_port()
+#     checktree_hedeby/config_hedeby_host_resources()
+#     checktree_hedeby/config_hedeby_source_cvs_release()
+#*******************************************************************************
+proc config_preferences_mode { only_check name config_array } {
+global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
+   global ts_config
+   upvar $config_array config
+
+   set help_text { "Please enter whether hedeby system should use the \"system\" or \"user\" preferences"
+                   "to store bootstrap information. The \"system\" preferences mode needs root access."
+                   "press >RETURN< to use the default value." }
+   set value [config_generic $only_check $name config $help_text "string"]
+   if {!$fast_setup} {
+      # now check that the string is "user" or "system"
+      if { $value != "user" && $value != "system" } {
+         puts $CHECK_OUTPUT "only \"user\" or \"system\" allowed!"
+         return -1
+      }
+      if { $value == "user" } {
+         puts $CHECK_OUTPUT "\n******************************************************************"
+         puts $CHECK_OUTPUT "* WARNING! Testsuite will use \"user\" preferences for storing   *"
+         puts $CHECK_OUTPUT "* bootstrap information. The default mode is \"system\"!         *"  
+         puts $CHECK_OUTPUT "******************************************************************"
+      }
+   }
+   return $value
+}
+
+
 #****** checktree_hedeby/config_hedeby_source_cvs_release() *********************************
 #  NAME
 #     config_hedeby_source_cvs_release() -- configure procedure for "hedeby_source_cvs_release"
@@ -1343,6 +1398,8 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
    upvar $parameter_error_list param_error_list
 
    hedeby_config_upgrade_1_1 config
+   hedeby_config_upgrade_1_2 config
+
    
    set retval [verify_config2 config $only_check param_error_list $ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)]
    puts $CHECK_OUTPUT "   hedeby configuration verify result: $retval"
@@ -1666,7 +1723,7 @@ proc hedeby_config_upgrade_1_1 { config_array } {
       set parameter "security_disable"
       set config($parameter)            ""
       set config($parameter,desc)       "Security disable parameter"
-      set config($parameter,default)    "false" ;# config_arco_generic will resolve the host
+      set config($parameter,default)    "false"
       set config($parameter,setup_func) "config_$parameter"
       set config($parameter,onchange)   "install"
       set config($parameter,pos) $insert_pos
@@ -1675,4 +1732,56 @@ proc hedeby_config_upgrade_1_1 { config_array } {
       set config(version) "1.1"
    }
 }
+
+
+#****** checktree_hedeby/hedeby_config_upgrade_1_2() **********************************
+#  NAME
+#     hedeby_config_upgrade_1_2() -- upgrade procedure to version 1.2
+#
+#  SYNOPSIS
+#     hedeby_config_upgrade_1_2 { config_array } 
+#
+#  FUNCTION
+#     This procedure is used to update (if necessary) the hedeby configuration
+#     version 1.1 to config version 1.2
+#
+#  INPUTS
+#     config_array - current configuration 
+#
+#  RESULT
+#     none
+#*******************************************************************************
+proc hedeby_config_upgrade_1_2 { config_array } {
+   global CHECK_OUTPUT   
+
+   upvar $config_array config
+
+   if { $config(version) == "1.1" } {
+      puts $CHECK_OUTPUT "Upgrade to version 1.2"
+      # insert new parameter after hedeby_product_root
+      set insert_pos $config(security_disable,pos)
+      incr insert_pos 1
+      
+      # move positions of following parameters
+      set names [array names config "*,pos"]
+      foreach name $names {
+         if { $config($name) >= $insert_pos } {
+            set config($name) [ expr ( $config($name) + 1 ) ]
+         }
+      }
+   
+      # new parameter security_enabled
+      set parameter "preferences_mode"
+      set config($parameter)            ""
+      set config($parameter,desc)       "hedeby preferences location"
+      set config($parameter,default)    "system"
+      set config($parameter,setup_func) "config_$parameter"
+      set config($parameter,onchange)   "install"
+      set config($parameter,pos) $insert_pos
+   
+      # now we have a configuration version 1.1
+      set config(version) "1.2"
+   }
+}
+
 

@@ -311,7 +311,9 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 proc get_hedeby_system_name { } {
    global hedeby_config
    set pref_type [get_hedeby_pref_type]
-   set sys_name ts_${pref_type}_$hedeby_config(hedeby_cs_port)
+   set sys_name "ts"
+   append sys_name $hedeby_config(hedeby_cs_port)
+   append sys_name $pref_type
    return $sys_name
 }
 
@@ -351,13 +353,17 @@ proc get_hedeby_system_name { } {
 #*******************************************************************************
 proc get_hedeby_pref_type { } {
    global CHECK_ADMIN_USER_SYSTEM
-
-   return "user"
-   # TODO: add support for system !!! (question: what is the name of the admin user - root or testsuite user ???
-
+   global hedeby_config
+   global CHECK_OUTPUT
    if {$CHECK_ADMIN_USER_SYSTEM == 0} {
-      return "system"
+      return $hedeby_config(preferences_mode)
    } else {
+      if { $hedeby_config(preferences_mode) == "system" } {
+         set error_text "WARNING: It is not possible to save \"system\" preferences without having root permissions!\n"
+         append error_text "Please provide root password OR modify hedeby configuration to use preferences_mode \"user\"!\n"
+         append error_text "INFO: Testsuite will store bootstrap information in \"user\" preferences!!!"
+         puts $CHECK_OUTPUT $error_text
+      }
       return "user"
    }
 }
@@ -1034,8 +1040,13 @@ proc cleanup_hedeby_local_spool_dir { host } {
    if { $local_spool_dir != "" } {
       if {[is_remote_path $host $CHECK_USER $local_spool_dir]} {
          set comargs "-R $CHECK_USER $local_spool_dir"
-         puts $CHECK_OUTPUT "${host}(root): doing chown $comargs ..."
-         set output [start_remote_prog $host "root" "chown" $comargs]
+         if { [have_root_passwd] } {
+            set chown_user "root"
+         } else {
+            set chown_user $CHECK_USER
+         }
+         puts $CHECK_OUTPUT "${host}($chown_user): doing chown $comargs ..."
+         set output [start_remote_prog $host $chown_user "chown" $comargs]
          puts $CHECK_OUTPUT $output
          if { $prg_exit_state != 0 } {
             add_proc_error "cleanup_hedeby_local_spool_dir" -1 "doing chown $comargs returned exit code: $prg_exit_state\n$output"

@@ -2632,21 +2632,20 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
 
    # gather all session names
    set sessions [get_open_rlogin_sessions]
-
    # close all sessions
    foreach spawn_id $sessions {
       get_spawn_id_rlogin_session $spawn_id back
-      
       if {$if_not_working} {
          if {[check_rlogin_session $spawn_id $back(pid) $back(hostname) $back(user) $back(nr_shells) 1]} {
             puts $CHECK_OUTPUT "will not close spawn id $spawn_id - session is ok!"
             continue
          }
       }
-
       del_open_spawn_rlogin_session $spawn_id
-      puts $CHECK_OUTPUT "close_open_rlogin_sessions - closing $spawn_id"
+      puts -nonewline $CHECK_OUTPUT "close_open_rlogin_sessions - closing $spawn_id ..."
+      flush $CHECK_OUTPUT
       close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 ;# don't check exit state
+      puts $CHECK_OUTPUT "DONE"
    }
 }
 
@@ -2955,6 +2954,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
       # we will not return, but continue, really closing the connection
    }
 
+
    # we have shells to close (by sending exit)
    # at this point, we might have a bad rlogin session,
    # e.g. passed from check_rlogin_session.
@@ -3023,11 +3023,13 @@ proc close_spawn_process {id {check_exit_state 0}} {
    # unregister connection
    del_open_spawn_rlogin_session $spawn_id
 
+
    # now shutdown the spawned process
    set catch_return [catch {
       debug_puts "closing $spawn_id"
       close -i $spawn_id
    } catch_error_message]
+
    if {$catch_return == 1} {
       add_proc_error "close_spawn_process (close)" -2 "$catch_error_message" 
    }
