@@ -2668,7 +2668,6 @@ proc del_user_from_access_list { user_name list_name {on_host ""} {as_user ""} {
 #     -1  User is already in the access_list
 #*******************************************************************************
 proc add_user_to_access_list { user_name list_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global ts_config
    global CHECK_OUTPUT
 
    set ret 0

@@ -1,3 +1,8 @@
+CR-2007-08-28-1: Bugfix:    o fixed problem with deleting hedeby spool dir
+                              introduced with CR-2007-08-28-0
+                 Cleanup:   o removed not used global ts_config line
+                 Review:    JG
+
 CR-2007-08-28-0: Enhancem.: o new menu item: run shutdown hooks
                             o new hedeby config version: 1.2
                               (new parameter: preferences_mode)

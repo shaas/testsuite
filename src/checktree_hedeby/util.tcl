@@ -1040,7 +1040,7 @@ proc cleanup_hedeby_local_spool_dir { host } {
    if { $local_spool_dir != "" } {
       if {[is_remote_path $host $CHECK_USER $local_spool_dir]} {
          set comargs "-R $CHECK_USER $local_spool_dir"
-         if { [have_root_passwd] } {
+         if {[have_root_passwd] == 0} {
             set chown_user "root"
          } else {
             set chown_user $CHECK_USER
