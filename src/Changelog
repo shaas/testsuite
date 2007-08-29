@@ -1,3 +1,7 @@
+CR-2007-08-29-1: Bugfix:    fixed another NFS timeout problem when installing
+                            hedeby distribution
+                 Review:    MB
+
 CR-2007-08-29-0: Enhancem.: o added possibility to show additional cluster
                               configurations in menu item 26)
                  Review:    RD
@@ -11,13 +15,13 @@ CR-2007-08-28-0: Enhancem.: o new menu item: run shutdown hooks
                             o new hedeby config version: 1.2
                               (new parameter: preferences_mode)
                             o new testsuite hedeby system name without
-                              underscore characters (see IZ# 72)
+                              underscore characters (see hedeby IZ# 72)
                             o fixed problem when try to delete hedeby
                               spool dir without root access
                             o added prototype for TS CTRL+C signal handler
                  Bugfix:    o Implement ts system install mode
                               (needs hedeby commit CR-2007-08-28-0)
-                 Issue:     79
+                 Issue:     79 (hedeby)
                  Review:    RH
 
 CR-2007-08-27-1: Bugfix:    fixed NFS timeout problem when installing

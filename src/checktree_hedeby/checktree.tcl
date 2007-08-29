@@ -234,7 +234,6 @@ proc hedeby_install_binaries { arch_list a_report } {
    report_task_add_message report $task_nr "deleting dist directory: $hedeby_config(hedeby_product_root)"
 
    set del_ret_val [remote_delete_directory $hedeby_config(hedeby_master_host) $hedeby_config(hedeby_product_root)]
-   remote_file_mkdir $hedeby_config(hedeby_master_host) $hedeby_config(hedeby_product_root)
    if { $del_ret_val != 0 } {
       report_task_add_message report $task_nr "remote_delete_directory returned: $del_ret_val"
       report_task_add_message report $task_nr "------------------------------------------"
@@ -246,6 +245,10 @@ proc hedeby_install_binaries { arch_list a_report } {
 
    set java_build_host [host_conf_get_java_compile_host]
    puts $CHECK_OUTPUT "java build host is \"$java_build_host\""
+
+   wait_for_remote_dir $java_build_host $CHECK_USER $hedeby_config(hedeby_product_root) 70 1 1
+   remote_file_mkdir $hedeby_config(hedeby_master_host) $hedeby_config(hedeby_product_root)
+   wait_for_remote_dir $java_build_host $CHECK_USER $hedeby_config(hedeby_product_root) 70  
 
    set ret [hedeby_build $java_build_host "distinst" report]
 
