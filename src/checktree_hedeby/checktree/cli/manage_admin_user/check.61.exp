@@ -1,0 +1,207 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+# ---START OF TEST INFO SECTION-------------------------------------------------------------------------------
+# "no" - we don't need root acess / "yes" - we need root access:
+set check_root_access_needs    "yes"              
+
+# name of the test (best practice: use the name of the test directory)
+set check_name                 "manage_admin_user"
+
+# specifiy the test categories
+# (VERIFIED if the test is QA inspected)
+# other possible categories: COMPATIBILITY CSP INSTALL L10N MODULE PERFORMANCE SYSTEM VERIFIED
+set check_category             "SYSTEM VERIFIED" 
+
+# define the highest check level
+set check_highest_level        0
+
+# a sort check description for each runlevel:
+# (runlevel 0 is mandatory)
+set check_description(0)       "check all sdmadm show_status options" ;# runlevel 0
+# set check_description(1)       "SOME OTHER DESCRIPTION"  ;# runlevel 1
+
+# specify check dependencies
+# (name all tests which have to run sucessfull before this test can run)
+set check_needs                "hedeby_install"                  
+
+# The name of the init level procedure for this test. The procedure is defined
+# in the test file. 
+set check_init_level_procedure "manage_admin_user_init_level"
+
+# define tests setup and cleanup function. The functions are called for each
+# runlevel. Before testsuite is starting with calling all check_functions
+# the setup function is called. After finishing all check_functions the 
+# cleanup function is called.
+#
+# The aim of the setup/cleanup functions is that the test should restore
+# all modifications, even when the test failes completely.
+set check_setup_function "manage_admin_user_setup"
+set check_cleanup_function "manage_admin_user_cleanup"
+
+
+# The check_functions array tells the testsuite which check functions should
+# be called (and in which order)
+# All check_functions should be defined at least in a file (*.tcl) in the
+# check directory.
+set check_functions            ""
+lappend check_functions "manage_admin_user_check"
+
+
+# ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global manage_admin_user_current_cluster_config
+
+# (the init level procedure defines which runlevels are supported)
+# short  (   0 min - 15 min / run level   0 -  99 )"
+# medium (  16 min -  1 h   / run level 100 - 199 )"
+# long   (   1 h   -  4 h   / run level 200 - 299 )"
+# day    ( > 4 h   - 24 h   / run level 300 - 399 )"
+# week   ( >24 h            / run level 400 - 499 )"
+proc manage_admin_user_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  # this test currently supports only runlevel "0"
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+# the setup function for this test is storing the current
+# cluster config nr in a global variable.
+proc manage_admin_user_setup {} {
+   global CHECK_OUTPUT
+   global manage_admin_user_current_cluster_config
+   
+   puts $CHECK_OUTPUT "doing setup ..."
+   set manage_admin_user_current_cluster_config [get_current_cluster_config_nr]
+   
+}
+
+# the cleanup function for this test will restore the
+# current cluster config nr from the global variable set 
+# be the setup function.
+proc manage_admin_user_cleanup {} {
+   global CHECK_OUTPUT
+   global manage_admin_user_current_cluster_config
+
+   puts $CHECK_OUTPUT "doing cleanup ..."
+
+   set_current_cluster_config_nr $manage_admin_user_current_cluster_config
+}
+
+
+# The test will call the sdmadm show_status command for every 
+# hedeby managed host and on the master host.
+# If the output does not show all components in the "started"
+# status the test will fail.
+proc manage_admin_user_check {} {
+   global CHECK_OUTPUT
+   global hedeby_config
+
+   # setup master host expectations ...
+   set test_host $hedeby_config(hedeby_master_host)
+   set test_user [get_hedeby_admin_user]
+   
+   # Add root as admin user
+   set add_result [sdmadm_add_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]]
+   if { $add_result != 0 } {
+      return
+   }
+   
+   set user_list {}
+   if {[sdmadm_show_admin_users $test_host $test_user user_list [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+      return
+   }
+   
+   if { [lsearch $user_list "root"] < 0} {
+      add_proc_error "manage_admin_user_check" -1 "user root has not been added to admin user list"
+      return
+   }
+
+   # if we have the root password we can now try to execute a sdmadm command as root
+   # we really need the root password. If ssh access is configured we can also not
+   # test it
+   if { [have_ssh_access] == 0 && [have_root_passwd] == 0} {
+      #TODO RH Begin: With the fix of issue #108 the following
+      #               block should work
+      # # The RoleLoginModule caches information about roles
+      # # The cache timeout is one minute
+      # # We have to wait one minute to ensure that this cache timed out
+      # set timeout 70
+      # puts $CHECK_OUTPUT "waiting for role cache timeout (${timeout} seconds)"
+      # while { $timeout > 0} {
+         # incr timeout -10
+         # flush $CHECK_OUTPUT
+         # after 2500
+         # puts -nonewline $CHECK_OUTPUT  "."
+         # flush $CHECK_OUTPUT
+         # after 2500
+         # puts -nonewline $CHECK_OUTPUT "."
+         # flush $CHECK_OUTPUT
+         # after 2500
+         # puts -nonewline $CHECK_OUTPUT "."
+         # flush $CHECK_OUTPUT
+         # after 2500
+         # puts  -nonewline $CHECK_OUTPUT "${timeout}"
+      # }
+      # puts $CHECK_OUTPUT
+      # 
+      # if { [sdmadm_show_status $test_host "root" tmp_output [get_hedeby_pref_type] [get_hedeby_system_name]] != 0 } {
+          # add_proc_error "manage_admin_user_check" -1 "sdmadm as user root failed"
+      # }
+      # TODO RH End
+   } else {
+      puts $CHECK_OUTPUT "Skip execution sdm_adm command as user root, have no root password"
+   }
+   
+   if {[sdmadm_remove_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+      add_proc_error "manage_admin_user_check" -1 "user root has not been removed from admin user list"
+   }
+   
+}
+
+
+

@@ -1,3 +1,7 @@
+RH-2007-08-30-0: Bugfix:    check for testing admin user management added
+                 Issue:     106 (hedeby issue)
+                 Review:    MB
+
 CR-2007-08-29-1: Bugfix:    fixed another NFS timeout problem when installing
                             hedeby distribution
                  Review:    MB

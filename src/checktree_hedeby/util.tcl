@@ -1930,12 +1930,251 @@ proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_er
    puts $CHECK_OUTPUT $output
 
    if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_remove_system" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+      add_proc_error "sdmadm_show_status" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
    }
 
    set output_return $output  ;# set the output
    return $prg_exit_state
 }
+
+
+#****** util/sdmadm_add_admin_user() **************************************************
+#  NAME
+#    sdmadm_add_admin_user() -- Add an user to the admin user list
+#
+#  SYNOPSIS
+#    sdmadm_add_admin_user { host user user_to_add {preftype ""} {sys_name ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     Adds an user with "sdmadm add_admin_user" to the admin user list
+#
+#    host            - the host where sdmadm is started
+#    user            - the user which executes sdmadm
+#    user_to_add  - name of the user which should be added
+#    {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#    {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#    {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     0 of the user has been added to the admin user list
+#     else error has been reported
+#
+#  EXAMPLE
+#     
+#   if {[sdmadm_add_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+#      add_proc_error "foo_check" -1 "user root has not been added to admin user list"
+#   }
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#*******************************************************************************
+proc sdmadm_add_admin_user { host user user_to_add {preftype ""} {sys_name ""} {raise_error 1} } {
+   
+   global CHECK_OUTPUT
+
+   set args {}
+   if { $preftype != "" } {
+      lappend args "-p $preftype"
+   }
+   if { $sys_name != "" } {
+      lappend args "-s $sys_name"
+   }
+   set arg_line ""
+   foreach arg $args {
+      append arg_line $arg
+      append arg_line " "
+   }
+   append arg_line "add_admin_user $user_to_add"
+
+   set output [sdmadm_command $host $user $arg_line]
+   puts $CHECK_OUTPUT $output
+
+   if { $prg_exit_state != 0 } {
+      add_proc_error "sdmadm_add_admin_user" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+   }
+   
+   set params(0) $user_to_add
+   set user_added_string [create_bundle_string "adminUser.added" params]
+
+   set output [string trim $output]
+   
+   if { [string match $user_added_string $output] } {
+      return 0;
+   } else {
+        add_proc_error "sdmadm_add_admin_user" -1 "Received unexpected output from sdmadm sdmadm_add_admin_user: $output" $raise_error
+        return 1
+   }
+}
+
+#****** util/sdmadm_remove_admin_user() **************************************************
+#  NAME
+#    sdmadm_remove_admin_user() -- remove an admin user with sdmadm
+#
+#  SYNOPSIS
+#    sdmadm_remove_admin_user { host user user_to_remove {preftype ""} {sys_name ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     
+#     Executes "sdmadm remove_admin_user" 
+#
+#  INPUTS
+#    host            - the host where sdmadm is started
+#    user            - the user which executes sdmadm
+#    user_to_remove  - name of the user which should be removed
+#    {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#    {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#    {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     0 of the user has been removed from the admin user list
+#     else error has been reported
+#
+#  EXAMPLE
+#     
+#   if {[sdmadm_remove_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+#      add_proc_error "foo_check" -1 "user root has not been removed from admin user list"
+#   }
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#*******************************************************************************
+proc sdmadm_remove_admin_user { host user user_to_remove {preftype ""} {sys_name ""} {raise_error 1} } {
+   
+   global CHECK_OUTPUT
+
+   set args {}
+   if { $preftype != "" } {
+      lappend args "-p $preftype"
+   }
+   if { $sys_name != "" } {
+      lappend args "-s $sys_name"
+   }
+   set arg_line ""
+   foreach arg $args {
+      append arg_line $arg
+      append arg_line " "
+   }
+   append arg_line "remove_admin_user $user_to_remove"
+
+   set output [sdmadm_command $host $user $arg_line]
+   puts $CHECK_OUTPUT $output
+
+   if { $prg_exit_state != 0 } {
+      add_proc_error "sdmadm_remove_admin_user" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+   }
+   
+   set params(0) $user_to_remove
+   set user_removed_string [create_bundle_string "adminUser.removed" params]
+
+   set output [string trim $output]
+   
+   if { [string match $user_removed_string $output] } {
+      return 0;
+   } else {
+        add_proc_error "sdmadm_remove_admin_user" -1 "Received unexpected output from sdmadm remove_admin_user: $output" $raise_error
+        return 1
+   }
+}
+
+#****** util/sdmadm_show_admin_users() **************************************************
+#  NAME
+#    sdmadm_show_admin_users() -- get admin user list
+#
+#  SYNOPSIS
+#    sdmadm_show_admin_users { host user user_list {preftype ""} {sys_name ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     
+#     This method get the list of admin users of a hedeby system
+#
+#  INPUTS
+#    host            - the host where sdmadm is started
+#    user_list       - upvar where admin users will be stored
+#    user            - the user which executes sdmadm
+#    {preftype ""}   - optional: used preferences type. If not set no -p
+#                                 switch is used 
+#    {sys_name ""}   - optional: used system type. If not set no -s
+#                                 switch is used
+#    {raise_error 1} - optional: if not set turn of error reporting.
+#
+#  RESULT
+#     0 if the command was succesfull 
+#     else exit state of "sdmadm get_admin_user_list" command
+#  EXAMPLE
+#
+#   set user_list {}
+#   if {[sdmadm_show_admin_users $test_host $test_user user_list [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+#     return
+#   }
+#   
+#   if { [lsearch $user_list "root"] < 0} {
+#      add_proc_error "manage_admin_user_check" -1 "user root is not an admin user"
+#      return
+#   }
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#*******************************************************************************
+proc sdmadm_show_admin_users { host user user_list {preftype ""} {sys_name ""} {raise_error 1} } {
+   
+   global CHECK_OUTPUT
+   upvar $user_list user_list_return
+
+   set user_list_return {}
+   
+   set args {}
+   if { $preftype != "" } {
+      lappend args "-p $preftype"
+   }
+   if { $sys_name != "" } {
+      lappend args "-s $sys_name"
+   }
+   set arg_line ""
+   foreach arg $args {
+      append arg_line $arg
+      append arg_line " "
+   }
+   append arg_line "show_admin_users"
+
+   set output [sdmadm_command $host $user $arg_line]
+   puts $CHECK_OUTPUT $output
+
+   if { $prg_exit_state != 0 } {
+      add_proc_error "sdmadm_show_admin_users" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+      return $prg_exit_state
+   } else {   
+      set lines [split $output "\n"]
+      foreach ls $lines {
+          set line [string trim $ls]
+          lappend user_list_return $line
+      }
+      return 0;
+   }
+}
+
+
 
 #****** util/parse_sdmadm_show_status_output() *********************************
 #  NAME
