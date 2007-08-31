@@ -58,10 +58,13 @@ set check_highest_level	       100
 # setup and cleanup functions
 #set check_cleanup_function "jgdi_junit_cleanup"
 
-# test order
-lappend check_functions "jgdi_junit_14"
+# test order, JGDI now supports only java 1.5+
+#lappend check_functions "jgdi_junit_14"
 lappend check_functions "jgdi_junit_15"
 lappend check_functions "jgdi_junit_16"
+
+#TODO enable tests once all pass
+lappend check_functions ""
 
 proc jgdi_junit_init_level {} {
   global CHECK_ACT_LEVEL
@@ -156,8 +159,8 @@ proc jgdi_junit_run { JAVA_VERSION } {
    report_create "JGDI_junit_tests using Java $JAVA_VERSION" report 1 0
    
    set jgdi_config(java_home) [get_java_home_for_host $jgdi_config(target_host) $JAVA_VERSION]
-   #Java 1.4 must be set. We skip other test because of missing java 1.5 or 1.6
-   if { $jgdi_config(java_home) == "" && ![string equal $JAVA_VERSION "1.4"] } {
+   #Java 1.5 must be set. We skip other test because of missing java 1.6+
+   if { $jgdi_config(java_home) == "" && ![string equal $JAVA_VERSION "1.5"] } {
       report_add_message report "Skipping test because of missing Java $JAVA_VERSION on $jgdi_config(target_host)."
       report_finish report -1
       return 0

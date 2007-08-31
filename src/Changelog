@@ -1,3 +1,8 @@
+LP-2007-08-31-0: Enhancem.: JGDI junit tests are will be run only with 6.2 and
+                            are currently disabled
+                            JGDI qconf tests are disabled
+                 Review:    AP
+
 RD-2007-08-31-0: Bugfix:    fixed /clients/common/advance_reservation test
                             introduced by JG-2007-08-10-0
                  Review:    CR
