@@ -1,3 +1,7 @@
+RD-2007-08-31-0: Bugfix:    fixed /clients/common/advance_reservation test
+                            introduced by JG-2007-08-10-0
+                 Review:    CR
+
 RH-2007-08-30-0: Bugfix:    check for testing admin user management added
                  Issue:     106 (hedeby issue)
                  Review:    MB

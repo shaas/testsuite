@@ -87,8 +87,7 @@ proc client_ar_setup {} {
    global job_output_dir default_args
    
    # set default jobargs
-   set default_args "-o $job_output_dir -e $job_output_dir"
-  
+   set default_args "-o /dev/null -j y"
 }
 
 proc client_ar_cleanup {} {
