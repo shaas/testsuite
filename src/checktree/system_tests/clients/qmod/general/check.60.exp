@@ -31,4 +31,6 @@
 ##########################################################################
 #___INFO__MARK_END__
 
+global qmod_num_help_lines
+
 set qmod_num_help_lines 30

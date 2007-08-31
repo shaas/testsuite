@@ -1,3 +1,6 @@
+RD-2007-08-31-2: Bugfix:    fixed qmod_general test
+                 Review:    JG
+
 RD-2007-08-31-1: Bugfix:    fixed consumable_resources test
                  Review:    RH 
 
