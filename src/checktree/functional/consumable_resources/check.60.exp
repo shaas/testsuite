@@ -514,7 +514,7 @@ proc consumable_resources_test {} {
 
       # this tests issue 1745.
       if {$ts_config(gridengine_version) >= 62} {
-         consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count 
+         consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e"
       }
       
       # clean up

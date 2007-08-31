@@ -1,3 +1,6 @@
+RD-2007-08-31-1: Bugfix:    fixed consumable_resources test
+                 Review:    RH 
+
 LP-2007-08-31-0: Enhancem.: JGDI junit tests are will be run only with 6.2 and
                             are currently disabled
                             JGDI qconf tests are disabled
