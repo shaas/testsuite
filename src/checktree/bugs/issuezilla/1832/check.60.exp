@@ -1,0 +1,184 @@
+#!/vol2/TCL_TK/glinux/bin/expect --
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions check_highest_level
+global check_init_level_procedure check_category
+global check_root_access_needs
+
+set check_init_level_procedure "issue_1832_init_level"
+
+set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_name                "issue_1832"
+set check_description(0)      "comprehensive -hold_jid_ad test"
+set check_needs               "init_core_system"      ;# dependencies of this check (name of other check)
+set check_root_access_needs   "yes"
+
+# setup and cleanup functions
+set check_setup_function   issue_1832_setup
+set check_cleanup_function issue_1832_cleanup
+
+# define test's procedure order
+set check_functions           ""
+lappend check_functions       "issue_1832_success_dummy"
+# lappend check_functions       "issue_1832_run_simple"
+# lappend check_functions       "issue_1832_run_master_down"
+set check_highest_level       0
+
+proc issue_1832_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   # setup levels
+   switch -- $CHECK_ACT_LEVEL {
+      "0"  {
+         return 0
+      }
+   }
+   return -1
+}
+
+proc issue_1832_setup {} {
+}
+
+proc issue_1832_cleanup {} {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
+proc issue_1832_success_dummy  {} {
+}
+
+proc issue_1832_run_simple  {} {
+   global ts_config CHECK_OUTPUT
+
+   set host $ts_config(master_host)
+
+   # Run test binary on all architectures
+   # set output [start_source_bin "test_drmaa_issue1832" "-1st $ts_config(product_root)/examples/jobs/sleeper.sh" $host]
+   set output [start_source_bin "test_drmaa_issue1832" "$ts_config(product_root)/examples/jobs/sleeper.sh" $host]
+   puts $CHECK_OUTPUT "output:\n$output"
+
+   # If we segfault on any architecture, the bug still exists.
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_1832_run_simple" -1 "test binary test_drmaa_issue1832 failed on host $host:\n$output"
+   }
+
+   # Run test binary on all architectures
+   set output [start_source_bin "test_drmaa_issue1832" "-ps $ts_config(product_root)/examples/jobs/sleeper.sh" $host]
+   puts $CHECK_OUTPUT "output:\n$output"
+
+   # If we segfault on any architecture, the bug still exists.
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_1832_run_simple" -1 "test binary test_drmaa_issue1832 failed on host $host:\n$output"
+   }
+}
+
+proc issue_1832_run_master_down  {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   set host $ts_config(master_host)
+
+   set arch [resolve_build_arch_installed_libs $host]
+   set binary "$ts_config(source_dir)/$arch/test_drmaa_issue1832"
+   set bin_args "-1st -exit_unknown $ts_config(product_root)/examples/jobs/sleeper.sh"
+
+   set error_text ""
+   set output ""
+   # "ts_def_con"
+   set pr_id [open_remote_spawn_process $host "ts_def_con_translate" $binary $bin_args 0 "" "" 0 15 1]
+   set sp_id [lindex $pr_id 1]
+
+   set master_down 0
+   set master_restarted 0
+   set timeout 60
+   set my_master_start_time -1
+   set do_stop 0
+   expect {
+     -i $sp_id timeout {
+         append error_text "got timeout error\n"
+     }
+     -i $sp_id full_buffer {
+         append error_text "got full_buffer error\n"
+     }
+
+     -i $sp_id -- "*\n" {
+        foreach line [split $expect_out(0,string) "\n"] {
+           if {$line != ""} {
+              append output "${line}\n"
+              puts $CHECK_OUTPUT $line
+              if { [string match "ddd*" $line] && $master_down == 0} {
+                  puts $CHECK_OUTPUT "shutting down qmaster ..."
+                  shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
+                  set master_down 1
+                  set my_master_start_time [timestamp]
+                  incr my_master_start_time 15
+              }
+              if { $my_master_start_time > 0 && 
+                   [timestamp] >= $my_master_start_time &&
+                   $master_restarted == 0 } {
+                 puts $CHECK_OUTPUT "starting up qmaster ..."
+                 startup_qmaster
+                 set master_restarted 1
+              }
+              if { [string match "*_exit_status_:(*" $line ] } {
+                 puts $CHECK_OUTPUT "script terminated!" 
+                 set help $line
+                 set st [string first "(" $help]
+                 set ed [string first ")" $help]
+                 incr st 1
+                 incr ed -1
+                 set exit_state [string range $help $st $ed]
+                 puts $CHECK_OUTPUT "found exit status of client: ($exit_state)"
+                 set do_stop 1
+              }
+           }
+        }
+        if { $do_stop == 0 } {
+           exp_continue
+        }
+     }
+   }
+   close_spawn_process $pr_id
+
+   if {$exit_state != 0} {
+      add_proc_error "issue_1832_run_master_down" -1 "test binary test_drmaa_issue1832 failed on host $host\n$output"
+   }
+   if { $master_restarted == 0 } {
+      startup_qmaster
+   }
+
+
+   if { $error_text != "" } {
+      add_proc_error "issue_1832_run_master_down" -1 $error_text
+   }
+}
+
