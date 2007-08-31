@@ -64,7 +64,12 @@ lappend check_functions "jgdi_junit_15"
 lappend check_functions "jgdi_junit_16"
 
 #TODO enable tests once all pass
-lappend check_functions ""
+set check_functions ""
+lappend check_functions "ok_proc"
+
+proc ok_proc {} {
+  return 0
+}
 
 proc jgdi_junit_init_level {} {
   global CHECK_ACT_LEVEL

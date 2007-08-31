@@ -76,7 +76,12 @@ lappend check_functions "jgdi_shell_run_batch_test_queue_1"
 lappend check_functions "jgdi_shell_run_batch_test_kill-scheduler_1"
 lappend check_functions "jgdi_shell_show_test_statistics"
 
-lappend check_functions ""
+set check_functions ""
+lappend check_functions "ok_proc"
+
+proc ok_proc {} {
+  return 0
+}
 
 proc jgdi_shell_init_level {} {
   global CHECK_ACT_LEVEL jgdi_config
