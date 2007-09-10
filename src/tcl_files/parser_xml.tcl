@@ -1645,3 +1645,167 @@ proc qstat_ext_xml_parse { output } {
    #puts $CHECK_OUTPUT "second calling job_type is  $job_type2 ... \n"
 }
 
+#****** parser_xml/qhost_xml_parse() ******
+#
+#  NAME
+#     qhost_xml_parse -- Generate XML output and return assoc array 
+#
+#  SYNOPSIS
+#     qhost_xml_parse { output }
+#                     -- Generate XML output and return assoc array with
+#                        entries hostname, arch, ncpu, load, memory total,
+#                        memory used, swap total, swap used.
+#
+#      output  -  asscoc array with the entries mentioned above.#
+#                 
+#
+#  FUNCTION
+#     Print out parsed xml output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     additional params that qhost should use.
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qhost_xml_parse { output {params ""} } {
+   upvar $output xml
+
+   # capture xml output
+   set xmloutput [start_sge_bin "qhost" "$params -xml"]
+   
+   set doc [dom parse $xmloutput]
+   set root [$doc documentElement]
+
+   # parse xml output and create lists based on the attributes
+   set qhost [$root childNodes]
+   set job -1
+   foreach elem $qhost {
+      set hostvalue [$elem childNodes]
+      set inc 1      
+      foreach elemin $hostvalue {
+         if {$inc == "1"} {
+            incr job 1 
+            set xml(host$job,name) [$elem getAttribute name]
+         } 
+         set xml(host$job,[$elemin getAttribute name]) [[$elemin firstChild] nodeValue]            
+         incr inc 1
+      }     
+   }
+}
+
+#****** parser_xml/qhost_u_xml_parse() ******
+#
+#  NAME
+#     qhost_u_xml_parse -- Generate XML output and return assoc array 
+#
+#  SYNOPSIS
+#     qhost_u_xml_parse { output }
+#                     -- Generate XML output and return assoc array with
+#                        entries based on the output of qhost -u -xml.
+#
+#      output  -  asscoc array with the entries mentioned above.#
+#                 
+#
+#  FUNCTION
+#     Print out parsed xml output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     additional params that qhost should use.
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qhost_u_xml_parse { output_var {params ""} } {
+   upvar $output_var xml
+   
+   # capture xml output
+   set xmloutput [start_sge_bin "qhost" "$params -xml"]
+   
+   set doc [dom parse $xmloutput]
+   set root [$doc documentElement]
+   
+   # parse xml output and create lists based on the attributes
+   
+   set children [$root getElementsByTagName job]
+   set jobs [$children childNodes]   
+   
+   foreach jobvalue $jobs {   
+      set xml(job,jobid) [$jobvalue getAttribute jobid] 
+      set cNode [$jobvalue childNode]
+      set xml(job,[$jobvalue getAttribute name]) [$cNode nodeValue]            
+   }
+}
+
+#****** parser_xml/qhost_q_xml_parse() ******
+#
+#  NAME
+#     qhost_q_xml_parse -- Generate XML output and return assoc array 
+#
+#  SYNOPSIS
+#     qhost_q_xml_parse { output }
+#                     -- Generate XML output and return assoc array with
+#                        entries based on the output of qhost -q -xml.
+#
+#      output  -  asscoc array with the entries mentioned above.#
+#                 
+#
+#  FUNCTION
+#     Print out parsed xml output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     additional params that qhost should use.
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qhost_q_xml_parse { output_var } {
+   upvar $output_var xml
+
+   # capture xml output
+   set xmloutput [start_sge_bin "qhost" "-q -xml"]
+
+   set doc [dom parse $xmloutput]
+   set root [$doc documentElement]
+
+   # parse xml output and create lists based on the attributes
+   
+   set qhost [$root childNodes]
+   set job -1
+   foreach elem $qhost {
+      set hostvalue [$elem childNodes]
+      set inc 1
+      
+      foreach elemin $hostvalue {
+         if {$inc == "1"} {
+            incr job 1 
+            set xml(host$job,name) [$elem getAttribute name]
+         } 
+            set xml(host$job,[$elemin getAttribute name]) [[$elemin firstChild] nodeValue]
+            if { [$elemin hasChildNodes] == "1"} {
+               set queue [$elemin childNodes]
+               foreach innerelem $queue {
+                  if { [$innerelem nodeType] == "ELEMENT_NODE" } {
+                     if { [$innerelem getAttribute name] == "state_string" } {
+                        if { [$innerelem nodeValue] != "" } {
+                           set xml(host$job,[$innerelem getAttribute name]) [$innerValue nodeValue]
+                        } else {
+                           set xml(host$job,state_string) ""
+                        }
+                     } else {
+                        set xml(host$job,[$innerelem getAttribute name]) [[$innerelem firstChild] nodeValue]
+                     }
+                  }
+                  
+               }
+            }
+         incr inc 1
+      }     
+   }
+}

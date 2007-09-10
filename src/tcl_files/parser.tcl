@@ -3405,3 +3405,426 @@ proc parse_properties_file {output_var filename {overwrite 0}} {
  
    return 0
 }
+
+#****** parser/qhost_parse() ******
+#
+#  NAME
+#     qhost_parse -- Generate output and return assoc array 
+#
+#  SYNOPSIS
+#     qhost_parse { output_var jobCount params }
+#                     -- Generate output and return assoc array with
+#                        entries based on the output of qhost -F.
+#
+#      output_var  -  asscoc array with the entries mentioned above.
+#      jobCount - number of jobs found in the output.
+#      params - any additional parameters to the qhost command.
+#                 
+#
+#  FUNCTION
+#     return parsed output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     number of jobs in the output.
+#     additional params that qhost should use.
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qhost_parse { output_var jobCount {params "" } } {
+   upvar $output_var plain
+   upvar $jobCount job
+
+   # capture plain output
+   set plainoutput [start_sge_bin "qhost" "$params"]  
+      
+   # split plain output on each new line
+   set plain_split [ split $plainoutput "\n" ] 
+   set inc 0
+   set job 0
+   set count 1
+   set line -1
+   foreach elem $plain_split { 
+     if {$count > 2} {          
+         switch -- $line {
+            "1" {
+               set elem_split [ split $elem " +" ]
+               set inner 1
+               
+               foreach elemin $elem_split {
+                  # we are only interested in none empty strings
+                  # create a similar array for each job id
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {
+                        "1" {
+                           set plain(host$job,name) $elemin
+                        }
+                        "2" {
+                           set plain(host$job,arch_string) $elemin
+                        }
+                        "3" {
+                           set plain(host$job,num_proc) $elemin
+                        }
+                        "4" {
+                           set plain(host$job,load_avg) $elemin
+                        }
+                        "5" {
+                           set plain(host$job,mem_total) $elemin
+                        }
+                        "6" {
+                           set plain(host$job,mem_used) $elemin
+                        }
+                        "7" {
+                           set plain(host$job,swap_total) $elemin
+                        }
+                        "8" {
+                           set plain(host$job,swap_used) $elemin
+                        }
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+         }
+         # every fifth line is a new job, increment counter
+         if { $line == 1} {   
+               incr job 1  
+               set line 0         
+         }
+      }      
+      incr line 1
+      incr count 1
+   }
+   incr job -1
+}
+
+#****** parser/qhost_u_parse() ******
+#
+#  NAME
+#     qhost_u_parse -- Generate output and return assoc array 
+#
+#  SYNOPSIS
+#     qhost_u_parse { output_var params }
+#                     -- Generate output and return assoc array with
+#                        entries based on the output of qhost -u.
+#
+#      output_var  -  asscoc array with the entries mentioned above.
+#      params - additional params to be submitted with qhost
+#                 
+#
+#  FUNCTION
+#     return parsed output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     additional params for qhost command
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qhost_u_parse { output_var {params "" } } {
+   upvar $output_var plain
+
+   # capture plain output
+   set plainoutput [start_sge_bin "qhost" "$params"]
+
+   # split plain output on each new line
+   set plain_split [ split $plainoutput "\n" ] 
+   set inc 0
+   set job 0
+   set count 1
+   set line -1
+   set nextLine 0
+   foreach elem $plain_split { 
+     if {$count > 2} {          
+         switch -- $line {
+            "1" {
+               set elem_split [ split $elem " +" ]
+               set inner 1
+               if { $nextLine == "1" } {
+                  incr nextLine 1
+               }
+               foreach elemin $elem_split {
+                  # we are only interested in none empty strings
+                  # create a similar array for each job id
+                  if {[string length $elemin] > 0} {
+                     if { $nextLine == "2" } {
+                        switch -- $inner {
+                           "1" {
+                              set plain(job,jobid) $elemin
+                           }
+                           "2" {
+                              set plain(job,priority) $elemin
+                           }
+                           "3" {
+                              set plain(job,job_name) $elemin
+                           }
+                           "4" {
+                              set plain(job,job_owner) $elemin
+                           }
+                           "5" {
+                              set plain(job,job_state) $elemin
+                           }
+                           "6" {
+                              set plain(job,start_time) $elemin
+                           }
+                           "8" {
+                              set plain(job,queue_name) $elemin
+                           }
+                           "9" {
+                              set plain(job,pe_master) $elemin
+                              incr nextLine 1
+                           }
+                        }                        
+                     }
+                     
+                     if { [string compare $elemin "job-ID"] == 0} {  
+                        incr nextLine 1
+                     }                                                               
+                     incr inner 1
+                  }
+               }
+            }
+         }
+         # every fifth line is a new job, increment counter
+         if { $line == 1} {   
+               incr job 1  
+               set line 0         
+         }
+      }      
+      incr line 1
+      incr count 1
+   }
+}
+
+#****** parser/qhost_q_parse() ******
+#
+#  NAME
+#     qhost_q_parse -- Generate output and return assoc array 
+#
+#  SYNOPSIS
+#     qhost_q_parse{ output_var jobCount }
+#                     -- Generate output and return assoc array with
+#                        entries based on the output of qhost -q.
+#
+#      output_var  -  asscoc array with the entries mentioned above.#
+#      jobCount - returns the number of jobs found within the output
+#                 
+#
+#  FUNCTION
+#     return parsed output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     number of jobs found in the output.
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qhost_q_parse { output_var jobCount } {
+   upvar $output_var plain
+   upvar $jobCount job
+
+   # capture plain output
+   set plainoutput [start_sge_bin "qhost" "-q"]
+
+   # split plain output on each new line
+   set plain_split [ split $plainoutput "\n" ] 
+   set inc 0
+   set job 0
+   set count 1
+   set line -1
+   foreach elem $plain_split { 
+     if {$count > 2} {          
+         switch -- $line {
+            "1" {
+               set elem_split [ split $elem " +" ]
+               set inner 1
+               
+               foreach elemin $elem_split {
+                  # we are only interested in none empty strings
+                  # create a similar array for each job id
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {
+                        "1" {
+                           set plain(host$job,name) $elemin
+                        }
+                        "2" {
+                           set plain(host$job,arch_string) $elemin
+                        }
+                        "3" {
+                           set plain(host$job,num_proc) $elemin
+                        }
+                        "4" {
+                           set plain(host$job,load_avg) $elemin
+                        }
+                        "5" {
+                           set plain(host$job,mem_total) $elemin
+                        }
+                        "6" {
+                           set plain(host$job,mem_used) $elemin
+                        }
+                        "7" {
+                           set plain(host$job,swap_total) $elemin
+                        }
+                        "8" {
+                           set plain(host$job,swap_used) $elemin
+                        }
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+            "2" {
+               set elem_split [ split $elem " +" ]
+               set inner 1
+               
+               foreach elemin $elem_split {
+                  # we are only interested in none empty strings
+                  # create a similar array for each job id
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {
+                        "1" {
+                           set plain(host$job,queue) $elemin
+                        }
+                        "2" {
+                           set plain(host$job,qtype_string) $elemin
+                        }
+                        "3" {
+                           set plain(host$job,slots_used) $elemin
+                        }
+                        "4" {
+                           set plain(host$job,state_string) $elemin
+                        }
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+         }
+         # every fifth line is a new job, increment counter
+         if { $line == 2} {   
+               incr job 1  
+               set line 0         
+         }
+         if {$count == 3} {
+            incr job 1
+            set line 0
+         }
+      }      
+      incr line 1
+      incr count 1
+   }
+}
+
+#****** parser/qhost_F_parse() ******
+#
+#  NAME
+#     qhost_F_parse -- Generate output and return assoc array 
+#
+#  SYNOPSIS
+#     qhost_F_parse { output_var jobCount params }
+#                     -- Generate output and return assoc array with
+#                        entries based on the output of qhost -F.
+#
+#      output_var  -  asscoc array with the entries mentioned above.
+#      jobCount - number of jobs found in the output.
+#      params - any additional parameters to the qhost command.
+#                 
+#
+#  FUNCTION
+#     return parsed output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     number of jobs in the output.
+#     additional params that qhost should use.
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qhost_F_parse { output_var jobCount {params "" } } {
+   upvar $output_var plain
+   upvar $jobCount job
+
+   # capture plain output
+   set plainoutput [start_sge_bin "qhost" "$params"]  
+   
+   
+   # split plain output on each new line
+   set plain_split [ split $plainoutput "\n" ] 
+   set inc 0
+   set job 0
+   set count 1
+   set line -1
+   foreach elem $plain_split { 
+     if {$count > 2} {          
+         switch -- $line {
+            "1" {
+               set elem_split [ split $elem " +" ]
+               set inner 1
+               
+               foreach elemin $elem_split {
+                  # we are only interested in none empty strings
+                  # create a similar array for each job id
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {
+                        "1" {
+                           set plain(host$job,name) $elemin
+                        }
+                        "2" {
+                           set plain(host$job,arch_string) $elemin
+                        }
+                        "3" {
+                           set plain(host$job,num_proc) $elemin
+                        }
+                        "4" {
+                           set plain(host$job,load_avg) $elemin
+                        }
+                        "5" {
+                           set plain(host$job,mem_total) $elemin
+                        }
+                        "6" {
+                           set plain(host$job,mem_used) $elemin
+                        }
+                        "7" {
+                           set plain(host$job,swap_total) $elemin
+                        }
+                        "8" {
+                           set plain(host$job,swap_used) $elemin
+                        }
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+            2 - 3 - 4 - 5 - 6 - 7 - 8 - 9 - 10 - 11 - 12 - 13 - 14 - 15 - 16 - 17 - 18 - 19 - 20 - 21 {
+               set attr [ split $elem "="]
+               lassign $attr heading value
+               set val [ split $heading ":"]
+               lassign $val dom nam
+               set plain(host$job,$nam) $value
+            }
+            
+         }
+         # every fifth line is a new job, increment counter
+         if { $line == 21} {   
+               incr job 1  
+               set line 0         
+         }
+         if { $count == 3 } {
+            incr job 1
+            set line 0
+         }            
+      }      
+      incr line 1
+      incr count 1
+   }
+   incr job -1
+}
+

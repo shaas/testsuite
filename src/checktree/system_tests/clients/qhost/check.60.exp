@@ -63,6 +63,12 @@ set check_cleanup_function qhost_cleanup
 # define test's procedure order
 set check_functions {}
 lappend check_functions "qhost_issue1306"
+lappend check_functions "test_issue132"
+lappend check_functions "test_issue132_h"
+lappend check_functions "test_issue132_j"
+lappend check_functions "test_issue132_u"
+lappend check_functions "test_issue132_l"
+lappend check_functions "test_issue132_F"
 
 
 proc qhost_init_level {} {
@@ -96,4 +102,410 @@ proc qhost_issue1306 {} {
    if {[string match "*$expected_output" [string trim $output]] == 0} {
       add_proc_error "-1" "qhost_issue1306" "qhost does not recognize unknown complex:\n$output"
    }
+}
+
+proc test_issue132 {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+   
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the this test"
+      return
+   }
+
+   # qhost -q
+   set result [qhost_q_xml_parse xml]
+   set result [qhost_q_parse plain job]
+
+   # for each host test that the xml and plain outpus are the same
+   for {set ind 0} {$ind < $job} {incr ind 1} {
+      if {[ string compare [string trim $xml(host$ind,name)] [string trim $plain(host$ind,name)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for name."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,arch_string)] [string trim $plain(host$ind,arch_string)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for arch_string."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,num_proc)] [string trim $plain(host$ind,num_proc)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for num_proc."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,load_avg)] [string trim $plain(host$ind,load_avg)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for load_avg."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,mem_total)] [string trim $plain(host$ind,mem_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_total."      
+         return
+      }      
+      if {[ string compare [string trim $xml(host$ind,mem_used)] [string trim $plain(host$ind,mem_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_used."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_total)] [string trim $plain(host$ind,swap_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_total."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_used)] [string trim $plain(host$ind,swap_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_used."      
+         return
+      }
+      if { $ind > 0 } {
+         if {[ string compare [string trim $xml(host$ind,qtype_string)] [string trim $plain(host$ind,qtype_string)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for qtype_string."      
+            return
+         }      
+         if {[ string compare [string trim $xml(host$ind,slots_used)/$xml(host$ind,slots)] [string trim $plain(host$ind,slots_used)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for slots."      
+            return
+         }      
+         if {[ string compare [string trim $xml(host$ind,state_string)] [string trim $plain(host$ind,state_string)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for state_string."      
+            return
+         }      
+      }
+   }
+   
+}
+
+proc test_issue132_h {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the this test"
+      return
+   }
+
+   # qhost -h hostlist
+
+   #get arbitrary hostname
+   set host [host_conf_get_suited_hosts]
+   puts "host $host selected for test"
+
+   set params "-h $host"
+   set result [qhost_xml_parse xml $params ]
+   set result [qhost_parse plain job $params ]
+
+
+   # for each host test that the xml and plain outpus are the same
+   for {set ind 0} {$ind < 2} {incr ind 1} {
+      if {[ string compare [string trim $xml(host$ind,name)] [string trim $plain(host$ind,name)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for name."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,arch_string)] [string trim $plain(host$ind,arch_string)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for arch_string."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,num_proc)] [string trim $plain(host$ind,num_proc)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for num_proc."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,load_avg)] [string trim $plain(host$ind,load_avg)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for load_avg."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,mem_total)] [string trim $plain(host$ind,mem_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_total."      
+         return
+      }      
+      if {[ string compare [string trim $xml(host$ind,mem_used)] [string trim $plain(host$ind,mem_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_used."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_total)] [string trim $plain(host$ind,swap_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_total."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_used)] [string trim $plain(host$ind,swap_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_used."      
+         return
+      }      
+   }
+   
+}
+
+proc test_issue132_j {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the this test"
+      return
+   }
+
+   delete_all_jobs
+   sleep 5
+   # qhost -j
+   # submit job
+   set jobid [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh"]
+   sleep 15
+   
+   set result1 [qhost_u_xml_parse xml "-j" ]
+   set result1 [qhost_u_parse plain "-j" ]  
+   
+
+   # for each host test that the xml and plain outpus are the same
+   
+   if {[ string compare [string trim $xml(job,jobid)] [string trim $plain(job,jobid)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for  jobid."      
+      return
+   }
+   if {[ string compare [string range [string trimleft $xml(job,priority) "'"] 0 6] [string range $plain(job,priority) 0 6]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for priority."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,job_name)] [string trim $plain(job,job_name)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for job_name."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,job_owner)] [string trim $plain(job,job_owner)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for job_owner."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,job_state)] [string trim $plain(job,job_state)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for job_state."      
+      return
+   }      
+   if {[ string compare [string range $xml(job,queue_name) 0 9] [string range $plain(job,queue_name) 0 9]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for queue_name."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,pe_master)] [string trim $plain(job,pe_master)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for pe_master."      
+      return
+   }      
+   
+}
+
+proc test_issue132_u {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the this test"
+      return
+   }
+
+   delete_all_jobs
+   sleep 5
+   # submit job
+   set jobid [submit_job "-u $CHECK_USER $ts_config(product_root)/examples/jobs/sleeper.sh"]
+   sleep 15
+   
+   set params "-u $CHECK_USER"
+   set result1 [qhost_u_xml_parse xml $params]
+   set result1 [qhost_u_parse plain $params]      
+   
+
+   # for each host test that the xml and plain outpus are the same
+   
+   if {[ string compare [string trim $xml(job,jobid)] [string trim $plain(job,jobid)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for  jobid."      
+      return
+   }
+   if {[ string compare [string range [string trimleft $xml(job,priority) "'"] 0 6] [string range $plain(job,priority) 0 6]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for priority."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,job_name)] [string trim $plain(job,job_name)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for job_name."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,job_owner)] [string trim $plain(job,job_owner)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for job_owner."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,job_state)] [string trim $plain(job,job_state)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for job_state."      
+      return
+   }      
+   if {[ string compare [string range $xml(job,queue_name) 0 9] [string range $plain(job,queue_name) 0 9]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for queue_name."      
+      return
+   }
+   if {[ string compare [string trim $xml(job,pe_master)] [string trim $plain(job,pe_master)]] != 0} {
+      add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for pe_master."      
+      return
+   }      
+   
+}
+
+proc test_issue132_l {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the this test"
+      return
+   }
+
+   # qhost -l attr=value
+
+   #get arbitrary hostname
+   set host [host_conf_get_suited_hosts]
+   set arch [host_conf_get_arch $host]
+
+   puts "host $host selected for test"
+
+   set args "-l arch=$arch"
+   set results1 [qhost_xml_parse xml $args]
+   
+   set results1 [qhost_parse plain job $args]
+   
+   # for each host test that the xml and plain outpus are the same
+   for {set ind 0} {$ind < $job} {incr ind 1} {
+      if {[ string compare [string trim $xml(host$ind,name)] [string trim $plain(host$ind,name)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for name."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,arch_string)] [string trim $plain(host$ind,arch_string)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for arch_string."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,num_proc)] [string trim $plain(host$ind,num_proc)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for num_proc."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,load_avg)] [string trim $plain(host$ind,load_avg)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for load_avg."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,mem_total)] [string trim $plain(host$ind,mem_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_total."      
+         return
+      }      
+      if {[ string compare [string trim $xml(host$ind,mem_used)] [string trim $plain(host$ind,mem_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_used."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_total)] [string trim $plain(host$ind,swap_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_total."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_used)] [string trim $plain(host$ind,swap_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_used."      
+         return
+      }      
+   }
+   
+}
+
+proc test_issue132_F {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the this test"
+      return
+   }
+
+   set params "-F"
+   set result [qhost_xml_parse xml $params ]
+   set result [qhost_F_parse plain job $params ]
+
+   # for each host test that the xml and plain outpus are the same
+   for {set ind 0} {$ind < $job} {incr ind 1} {
+      if {[ string compare [string trim $xml(host$ind,load_avg)] [string trim $plain(host$ind,load_avg)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for load_avg."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,arch_string)] [string trim $plain(host$ind,arch_string)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for arch_string."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,num_proc)] [string trim $plain(host$ind,num_proc)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for num_proc."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,mem_total)] [string trim $plain(host$ind,mem_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_total."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,mem_used)] [string trim $plain(host$ind,mem_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_used."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_total)] [string trim $plain(host$ind,swap_total)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_total."      
+         return
+      }
+      if {[ string compare [string trim $xml(host$ind,swap_used)] [string trim $plain(host$ind,swap_used)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_used."      
+         return
+      }
+      if { $ind > 0 } {
+         if {[ string compare [string trim $xml(host$ind,arch)] [string trim $plain(host$ind,arch)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for arch."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,virtual_total)] [string trim $plain(host$ind,virtual_total)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_used."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,load_avg)] [string trim $plain(host$ind,load_avg)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_used."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,load_short)] [string trim $plain(host$ind,load_short)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for load_short."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,load_medium)] [string trim $plain(host$ind,load_medium)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for load_medium."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,load_long)] [string trim $plain(host$ind,load_long)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for load_long."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,mem_free)] [string trim $plain(host$ind,mem_free)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_free."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,swap_free)] [string trim $plain(host$ind,swap_free)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_free."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,virtual_free)] [string trim $plain(host$ind,virtual_free)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for virtual_free."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,mem_used)] [string trim $plain(host$ind,mem_used)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for mem_used."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,swap_used)] [string trim $plain(host$ind,swap_used)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for swap_used."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,virtual_used)] [string trim $plain(host$ind,virtual_used)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for virtual_used."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,cpu)] [string trim $plain(host$ind,cpu)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for cpu."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,np_load_avg)] [string trim $plain(host$ind,np_load_avg)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for np_load_avg."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,np_load_short)] [string trim $plain(host$ind,np_load_short)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for np_load_short."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,np_load_medium)] [string trim $plain(host$ind,np_load_medium)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for np_load_medium."      
+            return
+         }
+         if {[ string compare [string trim $xml(host$ind,np_load_long)] [string trim $plain(host$ind,np_load_long)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from plain and xml for np_load_long."      
+            return
+         }
+      }
+   }
+   
 }

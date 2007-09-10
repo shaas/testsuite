@@ -1,3 +1,7 @@
+MP-2007-09-10-0: Enhancem.: Added tests for qhost with xml output
+                 Issue:     132
+                 Review:    JG
+
 OJ-2007-09-07-0: Enhancem.: Added testcase for IZ 145
                  Review:    AH
 
