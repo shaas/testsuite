@@ -93,6 +93,7 @@ lappend check_functions "qstat_s_hu_plain_xml_comparison" ;# Compare the two qst
 lappend check_functions "qstat_u_valid_plain_xml_comparison" ;# Compare the two qstat -u $CHECK_USER commands
 lappend check_functions "qstat_u_invalid_plain_xml_comparison" ;# Compare the two qstat -u wrong_user commands
 lappend check_functions "qstat_U_valid_plain_xml_comparison" ;# Compare the two qstat -U $CHECK_USER commands
+lappend check_functions "test_issue123"
 
 proc qstat_init_level {} {
    global CHECK_ACT_LEVEL
@@ -3774,5 +3775,72 @@ proc qstat_profile {} {
       puts $CHECK_OUTPUT "Deleting test.q"
       del_queue test.q $hostname 0 1
    }
+}
+
+proc test_issue123 {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+   
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      return
+   }
+   delete_all_jobs
+   sleep 5
+   # submit job qsub -t 1-5 sleeper.sh
+   set arguments "-t 1-5"
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 50"]
+   
+   wait_for_jobstart $job_id "Sleeper" 60 1 1
+   
+   set result1 [qstat_gdr_xml_parse xml] 
+   
+   set result1 [plain_gdr_parse plain]
+   
+   set var_array {jobNumber prio name owner state queue slots tasks fullName}
+
+   # for each job test that the xml and plain outputs are the same
+   for {set ind 0} {$ind < 5} {incr ind 1} {
+      foreach elem $var_array {
+         if {[ string compare [string trim $xml(job$ind,$elem)] \
+            [string trim $plain(job$ind,$elem)]] != 0} {
+            add_proc_error "test_xml_tdom" -1 "outputs do not match from \
+            plain and xml for $elem."
+            add_proc_error "test_xml_tdom" -1 "xml output: [string trim $xml($elem)] \
+            plain output: [string trim $plain($elem)]"
+            return
+         }
+      }           
+   }  
+   delete_all_jobs
+
+   # Test xml for hard and soft resources
+
+   # submit job
+   set host [host_conf_get_suited_hosts]
+   set arch [resolve_arch $host]
+   set arguments "-l a=$arch -soft -l h=$host"
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh"]
+   wait_for_jobstart $job_id "Sleeper" 60 1 1   
+   
+   #capture xml output
+   set res1 [qstat_r_xml_parse xml]
+   # capture plain output
+   set res1 [plain_r_parse plain]
+
+   set var_array1 { jobNumber prio name owner state queue slots hard soft }
+   # compare xml and plain arrays to ensure  all attributes match
+   foreach elem $var_array1 {
+      if {[ string compare [string trim $xml($elem)] \
+         [string trim $plain($elem)]] != 0} {
+         puts "xml = [string trim $xml($elem)] , plain = [string trim $plain($elem)]"
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from \
+         plain and xml for $elem."
+         add_proc_error "test_xml_tdom" -1 "xml output: [string trim $xml($elem)] \
+         plain output: [string trim $plain($elem)]"
+         return
+      }
+   }   
+   delete_all_jobs
+   
 }
 

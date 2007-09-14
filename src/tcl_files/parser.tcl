@@ -3828,3 +3828,225 @@ proc qhost_F_parse { output_var jobCount {params "" } } {
    incr job -1
 }
 
+#****** parser/plain_gdr_parse() ******
+#
+#  NAME
+#     plain_gdr_parse -- Generate output and return assoc array 
+#
+#  SYNOPSIS
+#     plain_gdr_parse { output_var }
+#                     -- Generate output and return assoc array with
+#                        entries based on the output of qhost -F.
+#
+#      output_var  -  asscoc array with the entries mentioned above.
+#      
+#                 
+#
+#  FUNCTION
+#     return parsed output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     
+#
+#  NOTES
+#     
+#
+#*******************************
+proc plain_gdr_parse { output_var } {
+   upvar $output_var plain
+
+   # capture plain output
+   set plainoutput [start_sge_bin "qstat" "-g d -r"]
+   
+   # split plain output on each new line
+   set plain_split [ split $plainoutput "\n" ]   
+   set inc 0
+   set job 0
+   set count 1
+   set line -1
+   foreach elem $plain_split { 
+      if {$count > 2} {          
+         switch -- $line {
+            "1" {
+               set elem_split [ split $elem " +" ]
+               set inner 1
+               foreach elemin $elem_split {
+                  # we are only interested in none empty strings
+                  # create a similar array for each job id
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {
+                        "1" {
+                           set plain(job$job,jobNumber) $elemin
+                        }
+                        "2" {
+                           set plain(job$job,prio) $elemin
+                        }
+                        "3" {
+                           set plain(job$job,name) $elemin
+                        }
+                        "4" {
+                           set plain(job$job,owner) $elemin
+                        }
+                        "5" {
+                           set plain(job$job,state) $elemin
+                        }
+                        "6" {
+                           set plain(job$job,date) $elemin
+                        }
+                        "7" {
+                           set plain(job$job,time) $elemin
+                        }
+                        "8" {
+                           set plain(job$job,queue) $elemin
+                        }
+                        "9" {
+                           set plain(job$job,slots) $elemin
+                        }
+                        "10" {
+                           set plain(job$job,tasks) $elemin
+                        }
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+            "2" {
+              set elem_split [ split $elem " +" ]
+               set inner 1
+               foreach elemin $elem_split {
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {                        
+                        "3" {
+                           set plain(job$job,fullName) $elemin
+                        }                        
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+         }
+         # every fifth line is a new job, increment counter
+         if { $line == 5} {
+               incr job 1  
+               set line 0
+         
+         }
+      }      
+      incr line 1
+      incr count 1
+   }
+}
+
+#****** parser/plain_r_parse() ******
+#
+#  NAME
+#     plain_r_parse -- Generate output and return assoc array 
+#
+#  SYNOPSIS
+#     plain_r_parse { output_var }
+#                     -- Generate output and return assoc array with
+#                        entries based on the output of qhost -F.
+#
+#      output_var  -  asscoc array with the entries mentioned above.
+#      
+#                 
+#
+#  FUNCTION
+#     return parsed output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#     
+#
+#  NOTES
+#     
+#
+#*******************************
+proc plain_r_parse { output_var } {
+   upvar $output_var plain
+   set plainoutput [start_sge_bin "qstat" "-r"]
+   
+   # split plain output based on each new line
+   set plain_split [ split $plainoutput "\n" ]   
+   set inc 0
+   set job 0
+   set count 1
+   set line -1
+   foreach elem $plain_split { 
+      if {$count > 2} {          
+         switch -- $line {
+            "1" {
+               set elem_split [ split $elem " +" ]
+               set inner 1
+               foreach elemin $elem_split {
+                  # we are only interested in none empty strings
+                  # create an array based on attributes
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {
+                        "1" {
+                           set plain(jobNumber) $elemin
+                        }
+                        "2" {
+                           set plain(prio) $elemin
+                        }
+                        "3" {
+                           set plain(name) $elemin
+                        }
+                        "4" {
+                           set plain(owner) $elemin
+                        }
+                        "5" {
+                           set plain(state) $elemin
+                        }
+                        "6" {
+                           set plain(,date) $elemin
+                        }
+                        "7" {
+                           set plain(time) $elemin
+                        }
+                        "8" {
+                           set plain(queue) $elemin
+                        }
+                        "9" {
+                           set plain(slots) $elemin
+                        }
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+            "4" {
+              set elem_split [ split $elem " +" ]
+               set inner 1
+               foreach elemin $elem_split {
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {                        
+                        "3" {
+                           set plain(hard) $elemin
+                        }                        
+                     }
+                     incr inner 1
+                  }
+               }
+            }            
+            "5" {
+              set elem_split [ split $elem " +" ]
+               set inner 1
+               foreach elemin $elem_split {
+                  if {[string length $elemin] > 0} {
+                     switch -- $inner {                        
+                        "3" {
+                           set plain(soft) $elemin
+                        }                        
+                     }
+                     incr inner 1
+                  }
+               }
+            }
+         }
+      }      
+      incr line 1
+      incr count 1
+   }
+}

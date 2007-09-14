@@ -1809,3 +1809,130 @@ proc qhost_q_xml_parse { output_var } {
       }     
    }
 }
+
+#****** parser_xml/qstat_gdr_xml_parse() ******
+#
+#  NAME
+#     qstat_gdr_xml_parse -- Generate XML output and return assoc array 
+#
+#  SYNOPSIS
+#     qstat_gdr_xml_parse { output }
+#                     -- Generate XML output and return assoc array with
+#                        entries jobid, prior, name, owner, state, total_time,
+#                        queue, slots, task_id and full name.
+#
+#      output  -  asscoc array with the entries mentioned above.
+#                 
+#
+#  FUNCTION
+#     Print out parsed xml output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qstat_gdr_xml_parse { output } {
+   upvar $output xml
+   
+   set xmloutput [start_sge_bin "qstat" "-g d -r -xml"]
+   set doc [dom parse $xmloutput]
+   set root [$doc documentElement]
+   
+   # parse xml output and create lists based on the attributes
+   set jobNumberList [$root selectNodes /job_info/queue_info/job_list/JB_job_number/text()]
+   
+   set prioList [$root selectNodes /job_info/queue_info/job_list/JAT_prio/text()]
+   set nameList [$root selectNodes /job_info/queue_info/job_list/JB_name/text()]
+   set ownerList [$root selectNodes /job_info/queue_info/job_list/JB_owner/text()]
+   set stateList [$root selectNodes /job_info/queue_info/job_list/state/text()]
+   set startTimeList [$root selectNodes /job_info/queue_info/job_list/JAT_start_time/text()]
+   set queueNameList [$root selectNodes /job_info/queue_info/job_list/queue_name/text()]
+   set slotsList [$root selectNodes /job_info/queue_info/job_list/slots/text()]
+   set tasksList [$root selectNodes /job_info/queue_info/job_list/tasks/text()]
+   set fullJobNameList [$root selectNodes /job_info/queue_info/job_list/full_job_name/text()]
+
+   # create array with xml output for each job
+   for {set ind 0} {$ind < 5 } {incr ind 1} {
+      set node [lindex $jobNumberList $ind]
+      set xml(job$ind,jobNumber) [$node nodeValue]
+      set node [lindex $prioList $ind]
+      set xml(job$ind,prio) [$node nodeValue]
+      set node [lindex $nameList $ind]
+      set xml(job$ind,name) [$node nodeValue]
+      set node [lindex $ownerList $ind]
+      set xml(job$ind,owner) [$node nodeValue]
+      set node [lindex $stateList $ind]
+      set xml(job$ind,state) [$node nodeValue]
+      set node [lindex $startTimeList $ind]
+      set xml(job$ind,time) [$node nodeValue]
+      set node [lindex $queueNameList $ind]
+      set xml(job$ind,queue) [$node nodeValue]
+      set node [lindex $slotsList $ind]
+      set xml(job$ind,slots) [$node nodeValue]
+      set node [lindex $tasksList $ind]
+      set xml(job$ind,tasks) [$node nodeValue]
+      set node [lindex $fullJobNameList $ind]
+      set xml(job$ind,fullName) [$node nodeValue]        
+   }
+   
+}
+
+#****** parser_xml/qstat_r_xml_parse() ******
+#
+#  NAME
+#     qstat_r_xml_parse -- Generate XML output and return assoc array 
+#
+#  SYNOPSIS
+#     qstat_r_xml_parse { output }
+#                     -- Generate XML output and return assoc array with
+#                        entries jobid, prior, name, owner, state, total_time,
+#                        queue, slots, hard resources, and soft resources.
+#
+#      output  -  asscoc array with the entries mentioned above.#
+#                 
+#
+#  FUNCTION
+#     Print out parsed xml output
+#
+#  INPUTS
+#     varialbe into which will be stored the parsed xml array
+#
+#  NOTES
+#     
+#
+#*******************************
+proc qstat_r_xml_parse { output } {
+   upvar $output xml
+   
+   set xmloutput [start_sge_bin "qstat" "-r -xml"]
+   set doc [dom parse $xmloutput]
+   set root [$doc documentElement]
+   
+   # parse xml output and create array based on the attributes
+   set jobNumber [$root selectNodes /job_info/queue_info/job_list/JB_job_number/text()] 
+   set prio [$root selectNodes /job_info/queue_info/job_list/JAT_prio/text()] 
+   set name [$root selectNodes /job_info/queue_info/job_list/JB_name/text()] 
+   set owner [$root selectNodes /job_info/queue_info/job_list/JB_owner/text()] 
+   set state [$root selectNodes /job_info/queue_info/job_list/state/text()] 
+   set time [$root selectNodes /job_info/queue_info/job_list/JAT_start_time/text()] 
+   set queue [$root selectNodes /job_info/queue_info/job_list/queue_name/text()] 
+   set slots [$root selectNodes /job_info/queue_info/job_list/slots/text()] 
+   set fullName [$root selectNodes /job_info/queue_info/job_list/full_job_name/text()] 
+   set hard [$root selectNodes /job_info/queue_info/job_list/hard_request/text()] 
+   set soft [$root selectNodes /job_info/queue_info/job_list/soft_request/text()]
+   
+   set xml(jobNumber) [$jobNumber nodeValue]
+   set xml(prio)  [$prio nodeValue]
+   set xml(name) [$name nodeValue]
+   set xml(owner) [$owner nodeValue]
+   set xml(state) [$state nodeValue]
+   set xml(time) [$time nodeValue]
+   set xml(queue) [$queue nodeValue]
+   set xml(slots) [$slots nodeValue]
+   set xml(hard) [[$hard parentNode] getAttribute name]=[$hard nodeValue]
+   set xml(soft) [[$soft parentNode] getAttribute name]=[$soft nodeValue]
+   
+}
