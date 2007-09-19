@@ -320,7 +320,7 @@ proc get_execd_spool_dir {host} {
   }
 }
 
-proc seek_and_desroy_sge_processes {} {
+proc seek_and_destroy_sge_processes {} {
    global ts_host_config CHECK_OUTPUT CHECK_USER
 
    set answer_text ""

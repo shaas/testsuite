@@ -2642,10 +2642,10 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
          }
       }
       del_open_spawn_rlogin_session $spawn_id
-      puts -nonewline $CHECK_OUTPUT "close_open_rlogin_sessions - closing $spawn_id ..."
+      puts -nonewline $CHECK_OUTPUT "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
       flush $CHECK_OUTPUT
       close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 ;# don't check exit state
-      puts $CHECK_OUTPUT "DONE"
+      puts $CHECK_OUTPUT "done"
    }
 }
 

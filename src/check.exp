@@ -401,6 +401,18 @@ set CHECK_INFORMATION_EXT  "exp"     ;# default extension for check files
                                          ;# every file with this name is interpreded as check routine
 
 
+# the following variables are used for handling user pressing CTRL-C
+global CHECK_INTERRUPT              ;# user requests interrupt, value of CHECK_INTERRUPT defines when
+                                     # the check will be interrupted:
+                                     # 1: after the current check, including all active runlevels
+                                     # 2: after the current check in the current runlevel
+                                     # 3: after the current check_function
+global CHECK_TEST_RUNNING           ;# we are currently running a check
+global CHECK_TESTS_RUNNING          ;# we are currently running a whole part of checktree
+set CHECK_INTERRUPT 0
+set CHECK_TEST_RUNNING 0
+set CHECK_TESTS_RUNNING 0
+
 # debuglevel 0 - none
 # debuglevel 1 - more output
 # debuglevel 2 - wait for user response (sometimes!)
@@ -3554,7 +3566,10 @@ proc run_tests {path runcompleted} {
    global CHECK_ACT_PATH check_use_installed_system
    global check_reinit_on_tcl_error
    global ts_config
+   global CHECK_TESTS_RUNNING
+   global CHECK_INTERRUPT
 
+   set CHECK_TESTS_RUNNING 1
 
    set local_host [gethostname]
    set CHECK_MAILS_SENT 0  ;# clear mail counter
@@ -3584,6 +3599,7 @@ proc run_tests {path runcompleted} {
    }
    set checks_to_do [lsort -dictionary $checks_to_do]
    if {[llength $checks_to_do] == 0} {
+      set CHECK_TESTS_RUNNING 0
       return
    }
 
@@ -3624,6 +3640,12 @@ proc run_tests {path runcompleted} {
 
       # run all checks
       foreach check $checks_to_do {
+         # running all tests can be interrupted by pressing CTRL-C
+         if {$CHECK_INTERRUPT > 0} {
+            set stop 1
+            break
+         }
+
          # run an individual check
          set test_result [run_test $check $runcompleted]
 
@@ -3690,11 +3712,17 @@ proc run_tests {path runcompleted} {
          }
       }
 
+      # if stop was requested, e.g. by CTRL-C, stop now
+      if {$stop} {
+         break
+      }
+
+      # try to rerun checks that failed due to dependencies errors
       if {[llength $check_missing_dep] > 0} {
          # missing dependencies, run again
          set checks_to_do $check_missing_dep
          incr pass_no
-         if { $todo == $last_to_do } {
+         if {$todo == $last_to_do} {
             set stop 1
          } else {
             puts $CHECK_OUTPUT "restarting test with missing dependencies ..."
@@ -3766,6 +3794,8 @@ proc run_tests {path runcompleted} {
 
    # do send mail
    mail_report "$mail_subject" $mail_body
+
+   set CHECK_TESTS_RUNNING 0
 }
 
 
@@ -3998,6 +4028,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    global errorInfo
    global check_setup_level_function check_cleanup_level_function
    global ts_config
+   global CHECK_INTERRUPT
    
    # do not run already completed tests
    debug_puts "runcompleted is $runcompleted"
@@ -4052,6 +4083,10 @@ proc run_test_level {path runcompleted level {do_save 1}} {
       # but continue with the cleanup function
       if {$setup_ret} {
          foreach elem $check_functions {
+            # running all check_functions can be interrupted by pressing CTRL-C
+            if {$CHECK_INTERRUPT >= 3} {
+               break
+            }
             puts $CHECK_OUTPUT "\n>>>>>>>>>>>>>>>>>>>>>>"
             puts $CHECK_OUTPUT "$elem"    
             puts $CHECK_OUTPUT "runlevel: [get_run_level_name $level]($level)"
@@ -4325,6 +4360,11 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    global check_category CHECK_GROUP DISABLE_ADD_PROC_ERROR
    global check_setup_function check_cleanup_function check_setup_level_function check_cleanup_level_function
    global ts_config
+   global CHECK_TEST_RUNNING
+   global CHECK_INTERRUPT
+
+   # monitor, that we are currently running a test
+   set CHECK_TEST_RUNNING 1
 
    cd $CHECK_CURRENT_WORKING_DIR
 
@@ -4381,6 +4421,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
             delete_result $path 0 $level
          }
       }
+      set CHECK_TEST_RUNNING 0
       return -2  ;# dependencies not fulfilled
    }
 
@@ -4412,6 +4453,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    if { $possible_test_levels == 0 } {
       # the test doesn't support any check level - store it as done unsupported
       save_result $path 0 0 1
+      set CHECK_TEST_RUNNING 0
       return -3
    }
 
@@ -4441,6 +4483,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
    if { $no_of_test_runs == 0 } {
       # no active runlevel for this check, return 2
+      set CHECK_TEST_RUNNING 0
       return 2
    }
 
@@ -4460,6 +4503,11 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
    if {$immediate_return == 0} {
       for {set level 0} {$level <= $check_highest_level} {incr level 1} {
+         # check for interrupt
+         if {$CHECK_INTERRUPT >= 2} {
+            break
+         }
+
          if {[is_level_enabled $level] == -1} {
             continue
          }
@@ -4542,10 +4590,12 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    }
 
    if {$immediate_return != 0} {
+      set CHECK_TEST_RUNNING 0
       return $immediate_return
    }
 
    if {$nr_already_done == $no_level_calls} {
+      set CHECK_TEST_RUNNING 0
       return 1  ;# was done time before
    }
   
@@ -4573,8 +4623,10 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
          append mail_body "init level proc:  $check_init_level_procedure\n"
          mail_report "testsuite success - $check_name" $mail_body
       }
+      set CHECK_TEST_RUNNING 0
       return 0
    } else {
+      set CHECK_TEST_RUNNING 0
       if {$nr_errors == 0} {
          return -3 ;# we had warnings
       }
@@ -6859,9 +6911,12 @@ proc menu {} {
   global daemon_debug CHECK_DEBUG_LEVEL CHECK_DEFAULTS_FILE CHECK_DO_SETUP
   global CHECK_PACKAGE_DIRECTORY CHECK_SETUP_CHANGES CHECK_PACKAGE_TYPE
   global check_reinit_on_tcl_error ts_checktree CHECK_ENABLED_CATEGORIES ts_config
+   global CHECK_INTERRUPT
 
   set local_host [gethostname]
   delete_temp_script_files
+
+   while {1} {
 
   print_menu_header
  
@@ -6874,7 +6929,7 @@ proc menu {} {
   puts "  (7) reset completed test list (for all subdirectories)"
   puts "  (8) create check report"
   puts "  (9) run all tests at a special starttime"
-  if { [ string compare "stdout" $CHECK_OUTPUT ] == 0 } {
+  if {[string compare "stdout" $CHECK_OUTPUT] == 0} {
      puts " (10) use file \"${local_host}.checklog\" for output" 
   } else {
      puts " (10) use \"stdout\" for output"
@@ -6883,7 +6938,7 @@ proc menu {} {
   set localtest -1
   if {[info exists ts_checktree($CHECK_ACT_PATH)]} {
      set local_dir_nr $ts_checktree($CHECK_ACT_PATH)
-     if { $ts_checktree($local_dir_nr,test_available) == 1 } {
+     if {$ts_checktree($local_dir_nr,test_available) == 1} {
         set localtest 0
      }
   }
@@ -6912,6 +6967,7 @@ proc menu {} {
     puts " (30) re-read checktree and re-source tcl-files"
     puts " (31) search for old sge_processes on configured hosts"
     puts " (32) dump status of all rlogin connections"
+    puts " (33) close all rlogin connections"
     puts " (40) initialize code coverage checking"
     puts " (41) delete code coverage data"
     puts " (42) dump code coverage analysis"
@@ -6952,17 +7008,17 @@ proc menu {} {
            wait_for_enter
          }
     "23" { 
-            if { [have_root_passwd] == -1 } {
-                  puts $CHECK_OUTPUT "need root access ..."
-                  set_root_passwd
+            if {[have_root_passwd] == -1} {
+               puts $CHECK_OUTPUT "need root access ..."
+               set_root_passwd
             }
 
-            if { $ts_config(package_directory) == "none" ||
-                 $ts_config(package_type) == "create_tar" } {
+            if {$ts_config(package_directory) == "none" ||
+                $ts_config(package_type) == "create_tar"} {
                # we compile the source and do a scripts/distinst
                set back [compile_source]
                 
-                if { $back != 0 } {
+                if {$back != 0} {
                    puts "--> error compiling and pre installing source code"
                 } else {
                    puts "--> source code compiled and pre installed"
@@ -6998,10 +7054,10 @@ proc menu {} {
          }
     "25" {  incr CHECK_DEBUG_LEVEL 1 
             if  { $CHECK_DEBUG_LEVEL > 2 } {
-                set CHECK_DEBUG_LEVEL 0
-            } 
+               set CHECK_DEBUG_LEVEL 0
+            }
          }
-    "26" {  
+    "26" {
             modify_setup2
             source_tcl_files
             build_checktree
@@ -7024,10 +7080,14 @@ proc menu {} {
          wait_for_enter
     }
     "31" {
-         seek_and_desroy_sge_processes
+         seek_and_destroy_sge_processes
     }
     "32" {
          dump_spawn_rlogin_sessions
+         wait_for_enter
+    }
+    "33" {
+         close_open_rlogin_sessions
          wait_for_enter
     }
     "40" {
@@ -7037,15 +7097,15 @@ proc menu {} {
     "41" {
          coverage_initialize 1
          wait_for_enter
-    } 
+    }
     "42" {
          coverage_analyis
          wait_for_enter
     }
-    "50" { 
+    "50" {
          if { [have_root_passwd] == -1 } {
-               puts $CHECK_OUTPUT "need root access ..."
-               set_root_passwd
+            puts $CHECK_OUTPUT "need root access ..."
+            set_root_passwd
          }
          set back [compile_source 1]
           
@@ -7069,16 +7129,17 @@ proc menu {} {
           set check_reinit_on_tcl_error 1
           run_tests $CHECK_ACT_PATH 0
           set check_reinit_on_tcl_error $saved_check_reinit_on_tcl_error
+          set CHECK_INTERRUPT 0
           wait_for_enter
         }
     "3" { show_tests $CHECK_ACT_PATH 1
         }
-    "4" { puts "bye!\n"; 
+    "4" { puts "bye!\n"
           shutdown_core_system 0 1
           if {[string compare "stdout" $CHECK_OUTPUT] != 0} {
              close $CHECK_OUTPUT
-          } 
-          exit 0; 
+          }
+          exit 0
         }
     "5" {
           set total [print_results $CHECK_RESULT_DIR stdout]
@@ -7093,11 +7154,11 @@ proc menu {} {
     "7" { delete_tests $CHECK_ACT_PATH
           wait_for_enter
         }
-    "8" { 
-          if {[ file isfile "${CHECK_REPORT_FILE}.ok" ] == 1 } {
+    "8" {
+          if {[file isfile "${CHECK_REPORT_FILE}.ok"] == 1} {
              delete_file "${CHECK_REPORT_FILE}.ok"
           }
-          if {[ file isfile "${CHECK_REPORT_FILE}.failed" ] == 1 } {
+          if {[file isfile "${CHECK_REPORT_FILE}.failed"] == 1} {
              delete_file "${CHECK_REPORT_FILE}.failed"
           }
           create_report "${CHECK_REPORT_FILE}.ok" 0
@@ -7106,40 +7167,41 @@ proc menu {} {
         }
     "9" {
           run_all_at_starttime
+          set CHECK_INTERRUPT 0
           wait_for_enter
         }
     "10" {
-           if { [ string compare "stdout" $CHECK_OUTPUT ] == 0 } {
+           if {[string compare "stdout" $CHECK_OUTPUT] == 0} {
               set CHECK_OUTPUT [open "$CHECK_MAIN_RESULTS_DIR/$local_host.checklog" "w"]  
            } else {
               close $CHECK_OUTPUT
               set CHECK_OUTPUT stdout
            }
-           
-
          }
     "11" {
           if {$localtest >= 0} {
-            puts "local test description ..."
-            show_test $CHECK_ACT_PATH 1
-            wait_for_enter
+             puts "local test description ..."
+             show_test $CHECK_ACT_PATH 1
+             wait_for_enter
           }
         }
     "12" {
           if {$localtest >= 0} {
             puts "running local test ..."
             run_test $CHECK_ACT_PATH 1
+            set CHECK_INTERRUPT 0
             wait_for_enter
           }
          }
     "13" {
             if {$localtest >= 0} {
-               while { 1 == 1 } {
+               while {$CHECK_INTERRUPT == 0} {
                   puts "running local test ..."
                   run_test $CHECK_ACT_PATH 1
                   create_report ${CHECK_REPORT_FILE}.ok 0
                   create_report ${CHECK_REPORT_FILE}.failed 1
-               } 
+               }
+               set CHECK_INTERRUPT 0
             }
          }
      default {
@@ -7148,7 +7210,7 @@ proc menu {} {
         }
      }
    }
-   menu
+   }
 }
 
 proc update_compile_html_output { content } {
@@ -8228,10 +8290,45 @@ if { $do_only_reset_config == 1 } {
   exit $result
 }
 
-proc ctrlc { } {
-   puts "\nSIGINT handler ..."
-   close_open_rlogin_sessions
-   exit 1
+proc ctrlc {} {
+   global CHECK_INTERRUPT
+   global CHECK_TEST_RUNNING CHECK_TESTS_RUNNING
+
+   puts "\nInterrupt requested\n"
+
+   # if we are not running any tests (in menu), exit immediately
+   if {$CHECK_TEST_RUNNING == 0 && $CHECK_TESTS_RUNNING == 0} {
+      close_open_rlogin_sessions
+      exit 1
+   }
+
+   # offer a menu to let user decide what to do
+   puts "(1) exit immediately"
+   if {$CHECK_TEST_RUNNING} {
+      puts "(2) stop after current check_function"
+      puts "(3) stop after current check completed the current runlevel"
+   }
+   if {$CHECK_TESTS_RUNNING} {
+      puts "(4) stop after current check completed (all runlevels)"
+   }
+  
+   # read user input 
+   set input [wait_for_enter 1]
+   switch -exact [string trim $input] {
+      1 {
+         close_open_rlogin_sessions
+         exit 1
+      }
+      2 {
+         set CHECK_INTERRUPT 3
+      }
+      3 {
+         set CHECK_INTERRUPT 2
+      }
+      4 {
+         set CHECK_INTERRUPT 1
+      }
+   }
 }
 
 trap ctrlc { SIGINT }
