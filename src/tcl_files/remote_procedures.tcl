@@ -903,7 +903,7 @@ proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" }
    set command "/usr/lib/sendmail"
    set arguments "-B 8BITMIME -t < $mail_file"
 
-   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER $command $arguments prg_exit_state 60 0 "" "" 1 0]
+   set result [start_remote_prog $ts_config(mailx_host) "ts_def_con_mail" $command $arguments prg_exit_state 60 0 "" "" 1 0]
    if { $prg_exit_state != 0 } {
       puts $CHECK_OUTPUT "=================================="
       puts $CHECK_OUTPUT "COULD NOT SEND MAIL:\n$result"
@@ -956,8 +956,8 @@ proc sendmail_wrapper { address cc subject body } {
 
    set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
 
-   wait_for_remote_file $ts_config(mailx_host) $CHECK_USER $tmp_file
-   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER $ts_config(mail_application) "\"$address\" \"$cc\" \"$new_subject\" \"$tmp_file\""]
+   wait_for_remote_file $ts_config(mailx_host) "ts_def_con_mail" $tmp_file
+   set result [start_remote_prog $ts_config(mailx_host) "ts_def_con_mail" $ts_config(mail_application) "\"$address\" \"$cc\" \"$new_subject\" \"$tmp_file\""]
    puts $CHECK_OUTPUT "mail application returned exit code $prg_exit_state:"
    puts $CHECK_OUTPUT $result
    return 0
@@ -1480,7 +1480,7 @@ proc open_remote_spawn_process { hostname
          if { $CHECK_DEBUG_LEVEL != 0 } {
             log_user 1
          }
-         if {$tmp_help} {
+         if {$tmp_help || $ts_config(connection_type) == "ssh_with_password"} {
             set ssh_binary [get_binary_path $ts_config(master_host) ssh]
             set pid [spawn $ssh_binary "-l" $connect_full_user $hostname]
          } else {
@@ -1509,6 +1509,7 @@ proc open_remote_spawn_process { hostname
          # wait for shell to start
          set connect_errors 0
          set password_sent 0
+         set unrecognized_messages {}
          set catch_return [catch {
             set num_tries $nr_of_tries
             set timeout 2
@@ -1603,12 +1604,13 @@ proc open_remote_spawn_process { hostname
                }
                -i $spawn_id -re {^.*?\n} {
                   set line [ string trimright $expect_out(buffer) "\n\r" ]
-                  debug_puts "Got unrecordnized output: $line"
+                  debug_puts "Got unrecognized output: $line"
+                  lappend unrecognized_messages "$line"
                   exp_continue
                }
             }
          } catch_error_message]
-         if { $catch_return == 1 } {
+         if {$catch_return == 1} {
             add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\n$catch_error_message"  $raise_error
             set connect_errors 1
          }
@@ -1616,6 +1618,9 @@ proc open_remote_spawn_process { hostname
          # did we have errors?
          if {$connect_errors} {
             catch {close_spawn_id $spawn_id}
+            if {[llength unrecognized_messages] > 0} {
+                add_proc_error "open_remote_spawn_process (startup)" -2 "unrecognized_messages: $unrecognized_messages"  $raise_error
+            }
             return ""
          }
 

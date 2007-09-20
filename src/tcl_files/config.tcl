@@ -1405,12 +1405,12 @@ proc config_results_dir { only_check name config_array } {
    return $value
 }
 
-#****** config/config_use_ssh() *************************************************
+#****** config/config_connection_type() *************************************************
 #  NAME
-#     config_use_ssh() -- ssh (secure shell) setup
+#     config_connection_type() -- configurate the remote connect starter
 #
 #  SYNOPSIS
-#     config_use_ssh { only_check name config_array } 
+#     config_connection_type { only_check name config_array } 
 #
 #  FUNCTION
 #     Testsuite configuration setup - called from verify_config()
@@ -1425,9 +1425,8 @@ proc config_results_dir { only_check name config_array } {
 #     check/setup2()
 #     check/verify_config()
 #*******************************************************************************
-proc config_use_ssh {only_check name config_array} {
+proc config_connection_type {only_check name config_array} {
    global CHECK_OUTPUT 
-   global CHECK_USE_SSH
    global CHECK_USER
    global fast_setup
 
@@ -1443,10 +1442,11 @@ proc config_use_ssh {only_check name config_array} {
    if {$only_check == 0} {
       # do setup  
       puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter \"yes\" if testsuite should use secure shell to connect to the"
-      puts $CHECK_OUTPUT "cluster hosts or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "Set this value to \"none\" if you don't want configure ssh access to all cluster"
-      puts $CHECK_OUTPUT "hosts. The root user should not get any password question when using ssh."
+      puts $CHECK_OUTPUT "Please enter"
+      puts $CHECK_OUTPUT "   - \"ssh\" if testsuite should use secure shell without passwords"
+      puts $CHECK_OUTPUT "   - \"ssh_with_password\" if testsuite should use secure shell with passwords"
+      puts $CHECK_OUTPUT "   - \"rlogin\" if testsuite should use rlogin"
+      puts $CHECK_OUTPUT "to connect to the cluster hosts"
       puts $CHECK_OUTPUT "(default: $value)"
       puts -nonewline $CHECK_OUTPUT "> "
       set input [wait_for_enter 1]
@@ -1457,17 +1457,15 @@ proc config_use_ssh {only_check name config_array} {
       }
    }
 
+   if {$value != "ssh" && $value != "ssh_with_password"
+       && $value != "rlogin"} {
+       return -1
+   }
+
    set local_host [gethostname]
    if {$local_host == "unknown"} {
       puts $CHECK_OUTPUT "Could not get local host name" 
       return -1
-   }
-
-   if {$value == "yes"} {
-      set CHECK_USE_SSH 1
-   } else {
-      set value "none"
-      set CHECK_USE_SSH 0
    }
 
    if {!$fast_setup} {
@@ -1485,6 +1483,7 @@ proc config_use_ssh {only_check name config_array} {
 
    return $value
 }
+
 
 #****** config/config_source_dir() **********************************************
 #  NAME
@@ -4722,8 +4721,33 @@ proc config_build_ts_config_1_11 {} {
    set ts_config($parameter,onchange)   "compile"
    set ts_config($parameter,pos)        $insert_pos
 
-   # now we have a configuration version 1.10
+   # now we have a configuration version 1.11
    set ts_config(version) "1.11"
+}
+
+proc config_build_ts_config_1_12 {} {
+   global ts_config
+
+   # we override a the parameter: use_ssh
+   set insert_pos $ts_config(use_ssh,pos)
+
+   unset ts_config(use_ssh)
+   unset ts_config(use_ssh,desc)
+   unset ts_config(use_ssh,default)
+   unset ts_config(use_ssh,setup_func)
+   unset ts_config(use_ssh,onchange)
+   unset ts_config(use_ssh,pos)
+   
+   set parameter "connection_type"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "Starter method for remote connections"
+   set ts_config($parameter,default)    "rlogin"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   "stop"
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.11
+   set ts_config(version) "1.12"
 }
 
 #****** config/config_select_host() ********************************************
@@ -5036,5 +5060,6 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_91
    config_build_ts_config_1_10
    config_build_ts_config_1_11
+   config_build_ts_config_1_12
 }
 

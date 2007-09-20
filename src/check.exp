@@ -325,9 +325,6 @@ set CHECK_SEND_ERROR_MAILS "1"
 global CHECK_MAX_ERROR_MAILS              ;# max mails on run all test
 set CHECK_MAX_ERROR_MAILS 400
 
-global CHECK_USE_SSH                             ;# enable/disable use of ssh (o means disable)     
-set CHECK_USE_SSH 0
-
 global CHECK_EXPECT_MATCH_MAX_BUFFER   ;# read buffer for expect
 set CHECK_EXPECT_MATCH_MAX_BUFFER 640000
 
@@ -748,16 +745,17 @@ proc print_errors {} {
 #     ???/???
 #*******************************
 proc have_ssh_access {} {
-  global CHECK_OUTPUT have_ssh_access_state CHECK_USE_SSH ts_config
+  global CHECK_OUTPUT have_ssh_access_state ts_config
 
   if { $have_ssh_access_state != -1 } {
      return $have_ssh_access_state
   }
 
-  if { $CHECK_USE_SSH == 0 } {
+  if {$ts_config(connection_type) == "rlogin" ||  $ts_config(connection_type) == "ssh_with_password"} {
      set have_ssh_access_state 0
      return $have_ssh_access_state
   }
+
   set local_host [gethostname]
   set run_again 0
   if { [ info exists ts_config(execd_hosts) ] != 1 } {
@@ -1286,7 +1284,7 @@ proc send_mail { address cc subject body } {
    } else {
       set mail_args "-s \"$new_subject\" \"$address\" < \"$tmp_mailfile\""
    }
-   set mail_output [start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
+   set mail_output [start_remote_prog $CHECK_MAILX_HOST "ts_def_con_mail" "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
  
    if { $prg_exit_state != 0 } {
       puts $CHECK_OUTPUT "--> send_mail - could not send mail:\n$mail_output"
@@ -1299,7 +1297,7 @@ proc send_mail { address cc subject body } {
          } else {
             set mail_args "-s \"max mail count reached\" \"$address\" < \"$tmp_mailfile\""
          }
-         start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
+         start_remote_prog $CHECK_MAILX_HOST "ts_def_con_mail" "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
          set CHECK_ENABLE_MAIL 0
       }  
    }
@@ -2224,6 +2222,13 @@ proc update_ts_config_version {} {
       config_build_ts_config_1_11
       show_config ts_config
       wait_for_enter
+   }
+
+   if {[string compare $ts_config(version) "1.11"] == 0} {
+      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.11 to 1.12 ..."
+      config_build_ts_config_1_12
+      show_config ts_config
+      wait_for_enter
       return 0
    }
    
@@ -2308,7 +2313,6 @@ proc setup2 { } {
    global CHECK_REPORT_EMAIL_CC
    global CHECK_SEND_ERROR_MAILS 
    global CHECK_MAX_ERROR_MAILS
-   global CHECK_USE_SSH 
  
 
    # unset old system environment
