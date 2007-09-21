@@ -1,3 +1,7 @@
+RD-2007-09-21-0: Bugfix:    - fixed tight integration test
+                            - fixed clients/advance_reservation test
+                 Review:    JG
+
 RN-2007-09-20-0: Enhancem.: Added new test for authuser binary (in utilbin)
                  Issue:     2194 
                  Review:    JG

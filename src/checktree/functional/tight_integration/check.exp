@@ -808,6 +808,8 @@ proc tight_integration_master_killed {} {
    #
    # Initialize message processing.
    #
+   tight_integration_init_messages_check
+
    set id [submit_with_method $submit_command "-pe tight $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS -masterq $tight_masterq -cwd -N tightf" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 3600" $tight_master_node]
 
    set started 0

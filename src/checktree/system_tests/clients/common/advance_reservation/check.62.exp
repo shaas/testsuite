@@ -126,7 +126,6 @@ proc test_qsh_ar_switch {} {
    
    # start job
    trigger_scheduling
-
    
    #job should be running
    set run_result [wait_for_jobstart $job_id  $job_name 20]
@@ -257,6 +256,10 @@ proc qlogin_ar_call {ar_id job_name} {
 #            set output "$output$expect_out(0,string)"
             ts_send $sp_id "\004" $host ;# CTRL-D
             set do_stop 1
+         }
+         -i $sp_id "assword" {
+#            set output "$output$expect_out(0,string)"
+            ts_send $sp_id "\004" $host ;# CTRL-D
          }
          -i $sp_id "script done." {
             set output "$output$expect_out(0,string)"
