@@ -1,3 +1,6 @@
+AH-2007-09-21-0: Enhancem.: Added test for reservation scheduling issue #2344
+                 Review:    RD
+
 RD-2007-09-21-0: Bugfix:    - fixed tight integration test
                             - fixed clients/advance_reservation test
                  Review:    JG
