@@ -30,459 +30,240 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-#****** sge_calendar/get_calendar() *******************************************
+#****** sge_calendar/set_calendar_defaults() ***********************************
 #  NAME
-#     get_calendar() -- get calendar $calendar
+#     set_calendar_defaults() -- create version dependent calendar settings
 #
 #  SYNOPSIS
-#     get_calendar { calendar  {output_var result} {on_host ""} {as_user ""}  {raise_error 1}
-#     }
+#     set_calendar_defaults {change_array}
 #
 #  FUNCTION
-#     Calls qconf -scal $calendar to retrieve calendar 
+#     Fills the array change_array with default calendar attributes for the 
+#     specific version of SGE.
 #
 #  INPUTS
-#     calendar        - value of calendar we wish to see; 
-#     {output_var result} - result will be placed here
-#     {on_host ""}    - execute qconf on this host, default is master host
-#     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - raise an error condition on error (default), or just
-#                       output the error message to stdout
+#     change_array - the resulting array
 #
-#  RESULT
-#     0 on success, an error code on error.
-#     For a list of error codes, see sge_procedures/get_sge_error().
-#
-#  SEE ALSO
-#     sge_procedures/get_sge_error()
-#     sge_procedures/get_qconf_list()
 #*******************************************************************************
-proc get_calendar {calendar {output_var result}  {on_host ""} {as_user ""} {raise_error 1}} {
-
-   upvar $output_var out
-
-   # clear output variable
-   if {[info exists out]} {
-      unset out
-   }
-
-   set ret 0
-   set result [start_sge_bin "qconf" "-scal $calendar" $on_host $as_user]
-
-   # parse output or raise error
-   if {$prg_exit_state == 0} {
-      parse_simple_record result out
-   } else {
-      set ret [get_calendar_error $result $calendar $raise_error]
-   }
-
-   return $ret
-
+proc set_calendar_defaults { change_array } {
+   upvar $change_array chgar
+   
+   set chgar(calendar_name) "template"          ;# calendar_name is mandatory
+   set chgar(year)          "NONE"
+   set chgar(week)          "NONE"       
 }
 
-#****** sge_calendar/get_calendar_error() ***************************************
-#  NAME
-#     get_calendar_error() -- error handling for get_calendar
-#
-#  SYNOPSIS
-#     get_calendar_error { result calendar {arg "wrong_calendar"} raise_error }
-#
-#  FUNCTION
-#     Does the error handling for get_calendar.
-#     Translates possible error messages of qconf -scal,
-#     builds the datastructure required for the handle_sge_errors
-#     function call.
-#
-#     The error handling function has been intentionally separated from
-#     get_calendar. While the qconf call and parsing the result is
-#     version independent, the error messages (macros) usually are version
-#     dependent.
-#
-#  INPUTS
-#     result      - qconf output
-#     calendar    - calendar for which qconf -scal has been called
-#     raise_error - do add_proc_error in case of errors
-#
-#  RESULT
-#     Returncode for get_calendar function:
-#      -1: "wrong_calendar" is not a calendar
-#     -99: other error
-#
-#  SEE ALSO
-#     sge_calendar/get_calendar
-#     sge_procedures/handle_sge_errors
-#*******************************************************************************
-proc get_calendar_error {result calendar raise_error} {
- 
-   # recognize certain error messages and return special return code
-   set messages(index) "-1"
-   set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
-
-   # we might have version dependent, calendar specific error messages
-   get_calendar_error_vdep messages $calendar
-
-   set ret 0
-   # now evaluate return code and raise errors
-   set ret [handle_sge_errors "get_calendar" "qconf -scal $calendar" $result messages $raise_error]
-
-   return $ret
-}
-
-#****** sge_calendar/get_calender_list() *****************************************
-#  NAME
-#     get_calender_list() -- get a list of all calendars
-#
-#  SYNOPSIS
-#     get_calender_list {  {on_host ""} {as_user ""} {raise_error 1}  }
-#
-#  FUNCTION
-#     Calls qconf -scall to retrieve all calendars 
-#
-#  INPUTS
-#     {on_host ""}    - execute qconf on this host, default is master host
-#     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - raise an error condition on error (default), or just
-#                       output the error message to stdout
-#
-#  RESULT
-#     0 on success, an error code on error.
-#     For a list of error codes, see sge_procedures/get_sge_error().
-#
-#  SEE ALSO
-#     sge_procedures/get_sge_error()
-#     sge_procedures/get_qconf_list()
-#*******************************************************************************
-proc get_calender_list { {on_host ""} {as_user ""} {raise_error 1}} {
-
-   return [get_qconf_list "get_calender_list" "-scall" out $on_host $as_user $raise_error]
-
-}
-
-
-#                                                             max. column:     |
-#****** sge_calendar/add_calendar() ******
+#****** sge_calendar/add_calendar() ********************************************
 # 
 #  NAME
-#     add_calendar -- add new calendar definition object
+#     add_calendar -- add a new calendar configuration object
 #
 #  SYNOPSIS
-#     add_calendar { change_array {fast_add 1} {on_host ""} {as_user ""} } 
+#     add_calendar { calendar {change_array ""} {fast_add 1} {on_host ""} 
+#     {as_user ""} {raise_error 1}} 
 #
 #  FUNCTION
-#     This procedure will add/define a new calendar definition object
+#     Add a calendar to the Grid Engine cluster.
+#     Supports fast (qconf -Acal) and slow (qconf -acal) mode.
 #
 #  INPUTS
-#     {fast_add 1} - if not 0 the add_calendar procedure will use a file for
-#                    adding a calendar
+#     calendar          - calendar name
+#     {change_array ""} - name of an array variable
+#     {fast_add 1}      - if not 0 the add_calendar procedure will use a file 
+#                         for adding a calendar
+#     {on_host ""}      - execute qconf on this host, default is master host
+#     {as_user ""}      - execute qconf as this user, default is $CHECK_USER
+#     {raise_error 1}   - raise an error condition on error (default), or just
+#                         output the error message to stdout
+#
+#  RESULT
+#       0 - success
+#     < 0 - error
+#
+#  SEE ALSO
+#     sge_procedures/handle_sge_error()
+#     sge_calendar/get_calendar_messages()
+#*******************************************************************************
+proc add_calendar {calendar {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
+
+   upvar $change_array chgar
+   set chgar(calendar_name) "$calendar"
+
+   get_calendar_messages messages "add" "$calendar" $on_host $as_user
+
+   if {$fast_add} {
+      puts $CHECK_OUTPUT "Add calendar $calendar from file ..."
+      set option "-Acal"
+      set_calendar_defaults old_config
+      update_change_array old_config chgar
+      set tmpfile [dump_array_to_tmpfile old_config]
+      set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
+     
+   } else {
+      puts $CHECK_OUTPUT "Add calendar $calendar slow ..."
+      set option "-acal"
+      set vi_commands [build_vi_command chgar]
+      set result [start_vi_edit "qconf" "$option $calendar" $vi_commands messages $on_host $as_user]
+
+  }
+
+  return [handle_sge_errors "add_calendar" "qconf $option" $result messages $raise_error]
+}
+
+#****** sge_calendar/get_calendar() *******************************************
+#  NAME
+#     get_calendar() -- get calendar configuration object
+#
+#  SYNOPSIS
+#     get_calendar { calendar  {output_var result} {on_host ""} {as_user ""}  
+#     {raise_error 1}}
+#
+#  FUNCTION
+#     Get the actual configuration settings for the named calendar
+#     Represents qconf -scal command in SGE
+#
+#  INPUTS
+#     calendar            - name of calendar we wish to see
+#     {output_var result} - result will be placed here
+#     {on_host ""}        - execute qconf on this host, default is master host
+#     {as_user ""}        - execute qconf as this user, default is $CHECK_USER
+#     {raise_error 1}     - raise an error condition on error (default), or just
+#                           output the error message to stdout
+#
+#  RESULT
+#       0 - success
+#     < 0 - error
+#
+#  SEE ALSO
+#     sge_procedures/handle_sge_error()
+#     sge_calendar/get_calendar_messages()
+#*******************************************************************************
+proc get_calendar {calendar {output_var result}  {on_host ""} {as_user ""} {raise_error 1}} {
+   global CHECK_OUTPUT
+   upvar $output_var out
+
+   puts $CHECK_OUTPUT "Get calendar $calendar ..."
+
+   get_calendar_messages messages "get" "$calendar" $on_host $as_user
+
+   return [get_qconf_object "get_calendar" "-scal $calendar" out messages 0 $on_host $as_user $raise_error]
+ 
+}
+
+#****** sge_calendar/get_calender_list() ***************************************
+#  NAME
+#     get_calender_list() -- get the list of all calendars
+#
+#  SYNOPSIS
+#     get_calender_list {{output_var result} {on_host ""} {as_user ""} 
+#     {raise_error 1}}
+#
+#  FUNCTION
+#     Calls qconf -scall to retrieve the list of all calendars in SGE
+#
+#  INPUTS
+#     {output_var result}  - result will be placed here
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
+#     {raise_error 1} - raise an error condition on error (default), or just
+#                       output the error message to stdout
 #
 #  RESULT
-#     -1   timeout error
-#     -2   calendar already exists
-#      0   ok
-#
-#  EXAMPLE
-#     set new_cal(calendar_name)  "qconf_calendar"
-#     set new_cal(year)           "NONE"
-#     set new_cal(week)           "mon-sun=0-24=suspended" 
-#
-#  NOTES
-#     The array should look like this:
-#
-#     set change_array(calendar_name) "mycalendar"
-#     set change_array(year) 	        "NONE"
-#     set change-array(week)          "mon-sun=0-24=suspended"
-#     ....
-#     (every value that is set will be changed)
-#
-#     Here the possible change_array values with some typical settings:
-#
-#     attribute(calendar_name) "test"
-#     attribute(year)          "NONE"
-#     attribute(week)          "NONE"
+#       0 - success
+#     < 0 - error
 #
 #  SEE ALSO
-#     sge_procedures/get_sge_error()
-#     sge_procedures/get_qconf_list()
-#*******************************
-proc add_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_OUTPUT CHECK_USER
-  global env open_spawn_buffer
-  upvar $change_array chgar
-  get_current_cluster_config_array ts_config
-
-  set values [array names chgar]
-
-  set default_array(calendar_name)    "template"
-  set default_array(year)      "NONE"
-  set default_array(week)      "NONE"
-
-  foreach elem $values {
-     puts $CHECK_OUTPUT "--> setting \"$elem\" to \"$chgar($elem)\""
-     set default_array($elem) "$chgar($elem)"
-  }
-
-  # Set calendar to chgar(calendar_name)
-  set calendar $chgar(calendar_name)
-
-  if { $fast_add != 0 } {
-     # add calendar from file!
-
-     set tmpfile [get_tmp_file_name]
-     set file [open $tmpfile "w"]
-     set values [array names default_array]
-     foreach elem $values {
-        set value [set default_array($elem)]
-        puts $file "$elem                   $value"
-     }
-     close $file
-
-      set ret 0
-      set result [start_sge_bin "qconf" "-Acal $tmpfile" $on_host $as_user]
-
-      # parse output or raise error
-      if {$prg_exit_state == 0} {
-         set ret 0
-      } else {
-         set ret [add_calender_error $prg_exit_state $tmpfile $calendar $raise_error]
-      }
-   } else {
-
-      puts $CHECK_OUTPUT "adding calendar $calendar"
-
-      set vi_commands [build_vi_command chgar]
-      set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS "*" "*" "*" "*"]
-      set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*"]
-
-     # Now add using vi
-     set arch [resolve_arch $ts_config(master_host)]
-     set ret [ handle_vi_edit "$ts_config(product_root)/bin/$arch/qconf" "-acal $calendar" $vi_commands  $ADDED $ALREADY_EXISTS  ]
-     if { $ret == -1 } { add_proc_error "add_calendar" -1 "timeout error" }
-     if { $ret == -2 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" already exists" }
-     if { $ret != 0  } { add_proc_error "add_calendar" -1 "could not add calendar \"[set $calendar]\"" }
-
-  }
-  return $ret
-
-}
-
-#****** sge_calendar/add_calender_error() ***************************************
-#  NAME
-#     add_calender_error() -- error handling for add_calendar
-#
-#  SYNOPSIS
-#     add_calender_error { result tmpfile calendar raise_error }
-#
-#  FUNCTION
-#     Does the error handling for add_calendar.
-#     Translates possible error messages of qconf -Acal,
-#     builds the datastructure required for the handle_sge_errors
-#     function call.
-#
-#     The error handling function has been intentionally separated from
-#     add_calendar. While the qconf call and parsing the result is
-#     version independent, the error messages (macros) usually are version
-#     dependent.
-#
-#  INPUTS
-#     result      - qconf output
-#     tmpfile     - temp file with calendar info
-#     calendar    - calendar we are adding
-#     raise_error - do add_proc_error in case of errors
-#
-#  RESULT
-#     Returncode for get_calendar function:
-#      -1: "wrong_calendar" is not a calendar
-#     -99: other error
-#
-#  SEE ALSO
-#     sge_calendar/get_calendar
-#     sge_procedures/handle_sge_errors
+#     sge_procedures/handle_sge_error()
+#     sge_calendar/get_calendar_messages()
 #*******************************************************************************
-proc add_calender_error {result tmpfile calendar raise_error} {
+proc get_calendar_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
+   global CHECK_OUTPUT
+   upvar $output_var out
+   
+   puts $CHECK_OUTPUT "Get calendar list ..."
 
-   # recognize certain error messages and return special return code
-   set messages(index) "-1"
-   set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
-
-   # we might have version dependent, calendar specific error messages
-   get_calendar_error_vdep messages $calendar
-
-   set ret 0
-   # now evaluate return code and raise errors
-   set ret [handle_sge_errors "add_calendar" "qconf -Acal $tmpfile" $result messages $raise_error]
-
-   return $ret
+   get_calendar_messages messages "list" "" $on_host $as_user 
+   
+   return [get_qconf_object "get_calendar_list" "-scall" out messages 1 $on_host $as_user $raise_error]
 }
 
-#                                                             max. column:     |
-#****** sge_fastadd/mod_calendar() ******
+#****** sge_calendar/mod_calendar() ********************************************
 #
 #  NAME
-#     mod_calendar -- modify eixsting calendar 
+#     mod_calendar -- modify existing calendar configuration object
 #
 #  SYNOPSIS
-#     mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} }
+#     mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} }
 #
 #  FUNCTION
-#     This procedure will modify an existing calendar 
+#     Modify the calendar $calendar in the Grid Engine cluster.
+#     Supports fast (qconf -Mcal) and slow (qconf -mcal) mode.
 #
 #  INPUTS
+#     calendar     - the name of the calendar we are modifying
 #     change_array - name of an array variable that will be set by mod_calendar
 #     {fast_add 1} - if not 0 the add_calendar procedure will use a file for
 #                    adding a calendar
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
+#     {raise_error 1} - do add_proc_error in case of errors
 #
 #  RESULT
-#     -1   timeout error
-#     -2   calendar already exists
-#      0   ok
-#
-#  EXAMPLE
-#     set new_cal(calendar_name)  "qconf_calendar"
-#     set new_cal(year)           "NONE"
-#     set new_cal(week)           "mon-sun=0-24=suspended"
-#
-#  NOTES
-#     The array should look like this:
-#
-#     set change_array(calendar_name) "mycalendar"
-#     set change_array(year)            "NONE"
-#     set change-array(week)          "mon-sun=0-24=suspended"
-#     ....
-#     (every value that is set will be changed)
-#
-#     Here the possible change_array values with some typical settings:
-#
-#     attribute(calendar_name) "test"
-#     attribute(year)          "NONE"
-#     attribute(week)          "NONE"
+#       0 - success
+#     < 0 - error
 #
 #  SEE ALSO
-#     sge_procedures/get_sge_error()
-#     sge_procedures/get_qconf_list()
-#*******************************
-proc mod_calendar {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_USER CHECK_OUTPUT
-  global env open_spawn_buffer
+#     sge_procedures/handle_sge_error()
+#     sge_calendar/get_calendar_messages()
+#*******************************************************************************
+proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
+  global CHECK_OUTPUT DISABLE_ADD_PROC_ERROR
   get_current_cluster_config_array ts_config
-
+ 
   upvar $change_array chgar
-
-  set values [array names chgar]
-
-  set default_array(calendar_name)    "template"
-  set default_array(year)      "NONE"
-  set default_array(week)      "NONE"
-
-  foreach elem $values {
-     puts $CHECK_OUTPUT "--> setting \"$elem\" to \"$chgar($elem)\""
-     set default_array($elem) $chgar($elem)
-  }
-
-  # Set calendar to chgar(calendar_name)
-  set calendar $chgar(calendar_name)
+  set chgar(calendar_name) $calendar
+  
+  get_calendar_messages messages "mod" "$calendar" $on_host $as_user
 
   if { $fast_add != 0 } {
-     # add calendar from file!
-
-     set tmpfile [dump_array_to_tmpfile default_array]
-     set ret [start_sge_bin "qconf" "-Mcal $tmpfile" $on_host $as_user]
-
-     # parse output or raise error
-     if {$prg_exit_state == 0} {
-        set result 0 
-     } else {
-        set result [mod_calendar_error $ret $tmpfile $calendar $raise_error]
-     }
-   } else {
-      puts $CHECK_OUTPUT "modifying calendar $calendar"
-
-      set vi_commands [build_vi_command chgar]
-
-      set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "*" "*"]
-      set ALREADY_EXISTS [translate_macro  MSG_SGETEXT_ALREADYEXISTS_SS "*" "*" ]
-      if {$ts_config(gridengine_version) >= 62} {
-         set REJECTED_DUE_TO_AR_SSU [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
-      } else {
-         set REJECTED_DUE_TO_AR_SSU "message MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU only exists in 6.2 or higher"
+      puts $CHECK_OUTPUT "Modify calendar $calendar from file ..."
+      set option "-Mcal"
+      set DISABLE_ADD_PROC_ERROR 1
+      get_calendar $calendar curr_cal $on_host $as_user
+      set DISABLE_ADD_PROC_ERROR 0
+      if {![info exists curr_cal]} {
+         set_calendar_defaults curr_cal
       }
-
-     # Now add using vi
-     set arch [resolve_arch $ts_config(master_host)]
-     set result [handle_vi_edit "$ts_config(product_root)/bin/$arch/qconf" "-mcal $calendar" $vi_commands $MODIFIED $ALREADY_EXISTS $REJECTED_DUE_TO_AR_SSU]
-     if { $result == -1 } { add_proc_error "add_calendar" -1 "timeout error" }
-     if { $result == -2 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" already exists" }
-     if { $result == -3 } { add_proc_error "add_calendar" -1 "\"[set $calendar]\" rejected because of advance reservation" }
-     if { $result != 0  } { add_proc_error "add_calendar" -1 "could not add calendar \"[set $calendar]\"" }
+      update_change_array curr_cal chgar
+      set tmpfile [dump_array_to_tmpfile curr_cal]
+      set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
+      
+   } else {
+      puts $CHECK_OUTPUT "Modify calendar $calendar slow ..."
+      set option "-mcal"
+      # BUG: different message for "vi" from fastadd ...
+      set NOT_EXISTS [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S "$calendar"]
+      add_message_to_container messages -1 $NOT_EXISTS
+      set vi_commands [build_vi_command chgar]
+      set result [start_vi_edit "qconf" "$option $calendar" $vi_commands messages $on_host $as_user]
 
   }
-  return $result 
 
+   return [handle_sge_errors "mod_calendar" "qconf $option" $result messages $raise_error]
 }
-#****** sge_calendar/mod_calender_error() ***************************************
-#  NAME
-#     mod_calender_error() -- error handling for mod_calendar
-#
-#  SYNOPSIS
-#     mod_calender_error { result tmpfile calendar raise_error }
-#
-#  FUNCTION
-#     Does the error handling for add_calendar.
-#     Translates possible error messages of qconf -Acal,
-#     builds the datastructure required for the handle_sge_errors
-#     function call.
-#
-#     The error handling function has been intentionally separated from
-#     add_calendar. While the qconf call and parsing the result is
-#     version independent, the error messages (macros) usually are version
-#     dependent.
-#
-#  INPUTS
-#     result      - qconf output
-#     tmpfile     - temp file with calendar info
-#     calendar    - calendar we are adding
-#     raise_error - do add_proc_error in case of errors
-#
-#  RESULT
-#     Returncode for get_calendar function:
-#      -1: "wrong_calendar" is not a calendar
-#     -99: other error
-#
-#  SEE ALSO
-#     sge_calendar/get_calendar
-#     sge_procedures/handle_sge_errors
-#*******************************************************************************
-proc mod_calendar_error {result tmpfile calendar raise_error} {
-
-   # recognize certain error messages and return special return code
-   set messages(index) "-1 -2"
-   set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
-   set messages(-2) [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
-
-   # we might have version dependent, calendar specific error messages
-   # get_calendar_error_vdep messages $calendar
-
-   set ret 0
-   # now evaluate return code and raise errors
-   set ret [handle_sge_errors "mod_calendar" "qconf -Mcal $tmpfile" $result messages $raise_error]
-
-   return $ret
-}
-
 
 #****** sge_calendar/del_calendar() *******************************************
 #  NAME
-#     del_calendar() -- delete calendar $calendar
+#     del_calendar() -- delete calendar configuration object
 #
 #  SYNOPSIS
-#     del_calendar { calendar {on_host ""} {as_user ""}  {raise_error 1}
-#     }
+#     del_calendar { calendar {on_host ""} {as_user ""}  {raise_error 1}}
 #
 #  FUNCTION
-#     Calls qconf -dcal $calendar to delete calendar
+#     Delete the calendar configuration object
+#     Represents qconf -dcal command in SGE
 #
 #  INPUTS
 #     calendar        - value of calendar we wish to delete;
@@ -492,74 +273,97 @@ proc mod_calendar_error {result tmpfile calendar raise_error} {
 #                       output the error message to stdout
 #
 #  RESULT
-#     0 on success, an error code on error.
-#     For a list of error codes, see sge_procedures/get_sge_error().
+#       0 - success
+#     < 0 - error
 #
 #  SEE ALSO
-#     sge_procedures/get_sge_error()
-#     sge_procedures/get_qconf_list()
+#     sge_procedures/handle_sge_error()
+#     sge_calendar/get_calendar_messages()
 #*******************************************************************************
 proc del_calendar {calendar {on_host ""} {as_user ""} {raise_error 1}} {
+   global CHECK_OUTPUT
+   puts $CHECK_OUTPUT "Delete calendar $calendar ..."
+
+   get_calendar_messages messages "del" "$calendar" $on_host $as_user
+   
    set output [start_sge_bin "qconf" "-dcal $calendar" $on_host $as_user]
-
-   # parse output and/or raise error
-   set ret [del_calendar_error $output $calendar $raise_error $prg_exit_state]
-
-   return $ret
+   
+   return [handle_sge_errors "del_calendar" "qconf -dcal $calendar" $output messages $raise_error]
+   
 }
 
-#****** sge_calendar/del_calendar_error() ***************************************
+#****** sge_calendar/get_calendar_messages() *************************************
 #  NAME
-#     del_calendar_error() -- error handling for del_calendar
+#     get_calendar_messages() -- returns the set of messages related to action 
+#                              on calendar, i.e. add, modify, delete, get
 #
 #  SYNOPSIS
-#     del_calendar_error { result calendar raise_error }
+#     get_calendar_messages {msg_var action obj_name result {on_host ""} {as_user ""}} 
 #
 #  FUNCTION
-#     Does the error handling for del_calendar.
-#     Translates possible error messages of qconf -dcal,
-#     builds the datastructure required for the handle_sge_errors
-#     function call.
-#
-#     The error handling function has been intentionally separated from
-#     del_calendar. While the qconf call and parsing the result is
-#     version independent, the error messages (macros) usually are version
-#     dependent.
+#     Returns the set of messages related to action on sge object. This function
+#     is a wrapper of sge_object_messages which is general for all types of objects
 #
 #  INPUTS
-#     result      - qconf output
-#     calendar    - calendar we are adding
-#     raise_error - do add_proc_error in case of errors
-#
-#  RESULT
-#     Returncode for get_calendar function:
-#      -1: "wrong_calendar" is not a calendar
-#     -99: other error
+#     msg_var       - array of messages (the pair of message code and message value)
+#     action        - action examples: add, modify, delete,...
+#     obj_name      - sge object name
+#     {on_host ""}  - execute on this host, default is master host
+#     {as_user ""}  - execute qconf as this user, default is $CHECK_USER
 #
 #  SEE ALSO
-#     sge_calendar/get_calendar
-#     sge_procedures/handle_sge_errors
+#     sge_procedures/sge_client_messages()
 #*******************************************************************************
-proc del_calendar_error {result calendar raise_error prg_exit_state} {
-   # recognize success
-   set messages(index) 0
-   set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS "*" "*" $calendar "calendar"]
+proc get_calendar_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
+   get_current_cluster_config_array ts_config
 
-   # recognize certain error messages and return special return code
-   lappend messages(index) -1
-   set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
-   lappend messages(index) -2
-   set messages(-2) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "calendar" $calendar]
-   lappend messages(index) -3
-   set messages(-3) "*[translate_macro MSG_CALENDAR_REFINQUEUE_SS $calendar "*"]"
+   upvar $msg_var messages
+   if {[info exists messages]} {
+     unset messages
+   }
 
-   # we might have version dependent, calendar specific error messages
-   get_calendar_error_vdep messages $calendar
+  # set CALENDAR [translate_macro SGE_OBJ_CALENDAR]
+   set CALENDAR "calendar"
 
-   set ret 0
-   # now evaluate return code and raise errors
-   set ret [handle_sge_errors "del_calendar" "qconf -dcal $calendar" $result messages $raise_error $prg_exit_state]
+   # set the expected client messages
+   sge_client_messages messages $action $CALENDAR $obj_name $on_host $as_user
+   
+   # the place for exceptions: # VD version dependent  
+   #                           # CD client dependent
+   # see sge_procedures/sge_client_messages
+   switch -exact $action {
+      "add" {
+         set DISABLED_YEAR [translate_macro MSG_ANSWER_ERRORINDISABLYEAROFCALENDARXY_SS "*" "$obj_name"]
+         add_message_to_container messages -4 $DISABLED_YEAR
+         set DISABLED_WEEK [translate_macro MSG_PARSE_ERRORINDISABLEDWEEKOFCALENDAR_SS "$obj_name" "*"]
+         add_message_to_container messages -5 $DISABLED_WEEK
+      }
+      "get" {
+         # CD: not expected generic message
+         set NOT_EXISTS [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S "$obj_name"]
+         add_message_to_container messages -1 $NOT_EXISTS     
+      }
+      "mod" {
+         set DISABLED_YEAR [translate_macro MSG_ANSWER_ERRORINDISABLYEAROFCALENDARXY_SS "*" "$obj_name"]
+         add_message_to_container messages -6 $DISABLED_YEAR
+         set DISABLED_WEEK [translate_macro MSG_PARSE_ERRORINDISABLEDWEEKOFCALENDAR_SS "$obj_name" "*"]
+         add_message_to_container messages -7 $DISABLED_WEEK
+         if {$ts_config(gridengine_version) >= 62} {
+            # aja: TODO: find the parameters for this message:
+            # "denied: changing "SFQ" to "SFN" would break advance reservation "sge_U32CFormat
+            set AR_REJECTED [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
+            add_message_to_container messages -8 $AR_REJECTED
+         }
+      }
+      "del" {
+         # references: queue
+         set STILL_REF [translate_macro MSG_SGETEXT_USERSETSTILLREFERENCED_SSSS "$obj_name" "*" "*" "*"]
+         add_message_to_container messages -2 $STILL_REF
 
-   return $ret
+         set REFINQUEUE [translate_macro MSG_CALENDAR_REFINQUEUE_SS $obj_name  "*"]
+         add_message_to_container messages -2 $REFINQUEUE
+      }
+      "list" {
+      }
+   } 
 }
-

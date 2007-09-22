@@ -131,7 +131,7 @@ proc reporting_setup  {} {
    set cal(calendar_name) "reporting"
    set cal(year)          "01.01.2000=00:00-01:00=off"
    set cal(week)          "NONE"
-   add_calendar cal
+   add_calendar "reporting" cal
 
    # create an additional hostgroup for queue state test
    set hgrp(group_name) "@reporting"
@@ -415,7 +415,7 @@ if {0} {
    append cal(year) "=[clock format $time1 -format "%H:%M"]"
    append cal(year) "-[clock format $time2 -format "%H:%M"]"
    append cal(year) "=off"
-   mod_calendar cal
+   mod_calendar "reporting" cal
    replace_attr "queue" "calendar" "reporting" "reporting"
    reporting_wait_for_queue_state ""
    # test queue calender disabled state (when calendar time reached)
@@ -440,7 +440,7 @@ if {0} {
    append cal(year) "=[clock format $time1 -format "%H:%M"]"
    append cal(year) "-[clock format $time2 -format "%H:%M"]"
    append cal(year) "=suspended"
-   mod_calendar cal
+   mod_calendar "reporting" cal
    replace_attr "queue" "calendar" "reporting" "reporting"
    reporting_wait_for_queue_state ""
    # test queue calender suspended state (when calendar time reached)

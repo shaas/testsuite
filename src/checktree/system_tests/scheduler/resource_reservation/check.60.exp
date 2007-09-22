@@ -259,7 +259,7 @@ proc resource_reservation_level_setup {} {
          set new_cal(calendar_name)  "$cal_name"
          set new_cal(week)           "mon-sun=0-24=suspended"
 
-         add_calendar new_cal
+         add_calendar "$cal_name" new_cal
          set cal_queue_conf(calendar)   "$cal_name"
 
          mod_queue "$rr_cal_queue_name" "@allhosts" cal_queue_conf 1

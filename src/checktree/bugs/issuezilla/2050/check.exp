@@ -288,12 +288,11 @@ proc issue_2050_test {} {
 
          "calendars" {
             puts $CHECK_OUTPUT "-------- Testing calendars --------"
-            set test_calendar "testcal_$act_time"     
-            set new_cal(calendar_name) "$test_calendar"
+            set test_calendar "testcal_$act_time"
             set error_mail_output ""
             #create a new calendar
             puts $CHECK_OUTPUT "Creating new calendar $test_calendar"
-            set result [add_calendar new_cal]
+            set result [add_calendar $test_calendar]
             if {$result == 0} {
                puts $CHECK_OUTPUT "New calendar $test_calendar"
             } else {

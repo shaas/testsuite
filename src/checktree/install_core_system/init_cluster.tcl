@@ -918,7 +918,7 @@ proc setup_default_calendars {} {
   set calendar_param(year)                   "NONE"
   set calendar_param(week)                   "mon-sun=0-24=suspended"
 
-  set result [ add_calendar calendar_param ]
+  set result [ add_calendar "always_suspend" calendar_param ]
   if { $result != 0 } {
      add_proc_error "setup_default_calendars" -1 "result of add_default_calendars: $result"
      return
@@ -928,7 +928,7 @@ proc setup_default_calendars {} {
   set calendar_param(year)                   "NONE"
   set calendar_param(week)                   "mon-sun=0-24=off"
 
-  set result [add_calendar calendar_param]
+  set result [add_calendar "always_disabled" calendar_param]
   if { $result != 0 } {
      add_proc_error "setup_default_calendars" -1 "result of add_calendar: $result"
      return

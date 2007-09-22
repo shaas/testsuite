@@ -1836,7 +1836,7 @@ proc qconf_add_delete_modify_calendar {} {
 
    # First do a list of event clients
    puts $CHECK_OUTPUT "Add calendar $cal_name ..."
-   set result0 [add_calendar new_cal]
+   set result0 [add_calendar "$cal_name" new_cal]
 
    if { ( $result0 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -Acal succeded"
@@ -1849,7 +1849,7 @@ proc qconf_add_delete_modify_calendar {} {
 
    # Now modify it 
    puts $CHECK_OUTPUT "Modify calendar $cal_name ..."
-   set result01 [mod_calendar mod_cal]
+   set result01 [mod_calendar "$cal_name" mod_cal]
 
    if { ( $result01 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -Mcal succeded"
@@ -1869,7 +1869,7 @@ proc qconf_add_delete_modify_calendar {} {
   
    # Now do a slow add
    puts $CHECK_OUTPUT "Add calendar $cal_name slow..."
-   set result2 [add_calendar new_cal 0]
+   set result2 [add_calendar "$cal_name" new_cal 0]
 
    if { ( $result2 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -acal slow succeded"
@@ -1879,7 +1879,7 @@ proc qconf_add_delete_modify_calendar {} {
 
    # Now modify it slow
    puts $CHECK_OUTPUT "Modify calendar $cal_name slow..."
-   set result21 [mod_calendar mod_cal 0]
+   set result21 [mod_calendar "$cal_name" mod_cal 0]
 
    if { ( $result21 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -mcal slow  succeded"

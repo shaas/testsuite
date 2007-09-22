@@ -996,7 +996,7 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
    set result [string trim $result]
    # try to find error message
    foreach errno $messages(index) {
-      if {[string match $messages($errno) $result]} {
+      if {[string match "*$messages($errno)*" $result]} {
          set ret $errno
          break
       }
@@ -8129,6 +8129,71 @@ proc get_qconf_list {procedure option output_var {on_host ""} {as_user ""} {rais
    return $ret
 }
 
+#****** sge_procedures/get_qconf_object() **************************************
+#  NAME
+#     get_qconf_object() -- return a list from qconf -s* command
+#
+#  SYNOPSIS
+#     get_qconf_object { procedure option output_var msg_var {on_host ""} 
+#     {as_user ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     Calls qconf with the given option and returns the results as a list by
+#     splitting multiple lines into list elements.
+#
+#     The function can be used to call the qconf show, or show list options, 
+#     -s<obj>, -s<obj>l
+#
+#  INPUTS
+#     procedure       - calling procedure
+#     option          - qconf option to call
+#     output_var      - output list will be placed here (call by reference)
+#     msg_var         - messages array
+#     {list 0}        - 1 for list of objects, 0 for a named object
+#     {on_host ""}    - execute qconf on this host, default is master host
+#     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
+#     {raise_error 1} - raise an error condition on error (default), or just
+#                       output the error message to stdout
+#
+#  RESULT
+#     0 on success, an error code on error. 
+#     For a list of error codes, see sge_procedures/get_sge_error().
+#     
+#*******************************************************************************
+proc get_qconf_object {procedure option output_var msg_var {list 0} {on_host ""} {as_user ""} {raise_error 1}} {
+   global CHECK_OUTPUT
+   get_current_cluster_config_array ts_config
+   upvar $output_var out
+   upvar $msg_var messages
+
+   # clear output variable
+   if {[info exists out]} {
+      unset out
+   }
+
+   set result [start_sge_bin "qconf" $option $on_host $as_user]
+
+   # parse output or raise error
+   if {$prg_exit_state == 0} {
+      # BUG: project, user - for non-existing objectname doesn't return correct error code
+      if {[string first $messages(-1) $result] >= 0} {
+         set ret [handle_sge_errors "$procedure" "qconf $option" $result messages $raise_error]
+         puts $CHECK_OUTPUT "NOTE: qconf $option doesn't return correct error code" 
+      } else {
+         if {$list == 0} {
+            parse_simple_record result out
+         } else {
+            parse_multiline_list result out
+         }
+      }
+      set ret 0      
+   } else {
+      set ret [handle_sge_errors "$procedure" "qconf $option" $result messages $raise_error]
+   }
+
+   return $ret
+}
+
 #****** sge_procedures/get_scheduler_status() **********************************
 #  NAME
 #    get_scheduler_status () -- get the scheduler status 
@@ -8288,4 +8353,144 @@ proc wait_for_job_end {job_id {timeout 60}} {
       }
       puts $CHECK_OUTPUT ""
    }
+}
+
+#****** sge_procedures/sge_client_messages() ***********************************
+#  NAME
+#     sge_client_messages() -- returns the set of expected generic messages
+#
+#  SYNOPSIS
+#     sge_client_messages {msg_var action obj_type obj_name {on_host ""} 
+#     {as_user ""}} 
+#
+#  FUNCTION
+#     Returns the set of expected generic messages related to action on the given 
+#     sge object which the client can return. 
+#
+#  INPUTS
+#     msg_var       - array of messages (the pair of message code and message value)
+#     action        - action examples: add, modify, delete,...
+#     obj_type      - sge object examples: project, host, user, calendar,...
+#     obj_name      - sge object name
+#     {on_host ""}  - execute on this host, default is master host
+#     {as_user ""}  - execute qconf as this user, default is $CHECK_USER
+#
+#  SEE ALSO
+#     sge_procedures/add_message_to_container
+#*******************************************************************************
+proc sge_client_messages {msg_var action obj_type obj_name {on_host ""} {as_user ""}} {
+   global CHECK_OUTPUT 
+   get_current_cluster_config_array ts_config
+   upvar $msg_var messages
+
+   # set up the values of host and user for macro messages, if not set
+   if {$on_host == ""} {
+   set on_host "*"
+   }
+   
+   if {$as_user == ""} {
+   set as_user "*"
+   } 
+
+   switch -exact $action {
+      "add" {   
+         # expect: successfully added [ user, host, object type, object name ]
+         #         already exists [ object type, object name ]
+         #         not modified [ ]
+         set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS "$as_user" "$on_host" "$obj_name" "$obj_type"]
+         set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "$obj_type" "$obj_name"]
+         set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
+         add_message_to_container messages 0 $ADDED
+         add_message_to_container messages -2 $ALREADY_EXISTS
+         add_message_to_container messages -3 $NOT_MODIFIED
+      }
+      "get" {
+         # expect: does not exist [ object type, object name ]
+         #         object [ result ] 
+         set NOT_EXISTS [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "$obj_type" "$obj_name"]
+         add_message_to_container messages -1 $NOT_EXISTS
+      }
+      "del" {
+         # expect: successfully removed [ user, host, object type, object name ]
+         #         does not exist [ object type, object name ]
+         set REMOVED [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS "$as_user" "$on_host" "$obj_name" "$obj_type"]
+         set NOT_EXISTS [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "$obj_type" "$obj_name"]
+         add_message_to_container messages 0 $REMOVED
+         add_message_to_container messages -1 $NOT_EXISTS
+      }
+      "mod" {
+         # expect: successfully modified [ user, host, object type, object name ]
+         #         already exists [ object type, object name ]
+         #         not modified [ ]
+         #         unknown attribute [ attribute ]
+         #         no ulong [ value ]
+         #         obiect not exists
+         set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "$as_user" "$on_host" "$obj_name" "$obj_type" ]
+         set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "$obj_type" "$obj_name"]
+         set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
+         set NO_ATTR "error: [translate_macro MSG_UNKNOWNATTRIBUTENAME_S \"*\" ]"
+         set NO_ULONG [translate_macro MSG_OBJECT_VALUENOTULONG_S "*"]
+         set NOT_EXISTS [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "$obj_type" "$obj_name"]
+         add_message_to_container messages 0 $MODIFIED
+         add_message_to_container messages -1 $NOT_EXISTS
+         add_message_to_container messages -2 $ALREADY_EXISTS
+         add_message_to_container messages -3 $NOT_MODIFIED
+         add_message_to_container messages -4 $NO_ULONG
+         add_message_to_container messages -5 $NO_ATTR     
+      }
+      "list" {
+         # expect: object [ result ]
+         #         not defined [ object type ]
+         set NOT_DEFINED [translate_macro MSG_QCONF_NOXDEFINED_S "$obj_type"]
+         add_message_to_container messages -1 $NOT_DEFINED
+      }
+   }
+   return 0
+}
+
+#****** sge_procedures/add_message_to_container() ******************************
+#  NAME
+#     add_message_to_container() -- add a new message to message array
+#
+#  SYNOPSIS
+#     add_message_to_container {msg_var msg msg_index {msg_desc ""}} 
+#
+#  FUNCTION
+#     Add a new message to message array, If the array does not exist, it will
+#     be created. If the message index already exists, the message will be 
+#     rewritten. 
+#
+#  INPUTS
+#     msg_var       - array of messages
+#     msg_code     - message code
+#     msg           - message
+#     {msg_desc ""} - message description
+#
+#
+#*******************************************************************************
+proc add_message_to_container {msg_cont msg_code msg {msg_desc ""}} {
+   global CHECK_OUTPUT
+   upvar $msg_cont container
+
+   if {[info exists container(index)]} {
+      if {![info exists container($msg_code)]} {
+         lappend container(index) $msg_code
+      }
+   } else {
+      # message array doesn't exist, add the new message to the container
+      set container(index) $msg_code
+   }
+
+   set container($msg_code) $msg
+
+   # add the description, if exists
+   if {[string match $msg_desc ""]} {
+      if {[info exists container($msg_code,description)]} {
+         unset container($msg_code,description)
+      }
+   } else {
+      set container($msg_code,description) $msg_desc
+   }
+
+   return 0
 }

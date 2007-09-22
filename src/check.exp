@@ -7323,6 +7323,7 @@ proc source_tcl_files {} {
    ts_source $libdir/sge_checkpoint
    ts_source $libdir/sge_pe	
    ts_source $libdir/sge_host
+   ts_source $libdir/sge_hostgroup
    ts_source $libdir/sge_calendar
    ts_source $libdir/sge_qconf_config
    ts_source $libdir/sge_users	

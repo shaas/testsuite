@@ -319,7 +319,7 @@ proc build_rqs_vi_array { change_array } {
 #     ??? 
 #
 #  NOTES
-#     ??? 
+#     @deprecated
 #
 #  BUGS
 #     ??? 
@@ -727,6 +727,380 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    return $result
 }
 
+#****** control_procedures/start_vi_edit() *************************************
+# 
+#  NAME
+#     start_vi_edit -- sending vi commands to application 
+#
+#  SYNOPSIS
+#     start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
+#     {user ""}}
+#
+#  FUNCTION
+#     Start the client which uses vi for editing and wait for the command output.
+#
+#  INPUTS
+#     prog_binary          - client binary to start (e.g. qconf) 
+#     prog_args            - client arguments (e.g. -mconf) 
+#     vi_command_sequence  - list of vi command sequences 
+#                            (e.g. {:%s/^$elem .*$/$elem 10/\n}) 
+#     msg_var              - the array of expected messages
+#     {host ""}            - host on which to execute command - default: any host
+#     {user ""}            - user who shall call command
+#
+#  RESULT
+#     Output of called command.
+#
+#  NOTE
+#     this is overwritten procedure handle_vi_edit with a non fixed count of 
+#     messages.
+#*******************************************************************************
+proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} {user ""}} {
+   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL env
+   get_current_cluster_config_array ts_config
+   upvar $msg_var messages
+
+   if {$host == ""} {
+      set host [host_conf_get_suited_hosts]
+   }
+
+   if {$user == ""} {
+      set user $CHECK_USER
+   }
+   
+   set arch [resolve_arch $host]
+   set vi_env(EDITOR) [get_binary_path $host "vim"]
+   set binary "$ts_config(product_root)/bin/$arch/$prog_binary"
+   set result ""
+   
+   debug_puts "using EDITOR=$vi_env(EDITOR)"
+   # start program (e.g. qconf)
+   set id [open_remote_spawn_process $host $user $binary "$prog_args" 0 "" vi_env]
+   set sp_id [ lindex $id 1 ] 
+   if {$CHECK_DEBUG_LEVEL != 0} {
+      log_user 1
+      set send_speed .001
+   } else {
+      log_user 0 ;# set to 1 if you wanna see vi responding
+      set send_speed .0005
+   }
+   set send_slow "1 $send_speed" 
+
+   debug_puts "now waiting for vi start ..."
+   set error 0
+   
+   set BUFF_OVERFLOW "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+   set EOF_MSG "unexpected end of file"
+   set TMOUT_START "timeout - can't start vi"
+
+   set timeout 10
+   expect {
+      -i $sp_id full_buffer {
+         set result $BUFF_OVERFLOW
+         set error 1
+      }
+
+      -i $sp_id eof {
+         set error 1
+         set result $EOF_MSG
+      }
+
+      -i $sp_id timeout {  
+         set error 1
+         set result $TMOUT_START
+      }
+      -i $sp_id  "_start_mark_*\n" {
+         debug_puts "starting now!"
+      }
+   }
+
+   set timeout 10
+   expect {
+      -i $sp_id full_buffer {
+         set error 1
+         set result $BUFF_OVERFLOW
+      }
+
+      -i $sp_id eof {
+         set error 1
+         set result $EOF_MSG
+      }
+
+      -i $sp_id timeout {  
+         set error 1
+         set result $TMOUT_START
+      }
+
+      -i $sp_id -- {[A-Za-z]*} {
+         foreach line [split $expect_out(buffer) "\n"] {
+            set res_line [string trim "$line"]
+            foreach errno $messages(index) {
+               if {$errno != 0} {
+                  if {[string match "*$messages($errno)*" $res_line] == 1} {
+                     close_spawn_process $id
+                     return $messages($errno)
+                  }
+               }   
+            }            
+         }
+         debug_puts "vi should run now ..."
+      }
+   }
+
+   set timeout 1
+   # wait for vi to startup and go to last line
+   send -s -i $sp_id -- "G"
+   set timeout_count 0
+
+   set TMOUT_RESP "timeout - vi doesn't respond"
+
+   expect {
+      -i $sp_id full_buffer {
+         set result $BUFF_OVERFLOW
+         set error 1
+      }
+
+      -i $sp_id eof {
+         set result $EOF_MSG
+         set error 1
+      }
+
+      -i $sp_id timeout {  
+         send -s -i $sp_id -- "G"
+         incr timeout_count 1
+         if { $timeout_count > 60 } {
+            set result $TMOUT_RESP
+            set error 1
+         } else {
+            exp_continue
+         }
+      }
+
+      -i $sp_id  "100%" {
+      }
+      
+      -i $sp_id  "o lines in buffer" {
+      }
+      
+      -i $sp_id  "erminal too wide" {
+         set WIDE "got terminal to wide vi error"
+         set result $WIDE
+         set error 1
+      }
+   }
+
+   # we had an error during vi startup - close connection and return with error
+   if { $error != 0 } {
+      add_message_to_container messages -1 $result
+      # maybe vi is up and we can exit
+      send -s -i $sp_id -- "[format "%c" 27]" ;# ESC
+      send -s -i $sp_id -- ":q!\n"            ;# exit without saving
+      set timeout 10
+      expect {
+         -i $sp_id full_buffer {
+            add_proc_error "handle_vi_edit" -1 $BUFF_OVERFLOW
+         }
+
+         -i $sp_id eof {
+            add_proc_error "handle_vi_edit" -1 $EOF_MSG
+         }
+
+         -i $sp_id "_exit_status*\n" {
+            debug_puts "vi terminated! (1)"
+            exp_continue
+         }
+
+      }
+
+      # close the connection - hopefully vi and/or the called command will exit
+      close_spawn_process $id
+
+      return result
+   }
+
+   # second waiting: Part I:
+   # =======================
+   # set start time (qconf must take at least one second, because he
+   # does a file stat to find out if the file was changed, so the
+   # file edit process must take at least 1 second
+
+   set start_time [clock clicks -milliseconds]
+   # send the vi commands
+   set timeout 1
+   set timeout_count 0
+   set sent_vi_commands 0
+   send -s -i $sp_id -- "1G"      ;# go to first line
+
+   foreach elem $vi_command_sequence {
+      incr sent_vi_commands 1
+      set com_length [ string length $elem ]
+      set com_sent 0
+      send -s -i $sp_id -- "$elem"
+      send -s -i $sp_id -- ""
+      set timeout 1
+      expect {
+         -i $sp_id full_buffer {
+            set result $BUFF_OVERFLOW
+            set error 1
+         }
+
+         -i $sp_id eof {
+            set result $EOF_MSG
+            set error 1
+         }
+         -i $sp_id "*Hit return*" {
+            send -s -i $sp_id -- "\n"
+            debug_puts "found Hit return"
+            exp_continue
+         }
+         -i $sp_id timeout {
+            incr timeout_count 1
+            if { $timeout_count > 15 } {
+               set error_text ""
+               append error_text "got timeout while sending vi commands\n"
+               append error_text "please make sure that no single vi command sequence\n"
+               append error_text "leaves the vi in \"insert mode\" !!!"
+               set result $error_text
+               set error 1
+            } else {
+               send -s -i $sp_id -- ""
+               exp_continue
+            }
+         }
+
+         -i $sp_id "%" {
+         }
+      }
+      flush $CHECK_OUTPUT
+      if { $error != 0 } {
+         break
+      }
+   }
+
+   if { $error != 0 } {
+      add_message_to_container messages -1 $result
+      send -s -i $sp_id -- "[format "%c" 27]" ;# ESC
+      send -s -i $sp_id -- "[format "%c" 27]" ;# ESC
+      send -s -i $sp_id -- ":q!\n"            ;# exit without saving
+      set timeout 10
+      expect -i $sp_id "_exit_status_"
+      debug_puts "vi terminated! (4)"
+      close_spawn_process $id
+      return $result
+   }
+
+   # second waiting: Part II:
+   # =======================
+   # wait for file time older one second
+   # we give an extra waiting time of 100 ms to be sure that
+   # the vi takes at least 1 second
+   set end_time [expr [clock clicks -milliseconds] + 1100 ]
+   while { [clock clicks -milliseconds] < $end_time } { 
+      after 100
+   }
+   set run_time [expr [clock clicks -milliseconds] - $start_time]
+
+   # save and exit
+   if { $CHECK_DEBUG_LEVEL != 0 } {
+      after 3000
+   }
+   send -s -i $sp_id -- ":wq\n"
+   set timeout 60
+
+   # we just execute and don't wait for a certain result:
+   # wait for exit status of command
+   expect {
+      -i $sp_id full_buffer {
+         set result $BUFF_OVERFLOW
+      }
+      -i $sp_id timeout {
+         set TMOUT_BUFFER "timeout error:$expect_out(buffer)"
+         set result $TMOUT_BUFFER
+      }
+      -i $sp_id eof {
+         set EOF_BUFFER "eof error:$expect_out(buffer)"
+         set result $EOF_BUFFER
+      }
+
+      -i $sp_id "*_exit_status_*" {
+         debug_puts "vi terminated! (2) (rt=$run_time)"
+         foreach line [split "$expect_out(buffer)" "\n"] {
+            set res_line [string trim $line]
+            foreach errno $messages(index) {
+               if {[string match "*$messages($errno)*" $res_line] == 1} {
+                  set result $messages($errno)
+                  break
+               }
+            }          
+         }
+      }
+    }
+   debug_puts "sent_vi_commands = $sent_vi_commands"
+   if { $sent_vi_commands == 0 } {
+      debug_puts "INFO: there was NO vi command sent!"
+   }
+
+   close_spawn_process $id
+
+   # output what we have just done
+   log_user 1
+   foreach elem $vi_command_sequence {
+      debug_puts "sequence: $elem"
+      if { [string first "A" $elem ] != 0 } {
+         set index1 [ string first "." $elem ]
+         incr index1 -2
+         set var [ string range $elem 5 $index1 ] 
+        
+
+         # TODO: CR - the string last $var index1 position setting
+         #            is buggy, because it assumes that the value 
+         #            doesn't contain $var.
+         #
+         #       example: load_sensor /path/load_sensor_script.sh
+         #         this would return "_script.sh" as value
+         #
+         #       Value is only used for printing the changes to the user,
+         #       so this is not "really" a bug
+         #       
+         set index1 [ string last "$var" $elem ]
+         incr index1 [ string length $var]
+         incr index1 2
+   
+         set index2 [ string first "\n" $elem ]
+         incr index2 -2
+   
+         set value [ string range $elem $index1 $index2 ]
+         set value [ split $value "\\" ]
+         set value [ join $value "" ]
+         if { [ string compare $value "*$/" ] == 0 || [ string compare $value "*$/#" ] == 0 } {
+            debug_puts "--> removing \"$var\" entry"
+         } else {
+            if { [ string compare $var "" ] != 0 && [ string compare $value "" ] != 0  } {         
+               debug_puts "--> setting \"$var\" to \"${value}\""
+            } else {
+               if { [string compare $elem [format "%c" 27]] == 0 } {
+                  debug_puts "--> vi command: \"ESC\""    
+               } else {
+                  set output [replace_string $elem "\n" "\\n"]
+                  debug_puts "--> vi command: \"$output\"" 
+               }
+            }
+         }
+      } else {
+         set add_output [ string range $elem 2 end ]
+         debug_puts "--> adding [string trim $add_output "[format "%c" 27] ^"]"
+      }
+   }
+
+   # debug output end
+   if {$CHECK_DEBUG_LEVEL != 0} {
+      log_user 1
+   } else {
+      log_user 0 
+   }
+
+   return $result   
+}
 
 #****** control_procedures/get_uid() *******************************************
 #  NAME

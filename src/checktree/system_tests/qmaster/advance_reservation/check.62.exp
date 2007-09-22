@@ -338,10 +338,8 @@ proc test_cal {} {
 
    # Test setup
    set calendar(week)        "mon-sun=0-24=on"
-   set calendar(calendar_name) "$cal_name1"
-   add_calendar calendar
-   set calendar(calendar_name) "$cal_name2"
-   add_calendar calendar
+   add_calendar "$cal_name1" calendar
+   add_calendar "$cal_name2" calendar
 
    set queue_settings(calendar)         "$cal_name1"
    mod_queue $queue_name1 "" queue_settings
@@ -364,7 +362,7 @@ proc test_cal {} {
    # Try to calendar disable queue1, should be rejected because of AR
    set calendar(week)          "mon-sun=0-24=off"
    set calendar(calendar_name) "$cal_name1"
-   set result [mod_calendar calendar 1 "" "" 0]
+   set result [mod_calendar "$cal_name1" calendar 1 "" "" 0]
    if {$result != -2} {
       add_proc_error "test_cal" -1 "modifing calendar that disables reserved queue is not rejected"
    }
@@ -376,7 +374,7 @@ proc test_cal {} {
    append calendar(year) "-[clock format $time2 -format "%d.%m.%Y"]"
    append calendar(year) "=off"
    set calendar(week)    "NONE"
-   set result [mod_calendar calendar]
+   set result [mod_calendar "$cal_name1" calendar]
    if {$result !=0} {
       add_proc_error "test_cal" -1 "modifing calendar that is wrongly rejected(1)"
    }
@@ -386,7 +384,7 @@ proc test_cal {} {
    set calendar(year)          "NONE"
    set calendar(week)          "mon-sun=0-24=off"
    set calendar(calendar_name) "$cal_name1"
-   set result [mod_calendar calendar]
+   set result [mod_calendar "$cal_name1" calendar]
    if {$result != 0} {
       add_proc_error "test_cal" -1 "modifing calendar that is wrongly rejected(2)"
    }
