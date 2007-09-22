@@ -72,7 +72,7 @@ proc get_exechost_error {result host raise_error} {
 
 
    # we might have version dependent, exechost specific error messages
-   get_exechost_error_vdep messages $host
+   #get_exechost_error_vdep messages $host
  
    # now evaluate return code and raise errors
    set ret [handle_sge_errors "get_exechost" "qconf -se $host" $result messages $raise_error]
