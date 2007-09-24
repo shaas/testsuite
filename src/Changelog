@@ -1,3 +1,6 @@
+RH-2007-09-24-0: Bugfix:    Invalid configuration version number fixed
+                 Review:    MD
+
 RD-2007-09-24-0: Bugfix:    fixed check_qsub_ts_iz_145 test
                  Review:    OJ
 

@@ -5043,7 +5043,7 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
 # MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.11"
+set actual_ts_config_version "1.12"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
