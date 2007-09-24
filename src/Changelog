@@ -1,3 +1,7 @@
+MP-2007-09-24-0: Enhancem.: Added qdel test to check for proper parsing 
+                            of wc_job_range_list
+                 Review:    JG
+
 RH-2007-09-24-0: Bugfix:    Invalid configuration version number fixed
                  Review:    MD
 
