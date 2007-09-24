@@ -1,0 +1,167 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2345_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2345"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "Check for Issue 2345 - Resource quota can prevent dispatching of jobs"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2345_setup
+set check_cleanup_function issue_2345_cleanup
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2345"
+
+
+proc issue_2345_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+    }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2345_setup {} {
+   global CHECK_OUTPUT ts_config
+   global consumable_complex_backup  
+
+   # create test complex
+   set test_complex(F001) "F001 INT  <= YES YES 0 0"
+
+   set_complex test_complex
+   
+   
+   # 4a. setup the test queue A.q
+   set first_queue_name "A.q"
+   set queue_conf(slots) 10
+   add_queue $first_queue_name "@allhosts" queue_conf 1
+
+   
+   # 4. Add rqs a_new_rqs
+   set rqs_name              "a_new_rqs"
+   set rules                  ""
+   lappend rules              "to F001=1 "
+   set rqs_charray($rqs_name,limit)   "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set rqs_charray($rqs_name,description) "global"
+   
+   add_rqs rqs_charray
+   
+}
+
+proc issue_2345_cleanup  {} {
+   global CHECK_OUTPUT ts_config
+   global consumable_complex_backup  
+   
+   del_queue "A.q" "" 1 1
+
+   set tmp_complex(F001) ""
+   set_complex tmp_complex
+   
+   
+   if {[get_rqs_list rqs_names "" "" 0] == 0} {
+      foreach elem $rqs_names {
+         puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+         del_rqs $elem
+       }
+   }
+
+}
+
+#***********************************************************
+#  NAME
+#     issue_2345() -- Testcase for IZ 2345.
+#
+#  SYNOPSIS
+#
+#     4. submit job with 36 seconds only
+#     5. check that job is  running 
+#     6. clean up  in check_qsub_cleanup
+#
+#  FUNCTION
+#     Check if IZ 2345 has been fixed.
+#  INPUTS
+#
+#*******************************************************************************
+
+proc issue_2345 {} {
+
+   global ts_config
+   global CHECK_OUTPUT CHECK_USER
+
+
+   # Delete any remaining jobs
+   delete_all_jobs
+
+   # 5.submit job
+   set job_id [submit_job "-q A.q -o /dev/null -j y -b y /bin/sleep 360"]
+
+   # start job
+   trigger_scheduling
+
+   # 6.job should be running
+   set run_result [wait_for_jobstart $job_id "sleep" 20]
+   if {$run_result != 0} {
+      add_proc_error "ts_2345" -1 "job was not scheduled"
+   } 
+   
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   
+}
+

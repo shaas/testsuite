@@ -1,0 +1,5 @@
+Issue:      2345
+Synopsis:   Resource quota can prevent dispatching of jobs
+This bug is verified in the following testsuite check:
+Check:      bugs/issuezila/2345/check.61.exp
+Function:   issue_2345
