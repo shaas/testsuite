@@ -1,3 +1,6 @@
+RD-2007-09-24-0: Bugfix:    fixed check_qsub_ts_iz_145 test
+                 Review:    OJ
+
 AP-2007-09-22-0: Enhancem.: o SGE objects interfaces enhancement - Part I.
                             o (messages, handling errors, vi edit,...)
                             o objects: project, calendar, hostgroup

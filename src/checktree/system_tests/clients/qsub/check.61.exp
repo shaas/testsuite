@@ -162,59 +162,45 @@ proc qsub_ts_iz_145 { {t_sge_task_first "1"} {t_sge_task_last "4"}
    delete_all_jobs
    
 	#1. First submit
-   submit_job "-t $SGE_TASK_FIRST-$SGE_TASK_LAST:$SGE_TASK_STEPSIZE -o $output_tmpfile -e /dev/null $CHECK_ACTUAL_TEST_PATH/step.sh" 1 30 "" $CHECK_USER
+   set job_id [submit_job "-t $SGE_TASK_FIRST-$SGE_TASK_LAST:$SGE_TASK_STEPSIZE -o $output_tmpfile -e /dev/null $CHECK_ACTUAL_TEST_PATH/step.sh"]
+   trigger_scheduling
       
-   # Now check that the job(s) were scheduled and by runnning "qstat -f"
-   # and displaying the output
-   
-   qstat_plain_parse qstat_plain_output1
-
-   puts $CHECK_OUTPUT "qstat array with -t $SGE_TASK_FIRST-$SGE_TASK_LAST:$SGE_TASK_STEPSIZE  .... \n"
-   parray qstat_plain_output1
-   
-   
-   # Sleep until the jobs run
-   sleep 10
-   
+   # Sleep until the jobs are finished
+   wait_for_jobend $job_id "step" 10 0
    
    set result [start_remote_prog $host $CHECK_USER cat $output_tmpfile exit_code]
-   #    echo first $SGE_TASK_FIRST last $SGE_TASK_LAST step $SGE_TASK_STEPSIZE
-   puts $CHECK_OUTPUT "result is \n $result \n"
+   # echo first $SGE_TASK_FIRST last $SGE_TASK_LAST step $SGE_TASK_STEPSIZE
+   # puts $CHECK_OUTPUT "result is \n $result"
    
-   if {$exit_code != 0} {
-      add_proc_error "qsub_ts_iz_145" -1 "error reading from output file on host $host \n "
+   if {$exit_code != 0 || $result == ""} {
+      add_proc_error "qsub_ts_iz_145" -1 "error reading from output file on host $host:\n$result"
+   } else {
+      if {[scan $result "first  %d last %d step %d" sge_task_first sge_task_last sge_task_stepsize] != 3 } {
+         add_proc_error "qsub_ts_iz_145" -1 "error parsing output file from host $host:\n$result"
       } else {
-         if {[scan $result "first  %d last %d step %d" sge_task_first sge_task_last sge_task_stepsize] != 3 } {
-            add_proc_error "qsub_ts_iz_145" -1 "error reading from output file on host $host \n "
-            } else {
-            # sge_task_first should be $SGE_TASK_FIRST 
-               if {$sge_task_first != $SGE_TASK_FIRST} {
-               add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_FIRST is incorrect host $host \n "
-                  } else {
-                  puts $CHECK_OUTPUT "SGE_TASK_FIRST is $sge_task_first \n"
-                  }
-            }
-               
-            # sge_task_last should be $SGE_TASK_LAST 
-            if {$sge_task_last != $SGE_TASK_LAST} {
-               add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_LAST is incorrect on host $host \n "
-               } else {
-               puts $CHECK_OUTPUT "SGE_TASK_LAST is $sge_task_last \n"
-               }
-       
-               
-            # sge_task_stepsize should be $SGE_TASK_STEPSIZE
-            if {$sge_task_stepsize != $SGE_TASK_STEPSIZE} {
-               add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_STEPSIZE is incorrect on host $host \n "
-               } else {
-               puts $CHECK_OUTPUT "SGE_TASK_STEPSIZE is $sge_task_stepsize \n"
-               }
-            }
-      
-      
+         # sge_task_first should be $SGE_TASK_FIRST 
+         if {$sge_task_first != $SGE_TASK_FIRST} {
+            add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_FIRST is incorrect:\n$sge_task_first, expected $SGE_TASK_FIRST"
+         } else {
+            puts $CHECK_OUTPUT "SGE_TASK_FIRST is $sge_task_first \n"
+         }
+         
+         # sge_task_last should be $SGE_TASK_LAST 
+         if {$sge_task_last != $SGE_TASK_LAST} {
+            add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_LAST is incorrect:\n$sge_task_last, expected $SGE_TASK_LAST"
+         } else {
+            puts $CHECK_OUTPUT "SGE_TASK_LAST is $sge_task_last \n"
+         }
+            
+         # sge_task_stepsize should be $SGE_TASK_STEPSIZE
+         if {$sge_task_stepsize != $SGE_TASK_STEPSIZE} {
+            add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_STEPSIZE is incorrect:\n$sge_task_stepsize, expected $SGE_TASK_STEPSIZE"
+         } else {
+            puts $CHECK_OUTPUT "SGE_TASK_STEPSIZE is $sge_task_stepsize \n"
+         }
+      }
+   }
    
    #clean up
-   
    file delete $output_tmpfile
-   
 }   
