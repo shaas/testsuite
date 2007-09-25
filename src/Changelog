@@ -1,3 +1,6 @@
+AP-2007-09-25-0: Bugfix:    fix mod_hostgroup parameters in qconf check.60.exp
+                 Review:    RD
+
 MP-2007-09-24-0: Enhancem.: Added qdel test to check for proper parsing 
                             of wc_job_range_list
                  Review:    JG
@@ -11,7 +14,7 @@ RD-2007-09-24-0: Bugfix:    fixed check_qsub_ts_iz_145 test
 AP-2007-09-22-0: Enhancem.: o SGE objects interfaces enhancement - Part I.
                             o (messages, handling errors, vi edit,...)
                             o objects: project, calendar, hostgroup
-                 Review:    AP
+                 Review:    MP
 
 AH-2007-09-21-0: Enhancem.: Added test for reservation scheduling issue #2344
                  Review:    RD

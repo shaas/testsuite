@@ -1063,9 +1063,8 @@ proc qconf_modify_hostgroup {} {
 
    # Now modify the host list
    puts $CHECK_OUTPUT "Modify host group  @qconf_test  from file ...\n"
-   set attribute "hostlist"
-   set value "$host"
-   set result1 [mod_hostgroup "@qconf_test" $attribute $value ]
+   set chgar(hostlist) "$host"
+   set result1 [mod_hostgroup "@qconf_test" chgar]
 
    if { ( $result1 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -Mhgrp succeded\n"
@@ -1075,9 +1074,8 @@ proc qconf_modify_hostgroup {} {
 
    # Now do it with a wrong parameter
    puts $CHECK_OUTPUT "Modify host group  @qconf_test wrongly from file ...\n"
-   set attribute "stuff"
-   set value "$host"
-   set result11 [mod_hostgroup "@qconf_test" $attribute $value 1 $host $CHECK_USER 0]
+   set chgar(stuff) "$host"
+   set result11 [mod_hostgroup "@qconf_test" chgar 1 $host $CHECK_USER 0]
 
    if { ( $result11 == -1 ) } {
       puts $CHECK_OUTPUT "qconf -Mhgrp failed  correctly\n"
@@ -1088,9 +1086,8 @@ proc qconf_modify_hostgroup {} {
 
     # Now do it with a wrong parameter again
    puts $CHECK_OUTPUT "Modify host group  @qconf_test wrongly from file  again...\n"
-   set attribute "hostlist"
-   set value "whatever"
-   set result11 [mod_hostgroup "@qconf_test" $attribute $value 1 $host $CHECK_USER 0]
+   set chgar(hostlist) whatever
+   set result11 [mod_hostgroup "@qconf_test" chgar 1 $host $CHECK_USER 0]
 
    if { ( $result11 == -3 ) } {
       puts $CHECK_OUTPUT "qconf -Mhgrp failed  correctly again \n"
@@ -1100,10 +1097,9 @@ proc qconf_modify_hostgroup {} {
    }
 
    # Now do it from CLI with wrong param again
-   set attribute "hostlist"
-   set value "stuff"
+   set chgar(hostlist) "stuff"
    puts $CHECK_OUTPUT "Modify host group  @qconf_test  wrongly from CLI again...\n"
-   set result21 [mod_hostgroup "@qconf_test" $attribute $value 0 $host $CHECK_USER 0]
+   set result21 [mod_hostgroup "@qconf_test" chgar 0 $host $CHECK_USER 0]
 
    if { ( $result21 == -3 ) } {
       puts $CHECK_OUTPUT "qconf -mhgrp failed  correctly\n"

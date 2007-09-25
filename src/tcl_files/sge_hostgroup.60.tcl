@@ -415,6 +415,7 @@ proc get_hostgroup_messages {msg_var action obj_name {on_host ""} {as_user ""}} 
       }
       "mod" {
          add_message_to_container messages -6 [translate_macro MSG_HGRP_UNKNOWNHOST "*" ]
+         add_message_to_container messages -7 "error: [translate_macro MSG_UNKNOWNATTRIBUTENAME_S "*"]"
       }
       "del" {
          add_message_to_container messages -2 [translate_macro MSG_HGROUP_REFINHGOUP_SS "$obj_name" "*"]
