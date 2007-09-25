@@ -1,0 +1,7 @@
+Issue:      2254
+Synopsis:   PE scope of resource quotas is not considered
+             when -pe wildcard requests are used
+
+This bug is verified in the following testsuite check:
+Check:      bugs/issuezila/2254/check.61.exp
+Function:   issue_2254

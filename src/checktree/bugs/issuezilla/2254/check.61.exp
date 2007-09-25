@@ -1,0 +1,294 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2254_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2254"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "Check for Issue 2254 - PE scope of resource quotas \
+                           is not considered  when -pe wildcard requests are used"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2254_setup
+set check_cleanup_function issue_2254_cleanup
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2254"
+
+
+proc issue_2254_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+    }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2254_setup {} {
+   global CHECK_OUTPUT ts_config
+   global test_host
+
+   set test_host [host_conf_get_suited_hosts]
+
+   # create test complex
+   set test_complex(F001) "F001 INT  <= YES YES 0 0"
+
+   set_complex test_complex
+   
+   # 3a. setup pe intelmpi
+   set pe_conf(pe_name)            "intelmpi"
+   set pe_conf(slots)              100
+   set pe_conf(allocation_rule)    "\$pe_slots"
+   set pe_conf(control_slaves)     "TRUE"
+   set pe_conf(job_is_first_task)  "FALSE"
+   add_pe pe_conf
+ 
+   # 3b. setup pe intelpvm
+   set pe_conf(pe_name)            "intelpvm"
+   set pe_conf(slots)              100
+   set pe_conf(allocation_rule)    "\$pe_slots"
+   set pe_conf(control_slaves)     "TRUE"
+   set pe_conf(job_is_first_task)  "FALSE"
+   add_pe pe_conf
+  
+   # 4a. setup the test queue first.q
+   set first_queue_name "first.q"
+   set queue_conf(complex_values) "F001=1"
+   set queue_conf(slots) 10
+   set queue_conf(pe_list) "intelpvm intelmpi"
+   add_queue $first_queue_name "@allhosts" queue_conf 1
+
+   
+   # 4b. setup the test queue second.q
+   set second_queue_name "second.q"
+   set queue_conf(complex_values) "F001=1"
+   set queue_conf(slots) 10
+   set queue_conf(pe_list) "intelmpi intelpvm" 
+   puts $CHECK_OUTPUT "Add queue $second_queue_name"
+   add_queue $second_queue_name "@allhosts" queue_conf 1
+   
+   # 4. Add rqs yet_another_rqs
+   set rqs_name              "yet_another_rqs"
+   set rules                  ""
+   lappend rules              "pes intelpvm to F001=1 "
+   lappend rules              "pes intelmpi to F001=1 "
+   set rqs_charray($rqs_name,limit)   "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set rqs_charray($rqs_name,description) "global"
+   add_rqs rqs_charray
+
+}
+   
+proc issue_2254_cleanup  {} {
+   global CHECK_OUTPUT ts_config
+   global test_host
+   
+   del_pe "intelpvm"
+   del_pe "intelmpi"
+
+   del_queue "first.q" "" 1 1
+   del_queue "second.q" "" 1 1
+
+   set tmp_complex(F001) ""
+   set_complex tmp_complex
+   
+   # Modify the scheduler back  fast
+   set mysched_config(params) "none"
+   set mysched_config(max_reservation) "0"
+
+   puts $CHECK_OUTPUT "Modify schedd back fast ...\n"
+   mod_schedd_config mysched_config
+ 
+   if {[get_rqs_list rqs_names "" "" 0] == 0} {
+      foreach elem $rqs_names {
+         puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+         del_rqs $elem
+       }
+   }
+
+}
+
+
+#
+#*****************************************************************
+#  NAME
+#     issues_2254() -- Testcase for IZ 2254.
+#
+#  SYNOPSIS
+#
+#     
+#     5. submit jobs to pe "intelpvm", "intelmpi" with 360 seconds 
+#     6. check that jobs PVM, MPI are BOTH running
+#     7. submit now with wildcard "intel*", again with  360 seconds
+#     8. check that jobs PVM, MPI are  BOTH running
+#     9. clean up in check_qsub_cleanup
+#
+#  FUNCTION
+#     Check if IZ 2254 has been fixed.
+#  INPUTS
+#
+#*******************************************************************************
+proc issue_2254 {} {
+   global ts_config
+   global CHECK_OUTPUT CHECK_USER
+
+   # Delete any remaining jobs
+   delete_all_jobs
+
+  
+   # 5. Submit jobs
+
+   set job_args_mpi "-N MPI -pe intelmpi 1 -l h_rt=1:1:,F001=1 -o /dev/null -e /dev/null  -b y /bin/sleep 360"
+   set job_args_pvm "-N PVM -pe intelpvm 1 -l h_rt=1:1:,F001=1 -o /dev/null -e /dev/null  -b y /bin/sleep 360" 
+
+   set jobid1 [submit_job $job_args_mpi 1 30]
+   set jobid2 [submit_job $job_args_pvm 1 30]
+   set jobid3 [submit_job $job_args_mpi 1 30]
+   set jobid4 [submit_job $job_args_pvm 1 30]
+   
+   sleep 10
+
+   # 6. check that the 2 pe jobs are running simultaneously
+   qstat_plain_parse qstat_plain_output1
+      
+   puts $CHECK_OUTPUT "qstat array with intelmpi, intelpvm .... \n"
+   parray qstat_plain_output1
+
+   set jobid_list $qstat_plain_output1(index)
+
+   set running_jobs "0"
+   set MPI_jobs "0"
+   set PVM_jobs "0"
+
+   foreach jobid  $jobid_list {
+      if {($qstat_plain_output1($jobid,state) == "r") && \
+         ($qstat_plain_output1($jobid,name) == "MPI") } { 
+         incr running_jobs 1
+         incr MPI_jobs 1
+      }
+      if {($qstat_plain_output1($jobid,state) == "r") && \
+         ($qstat_plain_output1($jobid,name) == "PVM") } {
+         incr running_jobs 1
+         incr PVM_jobs 1
+      }
+   }
+ 
+   if { ($running_jobs == 2) && ($MPI_jobs == 1) && \
+        ($PVM_jobs == 1) } {
+        # We are ok
+        puts $CHECK_OUTPUT " ts_2254 first submit is OK \n"
+        } else {
+        puts $CHECK_OUTPUT " total number of running jobs is  $running_jobs \n"
+        puts $CHECK_OUTPUT " of which  $MPI_jobs are MPI jobs \n"
+        puts $CHECK_OUTPUT " and  $PVM_jobs are PVM jobs \n"
+        add_proc_error "ts_2254" -1 "first submit failed "
+   }
+
+
+   delete_job $jobid1 1
+   delete_job $jobid2 1  
+   delete_job $jobid3 1  
+   delete_job $jobid4 1  
+
+   # 7.submit now jobs with "intel*" wildcard
+  
+   set job_args "-N Either -pe intel* 1 -l h_rt=1:1:,F001=1 -o /dev/null -e /dev/null  -b y /bin/sleep 360"
+
+   set jobid5 [submit_job $job_args 1 30]
+   set jobid6 [submit_job $job_args 1 30]
+   set jobid7 [submit_job $job_args 1 30]
+   set jobid8 [submit_job $job_args 1 30]
+
+   sleep 10
+
+   # 8. check that the 2 pe jobs are running simultaneously
+   qstat_plain_parse qstat_plain_output2
+      
+   puts $CHECK_OUTPUT "qstat array with intel*  .... \n"
+   parray qstat_plain_output2
+
+   set jobid_list $qstat_plain_output2(index)
+
+   set running_jobs "0"
+   set Either_jobs "0"
+
+   foreach jobid  $jobid_list {
+
+      if {($qstat_plain_output2($jobid,state) == "r") && \
+         ( $qstat_plain_output2($jobid,name) == "Either") } {
+         incr running_jobs 1
+         incr Either_jobs 1
+      }
+   }
+
+   if { ($running_jobs == 2) && ($Either_jobs == 2) } {
+        # We are ok
+        puts $CHECK_OUTPUT " ts_2254 second submit is OK \n"
+        } else {
+        puts $CHECK_OUTPUT " total number of running jobs is  $running_jobs \n"
+        puts $CHECK_OUTPUT " of which  $MPI_jobs are MPI jobs \n"
+        puts $CHECK_OUTPUT " and  $PVM_jobs are PVM jobs \n"
+        add_proc_error "ts_2254" -1 "second submit failed "
+   }
+  
+  
+   delete_job $jobid5 1
+   delete_job $jobid6 1  
+   delete_job $jobid7 1  
+   delete_job $jobid8 1
+   
+      
+} 
