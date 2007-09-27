@@ -349,8 +349,6 @@ proc get_calendar_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
          set DISABLED_WEEK [translate_macro MSG_PARSE_ERRORINDISABLEDWEEKOFCALENDAR_SS "$obj_name" "*"]
          add_message_to_container messages -7 $DISABLED_WEEK
          if {$ts_config(gridengine_version) >= 62} {
-            # aja: TODO: find the parameters for this message:
-            # "denied: changing "SFQ" to "SFN" would break advance reservation "sge_U32CFormat
             set AR_REJECTED [translate_macro MSG_PARSE_MOD2_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
             add_message_to_container messages -8 $AR_REJECTED
          }

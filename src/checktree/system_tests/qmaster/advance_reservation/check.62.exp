@@ -363,7 +363,7 @@ proc test_cal {} {
    set calendar(week)          "mon-sun=0-24=off"
    set calendar(calendar_name) "$cal_name1"
    set result [mod_calendar "$cal_name1" calendar 1 "" "" 0]
-   if {$result != -2} {
+   if {$result != -8} {
       add_proc_error "test_cal" -1 "modifing calendar that disables reserved queue is not rejected"
    }
 
@@ -375,7 +375,7 @@ proc test_cal {} {
    append calendar(year) "=off"
    set calendar(week)    "NONE"
    set result [mod_calendar "$cal_name1" calendar]
-   if {$result !=0} {
+   if {$result != 0} {
       add_proc_error "test_cal" -1 "modifing calendar that is wrongly rejected(1)"
    }
 
