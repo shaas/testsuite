@@ -150,37 +150,71 @@ proc install_execd {} {
       }
 
 
-      set my_timeout 500
-      set exit_val 0
       set autoconfig_file $ts_config(product_root)/autoinst_config_$exec_host.conf
      
       write_autoinst_config $autoconfig_file $exec_host 0
   
       puts $CHECK_OUTPUT "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf -noremote"
-      if {$CHECK_ADMIN_USER_SYSTEM == 0} {
-         set output [start_remote_prog "$exec_host" "root"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote" exit_val 60 0 $ts_config(product_root)]
 
+      set install_options "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote"
+      if {$CHECK_ADMIN_USER_SYSTEM == 0} {
+         set id [open_remote_spawn_process $exec_host "root" "./install_execd" "$install_options" 0 $ts_config(product_root)]
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set output [start_remote_prog "$exec_host" "$CHECK_USER"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote" exit_val 60 0 $ts_config(product_root)]
+         set id [open_remote_spawn_process $exec_host "$CHECK_USER" "./install_execd" "$install_options" 0 $ts_config(product_root)]
+      }
+      set spawn_id [lindex $id 1]
+      lappend spawn_list $spawn_id
+      lappend remote_spawn_list $id
+      set spawn_host_map($spawn_id) $exec_host
+      set remote_spawn_map($spawn_id) $id
+   }
+
+   log_user 1
+   set finished_install 0
+   set timeout 300
+   set error 0
+   while { $finished_install < [llength $ts_config(execd_nodes)]} {
+      expect {
+         -i $spawn_list full_buffer {
+            set error 1
+            add_proc_error "install_execd" -1 "expect full_buffer error (1)"
+         }
+         -i $spawn_list timeout {
+            set error 1
+            add_proc_error "install_execd" -1 "timeout while waiting for remote shell"
+         }
+         -i $spawn_list "_exit_status_:(*)" {
+            set exit_status [get_string_value_between "_exit_status_:(" ")" [string trim $expect_out(0,string)]]
+            incr finished_install 1
+            set spawn_id $expect_out(spawn_id)
+            set id $remote_spawn_map($spawn_id)
+            close_spawn_process $id
+
+            if {$exit_status != 0} {
+               set host_name $spawn_host_map($spawn_id)
+               add_proc_error "install_exec" -1 "execd_installation failed on host $host_name with $exit_status\n$expect_out(0,string)"
+            } else {
+               lappend CORE_INSTALLED $exec_host
+               write_install_list
+            }
+         }
+         -i $spawn_list eof {
+            set spawn_id $expect_out(spawn_id)
+            set host_name $spawn_host_map($spawn_id)
+            set error 1
+            add_proc_error "install_execd" -1 "got eof from host $host_name\n$expect_out(0,string)"
+         }
       }
 
-      log_user 1
-
-      #set CHECK_DEBUG_LEVEL 2
-      set do_log_output 0 ;# 1 _LOG
-      if {$CHECK_DEBUG_LEVEL == 2} {
-         set do_log_output 1
-      }
-
-      if {$exit_val == 0} {
-         lappend CORE_INSTALLED $exec_host
-         write_install_list
-         continue
-      } else {
-         add_proc_error "install_execd" "-1" "install failed:\n$output"
+      if {$error == 1} {
+         foreach elem $remote_spawn_list {
+            close_spawn_process $elem
+         }
+         set finished_install [llength $ts_config(execd_nodes)]
       }
    }
+
    return
 }
 

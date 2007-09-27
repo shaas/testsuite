@@ -79,9 +79,6 @@ proc kill_running_system {} {
    }
 }
 
-
-
-
 proc reread_bootstrap {} {
    # install_qmaster has written the bootstrap or the configuration file
    bootstrap_sge_config
@@ -120,7 +117,6 @@ proc make_user_cert {} {
      }
    }
 }
-
 
 proc cleanup_system {} {
    global env
@@ -934,103 +930,6 @@ proc setup_default_calendars {} {
      return
   }
 }
-
-#                                                             max. column:     |
-#****** install_core_system/setup_check_user_permissions() ******
-# 
-#  NAME
-#     setup_check_user_permissions -- ??? 
-#
-#  SYNOPSIS
-#     setup_check_user_permissions { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc setup_check_user_permissions {} {
-   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
-   global CHECK_OUTPUT
-   global CHECK_ADMIN_USER_SYSTEM
-   global check_use_installed_system 
-   global ts_config
-
-   if {$check_use_installed_system} {
-      return
-   }
-
-  set time [timestamp]
-  if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-     set user_list "root $CHECK_USER $CHECK_FIRST_FOREIGN_SYSTEM_USER $CHECK_SECOND_FOREIGN_SYSTEM_USER"
-  } else {
-     set user_list "$CHECK_USER"
-  }
-  foreach user $user_list {
-     puts $CHECK_OUTPUT "\n----mask-check----\nuser: $user"
-     set my_command ""
-     foreach host $ts_config(execd_nodes) {
-        set execd_spooldir [get_execd_spool_dir $host]
-        puts $CHECK_OUTPUT "checking execd spool directory on $host (user=$user): \"$execd_spooldir\""
-        set output [start_remote_prog "$host" "$user" "cd" "$execd_spooldir"]
-        if { $prg_exit_state != 0 } {
-           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$execd_spooldir\" on host $host: $output"
-        }
-        set output [ start_remote_prog "$host" "$user" "cd" "$ts_config(testsuite_root_dir)/scripts" ]
-        if { $prg_exit_state != 0 } {
-           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$ts_config(testsuite_root_dir)/scripts\" on host $host: $output"
-        }
-
-        # additional check the directory pwd output
-        #puts $CHECK_OUTPUT "   pwd test ..."
-        set output [start_remote_prog "$host" "$user" "csh" "-c 'cd $execd_spooldir ; echo \"pwd_output:\" ; pwd'"]
-        set output [get_string_value_between "pwd_output:" -1 $output]
-        if { [string match "*$execd_spooldir*" "$output"] == 0 } {
-           puts $CHECK_OUTPUT "pwd in execd spool directory on $host (user=$user): \"$execd_spooldir\": \"[string trim $output]\")"
-           add_proc_error "setup_check_user_permissions" -1 "pwd (csh) in \"$execd_spooldir\" on host $host returned: $output, not $execd_spooldir"
-        }
-     }
-  }
-
-  set master_spooldir [get_qmaster_spool_dir]
-  puts $CHECK_OUTPUT "master spool directory on host $ts_config(master_host): \"$master_spooldir\""
-  foreach user $user_list {
-      puts $CHECK_OUTPUT "checking master spool directory for user: \"$user\""
-      set output [ start_remote_prog "$ts_config(master_host)" "$user" "cd" "$master_spooldir"  ]
-      if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "--> E R R O R - user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
-         add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
-      }
-
-      # additional check the directory pwd output
-      set output [start_remote_prog "$ts_config(master_host)" "$user" "csh" "-c 'cd $master_spooldir ; echo \"pwd_output:\" ; pwd'"]
-      set output [get_string_value_between "pwd_output:" -1 $output]
-      if { [string match "*$master_spooldir*" $output] == 0 } {
-         puts $CHECK_OUTPUT "pwd in master spool directory on $host (user=$user): \"$master_spooldir\": \"[string trim $output]\")"
-         add_proc_error "setup_check_user_permissions" -1 "pwd (csh) in \"$master_spooldir\" on host $host returned: $output, not $master_spooldir"
-      }
-
-
-  }
-  puts "runtime: [ expr ( [timestamp] - $time ) ]"
-  get_version_info
-}
-
 
 proc setup_check_messages_files {} {
    global CHECK_OUTPUT

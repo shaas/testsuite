@@ -525,7 +525,7 @@ proc create_gnuplot_xy_gif { data_array_name row_array_name } {
       return $data(output_file)
    } else {
       puts $CHECK_OUTPUT $result
-      add_proc_error "create_gnuplot_xy_gif" -3 "error starting gnuplot:\n$result"
+      # add_proc_error "create_gnuplot_xy_gif" -3 "error starting gnuplot:\n$result"
       catch { file copy $ts_config(testsuite_root_dir)/images/no_gnuplot.gif $data(output_file) }
 
       return $data(output_file)

@@ -741,7 +741,7 @@ proc throughput_cleanup {} {
    puts $CHECK_OUTPUT "deleting queues"
    for {set i 0} {$i < $nr_queues} {incr i} {
       set qname tp_${i}
-      del_queue $qname $host_list 0 1
+      del_queue $qname $host_list 1 1
    }
 
    puts $CHECK_OUTPUT "enabling default queues"
@@ -751,7 +751,7 @@ proc throughput_cleanup {} {
    }
    enable_queue $queue_list
 
-   del_queue interactive "@allhosts" 0 1
+   del_queue interactive "@allhosts" 1 1
 }
 
 proc get_event_client_time { string  } {
@@ -1560,7 +1560,7 @@ proc run_throughput_test {} {
    }
 
    # create reports
-   if { ! $error } {
+   if {!$error} {
       create_reports results_list job_data schedd_data monitoring qstat_data qping_data event_data
    }
 }
@@ -2670,6 +2670,7 @@ proc analyse_dump_data_file { file { force 0 } } {
    # configurations
    set nr_of_local_spool_directories 0
 
+if {0} {
    foreach execd $host_list(host_list) { 
       read_array_from_file $file "execd $execd" execd_array
       append content [create_html_target "execd $execd"]
@@ -2677,7 +2678,9 @@ proc analyse_dump_data_file { file { force 0 } } {
       set tmp_file [get_tmp_file_name]
       spool_array_to_file $tmp_file execd_array execd_array
       append content [convert_spool_file_to_html $tmp_file $output_dir/index.html 1]
-      unset execd_array
+      if {[info exists execd_array]} {
+         unset execd_array
+      }
 
       read_array_from_file $file "config execd $execd" config_array
 
@@ -2687,7 +2690,6 @@ proc analyse_dump_data_file { file { force 0 } } {
          }
       }
 
-
       append content [create_html_target "config execd $execd"]
       append content [create_html_text "Execd configuration for $execd:"]
       set tmp_file [get_tmp_file_name]
@@ -2695,10 +2697,8 @@ proc analyse_dump_data_file { file { force 0 } } {
       append content [convert_spool_file_to_html $tmp_file $output_dir/index.html 1]
       unset config_array
    }
+}
    
-
-
-
    generate_html_file $output_dir/index.html "Testsuite Throughput Test Status Report from $test_config(test_date)" $content
 
    # spool addition test information into test_results_array.dat
@@ -3502,7 +3502,7 @@ proc create_reports { results_array job_array_name schedd_array_name monitoring_
    set h_list_array(host_list) $host_list
    spool_array_add_data $prot_output_file "execd list" h_list_array
 
-   set nr_of_local_spool_directories 0
+if {0} {
    foreach execd $host_list {
       get_exechost execd_array $execd
       if {[info exists execd_array]} {
@@ -3519,6 +3519,7 @@ proc create_reports { results_array job_array_name schedd_array_name monitoring_
          unset config_array
       }
    }
+}
    
    # save scheduler configuration into file
    get_schedd_config schedd_config
@@ -3923,10 +3924,10 @@ proc clean_current_system_status { results_array array_name job_array_name sched
    if { [ info exists jobs] } {
       unset jobs
    }
-   if { [ info exists results] } {
+   if { [info exists results] } {
       unset results
    }
-   if { [ info exists schedd] } {
+   if { [info exists schedd] } {
       unset schedd
    }
    set schedd(0,system_time) 0

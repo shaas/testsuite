@@ -1,0 +1,134 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# level initialization procedure:
+set check_init_level_procedure "check_user_permissions_init_level"
+
+# test's name and run level descriptions
+set check_name            "check_user_permissions"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check user permissions"
+
+# test's dependencies
+set check_needs           "init_core_system" 
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "check_user_permissions"
+
+proc check_user_permissions_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+proc check_user_permissions {} {
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global CHECK_OUTPUT
+   global CHECK_ADMIN_USER_SYSTEM
+   global ts_config
+
+  set time [timestamp]
+  if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
+     set user_list "root $CHECK_USER $CHECK_FIRST_FOREIGN_SYSTEM_USER $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+  } else {
+     set user_list "$CHECK_USER"
+  }
+  foreach user $user_list {
+     puts $CHECK_OUTPUT "\n----mask-check----\nuser: $user"
+     set my_command ""
+     foreach host $ts_config(execd_nodes) {
+        set execd_spooldir [get_execd_spool_dir $host]
+        puts $CHECK_OUTPUT "checking execd spool directory on $host (user=$user): \"$execd_spooldir\""
+        set output [start_remote_prog "$host" "$user" "cd" "$execd_spooldir"]
+        if { $prg_exit_state != 0 } {
+           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$execd_spooldir\" on host $host: $output"
+        }
+        set output [ start_remote_prog "$host" "$user" "cd" "$ts_config(testsuite_root_dir)/scripts" ]
+        if { $prg_exit_state != 0 } {
+           add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to \"$ts_config(testsuite_root_dir)/scripts\" on host $host: $output"
+        }
+
+        # additional check the directory pwd output
+        #puts $CHECK_OUTPUT "   pwd test ..."
+        set output [start_remote_prog "$host" "$user" "csh" "-c 'cd $execd_spooldir ; echo \"pwd_output:\" ; pwd'"]
+        set output [get_string_value_between "pwd_output:" -1 $output]
+        if { [string match "*$execd_spooldir*" "$output"] == 0 } {
+           puts $CHECK_OUTPUT "pwd in execd spool directory on $host (user=$user): \"$execd_spooldir\": \"[string trim $output]\")"
+           add_proc_error "setup_check_user_permissions" -1 "pwd (csh) in \"$execd_spooldir\" on host $host returned: $output, not $execd_spooldir"
+        }
+     }
+  }
+
+  set master_spooldir [get_qmaster_spool_dir]
+  puts $CHECK_OUTPUT "master spool directory on host $ts_config(master_host): \"$master_spooldir\""
+  foreach user $user_list {
+      puts $CHECK_OUTPUT "checking master spool directory for user: \"$user\""
+      set output [ start_remote_prog "$ts_config(master_host)" "$user" "cd" "$master_spooldir"  ]
+      if { $prg_exit_state != 0 } {
+         puts $CHECK_OUTPUT "--> E R R O R - user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
+         add_proc_error "setup_check_user_permissions" -1 "user $user has no read//exec permission to $master_spooldir on host $ts_config(master_host)"
+      }
+
+      # additional check the directory pwd output
+      set output [start_remote_prog "$ts_config(master_host)" "$user" "csh" "-c 'cd $master_spooldir ; echo \"pwd_output:\" ; pwd'"]
+      set output [get_string_value_between "pwd_output:" -1 $output]
+      if { [string match "*$master_spooldir*" $output] == 0 } {
+         puts $CHECK_OUTPUT "pwd in master spool directory on $host (user=$user): \"$master_spooldir\": \"[string trim $output]\")"
+         add_proc_error "setup_check_user_permissions" -1 "pwd (csh) in \"$master_spooldir\" on host $host returned: $output, not $master_spooldir"
+      }
+
+
+  }
+  puts "runtime: [ expr ( [timestamp] - $time ) ]"
+  get_version_info
+}

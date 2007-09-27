@@ -1,3 +1,7 @@
+RD-2007-09-27-0: Enhancem:  - speed up of install core system
+                            - speed up of auto installation
+                 Review:    AA
+
 AP-2007-09-25-0: Bugfix:    fix mod_hostgroup parameters in qconf check.60.exp
                  Review:    RD
 

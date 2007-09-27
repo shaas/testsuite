@@ -599,7 +599,7 @@ proc qmod_clearerrorstate {} {
    mqattr prolog none $test_queue
 
    # now wait for jobstart - should not happen as queue is in error state
-   set res [wait_for_jobstart $job_id "leeper" 60 0]
+   set res [wait_for_jobstart $job_id "leeper" 10 0 1]
    if {$res != -1} {
       add_proc_error "qmod_clearerrorstate" -1 "job $job_id should not start until yet"
    }
@@ -614,9 +614,9 @@ proc qmod_clearerrorstate {} {
    if {[string compare $state ""] != 0} {
       add_proc_error "qmod_clearerrorstate" -1 "queue $test_queue is not in original state"
    }
- 
+
    # now wait for jobend
-   wait_for_jobstart $job_id "leeper" 60
+   wait_for_jobstart $job_id "leeper" 60 1 1
    wait_for_jobend   $job_id "leeper" 60 0
 
    qmod_clear_all_error_states
