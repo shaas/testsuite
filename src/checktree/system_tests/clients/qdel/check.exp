@@ -1058,8 +1058,8 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
   }
  
 
-   if {$prg_exit_state != 0} {
-      add_proc_error "qdel_delete_unknown_jobid_proc" -1 "exit state is not 0"
+   if {$prg_exit_state == 0} {
+      add_proc_error "qdel_delete_unknown_jobid_proc" -1 "exit state is 0"
    } 
 
    set nr_of_jobs [llength $job_list]

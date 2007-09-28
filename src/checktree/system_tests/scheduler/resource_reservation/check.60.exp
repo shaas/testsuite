@@ -527,7 +527,7 @@ proc resource_reservation_basic { } {
       delete_all_ars
 
       set qname [get_queue_instance $rr_queue_name $rr_host]
-      set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G -d 3600"
+      set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G -d 360000"
 
       set ar_id [submit_ar "$ar_args -pe round_robin 5"]
       if { $ar_id <= 0} {

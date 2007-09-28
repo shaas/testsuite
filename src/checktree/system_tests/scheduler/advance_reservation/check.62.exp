@@ -41,10 +41,11 @@ global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
 global env
-global test_host
+global test_host test_hosts
 global queue_name
 global complex_queue_name
-global gcplx hcplx
+global global_consumable host_consumable
+global host_complex queue_complex 
 
 #set check_root_access_needs "yes"
 
@@ -76,6 +77,7 @@ lappend check_functions "scheduler_ar_unlimited_runtime_job"
 lappend check_functions "scheduler_ar_parallel_consuamble"
 lappend check_functions "scheduler_ar_rqs"
 lappend check_functions "scheduler_pending_ar_jobs"
+lappend check_functions "scheduler_ar_non_reserved_complex_requests"
 
 proc scheduler_advance_reservation_init_level {} {
    global CHECK_ACT_LEVEL
@@ -96,15 +98,18 @@ proc scheduler_advance_reservation_init_level {} {
 
 proc scheduler_advance_reservation_setup {} {
    global ts_config CHECK_OUTPUT
-   global queue_name test_host
+   global queue_name test_host test_hosts
    global complex_queue_name
-   global gcplx hcplx
+   global global_consumable host_consumable
+   global host_complex queue_complex 
 
    set test_host [host_conf_get_suited_hosts]
    set queue_name "ar_schedd_queue"
    set complex_queue_name "ar_schedd_complex_queue"
-   set gcplx "global_consumable"
-   set hcplx "host_consumable"
+   set global_consumable "global_consumable"
+   set host_consumable "host_consumable"
+   set host_complex "host_complex"
+   set queue_complex "queue_complex"
 
    set pe_settings(slots)  10 
    set pe_settings(allocation_rule) "\$fill_up"
@@ -121,28 +126,36 @@ proc scheduler_advance_reservation_setup {} {
 
    # create new complex attributes
    #           name            short  type    op.   requ.  cons. default  urgency
-   set complex($gcplx)  "c1     INT       <=    YES    YES   1        0"
-   set complex($hcplx)  "c2     INT       <=    YES    YES   1        0"
+   set complex($global_consumable)  "c1   INT       <=    YES    YES   1        0"
+   set complex($host_consumable)  "c2     INT       <=    YES    YES   1        0"
+   set complex($host_complex)  "hc1       RESTRING  ==    YES    NO    NONE     0"
+   set complex($queue_complex)  "qc2      RESTRING  ==    YES    NO    NONE     0"
    set_complex complex
    
    # add global complex
-   set config(complex_values) "$gcplx=4"
+   set config(complex_values) "$global_consumable=4"
    set_exechost config "global"
 
+
+   set test_hosts [host_conf_get_suited_hosts 2]
+
+   set config(complex_values) "$host_complex=bla"
+   set_exechost config [lindex $test_hosts 0]
+
    # add complex_queue_name
-   set complex_test_hosts [host_conf_get_suited_hosts 2]
    set queue_settings(slots) 1
-   set queue_settings(complex_values) "$hcplx=2"
-   add_queue $complex_queue_name $complex_test_hosts queue_settings
-   puts $CHECK_OUTPUT "added queue $complex_queue_name for hosts $complex_test_hosts"
+   set queue_settings(complex_values) "$host_consumable=2,$queue_complex=bla"
+   add_queue $complex_queue_name $test_hosts queue_settings
+   puts $CHECK_OUTPUT "added queue $complex_queue_name for hosts $test_hosts"
 
 }
 
 proc scheduler_advance_reservation_cleanup {} {
    global ts_config CHECK_OUTPUT
-   global queue_name test_host
+   global queue_name test_host test_hosts
    global complex_queue_name
-   global gcplx hcplx
+   global global_consumable host_consumable
+   global host_complex queue_complex
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -151,6 +164,7 @@ proc scheduler_advance_reservation_cleanup {} {
    # remove global complex
    set config(complex_values) "none"
    set_exechost config "global"
+   set_exechost config [lindex $test_hosts 0] 
 
    #äremove queues
    del_queue $queue_name $test_host 0 1
@@ -159,8 +173,10 @@ proc scheduler_advance_reservation_cleanup {} {
    del_pe "ar_pe"
 
    # delete our test complex attributes
-   set complex($gcplx)  ""
-   set complex($hcplx)   ""
+   set complex($global_consumable)  ""
+   set complex($host_consumable)   ""
+   set complex($host_complex)  ""
+   set complex($queue_complex)  ""
    set_complex complex
 
    # remove resource quota
@@ -188,7 +204,7 @@ proc scheduler_advance_reservation_level_cleanup {} {
 
 proc scheduler_ar_unlimited_runtime_job {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global scheduler_advance_reservation_test_hosts check_description
+   global check_description
    global CHECK_ACT_LEVEL
    global queue_name test_host
 
@@ -272,13 +288,13 @@ proc scheduler_ar_unlimited_runtime_job {} {
 
 proc scheduler_ar_parallel_consuamble {} {
    global complex_queue_name
-   global gcplx hcplx
+   global global_consumable host_consumable
    global ts_config
 
    delete_all_ars
 
-   # Submit AR and request all hcplx and gcplx
-   set ar_id [submit_ar "-pe ar_pe 2 -l $hcplx=2,$gcplx=2 -d 3600"]
+   # Submit AR and request all host_consumable and global_consumable
+   set ar_id [submit_ar "-pe ar_pe 2 -l $host_consumable=2,$global_consumable=2 -d 3600"]
    if {$ar_id <= 0} {
       add_proc_error "scheduler_ar_parallel_consuamble" -1 "AR submit failed"
       return
@@ -303,7 +319,7 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-pe mytestpe 2 -l $hcplx=2 $job_args"]
+   set job_id [submit_job "-pe mytestpe 2 -l $host_consumable=2 $job_args"]
    if {$job_id <= 0} {
       add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (3)"
       return
@@ -311,7 +327,7 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-pe mytestpe 2 -l $gcplx=2 $job_args"]
+   set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=2 $job_args"]
    if {$job_id <= 0} {
       add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (4)"
       return
@@ -319,7 +335,7 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-pe mytestpe 2 -l $gcplx=2,$hcplx=2 $job_args"]
+   set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=2,$host_consumable=2,h_vmem=1M $job_args"]
    if {$job_id <= 0} {
       add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (5)"
       return
@@ -327,30 +343,30 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-l $hcplx=1 $job_args"]
+   set job_id [submit_job "-l $host_consumable=1,arch=\* $job_args"]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (7)"
+      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (6)"
       return
    } else {
       delete_job $job_id
    }
 
    # Negative Tests
-   set job_id [submit_job "-l $gcplx=5 $job_args" 0]
+   set job_id [submit_job "-l $global_consumable=5 $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
       add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (1)"
       return
    }
 
-   set job_id [submit_job "-l $hcplx=3 $job_args" 0]
+   set job_id [submit_job "-l $host_consumable=3 $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
       add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (2)"
       return
    } 
 
-   set job_id [submit_job "-pe mytestpe 2 -l $gcplx=3 $job_args" 0]
+   set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=3 $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
       add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (3)"
@@ -475,4 +491,128 @@ proc scheduler_pending_ar_jobs {} {
    }
    delete_job $job_id_r
    delete_ar $ar_id
+}
+
+proc scheduler_ar_non_reserved_complex_requests {} {
+   global complex_queue_name queue_name
+   global global_consumable host_consumable
+   global host_complex queue_complex
+   global test_hosts
+   global ts_config CHECK_OUTPUT
+
+   delete_all_ars
+
+   # 1) testing sequential jobs
+   set job_args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+
+   # 1a) reserve host with complex
+
+   set host [lindex $test_hosts 0]
+   set ar_id [submit_ar "-l h=$host -q $complex_queue_name -d 3600"]
+   set job_id [submit_job "-ar $ar_id -l $host_complex=bla $job_args" 0]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was wrongly rejected (1)"
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-ar $ar_id -l $host_complex=nix $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (1)"
+   }
+
+   delete_ar $ar_id
+
+   # 1b) reserve host without complex
+   set host [lindex $test_hosts 1]
+   set ar_id [submit_ar "-l h=$host -q $complex_queue_name -d 3600"]
+
+   set job_id [submit_job "-ar $ar_id -l $host_complex=bla $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (2)"
+   }
+   delete_ar $ar_id
+
+   # 1c) reserve queue with complex 
+   set ar_id [submit_ar "-q $complex_queue_name -d 3600"]
+   set job_id [submit_job "-ar $ar_id -l $queue_complex=bla $job_args" 0]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was wrongly rejected (2)"
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-ar $ar_id -l $queue_complex=nix $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (3)"
+   }
+
+   delete_ar $ar_id
+
+   # 1d) reserve queue without complex 
+   set ar_id [submit_ar "-q $queue_name -d 3600"]
+   set job_id [submit_job "-ar $ar_id -l $queue_complex=bla $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (4)"
+   }
+
+   delete_ar $ar_id
+
+   # 2) testing parallel jobs
+   set job_args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
+
+   # 2a) test host complexes
+
+   set host [lindex $test_hosts 0]
+   set ar_id [submit_ar "-pe ar_pe 2 -q $complex_queue_name -d 3600"]
+
+   set job_id [submit_job "-pe ar_pe 1 -ar $ar_id -l $host_complex=bla $job_args" 0]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was wrongly rejected (1)"
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-pe ar_pe 2 -ar $ar_id -l $host_complex=bla $job_args" 0]
+
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was not rejected (1)"
+   }
+
+   delete_ar $ar_id
+
+   # 2b) reserve queue with complex 
+   set ar_id [submit_ar "-pe ar_pe 2 -q $complex_queue_name -d 3600"]
+
+
+   set job_id [submit_job "-pe ar_pe 2 -ar $ar_id -l $queue_complex=bla $job_args" 0]
+   if {$job_id <= 0} {
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was wrongly rejected (2)"
+   } else {
+      delete_job $job_id
+   }
+
+   set job_id [submit_job "-pe ar_pe 2 -ar $ar_id -l $queue_complex=nix $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was not rejected (3)"
+   }
+
+   delete_ar $ar_id
+
+   # 1d) reserve queue without complex 
+   set ar_id [submit_ar "-pe ar_pe 2 -q $queue_name -d 3600"]
+   set job_id [submit_job "-pe ar_pe 2 -ar $ar_id -l $queue_complex=bla $job_args" 0]
+   if {$job_id > 0} {
+      delete_job $job_id
+      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was not rejected (4)"
+   }
+
+   delete_ar $ar_id
+
 }

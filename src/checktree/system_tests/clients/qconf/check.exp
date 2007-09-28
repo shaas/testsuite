@@ -1945,7 +1945,7 @@ proc qconf_add_delete_modify_replace_attr {} {
    set result01 [mod_attr  $obj_spec $attr_name $val $target 1 $host $CHECK_USER 0]
 
    if {$result01 != -2} {
-      add_proc_error "qconf_add_delete_modify_replace_attr" -1 "Negative testr qconf -Mattr <emptyfile> Failed! $result01"
+      add_proc_error "qconf_add_delete_modify_replace_attr" -3 "Negative testr qconf -Mattr <emptyfile> Failed! $result01"
    } else {
       puts $CHECK_OUTPUT "Negative test:qconf -Mattr <emptyfile> Success!"
    }   

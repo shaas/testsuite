@@ -204,7 +204,8 @@ proc delete_ar {ar_id {wait_for_end 0} {all_users 0} {on_host ""} {as_user ""} {
       set args "-u '*'"
    }
 
-   set messages(index) "-2 -1 0 1"
+   set messages(index) "-3 -2 -1 0 1"
+   set messages(-3) [translate_macro MSG_DELETEPERMS_SSU "*" "advance_reservation" $ar_id]
    set messages(-2) [translate_macro MSG_SGETEXT_SPECIFYUSERORID_S "advance_reservation"]
    set messages(-1) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "advance_reservation" $ar_id]
    set messages(0) [translate_macro MSG_JOB_DELETEX_SSU "*" "advance_reservation" $ar_id]

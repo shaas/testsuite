@@ -72,7 +72,7 @@ lappend check_functions "qrdel_uall"                  ;# delete all jobs of all 
 lappend check_functions "qrdel_user_list"             ;# delete all jobs of users specified in list
 lappend check_functions "qrdel_force"                 ;# force action
 lappend check_functions "qrdel_race_condition_with_qdel"
-
+lappend check_functions "qrdel_foreign_user"          ;# delete jobs of foreign user
 # check's globals
 global queue test_host pe
 
@@ -235,7 +235,7 @@ proc submit_testars {{user ""} {additional_ar_args ""} {with_job "0"} {testar_co
 proc qrdel_help {} {
    global CHECK_PRODUCT_VERSION_NUMBER CHECK_OUTPUT
 
-   set qrdel_help_lines 7
+   set qrdel_help_lines 10
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -588,5 +588,24 @@ proc qrdel_race_condition_with_qdel {} {
    delete_job $job_id 
    if {[delete_ar $ar_id 1 0 "" "" 0] < 0} {
       add_proc_error "qrdel_race_condition_with_qdel" -1 "error deleted AR stays wrongly in deleted state"
+   }
+}
+
+proc qrdel_foreign_user {} {
+   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER 
+
+   set ar_id1 [submit_ar "-d 3600"]
+   set ar_id2 [submit_ar "-d 3600" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+
+   if {[delete_ar $ar_id1 0 0 "" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" 0] != -3} {
+      add_proc_error "qrdel_foreign_user" -1 "qrdel as non-admin on AR of foreign successed wrongly"
+   } 
+
+   if {[delete_ar $ar_id2] != 0} {
+      add_proc_error "qrdel_foreign_user" -1 "qrdel as admin on AR of foreign user failed"
+   }
+
+   if {[delete_ar $ar_id1] != 0} {
+      add_proc_error "qrdel_foreign_user" -1 "qrdel as admin on own AR failed"
    }
 }

@@ -68,6 +68,7 @@ set check_functions {}
 lappend check_functions "qrstat_help"
 lappend check_functions "qrstat_option_u"
 lappend check_functions "qrstat_option_explain"
+lappend check_functions "qrstat_option_ar"
 
 proc qrstat_test_init_level {} {
    global CHECK_ACT_LEVEL
@@ -280,4 +281,40 @@ proc qrstat_option_explain {} {
    start_sge_bin "qmod" "-c $qrstat_queue"
 
    delete_ar $ar_id
+}
+
+proc qrstat_option_ar {} {
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_OUTPUT
+
+   # submit 1 AR for every user
+   set ar_id1 [submit_ar "-d 3600"]
+   set ar_id2 [submit_ar "-d 3600" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
+
+   start_sge_bin "qrstat" "-ar $ar_id1"
+   if {$prg_exit_state != 0} {
+      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for AR of submit user(1)"
+      return
+   }
+
+   start_sge_bin "qrstat" "-ar $ar_id2"
+   if {$prg_exit_state != 0} {
+      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for ARs of different user(1)"
+      return
+   }
+
+   start_sge_bin "qrstat" "-ar $ar_id1" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   if {$prg_exit_state != 0} {
+      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for AR of different user(2)"
+      return
+   }
+
+   start_sge_bin "qrstat" "-ar $ar_id2" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   if {$prg_exit_state != 0} {
+      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for ARs of same user(2)"
+      return
+   }
+
+   delete_ar $ar_id1
+   delete_ar $ar_id2
 }

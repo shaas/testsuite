@@ -6890,11 +6890,9 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
          shutdown_system_daemon $hostname qmaster
       } else {
          add_proc_error "shutdown_qmaster" "-1" "qmaster pid $qmaster_pid not found"
-         set qmaster_pid -1
       }
    } else {
       add_proc_error "shutdown_qmaster" "-1" "ps_info failed (2), pid=$qmaster_pid"
-      set qmaster_pid -1
    }
 
    puts $CHECK_OUTPUT "done."
@@ -7597,7 +7595,7 @@ proc wait_till_qmaster_is_down { host } {
          }
       }
       if { [timestamp] > $my_timeout } {
-         add_proc_error "wait_till_qmaster_is_down" -3 "timeout while waiting for qmaster going down"
+         add_proc_error "wait_till_qmaster_is_down" -1 "timeout while waiting for qmaster going down"
          return -1
       }
       if { $nr_of_found_qmaster_processes_or_threads == 0 } {
