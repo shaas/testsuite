@@ -941,13 +941,13 @@ proc qconf_scal_check {} {
 #     qconf_scall_check - Check all known calendars 
 #
 #  SYNOPSIS
-#     qconf_scall_check { } - Call get_calender_list
+#     qconf_scall_check { } - Call get_calendar_list
 #
 #  FUNCTION
 #     Check basic functionality of qconf
 #
 #  SEE ALSO
-# sge_calendar/get_calender_list()
+# sge_calendar/get_calendar_list()
 #*******************************
 proc qconf_scall_check {} {
 
@@ -956,7 +956,7 @@ proc qconf_scall_check {} {
 
    # Do a positive test
    puts $CHECK_OUTPUT "Positive test for qconf -scall ...\n"
-   set result0 [get_calender_list ]
+   set result0 [get_calendar_list]
 
    if { ( $result0 == 0 ) } {
       puts $CHECK_OUTPUT "qconf -scall succeded"

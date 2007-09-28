@@ -152,12 +152,12 @@ proc get_calendar {calendar {output_var result}  {on_host ""} {as_user ""} {rais
  
 }
 
-#****** sge_calendar/get_calender_list() ***************************************
+#****** sge_calendar/get_calendar_list() ***************************************
 #  NAME
-#     get_calender_list() -- get the list of all calendars
+#     get_calendar_list() -- get the list of all calendars
 #
 #  SYNOPSIS
-#     get_calender_list {{output_var result} {on_host ""} {as_user ""} 
+#     get_calendar_list {{output_var result} {on_host ""} {as_user ""} 
 #     {raise_error 1}}
 #
 #  FUNCTION
