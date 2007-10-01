@@ -1,0 +1,7 @@
+Issue:      2328
+Synopsis: high scheduler dispatching time with many sequential resource reservation  
+           
+
+This bug is verified in the following testsuite check:
+Check:      bugs/issuezila/2328/check.61.exp
+Function:   issue_2328

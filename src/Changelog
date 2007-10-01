@@ -1,3 +1,6 @@
+OJ-2007-10-01-0: Bugfix:    Added test case for IZ 2328, in bugs/issueszilla/2328
+                 Review:    AH
+
 RD-2007-09-28-1: Bugfix:    fixed qconf calendar test
 
 RD-2007-09-28-0: Enhancem.: added some advance reservation tests
@@ -11,6 +14,9 @@ RD-2007-09-27-0: Enhancem:  - speed up of install core system
                  Review:    AA
 
 AP-2007-09-25-0: Bugfix:    fix mod_hostgroup parameters in qconf check.60.exp
+                 Review:    RD
+
+OJ-2007-09-24-0: Bugfix:    Added test case for IZ 2345, in bugs/issueszilla/2345
                  Review:    RD
 
 MP-2007-09-24-0: Enhancem.: Added qdel test to check for proper parsing 
