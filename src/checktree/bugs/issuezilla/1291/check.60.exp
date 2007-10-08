@@ -71,13 +71,29 @@ proc issue_1291_run  {} {
 
    # localize messages
    set INVALID_AT_QDEL [translate_macro MSG_JOB_XISINVALIDJOBTASKID_S "*"]
+   set INVALID_IDENTIFIER [translate_macro MSG_PARSE_NOOPTIONARGUMENT]
    if { $ts_config(gridengine_version) >= 62 } {
       set INVALID_AT_QMASTER [translate_macro MSG_SGETEXT_SPECIFYUSERORID_S "job"]
    } else {
       set INVALID_AT_QMASTER [translate_macro MSG_SGETEXT_SPECIFYUSERORJID]
    }
-
+   
    # Test
+   set result [start_sge_bin "qdel" "$name"]
+   if {$result == ""} {
+      add_proc_error "issue_1291_run" -1 "qdel exited with exit code $prg_exit_state and didn't do any output"
+   } else {
+      if {![string match "*${INVALID_AT_QDEL}*" $result] && ![string match "*${INVALID_IDENTIFIER}*" $result]} {
+         if {[string match "*${INVALID_AT_QMASTER}*" $result]} {
+            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id, but qmaster rejects it.\nqdel output: $result"
+         } else {
+            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id.\nqdel output: $result\nexpected output: $INVALID_AT_QDEL"
+         }
+      }
+   }
+
+   # Test qdel with invalid parameter
+   set name "1x"
    set result [start_sge_bin "qdel" "$name"]
    if {$result == ""} {
       add_proc_error "issue_1291_run" -1 "qdel exited with exit code $prg_exit_state and didn't do any output"
