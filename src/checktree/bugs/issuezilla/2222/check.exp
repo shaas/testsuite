@@ -117,11 +117,8 @@ proc issue_2222_setup {} {
    # they might exist as auto users from earlier tests, so first try to delete them
    del_user $CHECK_FIRST_FOREIGN_SYSTEM_USER "" "" 0
    del_user $CHECK_SECOND_FOREIGN_SYSTEM_USER "" "" 0
-   set user(name) $CHECK_FIRST_FOREIGN_SYSTEM_USER
-   add_user user 1
-   unset user
-   set user(name) $CHECK_SECOND_FOREIGN_SYSTEM_USER
-   add_user user 1
+   add_user $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   add_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
 
    # create sharetree
    stree_buffer_init sharetree

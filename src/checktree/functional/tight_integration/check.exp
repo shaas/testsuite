@@ -365,7 +365,7 @@ proc tight_integration_setup {} {
    set pe(allocation_rule)    "\$round_robin"
    set pe(control_slaves)     TRUE
    set pe(job_is_first_task)  FALSE
-   add_pe pe
+   add_pe tight pe
 
    # create a queue
    set queue_conf(load_thresholds) "np_load_avg=11"

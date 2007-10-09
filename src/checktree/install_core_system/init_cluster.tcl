@@ -745,7 +745,7 @@ proc setup_mytestproject {} {
 proc setup_mytestpe {} {
    set change(pe_name) "mytestpe"
    set change(slots) "5"
-   add_pe change
+   add_pe "mytestpe" change
    assign_queues_with_pe_object "all.q" "" "mytestpe"
 }
 

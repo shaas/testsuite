@@ -808,9 +808,8 @@ proc access_lists_pe {} {
 
    set jobargs "-o /dev/null -e /dev/null -pe access_test_pe 2 $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
-   set my_pe(pe_name)     "access_test_pe"
    set my_pe(slots)       "8"
-   add_pe my_pe
+   add_pe "access_test_pe" my_pe
    assign_queues_with_pe_object "$access_lists_queue" "$access_lists_host" "access_test_pe"
 
    # testing user and group

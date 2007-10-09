@@ -257,7 +257,6 @@ proc ticket_for_departments { } {
    
    # assign the users to the departments
    for {set i 0} {$i < $department_count} { incr i 1 } {
-      set dep_conf(name)    $departments($i,name)
       set dep_conf(type)    "DEPT"
       set dep_conf(fshare)  "0"
       set dep_conf(oticket) $departments($i,oticket)
@@ -266,7 +265,7 @@ proc ticket_for_departments { } {
       
       set users($i,department) $departments($i,name)
 
-      set result [ add_userset dep_conf ]
+      set result [ add_userset $departments($i,name) dep_conf ]
       if { $result != 0 } {
          add_proc_error "ticket_for_departments" -1 "Can not add department $departments($i,name)"
          # remove the previously added departments

@@ -762,11 +762,8 @@ proc large_cluster_setup_sharetree {size} {
    }
 
    # add users
-   set new_user(name) $CHECK_USER
-   add_user new_user
-
-   set new_user(name) $CHECK_FIRST_FOREIGN_SYSTEM_USER
-   add_user new_user
+   add_user $CHECK_USER
+   add_user $CHECK_FIRST_FOREIGN_SYSTEM_USER
    
    for {set i 0} {$i < $size} {incr i} {
       # add project

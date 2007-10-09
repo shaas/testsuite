@@ -1,3 +1,10 @@
+AP-2007-10-09-0: Enhancem.  o SGE objects interfaces enhancement - Part II.
+                            o objects: user, userset, queue, parallel environment
+                            o start_sge_bin, start_vi_edit using JGDI shell
+                            o qconf client test - testing messages returned by 
+                            o the clients
+                 Review:    JG
+
 MP-2007-10-08-0: Bugfix:    fixed break that was introduced from gridengine 
                             commit MP-2007-09-25-0.
                  Review:    JG

@@ -152,7 +152,7 @@ proc job_start_setup  {} {
    set pe(allocation_rule)    "\$round_robin"
    set pe(control_slaves)     TRUE
    set pe(job_is_first_task)  FALSE
-   add_pe pe
+   add_pe tight_job_start pe
    assign_queues_with_pe_object all.q "" tight_job_start
 }
 

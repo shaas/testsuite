@@ -32,98 +32,78 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-
-#****** sge_procedures/assign_queues_with_pe_object() **************************
+#****** sge_pe/set_pe_defaults() ***********************************************
 #  NAME
-#     assign_queues_with_pe_object() -- setup queue <-> pe connection
+#     set_pe_defaults() -- create version dependent parallel environment settings
 #
 #  SYNOPSIS
-#     assign_queues_with_pe_object { queue_list pe_obj }
+#     set_pe_defaults {change_array}
 #
 #  FUNCTION
-#     This procedure will setup the queue - pe connections.
+#     Fills the array change_array with default parallel environment attributes 
+#     for the specific version of SGE.
 #
 #  INPUTS
-#     queue_list - queue list for the pe object
-#     pe_obj     - name of pe object
+#     change_array - the resulting array
 #
-#  SEE ALSO
-#     sge_procedures/assign_queues_with_ckpt_object()
 #*******************************************************************************
+proc set_pe_defaults { change_array } {
+   get_current_cluster_config_array ts_config
+   upvar $change_array chgar
 
-#                                                             max. column:     |
-#****** sge_procedures/add_pe() ******
+   set chgar(pe_name)           "template"          ;# pe_name is mandatory
+   set chgar(slots)             "0"       
+   set chgar(user_lists)        "NONE"
+   set chgar(xuser_lists)       "NONE"
+   set chgar(start_proc_args)   "/bin/true"
+   set chgar(stop_proc_args)    "/bin/true"
+   set chgar(allocation_rule)   "\$pe_slots"
+   set chgar(control_slaves)    "FALSE"
+   set chgar(job_is_first_task) "TRUE"
+   
+   # SGE version dependent defaults
+   if { $ts_config(gridengine_version) == 53 } {
+      set chgar(queue_list)        "all"   
+   } elseif { $ts_config(gridengine_version) >= 60 } {
+      set chgar(urgency_slots)     "min"
+   }
+}
+
+#****** sge_pe/add_pe() ********************************************************
 #
 #  NAME
-#     add_pe -- add new parallel environment definition object
+#     add_pe -- add new parallel environment configuration object
 #
 #  SYNOPSIS
 #     add_pe { change_array { version_check 1 } }
 #
 #  FUNCTION
-#     This procedure will create a new pe (parallel environemnt) definition
-#     object.
+#     Add a new pe (parallel environemnt) to the Grid Engine cluster.
+#     Supports fast (qconf -Ap) and slow (qconf -ap) mode. 
 #
 #  INPUTS
-#     change_array - name of an array variable that will be set by add_pe
-#     { version_check 1 } - (default 1): check pe/ckpt version
-#                           (0): don't check pe/ckpt version
+#     pe_name           - parallel environment name
+#     {change_array ""} - the parallel environment description
+#     {fast_add 1}      - use fast mode
+#     {on_host ""}      - execute qconf on this host (default: qmaster host)
+#     {as_user ""}      - execute qconf as this user (default: CHECK_USER)
+#     {raise_error 1}   - raise error condition in case of errors?
 #
 #  RESULT
-#      0 - ok
-#     -1 - timeout error
-#     -2 - pe already exists
-#     -3 - could not add pe
-#
-#  EXAMPLE
-#     set mype(pe_name) "mype"
-#     set mype(user_list) "user1"
-#     add_pe pe_name
-#
-#  NOTES
-#     The array should look like this:
-#
-#     set change_array(pe_name)         "mype"
-#     set change_array(user_list)       "crei"
-#     ....
-#     (every value that is set will be changed)
-#
-#     Here the possible change_array values with some typical settings:
-#
-#     pe_name           testpe
-#     queue_list        NONE
-#     slots             0
-#     user_lists        NONE
-#     xuser_lists       NONE
-#     start_proc_args   /bin/true
-#     stop_proc_args    /bin/true
-#     allocation_rule   $pe_slots
-#     control_slaves    FALSE
-#     job_is_first_task TRUE
-#
+#       0 - success
+#     < 0 - error
 #
 #  SEE ALSO
-#     sge_procedures/del_pe()
-#*******************************
-proc add_pe { change_array { version_check 1 } } {
-# pe_name           testpe
-# queue_list        NONE
-# slots             0
-# user_lists        NONE
-# xuser_lists       NONE
-# start_proc_args   /bin/true
-# stop_proc_args    /bin/true
-# allocation_rule   $pe_slots
-# control_slaves    FALSE
-# job_is_first_task TRUE
-
-  global env
+#     sge_procedures/handle_sge_error()
+#     sge_pe/get_pe_messages()
+#*******************************************************************************
+proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
   global CHECK_USER CHECK_OUTPUT
   get_current_cluster_config_array ts_config
 
   upvar $change_array chgar
+   set chgar(pe_name) $pe_name
 
-  if { $version_check == 1 } {
      if { $ts_config(gridengine_version) >= 60 && [info exists chgar(queue_list) ]} {
         if { [ info exists chgar(queue_list) ] } {
            puts $CHECK_OUTPUT "this qconf version doesn't support queue_list for pe objects"
@@ -131,160 +111,279 @@ proc add_pe { change_array { version_check 1 } } {
            unset chgar(queue_list)
         }
      }
-  }
 
-  set vi_commands [build_vi_command chgar]
+   get_pe_messages messages "add" "$pe_name" $on_host $as_user
 
-  set ADDED  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set ALREADY_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*" ]
-# JG: TODO: have to create separate add_pe in sge_procedures.60.tcl as this message no
-#           longer exists
-#  set NOT_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS] "*" "*" "*" "*" ]
+   if {$fast_add} {
+      puts $CHECK_OUTPUT "Add parallel environment $pe_name from file ..."
+      set option "-Ap"
+      set_pe_defaults old_config
+      update_change_array old_config chgar
+      set tmpfile [dump_array_to_tmpfile old_config]
+      set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
+   } else {
+      puts $CHECK_OUTPUT "Add parallel environment $pe_name slow ..."
+      set option "-ap"
+      set vi_commands [build_vi_command chgar]
+      set result [start_vi_edit "qconf" "$option $pe_name" $vi_commands messages $on_host $as_user]
 
-  set master_arch [resolve_arch $ts_config(master_host)]
-  set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ap [set chgar(pe_name)]" $vi_commands $ADDED $ALREADY_EXISTS ]
+   }
 
-  if {$result == -1 } { add_proc_error "add_pe" -1 "timeout error" }
-  if {$result == -2 } { add_proc_error "add_pe" -1 "parallel environment \"[set chgar(pe_name)]\" already exists" }
-  if {$result == -3 } { add_proc_error "add_pe" -1 "something (perhaps a queue) does not exist" }
-  if {$result != 0  } { add_proc_error "add_pe" -1 "could not add parallel environment \"[set chgar(pe_name)]\"" }
-
-  return $result
+   return [handle_sge_errors "add_pe" "qconf $option" $result messages $raise_error]
 }
 
-proc get_pe {pe_name change_array} {
-  global CHECK_OUTPUT
-  upvar $change_array chgar
-  get_current_cluster_config_array ts_config
-
-  set result [start_sge_bin "qconf" "-sp $pe_name" ]
-  if { $prg_exit_state != 0 } {
-     add_proc_error "get_config" "-1" "qconf error or binary not found\n$result"
-     return
-  }
-
-  # split each line as listelement
-  set help [split $result "\n"]
-  foreach elem $help {
-     set id [lindex $elem 0]
-     set value [lrange $elem 1 end]
-     if { [string compare $value ""] != 0 } {
-       set chgar($id) $value
-     }
-  }
-}
-
-#****** sge_procedures/set_pe() ************************************************
+#****** sge_pe/get_pe() ********************************************************
+# 
 #  NAME
-#     set_pe() -- set or change pe configuration
+#     get_pe -- get parallel environment configuration object
 #
 #  SYNOPSIS
-#     set_pe { pe_obj change_array }
+#     get_pe {pe_name {output_var result} {on_host ""} {as_user ""}
+#     {raise_error 1}}
 #
 #  FUNCTION
-#     Set a pe configuration corresponding to the content of the change_array.
+#     Get the actual configuration settings for the named parallel environment
+#     Represents qconf -sp command in SGE
 #
 #  INPUTS
-#     pe_obj         - name of the pe.
-#     change_array   - TCL array specifying the pe object to configure
-#                      The following array members can be set:
-#                        - slots             optional, default 0
-#                        - user_lists        optional, default NONE
-#                        - xuser_lists       optional, default NONE
-#                        - start_proc_args   optional, default /bin/true
-#                        - stop_proc_args    optional, default /bin/true
-#                        - allocation_rule   optional, default $pe_slots
-#                        - control_slaves    optional, default FALSE
-#                        - job_is_first_task optional, default TRUE
+#     pe_name             - name of the parallel environment
+#     {output_var result} - result will be placed here
+#     {on_host ""}        - execute qconf on this host (default: qmaster host)
+#     {as_user ""}        - execute qconf as this user (default: CHECK_USER)
+#     {raise_error 1}     - raise error condition in case of errors?
 #
 #  RESULT
-#     0  : ok
-#     -1 : timeout
+#       0 - success
+#     < 0 - error
 #
 #  SEE ALSO
-#     sge_procedures/add_pe()
+#     sge_procedures/handle_sge_error()
+#     sge_pe/get_pe_messages()
 #*******************************************************************************
-proc set_pe {pe_obj change_array {raise_error 1}} {
+proc get_pe {pe_name {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
+  global CHECK_OUTPUT
+   upvar $output_var out
+  get_current_cluster_config_array ts_config
 
-   global env
-   global CHECK_USER CHECK_OUTPUT
+   puts $CHECK_OUTPUT "Get parallel environment $pe_name ... "
+
+   get_pe_messages messages "get" "$pe_name" $on_host $as_user
+  
+   return [get_qconf_object "get_pe" "-sp $pe_name" out messages 0 $on_host $as_user $raise_error]
+     }
+
+#****** sge_pe/mod_pe() ********************************************************
+#
+#  NAME
+#     mod_pe -- modify existing parallel environment configuration object
+#
+#  SYNOPSIS
+#     mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} 
+#     {raise_error 1}}
+#
+#  FUNCTION
+#     Modify the parallel environment $pe_name in the Grid Engine cluster.
+#     Supports fast (qconf -Mp) and slow (qconf -mp) mode.
+#
+#  INPUTS
+#     pe_name 	       - parallel environment we are modifying
+#     change_array     - the array of attributes and it's values
+#     {fast_add 1}     - use fast mode
+#     {on_host ""}     - execute qconf on this host, default is master host
+#     {as_user ""}     - execute qconf as this user, default is $CHECK_USER
+#     {raise_error 1}  - do add_proc_error in case of errors
+#
+#  RESULT
+#       0 - success
+#     < 0 - error
+#
+#  SEE ALSO
+#     sge_procedures/handle_sge_error()
+#     sge_pe/get_pe_messages()
+#*******************************************************************************
+proc mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
+   global CHECK_OUTPUT DISABLE_ADD_PROC_ERROR
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
+   set chgar(pe_name) "$pe_name"
 
-   if {$ts_config(gridengine_version) >= 60 && [info exists chgar(queue_list)]} {
-      if {[info exists chgar(queue_list)]} {
-         add_proc_error "set_pe" -3 "this qconf version doesn't support queue_list for pe objects,\nuse assign_queues_with_pe_object() after adding pe\nobjects and don't use queue_list parameter.\nyou can call get_pe_ckpt_version() to test pe version"
-         unset chgar(queue_list)
+   get_pe_messages messages "mod" "$pe_name" $on_host $as_user
+     
+   if { $fast_add } {
+      puts $CHECK_OUTPUT "Modify parallel environment $pe_name from file ..."
+      set option "-Mp"
+      get_pe $pe_name curr_pe $on_host $as_user 0
+      if {![info exists curr_pe]} {
+         set_pe_defaults curr_pe
       }
-   }
+      update_change_array curr_pe chgar
+      set tmpfile [dump_array_to_tmpfile curr_pe]
+      set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
+   } else {
+      puts $CHECK_OUTPUT "Modify parallel environment $pe_name slow ..."
+      set option "-mp"
    set vi_commands [build_vi_command chgar]
+      # BUG: different message for "vi" from fastadd ...
+      set NOT_EXISTS [translate_macro MSG_PARALLEL_XNOTAPARALLELEVIRONMENT_S "$pe_name"]
+      add_message_to_container messages -1 $NOT_EXISTS
+      set result [start_vi_edit "qconf" "$option $pe_name" $vi_commands messages $on_host $as_user]
 
-   set MODIFIED  [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
-   set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*" ]
-   if {$ts_config(gridengine_version) >= 62} {
-      set REJECTED_DUE_TO_AR_PE_SLOTS_U [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U "*"]
-   } else {
-      set REJECTED_DUE_TO_AR_PE_SLOTS_U "MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U message only in 6.2 or higher"
    }
-
-   if { $ts_config(gridengine_version) == 53 } {
-      set NOT_EXISTS [translate_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS "*" "*" "*" "*" ]
-   } else {
-      # JG: TODO: is it the right message? It's the only one mentioning non 
-      #           existing userset, but only for CQUEUE?
-      set NOT_EXISTS [translate_macro MSG_CQUEUE_UNKNOWNUSERSET_S "*" ]
+   return [handle_sge_errors "mod_pe" "qconf $option" $result messages $raise_error]
    }
  
-   set master_arch [resolve_arch $ts_config(master_host)]
-   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mp $pe_obj" $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_EXISTS $REJECTED_DUE_TO_AR_PE_SLOTS_U]
-
-   if {$result == -1 } { add_proc_error "set_pe" -1 "timeout error" $raise_error }
-   if {$result == -2 } { add_proc_error "set_pe" -1 "parallel environment \"$pe_obj\" already exists" $raise_error}
-   if {$result == -3 } { add_proc_error "set_pe" -1 "something (perhaps a queue) does not exist" $raise_error}
-   if {$result == -4 } { add_proc_error "set_pe" -1 "could not change pe because blocked by a advance reservation" $raise_error}
-   if {$result != 0  } { add_proc_error "set_pe" -1 "could not change parallel environment \"$pe_obj\"" $raise_error}
-
-   return $result
-}
-
-#                                                             max. column:     |
-#****** sge_procedures/del_pe() ******
+#****** sge_pe/del_pe() ********************************************************
 #
 #  NAME
-#     del_pe -- delete parallel environment object definition
+#     del_pe -- delete parallel environment configuration object
 #
 #  SYNOPSIS
-#     del_pe { pe_name }
+#     del_pe { pe_name {on_host ""} {as_user ""} {raise_error 1} }
 #
 #  FUNCTION
-#     This procedure will delete a existing parallel environment, defined with
-#     sge_procedures/add_pe.
+#     Delete the parallel environment configuration object
+#     Represents qconf -dp command in SGE
 #
 #  INPUTS
-#     mype_name - name of parallel environment to delete
-#     {raise_error 1} - optional raise errors if set
+#     pe_name          - name of parallel environment to delete
+#     {on_host ""}     - execute qconf on this host (default: qmaster host)
+#     {as_user ""}     - execute qconf as this user (default: CHECK_USER)
+#     {raise_error 1}  - raise error condition in case of errors?
+#
 #  RESULT
-#     0  - ok
-#     <0 - error
+#       0 - success
+#     < 0 - error
 #
 #  SEE ALSO
-#     sge_procedures/add_pe()
-#*******************************
+#     sge_procedures/sge_client_messages()
+#     sge_pe/get_pe_messages()
+#*******************************************************************************
 proc del_pe {pe_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_USER
+   global CHECK_USER CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
+   puts $CHECK_OUTPUT "Delete parallel environment $pe_name ..."
+   
    unassign_queues_with_pe_object $pe_name $on_host $as_user $raise_error
 
-   set messages(index) "0"
-   set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $pe_name "*"]
+   get_pe_messages messages "del" "$pe_name" $on_host $as_user
 
    set output [start_sge_bin "qconf" "-dp $pe_name" $on_host $as_user]
 
-   set ret [handle_sge_errors "del_pe" "qconf -dp $pe_name" $output messages $raise_error]
-   return $ret
+   return [handle_sge_errors "del_pe" "qconf -dp $pe_name" $output messages $raise_error]
+   
 }
 
+#****** sge_pe/get_pe_list() ***************************************************
+#  NAME
+#    get_pe_list () -- get the list of all parallel environments
+#
+#  SYNOPSIS
+#     get_pe_list { {output_var result} {on_host ""} {as_user ""} 
+#     {raise_error 1}  }
+#
+#  FUNCTION
+#     Calls qconf -sp to retrieve the list of all parallel environments in SGE
+#
+#  INPUTS
+#     {output_var result}  - result will be placed here
+#     {on_host ""}    - execute qconf on this host, default is master host
+#     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
+#     {raise_error 1} - raise an error condition on error (default), or just
+#                       output the error message to stdout
+#
+#  RESULT
+#       0 - success
+#     < 0 - error
+#
+#  SEE ALSO
+#     sge_procedures/handle_sge_error()
+#     sge_pe/get_pe_messages()
+#*******************************************************************************
+proc get_pe_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
+   global CHECK_OUTPUT
+   upvar $output_var out
+   
+   puts $CHECK_OUTPUT "Get parallel environment list ..."
+
+   get_pe_messages messages "list" "" $on_host $as_user 
+   
+   return [get_qconf_object "get_pe_list" "-spl" out messages 1 $on_host $as_user $raise_error]
+}
+
+#****** sge_pe/get_pe_messages() ***********************************************
+#  NAME
+#     get_pe_messages() -- returns the set of messages related to action 
+#                              on parallel env., i.e. add, modify, delete, get
+#
+#  SYNOPSIS
+#     get_pe_messages {msg_var action obj_name result {on_host ""} {as_user ""}} 
+#
+#  FUNCTION
+#     Returns the set of messages related to action on sge object. This function
+#     is a wrapper of sge_object_messages which is general for all types of objects
+#
+#  INPUTS
+#     msg_var       - array of messages (the pair of message code and message value)
+#     action        - action examples: add, modify, delete,...
+#     obj_name      - sge object name
+#     {on_host ""}  - execute on this host, default is master host
+#     {as_user ""}  - execute qconf as this user, default is $CHECK_USER
+#
+#  SEE ALSO
+#     sge_procedures/sge_client_messages()
+#*******************************************************************************
+proc get_pe_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
+   get_current_cluster_config_array ts_config
+
+   upvar $msg_var messages
+   if {[info exists messages]} {
+     unset messages
+   }
+
+   set OBJ_PE [translate_macro MSG_OBJ_PE]
+
+   # set the expected client messages
+   sge_client_messages messages $action $OBJ_PE $obj_name $on_host $as_user
+   
+   # the place for exceptions: # VD version dependent  
+   #                           # CD client dependent
+   # see sge_procedures/sge_client_messages
+
+   switch -exact $action {
+      "add" {
+         if {$ts_config(gridengine_version) == 53} {
+            set USET_NOT_EXISTS [translate_macro MSG_SGETEXT_UNKNOWNUSERSET_SSSS "*" "*" "*" "*" ]
+         } else {
+            set USET_NOT_EXISTS [translate_macro MSG_CQUEUE_UNKNOWNUSERSET_S "*"]
+         }
+         add_message_to_container messages -3 $USET_NOT_EXISTS
+         add_message_to_container messages -4 "error: [translate_macro MSG_ULONG_INCORRECTSTRING "*"]"
+         add_message_to_container messages -5 [translate_macro MSG_GDI_APATH_S "*"]
+      }
+      "get" {
+         set NOT_EXISTS [translate_macro MSG_PARALLEL_XNOTAPARALLELEVIRONMENT_S "$obj_name"]
+         add_message_to_container messages -1 $NOT_EXISTS
+     }
+      "mod" {
+         add_message_to_container messages -6 [translate_macro MSG_CQUEUE_UNKNOWNUSERSET_S "*"]
+         add_message_to_container messages -7 "error: [translate_macro MSG_ULONG_INCORRECTSTRING "*"]"
+         if {$ts_config(gridengine_version) >= 62} {
+            set REJECTED_DUE_TO_AR_PE_SLOTS_U [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U "*"]
+         } else {
+            set REJECTED_DUE_TO_AR_PE_SLOTS_U "MSG_PARSE_MOD_REJECTED_DUE_TO_AR_PE_SLOTS_U message only in 6.2 or higher"
+         }
+         add_message_to_container messages -8 $REJECTED_DUE_TO_AR_PE_SLOTS_U
+         add_message_to_container messages -9 [translate_macro MSG_GDI_APATH_S "*"]
+      }
+      "del" {
+         add_message_to_container messages -2 [translate_macro MSG_PEREFINQUEUE_SS "$obj_name" "*"]
+      }
+      "list" {
+      }
+  } 
+
+}

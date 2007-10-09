@@ -31,7 +31,7 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-proc unassign_queues_with_pe_object { pe_obj } {
+proc unassign_queues_with_pe_object { pe_obj {on_host ""} {as_user ""} {raise_error 1}} {
    # nothing to be done for SGE 5.3
 }
 
