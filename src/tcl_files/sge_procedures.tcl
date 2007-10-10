@@ -2747,7 +2747,7 @@ proc wait_for_load_from_all_queues { seconds } {
             return 0
          }
       } else {
-        puts $CHECK_OUTPUT "qstat error or binary not found"
+        puts $CHECK_OUTPUT "qstat -f failed:\n$result"
       }
 
       set runtime [expr ( [timestamp] - $time) ]
@@ -2977,7 +2977,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
             return 0
          }
       } else {
-        puts $CHECK_OUTPUT "qstat error or binary not found"
+        puts $CHECK_OUTPUT "qstat -f failed:\n$result"
         if { $do_error_check == 1 } {
            add_proc_error "wait_for_unknown_load" -1 "qstat error"
         }
@@ -3046,7 +3046,7 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
          }
       } else {
         puts $CHECK_OUTPUT ""
-        add_proc_error "wait_for_end_of_all_jobs" -1 "qstat error or binary not found"
+        add_proc_error "wait_for_end_of_all_jobs" -1 "qstat -s pr failed:\n$result"
         return -1
       }
       puts -nonewline $CHECK_OUTPUT "."
@@ -4642,16 +4642,17 @@ proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
    # some tests need this done via catch/exec because there is no additional user
    # who can run this in an open connetion.
    if {$ts_config(gridengine_version) == 53} {
-      set result [start_sge_bin "qstat" ""]
+      set qstat_args ""
    } elseif {$ts_config(gridengine_version) == 60} {
-      set result [start_sge_bin "qstat" "-g t"]
+      set qstat_args "-g t"
    } else {
       # ts_config gridengine_version 61
-      set result [start_sge_bin "qstat" "-u \"*\" -g t"]
+      set qstat_args "-u \"*\" -g t"
    }
+   set result [start_sge_bin "qstat" $qstat_args]
 
-   if { $prg_exit_state != 0 } {
-      add_proc_error "get_standard_job_info" -1 "qstat error or binary not found"
+   if {$prg_exit_state != 0} {
+      add_proc_error "get_standard_job_info" -1 "qstat $qstat_args failed:\n$result"
       return ""
    }
 

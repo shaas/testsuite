@@ -780,7 +780,7 @@ proc get_queue_state { queue_name } {
   set queue [resolve_queue $queue_name]
   set result [start_sge_bin "qstat" "-f -q $queue"]
   if { $prg_exit_state != 0 } {
-     add_proc_error "get_queue_state" "-1" "qstat error or binary not found"
+     add_proc_error "get_queue_state" "-1" "qstat -f -q $queue failed:\n$result"
      return ""
   }
 

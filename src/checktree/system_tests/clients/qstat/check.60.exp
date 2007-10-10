@@ -3675,7 +3675,7 @@ proc qstat_profile {} {
    # User sgetest2 is commented out; we don't like to see this job.
    #
    puts $fd "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER"
-   puts $fd "#-u $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+   #puts $fd "#-u $CHECK_SECOND_FOREIGN_SYSTEM_USER"
    close $fd
    wait_for_remote_file $ts_config(master_host) $CHECK_USER $sge_global_qstat_profile
    #

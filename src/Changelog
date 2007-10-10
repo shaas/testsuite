@@ -1,3 +1,9 @@
+JG-2007-10-10-0: Bugfix:    o fixed bugs/issuezilla/2328
+                            o removed check for unfixed low prio bugs/rfes in
+                              bugs/issuezilla/1914, system_tests/clients/qstat
+                            o improved some qstat error handling, cleanup
+                 Review:    MD
+
 AP-2007-10-09-0: Enhancem.  o SGE objects interfaces enhancement - Part II.
                             o objects: user, userset, queue, parallel environment
                             o start_sge_bin, start_vi_edit using JGDI shell
