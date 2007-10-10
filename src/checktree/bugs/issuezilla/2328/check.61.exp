@@ -269,7 +269,7 @@ proc issue_2328 {} {
    set dispatching_time -1
    foreach line [split $result "\n"] {
       if {[string first $pattern $line] >= 0} {
-         set dispatching_time [lindex $line 6]
+         set dispatching_time [lindex $line 5]
          break
       }
    }
