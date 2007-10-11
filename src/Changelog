@@ -1,3 +1,6 @@
+JG-2007-10-11-0: Bugfix:    fixed qdel test
+                 Review:    MD
+
 JG-2007-10-10-0: Bugfix:    o fixed bugs/issuezilla/2328
                             o removed check for unfixed low prio bugs/rfes in
                               bugs/issuezilla/1914, system_tests/clients/qstat
