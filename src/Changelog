@@ -1,3 +1,6 @@
+AP-2007-10-11-0: Bugfix:    fixed bugs related to AP-2007-10-09-0 changes.
+                 Review:    LP
+
 JG-2007-10-11-0: Bugfix:    fixed qdel test
                  Review:    MD
 

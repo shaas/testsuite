@@ -592,9 +592,8 @@ proc get_userset_messages {msg_var action obj_attr {on_host ""} {as_user ""}} {
       }
       "del_user" {
          # aja: TODO: foreach user, foreach userset, build the expected. message
-         add_message_to_container messages 0  [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS "$as_user" "$on_host" "*" "$USERSET"]
+         add_message_to_container messages 0 [translate_macro MSG_GDI_DELFROMACL_SS "*" "*"]
          add_message_to_container messages -1 [translate_macro MSG_GDI_USERNOTINACL_SS "*" "*"]
-         add_message_to_container messages -2 [translate_macro MSG_GDI_DELFROMACL_SS "*" "*"]
          add_message_to_container messages -3 [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
          add_message_to_container messages -4 [translate_macro MSG_GDI_ACLDOESNOTEXIST_S "*"] 
       }
