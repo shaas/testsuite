@@ -1,3 +1,8 @@
+MD-2007-10-12-0: Bugfix:    o added test bugs/issuezilla/2372
+                            o fixed testsuite bug concerning script caching
+                              and start_remote_prog envlist failure
+                 Review:    JG
+
 AP-2007-10-11-0: Bugfix:    fixed bugs related to AP-2007-10-09-0 changes.
                  Review:    LP
 

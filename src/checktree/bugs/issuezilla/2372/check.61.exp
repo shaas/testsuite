@@ -1,0 +1,214 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2372_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2372"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level  0 
+set check_description(0)  "Testing commlib enhancement for new parameterlist feature. tested qmaster_params: gdi_retries, gdi_timeout, cl_ping"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2372_setup
+set check_cleanup_function issue_2372_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2372"
+
+proc issue_2372_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   if {$ts_config(gridengine_version) == "62"} {
+      return -1
+   }
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2372_setup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2372_backup
+
+   # we want to modify the global config - make a backup
+   get_config issue_2372_backup
+   shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
+   wait_till_qmaster_is_down $ts_config(master_host)
+
+   set envlist(SGE_TEST_SPOOLING_WAIT_TIME_US) "80000"
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set arguments "$ts_config(product_root)/bin/$master_arch/sge_qmaster"
+
+   puts $CHECK_OUTPUT "restarting qmaster with slow spooling options!"
+   set result [start_remote_prog $ts_config(master_host) "root" $arguments "" prg_exit_state 60 0 "" envlist 1 0 0]
+
+   if { $prg_exit_state != 0 } {
+            add_proc_error "issue_2372_setup" -1 "error restarting qmaster with slow spooling"
+   }
+
+   puts $CHECK_OUTPUT "setting qmaster_params"
+   set global_conf(qmaster_params) "gdi_timeout=15;gdi_retries=3;cl_ping=true"
+   set_config global_conf
+}
+
+
+proc issue_2372_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2372_backup CHECK_USER
+
+   set master_arch [resolve_arch $ts_config(master_host)]
+   set arguments "$ts_config(product_root)/bin/$master_arch/sge_qmaster"
+
+   set qmaster_spool_dir [get_qmaster_spool_dir]
+   set qmaster_pid -1
+
+   set qmaster_pid [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "cat" "$qmaster_spool_dir/qmaster.pid"]
+   set qmaster_pid [ string trim $qmaster_pid ]
+   if { $prg_exit_state != 0 } {
+      set qmaster_pid -1
+   }
+ 
+   get_ps_info $qmaster_pid $ts_config(master_host)
+   if { ($ps_info($qmaster_pid,error) == 0) } {
+      if { [ is_pid_with_name_existing $ts_config(master_host) $qmaster_pid "sge_qmaster" ] == 0 } { 
+         puts $CHECK_OUTPUT "killing qmaster with pid $qmaster_pid on host $ts_config(master_host)"
+         set result [start_remote_prog "$ts_config(master_host)" "root" "kill" "-9 $qmaster_pid"]
+         puts $CHECK_OUTPUT $result
+         wait_till_qmaster_is_down $ts_config(master_host)
+      }
+   }
+   set result [start_remote_prog $ts_config(master_host) "root" $arguments "" prg_exit_state 60 0 "" "" 1 0 0]
+   wait_for_load_from_all_queues 60
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # restore config
+   set_config issue_2372_backup
+
+   # unset our test's global variables
+   foreach var "issue_2372_backup" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+
+proc issue_2372 {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global issue_2372_hosts
+   global CHECK_ACT_LEVEL result
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      puts $CHECK_OUTPUT "this is the test for runlevel $CHECK_ACT_LEVEL"
+      puts $CHECK_OUTPUT "starting with permanent job submission!"
+
+      set retry_found 0   
+      set time_checked 0   
+      set max_submit_num 0
+
+      while {$retry_found != 1 && $time_checked != 1} {
+         set host [host_conf_get_suited_hosts]
+         set user $CHECK_USER
+         set arch [resolve_arch $host]
+         set binary "time"
+         set envlist(SGE_DEBUG_LEVEL) "6 6 6 6 6 6 6 6"
+         set args "$ts_config(product_root)/bin/$arch/qsub -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
+         set result [start_remote_prog $host $user $binary $args exit_state "600" 0 "" envlist]
+
+         puts $CHECK_OUTPUT "qsub result: $result"
+
+         set tmp_result [split $result "\n"]
+
+         foreach line $tmp_result {
+            if {[string first "retry: 2" $line] != -1} {
+               set retry_found 1
+               puts $CHECK_OUTPUT "found retry entry and setting do_stop to 1"
+               puts $CHECK_OUTPUT "Found qsub output: $line"
+            }
+
+            if {[string first "real" $line] != -1 && $retry_found == 1} {
+               set time [lindex $line 1]
+               set tmp_minute [split $time ":"]
+               set minute [lindex $tmp_minute 0]
+               set time [expr [lindex $tmp_minute 1] + ($minute*60)]
+               if {$time >= "30.0"} {
+                  set time_checked 1
+                  puts $CHECK_OUTPUT "found a time value, time is correct!"
+                  puts $CHECK_OUTPUT "found a time value: $time"
+                  add_proc_error "issue_2372_setup" 0 "test ok!"
+               } else {
+                  puts $CHECK_OUTPUT "found a time value, time is wrong!"
+                  puts $CHECK_OUTPUT "found a time value: $time after 2 retries. Time must be > 30 sec!"
+                  add_proc_error "issue_2372" -1 "wrong time value!"
+               }
+            } 
+         }
+         if {$max_submit_num > 100} {
+            add_proc_error "issue_2372" -1 "test failed and exited due to reaching max job submit number!"
+            break;
+         }
+         set max_submit_num [expr $max_submit_num + 1]
+      }
+      add_proc_error "issue_2372_setup" 0 "test ok!"
+   }
+
+}
+
