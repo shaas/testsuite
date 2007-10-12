@@ -257,6 +257,7 @@ proc ticket_for_departments { } {
    
    # assign the users to the departments
    for {set i 0} {$i < $department_count} { incr i 1 } {
+      set dep_conf(name)    $departments($i,name)
       set dep_conf(type)    "DEPT"
       set dep_conf(fshare)  "0"
       set dep_conf(oticket) $departments($i,oticket)
@@ -265,7 +266,7 @@ proc ticket_for_departments { } {
       
       set users($i,department) $departments($i,name)
 
-      set result [ add_userset $departments($i,name) dep_conf ]
+      set result [ add_userset dep_conf ]
       if { $result != 0 } {
          add_proc_error "ticket_for_departments" -1 "Can not add department $departments($i,name)"
          # remove the previously added departments
@@ -448,17 +449,19 @@ proc ticket_for_users { } {
    }
    
    for {set i 0} {$i < $user_count} { incr i 1 } {
+      set user_conf(name)    $users($i,name)
       set user_conf(oticket) $users($i,oticket)
       set user_conf(fshare)  $users($i,fshare)
       
-      set result [ mod_user $users($i,name) user_conf ]
+      set result [ mod_user user_conf ]
       if { $result != 0 } {
          add_proc_error "ticket_for_users" -1 "Can not modify user $users($i,name)"
          # reset the user settings
          for {set ii 0} {$ii < $i} { incr ii 1 } {
+            set user_conf(name)    $users($ii,name)
             set user_conf(oticket) 0
             set user_conf(fshare)  0
-            mod_user $users($ii,name) user_conf
+            mod_user user_conf
          }         
          return -1
       }
@@ -487,9 +490,10 @@ proc ticket_for_users { } {
    
    # reset the user settings
    for {set i 0} {$i < $user_count} { incr i 1 } {
+      set user_conf(name)    $users($i,name)
       set user_conf(oticket) 0
       set user_conf(fshare)  0
-      mod_user $users($i,name) user_conf
+      mod_user user_conf
    }   
 
    if { $result != 0 } {

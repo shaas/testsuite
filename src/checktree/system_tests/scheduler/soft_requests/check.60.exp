@@ -110,7 +110,7 @@ proc soft_requests_setup  {} {
    set pe(pe_name)           "round_robin"
    set pe(slots)             "999"
    set pe(allocation_rule)   "\$fill_up"
-   add_pe "round_robin" pe
+   add_pe pe
 
    set queue_settings(slots) 1000
    set queue_settings(load_thresholds) "np_load_avg=11.75"

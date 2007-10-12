@@ -470,7 +470,7 @@ proc issue_1914_test {} {
       set test($daemon) $path
       set_config_and_propagate test $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         add_proc_error "Issue 2174 test failed" -3 "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
+         add_proc_error "Issue 2174 test failed" -1 "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
          issue 2174 fix didn't work for $daemon configuration - wrong binary issue"
       } else {
          puts $CHECK_OUTPUT "Test 5 for \"$job\" passed"

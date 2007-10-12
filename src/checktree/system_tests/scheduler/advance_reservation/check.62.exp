@@ -113,8 +113,8 @@ proc scheduler_advance_reservation_setup {} {
 
    set pe_settings(slots)  10 
    set pe_settings(allocation_rule) "\$fill_up"
-   set pe_settings(pe_name) "ar_pe"
-   add_pe "ar_pe" pe_settings
+   set pe_settings(pe_name) "ar_pe" 
+   add_pe pe_settings
 
    set queue_settings(slots) 4
    set queue_settings(pe_list) "ar_pe"
@@ -166,7 +166,7 @@ proc scheduler_advance_reservation_cleanup {} {
    set_exechost config "global"
    set_exechost config [lindex $test_hosts 0] 
 
-   #?remove queues
+   #äremove queues
    del_queue $queue_name $test_host 0 1
    del_queue $complex_queue_name $test_host 0 1
 

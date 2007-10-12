@@ -134,9 +134,12 @@ proc issue_2300_setup {} {
 
    # create pe's and attach them to the all.q
    set pe(slots)   100
-   add_pe "PE1" pe
-   add_pe "PE2" pe
-   add_pe "PE3" pe
+   set pe(pe_name) "PE1"
+   add_pe pe
+   set pe(pe_name) "PE2"
+   add_pe pe
+   set pe(pe_name) "PE3"
+   add_pe pe
    mod_attr "queue" "pe_list" "PE1 PE2 PE3" "all.q"
 }
 

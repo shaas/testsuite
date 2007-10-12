@@ -94,7 +94,7 @@ proc issue_2254_setup {} {
    set pe_conf(allocation_rule)    "\$pe_slots"
    set pe_conf(control_slaves)     "TRUE"
    set pe_conf(job_is_first_task)  "FALSE"
-   add_pe "intelmpi" pe_conf
+   add_pe pe_conf
  
    # 3b. setup pe intelpvm
    set pe_conf(pe_name)            "intelpvm"
@@ -102,7 +102,7 @@ proc issue_2254_setup {} {
    set pe_conf(allocation_rule)    "\$pe_slots"
    set pe_conf(control_slaves)     "TRUE"
    set pe_conf(job_is_first_task)  "FALSE"
-   add_pe "intelpvm" pe_conf
+   add_pe pe_conf
   
    # 4a. setup the test queue first.q
    set first_queue_name "first.q"

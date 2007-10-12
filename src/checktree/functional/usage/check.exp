@@ -194,15 +194,15 @@ proc usage_setup {} {
    set pe(allocation_rule)    "\$round_robin"
    set pe(control_slaves)     TRUE
    set pe(job_is_first_task)  FALSE
-   add_pe tight pe
+   add_pe pe
 
    set pe(pe_name)            loose1
    set pe(control_slaves)     FALSE
-   add_pe loose1 pe
+   add_pe pe
 
    set pe(pe_name)            loose2
    set pe(job_is_first_task)  TRUE
-   add_pe loose2 pe
+   add_pe pe
 
    set queue_conf(load_thresholds) "np_load_avg=11"
    set queue_conf(pe_list)         "tight loose1 loose2"

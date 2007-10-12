@@ -663,7 +663,7 @@ proc qdel_iz_125_case_4 {} {
    set mype1(pe_name) "mype1"
    set mype1(slots) 2
    set mype1(allocation_rule) "\$pe_slots"
-   add_pe "mype1" mype1
+   add_pe mype1
    assign_queues_with_pe_object "test1.q" $qdel_host mype1
 
    add_queue "test2.q" $qdel_host testq
@@ -671,7 +671,7 @@ proc qdel_iz_125_case_4 {} {
    set mype2(pe_name) "mype2"
    set mype2(slots) 2
    set mype2(allocation_rule) "\$pe_slots"
-   add_pe "mype2" mype2
+   add_pe mype2
    assign_queues_with_pe_object "test2.q" $qdel_host mype2
 
    # Submit -pe jobs

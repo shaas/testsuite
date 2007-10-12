@@ -396,8 +396,7 @@ set CHECK_INFORMATION_FILE "check"   ;# this is the filename of each check in di
 set CHECK_INFORMATION_EXT  "exp"     ;# default extension for check files
                                          ;# subdirectories of "checktree"
                                          ;# every file with this name is interpreded as check routine
-global CHECK_USE_JGDI                ;# use jgdi shell
-set CHECK_USE_JGDI  0
+
 
 # the following variables are used for handling user pressing CTRL-C
 global CHECK_INTERRUPT              ;# user requests interrupt, value of CHECK_INTERRUPT defines when

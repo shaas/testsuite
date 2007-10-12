@@ -175,7 +175,7 @@ proc issue193_setup {} {
       set new_peobj(pe_name) $elem
       set new_peobj(allocation_rule) [lindex $pe_alloc_rule $index]
       incr index 1
-      add_pe $elem new_peobj
+      add_pe new_peobj
       assign_queues_with_pe_object $rerun_queue2 $no_rerun_host $new_peobj(pe_name)
       assign_queues_with_pe_object $rerun_queue $rerun_host $new_peobj(pe_name)
    }

@@ -485,8 +485,7 @@ proc throughput_setup_sharetree {} {
    set s_tree [throughput_set_share_tree]
 
    foreach elem $s_tree {
-      lappend vi_commands "GA
-${elem}[format "%c" 27]"
+      lappend vi_commands "GA${elem}[format "%c" 27]"
    } 
    lappend vi_commands "1Gdddddddddd"
   
@@ -665,7 +664,7 @@ proc throughput_setup {} {
       set pe(pe_name) "perfpe"
       set pe(slots)   "99999"
       set pe(allocation_rule)   "\$fill_up"
-      add_pe "perfpe" pe
+      add_pe pe
    }
 
    # now setup queues for hosts in host_list:

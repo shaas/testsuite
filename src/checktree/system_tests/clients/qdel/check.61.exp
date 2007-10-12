@@ -40,26 +40,27 @@ proc qdel_wc_job_range_list {} {
    global ts_config CHECK_USER CHECK_ACT_LEVEL
 
    if {$CHECK_ACT_LEVEL == 0} {
-      set arguments "-N job1 -o /dev/null -j y"
+      set arguments "-N job1"
       set job_id1 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-      set arguments "-N job2 -o /dev/null -j y"
+      set arguments "-N job2"
       set job_id2 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-      set arguments "-N job3 -o /dev/null -j y"
+      set arguments "-N job3"
       set job_id3 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-      set arguments "-N job4 -o /dev/null -j y"
+      set arguments "-N job4"
       set job_id4 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
       wait_for_jobstart $job_id4 "job4" 60 1 1 
       
       # Now delete them using wc_job_range_list: job_id1,job2,job3 job_id4
       set output [start_sge_bin "qdel" "$job_id1,job2,job3 $job_id4"]
-      if {$prg_exit_state != 0} {
-         add_proc_error "qdel_wc_job_range_list" -1 "qdel failed:\n$output"
-         return
-      }
+      puts "output= $output"
       
-      # Now wait 10 seconds for all jobs to finish.
-      # If they were not deleted correctly, they would run for 100 seconds.
-      # Errors (jobs still running) are generated in wait_for_end_of_all_jobs.
-      wait_for_end_of_all_jobs 10
+      set result1 [is_job_running $job_id1 "job1"]
+      set result2 [is_job_running $job_id2 "job2"]
+      set result3 [is_job_running $job_id3 "job3"]
+      set result4 [is_job_running $job_id4 "job4"]
+      
+      if {$result1 != -1 || $result2 != -1 || $result3 != -1 || $result4 != -1} {
+         add_proc_error "qdel_test_cmdline" -1 "jobs were not successfully deleted"
+      }
    }
 }

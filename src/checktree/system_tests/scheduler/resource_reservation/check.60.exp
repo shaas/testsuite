@@ -226,17 +226,17 @@ proc resource_reservation_level_setup {} {
       set pe(pe_name)           "round_robin"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$round_robin"
-      add_pe "round_robin" pe
+      add_pe pe
 
       set pe(pe_name)           "fill_up"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$fill_up"
-      add_pe "fill_up" pe
+      add_pe pe
 
       set pe(pe_name)           "pe_slots"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$pe_slots"
-      add_pe "pe_slots" pe
+      add_pe pe   
 
       # setup the rr test queue
       set queue_conf(slots)            "5"
@@ -272,17 +272,17 @@ proc resource_reservation_level_setup {} {
       set pe(pe_name)           "round_robin"
       set pe(slots)             "100"
       set pe(allocation_rule)   "\$round_robin"
-      add_pe "round_robin" pe
+      add_pe pe
 
       set pe(pe_name)           "fill_up"
       set pe(slots)             "100"
       set pe(allocation_rule)   "\$fill_up"
-      add_pe "fill_up" pe
+      add_pe pe
 
       set pe(pe_name)           "pe_slots"
       set pe(slots)             "100"
       set pe(allocation_rule)   "\$pe_slots"
-      add_pe "pe_slots" pe
+      add_pe pe
 
       # setup the rr test queue
       set queue_conf(slots)            "100"
@@ -311,17 +311,17 @@ proc resource_reservation_level_setup {} {
       set pe(pe_name)           "round_robin"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$round_robin"
-      add_pe "round_robin" pe
+      add_pe pe
 
       set pe(pe_name)           "fill_up"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$fill_up"
-      add_pe "fill_up" pe
+      add_pe pe
 
       set pe(pe_name)           "pe_slots"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$pe_slots"
-      add_pe "pe_slots" pe
+      add_pe pe
 
       # setup the rr test queue
       set queue_conf(slots)            "100"

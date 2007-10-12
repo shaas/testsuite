@@ -134,7 +134,7 @@ proc qmake_setup_level {} {
          set pe(allocation_rule)    "\$round_robin"
          set pe(control_slaves)     TRUE
          set pe(job_is_first_task)  FALSE
-         add_pe make pe
+         add_pe pe
 
          # assign pe with queue
          assign_queues_with_pe_object qmake.q "" make

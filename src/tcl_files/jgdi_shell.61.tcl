@@ -33,37 +33,20 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-proc jgdi_shell_mark {{jgdi_set 1}} {
-   global CHECK_OUTPUT CHECK_USE_JGDI
 
-   set CHECK_USE_JGDI $jgdi_set
-   if {$jgdi_set == 1} {
-      set action "started "
-   } else {
-      set action "finished"
-   }
-   puts $CHECK_OUTPUT "\n* * * * * * * * * * * * * * * *"
-   puts $CHECK_OUTPUT   "* Testing JGDI shell $action *"
-   puts $CHECK_OUTPUT   "* * * * * * * * * * * * * * * *"
-}
-
-proc jgdi_shell_setup {{host ""} } {
+proc jgdi_shell_setup { } {
    global CHECK_USER ts_config jgdi_config
 
    foreach name [array names jgdi_config] {
       unset jgdi_config($name)
    }
    
-   if { $host == ""} {
-      set $host [host_conf_get_java_compile_host]
-   }
-   set jgdi_config(target_host) $host
-   
+   set jgdi_config(target_host) [host_conf_get_java_compile_host]
    set arch [resolve_arch $jgdi_config(target_host)]
    #set jgdi_config(java_test_version) $JAVA_TEST_VERSION
-   set jgdi_config(java14) [get_java_home_for_host $jgdi_config(target_host) "1.4" 0]
-   set jgdi_config(java15) [get_java_home_for_host $jgdi_config(target_host) "1.5" 0]
-   set jgdi_config(java16) [get_java_home_for_host $jgdi_config(target_host) "1.6" 0]
+   set jgdi_config(java14) [get_java_home_for_host $jgdi_config(target_host) "1.4"]
+   set jgdi_config(java15) [get_java_home_for_host $jgdi_config(target_host) "1.5"]
+   set jgdi_config(java16) [get_java_home_for_host $jgdi_config(target_host) "1.6"]
    set jgdi_config(available_java_list) {}
    foreach java "java14 java15 java16" {
       if { [string length $jgdi_config($java)] > 0 } {
@@ -75,8 +58,6 @@ proc jgdi_shell_setup {{host ""} } {
       return -1
    }
 
-   # aja: TODO: check if jgdi native library is available on $host
-
    set jgdi_config(classpath) "-cp $ts_config(product_root)/lib/jgdi.jar"
    set jgdi_config(connect_cmd) "bootstrap://$ts_config(product_root)@$ts_config(cell):$ts_config(commd_port)"
    set jgdi_config(logging_config_file) [get_tmp_file_name $jgdi_config(target_host) "jgdi" "properties"]
@@ -86,7 +67,6 @@ proc jgdi_shell_setup {{host ""} } {
    if { [string match "*64" $arch] == 1 } {
       append jgdi_config(flags) " -d64"
    }
-   return 0
 }
 
 proc jgdi_shell_cleanup { } {
@@ -126,18 +106,17 @@ proc run_jgdi_command { command java_home } {
 }
 
 
-proc run_jgdi_command_as_user { command java_home user {exit_var prg_exit_state}} {
+proc run_jgdi_command_as_user { command java_home user } {
    global jgdi_config
-   upvar $exit_var exit_state
 
    set env(JAVA_HOME) $java_home
    set env_var env
    set java $env(JAVA_HOME)/bin/java
    #TODO LP: Should we throw out the error output (logging)?
-   return [start_remote_prog $jgdi_config(target_host) $user  \
+   start_remote_prog $jgdi_config(target_host) $user  \
         "$java" "$jgdi_config(classpath) $jgdi_config(flags) \
         com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $command"\
-        exit_state 600 0 "" $env_var]
+        prg_exit_state 600 0 "" $env_var
 }
 
 #****** jgdi_create_cluster_config_file() **************************************
@@ -255,7 +234,7 @@ proc jgdi_create_config_file { host content filename } {
    global CHECK_USER CHECK_OUTPUT
    global ts_config
 
-#   puts $CHECK_OUTPUT "creating on $host $filename"
+   puts $CHECK_OUTPUT "creating on $host $filename"
 
    set fd [open $filename w+ 0777]
    foreach line [split $content "\n"] {
@@ -263,7 +242,7 @@ proc jgdi_create_config_file { host content filename } {
    }
    close $fd
 
-#   puts $CHECK_OUTPUT "done"
+   puts $CHECK_OUTPUT "done"
 
    wait_for_remote_file $host $CHECK_USER $filename
 }

@@ -2093,15 +2093,13 @@ proc host_conf_get_unused_host {{raise_error 1}} {
 #     Doesn't work for MAC OS X
 #  SEE ALSO
 #*******************************************************************************
-proc get_java_home_for_host { host {java_version "1.4"} {raise_error 1}} {
+proc get_java_home_for_host { host {java_version "1.4"} } {
     global ts_host_config CHECK_OUTPUT
     set version [get_testsuite_java_version $java_version]
     set input $ts_host_config($host,java$version)
 
     if { $input == "" } {
-       if { $raise_error } {
        puts $CHECK_OUTPUT "Error: java$version is not set for host: $host"
-       }
        return ""
     }
     

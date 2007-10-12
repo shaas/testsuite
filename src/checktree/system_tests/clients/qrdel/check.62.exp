@@ -97,7 +97,7 @@ proc qrdel_setup {} {
 
    set pe_param(slots)                "50"
    set pe_param(pe_name)              "$pe"
-   add_pe "$pe" pe_param
+   add_pe pe_param
 
    set q_param(load_thresholds)       "np_load_avg=7.00"
    set q_param(slots)                 "50"

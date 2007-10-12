@@ -31,28 +31,210 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-#****** sge_queue/set_queue_defaults() *****************************************
+
+#                                                             max. column:     |
+#****** sge_procedures/set_queue() ******
+# 
 #  NAME
-#     set_queue_defaults() -- create version dependent queue settings
+#     set_queue -- set or change queue configuration
 #
 #  SYNOPSIS
-#     set_queue_defaults {change_array}
+#     set_queue { q_name change_array } 
 #
 #  FUNCTION
-#     Fills the array change_array with queue attributes for the specific 
-#     version of SGE.
+#     Set a queue configuration corresponding to the content of the change_array.
 #
 #  INPUTS
-#     change_array - the resulting array
+#     q_name       - name of the queue to configure
+#     change_array - name of an array variable that will be set by set_queue
 #
-#*******************************************************************************
+#  RESULT
+#     0  : ok
+#     -1 : timeout
+#
+#  EXAMPLE
+#     get_queue myqueue.q queue1
+#     set queue1(load_thresholds) "np_load_avg=3.75" 
+#     set_queue myqueue.q queue1
+#
+#  NOTES
+#     the array should look like this:
+#
+#     set change_array(qname) MYHOST
+#     set change_array(hostname) MYHOST.domain
+#     ....
+#     (every value that is set will be changed)
+#
+#     here is a list of all valid array names (template queue):
+#
+#     change_array(qname)                "template"
+#     change_array(hostname)             "unknown" - This is wrong. It should say
+#     change_array(hostlist)             "unknown"
+#     change_array(seq_no)               "0"
+#     change_array(load_thresholds)      "np_load_avg=1.75"
+#     change_array(suspend_thresholds)   "NONE"
+#     change_array(nsuspend)             "0"
+#     change_array(suspend_interval)     "00:05:00"
+#     change_array(priority)             "0"
+#     change_array(min_cpu_interval)     "00:05:00"
+#     change_array(processors)           "UNDEFINED"
+#     change_array(qtype)                "BATCH INTERACTIVE" 
+#     change_array(rerun)                "FALSE"
+#     change_array(slots)                "1"
+#     change_array(shell)                "/bin/csh"
+#     change_array(shell_start_mode)     "NONE"
+#     change_array(prolog)               "NONE"
+#     change_array(epilog)               "NONE"
+#     change_array(starter_method)       "NONE"
+#     change_array(suspend_method)       "NONE"
+#     change_array(resume_method)        "NONE"
+#     change_array(terminate_method)     "NONE"
+#     change_array(notify)               "00:00:60"
+#     change_array(owner_list)           "NONE"
+#     change_array(user_lists)           "NONE"
+#     change_array(xuser_lists)          "NONE"
+#     change_array(subordinate_list)     "NONE"
+#     change_array(complex_list)         "NONE"
+#     change_array(complex_values)       "NONE"
+#     change_array(projects)             "NONE"
+#     change_array(xprojects)            "NONE"
+#     change_array(calendar)             "NONE"
+#     change_array(initial_state)        "default"
+#     change_array(s_rt)                 "INFINITY"
+#     change_array(h_rt)                 "INFINITY"
+#     change_array(s_cpu)                "INFINITY"
+#     change_array(h_cpu)                "INFINITY"
+#     change_array(s_fsize)              "INFINITY"
+#     change_array(h_fsize)              "INFINITY"
+#     change_array(s_data)               "INFINITY"
+#     change_array(h_data)               "INFINITY"
+#     change_array(s_stack)              "INFINITY"
+#     change_array(h_stack)              "INFINITY"
+#     change_array(s_core)               "INFINITY"
+#     change_array(h_core)               "INFINITY"
+#     change_array(s_rss)                "INFINITY"
+#     change_array(h_rss)                "INFINITY"
+#     change_array(s_vmem)               "INFINITY"
+#     change_array(h_vmem)               "INFINITY"
+#
+#
+#  SEE ALSO
+#     sge_procedures/mqattr()
+#     sge_procedures/set_queue()
+#     sge_procedures/add_queue()
+#     sge_procedures/del_queue()
+#     sge_procedures/get_queue()
+#     sge_procedures/suspend_queue()
+#     sge_procedures/unsuspend_queue()
+#     sge_procedures/disable_queue()
+#     sge_procedures/enable_queue()
+#*******************************
+
+#                                                             max. column:     |
+#****** sge_queue/add_queue() ******
+# 
+#  NAME
+#     add_queue -- Add a new queue configuration object
+#
+#  SYNOPSIS
+#     add_queue { change_array {fast_add 1} } 
+#
+#  FUNCTION
+#     Add a new queue configuration object corresponding to the content of 
+#     the change_array.
+#
+#  INPUTS
+#     change_array - name of an array variable that will be set by get_config
+#     {fast_add 1} - if not 0 the add_queue procedure will use a file for
+#                    queue configuration. (faster) (qconf -Aq, not qconf -aq)
+#
+#  RESULT
+#     -1   timeout error
+#     -2   queue already exists
+#      0   ok 
+#
+#  EXAMPLE
+#     set new_queue(qname)    "new.q"
+#     set new_queue(hostname) "expo1"
+#     add_queue new_queue 
+#
+#  NOTES
+#     the array should look like this:
+#
+#     set change_array(qname) MYHOST
+#     set change_array(hostname) MYHOST.domain
+#     ....
+#     (every value that is set will be changed)
+#
+#     here is a list of all valid array names (template queue):
+#
+#     change_array(qname)                "template"
+#     change_array(hostname)             "unknown"
+#     change_array(seq_no)               "0"
+#     change_array(load_thresholds)      "np_load_avg=1.75"
+#     change_array(suspend_thresholds)   "NONE"
+#     change_array(nsuspend)             "0"
+#     change_array(suspend_interval)     "00:05:00"
+#     change_array(priority)             "0"
+#     change_array(min_cpu_interval)     "00:05:00"
+#     change_array(processors)           "UNDEFINED"
+#     change_array(qtype)                "BATCH INTERACTIVE" 
+#     change_array(rerun)                "FALSE"
+#     change_array(slots)                "1"
+#     change_array(shell)                "/bin/csh"
+#     change_array(shell_start_mode)     "NONE"
+#     change_array(prolog)               "NONE"
+#     change_array(epilog)               "NONE"
+#     change_array(starter_method)       "NONE"
+#     change_array(suspend_method)       "NONE"
+#     change_array(resume_method)        "NONE"
+#     change_array(terminate_method)     "NONE"
+#     change_array(notify)               "00:00:60"
+#     change_array(owner_list)           "NONE"
+#     change_array(user_lists)           "NONE"
+#     change_array(xuser_lists)          "NONE"
+#     change_array(subordinate_list)     "NONE"
+#     change_array(complex_list)         "NONE"
+#     change_array(complex_values)       "NONE"
+#     change_array(projects)             "NONE"
+#     change_array(xprojects)            "NONE"
+#     change_array(calendar)             "NONE"
+#     change_array(initial_state)        "default"
+#     change_array(s_rt)                 "INFINITY"
+#     change_array(h_rt)                 "INFINITY"
+#     change_array(s_cpu)                "INFINITY"
+#     change_array(h_cpu)                "INFINITY"
+#     change_array(s_fsize)              "INFINITY"
+#     change_array(h_fsize)              "INFINITY"
+#     change_array(s_data)               "INFINITY"
+#     change_array(h_data)               "INFINITY"
+#     change_array(s_stack)              "INFINITY"
+#     change_array(h_stack)              "INFINITY"
+#     change_array(s_core)               "INFINITY"
+#     change_array(h_core)               "INFINITY"
+#     change_array(s_rss)                "INFINITY"
+#     change_array(h_rss)                "INFINITY"
+#     change_array(s_vmem)               "INFINITY"
+#     change_array(h_vmem)               "INFINITY"
+#
+#  SEE ALSO
+#     sge_procedures/mqattr()
+#     sge_procedures/set_queue()
+#     sge_procedures/add_queue()
+#     sge_procedures/del_queue()
+#     sge_procedures/get_queue()
+#     sge_procedures/suspend_queue()
+#     sge_procedures/unsuspend_queue()
+#     sge_procedures/disable_queue()
+#     sge_procedures/enable_queue()
+#*******************************
 proc set_queue_defaults { change_array } {
    get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
-   set chgar(qname)                "template"
+   set chgar(qname)                "queuename"
    set chgar(seq_no)               "0"
-   set chgar(load_thresholds)      "np_load_avg=1.75"
+   set chgar(load_thresholds)      "np_load_avg=7.00"
    set chgar(suspend_thresholds)   "NONE"
    set chgar(nsuspend)             "1"
    set chgar(suspend_interval)     "00:05:00"
@@ -60,9 +242,9 @@ proc set_queue_defaults { change_array } {
    set chgar(min_cpu_interval)     "00:05:00"
    set chgar(processors)           "UNDEFINED"
    set chgar(rerun)                "FALSE"
-   set chgar(slots)                "1"
-   set chgar(tmpdir)               "/tmp"
+   set chgar(slots)                "10"
    set chgar(shell)                "/bin/csh"
+   set chgar(shell_start_mode)     "posix_compliant"
    set chgar(prolog)               "NONE"
    set chgar(epilog)               "NONE"
    set chgar(starter_method)       "NONE"
@@ -94,313 +276,167 @@ proc set_queue_defaults { change_array } {
    set chgar(s_vmem)               "INFINITY"
    set chgar(h_vmem)               "INFINITY"
   
-   # SGE version dependent defaults
-   if { $ts_config(gridengine_version) == 53 } {
-      set chgar(hostlist)             "unknown"
-      set chgar(qtype)                "BATCH INTERACTIVE PARALLEL" 
-      set chgar(shell_start_mode)     "NONE"
-      set chgar(complex_list)         "NONE"
-   if { $ts_config(product_type) == "sgeee" } {
-         set chgar(fshare)            "0"
-         set chgar(oticket)           "0"
-      }
-   } elseif { $ts_config(gridengine_version) >= 60 } {
-      set chgar(hostlist)             "NONE"
-      set chgar(qtype)                "BATCH INTERACTIVE" 
-      set chgar(ckpt_list)            "NONE"
-      set chgar(pe_list)              "make"
-      set chgar(shell_start_mode)     "posix_compliant"
-   }
-   
    if { $ts_config(product_type) == "sgeee" } {
       set chgar(projects)           "NONE"
       set chgar(xprojects)          "NONE"
    }
 
+   vdep_set_queue_defaults chgar
 }
 
-#****** sge_queue/set_lab_defaults() *******************************************
-#  NAME
-#     set_lab_defaults() -- adjust the default queue settings
-#
-#  SYNOPSIS
-#     set_lab_defaults {change_array}
-#
-#  FUNCTION
-#     Adjust the default queue settings needed to run the tests in our lab 
-#     properly.
-#
-#  INPUTS
-#     change_array - the resulting array
-#
-#*******************************************************************************
-proc set_lab_defaults {change_array} {
-   get_current_cluster_config_array ts_config
-   upvar $change_array chgar
-   
-   set chgar(load_thresholds)      "np_load_avg=7.00"
-   set chgar(slots)                "10"
-
-}
-
-#****** sge_queue/validate_queue() *********************************************
-#  NAME
-#     validate_queue() -- validate the queue settings
-#
-#  SYNOPSIS
-#     validate_queue {change_array}
-#
-#  FUNCTION
-#     Validate the queue settings. Adjust the queue settings according to sge 
-#     version.
-#
-#  INPUTS
-#     change_array - the resulting array
-# 
-#*******************************************************************************
-proc validate_queue {change_array} {
-   get_current_cluster_config_array ts_config
-   upvar $change_array chgar
-   
-   # create cluster dependent tmpdir
-   set chgar(tmpdir)               "/tmp/testsuite_$ts_config(commd_port)"
-
-   vdep_validate_queue chgar
-
-}
-
-#****** sge_queue/add_queue() **************************************************
+#                                                             max. column:     |
+#****** sge_queue/del_queue() ******
 # 
 #  NAME
-#     add_queue -- Add a new queue configuration object
+#     del_queue -- delete a queue
 #
 #  SYNOPSIS
-#     add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} 
-#     {as_user ""} {raise_error 1}} 
-#
-#  FUNCTION
-#     Add a new queue configuration object corresponding to the content of 
-#     the change_array.
-#     Supports fast (qconf -Aq) and slow (qconf -aq) mode.
-#
-#  INPUTS
-#     q_name        - queue name
-#     hostlist      - the list of hosts
-#     {change_array ""} - the queue description
-#     {fast_add 1}    - use fast mode
-#     {on_host ""}    - execute qconf on this host (default: qmaster host)
-#     {as_user ""}    - execute qconf as this user (default: CHECK_USER)
-#     {raise_error 1} - raise error condition in case of errors?
-#
-#  RESULT
-#       0 - success
-#     < 0 - error
-#
-#  SEE ALSO
-#     sge_procedures/handle_sge_error()
-#     sge_project/get_queue_messages()
-#*******************************************************************************
-proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
-
-   upvar $change_array chgar
-
-   if { $ts_config(gridengine_version) == 53 } {
-      # non cluster queue: set queue and hostnames
-      if { $hostlist == "@allhosts" || $hostlist == "" || $hostlist == "NONE" } {
-         set hostlist $ts_config(execd_nodes)
-         foreach host $hostlist {
-            set cqueue [get_queue_instance ${qname} ${host}]
-            set ret [add_queue $cqueue $host chgar $fast_add $on_host $as_user $raise_error]
-         }
-         return $ret
-      }
-   }
-
-   set chgar(qname)     "$qname"
-   set chgar(hostlist) $hostlist
-   validate_queue chgar
-
-   get_queue_messages messages "add" "$qname" $on_host $as_user
-   
-   if { $fast_add } {
-      puts $CHECK_OUTPUT "Add queue $chgar(qname) for hostlist $chgar(hostlist) from file ..."
-      set option "-Aq"
-      set_queue_defaults default_array
-      set_lab_defaults default_array
-      update_change_array default_array chgar
-      set tmpfile [dump_array_to_tmpfile default_array]
-      set result [start_sge_bin "qconf" "-Aq ${tmpfile}" $on_host $as_user]
-
-   } else {
-      puts $CHECK_OUTPUT "Add queue $chgar(qname) for hostlist $chgar(hostlist) slow ..."
-      set option "-aq"
-      set vi_commands [build_vi_command chgar]
-      set result [start_vi_edit "qconf" "-aq" $vi_commands messages $on_host $as_user]
-
-   }
-
-   return [handle_sge_errors "add_queue" "qconf $option" $result messages $raise_error]
-}
-
-
-#****** sge_queue/mod_queue() **************************************************
-#  NAME
-#     mod_queue() -- modify existing queue configuration object
-#
-#  SYNOPSIS
-#     mod_queue { qname hostslist hange_array {fast_add 1} {on_host ""} 
-#    {as_user ""} {raise_error 1}}
-#
-#  FUNCTION
-#     Modify the queue $qname in the Grid Engine cluster.
-#     Supports fast (qconf -Mq) and slow (qconf -mq) mode.
-#
-#  INPUTS
-#     qname        - name of the (cluster) queue
-#     hostlist     - the list of hosts
-#     change_array - array containing the changed attributes.
-#     {fast_add 1}     - use fast mode
-#     {on_host ""}     - execute qconf on this host, default is master host
-#     {as_user ""}     - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1}  - do add_proc_error in case of errors
-#
-#  RESULT
-#       0 - success
-#     < 0 - error
-#
-#  SEE ALSO
-#     sge_procedures/handle_sge_error()
-#     sge_queue/get_queue_messages()
-#*******************************************************************************
-proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_OUTPUT
-  get_current_cluster_config_array ts_config
-
-  upvar $change_array chgar
-
-   if { $ts_config(gridengine_version) == 53 } {
-      if { $hostlist == "@allhosts" || $hostlist == "" || $hostlist == "NONE" } {
-         set hostlist $ts_config(execd_nodes)
-         foreach host $hostlist {
-            set cqueue [get_queue_instance ${qname} ${host}]
-            set ret [mod_queue $cqueue $host chgar $fast_add $on_host $as_user $raise_error]
-  }
-         # aja: TODO: what to return?
-         return $ret
-      }
-   }
-
-   set chgar(qname) "$qname"
-   validate_queue chgar
-
-   get_queue_messages messages "mod" "$qname" $on_host $as_user
-     
-   if { $fast_add } {
-      puts $CHECK_OUTPUT "Modify queue $qname for hostlist $hostlist from file ..."
-      # aja: TODO: suppress all messages coming from the procedure
-      get_queue "$qname" curr_arr "" "" 0
-      if {![info exists curr_arr]} {
-         set_queue_defaults curr_arr
-     }
-      # aja: TODO: is this okay? procedures not checked
-      if { $ts_config(gridengine_version) >= 60 } {
-         if {[llength $hostlist] == 0} {
-            set_cqueue_default_values curr_arr chgar
-         } else {
-            set_cqueue_specific_values curr_arr chgar $hostlist
-  }
-      } else {
-         set chgar(hostlist) "$hostlist"
-}
-      update_change_array curr_arr chgar
-
-      set tmpfile [dump_array_to_tmpfile curr_arr]
-      
-      set output [start_sge_bin "qconf" "-Mq $tmpfile" $on_host $as_user]
-      set ret [handle_sge_errors "mod_queue" "qconf -Mq $qname" $output messages $raise_error]
-
-   } else {
-      puts $CHECK_OUTPUT "Modify queue $qname for hostlist $hostlist slow ..."
-      set vi_commands [build_vi_command chgar]
-      set chgar(hostlist) $hostlist
-      # BUG: different message for "vi" from fastadd ...
-      set NOT_EXISTS [translate_macro MSG_CQUEUE_DOESNOTEXIST_S "$qname"]
-      add_message_to_container messages -1 $NOT_EXISTS
-      set result [start_vi_edit "qconf" "-mq $qname" $vi_commands messages $on_host $as_user]
-      set ret [handle_sge_errors "mod_queue" "qconf -mq $qname" $result messages $raise_error]
-   }
-   return $ret
-}
-
-#****** sge_queue/del_queue() **************************************************
-# 
-#  NAME
-#     del_queue -- delete queue configuration object
-#
-#  SYNOPSIS
-#     del_queue { q_name hostlist {on_host ""} {as_user ""} {raise_error 1} } 
+#     del_queue { q_name } 
 #
 #  FUNCTION
 #     remove a queue from the qmaster configuration
 #
 #  INPUTS
 #     q_name - name of the queue to delete
-#     {on_host ""}     - execute qconf on this host (default: qmaster host)
-#     {as_user ""}     - execute qconf as this user (default: CHECK_USER)
-#     {raise_error 1}  - raise error condition in case of errors?
 #
 #  RESULT
-#       0 - success
-#     < 0 - error
+#     0  : ok
+#     -1 : timeout error
 #
+#  EXAMPLE
+#     del_queue "my_own_queue.q"
+#
+#  NOTES
 #
 #  SEE ALSO
-#     sge_procedures/handle_sge_error()
-#     sge_queue/get_queue_messages()
-#*******************************************************************************
-# aja TODO: create procedure del_queue {qname hostlist {on_host ""} {as_user ""} {raise_error 1}}
-
-#****** sge_procedures/get_queue() *********************************************
+#     sge_procedures/mqattr()
+#     sge_procedures/set_queue() 
+#     sge_procedures/add_queue()
+#     sge_procedures/del_queue()
+#     sge_procedures/get_queue()
+#     sge_procedures/suspend_queue()
+#     sge_procedures/unsuspend_queue()
+#     sge_procedures/disable_queue()
+#     sge_procedures/enable_queue()
+#*******************************
+#                                                             max. column:     |
+#****** sge_procedures/get_queue() ******
 # 
 #  NAME
 #     get_queue -- get queue configuration information
 #
 #  SYNOPSIS
-#     get_queue { q_name {output_var result} {on_host ""} {as_user ""} 
-#    {raise_error 1} } 
+#     get_queue { q_name change_array } 
 #
 #  FUNCTION
 #     Get the actual configuration settings for the named queue
-#     Represents qconf -sq command in SGE
 #
 #  INPUTS
 #     q_name       - name of the queue
-#     {output_var result} - result will be placed here
-#     {on_host ""}        - execute qconf on this host (default: qmaster host)
-#     {as_user ""}        - execute qconf as this user (default: CHECK_USER)
-#     {raise_error 1}     - raise error condition in case of errors?
+#     change_array - name of an array variable that will get set by get_config
 #
-#  RESULT
-#       0 - success
-#     < 0 - error
+#  EXAMPLE
+#     get_queue "myqueue.q" qinfo
+#     puts qinfo(seq_no) 
+#
+#  NOTES
+#     the array should look like this:
+#
+#     set change_array(qname) MYHOST
+#     set change_array(hostname) MYHOST.domain
+#     ....
+#     (every value that is set will be changed)
+#
+#     here is a list of all valid array names (template queue):
+#
+#     change_array(qname)                "template"
+#     change_array(hostname)             "unknown"
+#     change_array(seq_no)               "0"
+#     change_array(load_thresholds)      "np_load_avg=1.75"
+#     change_array(suspend_thresholds)   "NONE"
+#     change_array(nsuspend)             "0"
+#     change_array(suspend_interval)     "00:05:00"
+#     change_array(priority)             "0"
+#     change_array(min_cpu_interval)     "00:05:00"
+#     change_array(processors)           "UNDEFINED"
+#     change_array(qtype)                "BATCH INTERACTIVE" 
+#     change_array(rerun)                "FALSE"
+#     change_array(slots)                "1"
+#     change_array(tmpdir)               "/tmp/testsuite_1234"
+#     change_array(shell)                "/bin/csh"
+#     change_array(shell_start_mode)     "NONE"
+#     change_array(prolog)               "NONE"
+#     change_array(epilog)               "NONE"
+#     change_array(starter_method)       "NONE"
+#     change_array(suspend_method)       "NONE"
+#     change_array(resume_method)        "NONE"
+#     change_array(terminate_method)     "NONE"
+#     change_array(notify)               "00:00:60"
+#     change_array(owner_list)           "NONE"
+#     change_array(user_lists)           "NONE"
+#     change_array(xuser_lists)          "NONE"
+#     change_array(subordinate_list)     "NONE"
+#     change_array(complex_list)         "NONE"
+#     change_array(complex_values)       "NONE"
+#     change_array(projects)             "NONE"
+#     change_array(xprojects)            "NONE"
+#     change_array(calendar)             "NONE"
+#     change_array(initial_state)        "default"
+#     change_array(fshare)               "0"
+#     change_array(oticket)              "0"
+#     change_array(s_rt)                 "INFINITY"
+#     change_array(h_rt)                 "INFINITY"
+#     change_array(s_cpu)                "INFINITY"
+#     change_array(h_cpu)                "INFINITY"
+#     change_array(s_fsize)              "INFINITY"
+#     change_array(h_fsize)              "INFINITY"
+#     change_array(s_data)               "INFINITY"
+#     change_array(h_data)               "INFINITY"
+#     change_array(s_stack)              "INFINITY"
+#     change_array(h_stack)              "INFINITY"
+#     change_array(s_core)               "INFINITY"
+#     change_array(h_core)               "INFINITY"
+#     change_array(s_rss)                "INFINITY"
+#     change_array(h_rss)                "INFINITY"
+#     change_array(s_vmem)               "INFINITY"
+#     change_array(h_vmem)               "INFINITY"
 #
 #  SEE ALSO
-#     sge_procedures/handle_sge_error()
-#     sge_queue/get_queue_messages()
-#*******************************************************************************
-proc get_queue { q_name {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
+#     sge_procedures/mqattr()
+#     sge_procedures/set_queue() 
+#     sge_procedures/add_queue()
+#     sge_procedures/del_queue()
+#     sge_procedures/get_queue()
+#     sge_procedures/suspend_queue()
+#     sge_procedures/unsuspend_queue()
+#     sge_procedures/disable_queue()
+#     sge_procedures/enable_queue()
+#*******************************
+proc get_queue { q_name change_array } {
+  global CHECK_OUTPUT
+  get_current_cluster_config_array ts_config
+  upvar $change_array chgar
 
-   puts $CHECK_OUTPUT "Get queue $q_name ..."
+  set result [start_sge_bin "qconf" "-sq ${q_name}"]
+  if { $prg_exit_state != 0 } {
+     add_proc_error "get_queue" "-1" "qconf error or binary not found"
+     return
+  }
 
-   upvar $output_var out
+  # split each line as listelement
+  set help [split $result "\n"]
 
-   get_queue_messages messages "get" "$q_name" $on_host $as_user
-   
-   return [get_qconf_object "get_queue" "-sq $q_name" out messages 0 $on_host $as_user $raise_error]
-
+  foreach elem $help {
+     set id [lindex $elem 0]
+     set value [lrange $elem 1 end]
+     set value [replace_string $value "{" ""]
+     set value [replace_string $value "}" ""]
+     
+     if { $id != "" } {
+        set chgar($id) $value
+#        puts $CHECK_OUTPUT "queue($id) = $value"
+     }
+  }
 }
 
 #                                                             max. column:     |
@@ -780,7 +816,7 @@ proc get_queue_state { queue_name } {
   set queue [resolve_queue $queue_name]
   set result [start_sge_bin "qstat" "-f -q $queue"]
   if { $prg_exit_state != 0 } {
-     add_proc_error "get_queue_state" "-1" "qstat -f -q $queue failed:\n$result"
+     add_proc_error "get_queue_state" "-1" "qstat error or binary not found"
      return ""
   }
 
@@ -894,7 +930,7 @@ proc clear_queue_error {result queue raise_error} {
    return $ret
 }
 
-#****** sge_queue/get_queue_list() *********************************************
+#****** sge_queue/get_queue_list() ***************************************
 #  NAME
 #     get_queue_list() -- get a list of all queues
 #
@@ -902,10 +938,10 @@ proc clear_queue_error {result queue raise_error} {
 #     get_queue_list { {output_var result} {on_host ""} {as_user ""} {raise_error 1}
 #
 #  FUNCTION
-#     Calls qconf -sql to retrieve the list of all queues
+#     Calls qconf -scall to retrieve all calendars
 #
 #  INPUTS
-#     {output_var result} - result will be placed here
+#     output_var      - result will be placed here
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
 #     {raise_error 1} - raise an error condition on error (default), or just
@@ -920,92 +956,8 @@ proc clear_queue_error {result queue raise_error} {
 #     sge_procedures/get_qconf_list()
 #*******************************************************************************
 proc get_queue_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "Get queue list ..."
-
    upvar $output_var out
 
-   get_queue_messages messages "list" "" $on_host $as_user 
-   
-   return [get_qconf_object "get_queue_list" "-sql" out messages 1 $on_host $as_user $raise_error]
-
+   return [get_qconf_list "get_queue_list" "-sql" out $on_host $as_user $raise_error]
 }
-
-#****** sge_queue/get_queue_messages() *************************************
-#  NAME
-#     get_queue_messages() -- returns the set of messages related to action 
-#                              on queue, i.e. add, modify, delete, get
-#
-#  SYNOPSIS
-#     get_queue_messages {msg_var action obj_name result {on_host ""} {as_user ""}} 
-#
-#  FUNCTION
-#     Returns the set of messages related to action on sge queue. This function
-#     is a wrapper of sge_object_messages which is general for all types of objects
-#
-#  INPUTS
-#     msg_var       - array of messages (the pair of message code and message value)
-#     action        - action examples: add, modify, delete,...
-#     obj_name      - sge object name
-#     {on_host ""}  - execute on this host, default is master host
-#     {as_user ""}  - execute qconf as this user, default is $CHECK_USER
-#
-#  SEE ALSO
-#     sge_procedures/sge_client_messages()
-#*******************************************************************************
-proc get_queue_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
-
-   upvar $msg_var messages
-   if { [info exists messages]} {
-      unset messages
-   }
-
-   if {$ts_config(gridengine_version) == 53} {
-      set QUEUE [translate_macro MSG_OBJ_QUEUE]
-   } else {
-      # CD: why don't we have "cluster queue" in $SGE_OBJ_CQUEUE ?
-      set QUEUE "cluster [translate_macro MSG_OBJ_QUEUE]"
-   }
-     
-   # set the expected client messages
-   sge_client_messages messages $action $QUEUE $obj_name $on_host $as_user
-   
-   # the place for exceptions: # VD version dependent  
-   #                           # CD client dependent
-   # see sge_procedures/sge_client_messages
-   switch -exact $action {
-      "add" {
-         add_message_to_container messages -4 "error: [translate_macro MSG_ULONG_INCORRECTSTRING "*"]"
-         add_message_to_container messages -5 [translate_macro MSG_CQUEUE_UNKNOWNUSERSET_S "*"]
-         add_message_to_container messages -6 [translate_macro MSG_HGRP_UNKNOWNHOST "*" ]
-      }
-      "get" {
-         add_message_to_container messages -1 [translate_macro MSG_CQUEUE_NOQMATCHING_S "$obj_name"]
-      }
-      "mod" {
-         add_message_to_container messages -5 "error: [translate_macro MSG_ULONG_INCORRECTSTRING "*"]"
-         add_message_to_container messages -6 [translate_macro MSG_CQUEUE_UNKNOWNUSERSET_S "*"]
-         add_message_to_container messages -7 [translate_macro MSG_HGRP_UNKNOWNHOST "*" ]
-         if {$ts_config(gridengine_version) >= 62} {
-            #AP: TODO: find the parameters for this message:
-            set AR_REJECTED_SSU [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*"]
-            set AR_REJECTED_SU [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
-            set SLOT_RESERVED [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
-            add_message_to_container messages -8 $AR_REJECTED_SSU
-            add_message_to_container messages -9 $AR_REJECTED_SU
-            add_message_to_container messages -10 $SLOT_RESERVED
-         }
-      }
-      "del" {
-      }
-      "list" {
-         set NOT_DEFINED [translate_macro MSG_QCONF_NOXDEFINED_S "cqueue list"]
-         add_message_to_container messages -1 $NOT_DEFINED
-      }
-   } 
-}
-
 

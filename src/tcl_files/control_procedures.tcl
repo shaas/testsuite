@@ -756,7 +756,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 #     messages.
 #*******************************************************************************
 proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} {user ""}} {
-   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL env CHECK_USE_JGDI jgdi_config
+   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL env
    get_current_cluster_config_array ts_config
    upvar $msg_var messages
 
@@ -775,22 +775,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
    
    debug_puts "using EDITOR=$vi_env(EDITOR)"
    # start program (e.g. qconf)
-
-   if {$CHECK_USE_JGDI == 1} {
-      if {[jgdi_shell_setup $host] == 0} {
-         set env(JAVA_HOME) $jgdi_config(java15)
-         set env_var env
-         set java $env(JAVA_HOME)/bin/java
-         set id [open_remote_spawn_process $host $user "$java" "$jgdi_config(classpath) $jgdi_config(flags) \
-           com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $prog_binary $prog_args" 0 "" vi_env]
-      } else {
-         debug_puts "Skipping test using JGDI shell, there is an error in setup."
-         return "JGDI shell setup failed."
-      }
-   } else {
    set id [open_remote_spawn_process $host $user $binary "$prog_args" 0 "" vi_env]
-   }
-
    set sp_id [ lindex $id 1 ] 
    if {$CHECK_DEBUG_LEVEL != 0} {
       log_user 1
