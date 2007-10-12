@@ -260,9 +260,8 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 #
 #*******************************************************************************
 proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user ""} {raise_error 1}} {
-
-return mod_queue $qname $hostlist change_array $fast_add $on_host $as_user $raise_error
-
+   upvar $change_array chgar
+   return [mod_queue $qname $hostlist chgar $fast_add $on_host $as_user $raise_error]
    }
 
 #                                                             max. column:     |
