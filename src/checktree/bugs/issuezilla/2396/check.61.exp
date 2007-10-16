@@ -1,0 +1,173 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2396_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2396"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "scheduling of parallel jobs does not respect consumables, if consumable is referenced in rqs"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2396_setup
+set check_cleanup_function issue_2396_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2396_no_capacity"
+lappend check_functions "issue_2396_host_down"
+
+proc issue_2396_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2396_setup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2396_host
+
+   # test host for issue_2396_host_down
+   set issue_2396_host [host_conf_get_suited_hosts]
+
+   # create a consumable
+   set complex(F001) "F001 INT <= YES YES 0 0"
+   set_complex complex
+
+   # create the rqs
+   set rqs_name "issue_2396_rqs"
+   set rules {}
+   lappend rules "limit to F001=1"
+   set rqs($rqs_name,limit)       $rules
+   set rqs($rqs_name,enabled)     "true"
+   set rqs($rqs_name,description) "rqs breaking consumable handling for parallel jobs"
+   add_rqs rqs
+}
+
+proc issue_2396_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2396_host
+
+   # cleanup jobs
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # unassign consumable from test host
+   set exec_host(complex_values) "NONE"
+   set_exechost exec_host $issue_2396_host
+
+   # delete rqs
+   del_rqs "issue_2396_rqs"
+
+   # delete consumable
+   set complex(F001) ""
+   set_complex complex
+
+   # unset our test's global variables
+   foreach var "issue_2396_host" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc issue_2396_submit_check {scenario} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+
+   # submit a parallel job
+   set job  "$ts_config(product_root)/examples/jobs/sleeper.sh"
+   set args "-o /dev/null -j y -pe mytestpe 1 -l F001=1"
+   set job_id [submit_job "$args $job"]
+
+   # wait for it to start - it may not start!
+   set ret [wait_for_jobstart $job_id "" 20 0 1]
+   if {$ret == 0} {
+      add_proc_error "issue_2396_submit_check" -1 "job shouldn't have started ($scenario)"
+   }
+
+   delete_job $job_id 1
+}
+
+proc issue_2396_no_capacity {} {
+   # we created a consumable, but didn't assign a capacity
+   # so the job may not startup
+   issue_2396_submit_check "no capacity"
+}
+
+proc issue_2396_host_down {} {
+   global issue_2396_host
+
+   # we assign a capacity for F001 on our test host
+   set exec_host(complex_values) "F001=2"
+   set_exechost exec_host $issue_2396_host
+
+   # shutdown our test host
+   soft_execd_shutdown $issue_2396_host
+
+   # now the job may not startup
+   issue_2396_submit_check "host down"
+
+   # unassign consumable from test host
+   set exec_host(complex_values) "NONE"
+   set_exechost exec_host $issue_2396_host
+
+   # restart the execd
+   startup_execd $issue_2396_host
+   wait_for_load_from_all_queues 60
+}
+
