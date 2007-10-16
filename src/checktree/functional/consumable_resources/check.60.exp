@@ -513,9 +513,9 @@ proc consumable_resources_test {} {
       consumable_resources_submit_jobs_and_wait $job_arguments $job_count $run_job_count "" "e" $GLOBALLY
 
       # this tests issue 1745.
-      if {$ts_config(gridengine_version) >= 62} {
-         consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e"
-      }
+      # if {$ts_config(gridengine_version) >= 62} {
+      #   consumable_resources_submit_pejobs_and_wait $job_arguments $job_count $run_job_count "e"
+      # }
       
       # clean up
       set queue_settings(load_thresholds) "np_load_avg=11.75"

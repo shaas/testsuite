@@ -1,3 +1,6 @@
+RD-2007-10-16-0: Bugfix:    disabled test for IZ 1745 in consumable_resources
+                 Review:    JG
+
 JG-2007-10-16-0: Enhancem.: New test bugs/issuezilla/2396.
                  Review:    RD
 
