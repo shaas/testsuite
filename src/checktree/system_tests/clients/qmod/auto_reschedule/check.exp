@@ -335,8 +335,8 @@ proc auto_reschedule_unknown_check_master {} {
    puts $CHECK_OUTPUT "master and scheduler should be up again now"
 
    if {$global_resch != 0} {
-      # here we have global reshedule_unkown enabled
-      puts $CHECK_OUTPUT "global reshedule_unkown enabled"
+      # here we have global reschedule_unkown enabled
+      puts $CHECK_OUTPUT "global reschedule_unkown enabled"
       wait_for_jobpending $job_id2 "Sleeper" 360
    } else {
       # here we have global reschedule_unkown set to 00:00:00

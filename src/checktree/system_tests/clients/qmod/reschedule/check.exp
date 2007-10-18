@@ -998,11 +998,11 @@ proc reschedule_deleted_job {} {
    puts $CHECK_OUTPUT "reschedule of job $job_id ..."
    set output [start_sge_bin "qmod" "-r $job_id"]
    puts $CHECK_OUTPUT $output
- 
+
    # restart execd
    puts $CHECK_OUTPUT "restarting execd on host $no_rerun_host ..."
    startup_execd $no_rerun_host
    wait_for_load_from_all_queues 60
 
-   wait_for_jobend $job_id "Sleeper" 60 0
+   wait_for_jobend $job_id "Sleeper" 65 0
 }

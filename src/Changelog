@@ -1,3 +1,6 @@
+RD-2007-10-18-0: Bugfix:    fixed qmod/reschedule test
+                 Review:    JG
+
 JG-2007-10-18-0: Bugfix:    o reintegrated JG-2007-10-10-0 and JG-2007-10-11-0
                             o fixed arch resolving on lx26 hosts using lx24 
                               binaries
