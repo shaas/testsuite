@@ -550,7 +550,7 @@ proc tight_integration_wait_for_delete_state {jobid timeout} {
          return 1
       } else {
          if {$state == -1} {
-            puts $CHECK_OUTPUT "expected to see job $jobid in dr state, but job vanished. OK!"
+             add_proc_error "tight_integration_wait_for_delete_state" -3 "expected to see job $jobid in dr state, but job vanished. OK !?"
             return 1
          }
       }
