@@ -1,3 +1,6 @@
+JG-2007-10-18-1: Bugfix:    fixed system_tests/clients/common/advance_reservation
+                 Review:    RD
+
 RD-2007-10-18-0: Bugfix:    fixed qmod/reschedule test
                  Review:    JG
 

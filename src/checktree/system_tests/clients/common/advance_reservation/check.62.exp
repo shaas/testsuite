@@ -40,7 +40,6 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
-global env
 
 #set check_root_access_needs "yes"
 
@@ -120,7 +119,7 @@ proc test_qsh_ar_switch {} {
    set args  "-ar $ar_id -N $job_name $default_args"
    set job_id [submit_job $args 1 60 "" "" "" 1 $cmd]
    if {$job_id < 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submited"
+      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submitted"
       return
    }
    
@@ -164,12 +163,12 @@ proc test_qrsh_ar_switch {} {
       return
    }
    
-   # Submit qsh job with advance reservation,  simulate the right output 
-   set echo [translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_S "*"]
+   # Submit qsh job with advance reservation, simulate the right output 
+   set echo [translate_macro MSG_QSUB_YOURIMMEDIATEJOBXHASBEENSUCCESSFULLYSCHEDULED_S "9999999"]
    set args  "-ar $ar_id -N $job_name $default_args echo '$echo'"
    set job_id [submit_job $args 0 60 "" "" "" 1 $cmd]
    if {$job_id < 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submited"
+      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submitted"
       return
    }
    puts $CHECK_OUTPUT "delete AR: $ar_id and job should ends soon"
