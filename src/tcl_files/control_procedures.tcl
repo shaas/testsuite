@@ -1960,7 +1960,7 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
    global CHECK_USER
    global arch_cache
    global ts_config
-                     
+
    set host [node_get_host $node]
    set nr [get_current_cluster_config_nr]
    if {[info exists arch_cache($nr,$host)]} {

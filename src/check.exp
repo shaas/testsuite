@@ -8146,8 +8146,17 @@ if { $do_only_diff_macros == 1 } {
 }
 
 setup2
-load_additional_packages
+
+# clear the arch cache, only after the setup2 we have the path to SGE_ROOT,
+# and can call the correct arch script
+resolve_arch_clear_cache
+
+# resource the tcl_files - we now know the gridengine_version
 source_tcl_files
+
+# try load TCL packages like TDOM
+load_additional_packages
+
 # fill sge_config array with minimal information
 bootstrap_sge_config
 

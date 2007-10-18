@@ -69,7 +69,7 @@ set check_init_level_procedure "job_start_init_level"
 
 # define test's name and run level descriptions
 set check_name            "job_start"
-set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_category        "COMPATIBILITY SYSTEM"
 set check_highest_level   102
 set check_description(0)   "test shepherd trace file write on admin  user system"
 set check_description(1)   "test shepherd trace file write on root   user system"

@@ -40,7 +40,6 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
-global env
 
 set check_root_access_needs "yes"
 
@@ -68,19 +67,18 @@ proc issue_2328_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" { 
+      "0" {
          return 0
-      } 
-   } 
+      }
+   }
 
-   return -1  ;# no other level 
+   return -1  ;# no other level
 }
 
-proc issue_2328_setup  {} {
+proc issue_2328_setup {} {
    global CHECK_OUTPUT ts_config max_queue_count  
 
    # 1. Setup the complex FOO1-F0010
-
    set tmp_complex(F001) "F001 INT  <= YES YES 0 0"
    set tmp_complex(F002) "F002 INT  <= YES YES 0 0"
    set tmp_complex(F003) "F003 INT  <= YES YES 0 0"
@@ -91,14 +89,14 @@ proc issue_2328_setup  {} {
    set tmp_complex(F008) "F008 INT  <= YES YES 0 0"
    set tmp_complex(F009) "F009 INT  <= YES YES 0 0"
    set tmp_complex(F0010) "F0010 INT  <= YES YES 0 0"
-
    set_complex tmp_complex
    
-   # Modify the scheduler fast
+   # Modify the scheduler configuration.
+   # increase the scheduler interval to make it schedule
+   # "on demand" via qconf -tsm (trigger_scheduling)
    set mysched_config(params) "PROFILE=true"
    set mysched_config(max_reservation) "1000"
-
-   puts $CHECK_OUTPUT "Modify schedd fast ...\n"
+   set mysched_config(schedule_interval) "0:2:0"
    mod_schedd_config mysched_config
 
    # Modify the global cluster 
@@ -108,38 +106,31 @@ proc issue_2328_setup  {} {
 
    # Set up 80 queues for 5 hosts - 400 queues
    # We do it here so as not to affect the rest of qsub tests.
-   
    set max_queue_count "80"
-   
-   for  {set queue_counter "1"} { $queue_counter <= $max_queue_count } { incr queue_counter 1} {
+   for {set queue_counter 1} {$queue_counter <= $max_queue_count} {incr queue_counter} {
       set queue_name "qsub_ts$queue_counter.q"
       set queue_conf(slots) 10
-      puts $CHECK_OUTPUT "Add queue $queue_name"
       set result [add_queue $queue_name "@allhosts" queue_conf 1]
-      sleep 1
-      if { $result < 0 } {
-         add_proc_error "issue_2328_setup" -1 "add qsub_ts_$queue_counter.q failed ($result)"
+      if {$result < 0} {
+         add_proc_error "issue_2328_setup" -1 "add qsub_ts_$queue_counter.q failed:\n$result"
       }
    }
    
    # Check that we created $max_queue_count queues....
    # We subtract 1 for all.q, which we don't want to count
-   
    set queues_made [llength [start_sge_bin "qconf" "-sql"]]
-   set number_queues_made [expr  $queues_made - 1]
+   set number_queues_made [expr $queues_made - 1]
    puts $CHECK_OUTPUT "we created $number_queues_made queues and we wanted $max_queue_count queues \n"
-   
-   if { $number_queues_made != $max_queue_count } {
-               add_proc_error "issue_2328_setup" -1 "we did not make all the required queues"
+   if {$number_queues_made != $max_queue_count} {
+      add_proc_error "issue_2328_setup" -1 "we did not make all the required queues"
    }
    
    # Create 5 projects
-   for { set prj_counter "1"} { $prj_counter <= "5"} { incr prj_counter 1} {
+   for {set prj_counter 1} {$prj_counter <= 5} {incr prj_counter} {
       set prj_config(name) "Project$prj_counter"
       add_prj prj_config
    }
 
-    
    # 4. Add rqs a_new_rqs
    set rqs_name              "perf_rqs"
    set rules                  ""
@@ -148,41 +139,33 @@ proc issue_2328_setup  {} {
    set rqs_charray($rqs_name,limit)   "$rules"
    set rqs_charray($rqs_name,enabled) "true"
    set rqs_charray($rqs_name,description) "global"
-   
    add_rqs rqs_charray
-
 }
 
-proc issue_2328_cleanup  {} {
-   global CHECK_OUTPUT ts_config max_queue_count  lines_with_time
+proc issue_2328_cleanup {} {
+   global CHECK_OUTPUT ts_config max_queue_count
 
-
-   delete_all_jobs
+   delete_all_jobs 0
    wait_for_end_of_all_jobs
-   
-   if {[get_rqs_list rqs_names "" "" 0] == 0} {
-      foreach elem $rqs_names {
-         puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
-         del_rqs $elem
-      }
-   }
-   
+
+   del_rqs "perf_rqs" 
+
    # Delete all the new queues we created earlier
    # We do it here so as not to affect the rest of qsub tests.
+   for {set queue_counter 1} {$queue_counter <= $max_queue_count} {incr queue_counter} {
+      del_queue "qsub_ts$queue_counter.q" "" 1 1
+   }
 
-   for  {set queue_counter "1"} { $queue_counter <= $max_queue_count } { incr queue_counter 1} {
-      del_queue "qsub_ts$queue_counter.q"  "" 1 1
-   }
-   
-   
    # Delete the  5 projects
-   for { set prj_counter "1"} { $prj_counter <= "5"} { incr prj_counter 1} {
-      set prj_config(name) "Project$prj_counter"
-      del_prj $prj_config(name)
+   for {set prj_counter 1} {$prj_counter <= 5} {incr prj_counter} {
+      del_prj "Project$prj_counter"
    }
+
+   # Clear global cluster of F** complexes
+   set my_cluster_conf(complex_values) "NONE"
+   set_config my_cluster_conf "global"
    
-   sleep 2
-   
+   # Remove the complex variables
    set tmp_complex(F001) ""
    set tmp_complex(F002) ""
    set tmp_complex(F003) ""
@@ -193,20 +176,10 @@ proc issue_2328_cleanup  {} {
    set tmp_complex(F008) ""
    set tmp_complex(F009) ""
    set tmp_complex(F0010) ""
-
    set_complex tmp_complex
    
-   # Clear global cluster of F** complexes
-   set my_cluster_conf(complex_values) ""
-   set_config my_cluster_conf "global"
-   
-   
-   # Reset the scheduler back 
+   # Reset the scheduler configuration
    reset_schedd_config
-
-   # Print out again the job dispatch time
-   puts $CHECK_OUTPUT "the lines with time are \n$lines_with_time "
-
 }
 
 #************************************************************
@@ -236,87 +209,75 @@ proc issue_2328_cleanup  {} {
 #
 #*******************************************************************************
 proc issue_2328 {} {
-   
-   global ts_config env lines_with_time               
-   global CHECK_OUTPUT CHECK_USER CHECK_ACTUAL_TEST_PATH
-   
-   # For this test we need at least 5 hosts
-   set number_of_execds [llength [start_sge_bin "qconf" "-sel"]]
-   
-   if { $number_of_execds < 5 } {
-       add_proc_error "issue_2328" -3 "Need at least 5 hosts for this test. \
-                  We only have $number_of_execds \n"
-   }   
-   set host $ts_config(master_host)
-   
-   set SGE_ROOT $ts_config(product_root)
-   set SGE_CELL $ts_config(cell)
-      
-   set sched_messg_file "$SGE_ROOT/$SGE_CELL/spool/qmaster/schedd/messages"
+   global ts_config CHECK_OUTPUT
 
-   # Remove SGE_ROOT/$SGE_CELL/spool/qmaster/schedd/messages file
-   # so that we catch only the latest job dispatch messages from this run
-   
-   file delete $sched_messg_file
+   # For this test we need at least 5 hosts
+   set number_of_execds [llength $ts_config(execd_nodes)]
+   if {$number_of_execds < 5} {
+      add_proc_error "issue_2328" -3 "Need at least 5 hosts for this test. We only have $number_of_execds"
+      return
+   }
+
+   set host $ts_config(master_host)
+   set sched_messg_file "[get_qmaster_spool_dir]/schedd/messages"
 
    # Disable all queues first
-   
-   puts $CHECK_OUTPUT "disable queues.... \n"
-   
-   set qmod_result [start_sge_bin "qmod" "-d \'\*\'"]
-   if { $qmod_result < 0 } {
-      add_proc_error "issue_2328" -1 "qmod -d \* in 146 failed ($qmod_result)"
-
+   puts $CHECK_OUTPUT "disable queues ..."
+   set qmod_result [start_sge_bin "qmod" "-d '*'"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_2328" -1 "disabling all queues failed:\n$qmod_result"
+      return
    }
-   
-   set i_max "10"
-   set k_max "20"
 
-   #Submit the jobs now: i to 10, j to 5, k to 20
-   
-   for {set i "1"} { $i <= $i_max} {incr i 1} {
-      for {set j "1"} { $j <= "5"} {incr j 1} {
-         for {set k "1"} { $k <= $k_max} {incr k 1} {
-            submit_job " -R y -P Project$j -l F00$i=1 -b y /bin/sleep 5" 1 30
+   set i_max 10
+   set k_max 20
 
+   # Submit the jobs now: i to 10, j to 5, k to 20
+   # do submission on the master host and hope it is fastest there
+   for {set i 1} { $i <= $i_max} {incr i} {
+      for {set j 1} { $j <= 5} {incr j} {
+         for {set k 1} { $k <= $k_max} {incr k} {
+            submit_job "-R y -P Project$j -l F00$i=1 -b y /bin/sleep 5" 1 30 $ts_config(master_host)
          }
       }
    }
-   
-   #Enable all queues now
-   
-   puts $CHECK_OUTPUT "enable queues now .... \n"
-   
-   set qmod_result [start_sge_bin "qmod" "-e \'\*\'"]
-   if { $qmod_result < 0 } {
-      add_proc_error "issue_2328" -1 "qmod -e \* in 146 failed ($qmod_result)"
-   }
-   
+  
+   # trigger scheduling now to start a new scheduling interval
+   # and thus preventing scheduling before we tail -f on its
+   # messages file 
    trigger_scheduling
-   
-   sleep 6 
-      
+
+   # Enable all queues now
+   puts $CHECK_OUTPUT "enable queues now ..."
+   set qmod_result [start_sge_bin "qmod" "-e '*'"]
+   if {$prg_exit_state != 0} {
+      add_proc_error "issue_2328" -1 "enabling all queues failed:\n$qmod_result"
+   }
+
    # tail -f schedd reporting file
    set pattern "job dispatching"
-   set timeout 200
-   
    init_logfile_wait $ts_config(master_host) $sched_messg_file
-   logfile_wait $pattern $timeout 0
 
-   # Look now in $sched_messg_file for lines with "job dispatching took" or
-   # "scheduled in"
-   
-   sleep 10
-   
-   puts $CHECK_OUTPUT "look now in $sched_messg_file file for dispatch time \n"
-   
-   set lines_with_time [exec grep "job dispatching took" $sched_messg_file]
-   puts $CHECK_OUTPUT "the lines with time are \n$lines_with_time \n"
-   
-   delete_all_jobs
-   wait_for_end_of_all_jobs
-      
+   # trigger scheduling and wait for dispatching time
+   trigger_scheduling
+   set result [logfile_wait $pattern 200 0]
+
    # shutdown tail -f
    close_logfile_wait
-   
-}   
+
+   # find dispatching time in output
+   set dispatching_time -1
+   foreach line [split $result "\n"] {
+      if {[string first $pattern $line] >= 0} {
+         set dispatching_time [lindex $line 5]
+         break
+      }
+   }
+
+   # output and error handling
+   if {$dispatching_time == -1} {
+      add_proc_error "issue_2328" -1 "didn't find dispatching time in scheduler messages file:\n$result"
+   } else {
+      puts $CHECK_OUTPUT "job dispatching took $dispatching_time s"
+   }
+}
