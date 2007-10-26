@@ -1,3 +1,7 @@
+MD-2007-10-26-0: Enhance:   o added Issue test for IZ 2406
+                            o enhanced backup_restore test
+                 Review:    HP
+
 RH-2007-10-26-1: Bugfix:    o configuration upgrade from 1.12 to 1.13
                               was not possible
                  Review:    RD

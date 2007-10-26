@@ -164,6 +164,9 @@ proc backup_restore_setup {} {
 
    # close the connection to inst_sge
    close_spawn_process $id
+
+   #adding a queue
+   add_queue "lila.q" "@allhosts" "" 1
   
    # TODO Try to restore the database with running master (should not be possible) 
 
@@ -266,6 +269,21 @@ proc backup_restore_setup {} {
    startup_core_system  
    
    wait_for_load_from_all_queues 60
+
+   set arch [resolve_arch $ts_config(master_host)]
+   set args "-f"
+   set result [start_remote_prog $ts_config(master_host) $CHECK_USER $ts_config(product_root)/bin/$arch/qstat $args exit_state]
+
+   puts $CHECK_OUTPUT "qstat result: $result"
+
+   set tmp_result [split $result "\n"]
+
+   foreach line $tmp_result {
+      if {[string first "lila.q" $line] != -1} {
+         puts $CHECK_OUTPUT "found a queue, configured after backup!"
+         add_proc_error "backup_restore" -1 "restore did not work!"
+      }
+   }
 }
 
 proc backup_restore_cleanup {} {

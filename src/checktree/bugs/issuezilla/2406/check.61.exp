@@ -1,0 +1,164 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2406_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2406"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level  0 
+set check_description(0)  "Testing for some usage output"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2406_setup
+set check_cleanup_function issue_2406_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2406"
+
+proc issue_2406_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2406_setup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2406_backup
+
+}
+
+
+proc issue_2406_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2406_backup CHECK_USER
+
+   # unset our test's global variables
+   foreach var "issue_2406_backup" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+
+proc issue_2406 {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global issue_2406_hosts
+   global CHECK_ACT_LEVEL result
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      puts $CHECK_OUTPUT "this is the test for runlevel $CHECK_ACT_LEVEL"
+      puts $CHECK_OUTPUT "starting with qconf test!"
+
+      set found_ah 0
+      set found_hostlist_ah 0
+
+      set option "-ah"
+
+      puts $CHECK_OUTPUT "calling \"qconf -ah\" and checking if usage shows: \"-ah hostname_list\" and"
+      puts $CHECK_OUTPUT "\"hostname_list   hostname\[,hostname,...\]\""
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "$option" exit_state "600" 0 "" ""]
+
+      set tmp_output [split $output "\n"]
+
+      foreach line $tmp_output {
+         if {[string first "ah hostname_list" $line] != -1} {
+            set found_ah 1
+            puts $CHECK_OUTPUT "found good usage output for ah option: $line"
+         }
+
+         if {[string first "hostname\[,hostname,...\]" $line] != -1} {
+            set found_hostlist_ah 1
+            puts $CHECK_OUTPUT "found good usage output for ah option: $line"
+         }
+      } 
+
+      set found_as 0
+      set found_hostlist_as 0
+
+      set option "-as"
+
+      puts $CHECK_OUTPUT "calling \"qconf -as\" and checking if usage shows: \"-as hostname_list\" and"
+      puts $CHECK_OUTPUT "\"hostname_list   hostname\[,hostname,...\]\""
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "$option" exit_state "600" 0 "" ""]
+
+      set tmp_output [split $output "\n"]
+
+      foreach line $tmp_output {
+         if {[string first "as hostname_list" $line] != -1} {
+            set found_as 1
+            puts $CHECK_OUTPUT "found good usage output for as option: $line"
+         }
+
+         if {[string first "hostname\[,hostname,...\]" $line] != -1} {
+            set found_hostlist_as 1
+            puts $CHECK_OUTPUT "found good usage output for as option: $line"
+         }
+      }
+
+      if {$found_ah == 1 && $found_hostlist_ah == 1 && $found_as == 1 && $found_hostlist_as == 1} {
+         add_proc_error "issue_2406" 0 "qconf usage test ok!"
+      } else {
+         add_proc_error "issue_2406" -1 "qconf usage test failed!"
+      }
+   }
+
+}
+
