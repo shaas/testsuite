@@ -1542,20 +1542,24 @@ proc open_remote_spawn_process { hostname
                      add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
                   } else {
+                     debug_puts "Got password question"
                      ts_send $spawn_id "$passwd\n" $hostname 1
                      set password_sent 1
                      exp_continue
                   }
                }
                -i $spawn_id -- "The authenticity of host*" {
+                  debug_puts "Got ssh \"authenticity of host\""
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id -- "Are you sure you want to continue connecting (yes/no)?*" {
+                  debug_puts "Got ssh continue connection question"
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id -- "Please type 'yes' or 'no'*" {
+                  debug_puts "Go yes/no question"
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }

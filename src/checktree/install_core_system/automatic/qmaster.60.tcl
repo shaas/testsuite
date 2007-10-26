@@ -103,16 +103,28 @@ proc install_qmaster {} {
    if {$ts_config(product_feature) == "csp"} {
       append feature_install_options "-csp"
    }
+   
+   if {$ts_config(jmx_port) > 0} {
+      # For the JMX MBean Server we need java 1.5
+      set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+      if {$java_home == ""} {
+         add_proc_error "install_qmaster" "-1" "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
+         return                                       
+      }
+      set env_list(JAVA_HOME) $java_home
+   } else {
+      set env_list ""
+   }
 
    set my_timeout 500
    set exit_val 0
 
    puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
    if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
-      set output [start_remote_prog "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+      set output [start_remote_prog "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
    } else {
       puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-      set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
+      set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
    }
 
    log_user 1
@@ -169,6 +181,10 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "SGE_ROOT=\"$ts_config(product_root)\""
    puts $fdo "SGE_QMASTER_PORT=\"$ts_config(commd_port)\""
    puts $fdo "SGE_EXECD_PORT=\"$execd_port\""
+   
+   if {$ts_config(jmx_port) > 0} {
+      puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
+   }
    puts $fdo "CELL_NAME=\"$ts_config(cell)\""
    puts $fdo "ADMIN_USER=\"$CHECK_USER\""
    set spooldir [get_local_spool_dir $host qmaster $do_cleanup]

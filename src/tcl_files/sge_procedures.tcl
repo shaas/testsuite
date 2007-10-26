@@ -6365,6 +6365,17 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
    } else {
       set schedd_message ""
    }
+   
+   if {$ts_config(jmx_port) > 0} {
+      # For the JMX MBean Server we need java 1.5
+      set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+      if {$java_home == ""} {
+         add_proc_error "startup_qmaster" "-1" "Cannot start qmaster with JMX MBean Server on host $ts_config(master_host). java1.5 is not defined in host configuration"
+         return                                       
+      }
+      set envlist(JAVA_HOME) $java_home
+   }
+   
    puts $CHECK_OUTPUT "starting up qmaster $schedd_message on host \"$start_host\" as user \"$startup_user\""
    set arch [resolve_arch $start_host]
    set xterm_path [get_xterm_path $start_host]

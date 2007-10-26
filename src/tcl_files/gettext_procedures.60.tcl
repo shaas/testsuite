@@ -164,6 +164,8 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_QMASTER_WINDOWS_DOMAIN_USER" { set value "or are you going to use local Windows Users (answer: n) (y/n) \[y\] >> " }
       "DISTINST_QMASTER_WINDOWS_MANAGER" { set value "Please, enter the Windows Administrator name \[Default: Administrator\] >> " }
       "DISTINST_EXECD_WINDOWS_HELPER_SERVICE" { set value "Do you want to install the Windows Helper Service? (y/n) \[n\] >> " }
+      "DISTINST_ENABLE_JMX" { set value "Enable the JMX MBean server in qmaster (y/n) \[n\] >> " }
+      "DISTINST_JMX_PORT"   { set value "Please enter an unused port number for the JMX MBean server >> " }
    }
 
    # if it was no install macro, try to find it from messages files

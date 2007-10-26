@@ -1,3 +1,9 @@
+RH-2007-10-26-0: Enhance:   o New configuration parameter for the port
+                              of qmasters JMX MBean Server
+                            o install_core_system supports enabling the
+                              JMX MBean Server
+                 Review:    MD
+ 
 OJ-2007-10-18-0: Enhance:   Modified checktree/functional/tight_integration
                             to print warning on failure due to IZ 1681
                  Review:    JG 

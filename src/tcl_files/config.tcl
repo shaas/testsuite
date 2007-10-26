@@ -2127,6 +2127,153 @@ proc config_submit_only_hosts { only_check name config_array } {
    return $value
 }
 
+#****** config/config_generic_port() **********************************************
+#  NAME
+#     config_generic_port() -- generic port setip
+#
+#  SYNOPSIS
+#     config_generic_port { only_check name config_array } 
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#     helptext     - helptext list (one line per enty)
+#     port_type    - list of port type specifiers. The following
+#                    values are allowed 
+#                        only_even       => allow only even ports
+#                        only_reserved   => allows only port < 1024
+#                        allow_null_port => the value 0 is for the port allowed
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#
+#*******************************************************************************
+proc config_generic_port { only_check name config_array helptext { port_type {} } } {
+   global CHECK_OUTPUT 
+   global CHECK_COMMD_PORT
+   global CHECK_USER
+   global ts_user_config fast_setup
+
+   upvar $config_array config
+   set actual_value  $config($name)
+   set default_value $config($name,default)
+   set description   $config($name,desc)
+   set value $actual_value
+
+   if { $actual_value == "" } {
+      set value $default_value
+   }
+
+   if { $only_check == 0 } {
+#     # do setup  
+      puts $CHECK_OUTPUT ""
+      foreach line $helptext {
+         puts $CHECK_OUTPUT $line
+      }
+      puts $CHECK_OUTPUT "(default: $value)"
+      set ok 0
+      while { $ok == 0 } {
+         puts -nonewline $CHECK_OUTPUT "> "
+         set input [ wait_for_enter 1]
+         if {[string length $input] == 0 } {
+            puts $CHECK_OUTPUT "using default value"
+            set ok 1
+         } elseif {[lsearch $port_type "only_even"] >= 0 && [ expr ( $input % 2 ) ] != 0 } {
+            puts $CHECK_OUTPUT "value is not even"
+            set ok 0
+         } elseif {[lsearch $port_type "allow_null_port"] < 0 && $input == 0} {
+            puts $CHECK_OUTPUT "0 is not a valid value for a port"
+            set ok 0
+         } else {
+            set value $input
+            set ok 1
+         }
+      }
+
+      set add_port 0 
+      if { $value > 0 } {
+         if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
+            puts $CHECK_OUTPUT "No portlist defined for user $CHECK_USER in user configuration"
+            puts $CHECK_OUTPUT "Press enter to add user $CHECK_USER"
+            wait_for_enter
+            set errors 0
+            incr errors [user_config_userlist_add_user ts_user_config  $CHECK_USER]
+            incr errors [user_config_userlist_edit_user ts_user_config $CHECK_USER]
+            incr errors [save_user_configuration $config(user_config_file)]
+            if { $errors != 0 } {
+               puts $CHECK_OUTPUT "Errors press enter to edit user configuration"
+               wait_for_enter
+               setup_user_config $config(user_config_file) 1
+            }
+         }
+         # Users reserve allways a port tuple
+         # master_port and execd_port
+         if { [expr $value % 2] != 0 } {
+            set master_port [expr $value - 1]
+            set execd_port $value
+         } else {
+            set master_port $value
+            set execd_port  [expr $value + 1]
+         }
+         
+         if { [ lsearch $ts_user_config($CHECK_USER,portlist) $master_port ] < 0 } {
+            puts $CHECK_OUTPUT "ports ${master_port} - ${execd_port} not defined for user $CHECK_USER"
+            puts $CHECK_OUTPUT "Press enter to add ports ${master_port} - ${execd_port}"
+            wait_for_enter
+            set errors 0
+            set new_value "$ts_user_config($CHECK_USER,portlist) $master_port"
+            incr errors [user_config_userlist_set_portlist ts_user_config $CHECK_USER $new_value]
+            if { $errors == 0 }  {
+               incr errors [save_user_configuration $config(user_config_file)]
+            }
+            if { $errors != 0 } {
+               puts $CHECK_OUTPUT "Errors press enter to edit user configuration"
+               wait_for_enter
+               setup_user_config $config(user_config_file) 1
+            }
+         }
+      }
+   }
+
+   if {!$fast_setup} {
+      if { [lsearch $port_type "allow_null_port"] < 0 && $value < 1  } {
+         puts $CHECK_OUTPUT "Port $value is < 1"
+         return -1;
+      }
+      if {$value > 0} {
+         if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
+            puts $CHECK_OUTPUT "User $CHECK_USER has not portlist entry in user configuration"
+            return -1
+         }
+   
+         if { [ lsearch $ts_user_config($CHECK_USER,portlist) $value] < 0 } {
+            puts $CHECK_OUTPUT "Port $value not in portlist of user $CHECK_USER" 
+            return -1
+         }
+      }
+
+      if { [lsearch $port_type "only_even"] >= 0 && [ expr ( $value % 2 ) ] == 1 } {
+         puts $CHECK_OUTPUT "Port $value is not even"
+         return -1;
+      }
+      
+      if { [lsearch $port_type "only_reserved"] >= 0 && $value >= 1024 } {
+         puts $CHECK_OUTPUT "Port $value is >= 1024"
+         return -1;
+      }
+
+      if { $value > 65000 } {
+         puts $CHECK_OUTPUT "Port $value is > 65000"
+         return -1;
+      }
+   }
+   return $value
+}
+
 
 #****** config/config_commd_port() **********************************************
 #  NAME
@@ -2155,109 +2302,59 @@ proc config_commd_port { only_check name config_array } {
    global ts_user_config fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
+   
+   set helptext {
+      "Please enter the port number value the testsuite should use for COMMD_PORT,"
+      "or press >RETURN< to use the default value."
+      ""
+      "(IMPORTANT NOTE: COMMD_PORT must be a even number, because for"
+      "SGE/EE 6.0 sytems or later COMMD_PORT is used for SGE_QMASTER_PORT and"
+      "COMMD_PORT + 1 is used for SGE_EXECD_PORT)"
+   }   
+   set value [config_generic_port $only_check $name config $helptext {"only_even"}]
 
-   if { $actual_value == "" } {
-      set value $default_value
+   if { $value > 0 } { 
+      set CHECK_COMMD_PORT $value
    }
 
-   if { $only_check == 0 } {
-#     # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the port number value the testsuite should use for COMMD_PORT,"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "(IMPORTANT NOTE: COMMD_PORT must be a even number, because for"
-      puts $CHECK_OUTPUT "SGE/EE 6.0 sytems or later COMMD_PORT is used for SGE_QMASTER_PORT and"
-      puts $CHECK_OUTPUT "COMMD_PORT + 1 is used for SGE_EXECD_PORT)"
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "(default: $value)"
-      set ok 0
-      while { $ok == 0 } {
-         puts -nonewline $CHECK_OUTPUT "> "
-         set input [ wait_for_enter 1]
-      
-         if { [ string length $input] > 0 } {
-            if { [ expr ( $input % 2 ) ] == 0  } {
-               set value $input
-               set ok 1
-            } else {
-               puts $CHECK_OUTPUT "value is not even"
-               set ok 0
-            }
-         } else {
-            puts $CHECK_OUTPUT "using default value"
-            set ok 1
-         }
-      }
+   return $value
+}
 
+#****** config/config_jmx_port() **********************************************
+#  NAME
+#     config_jmx_port() -- jmx port option setup
+#
+#  SYNOPSIS
+#     config_jmx_port { only_check name config_array } 
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#
+#*******************************************************************************
+proc config_jmx_port { only_check name config_array } {
+   global CHECK_OUTPUT 
+   global CHECK_COMMD_PORT
+   global CHECK_USER
+   global ts_user_config fast_setup
 
-
-       set add_port 0 
-       if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
-          puts $CHECK_OUTPUT "No portlist defined for user $CHECK_USER in user configuration"
-          puts $CHECK_OUTPUT "Press enter to add user $CHECK_USER"
-          wait_for_enter
-          set errors 0
-          incr errors [user_config_userlist_add_user ts_user_config  $CHECK_USER]
-          incr errors [user_config_userlist_edit_user ts_user_config $CHECK_USER]
-          incr errors [save_user_configuration $config(user_config_file)]
-          if { $errors != 0 } {
-             puts $CHECK_OUTPUT "Errors press enter to edit user configuration"
-             wait_for_enter
-             setup_user_config $config(user_config_file) 1
-          }
-
-       }
-       if { [ lsearch $ts_user_config($CHECK_USER,portlist) $value ] < 0 } {
-          puts $CHECK_OUTPUT "port $value not defined for user $CHECK_USER"
-          puts $CHECK_OUTPUT "Press enter to add port $value"
-          wait_for_enter
-          set errors 0
-          set new_value "$ts_user_config($CHECK_USER,portlist) $value"
-          incr errors [user_config_userlist_set_portlist ts_user_config $CHECK_USER $new_value]
-          if { $errors == 0 }  {
-             incr errors [save_user_configuration $config(user_config_file)]
-          }
-          if { $errors != 0 } {
-             puts $CHECK_OUTPUT "Errors press enter to edit user configuration"
-             wait_for_enter
-             setup_user_config $config(user_config_file) 1
-          }
-       }
-   }
-
-   if {!$fast_setup} {
-      if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
-         puts $CHECK_OUTPUT "User $CHECK_USER has not portlist entry in user configuration"
-         return -1
-      }
-
-      if { [ lsearch $ts_user_config($CHECK_USER,portlist) $value] < 0 } {
-         puts $CHECK_OUTPUT "Port $value not in portlist of user $CHECK_USER" 
-         return -1
-      }
-
-      if { $value <= 1  } {
-         puts $CHECK_OUTPUT "Port $value is <= 1"
-         return -1;
-      }
-
-      if { [ expr ( $value % 2 ) ] == 1 } {
-         puts $CHECK_OUTPUT "Port $value is not even"
-         return -1;
-      }
-
-      if { $value > 65000 } {
-         puts $CHECK_OUTPUT "Port $value is > 65000"
-         return -1;
-      }
-   }
- 
-   set CHECK_COMMD_PORT $value
+   upvar $config_array config
+   
+   set helptext {
+      "Please enter the port number for qmaster JMX mbean server"
+      "or press >RETURN< to use the default value."
+      ""
+      "value 0 means that the mbean server is not started"
+   }   
+   set value [config_generic_port $only_check $name config $helptext { "allow_null_port" }]
 
    return $value
 }
@@ -2289,64 +2386,14 @@ proc config_reserved_port { only_check name config_array } {
    global ts_user_config fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-
-   if { $actual_value == "" } {
-      if { [ info exists ts_user_config($CHECK_USER,portlist) ] } {
-         for {set i 0} { $i < [llength $ts_user_config($CHECK_USER,portlist)] } { incr i 1 } {
-            set act_tmp_value [ lindex $ts_user_config($CHECK_USER,portlist) $i ]
-            if { $act_tmp_value < 1024 } {
-               set value $act_tmp_value
-               break
-            }
-         }
-      } else {
-         set value $default_value
-      }
+   
+   set helptext {
+      "Please enter an unused port number < 1024. This port is used to test"
+      "port binding." 
+      "or press >RETURN< to use the default value."
    }
-
-   if { $only_check == 0 } {
-#     # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter an unused port number < 1024. This port is used to test"
-      puts $CHECK_OUTPUT "port binding." 
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "(default: $value)"
-      set ok 0
-      while { $ok == 0 } {
-         puts -nonewline $CHECK_OUTPUT "> "
-         set input [ wait_for_enter 1]
-      
-         if { [ string length $input] > 0 } {
-            if { [ expr ( $input % 2 ) ] == 0  } {
-               set value $input
-               set ok 1
-            } else {
-               puts $CHECK_OUTPUT "value is not even"
-               set ok 0
-            }
-         } else {
-            puts $CHECK_OUTPUT "using default value"
-            set ok 1
-         }
-      }
-   } 
-
-   if {!$fast_setup} {
-      if { $value <= 1  } {
-         puts $CHECK_OUTPUT "Port $value is <= 1"
-         return -1;
-      }
-
-      if { $value >= 1024 } {
-         puts $CHECK_OUTPUT "Port $value is >= 1024"
-         return -1;
-      }
-   }
+   
+   set value [config_generic_port $only_check $name config $helptext { "only_reserved" }]
 
    return $value
 }
@@ -4750,6 +4797,35 @@ proc config_build_ts_config_1_12 {} {
    set ts_config(version) "1.12"
 }
 
+proc config_build_ts_config_1_13 {} {
+   global ts_config
+
+   
+   # we override a the parameter: use_ssh
+   set insert_pos $ts_config(commd_port,pos)
+   incr insert_pos 1
+
+   # move positions of following parameters
+   set names [array names ts_config "*,pos"]
+   foreach name $names {
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 1]
+      }
+   }
+
+   set parameter "jmx_port"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "Port of qmasters jmx mbean server"
+   set ts_config($parameter,default)    "0"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   "stop"
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.13
+   set ts_config(version) "1.13"
+}
+
+
 #****** config/config_select_host() ********************************************
 #  NAME
 #     config_select_host() -- select a host
@@ -5043,7 +5119,7 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
 # MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.12"
+set actual_ts_config_version "1.13"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -5061,5 +5137,6 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_10
    config_build_ts_config_1_11
    config_build_ts_config_1_12
+   config_build_ts_config_1_13
 }
 

@@ -180,6 +180,10 @@ proc install_qmaster {} {
  set WINDOWS_DOMAIN_USER          [translate_macro DISTINST_QMASTER_WINDOWS_DOMAIN_USER]
  set WINDOWS_MANAGER              [translate_macro DISTINST_QMASTER_WINDOWS_MANAGER]
 
+ # java
+ set ENABLE_JMX                   [translate_macro DISTINST_ENABLE_JMX]
+ set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
+ 
  cd "$ts_config(product_root)"
 
  set feature_install_options ""
@@ -187,6 +191,18 @@ proc install_qmaster {} {
     append feature_install_options "-csp"
  }
 
+ if {$ts_config(jmx_port) > 0} {
+    # For the JMX MBean Server we need java 1.5
+    set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+    if {$java_home == ""} {
+       add_proc_error "install_qmaster" "-1" "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
+       return                                       
+    }
+    set env_list(JAVA_HOME) $java_home
+ } else {
+    set env_list ""
+ }
+ 
  puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"
 
  set set_ld_library_path 0
@@ -197,10 +213,10 @@ proc install_qmaster {} {
  }
 
  if { $CHECK_ADMIN_USER_SYSTEM == 0 } {
-    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 $set_ld_library_path 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) env_list 0 15 $set_ld_library_path 1 1]
  } else {
     puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-    set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 $set_ld_library_path 1 1]
+    set id [open_remote_spawn_process "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) env_list 0 15 $set_ld_library_path 1 1]
  }
  set sp_id [ lindex $id 1 ] 
 
@@ -227,9 +243,9 @@ proc install_qmaster {} {
     expect {
        -i $sp_id full_buffer {
           add_proc_error "install_qmaster" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-          close_spawn_process $id; 
+          close_spawn_process $id;
           return
-       }   
+       }
 
        -i $sp_id eof { 
           add_proc_error "install_qmaster" "-1" "unexpected eof"; 
@@ -369,6 +385,31 @@ proc install_qmaster {} {
              set anykey [wait_for_enter 1]
           }
           ts_send $sp_id "y\n"
+          continue
+       }
+       
+       -i $sp_id $ENABLE_JMX {
+          if { $ts_config(jmx_port) > 0 } {
+             set enable_jmx "$ANSWER_YES"
+          } else {
+             set enable_jmx "$ANSWER_NO"
+          }
+          puts $CHECK_OUTPUT "\n -->testsuite: sending enable_jmx >${enable_jmx}<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "${enable_jmx}\n"
+          continue
+       }
+       
+       -i $sp_id $JMX_PORT_QUESTION {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending jmx port >$ts_config(jmx_port)<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "$ts_config(jmx_port)\n"
           continue
        }
 
