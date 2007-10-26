@@ -2229,7 +2229,6 @@ proc update_ts_config_version {} {
       config_build_ts_config_1_12
       show_config ts_config
       wait_for_enter
-      return 0
    }
    
    if {[string compare $ts_config(version) "1.12"] == 0} {

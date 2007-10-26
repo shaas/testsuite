@@ -1,3 +1,7 @@
+RH-2007-10-26-1: Bugfix:    o configuration upgrade from 1.12 to 1.13
+                              was not possible
+                 Review:    RD
+
 RH-2007-10-26-0: Enhance:   o New configuration parameter for the port
                               of qmasters JMX MBean Server
                             o install_core_system supports enabling the
