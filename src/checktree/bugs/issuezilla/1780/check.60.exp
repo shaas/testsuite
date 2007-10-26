@@ -124,11 +124,43 @@ proc issue_1780_run  {} {
    # whether the modification works.  We're just looking for seg faults in
    # qconf.
    set result [start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qconf" "-sq all.q | grep -v slots | grep -v qname >> $tmp_file" exit_code]
+   
+   # Time how long the addition of the queues takes.
+   set start_time [timestamp]
+   
    set result [start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qconf" "-Aq $tmp_file" exit_code 610]
-
+   
+   set total_time [expr [timestamp]- $start_time]
+   puts $CHECK_OUTPUT "the time qconf took to add 3000 hosts was $total_time seconds "
+   
    if {$exit_code != 0} {
       add_proc_error "issue_1780_run" -1 "qconf -Mconf with huge amout of host entries broken:\n$result"
    }
+   
+   sleep 5
+   
+   set qstat_timeout 10
+   # Start now qstat with a qstat_timeout seconds timeout
+   set qstat_result [start_sge_bin "qstat" "" "" $CHECK_USER "" $qstat_timeout]
+   if {$qstat_result != ""} {
+      add_proc_error "issue_1780_run" -1 "qstat failed for queue with huge amount of host entries: \n$result"
+   } else {
+      puts $CHECK_OUTPUT "qstat was OK"
+   }
+      
+   # Now submit a sleeper job, with "-q all.q" request,
+   # and call wait_for_jobstart with a short timeout
+   # and trigger scheduling
+   
+   set job_args "-o /dev/null -e /dev/null -j y -q  all.q $ts_config(product_root)/examples/jobs/sleeper.sh 20"
+      
+   set job_id [submit_job "$job_args"]
+   set job_timeout 10
+   wait_for_jobstart $job_id "leeper" $job_timeout 1 1
+   
+   delete_all_jobs
+   wait_for_end_of_all_jobs 20
+
 }
 
 proc issue_1780_cleanup {} {

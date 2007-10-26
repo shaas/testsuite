@@ -1,3 +1,7 @@
+OJ-2007-10-26-0: Enhance:   Modified checktree/bugs/issuezilla/1780/check.60.exp
+                            to verify that IZ 1780 is gone
+                 Review:    JG 
+
 MD-2007-10-26-0: Enhance:   o added Issue test for IZ 2406
                             o enhanced backup_restore test
                  Review:    HP
