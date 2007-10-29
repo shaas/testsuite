@@ -1,3 +1,6 @@
+RD-2007-10-29-0: Bugfix:    fixed interactive installation on darwin-x86
+                 Review:    JG
+
 OJ-2007-10-26-0: Enhance:   Modified checktree/bugs/issuezilla/1780/check.60.exp
                             to verify that IZ 1780 is gone
                  Review:    JG 

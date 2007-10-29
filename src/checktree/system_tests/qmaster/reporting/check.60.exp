@@ -211,7 +211,7 @@ proc reporting_do_accounting_test {scenario} {
       after 1000
 
       if {$new_mtime != [file mtime $reporting_acct_file]} {
-         add_proc_error $scenario -1 "accounting file was flushed before flush interval"
+         add_proc_error $scenario -1 "accounting file was flushed before flush interval\nexpected: $new_mtime \ngot: [file mtime $reporting_acct_file]"
          set failed 1
          break
       }

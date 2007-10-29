@@ -1146,6 +1146,11 @@ proc install_qmaster {} {
           continue
        }
 
+       -i $sp_id "BINARY CODE LICENSE" {
+         ts_send $sp_id "q"
+         continue
+       }
+
        -i $sp_id $LICENSE_AGREEMENT { 
           puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(21)"
           if {$do_log_output == 1} {
