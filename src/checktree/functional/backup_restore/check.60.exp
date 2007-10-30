@@ -86,6 +86,9 @@ proc backup_restore_setup {} {
          puts $CHECK_OUTPUT "\n berkeleydb local spooling detected"
       }
    }
+   #ST support file
+   set st_file "$ts_config(product_root)/$ts_config(cell)/common/st.enabled"
+   set st_file_before [is_remote_file $ts_config(master_host) $CHECK_USER $st_file] 
 
    # Backup Database
    set id [open_remote_spawn_process $remote_host $CHECK_USER "./inst_sge" "-bup" 0 $ts_config(product_root)]
@@ -283,6 +286,12 @@ proc backup_restore_setup {} {
          puts $CHECK_OUTPUT "found a queue, configured after backup!"
          add_proc_error "backup_restore" -1 "restore did not work!"
       }
+   }
+
+   set st_file_after [is_remote_file $ts_config(master_host) $CHECK_USER $st_file] 
+   if { $st_file_after != $st_file_before } {
+      puts $CHECK_OUTPUT "The st.enabled file is not restored!"
+      add_proc_error "backup_restore" -1 "restore did not work for ST!"
    }
 }
 

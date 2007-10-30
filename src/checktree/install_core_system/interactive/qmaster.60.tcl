@@ -139,6 +139,7 @@ proc install_qmaster {} {
  set INSTALL_GE_NOT_AS_ROOT       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_GE_NOT_AS_ROOT] ]
  set IF_NOT_OK_STOP_INSTALLATION  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_IF_NOT_OK_STOP_INSTALLATION] ]
  set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ] 
+ set SERVICE_TAGS_SUPPORT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SERVICE_TAGS_SUPPORT] ]
  set ENTER_SPOOL_DIR   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SPOOL_DIR] "*"]
  set USING_GID_RANGE_HIT_RETURN   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_USING_GID_RANGE_HIT_RETURN] "*"]
  set CREATING_ALL_QUEUE_HOSTGROUP [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ALL_QUEUE_HOSTGROUP] ]
@@ -296,6 +297,7 @@ proc install_qmaster {} {
           continue
        }
 
+# TODO: This entry is duplicited later with different implementation on line 375
        -i $sp_id $DNS_DOMAIN_QUESTION {
           ts_send $sp_id "\n"
           continue
@@ -413,6 +415,16 @@ proc install_qmaster {} {
 
        -i $sp_id $DNS_DOMAIN_QUESTION { 
           puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(4)"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "$ANSWER_YES\n"
+          continue
+       }
+
+       -i $sp_id $SERVICE_TAGS_SUPPORT { 
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(6)"
           if {$do_log_output == 1} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
