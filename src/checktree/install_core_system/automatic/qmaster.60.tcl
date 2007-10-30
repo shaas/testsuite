@@ -112,8 +112,6 @@ proc install_qmaster {} {
          return                                       
       }
       set env_list(JAVA_HOME) $java_home
-   } else {
-      set env_list ""
    }
 
    set my_timeout 500

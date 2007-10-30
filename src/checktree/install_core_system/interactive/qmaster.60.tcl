@@ -199,8 +199,6 @@ proc install_qmaster {} {
        return                                       
     }
     set env_list(JAVA_HOME) $java_home
- } else {
-    set env_list ""
  }
  
  puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"
