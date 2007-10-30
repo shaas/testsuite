@@ -83,8 +83,7 @@ lappend check_functions "qconf_sel"
 #lappend check_functions "qconf_Aattr_check"
 #lappend check_functions "qconf_Rattr_check"
 
-# Show options DONE
-lappend check_functions "qconf_scal_check"   	;# List calendars
+# Show options DONE#lappend check_functions "qconf_scal_check"   	;# List calendars
 lappend check_functions "qconf_scall_check"	;# List all calalendars
 lappend check_functions "qconf_sconfl_check"	;# List all hosts with configurations
 lappend check_functions "qconf_sds_check"	;# List detached settings in the cluster  config
@@ -113,6 +112,7 @@ lappend check_functions "qconf_modify_project";# Modify project
 lappend check_functions "qconf_modify_userlist";# Modify user list
 lappend check_functions "qconf_modify_sched_conf";# Modify scheduler config
 lappend check_functions "qconf_issue_2023"
+lappend check_functions "qconf_issue_2383" ;# TS case for IZ 2383
  
 global queue_names
 
@@ -2807,4 +2807,39 @@ proc qconf_add_project {} {
       }
    }
 }
+
+############# qconf/qconf_issue_2383() *********************************************
+#  NAME
+#     issue_2383() -- test qconf -mc with incorrect complex
+#
+#  SYNOPSIS
+#     issue_2383 { }
+#
+#  FUNCTION
+#     Test adding incorrect complex with qconf -mc
+#
+#     The complex is defined as
+#     newone            new      STRING      ==    NO          NO         NONE
+#     so it is missing the urgency value. It is a negative test.
+#     The install should report message MSG_CENTRY_NULL_URGENCY
+#
+#*******************************************************************************
+proc qconf_issue_2383 {} {
+   global CHECK_OUTPUT  ts_config
+    
+   # Create a faulty complex. note that there is NO urgency value
+
+   set wrong_complex(newone) "new STRING  ==  NO  NO NONE "   
+   # Call set_complex with null_urgency set to "1", the last var
+   set result [set_complex wrong_complex ]
+      
+   # check that we get the correct error message MSG_CENTRY_NULL_URGENCY
+   if {$result != -6 } {
+      add_proc_error "issue_2383" -3 "qconf -mc test for IZ 2383 failed"
+   } else {
+      puts $CHECK_OUTPUT " qconf -mc test for IZ 2383 passed \n"
+   }
+
+}
+
 

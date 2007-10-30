@@ -146,12 +146,15 @@ proc set_complex {change_array {raise_error 1}} {
    set REMOVED [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
    set STILLREF [translate_macro MSG_CENTRYREFINQUEUE_SS "*" "*"]
    set NOT_MODIFIED [translate_macro MSG_CENTRY_NOTCHANGED]
+   set NULL_URGENCY [translate_macro MSG_CENTRY_NULL_URGENCY]
  
    set master_arch [resolve_arch $ts_config(master_host)] 
-   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF "___ABCDEFG___" "___ABCDEFG___" $raise_error]
-   if {$result != 0 && $result != -2 && $result != -3 && $result != -4} {
+
+   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF $NULL_URGENCY "___ABCDEFG___" $raise_error]
+   if {$result != 0 && $result != -2 && $result != -3 && $result != -4  && $result != -6} {
       add_proc_error "set_complex" -1 "could not modify complex: ($result)" $raise_error
    }
+
    return $result
 }
 
