@@ -1089,18 +1089,14 @@ proc cleanup_hedeby_local_spool_dir { host } {
 #*******************************************************************************
 proc get_all_hedeby_managed_hosts {} {
    global hedeby_config
-   set host_list [get_all_execd_hosts]
-   foreach host $hedeby_config(hedeby_host_resources) {
-      lappend host_list $host
-   }
-
-   set new_host_list {}
-   foreach host $host_list {
-      if { $host != $hedeby_config(hedeby_master_host) } {
-         lappend new_host_list  $host
+   set host_list $hedeby_config(hedeby_host_resources) 
+   
+   foreach host [get_all_execd_hosts] {
+      if {[lsearch $host_list $host] < 0 && $host != $hedeby_config(hedeby_master_host) } {
+         lappend host_list $host
       }
    }
-   return $new_host_list
+   return $host_list
 }
 
 #****** util/is_hedeby_process_running() ***************************************
@@ -1908,7 +1904,7 @@ proc sdmadm_set_system_property { host user output property_name value  {preftyp
 #     util/sdmadm_start()
 #     util/sdmadm_show_status()
 #*******************************************************************************
-proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_error 1} } {
+proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {values_var sdmadm_show_status_values} {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $output output_return
 
@@ -2197,27 +2193,19 @@ proc sdmadm_show_admin_users { host user user_list {preftype ""} {sys_name ""} {
 #                                ss_out(HOSTNAME,COMPONENT_NAME,section)
 #
 #  RESULT
-#     none
+#     number of parsed rows or -1 if the output could not be parsed
 #
 #  EXAMPLE
-#     # taken from procedure show_status_check()
-#     foreach jvm $expected_jvms($host) {
-#        puts $CHECK_OUTPUT "   checking jvm status of jvm \"$jvm\" on host \"$host\" ..."
-#        if { [info exists ss_out($host,$jvm,status)] } {
-#           set status $ss_out($host,$jvm,status)
-#           set section $ss_out($host,$jvm,section)
-#           puts $CHECK_OUTPUT "   status:  $status"
-#           puts $CHECK_OUTPUT "   section: $section"
-#           if { $status != $expected_component_status } {
-#              append error_text "jvm \"$jvm\" on host \"$host\" reports status \"$status\".\n"
-#              append error_text "Expected status is \"$expected_component_status\"!\n"
-#           }
-#        } else {
-#           append error_text "can't find jvm \"$jvm\" on host \"$host\"!\n"
-#        }
-#        incr nr_of_jvms 1
-#     }
 #     
+#   set component_count [parse_sdmadm_show_status_output output]
+#   
+#   for {set i 0} {$i < $component_count} {incr i} {
+#      set host   $ss_out($i,host)
+#      set jvm    $ss_out($i,jvm)
+#      set comp   $ss_out($i,component)
+#      set state  $ss_out($i,state)
+#      set type   $ss_out($i,type)
+#   }
 #
 #  SEE ALSO
 #     util/sdmadm_command()
@@ -2232,40 +2220,71 @@ proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
    upvar $output_var out
    upvar $status_array ss
 
-    set help [split $out "\n"]
-
-    set ss(showed_status_count) 0
-
-    # get string for other line
-    set other_string [create_bundle_string "client.status.other"]
-    
-    # get match string for service output line
-    set comp_string [create_bundle_string "client.status.service" xyz "*"]
-
-    set section ""
-    set help [split $out "\n"]
-
-    foreach ls $help {
-       set line [string trim $ls]
-#       puts $CHECK_OUTPUT "parse line: \"$line\""
-       if { [string match $other_string $line] } {
-          set section "other"
-          debug_puts "found section \"$section\""
-          continue
-       }
-       if { $section == "other" } {
-          if { [string match $comp_string $line] } {
-             parse_bundle_string_params $line "client.status.service" params
-             set host   $params(0)
-             set comp   $params(1)
-             set status $params(2)
-             set ss($host,$comp,status)  $status
-             set ss($host,$comp,section) $section
-             incr ss(showed_status_count) 1
-             debug_puts "section $section: found comp \"$comp\" on host \"$host\" with status \"$status\""
-          }
-       }
-    }
+   set help [split $out "\n"]
+   set line_count -1
+   set col_count 0
+   array set last_values {}
+   
+   set known_colums(host)  [create_bundle_string "ShowSystemStatusCliCommand.HostCol"]
+   set known_colums(jvm)  [create_bundle_string "ShowSystemStatusCliCommand.JvmCol"]
+   set known_colums(component)  [create_bundle_string "ShowSystemStatusCliCommand.NameCol"]
+   set known_colums(state)  [create_bundle_string "ShowSystemStatusCliCommand.StateCol"]
+   set known_colums(type)  [create_bundle_string "ShowSystemStatusCliCommand.TypeCol"]
+   
+   foreach line $help {
+      debug_puts "Process line $line_count: \"$line\""
+      if { [string first "Error:" $line] >= 0 } {
+         return -1
+      } elseif {$line_count < 0} {
+         set line [string trim $line]
+         foreach col_name [split $line " "] {
+            if {[string length $col_name] > 0} {
+               set real_col_name ""
+               foreach known_col [array names known_colums] {
+                  if { $known_colums($known_col) == $col_name } {
+                     set real_col_name $known_col
+                     break;
+                  }
+               }
+               if {$real_col_name == ""} {
+                  add_proc_error "parse_sdmadm_show_status_output" -1 "Found unknown column $col_name in output of \"sdmadm show_status\""
+                  return -1
+               }
+               set col($col_count,name)  $real_col_name
+               set col($col_count,start_index) [string first "$col_name" "$line"]
+               incr col_count
+            }
+         }
+         set last_col_index [expr $col_count - 1]
+         for {set i 0} {$i < $last_col_index} {incr i} {
+            set col($i,end_index) $col([expr $i + 1],start_index)
+            incr col($i,end_index) -1
+            debug_puts "col$i: $col($i,name) = $col($i,start_index) -> $col($i,end_index)"
+         }
+         set col($last_col_index,end_index) [string length $line]
+         incr col($last_col_index,end_index) -1
+         debug_puts "col$i: $col($last_col_index,name) = $col($last_col_index,start_index) -> $col($last_col_index,end_index)"
+         set line_count 0
+      } elseif { [string length $line] == 0 } {
+         continue
+      } elseif { [string first "-------" $line] >= 0 } {
+         continue
+      } else {
+         for {set i 0} {$i < $col_count} {incr i} {
+            set col_name $col($i,name)
+            set tvalue [string range $line $col($i,start_index) $col($i,end_index)]
+            set tvalue [string trim $tvalue]
+            if {[string length $tvalue] == 0} {
+               set tvalue $last_values($col_name)
+            } else {
+               set last_values($col_name) $tvalue
+            }
+            set ss($line_count,$col_name) $tvalue
+         }
+         incr line_count
+      }
+   }
+   return $line_count
 }
 
 

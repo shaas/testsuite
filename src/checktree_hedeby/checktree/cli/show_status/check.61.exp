@@ -142,9 +142,9 @@ proc show_status_check {} {
 
    # setup master host expectations ...
    set test_hosts $hedeby_config(hedeby_master_host)
-   set expected_jvms($hedeby_config(hedeby_master_host)) "cs_vm executor_vm"
+   set expected_jvms($hedeby_config(hedeby_master_host)) "executor_vm"
    set expected_components($hedeby_config(hedeby_master_host)) "ca executor"
-   set expected_component_status "started"
+   set expected_component_status "STARTED"
 
    # setup managed host expectations ...
    foreach host $hedeby_config(hedeby_host_resources) {
@@ -156,66 +156,68 @@ proc show_status_check {} {
    set nr_of_jvms 0
    set nr_of_components 0
    set error_text ""
-   foreach host $test_hosts {
-      puts $CHECK_OUTPUT "testing sdmadm show_status on host $host ..."
- 
-      # we don't use the pref type - hedeby must find the system anyway
-      # we also don't need to test the exit state (sdmadm_show_status does it already)
-      sdmadm_show_status $host [get_hedeby_admin_user] output "" [get_hedeby_system_name]
-      set debug_output($host) $output
-      parse_sdmadm_show_status_output output
-      # ss_out
-
-      foreach jvm $expected_jvms($host) {
-         puts $CHECK_OUTPUT "   checking jvm status of jvm \"$jvm\" on host \"$host\" ..."
-         if { [info exists ss_out($host,$jvm,status)] } {
-            set status $ss_out($host,$jvm,status)
-            set section $ss_out($host,$jvm,section)
-            puts $CHECK_OUTPUT "   status:  $status"
-            puts $CHECK_OUTPUT "   section: $section"
-            if { $status != $expected_component_status } {
-               append error_text "jvm \"$jvm\" on host \"$host\" reports status \"$status\".\n"
-               append error_text "Expected status is \"$expected_component_status\"!\n"
+   
+   # we don't use the pref type - hedeby must find the system anyway
+   # we also don't need to test the exit state (sdmadm_show_status does it already)
+   sdmadm_show_status $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] output "" [get_hedeby_system_name]
+   
+   set component_count [parse_sdmadm_show_status_output output]
+   
+   for {set i 0} {$i < $component_count} {incr i} {
+      set host $ss_out($i,host)
+      set jvm  $ss_out($i,jvm)
+      set comp $ss_out($i,component)
+      debug_puts "Found running component $comp in jvm $jvm on host $host"
+      if {[info exists found_jvms($host)] } {
+         set jvms $found_jvms($host)
+         set jvm_index [lsearch $jvms $jvm]
+         if {$jvm_index < 0} {
+            lappend found_jvms($host) $jvm
+            incr nr_of_jvms
+         }
+      } else {
+         set found_jvms($host) $jvm
+         incr nr_of_jvms
+      }
+      if { $ss_out($i,state) == $expected_component_status } {
+         if {[info exists found_comps($host)]} {
+            set comps $found_comps($host)
+            set comp_index [lsearch $comps $comp]
+            if {$comp_index < 0} {
+               lappend found_comps($host) $comp
+               incr nr_of_components
             }
          } else {
-            append error_text "can't find jvm \"$jvm\" on host \"$host\"!\n"
+            set found_comps($host) $comp
+            incr nr_of_components
          }
-         incr nr_of_jvms 1
+      }
+   }
+
+   
+   foreach host $test_hosts {
+      foreach jvm $expected_jvms($host) {
+         if {[info exists found_jvms($host)]  && [lsearch $found_jvms($host) $jvm] >= 0} {
+            debug_puts "Found jvm $jvm host host $host"
+         } else {
+            append error_text "\nJVM $jvm did not start on host $host"
+         }
       }
       foreach comp $expected_components($host) {
-         puts $CHECK_OUTPUT "   checking component statos of component \"$comp\" on host \"$host\" ..."
-         if { [info exists ss_out($host,$comp,status)] } {
-            set status $ss_out($host,$comp,status)
-            set section $ss_out($host,$comp,section)
-            puts $CHECK_OUTPUT "   status:  $status"
-            puts $CHECK_OUTPUT "   section: $section"
-            if { $status != $expected_component_status } {
-               append error_text "component \"$comp\" on host \"$host\" reports status \"$status\".\n"
-               append error_text "Expected status is \"$expected_component_status\"!\n"
-            }
-         } else {
-            append error_text "can't find component \"$comp\" on host \"$host\"!\n"
+         if {[info exists found_comps($host)] != 1 || [lsearch $found_comps($host) $comp] < 0} {
+            append error_text "Component $comp did not start on host $host\n"
          }
-         incr nr_of_components 1
       }
    }
    puts $CHECK_OUTPUT "nr of jvms:       $nr_of_jvms"
    puts $CHECK_OUTPUT "nr of components: $nr_of_components"
-   puts $CHECK_OUTPUT "nr of status infos: $ss_out(showed_status_count)"
-
-   set sum $nr_of_jvms
-   incr sum $nr_of_components
-   if { $ss_out(showed_status_count) != $sum } {
-      append error_text "Expected info count(=$sum) doesn't match reported info count(= $ss_out(showed_status_count))\n"
-   }
+   puts $CHECK_OUTPUT "nr of status infos: $component_count"
 
    if { $error_text != "" } {
       append error_text "\n\n---debug info (start) -----------------------------------------\n"
-      foreach host $test_hosts {
-         append error_text "\nsdmadm show_status output on host \"$host\":\n"
-         append error_text $debug_output($host)
-         append error_text "\n"
-      }
+      append error_text "\nsdmadm show_status output on host \"$hedeby_config(hedeby_master_host)\":\n"
+      append error_text $output
+      append error_text "\n"
       append error_text "---debug info (end) -------------------------------------------"
       add_proc_error "show_status_check" -1 $error_text
    }

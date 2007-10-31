@@ -1,3 +1,7 @@
+RH-2007-10-31-0: Enhance:   Hedeby show_status test adjusted to new output
+                            of sdmadm show_status
+                 Review:    RM
+
 OJ-2007-10-30-0: Enhance:   Added testcase for IZ 2383
                  Review:    JG 
 

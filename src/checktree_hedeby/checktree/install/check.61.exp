@@ -212,7 +212,7 @@ proc hedeby_startup_managed_hosts {} {
    global hedeby_config
    global install_user
 
-   foreach host $hedeby_config(hedeby_host_resources) {
+   foreach host [get_all_hedeby_managed_hosts] {
       set val [startup_hedeby_host "managed" $host $install_user]
       if { $val != 0 } {
          set ret_val 1
@@ -265,7 +265,7 @@ proc hedeby_install_managed_hosts {} {
    puts $CHECK_OUTPUT "admin_keystore file should be at $admin_keystore_file"
    puts $CHECK_OUTPUT "ca cert file should be at $ca_file"
 
-   foreach managed_host $hedeby_config(hedeby_host_resources) {
+   foreach managed_host [get_all_hedeby_managed_hosts] {
       if { $check_dirs } {
          # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
          set mHostSpoolDir [get_hedeby_local_spool_dir $managed_host]
