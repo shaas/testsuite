@@ -97,7 +97,6 @@ proc issue_2406_cleanup {} {
    }
 }
 
-
 proc issue_2406 {} {
    global ts_config CHECK_OUTPUT CHECK_USER
    global issue_2406_hosts

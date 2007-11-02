@@ -188,7 +188,9 @@ set check_functions           ""
 lappend check_functions       "run_throughput_test"
 #set check_functions          "compare_dump_data_file"
 
-set check_highest_level       309
+# EB: TODO: 
+#set check_highest_level       309
+set check_highest_level       309 
 
 global nr_queues  nr_slots
 global queue_list
@@ -847,7 +849,7 @@ proc run_throughput_test {} {
    # open scheduler messages file, done with special file handle ts_def_con
    puts $CHECK_OUTPUT "opening scheduler messages file (tail)"
    set schedd_messages_file [check_schedd_messages 2]
-   set schedd_messages_sid [ open_remote_spawn_process $ts_config(master_host) "ts_def_con" "tail" "-f $schedd_messages_file"]
+   set schedd_messages_sid [open_remote_spawn_process $ts_config(master_host) "ts_def_con" "tail" "-f $schedd_messages_file"]
    set schedd_messages_id [lindex $schedd_messages_sid 1]
 
    # disable queues if enable_queues_job_count is set
@@ -869,7 +871,11 @@ proc run_throughput_test {} {
    # start qmaster/scheduler process monitor (on master host, first testsuite user)
    set expect_bin [get_binary_path $ts_config(master_host) "expect"]
    set qmaster_pid [get_qmaster_pid]
-   set schedd_pid  [get_schedd_pid]
+   if {$ts_config(gridengine_version) < 62} { 
+      set schedd_pid  [get_schedd_pid]
+   } else {
+      set schedd_pid  0 
+   }
    puts $CHECK_OUTPUT "starting process monitor"
    set id [ open_remote_spawn_process $ts_config(master_host) $CHECK_FIRST_FOREIGN_SYSTEM_USER "$expect_bin" "-f $ts_config(testsuite_root_dir)/scripts/process_info.tcl $ts_config(product_root)" ]
    set spawn_id [lindex $id 1]
@@ -999,7 +1005,12 @@ proc run_throughput_test {} {
                   }
                   "PROCESS INFO PROCESS qmaster OK" {
                      puts $CHECK_OUTPUT "initialize schedd monitoring"
-                     ts_send $spawn_id "PROCESS $schedd_pid schedd\n"
+                     if {$ts_config(gridengine_version) < 62} { 
+                        ts_send $spawn_id "PROCESS $schedd_pid schedd\n"
+                     } else {
+                        puts $CHECK_OUTPUT "starting process monitoring (without scheduler process)"
+                        ts_send $spawn_id "START\n"
+                     }
                   }
                   "PROCESS INFO PROCESS schedd OK" {
                      puts $CHECK_OUTPUT "starting process monitoring"

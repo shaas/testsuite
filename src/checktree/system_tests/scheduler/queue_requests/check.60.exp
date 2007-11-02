@@ -223,7 +223,11 @@ proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
    }
 
    # initialize a tail -f on scheduler messages file
-   set schedd_messages_file "[get_qmaster_spool_dir]/schedd/messages"
+   if {$ts_config(gridengine_version) >= 62} {
+      set schedd_messages_file "[get_qmaster_spool_dir]/messages"
+   } else {
+      set schedd_messages_file "[get_qmaster_spool_dir]/schedd/messages"
+   }
    init_logfile_wait $ts_config(master_host) $schedd_messages_file
 
    # submit a job without requests and measure the time for scheduling

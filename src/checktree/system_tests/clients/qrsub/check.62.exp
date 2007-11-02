@@ -186,6 +186,7 @@ proc check_submit_ar_invalid_option_arg {} {
       add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_submit_ar_invalid_option_arg OK"
 }
 
@@ -250,6 +251,7 @@ proc check_option_a {} {
       add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong date/time format' was not shown"
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_a OK"
 }
 
@@ -271,6 +273,7 @@ proc check_option_A {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_A OK"
 }
 
@@ -292,6 +295,7 @@ proc check_option_ckpt {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_ckpt OK"
 }
 
@@ -336,6 +340,7 @@ proc check_option_d {} {
       add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong time format' was not shown"
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_d OK"
 }
 
@@ -380,6 +385,7 @@ proc check_option_e {} {
       add_proc_error "submit_ar" -1 "error $ar_id: 'Invalid day specification.' was not shown"
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_e OK"
 }
 
@@ -395,6 +401,7 @@ proc check_option_help {} {
       add_proc_error "submit_ar" -1 "error in help $ar_id"
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_help OK"
 }
 
@@ -425,6 +432,7 @@ proc check_option_he {} {
       add_proc_error "submit_ar" -1 "invalid option error in -he blaf not shown"
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_he OK"
 }
 
@@ -446,6 +454,7 @@ proc check_option_l {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_l OK"
 }
 
@@ -466,6 +475,7 @@ proc check_option_m {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_m OK"
 }
 
@@ -486,6 +496,7 @@ proc check_option_now {} {
    if {$ar_id < 0} {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_now OK"
 }
 
@@ -506,6 +517,7 @@ proc check_option_M {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_M OK"
 }
 
@@ -525,6 +537,7 @@ proc check_option_N {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_N OK"
 }
 
@@ -553,6 +566,7 @@ proc check_option_pe {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_pe OK"
 }
 
@@ -574,6 +588,7 @@ proc check_option_q {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_q OK"
 }
 
@@ -597,6 +612,7 @@ proc check_option_w {} {
       add_proc_error "submit_ar" -1 "invalid submition message"
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_w OK"
 }
 
@@ -620,6 +636,7 @@ proc check_option_u {} {
    if {$ret != 0 } {
       return
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_u OK"
 }
 
@@ -641,5 +658,6 @@ proc check_option_masterq {} {
       }
       delete_ar $ar_id
    }
+   delete_all_ars
    puts $CHECK_OUTPUT "test check_option_masterq OK"
 }

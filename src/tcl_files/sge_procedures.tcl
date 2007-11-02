@@ -396,12 +396,14 @@ proc check_messages_files { } {
       append full_info $status
    }
 
-   set status [ check_schedd_messages 1] 
-   append full_info "\n=========================================\n"
-   append full_info "schedd: $ts_config(master_host)\n"
-   append full_info "file  : [check_schedd_messages 2]\n"
-   append full_info "=========================================\n"
-   append full_info $status
+   if {$ts_config(gridengine_version) < 62} {
+      set status [ check_schedd_messages 1] 
+      append full_info "\n=========================================\n"
+      append full_info "schedd: $ts_config(master_host)\n"
+      append full_info "file  : [check_schedd_messages 2]\n"
+      append full_info "=========================================\n"
+      append full_info $status
+   }
 
    set status [ check_qmaster_messages 1] 
    append full_info "\n=========================================\n"
@@ -534,7 +536,12 @@ proc check_schedd_messages { { show_mode 0 } } {
    get_current_cluster_config_array ts_config
 
    set spool_dir [get_qmaster_spool_dir]
-   set messages_file "$spool_dir/schedd/messages"
+   if {$ts_config(gridengine_version) < 62} {
+      set messages_file "$spool_dir/schedd/messages"
+   } else {
+      # schedd messages are part of the master messages file
+      set messages_file "$spool_dir/messages"
+   }
 
    if { $show_mode == 2 } {
       return $messages_file
@@ -2227,7 +2234,7 @@ proc set_config_and_propagate {config {host global}} {
          -i $sp_id timeout {
             add_proc_error "job_environment_set_config" -1 "setup failed (timeout waiting for config to change)"
          }
-         -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
+         -i $sp_id "\|  main\|$conf_host\|I\|using \"$value\" for $name" {
             puts $CHECK_OUTPUT "Configuration changed: $name = \"$value\""
          }
       }
@@ -6360,7 +6367,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       set startup_user $CHECK_USER
    } 
 
-   if {$and_scheduler} {
+   if {$ts_config(gridengine_version) < 62 && $and_scheduler} {
       set schedd_message "and scheduler"
    } else {
       set schedd_message ""
@@ -6379,6 +6386,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
    puts $CHECK_OUTPUT "starting up qmaster $schedd_message on host \"$start_host\" as user \"$startup_user\""
    set arch [resolve_arch $start_host]
    set xterm_path [get_xterm_path $start_host]
+
    if {$master_debug != 0} {
       puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
       start_remote_prog "$start_host" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
@@ -6386,34 +6394,36 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_qmaster" ";sleep 2" prg_exit_state 60 0 "" envlist
    }
 
-   if {$and_scheduler} {
-      set old_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
-      debug_puts "old scheduler pid is \"$old_schedd_pid\""
+   if {$ts_config(gridengine_version) < 62} {
+      if {$and_scheduler} {
+         set old_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
+         debug_puts "old scheduler pid is \"$old_schedd_pid\""
 
-      puts $CHECK_OUTPUT "starting up scheduler ..."
-      if { $schedd_debug != 0 } {
-         puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-         puts $CHECK_OUTPUT "starting schedd as $startup_user" 
-         start_remote_prog "$start_host" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
-      } else {
-         puts $CHECK_OUTPUT "starting schedd as $startup_user" 
-         set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
-         puts $CHECK_OUTPUT $result
-      }
-      set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
-      puts $CHECK_OUTPUT "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
-
-      set nr_of_checks 10
-      while { $current_schedd_pid == $old_schedd_pid } {
-         puts $CHECK_OUTPUT "waiting for pidfile containing a new scheduler pid ..."
-         after 1000
-         incr nr_of_checks -1
-         if { $nr_of_checks <= 0 } {
-            add_proc_error "startup_qmaster" -1 "new scheduler pid not written"
-            break
+         puts $CHECK_OUTPUT "starting up scheduler ..."
+         if { $schedd_debug != 0 } {
+            puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
+            puts $CHECK_OUTPUT "starting schedd as $startup_user" 
+            start_remote_prog "$start_host" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
+         } else {
+            puts $CHECK_OUTPUT "starting schedd as $startup_user" 
+            set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
+            puts $CHECK_OUTPUT $result
          }
          set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
          puts $CHECK_OUTPUT "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
+
+         set nr_of_checks 10
+         while { $current_schedd_pid == $old_schedd_pid } {
+            puts $CHECK_OUTPUT "waiting for pidfile containing a new scheduler pid ..."
+            after 1000
+            incr nr_of_checks -1
+            if { $nr_of_checks <= 0 } {
+               add_proc_error "startup_qmaster" -1 "new scheduler pid not written"
+               break
+            }
+            set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
+            puts $CHECK_OUTPUT "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
+         }
       }
    }
  
@@ -6591,12 +6601,13 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
       set qmaster_pid -1
    }
 
-   set scheduler_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid"]
-   set scheduler_pid [ string trim $scheduler_pid ]
-   if { $prg_exit_state != 0 } {
-      set scheduler_pid -1
+   if {$ts_config(gridengine_version) < 62} {
+      set scheduler_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid"]
+      set scheduler_pid [ string trim $scheduler_pid ]
+      if { $prg_exit_state != 0 } {
+         set scheduler_pid -1
+      }
    }
-
 
    get_ps_info $qmaster_pid $hostname
 
@@ -6604,10 +6615,12 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
       incr running 2
    }
 
-   get_ps_info $scheduler_pid $hostname
+   if {$ts_config(gridengine_version) < 62} {
+      get_ps_info $scheduler_pid $hostname
 
-   if { ($ps_info($scheduler_pid,error) == 0) && ( [ string first "schedd" $ps_info($scheduler_pid,string)] >= 0  ) } {
-      incr running 1
+      if { ($ps_info($scheduler_pid,error) == 0) && ( [ string first "schedd" $ps_info($scheduler_pid,string)] >= 0  ) } {
+         incr running 1
+      }
    }
 
    return $running
@@ -6653,7 +6666,11 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc shutdown_master_and_scheduler {hostname qmaster_spool_dir} {
-   shutdown_scheduler $hostname $qmaster_spool_dir
+   get_current_cluster_config_array ts_config
+
+   if {$ts_config(gridengine_version) < 62} {
+      shutdown_scheduler $hostname $qmaster_spool_dir
+   }
    shutdown_qmaster $hostname $qmaster_spool_dir
 }
 
@@ -7230,7 +7247,6 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
    set nr_of_found_qmaster_processes_or_threads 0
 
    foreach process_name $process_names {
-
       puts $CHECK_OUTPUT "looking for \"$process_name\" processes on host $host ..."
       foreach elem $found_p {
          if { [ string first $process_name $ps_info(string,$elem) ] >= 0 } {
@@ -7413,8 +7429,10 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
              }
           }
       }
-   } else {
+   } elseif {$ts_config(gridengine_version) < 62} {
       shutdown_system_daemon $ts_config(master_host) "sched execd qmaster"
+   } else {
+      shutdown_system_daemon $ts_config(master_host) "execd qmaster"
    }
 
    if { $do_compile == 0} {
@@ -7427,7 +7445,11 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
             lappend hosts_to_check $elem
          }
       }
-      set proccess_names "sched"
+      if {$ts_config(gridengine_version) < 62} {
+         set proccess_names "sched"
+      } else {
+         set proccess_names ""
+      }
       lappend proccess_names "execd"
       lappend proccess_names "qmaster"
       if {$ts_config(gridengine_version) == 53} {
@@ -7585,8 +7607,9 @@ proc wait_till_qmaster_is_down { host } {
    get_current_cluster_config_array ts_config
 
    set process_names "sge_qmaster" 
-   
-   set my_timeout [ expr ( [timestamp] + 60 ) ] 
+  
+# EB: TODO: ST: set timeout to 60 
+   set my_timeout [expr [timestamp] + 180] 
 
    while { 1 } {
       set found_p [ ps_grep "$ts_config(product_root)/" $host ]

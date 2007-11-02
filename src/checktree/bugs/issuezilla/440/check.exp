@@ -192,8 +192,13 @@ proc issue_440_check_qsub {} {
 
    puts $CHECK_OUTPUT "check if master and scheduler are running ..."
    set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
-   if {$back != 3} {
-      add_proc_error "issue_440_check_qsub" -1 "are_master_and_scheduler_running returns $backafter submit on host $check_440_host"
+   if {$ts_config(gridengine_version) < 62} {
+      set expected_result 3 
+   } else {
+      set expected_result 2 
+   }
+   if {$back != $expected_result} {
+      add_proc_error "issue_440_check_qsub" -1 "are_master_and_scheduler_running returns $back submit on host $check_440_host"
    }
 }
 
@@ -268,7 +273,12 @@ proc issue_440_check_qrsh {} {
 
    puts $CHECK_OUTPUT "check if master and scheduler are running ..."
    set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
-   if {$back != 3} {
+   if {$ts_config(gridengine_version) < 62} {
+      set expected_result 3 
+   } else {
+      set expected_result 2 
+   }
+   if {$back != $expected_result} {
       add_proc_error "issue_440_check_qrsh" -1 "are_master_and_scheduler_running returns $back after submit on host $check_440_host"
    }   
 }

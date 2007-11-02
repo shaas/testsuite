@@ -110,7 +110,12 @@ proc issue_140_check {} {
 
    puts $CHECK_OUTPUT "check if master and scheduler are running ..."
    set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
-   if {$back != 3} {
+   if {$ts_config(gridengine_version) < 62} {
+      set expected_back 3
+   } else {
+      set expected_back 2
+   }
+   if {$back != $expected_back} {
       add_proc_error "issue_140_cleanup" -1 "are_master_and_scheduler_running returns $back"
    }   
 }

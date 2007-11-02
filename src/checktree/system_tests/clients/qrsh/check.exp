@@ -78,7 +78,6 @@ lappend check_functions "qrsh_reservation"           ;# test the -R y option
 lappend check_functions "qrsh_sigterm_running_job"   ;# test CTRL-C for running job
 lappend check_functions "qrsh_sigterm_pending_job"   ;# test CTRL-C for pending job
 
-
 proc qrsh_init_level {} {
    global CHECK_ACT_LEVEL
 
@@ -1025,35 +1024,6 @@ proc check_qsub_gid_output {output check_group} {
    }
 }
 
-#                                                             max. column:     |
-#****** qrsh/qrsh_qsub_gid() ******
-# 
-#  NAME
-#     qrsh_qsub_gid -- ??? 
-#
-#  SYNOPSIS
-#     qrsh_qsub_gid { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc qrsh_qsub_gid {} {
    global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
    global QSUB_GID_USER QSUB_GID_GROUPS

@@ -132,8 +132,10 @@ proc access_lists_setup  {} {
    add_access_list "$CHECK_FIRST_FOREIGN_SYSTEM_USER"   userA_name
    add_access_list "$CHECK_SECOND_FOREIGN_SYSTEM_USER"  userB_name
 
-   if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
-      add_proc_error "access_lists_setup" -1 "scheduler is not alive"
+   if {$ts_config(gridengine_version) < 62} {
+      if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
+         add_proc_error "access_lists_setup" -1 "scheduler is not alive"
+      }
    }
 
    set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15"  

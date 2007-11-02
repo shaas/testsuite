@@ -228,7 +228,7 @@ proc urgency_calculation {} {
    if {$result != 0} {
       return -1
    }
-   
+
    # Delete the job(3) and check the values
    # Urgency must not be changed   
    puts $CHECK_OUTPUT "Delete job(3) $jobs(3,id)"
@@ -270,7 +270,7 @@ proc urgency_calculation {} {
    urgency_build_job_array_entry jobs "rrcontr"  $rrcontr
     
    set result [urgency_check_values jobs $job_count $value_names]
-   
+  
    if {$result != 0} {
       return -1
    }
@@ -282,7 +282,7 @@ proc urgency_check_values {jobs job_count value_names} {
    upvar $jobs tmp_jobs
    
    trigger_scheduling
-   after 5000
+   sleep 5 
    
    set error_count 0
    for {set i 0} {$i < $job_count} {incr i 1} {

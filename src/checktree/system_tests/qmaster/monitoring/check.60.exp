@@ -127,7 +127,7 @@ proc qmaster_monitoring_cleanup  {} {
 
 
 proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT ts_config
 
    # some information output
    switch -exact $expected_prof {
@@ -143,10 +143,17 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
    }
 
    # initialize counters for monitoring messages
-   set prof(SIGT) 0
-   set prof(MT) 0
-   set prof(EDT) 0
-   set prof(TET) 0
+   if {$ts_config(gridengine_version) >= 62} {
+      set prof(SIGNALERT) 0
+      set prof(LISTENERT) 0
+      set prof(DELIVERERT) 0
+      set prof(TIMERT) 0
+   } else {
+      set prof(SIGT) 0
+      set prof(MT) 0
+      set prof(EDT) 0
+      set prof(TET) 0
+   }
 
    # this is the spawn id of our tail to qmaster messages file
    set sp_id [lindex $id 1]
@@ -179,6 +186,30 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                      #puts $CHECK_OUTPUT "processing line: $line"
                      set split_line [split $line "|"]
                      set message [lindex $split_line 1]
+                     if {$ts_config(gridengine_version) >= 62} { 
+                        switch -glob -- $message {
+                           "*signaler*: runs*" {
+                              incr prof(SIGNALERT)
+                           }
+                           "*listener*: runs*" {
+                              incr prof(LISTENERT)
+                              #parse_monitor_tet $message
+                           }
+                           "*deliverer*: runs*" {
+                              incr prof(DELIVERERT)
+                              set tmp [lindex $split_line 2]
+                              set message "$message $tmp"
+                              #parse_monitor_tet $message
+                           }
+                           "*timer*: runs*" {
+                              incr prof(TIMERT)
+                              #parse_monitor_tet $message
+                           }
+                           default {
+#     puts $CHECK_OUTPUT "unknown monitoring message $message"
+                           }
+                        }
+                     } else {
                         switch -glob -- $message {
                            "*SIGT: runs*" {
                               incr prof(SIGT)
@@ -201,9 +232,9 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
 #     puts $CHECK_OUTPUT "unknown monitoring message $message"
                            }
                         }
-                     } ;# if
-                  } ;# foreach
-               
+                     }
+                  } ;# if
+               } ;# foreach
             } else {
                foreach line [ string trim [split $expect_out(0,string) "\n"]] {
                   set line [string trim $line]
@@ -212,35 +243,67 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                      set split_line [split $line "|"]
                      set monitoring [lindex $split_line 3]   
                      set message [lindex $split_line 4]
-                     switch -glob -- $monitoring {
-                        "P" {
-                           switch -glob -- $message {
-                              "SIGT*" {
-                                 incr prof(SIGT)
-                              }
-                              "MT(*)*" {
-                                 incr prof(MT)
-                                 #parse_monitor_tet $message
-                              }
-                              "EDT*" {
-                                 incr prof(EDT)
-                                 set tmp [lindex $split_line 5]
-                                 set message "$message $tmp"
-                                 #parse_monitor_tet $message
-                              }
-                              "TET*" {
-                                 incr prof(TET)
-                                 #parse_monitor_tet $message
-                              }
-                              default {
-                            #     puts $CHECK_OUTPUT "unknown monitoring message $message"
+                     if {$ts_config(gridengine_version) >= 62} {
+                        switch -glob -- $monitoring {
+                           "P" {
+                              switch -glob -- $message {
+                                 "signaler*" {
+                                    incr prof(SIGNALERT)
+                                 }
+                                 "listener*" {
+                                    incr prof(LISTENERT)
+                                    #parse_monitor_tet $message
+                                 }
+                                 "deliverer*" {
+                                    incr prof(DELIVERERT)
+                                    set tmp [lindex $split_line 5]
+                                    set message "$message $tmp"
+                                    #parse_monitor_tet $message
+                                 }
+                                 "timer*" {
+                                    incr prof(TIMERT)
+                                    #parse_monitor_tet $message
+                                 }
+                                 default {
+                               #     puts $CHECK_OUTPUT "unknown monitoring message $message"
+                                 }
                               }
                            }
-                        }
-                        default {
-                        #   puts $CHECK_OUTPUT "ignoring: [string range $line 0 50] ..."
-                        }
-                     } ;# switch
+                           default {
+                           #   puts $CHECK_OUTPUT "ignoring: [string range $line 0 50] ..."
+                           }
+                        } ;# switch
+                     } else {
+                        switch -glob -- $monitoring {
+                           "P" {
+                              switch -glob -- $message {
+                                 "SIGT*" {
+                                    incr prof(SIGT)
+                                 }
+                                 "MT(*)*" {
+                                    incr prof(MT)
+                                    #parse_monitor_tet $message
+                                 }
+                                 "EDT*" {
+                                    incr prof(EDT)
+                                    set tmp [lindex $split_line 5]
+                                    set message "$message $tmp"
+                                    #parse_monitor_tet $message
+                                 }
+                                 "TET*" {
+                                    incr prof(TET)
+                                    #parse_monitor_tet $message
+                                 }
+                                 default {
+                               #     puts $CHECK_OUTPUT "unknown monitoring message $message"
+                                 }
+                              }
+                           }
+                           default {
+                           #   puts $CHECK_OUTPUT "ignoring: [string range $line 0 50] ..."
+                           }
+                        } ;# switch
+                     }
                   } ;# valid line
                } ;# foreach line  
             } ;
@@ -251,10 +314,17 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
    } ;# while
 
    # some informational output
-   puts $CHECK_OUTPUT "SIGT: $prof(SIGT)"
-   puts $CHECK_OUTPUT "MT:   $prof(MT)"
-   puts $CHECK_OUTPUT "EDT:  $prof(EDT)"
-   puts $CHECK_OUTPUT "TET:  $prof(TET)"
+   if {$ts_config(gridengine_version) >= 62} {
+      puts $CHECK_OUTPUT "SIGNALERT:  $prof(SIGNALERT)"
+      puts $CHECK_OUTPUT "LISTENERT:  $prof(LISTENERT)"
+      puts $CHECK_OUTPUT "DELIVERERT: $prof(DELIVERERT)"
+      puts $CHECK_OUTPUT "TIMERT:     $prof(TIMERT)"
+   } else {
+      puts $CHECK_OUTPUT "SIGT: $prof(SIGT)"
+      puts $CHECK_OUTPUT "MT:   $prof(MT)"
+      puts $CHECK_OUTPUT "EDT:  $prof(EDT)"
+      puts $CHECK_OUTPUT "TET:  $prof(TET)"
+   }
 
    # now check for the expected result
    puts $CHECK_OUTPUT "verifying results"
@@ -263,7 +333,12 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
          # here we may not have received any monitoring messages
          set error 0
          set message "expected no monitoring message to show up, but got"
-         foreach thread "SIGT MT EDT TET" {
+         if {$ts_config(gridengine_version) >= 62} {
+            set thread_name_string "SIGNALERT LISTENERT DELIVERERT TIMERT"
+         } else { 
+            set thread_name_string "SIGT MT EDT TET"
+         }
+         foreach thread $thread_name_string {
             if {$prof($thread) > 0} {
                set error 1
                append message "\n$prof($thread) $thread monitoring messages"
@@ -282,7 +357,12 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
          # 0 messages for the other ones
          set error 0
          set message "expected $expected_prof monitoring messages to show up, but got"
-         foreach thread "MT EDT TET" {
+         if {$ts_config(gridengine_version) >= 62} {
+            set thread_name_string "LISTENERT DELIVERERT TIMERT"
+         } else {
+            set thread_name_string "MT EDT TET"
+         }
+         foreach thread $thread_name_string {
             if {$prof($thread) == 0} {
                set error 1
                append message "\n$prof($thread) $thread monitoring messages"
@@ -479,7 +559,11 @@ proc qmaster_monitoring_restart {} {
    set_config global_conf
 
    # wait for monitoring messages to show up
-   qmaster_monitoring_monitor $id MT 0
+   if {$ts_config(gridengine_version) >= 62} {
+      qmaster_monitoring_monitor $id LISTENERT 0
+   } else {
+      qmaster_monitoring_monitor $id MT 0
+   }
 
    # shutdown qmaster
    shutdown_qmaster $ts_config(master_host) $spooldir
@@ -488,7 +572,11 @@ proc qmaster_monitoring_restart {} {
    startup_qmaster 0
 
    # wait for monitoring messages
-   qmaster_monitoring_monitor $id MT 0
+   if {$ts_config(gridengine_version) >= 62} {
+      qmaster_monitoring_monitor $id LISTENERT 0
+   } else {
+      qmaster_monitoring_monitor $id MT 0
+   }
    
    # switch off monitoring
    set global_conf(qmaster_params) "MONITOR_TIME=0:0:0"
@@ -522,7 +610,11 @@ proc qmaster_monitoring_restart_qping {} {
    set_config global_conf
 
    # wait for monitoring messages to show up
-   qmaster_monitoring_monitor $id MT 1
+   if {$ts_config(gridengine_version) >= 62} {
+      qmaster_monitoring_monitor $id LISTENERT 1
+   } else {
+      qmaster_monitoring_monitor $id MT 1
+   }
 
    # shutdown qmaster
    shutdown_qmaster $ts_config(master_host) $spooldir
@@ -531,7 +623,11 @@ proc qmaster_monitoring_restart_qping {} {
    startup_qmaster 0
 
    # wait for monitoring messages
-   qmaster_monitoring_monitor $id MT 1
+   if {$ts_config(gridengine_version) >= 62} {
+      qmaster_monitoring_monitor $id LISTENERT 1
+   } else {
+      qmaster_monitoring_monitor $id MT 1
+   }
 
    # switch off monitoring
    set global_conf(qmaster_params) "MONITOR_TIME=0:0:0"

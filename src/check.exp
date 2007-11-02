@@ -4077,8 +4077,10 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    # unless we are in install - check if system is running
    if {[string compare $check_name "init_core_system"] != 0 &&
        [string compare $check_needs "" ] != 0} {
-      if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
-         add_proc_error "run_test_level" -1 "scheduler is not alive"
+      if {$ts_config(gridengine_version) < 62} {
+         if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
+            add_proc_error "run_test_level" -1 "scheduler is not alive"
+         }
       }
       wait_for_load_from_all_queues 60
    }

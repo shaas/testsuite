@@ -251,10 +251,15 @@ proc qmaster_size_setup {} {
 
    set time [timestamp]
    while { 1 } {
-      puts $CHECK_OUTPUT "waiting for startup of qmaster and scheduler ..."
+      puts $CHECK_OUTPUT "waiting for startup of qmaster (and scheduler if version < 62) ..."
       sleep 5
       set running [ are_master_and_scheduler_running $ts_config(master_host) $qmaster_spool_dir]
-      if { $running == 3 } {
+      if {$ts_config(gridengine_version) < 62} {
+         set expected_ret_val 3
+      } else {
+         set expected_ret_val 2
+      }
+      if { $running == $expected_ret_val } {
          break; 
       }
       set runtime [expr ( [timestamp] - $time) ]
@@ -268,37 +273,6 @@ proc qmaster_size_setup {} {
    set time_start [clock seconds]
 }
 
-
-
-#                                                             max. column:     |
-#****** size/init_ps() ******
-# 
-#  NAME
-#     init_ps -- ??? 
-#
-#  SYNOPSIS
-#     init_ps { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc init_ps {} {
    global CHECK_OUTPUT
    global cmd_ps size_unit
@@ -307,16 +281,25 @@ proc init_ps {} {
 
    # get qmaster pid
    set qmaster_pid [get_qmaster_pid]
-
-   # get schedd pid
-   set schedd_pid [get_schedd_pid]
-
    puts $CHECK_OUTPUT "qmaster pid: $qmaster_pid"
-   puts $CHECK_OUTPUT "schedd  pid: $schedd_pid "
 
-   if { $qmaster_pid == "" || $schedd_pid == ""} {
-      add_proc_error "init_ps" 1 "could not evaluate pid of qmaster and schedd"
+   if {$ts_config(gridengine_version) < 62} {
+      # get schedd pid
+      set schedd_pid [get_schedd_pid]
+      puts $CHECK_OUTPUT "schedd  pid: $schedd_pid "
+   }
+
+
+   if { $qmaster_pid == "" } {
+      add_proc_error "init_ps" 1 "could not evaluate pid of qmaster"
       return
+   }
+
+   if {$ts_config(gridengine_version) < 62} {
+      if { $schedd_pid == "" } {
+         add_proc_error "init_ps" 1 "could not evaluate pid of schedd"
+         return
+      }
    }
   
    set local_arch [resolve_arch [gethostname]]
@@ -343,15 +326,19 @@ proc init_ps {} {
       "usol-x86" -
       "tru64" {
          set cmd_ps(master) "ps -p $qmaster_pid -o vsz | tail -1"
-         set cmd_ps(schedd) "ps -p $schedd_pid -o vsz | tail -1"
          #set cmd_ps(master) "ps -eo 'pid vsz' | awk '{print \$1 \" \" \$2}' | grep '^$qmaster_pid ' | awk '{print \$2}'"
+         if {$ts_config(gridengine_version) < 62} {
+            set cmd_ps(schedd) "ps -p $schedd_pid -o vsz | tail -1"
+         }
          #set cmd_ps(schedd) "ps -eo 'pid vsz' | awk '{print \$1 \" \" \$2}' | grep '^$schedd_pid ' | awk '{print \$2}'"
          set size_unit kB
       }
       "alinux" -
       "lx24-alpha" {
          set cmd_ps(master) "ps lhp $qmaster_pid | awk '{print \$7}'"
-         set cmd_ps(schedd) "ps lhp $schedd_pid  | awk '{print \$7}'"
+         if {$ts_config(gridengine_version) < 62} {
+            set cmd_ps(schedd) "ps lhp $schedd_pid  | awk '{print \$7}'"
+         }
          set size_unit kB
       }
       "lx24-x86" -
@@ -363,14 +350,18 @@ proc init_ps {} {
       "ulx24-x86" -
       "ulx24-amd64" {
          set cmd_ps(master) "ps -p $qmaster_pid --no-heading -o vsz"
-         set cmd_ps(schedd) "ps -p $schedd_pid --no-heading -o vsz"
+         if {$ts_config(gridengine_version) < 62} {
+            set cmd_ps(schedd) "ps -p $schedd_pid --no-heading -o vsz"
+         }
          set size_unit kB
       }
       "hp10" - 
       "hp11" -
       "hp11-64" {
          set cmd_ps(master) "ps -p $qmaster_pid -l | tail -1 | awk '{print \$10}'"
-         set cmd_ps(schedd) "ps -p $schedd_pid  -l | tail -1 | awk '{print \$10}'"
+         if {$ts_config(gridengine_version) < 62} {
+            set cmd_ps(schedd) "ps -p $schedd_pid  -l | tail -1 | awk '{print \$10}'"
+         }
          set size_unit pages
       }
       default {
@@ -389,39 +380,11 @@ proc init_ps {} {
    
    # everything ok
    puts $cmd_ps(master)
-   puts $cmd_ps(schedd)
+   if {$ts_config(gridengine_version) < 62} {
+      puts $cmd_ps(schedd)
+   }
 }
 
-#                                                             max. column:     |
-#****** size/get_size() ******
-# 
-#  NAME
-#     get_size -- ??? 
-#
-#  SYNOPSIS
-#     get_size { who } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     who - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc get_size {who} {
    global cmd_ps CHECK_OUTPUT
 
@@ -462,35 +425,6 @@ proc get_size {who} {
    }   
 }
 
-#                                                             max. column:     |
-#****** size/monitor_header() ******
-# 
-#  NAME
-#     monitor_header -- ??? 
-#
-#  SYNOPSIS
-#     monitor_header { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc monitor_header {} {
    global MONITOR_SIZE_FILENAME CHECK_ACT_LEVEL
 
@@ -499,46 +433,19 @@ proc monitor_header {} {
    close $f
 }
 
-
-#                                                             max. column:     |
-#****** size/monitor_size() ******
-# 
-#  NAME
-#     monitor_size -- ??? 
-#
-#  SYNOPSIS
-#     monitor_size { jobs {when ""} } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     jobs      - ??? 
-#     {when ""} - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc monitor_size {jobs {when ""}} {
    global time_start 
    global next_report last_size 
    global MONITOR_SIZE_FILENAME MONITOR_SIZE_INTERVAL CHECK_ACT_LEVEL
+   global ts_config
 
    set now  [clock seconds]
    set size(master) [get_size master]
-   set size(schedd) [get_size schedd]
+   if { $ts_config(gridengine_version) < 62 } {
+      set size(schedd) [get_size schedd]
+   } else {
+      set size(schedd) 0 
+   }
 
    if { $last_size(master) != $size(master) ||
         $last_size(schedd) != $size(schedd) ||
@@ -557,39 +464,6 @@ proc monitor_size {jobs {when ""}} {
    return $size(master)
 }
 
-#                                                             max. column:     |
-#****** size/stabilize() ******
-# 
-#  NAME
-#     stabilize -- ??? 
-#
-#  SYNOPSIS
-#     stabilize { text delay interval commands } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     text     - ??? 
-#     delay    - ??? 
-#     interval - ??? 
-#     commands - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc stabilize {text delay interval commands} {
    global CHECK_OUTPUT
 
@@ -609,37 +483,6 @@ proc stabilize {text delay interval commands} {
    }
 }
 
-#                                                             max. column:     |
-#****** size/output_monitor_result() ******
-# 
-#  NAME
-#     output_monitor_result -- ??? 
-#
-#  SYNOPSIS
-#     output_monitor_result { start_size end_size } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     start_size - ??? 
-#     end_size   - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc output_monitor_result {start_size end_size} {
    global MONITOR_SIZE_ERROR
    global CHECK_OUTPUT
@@ -658,39 +501,6 @@ proc output_monitor_result {start_size end_size} {
    }
 }
 
-#                                                             max. column:     |
-#****** size/monitor() ******
-# 
-#  NAME
-#     monitor -- ??? 
-#
-#  SYNOPSIS
-#     monitor { text duration interval commands } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     text     - ??? 
-#     duration - ??? 
-#     interval - ??? 
-#     commands - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc monitor {text duration interval commands} {
    global CHECK_OUTPUT
 
@@ -713,35 +523,6 @@ proc monitor {text duration interval commands} {
    }
 }
 
-#                                                             max. column:     |
-#****** size/check_idle() ******
-# 
-#  NAME
-#     check_idle -- ??? 
-#
-#  SYNOPSIS
-#     check_idle { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc check_idle {} {
    global CHECK_OUTPUT
 
@@ -757,35 +538,6 @@ proc check_idle {} {
    monitor "doing nothing" $duration $interval {}
 }
 
-#                                                             max. column:     |
-#****** size/qstat_test() ******
-# 
-#  NAME
-#     qstat_test -- ??? 
-#
-#  SYNOPSIS
-#     qstat_test { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc qstat_test {} {
    global CHECK_ACTUAL_TEST_PATH
    set result [catch {exec $CHECK_ACTUAL_TEST_PATH/sge_start.sh $CHECK_ACTUAL_TEST_PATH/qstat.sh} output]
@@ -794,35 +546,6 @@ proc qstat_test {} {
    }
 }
 
-#                                                             max. column:     |
-#****** size/check_qstat() ******
-# 
-#  NAME
-#     check_qstat -- ??? 
-#
-#  SYNOPSIS
-#     check_qstat { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc check_qstat {} {
    global CHECK_OUTPUT
 
@@ -838,35 +561,6 @@ proc check_qstat {} {
    set when "check qstat"
 }
 
-#                                                             max. column:     |
-#****** size/check_miniworm() ******
-# 
-#  NAME
-#     check_miniworm -- ??? 
-#
-#  SYNOPSIS
-#     check_miniworm { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc check_miniworm {} {
    global ts_config
    global CHECK_OUTPUT
@@ -916,35 +610,6 @@ proc check_miniworm {} {
    set when "check miniworm"
 }
 
-#                                                             max. column:     |
-#****** size/get_last_jobid() ******
-# 
-#  NAME
-#     get_last_jobid -- ??? 
-#
-#  SYNOPSIS
-#     get_last_jobid { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc get_last_jobid {} {
    global qmaster_spool_dir
 
@@ -963,35 +628,6 @@ proc get_last_jobid {} {
    return $last_job
 }
 
-#                                                             max. column:     |
-#****** size/get_job_count() ******
-# 
-#  NAME
-#     get_job_count -- ??? 
-#
-#  SYNOPSIS
-#     get_job_count { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc get_job_count {} {
    global CHECK_OUTPUT
    set job_count 0
@@ -1010,35 +646,6 @@ proc get_job_count {} {
    return $job_count
 }
 
-#                                                             max. column:     |
-#****** size/check_flood() ******
-# 
-#  NAME
-#     check_flood -- ??? 
-#
-#  SYNOPSIS
-#     check_flood { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc check_flood {} {
    global ts_config
    global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE CHECK_COMMD_PORT CHECK_USER
@@ -1164,35 +771,6 @@ proc check_flood {} {
    set when "check flood"
 }
 
-#                                                             max. column:     |
-#****** size/check_size_config() ******
-# 
-#  NAME
-#     check_size_config -- ??? 
-#
-#  SYNOPSIS
-#     check_size_config { } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
 proc check_size_config {} {
    global ts_config
    global config_backup

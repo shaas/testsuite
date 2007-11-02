@@ -941,14 +941,16 @@ proc setup_check_messages_files {} {
       return
    }
 
-   puts $CHECK_OUTPUT "scheduler ..."
-   set messages [get_schedd_messages_file]
-   get_file_content $ts_config(master_host) $CHECK_USER $messages 
-   if { $file_array(0) < 1 } {
-      add_proc_error "setup_check_messages_files" -1 "no scheduler messages file:\n$messages"
-   }
-   for {set i 1 } { $i <= $file_array(0) } { incr i 1 } {
-      puts $CHECK_OUTPUT $file_array($i)
+   if {$ts_config(gridengine_version) < 62} {
+      puts $CHECK_OUTPUT "scheduler ..."
+      set messages [get_schedd_messages_file]
+      get_file_content $ts_config(master_host) $CHECK_USER $messages 
+      if { $file_array(0) < 1 } {
+         add_proc_error "setup_check_messages_files" -1 "no scheduler messages file:\n$messages"
+      }
+      for {set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+         puts $CHECK_OUTPUT $file_array($i)
+      }
    }
 
    puts $CHECK_OUTPUT "qmaster ..."
