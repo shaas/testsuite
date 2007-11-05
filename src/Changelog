@@ -1,3 +1,9 @@
+AP-2007-11-05-0: Enhancem.: o checktree_arco: added tablespaces to the ARCo 
+                              configuration
+                            o using java15 instead of java14
+                            o root access for getting SWC status/version
+                 Review:    JG
+
 AH-2007-11-05-1: Enhancem.: Added test for IZ 2339
                  Review:    EB
 

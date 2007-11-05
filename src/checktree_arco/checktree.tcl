@@ -51,7 +51,7 @@ set ts_checktree($arco_checktree_nr,setup_hooks_0_verify_func)  arco_verify_conf
 set ts_checktree($arco_checktree_nr,setup_hooks_0_save_func)    arco_save_configuration
 #set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     $ACT_CHECKTREE/arco_defaults.sav
 set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "arco" ]
-set ts_checktree($arco_checktree_nr,setup_hooks_0_version)      "1.2"
+set ts_checktree($arco_checktree_nr,setup_hooks_0_version)      "1.3"
 
 set ts_checktree($arco_checktree_nr,checktree_clean_hooks_0)  "arco_clean"
 
@@ -217,7 +217,7 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
    report_task_add_message report $task_nr "-> starting arco build.sh $target on host $build_host ..."
   
    # setup environment
-   set env(JAVA_HOME) [get_java_home_for_host $build_host]
+   set env(JAVA_HOME) [get_java_home_for_host $build_host "1.5"]
    set env(ARCH)      [resolve_arch $build_host]
 
    append ant_options " -Dsge.root=$ts_config(product_root)"
@@ -387,6 +387,7 @@ proc arco_verify_config {config_array only_check parameter_error_list} {
    
    arco_config_upgrade_1_1 config
    arco_config_upgrade_1_2 config
+   arco_config_upgrade_1_3 config
    
    return [verify_config2 config $only_check param_error_list $ts_checktree($arco_checktree_nr,setup_hooks_0_version)]   
 }
@@ -551,6 +552,7 @@ proc arco_init_config { config_array } {
    
    arco_config_upgrade_1_1 config
    arco_config_upgrade_1_2 config
+   arco_config_upgrade_1_3 config
 }
 
 proc arco_config_upgrade_1_1 { config_array } {
@@ -672,6 +674,48 @@ proc arco_config_upgrade_1_2 { config_array } {
    }
 }
 
+proc arco_config_upgrade_1_3 { config_array } {
+   global CHECK_OUTPUT
+   
+   upvar $config_array config
+
+   if { $config(version) == "1.2" } {
+
+      puts $CHECK_OUTPUT "Upgrade to version 1.3"
+
+      if { [string compare $config(database_type) "mysql"] != 0 } {
+         # insert new parameter after jdbc_driver host parameter
+         set insert_pos $config(jdbc_driver,pos)
+         incr insert_pos 1
+
+         # new parameter TABLESPACE
+         set parameter "tablespace"
+         set config($parameter)            ""
+         set config($parameter,desc)       "TABLESPACE for tables"
+         set config($parameter,default)    "USERS"
+         set config($parameter,setup_func) "config_$parameter"
+         set config($parameter,onchange)   "install"
+         set config($parameter,pos) $insert_pos
+
+         incr insert_pos 1
+
+         # new parameter TABLESPACE_INDEX
+         set parameter "tablespace_index"
+         set config($parameter)            ""
+         set config($parameter,desc)       "TABLESPACE for indexes"
+         set config($parameter,default)    "USERS"
+         set config($parameter,setup_func) "config_$parameter"
+         set config($parameter,onchange)   "install"
+         set config($parameter,pos) $insert_pos
+
+      }
+
+      # now we have a configuration version 1.3
+      set config(version) "1.3"
+   }
+
+}
+
 proc config_arco_source_dir { only_check name config_array } {
    
    upvar $config_array config
@@ -739,7 +783,7 @@ proc config_database_host { only_check name config_array } {
                     
    # TODO set global variables
    
-   return [ config_generic $only_check $name config $help_text "host" ]
+   return [ config_generic $only_check $name config $help_text "string" ]
 }
 
 proc config_database_port { only_check name config_array } {
@@ -919,6 +963,26 @@ proc config_java_home { only_check name config_array } {
      
    return [ config_generic $only_check $name config $help_text "directory" ]
    
+}
+
+proc config_tablespace { only_check name config_array } {
+
+   upvar $config_array config
+
+   set help_text {  "Please enter the name of TABLESPACE for tables"  }
+     
+   return [ config_generic $only_check $name config $help_text "string" ]
+
+}
+
+proc config_tablespace_index { only_check name config_array } {
+
+   upvar $config_array config
+   
+   set help_text {  "Please enter the name of TABLESPACE for indexes"  }
+     
+   return [ config_generic $only_check $name config $help_text "string" ]
+
 }
 
 #****** checktree/startup_dbwriter() **************************************************
@@ -1530,7 +1594,7 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
 #  INPUTS
 #    swc_host --  the host where the java web console is installed. If this
 #                 is an empty string the value from arco_config(swc_host) is taken
-#
+# 
 #  RESULT
 #     0     --  Java Web Console is not running
 #     1     --  Java Web Console is running
@@ -1550,14 +1614,27 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
 #
 #*******************************************************************************
 proc get_java_web_console_status { { swc_host "" } } {
-   global arco_config CHECK_OUTPUT CHECK_USER
+   global arco_config CHECK_OUTPUT CHECK_USER stored_passwd
    
    if { $swc_host == "" } {
       set swc_host $arco_config(swc_host)
    }
-   set output [start_remote_prog $swc_host $CHECK_USER  "/usr/sbin/smcwebserver" "status" ]
+
+   if { [info exists stored_passwd(root)] } {
+      if { [string compare $stored_passwd(root) ""] == 0 } {
+         set_root_passwd
+      }
+   } else {
+      set_root_passwd
+   }
+
+   set output [start_remote_prog $swc_host root  "/usr/sbin/smcwebserver" "status" ]
    
    if { $prg_exit_state != 0 } {
+
+    #  if {[string compare "You must be the system's root user to manage the server." "$output"] == 0 } {
+    #     return 0
+    #  }
        puts $CHECK_OUTPUT "------------------------------------------------------------------"
        puts $CHECK_OUTPUT "Command '/usr/sbin/smcwebserver status' on host $swc_host failed"
        puts $CHECK_OUTPUT "------------------------------------------------------------------"
@@ -1609,22 +1686,31 @@ proc get_java_web_console_status { { swc_host "" } } {
 #
 #*******************************************************************************
 proc get_java_web_console_version { version_array { swc_host "" } } {
-   global arco_config CHECK_OUTPUT CHECK_USER
+   global arco_config CHECK_OUTPUT CHECK_USER stored_passwd
    upvar $version_array va
    
    if { $swc_host == "" } {
       set swc_host $arco_config(swc_host)
    }
-   set output [start_remote_prog $swc_host $CHECK_USER  "/usr/sbin/smcwebserver" "-V"]
-   
+
+   if { [info exists stored_passwd(root)] } {
+      if { [string compare $stored_passwd(root) ""] == 0 } {
+         set_root_passwd
+      }
+   } else {
+      set_root_passwd
+   }
+
+   set output [start_remote_prog $swc_host root  "/usr/sbin/smcwebserver" "-V"]
+
    if { $prg_exit_state != 0 } {
-       puts $CHECK_OUTPUT "------------------------------------------------------------------"
-       puts $CHECK_OUTPUT "'/usr/sbin/smcwebserver -V' on host $swc_host failed"
-       puts $CHECK_OUTPUT "------------------------------------------------------------------"
-       puts $CHECK_OUTPUT $output"
-       puts $CHECK_OUTPUT "------------------------------------------------------------------"
-       add_proc_error "get_java_web_console_version" -1 "Can not get the version of Java Web Console on host $swc_host"
-       return -1
+      puts $CHECK_OUTPUT "------------------------------------------------------------------"
+      puts $CHECK_OUTPUT "'/usr/sbin/smcwebserver -V' on host $swc_host failed"
+      puts $CHECK_OUTPUT "------------------------------------------------------------------"
+      puts $CHECK_OUTPUT $output"
+      puts $CHECK_OUTPUT "------------------------------------------------------------------"
+      add_proc_error "get_java_web_console_version" -1 "Can not get the version of Java Web Console on host $swc_host"
+      return -1
    }
    
    set list [split $output " "]

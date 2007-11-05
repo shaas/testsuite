@@ -152,7 +152,7 @@ proc arco_dbwriter_install {} {
              continue
           }
           -i $sp_id "Please enter the path to your java installation * >> " {
-             set java_home [get_java_home_for_host $arco_config(dbwriter_host)]
+             set java_home [get_java_home_for_host $arco_config(dbwriter_host) "1.5"]
              send_to_spawn_id $sp_id $java_home
              continue
           }
@@ -231,6 +231,14 @@ proc arco_dbwriter_install {} {
           }
           -i $sp_id "Please enter the debug level of the dbwriter * >> " {
              send_to_spawn_id $sp_id $arco_config(arco_dbwriter_debug_level)
+             continue
+          }
+          -i $sp_id "Please enter the name of TABLESPACE for tables * >> " {
+             send_to_spawn_id $sp_id $arco_config(tablespace)
+             continue
+          }
+          -i $sp_id "Please enter the name of TABLESPACE for indexes * >> " {
+             send_to_spawn_id $sp_id $arco_config(tablespace_index)
              continue
           }
           -i $sp_id "Are this settings correct? (y/n) * >> " {

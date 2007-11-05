@@ -93,7 +93,7 @@ proc send_to_spawn_id { sp_id input { no_nl 0 } } {
 proc get_sqlutil_classpath {} {
    global ts_config arco_config
    
-   set jar_list { arco_common.jar jax-qname.jar jaxb-impl.jar postgresql-7.4.2.jar  xsdlib.jar
+   set jar_list { arco_common.jar jax-qname.jar jaxb-impl.jar xsdlib.jar
                   jaxb-api.jar jaxb-libs.jar namespace.jar relaxngDatatype.jar }
    set ret ""
    
@@ -174,7 +174,7 @@ proc sqlutil_create { { user "" } } {
    puts $CHECK_OUTPUT "java build host is \"$java_build_host\""
    
 # TODO - change the method for getting java   
-   set cmd [get_binary_path $java_build_host "java14"]
+   set cmd [get_binary_path $java_build_host "java15"]
    set args "com.sun.grid.util.SQLUtil"
 
    set sql_utilenv(CLASSPATH) [get_sqlutil_classpath]

@@ -101,7 +101,9 @@ proc arco_junit_check {} {
    set read_user   [get_arco_read_user]
    set read_user_pw secret
    set file_name   $CHECK_PROTOCOL_DIR/arco_junit_config.properties
-   
+   set db_tablespace "$arco_config(tablespace)"
+   set db_index_tablespace "$arco_config(tablespace_index)"
+
    switch -- $arco_config(database_type) {
       "postgres" { 
            set identifier "postgres"
@@ -142,6 +144,8 @@ proc arco_junit_check {} {
    
    append cmd_args " -e 's%@@READONLY_USER@@%${read_user}%g'"
    append cmd_args " -e 's%@@SCHEMA@@%${db_schema}%g'"
+   append cmd_args " -e 's%@@TABLESPACE@@%${db_tablespace}%g'"
+   append cmd_args " -e 's%@@TABLESPACE_INDEX@@%${db_index_tablespace}%g'"
    append cmd_args " -e 's%@@DB_DEFINITION_FILE@@%${db_def}%g'"
    
    append cmd_args " $arco_config(arco_source_dir)/dbwriter/test/DBWriterTestConfig.properties.template"

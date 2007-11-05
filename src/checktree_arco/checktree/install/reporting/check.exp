@@ -177,7 +177,7 @@ proc arco_reporting_install {} {
              continue
           }
           -i $sp_id "Please enter the path to your java installation * >> " {
-             set java_home [ get_java_home_for_host $arco_config(swc_host) ]
+             set java_home [ get_java_home_for_host $arco_config(swc_host) "1.5"]
              send_to_spawn_id $sp_id $java_home
              continue
           }

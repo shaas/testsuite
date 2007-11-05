@@ -146,7 +146,8 @@ proc oracle_init_arco_db {} {
    }
    
    # Grant priviliges for arco_write_user
-   set sql "GRANT CREATE ANY SYNONYM, CREATE TABLE, CREATE VIEW, CREATE SESSION TO ${arco_write_user}"
+   set sql "GRANT CREATE ANY SYNONYM, CREATE TABLE, CREATE VIEW, UNLIMITED TABLESPACE, CREATE SESSION TO ${arco_write_user}"
+
    if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
       add_sql_error "oracle_init_arco_db" "-2" "Can't grant privileges to $arco_write_user"
       close_spawn_process $id 
@@ -235,7 +236,7 @@ proc postgres_init_arco_db {} {
          return -2
       }
    }
-   
+
    set arco_read_user [get_arco_read_user]
    set sql "SELECT usename FROM pg_user WHERE usename = '${arco_read_user}'"
    
@@ -259,6 +260,22 @@ proc postgres_init_arco_db {} {
       close_spawn_process $id 
       return -2
    }
+
+   set sql "grant all on tablespace $arco_config(tablespace) to $arco_write_user"
+   if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
+      add_sql_error "postgres_init_arco_db" "-2" "Can't grant privileges to $arco_write_user"
+      close_spawn_process $id 
+      return -2
+   }
+
+   if { [string compare "$arco_config(tablespace)" "$arco_config(tablespace_index)"] != 0 } {
+      set sql "grant all on tablespace $arco_config(tablespace_index) to $arco_write_user"
+      if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
+         add_sql_error "postgres_init_arco_db" "-2" "Can't grant privileges to $arco_write_user"
+         close_spawn_process $id 
+         return -2
+      }
+   }   
    
    set sql "create user $arco_read_user PASSWORD 'secret'"
    if {[sqlutil_exec $sp_id "$sql"] < 0} {
