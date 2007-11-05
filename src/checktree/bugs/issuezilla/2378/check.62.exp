@@ -1,0 +1,213 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+# define test's name and run level descriptions
+set check_name            "issue_2378"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "check issue 2378 is fixed"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2378_setup
+set check_cleanup_function issue_2378_cleanup
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2378_init_level"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2378_check"
+
+proc issue_2378_init_level {} {
+   global ts_config
+   global CHECK_ACT_LEVEL
+   global CHECK_OUTPUT
+
+   # puts $CHECK_OUTPUT "entering issue_2378_init_level"
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         # For this test we need at least 2 hosts
+         if { [llength $ts_config(execd_nodes)] < 2 } {
+             add_proc_error "issue_2378" -3 "Need at least 2 hosts for this test. \
+                        We only have $ts_config(execd_hosts) \n"
+         }
+         return 0
+      } 
+   } 
+
+
+   # puts $CHECK_OUTPUT "leaving issue_2378_init_level"
+   return -1  ;# no other level 
+}
+
+# -------- local test procedures: initialization ------------------------------
+
+proc issue_2378_setup {} {
+   global ts_config
+   global global_host_backup
+   global CHECK_OUTPUT
+
+   puts $CHECK_OUTPUT "issue_2378_setup" 
+
+   set pe(pe_name) "round_robin"
+   set pe(slots)             "2"
+   set pe(allocation_rule)   "\$round_robin"
+   add_pe pe
+   set pe(pe_name) "fill_up"
+   set pe(slots)             "2"
+   set pe(allocation_rule)   "\$fill_up"
+   add_pe pe
+
+   set myhosts [host_conf_get_suited_hosts 2]
+
+   # setup queues A and B each with one slot on a single host
+   set queue_conf(slots)            "1"
+   set queue_conf(pe_list)          "round_robin fill_up"
+   set queue_conf(load_thresholds)  "NONE"
+   add_queue "A" $myhosts queue_conf 1
+   add_queue "B" $myhosts queue_conf 1
+
+   # enable resource reservation etc.
+   set schedconf(schedule_interval)          "0:0:05"
+   set schedconf(weight_urgency)             "0.000000"
+   set schedconf(weight_ticket)              "0.000000"
+   set schedconf(weight_priority)            "1.000000"
+   set schedconf(max_reservation)            "10"
+   set schedconf(flush_submit_sec)             1
+   set schedconf(flush_finish_sec)             1
+   set schedconf(job_load_adjustments)       "NONE"
+   set schedconf(load_adjustment_decay_time) "0:0:00"
+   set schedconf(params)                     "MONITOR=true"
+   set result [ set_schedd_config schedconf ]
+
+   # ensure schedule file exists
+   trigger_scheduling
+}
+
+
+proc issue_2378_wait_for_pattern {case_name pattern {timeout 10}} {
+   set output [logfile_wait $pattern $timeout 0]
+   if {$logfile_wait_error != 0} {
+      add_proc_error "reporting_wait_for_pattern" -1 "case '$case_name': there were no pattern '$pattern' in the reporting file, got only\n$output"
+      wait_for_enter
+      return 1
+   }
+   return 0
+}
+
+proc issue_2378_cleanup {  } {
+
+   global global_host_backup
+   global ts_config
+   global CHECK_OUTPUT
+
+   # reset the scheduler configuration
+   reset_schedd_config
+
+   # remove the cqueues
+   del_queue "A" "" 1 1
+   del_queue "B" "" 1 1
+
+   del_pe        "round_robin"
+   del_pe        "fill_up"
+}
+
+
+# -------- local test procedures: initialization ------------------------------
+
+
+proc issue_2378_check { } {
+   global ts_config
+   set first [lindex $ts_config(execd_nodes) 0]
+   set second [lindex $ts_config(execd_nodes) 1]
+
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" ] != 0 } { return }
+}
+
+proc issue_2378_single_check { pe_name master slave } {
+   global ts_config
+   global CHECK_OUTPUT
+
+   set SGE_ROOT $ts_config(product_root)
+   set SGE_CELL $ts_config(cell)
+   set schedule "$SGE_ROOT/$SGE_CELL/common/schedule"
+
+   # tail -f scheduling file
+   init_logfile_wait $ts_config(master_host) $schedule
+
+   set jobid [submit_job "-pe $pe_name 2 -masterq $master -soft -q $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+   set ret [ issue_2378_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:1.0*" ]
+
+   if { $ret == 0 } {
+      set ret [ issue_2378_wait_for_pattern "wait for slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${slave}:slots:1.0*" ]
+   }
+
+   puts $CHECK_OUTPUT "got master queue (${master}) and slave queue (${slave}) as expected"
+
+   # set lines_with_starting [exec grep "STARTING" $schedule]
+   # puts $CHECK_OUTPUT "the lines with time are \n$lines_with_starting\n"
+
+   close_logfile_wait
+
+   # wait_for_enter
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   return $ret
+}

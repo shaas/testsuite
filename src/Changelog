@@ -1,3 +1,6 @@
+AH-2007-11-05-0: Enhancem.: Added test for IZ 2378
+                 Review:    EB
+
 EB-2007-11-02-0: Enhancem.: Added support for "scheduler as a thread"
                  Review:    JG
 
