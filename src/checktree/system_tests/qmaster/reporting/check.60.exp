@@ -36,11 +36,15 @@
 #     reporting -- check reporting functionality
 #
 #  FUNCTION
-#     The purpose of this testsuite check is to test the qmaster repoting file
+#     The purpose of this testsuite check is to test the qmaster reporting file
 #     generation.
 #
 #     It tests the following features:
 #        - account_flush_time reporting param
+#        - queue state reporting
+#        - reporting of consumables when their definition changes
+#        - reporting of consumables when running jobs, controlled by the
+#          log_consumables reporting_param
 #
 #     It should test the following features:
 #        - all reporting params
@@ -86,6 +90,8 @@ lappend check_functions "reporting_periodic_accounting_test"
 lappend check_functions "reporting_immediate_accounting_test"
 lappend check_functions "reporting_reporting_accounting_test"
 lappend check_functions "reporting_queue_state_test"
+lappend check_functions "reporting_complex_change_test"
+lappend check_functions "reporting_consumables_test"
 
 global reporting_old_config reporting_acct_file
 
@@ -106,24 +112,37 @@ proc reporting_init_level {} {
 
 proc reporting_setup  {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global reporting_old_config reporting_file reporting_acct_file reporting_test_host
+   global reporting_old_config reporting_old_exechost
+   global reporting_file reporting_acct_file reporting_test_host
 
    # delete any jobs that might be in the system
    delete_all_jobs
 
+   # this is our test host
+   set reporting_test_host [host_conf_get_suited_hosts]
+
    # archive old config
    get_config reporting_old_config
+   get_exechost reporting_old_exechost $reporting_test_host
 
    # enable immediate scheduling
    set schedd_conf(flush_submit_sec) 1
    set schedd_conf(flush_finish_sec) 1
    set_schedd_config schedd_conf
 
+   # create a consumable for consumable reporting test
+   set complex(F001) "F001 INT <= YES YES 0 0"
+   set complex(F002) "F002 INT <= YES YES 0 0"
+   set complex(F003) "F003 INT <= YES YES 0 0"
+   set_complex complex
+
    # create 2 queues with one slot each, subordinate mechanism
-   set reporting_test_host [host_conf_get_suited_hosts]
+   # and we attach a consumable to the reporting queue
    set queue_conf(load_thresholds) NONE
    set queue_conf(slots) 1
+   set queue_conf(complex_values) "F003=2"
    add_queue "reporting" $reporting_test_host queue_conf
+   set queue_conf(complex_values) "NONE"
    set queue_conf(subordinate_list) "reporting"
    add_queue "reporting_super" $reporting_test_host queue_conf
 
@@ -138,6 +157,10 @@ proc reporting_setup  {} {
    set hgrp(hostlist)   $reporting_test_host
    add_hostgroup "@reporting" hgrp
 
+   # assign consumable to our test host
+   set exec_host(complex_values) "F001=2,F002=2"
+   set_exechost exec_host $reporting_test_host
+
    # find accounting file
    set reporting_file "$ts_config(product_root)/$ts_config(cell)/common/reporting"
    set reporting_acct_file "$ts_config(product_root)/$ts_config(cell)/common/accounting"
@@ -147,10 +170,12 @@ proc reporting_setup  {} {
 }
 
 proc reporting_cleanup {} {
-   global reporting_old_config reporting_test_host reporting_file
+   global reporting_old_config reporting_old_exechost
+   global reporting_file reporting_acct_file reporting_test_host
 
    # restore old config
    set_config reporting_old_config
+   set_exechost reporting_old_exechost $reporting_test_host
    reset_schedd_config
 
    # remove test queues
@@ -161,12 +186,25 @@ proc reporting_cleanup {} {
    del_calendar "reporting"
    del_hostgroup "@reporting"
 
+   # delete consumable
+   set complex(F001) ""
+   set complex(F002) ""
+   set complex(F003) ""
+   set_complex complex
+
    # disable reporting
    set new_config(reporting_params) "accounting=true reporting=false"
    set_config new_config
 
    # delete the reporting file
    file delete -force $reporting_file
+
+   # unset our test's global variables
+   foreach var "reporting_old_config reporting_old_exechost reporting_file reporting_acct_file reporting_test_host" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
 }
 
 proc reporting_do_accounting_test {scenario} {
@@ -473,4 +511,200 @@ if {0} {
 
    # shutdown tail -f
    close_logfile_wait
+}
+
+proc reporting_complex_change_test {} {
+   global ts_config CHECK_OUTPUT
+   global reporting_file reporting_test_host
+
+   # activate reporting and set short reporting flush time
+   set new_config(reporting_params) "reporting=true flush_time=00:00:1"
+   set_config new_config
+
+   # tail -f reporting file
+   init_logfile_wait $ts_config(master_host) $reporting_file
+
+   # ==========================================================
+   # Scenario 1: Old behavior, all consumables must be reported
+   # ==========================================================
+
+   # modify the complex variable F002
+   set complex(F002) "F002 INT <= YES YES 1 0"
+   set_complex complex
+
+   # expect all consumables to be reported
+   set output [reporting_read_consumable_records ":host_consumable:"]
+   reporting_check_consumable_records $output "queue_consumable:reporting:" {"F003=0.000000=2.000000" "slots=0.000000=1.000000"}
+   reporting_check_consumable_records $output "host_consumable" {"F001=0.000000=2.000000" "F002=0.000000=2.000000"}
+
+   # ===========================================================
+   # Scenario 2: New behavior, no variables configured to report
+   # ===========================================================
+
+   # now log only consumables that are mentioned in the reporting_variables
+   set new_config(reporting_params) "reporting=true flush_time=00:00:1 log_consumables=false"
+   set_config new_config
+
+   # modify the complex variable F002
+   set complex(F002) "F002 INT <= YES YES 2 0"
+   set_complex complex
+
+   # expect no host or queue consumables to be reported
+   reporting_read_consumable_records "_consumable:" 0
+
+   # ================================================================
+   # Scenario 3: New behavior, only configured variables are reported
+   # ================================================================
+
+   # add F002 to the reporting variables
+   set exechost(report_variables) "F002"
+   set_exechost exechost $reporting_test_host
+
+   # modify the complex variable F002
+   set complex(F002) "F002 INT <= YES YES 0 0"
+   set_complex complex
+
+   # expect only F002 being reported as host value
+   # expect no queue values being reported
+   set output [reporting_read_consumable_records ":host_consumable:"]
+   reporting_check_consumable_records $output "host_consumable" {"F002=0.000000=2.000000"}
+   reporting_check_consumable_records $output "host_consumable" {"F001="} 0
+   reporting_check_consumable_records $output "queue_consumable:reporting:" {"F003=" "slots="} 0
+
+   # shutdown tail -f
+   close_logfile_wait
+
+   # reset report_variables
+   set exechost(report_variables) "NONE"
+   set_exechost exechost $reporting_test_host
+}
+
+proc reporting_read_consumable_records {pattern {expect_records 1}} {
+   # read data from reporting file, wait for queue_consumable record
+   # logfile_wait shall not raise errors - we do our own check
+   set output [logfile_wait $pattern 10 0 0]
+
+   # check for the expected behavior
+   # pattern must be contained in the output, or not
+   set pos [string first $pattern $output]
+   if {$expect_records} {
+      if {$pos == -1} {
+         add_proc_error "reporting_read_consumable_records" -1 "expected $pattern to be reported, but got:\n$output"
+         set output ""
+      }
+   } else {
+      if {$pos >= 0} {
+         add_proc_error "reporting_read_consumable_records" -1 "expected $pattern not to be reported, but got:\n$output"
+         set output ""
+      }
+   }
+   return [string trim $output]
+}
+
+proc reporting_check_consumable_records {output pattern consumables {expect_consumable 1}} {
+   # if we got the expected data in the reporting file
+   if {$output != ""} {
+      foreach line [split $output "\n"] {
+         # search for host or queue consumable line
+         if {[string first $pattern $line] >= 0} {
+            # make sure all the expected consumables are / are not contained
+            foreach consumable $consumables {
+               if {[string first $consumable $line] == -1} {
+                  if {$expect_consumable} {
+                     add_proc_error "reporting_check_consumable_records" -1 "didn't find $consumable in $pattern:\n$line"
+                  }
+               } else {
+                  if {! $expect_consumable} {
+                     add_proc_error "reporting_check_consumable_records" -1 "found $consumable in $pattern, which shouldn't be there:\n$line"
+                  }
+               }
+            }
+         }
+      }
+   }
+}
+
+proc reporting_consumables_test {} {
+   global ts_config CHECK_OUTPUT
+   global reporting_file reporting_test_host
+
+   # activate reporting and set short reporting flush time
+   set new_config(reporting_params) "reporting=true flush_time=00:00:1 joblog=true"
+   set_config new_config
+
+   # tail -f reporting file
+   init_logfile_wait $ts_config(master_host) $reporting_file
+
+   # this is our test job, going into the reporting queue
+   # and requesting the consumable F001
+   set job_args "-o /dev/null -j y -q reporting -l F001=1"
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 20"
+
+   # ==========================================================
+   # Scenario 1: Old behavior, all consumables must be reported
+   # ==========================================================
+
+   # Submit the test job
+   set job_id [submit_job "$job_args $job_script"]
+   wait_for_jobstart $job_id "" 10 1 1
+   # expect all host and queue consumables to be reported
+   set output [reporting_read_consumable_records ":queue_consumable:"]
+   reporting_check_consumable_records $output "host_consumable" {"F001=1.000000=2.000000" "F002=0.000000=2.000000"}
+   reporting_check_consumable_records $output "queue_consumable" {"F003=0.000000=2.000000" "slots=1.000000=1.000000"}
+   wait_for_jobend $job_id "" 25
+   # expect all host and queue consumables to be reported
+   set output [reporting_read_consumable_records ":queue_consumable:"]
+   reporting_check_consumable_records $output "host_consumable" {"F001=0.000000=2.000000" "F002=0.000000=2.000000"}
+   reporting_check_consumable_records $output "queue_consumable" {"F003=0.000000=2.000000" "slots=0.000000=1.000000"}
+
+   # ===========================================================
+   # Scenario 2: New behavior, no variables configured to report
+   # ===========================================================
+
+   # now log only consumables that are mentioned in the reporting_variables
+   set new_config(reporting_params) "reporting=true flush_time=00:00:1 joblog=true log_consumables=false"
+   set_config new_config
+
+   # Submit the test job
+   set job_id [submit_job "$job_args $job_script"]
+   wait_for_jobstart $job_id "" 10 1 1
+   # expect no host or queue consumables to be reported
+   reporting_read_consumable_records "_consumable:" 0
+   wait_for_jobend $job_id "" 25
+   # expect no host or queue consumables to be reported
+   reporting_read_consumable_records "_consumable:" 0
+
+   # =================================================================
+   # Scenario 3: New behavior, we expect F001 and slots to be reported
+   # =================================================================
+
+   # add F001, F002, and slots to the reporting variables
+   set exechost(report_variables) "F001,F002,slots"
+   set_exechost exechost $reporting_test_host
+
+   # Submit the test job
+   set job_id [submit_job "$job_args $job_script"]
+   wait_for_jobstart $job_id "" 10 1 1
+   # expect F001 to be reported as host consumable, F002 not being reported
+   # expect slots to be reported as queue consumable
+   set output [reporting_read_consumable_records ":queue_consumable:"]
+   reporting_check_consumable_records $output "host_consumable" {"F001=1.000000=2.000000"}
+   reporting_check_consumable_records $output "host_consumable" {"F002="} 0
+   reporting_check_consumable_records $output "queue_consumable" {"slots=1.000000=1.000000"}
+   reporting_check_consumable_records $output "queue_consumable" {"F003="} 0
+   wait_for_jobend $job_id "" 25
+   # expect F001 to be reported as host consumable, F002 not being reported
+   # expect slots to be reported as queue consumable
+   set output [reporting_read_consumable_records ":queue_consumable:"]
+   reporting_check_consumable_records $output "host_consumable" {"F001=0.000000=2.000000"}
+   reporting_check_consumable_records $output "host_consumable" {"F002="} 0
+   reporting_check_consumable_records $output "queue_consumable" {"slots=0.000000=1.000000"}
+   reporting_check_consumable_records $output "queue_consumable" {"F003="} 0
+
+   # shutdown tail -f
+   close_logfile_wait
+
+   # reset reporting_variables
+   set exechost(report_variables) "NONE"
+   set_exechost exechost $reporting_test_host
 }

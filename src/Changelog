@@ -1,3 +1,8 @@
+JG-2007-11-07-0: Enhancem.: Enhanced system_tests/qmaster/reporting to test
+                            writing of consumable records.
+                            Some cleanup and minor fixes.
+                 Review:    EB
+
 AP-2007-11-05-0: Enhancem.: o checktree_arco: added tablespaces to the ARCo 
                               configuration
                             o using java15 instead of java14
@@ -49,7 +54,7 @@ RH-2007-10-26-0: Enhance:   o New configuration parameter for the port
  
 OJ-2007-10-18-0: Enhance:   Modified checktree/functional/tight_integration
                             to print warning on failure due to IZ 1681
-                 Review:    JG 
+                 Review:    JG
 
 JG-2007-10-18-1: Bugfix:    fixed system_tests/clients/common/advance_reservation
                  Review:    RD

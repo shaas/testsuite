@@ -146,7 +146,7 @@ proc issue_2304_setup {} {
       break
    }
    if {$execd_host_found == 0} { 
-      add_proc_error "issue_2304_init_level" -3 "Can not run test because prerequisites are not fullfilled"
+      add_proc_error "issue_2304_init_level" -3 "Can not run test because prerequisites are not fullfilled:\nWe need a sol-sparc64 exec host spooling on nfs version 3"
       return -1
    }
    #
@@ -176,9 +176,7 @@ proc issue_2304_setup {} {
    incr right -1
    set nfs_version [string range $version_line $left $right]
    if { $nfs_version != "vers=3" } {
-      add_proc_error "issue_2304_init_level" \
-                     -3 \
-                     "Can not run test: NFSv3 required [$nfs_version]"
+      add_proc_error "issue_2304_init_level" -3 "Can not run test because prerequisites are not fullfilled:\nWe need a sol-sparc64 exec host spooling on nfs version 3, but nfs version is $nfs_version"
       return -1
    }
    
@@ -226,10 +224,7 @@ proc issue_2304_check {} {
    global init_ok
   
    if {$init_ok == 0} {
-      add_proc_error "issue_2304_check" \
-                     -3 \
-                     "Can not run test because prerequisites are not fullfilled"
-      return -1
+      return
    }
    #
    # This is the test plan:

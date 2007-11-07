@@ -1204,7 +1204,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
             expect {
                -i $sp_id "_start_mark_*\n" {
                   puts $CHECK_OUTPUT "got start mark ..."
-                  break;
+                  break
                }
                -i $sp_id default {
                        if { $my_tries > 0 } {
@@ -1214,7 +1214,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                            continue
                        } else { 
                           add_proc_error "submit_wait_type_job" -1 "startup timeout" 
-                          break;
+                          break
                        }
                    }
             }
@@ -1225,7 +1225,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
             expect {
                -i $sp_id {[A-Za-z>$%]*} {
                        puts $CHECK_OUTPUT "startup ..."
-                       break;
+                       break
                    }
                -i $sp_id default {
                        if { $my_tries > 0 } {
@@ -1235,7 +1235,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                            continue
                        } else { 
                           add_proc_error "submit_wait_type_job" -1 "startup timeout" 
-                          break;
+                          break
                        }
                    }
 
@@ -3403,23 +3403,22 @@ proc wait_for_load_from_all_queues { seconds } {
 #  SEE ALSO
 #     sge_procedures/wait_for_queue_state()
 #*******************************************************************************
-proc wait_for_job_state { jobid state wait_timeout } {
-
+proc wait_for_job_state {jobid state wait_timeout} {
    global CHECK_OUTPUT 
    get_current_cluster_config_array ts_config
 
-   set my_timeout [ expr ( [timestamp] + $wait_timeout ) ]
-   while { 1 } {
+   set my_timeout [expr [timestamp] + $wait_timeout]
+   while {1} {
       puts $CHECK_OUTPUT "waiting for job $jobid to become job state ${state} ..."
-      after 1000
       set job_state [get_job_state $jobid]
-      if { [string first $state $job_state] >= 0 } {
+      if {[string first $state $job_state] >= 0} {
          return $job_state
       }
-      if { [timestamp] > $my_timeout } {
+      if {[timestamp] > $my_timeout} {
          add_proc_error "wait_for_job_state" -1 "timeout waiting for job $jobid to get in \"$state\" state"
          return -1
       }
+      sleep 1
    }
 }
 
@@ -3476,7 +3475,7 @@ proc wait_for_queue_state {queue state wait_timeout} {
 #
 #  FUNCTION
 #     This procedure starts a qconf -ke $host. If qconf reports an error,
-#     the execd is killed by the shtudown_system_deamon() procedure.
+#     the execd is killed by the shutdown_system_daemon() procedure.
 #     After that qstat is called. When the load value for the given 
 #     host-queue ($host.q) is 99.99 the procedure returns without error.
 #     
@@ -5135,7 +5134,7 @@ proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_c
          }
       }
       if { $have_errors == 0 } {
-         break;
+         break
       }
    }
 
@@ -5664,16 +5663,16 @@ proc get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_er
 #     sge_procedures/is_job_running()
 #     sge_procedures/is_pid_with_name_existing()
 #*******************************
-proc is_job_running { jobid jobname } {
+proc is_job_running {jobid jobname} {
    global CHECK_USER CHECK_OUTPUT check_timestamp
    get_current_cluster_config_array ts_config
 
-   if { $jobname == ""  } {
+   if {$jobname == ""} {
       set check_job_name 0
    } else {
       set check_job_name 1
    }
-   set arch [resolve_arch $ts_config(master_host)]
+
    if {$ts_config(gridengine_version) >= 61} {
       set result [start_sge_bin "qstat" "-u '*' -f" "" "" catch_state ]
    } else {
@@ -5681,13 +5680,13 @@ proc is_job_running { jobid jobname } {
    } 
 
    set mytime [timestamp]
-   while { $mytime == $check_timestamp } { 
+   while {$mytime == $check_timestamp} { 
       after 500
       set mytime [timestamp]
    }
    set check_timestamp $mytime
 
-   if { $catch_state != 0 } {
+   if {$catch_state != 0} {
       puts $CHECK_OUTPUT "debug: catch_state: $catch_state"
       puts $CHECK_OUTPUT "debug: result: \n$result"
       add_proc_error "is_job_running" -1 "qstat returned error"
@@ -5705,22 +5704,23 @@ proc is_job_running { jobid jobname } {
        set running_flag 0
      }
 
-     if { $check_job_name != 0 } {
-        if { ([string first $jobname $line ] >= 0) && ([lindex $line 0] == $jobid)  } {
-          set found 1;
-          break;
+     if {$check_job_name != 0} {
+        if {[string first $jobname $line] >= 0 && [lindex $line 0] == $jobid} {
+          set found 1
+          break
         }
      } else {
-        if { [lindex $line 0] == $jobid } {
-          set found 1;
-          break;
+        if {[lindex $line 0] == $jobid} {
+          set found 1
+          break
         }
      }
    } 
 
-   if { $found == 1 } {
+   if {$found == 1} {
       return $running_flag
    }
+
    return -1
 }
 
@@ -5903,7 +5903,7 @@ proc wait_for_jobstart { jobid jobname seconds {do_errorcheck 1} {do_tsm 0} } {
   while {1} {
     set run_result [is_job_running $jobid $jobname]
     if {$run_result == 1} {
-       break;
+       break
     } 
     set runtime [expr ( [timestamp] - $time) ]
     if { $runtime >= $seconds } {
@@ -5988,7 +5988,7 @@ proc wait_for_end_of_transfer { jobid seconds } {
 
     if { [string first "t" $job_state ] < 0} {
        puts $CHECK_OUTPUT "job $jobid is running ($job_state)"
-       break;
+       break
     }
     
     set runtime [expr ( [timestamp] - $time) ]
@@ -6054,10 +6054,10 @@ proc wait_for_jobpending {jobid jobname seconds {or_running 0}} {
   while {1} {
     set run_result [is_job_running $jobid $jobname]
     if {$run_result == 0} {
-       break;
+       break
     }
     if {$run_result == 1 && $or_running == 1  } {
-       break;
+       break
     }
     set runtime [expr ( [timestamp] - $time) ]
     if { $runtime >= $seconds } {
@@ -6281,7 +6281,7 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
    while {1} {
      set run_result [is_job_running $jobid $jobname]
      if {$run_result == -1} {
-        break;
+        break
      } 
      set runtime [expr ( [timestamp] - $time) ]
      if { $runtime >= $seconds } {
@@ -6303,7 +6303,7 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
            if { [timestamp] > $my_timeout } {
               puts $CHECK_OUTPUT ""
               add_proc_error "wait_for_jobend" -1 "timeout while waiting for jobend"
-              break;
+              break
            }
            after 1000
            puts -nonewline $CHECK_OUTPUT "."
@@ -7607,7 +7607,6 @@ proc wait_till_qmaster_is_down { host } {
    get_current_cluster_config_array ts_config
 
    set process_names "sge_qmaster" 
-  
 # EB: TODO: ST: set timeout to 60 
    set my_timeout [expr [timestamp] + 180] 
 
@@ -7629,7 +7628,7 @@ proc wait_till_qmaster_is_down { host } {
          }
       }
       if { [timestamp] > $my_timeout } {
-         add_proc_error "wait_till_qmaster_is_down" -1 "timeout while waiting for qmaster going down"
+         add_proc_error "wait_till_qmaster_is_down" -3 "timeout while waiting for qmaster going down"
          return -1
       }
       if { $nr_of_found_qmaster_processes_or_threads == 0 } {
