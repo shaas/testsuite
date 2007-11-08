@@ -2197,7 +2197,7 @@ proc set_config_and_propagate {config {host global}} {
       set timeout 5
       expect {
          -i $sp_id full_buffer {
-          add_proc_error "job_environment_set_config" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+          add_proc_error "set_config_and_propagate" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
          }
@@ -2229,10 +2229,13 @@ proc set_config_and_propagate {config {host global}} {
 
       expect {
          -i $sp_id full_buffer {
-          add_proc_error "job_environment_set_config" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+          add_proc_error "set_config_and_propagate" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
-            add_proc_error "job_environment_set_config" -1 "setup failed (timeout waiting for config to change)"
+            add_proc_error "set_config_and_propagate" -1 "setup failed (timeout waiting for config to change)"
+         }
+         -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
+            puts $CHECK_OUTPUT "Configuration changed: $name = \"$value\""
          }
          -i $sp_id "\|  main\|$conf_host\|I\|using \"$value\" for $name" {
             puts $CHECK_OUTPUT "Configuration changed: $name = \"$value\""

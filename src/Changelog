@@ -1,3 +1,6 @@
+JG-2007-11-08-0: Bugfix:    Fixed set_config_and_propagate for SGE <= 6.1.
+                 Review:    EB
+
 JG-2007-11-07-0: Enhancem.: Enhanced system_tests/qmaster/reporting to test
                             writing of consumable records.
                             Some cleanup and minor fixes.
