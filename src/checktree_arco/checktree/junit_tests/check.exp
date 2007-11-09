@@ -134,10 +134,8 @@ proc arco_junit_check {} {
    
    append cmd_args " -e 's%@@IDENTIFIER@@%${identifier}%g'"
    append cmd_args " -e 's%@@JDBC_DRIVER@@%${jdbc_driver}%g'"
-   if {$ts_config(gridengine_version) >= 61} {
-     append cmd_args " -e 's%@@DB_NAME@@%${db_name}%g'"
-     append cmd_args " -e 's%@@DB_HOST@@%${arco_config(database_host)}%g'"
-   }
+   append cmd_args " -e 's%@@DB_NAME@@%${db_name}%g'"
+   append cmd_args " -e 's%@@DB_HOST@@%${arco_config(database_host)}%g'"
    append cmd_args " -e 's%@@JDBC_URL@@%${jdbc_url}%g'"
    append cmd_args " -e 's%@@JDBC_USER@@%${write_user}%g'"
    append cmd_args " -e 's%@@JDBC_PASSWORD@@%${write_user_pw}%g'"
