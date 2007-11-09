@@ -129,8 +129,18 @@ proc drmaaj_check {} {
    }
 
    foreach host $ts_config(unique_arch_nodes) {
-      set binary_arch "[resolve_arch $host]"
-      set JAVA "[get_binary_path $host java]"
+      set binary_arch [resolve_arch $host]
+
+      # try to use java 1.4, 
+      # if not configured, java 1.5
+      # if not configured, give it a try with the java in PATH
+      set JAVA [get_binary_path $host "java14" 0]
+      if {$JAVA == "java14"} {
+         set JAVA [get_binary_path $host "java15" 0]
+         if {$JAVA == "java15"} {
+            set JAVA "java"
+         }
+      }
 
       puts $CHECK_OUTPUT "Java binary is $JAVA"
 

@@ -1955,7 +1955,7 @@ proc write_remote_file { host user file array_name } {
 #  SEE ALSO
 #     file_procedures/get_dir_names
 #*******************************
-proc get_binary_path {nodename binary} {
+proc get_binary_path {nodename binary {raise_error 1}} {
    global CHECK_OUTPUT CHECK_DEBUG_LEVEL
    global ts_host_config
 
@@ -1963,10 +1963,10 @@ proc get_binary_path {nodename binary} {
 
    if {[info exists ts_host_config($hostname,$binary)]} {
       return $ts_host_config($hostname,$binary)
-   } 
+   }
 
-   add_proc_error "get_binary_path" -1 "no entry for binary \"$binary\" on host \"$hostname\" in host configuration"
-   if { $CHECK_DEBUG_LEVEL >= 2 } {
+   add_proc_error "get_binary_path" -1 "no entry for binary \"$binary\" on host \"$hostname\" in host configuration" $raise_error
+   if {$CHECK_DEBUG_LEVEL >= 2} {
       wait_for_enter
    }
    return $binary

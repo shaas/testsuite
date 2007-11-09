@@ -1,3 +1,6 @@
+JG-2007-11-09-0: Bugfix:    drmaa-j test lookup for java was incorrect.
+                 Review:    MD
+
 JG-2007-11-08-0: Bugfix:    Fixed set_config_and_propagate for SGE <= 6.1.
                  Review:    EB
 
