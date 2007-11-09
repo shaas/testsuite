@@ -1,3 +1,6 @@
+RH-2007-11-09-0: Bugfix:    Hedeby: jvm run file does not longer contain the jmx url
+                 Review:    CR
+
 JG-2007-11-09-0: Bugfix:    drmaa-j test lookup for java was incorrect.
                  Review:    MD
 

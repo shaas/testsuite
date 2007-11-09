@@ -1272,24 +1272,12 @@ proc shutdown_hedeby_host { type host user { only_raise_cannot_kill_error 0 } } 
             return 1
          }
          set pid $pid_info(pid)
-         set url $pid_info(url)
+         set port $pid_info(port)
          
          lappend pid_list $pid
          set run_list($pid,comp) $component
          puts $CHECK_OUTPUT "component $run_list($pid,comp) has pid \"$pid\""
-         puts $CHECK_OUTPUT "component $run_list($pid,comp) has url \"$url\""
-         
-          if {[string match "*$host*" $url]} {
-             puts $CHECK_OUTPUT "url string contains hostname \"$host\""
-          } else {
-             add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct hostname \"$host\""
-          }
-          set sysname [get_hedeby_system_name]
-          if {[string match "*$sysname*" $url]} {
-             puts $CHECK_OUTPUT "url string contains system name \"$sysname\""
-          } else {
-             add_proc_error "shutdown_hedeby_host" -1 "runfile url for component $component on host $host contains not the correct system name \"$sysname\""
-          }
+         puts $CHECK_OUTPUT "component $run_list($pid,comp) has port \"$port\""
       }
    } else {
       debug_puts "no hedeby run directory found on host $host!"
@@ -2417,7 +2405,7 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
    get_file_content $host $user $pid_file
    if { $file_array(0) == 2} {
        set pid_info(pid) [string trim $file_array(1)]
-       set pid_info(url) [string trim $file_array(2)]
+       set pid_info(port) [string trim $file_array(2)]
        return 0
    } else {
        add_proc_error "read_hedeby_jvm_pid_file" -1 "runfile $pid_file on host $host contains not the expected 2 lines"
