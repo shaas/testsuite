@@ -983,15 +983,18 @@ proc issue_1847 {} {
    global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
    global complex_host
 
-   if { $CHECK_ACT_LEVEL == 0 } {
-      complex_test_rattr "tt=x"
-      complex_test_rattr "ti=x"
-      complex_test_rattr "td=x"
-      complex_test_rattr "tb=x"
-      complex_test_rattr "tb=null"
+   # this fix has not yet been merged to V60s2_BRANCH
+   if {ts_config(gridengine_version) >= 61} {
+      if {$CHECK_ACT_LEVEL == 0} {
+         complex_test_rattr "tt=x"
+         complex_test_rattr "ti=x"
+         complex_test_rattr "td=x"
+         complex_test_rattr "tb=x"
+         complex_test_rattr "tb=null"
 
-      # cleanup
-      mqattr "complex_values" "NONE" [get_queue_instance "complex" $complex_host]
-      mhattr "complex_values" "NONE" $complex_host
+         # cleanup
+         mqattr "complex_values" "NONE" [get_queue_instance "complex" $complex_host]
+         mhattr "complex_values" "NONE" $complex_host
+      }
    }
 }

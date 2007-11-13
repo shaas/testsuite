@@ -112,7 +112,6 @@ lappend check_functions "qconf_modify_project";# Modify project
 lappend check_functions "qconf_modify_userlist";# Modify user list
 lappend check_functions "qconf_modify_sched_conf";# Modify scheduler config
 lappend check_functions "qconf_issue_2023"
-lappend check_functions "qconf_issue_2383" ;# TS case for IZ 2383
  
 global queue_names
 
@@ -1462,7 +1461,6 @@ proc qconf_add_show_mod_del_queue {} {
    set new_queue(seq_no) "-1"
    puts $CHECK_OUTPUT "Negative test of qconf -Mq qconf_queue.q, seq.  number..."
    set result [mod_queue "qconf_queue.q" "" new_queue 1  $host $CHECK_USER 0]
-puts $CHECK_OUTPUT "----> $result"
 
    if {$result < 0} {
       puts $CHECK_OUTPUT "qconf -Mq wrong_project failed successfully"
@@ -1472,7 +1470,6 @@ puts $CHECK_OUTPUT "----> $result"
       add_proc_error "qconf_add_show_mod_del_queue" "-1" "mod_queue with invalid sequence number should have failed, but exit code (from handle_sge_errors) was $result"
    }
  
-puts $CHECK_OUTPUT "----> $result"
    # Now clear queue "qconf_queue.q"
    puts $CHECK_OUTPUT "Clearing queue qconf_queue.q ... - "
    set result [clear_queue "qconf_queue.q" cq_output]
@@ -1500,7 +1497,9 @@ puts $CHECK_OUTPUT "----> $result"
    if {$result == -1} {
       puts $CHECK_OUTPUT "OK"
    } else {
-      add_proc_error "qconf_add_show_mod_del_queue" "-1" "clear_queue with non existing queue name should have failed, but exit code (from handle_sge_errors) was $result"
+      if {$ts_config(gridengine_version) >= 61} {
+         add_proc_error "qconf_add_show_mod_del_queue" "-1" "clear_queue with non existing queue name should have failed, but exit code (from handle_sge_errors) was $result"
+      }
    }
 
    # Now delete queue "qconf_queue.q"
@@ -2806,40 +2805,6 @@ proc qconf_add_project {} {
          add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed on host $non_cluster_host"
       }
    }
-}
-
-############# qconf/qconf_issue_2383() *********************************************
-#  NAME
-#     issue_2383() -- test qconf -mc with incorrect complex
-#
-#  SYNOPSIS
-#     issue_2383 { }
-#
-#  FUNCTION
-#     Test adding incorrect complex with qconf -mc
-#
-#     The complex is defined as
-#     newone            new      STRING      ==    NO          NO         NONE
-#     so it is missing the urgency value. It is a negative test.
-#     The install should report message MSG_CENTRY_NULL_URGENCY
-#
-#*******************************************************************************
-proc qconf_issue_2383 {} {
-   global CHECK_OUTPUT  ts_config
-    
-   # Create a faulty complex. note that there is NO urgency value
-
-   set wrong_complex(newone) "new STRING  ==  NO  NO NONE "   
-   # Call set_complex with null_urgency set to "1", the last var
-   set result [set_complex wrong_complex ]
-      
-   # check that we get the correct error message MSG_CENTRY_NULL_URGENCY
-   if {$result != -6 } {
-      add_proc_error "issue_2383" -3 "qconf -mc test for IZ 2383 failed"
-   } else {
-      puts $CHECK_OUTPUT " qconf -mc test for IZ 2383 passed \n"
-   }
-
 }
 
 

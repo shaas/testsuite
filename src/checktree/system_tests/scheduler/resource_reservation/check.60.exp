@@ -96,7 +96,6 @@ proc resource_reservation_init_level {} {
          if {$ts_config(gridengine_version) >= 61} {
             return 0;   # Tests resource_reservation with resource quota sets
          } else {
-            add_proc_error "resource_reservation_init_level" -3 "need version >= 61"
             return -1;
          }
       }
@@ -109,13 +108,11 @@ proc resource_reservation_init_level {} {
          if {$ts_config(gridengine_version) >= 61} {
             return 0;   # Tests resource_reservation with resource quota sets
          } else {
-            add_proc_error "resource_reservation_init_level" -3 "need version >= 61"
             return -1;
          }
       }
       "4" {
          if {[llength $ts_config(execd_nodes)] < 2} {
-            add_proc_error "resource_reservation_init_level" -3 "need at least 2 execd hosts for this test"
             return -1;
          } else {
             set drmaa_version "test_drmaa.1.0"
@@ -127,7 +124,6 @@ proc resource_reservation_init_level {} {
          if {$ts_config(gridengine_version) >= 62} {
             return 0;   # Tests resource_reservation with resource quota sets
          } else {
-            add_proc_error "resource_reservation_init_level" -3 "need version >= 62"
             return -1;
          }
       }

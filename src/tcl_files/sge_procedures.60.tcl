@@ -143,10 +143,16 @@ proc set_complex {change_array {raise_error 1}} {
 
    set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
    set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
-   set REMOVED [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
+   set REMOVED  [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
    set STILLREF [translate_macro MSG_CENTRYREFINQUEUE_SS "*" "*"]
    set NOT_MODIFIED [translate_macro MSG_CENTRY_NOTCHANGED]
-   set NULL_URGENCY [translate_macro MSG_CENTRY_NULL_URGENCY]
+
+   # This bugfix has not yet been merged to V60s2_BRANCH
+   if {$ts_config(gridengine_version) >= 61} {
+      set NULL_URGENCY [translate_macro MSG_CENTRY_NULL_URGENCY]
+   } else {
+      set NULL_URGENCY "NULL_URGENCY fix only available in SGE 6.1 or higher"
+   }
  
    set master_arch [resolve_arch $ts_config(master_host)] 
 

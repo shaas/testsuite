@@ -137,12 +137,12 @@ proc path_alias_setup {} {
             while { $counter > 0 } {
                set result [start_remote_prog $elem $CHECK_USER "cat" $file_name]
                incr counter -1
-               if {  $prg_exit_state != 0 } {
+               if {$prg_exit_state != 0} {
                   break;
                }
                sleep 1
             }
-            if { $counter <= 0 } {
+            if {$counter <= 0} {
                add_proc_error "path_alias_setup" "-1" "error moving file ${file_name} on host $elem"
             }
          }
@@ -181,15 +181,15 @@ proc path_alias_setup {} {
    set last_host ""
    foreach elem $ts_config(unique_arch_nodes) {
       set counter 60
-      while { $counter > 0 } {
+      while {$counter > 0} {
          set result [start_remote_prog $elem $CHECK_USER "cat" $file_name]
          incr counter -1
-         if { $prg_exit_state == 0 } {
+         if {$prg_exit_state == 0} {
             break;
          }
          sleep 1
       }
-      if {  $prg_exit_state != 0 } {
+      if {$prg_exit_state != 0} {
          add_proc_error "path_alias_setup" "-1" "error reading file ${file_name} on host $elem"
       }
       lappend cat_hostname $elem 
@@ -198,11 +198,11 @@ proc path_alias_setup {} {
    }
    
    set elem_nr 0
-   set orig [open "$CHECK_PROTOCOL_DIR/test1.txt" "w" ]
+   set orig [open "$CHECK_PROTOCOL_DIR/test1.txt" "w"]
    puts $orig $result
    close $orig
    foreach elem $cat_output {
-       set diff [open "$CHECK_PROTOCOL_DIR/test2.txt" "w" ]
+       set diff [open "$CHECK_PROTOCOL_DIR/test2.txt" "w"]
        puts $diff $elem 
        close $diff
 

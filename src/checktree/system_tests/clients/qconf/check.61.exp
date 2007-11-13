@@ -43,6 +43,7 @@ lappend check_functions "qconf_remove_rqs";        # delete resource quota set
 lappend check_functions "qconf_dynamic_limit";      # add a dynamic limit
 lappend check_functions "qconf_rqs_Xattr";          # resource quota set Xattr
 lappend check_functions "qconf_rqs_rattr_qmaster_dump"; # verify error handling
+lappend check_functions "qconf_issue_2383" ;# TS case for IZ 2383
 
 global rqs_name_fast
 global rqs_name_cli
@@ -424,3 +425,39 @@ proc qconf_rqs_rattr_qmaster_dump {} {
 
    del_rqs $rqs_name
 }
+
+
+############# qconf/qconf_issue_2383() *********************************************
+#  NAME
+#     issue_2383() -- test qconf -mc with incorrect complex
+#
+#  SYNOPSIS
+#     issue_2383 { }
+#
+#  FUNCTION
+#     Test adding incorrect complex with qconf -mc
+#
+#     The complex is defined as
+#     newone            new      STRING      ==    NO          NO         NONE
+#     so it is missing the urgency value. It is a negative test.
+#     The install should report message MSG_CENTRY_NULL_URGENCY
+#
+#*******************************************************************************
+proc qconf_issue_2383 {} {
+   global CHECK_OUTPUT  ts_config
+    
+   # Create a faulty complex. note that there is NO urgency value
+
+   set wrong_complex(newone) "new STRING  ==  NO  NO NONE "   
+   # Call set_complex with null_urgency set to "1", the last var
+   set result [set_complex wrong_complex ]
+      
+   # check that we get the correct error message MSG_CENTRY_NULL_URGENCY
+   if {$result != -6 } {
+      add_proc_error "issue_2383" -3 "qconf -mc test for IZ 2383 failed"
+   } else {
+      puts $CHECK_OUTPUT " qconf -mc test for IZ 2383 passed \n"
+   }
+
+}
+

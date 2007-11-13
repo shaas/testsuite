@@ -92,18 +92,14 @@ proc pe_ranges_init_level {} {
 proc pe_ranges_setup {} {
    global ts_config
    global pe_ranges_test_hosts
-   global consumable_complex_backup
    global CHECK_OUTPUT
-
-   # backup complex - we will modify it during the test
-   get_complex consumable_complex_backup
 
    set pe_ranges_test_hosts {}
    set execd_count 0
    foreach host $ts_config(execd_nodes) {
-      if { $execd_count < 2 } {
+      if {$execd_count < 2} {
          incr execd_count 1
-         lappend pe_ranges_test_hosts "$host"
+         lappend pe_ranges_test_hosts $host
          puts $CHECK_OUTPUT "using host $host"
       } 
    }
@@ -132,7 +128,6 @@ proc pe_ranges_setup {} {
 proc pe_ranges_cleanup {} {
    global CHECK_OUTPUT ts_config
    global pe_ranges_test_hosts
-   global consumable_complex_backup
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -150,9 +145,6 @@ proc pe_ranges_cleanup {} {
    del_queue $qname $pe_ranges_test_hosts  0 1
 
    del_pe        "round_robin"
-
-   # restore complex
-   set_complex consumable_complex_backup
 
    # Delete resource quota sets
    if {$ts_config(gridengine_version) >= 61} {
@@ -236,9 +228,6 @@ proc pe_ranges_test {} {
    global pe_ranges_test_hosts check_description
    global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
 
-
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
-
    # case a)
    #        test auto select pe range alg.
    puts $CHECK_OUTPUT "\ncase a)"
@@ -250,7 +239,7 @@ proc pe_ranges_test {} {
    # get original global host coniguration
    get_exechost orig_global_host global
 
-   if { $CHECK_ACT_LEVEL == 0} {
+   if {$CHECK_ACT_LEVEL == 0} {
       # modify complex_values of global host
       set global_host(complex_values) "test1=6"
       set_exechost global_host global
