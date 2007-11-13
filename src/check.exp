@@ -751,7 +751,9 @@ proc have_ssh_access {} {
      return $have_ssh_access_state
   }
 
-  if {$ts_config(connection_type) == "rlogin" ||  $ts_config(connection_type) == "ssh_with_password"} {
+  if {$ts_config(connection_type) == "rlogin" ||
+      $ts_config(connection_type) == "ssh_with_password" ||
+      $ts_config(connection_type) == ""} {
      set have_ssh_access_state 0
      return $have_ssh_access_state
   }

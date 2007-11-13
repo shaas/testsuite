@@ -1429,6 +1429,7 @@ proc config_connection_type {only_check name config_array} {
    global CHECK_OUTPUT 
    global CHECK_USER
    global fast_setup
+   global have_ssh_access_state
 
    upvar $config_array config
    set actual_value  $config($name)
@@ -1455,6 +1456,9 @@ proc config_connection_type {only_check name config_array} {
       } else {
          puts $CHECK_OUTPUT "using default value"
       }
+      # reset global variable for have_ssh_access()
+      # procedure !!
+      set have_ssh_access_state -1 
    }
 
    if {$value != "ssh" && $value != "ssh_with_password"

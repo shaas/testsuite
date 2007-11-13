@@ -1,3 +1,7 @@
+CR-2007-11-13-0: Bugfix:    Fixed problem with connection method setting when
+                            creating testsuite configuration from scratch
+                 Review:    JG
+
 JG-2007-11-13-0: Bugfix:    Suppress running tests for fixes that have only been
                             done for 6.1 or higher in 6.0 clusters.
                             Some cleanup.
