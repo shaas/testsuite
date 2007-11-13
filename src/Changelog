@@ -1,3 +1,7 @@
+RH-2007-11-13-0: Bugfix:    Hedeby non ssl installation was broken
+                 Issue:     Hedeby 146
+                 Review:    CR
+
 CR-2007-11-13-0: Bugfix:    Fixed problem with connection method setting when
                             creating testsuite configuration from scratch
                  Review:    JG

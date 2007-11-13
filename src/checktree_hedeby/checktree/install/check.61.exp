@@ -152,6 +152,8 @@ proc hedeby_install_master_host {} {
    set ca_state    "Germany"
    set sge_root $ts_config(product_root)
 
+   # ssl disabled
+   set ssl_disabled $hedeby_config(security_disable)
 
    puts $CHECK_OUTPUT "==Install params==========================="
    puts $CHECK_OUTPUT "sdmadm_path:      $sdmadm_path"
@@ -165,6 +167,7 @@ proc hedeby_install_master_host {} {
    puts $CHECK_OUTPUT "   ca_org:        $ca_org"
    puts $CHECK_OUTPUT "   ca_org_unit:   $ca_org_unit"
    puts $CHECK_OUTPUT "   ca_state:      $ca_state"
+   puts $CHECK_OUTPUT "ssl disabled:     $ssl_disabled"
    puts $CHECK_OUTPUT "======================================="
 
    # install new system ...
@@ -182,6 +185,10 @@ proc hedeby_install_master_host {} {
                   -cs_port $cs_port\
                   -l $spool_dir\
                   -sge_root $sge_root"
+
+   if { $ssl_disabled == "true" } {
+      append arguments " -nossl"
+   }
 
    set install_master_output [sdmadm_command $hedeby_config(hedeby_master_host) $install_user $arguments]
    if { $prg_exit_state != 0 } {
@@ -243,6 +250,9 @@ proc hedeby_install_managed_hosts {} {
    # set sge_root
    set sge_root $ts_config(product_root)
 
+   # ssl disabled
+   set ssl_disabled $hedeby_config(security_disable)
+
    # TODO: switch between interactive and copy cert mode when installing managed hosts
 
    # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
@@ -283,6 +293,7 @@ proc hedeby_install_managed_hosts {} {
       puts $CHECK_OUTPUT "dist_path:        $dist_path" 
       puts $CHECK_OUTPUT "spool_dir:        $spool_dir"
       puts $CHECK_OUTPUT "cs_url:           $cs_url"
+      puts $CHECK_OUTPUT "ssl disabled:     $ssl_disabled"
       puts $CHECK_OUTPUT "======================================="
 
       # check that NFS has transported the keystore and cacert file to the managed host ...
@@ -309,6 +320,10 @@ proc hedeby_install_managed_hosts {} {
                      -l $spool_dir\
                      -cs_url $cs_url"
 
+
+      if { $ssl_disabled == "true" } {
+         append arguments " -nossl"
+      }
 
       # TODO: make installation of managed host interactive - we have to trust the certificate in a question
       set output [sdmadm_command $managed_host $install_user $arguments]
