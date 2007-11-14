@@ -1110,7 +1110,11 @@ proc setup_win_user_passwd {user} {
       }
 
       -i $sp_id "password:" {
+         log_user 0  ;# in any case before sending password
          ts_send $sp_id "[get_passwd $user]\n" $ts_config(master_host) 1
+         if {$CHECK_DEBUG_LEVEL != 0} {
+            log_user 1
+         }
          exp_continue
       }
       -i $sp_id "Password changed" {

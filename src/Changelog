@@ -1,3 +1,7 @@
+CR-2007-11-14-0: Bugfix:    Removed possiblity to see plain passwords
+                            when testsuite is started in debug mode
+                 Review:    JG
+
 RH-2007-11-13-0: Bugfix:    Hedeby non ssl installation was broken
                  Issue:     Hedeby 146
                  Review:    CR

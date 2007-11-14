@@ -1543,7 +1543,11 @@ proc open_remote_spawn_process { hostname
                      set connect_errors 1
                   } else {
                      debug_puts "Got password question"
+                     log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "$passwd\n" $hostname 1
+                     if {$CHECK_DEBUG_LEVEL != 0} {
+                        log_user 1
+                     }
                      set password_sent 1
                      exp_continue
                   }
@@ -1664,7 +1668,11 @@ proc open_remote_spawn_process { hostname
                      add_proc_error "open_remote_spawn_process (shell_response)" -2 "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
                   } else {
+                     log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "$passwd\n" $hostname 1
+                     if {$CHECK_DEBUG_LEVEL != 0} {
+                        log_user 1
+                     }
                      exp_continue
                   }
                }
@@ -1795,8 +1803,7 @@ proc open_remote_spawn_process { hostname
                      set connect_errors 1
                   }
                   -i $spawn_id "assword:" {
-                     # after 500 ;# TODO: Not sure if we need this (CR)
-                     log_user 0
+                     log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "[get_root_passwd]\n" $hostname 1
                      debug_puts "root password sent" 
                      if {$CHECK_DEBUG_LEVEL != 0} {
