@@ -124,12 +124,27 @@ proc manage_admin_user_setup {} {
 # current cluster config nr from the global variable set 
 # be the setup function.
 proc manage_admin_user_cleanup {} {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT hedeby_config
    global manage_admin_user_current_cluster_config
+
+   set test_host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
 
    puts $CHECK_OUTPUT "doing cleanup ..."
 
+   puts $CHECK_OUTPUT "check if user root has been removed from admin user list ..."
+   set user_list {}
+   sdmadm_show_admin_users $test_host $admin_user user_list [get_hedeby_pref_type] [get_hedeby_system_name]
+   if { [lsearch $user_list "root"] >= 0 } {
+      puts $CHECK_OUTPUT "user root is still in admin user list! Removing ..."
+      if {[sdmadm_remove_admin_user $test_host $admin_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+         add_proc_error "manage_admin_user_check" -1 "user root has not been removed from admin user list"
+      }
+   } else {
+      puts $CHECK_OUTPUT "user root is not in admin user list! - OK"
+   }
    set_current_cluster_config_nr $manage_admin_user_current_cluster_config
+ 
 }
 
 
@@ -143,16 +158,16 @@ proc manage_admin_user_check {} {
 
    # setup master host expectations ...
    set test_host $hedeby_config(hedeby_master_host)
-   set test_user [get_hedeby_admin_user]
+   set admin_user [get_hedeby_admin_user]
    
    # Add root as admin user
-   set add_result [sdmadm_add_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]]
+   set add_result [sdmadm_add_admin_user $test_host $admin_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]]
    if { $add_result != 0 } {
       return
    }
    
    set user_list {}
-   if {[sdmadm_show_admin_users $test_host $test_user user_list [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+   if {[sdmadm_show_admin_users $test_host $admin_user user_list [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
       return
    }
    
@@ -165,42 +180,36 @@ proc manage_admin_user_check {} {
    # we really need the root password. If ssh access is configured we can also not
    # test it
    if { [have_ssh_access] == 0 && [have_root_passwd] == 0} {
-      #TODO RH Begin: With the fix of issue #108 the following
-      #               block should work
-      # # The RoleLoginModule caches information about roles
-      # # The cache timeout is one minute
-      # # We have to wait one minute to ensure that this cache timed out
-      # set timeout 70
-      # puts $CHECK_OUTPUT "waiting for role cache timeout (${timeout} seconds)"
-      # while { $timeout > 0} {
-         # incr timeout -10
-         # flush $CHECK_OUTPUT
-         # after 2500
-         # puts -nonewline $CHECK_OUTPUT  "."
-         # flush $CHECK_OUTPUT
-         # after 2500
-         # puts -nonewline $CHECK_OUTPUT "."
-         # flush $CHECK_OUTPUT
-         # after 2500
-         # puts -nonewline $CHECK_OUTPUT "."
-         # flush $CHECK_OUTPUT
-         # after 2500
-         # puts  -nonewline $CHECK_OUTPUT "${timeout}"
-      # }
-      # puts $CHECK_OUTPUT
-      # 
-      # if { [sdmadm_show_status $test_host "root" tmp_output [get_hedeby_pref_type] [get_hedeby_system_name]] != 0 } {
-          # add_proc_error "manage_admin_user_check" -1 "sdmadm as user root failed"
-      # }
-      # TODO RH End
+        # The RoleLoginModule caches information about roles
+        # The cache timeout is one minute
+        # We have to wait one minute to ensure that this cache timed out
+        wait_for_role_cache_timeout
+        if { [sdmadm_show_status $test_host "root" tmp_output [get_hedeby_pref_type] [get_hedeby_system_name] 1 1] != 0 } {
+            add_proc_error "manage_admin_user_check" -1 "sdmadm as user root with prompt password option failed!"
+            return
+        }
    } else {
       puts $CHECK_OUTPUT "Skip execution sdm_adm command as user root, have no root password"
    }
    
-   if {[sdmadm_remove_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
+   if {[sdmadm_remove_admin_user $test_host $admin_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
       add_proc_error "manage_admin_user_check" -1 "user root has not been removed from admin user list"
    }
+   wait_for_role_cache_timeout
+}
+
+proc wait_for_role_cache_timeout {} {
+   global CHECK_OUTPUT
+   global hedeby_config
+
+   set host $hedeby_config(hedeby_master_host)
+   set user [get_hedeby_startup_user]
+   set admin_user [get_hedeby_admin_user]
    
+   # Shutdown
+   puts $CHECK_OUTPUT "restarting hedeby master host ..."
+   sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" $host
+   sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]
 }
 
 

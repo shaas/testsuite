@@ -93,7 +93,7 @@ proc issue_67_check {} {
 
    set match_str  [create_bundle_string "ParentStartupService.skipRunningJvm" xyz "*"]
    set match_str2 [create_bundle_string "ParentStartupService.skippedRunningJvms" xyz "*"]
-   set expected_str "WARNING: ${match_str}\r\nWARNING: ${match_str}\r\n${match_str2}"
+   set expected_str "WARNING: ${match_str}\r\nWARNING: ${match_str}\r\nWARNING: ${match_str}\r\nError: ${match_str2}"
 
    # start system on master host again, don't raise errors ...
    set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" 0]

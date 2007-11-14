@@ -1,0 +1,605 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs      "yes"
+set check_name                   "file_permissions"
+set check_category               "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)         "check hedeby install file permissions after installation"
+set check_needs                  "hedeby_install"
+set check_highest_level          0 
+set check_init_level_procedure   "file_permissions_init_level"
+set check_functions              {}  ;# functions to call (in order)
+set check_setup_function "file_permissions_setup"
+set check_cleanup_function "file_permissions_cleanup"
+
+lappend check_functions "hedeby_check_master_host_file_permissions"
+lappend check_functions "hedeby_check_managed_host_file_permissions"
+
+
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+
+global install_current_cluster_config
+
+proc file_permissions_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1
+}
+
+proc file_permissions_setup {} {
+   global CHECK_OUTPUT
+   global install_current_cluster_config
+   global install_user
+
+   set install_current_cluster_config [get_current_cluster_config_nr]
+   set install_user [get_hedeby_startup_user]
+
+   # print out system information:
+   puts $CHECK_OUTPUT "======================================="
+   puts $CHECK_OUTPUT "sys_name:          [get_hedeby_system_name]"
+   puts $CHECK_OUTPUT "installation mode: [get_hedeby_pref_type]"
+   puts $CHECK_OUTPUT "admin user:        [get_hedeby_admin_user]"
+   puts $CHECK_OUTPUT "======================================="
+
+
+}
+
+proc file_permissions_cleanup {} {
+   global CHECK_OUTPUT
+   global install_current_cluster_config 
+
+   # set the current cluster config to the one used when starting
+   # the test
+   set_current_cluster_config_nr $install_current_cluster_config
+}
+
+
+
+
+proc hedeby_check_master_host_file_permissions {} {
+   global CHECK_OUTPUT
+   global hedeby_config
+   set error_text ""
+
+   puts $CHECK_OUTPUT "checking file permissions on master host ..."
+   set spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
+   set host $hedeby_config(hedeby_master_host)
+   set startup_user [get_hedeby_startup_user]
+   set admin_user [get_hedeby_admin_user]
+
+
+   set files [start_remote_prog $host $startup_user "find" "${spool_dir}/* -name \"*\"" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+   set file_list [split $files "\n"]
+   set spool_directories {}
+   set spool_files {}
+   foreach line $file_list {
+      set file [string trim $line] 
+      if { $file == "" } {
+         continue
+      }
+
+      # check if file is directory or file
+      if {[is_remote_path $host $startup_user $file]} {
+         puts $CHECK_OUTPUT ""
+         puts $CHECK_OUTPUT "dir $file:"
+         lappend spool_directories $file
+      } else {
+         puts -nonewline $CHECK_OUTPUT "[file tail $file] "
+         flush $CHECK_OUTPUT
+         lappend spool_files $file
+      }
+   }
+   puts $CHECK_OUTPUT ""
+
+   set expected_dirs {}
+   lappend expected_dirs "log"
+   lappend expected_dirs "run"
+   lappend expected_dirs "security"
+   lappend expected_dirs "security/ca"
+   lappend expected_dirs "security/ca/ca_top"
+   lappend expected_dirs "security/ca/ca_top/certs"
+   lappend expected_dirs "security/ca/ca_top/crl"
+   lappend expected_dirs "security/ca/ca_top/newcerts"
+   lappend expected_dirs "security/ca/ca_local_top"
+   lappend expected_dirs "security/ca/ca_local_top/userkeys"
+   lappend expected_dirs "security/ca/ca_local_top/userkeys/$startup_user"
+   if { $startup_user != $admin_user } {
+      lappend expected_dirs "security/ca/ca_local_top/userkeys/$admin_user"
+   }
+   lappend expected_dirs "security/ca/ca_local_top/daemons"
+   lappend expected_dirs "security/ca/ca_local_top/daemons/cs_vm"
+   lappend expected_dirs "security/ca/ca_local_top/daemons/executor_vm"
+   lappend expected_dirs "security/ca/ca_local_top/daemons/rp_vm"
+   lappend expected_dirs "security/ca/ca_local_top/private"
+   lappend expected_dirs "security/users"
+   lappend expected_dirs "security/daemons"
+   lappend expected_dirs "spool"
+   lappend expected_dirs "spool/cs"
+   lappend expected_dirs "spool/cs/component"
+   lappend expected_dirs "spool/cs/active_component"
+   lappend expected_dirs "spool/cs/active_jvm"
+   lappend expected_dirs "spool/resource_provider"
+   lappend expected_dirs "spool/spare_pool"
+   lappend expected_dirs "tmp"
+   lappend expected_dirs "tmp/ca"
+
+   puts $CHECK_OUTPUT "checking directories ..."
+   if { [llength $spool_directories] != [llength $expected_dirs] } {
+      append error_text "expected dirs length ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
+      append error_text "Missing dirs:\n"
+      foreach dir $expected_dirs {
+         if { [lsearch -exact $spool_directories "${spool_dir}/$dir"] < 0 } {
+            append error_text "   $dir\n"
+         }
+      }
+      append error_text "Not expected dirs:\n"
+      set expected_dirs_helper {}
+      foreach dir $expected_dirs {
+         lappend expected_dirs_helper "${spool_dir}/$dir"
+      }
+      foreach dir $spool_directories {
+         if { [lsearch -exact $expected_dirs_helper $dir] < 0 } {
+            append error_text "   $dir\n"
+         }
+      }
+   }
+
+   set expected_files {}
+   lappend expected_files "log/cs_vm-0.log.lck"
+   lappend expected_files "log/cs_vm-0.log"
+   lappend expected_files "log/cs_vm.stdout"
+   lappend expected_files "log/cs_vm.stderr"
+   lappend expected_files "log/executor_vm-0.log.lck"
+   lappend expected_files "log/executor_vm-0.log"
+   lappend expected_files "log/executor_vm.stdout"
+   lappend expected_files "log/executor_vm.stderr"
+   lappend expected_files "log/rp_vm-0.log.lck"
+   lappend expected_files "log/rp_vm-0.log"
+   lappend expected_files "log/rp_vm.stdout"
+   lappend expected_files "log/rp_vm.stderr"
+   lappend expected_files "logging.properties"
+   lappend expected_files "run/cs_vm@$hedeby_config(hedeby_master_host)*"
+   lappend expected_files "run/executor_vm@$hedeby_config(hedeby_master_host)*"
+   lappend expected_files "run/rp_vm@$hedeby_config(hedeby_master_host)*"
+   lappend expected_files "security/ca/ca_top/certs/cert.pem"
+   lappend expected_files "security/ca/ca_top/newcerts/01.pem"
+   lappend expected_files "security/ca/ca_top/newcerts/02.pem"
+   lappend expected_files "security/ca/ca_top/newcerts/03.pem"
+   lappend expected_files "security/ca/ca_top/newcerts/04.pem"
+   lappend expected_files "security/ca/ca_top/newcerts/05.pem"
+   lappend expected_files "security/ca/ca_top/newcerts/06.pem"
+   lappend expected_files "security/ca/ca_top/serial"
+   lappend expected_files "security/ca/ca_top/index.txt"
+   lappend expected_files "security/ca/ca_top/dn.info"
+   lappend expected_files "security/ca/ca_top/cacert.pem"
+   lappend expected_files "security/ca/ca_top/index.txt.attr"
+   lappend expected_files "security/ca/ca_top/index.txt.attr.old"
+   lappend expected_files "security/ca/ca_top/serial.old"
+   lappend expected_files "security/ca/ca_top/index.txt.old"
+   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/rand.seed"
+   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/key.pem"
+   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/req.pem"
+   lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/cert.pem"
+   if { $startup_user != $admin_user } {
+      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/rand.seed"
+      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/key.pem"
+      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/req.pem"
+      lappend expected_files "security/ca/ca_local_top/userkeys/$admin_user/cert.pem"
+   }
+   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/rand.seed"
+   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/key.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/req.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/cs_vm/cert.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/rand.seed"
+   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/key.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/req.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/rp_vm/cert.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/rand.seed"
+   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/key.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/req.pem"
+   lappend expected_files "security/ca/ca_local_top/daemons/executor_vm/cert.pem"
+   lappend expected_files "security/ca/ca_local_top/private/rand.seed"
+   lappend expected_files "security/ca/ca_local_top/private/cakey.pem"
+   lappend expected_files "security/ca/ca_local_top/private/key.pem"
+   lappend expected_files "security/ca/ca_local_top/private/req.pem"
+   lappend expected_files "security/ca/ca_local_top/lock"
+   lappend expected_files "security/users/$admin_user.keystore"
+   lappend expected_files "security/daemons/cs_vm.keystore"
+   lappend expected_files "security/daemons/executor_vm.keystore"
+   lappend expected_files "security/daemons/rp_vm.keystore"
+   lappend expected_files "security/java.policy"
+   lappend expected_files "security/jaas.config"
+   lappend expected_files "spool/cs/component/executor.xml"
+   lappend expected_files "spool/cs/component/ca.xml"
+   lappend expected_files "spool/cs/component/resource_provider.xml"
+   lappend expected_files "spool/cs/component/spare_pool.xml"
+   lappend expected_files "spool/cs/active_component/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_component/executor@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_component/ca@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_component/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_component/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_component/spare_pool@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_component/resource_provider@$hedeby_config(hedeby_master_host)*.xml"
+
+   foreach managed_host [get_all_hedeby_managed_hosts] {
+      lappend expected_files "spool/cs/active_component/executor@$managed_host*.xml"
+      lappend expected_files "spool/cs/active_component/executor_vm@$managed_host*.xml"
+   }
+   lappend expected_files "spool/cs/active_jvm/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_jvm/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_jvm/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
+   foreach managed_host [get_all_hedeby_managed_hosts] {
+      lappend expected_files "spool/cs/active_jvm/executor_vm@$managed_host*.xml"
+   }
+   lappend expected_files "spool/cs/global.xml"
+   lappend expected_files "spool/cs/security.xml"
+
+   puts $CHECK_OUTPUT "checking files ..."
+   if { [llength $spool_files] != [llength $expected_files] } {
+      append error_text "\nExpected files length ([llength $expected_files]) != found files length ([llength $spool_files])\n"
+      append error_text "Missing files:\n"
+      foreach file $expected_files {
+         if { [lsearch $spool_files "${spool_dir}/$file"] < 0 } {
+            append error_text "   $file\n"
+         }
+      }
+      append error_text "Not expected files:\n"
+      set expected_files_helper {}
+      foreach file $spool_files {
+         set match 0
+         foreach fileb $expected_files {
+            if { [string match "${spool_dir}/$fileb" $file] } {
+               set match 1
+               break
+            }
+         }
+         if { $match == 0 }  {
+            append error_text "   $file\n"
+         }
+      }
+   }
+
+   set default_owner [get_hedeby_admin_user]
+   set default_perms "-rw-r--r--"
+
+
+   set user_rw_perms "-rw-------"
+   set user_rw_match {}
+   lappend user_rw_match "*.pem"
+   lappend user_rw_match "serial*"
+   lappend user_rw_match "index.*"
+   lappend user_rw_match "rand.seed"
+   lappend user_rw_match "*.keystore"
+   set user_rw_ignore_match {}
+   lappend user_rw_ignore_match "security/ca/ca_top/certs/cert.pem"
+   lappend user_rw_ignore_match "security/ca/ca_top/cacert.pem"
+
+
+   set startup_user_owner [get_hedeby_startup_user]
+   set startup_user_match {}
+   lappend startup_user_match "log/executor_vm*"
+   lappend startup_user_match "run/executor_vm*"
+   lappend startup_user_match "security/ca/ca_local_top/userkeys/$startup_user_owner/*"
+   lappend startup_user_match "security/ca/ca_local_top/lock"
+   lappend startup_user_match "security/daemons/executor_vm.keystore"
+   foreach expect_file $expected_files {
+      set expected_owner($expect_file) $default_owner
+      set expected_perms($expect_file) $default_perms
+ 
+      set tailed_file [file tail $expect_file]
+
+      set ignore 0
+      foreach igmatch $user_rw_ignore_match {
+         if {[string match $igmatch $expect_file]} {
+ #           puts $CHECK_OUTPUT "expect $default_perms permissions for file: $expect_file"
+            set ignore 1 
+            break
+         }
+      }
+      if { $ignore == 0 } {
+         foreach match $user_rw_match {
+            if {[string match $match $tailed_file]} {
+               set expected_perms($expect_file) $user_rw_perms
+               puts $CHECK_OUTPUT "expect $user_rw_perms permissions for file: $expect_file"
+            }
+         }
+      }
+
+      foreach match $startup_user_match {
+         if {[string match $match $expect_file]} {
+            set expected_owner($expect_file) $startup_user_owner
+            puts $CHECK_OUTPUT "expect owner $startup_user_owner for file: $expect_file"
+         } else {
+#            puts $CHECK_OUTPUT "expect owner $default_owner for file: $expect_file"
+         }
+      }
+   }
+   set permission_errors ""
+   set owner_errors ""
+   foreach expect_file $expected_files {
+      set file "$spool_dir/$expect_file"
+      # get permissions and ownership via ls -la
+      set ls_line [start_remote_prog $host $startup_user "ls" "-la $file" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+      if { $prg_exit_state != 0 } {
+         append error_text "\nls -la \"$file\" reported error:\n$ls_line"
+         continue
+      }
+      set permissions [lindex $ls_line 0]
+      set owner [lindex $ls_line 2]
+      set group [lindex $ls_line 3]
+      puts -nonewline $CHECK_OUTPUT "."
+      flush $CHECK_OUTPUT
+      if { $permissions != $expected_perms($expect_file) } {
+         append permission_errors "$expect_file: wrong permissions: \"$permissions\" (expected: \"$expected_perms($expect_file)\")\n"
+      }
+      if { $owner != $expected_owner($expect_file) } {
+         append owner_errors "$expect_file: wrong owner: \"$owner\" (expected: \"$expected_owner($expect_file)\")\n"
+      }
+   }
+   puts $CHECK_OUTPUT ""
+   if { $owner_errors != "" } {
+      append error_text "\nOwnership errors:\n$owner_errors\n"
+   }
+   if { $permission_errors != "" } {
+      append error_text "\nPermission errors:\n$permission_errors\n"
+   }
+
+   if { $error_text != "" } {
+      add_proc_error "hedeby_check_master_host_file_permissions" -1 $error_text
+   }
+
+}
+
+
+proc hedeby_check_managed_host_file_permissions {} {
+   global CHECK_OUTPUT
+   global hedeby_config
+
+   set error_text ""
+   foreach managed_host [get_all_hedeby_managed_hosts] {
+
+      puts $CHECK_OUTPUT "checking file permissions on managed host \"$managed_host\" ..."
+      set host $managed_host
+      set spool_dir [get_hedeby_local_spool_dir $host]
+      set startup_user [get_hedeby_startup_user]
+      set admin_user [get_hedeby_admin_user]
+
+      set files [start_remote_prog $host $startup_user "find" "${spool_dir}/* -name \"*\"" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+      set file_list [split $files "\n"]
+      set spool_directories {}
+      set spool_files {}
+      foreach line $file_list {
+         set file [string trim $line] 
+         if { $file == "" } {
+            continue
+         }
+
+         # check if file is directory or file
+         if {[is_remote_path $host $startup_user $file]} {
+            puts $CHECK_OUTPUT ""
+            puts $CHECK_OUTPUT "dir $file:"
+            lappend spool_directories $file
+         } else {
+            puts -nonewline $CHECK_OUTPUT "[file tail $file] "
+            flush $CHECK_OUTPUT
+            lappend spool_files $file
+         }
+      }
+      puts $CHECK_OUTPUT ""
+
+      set expected_dirs {}
+      lappend expected_dirs "log"
+      lappend expected_dirs "run"
+      lappend expected_dirs "security"
+      lappend expected_dirs "security/ca"
+      lappend expected_dirs "security/ca/ca_top"
+      lappend expected_dirs "security/ca/ca_local_top"
+      lappend expected_dirs "security/users"
+      lappend expected_dirs "security/daemons"
+      lappend expected_dirs "spool"
+      lappend expected_dirs "tmp"
+      lappend expected_dirs "tmp/ca"
+
+      puts $CHECK_OUTPUT "checking directories ..."
+      if { [llength $spool_directories] != [llength $expected_dirs] } {
+         append error_text "expected dirs length on host \"$host\" ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
+         append error_text "Missing dirs:\n"
+         foreach dir $expected_dirs {
+            if { [lsearch -exact $spool_directories "${spool_dir}/$dir"] < 0 } {
+               append error_text "   $dir\n"
+            }
+         }
+         append error_text "Not expected dirs:\n"
+         set expected_dirs_helper {}
+         foreach dir $expected_dirs {
+            lappend expected_dirs_helper "${spool_dir}/$dir"
+         }
+         foreach dir $spool_directories {
+            if { [lsearch -exact $expected_dirs_helper $dir] < 0 } {
+               append error_text "   $dir\n"
+            }
+         }
+      }
+
+      set expected_files {}
+      lappend expected_files "log/executor_vm-0.log.lck"
+      lappend expected_files "log/executor_vm-0.log"
+      lappend expected_files "log/executor_vm.stdout"
+      lappend expected_files "log/executor_vm.stderr"
+      lappend expected_files "logging.properties"
+      lappend expected_files "run/executor_vm@$host*"
+      lappend expected_files "security/ca/ca_top/cacert.pem"
+      lappend expected_files "security/users/$admin_user.keystore"
+      lappend expected_files "security/daemons/cs_vm.keystore"
+      lappend expected_files "security/daemons/executor_vm.keystore"
+      lappend expected_files "security/daemons/rp_vm.keystore"
+      lappend expected_files "security/java.policy"
+      lappend expected_files "security/jaas.config"
+
+      puts $CHECK_OUTPUT "checking files ..."
+      if { [llength $spool_files] != [llength $expected_files] } {
+         append error_text "\nExpected files length on host \"$host\" ([llength $expected_files]) != found files length ([llength $spool_files])\n"
+         append error_text "Missing files:\n"
+         foreach file $expected_files {
+            if { [lsearch $spool_files "${spool_dir}/$file"] < 0 } {
+               append error_text "   $file\n"
+            }
+         }
+         append error_text "Not expected files:\n"
+         set expected_files_helper {}
+         foreach file $spool_files {
+            set match 0
+            foreach fileb $expected_files {
+               if { [string match "${spool_dir}/$fileb" $file] } {
+                  set match 1
+                  break
+               }
+            }
+            if { $match == 0 }  {
+               append error_text "   $file\n"
+            }
+         }
+
+      }
+
+      set default_owner [get_hedeby_admin_user]
+      set default_perms "-rw-r--r--"
+
+
+      set user_rw_perms "-rw-------"
+      set user_rw_match {}
+      lappend user_rw_match "*.pem"
+      lappend user_rw_match "serial*"
+      lappend user_rw_match "index.*"
+      lappend user_rw_match "rand.seed"
+      lappend user_rw_match "*.keystore"
+      set user_rw_ignore_match {}
+      lappend user_rw_ignore_match "security/ca/ca_top/certs/cert.pem"
+      lappend user_rw_ignore_match "security/ca/ca_top/cacert.pem"
+
+
+      set startup_user_owner [get_hedeby_startup_user]
+      set startup_user_match {}
+      lappend startup_user_match "log/executor_vm*"
+      lappend startup_user_match "run/executor_vm*"
+      lappend startup_user_match "security/ca/ca_local_top/userkeys/$startup_user_owner/*"
+      lappend startup_user_match "security/ca/ca_local_top/lock"
+      lappend startup_user_match "security/daemons/executor_vm.keystore"
+      lappend startup_user_match "security/ca/ca_top/cacert.pem"
+      
+      foreach expect_file $expected_files {
+         set expected_owner($expect_file) $default_owner
+         set expected_perms($expect_file) $default_perms
+    
+         set tailed_file [file tail $expect_file]
+
+         set ignore 0
+         foreach igmatch $user_rw_ignore_match {
+            if {[string match $igmatch $expect_file]} {
+    #           puts $CHECK_OUTPUT "expect $default_perms permissions for file: $expect_file"
+               set ignore 1 
+               break
+            }
+         }
+         if { $ignore == 0 } {
+            foreach match $user_rw_match {
+               if {[string match $match $tailed_file]} {
+                  set expected_perms($expect_file) $user_rw_perms
+                  puts $CHECK_OUTPUT "expect $user_rw_perms permissions for file: $expect_file"
+               }
+            }
+         }
+
+         foreach match $startup_user_match {
+            if {[string match $match $expect_file]} {
+               set expected_owner($expect_file) $startup_user_owner
+               puts $CHECK_OUTPUT "expect owner $startup_user_owner for file: $expect_file"
+            } else {
+   #            puts $CHECK_OUTPUT "expect owner $default_owner for file: $expect_file"
+            }
+         }
+      }
+      set permission_errors ""
+      set owner_errors ""
+      foreach expect_file $expected_files {
+         set file "$spool_dir/$expect_file"
+         # get permissions and ownership via ls -la
+         set ls_line [start_remote_prog $host $startup_user "ls" "-la $file" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+         if { $prg_exit_state != 0 } {
+            append error_text "\nls -la \"$file\" on host \"$host\" reported error:\n$ls_line"
+            continue
+         }
+         set permissions [lindex $ls_line 0]
+         set owner [lindex $ls_line 2]
+         set group [lindex $ls_line 3]
+         puts -nonewline $CHECK_OUTPUT "."
+         flush $CHECK_OUTPUT
+         if { $permissions != $expected_perms($expect_file) } {
+            append permission_errors "$expect_file: wrong permissions: \"$permissions\" (expected: \"$expected_perms($expect_file)\")\n"
+         }
+         if { $owner != $expected_owner($expect_file) } {
+            append owner_errors "$expect_file: wrong owner: \"$owner\" (expected: \"$expected_owner($expect_file)\")\n"
+         }
+      }
+      puts $CHECK_OUTPUT ""
+      if { $owner_errors != "" } {
+         append error_text "\nOwnership errors on host \"$host\":\n$owner_errors\n"
+      }
+      if { $permission_errors != "" } {
+         append error_text "\nPermission errors on host \"$host\":\n$permission_errors\n"
+      }
+   }
+   if { $error_text != "" } {
+      add_proc_error "hedeby_check_managed_host_file_permissions" -1 $error_text
+   }
+}
+
+
+
+

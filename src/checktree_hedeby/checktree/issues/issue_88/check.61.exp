@@ -73,11 +73,6 @@ proc hedeby_issue_88_setup {} {
 
 proc hedeby_issue_88_cleanup {} {
    global CHECK_OUTPUT
-   global hedeby_config
-
-   puts $CHECK_OUTPUT "doing cleanup ..."
-   startup_hedeby_host "master" $hedeby_config(hedeby_master_host) [get_hedeby_startup_user]
-   
 }
 
 proc hedeby_issue_88_check {} {
@@ -86,6 +81,7 @@ proc hedeby_issue_88_check {} {
 
    set host $hedeby_config(hedeby_master_host)
    set user [get_hedeby_startup_user]
+   set admin_user [get_hedeby_admin_user]
    
    # Shutdown the CS vm
    set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "cs_vm" $host]
@@ -93,42 +89,54 @@ proc hedeby_issue_88_check {} {
       add_proc_error "hedeby_issue_88_check" -2 "Cannot shutdown cs_vm"
       return
    }
-   
+   set error_count 0
    # modify the contact string in the pid file of the executor_vm
    # The vm can not contacted longer over JMX.
    if { [read_hedeby_jvm_pid_info pid_info $host $user "executor_vm"] != 0 } {
       add_proc_error "hedeby_issue_88_check" -2 "Cannot read of info of executor_vm"
-      return
+      incr error_count
    }
    
-   set pid_file [get_pid_file_for_jvm $host "executor_vm"]
-   set last_slash [string last "/" $pid_info(url)]
-   set save_pid_info(0) 2
-   set save_pid_info(1) $pid_info(pid)
-   set save_pid_info(2) [string range $pid_info(url) 0 $last_slash]
-   write_remote_file $host $user $pid_file save_pid_info
+   if { $error_count == 0 } {
+      set pid_file [get_pid_file_for_jvm $host "executor_vm"]
+      puts $CHECK_OUTPUT "pidfile: $pid_file"
+      set save_pid_info(0) 2
+      set save_pid_info(1) $pid_info(pid)
+      set save_pid_info(2) 0
+      write_remote_file $host $user $pid_file save_pid_info
+      # Shutdown executor jvm, CS is not available and the pid file contains
+      # an invalid JMX connect URL.
+      # The shutdown command will kill the JVM
+      set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "executor_vm" $host]
+      if { $ret != 0 } {
+         add_proc_error "hedeby_issue_88_check" -2 "Cannot shutdown executor_vm"
+         incr error_count
+      } else {
+         # Check if the output of "sdmadm shutdown" contains the kill message
+         set msg_params(0) "executor_vm"
+         set msg [create_bundle_string "ui.stopjvmcommand.kill" msg_params]
+         
+         if { [string match "*${msg}*" $output] == 0} {
+            add_proc_error "hedeby_issue_88_check" -2 "sdmadm shutdown did not print kill message"
+         }
+         
+         # wait until the pid file has been removed
+         if {[wait_for_remote_file $host $user $pid_file 120 1 1] != 0 } {
+            add_proc_error "hedeby_issue_88_check" -2 "Timeout while waiting for shutdown of jvm executor_vm@${host}"
+         }
+      }
+   }
    
-   # Shutdown executor jvm, CS is not available and the pid file contains
-   # an invalid JMX connect URL.
-   # The shutdown command will kill the JVM
-   set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "executor_vm" $host]
+   # startup cs
+   set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "cs_vm"]
    if { $ret != 0 } {
-      add_proc_error "hedeby_issue_88_check" -2 "Cannot shutdown executor_vm"
-      return
+      add_proc_error "hedeby_issue_88_check" -2 "Cannot startup cs_vm"
    }
-   
-   # Check if the output of "sdmadm shutdown" contains the kill message
-   set msg_params(0) "executor_vm"
-   set msg [create_bundle_string "ui.stopjvmcommand.kill" msg_params]
-   
-   if { [string match "*${msg}*" $output] == 0} {
-      add_proc_error "hedeby_issue_88_check" -2 "sdmadm shutdown did not print kill message"
-      return
-   }
-   
-   # wait until the pid file has been removed
-   if {[wait_for_remote_file $host $user $pid_file 120 1 1] != 0 } {
-      add_proc_error "hedeby_issue_88_check" -2 "Timeout while waiting for shutdown of jvm executor_vm@${host}"
+
+   # startup executor
+   set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "executor_vm"]
+   if { $ret != 0 } {
+      add_proc_error "hedeby_issue_88_check" -2 "Cannot startup executor_vm"
    }
 }
 

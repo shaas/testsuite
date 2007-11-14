@@ -1556,6 +1556,10 @@ proc reset_hedeby {} {
 #     arg_line                  - complete argument list
 #     {exit_var prg_exit_state} - default parameter specifying the variable where
 #                                 to save the exit state
+#     { interactive_tasks "" }  - optional interactive tasks for parsing
+#                                 output and send via stdin
+#                                 if this array contains entries the sdmadm
+#                                 command is started interactive.
 #
 #  RESULT
 #     The output of the sdmadm command
@@ -1568,13 +1572,83 @@ proc reset_hedeby {} {
 #     util/sdmadm_start()
 #     util/sdmadm_show_status()
 #*******************************************************************************
-proc sdmadm_command { host user arg_line {exit_var prg_exit_state} } {
-   upvar $exit_var back_exit_state
+proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } } {
    global CHECK_OUTPUT
-   puts $CHECK_OUTPUT "${host}($user): starting \"sdmadm $arg_line\" ..."
+   upvar $exit_var back_exit_state
+   if { $interactive_tasks != "" } {
+      upvar $interactive_tasks tasks
+   }
    set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
    set my_env(JAVA_HOME) [get_java_home_for_host $host "1.5"]
-   return [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0]
+
+   if { $interactive_tasks == "" } {
+      puts $CHECK_OUTPUT "${host}($user): starting binary not interactive \"sdmadm $arg_line\" ..."
+      return [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0]
+   } else {
+      set back_exit_state -1
+      puts $CHECK_OUTPUT "${host}($user): starting binary INTERACTIVE \"sdmadm $arg_line\" ..."
+      set pr_id [open_remote_spawn_process $host $user $sdmadm_path $arg_line 0 "" my_env 0]
+      set sp_id [lindex $pr_id 1]
+      set timeout 60
+      set error_text ""
+      set output ""
+      set found_start 0
+      set found_end 0
+      set do_stop 0
+      expect {
+        -i $sp_id timeout {
+            append error_text "got timeout error\n"
+        }
+        -i $sp_id full_buffer {
+            append error_text "got full_buffer error\n"
+        }
+   
+        -i $sp_id -- "*\[ \n\]" {
+           set token $expect_out(0,string)
+           if { [string match "*_exit_status_:(*" $token ] } {
+              puts $CHECK_OUTPUT "script terminated!" 
+              set help $token
+              set st [string first "(" $help]
+              set ed [string first ")" $help]
+              incr st 1
+              incr ed -1
+              set back_exit_state [string range $help $st $ed]
+              puts $CHECK_OUTPUT "found exit status of client: ($back_exit_state)"
+              set do_stop 1
+              set found_end 1
+           }
+           if {  $found_start == 1 && $found_end == 0 } {
+              append output "${token}"
+              set was_expected 0
+              foreach name [array names tasks] {
+                if { [string match "*${name}*" $token] } {
+                    set was_expected 1
+                    if { $tasks($name) != "ROOTPW" } {
+                       puts $CHECK_OUTPUT ".....found \"$name\", sending \"$tasks($name)\" ..."
+                       ts_send $sp_id "$tasks($name)\n"
+                    } else {
+                       log_user 0  ;# in any case before sending password
+                       ts_send $sp_id "[get_root_passwd]\n" "" 1
+                       log_user 1
+                       puts $CHECK_OUTPUT ".....found \"$name\", sent \"$tasks($name)\" without prompt ..."
+                    }
+                 }
+              }
+           }
+           if {[string first "_start_mark_:" $token]} {
+              set found_start 1
+           }
+           if { $do_stop == 0 } {
+              exp_continue
+           }
+        }
+      }
+      close_spawn_process $pr_id
+      if { $error_text != "" } {
+         add_proc_error "sdmadm_command" -1 "interacitve errors:\n$error_text\noutput:\n$output\nexit state: $back_exit_state"
+      }
+      return $output
+   }
 }
 
 #****** util/sdmadm_start() ****************************************************
@@ -1892,7 +1966,7 @@ proc sdmadm_set_system_property { host user output property_name value  {preftyp
 #     util/sdmadm_start()
 #     util/sdmadm_show_status()
 #*******************************************************************************
-proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {values_var sdmadm_show_status_values} {raise_error 1} } {
+proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_error 1} {promptPW 0} } {
    global CHECK_OUTPUT
    upvar $output output_return
 
@@ -1903,18 +1977,25 @@ proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {values_v
    if { $sys_name != "" } {
       lappend args "-s $sys_name"
    }
+   if { $promptPW != 0 } {
+      lappend args "-ppw"
+   }
+ 
    set arg_line ""
    foreach arg $args {
       append arg_line $arg
       append arg_line " "
    }
    append arg_line "show_status"
-
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
-
+   if { $promptPW == 0 } {   
+      set output [sdmadm_command $host $user $arg_line]
+   } else {
+      set tasks(username) "root"
+      set tasks(password) "ROOTPW"
+      set output [sdmadm_command $host $user $arg_line prg_exit_state tasks]
+   }
    if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_show_status" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+      add_proc_error "sdmadm_show_status" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output\nexit state: $prg_exit_state" $raise_error
    }
 
    set output_return $output  ;# set the output

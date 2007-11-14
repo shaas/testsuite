@@ -147,7 +147,7 @@ proc show_status_check {} {
    set expected_component_status "STARTED"
 
    # setup managed host expectations ...
-   foreach host $hedeby_config(hedeby_host_resources) {
+   foreach host [get_all_hedeby_managed_hosts] {
       lappend test_hosts $host
       set expected_jvms($host) "executor_vm"
       set expected_components($host) "executor"
