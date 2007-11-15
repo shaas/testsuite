@@ -2253,8 +2253,14 @@ proc config_generic_port { only_check name config_array helptext { port_type {} 
             puts $CHECK_OUTPUT "User $CHECK_USER has not portlist entry in user configuration"
             return -1
          }
-   
-         if { [ lsearch $ts_user_config($CHECK_USER,portlist) $value] < 0 } {
+         if { [expr $value % 2] != 0 } {
+            set master_port [expr $value - 1]
+            set execd_port $value
+         } else {
+            set master_port $value
+            set execd_port  [expr $value + 1]
+         }
+         if { [ lsearch $ts_user_config($CHECK_USER,portlist) $master_port] < 0 } {
             puts $CHECK_OUTPUT "Port $value not in portlist of user $CHECK_USER" 
             return -1
          }

@@ -160,6 +160,7 @@ proc show_status_check {} {
    # we don't use the pref type - hedeby must find the system anyway
    # we also don't need to test the exit state (sdmadm_show_status does it already)
    sdmadm_show_status $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] output "" [get_hedeby_system_name]
+   puts $CHECK_OUTPUT "output:\n$output"
    
    set component_count [parse_sdmadm_show_status_output output]
    

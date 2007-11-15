@@ -1,3 +1,9 @@
+CR-2007-11-15-0: Bugfix:    o Added missing cleanup procedure for issue 88
+                 Bugfix:    o config_generic_port() could not be used for
+                              ports which are odd number
+                 Issue:     Hedeby 178
+                 Review:    RH
+
 AA-2007-11-15-1: Enhancem.: added support for new JMX parameters
                             automatic installation
                  Review:    CR
