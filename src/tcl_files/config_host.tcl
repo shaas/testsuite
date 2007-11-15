@@ -2147,18 +2147,19 @@ proc get_java_home_for_host { host {java_version "1.4"} } {
 #*******************************************************************************
 proc get_jvm_lib_path_for_host { host {java_version "1.5"} } {
    set java_home [get_java_home_for_host $host $java_version]
-   set arch [ host_conf_get_arch $host ]
-   switch -- $arch {
+   set arch [host_conf_get_arch $host]
+   set jvm_lib_path ""
+   switch -glob -- $arch {
       "sol-sparc64" {
          set jvm_lib_path $java_home/jre/lib/sparcv9/server/libjvm.so
       } 
       "sol-amd64" { 
          set jvm_lib_path $java_home/jre/lib/amd64/server/libjvm.so
       }
-      "sol-x86" { 
+      "sol-x86" {
          set jvm_lib_path $java_home/jre/lib/i386/server/libjvm.so
       }
-      "lx*-amd64" {   
+      "lx*-amd64" {
          set jvm_lib_path $java_home/jre/lib/amd64/server/libjvm.so
       }
       "lx*-x86" {
@@ -2169,9 +2170,6 @@ proc get_jvm_lib_path_for_host { host {java_version "1.5"} } {
       }
       "darwin-x86" {
          set jvm_lib_path $java_home/../Libraries/libjvm.dylib
-      }
-      "*" {
-         set jvm_lib_path ""
       }
    }
    return $jvm_lib_path
