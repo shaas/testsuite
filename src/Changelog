@@ -1,3 +1,6 @@
+AA-2007-11-15-0: Enhancem.: added support for new JMX parameters
+                 Review:    CR
+
 CR-2007-11-14-1: Enhancem.: added new hedeby test: file_permissions
                  Bugfix:    Fixed and enhanced following tests:
                                o manage_admin_user

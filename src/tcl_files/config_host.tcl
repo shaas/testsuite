@@ -2113,6 +2113,70 @@ proc get_java_home_for_host { host {java_version "1.4"} } {
     return $res
 }
 
+#****** config_host/get_jvm_lib_path_for_host() **************************************************
+#  NAME
+#    get_jvm_lib_path_for_host() -- Get the absolute libjvm.so path for a host.
+#
+#  SYNOPSIS
+#    get_jvm_lib_path_for_host { host {java_version "1.4"} } 
+#
+#  FUNCTION
+#     returns the absolute libjvm.so path
+#
+#  INPUTS
+#    host -- name of the host
+#    java_version -- java version to use
+#
+#  RESULT
+#     
+#     the absolute libjvm.so path or an empty string if java is not set 
+#     in the host configuration
+#
+#  EXAMPLE
+#
+#     set libjvm_path [get_jvm_lib_path_for_host $ts_config(master_host) "1.6"]
+#
+#     if { $libjvm_path == "" } {
+#         puts "libjvm_path not available for host $ts_config(master_host)"
+#     }
+#
+#  NOTES
+#     TODO: store JAVA_HOME in host config!
+#
+#  SEE ALSO
+#*******************************************************************************
+proc get_jvm_lib_path_for_host { host {java_version "1.5"} } {
+   set java_home [get_java_home_for_host $host $java_version]
+   set arch [ host_conf_get_arch $host ]
+   switch -- $arch {
+      "sol-sparc64" {
+         set jvm_lib_path $java_home/jre/lib/sparcv9/server/libjvm.so
+      } 
+      "sol-amd64" { 
+         set jvm_lib_path $java_home/jre/lib/amd64/server/libjvm.so
+      }
+      "sol-x86" { 
+         set jvm_lib_path $java_home/jre/lib/i386/server/libjvm.so
+      }
+      "lx*-amd64" {   
+         set jvm_lib_path $java_home/jre/lib/amd64/server/libjvm.so
+      }
+      "lx*-x86" {
+         set jvm_lib_path $java_home/jre/lib/i386/server/libjvm.so
+      }
+      "darwin-ppc" {
+         set jvm_lib_path $java_home/../Libraries/libjvm.dylib
+      }
+      "darwin-x86" {
+         set jvm_lib_path $java_home/../Libraries/libjvm.dylib
+      }
+      "*" {
+         set jvm_lib_path ""
+      }
+   }
+   return $jvm_lib_path
+}
+
 proc get_testsuite_java_version { {version "1.4"} } {
    global CHECK_OUTPUT
 

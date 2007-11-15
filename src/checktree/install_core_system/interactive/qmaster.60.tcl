@@ -183,7 +183,10 @@ proc install_qmaster {} {
 
  # java
  set ENABLE_JMX                   [translate_macro DISTINST_ENABLE_JMX]
+ set JMX_JAVA_HOME                [translate_macro DISTINST_JAVA_HOME "*" ]
+ set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS]
  set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
+ set JMX_USE_DATA                 [translate_macro DISTINST_JMX_USE_DATA]
  
  cd "$ts_config(product_root)"
 
@@ -192,16 +195,6 @@ proc install_qmaster {} {
     append feature_install_options "-csp"
  }
 
- if {$ts_config(jmx_port) > 0} {
-    # For the JMX MBean Server we need java 1.5
-    set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
-    if {$java_home == ""} {
-       add_proc_error "install_qmaster" "-1" "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
-       return                                       
-    }
-    set env_list(JAVA_HOME) $java_home
- }
- 
  puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"
 
  set set_ld_library_path 0
@@ -403,6 +396,32 @@ proc install_qmaster {} {
           continue
        }
        
+       -i $sp_id $JMX_JAVA_HOME {
+          # For the JMX MBean Server we need java 1.5
+          set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+          if {$java_home == ""} {
+             add_proc_error "install_qmaster" "-1" "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
+          } else {
+             puts $CHECK_OUTPUT "\n -->testsuite: sending java_home >$java_home<"
+             if {$do_log_output == 1} {
+                puts "press RETURN"
+                set anykey [wait_for_enter 1]
+             }
+             ts_send $sp_id "$java_home\n"
+             continue
+          }
+       }
+
+       -i $sp_id $JMX_ADD_JVM_ARGS {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending additional_jvm_args ><"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "\n"
+          continue
+       }
+
        -i $sp_id $JMX_PORT_QUESTION {
           puts $CHECK_OUTPUT "\n -->testsuite: sending jmx port >$ts_config(jmx_port)<"
           if {$do_log_output == 1} {
@@ -413,6 +432,16 @@ proc install_qmaster {} {
           continue
        }
 
+       -i $sp_id $JMX_USE_DATA {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending answer y >y<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "y\n"
+          continue
+       }
+       
        -i $sp_id $DNS_DOMAIN_QUESTION { 
           puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(4)"
           if {$do_log_output == 1} {
