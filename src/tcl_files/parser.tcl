@@ -4050,3 +4050,49 @@ proc plain_r_parse { output_var } {
       incr count 1
    }
 }
+
+proc plain_j_parse { output_var jobId plainoutput } {
+   upvar $output_var plain
+   
+   # split plain output based on each new line
+   set plain_split [ split $plainoutput "\n" ]   
+   
+   foreach elem $plain_split {             
+      set elem_split [ split $elem ":" ]
+      set count 1
+      set key ""
+      set val ""
+      foreach elemin $elem_split {
+         if {[string length $elemin] > 0} {
+            if {$count == 1} {
+               set key $elemin               
+               incr count 1
+            } else {
+               append val [string trim $elemin]
+               append val :
+            }
+         }
+      }       
+      set len [string length $val]
+      incr len -2
+      set plain($key) [string range $val 0 $len]
+   }
+
+   set usage_split [ split $plain(usage    1) "," ]
+   foreach usgElem $usage_split {
+      set param_split [ split $usgElem "=" ]
+      set cnt 0
+      foreach param $param_split {
+         if {$cnt == 0} {
+            set key [string trim $param]
+            incr cnt 1
+         } else {
+            set val [string trim $param]
+            incr cnt -1
+         }
+      }
+      set plain($key) $val
+   }
+   
+}
+

@@ -1936,3 +1936,90 @@ proc qstat_r_xml_parse { output } {
    set xml(soft) [[$soft parentNode] getAttribute name]=[$soft nodeValue]
    
 }
+
+proc qstat_j_xml_par { output job_id xmloutput} {
+   upvar $output xml
+      
+   set doc [dom parse $xmloutput]
+   set root [$doc documentElement]
+   
+   # parse xml output and create array based on the attributes
+   set jobNumber [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_number/text()]
+   set execFile [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_exec_file/text()]
+   set subTime [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_submission_time/text()]
+   set owner [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_owner/text()]
+   set uid [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_uid/text()]
+   set group [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_group/text()]
+   set gid [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_gid/text()]
+   set account [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_account/text()]
+   set merge [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_merge_stderr/text()]
+   set mailListUser [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_mail_list/element/MR_user/text()]
+   set mailListHost [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_mail_list/element/MR_host/text()]
+   set notify [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_notify/text()]
+   set jobName [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_name/text()]
+   set jobShare [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_jobshare/text()]
+   set shellList [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_shell_list/path_list/PN_path/text()]
+   set envList [$root getElementsByTagName JB_env_list]
+   foreach elemin $envList {
+      set jobList [$elemin getElementsByTagName job_sublist]
+      foreach elem $jobList {
+         set var [$elem selectNodes VA_variable/text()]
+         set varName [string range [$var nodeValue] 15 [string length [$var nodeValue]]]
+         set val [$elem selectNodes VA_value/text()]
+         set xml(sge_o[string tolower $varName]) [$val nodeValue]
+      }
+   }
+   set usgList [$root getElementsByTagName JAT_scaled_usage_list]
+   foreach usg $usgList {
+      set paramList [$usg getElementsByTagName scaled]
+      foreach param $paramList {
+         set var [$param selectNodes UA_name/text()]
+         set val [$param selectNodes UA_value/text()]
+         if {[$var nodeValue] == "vmem" || [$var nodeValue] == "maxvmem"} {
+            set xml([$var nodeValue]) [format %.3f [expr [$val nodeValue] / 1048576]]M
+         } else {
+            if {[$var nodeValue] == "cpu"} {
+               set xml([$var nodeValue]) "00:00:[format %2.0f [$val nodeValue]]"
+            } else {
+               set xml([$var nodeValue]) [format %.5f [$val nodeValue]]
+            }
+         }
+         
+      }
+   }
+   set jobArgs [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_args/element/ST_name/text()]
+   set scriptFile [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_script_file/text()]
+   set hardQueue [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_hard_queue_list/destin_ident_list/QR_name/text()]
+   set softQueue [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_soft_queue_list/destin_ident_list/QR_name/text()]
+   set hardRes [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_hard_resource_list/qstat_l_requests/CE_stringval/text()]
+   set hardResName [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_hard_resource_list/qstat_l_requests/CE_name/text()]
+   set softRes [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_soft_resource_list/qstat_l_requests/CE_stringval/text()]
+   set softResName [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_soft_resource_list/qstat_l_requests/CE_name/text()]
+   set schedInfo [$root selectNodes /detailed_job_info/messages/qmaster_response/SME_global_message_list/element/MES_message/text()]
+
+   set xml(job_number) [$jobNumber nodeValue]
+   set xml(exec_file) [$execFile nodeValue]
+   set xml(submission_time) [$subTime nodeValue]
+   set xml(owner) [$owner nodeValue]
+   set xml(uid) [$uid nodeValue]
+   set xml(group) [$group nodeValue]
+   set xml(gid) [$gid nodeValue]
+   set xml(account) [$account nodeValue]
+   set xml(merge) [$merge nodeValue]
+   set xml(mail_list) [$mailListUser nodeValue]@[$mailListHost nodeValue]
+   set xml(notify) [string toupper [$notify nodeValue]]
+   set xml(job_name) [$jobName nodeValue]
+   set xml(jobshare) [$jobShare nodeValue]
+   set xml(shell_list) [$shellList nodeValue]
+   set xml(envList) [$envList nodeValue]
+   set xml(script_file) [$scriptFile nodeValue]
+   set xml(hard_queue_list) [$hardQueue nodeValue]
+   set xml(soft_queue_list) [$softQueue nodeValue]
+   set hrl "hard resource_list"
+   set srl "soft resource_list"
+   set xml($hrl) "[$hardResName nodeValue]=[$hardRes nodeValue]"
+   set xml($srl) "[$softResName nodeValue]=[$softRes nodeValue]"
+   set sched "scheduling info"
+   set xml($sched) [$schedInfo nodeValue]
+}
+

@@ -34,6 +34,8 @@
 
 global check_functions
 lappend check_functions  "qstat_profile"
+lappend check_functions "test_qstat_j_xml"
+
 
 proc qstat_profile {} {
    global CHECK_OUTPUT CHECK_FIRST_FOREIGN_SYSTEM_USER
@@ -210,5 +212,61 @@ proc qstat_profile {} {
       puts $CHECK_OUTPUT "Deleting test.q"
       del_queue test.q $hostname 0 1
    }
+}
+
+proc test_qstat_j_xml {} {
+   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+   global stored_configuration
+   
+   # verify if we can perform the qstat -xml tests
+   if {$CHECK_HAVE_TDOM == 0} {
+      return
+   }
+
+   #change load_report_time to allow usage stastics to be the same.
+   if {[info exists stored_configuration]} {
+      unset stored_configuration
+   }
+   get_config stored_configuration
+   set myconfig(load_report_time) "00:00:20"
+   set_config myconfig
+   
+
+   # submit job sleeper.sh
+   set host [host_conf_get_suited_hosts]
+   set arch [resolve_arch $host]
+   set queue_name [get_queue_instance "all.q" $host]   
+   set arguments "-o /dev/null -j y -hard -q $queue_name -l a=$arch -soft -l h=$host -q $queue_name"
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/worker.sh 1000"]
+    
+   wait_for_jobstart $job_id "worker.sh" 60 1 1
+   sleep 30
+
+   set plainoutput [start_sge_bin "qstat" "-j $job_id"]
+   set xmloutput [start_sge_bin "qstat" "-j $job_id -xml"]
+   
+   set result1 [qstat_j_xml_par xml $job_id $xmloutput]
+   set result1 [plain_j_parse plain $job_id $plainoutput]
+      
+   set var_array {account exec_file gid group job_name job_number \
+      jobshare vmem notify owner "scheduling info" script_file sge_o_home \
+      sge_o_host sge_o_path sge_o_shell maxvmem sge_o_workdir uid \
+      hard_queue_list "hard resource_list" soft_queue_list "soft resource_list"
+      mail_list sge_o_tz}
+
+   # for each job test that the xml and plain outputs are the same
+   
+   foreach elem $var_array {
+      if {[ string compare [string trim $xml($elem)] \
+         [string trim $plain($elem)]] != 0} {
+         add_proc_error "test_xml_tdom" -1 "outputs do not match from \
+         plain and xml for $elem."
+         add_proc_error "test_xml_tdom" -1 "xml output: [string trim $xml($elem)] \
+         plain output: [string trim $plain($elem)]"
+         return
+      }
+   } 
+   delete_all_jobs 
+   set_config stored_configuration
 }
 

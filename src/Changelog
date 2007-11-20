@@ -1,3 +1,7 @@
+MP-2007-11-20-0: Bugfix:    Added test for qstat -j xml and plain output
+                            comparison. Test for CR 6440408.
+                 Review:    JG
+
 JG-2007-11-20-0: Enhancem.: Added test bugs/issuezilla/2418.
                  Review:    MD
 
