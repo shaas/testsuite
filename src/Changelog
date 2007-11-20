@@ -1,3 +1,6 @@
+JG-2007-11-20-0: Enhancem.: Added test bugs/issuezilla/2418.
+                 Review:    MD
+
 CR-2007-11-15-0: Bugfix:    o Added missing cleanup procedure for issue 88
                  Bugfix:    o config_generic_port() could not be used for
                               ports which are odd number
