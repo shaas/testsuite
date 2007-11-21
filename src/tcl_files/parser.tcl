@@ -894,12 +894,18 @@ proc repeat_column {input {column 0}} {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc transform_cpu { s_cpu } {
+proc transform_cpu {s_cpu} {
+   set num_colon [llength [split $s_cpu ":"]]
    catch {
-      scan $s_cpu "%d:%02d:%02d:%02d" days hours minutes seconds
-      set cpu  [expr $days * 86400 + $hours * 3600 + $minutes * 60 + $seconds]
+      if {$num_colon == 4} {
+         scan $s_cpu "%d:%02d:%02d:%02d" days hours minutes seconds
+      } elseif {$num_colon == 3} {
+         set days 0
+         scan $s_cpu "%02d:%02d:%02d" hours minutes seconds
+      }
+      set cpu [expr $days * 86400 + $hours * 3600 + $minutes * 60 + $seconds]
    }
-   if { [info exists cpu] == 0 } {
+   if {[info exists cpu] == 0} {
       return "NA"
    }
 

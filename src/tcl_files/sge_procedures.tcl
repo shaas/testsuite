@@ -5373,7 +5373,7 @@ proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
 #     sge_procedures/get_standard_job_info()
 #     sge_procedures/get_extended_job_info()
 #*******************************
-proc get_extended_job_info {jobid {variable job_info} { do_replace_NA 1 } } {
+proc get_extended_job_info {jobid {variable job_info} {do_replace_NA 1} {do_group 0}} {
    get_current_cluster_config_array ts_config
    upvar $variable jobinfo
 
@@ -5386,8 +5386,13 @@ proc get_extended_job_info {jobid {variable job_info} { do_replace_NA 1 } } {
       set qstat_options ""
    }
 
+   set group_options ""
+   if {$ts_config(gridengine_version) >= 60 && $do_group} {
+      set group_options "-g t"
+   }
+
    if {$ts_config(product_type) == "sgeee" } {
-      set result [start_sge_bin "qstat" "$qstat_options -ext" "" "" exit_code ]
+      set result [start_sge_bin "qstat" "$qstat_options -ext $group_options" "" "" exit_code ]
       set ext 1
    } else {
       set result [start_sge_bin "qstat" "$qstat_options" "" "" exit_code ]
