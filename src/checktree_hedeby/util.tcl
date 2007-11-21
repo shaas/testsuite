@@ -214,7 +214,7 @@ proc startup_hedeby {} {
 
 
    # second step: startup all managed hosts
-   foreach host $hedeby_config(hedeby_host_resources) {
+   foreach host [get_all_hedeby_managed_hosts] {
       set val [startup_hedeby_host "managed" $host $startup_user]
       if { $val != 0 } {
          set ret_val 1
@@ -1089,6 +1089,7 @@ proc cleanup_hedeby_local_spool_dir { host } {
 #*******************************************************************************
 proc get_all_hedeby_managed_hosts {} {
    global hedeby_config
+   global CHECK_OUTPUT
    set host_list $hedeby_config(hedeby_host_resources) 
    
    foreach host [get_all_execd_hosts] {
@@ -1986,7 +1987,7 @@ proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_er
       append arg_line $arg
       append arg_line " "
    }
-   append arg_line "show_status"
+   append arg_line "show_component_status"
    if { $promptPW == 0 } {   
       set output [sdmadm_command $host $user $arg_line]
    } else {
@@ -2294,11 +2295,11 @@ proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
    set col_count 0
    array set last_values {}
    
-   set known_colums(host)  [create_bundle_string "ShowSystemStatusCliCommand.HostCol"]
-   set known_colums(jvm)  [create_bundle_string "ShowSystemStatusCliCommand.JvmCol"]
-   set known_colums(component)  [create_bundle_string "ShowSystemStatusCliCommand.NameCol"]
-   set known_colums(state)  [create_bundle_string "ShowSystemStatusCliCommand.StateCol"]
-   set known_colums(type)  [create_bundle_string "ShowSystemStatusCliCommand.TypeCol"]
+   set known_colums(host)  [create_bundle_string "ShowComponentStatusCliCommand.HostCol"]
+   set known_colums(jvm)  [create_bundle_string "ShowComponentStatusCliCommand.JvmCol"]
+   set known_colums(component)  [create_bundle_string "ShowComponentStatusCliCommand.NameCol"]
+   set known_colums(state)  [create_bundle_string "ShowComponentStatusCliCommand.StateCol"]
+   set known_colums(type)  [create_bundle_string "ShowComponentStatusCliCommand.TypeCol"]
    
    foreach line $help {
       debug_puts "Process line $line_count: \"$line\""

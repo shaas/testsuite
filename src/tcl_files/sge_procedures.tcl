@@ -7256,6 +7256,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
 
    foreach process_name $process_names {
       puts $CHECK_OUTPUT "looking for \"$process_name\" processes on host $host ..."
+      set nr_of_sig_terms 0
       foreach elem $found_p {
          if { [ string first $process_name $ps_info(string,$elem) ] >= 0 } {
             debug_puts "current ps info: $ps_info(string,$elem)"
@@ -7280,8 +7281,13 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
                   }
                   puts $CHECK_OUTPUT "killing (SIG_TERM) process(es) $kill_pid_ids on host $host, kill user is $kill_user"
                   puts $CHECK_OUTPUT [start_remote_prog $host $kill_user kill $kill_pid_ids]
+                  incr nr_of_sig_terms 1
 
-                  set sig_term_wait_timeout 30
+                  if { $nr_of_sig_terms == 1 } {
+                     set sig_term_wait_timeout 30
+                  } else {
+                     set sig_term_wait_timeout 1
+                  }
                   while { [is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name] == 0 } {
                      puts $CHECK_OUTPUT "waiting for process termination ..." 
                      after 1000

@@ -148,6 +148,14 @@ proc connection_test_test {} {
    puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
 
    set host_list_short [get_all_hosts]
+   set java_compile_host [host_conf_get_java_compile_host]
+   if { [lsearch $host_list_short $java_compile_host] } {
+      puts $CHECK_OUTPUT "java compile host \"$java_compile_host\" is already in host list"
+   } else {
+      puts $CHECK_OUTPUT "adding java compile host \"$java_compile_host\""
+      lappend host_list_short $java_compile_host
+   }
+
    set host_list {}
    foreach host $host_list_short {
       lappend host_list "$host.$ts_config(dns_domain)"
@@ -166,12 +174,11 @@ proc connection_test_test {} {
       }
    }
 
-   
    puts $CHECK_OUTPUT ""
    puts $CHECK_OUTPUT "starting remote echo calls ..."
    foreach user $user_list {
       foreach host $host_list {
-         puts $CHECK_OUTPUT "$host,$user ..."
+         puts $CHECK_OUTPUT "Testing login from host \"[gethostname]\" to host \"$host\" as user \"$user\" ..."
          set result [start_remote_prog $host $user "echo" "hallo"]
       }
    }

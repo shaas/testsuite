@@ -1,3 +1,13 @@
+CR-2007-11-21-0: Enhancem.: o added menu item for running only startup hooks
+                            o connection test now also tests java compile host
+                            o improved shutdown behaviour for blocking lx-24 qmaster 
+                              threads (processes)
+                 Bugfix:    o fixed shutdown/restart for hedeby (not all managed
+                              hosts was started)
+                            o updated hedeby testsuite for new 
+                              ShowComponentStatusCliCommand (hedeby issue #204)
+                 Review:    RH
+
 JG-2007-11-21-0: Enhancem.: Added test bugs/issuezilla/2419.
                  Review:    MD
 
