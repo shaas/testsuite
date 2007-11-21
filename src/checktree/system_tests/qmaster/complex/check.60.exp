@@ -984,7 +984,7 @@ proc issue_1847 {} {
    global complex_host
 
    # this fix has not yet been merged to V60s2_BRANCH
-   if {ts_config(gridengine_version) >= 61} {
+   if {$ts_config(gridengine_version) >= 61} {
       if {$CHECK_ACT_LEVEL == 0} {
          complex_test_rattr "tt=x"
          complex_test_rattr "ti=x"
