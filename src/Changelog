@@ -1,3 +1,7 @@
+AH-2007-11-22-0: Enhancem.: Enabled inactive test bugs/issuezilla/1832 for 
+                            the 6.2 -hold_jid_ad option
+                 Review:    CR
+
 CR-2007-11-21-0: Enhancem.: o added menu item for running only startup hooks
                             o connection test now also tests java compile host
                             o improved shutdown behaviour for blocking lx-24 qmaster 

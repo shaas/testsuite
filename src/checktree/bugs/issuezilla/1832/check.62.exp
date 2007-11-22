@@ -50,9 +50,8 @@ set check_cleanup_function issue_1832_cleanup
 
 # define test's procedure order
 set check_functions           ""
-lappend check_functions       "issue_1832_success_dummy"
-# lappend check_functions       "issue_1832_run_simple"
-# lappend check_functions       "issue_1832_run_master_down"
+lappend check_functions       "issue_1832_run_simple"
+lappend check_functions       "issue_1832_run_master_down"
 set check_highest_level       0
 
 proc issue_1832_init_level {} {
@@ -75,16 +74,12 @@ proc issue_1832_cleanup {} {
    wait_for_end_of_all_jobs
 }
 
-proc issue_1832_success_dummy  {} {
-}
-
 proc issue_1832_run_simple  {} {
    global ts_config CHECK_OUTPUT
 
    set host $ts_config(master_host)
 
-   # Run test binary on all architectures
-   # set output [start_source_bin "test_drmaa_issue1832" "-1st $ts_config(product_root)/examples/jobs/sleeper.sh" $host]
+   # use only drmaa_wait() for task status information 
    set output [start_source_bin "test_drmaa_issue1832" "$ts_config(product_root)/examples/jobs/sleeper.sh" $host]
    puts $CHECK_OUTPUT "output:\n$output"
 
@@ -93,7 +88,7 @@ proc issue_1832_run_simple  {} {
       add_proc_error "issue_1832_run_simple" -1 "test binary test_drmaa_issue1832 failed on host $host:\n$output"
    }
 
-   # Run test binary on all architectures
+   # retrieve task status via drmaa_job_ps() during run
    set output [start_source_bin "test_drmaa_issue1832" "-ps $ts_config(product_root)/examples/jobs/sleeper.sh" $host]
    puts $CHECK_OUTPUT "output:\n$output"
 
