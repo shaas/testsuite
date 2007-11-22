@@ -30,6 +30,21 @@
 ##########################################################################
 #___INFO__MARK_END__
 
+proc autoinst_statistics {} {
+   uplevel {
+      set now [timestamp]
+      if {$now > $monitor_time} {
+         set monitor_time $now
+         clear_screen
+         puts $CHECK_OUTPUT "Autoinstall of execution hosts ($parallel_install in parallel)"
+         puts $CHECK_OUTPUT "=========================================================================="
+         puts $CHECK_OUTPUT "Pending:         [llength $pending_install]"
+         puts $CHECK_OUTPUT "Running:         $running_install"
+         puts $CHECK_OUTPUT "Finished:        $finished_install"
+         puts $CHECK_OUTPUT ""
+      }
+   }
+}
 #                                                             max. column:     |
 #****** install_core_system/install_execd() ******
 # 
@@ -102,16 +117,11 @@ proc install_execd {} {
          }
       }
    }
- 
-   foreach exec_host $ts_config(execd_nodes) {
-      puts $CHECK_OUTPUT "installing execd on host $exec_host ($ts_config(product_type) system) ..."
-      if {[lsearch $ts_config(execd_nodes) $exec_host] == -1} {
-         add_proc_error "install_execd" "-1" "host $exec_host is not in execd list"
-         return 
-      }
-#      wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
-      if {$check_use_installed_system != 0} {
-         puts "no need to install execd on hosts \"$ts_config(execd_nodes)\", noinst parameter is set"
+
+   # handle install re_init case
+   if {$check_use_installed_system != 0} {
+      puts "no need to install execd on hosts \"$ts_config(execd_nodes)\", noinst parameter is set"
+      foreach exec_host $ts_config(execd_nodes) {
          if {[startup_execd $exec_host] == 0} {
             lappend CORE_INSTALLED $exec_host
             write_install_list
@@ -122,12 +132,18 @@ proc install_execd {} {
          }
       }
 
-      if {[file isfile "$ts_config(product_root)/install_execd"] != 1} {
-         add_proc_error "install_execd" "-1" "install_execd file not found"
-         return
-      }
+      return
+   }
 
-      set remote_arch [resolve_arch $exec_host]    
+   # install script available?
+   if {[file isfile "$ts_config(product_root)/install_execd"] != 1} {
+      add_proc_error "install_execd" "-1" "install_execd file not found"
+      return
+   }
+
+   # for some architectures, we have to install a load sensor file
+   foreach exec_host $ts_config(execd_nodes) {
+      set remote_arch [resolve_arch $exec_host]
       set sensor_file [get_loadsensor_path $exec_host]
       if {[string compare $sensor_file ""] != 0} {
          puts $CHECK_OUTPUT "installing load sensor:"
@@ -135,11 +151,11 @@ proc install_execd {} {
          puts $CHECK_OUTPUT "architecture: $remote_arch"
          puts $CHECK_OUTPUT "sensor file:  $sensor_file"
          puts $CHECK_OUTPUT "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-         if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
+         if {$CHECK_ADMIN_USER_SYSTEM == 0} {
             set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-            set result [start_remote_prog $ts_config(master_host) "root" "cp" "$arguments"] 
+            set result [start_remote_prog $ts_config(master_host) "root" "cp" "$arguments"]
             puts $CHECK_OUTPUT "result: $result"
-            puts $CHECK_OUTPUT "copy exit state: $prg_exit_state" 
+            puts $CHECK_OUTPUT "copy exit state: $prg_exit_state"
          } else {
             puts $CHECK_OUTPUT "can not copy this file as user $CHECK_USER"
             puts $CHECK_OUTPUT "please copy this file manually!!"
@@ -148,55 +164,112 @@ proc install_execd {} {
             sleep 15
          }
       }
-
-
-      set autoconfig_file $ts_config(product_root)/autoinst_config_$exec_host.conf
-     
-      write_autoinst_config $autoconfig_file $exec_host 0
-  
-      puts $CHECK_OUTPUT "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf -noremote"
-
-      set install_options "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote"
-      if {$CHECK_ADMIN_USER_SYSTEM == 0} {
-         set id [open_remote_spawn_process $exec_host "root" "./install_execd" "$install_options" 0 $ts_config(product_root)]
-      } else {
-         puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set id [open_remote_spawn_process $exec_host "$CHECK_USER" "./install_execd" "$install_options" 0 $ts_config(product_root)]
-      }
-      set spawn_id [lindex $id 1]
-      lappend spawn_list $spawn_id
-      lappend remote_spawn_list $id
-      set spawn_host_map($spawn_id) $exec_host
-      set remote_spawn_map($spawn_id) $id
    }
 
-   log_user 1
+   # now do the real installation
+   # guestimate possible parallelizing
+   # try to keep open some other connections for background work
+   global rlogin_max_open_connections
+   set parallel_install [expr $rlogin_max_open_connections - 10]
+   if {$parallel_install <= 0} {
+      set parallel_install 1
+   }
+   if {$parallel_install > 20} {
+      set parallel_install 20
+   }
+
+   # initialize statistics
    set finished_install 0
-   set timeout 300
+   set running_install 0
+   set pending_install $ts_config(execd_nodes)
+
+   if {$CHECK_ADMIN_USER_SYSTEM} {
+      set install_user $CHECK_USER
+   } else {
+      set install_user "root"
+   }
+   puts $CHECK_OUTPUT "starting the installation as user $install_user"
    set error 0
-   while { $finished_install < [llength $ts_config(execd_nodes)]} {
+   set monitor_time 0
+   while {!$error && $finished_install < [llength $ts_config(execd_nodes)]} {
+      # output some statistics
+      autoinst_statistics 
+
+      # start installation, when
+      # - we have not yet exceeded the parallel install limit
+      # - there are hosts to install left
+      while {$running_install < $parallel_install && [llength $pending_install] > 0} {
+         # output some statistics
+         autoinst_statistics 
+
+         # select host to install
+         set exec_host [lindex $pending_install 0]
+         set pending_install [lrange $pending_install 1 end]
+         puts $CHECK_OUTPUT "installing execd on host $exec_host ($ts_config(product_type) system) ..."
+
+         # start auto install for this host 
+         set autoconfig_file $ts_config(product_root)/autoinst_config_$exec_host.conf
+         write_autoinst_config $autoconfig_file $exec_host 0
+     
+         set install_options "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_file -noremote"
+         set id [open_remote_spawn_process $exec_host $install_user "./install_execd" "$install_options" 0 $ts_config(product_root)]
+         set spawn_id [lindex $id 1]
+         lappend spawn_list $spawn_id
+         lappend remote_spawn_list $id
+         set spawn_host_map($spawn_id) $exec_host
+         set remote_spawn_map($spawn_id) $id
+         incr running_install
+      }
+
+      # monitor running installations
+      set timeout 300
+      log_user 1
       expect {
          -i $spawn_list full_buffer {
             set error 1
             add_proc_error "install_execd" -1 "expect full_buffer error (1)"
          }
          -i $spawn_list timeout {
-            set error 1
-            add_proc_error "install_execd" -1 "timeout while waiting for remote shell"
+            # we just looked for further messages, this is *not* an error
+            # reset the timeout
+            if {$timeout == 0} {
+               set timeout 300
+            } else {
+               set error 1
+               add_proc_error "install_execd" -1 "timeout while waiting for remote shell"
+            }
          }
          -i $spawn_list "_exit_status_:(*)" {
-            set exit_status [get_string_value_between "_exit_status_:(" ")" [string trim $expect_out(0,string)]]
+            # update our counters
             incr finished_install 1
+            incr running_install -1
+
+            # close the session
             set spawn_id $expect_out(spawn_id)
             set id $remote_spawn_map($spawn_id)
             close_spawn_process $id
 
+            # remove this session from our lists
+            set pos [lsearch -exact $spawn_list $spawn_id]
+            set spawn_list [lreplace $spawn_list $pos $pos]
+            set pos [lsearch -exact $remote_spawn_list $id]
+            set remote_spawn_list [lreplace $remote_spawn_list $pos $pos]
+            
+            # check exist status
+            set exit_status [get_string_value_between "_exit_status_:(" ")" [string trim $expect_out(0,string)]]
+            set host_name $spawn_host_map($spawn_id)
             if {$exit_status != 0} {
-               set host_name $spawn_host_map($spawn_id)
                add_proc_error "install_exec" -1 "execd_installation failed on host $host_name with $exit_status\n$expect_out(0,string)"
+               set error 1
             } else {
+               puts $CHECK_OUTPUT "finished installation on host $host_name"
                lappend CORE_INSTALLED $exec_host
                write_install_list
+               # stay in expect loop shortly to cleanup further finished installations
+               if {[llength $pending_install] > 0} {
+                  set timeout 0
+                  exp_continue
+               }
             }
          }
          -i $spawn_list eof {
@@ -206,15 +279,13 @@ proc install_execd {} {
             add_proc_error "install_execd" -1 "got eof from host $host_name\n$expect_out(0,string)"
          }
       }
-
-      if {$error == 1} {
-         foreach elem $remote_spawn_list {
-            close_spawn_process $elem
-         }
-         set finished_install [llength $ts_config(execd_nodes)]
-      }
    }
 
-   return
+   # if we had an error, close all remaining sessions
+   if {$error} {
+      foreach elem $remote_spawn_list {
+         close_spawn_process $elem
+      }
+   }
 }
 

@@ -79,16 +79,21 @@ proc install_shadowd {} {
          set my_csp_host_list $CHECK_CORE_SHADOWD
          foreach shadow_host $my_csp_host_list {
             if {$shadow_host == $ts_config(master_host)} {
-               continue;
+               continue
             }
             copy_certificates $shadow_host
          }
       }
    }
-   
-   if {$check_use_installed_system != 0} {
+
+   if {$check_use_installed_system} {
       foreach shadow_host $CHECK_CORE_SHADOWD {
          puts $CHECK_OUTPUT "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
+         set info [check_shadowd_settings $shadow_host]
+         if {$info != ""} {
+            add_proc_error "install_shadowd" -3 "skipping shadowd installation for host $shadow_host:\n$info"
+            continue
+         }
          if {[startup_shadowd $shadow_host] == 0} {
             lappend CORE_INSTALLED $shadow_host
             write_install_list
@@ -119,7 +124,7 @@ proc install_shadowd {} {
          foreach shadow_host $CHECK_CORE_SHADOWD {
             puts $CHECK_OUTPUT "testing shadowd settings for host $shadow_host ..."
             set info [check_shadowd_settings $shadow_host]
-            if { $info != "" } {
+            if {$info != ""} {
                add_proc_error "install_shadowd" -3 "skipping shadowd installation for host $shadow_host:\n$info"
                continue
             }

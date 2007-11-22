@@ -71,14 +71,14 @@ proc install_shadowd {} {
    set CORE_INSTALLED "" 
    read_install_list
 
-   if {! $check_use_installed_system} {
+   if {!$check_use_installed_system} {
       set feature_install_options ""
 
-      if { $ts_config(product_feature) == "csp" } {
+      if {$ts_config(product_feature) == "csp"} {
          set feature_install_options "-csp"
          set my_csp_host_list $CHECK_CORE_SHADOWD
          foreach shadow_host $my_csp_host_list {
-            if { $shadow_host == $ts_config(master_host) } {
+            if {$shadow_host == $ts_config(master_host)} {
                continue
             }
             copy_certificates $shadow_host

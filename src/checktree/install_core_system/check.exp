@@ -67,7 +67,7 @@ if { $install_mode == "automatic" } {
 }
 
 lappend check_functions "kill_running_system"
-if { $install_mode == "automatic" } {
+if {$install_mode == "automatic" && !$check_use_installed_system} {
    lappend check_functions "create_autoinst_config"
 }
 lappend check_functions "install_bdb_rpc"
