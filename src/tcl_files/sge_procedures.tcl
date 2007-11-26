@@ -7621,8 +7621,7 @@ proc wait_till_qmaster_is_down { host } {
    get_current_cluster_config_array ts_config
 
    set process_names "sge_qmaster" 
-# EB: TODO: ST: set timeout to 60 
-   set my_timeout [expr [timestamp] + 180] 
+   set my_timeout [expr [timestamp] + 60] 
 
    while { 1 } {
       set found_p [ ps_grep "$ts_config(product_root)/" $host ]

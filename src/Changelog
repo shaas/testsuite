@@ -1,3 +1,6 @@
+RD-2007-11-26-0: Bugfix:    reduced qmaster shutdown timeout value
+                 Review:    CR
+
 CR-2007-11-26-0: Bugfix:    Fixed possible problem with login 
                  Review:    JG
 
