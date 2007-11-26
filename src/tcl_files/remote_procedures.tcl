@@ -48,10 +48,12 @@ if { [info exists xterm_path_cache] } {
 
 global CHECK_SHELL_PROMPT CHECK_LOGIN_LINE
 # initialize prompt handling, see expect manpage
-#set CHECK_SHELL_PROMPT "(%|#|\\$|>) $"
-#set CHECK_SHELL_PROMPT "\[A-Za-z>$%\]*"
-set CHECK_SHELL_PROMPT "\[A-Za-z\]*\[#>$%\]*"
-set CHECK_LOGIN_LINE "\[A-Za-z\]*\n"
+
+# NOTE: CHECK_SHELL_PROMPT is regular expression matching !!!
+set CHECK_SHELL_PROMPT ".*\[#>$%\]+"
+
+# NOTE: CHECK_LOGIN_LINE is glob matching !!!
+set CHECK_LOGIN_LINE "\[A-Za-z\]*\n"   
 
 set descriptors [exec "/bin/sh" "-c" "ulimit -n"]
 puts "    *********************************************"
@@ -1336,7 +1338,7 @@ proc open_remote_spawn_process { hostname
 
    global CHECK_OUTPUT CHECK_USER
    global CHECK_EXPECT_MATCH_MAX_BUFFER CHECK_DEBUG_LEVEL
-   global CHECK_LOGIN_LINE
+   global CHECK_LOGIN_LINE CHECK_SHELL_PROMPT
    global open_remote_spawn_script_cache
    upvar $shell_script_name_var used_script_name
    get_current_cluster_config_array ts_config
@@ -1600,19 +1602,13 @@ proc open_remote_spawn_process { hostname
                   sleep 10
                   exp_continue
                }
-               -i $spawn_id -- $CHECK_LOGIN_LINE {
-                  # recognized shell prompt - now we can continue / leave this expect loop
-                  # on interix (when we have a password to send), do not leave the loop,
-                  # but wait for password prompt. After the password has been sent,
-                  # and we got some linefeed, leave the loop
-                  debug_puts "recognized login output"
-                  if {$passwd != "" && !$password_sent} {
-                     exp_continue
-                  }
-               }
-               -i $spawn_id -re {^.*?\n} {
+               -i $spawn_id -re $CHECK_SHELL_PROMPT {
                   set line [ string trimright $expect_out(buffer) "\n\r" ]
-                  debug_puts "Got unrecognized output: $line"
+                  debug_puts "recognized shell prompt: \"$line\" - ts will continue now ..."
+               }
+               -i $spawn_id -- $CHECK_LOGIN_LINE {
+                  set line [ string trimright $expect_out(buffer) "\n\r" ]
+                  debug_puts "unrecognized login output: \"$line\""
                   lappend unrecognized_messages "$line"
                   exp_continue
                }
