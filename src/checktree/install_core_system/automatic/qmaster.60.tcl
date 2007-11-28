@@ -182,9 +182,15 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    
    if {$ts_config(jmx_port) > 0} {
       set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
+      puts $fdo "SGE_ENABLE_JMX=\"true\""
       puts $fdo "SGE_JVM_LIB_PATH=\"$jvm_lib_path\""
       puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
       puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
+   } else {
+      puts $fdo "SGE_ENABLE_JMX=\"false\""
+      puts $fdo "SGE_JVM_LIB_PATH=\"\""
+      puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
+      puts $fdo "SGE_JMX_PORT=\"0\""
    }
    puts $fdo "CELL_NAME=\"$ts_config(cell)\""
    puts $fdo "ADMIN_USER=\"$CHECK_USER\""
