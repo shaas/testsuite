@@ -33,22 +33,25 @@
 ##########################################################################
 #___INFO__MARK_END__
 
+proc jgdi_shell_setup { {host ""} } {
+   global CHECK_USER ts_config jgdi_config CHECK_OUTPUT
+   array unset jgdi_config
 
-proc jgdi_shell_setup { } {
-   global CHECK_USER ts_config jgdi_config
-
-   foreach name [array names jgdi_config] {
-      unset jgdi_config($name)
+   if { [string compare $host ""] == 0 } {
+      # Compile host needs to be a submit host
+      set host [host_conf_get_java_compile_host]
    }
    
-   set jgdi_config(target_host) [host_conf_get_java_compile_host]
-   set arch [resolve_arch $jgdi_config(target_host)]
-   #set jgdi_config(java_test_version) $JAVA_TEST_VERSION
-   set jgdi_config(java14) [get_java_home_for_host $jgdi_config(target_host) "1.4"]
-   set jgdi_config(java15) [get_java_home_for_host $jgdi_config(target_host) "1.5"]
-   set jgdi_config(java16) [get_java_home_for_host $jgdi_config(target_host) "1.6"]
-   set jgdi_config(available_java_list) {}
-   foreach java "java14 java15 java16" {
+   return [setup_jgdi_config_for_host $host]
+}
+
+proc setup_jgdi_config_for_host { host } {
+   global CHECK_USER ts_config jgdi_config CHECK_OUTPUT
+  
+   set jgdi_config(target_host) $host
+   set jgdi_config(java15) [get_java_home_for_host $jgdi_config(target_host) "1.5" 0]
+   set jgdi_config(java16) [get_java_home_for_host $jgdi_config(target_host) "1.6" 0]
+   foreach java "java15 java16" {
       if { [string length $jgdi_config($java)] > 0 } {
          lappend jgdi_config(available_java_list) $java
       }
@@ -57,24 +60,24 @@ proc jgdi_shell_setup { } {
       add_proc_error "jgdi_shell_setup" -1 "No java available on host $jgdi_config(target_host)!!!"
       return -1
    }
-
+   set arch [resolve_arch $jgdi_config(target_host)]
+   # aja: TODO: check if jgdi native library is available on $host
    set jgdi_config(classpath) "-cp $ts_config(product_root)/lib/jgdi.jar"
    set jgdi_config(connect_cmd) "bootstrap://$ts_config(product_root)@$ts_config(cell):$ts_config(commd_port)"
    set jgdi_config(logging_config_file) [get_tmp_file_name $jgdi_config(target_host) "jgdi" "properties"]
    jgdi_create_logging_config_file $jgdi_config(target_host) $jgdi_config(logging_config_file)
    set jgdi_config(flags) "-Djava.library.path=$ts_config(product_root)/lib/$arch -Djava.util.logging.config.file=$jgdi_config(logging_config_file)"
+   
    #TODO: Check if 64 at the end safe?
    if { [string match "*64" $arch] == 1 } {
       append jgdi_config(flags) " -d64"
    }
+   return 0
 }
 
 proc jgdi_shell_cleanup { } {
    global jgdi_config
-
-   foreach name [array names jgdi_config] {
-      unset jgdi_config($name)
-   }
+   array unset jgdi_config
 }
 
 proc jgdi_junit_setup { JAVA_TEST_VERSION } {
@@ -101,22 +104,25 @@ proc jgdi_junit_setup { JAVA_TEST_VERSION } {
 }
 
 proc run_jgdi_command { command java_home } {
-   global CHECK_USER
-   run_jgdi_command_as_user $command $java_home $CHECK_USER
+   global CHECK_USER jgdi_config
+   run_jgdi_command_as_user $jgdi_config(target_host) $command $java_home $CHECK_USER
 }
 
-
-proc run_jgdi_command_as_user { command java_home user } {
-   global jgdi_config
+proc run_jgdi_command_as_user { on_host command java_home user {exit_var prg_exit_state}} {
+   global jgdi_config CHECK_OUTPUT
+   upvar $exit_var exit_state
 
    set env(JAVA_HOME) $java_home
    set env_var env
    set java $env(JAVA_HOME)/bin/java
+
    #TODO LP: Should we throw out the error output (logging)?
-   start_remote_prog $jgdi_config(target_host) $user  \
+puts $CHECK_OUTPUT "$user@$jgdi_config(target_host)# $java $jgdi_config(classpath) $jgdi_config(flags)  com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $command"
+   set result [start_remote_prog $on_host $user  \
         "$java" "$jgdi_config(classpath) $jgdi_config(flags) \
         com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $command"\
-        prg_exit_state 600 0 "" $env_var
+        exit_state 600 0 "" $env_var]
+   return $result
 }
 
 #****** jgdi_create_cluster_config_file() **************************************
@@ -234,7 +240,7 @@ proc jgdi_create_config_file { host content filename } {
    global CHECK_USER CHECK_OUTPUT
    global ts_config
 
-   puts $CHECK_OUTPUT "creating on $host $filename"
+#   puts $CHECK_OUTPUT "creating on $host $filename"
 
    set fd [open $filename w+ 0777]
    foreach line [split $content "\n"] {
@@ -242,7 +248,7 @@ proc jgdi_create_config_file { host content filename } {
    }
    close $fd
 
-   puts $CHECK_OUTPUT "done"
+#   puts $CHECK_OUTPUT "done"
 
    wait_for_remote_file $host $CHECK_USER $filename
 }
@@ -502,24 +508,12 @@ proc compare_java { jgdi_output cmd_list opt_list} {
    set res 0
    set tout ""
 
-   set has14 [lsearch -exact $jgdi_config(available_java_list) "java14"]
    set has15 [lsearch -exact $jgdi_config(available_java_list) "java15"]
    set has16 [lsearch -exact $jgdi_config(available_java_list) "java16"]
 
    foreach cmd $cmd_list {
       foreach option $opt($cmd) {
          set out ""
-         if { $has14 >= 0 && $has15 >= 0 } {
-            append out "\"$cmd $option\" java14 vs java15:   "
-            set cout [compare_output $jgdi(java14,$cmd,$option) $jgdi(java15,$cmd,$option)]
-            append out [get_diff_result $cout]
-         }
-
-         if { $has14 >= 0 && $has16 >= 0 } {
-            append out "\"$cmd $option\" java14 vs java16:   "
-            set cout [compare_output $jgdi(java14,$cmd,$option) $jgdi(java16,$cmd,$option)]
-            append out [get_diff_result $cout]
-         }
 
          if { $has15 >= 0 && $has16 >= 0 } {
             append out "\"$cmd $option\" java15 vs java16:   "
@@ -715,91 +709,5 @@ proc match_lines_without_spaces { a b } {
          return -1
       }
    }
-   return 0
-}
-
-#****** jgdi_shell_show_test_statistics() **************************************
-#  NAME
-#    jgdi_shell_show_test_statistics() -- Shows statistics for the tested command
-#
-#  SYNOPSIS
-#    jgdi_shell_show_test_statistics { } 
-#
-#  FUNCTION
-#     Shows statistics for the tested command
-#
-#  RETURN
-#     0  -- SUCCESS
-#*******************************************************************************
-proc jgdi_shell_show_test_statistics { } {
-   global CHECK_OUTPUT jgdi_config check_name
-   set cmd [lrange [split $check_name "_"] end end]
-   set out ""
-   #HEADER
-   append out "[string toupper $cmd] OPTIONS\n"
-   for {set i 0} { $i < [expr [string length $cmd] + [string length " OPTIONS"]] } { incr i 1 } {
-     append out "="
-   }
-   
-   set ok_num [llength $jgdi_config($cmd,passed_opts)]
-   set err_num [llength $jgdi_config($cmd,failed_opts)]
-   set total_test_num [expr $ok_num + $err_num]
-   if { [array names jgdi_config $cmd,notest_opts] == "" } {
-      set jgdi_config($cmd,notest_opts) ""
-   }
-   set all_implemented [lsort -unique [concat $jgdi_config($cmd,passed_opts) $jgdi_config($cmd,failed_opts)]]
-   #Update no_test list (remove options in pass and fail list)
-   set jgdi_config($cmd,notest_opts) [lsort -unique [remove_values_from_list $all_implemented $jgdi_config($cmd,notest_opts)]]
-   set notest_num [llength $jgdi_config($cmd,notest_opts)]
-   set all_implemented [lsort -unique [concat $all_implemented $jgdi_config($cmd,notest_opts)]]
-   set total_num [llength $all_implemented]
-   
-   #Temporal until we have all options implemented
-   set all_options ""
-   set tmp_list [split [start_sge_bin "qconf" "-help  | grep -- -"] "\n"]
-   foreach item $tmp_list {
-      set val [string range $item [string first "\[-" $item] end]
-      set val [lrange [split $val "] "] 0 0]
-      set val [string range [join $val ""] 1 end]
-      if { [string compare $val "-k{m|s}"] == 0 } {
-         append all_options "-km -ks "
-      } elseif  { [string compare $val "-ke\[j"] == 0 } {
-         append all_options "-ke -kej "
-      } else {
-         append all_options "$val "
-      }
-   }
-   set all_options [string range $all_options 0 [expr [string length $all_options] - 1]]
-   set not_implemented [remove_values_from_list $all_implemented $all_options]
-   #Option count for 6.1
-   set total_opts(qconf) [llength $all_options]
-   set total_opts(qdel) 4
-   set total_opts(qmod) 16
-   set total_opts(qhost) 8
-   set total_opts(qhost) 8
-   set total_opts(qstat) 22
-   set total_opts(qhost) 8
-   set total_opts(qquota) 8
-   
-   append out "\nTests passed:  $ok_num/$total_test_num ( [format "%.2f" [expr $ok_num / double($total_test_num) * 100]]% )\n"
-   append out "Total $cmd options: $total_opts($cmd)\n"
-   append out "Test coverage: $total_test_num/$total_opts($cmd) ( [format "%.2f" [expr $total_test_num / double($total_opts($cmd)) * 100]]% )\n"
-   append out "   PASSED:     $ok_num/$total_opts($cmd) ( [format "%.2f" [expr $ok_num / double($total_opts($cmd)) * 100]]% )\n"
-   append out "   FAILED:     $err_num/$total_opts($cmd) ( [format "%.2f" [expr $err_num / double($total_opts($cmd)) * 100]]% )\n"
-   append out "   NOT_TESTED: $notest_num/$total_opts($cmd) ( [format "%.2f" [expr $notest_num / double($total_opts($cmd)) * 100]]% )\n"
-   append out "   MISSING:    [expr $total_opts($cmd) - $total_num]/$total_opts($cmd) ( [format "%.2f" [expr [expr $total_opts($cmd) - $total_num] / double($total_opts($cmd)) * 100]]% )\n"
-   
-   append out "\nOPTION LISTS:\n"
-   append out "   PASSED:     $jgdi_config($cmd,passed_opts)\n"
-   append out "   FAILED:     $jgdi_config($cmd,failed_opts)\n"
-   append out "   NOT_TESTED: $jgdi_config($cmd,notest_opts)\n"
-   append out "   MISSING:    $not_implemented"
-   #puts $CHECK_OUTPUT $out
-   
-   #Send email
-   array set report {} 
-   report_create "JGDI SHELL STATISTICS for [string toupper $cmd]" report 1 0
-   report_add_message report $out
-   report_finish report 0
    return 0
 }

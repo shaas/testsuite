@@ -219,20 +219,17 @@ proc resource_reservation_level_setup {} {
 
    if {$CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 4} {
       # setup needed pe
-      set pe(pe_name)           "round_robin"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$round_robin"
-      add_pe pe
+      add_pe "round_robin" pe
 
-      set pe(pe_name)           "fill_up"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$fill_up"
-      add_pe pe
+      add_pe "fill_up" pe
 
-      set pe(pe_name)           "pe_slots"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$pe_slots"
-      add_pe pe   
+      add_pe "pe_slots" pe
 
       # setup the rr test queue
       set queue_conf(slots)            "5"
@@ -265,20 +262,17 @@ proc resource_reservation_level_setup {} {
 
    if {$CHECK_ACT_LEVEL == 1 || $CHECK_ACT_LEVEL == 3} {
       # setup needed pe
-      set pe(pe_name)           "round_robin"
       set pe(slots)             "100"
       set pe(allocation_rule)   "\$round_robin"
-      add_pe pe
+      add_pe "round_robin" pe
 
-      set pe(pe_name)           "fill_up"
       set pe(slots)             "100"
       set pe(allocation_rule)   "\$fill_up"
-      add_pe pe
+      add_pe "fill_up" pe
 
-      set pe(pe_name)           "pe_slots"
       set pe(slots)             "100"
       set pe(allocation_rule)   "\$pe_slots"
-      add_pe pe
+      add_pe "pe_slots" pe
 
       # setup the rr test queue
       set queue_conf(slots)            "100"
@@ -304,20 +298,17 @@ proc resource_reservation_level_setup {} {
 
    if {$CHECK_ACT_LEVEL == 5} {
       # setup needed pe
-      set pe(pe_name)           "round_robin"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$round_robin"
-      add_pe pe
+      add_pe "round_robin" pe
 
-      set pe(pe_name)           "fill_up"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$fill_up"
-      add_pe pe
+      add_pe "fill_up" pe
 
-      set pe(pe_name)           "pe_slots"
       set pe(slots)             "5"
       set pe(allocation_rule)   "\$pe_slots"
-      add_pe pe
+      add_pe "pe_slots" pe
 
       # setup the rr test queue
       set queue_conf(slots)            "100"

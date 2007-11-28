@@ -47,7 +47,7 @@ global check_use_installed_system
 # This file shows some check spezific things
 set check_root_access_needs  "yes"
 set check_name          "init_core_system"
-set check_category      "COMPATIBILITY SYSTEM L10N VERIFIED INSTALL"
+set check_category      "COMPATIBILITY SYSTEM L10N VERIFIED INSTALL JGDI USE_CLI"
 set check_description(0)   "install a default system (bdb_rpc/master/execution/shadow daemon on local host and start them up)"
 set check_needs         ""           ;# let the testsuite test run before this test to check evlt. errors before running
                                                         ;# all tests

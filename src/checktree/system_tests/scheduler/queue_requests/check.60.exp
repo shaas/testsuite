@@ -120,8 +120,7 @@ proc scheduler_queue_requests_setup  {} {
    # and wildcard pe submission
    set pe(slots) 100
    for {set i 0} {$i < $pe_count} {incr i} {
-      set pe(pe_name) "pe_$i"
-      add_pe pe
+      add_pe "pe_$i" pe
    }
 
    # create n queues, with sequence number

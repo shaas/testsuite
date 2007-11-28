@@ -31,7 +31,7 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-proc unassign_queues_with_pe_object { pe_obj } {
+proc unassign_queues_with_pe_object { pe_obj {on_host ""} {as_user ""} {raise_error 1}} {
    # nothing to be done for SGE 5.3
 }
 
@@ -65,7 +65,7 @@ proc assign_queues_with_pe_object { qname hostlist pe_obj } {
       set my_change(queue_list) "$curr_pe(queue_list) $q_list"
    }
 
-   set_pe $pe_obj my_change
+   mod_pe $pe_obj my_change
 }
 
 

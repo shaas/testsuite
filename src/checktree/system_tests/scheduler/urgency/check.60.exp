@@ -135,7 +135,6 @@ proc urgency_calculation_setup {  } {
    puts $CHECK_OUTPUT "complexes setup complete"
    
    # setup pe
-   set pe_conf(pe_name)            $urgency_pe_name
    set pe_conf(slots)              0
    set pe_conf(user_lists)         "NONE"
    set pe_conf(xuser_lists)        "NONE"
@@ -144,7 +143,7 @@ proc urgency_calculation_setup {  } {
    set pe_conf(allocation_rule)    "\$pe_slots"
    set pe_conf(control_slaves)     "TRUE"
    set pe_conf(job_is_first_task)  "FALSE"
-   set result [add_pe pe_conf]
+   set result [add_pe $urgency_pe_name pe_conf]
    if { $result < 0 } {
       add_proc_error "urgency_calculation_setup" -1 "add_pe failed ($result)"
       return -1

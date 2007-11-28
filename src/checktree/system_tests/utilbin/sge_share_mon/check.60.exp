@@ -109,8 +109,7 @@ proc sge_share_mon_setup  {} {
    if {$have_share_tree} {
       # we want to reference the CHECK_USER in a sharetree
       del_user $CHECK_USER "" "" 0
-      set user_conf(name) $CHECK_USER
-      add_user user_conf
+      add_user $CHECK_USER
       
       # first and second foreign user will be created after submitting jobs under default nodes
       del_user $CHECK_FIRST_FOREIGN_SYSTEM_USER "" "" 0

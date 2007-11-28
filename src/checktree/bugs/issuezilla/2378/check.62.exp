@@ -94,14 +94,13 @@ proc issue_2378_setup {} {
 
    puts $CHECK_OUTPUT "issue_2378_setup" 
 
-   set pe(pe_name) "round_robin"
    set pe(slots)             "2"
    set pe(allocation_rule)   "\$round_robin"
-   add_pe pe
-   set pe(pe_name) "fill_up"
+   add_pe "round_robin" pe
+
    set pe(slots)             "2"
    set pe(allocation_rule)   "\$fill_up"
-   add_pe pe
+   add_pe "fill_up" pe
 
    set myhosts [host_conf_get_suited_hosts 2]
 

@@ -89,6 +89,6 @@ proc get_event_client_list { {on_host ""} {as_user ""} {raise_error 1}} {
 #*******************************************************************************
 proc del_event_client_list { event event_id  {on_host ""} {as_user ""} {raise_error 1}} {
 
-   return [get_qconf_list "get_event_client_list" "-kec $event $event_id" out $on_host $as_user $raise_error]
+   return [get_qconf_list "del_event_client_list" "-kec $event $event_id" out $on_host $as_user $raise_error]
 
 }

@@ -3085,7 +3085,10 @@ proc save_result {path runtime level {save_finished 1}} {
    set data {}
    lappend data $path
    lappend data $check_name;
-   lappend data $check_description($level)
+   #qrstat failed with TCL error here
+   if {[info exists check_description($level)]} {
+      lappend data $check_description($level)
+   }
    lappend data $check_needs
 
    # dump data per check_function
@@ -3584,6 +3587,8 @@ proc run_tests {path runcompleted} {
 
    set CHECK_TESTS_RUNNING 1
 
+   array unset exclude_array
+
    set local_host [gethostname]
    set CHECK_MAILS_SENT 0  ;# clear mail counter
  
@@ -3807,6 +3812,9 @@ proc run_tests {path runcompleted} {
 
    # do send mail
    mail_report "$mail_subject" $mail_body
+
+   #And we send skipped test report as well (mostly just JGDI)
+   send_skipped_tests_mail
 
    set CHECK_TESTS_RUNNING 0
 }
@@ -4040,7 +4048,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    global CHECK_CURRENT_WORKING_DIR check_init_level_procedure CHECK_ACT_LEVEL
    global errorInfo
    global check_setup_level_function check_cleanup_level_function
-   global ts_config
+   global ts_config CHECK_JGDI_ENABLED check_category
    global CHECK_INTERRUPT
    
    # do not run already completed tests
@@ -4054,7 +4062,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    # get lock  
    delete_temp_script_files
    lock_testsuite
- 
+
    set CHECK_ACT_LEVEL $level
    puts $CHECK_OUTPUT "starting test functions (runlevel is $CHECK_ACT_LEVEL)..."
  
@@ -4091,9 +4099,10 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    if {![info exists check_functions] || [llength $check_functions] == 0} {
       add_proc_error "run_test_level" -1 "check $check_name doesn't have any check_functions"
    } else {
-      # if we have a level specific setup function: execute it
-      set setup_ret [execute_setup_cleanup_function $check_setup_level_function "setup_level"]
-
+      # If we have a level specific setup function: execute it
+      if { [info exists check_setup_level_function] }  {
+         set setup_ret [execute_setup_cleanup_function $check_setup_level_function "setup_level"]
+      }
       # if we had a setup error, don't execute the test,
       # but continue with the cleanup function
       if {$setup_ret} {
@@ -4129,7 +4138,9 @@ proc run_test_level {path runcompleted level {do_save 1}} {
       }
 
       # if we have a level specific cleanup function: execute it
-      execute_setup_cleanup_function $check_cleanup_level_function "cleanup_level"
+      if { [info exists check_cleanup_level_function] }  {
+         execute_setup_cleanup_function $check_cleanup_level_function "cleanup_level"
+      }
    }
 
    # examine public procedure error states
@@ -4274,7 +4285,7 @@ proc delete_temp_script_files { } {
 #*******************************************************************************
 proc execute_setup_cleanup_function {func_name type} {
    global CHECK_OUTPUT CHECK_ACT_LEVEL
-   global CHECK_CUR_PROC_NAME
+   global CHECK_CUR_PROC_NAME check_category
 
    set ret 1
 
@@ -4296,6 +4307,10 @@ proc execute_setup_cleanup_function {func_name type} {
 
    # execute the setup/cleanup function
    if {$ret == 1} {
+      #Setup/Cleanup are never executed over JGDI
+      set old_category $check_category
+      lappend check_category "USE_CLI"
+
       puts $CHECK_OUTPUT "starting $type function $func_name"
       set CHECK_CUR_PROC_NAME $func_name
 
@@ -4314,6 +4329,8 @@ proc execute_setup_cleanup_function {func_name type} {
          add_proc_error "run_test" "-2" "$type function \"$func_name\" failed:\n$catch_message" 
          set ret 0
       }
+      #We restore original category
+      set check_category $old_category
    }
 
    # check if error occured during execution of the setup/cleanup function
@@ -4377,6 +4394,9 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    global ts_config
    global CHECK_TEST_RUNNING
    global CHECK_INTERRUPT
+   global exclude_array CHECK_JGDI_ENABLED
+
+   set CHECK_ACT_LEVEL 0
 
    # monitor, that we are currently running a test
    set CHECK_TEST_RUNNING 1
@@ -4400,6 +4420,46 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    set check_root_access_needs   "no" 
 
    ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT
+   #Disable JGDI for SGE < 6.2
+   if { $ts_config(gridengine_version) < 62 } {
+      set CHECK_JGDI_ENABLED 0
+   }
+   #We skip tests in JGDI  that do not have JGDI category set
+   if {$CHECK_JGDI_ENABLED} {
+      if { ![string match "*JGDI*" $check_category] } {
+         debug_puts "Check $check_name cannot be executed in JGDI mode - not a JGDI category"
+         #Mark as unsupported
+         save_result $path 0 0 1
+         set CHECK_TEST_RUNNING 0
+         return -3
+      }
+
+      #If we have no checks left we exit
+      if {[llength $check_functions] == 0} {
+         debug_puts "Check $check_name cannot be executed in JGDI mode - no check functions specified"
+         #Mark as unsupported
+         save_result $path 0 0 1
+         set CHECK_TEST_RUNNING 0
+         return -3
+      }
+   } else {
+     #We remove any JGDI related check from exclude_array
+     if { [info exists exclude_array] } {
+        foreach desc [array names exclude_array] {
+           if { [string match "JGDI*" $desc] } {
+              array unset exclude_array $desc
+           }
+        }
+     }
+     #If we are in JGDI only test (jgdi_shell_qconf or jgdi_junit) we exit
+     if {[string match "jgdi_*" $check_name]} {
+        #Mark as unsupported
+        save_result $path 0 0 1
+        set CHECK_TEST_RUNNING 0
+        return -3
+     }
+   }
+
    if {[string compare $run_single_test "all"] != 0} {
       set do_only_one_test 1
       puts $CHECK_OUTPUT "running only test \"$run_single_test\""
@@ -4413,6 +4473,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
    puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
    puts $CHECK_OUTPUT ">>> $check_name"
+#puts $CHECK_OUTPUT ">>> $check_functions"
    puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
    debug_puts "file: $path/check.exp"
 
@@ -4549,7 +4610,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
          if {[string first "unknown" $CHECK_GROUP] >= 0} {
             add_proc_error "run_test" -1 "CHECK_GROUP set to unknown, test was $path in level $level"
          }
-        
+     
          # now we are back from executing one runlevel - evaluate the result
          if {$back == -101} {
             incr nr_errors 1
@@ -4934,7 +4995,7 @@ proc check_display {} {
 proc set_command_line_options {} {
      global CHECK_ENABLED_RUNLEVELS CHECK_ENABLED_CATEGORIES
      global CHECK_SGE_DEBUG_LEVEL check_use_installed_system
-     global master_debug schedd_debug do_not_update CHECK_DISPLAY_OUTPUT daemon_debug
+     global master_debug schedd_debug do_not_update CHECK_JGDI_ENABLED CHECK_DISPLAY_OUTPUT daemon_debug ts_config
      set data ""
      while { $data != 0 } {
         clear_screen
@@ -4960,6 +5021,15 @@ proc set_command_line_options {} {
         } else {
            set nu_flag "on"
         }
+        
+        if { $ts_config(gridengine_version) < 62 } {
+           set CHECK_JGDI_ENABLED 0
+        }
+        if { $CHECK_JGDI_ENABLED == 1 } {
+           set jgdi_mode_flag "no_jgdi \[only_jgdi]"
+        } else {
+           set jgdi_mode_flag "\[no_jgdi] only_jgdi"
+        }
 
         if { $check_use_installed_system == 0 } {
            set re_init_flag "off"
@@ -4972,6 +5042,7 @@ proc set_command_line_options {} {
         puts "(3) SGE_DEBUG_LEVEL : $CHECK_SGE_DEBUG_LEVEL"
         puts "(4) no_update       : $nu_flag"
         puts "(5) re_init         : $re_init_flag"
+        puts "(6) jgdi_mode            : $jgdi_mode_flag"
 
         set data [wait_for_enter 1]
         if { $data <= 2 && $data > 0 } {
@@ -5033,6 +5104,19 @@ proc set_command_line_options {} {
                  set check_use_installed_system 0
               }
            }
+           "6" {
+              if { $CHECK_JGDI_ENABLED == 1 } {
+                 set CHECK_JGDI_ENABLED 0
+              } else {
+                 if { $ts_config(gridengine_version) >= 62 } {
+                    set CHECK_JGDI_ENABLED 1
+                 } else {
+                    set CHECK_JGDI_ENABLED 0
+                    puts "JGDI cannot by enabled for SGE < 6.2"
+                    wait_for_enter
+                 }
+              }
+           }
         }
 
         if { $schedd_debug == 0 && $master_debug == 0 } {
@@ -5040,7 +5124,7 @@ proc set_command_line_options {} {
         } else {
            set daemon_debug 0
         }
-     } 
+     }
 }
 
 #****** check/get_max_level_count() ********************************************
@@ -6926,7 +7010,7 @@ proc menu {} {
   global daemon_debug CHECK_DEBUG_LEVEL CHECK_DEFAULTS_FILE CHECK_DO_SETUP
   global CHECK_PACKAGE_DIRECTORY CHECK_SETUP_CHANGES CHECK_PACKAGE_TYPE
   global check_reinit_on_tcl_error ts_checktree CHECK_ENABLED_CATEGORIES ts_config
-   global CHECK_INTERRUPT
+  global CHECK_INTERRUPT
 
   set local_host [gethostname]
   delete_temp_script_files
@@ -6998,6 +7082,8 @@ proc menu {} {
   set input [wait_for_enter 1]; 
 
 #  clear_screen
+  #We always reset exclude_array in the menu
+  array unset exclude_array
 
   switch -- $input {
      "19" {
@@ -7211,6 +7297,8 @@ proc menu {} {
           if {$localtest >= 0} {
             puts "running local test ..."
             run_test $CHECK_ACT_PATH 1
+            #And we send skipped test report as well (mostly just JGDI)
+            send_skipped_tests_mail
             set CHECK_INTERRUPT 0
             wait_for_enter
           }
@@ -7222,6 +7310,8 @@ proc menu {} {
                   run_test $CHECK_ACT_PATH 1
                   create_report ${CHECK_REPORT_FILE}.ok 0
                   create_report ${CHECK_REPORT_FILE}.failed 1
+                  #And we send skipped test report as well (mostly just JGDI)
+                  send_skipped_tests_mail
                }
                set CHECK_INTERRUPT 0
             }
@@ -7676,7 +7766,8 @@ set do_category       0
 set do_nomain         0
 set do_prog_start     0
 set do_only_reset_config 0
-set do_only_diff_macros 0
+set do_only_diff_macros  0
+set CHECK_JGDI_ENABLED   0
 set be_quiet          0
 set fast_setup        0
 set CHECK_CUR_PROC_NAME "main"
@@ -7815,6 +7906,9 @@ for { set i 0 } { $i < $argc } { incr i } {
       puts "                      about current remote script execution times."
       puts "                      If some hosts have unexpected connection errors the send_speed"
       puts "                      value can be used to prevent errors."
+      puts "no_jgdi               specify that only normal client tests should be executed (no JGDI)"
+      puts "                      Used by default. If encountered removes effect of only_jgdi flag."
+      puts "only_jgdi             specify that tests should be executed just over JGDI Shell. Ignored for SGE  < 6.2"
       puts ""
       exit 1
    }
@@ -8103,7 +8197,16 @@ for { set i 0 } { $i < $argc } { incr i } {
       incr i
       continue
    }
+   
+   if { ( [string compare [lindex $argv $i] "--no_jgdi"] == 0 ) || ([string compare [lindex $argv $i] "no_jgdi"] == 0 ) } {
+      set CHECK_JGDI_ENABLED 0
+      continue
+   }
 
+   if { ( [string compare [lindex $argv $i] "--only_jgdi"] == 0 ) || ([string compare [lindex $argv $i] "only_jgdi"] == 0 ) } {
+      set CHECK_JGDI_ENABLED 1
+      continue
+   }
 
    if { ( [string compare [lindex $argv $i] "--debug"] == 0 ) || ([string compare [lindex $argv $i] "debug"] == 0 ) } {
       set deb_lev [ expr (1 + $i) ] 

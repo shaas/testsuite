@@ -210,11 +210,10 @@ proc issue_2050_test {} {
          "pe" {
             puts $CHECK_OUTPUT "-------- Testing pe --------"
             set test_pe "testpe_$act_time"         
-            set new_pe(pe_name) "$test_pe"
             set error_mail_output ""
             #create a pe 
             puts $CHECK_OUTPUT "Creating new pe $test_pe"
-            set result [add_pe new_pe]
+            set result [add_pe "$test_pe" new_pe]
             if {$result == 0} {
                 puts $CHECK_OUTPUT "New pe $test_pe created"
             } else {

@@ -202,10 +202,8 @@ proc test_pe {} {
    # Test setup
    set pe(slots)             "2"
    set pe(allocation_rule)   "\$round_robin"
-   set pe(pe_name)           "$pe_name1"
-   add_pe pe
-   set pe(pe_name)           "$pe_name2"
-   add_pe pe
+   add_pe "$pe_name1" pe
+   add_pe "$pe_name2" pe
 
    set queue_settings(pe_list)          "$pe_name1"
    mod_queue $queue_name1 "" queue_settings
@@ -233,11 +231,11 @@ proc test_pe {} {
    }
 
    # Try to lower pe_slots. Should be allowed for queue2 but not for queue1
-   set result [set_pe $pe_name1 pe_settings 0] 
+   set result [mod_pe $pe_name1 pe_settings 0] 
    if {$result != -4} {
       add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
    }
-   set result [set_pe $pe_name2 pe_settings 0] 
+   set result [mod_pe $pe_name2 pe_settings 0] 
    if {$result != 0} {
       add_proc_error "test_pe" -1 "lowering pe_slots is wrongly rejected"
    }
@@ -250,7 +248,7 @@ proc test_pe {} {
 
    # Now remove advance reservation and try it again
    start_sge_bin "qrdel" "$ar_name1"
-   set result [set_pe $pe_name1 pe_settings 0] 
+   set result [mod_pe $pe_name1 pe_settings 0] 
    if {$result != 0} {
       add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
    }
@@ -405,12 +403,10 @@ proc test_userlist {} {
    global queue_name1 queue_name2
 
    # Test setup
-   set userset(name)         "$userset_name1"
    set userset(entries)      "$CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER"
-   add_userset userset
-   set userset(name)         "$userset_name2"
+   add_userset "$userset_name1" userset
    set userset(entries)      "$CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER"
-   add_userset userset
+   add_userset "$userset_name2" userset
 
    set queue_settings(user_lists)       "$userset_name1"
    mod_queue $queue_name1 "" queue_settings
@@ -771,9 +767,8 @@ proc test_ar_access_list {} {
    global default_args
 
    # Test setup
-   set userset(name)         "$userset_name1"
    set userset(entries)      "$CHECK_FIRST_FOREIGN_SYSTEM_USER"
-   add_userset userset
+   add_userset "$userset_name1" userset
 
    # 1) test user access
    set args "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER -d 36000"
@@ -905,8 +900,7 @@ proc test_masterq {} {
    # Test setup
    set pe(slots)             "2"
    set pe(allocation_rule)   "\$round_robin"
-   set pe(pe_name)           "$pe_name1"
-   add_pe pe
+   add_pe "$pe_name1" pe
 
    set queue_settings(pe_list)          "$pe_name1"
    mod_queue $queue_name1 "" queue_settings

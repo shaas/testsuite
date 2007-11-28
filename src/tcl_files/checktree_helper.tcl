@@ -393,3 +393,196 @@ proc checktree_get_required_hosts {} {
    return $required_hosts
 }
 
+#****** checktree_helper/append_check_only_in_jgdi() ***************************
+#  NAME
+#    append_check_only_in_jgdi() -- adds check_name to check_functions only in 
+#                                   only_jgdi mode
+#
+#  SYNOPSIS
+#    append_check_only_in_jgdi { check_name } 
+#
+#  FUNCTION
+#     Adds check_name to check_functions only in  only_jgdi mode
+#
+#  INPUTS
+#    check_name -- name of the check
+#
+#  RESULT
+#
+#  EXAMPLE
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#*******************************************************************************
+proc append_check_only_in_jgdi { check_name } {
+   global check_functions CHECK_OUTPUT CHECK_JGDI_ENABLED
+
+   if { $CHECK_JGDI_ENABLED == 1 } { #only_jgdi
+      lappend check_functions $check_name
+#puts $CHECK_OUTPUT "Added only to JGDI: $check_name"
+   }
+}
+
+#****** checktree_helper/exclude_check() ***************************************
+#  NAME
+#    exclude_check() -- Excludes the check from check_functions due to 
+#                       description
+#
+#  SYNOPSIS
+#    exclude_check { mode_key check_name {description "Reason not specified" } }
+#
+#  FUNCTION
+#     Excludes the check from check_functions due to description
+#
+#  INPUTS
+#    mode        -- any string, usually now only "JGDI"
+#    check_name  -- name of the check to be exluded
+#    description -- resone why the check is to be excluded
+#
+#  RESULT
+#
+#  EXAMPLE
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#*******************************************************************************
+proc exclude_check { mode_key check_name {description "Reason not specified" } } {
+   global check_category exclude_array CHECK_JGDI_ENABLED CHECK_OUTPUT
+
+   #We uniquely add a check
+   if { ![info exists exclude_array($mode_key,$description)] || 
+        [lsearch -exact $exclude_array($mode_key,$description) $check_name] == -1 } {
+      lappend exclude_array($mode_key,$description) $check_name
+#puts $CHECK_OUTPUT "Excluded: $check_name mode:$mode_key"
+   }
+}
+
+#****** checktree_helper/append_check_and_exclude_in_jgdi() ********************
+#  NAME
+#    append_check_and_exclude_in_jgdi() -- Appends the check to check_functions
+#                                          only in no_jgdi mode.
+#
+#  SYNOPSIS
+#    append_check_and_exclude_in_jgdi {check_name {description "DOES NOT WORK in JGDI" } }
+#
+#  FUNCTION
+#     Appends the check to check_functions only in no_jgdi mode.
+#
+#  INPUTS
+#    check_name  -- name of the check to be exluded
+#    description -- resone why the check is to be excluded in JGDI
+#
+#  RESULT
+#
+#  EXAMPLE
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#*******************************************************************************
+proc append_check_and_exclude_in_jgdi { check_name {description "DOES NOT WORK in JGDI" } } {
+    global CHECK_ACT_LEVEL check_description check_functions_var check_highest_level CHECK_JGDI_ENABLED CHECK_OUTPUT
+    #We need to go over all the levels
+    if { $CHECK_JGDI_ENABLED == 1 } { #If JGDI enabled
+       exclude_check JGDI $check_name $description
+    } else {
+       lappend check_functions $check_name
+    }
+}
+
+#****** checktree_helper/create_excluded_check_email_content() *****************
+#  NAME
+#    create_excluded_check_email_content() -- Creates email with excluded checks
+#
+#  SYNOPSIS
+#    create_excluded_check_email_content {}
+#
+#  FUNCTION
+#     Creates email with excluded checks
+#
+#  INPUTS
+#
+#  RESULT
+#     result -- body of the email
+#
+#  EXAMPLE
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#*******************************************************************************
+proc create_excluded_check_email_content {} {
+    global exclude_array CHECK_OUTPUT
+
+    if { ![info exists exclude_array] } {
+       return ""
+    }
+
+    set out ""
+    set last_mode ""
+    set last_desc ""
+    #Get keys (level_description - CLIENT, JGDI, custom)
+    foreach key [lsort [array names exclude_array]] {
+       set mode [string range $key 0 [expr [string length [lindex [split $key ","] 0]] - 1]]
+       set description [string range $key [expr [string length $mode] + 1] end]
+#puts $CHECK_OUTPUT "mode: $mode desc: $description"
+       if { [string compare $mode $last_mode] != 0 } {
+          append out "\n=============================================\n"
+          append out "FOLLOWING CHECKS ARE MARKED TO BE SKIPPED FOR\n"
+          append out " $mode mode\n"
+          append out "============================================="
+          set last_mode $mode
+       }
+       if { [string compare $description $last_desc] != 0 } {
+          append out "\nREASON: $description\n"
+       }
+       #Print each item
+       foreach check_name [lsort $exclude_array($key)] {
+          append out "   $check_name\n"
+       }
+    }
+    #We delete the array for next run
+    array unset exclude_array
+    return $out
+}
+
+#****** checktree_helper/send_skipped_tests_mail() ********************
+#  NAME
+#    send_skipped_tests_mail() -- Sends an email with excluded checks
+#
+#  SYNOPSIS
+#    send_skipped_tests_mail { { subject "SKIPPED TEST REPORT"} }
+#
+#  FUNCTION
+#     Sends an email with excluded checks
+#
+#  INPUTS
+#     Subject -- subject of the email
+#
+#  RESULT
+#     
+#  EXAMPLE
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#*******************************************************************************
+proc send_skipped_tests_mail { { subject "SKIPPED TEST REPORT"} } {
+   set out [create_excluded_check_email_content]
+   #Send the email if there is something to report
+   if { [string length $out] > 0 } {
+      mail_report $subject $out
+   }
+}

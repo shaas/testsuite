@@ -40,7 +40,7 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
-global env
+global env ts_config
 global check_category
 
 set check_root_access_needs "yes"
@@ -50,7 +50,7 @@ set check_init_level_procedure "qconf_init_level"
 
 # define test's name and run level descriptions
 set check_name            "qconf"
-set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED JGDI"
 set check_highest_level    0
 set check_description(0)  "test all qconf options (test not complete)"
 
@@ -83,11 +83,12 @@ lappend check_functions "qconf_sel"
 #lappend check_functions "qconf_Aattr_check"
 #lappend check_functions "qconf_Rattr_check"
 
-# Show options DONE#lappend check_functions "qconf_scal_check"   	;# List calendars
+# Show options DONE
+lappend check_functions "qconf_scal_check"   	;# List calendars
 lappend check_functions "qconf_scall_check"	;# List all calalendars
 lappend check_functions "qconf_sconfl_check"	;# List all hosts with configurations
 lappend check_functions "qconf_sds_check"	;# List detached settings in the cluster  config
-lappend check_functions "qconf_secl_check"	;# List event client list
+append_check_and_exclude_in_jgdi "qconf_secl_check" "No event clients that JGDI returns is an unknown error"	;# List event client list
 lappend check_functions "qconf_sep_check"	;# List processors
 lappend check_functions "qconf_sm_check"	;# List  managers
 lappend check_functions "qconf_so_check"	;# List operators 
@@ -97,52 +98,65 @@ lappend check_functions "qconf_sul_check"	;# Show user list
 lappend check_functions "qconf_sprjl_check"	;# Show project list
 
 # New options, non-show DONE
-lappend check_functions "qconf_add_delete_manager"	;# Add and delete manager users 
-lappend check_functions "qconf_add_show_mod_del_queue"	;# Add, show, modify and delete queue "qconf_queue.q"
-lappend check_functions "qconf_add_show_delete_stnode"	;# Add, show and delete share tree nodes
-lappend check_functions "qconf_create_modify_sharetree"  ;# create and modify a sharetree (qconf -Mstree)
-lappend check_functions "qconf_del_sharetree"            ;# delete the whole sharetree (qconf -dstree)
-lappend check_functions "qconf_event_client"	;# Create, show and delete event clients
+append_check_and_exclude_in_jgdi "qconf_add_delete_manager" "Options *q do not hadle queue instances"	;# Add and delete manager users 
+append_check_and_exclude_in_jgdi "qconf_add_show_mod_del_queue" "JGDI Shell can't handle queue instances (bug)" 	;# Add, show, modify and delete queue "qconf_queue.q"
+append_check_and_exclude_in_jgdi "qconf_add_show_delete_stnode" "Options *stnode not implemented" ;# Add, show and delete share tree nodes
+append_check_and_exclude_in_jgdi "qconf_create_modify_sharetree" "Options *stree not implemented" ;# create and modify a sharetree (qconf -Mstree)
+append_check_and_exclude_in_jgdi "qconf_del_sharetree" "Options *stree not implemented"           ;# delete the whole sharetree (qconf -dstree)
+append_check_and_exclude_in_jgdi "qconf_event_client" "-kec fails for all"	;# Create, show and delete event clients
 lappend check_functions "qconf_add_delete_modify_calendar"	;# Add, delete and modify calendar
-lappend check_functions "qconf_add_delete_modify_replace_attr"	;# Add, delete and modify attributes
-lappend check_functions "qconf_modify_checkpoint"	;# Create, modify and delete checkpoint 
+append_check_and_exclude_in_jgdi "qconf_add_delete_modify_replace_attr" "Options -Mattr/-sobjl not implemented" ;# Add, delete and modify attributes
+lappend check_functions "qconf_modify_checkpoint" ;# Create, modify and delete checkpoint 
 lappend check_functions "qconf_add_project"        ;# qconf -aprj / qconf -Aprj
 lappend check_functions "qconf_modify_exechost"	;# Modify exec host
 lappend check_functions "qconf_modify_project";# Modify project
 lappend check_functions "qconf_modify_userlist";# Modify user list
 lappend check_functions "qconf_modify_sched_conf";# Modify scheduler config
 lappend check_functions "qconf_issue_2023"
- 
+append_check_and_exclude_in_jgdi "qconf_brief_exercise" "Some issues like with -au";# check the output messages
+
 global queue_names
 
 global submitjob_jobid
 
 proc qconf_init_level {} {
    global ts_config CHECK_OUTPUT
-   global CHECK_ACT_LEVEL check_name
+   global CHECK_ACT_LEVEL check_name CHECK_JGDI_ENABLED
 
-   if {$CHECK_ACT_LEVEL == 0} {
-      if {[llength $ts_config(execd_nodes)] < 2} {
-         add_proc_error "qconf_init_level" -3 "need at least 2 execd hosts for this check"
+   if {[llength $ts_config(execd_nodes)] < 2} {
+      add_proc_error "qconf_init_level" -3 "need at least 2 execd hosts for this check"
+      return -1
+   }
+   #Check we are running at least 6.2 for JGDI
+   if {$CHECK_JGDI_ENABLED} {
+      if {$ts_config(gridengine_version) < 62} {
+         add_proc_error "qconf_init_level" -3 "jgdi shell supported from sge 6.2 version"
          return -1
       }
+   }
 
+   #Always allow run level 0
+   if { $CHECK_ACT_LEVEL == 0 } {
       return 0
    }
 
-  return -1  ;# no other level else
+   return -1  ;# no other level else
 }
 
 proc qconf_setup {} {
    global ts_config CHECK_OUTPUT CHECK_USER 
    global qconf_original_host_groups qconf_original_usersets qconf_orig_queues qconf_project qconf_sched_config qconf_userlist 
    global backup_allhosts
-   global queue_names
+   global queue_names CHECK_JGDI_ENABLED
 
    puts $CHECK_OUTPUT "setup ..."
 
    set queue_names ""
-   for {set i 0} {$i < 1000}  {incr i 1} {
+   set MAX 1000
+   if {$CHECK_JGDI_ENABLED} {
+      set MAX 3
+   }
+   for {set i 0} {$i < $MAX}  {incr i 1} {
       lappend queue_names "q.$i"
    }
  
@@ -164,8 +178,7 @@ proc qconf_setup {} {
       add_hostgroup "@qconf_test" qconf_hgrp_setup
    }
 
-
-   set output [start_sge_bin qconf -sul]
+   get_userset_list output
    set output [string trim $output]
    set qconf_original_usersets {}
    foreach user $output {
@@ -177,11 +190,8 @@ proc qconf_setup {} {
    get_queue_list qconf_orig_queues
 
    set qconf_project "qconf_project"
-   # Create new project
-   set qconf_prj_setup(name) "$qconf_project"
-
    puts $CHECK_OUTPUT "Create project $qconf_project ...\n"
-   set result [add_prj qconf_prj_setup]
+   set result [add_project $qconf_project]
 
    puts $CHECK_OUTPUT "Create userlist qconf_userlist ...\n"
    add_access_list $CHECK_USER qconf_userlist
@@ -195,7 +205,7 @@ proc qconf_cleanup {} {
    global ts_config CHECK_OUTPUT 
    global qconf_original_host_groups qconf_original_usersets qconf_orig_queues qconf_sched_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER qconf_prj_setup
-  
+
    puts $CHECK_OUTPUT "cleanup ..."
 
    # in GE >= 6.0: cleanup hostgroups
@@ -217,10 +227,10 @@ proc qconf_cleanup {} {
    set output [start_sge_bin qconf -sul]
    set output [string trim $output]
    foreach userg $output {
-      puts $CHECK_OUTPUT "testing usergroup \"$userg\" ..."
+      puts $CHECK_OUTPUT "testing userset \"$userg\" ..."
       if { [lsearch -exact $qconf_original_usersets $userg] < 0 } {
          puts $CHECK_OUTPUT "deleting unexpected usergroup \"$userg\" ..."
-         set res [start_sge_bin qconf "-dusergrp $userg"]
+         set res [start_sge_bin qconf "-dul $userg"]
          puts $CHECK_OUTPUT $res
       }
    }
@@ -276,12 +286,12 @@ proc qconf_auser {} {
    puts $CHECK_OUTPUT "testing qconf -auser ..."
 
    if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0} {
-      set new_user(name) "qconf_test_user"
+      set test_user "qconf_test_user"
       set new_user(default_project) "mytestproject"
-      add_user new_user
-      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      add_user "$test_user" new_user
+      set output [start_sge_bin "qconf" "-suser $test_user"]
       if {[string first "mytestproject" $output] < 0} {
-         add_proc_error "qconf_auser" -1 "error showing user qconf_test_user"
+         add_proc_error "qconf_auser" -1 "error showing user $test_user"
       }
    }
 }
@@ -310,14 +320,14 @@ proc qconf_Auser {} {
    puts $CHECK_OUTPUT "testing qconf -Auser ..."
 
    if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0} {
-      set new_user(name) "qconf_test_user"
+      set test_user "qconf_test_user"
       set new_user(default_project) "mytestproject"
-      add_user new_user 1
-      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      add_user "$test_user" new_user 1
+      set output [start_sge_bin "qconf" "-suser $test_user"]
       if {[string first "mytestproject" $output] < 0} {
-         add_proc_error "qconf_auser" -1 "error showing user qconf_test_user"
+         add_proc_error "qconf_auser" -1 "error showing user $test_user"
       }
-      del_user "qconf_test_user"
+      del_user "$test_user"
    }
 }
 
@@ -329,25 +339,24 @@ proc qconf_muser {} {
    puts $CHECK_OUTPUT "testing qconf -muser ..."
 
    if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0} {
-      set new_user(name) "qconf_test_user"
+      set test_user "qconf_test_user"
       set new_user(default_project) "mytestproject"
-      add_user new_user
-      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      add_user "$test_user" new_user
+      set output [start_sge_bin "qconf" "-suser $test_user"]
       if { [string first "mytestproject" $output] < 0  } {
-         add_proc_error "qconf_muser" -1 "error showing user qconf_test_user"
+         add_proc_error "qconf_muser" -1 "error showing user $test_user"
       }
-      # now modifiy user
-      set new_conf(name)  "qconf_test_user"
+      # now modify user
       set new_conf(default_project) "NONE"
-      mod_user new_conf 
-      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      mod_user $test_user new_conf 
+      set output [start_sge_bin "qconf" "-suser $test_user"]
       puts $CHECK_OUTPUT $output
       if {[string first "mytestproject" $output] >= 0} {
-         add_proc_error "qconf_muser" -1 "error modify user qconf_test_user"
+         add_proc_error "qconf_muser" -1 "error modify user $test_user"
       }
 
       # now delete user
-      del_user "qconf_test_user"
+      del_user $test_user
    }
 }
 
@@ -358,25 +367,24 @@ proc qconf_Muser {} {
    puts $CHECK_OUTPUT "testing qconf -Muser ..."
 
    if {[string compare $CHECK_PRODUCT_TYPE "sgeee" ] == 0} {
-      set new_user(name) "qconf_test_user"
+      set test_user "qconf_test_user"
       set new_user(default_project) "mytestproject"
-      add_user new_user
-      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      add_user "$test_user" new_user
+      set output [start_sge_bin "qconf" "-suser $test_user"]
       if { [string first "mytestproject" $output] < 0  } {
-         add_proc_error "qconf_Muser" -1 "error showing user qconf_test_user"
+         add_proc_error "qconf_Muser" -1 "error showing user $test_user"
       }
       # now modifiy user
-      set new_conf(name)  "qconf_test_user"
       set new_conf(default_project) "NONE"
-      mod_user new_conf 1
-      set output [start_sge_bin "qconf" "-suser qconf_test_user"]
+      mod_user "$test_user" new_conf 1
+      set output [start_sge_bin "qconf" "-suser $test_user"]
       puts $CHECK_OUTPUT $output
       if {[string first "mytestproject" $output] >= 0} {
-         add_proc_error "qconf_Muser" -1 "error modify user qconf_test_user"
+         add_proc_error "qconf_Muser" -1 "error modify user $test_user"
       }
 
       # now delete user
-      del_user "qconf_test_user"
+      del_user "$test_user"
    }
 }
 
@@ -797,7 +805,6 @@ proc qconf_Rattr_check {} {
 
 proc qconf_segfault {} {
    global ts_config CHECK_OUTPUT CHECK_USER
-   global ts_config
 
    set output [start_sge_bin "qconf" "-as \"\""]
    if { [string match "*egmentation ?ault*" $output] == 1 } {
@@ -1639,12 +1646,11 @@ proc qconf_add_show_delete_stnode {} {
          unset new_user
       }
       puts $CHECK_OUTPUT "Adding  user $user to project $project ...\n"
-      set new_user(name) $user
       set new_user(default_project) $project
       if {[lsearch -exact $current_user_list $user] < 0} {
-         add_user new_user 1
+         add_user "$user" new_user 1
       } else {
-         mod_user new_user 1
+         mod_user "$user" new_user 1
       }
    }
 
@@ -1829,8 +1835,6 @@ proc qconf_add_delete_modify_calendar {} {
    global CHECK_OUTPUT CHECK_USER 
 
    set cal_name "qconf_calendar"
-
-   set new_cal(calendar_name)  "$cal_name"
    set new_cal(week)           "mon-sun=0-24=suspended"
 
    # First do a list of event clients
@@ -2256,10 +2260,9 @@ proc qconf_modify_exechost {} {
    get_exechost old_values $host
 
    # First create project qconf_test_prj
-   set prj_setup(name) "qconf_test_prj"
    set my_project "qconf_test_prj"
    puts $CHECK_OUTPUT "Create project $my_project ...\n"
-   set result [add_prj prj_setup]
+   set result [add_project "$my_project"]
    puts $CHECK_OUTPUT $result
 
    # Modify exechost fast
@@ -2422,7 +2425,7 @@ proc qconf_modify_userlist {} {
    set value "$CHECK_USER"
 
    # Get present config
-   #get_ulist $userlist current_ul
+   #get_userset $userlist current_ul
 
    set current_ul(name) "$userlist"
    set current_ul($attribute) "$value"
@@ -2744,38 +2747,38 @@ proc qconf_add_project {} {
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    # test adding projects
-   set project(name) "qconf_add_prj"
+   set MY_PROJECT_NAME "qconf_add_prj"
 
-   add_prj project 0 ;# slow add
+   add_project "$MY_PROJECT_NAME" project 0 ;# slow add
   
-   del_prj "qconf_add_prj"
+   del_project "$MY_PROJECT_NAME"
 
-   add_prj project 1 ;# fast add
+   add_project "$MY_PROJECT_NAME"  ;# fast add
 
    # test adding duplicates (must fail)
    # TODO: it's difficult to handle all the default error conditions
    # in handle_vi_edit (e.g. host and user permissions).
    # until this is fixed, we cannot do negative tests with qconf calling the editor.
-   #set ret [add_prj project 0 "" "" 0] ;# slow add duplicate
+   #set ret [add_project $MY_PROJECT_NAME project 0 "" "" 0] ;# slow add duplicate
    #if {$ret != -2} {
    #   add_proc_error "qconf_add_project" -1 "qconf -aprj should have failed for duplicate"
    #}
 
-   set ret [add_prj project 1 "" "" 0] ;# fast add duplicate
+   set ret [add_project "$MY_PROJECT_NAME" project 1 "" "" 0] ;# fast add duplicate
    if {$ret != -2} {
       add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed for duplicate"
    }
 
-   del_prj "qconf_add_prj"
+   del_project "$MY_PROJECT_NAME"
 
    # test other errors
-   set project(name) "default"
-   #set ret [add_prj project 0 "" "" 0] ;# slow add incorrect prj (name is keyword)
+   set MY_PROJECT_NAME "default"
+   #set ret [add_project "$MY_PROJECT_NAME" project 0 "" "" 0] ;# slow add incorrect prj (name is keyword)
    #if {$ret >= 0} {
    #   add_proc_error "qconf_add_project" -1 "qconf -aprj should have failed for a project named \"default\""
    #}
 
-   set ret [add_prj project 1 "" "" 0] ;# fast add incorrect prj (name is keyword)
+   set ret [add_project "$MY_PROJECT_NAME" project 1 "" "" 0] ;# fast add incorrect prj (name is keyword)
    if {$ret >= 0} {
       add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed for a project named \"default\""
    }
@@ -2783,28 +2786,424 @@ proc qconf_add_project {} {
    # try to add a project with insufficient permissions
    # - as non admin user
    # - from non admin host
-   set project(name) "qconf_add_prj"
-   #set ret [add_prj project 0 "" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" 0]
+   set MY_PROJECT_NAME "qconf_add_prj"
+   #set ret [add_project "$MY_PROJECT_NAME" project 0 "" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" 0]
    #if {$ret != -210} {
    #   add_proc_error "qconf_add_project" -1 "qconf -aprj should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    #}
-   set ret [add_prj project 1 "" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" 0]
+   set ret [add_project "$MY_PROJECT_NAME" project 1 "" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" 0]
    if {$ret != -210} {
       add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
 
    set non_cluster_host [host_conf_get_unused_host]
-   #set ret [add_prj project 0 $non_cluster_host "" 0]
+   set ret [add_project "$MY_PROJECT_NAME" project 0 $non_cluster_host "" 0]
    #if {$ret != -201} {
    #   add_proc_error "qconf_add_project" -1 "qconf -aprj should have failed on host $non_cluster_host"
    #}
 
    if {$non_cluster_host != ""} {
-      set ret [add_prj project 1 $non_cluster_host "" 0]
+      set ret [add_project "$MY_PROJECT_NAME" project 1 $non_cluster_host "" 0]
       if {![check_for_non_cluster_host_error $ret "admin"]} {
          add_proc_error "qconf_add_project" -1 "qconf -Aprj should have failed on host $non_cluster_host"
       }
    }
 }
 
+proc qconf_brief_exercise {} {
+   global CHECK_OUTPUT
 
+   puts $CHECK_OUTPUT "* * * PROJECT * * *"
+   set right_param(oticket) "10"
+   qconf_messages_basic_check project right_param
+   unset right_param
+
+   puts $CHECK_OUTPUT "* * * USERSET * * *"
+   set right_param(type) "ACL DEPT"
+   qconf_messages_basic_check userset right_param
+   unset right_param
+   # aja: TODO: adjust the functional tests
+   add_access_list "user1 user2 user3" "set1,set2"
+   del_user_from_access_list "user4" "set1" "" "" 0                             ;# del user nonex. user err
+   del_user_from_access_list "user1" "set3" "" "" 0                             ;# del user nonex. acl err
+   del_user_from_access_list "user1" "set1" "" "" 0                             ;# del user nonex. acl ok
+   del_user_from_access_list "user1 user2" "set2" "" "" 0                       ;# del user mix error
+   del_access_list "set1,set2" "" "" 0                                          ;# del acl ok
+
+   puts $CHECK_OUTPUT "* * * PARALLEL ENVIRONMENT * * *"
+   set right_param(slots) "10"
+   qconf_messages_basic_check pe right_param
+   unset right_param
+
+   puts $CHECK_OUTPUT "* * * CALENDAR * * *"
+   set right_param(week) "mon-sun=0-24=off"
+   qconf_messages_basic_check calendar right_param
+   unset right_param
+
+   puts $CHECK_OUTPUT "* * * HOSTGROUP * * *"
+   set right_param(hostlist)       "@allhosts"
+   set args(name_prefix) "@"
+   qconf_messages_basic_check hostgroup right_param args
+   unset right_param
+   unset args
+
+   puts $CHECK_OUTPUT "* * * USER * * *"
+   set right_param(oticket) "10"
+   qconf_messages_basic_check user right_param
+   unset right_param
+   # aja: TODO: test the rest functionality
+
+   puts $CHECK_OUTPUT "* * * QUEUE * * *"
+   set right_param(load_thresholds)       "np_load_avg=7.0"
+   set args(hostlist) [gethostname]
+   set args(ignore_hostlist) 1
+   set args(del_cqueue) 1
+   qconf_messages_basic_check queue right_param args
+   unset right_param
+   unset args
+
+}
+
+#****** check.exp/qconf_messages_basic_check() *********************************
+# 
+#  NAME
+#     qconf_messages_basic_check - basic test of qconf interfaces and the 
+#                                  messages returned by the qconf client.
+#
+#  SYNOPSIS
+#     qconf_messages_basic_check { object valid_object_params args }
+#
+#  FUNCTION
+#     check the basic functionality of qconf command, play with the objects and
+#     the returned messages from qconf client. 
+#
+#  INPUTS
+#     object              - the name of the object 
+#                           [ex.: project, user, hostgroup, queue, ...]
+#     valid_object_params - the array with the valid attributes to check the 
+#                           successfull add/mod functions
+#                           object <name> parameter is ignored for this test, but
+#                           can be set to check the name validation (not yet 
+#                           implemented)
+#     {arguments ""}      - array with additional arguments
+#                           expected: 
+#                               o name_prefix - i.e. @ for hostgroups
+#                               o hostlist - i.e. for queues
+#
+#*******************************************************************************
+proc qconf_messages_basic_check {object valid_object_params {arguments ""}} {
+   global CHECK_OUTPUT
+   upvar $valid_object_params ok_param
+   upvar $arguments args
+
+   explore_expected_arguments args name_prefix hostlist ignore_hostlist del_cqueue
+
+   set obj_name_attr [get_object_name_attribute $object]
+   # set the valid name for the object
+   set object_name fake_${object}
+   if {![string match "$name_prefix*" $object_name]} {
+         set object_name ${name_prefix}${object_name}
+   }
+
+   set param($obj_name_attr) $object_name
+   # required attributes - set the default value
+   set_${object}_defaults object_defaults
+   if {[info exist object_defaults(hostlist)]} {
+      set param(hostlist) "NONE"
+   }
+
+   # check the get_$object_list function
+ #  qconf_check_list $object param args
+   # check invalid name for the object
+   # aja: TODO: other name validation
+   if {[string compare $name_prefix ""] != 0} {
+      eval add_${object} test_${object} $hostlist param 0 "\"\"" "\"\"" 0       ;# add $object wrong name slow err
+      eval add_${object} test_${object} $hostlist param 1 "\"\"" "\"\"" 0       ;# add $object wrong name fast err
+   }
+   # add/mod/del/get object game
+   eval del_${object} $object_name $hostlist $ignore_hostlist $del_cqueue "\"\"" "\"\"" 0 ;# del nonex. $object err
+   eval get_${object} $object_name out "\"\"" "\"\"" 0                          ;# get nonex. $object err
+   eval mod_${object} ${object_name} $hostlist param 0 "\"\"" "\"\"" 0          ;# mod nonex. $object slow err
+   eval mod_${object} $object_name $hostlist param 1 "\"\"" "\"\"" 0            ;# mod nonex. $object fast err
+   eval add_${object} $object_name $hostlist param 0                            ;# add $object slow ok
+   eval add_${object} $object_name $hostlist param 0 "\"\"" "\"\"" 0            ;# add already exists $object slow err
+   eval mod_${object} $object_name $hostlist param 0 "\"\"" "\"\"" 0            ;# mod file unchanged slow err
+   eval mod_${object} $object_name $hostlist param 1 "\"\"" "\"\"" 0            ;# mod file unchanged fast err
+   # now we use the array with the valid attributes and parameters
+   foreach elem [array names ok_param] {
+      # we don't want to check the object name change
+      if {[string compare $elem $obj_name_attr] != 0} {
+         if {[info exists param($elem)]} {
+            set bckp_param($elem) $param($elem)
+         }
+         set param($elem) $ok_param($elem)
+      }
+   }
+   eval mod_${object} $object_name $hostlist param 0                            ;# mod $object slow ok
+   eval del_${object} $object_name $hostlist $ignore_hostlist $del_cqueue       ;# del $object ok
+   eval add_${object} $object_name $hostlist param                              ;# add $object fast ok
+   # for the test of successfull modification change back the parameters
+   foreach elem [array names bckp_param] {
+      set param($elem) $bckp_param($elem)
+   }
+   eval mod_${object} $object_name $hostlist param 1                            ;# mod $object fast ok
+   eval add_${object} $object_name $hostlist param 1 "\"\"" "\"\"" 0            ;# add already exists $object fast err
+   eval del_${object} $object_name $hostlist $ignore_hostlist $del_cqueue       ;# del $object ok
+   # let's test the wrong parameters
+   set test_attributes ""
+   # ulong attributes
+   lappend test_attributes "oticket"
+   lappend test_attributes "fshare"
+   lappend test_attributes "slots"
+   lappend test_attributes "delete_time"
+   # userset dependent attributes
+   lappend test_attributes "acl"
+   lappend test_attributes "xacl"
+   lappend test_attributes "user_lists"
+   lappend test_attributes "xuser_lists"
+   # project dependent attributes
+   lappend test_attributes "default_project"
+   # calendar attributes
+   lappend test_attributes "year"
+   lappend test_attributes "week"
+   # host attributes
+   lappend test_attributes "hostlist"
+   # directory attributes
+   lappend test_attributes "start_proc_args"
+   lappend test_attributes "stop_proc_args"
+   # complex attributes
+   lappend test_attributes "load_thresholds"
+   # aja: TODO: add attributes for testing (queue, pe,...)
+
+   foreach attr $test_attributes {
+      if {[info exists object_defaults($attr)]} {
+         qconf_check_wrong_parameter $object param "$attr" args
+      }
+   }
+
+   # aja: TODO: test missing required attribute
+   # aja: TODO: test non-existing attribute   
+}
+
+#****** check.exp/qconf_check_list() *******************************************
+# 
+#  NAME
+#     qconf_check_list - basic test of qconf get <object> list function.
+#
+#  SYNOPSIS
+#     qconf_check_list { object valid_object_params args }
+#
+#  FUNCTION
+#     basic test of qconf get <object> list function - either when any object
+#     exists, or when no object exists
+#
+#  INPUTS
+#     object              - the name of the object 
+#                           [ex.: project, user, hostgroup, queue, ...]
+#     valid_object_params - the array with the valid attributes to check the 
+#                           successfull add/mod functions
+#                           object <name> parameter is ignored for this test, but
+#                           can be set to check the name validation (not yet 
+#                           implemented)
+#     {arguments ""}      - array with additional arguments
+#                           expected: 
+#                               o name_prefix - i.e. @ for hostgroups
+#                               o hostlist - i.e. for queues
+#     {referencies ""}    - ...
+#
+#  SEE ALSO
+#      check.exp/qconf_messages_basic_check
+#      check.exp/explore_expected_arguments
+#*******************************************************************************
+proc qconf_check_list {object valid_object_params {arguments ""} {referencies ""}} {
+   global CHECK_OUTPUT
+   upvar $valid_object_params valid_object
+   set obj_name_attr [get_object_name_attribute $object]
+   upvar $arguments args
+
+   puts $CHECK_OUTPUT "Basic test of get_${object}_list function"
+
+   explore_expected_arguments args name_prefix hostlist ignore_hostlist del_cqueue
+
+   # check if any object exist
+   if {[eval get_${object}_list bckp "\"\"" "\"\"" 0] == 0} {
+      # object exists
+      if {[info exists bckp]} {
+         set ind 0
+         set all_count 0
+         # Back up the existing objects
+         foreach obj $bckp {
+            incr all_count
+            if { [eval get_${object} "$obj" "out$ind" "\"\"" "\"\"" 1] == 0 } { ;# get $object ok
+                if {[eval del_${object} "$obj" $hostlist $ignore_hostlist $del_cqueue "\"\"" "\"\"" 0] == 0} {;# del $object ok
+                  incr ind
+               } else {
+                  unset out$ind
+                  # aja: TODO: referencies
+               }
+            } else {
+            }
+         }
+         # test the nonex. object if the list is empty
+         if {$ind == $all_count} {
+            eval get_${object}_list out "\"\"" "\"\"" 0                         ;# get $object list err
+         } else {
+            puts $CHECK_OUTPUT "get_${object}_list with nonex. $object not tested"
+         }
+         # Restore the objects
+         for {set i 0} {$i < $ind} {incr i} {
+            unset obj
+            array set obj [array get out$i]
+            if {[info exists obj(hostlist)]} {
+               set hostlist $obj(hostlist)
+            }
+            eval add_${object} $obj($obj_name_attr) $hostlist obj               ;# add $object fast ok
+            unset out$i
+         }
+         unset bckp
+      }
+   } else {
+      # no object exists
+      eval get_${object}_list out "\"\"" "\"\"" 0                               ;# get $object list err
+      set oname "$valid_object($obj_name_attr)"
+      if {![string match "$name_prefix*" $oname]} {
+         set object_name ${name_prefix}${object_name}
+      }
+      eval add_${object} "$oname" $hostlist valid_object                        ;# add $object fast ok
+      eval get_${object}_list                                                   ;# get $object list ok
+      eval del_${object} "$oname" $hostlist $ignore_hostlist $del_cqueue        ;# del $object ok
+   }
+
+}
+    
+#****** check.exp/qconf_check_wrong_parameter() ********************************
+# 
+#  NAME
+#     qconf_check_wrong_parameter - basic test of qconf mod/add functions 
+#                                   with the wrong parameter
+#
+#  SYNOPSIS
+#     qconf_check_wrong_parameter { object valid_object_params {arguments ""} }
+#
+#  FUNCTION
+#     basic test of qconf get <object> list function - either when any object
+#     exists, or when no object exists
+#
+#  INPUTS
+#     object              - the name of the object 
+#                           [ex.: project, user, hostgroup, queue, ...]
+#     valid_object_params - the array with the valid attributes to check the 
+#                           successfull add/mod functions
+#                           object <name> parameter is ignored for this test, but
+#                           can be set to check the name validation (not yet 
+#                           implemented)
+#     attribute           - attribute to change to invoke the wrong parameter
+#                           error
+#     {arguments ""}      - array with additional arguments
+#                           expected: 
+#                               o name_prefix - i.e. @ for hostgroups
+#                               o hostlist - i.e. for queues
+#     {value "universalNOTVALIDvalue"} - the wrong value for the attribute
+#
+#  SEE ALSO
+#      check.exp/qconf_messages_basic_check
+#*******************************************************************************
+proc qconf_check_wrong_parameter {object valid_object_params attribute {arguments ""} {value "universalNOTVALIDvalue"}} {
+   global CHECK_OUTPUT
+   upvar $arguments args
+
+   puts $CHECK_OUTPUT "Check the add/mod $object functionality with the wrong parameter \"$attribute\""
+
+   explore_expected_arguments args name_prefix hostlist ignore_hostlist del_cqueue
+
+   set obj_name_attr [get_object_name_attribute $object]
+
+   foreach elem [array names valid_object_param] {
+      set param($elem) $valid_object_param($elem)
+   }
+
+   if {[info exists param($obj_name_attr)]} {
+      set object_name param($obj_name_attr)
+   } else {
+      set object_name wrong_${object}
+   }
+
+   if {![string match "$name_prefix*" $object_name]} {
+         set object_name ${name_prefix}${object_name}
+   }
+
+   eval add_${object} $object_name $hostlist param                              ;# add $object fast ok
+   set param($attribute) $value
+   if {[string compare $object "queue"] == 0 && [string compare $attribute "hostlist"] == 0} {
+       set hostlist $value
+   }
+   eval mod_${object} $object_name $hostlist param 0 "\"\"" "\"\"" 0            ;# mod wrong param slow err
+   eval mod_${object} $object_name $hostlist param 1 "\"\"" "\"\"" 0            ;# mod wrong param fast err
+   eval del_${object} $object_name $hostlist $ignore_hostlist $del_cqueue       ;# del $object ok
+   eval add_${object} $object_name $hostlist param 1 "\"\"" "\"\"" 0            ;# add wrong param fast err
+   eval add_${object} $object_name $hostlist param 0 "\"\"" "\"\"" 0            ;# wrong param slow err
+
+}
+
+#****** check.exp/explore_expected_arguments() *********************************
+# 
+#  NAME
+#     explore_expected_arguments - set the expected arguments
+#
+#  SYNOPSIS
+#     explore_expected_arguments { arguments name_prefix hostlist }
+#
+#  FUNCTION
+#     basic test of qconf get <object> list function - either when any object
+#     exists, or when no object exists
+#
+#  INPUTS
+#     arguments          - array with additional arguments
+#                           expected: 
+#                               o name_prefix - i.e. @ for hostgroups
+#                               o hostlist - i.e. for queues
+#     name_prefix         - variable for name_prefix argument
+#     hostlist            - variable for hostlist argument
+#     ignore_hostlist     - variable for del_queue function
+#     del_cqueue          - variable for del_queue function
+#
+#*******************************************************************************
+proc explore_expected_arguments {arguments name_prefix hostlist ignore_hostlist del_cqueue} {
+   upvar $arguments args
+   upvar $name_prefix nm
+   upvar $hostlist hst
+   upvar $ignore_hostlist ign
+   upvar $del_cqueue dcq
+
+   set hst ""
+   set nm ""
+   set ign ""
+   set dcq ""
+   foreach arg [array names args] {
+      if {[string compare $arg "name_prefix"] == 0} {
+         set nm $args($arg)
+      }
+      if {[string compare $arg "hostlist"] == 0} {
+         set hst $args($arg)
+      }
+      if {[string compare $arg "ignore_hostlist"] == 0} {
+         set ign $args($arg)
+      }
+      if {[string compare $arg "del_cqueue"] == 0} {
+         set dcq $args($arg)
+      }
+   }
+}
+
+# set the attribure which holds the name of the object
+proc get_object_name_attribute {object} {
+   set obj_name_attr "name"
+   set_${object}_defaults chgar
+   foreach elem [array names chgar] {
+      if {[string first "name" "$elem"] != -1} {
+         set obj_name_attr "$elem"
+         break
+      }
+   }
+   return $obj_name_attr
+}

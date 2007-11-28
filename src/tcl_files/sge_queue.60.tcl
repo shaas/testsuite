@@ -31,57 +31,45 @@
 ##########################################################################
 #___INFO__MARK_END__
 
+#                                                             max. column:     |
+#****** sge_queue.60/get_queue_instance() **************************************
+#  NAME
+#     get_queue_instance () -- get the queue instance name
+#
+#  SYNOPSIS
+#     get_queue_instance {queue host}
+#
+#  FUNCTION
+#     Returns the name of the queue instance which is constructed by given queue 
+#     name and the hostname.
+#
+#  INPUTS
+#     queue - the name of the queue
+#     host  - the hostname
+#
+#*******************************************************************************
 proc get_queue_instance {queue host} {
    set resolved_host [resolve_host $host 1]
    return "${queue}@${resolved_host}"
 }
 
-#****** sge_procedures.60/queue/vdep_set_queue_defaults() **********************
+#                                                             max. column:     |
+#****** sge_queue/vdep_validate_queue() *********************************************
 #  NAME
-#     vdep_set_queue_defaults() -- create version dependent queue settings
+#     vdep_validate_queue() -- validate the default queue settings for sge 60.
 #
 #  SYNOPSIS
-#     vdep_set_queue_defaults { change_array } 
+#     vdep_validate_queue {change_array}
 #
 #  FUNCTION
-#     Fills the array change_array with queue attributes specific for SGE 6.0
+#     Validate the queue configuration values. Adjust the queue settings
+#     according to sge version 60 systems.
 #
 #  INPUTS
 #     change_array - the resulting array
 #
-#  SEE ALSO
-#     sge_procedures/queue/set_queue_defaults()
 #*******************************************************************************
-proc vdep_set_queue_defaults { change_array } {
-   upvar $change_array chgar
-
-   set chgar(hostlist)              "hostlist"
-   set chgar(qtype)                 "BATCH INTERACTIVE"
-   set chgar(pe_list)               "NONE"
-   set chgar(ckpt_list)             "NONE"
-}
-
-#****** sge_procedures.60/queue/validate_queue() ********************************
-#  NAME
-#     validate_queue() -- validate the settings for queue_type
-#
-#  SYNOPSIS
-#     validate_queue { change_array } 
-#
-#  FUNCTION
-#     Removes the queue types PARALLEL and CHECKPOINTING from the queue_types
-#     attribute in change_array.
-#     These attributes are implicitly set in SGE 6.0 by setting the attributes
-#     ckpt_list and pe_list.
-#
-#     Sets a cluster dependent tmpdir to avoid problems when running multiple
-#     testsuite clusters in parallel shareing hosts.
-#
-#  INPUTS
-#     change_array - array containing queue definitions
-#
-#*******************************************************************************
-proc validate_queue { change_array } {
+proc vdep_validate_queue { change_array } {
    global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    upvar $change_array chgar
@@ -106,119 +94,30 @@ proc validate_queue { change_array } {
          puts $CHECK_OUTPUT "using qtype=$chgar(qtype)" 
       }
    }
-
-   # create cluster dependent tmpdir
-   set chgar(tmpdir) "/tmp/testsuite_$ts_config(commd_port)"
 }
 
+proc vdep_set_queue_values { hostlist change_array } {
+   upvar $change_array chgar
+
+   if {[info exists curr_arr]} {
+      if {[llength $hostlist] == 0} {
+         set_cqueue_default_values curr_arr chgar
+      } else {
+         set_cqueue_specific_values curr_arr chgar $hostlist
+      }
+      }
+   }
+
+# this won't be needed
 proc qinstance_to_cqueue { change_array } {
    global CHECK_OUTPUT
 
    upvar $change_array chgar
 
-   if { [info exists chgar(hostname)] } {
+   if { [info exists $chgar(hostname)] } {
       unset chgar(hostname)
    }
 
-}
-
-#****** sge_procedures.60/queue/add_queue() ******************************************
-#  NAME
-#     add_queue() -- add a SGE 6.0 cluster queue
-#
-#  SYNOPSIS
-#     add_queue { qname hostlist change_array {fast_add 1} } 
-#
-#  FUNCTION
-#     Adds a cluster queues to a SGE 6.0 system.
-#
-#  INPUTS
-#     qname        - name for the (cluster) queue
-#     hostlist     - list of hostnames or names of host groups
-#     change_array - array containing attributes that differ from defaults
-#     {fast_add 1} - 0: add the queue using qconf -aq,
-#                    1: add the queue using qconf -Aq, much faster!
-#
-#  RESULT
-#     integer value  0 on success, -2 on error
-#
-#*******************************************************************************
-proc add_queue { qname hostlist change_array {fast_add 1} } {
-   global CHECK_OUTPUT CHECK_USER
-   get_current_cluster_config_array ts_config
-
-   upvar $change_array chgar
-
-   # queue_type is version dependent
-   validate_queue chgar
-
-   puts $CHECK_OUTPUT "creating queue \"$qname\" for hostlist \"$hostlist\""
-
-   set chgar(qname)     "$qname"
-   set chgar(hostlist)  "$hostlist"
-
-   # localize messages
-   # JG: TODO: object name is taken from c_gdi object structure - not I18Ned!!
-   set ALREADY_EXISTS [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "cluster queue" $qname]
-   set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" $qname "cluster queue" ]
-
-   # add queue from file?
-   if { $fast_add } {
-      set_queue_defaults default_array
-      update_change_array default_array chgar
-
-      set tmpfile [dump_array_to_tmpfile default_array]
-
-      set result [start_sge_bin "qconf" "-Aq ${tmpfile}"]
-      puts $CHECK_OUTPUT $result
-
-      if { [string match "*$ADDED*" $result ] } {
-         set result 0
-      } else {
-         add_proc_error "add_queue" "-1" "qconf error or binary not found"
-         set result -2
-      }
-   } else {
-      # add by handling vi
-      set vi_commands [build_vi_command chgar]
-      set master_arch [resolve_arch $ts_config(master_host)]
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-aq" $vi_commands $ADDED $ALREADY_EXISTS ]  
-      if { $result != 0 } {
-         add_proc_error "add_queue" -1 "could not add queue [set chgar(qname)] (error: $result)"
-      }
-   }
-   return $result
-}
-
-# set_queue_work - no public interface
-proc set_queue_work { qname change_array {raise_error 1} } {
-   global CHECK_OUTPUT CHECK_USER
-   get_current_cluster_config_array ts_config
-
-   upvar $change_array chgar
-
-   puts $CHECK_OUTPUT "modifying queue \"$qname\""
-
-   set vi_commands [build_vi_command chgar]
-
-   # JG: TODO: object name is taken from c_gdi object structure - not I18Ned!!
-   set QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
-   set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" $qname "cluster queue" ]
-   set UNKNOWN_ATTRIBUTE [ translate_macro MSG_UNKNOWNATTRIBUTENAME_S $qname ]
-   set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
-   set master_arch [resolve_arch $ts_config(master_host)]
-   set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mq ${qname}" $vi_commands $MODIFIED $NOT_MODIFIED $UNKNOWN_ATTRIBUTE ]
-   if { $result == -2 } {
-      add_proc_error "set_queue_work" -1 "queue $qname not modified" $raise_error
-   }
-   if { $result == -3 } {
-      add_proc_error "set_queue_work" -1 "unknown attribute in queue $qname " $raise_error
-   }
-   if { $result != 0  } {
-      add_proc_error "set_queue_work" -1 "error modify queue $qname, $result" $raise_error
-   } 
-
-   return $result
 }
 
 proc set_cqueue_default_values { current_array change_array } {
@@ -361,148 +260,39 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 #
 #*******************************************************************************
 proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
    upvar $change_array chgar
-
-   # queue_type is version dependent
-   validate_queue chgar
-   qinstance_to_cqueue chgar
-
-   get_queue $qname currar
-
-   # process chgar and set values
-   if {[llength $hostlist] == 0} {
-      set_cqueue_default_values currar chgar
-   } else {
-      set_cqueue_specific_values currar chgar $hostlist
-   }
-
-   # Modify queue from file
-   if {$fast_add} {
-     # Add in currar elements from chgar which have NOT
-     # been changed
-     
-     foreach elem [array names chgar] {
-        set fastar($elem) $chgar($elem)
-     }
-     foreach elem [array names currar] {
-        if {![info exists chgar($elem)]} {
-           set fastar($elem) $currar($elem)
-        }
-     }
- 
-     set tmpfile [dump_array_to_tmpfile fastar]
-     set ret [start_sge_bin "qconf" "-Mq $tmpfile" $on_host $as_user ]
-     
-     if {$prg_exit_state == 0} {
-         set result 0
-      } else {
-         set result [mod_queue_error $ret $qname $tmpfile $raise_error]
-      }
-
-   } else {
-      # do the work
-      set result [set_queue_work $qname chgar $raise_error]
-      
-      if { $result != 0 } {
-            add_proc_error "set_queue" -1 "could not modifiy queue $qname " $raise_error
-            set result -1
-      }
-
-   }
-   
-   return $result
+   return [mod_queue $qname $hostlist chgar $fast_add $on_host $as_user $raise_error]
 }
 
-#****** sge_queue.60/mod_queue_error() ***************************************
+#                                                             max. column:     |
+#****** sge_queue.60/del_queue() ***********************************************
+# 
 #  NAME
-#     mod_queue_error() -- error handling for mod_queue/set_queue
+#     del_queue -- Delete a queue
 #
 #  SYNOPSIS
-#     mod_queue_error {result qname tmpfile raise_error }
+#     del_queue { qname {on_host ""} {as_user ""} {raise_error 1} } 
 #
 #  FUNCTION
-#     Does the error handling for mod_queue/set_queue.
-#     Translates possible error messages of qconf -Mq,
-#     builds the datastructure required for the handle_sge_errors
-#     function call.
-#
-#     The error handling function has been intentionally separated from
-#     mod_queue/set_queue. While the qconf call and parsing the result is
-#     version independent, the error messages (macros) usually are version
-#     dependent.
+#     Deletes a queue using qconf -dq
 #
 #  INPUTS
-#     result      - qconf output
-#     qname       - queue name for qconf -Mq
-#     tmpfile     - temp file for qconf -Mq
-#     raise_error - do add_proc_error in case of errors
+#     qname -  Name of the queue
+#     {on_host ""}        - execute qconf on this host (default: qmaster host)
+#     {as_user ""}        - execute qconf as this user (default: CHECK_USER)
+#     {raise_error 1}     - raise error condition in case of errors?
 #
 #  RESULT
-#     Returncode for mod_queue/set_queue function:
-#      -1: "wrong_attr" is not an attribute
-#     -99: other error
+#     0 - on success
+#    <0 - on error
+
 #
 #  SEE ALSO
-#     sge_calendar/get_calendar
 #     sge_procedures/handle_sge_errors
-#******************************************************************************
-proc mod_queue_error {result qname tmpfile raise_error} {
-   get_current_cluster_config_array ts_config
-   # recognize certain error messages and return special return code
-   set messages(index) "-1 -2"
-   set messages(-1) [translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
-   set messages(-2) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "cluster queue" $qname]
-   if {$ts_config(gridengine_version) >= 62} {
-      lappend messages(index) -3
-      set messages(-3) [translate_macro MSG_PARSE_MOD_REJECTED_DUE_TO_AR_SSU "*" "*" "*"]
-      lappend messages(index) -4
-      set messages(-4) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
-      lappend messages(index) -5
-      set messages(-5) [translate_macro MSG_QINSTANCE_SLOTSRESERVED_USS "*" "*" "*"]
-   }
-
-   set ret 0
-   # now evaluate return code and raise errors
-   set ret [handle_sge_errors "mod_queue_error" "qconf -Mq $tmpfile" $result messages $raise_error]
-
-   return $ret
-}
-
-#****** sge_queue.60/queue/mod_queue() ******************************************
-#  NAME
-#     mod_queue() -- wrapper for set_queue 
-#
-#  SYNOPSIS
-#     mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user ""} {raise_errori 1}}
-#
-#  FUNCTION
-#     See set_queue
-#
-#  INPUTS
-#     qname        - name of the (cluster) queue
-#     hostlist     - list of hosts / host groups.
-#     change_array - array containing the changed attributes.
-#     {fast_add 1} - 0: modify the attribute using qconf -mckpt,
-#                  - 1: modify the attribute using qconf -Mckpt, faster
-#     {on_host ""}    - execute qconf on this host, default is master host
-#     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - do add_proc_error in case of errors
-#
-#  RESULT
-#
+#     sge_procedures/sge_object_messages
 #*******************************************************************************
 
-proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-
-   upvar $change_array chgar
-   return [set_queue $qname $hostlist chgar $fast_add $on_host $as_user $raise_error]
-}
-
-#####
-
-proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
+proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""} {as_user ""} {raise_error 1}} {
   global CHECK_USER CHECK_OUTPUT
   get_current_cluster_config_array ts_config
 
@@ -517,15 +307,12 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0}} {
    }
 
    if {$ignore_hostlist || $del_cqueue} {
-      set result [start_sge_bin "qconf" "-dq ${q_name}"]
-      # JG: TODO: object name is taken from c_gdi object structure, not I18Ned!!
-      set QUEUE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_OBJ_QUEUE]]
-      set REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $q_name "cluster queue" ]
-      if { [string match "*$REMOVED*" $result ] == 0 } {
-         add_proc_error "del_queue" "-1" "could not delete queue $q_name: (error: $result)"
-         return -1
+      puts $CHECK_OUTPUT "Delete queue $q_name ..."
+      get_queue_messages messages "del" "$q_name" $on_host $as_user
+      set output [start_sge_bin "qconf" "-dq $q_name" $on_host $as_user]
+      return [handle_sge_errors "del_queue" "qconf -dq $q_name" $output messages $raise_error]
       } 
-   }
+
    return 0
 }
 

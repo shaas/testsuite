@@ -36,20 +36,20 @@
 global check_functions 
 
 #### define test's procedure order
-lappend check_functions "qconf_de_check"
-lappend check_functions "qconf_backslash_default_space_check"  ;# functions to call (in order)
-lappend check_functions "qconf_backslash_default_comma_check"
-lappend check_functions "qconf_backslash_custom_space_check"
-lappend check_functions "qconf_backslash_custom_comma_check"
-lappend check_functions "qconf_backslash_space_output_check"
-lappend check_functions "qconf_backslash_comma_output_check"
+append_check_and_exclude_in_jgdi "qconf_de_check" "Does not use start_sge_bin, so it never uses JGDI"
+append_check_and_exclude_in_jgdi "qconf_backslash_default_space_check" "Options a/rattr not implemented" ;# functions to call (in order)
+append_check_and_exclude_in_jgdi "qconf_backslash_default_comma_check" "Options a/rattr not implemented"
+append_check_and_exclude_in_jgdi "qconf_backslash_custom_space_check" "Options a/rattr not implemented"
+append_check_and_exclude_in_jgdi "qconf_backslash_custom_comma_check" "Options a/rattr not implemented" 
+append_check_and_exclude_in_jgdi "qconf_backslash_space_output_check" "Options a/rattr not implemented"
+append_check_and_exclude_in_jgdi "qconf_backslash_comma_output_check" "Options a/rattr not implemented"
 
-lappend check_functions "qconf_issue1767"
-lappend check_functions "qconf_shgrp_tree_check"	;# List tree like structure of hosts
-lappend check_functions "qconf_shgrp_resolved_check"	;# List  hosts in a group
-lappend check_functions "qconf_modify_hostgroup"
+append_check_and_exclude_in_jgdi "qconf_issue1767"
+append_check_and_exclude_in_jgdi "qconf_shgrp_tree_check"	;# List tree like structure of hosts
+append_check_and_exclude_in_jgdi "qconf_shgrp_resolved_check"	;# List  hosts in a group
+append_check_and_exclude_in_jgdi "qconf_modify_hostgroup"
 
-lappend check_functions "qconf_purge_queue"
+append_check_and_exclude_in_jgdi "qconf_purge_queue" "BROKEN -purge succeeds with invalid arg"
 
 #                                                             max. column:     |
 #****** qconf/qconf_backslash_default_space_check() ******

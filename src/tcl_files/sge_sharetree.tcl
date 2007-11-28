@@ -114,7 +114,7 @@ proc add_sharetree_node_error {result project user1 shares1 user2 shares2 raise_
  
    # recognize certain error messages and return special return code
    set messages(index) "-1"
-   set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
+   set messages(-1) [translate_macro MSG_PROJECT_XISNOKNWOWNPROJECT_S $project]
 
    # we might have version dependent, calendar specific error messages
    get_sharetree_error_vdep messages $project
@@ -244,7 +244,7 @@ proc mod_sharetree_node_error {result project user1 shares1 user2 shares2 raise_
 
    # recognize certain error messages and return special return code
    set messages(index) "-1"
-   set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
+   set messages(-1) [translate_macro MSG_PROJECT_XISNOKNWOWNPROJECT_S $project]
 
    # we might have version dependent, calendar specific error messages
    get_sharetree_error_vdep messages $project
@@ -334,7 +334,7 @@ proc del_sharetree_node {project user {on_host ""} {as_user ""} {raise_error 1}}
 proc del_sharetree_node_error {result project user raise_error} {
    # recognize certain error messages and return special return code
    set messages(index) "-1"
-   set messages(-1) [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S $calendar]
+   set messages(-1) [translate_macro MSG_PROJECT_XISNOKNWOWNPROJECT_S $project]
 
    # we might have version dependent, calendar specific error messages
    get_sharetree_error_vdep messages $project

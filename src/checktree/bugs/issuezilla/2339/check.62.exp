@@ -102,11 +102,10 @@ proc issue_2339_setup {} {
    global CHECK_OUTPUT
 
    puts $CHECK_OUTPUT "issue_2339_setup" 
-
-   set pe(pe_name)           "two_per_host"
+       
    set pe(slots)             "2"
    set pe(allocation_rule)   "2"
-   add_pe pe
+   add_pe "two_per_host" pe
 
    set myhosts [host_conf_get_suited_hosts 2]
 

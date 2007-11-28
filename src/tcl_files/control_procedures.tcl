@@ -55,7 +55,7 @@ proc update_change_array { target_array change_array } {
 
 # dump an array to a temporary file, return filename
 proc dump_array_to_tmpfile { change_array } {
-
+   global CHECK_OUTPUT
    upvar $change_array chgar
 
    set tmpfile [ get_tmp_file_name ]
@@ -756,7 +756,8 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 #     messages.
 #*******************************************************************************
 proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} {user ""}} {
-   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL env
+   #TODO: Should also return the exit_code of executed prog_binary and report it up
+   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL env CHECK_JGDI_ENABLED jgdi_config
    get_current_cluster_config_array ts_config
    upvar $msg_var messages
 
@@ -775,7 +776,21 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
    
    debug_puts "using EDITOR=$vi_env(EDITOR)"
    # start program (e.g. qconf)
-   set id [open_remote_spawn_process $host $user $binary "$prog_args" 0 "" vi_env]
+
+   if {$CHECK_JGDI_ENABLED == 1} {
+      if {[jgdi_shell_setup $host] == 0} {
+         set vi_env(JAVA_HOME) $jgdi_config(java15)
+         set java $vi_env(JAVA_HOME)/bin/java
+         set id [open_remote_spawn_process $host $user "$java" "$jgdi_config(classpath) $jgdi_config(flags) \
+           com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $prog_binary $prog_args" 0 "" vi_env]
+      } else {
+         debug_puts "Skipping test using JGDI shell, there is an error in setup."
+         return "JGDI shell setup failed."
+      }
+   } else {
+      set id [open_remote_spawn_process $host $user $binary "$prog_args" 0 "" vi_env]
+   }
+
    set sp_id [ lindex $id 1 ] 
    if {$CHECK_DEBUG_LEVEL != 0} {
       log_user 1
@@ -915,7 +930,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
       # close the connection - hopefully vi and/or the called command will exit
       close_spawn_process $id
 
-      return result
+      return $result
    }
 
    # second waiting: Part I:
@@ -979,7 +994,6 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
 
    if { $error != 0 } {
       add_message_to_container messages -1 $result
-      send -s -i $sp_id -- "[format "%c" 27]" ;# ESC
       send -s -i $sp_id -- "[format "%c" 27]" ;# ESC
       send -s -i $sp_id -- ":q!\n"            ;# exit without saving
       set timeout 10

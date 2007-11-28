@@ -46,30 +46,22 @@ global check_use_installed_system check_init_level_procedure
 # This file shows some check specific things
 set check_root_access_needs    "no"
 set check_name                 "jgdi_junit"
-set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_description(0)       "Executes the JGDI junit tests"
-set check_description(100)     "Rebuilds JGDI and executes the JGDI junit tests" 
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED JGDI"
+#set check_description(100)     "Rebuilds JGDI and executes the JGDI junit tests" 
 # TODO: better to use jgdi.jar that is compiled with java 1.[56]
-set check_needs                ""                         ;# dependencies of this check (name of other check)
+set check_needs                "init_core_system"                         ;# dependencies of this check (name of other check)
 set check_init_level_procedure "jgdi_junit_init_level"
 set check_functions            ""                                     ;# functions to call (in order)
-set check_highest_level	       100
+set check_highest_level    0
+set check_description(0)  "Run the JGDI junit tests"
+#set check_description(100)  "Rebuild and run the JGDI junit tests"
 
-# setup and cleanup functions
-#set check_cleanup_function "jgdi_junit_cleanup"
+set check_setup_function "jgdi_shell_setup"
+set check_cleanup_function "jgdi_shell_cleanup"
 
 # test order, JGDI now supports only java 1.5+
-#lappend check_functions "jgdi_junit_14"
-lappend check_functions "jgdi_junit_15"
-lappend check_functions "jgdi_junit_16"
-
-#TODO enable tests once all pass
-set check_functions ""
-lappend check_functions "ok_proc"
-
-proc ok_proc {} {
-  return 0
-}
+append_check_only_in_jgdi "jgdi_junit_15"
+append_check_only_in_jgdi "jgdi_junit_16"
 
 proc jgdi_junit_init_level {} {
   global CHECK_ACT_LEVEL
@@ -78,10 +70,6 @@ proc jgdi_junit_init_level {} {
  
   switch -- $CHECK_ACT_LEVEL {
       "0" {
-         return 0
-      }
-      "100" {
-	 set do_jgdi_rebuild 1
          return 0
       }
    }
@@ -184,10 +172,6 @@ proc jgdi_junit_run { JAVA_VERSION } {
       report_finish report 0
       return 0
    }
-}
-
-proc jgdi_junit_14 {} {
-   jgdi_junit_run "1.4"
 }
 
 proc jgdi_junit_15 {} {

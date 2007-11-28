@@ -935,7 +935,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
           set prg_exit_state 0
           debug_puts "reading message from l10n raw cache ..."
       } else {
-          puts $CHECK_OUTPUT "translating message ..."
+          debug_puts "translating message ..."
           set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
           set l10n_raw_cache($msg_text) $back
           debug_puts "adding message to l10n raw cache ..." 
@@ -955,7 +955,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
          set prg_exit_state 0
          debug_puts "reading message from l10n install cache ..."
       } else {
-         puts $CHECK_OUTPUT "translating message ..."
+         debug_puts "translating message ..."
          set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
          set l10n_install_cache($msg_text) $back
          debug_puts "adding message to l10n install cache ..." 
@@ -1029,10 +1029,10 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
 
    if { [string first "-" $msg_txt] < 0  } {
       if {[string first "-" $msg_text] >= 0} {
-         puts $CHECK_OUTPUT "---WARNING from translate macro procedure ------------------------------------"
-         puts $CHECK_OUTPUT "   translated text of string \"$msg_txt\" contains dashes(-)!"
-         puts $CHECK_OUTPUT "   Use the \"--\" option on expect pattern line when using \"$msg_text\""
-         puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
+         debug_puts "---WARNING from translate macro procedure ------------------------------------"
+         debug_puts "   translated text of string \"$msg_txt\" contains dashes(-)!"
+         debug_puts "   Use the \"--\" option on expect pattern line when using \"$msg_text\""
+         debug_puts "------------------------------------------------------------------------------"
       }
    }
 

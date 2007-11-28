@@ -33,17 +33,17 @@
 #___INFO__MARK_END__
 
 # Define the global veriables to give them back
-global check_functions 
+global check_functions
 
 #### define test's procedure order
-lappend check_functions "qconf_add_rqs";           # add resource quota set
-lappend check_functions "qconf_modify_rqs";        # modify resource quota set
-lappend check_functions "qconf_modifyreplace_rqs"; # modify/replace resource quota set
-lappend check_functions "qconf_remove_rqs";        # delete resource quota set
-lappend check_functions "qconf_dynamic_limit";      # add a dynamic limit
-lappend check_functions "qconf_rqs_Xattr";          # resource quota set Xattr
-lappend check_functions "qconf_rqs_rattr_qmaster_dump"; # verify error handling
-lappend check_functions "qconf_issue_2383" ;# TS case for IZ 2383
+append_check_and_exclude_in_jgdi "qconf_add_rqs" "RQS file format not completetly handled yet";           # add resource quota set
+append_check_and_exclude_in_jgdi "qconf_modify_rqs" "RQS file format not completetly handled yet";        # modify resource quota set
+append_check_and_exclude_in_jgdi "qconf_modifyreplace_rqs" "RQS file format not completetly handled yet"; # modify/replace resource quota set
+append_check_and_exclude_in_jgdi "qconf_remove_rqs" "RQS file format not completetly handled yet";        # delete resource quota set
+append_check_and_exclude_in_jgdi "qconf_dynamic_limit" "RQS file format not completetly handled yet";      # add a dynamic limit
+append_check_and_exclude_in_jgdi "qconf_rqs_Xattr" "RQS file format not completetly handled yet";          # resource quota set Xattr
+append_check_and_exclude_in_jgdi "qconf_rqs_rattr_qmaster_dump" "RQS file format not completetly handled yet"; # verify error handling
+append_check_and_exclude_in_jgdi "qconf_issue_2383" "-mc fails for maintrunk" ;# TS case for IZ 2383
 
 global rqs_name_fast
 global rqs_name_cli

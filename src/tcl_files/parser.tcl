@@ -144,6 +144,7 @@
 #     ...
 #*******************************************************************************
 proc parse_simple_record {input_var output_var} {
+   global CHECK_OUTPUT
    upvar $input_var  in
    upvar $output_var out
 
@@ -152,8 +153,9 @@ proc parse_simple_record {input_var output_var} {
 
    foreach elem $help {
       set id [lindex $elem 0]
-      set value [lrange $elem 1 end]
+      set value [join [lrange $elem 1 end] " "]
       set out($id) $value
+#puts $CHECK_OUTPUT "Saved $id = $value"
    }
 }
 

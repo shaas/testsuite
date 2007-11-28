@@ -196,11 +196,11 @@ proc sge_macro { macro_name {raise_error 1} } {
       #   puts $script $macro_name
       #   close $script
       #} 
-      puts $CHECK_OUTPUT "---WARNING from translate macro procedure ------------------------------------"
-      puts $CHECK_OUTPUT "   translated macro \"$macro_name\" contains dashes(-)!"
-      puts $CHECK_OUTPUT "   Use the \"--\" option on expect pattern line when using it!"
+      debug_puts $CHECK_OUTPUT "---WARNING from translate macro procedure ------------------------------------"
+      debug_puts $CHECK_OUTPUT "   translated macro \"$macro_name\" contains dashes(-)!"
+      debug_puts $CHECK_OUTPUT "   Use the \"--\" option on expect pattern line when using it!"
 #      puts $CHECK_OUTPUT "   Macro names are written into ./.testsuite_macros_with_dashes"
-      puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
+      debug_puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
       set warnings_already_logged($macro_name) 1
    } 
    return $value

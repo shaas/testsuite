@@ -68,14 +68,6 @@ set module_name "sge_procedures.tcl"
 # set_config_and_propagate() -- set the config for the given host
 # add_exechost -- Add a new exechost configuration object
 # get_scheduling_info() -- get scheduling information 
-# add_userset -- add a userset with qconf -Au
-# add_access_list() -- add user access list
-# del_user_from_access_list() -- delete a user from an access list
-# del_access_list() -- delete user access list
-# add_user -- ??? 
-# mod_user() -- ???
-# del_pe -- delete parallel environment object definition
-# del_calendar -- ??? 
 # was_job_running -- look for job accounting
 # slave_queue_of -- Get the last slave queue of a parallel job
 # master_queue_of -- get the master queue of a parallel job
@@ -680,12 +672,12 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     remote_procedures/start_remote_prog()
 #*******************************************************************************
 proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""} {sub_path "bin"} {line_array output_lines} } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER  CHECK_JGDI_ENABLED jgdi_config check_category
    get_current_cluster_config_array ts_config
 
    upvar $exit_var exit_state
    upvar $line_array line_buf
-
+  
    if {$host == ""} {
       set host [host_conf_get_suited_hosts]
    }
@@ -694,17 +686,48 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
       set user $CHECK_USER
    }
 
-   set arch [resolve_arch $host]
-   set ret 0
-   set binary "$ts_config(product_root)/$sub_path/$arch/$bin"
+   set USE_CLIENT [string match "*USE_CLI*" $check_category]
+   
+   #We allow only qconf and qstat and exlude broken options that cause critical failures
+   #LP disabled qstat due to crashing issues
+   if { !([string compare "qconf" $bin] == 0) ||
+        [string match "*-kec *" $args] ||
+        [string match "*-Msconf *" $args] ||
+        [string match "*-msconf *" $args] ||
+        [string match "*-aattr *" $args] ||
+        ([string compare "qstat" $bin] && [string match "*-j *" $args]) } {
+        set USE_CLIENT 1
+   }
 
-   debug_puts "executing $binary $args\nas user $user on host $host"
+   # We test only qconf and qstat for now
+   if { $USE_CLIENT != 1 && $CHECK_JGDI_ENABLED } {
+      if { ![info exists jgdi_config] } {
+         if {[jgdi_shell_setup $host] != 0} {
+            debug_puts "Skipping test using JGDI shell, there is an error in setup."
+            return "JGDI shell setup failed."
+         }
+      #Else we setup the jgdi_config for the host
+      } elseif { [setup_jgdi_config_for_host $host] != 0 } {
+         debug_puts "Skipping test using JGDI shell, there is an error in setup."
+         return "JGDI shell setup failed."
+      }
+      set result [run_jgdi_command_as_user $host "$bin $args" $jgdi_config(java15) $user exit_state]
+   } else {   
+      set arch [resolve_arch $host]
+      set ret 0
+      set binary "$ts_config(product_root)/$sub_path/$arch/$bin"
 
-   # Add " around $args if there are more the 1 args....
-   set result [start_remote_prog $host $user $binary "$args" exit_state $timeout 0 $cd_dir]
+      debug_puts "executing $binary $args\nas user $user on host $host"
+
+      # Add " around $args if there are more the 1 args....
+      set result [start_remote_prog $host $user $binary "$args" exit_state $timeout 0 $cd_dir]
+   }
    
    if {[info exists line_buf]} {
       unset line_buf
+   }
+   if {![info exists result]} {
+      return ""
    }
    set help_res [split $result "\n"]
    set index 1
@@ -2461,620 +2484,6 @@ proc get_scheduling_info { job_id { check_pending 1 }} {
          return "timeout"
       }
    }   
-}
-
-#                                                             max. column:     |
-#****** sge_procedures/add_userset() ******
-# 
-#  NAME
-#     add_userset -- add a userset with qconf -Au
-#
-#  SYNOPSIS
-#     add_userset { change_array } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     change_array - Array with the values for the userset
-#               Values:
-#                  name    name of the userset (required)
-#                  type    ACL, DEPT
-#                  fshare  functional shares
-#                  oticket overwrite tickets
-#                  entries user list
-#
-#  RESULT
-#     0    userset added
-#     else error
-#
-#  EXAMPLE
-#     set  userset_conf(name)    "dep0"
-#     set  userset_conf(type)    "DEPT"
-#     set  userset_conf(oticket) "1000"
-#     set  userset_conf(entries) "codtest1"
-#     
-#     add_userset userset_conf
-#
-#  NOTES
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     tcl_files/sge_procedures/add_access_list
-#     tcl_files/sge_procedures/del_access_list
-#
-#*******************************
-proc add_userset { change_array } {
-   global CHECK_USER CHECK_USER CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
-   upvar $change_array chgar
-   set values [array names chgar]
-   
-   if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-     add_proc_error "add_userset" -1 "not possible for sge systems"
-     return -3
-   }
-   set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-   set ALREADY_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*"]
-   
-   set f_name [get_tmp_file_name]
-   set fd [open $f_name "w"]
-   set org_struct(name)    "template"
-   set org_struct(type)    "ACL DEPT"
-   set org_struct(oticket) "0"
-   set org_struct(fshare)  "0"
-   set org_struct(entries) "NONE"
-   foreach elem $values {
-     set org_struct($elem) $chgar($elem)
-   }
-   set ogr_struct_names [array names org_struct]
-   foreach elem  $ogr_struct_names {
-     puts $CHECK_OUTPUT "$elem $org_struct($elem)"
-     puts $fd "$elem $org_struct($elem)"
-   }
-   close $fd 
-   puts $CHECK_OUTPUT "using file $f_name"
-   set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-Au $f_name"]
-   if { $prg_exit_state != 0 } {
-     add_proc_error "add_userset" -1 "error running qconf -Au"
-   }
-   set result [string trim $result]
-   puts $CHECK_OUTPUT "\"$result\""
-   #     puts $CHECK_OUTPUT "\"$ADDED\"" 
-   if { [ string match "*$ADDED*" $result] } {
-     return 0
-   }
-   if { [ string match "*$ALREADY_EXISTS*" $result] } {
-     add_proc_error "add_userset" -1 "\"[set chgar(name)]\" already exists"
-     return -2
-   }
-   add_proc_error "add_userset" -1 "\"error adding [set chgar(name)]\""
-   return -100
-}
-
-#****** sge_procedures/add_access_list() ***************************************
-#  NAME
-#     add_access_list() -- add user access list
-#
-#  SYNOPSIS
-#     add_access_list { user_array list_name } 
-#
-#  FUNCTION
-#     This procedure starts the qconf -au command to add a new user access list.
-#
-#  INPUTS
-#     user_array - tcl array with user names
-#     list_name  - name of the new list
-#
-#  RESULT
-#     -1 on error, 0 on success
-#
-#  SEE ALSO
-#     sge_procedures/del_access_list()
-#
-#*******************************************************************************
-proc add_access_list { user_array list_name } {
-  global CHECK_OUTPUT
-  get_current_cluster_config_array ts_config
-
-  set arguments ""
-  foreach elem $user_array {
-     append arguments "$elem,"
-  }
-  append arguments " $list_name"
-
-  set result [start_sge_bin "qconf" "-au $arguments"]
-  puts $CHECK_OUTPUT $result
-
-  set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_GDI_ADDTOACL_SS ] $user_array $list_name]
-  if { [string first "added" $result ] < 0 && [string first $ADDED $result ] < 0 } {
-     add_proc_error "add_access_list" "-1" "could not add access_list $list_name"
-     return -1
-  }
-  return 0
-}
-
-
-#****** sge_procedures/del_user_from_access_list() ***************************************
-#  NAME
-#     del_user_from_access_list() -- delete a user from an access list
-#
-#  SYNOPSIS
-#     del_user_from_access_list { user_name list_name } 
-#
-#  FUNCTION
-#     This procedure starts the qconf -du command to delete a user from a 
-#     access list
-#
-#  INPUTS
-#     user_name - name of the user
-#     list_name - name of access list
-#     {on_host ""}    - execute qconf on host
-#     {as_user ""}    - execute qconf as user
-#     {raise_error 1} - send error mails
-#
-#  RESULT
-#      1  User was not in the access_list
-#      0  User deleted from the access_list
-#     -1 on error
-#
-#  EXAMPLE
-#
-#    set result [ del_user_from_access_list "codtest1" "deadlineusers" ]
-#
-#    if { $result == 0 } {
-#       puts $CHECK_OUTPUT "user codtest1 deleted from access list deadlineusers"
-#    } elseif { $result == 1 } {
-#       puts $CHECK_OUTPUT "user codtest1 did not exist on the access list deadlineusers"
-#    } else {
-#       add_proc_error "example" -1 "Can not delete user codtest1 from access list deadlineusers"
-#    }
-# 
-#  SEE ALSO
-# 
-#*******************************************************************************
-proc del_user_from_access_list { user_name list_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
-
-   set ret 0
-
-   set result [start_sge_bin "qconf" "-du $user_name $list_name" $on_host $as_user]
-
-   if {$prg_exit_state != 0} {
-      set messages(index) "-1 -2 -3"
-      set messages(-1) [translate_macro MSG_GDI_USERNOTINACL_SS $user_name $list_name]
-      set messages(-2) [translate_macro MSG_GDI_DELFROMACL_SS $user_name $list_name]
-      set messages(-3) [translate_macro MSG_PARSE_MOD3_REJECTED_DUE_TO_AR_SU "*" "*"]
-
-      set ret [handle_sge_errors "del_user_from_access_list" "-du $user_name $list_name" $result messages $raise_error]
-   } 
-
-   return $ret
-}
-
-#****** sge_procedures/add_user_to_access_list() *******************************
-#  NAME
-#     add_user_to_access_list() -- add a user to an access list
-#
-#  SYNOPSIS
-#     add_user_to_access_list { user_name list_name {on_host ""} {as_user ""} 
-#     {raise_error 1} } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     user_name       - name of the user
-#     list_name       - name of the user set
-#     {on_host ""}    - execute qconf on host
-#     {as_user ""}    - execute qconf as user
-#     {raise_error 1} - send error mails
-#
-#  RESULT
-#      0  User added to the access_list
-#     -1  User is already in the access_list
-#*******************************************************************************
-proc add_user_to_access_list { user_name list_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
-   set ret 0
-
-   set result [start_sge_bin "qconf" "-au $user_name $list_name" $on_host $as_user]
-
-   set messages(index) "0 -1"
-   set messages(0) [translate_macro MSG_GDI_ADDTOACL_SS $user_name $list_name]
-   set messages(-1) [translate_macro MSG_GDI_USERINACL_SS $user_name $list_name]
-
-   set ret [handle_sge_errors "add_user_to_access_list" "-au $user_name $list_name" $result messages $raise_error]
-
-   if {($prg_exit_state != 0 && $ret >= 0) || ($prg_exit_state == 0 && $ret < 0)} {
-      add_prog_error "add_user_to_access_list" -1 "qconf -au return value and message does not match together"
-   } 
-
-   return $ret
-}
-
-
-#****** sge_procedures/del_access_list() ***************************************
-#  NAME
-#     del_access_list() -- delete user access list
-#
-#  SYNOPSIS
-#     del_access_list {{ list_name } {raise_error 1}}
-#
-#  FUNCTION
-#     This procedure starts the qconf -dul command to delete a user access
-#     list.
-#
-#  INPUTS
-#     list_name - name of access list to delete
-#     raise_error - do add_proc_error in case of errors
-#
-#  RESULT
-#     -1 on error, 0 on success
-#
-#  SEE ALSO
-#     sge_procedures/add_access_list()
-# 
-#*******************************************************************************
-proc del_access_list { list_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-   global CHECK_USER
-   get_current_cluster_config_array ts_config
-   set ret 0
-
-   set result [start_sge_bin "qconf" "-dul $list_name" $on_host $as_user]
-   if {$prg_exit_state != 0} {
-      set USERSET [translate_macro MSG_OBJ_USERSET]]
-      set messages(index) "-1"
-      set messages(-1) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS $USERSET $list_name]
-
-      set ret [handle_sge_errors "del_access_list" "qconf -dul $list_name" $result messages $raise_error]
-   }
-   
-   return ret 
-}
-
-#                                                             max. column:     |
-#****** sge_procedures/add_user() ******
-# 
-#  NAME
-#     add_user -- ??? 
-#
-#  SYNOPSIS
-#     add_user { change_array } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     change_array - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc add_user {change_array {from_file 0}} {
-  global CHECK_USER CHECK_USER CHECK_OUTPUT
-  get_current_cluster_config_array ts_config
-  upvar $change_array chgar
-  set values [array names chgar]
-
-  if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-     add_proc_error "add_user" -1 "not possible for sge systems"
-     return -3
-  }
-  set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "*" "*" "*"]
-  set ALREADY_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*"]
-
-  if { $from_file != 0 } {
-     set f_name [get_tmp_file_name]
-     set fd [open $f_name "w"]
-     set org_struct(name) "template"
-     set org_struct(oticket) "0"
-     set org_struct(fshare) "0"
-     if {$ts_config(gridengine_version) != 53} {
-        set org_struct(delete_time) "0"
-     }
-     set org_struct(default_project) "NONE"
-     foreach elem $values {
-        set org_struct($elem) $chgar($elem)
-     }
-     set ogr_struct_names [array names org_struct]
-     foreach elem  $ogr_struct_names {
-        puts $CHECK_OUTPUT "$elem $org_struct($elem)"
-        puts $fd "$elem $org_struct($elem)"
-     }
-     close $fd 
-     puts $CHECK_OUTPUT "using file $f_name"
-     set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-Auser $f_name"]
-     if { $prg_exit_state != 0 } {
-        add_proc_error "add_user" -1 "error running qconf -Auser"
-     }
-     set result [string trim $result]
-     puts $CHECK_OUTPUT "\"$result\""
-#     puts $CHECK_OUTPUT "\"$ADDED\"" 
-     if { [ string match "*$ADDED*" $result] } {
-        return 0
-     }
-     if { [ string match "*$ALREADY_EXISTS*" $result] } {
-        add_proc_error "add_user" -1 "\"[set chgar(name)]\" already exists"
-        return -2
-     }
-     add_proc_error "add_user" -1 "\"error adding [set chgar(name)]\""
-     return -100
-  }
-
-  set vi_commands [build_vi_command chgar]
-  set master_arch [resolve_arch $ts_config(master_host)]
-  set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-auser" $vi_commands $ADDED $ALREADY_EXISTS ]
-  
-  if {$result == -1 } { add_proc_error "add_user" -1 "timeout error" }
-  if {$result == -2 } { add_proc_error "add_user" -1 "\"[set chgar(name)]\" already exists" }
-  if {$result != 0  } { add_proc_error "add_user" -1 "could not add user \"[set chgar(name)]\"" }
-
-  return $result
-}
-
-#****** sge_procedures/mod_user() **********************************************
-#  NAME
-#     mod_user() -- ???
-#
-#  SYNOPSIS
-#     mod_user { change_array { from_file 0 } }
-#
-#  FUNCTION
-#     modify user with qconf -muser or -Muser
-#
-#  INPUTS
-#     change_array    - array name with settings to modifiy
-#                       (e.g. set my_settings(default_project) NONE )
-#                       -> array name "name" must be set (for username)
-#
-#     { from_file 0 } - if 0: use -mconf , else use -Mconf
-#
-#  RESULT
-#     0 on success
-#
-#  SEE ALSO
-#     ???/???
-#*******************************************************************************
-proc mod_user { change_array { from_file 0 } } {
-  global CHECK_USER CHECK_USER CHECK_OUTPUT
-  get_current_cluster_config_array ts_config
-  upvar $change_array chgar
-  set values [array names chgar]
-
-  if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-     add_proc_error "mod_user" -1 "not possible for sge systems"
-     return -3
-  }
-  set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS ] $CHECK_USER "*" "*" "*"]
-  set ALREADY_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*"]
-
-  if { $from_file != 0 } {
-     set orginal_settings [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-suser $chgar(name)"]
-     if { $prg_exit_state != 0 } {
-        add_proc_error "mod_user" -1 "\"error modify user [set chgar(name)]\""
-        return -100
-     }
-
-     if { [string first "default_project" $orginal_settings] < 0  } {
-         add_proc_error "mod_user" -1 "\"error modify user [set chgar(name)]\""
-        return -100
-     }
-
-     set orginal_settings [split $orginal_settings "\n"]
-
-     set config_elements "name oticket fshare default_project"
-     if {$ts_config(gridengine_version) != 53} {
-        lappend config_elements "delete_time"
-     }
-     foreach elem $config_elements {
-        foreach line $orginal_settings {
-           set line [string trim $line]
-           if { [ string compare $elem [lindex $line 0] ] == 0 } {
-              set org_struct($elem) [lrange $line 1 end]
-           }
-        }
-     }
-     set ogr_struct_names [array names org_struct]
-     foreach elem $ogr_struct_names {
-        puts $CHECK_OUTPUT ">$elem=$org_struct($elem)<"
-     }
-     set f_name [get_tmp_file_name]
-     set fd [open $f_name "w"]
-     foreach elem $values {
-        set org_struct($elem) $chgar($elem)
-     }
-     set ogr_struct_names [array names org_struct]
-     foreach elem  $ogr_struct_names {
-        puts $CHECK_OUTPUT "$elem $org_struct($elem)"
-        puts $fd "$elem $org_struct($elem)"
-     }
-     close $fd
-     puts $CHECK_OUTPUT "using file $f_name"
-     set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-Muser $f_name"]
-     if { $prg_exit_state != 0 } {
-        add_proc_error "mod_user" -1 "error running qconf -Auser"
-     }
-     set result [string trim $result]
-     puts $CHECK_OUTPUT "\"$result\""
-     puts $CHECK_OUTPUT "\"$MODIFIED\""
-     if { [ string match "*$MODIFIED*" $result] } {
-        return 0
-     }
-     if { [ string match "*$ALREADY_EXISTS*" $result] } {
-        add_proc_error "mod_user" -1 "\"[set chgar(name)]\" already exists"
-        return -2
-     }
-     add_proc_error "mod_user" -1 "\"modifiy user error  [set chgar(name)]\""
-     return -100
-  }
-
-  set vi_commands [build_vi_command chgar]
-  set master_arch [resolve_arch $ts_config(master_host)]
-  set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" " -muser $chgar(name)" $vi_commands $MODIFIED $ALREADY_EXISTS ]
-
-  if {$result == -1 } { add_proc_error "mod_user" -1 "timeout error" }
-  if {$result == -2 } { add_proc_error "mod_user" -1 "\"[set chgar(name)]\" already exists" }
-  if {$result != 0  } { add_proc_error "mod_user" -1 "could not mod user \"[set chgar(name)]\"" }
-
-  return $result
-}
-
-
-#                                                             max. column:     |
-#****** sge_procedures/del_pe() ******
-# 
-#  NAME
-#     del_pe -- delete parallel environment object definition
-#
-#  SYNOPSIS
-#     del_pe { mype_name } 
-#
-#  FUNCTION
-#     This procedure will delete a existing parallel environment, defined with
-#     sge_procedures/add_pe.
-#
-#  INPUTS
-#     mype_name - name of parallel environment to delete
-#
-#  RESULT
-#     0  - ok
-#     -1 - timeout error
-#
-#  SEE ALSO
-#     sge_procedures/add_pe()
-#*******************************
-proc del_pe { mype_name } {
-  global CHECK_USER
-  global CHECK_OUTPUT
-  get_current_cluster_config_array ts_config
-
-   unassign_queues_with_pe_object $mype_name
-
-  set REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $mype_name "*" ]
-
-  set master_arch [resolve_arch $ts_config(master_host)]
-  log_user 0 
-  set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$master_arch/qconf" "-dp $mype_name"]
-
-  set sp_id [ lindex $id 1 ]
-
-  set result -1
-  set timeout 30 	
-  log_user 0 
-
-  expect {
-    -i $sp_id full_buffer {
-      set result -1
-      add_proc_error "del_pe" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-    }
-    -i $sp_id $REMOVED {
-      set result 0
-    }
-    -i $sp_id "removed" {
-      set result 0
-    }
-
-    -i $sp_id default {
-      set result -1
-    }
-   
-  }
-  close_spawn_process $id
-  log_user 1
-  if { $result != 0 } {
-     add_proc_error "del_pe" -1 "could not delete pe \"$mype_name\""
-  }
-  return $result
-
-}
-
-#                                                             max. column:     |
-#****** sge_procedures/del_calendar() ******
-# 
-#  NAME
-#     del_calendar -- ??? 
-#
-#  SYNOPSIS
-#     del_calendar { mycal_name } 
-#
-#  FUNCTION
-#     ??? 
-#
-#  INPUTS
-#     mycal_name - ??? 
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
-proc del_calendar { mycal_name } {
-  global CHECK_USER 
-  get_current_cluster_config_array ts_config
-
-  set REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER "*" $mycal_name "*" ]
-  set master_arch [resolve_arch $ts_config(master_host)]
-  log_user 0
-  set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$master_arch/qconf" "-dcal $mycal_name"]
-
-  set sp_id [ lindex $id 1 ]
-  set timeout 30 
-  set result -1	
-  log_user 0 
-
-  expect {
-    -i $sp_id full_buffer {
-      set result -1
-      add_proc_error "del_calendar" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-    }
-    -i $sp_id "removed" {
-      set result 0
-    }
-    -i $sp_id $REMOVED {
-      set result 0
-    }
-
-    -i $sp_id default {
-      set result -1
-    }
-    
-  }
-  close_spawn_process $id
-  log_user 1
-
-  if { $result != 0 } {
-     add_proc_error "del_calendar" -1 "could not delete calendar \"$mycal_name\""
-  }
-
-  return $result
 }
 
 #                                                             max. column:     |
@@ -7568,54 +6977,6 @@ proc startup_core_system {{only_hooks 0} {with_additional_clusters 0} } {
    exec_startup_hooks
 }
 
-
-
-#                                                             max. column:     |
-#****** sge_procedures/add_operator() ******
-# 
-#  NAME
-#     add_operator
-#
-#  SYNOPSIS
-#     add_operator { anOperator } 
-#
-#  FUNCTION
-#     Add user ''anOperator'' to operator list.
-#
-#  INPUTS
-#     anOperator - Operator to add
-#
-#  RESULT
-#     0 - Operator has been successfully added
-#    -1 - Otherwise 
-#
-#  SEE ALSO
-#     sge_procedures/delete_operator
-#
-#*******************************
-#
-proc add_operator { anOperator } {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
-
-   set result [start_sge_bin "qconf" "-ao $anOperator" ]
-   set result [string trim $result]
-
-   set ADDEDTOLIST   [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] "*" "*" $anOperator "*" ]
-   set ALREADYEXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" $anOperator ]
-
-   if {[string match $ADDEDTOLIST $result]} {
-      puts $CHECK_OUTPUT "added $anOperator to operator list"
-      return 0
-   } elseif {[string match $ALREADYEXISTS $result]} {
-      puts $CHECK_OUTPUT "operator $anOperator already exists"
-      return 0
-   } else {
-      return -1
-   }
-}
-
-
 proc wait_till_qmaster_is_down { host } {
    global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
@@ -7651,51 +7012,6 @@ proc wait_till_qmaster_is_down { host } {
          puts $CHECK_OUTPUT "still qmaster processes running ..."
       }
       after 1000
-   }
-}
-
-#                                                             max. column:     |
-#****** sge_procedures/delete_operator() ******
-# 
-#  NAME
-#     delete_operator
-#
-#  SYNOPSIS
-#     delete_operator { anOperator } 
-#
-#  FUNCTION
-#     Delete user ''anOperator'' from operator list.
-#
-#  INPUTS
-#     anOperator - Operator to delete
-#
-#  RESULT
-#     0 - Operator has been successfully deleted
-#    -1 - Otherwise 
-#
-#  SEE ALSO
-#     sge_procedures/add_operator
-#
-#*******************************
-#
-proc delete_operator {anOperator} {
-   global CHECK_OUTPUT
-   get_current_cluster_config_array ts_config
-
-   set result [start_sge_bin "qconf" "-do $anOperator"]
-   set result [string trim $result]
-
-   set REMOVEDFROMLIST [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] "*" "*" $anOperator "*" ]
-   set DOESNOTEXIST [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXIST_SS] "*" $anOperator ]
-
-   if {[string match $REMOVEDFROMLIST $result]} {
-      puts $CHECK_OUTPUT "removed $anOperator from operator list"
-      return 0
-   } elseif {[string match $DOESNOTEXIST $result]} {
-      puts $CHECK_OUTPUT "operator $anOperator does not exists"
-      return 0
-   } else {
-      return -1
    }
 }
 

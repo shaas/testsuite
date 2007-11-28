@@ -125,7 +125,6 @@ proc qmake_setup_level {} {
          set pe_options "-pe make"
 
          # create a make pe
-         set pe(pe_name)            make
          set pe(slots)              10
          set pe(user_lists)         none
          set pe(xuser_lists)        none
@@ -134,7 +133,7 @@ proc qmake_setup_level {} {
          set pe(allocation_rule)    "\$round_robin"
          set pe(control_slaves)     TRUE
          set pe(job_is_first_task)  FALSE
-         add_pe pe
+         add_pe "make" pe
 
          # assign pe with queue
          assign_queues_with_pe_object qmake.q "" make

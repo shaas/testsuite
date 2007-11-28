@@ -42,50 +42,41 @@
 global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
 
 global check_name check_description check_needs check_functions check_highest_level
-global check_root_access_needs check_category      
+global check_root_access_needs check_category
 global check_use_installed_system check_init_level_procedure
 global jgdi_setup
 
 # This file shows some check specific things
 set check_root_access_needs    "yes" ;# to start scheduler, etc.
 set check_name                 "jgdi_shell_qconf"
-set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_description(0)       "Compares output of the client and jgdi_shell implementation"
-set check_description(100)     "To be specified" 
-set check_needs                ""                         ;# dependencies of this check (name of other check)
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED JGDI"
+set check_needs                "init_core_system"                         ;# dependencies of this check (name of other check)
 set check_init_level_procedure "jgdi_shell_init_level"
 set check_functions            ""                                     ;# functions to call (in order)
-set check_highest_level	       100
+
+set check_highest_level    0
+set check_description(0)  "Compares output of the client and jgdi_shell implementation"
 
 # setup and cleanup functions
 set check_setup_function "jgdi_shell_setup"
 set check_cleanup_function "jgdi_shell_cleanup"
 
 # test order
-lappend check_functions "add_implemented_untested_options_for_statistics"
-lappend check_functions "jgdi_shell_run_single_options"
-lappend check_functions "jgdi_shell_run_batch_configuration_1" ;#Not OK
-lappend check_functions "jgdi_shell_run_batch_test_manager_1" 
-lappend check_functions "jgdi_shell_run_batch_test_operator_1"
-lappend check_functions "jgdi_shell_run_batch_test_userlist_1"
-lappend check_functions "jgdi_shell_run_batch_test_queue_1"
-#lappend check_functions "jgdi_shell_run_batch_test_adminhost_1"
-#lappend check_functions "jgdi_shell_run_batch_test_submithost_1"
-#lappend check_functions "jgdi_shell_run_batch_test_hostgroup_1"
-#lappend check_functions "jgdi_shell_run_batch_test_schedconf_1"
-lappend check_functions "jgdi_shell_run_batch_test_kill-scheduler_1"
-lappend check_functions "jgdi_shell_show_test_statistics"
-
-set check_functions ""
-lappend check_functions "ok_proc"
-
-proc ok_proc {} {
-  return 0
-}
+append_check_only_in_jgdi "add_implemented_untested_options_for_statistics"
+exclude_check "JGDI" "jgdi_shell_run_single_options" "Broken";#Broken some options due to known bugs
+exclude_check "JGDI" "jgdi_shell_run_batch_configuration_1" "added vs. modified message issue"
+exclude_check "JGDI" "jgdi_shell_run_batch_test_manager_1" "More of denied messages (for each arg)"
+exclude_check "JGDI" "jgdi_shell_run_batch_test_operator_1" "More of denied messages (for each arg)"
+exclude_check "JGDI" "jgdi_shell_run_batch_test_userlist_1" "Different added messages"
+append_check_only_in_jgdi "jgdi_shell_run_batch_test_queue_1"
+exclude_check "JGDI" "jgdi_shell_run_batch_test_adminhost_1" "-dh no admin host message missing in JGDI"
+exclude_check "JGDI" "jgdi_shell_run_batch_test_submithost_1" "Different added messages"
+append_check_only_in_jgdi "jgdi_shell_run_batch_test_hostgroup_1" 
+exclude_check "JGDI" "jgdi_shell_run_batch_test_schedconf_1" "Crashes qmaster in maintrunk"
+append_check_only_in_jgdi "jgdi_shell_show_test_statistics"
 
 proc jgdi_shell_init_level {} {
   global CHECK_ACT_LEVEL jgdi_config
-#  jgdi_setup
   switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
@@ -94,13 +85,11 @@ proc jgdi_shell_init_level {} {
    return -1  ;# no other level else
 }
 
+
 # This includes implemeted, but not yet tested options to the statistics
 # If you implement a test that uses one of these options remove them from here
 proc add_implemented_untested_options_for_statistics {} {
    global jgdi_config
-   if { [array names jgdi_config qconf,notest_opts] == "" } {
-         set jgdi_config(qconf,notest_opts) ""
-   }
 
    append jgdi_config(qconf,notest_opts) "-kec -km -ke -kej "
 
@@ -154,7 +143,7 @@ proc jgdi_shell_run_single_options { } {
    
    #Prepare the tests
    list qconf_opts {}
-   lappend qconf_opts "qconf -help"
+   #lappend qconf_opts "qconf -help" ;#-help displays build date
    lappend qconf_opts "qconf -clearusage"
    lappend qconf_opts "qconf -sc"
    lappend qconf_opts "qconf -cq all.q"
@@ -288,11 +277,11 @@ proc jgdi_shell_run_batch_test_operator_1 { } {
    #Prepare the test
    set batch {}
    lappend batch "qconf -so"
-   lappend batch "qconf -ao NewGridEngineOperatorDummy,,SecondOperatorDummy,ThirdOperatorDummy"
+   lappend batch "qconf -ao NewGridEngineOperatorDummy,SecondOperatorDummy,ThirdOperatorDummy"
    lappend batch "qconf -so"
    lappend batch "qconf -do SecondOperatorDummy"
    lappend batch "qconf -so"
-   lappend batch "qconf -do NewGridEngineOperatorDummy,,ThirdOperatorDummy"
+   lappend batch "qconf -do NewGridEngineOperatorDummy,ThirdOperatorDummy"
    lappend batch "qconf -so"
 
    set res [compare_jgdi $batch]
@@ -576,7 +565,7 @@ global jgdi_config CHECK_OUTPUT CHECK_USER ts_host_config CHECK_CUR_PROC_NAME
    start_sge_bin "qconf" "-dhgrp $c" $jgdi_config(target_host) $CHECK_USER
    start_sge_bin "qconf" "-dhgrp $a" $jgdi_config(target_host) $CHECK_USER
    start_sge_bin "qconf" "-dhgrp $b" $jgdi_config(target_host) $CHECK_USER
-   start_remote_prog $jgdi_config(target_host) $CHECK_USER "rm" "-r $dir"
+   #start_remote_prog $jgdi_config(target_host) $CHECK_USER "rm" "-r $dir"
 
    report_add_message report $res
    if { [string match "*:   ERROR\n*" $res] == 1  } {
@@ -618,7 +607,7 @@ proc jgdi_shell_run_batch_test_schedconf_1 { } {
 
    #Cleanup
    start_sge_bin "qconf" "-Msconf $fo" $jgdi_config(target_host) $CHECK_USER
-   start_remote_prog $jgdi_config(target_host) $CHECK_USER "rm" "-r $dir"
+   #start_remote_prog $jgdi_config(target_host) $CHECK_USER "rm" "-r $dir"
 
    array set report {}
    report_create "JGDI_shell_test_$name" report 1 0
@@ -631,29 +620,90 @@ proc jgdi_shell_run_batch_test_schedconf_1 { } {
    return 0
 }
 
-#Kill Scheduler
-proc jgdi_shell_run_batch_test_kill-scheduler_1 { } {
-   global ts_config jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
 
-   set temp [split $CHECK_CUR_PROC_NAME "_"]
-   set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
-   #Prepare the test
-   set batch {}
-   lappend batch "qconf -tsm"
-   lappend batch "qconf -ks"
+#****** jgdi_shell_show_test_statistics() **************************************
+#  NAME
+#    jgdi_shell_show_test_statistics() -- Shows statistics for the tested command
+#
+#  SYNOPSIS
+#    jgdi_shell_show_test_statistics { } 
+#
+#  FUNCTION
+#     Shows statistics for the tested command
+#
+#  RETURN
+#     0  -- SUCCESS
+#*******************************************************************************
+proc jgdi_shell_show_test_statistics { } {
+   global CHECK_OUTPUT jgdi_config check_name
 
-   set res [compare_jgdi $batch]
-
-   #Start the scheduler again
-   startup_scheduler
-
-   array set report {}
-   report_create "JGDI_shell_test_$name" report 1 0
-   report_add_message report $res
-   if { [string match "*:   ERROR\n*" $res] == 1  } {
-      report_finish report -1 
-      return -1
+   set cmd [lrange [split $check_name "_"] end end]
+   set out ""
+   #HEADER
+   append out "[string toupper $cmd] OPTIONS\n"
+   for {set i 0} { $i < [expr [string length $cmd] + [string length " OPTIONS"]] } { incr i 1 } {
+     append out "="
    }
+ 
+   set ok_num [llength $jgdi_config($cmd,passed_opts)]
+   set err_num [llength $jgdi_config($cmd,failed_opts)]
+   set total_test_num [expr $ok_num + $err_num]
+   if { [array names jgdi_config $cmd,notest_opts] == "" } {
+      set jgdi_config($cmd,notest_opts) ""
+   }
+   set all_implemented [lsort -unique [concat $jgdi_config($cmd,passed_opts) $jgdi_config($cmd,failed_opts)]]
+   #Update no_test list (remove options in pass and fail list)
+   set jgdi_config($cmd,notest_opts) [lsort -unique [remove_values_from_list $all_implemented $jgdi_config($cmd,notest_opts)]]
+   set notest_num [llength $jgdi_config($cmd,notest_opts)]
+   set all_implemented [lsort -unique [concat $all_implemented $jgdi_config($cmd,notest_opts)]]
+   set total_num [llength $all_implemented]
+   
+   #Temporal until we have all options implemented
+   set all_options ""
+   set tmp_list [split [start_sge_bin "qconf" "-help  | grep -- -"] "\n"]
+   foreach item $tmp_list {
+      set val [string range $item [string first "\[-" $item] end]
+      set val [lrange [split $val "] "] 0 0]
+      set val [string range [join $val ""] 1 end]
+      if { [string compare $val "-k{m|s}"] == 0 } {
+         append all_options "-km -ks "
+      } elseif  { [string compare $val "-ke\[j"] == 0 } {
+         append all_options "-ke -kej "
+      } else {
+         append all_options "$val "
+      }
+   }
+   set all_options [string range $all_options 0 [expr [string length $all_options] - 1]]
+   set not_implemented [remove_values_from_list $all_implemented $all_options]
+   #Option count for 6.1
+   set total_opts(qconf) [llength $all_options]
+   set total_opts(qdel) 4
+   set total_opts(qmod) 16
+   set total_opts(qhost) 8
+   set total_opts(qhost) 8
+   set total_opts(qstat) 22
+   set total_opts(qhost) 8
+   set total_opts(qquota) 8
+   
+   append out "\nTests passed:  $ok_num/$total_test_num ( [format "%.2f" [expr $ok_num / double($total_test_num) * 100]]% )\n"
+   append out "Total $cmd options: $total_opts($cmd)\n"
+   append out "Test coverage: $total_test_num/$total_opts($cmd) ( [format "%.2f" [expr $total_test_num / double($total_opts($cmd)) * 100]]% )\n"
+   append out "   PASSED:     $ok_num/$total_opts($cmd) ( [format "%.2f" [expr $ok_num / double($total_opts($cmd)) * 100]]% )\n"
+   append out "   FAILED:     $err_num/$total_opts($cmd) ( [format "%.2f" [expr $err_num / double($total_opts($cmd)) * 100]]% )\n"
+   append out "   NOT_TESTED: $notest_num/$total_opts($cmd) ( [format "%.2f" [expr $notest_num / double($total_opts($cmd)) * 100]]% )\n"
+   append out "   MISSING:    [expr $total_opts($cmd) - $total_num]/$total_opts($cmd) ( [format "%.2f" [expr [expr $total_opts($cmd) - $total_num] / double($total_opts($cmd)) * 100]]% )\n"
+   
+   append out "\nOPTION LISTS:\n"
+   append out "   PASSED:     $jgdi_config($cmd,passed_opts)\n"
+   append out "   FAILED:     $jgdi_config($cmd,failed_opts)\n"
+   append out "   NOT_TESTED: $jgdi_config($cmd,notest_opts)\n"
+   append out "   MISSING:    $not_implemented"
+   #puts $CHECK_OUTPUT $out
+   
+   #Send email
+   array set report {} 
+   report_create "JGDI SHELL STATISTICS for [string toupper $cmd]" report 1 0
+   report_add_message report $out
    report_finish report 0
    return 0
 }

@@ -112,10 +112,9 @@ proc pe_ranges_setup {} {
    disable_queue $queue_list
    puts $CHECK_OUTPUT "disabled $queue_list"
    
-   set pe(pe_name)           "round_robin"
    set pe(slots)             "999"
    set pe(allocation_rule)   "\$round_robin"
-   add_pe pe
+   add_pe "round_robin" pe
 
    set queue_settings(slots) 1000
    set queue_settings(load_thresholds) "np_load_avg=11.75"

@@ -729,7 +729,6 @@ proc setup_pe {} {
      return
   }
 
-  set pe_param(pe_name)           "$migration_pe_name"
   set pe_param(slots)             "2"
   set pe_param(user_lists)        "NONE"
   set pe_param(xuser_lists)       "NONE"
@@ -739,7 +738,7 @@ proc setup_pe {} {
   set pe_param(control_slaves)    "FALSE"
   set pe_param(job_is_first_task) "TRUE"
 
-  set result [add_pe pe_param]
+  set result [add_pe "$migration_pe_name" pe_param]
   if {$result != 0} {
      add_proc_error "setup_pe" -1 "could not add PE $migration_pe_name (result of add_pe: $result)"
      return

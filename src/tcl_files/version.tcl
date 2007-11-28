@@ -136,7 +136,7 @@ proc ts_source {filebase {extension tcl}} {
 proc get_version_info {} {
    global sge_config
    global CHECK_PRODUCT_VERSION_NUMBER
-   global CHECK_PRODUCT_TYPE CHECK_OUTPUT
+   global CHECK_PRODUCT_TYPE CHECK_OUTPUT CHECK_USER
 
    get_current_cluster_config_array ts_config
 
@@ -148,9 +148,10 @@ proc get_version_info {} {
  
    set master_arch [resolve_arch $ts_config(master_host)]  
    if { [file isfile "$ts_config(product_root)/bin/$master_arch/qconf"] } {
-      set result [start_sge_bin "qconf" "-sh"]
+      # We don't use start_sge_bin since we don't want to call this over JGDI
+      set result [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "qconf" "-sh"]
       set qmaster_running $prg_exit_state
-      set result [start_sge_bin "qconf" "-help"]
+      set result [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "qconf" "-help"]
       set help [ split $result "\n" ] 
       if { ([ string first "fopen" [ lindex $help 0] ] >= 0)        || 
            ([ string first "error" [ lindex $help 0] ] >= 0)        || 

@@ -387,16 +387,14 @@ proc qstat_option_pe {} {
    add_queue "test1.q" $hostname testq
    add_queue "test2.q" $hostname testq
 
-   set mype1(pe_name) "mype1"
    set mype1(slots) 6 
    set mype1(allocation_rule) "\$pe_slots"
-   add_pe mype1
+   add_pe "mype1" mype1
    assign_queues_with_pe_object "test1.q" $hostname mype1
 
-   set mype2(pe_name) "mype2"
    set mype2(slots) 2
    set mype2(allocation_rule) "\$pe_slots"
-   add_pe mype2
+   add_pe "mype2" mype2
    assign_queues_with_pe_object "test2.q" $hostname mype2
 
    set job_id_list ""

@@ -962,7 +962,7 @@ proc complex_test_rattr { value } {
     global ts_config CHECK_OUTPUT
     global complex_host
 
-    # test queueä
+    # test queue?
     set ret [mqattr "complex_values" $value [get_queue_instance "complex" $complex_host] 0 ]
     if { $ret == 0 } {
       add_proc_error "issue_1847" -1 "qconf -rattr does not reject invalid complex $value"

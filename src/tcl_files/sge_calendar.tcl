@@ -219,7 +219,7 @@ proc get_calendar_list {{output_var result} {on_host ""} {as_user ""} {raise_err
 #     sge_calendar/get_calendar_messages()
 #*******************************************************************************
 proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_OUTPUT DISABLE_ADD_PROC_ERROR
+  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
  
   upvar $change_array chgar
@@ -230,9 +230,7 @@ proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} 
   if { $fast_add != 0 } {
       puts $CHECK_OUTPUT "Modify calendar $calendar from file ..."
       set option "-Mcal"
-      set DISABLE_ADD_PROC_ERROR 1
-      get_calendar $calendar curr_cal $on_host $as_user
-      set DISABLE_ADD_PROC_ERROR 0
+      get_calendar $calendar curr_cal $on_host $as_user 0
       if {![info exists curr_cal]} {
          set_calendar_defaults curr_cal
       }

@@ -100,10 +100,8 @@ proc issue_1874_setup  {} {
    set result [add_prj object]
 
    # add user
-   set object(name) "1874_usr1"
-   set result [add_user object]
-   set object(name) "1874_usr2"
-   set result [add_user object]
+   set result [add_user "1874_usr1"]
+   set result [add_user "1874_usr2"]
 
    # create file containing sharetree
    create_stree1_1874

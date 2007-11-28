@@ -50,12 +50,12 @@ set check_init_level_procedure "access_lists_init_level"
 
 # define test's name and run level descriptions
 set check_name            "access_lists"
-set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED JGDI"
 set check_highest_level   0
 set check_description(0)  "Test (x)user_lists access for queue/cluster/pe"
 
 # define test's dependencies
-set check_needs           "init_core_system" 
+set check_needs           "init_core_system"
 
 # setup and cleanup functions
 set check_setup_function "access_lists_setup"
@@ -810,9 +810,8 @@ proc access_lists_pe {} {
 
    set jobargs "-o /dev/null -e /dev/null -pe access_test_pe 2 $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
-   set my_pe(pe_name)     "access_test_pe"
    set my_pe(slots)       "8"
-   add_pe my_pe
+   add_pe "access_test_pe" my_pe
    assign_queues_with_pe_object "$access_lists_queue" "$access_lists_host" "access_test_pe"
 
    # testing user and group
@@ -830,7 +829,7 @@ proc access_lists_pe {} {
       set my_pe(user_lists)  "NONE"
 
       puts $CHECK_OUTPUT "setting up pe ..."
-      set_pe "access_test_pe" my_pe
+      mod_pe "access_test_pe" my_pe
       puts $CHECK_OUTPUT "submitting jobs ..."
       run_user_jobs "case 1,$A_USER,$B_USER" $jobargs 0 1       ;# A = 0 (not running) B = 1 (should run)
  
@@ -838,14 +837,14 @@ proc access_lists_pe {} {
       unset my_pe
       set my_pe(xuser_lists) "NONE"
       set my_pe(user_lists)  "$A_USER"
-      set_pe "access_test_pe" my_pe
+      mod_pe "access_test_pe" my_pe
       run_user_jobs "case 2,$A_USER,$B_USER" $jobargs 1 0
 
       # case 3
       unset my_pe
       set my_pe(xuser_lists) "$B_USER"
       set my_pe(user_lists)  "$A_USER"
-      set_pe "access_test_pe" my_pe
+      mod_pe "access_test_pe" my_pe
       run_user_jobs "case 3,$A_USER,$B_USER" $jobargs 1 0 
 
    
@@ -853,7 +852,7 @@ proc access_lists_pe {} {
       unset my_pe
       set my_pe(xuser_lists) "$A_USER"
       set my_pe(user_lists)  "$B_USER"
-      set_pe "access_test_pe" my_pe
+      mod_pe "access_test_pe" my_pe
       run_user_jobs "case 4,$A_USER,$B_USER" $jobargs 0 1
 
    
@@ -861,7 +860,7 @@ proc access_lists_pe {} {
       unset my_pe
       set my_pe(xuser_lists) "NONE"
       set my_pe(user_lists)  "NONE"
-      set_pe "access_test_pe" my_pe
+      mod_pe "access_test_pe" my_pe
       run_user_jobs "case 5,$A_USER,$B_USER" $jobargs 1 1
 
    
@@ -869,7 +868,7 @@ proc access_lists_pe {} {
       unset my_pe
       set my_pe(xuser_lists) "$A_USER $B_USER"
       set my_pe(user_lists)  "NONE"
-      set_pe "access_test_pe" my_pe
+      mod_pe "access_test_pe" my_pe
       if {$group_test == 1} {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
          if {[string first $CHECK_GROUP $group1] >= 0 ||
@@ -888,7 +887,7 @@ proc access_lists_pe {} {
       unset my_pe
       set my_pe(xuser_lists) "NONE"
       set my_pe(user_lists)  "$A_USER $B_USER"
-      set_pe "access_test_pe" my_pe
+      mod_pe "access_test_pe" my_pe
       if {$group_test == 1} {
          set group1 [ lindex $CHECK_FIRST_FOREIGN_SYSTEM_GROUP 0 ]
          if {[string first $CHECK_GROUP $group1] >= 0 ||
@@ -908,25 +907,25 @@ proc access_lists_pe {} {
    unset my_pe
    set my_pe(xuser_lists) "userA_group"
    set my_pe(user_lists)  "userA_name"
-   set_pe "access_test_pe" my_pe
+   mod_pe "access_test_pe" my_pe
    run_user_jobs "group/user case 1" "$jobargs" 0 0 
 
    unset my_pe
    set my_pe(xuser_lists) "NONE"
    set my_pe(user_lists)  "userA_name userA_group"
-   set_pe "access_test_pe" my_pe
+   mod_pe "access_test_pe" my_pe
    run_user_jobs "group/user case 2" "$jobargs" 1 0
 
    unset my_pe
    set my_pe(xuser_lists) "userA_name userA_group"
    set my_pe(user_lists)  "NONE"
-   set_pe "access_test_pe" my_pe
+   mod_pe "access_test_pe" my_pe
    run_user_jobs "group/user case 3" "$jobargs" 0 1
 
    unset my_pe
    set my_pe(xuser_lists) "userA_name"
    set my_pe(user_lists)  "userA_group"
-   set_pe "access_test_pe" my_pe
+   mod_pe "access_test_pe" my_pe
    run_user_jobs "group/user case 4" "$jobargs" 0 0
 
    del_pe "access_test_pe"
@@ -943,13 +942,15 @@ proc access_lists_cleanup {} {
 
    set_schedd_config access_lists_schedd_conf
 
+   # delete the test queue
+   del_queue $access_lists_queue "" 0 1
+
+   #Now remove lists
    del_access_list "userA_group"
    del_access_list "userB_group"
    del_access_list "userA_name"
    del_access_list "userB_name"
 
-   # delete the test queue
-   del_queue $access_lists_queue "" 0 1
    
    # enable all.q
    foreach host $ts_config(execd_nodes) {

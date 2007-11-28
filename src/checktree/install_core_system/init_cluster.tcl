@@ -304,7 +304,7 @@ proc setup_queues {} {
    # for all queues: set load_thresholds and queue type
    set new_values(load_thresholds)       "np_load_avg=11.00"
    set new_values(qtype)                 "BATCH INTERACTIVE CHECKPOINTING PARALLEL"
- 
+
    set result [mod_queue "all.q" "" new_values]
    switch -- $result { 
       -1 {
@@ -743,9 +743,8 @@ proc setup_mytestproject {} {
 #     ???/???
 #*******************************
 proc setup_mytestpe {} {
-   set change(pe_name) "mytestpe"
    set change(slots) "5"
-   add_pe change
+   add_pe "mytestpe" change
    assign_queues_with_pe_object "all.q" "" "mytestpe"
 }
 
