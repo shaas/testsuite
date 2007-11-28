@@ -96,7 +96,7 @@ set ARCO_VIEWS { view_job_times view_jobs_completed
 if {$ts_config(gridengine_version) >= 62} {
    set ARCO_VIEWS { view_ar_time_usage view_job_times view_jobs_completed
                  view_job_log view_department_values view_group_values view_host_values
-                 view_project_values view_queue_values view_user_values view_user_values
+                 view_project_values view_queue_values view_user_values view_statistic
                  view_ar_time_usage view_ar_attribute view_ar_log view_ar_usage 
                  view_ar_resource_usage view_accounting view_ar_attribute
    }
