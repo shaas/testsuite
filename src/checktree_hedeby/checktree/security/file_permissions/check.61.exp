@@ -281,6 +281,11 @@ proc hedeby_check_master_host_file_permissions {} {
    foreach managed_host [get_all_hedeby_managed_hosts] {
       lappend expected_files "spool/cs/active_jvm/executor_vm@$managed_host*.xml"
    }
+
+   foreach resource_host $hedeby_config(hedeby_host_resources) {
+      lappend expected_files "spool/spare_pool/$resource_host*"
+   }
+
    lappend expected_files "spool/cs/global.xml"
    lappend expected_files "spool/cs/security.xml"
 

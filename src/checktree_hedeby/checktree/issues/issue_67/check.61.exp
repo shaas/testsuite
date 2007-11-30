@@ -96,7 +96,8 @@ proc issue_67_check {} {
    set expected_str "WARNING: ${match_str}\r\nWARNING: ${match_str}\r\nWARNING: ${match_str}\r\nError: ${match_str2}"
 
    # start system on master host again, don't raise errors ...
-   set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" 0]
+   set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start" prg_exit_state "" 0]
+   set ret $prg_exit_state
 
    # now check the output ...
    if { [string match "*$expected_str*" $output] } {
@@ -106,7 +107,7 @@ proc issue_67_check {} {
    }
 
    # now check the exit state ...
-   puts $CHECK_OUTPUT "exit state of sdmadm_start command is \"$ret\""
+   puts $CHECK_OUTPUT "exit state of sdmadm start command is \"$ret\""
    if { $ret == 0 } {
       add_proc_error "issue_67_check" -1 "issue 67 encountered: exit state is not set != 0 on startup error"
    }

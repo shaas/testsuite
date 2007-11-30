@@ -56,6 +56,10 @@ lappend check_functions "hedeby_install_master_host"
 lappend check_functions "hedeby_startup_master_host"
 lappend check_functions "hedeby_install_managed_hosts"
 lappend check_functions "hedeby_startup_managed_hosts"
+lappend check_functions "hedeby_add_and_verify_spare_pool_resources"
+#lappend check_functions "hedeby_add_and_verify_ge_service"
+#lappend check_functions "hedeby_add_and_verify_ge_service_resources"
+
 
 
 # ---------------------------------------------------------------------------------
@@ -100,6 +104,17 @@ proc hedeby_install_cleanup {} {
    # set the current cluster config to the one used when starting
    # the test
    set_current_cluster_config_nr $install_current_cluster_config
+}
+
+
+proc hedeby_add_and_verify_spare_pool_resources {} {
+   global hedeby_config
+   global CHECK_OUTPUT 
+   global CHECK_USER
+
+   foreach host $hedeby_config(hedeby_host_resources) {
+      add_host_resource $host
+   }
 }
 
 proc hedeby_cleanup_system {} {
@@ -197,8 +212,6 @@ proc hedeby_install_master_host {} {
    # save certificate creation time to be able to check if the certs are 
    # valid on remote managed hosts when installing manages hosts later
    set certificate_creation_time_on_master_host [get_remote_time $hedeby_config(hedeby_master_host)]
-   puts $CHECK_OUTPUT "output:"
-   puts $CHECK_OUTPUT $install_master_output
 }
 
 
@@ -330,8 +343,6 @@ proc hedeby_install_managed_hosts {} {
       if { $prg_exit_state != 0 } {
          add_proc_error "hedeby_install_master_host" -1 "${managed_host}($install_user): sdmadm $arguments failed:\n$output"
       }
-      puts $CHECK_OUTPUT "output:"
-      puts $CHECK_OUTPUT $output
    }
 }
 

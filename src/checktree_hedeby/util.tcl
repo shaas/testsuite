@@ -52,16 +52,10 @@
 #     util/remove_prefs_on_hedeby_host()
 #     util/shutdown_hedeby()
 #     util/startup_hedeby()
-#     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
 #
 #     output parsing specific:
 #     ========================
-#     util/parse_sdmadm_show_status_output()
+#     util/parse_show_component_output()
 #
 #     file specific:
 #     ==============
@@ -279,6 +273,69 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
       add_proc_error "get_hedeby_binary_path" -1 "file \"$path\" not existing on host \"$hostname\" for user \"$user_name\""
    }
    return $path
+}
+
+#****** util/add_host_resource() ***********************************************
+#  NAME
+#     add_host_resource() -- add a host resource to hedeby
+#
+#  SYNOPSIS
+#     add_host_resource { host_resource { on_host "" } { as_user ""} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is used to add host resources to the hedeby system. 
+#
+#  INPUTS
+#     host_resource   - hostname of the host resource 
+#     { on_host "" }  - optional: host where sdmadm should be started 
+#                       if not set the hedeby master host is used
+#     { as_user ""}   - optional: user name which starts sdmadm command 
+#                       if not set the hedeby admin user is used
+#     {raise_error 1} - if set to 1 testsuite reports errors on failure 
+#
+#  RESULT
+#     the prg_exit_state of the sdmadm command
+#
+#*******************************************************************************
+proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error 1} } {
+   global hedeby_config
+   global CHECK_OUTPUT
+   global CHECK_USER
+
+   if { $on_host == "" } {
+      set exec_host $hedeby_config(hedeby_master_host)
+   } else {
+      set exec_host $on_host
+   }
+   if { $as_user == "" } {
+      set exec_user [get_hedeby_admin_user]
+   } else {
+      set exec_user $as_user
+   }
+
+   # write resource property file on the execution host
+   set file_name [get_tmp_file_name $exec_host]
+   set osArch [resolve_arch $host_resource]
+   set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
+   set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
+
+   set data(0) 4
+   set data(1) "hardwareCpuArchitecture=$osArch"
+   set data(2) "operatingSystemName=$osName"
+   set data(3) "operatingSystemRelease=$osRel"
+   set data(4) "resourceHostname=$host_resource"
+   write_remote_file $host_resource $exec_user $file_name data
+
+   # print out created file
+   set file_content [start_remote_prog $exec_host $exec_user cat $file_name]
+   puts $CHECK_OUTPUT "adding host resource \"$host_resource\" to hedeby system ..."
+   puts $CHECK_OUTPUT "properties file:"
+   puts $CHECK_OUTPUT $file_content
+
+   # now use sdmadm command ...
+   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] add_resource -pf $file_name" prg_exit_state "" $raise_error
+   return $prg_exit_state
 }
 
 #****** util/get_hedeby_system_name() ******************************************
@@ -1298,8 +1355,9 @@ proc shutdown_hedeby_host { type host user { only_raise_cannot_kill_error 0 } } 
             add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is the master host!"
             return 1
          }
-         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" $host $raise_error]
-         if { $ret != 0 } {
+
+         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -h $host" prg_exit_state "" $raise_error]
+         if { $prg_exit_state != 0 } {
             set ret_val 1
          }
       }
@@ -1308,8 +1366,8 @@ proc shutdown_hedeby_host { type host user { only_raise_cannot_kill_error 0 } } 
             add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is NOT the master host!"
             return 1
          }
-         set ret [sdmadm_shutdown $host $user output [get_hedeby_pref_type] [get_hedeby_system_name] "" $host $raise_error]
-         if { $ret != 0 } {
+         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -h $host" prg_exit_state "" $raise_error]
+         if { $prg_exit_state != 0 } {
             set ret_val 1
          }
       }
@@ -1426,23 +1484,23 @@ proc startup_hedeby_host { type host user } {
 
    if { $hedeby_config(security_disable) == "true" } {
       puts $CHECK_OUTPUT "WARNING! Setting security disable property for host $host"
-      set ret [sdmadm_set_system_property $host $user output "ssl_disable" "true" [get_hedeby_pref_type] [get_hedeby_system_name]]
-      if { $ret != 0 } {
-         return $ret
-      } 
+      set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] set_system_property -n ssl_disable -v true"]
+      if { $prg_exit_state != 0 } {
+         return $prg_exit_state
+      }
    }
 
    switch -exact -- $type {
       "managed" {
-         set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]]
-         if { $ret != 0 } {
+         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start"]
+         if { $prg_exit_state != 0 } {
             set ret_val 1
          } 
          set match_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz "*"]
       }
       "master" {
-         set ret [sdmadm_start $host $user output [get_hedeby_pref_type] [get_hedeby_system_name]]
-         if { $ret != 0 } {
+         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start"]
+         if { $prg_exit_state != 0 } {
             set ret_val 1
          }
          set help [create_bundle_string "bootstrap.log.info.jvm_started" xzy "*"]
@@ -1499,8 +1557,7 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
    puts $CHECK_OUTPUT "removing \"$pref_type\" preferences for hedeby system \"$sys_name\" on host \"$host\" ..."
 
    set remove_user [get_hedeby_startup_user]
-
-   sdmadm_remove_system $host $remove_user output $pref_type $sys_name $raise_error
+   sdmadm_command $host $remove_user "-p $pref_type -s $sys_name remove_system" prg_exit_state "" $raise_error
 }
 
 
@@ -1531,10 +1588,9 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #*******************************************************************************
 proc reset_hedeby {} {
    add_proc_error "reset_hedeby" -3 "not implemented"
-   # shutdown hedeby system ?
-   # reset all resources to install state = OK (same as after install with cleanup system)
-   # startup hedeby system ?
-   # TODO: check if this procedure (reset_hedeby) should be implemented or not
+   # TODO: reset all resources to install state = OK
+   # TODO: all resources which are added by install test should be in the spare
+   #       pool after reset_hedeby()
    return 0
 }
 
@@ -1561,19 +1617,15 @@ proc reset_hedeby {} {
 #                                 output and send via stdin
 #                                 if this array contains entries the sdmadm
 #                                 command is started interactive.
+#     {raise_error 1}           - optional if set to 1 errors are reported
 #
 #  RESULT
 #     The output of the sdmadm command
 #
 #  SEE ALSO
 #     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
 #*******************************************************************************
-proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } } {
+proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } {raise_error 1} } {
    global CHECK_OUTPUT
    upvar $exit_var back_exit_state
    if { $interactive_tasks != "" } {
@@ -1584,7 +1636,12 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
 
    if { $interactive_tasks == "" } {
       puts $CHECK_OUTPUT "${host}($user): starting binary not interactive \"sdmadm $arg_line\" ..."
-      return [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0]
+      set output [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0 $raise_error]
+      if { $back_exit_state != 0 } {
+         add_proc_error "sdmadm_command" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+      }
+      puts $CHECK_OUTPUT $output
+      return $output
    } else {
       set back_exit_state -1
       puts $CHECK_OUTPUT "${host}($user): starting binary INTERACTIVE \"sdmadm $arg_line\" ..."
@@ -1646,608 +1703,143 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       }
       close_spawn_process $pr_id
       if { $error_text != "" } {
-         add_proc_error "sdmadm_command" -1 "interacitve errors:\n$error_text\noutput:\n$output\nexit state: $back_exit_state"
+         add_proc_error "sdmadm_command" -1 "interacitve errors:\n$error_text\noutput:\n$output\nexit state: $back_exit_state" $raise_error
+      }
+      if { $back_exit_state != 0 } {
+         add_proc_error "sdmadm_command" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
       }
       return $output
    }
 }
 
-#****** util/sdmadm_start() ****************************************************
+
+#****** util/remove_user_from_admin_list() *************************************
 #  NAME
-#     sdmadm_start() -- command wrapper for sdmadm start command
+#     remove_user_from_admin_list() -- remove user from hedeby admin list
 #
 #  SYNOPSIS
-#     sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} 
+#     remove_user_from_admin_list { execute_host execute_user user_name 
 #     {raise_error 1} } 
 #
 #  FUNCTION
-#     This procedure is used to setup the argument parameters for sdmadm start
-#     command. It reflects all supported sdmadm start parameters and uses
-#     sdmadm_command() to start the command. 
+#     remove a user from the hedeby adminstirator user list
 #
 #  INPUTS
-#     host            - host where sdmadm should be started
-#     user            - user account used for starting sdmadm
-#     output          - variable name where the output of sdmadm should be 
-#                       stored 
-#     {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#     {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#     {jvm_name ""}   - optional: jvm name. If not set no -j switch is used.
-#     {raise_error 1} - optional: if not set turn of error reporting.
+#     execute_host    - host where sdmadm is started
+#     execute_user    - user who starts sdmadm
+#     user_name       - user to remove
+#     {raise_error 1} - optional: report errors if != 0
 #
 #  RESULT
-#     exit state of sdmadm start command
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
+#     0 on success, 1 on error
 #*******************************************************************************
-proc sdmadm_start { host user output {preftype ""} {sys_name ""} {jvm_name ""} {raise_error 1} } {
+proc remove_user_from_admin_list { execute_host execute_user user_name {raise_error 1} } {
    global CHECK_OUTPUT
-   upvar $output output_return
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "start"
-
-   if { $jvm_name != "" } {
-      append arg_line " -j $jvm_name"
-   }
-
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
+   set retval 0
    
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_start" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-   }
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] remove_admin_user $user_name" prg_exit_state "" $raise_error]
+   set exit_state $prg_exit_state
 
-   set output_return $output  ;# set the output
-   return $prg_exit_state
-}
-
-#****** util/sdmadm_shutdown() *************************************************
-#  NAME
-#     sdmadm_shutdown() -- command wrapper for sdmadm shutdown command
-#
-#  SYNOPSIS
-#     sdmadm_shutdown { host user output {preftype ""} {sys_name ""} 
-#     {jvm_name ""} {raise_error 1} } 
-#
-#  FUNCTION
-#     This procedure is used to setup the argument parameters for sdmadm 
-#     shutdown command. It reflects all supported sdmadm shutdown parameters
-#     and uses sdmadm_command() to start the command. 
-#
-#  INPUTS
-#     host            - host where sdmadm should be started
-#     user            - user account used for starting sdmadm
-#     output          - variable name where the output of sdmadm should be 
-#                       stored 
-#     {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#     {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#     {jvm_name ""}   - optional: jvm name. If not set no -j switch is used.
-#     {raise_error 1} - optional: if not set turn of error reporting.
-#
-#  RESULT
-#     exit state of sdmadm start command
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
-#*******************************************************************************
-proc sdmadm_shutdown { host user output {preftype ""} {sys_name ""} {jvm_name ""} { host_name "" } {raise_error 1} } {
-   global CHECK_OUTPUT
-   upvar $output output_return
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "shutdown"
-
-   if { $jvm_name != "" } {
-      append arg_line " -j $jvm_name"
-   }
-   
-   if { $host_name != "" } {
-      append arg_line " -h $host_name"
-   }
-
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
-
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_shutdown" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-   }
-
-   set output_return $output  ;# set the output
-   return $prg_exit_state
-}
-
-
-#****** util/sdmadm_remove_system() ********************************************
-#  NAME
-#     sdmadm_remove_system() -- command wrapper for sdmadm remove_system
-#
-#  SYNOPSIS
-#     sdmadm_remove_system { host user output {preftype ""} {sys_name ""} 
-#     {raise_error 1} } 
-#
-#  FUNCTION
-#     This procedure is used to setup the argument parameters for sdmadm 
-#     remove_system command.
-#     It reflects all supported sdmadm remove_system parameters and uses
-#     sdmadm_command() to start the command. 
-#
-#  INPUTS
-#     host            - host where sdmadm should be started
-#     user            - user account used for starting sdmadm
-#     output          - variable name where the output of sdmadm should be 
-#                       stored 
-#     {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#     {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#     {raise_error 1} - optional: if not set turn of error reporting.
-#
-#  RESULT
-#     exit state of sdmadm start command
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
-#*******************************************************************************
-proc sdmadm_remove_system { host user output {preftype ""} {sys_name ""} {raise_error 1} } {
-   global CHECK_OUTPUT
-   upvar $output output_return
-
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "remove_system"
-
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
-
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_remove_system" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-   }
-
-   set output_return $output  ;# set the output
-   return $prg_exit_state
-}
-
-
-#****** util/sdmadm_set_system_property() **************************************
-#  NAME
-#     sdmadm_set_system_property() -- wrapper sdmadm set_system_property command
-#
-#  SYNOPSIS
-#     sdmadm_set_system_property { host user output property_name value 
-#     {preftype ""} {sys_name ""} {raise_error 1} } 
-#
-#  FUNCTION
-#     This procedure is used to setup the argument parameters for sdmadm 
-#     set_system_property command.
-#     It reflects all supported sdmadm set_system_property parameters and uses
-#     sdmadm_command() to start the command. 
-#
-#  INPUTS
-#     host            - host where sdmadm should be started
-#     user            - user account used for starting sdmadm
-#     output          - variable name where the output of sdmadm should be 
-#                       stored 
-#     property_name   - name of the property to set 
-#                       ("auto_start" or "ssl_disable") 
-#     value           - "true" or "false" 
-#     {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#     {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#     {raise_error 1} - optional: if not set turn of error reporting.
-#
-#  RESULT
-#     exit state of sdmadm start command
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
-#     util/sdmadm_set_system_property()
-#*******************************************************************************
-proc sdmadm_set_system_property { host user output property_name value  {preftype ""} {sys_name ""} {raise_error 1} } {
-   global CHECK_OUTPUT
-   upvar $output output_return
-
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "set_system_property -n $property_name -v $value"
-
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
-
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_remove_system" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-   }
-
-   set output_return $output  ;# set the output
-   return $prg_exit_state
-}
-
-#****** util/sdmadm_show_status() **********************************************
-#  NAME
-#     sdmadm_show_status() -- command wrapper for sdmadm show_status command
-#
-#  SYNOPSIS
-#     sdmadm_show_status { host user output {preftype ""} {sys_name ""} 
-#     {raise_error 1} } 
-#
-#
-#  FUNCTION
-#     This procedure is used to setup the argument parameters for sdmadm 
-#     show_status command.
-#     It reflects all supported sdmadm show_status parameters and uses
-#     sdmadm_command() to start the command. 
-#
-#  INPUTS
-#     host            - host where sdmadm should be started
-#     user            - user account used for starting sdmadm
-#     output          - variable name where the output of sdmadm should be 
-#                       stored 
-#     {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#     {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#     {raise_error 1} - optional: if not set turn of error reporting.
-#
-#  RESULT
-#     exit state of sdmadm start command
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
-#*******************************************************************************
-proc sdmadm_show_status { host user output {preftype ""} {sys_name ""} {raise_error 1} {promptPW 0} } {
-   global CHECK_OUTPUT
-   upvar $output output_return
-
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-   if { $promptPW != 0 } {
-      lappend args "-ppw"
-   }
- 
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "show_component_status"
-   if { $promptPW == 0 } {   
-      set output [sdmadm_command $host $user $arg_line]
-   } else {
-      set tasks(username) "root"
-      set tasks(password) "ROOTPW"
-      set output [sdmadm_command $host $user $arg_line prg_exit_state tasks]
-   }
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_show_status" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output\nexit state: $prg_exit_state" $raise_error
-   }
-
-   set output_return $output  ;# set the output
-   return $prg_exit_state
-}
-
-
-#****** util/sdmadm_add_admin_user() **************************************************
-#  NAME
-#    sdmadm_add_admin_user() -- Add an user to the admin user list
-#
-#  SYNOPSIS
-#    sdmadm_add_admin_user { host user user_to_add {preftype ""} {sys_name ""} {raise_error 1} } 
-#
-#  FUNCTION
-#     Adds an user with "sdmadm add_admin_user" to the admin user list
-#
-#    host            - the host where sdmadm is started
-#    user            - the user which executes sdmadm
-#    user_to_add  - name of the user which should be added
-#    {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#    {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#    {raise_error 1} - optional: if not set turn of error reporting.
-#
-#  RESULT
-#     0 of the user has been added to the admin user list
-#     else error has been reported
-#
-#  EXAMPLE
-#     
-#   if {[sdmadm_add_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
-#      add_proc_error "foo_check" -1 "user root has not been added to admin user list"
-#   }
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#*******************************************************************************
-proc sdmadm_add_admin_user { host user user_to_add {preftype ""} {sys_name ""} {raise_error 1} } {
-   
-   global CHECK_OUTPUT
-
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "add_admin_user $user_to_add"
-
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
-
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_add_admin_user" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-   }
-   
-   set params(0) $user_to_add
-   set user_added_string [create_bundle_string "adminUser.added" params]
-
-   set output [string trim $output]
-   
-   if { [string match $user_added_string $output] } {
-      return 0;
-   } else {
-        add_proc_error "sdmadm_add_admin_user" -1 "Received unexpected output from sdmadm sdmadm_add_admin_user: $output" $raise_error
-        return 1
-   }
-}
-
-#****** util/sdmadm_remove_admin_user() **************************************************
-#  NAME
-#    sdmadm_remove_admin_user() -- remove an admin user with sdmadm
-#
-#  SYNOPSIS
-#    sdmadm_remove_admin_user { host user user_to_remove {preftype ""} {sys_name ""} {raise_error 1} } 
-#
-#  FUNCTION
-#     
-#     Executes "sdmadm remove_admin_user" 
-#
-#  INPUTS
-#    host            - the host where sdmadm is started
-#    user            - the user which executes sdmadm
-#    user_to_remove  - name of the user which should be removed
-#    {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#    {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#    {raise_error 1} - optional: if not set turn of error reporting.
-#
-#  RESULT
-#     0 of the user has been removed from the admin user list
-#     else error has been reported
-#
-#  EXAMPLE
-#     
-#   if {[sdmadm_remove_admin_user $test_host $test_user "root" [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
-#      add_proc_error "foo_check" -1 "user root has not been removed from admin user list"
-#   }
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#*******************************************************************************
-proc sdmadm_remove_admin_user { host user user_to_remove {preftype ""} {sys_name ""} {raise_error 1} } {
-   
-   global CHECK_OUTPUT
-
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "remove_admin_user $user_to_remove"
-
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
-
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_remove_admin_user" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-   }
-   
-   set params(0) $user_to_remove
+   set params(0) $user_name
    set user_removed_string [create_bundle_string "adminUser.removed" params]
-
    set output [string trim $output]
-   
-   if { [string match $user_removed_string $output] } {
-      return 0;
-   } else {
-        add_proc_error "sdmadm_remove_admin_user" -1 "Received unexpected output from sdmadm remove_admin_user: $output" $raise_error
-        return 1
+   if { [string match $user_removed_string $output] == 0 } {
+      add_proc_error "remove_user_from_admin_list" -1 "user \"$user_name\" has not been removed from admin user list:\n$output" $raise_error
+      set retval 1
    }
+   if { $exit_state != $retval } {
+      add_proc_error "remove_user_from_admin_list" -1 "shell exit value doesn't match to output of sdmadm_command" $raise_error
+      set retval 1
+   }
+   return $retval;
 }
 
-#****** util/sdmadm_show_admin_users() **************************************************
+
+#****** util/add_user_to_admin_list() ******************************************
 #  NAME
-#    sdmadm_show_admin_users() -- get admin user list
+#     add_user_to_admin_list() -- add user to administrator list
 #
 #  SYNOPSIS
-#    sdmadm_show_admin_users { host user user_list {preftype ""} {sys_name ""} {raise_error 1} } 
+#     add_user_to_admin_list { execute_host execute_user user_name 
+#     {raise_error 1} } 
 #
 #  FUNCTION
-#     
-#     This method get the list of admin users of a hedeby system
+#     adds a user to hedeby admin list
 #
 #  INPUTS
-#    host            - the host where sdmadm is started
-#    user_list       - upvar where admin users will be stored
-#    user            - the user which executes sdmadm
-#    {preftype ""}   - optional: used preferences type. If not set no -p
-#                                 switch is used 
-#    {sys_name ""}   - optional: used system type. If not set no -s
-#                                 switch is used
-#    {raise_error 1} - optional: if not set turn of error reporting.
+#     execute_host    - host where sdmadm is started
+#     execute_user    - user who starts sdmadm
+#     user_name       - user to add
+#     {raise_error 1} - optional: report errors if != 0
 #
 #  RESULT
-#     0 if the command was succesfull 
-#     else exit state of "sdmadm get_admin_user_list" command
-#  EXAMPLE
-#
-#   set user_list {}
-#   if {[sdmadm_show_admin_users $test_host $test_user user_list [get_hedeby_pref_type] [get_hedeby_system_name]] != 0} {
-#     return
-#   }
-#   
-#   if { [lsearch $user_list "root"] < 0} {
-#      add_proc_error "manage_admin_user_check" -1 "user root is not an admin user"
-#      return
-#   }
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     util/sdmadm_command()
+#     0 on success, 1 on error
 #*******************************************************************************
-proc sdmadm_show_admin_users { host user user_list {preftype ""} {sys_name ""} {raise_error 1} } {
-   
+proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1} } {
    global CHECK_OUTPUT
-   upvar $user_list user_list_return
-
-   set user_list_return {}
+   set retval 0
    
-   set args {}
-   if { $preftype != "" } {
-      lappend args "-p $preftype"
-   }
-   if { $sys_name != "" } {
-      lappend args "-s $sys_name"
-   }
-   set arg_line ""
-   foreach arg $args {
-      append arg_line $arg
-      append arg_line " "
-   }
-   append arg_line "show_admin_users"
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] add_admin_user $user_name" prg_exit_state "" $raise_error ]
+   set exit_state $prg_exit_state
 
-   set output [sdmadm_command $host $user $arg_line]
-   puts $CHECK_OUTPUT $output
-
-   if { $prg_exit_state != 0 } {
-      add_proc_error "sdmadm_show_admin_users" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
-      return $prg_exit_state
-   } else {   
-      set lines [split $output "\n"]
-      foreach ls $lines {
-          set line [string trim $ls]
-          lappend user_list_return $line
-      }
-      return 0;
+   set params(0) $user_name
+   set user_added_string [create_bundle_string "adminUser.added" params]
+   set output [string trim $output]
+   if { [string match $user_added_string $output] == 0 } {
+      add_proc_error "add_user_to_admin_list" -1 "user \"$user_name\" has not been added to admin user list:\n$output" $raise_error
+      set retval 1
    }
+   if { $exit_state != $retval } {
+      add_proc_error "add_user_to_admin_list" -1 "shell exit value doesn't match to output of sdmadm_command" $raise_error
+      set retval 1
+   }
+   return $retval;
 }
 
 
-
-#****** util/parse_sdmadm_show_status_output() *********************************
+#****** util/get_admin_user_list() *********************************************
 #  NAME
-#     parse_sdmadm_show_status_output() -- parse sdmadm show_status output
+#     get_admin_user_list() -- get administrator user list
 #
 #  SYNOPSIS
-#     parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } 
+#     get_admin_user_list { execute_host execute_user result_list 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     return a list with user names which are in the administrator list
+#
+#  INPUTS
+#     execute_host    - host where sdmadm is started
+#     execute_user    - user who starts sdmadm
+#     result_list     - list for storing user names
+#     {raise_error 1} - optional: report errors if != 0
+#
+#  RESULT
+#     0 on success, 1 on error
+#*******************************************************************************
+proc get_admin_user_list { execute_host execute_user result_list {raise_error 1} } {
+   global CHECK_OUTPUT
+   upvar $result_list user_list
+   set retval 0
+   
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] show_admin_users" prg_exit_state "" $raise_error ]
+   set retval $prg_exit_state
+   # parse output
+   set user_list {}
+   set lines [split $output "\n"]
+   foreach ls $lines {
+      set line [string trim $ls]
+      lappend user_list $line
+   }
+   return $retval;
+}
+
+#****** util/parse_show_component_output() *********************************
+#  NAME
+#     parse_show_component_output() -- parse sdmadm show_status output
+#
+#  SYNOPSIS
+#     parse_show_component_output { output_var {status_array "ss_out" } } 
 #
 #  FUNCTION
 #     This procedure is used to parse the output of the sdmadm show_status
@@ -2267,7 +1859,7 @@ proc sdmadm_show_admin_users { host user user_list {preftype ""} {sys_name ""} {
 #
 #  EXAMPLE
 #     
-#   set component_count [parse_sdmadm_show_status_output output]
+#   set component_count [parse_show_component_output output]
 #   
 #   for {set i 0} {$i < $component_count} {incr i} {
 #      set host   $ss_out($i,host)
@@ -2279,13 +1871,8 @@ proc sdmadm_show_admin_users { host user user_list {preftype ""} {sys_name ""} {
 #
 #  SEE ALSO
 #     util/sdmadm_command()
-#     util/sdmadm_start()
-#     util/sdmadm_shutdown()
-#     util/sdmadm_remove_system()
-#     util/sdmadm_start()
-#     util/sdmadm_show_status()
 #*******************************************************************************
-proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
+proc parse_show_component_output { output_var {status_array "ss_out" } } {
    global CHECK_OUTPUT
    upvar $output_var out
    upvar $status_array ss
@@ -2318,7 +1905,7 @@ proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
                   }
                }
                if {$real_col_name == ""} {
-                  add_proc_error "parse_sdmadm_show_status_output" -1 "Found unknown column $col_name in output of \"sdmadm show_status\""
+                  add_proc_error "parse_show_component_output" -1 "Found unknown column $col_name in output of \"sdmadm show_status\""
                   return -1
                }
                set col($col_count,name)  $real_col_name
