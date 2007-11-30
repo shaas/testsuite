@@ -2306,6 +2306,7 @@ proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
       if { [string first "Error:" $line] >= 0 } {
          return -1
       } elseif {$line_count < 0} {
+         
          set line [string trim $line]
          foreach col_name [split $line " "] {
             if {[string length $col_name] > 0} {
@@ -2331,8 +2332,9 @@ proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
             incr col($i,end_index) -1
             debug_puts "col$i: $col($i,name) = $col($i,start_index) -> $col($i,end_index)"
          }
-         set col($last_col_index,end_index) [string length $line]
-         incr col($last_col_index,end_index) -1
+         # We do not known the index of the last col
+         # -1 means that the last col cosumes the rest of the line
+         set col($last_col_index,end_index) -1
          debug_puts "col$i: $col($last_col_index,name) = $col($last_col_index,start_index) -> $col($last_col_index,end_index)"
          set line_count 0
       } elseif { [string length $line] == 0 } {
@@ -2342,7 +2344,12 @@ proc parse_sdmadm_show_status_output { output_var {status_array "ss_out" } } {
       } else {
          for {set i 0} {$i < $col_count} {incr i} {
             set col_name $col($i,name)
-            set tvalue [string range $line $col($i,start_index) $col($i,end_index)]
+            if { $col($i,end_index) < 0 } {
+               set end_index [string length $line]
+            } else {
+               set end_index $col($i,end_index)
+            }
+            set tvalue [string range $line $col($i,start_index) $end_index]
             set tvalue [string trim $tvalue]
             if {[string length $tvalue] == 0} {
                set tvalue $last_values($col_name)

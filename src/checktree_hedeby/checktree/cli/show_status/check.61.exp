@@ -168,7 +168,8 @@ proc show_status_check {} {
       set host $ss_out($i,host)
       set jvm  $ss_out($i,jvm)
       set comp $ss_out($i,component)
-      debug_puts "Found running component $comp in jvm $jvm on host $host"
+      set state $ss_out($i,state)
+      debug_puts "Found running component $comp in jvm $jvm on host $host, state is $state"
       if {[info exists found_jvms($host)] } {
          set jvms $found_jvms($host)
          set jvm_index [lsearch $jvms $jvm]
