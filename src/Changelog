@@ -1,3 +1,9 @@
+MP-2007-11-30-0: Bugfix:    fix of print_results function that fixes matching
+                            braces and only reads tests in current checktree
+                            directory.
+                 Issue:     60,61
+                 Review:    JG
+
 JG-2007-11-29-0: Enhancem.: added check bugs/issuezilla/2433
                  Review:    RD
 

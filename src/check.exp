@@ -3367,54 +3367,86 @@ proc format_output { prefix size text} {
 #     ???/???
 #*******************************
 proc print_results {ckpath where} {
-   global CHECK_OUTPUT
+   global CHECK_OUTPUT CHECK_ACT_PATH
    set numb_of_check_functions 0 
+   
    set filenames [get_file_names $ckpath]
+   
+   set selected_tests [get_tests_from_checktree $CHECK_ACT_PATH]
+   set test_name ""
+   foreach elem $selected_tests {
+      lappend test_name [get_check_name $elem]
+   }
+
+   if {[string compare $where "stdout" ] == 0 } {
+      set tmp_name ""
+      foreach testelem $test_name {
+         foreach elem $filenames {         
+            set tst_name [string range $elem 0 [expr [string length $testelem] - 1]]
+            if {[string compare $testelem $tst_name] == 0} {
+               lappend tmp_name $elem
+               break
+            }
+         }
+      }
+      set filenames $tmp_name
+   }  
+   if {[string length $filenames] == 0} {
+      puts "No matching results for $test_name"
+   }
    set catch_return [ catch {
       foreach elem $filenames {
-         clear_screen
+         clear_screen         
+         
          puts $CHECK_OUTPUT "file: $elem"
          set data [get_test_result "$ckpath/$elem"]
    
-         set path [lindex $data 0]
-         set check_name [lindex $data 1]
-         set check_descrip [lindex $data 2]
-         set check_needs [lindex $data 3]
-         set check_functions [lindex $data 4]
-         set check_errno [lindex $data 5]
-         set check_errstr [lindex $data 6]
-         set check_clock [lindex $data 7]
-         set check_date  [lindex $data 8]
-         set high_level [lindex $data 9]
-         set file_level [split $elem "."]
-         set file_level [lindex $file_level 2]
-   
-         set check_description($file_level) $check_descrip
-   
-         puts $where "############################################################################"
-         puts $where "check: $check_name (level $file_level)"
-         puts $where "############################################################################"
-         puts $where "----------------------------------------------------------------------------"
-         puts $where "results:"
-      
-         set index 0
-         puts $where "----------------------------------------------------------------------------"
-         puts $where "run time:       [format_output "                " 59 $check_clock]"
-         puts $where "----------------------------------------------------------------------------"
-         puts $where "date (end):     [format_output "                " 59 $check_date]" 
-         puts $where "----------------------------------------------------------------------------"
-         set leveltext $check_description($file_level)
-         puts $where "description:    [format_output "                " 59 $leveltext]"
-         puts $where "----------------------------------------------------------------------------"
-         puts $where "dependencies:   [format_output "                " 59 $check_needs]"
-         puts $where "----------------------------------------------------------------------------"
-         puts $where "functions:      [format_output "                " 59 $check_functions]"
-         puts $where "----------------------------------------------------------------------------"
-         puts $where "function count: [format_output "                " 59 [llength $check_functions]]"
-         puts $where "----------------------------------------------------------------------------"
-         puts $where "directory:      [format_output "                " 59 $path]"
-         puts $where "----------------------------------------------------------------------------\n"
-   
+         if {![catch {
+            set path [lindex $data 0]
+            set check_name [lindex $data 1]
+            set check_descrip [lindex $data 2]
+            set check_needs [lindex $data 3]
+            set check_functions [lindex $data 4]
+            set check_errno [lindex $data 5]
+            set check_errstr [lindex $data 6]
+            set check_clock [lindex $data 7]
+            set check_date  [lindex $data 8]
+            set high_level [lindex $data 9]
+            set file_level [split $elem "."]
+            set file_level [lindex $file_level 2]
+         } errmsg]} {
+         
+            set check_description($file_level) $check_descrip
+         
+            puts $where "############################################################################"
+            puts $where "check: $check_name (level $file_level)"
+            puts $where "############################################################################"
+            puts $where "----------------------------------------------------------------------------"
+            puts $where "results:"
+
+            set index 0
+            puts $where "----------------------------------------------------------------------------"
+            puts $where "run time:       [format_output "                " 59 $check_clock]"
+            puts $where "----------------------------------------------------------------------------"
+            puts $where "date (end):     [format_output "                " 59 $check_date]" 
+            puts $where "----------------------------------------------------------------------------"
+            set leveltext $check_description($file_level)
+            puts $where "description:    [format_output "                " 59 $leveltext]"
+            puts $where "----------------------------------------------------------------------------"
+            puts $where "dependencies:   [format_output "                " 59 $check_needs]"
+            puts $where "----------------------------------------------------------------------------"
+            puts $where "functions:      [format_output "                " 59 $check_functions]"
+            puts $where "----------------------------------------------------------------------------"
+            puts $where "function count: [format_output "                " 59 [llength $check_functions]]"
+            puts $where "----------------------------------------------------------------------------"
+            puts $where "directory:      [format_output "                " 59 $path]"
+            puts $where "----------------------------------------------------------------------------\n"
+            
+         } else {
+            puts $where "############################################################################"
+            puts $where "test $elem has poorly formatted results file. No report created."
+            puts $where "############################################################################"            
+         }
          set numb_of_check_functions [ expr ($numb_of_check_functions + [llength $check_functions]) ]
          if {[string compare $where "stdout" ] == 0 } {
             puts $where "please press RETURN"
