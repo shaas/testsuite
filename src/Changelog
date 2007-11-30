@@ -1,3 +1,5 @@
+JG-2007-11-30-0: Bugfix:    removed a "wait_for_enter"
+
 MP-2007-11-30-0: Bugfix:    fix of print_results function that fixes matching
                             braces and only reads tests in current checktree
                             directory.

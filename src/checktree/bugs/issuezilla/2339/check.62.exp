@@ -146,12 +146,10 @@ proc issue_2339_wait_for_pattern {case_name pattern {timeout 10}} {
    set output [logfile_wait $pattern $timeout 0]
    if {$logfile_wait_error != 0} {
       add_proc_error "reporting_wait_for_pattern" -1 "case '$case_name': there were no pattern '$pattern' in the reporting file, got only\n$output"
-      wait_for_enter
    }
 }
 
 proc issue_2339_cleanup {  } {
-
    global global_host_backup
    global ts_config
    global CHECK_OUTPUT
