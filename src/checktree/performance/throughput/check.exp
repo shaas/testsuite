@@ -188,9 +188,7 @@ set check_functions           ""
 lappend check_functions       "run_throughput_test"
 #set check_functions          "compare_dump_data_file"
 
-# EB: TODO: 
-#set check_highest_level       309
-set check_highest_level       309 
+set check_highest_level       309
 
 global nr_queues  nr_slots
 global queue_list
@@ -1465,9 +1463,7 @@ proc run_throughput_test {} {
                      }
                      set schedd_time [ lindex $schedd_string 2 ]   ;# this is wall clock time
                      if { [string match "*orders*" [lindex $schedd_string 9]] == 0 } {
-                        set schedd_time [ lindex $schedd_string 9 ]  ;# this is system + user time (plus "):" )
                         set schedd_time_length [string length $schedd_time]
-                        incr schedd_time_length -3
                         set schedd_time [ string range $schedd_time 0 $schedd_time_length ]
                      }
 
