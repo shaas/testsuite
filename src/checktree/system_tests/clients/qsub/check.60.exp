@@ -498,7 +498,7 @@ proc check_option_terse {} {
          puts $CHECK_OUTPUT "The -terse is working!!!!\n$output)"
       }
    } else {
-      add_proc_error "check_option_terse" -1 "qsub error or binary not found:\n$output"
+      add_proc_error "check_option_terse" -1 "qsub $job_args failed:\n$output"
    }
 }
 

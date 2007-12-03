@@ -1602,8 +1602,8 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
          set command_pos 8
       }
 	
-      default { 
-         add_proc_error "get_ps_info" "-1" "unknown architecture"
+      default {
+         set result "unknown architecture"
          set prg_exit_state 1
          set index_names "  PID   GID  PPID   UID S    STIME  VSZ        TIME COMMAND"
          set pid_pos     0
@@ -1618,19 +1618,12 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       }
    }
 
-   if { $prg_exit_state != 0 } {
-      add_proc_error "get_ps_info" "-1" "ps error or binary not found"
+   if {$prg_exit_state != 0} {
+      add_proc_error "get_ps_info" "-1" "ps failed:\n$result"
       return
    }
 
-   set help_list [ split $result "\n" ]
-
-#   set fdp [open "psinfo.txt" "w"]
-#   foreach elem $help_list {
-#      puts $fdp $elem
-#   }
-#   close $fdp
-
+   set help_list [split $result "\n"]
 
    # delete empty lines (occurs e.g. on alinux)
    set empty_index [lsearch -exact $help_list ""]
@@ -1638,14 +1631,12 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       set help_list [lreplace $help_list $empty_index $empty_index]
       set empty_index [lsearch -exact $help_list ""]
    }
-   
 
    # search ps header line
    set num_lines [llength $help_list]
    set compare_pattern [string range $index_names 1 5]
-   for { set x 0 } { $x < $num_lines } { incr x 1 } {
-#      if { [string compare -length 6 [lindex $help_list $x] $compare_pattern] == 0 } 
-      if { [string first $compare_pattern [lindex $help_list $x]] >= 0 } {
+   for {set x 0} {$x < $num_lines} {incr x 1} {
+      if {[string first $compare_pattern [lindex $help_list $x]] >= 0} {
          break
       }
          

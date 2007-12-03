@@ -140,8 +140,8 @@ proc get_complex { change_array complex_list } {
   upvar $change_array chgar
 
   set result [start_sge_bin "qconf" "-sc $complex_list"]
-  if { $prg_exit_state != 0 } {
-     add_proc_error "get_complex" "-1" "qconf error or binary not found\n$result"
+  if {$prg_exit_state != 0} {
+     add_proc_error "get_complex" "-1" "qconf -sc $complex_list failed:\n$result"
      return
   } 
 

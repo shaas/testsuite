@@ -1412,7 +1412,7 @@ proc qconf_add_show_mod_del_queue {} {
    puts $CHECK_OUTPUT "Testing qconf -sq `$qconf_qinst'..."
    set result [start_sge_bin "qconf" "-sq $qconf_qinst"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qconf_add_show_mod_del_queue" "-1" "qconf error or binary not found"
+      add_proc_error "qconf_add_show_mod_del_queue" "-1" "qconf -sq $qconf_qinst failed:\n$result"
       return
    }
 

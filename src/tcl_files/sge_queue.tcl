@@ -779,8 +779,8 @@ proc get_queue_state { queue_name } {
   # resolve the queue name
   set queue [resolve_queue $queue_name]
   set result [start_sge_bin "qstat" "-f -q $queue"]
-  if { $prg_exit_state != 0 } {
-     add_proc_error "get_queue_state" "-1" "qstat error or binary not found"
+  if {$prg_exit_state != 0} {
+     add_proc_error "get_queue_state" "-1" "qstat -f -q $queue failed:\n$result"
      return ""
   }
 
@@ -788,8 +788,8 @@ proc get_queue_state { queue_name } {
   set back ""
   set help [split $result "\n"]
   foreach line $help { 
-      if { [ string compare [lindex $line 0] $queue ] == 0 } {
-         set back [lindex $line 5 ]
+      if {[string compare [lindex $line 0] $queue] == 0} {
+         set back [lindex $line 5]
          return $back
       }
   }

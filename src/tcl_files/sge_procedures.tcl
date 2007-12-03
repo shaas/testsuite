@@ -2036,8 +2036,8 @@ proc get_config { change_array {host global}} {
   }
 
   set result [start_sge_bin "qconf" "-sconf $host"] 
-  if { $prg_exit_state != 0 } {
-     add_proc_error "get_config" "-1" "qconf error or binary not found\n$result"
+  if {$prg_exit_state != 0} {
+     add_proc_error "get_config" "-1" "qconf -sconf $host failed:\n$result"
      return -1
   }
 
@@ -2344,7 +2344,7 @@ proc compare_complex {a b} {
 #     change_array(usage_scaling)               "NONE"
 #     change_array(resource_capability_factor)  "0.000000"
 #*******************************
-proc add_exechost { change_array {fast_add 1} } {
+proc add_exechost {change_array {fast_add 1}} {
   global CHECK_OUTPUT
   global env
   get_current_cluster_config_array ts_config
@@ -2352,7 +2352,7 @@ proc add_exechost { change_array {fast_add 1} } {
   upvar $change_array chgar
   set values [array names chgar]
 
-    if { $fast_add != 0 } {
+    if {$fast_add != 0} {
      # add queue from file!
      set default_array(hostname)          "template"
      set default_array(load_scaling)      "NONE"
@@ -2361,7 +2361,7 @@ proc add_exechost { change_array {fast_add 1} } {
      set default_array(user_lists)        "NONE"
      set default_array(xuser_lists)       "NONE"
   
-     if { $ts_config(product_type) == "sgeee" } {
+     if {$ts_config(product_type) == "sgeee"} {
        set default_array(projects)                    "NONE"
        set default_array(xprojects)                   "NONE"
        set default_array(usage_scaling)               "NONE"
@@ -2390,11 +2390,10 @@ proc add_exechost { change_array {fast_add 1} } {
      set result [start_sge_bin "qconf" "-Ae ${tmpfile}"]
      puts $CHECK_OUTPUT $result
 
+     set ADDED [translate_macro MSG_EXEC_ADDEDHOSTXTOEXECHOSTLIST_S "*"]
 
-     set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_EXEC_ADDEDHOSTXTOEXECHOSTLIST_S] "*"]
-
-     if { [string match "*$ADDED*" $result] == 0 } {
-        add_proc_error "add_exechost" "-1" "qconf error or binary not found"
+     if {[string match "*$ADDED*" $result] == 0} {
+        add_proc_error "add_exechost" "-1" "qconf -Ae $tmpfile failed:\n$result"
         return
      }
      return
@@ -2402,13 +2401,13 @@ proc add_exechost { change_array {fast_add 1} } {
 
   set vi_commands [build_vi_command chgar]
 
-  set ALREADY_EXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" "*" ]
-  set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_EXEC_ADDEDHOSTXTOEXECHOSTLIST_S] "*"]
+  set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*"]
+  set ADDED [translate_macro MSG_EXEC_ADDEDHOSTXTOEXECHOSTLIST_S "*"]
 
   set master_arch [resolve_arch $ts_config(master_host)]
-  set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ae" $vi_commands $ADDED $ALREADY_EXISTS ]  
-  if { $result != 0 } {
-     add_proc_error "add_exechost" -1 "could not add queue [set chgar(qname)] (error: $result)"
+  set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ae" $vi_commands $ADDED $ALREADY_EXISTS]
+  if {$result != 0} {
+     add_proc_error "add_exechost" -1 "could not add queue $chgar(qname):\n$result"
   }
   return $result
 }
@@ -2729,12 +2728,11 @@ proc wait_for_load_from_all_queues { seconds } {
 
    set time [timestamp]
 
-   while { 1 } {
+   while {1} {
       puts $CHECK_OUTPUT "waiting for load value report from all queues ..."
       after 1000
-      set result ""
       set result [start_sge_bin "qstat" "-f"]
-      if { $prg_exit_state == 0 } {
+      if {$prg_exit_state == 0} {
          # split each line as listelement
          set help [split $result "\n"]
        
@@ -2779,7 +2777,7 @@ proc wait_for_load_from_all_queues { seconds } {
             return 0
          }
       } else {
-        puts $CHECK_OUTPUT "qstat error or binary not found"
+        puts $CHECK_OUTPUT "qstat -f failed:\n$result"
       }
 
       set runtime [expr ( [timestamp] - $time) ]
@@ -2956,7 +2954,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
       return -1      
    }
 
-   while { 1 } {
+   while {1} {
       after 1000
       puts $CHECK_OUTPUT "wait_for_unknown_load - waiting for queues\n\"$queue_array\"\nto get unknown load state ..."
       set result [start_sge_bin "qstat" "-f"]
@@ -2994,30 +2992,30 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
          set failed 0
          
          foreach queue $queue_array {
-            if { [info exists load_values($queue)] == 1 } {
-               if { $load_values($queue) < 99 } {
+            if {[info exists load_values($queue)] == 1} {
+               if {$load_values($queue) < 99} {
                    incr failed 1
-                   if { [string compare $load_values($queue) "-NA-"] == 0 } {
+                   if {[string compare $load_values($queue) "-NA-"] == 0} {
                       incr failed -1
                    }
                } 
             }
          }
 
-         if { $failed == 0 } {
+         if {$failed == 0} {
             return 0
          }
       } else {
-        puts $CHECK_OUTPUT "qstat error or binary not found"
-        if { $do_error_check == 1 } {
-           add_proc_error "wait_for_unknown_load" -1 "qstat error"
+        puts $CHECK_OUTPUT "qstat -f failed:\n$result"
+        if {$do_error_check == 1} {
+           add_proc_error "wait_for_unknown_load" -1 "qstat -f failed:\n$result"
         }
         return -1
       }
 
-      set runtime [expr ( [timestamp] - $time) ]
-      if { $runtime >= $seconds } {
-          if { $do_error_check == 1 } {
+      set runtime [expr [timestamp] - $time]
+      if {$runtime >= $seconds} {
+          if {$do_error_check == 1} {
              add_proc_error "wait_for_unknown_load" -1 "timeout waiting for load values >= 99"
           }
           return -1
@@ -3057,11 +3055,10 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
 
    set time [timestamp]
    puts -nonewline $CHECK_OUTPUT "waiting for end of all jobs (qstat -s pr) " ; flush $CHECK_OUTPUT
-   while { 1 } {
-      after 500
+   while {1} {
       set result [start_sge_bin "qstat" "-s pr"]
       if {$prg_exit_state == 0} {
-         if { [ string compare $result "" ] == 0 } {
+         if {[string compare $result ""] == 0} {
             puts $CHECK_OUTPUT "done"
             return 0
          }
@@ -3077,7 +3074,7 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
          }
       } else {
         puts $CHECK_OUTPUT ""
-        add_proc_error "wait_for_end_of_all_jobs" -1 "qstat error or binary not found"
+        add_proc_error "wait_for_end_of_all_jobs" -1 "qstat -s pr failed:\n$result"
         return -1
       }
       puts -nonewline $CHECK_OUTPUT "."
@@ -3085,9 +3082,9 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
       after 500
       
       # check timeout
-      if { $seconds > 0 } {
-         set runtime [expr ( [timestamp] - $time) ]
-         if { $runtime >= $seconds } {
+      if {$seconds > 0} {
+         set runtime [expr [timestamp] - $time]
+         if {$runtime >= $seconds} {
              puts $CHECK_OUTPUT ""
              add_proc_error "wait_for_end_of_all_jobs" -1 "timeout waiting for end of all jobs:\n\"$result\""
              return -1
@@ -3133,7 +3130,7 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
 #     sge_procedures/disable_queue()
 #     sge_procedures/enable_queue()
 #*******************************
-proc mqattr { attribute entry queue_list { add_error 1 } } {
+proc mqattr {attribute entry queue_list {add_error 1}} {
 # returns
 # -1 on error
 # 0 on success
@@ -3145,9 +3142,9 @@ proc mqattr { attribute entry queue_list { add_error 1 } } {
 
   set help "$attribute \"$entry\""   ;# create e.g. slots "5" as string
   set result [start_sge_bin "qconf" "-rattr queue $help $queue_list"]
-  if { $prg_exit_state != 0 } {
-     if { $add_error == 1} {
-         add_proc_error "mqattr" "-1" "qconf error or binary not found"
+  if {$prg_exit_state != 0} {
+     if {$add_error == 1} {
+        add_proc_error "mqattr" "-1" "qconf -rattr queue $help $queue_list failed:\n$result"
      }
      return -1
   }
@@ -3221,7 +3218,7 @@ proc mhattr { attribute entry host_name { add_error 1 } } {
   set result [start_sge_bin "qconf" "-rattr exechost $help $host_name"]
   if { $prg_exit_state != 0 } {
      if { $add_error == 1} {
-         add_proc_error "mhattr" "-1" "qconf error or binary not found"
+         add_proc_error "mhattr" "-1" "qconf -rattr exechost $help $host_name failed:\n$result"
      }
      return -1
   }
@@ -4666,7 +4663,7 @@ proc get_job_info { jobid } {
 #     sge_procedures/get_standard_job_info()
 #     sge_procedures/get_extended_job_info()
 #*******************************
-proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
+proc get_standard_job_info {jobid {add_empty 0} {get_all 0}} {
    global CHECK_OUTPUT CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -4681,8 +4678,8 @@ proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
       set result [start_sge_bin "qstat" "-u \"*\" -g t"]
    }
 
-   if { $prg_exit_state != 0 } {
-      add_proc_error "get_standard_job_info" -1 "qstat error or binary not found"
+   if {$prg_exit_state != 0} {
+      add_proc_error "get_standard_job_info" -1 "qstat failed:\n$result"
       return ""
    }
 
@@ -4691,25 +4688,24 @@ proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
    set back ""
    set help [split $result "\n"]
    foreach line $help { 
-#      puts $CHECK_OUTPUT $line
-      if { [lindex $line 0] == $jobid } {
+      if {[lindex $line 0] == $jobid} {
          lappend back $line
          continue
       }
-      if { $add_empty != 0 } {
-         if { [llength $line] == 8 } {
+      if {$add_empty != 0} {
+         if {[llength $line] == 8} {
             lappend back "-1 $line"
             puts $CHECK_OUTPUT "adding empty job lines" 
             continue
          }
 
-         if { [llength $line] == 2 } {
+         if {[llength $line] == 2} {
             lappend back "-1 0 x x x x x $line"
             puts $CHECK_OUTPUT "adding empty job lines" 
             continue
          }
       }
-      if { $get_all != 0 } {
+      if {$get_all != 0} {
          lappend back $line
       }
    }
@@ -4768,7 +4764,7 @@ proc get_standard_job_info { jobid { add_empty 0} { get_all 0 } } {
 #  proc testproc ... { 
 #     ...
 #     if {[get_extended_job_info $job_id] } {
-#        if { $job_info(cpu) < 10 } {
+#        if {$job_info(cpu) < 10} {
 #           add_proc_error "testproc" -1 "online usage probably does not work on $host"
 #        }
 #     } else {
@@ -6792,7 +6788,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       puts $CHECK_OUTPUT $result
    } else {
       set do_ps_kill 1
-      puts $CHECK_OUTPUT "shutdown_core_system - qconf error or binary not found\n$result"
+      puts $CHECK_OUTPUT "shutdown_core_system - qconf -ks -ke all failed:\n$result"
    }
 
 #   sleep 15 ;# give the schedd and execd's some time to shutdown
@@ -6810,7 +6806,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       puts $CHECK_OUTPUT $result
    } else {
       set do_ps_kill 1
-      puts $CHECK_OUTPUT "shutdown_core_system - qconf error or binary not found\n$result"
+      puts $CHECK_OUTPUT "shutdown_core_system - qconf -km failed:\n$result"
    }
 
    if { [wait_till_qmaster_is_down $ts_config(master_host)] != 0 } {
@@ -6823,32 +6819,32 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       set do_it_as_root 0
       foreach elem $ts_config(execd_nodes) { 
           puts $CHECK_OUTPUT "killing commd on host $elem"
-          if { $do_it_as_root == 0 } { 
+          if {$do_it_as_root == 0} { 
              set result [start_sge_bin "sgecommdcntl" "-U -k -host $elem" $ts_config(master_host) $CHECK_USER]
           } else {
              set result [start_sge_bin "sgecommdcntl" "-k -host $elem" $ts_config(master_host) "root"]
           } 
-          if { $prg_exit_state == 0 } {
+          if {$prg_exit_state == 0} {
              puts $CHECK_OUTPUT $result
           } else {
              puts $CHECK_OUTPUT $result
-             if { $prg_exit_state == 255 } {
+             if {$prg_exit_state == 255} {
                 puts $CHECK_OUTPUT "\"sgecommdcntl -k\" must be started by root user (to get reserved port)!"
                 puts $CHECK_OUTPUT "try again as root user ..." 
-                if { [ have_root_passwd ] == -1 } {
+                if {[have_root_passwd] == -1} {
                    set_root_passwd 
                 }
-                if { $CHECK_ADMIN_USER_SYSTEM != 1 } {
+                if {$CHECK_ADMIN_USER_SYSTEM != 1} {
                    set result [start_sge_bin "sgecommdcntl" "-k -host $elem" $ts_config(master_host) "root"]
                 }
              }
-             if { $prg_exit_state == 0 } {
+             if {$prg_exit_state == 0} {
                 set do_it_as_root 1 
                 puts $CHECK_OUTPUT $result
                 puts $CHECK_OUTPUT "sgecommdcntl -k -host $elem - success"
              } else {
                 set do_ps_kill 1
-                puts $CHECK_OUTPUT "shutdown_core_system - commdcntl error or binary not found"
+                puts $CHECK_OUTPUT "shutdown_core_system - commdcntl failed:\n$result"
              }
           }
       }

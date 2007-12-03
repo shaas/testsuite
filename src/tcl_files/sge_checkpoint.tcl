@@ -77,9 +77,9 @@ proc get_checkpointobj { ckpt_obj change_array } {
   upvar $change_array chgar
 
    
-  set result [start_sge_bin "qconf" "-sckpt $ckpt_obj" ]
-  if { $prg_exit_state != 0 } {
-     add_proc_error "get_checkpointobj" "-1" "qconf error or binary not found!\n$result"
+  set result [start_sge_bin "qconf" "-sckpt $ckpt_obj"]
+  if {$prg_exit_state != 0} {
+     add_proc_error "get_checkpointobj" "-1" "qconf -sckpt $ckpt_obj failed\n$result"
      return
   } 
 

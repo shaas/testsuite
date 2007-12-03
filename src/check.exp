@@ -1555,22 +1555,22 @@ proc calc_space {space name} {
 }
 
 proc get_local_hostname {} {
-   global env CHECK_OUTPUT 
-   set catch_return [ catch { exec "hostname" } result ]
-   if { $catch_return == 0 } {
+   global env CHECK_OUTPUT
+
+   set catch_return [catch {exec "hostname"} result]
+   if {$catch_return == 0} {
       set result [split $result "."]
       set newname [lindex $result 0]
       puts $CHECK_OUTPUT "got hostname: \"$newname\""
       return $newname
    } else {
-      puts $CHECK_OUTPUT "local hostname error or binary not found"
+      puts $CHECK_OUTPUT "local hostname call failed"
       puts $CHECK_OUTPUT "error: $result"
-      puts $CHECK_OUTPUT "error: $catch_return"
       puts $CHECK_OUTPUT "trying local HOST environment variable ..."
-      if { [ info exists env(HOST) ] } {
+      if {[info exists env(HOST)]} {
          set result [split $env(HOST) "."]
          set newname [lindex $result 0]
-         if { [ string length $newname ] > 0 } {
+         if {[string length $newname] > 0} {
              puts $CHECK_OUTPUT "got hostname_ \"$newname\""
              return $newname
          } 
@@ -1580,7 +1580,6 @@ proc get_local_hostname {} {
    puts $CHECK_OUTPUT "please set check if binary \"hostname\" is in path or"
    puts $CHECK_OUTPUT "set the environment variable \"HOST\" to the hostname value"
    exit 1
-   return "unknown"
 }
 
 #****** check/check_executable_files() *****************************************
