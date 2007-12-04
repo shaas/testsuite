@@ -1,3 +1,5 @@
+RD-2007-12-04-0: Bugfix:    removed wait_for_enter in test 2378
+
 JO-2007-12-04-0: Bugfix:    Revoke priviledges on tablespace before dropping user
                  Review:    AP
 
