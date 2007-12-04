@@ -1,3 +1,6 @@
+JO-2007-12-04-0: Bugfix:    Revoke priviledges on tablespace before dropping user
+                 Review:    AP
+
 JG-2007-12-03-0: Enhancem.: Merged changes which were lost due to revert
                             RD-2007-10-12-0.
                             Improved error messages, output real error output 

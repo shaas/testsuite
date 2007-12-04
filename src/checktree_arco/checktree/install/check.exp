@@ -228,6 +228,13 @@ proc postgres_init_arco_db {} {
       close_spawn_process $id 
       return -2
    } elseif {$res > 0} {
+      #revoke priviledges on tablespace so we can drop the user
+      set sql "revoke all on tablespace $arco_config(tablespace) from $arco_write_user"
+      if {[sqlutil_exec $sp_id "$sql"] != 0} {
+         add_sql_error "postgres_init_arco_db" "-2" "Can't revoke priviledges on $arco_config(tablespace) from $arco_write_user"
+         close_spawn_process $id 
+         return -2
+      }
       # user does exists => drop it
       set sql "drop user $arco_write_user"
       if {[sqlutil_exec $sp_id "$sql"] != 0} {
