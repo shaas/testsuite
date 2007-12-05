@@ -146,6 +146,7 @@ proc oracle_init_arco_db {} {
    }
    
    # Grant priviliges for arco_write_user
+   # from 6.1u4 and 6.2 version we don't need create any synonym privilege for arco_write_user
    set sql "GRANT CREATE ANY SYNONYM, CREATE TABLE, CREATE VIEW, UNLIMITED TABLESPACE, CREATE SESSION TO ${arco_write_user}"
 
    if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
@@ -164,7 +165,8 @@ proc oracle_init_arco_db {} {
    }
    
    # Grant priviliges for arco_write_user
-   set sql "GRANT CREATE SESSION TO ${arco_read_user}"
+   # from 6.1u4 and 6.2 version we need create synonym privilege for arco_read_user
+   set sql "GRANT CREATE SYNONYM, CREATE SESSION TO ${arco_read_user}"
    if {[sqlutil_exec $sp_id "$sql"] != 0} {
       add_sql_error "oracle_init_arco_db" "-2" "Can't grant privileges to  $arco_read_user"
       close_spawn_process $id 

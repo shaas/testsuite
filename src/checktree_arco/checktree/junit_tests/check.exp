@@ -141,6 +141,7 @@ proc arco_junit_check {} {
    append cmd_args " -e 's%@@JDBC_PASSWORD@@%${write_user_pw}%g'"
    
    append cmd_args " -e 's%@@READONLY_USER@@%${read_user}%g'"
+   append cmd_args " -e 's%@@READONLY_USER_PWD@@%${read_user_pw}%g'"
    append cmd_args " -e 's%@@SCHEMA@@%${db_schema}%g'"
    append cmd_args " -e 's%@@TABLESPACE@@%${db_tablespace}%g'"
    append cmd_args " -e 's%@@TABLESPACE_INDEX@@%${db_index_tablespace}%g'"
