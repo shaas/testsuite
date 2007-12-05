@@ -1,3 +1,8 @@
+CR-2007-12-05-0: Enhancem.: hedeby_install should install managed hosts parallel
+                            (also shutdown startup is parallel now)
+                 Issue:     hedeby issue #244
+                 Review:    RH
+
 AP-2007-12-05-0: Enhancem.: ARCo: adding create synonym privilege to arco_read_user
                  Review:    JO
 

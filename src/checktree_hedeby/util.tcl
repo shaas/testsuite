@@ -46,8 +46,8 @@
 #     util/get_all_hedeby_managed_hosts()
 #     util/is_hedeby_process_running()
 #     util/kill_hedeby_process()
-#     util/shutdown_hedeby_host()
-#     util/startup_hedeby_host()
+#     util/shutdown_hedeby_hosts()
+#     util/startup_hedeby_hosts()
 #     util/remove_hedeby_preferences()
 #     util/remove_prefs_on_hedeby_host()
 #     util/shutdown_hedeby()
@@ -96,9 +96,35 @@
 #*******************************************************************************
 proc remove_hedeby_preferences {{raise_error 1}} {
    global hedeby_config
+   global CHECK_OUTPUT
    # first step: remove preferences for all managed hosts
-   foreach host [get_all_hedeby_managed_hosts] {
-      remove_prefs_on_hedeby_host $host $raise_error
+
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set remove_user [get_hedeby_startup_user]
+
+   if { $pref_type == "system" } {
+      # the user installation is shared in home directory, don't remove them on the remote
+      # host, because they will disapear when master host preferences are deleted
+      set host_list [get_all_hedeby_managed_hosts]
+      foreach host $host_list {
+         set task_info($host,expected_output) ""
+         set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name remove_system"      
+      }
+      set error_text [start_parallel_sdmadm_command host_list $remove_user task_info $raise_error]
+      
+      foreach host $host_list {
+         set exit_state $task_info($host,exit_status)
+         set output $task_info($host,output)
+         debug_puts "----------------------------------"
+         debug_puts "host: $host"
+         debug_puts "exit status: $exit_state"
+         debug_puts "output:\n$output"
+         debug_puts "----------------------------------"
+      }
+      if { $error_text != "" } {
+         add_proc_error "remove_hedeby_preferences" -1 $error_text $raise_error
+      }
    }
 
    # second step: remove preferences for hedeby master host
@@ -147,15 +173,14 @@ proc shutdown_hedeby { { only_raise_cannot_kill_error 0 } } {
    set shutdown_user [get_hedeby_startup_user]
 
    # first step: shutdown all managed hosts
-   foreach host [get_all_hedeby_managed_hosts] {
-      set val [shutdown_hedeby_host "managed" $host $shutdown_user $only_raise_cannot_kill_error]
-      if { $val != 0 } {
-         set ret_val 1
-      }
+   set managed_hosts [get_all_hedeby_managed_hosts]
+   set val [shutdown_hedeby_hosts "managed" $managed_hosts $shutdown_user $only_raise_cannot_kill_error]
+   if { $val != 0 } {
+      set ret_val 1
    }
 
    # second step: shutdown hedeby master host
-   set val [shutdown_hedeby_host "master" $hedeby_config(hedeby_master_host) $shutdown_user $only_raise_cannot_kill_error]
+   set val [shutdown_hedeby_hosts "master" $hedeby_config(hedeby_master_host) $shutdown_user $only_raise_cannot_kill_error]
    if { $val != 0 } {
       set ret_val 1
    }
@@ -201,18 +226,15 @@ proc startup_hedeby {} {
    set startup_user [get_hedeby_startup_user]
 
    # first step: startup hedeby master host
-   set val [startup_hedeby_host "master" $hedeby_config(hedeby_master_host) $startup_user]
+   set val [startup_hedeby_hosts "master" $hedeby_config(hedeby_master_host) $startup_user]
    if { $val != 0 } {
       set ret_val 1
    }
 
-
    # second step: startup all managed hosts
-   foreach host [get_all_hedeby_managed_hosts] {
-      set val [startup_hedeby_host "managed" $host $startup_user]
-      if { $val != 0 } {
-         set ret_val 1
-      }
+   set val [startup_hedeby_hosts "managed" [get_all_hedeby_managed_hosts] $startup_user]
+   if { $val != 0 } {
+      set ret_val 1
    }
    return $ret_val
 }
@@ -1195,8 +1217,13 @@ proc is_hedeby_process_running { host pid } {
 
    set result 0
    if {$ps_info($pid,error) == 0} {
-        puts $CHECK_OUTPUT "process string of pid $pid is $ps_info($pid,string)"
-        set result 1
+        if { [string match "*java*" $ps_info($pid,string)] >= 0 } {
+           puts $CHECK_OUTPUT "process string of pid $pid is $ps_info($pid,string)"
+           set result 1
+        } else {
+           puts $CHECK_OUTPUT "hedeby process should have java string in command line"
+           set result 0
+        }
    } else {
         puts $CHECK_OUTPUT "pid $pid not found!"
         set result 0
@@ -1231,8 +1258,8 @@ proc is_hedeby_process_running { host pid } {
 #  SEE ALSO
 #     util/is_hedeby_process_running()
 #     util/kill_hedeby_process()
-#     util/shutdown_hedeby_host()
-#     util/startup_hedeby_host()
+#     util/shutdown_hedeby_hosts()
+#     util/startup_hedeby_hosts()
 #     util/shutdown_hedeby()
 #     util/startup_hedeby()
 #*******************************************************************************
@@ -1279,12 +1306,12 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
    }
 }
 
-#****** util/shutdown_hedeby_host() ********************************************
+#****** util/shutdown_hedeby_hosts() ********************************************
 #  NAME
-#     shutdown_hedeby_host() -- shutdown complete hedeby host
+#     shutdown_hedeby_hosts() -- shutdown complete hedeby host
 #
 #  SYNOPSIS
-#     shutdown_hedeby_host { type host user } 
+#     shutdown_hedeby_hosts { type host user } 
 #
 #  FUNCTION
 #     This procedure is used to shutdown all hedeby components on the specified
@@ -1294,7 +1321,7 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
 #
 #  INPUTS
 #     type - type of hedeby host: "master" or "managed"
-#     host - name of the host where the components should be stopped
+#     host_list - name of the hosts where the components should be stopped
 #     user - user which should stop the components
 #
 #  RESULT
@@ -1304,147 +1331,308 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
 #  SEE ALSO
 #     util/is_hedeby_process_running()
 #     util/kill_hedeby_process()
-#     util/shutdown_hedeby_host()
-#     util/startup_hedeby_host()
+#     util/shutdown_hedeby_hosts()
+#     util/startup_hedeby_hosts()
 #     util/shutdown_hedeby()
 #     util/startup_hedeby()
 #*******************************************************************************
-proc shutdown_hedeby_host { type host user { only_raise_cannot_kill_error 0 } } {
+proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 0 } } {
    global CHECK_OUTPUT 
    global hedeby_config
 
-   set ret_val 0
-   puts $CHECK_OUTPUT "check if \"$type\" host \"$host\" has running components ..."
-   
-   set pid_list {}
-   set run_dir [get_hedeby_local_spool_dir $host]
-   append run_dir "/run"
-   if { [remote_file_isdirectory $host $run_dir] } {
-      set running_components [start_remote_prog $host $user "ls" "$run_dir"]
-      if { [llength $running_components] == 0 } {
-         debug_puts "no hedeby component running on host $host!"
-         return $ret_val
-      }
-      foreach component $running_components {
-         if {[read_hedeby_jvm_pid_file pid_info $host $user $run_dir/$component] != 0} {
-            return 1
-         }
-         set pid $pid_info(pid)
-         set port $pid_info(port)
-         
-         lappend pid_list $pid
-         set run_list($pid,comp) $component
-         puts $CHECK_OUTPUT "component $run_list($pid,comp) has pid \"$pid\""
-         puts $CHECK_OUTPUT "component $run_list($pid,comp) has port \"$port\""
-      }
-   } else {
-      debug_puts "no hedeby run directory found on host $host!"
-      return $ret_val
-   }
-   puts $CHECK_OUTPUT "shutting down \"$type\" host \"$host\" ..."
-
+   set error_text ""
    if {$only_raise_cannot_kill_error} {
       set raise_error 0
    } else {
       set raise_error 1
    }
 
+   if { $type != "managed" && $type != "master" } {
+      add_proc_error "shutdown_hedeby_hosts" -1 "unexpected host type: \"$type\" supported are \"managed\" or \"master\"" $raise_error
+      return 1
+   }
+
+   puts $CHECK_OUTPUT "shutting down hedeby host(s): $host_list"
+
+   foreach host $host_list {
+      # get local run directory path
+      set run_dir [get_hedeby_local_spool_dir $host]
+      append run_dir "/run"
+      set hostInfoArray($host,run_dir) $run_dir
+
+      # now get running component information
+      set pid_list {}
+      set run_list {}
+      set hostInfoArray($host,ret_val) [get_jvm_pidlist $host $user $hostInfoArray($host,run_dir) pid_list run_list]
+      set hostInfoArray($host,pid_list) $pid_list
+      set hostInfoArray($host,run_list) $run_list
+   }
+   
    switch -exact -- $type {
       "managed" {
-         if { $host == $hedeby_config(hedeby_master_host) } {
-            add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is the master host!"
-            return 1
+         set shutdown_host_list {}
+         foreach host $host_list {
+            if { $host == $hedeby_config(hedeby_master_host) } {
+               append error_text "host \"$host\" is the master host, but type is managed!\n\n"
+               incr hostInfoArray($host,ret_val) 1
+               continue
+            }
+            if { [llength $hostInfoArray($host,pid_list)] == 0 } {
+               puts $CHECK_OUTPUT "no jvms found on host $host"
+            } else {
+               lappend shutdown_host_list $host
+            }
          }
 
-         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -h $host" prg_exit_state "" $raise_error]
-         if { $prg_exit_state != 0 } {
-            set ret_val 1
+         if { [llength $shutdown_host_list] > 0 } {
+            set pref_type [get_hedeby_pref_type]
+            set sys_name [get_hedeby_system_name]
+            foreach host $shutdown_host_list {
+               set task_info($host,expected_output) ""
+               set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name shutdown -h $host"      
+            }
+            puts $CHECK_OUTPUT "parallel shutting down \"$type\" hosts \"$shutdown_host_list\" ..."
+            append error_text [start_parallel_sdmadm_command shutdown_host_list $user task_info $raise_error]
+
+            foreach host $shutdown_host_list {
+               if {$task_info($host,exit_status) != 0} {
+                  incr hostInfoArray($host,ret_val) 1
+               }
+               debug_puts "----------------------------------"
+               debug_puts "host: $host"
+               debug_puts "exit status: $task_info($host,exit_status)"
+               debug_puts "output:\n$task_info($host,output)"
+               debug_puts "----------------------------------"
+            }
          }
       }
       "master" {
-         if { $host != $hedeby_config(hedeby_master_host) } {
-            add_proc_error "shutdown_hedeby_host" -1 "host \"$host\" is NOT the master host!"
-            return 1
-         }
-         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -h $host" prg_exit_state "" $raise_error]
-         if { $prg_exit_state != 0 } {
-            set ret_val 1
-         }
-      }
-      default {
-         add_proc_error "shutdown_hedeby_host" -1 "unexpected host type: \"$type\" supported are \"managed\" or \"master\""
-         set ret_val 1
-      }
-   }
-   if { $ret_val != 0 } {
-      puts $CHECK_OUTPUT "try to kill all components ..."
-      foreach pid $pid_list {
-         set delete_pid_file 0
-         set is_pid_running [is_hedeby_process_running $host $pid]
-         if { $is_pid_running } {
-            kill_hedeby_process $host $user $run_list($pid,comp) $pid
+         if {[llength $host_list] != 1} {
+            append error_text "hostlist contains more than 1 entry - hedeby has only one master host\n\n"
+            incr hostInfoArray($host,ret_val) 1
          } else {
-            # there was an old pid file without running component -> delete the pid file
-            set delete_pid_file 1
-         }
-         if { $delete_pid_file } {
-            set del_pid_file "$run_dir/$run_list($pid,comp)"
-            puts $CHECK_OUTPUT "delete pid file \"$del_pid_file\"\nfor component \"$run_list($pid,comp)\" on host \"$host\" as user \"$user\" ..."
-            delete_remote_file $host $user $del_pid_file
-         }
-      }
-   } else {
-      # check pid files and processes
-      puts $CHECK_OUTPUT "check that no pid is running after sdmadm shutdown and pid files are removed ..."
-      set my_timeout [timestamp]
-      incr my_timeout 60
-
-      set pids_to_check {}
-      foreach pid $pid_list {
-         lappend pids_to_check $pid
-      }
-      while { [timestamp] < $my_timeout } {
-         set not_removed_pids {}
-         foreach pid $pids_to_check {
-            set is_pid_running [is_hedeby_process_running $host $pid]
-            if { $is_pid_running } {
-               lappend not_removed_pids $pid
+            set host [lindex $host_list 0]
+            if { $host != $hedeby_config(hedeby_master_host) } {
+               append error_text "host \"$host\" is NOT the master host, but type is master!\n\n"
+               incr hostInfoArray($host,ret_val) 1
+            } else {
+               if { [llength $hostInfoArray($host,pid_list)] == 0 } {
+                  puts $CHECK_OUTPUT "no components found on host $host"
+               } else {
+                  set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -h $host" prg_exit_state "" $raise_error]
+                  if { $prg_exit_state != 0 } {
+                     incr hostInfoArray($host,ret_val) 1
+                  }
+               }
             }
          }
-         set pids_to_check {}
-         foreach pid $not_removed_pids {
-            lappend pids_to_check $pid
-         }
-
-         if { [llength $pids_to_check] == 0 } {
-            break
-         }
-
-         puts $CHECK_OUTPUT "waiting ..."
-         after 1000
       }
-      foreach pid $pids_to_check {
+   }
+   
+   set ret_val 0
+   foreach host $host_list {
+      if { $hostInfoArray($host,ret_val) != 0 } {
          set ret_val 1
-         add_proc_error "shutdown_hedeby_host" -1 "cannot shutdown component \"$run_list($pid,comp)\" on host \"$host\" as user \"$user\".\n(process with pid \"$pid\" is still running)"
-         kill_hedeby_process $host $user $run_list($pid,comp) $pid
+         # do cleanup
+         cleanup_hedeby_processes $host $user $hostInfoArray($host,run_dir) $hostInfoArray($host,pid_list) $hostInfoArray($host,run_list) $raise_error
+      } else {
+         # check pid files and processes
+         set back [check_hedeby_process_shutdown $host $user $hostInfoArray($host,run_dir) $hostInfoArray($host,pid_list) $hostInfoArray($host,run_list) $raise_error]
+         incr hostInfoArray($host,ret_val) $back
       }
+   }
 
-      foreach pid $pid_list {
-         set pid_file "$run_dir/$run_list($pid,comp)"
-         if { [is_remote_file $host $user $pid_file] } {
-            add_proc_error "shutdown_hedeby_host" -1 "cannot shutdown component \"$run_list($pid,comp)\" on host \"$host\" as user \"$user\"\n(pid file \"$pid_file\" wasn't removed)"
-         }
-      }
+   if {$ret_val == 0 && $error_text != "" } {
+      append error_text "we have an error text, but return value is 0 - returning 1\n\n"
+      set ret_val 1
+   }
+
+   if { $ret_val != 0 } {
+      add_proc_error "shutdown_hedeby_hosts" -1 $error_text $raise_error
    }
    return $ret_val
 }
 
-#****** util/startup_hedeby_host() *********************************************
+
+#****** util/start_parallel_sdmadm_command() ***********************************
 #  NAME
-#     startup_hedeby_host() -- startup all components on the hedeby host
+#     start_parallel_sdmadm_command() -- start sdmadm_command parallel
 #
 #  SYNOPSIS
-#     startup_hedeby_host { type host user } 
+#     start_parallel_sdmadm_command { host_list exec_user info {raise_error 1} 
+#     {parallel 1} } 
+#
+#  FUNCTION
+#     This procedure is used to start parallel sdmadm tasks
+#
+#  INPUTS
+#     host_list       - hosts where to start sdmadm command
+#     exec_user       - user which will execute the commands
+#     info            - name of array to store task information
+#     {raise_error 1} - optional: if 1 report errros
+#     {parallel 1}    - optional: if 0 run commands in a sequence
+#                                 (for debuging only)
+#
+#  RESULT
+#     string "" on success, string with error text on error
+#
+#  EXAMPLE
+#     Initialize the task info array:
+#     ===============================
+#        foreach host $host_list {
+#           set task_info($host,expected_output) ""
+#           set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name remove_system"      
+#        }
+#     Execute the sdmadm command parallel:
+#     ====================================
+#        set error_text [start_parallel_sdmadm_command host_list $remove_user task_info $raise_error]
+#     Examine the results:
+#     ====================
+#        foreach host $host_list {
+#           set exit_state $task_info($host,exit_status)
+#           set output $task_info($host,output)
+#           debug_puts "host: $host"
+#           debug_puts "exit status: $exit_state"
+#           debug_puts "output:\n$output"
+#        }
+#        if { $error_text != "" } {
+#           add_proc_error "remove_hedeby_preferences" -1 $error_text $raise_error
+#        }
+#
+#*******************************************************************************
+proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {parallel 1}} {
+   global CHECK_OUTPUT
+   set spawn_list {}
+   set error_text ""
+
+   upvar $info task_info
+   upvar $host_list hostlist
+
+   foreach host $hostlist {
+      set task_info($host,start_found) 0
+      set task_info($host,end_found) 0
+      set task_info($host,exit_status) -1
+      set task_info($host,output) ""
+
+      if { $parallel == 1 } {
+         set tasks(RETURN_ISPID) 0
+         set ispid [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
+         set ispid_list($host) $ispid
+         puts $CHECK_OUTPUT "got ispid: $ispid"
+         set spawn_id [lindex $ispid 1]
+         set ispid_list($host,sp_id) $spawn_id
+         set ispid_list($spawn_id) $host
+         puts $CHECK_OUTPUT "sp_id on host $host is $ispid_list($host,sp_id)"
+         lappend spawn_list $ispid_list($host,sp_id)
+      } else {
+         set task_info($host,output) [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
+         set task_info($host,exit_status) $prg_exit_state
+      }
+   }
+
+   if { $parallel == 1 }  {
+      set timeout 60
+      set expect_runs 0
+      expect {
+         -i $spawn_list full_buffer {
+            append error_text "expect full_buffer error\n"
+         }
+         -i $spawn_list timeout {
+            append error_text "expect timeout error\n"
+         }
+         -i $spawn_list eof {
+            set spawn_id $expect_out(spawn_id)
+            set host_name $ispid_list($spawn_id)
+            append error_text "expect eof error for host $host_name\nbuffer:\n$expect_out(0,string)\n"
+         }
+         -i $spawn_list -- "*\n" {
+            set spawn_id $expect_out(spawn_id)
+            set host_name $ispid_list($spawn_id)
+            set buffer $expect_out(0,string)
+            set buffer [string trim $buffer]
+            set tokensline [split $buffer "\n"]
+            foreach tokenl $tokensline {
+               set token "$tokenl\n"
+   #            puts $CHECK_OUTPUT "line ($host_name): [string trim $token]"
+               if { [string match "*_exit_status_:(*" $token ] } {
+                  set help $token
+                  set st [string first "(" $help]
+                  set ed [string first ")" $help]
+                  incr st 1
+                  incr ed -1
+                  set task_info($host_name,exit_status) [string range $help $st $ed]
+                  set task_info($host_name,end_found) 1
+               }
+               if { $task_info($host_name,start_found) == 1 && $task_info($host_name,end_found) == 0 } {
+                  append task_info($host_name,output) $token
+               }
+               if {[string first "_start_mark_:" $token] >= 0} {
+                  set task_info($host_name,start_found) 1
+               }
+            }
+
+            set all_exited 1
+            set finished_hosts ""
+            set running_hosts ""
+            foreach host $hostlist {
+               if { $task_info($host,exit_status) == "-1" } {
+                  set all_exited 0
+                  append running_hosts "$host "
+               } else {
+                  append finished_hosts "$host "
+               }
+            }
+            incr expect_runs 1
+            puts -nonewline $CHECK_OUTPUT "[washing_machine $expect_runs 1] FINISHED: | $finished_hosts | RUNNING: $running_hosts |            \r"
+            flush $CHECK_OUTPUT
+            if { $all_exited == 0 } {
+               exp_continue
+            } else {
+               puts $CHECK_OUTPUT "\nall commands terminated!"
+            }
+         }
+      }
+
+      foreach host $hostlist {
+         close_spawn_process $ispid_list($host)
+      }
+   } 
+
+   foreach host $hostlist {
+      set reported_error 0
+      if { $task_info($host,expected_output) != "" } {
+         if {[string match "*$task_info($host,expected_output)*" $task_info($host,output)]} {
+            puts $CHECK_OUTPUT "matchstring found"
+         } else {
+            append error_text "----------------------------------\n"
+            append error_text "host: $host\n"
+            append error_text "command(as user $exec_user): sdmadm $task_info($host,sdmadm_command)\n"
+            append error_text "Exit status: $task_info($host,exit_status)\n"
+            append error_text "Cannot find matchstring on host \"$host\":\n"
+            append error_text "Matchstring: $task_info($host,expected_output)\n"
+            append error_text "Output:\n$task_info($host,output)\n"
+            incr reported_error
+         }
+      }
+  
+      if { $task_info($host,exit_status) != 0 && $reported_error == 0 } {
+         append error_text "----------------------------------\n"
+         append error_text "host: $host\n"
+         append error_text "command(as user $exec_user): sdmadm $task_info($host,sdmadm_command)\n"
+         append error_text "Exit status: $task_info($host,exit_status)\n"
+         append error_text "Output:\n$task_info($host,output)\n"
+      }
+   }
+   return $error_text
+}
+
+
+#****** util/startup_hedeby_hosts() *********************************************
+#  NAME
+#     startup_hedeby_hosts() -- startup all components on the hedeby host
+#
+#  SYNOPSIS
+#     startup_hedeby_hosts { type host user } 
 #
 #  FUNCTION
 #     This procedure is used to start all configured hedeby components on the
@@ -1466,64 +1654,110 @@ proc shutdown_hedeby_host { type host user { only_raise_cannot_kill_error 0 } } 
 #  SEE ALSO
 #     util/is_hedeby_process_running()
 #     util/kill_hedeby_process()
-#     util/shutdown_hedeby_host()
-#     util/startup_hedeby_host()
+#     util/shutdown_hedeby_hosts()
+#     util/startup_hedeby_hosts()
 #     util/shutdown_hedeby()
 #     util/startup_hedeby()
 #*******************************************************************************
-proc startup_hedeby_host { type host user } {
+proc startup_hedeby_hosts { type host_list user } {
    global CHECK_OUTPUT 
    global hedeby_config
     
-   set ret_val 0
-   puts $CHECK_OUTPUT "startup \"$type\" host \"$host\" ..."
+   set error_text ""
+   if { $type != "managed" && $type != "master" } {
+      add_proc_error "startup_hedeby_hosts" -1 "unexpected host type: \"$type\" supported are \"managed\" or \"master\""
+      return 1
+   }
+
+   puts $CHECK_OUTPUT "starting up hedeby host(s): $host_list"
 
    # TODO: add more checking for "managed" and "master"
    # TODO: test with get_ps_info if the processes have started
    # TODO: check that all pid are written and no one is missing
 
+   # turn off security if enabled
    if { $hedeby_config(security_disable) == "true" } {
-      puts $CHECK_OUTPUT "WARNING! Setting security disable property for host $host"
-      set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] set_system_property -n ssl_disable -v true"]
-      if { $prg_exit_state != 0 } {
-         return $prg_exit_state
+      set pref_type [get_hedeby_pref_type]
+      if { $pref_type == "system" } {
+         foreach host $host_list {
+            puts $CHECK_OUTPUT "WARNING! Setting security disable property on host $host!"
+            set propArray($host,expected_output) ""
+            set propArray($host,sdmadm_command) "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] set_system_property -n ssl_disable -v true"
+         }
+         append error_text [start_parallel_sdmadm_command host_list $user propArray]
+         foreach host $host_list {
+            set exit_state $propArray($host,exit_status)
+            set output $propArray($host,output)
+            debug_puts "----------------------------------"
+            debug_puts "host: $host"
+            debug_puts "exit status: $exit_state"
+            debug_puts "output:\n$output"
+            debug_puts "----------------------------------"
+         }
+      } else {
+         # the user installation is shared in home directory it is only necessary
+         # to set system properties on master host
+         puts $CHECK_OUTPUT "WARNING! Setting security disable property!"
+         set host $hedeby_config(hedeby_master_host)
+         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] set_system_property -n ssl_disable -v true"]
+         if { $prg_exit_state != 0 } {
+            append error_text "cannot set security disable property on host $host:\n$output\n"
+         }
       }
    }
 
    switch -exact -- $type {
       "managed" {
-         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start"]
-         if { $prg_exit_state != 0 } {
-            set ret_val 1
-         } 
-         set match_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz "*"]
+         set pref_type [get_hedeby_pref_type]
+         set system_name [get_hedeby_system_name]
+         set bundle_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz "*"]
+         foreach host $host_list {
+            set taskArray($host,expected_output) $bundle_string
+            set taskArray($host,sdmadm_command) "-p $pref_type -s $system_name start"
+         }
+         append error_text [start_parallel_sdmadm_command host_list $user taskArray]
+         foreach host $host_list {
+            set exit_state $taskArray($host,exit_status)
+            set output $taskArray($host,output)
+            debug_puts "----------------------------------"
+            debug_puts "host: $host"
+            debug_puts "exit status: $exit_state"
+            debug_puts "output:\n$output"
+            debug_puts "----------------------------------"
+         }
       }
       "master" {
-         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start"]
-         if { $prg_exit_state != 0 } {
-            set ret_val 1
+         if { [llength $host_list] != 1 } {
+            append error_text "hostlist contains more than 1 entry - hedeby has only one master host\n\n"
+         } else {
+            set host [lindex $host_list 0]
+            set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start"]
+            if { $prg_exit_state != 0 } {
+               append error_text "cannot startup master host $host:\n$output\n"
+            }
+            set help1 [create_bundle_string "bootstrap.log.info.jvm_started" xzy "cs_vm"]
+            set help2 [create_bundle_string "bootstrap.log.info.jvm_started" xzy "executor_vm"]
+            set help3 [create_bundle_string "bootstrap.log.info.jvm_started" xzy "rp_vm"]
+            set match_string "$help1\r\n$help2\r\n$help3"
+            if { [string match "*$match_string*" $output]} {
+               puts $CHECK_OUTPUT "output matches expected result"
+            } else {
+               append error_text "startup hedeby host ${host} failed:\n"
+               append error_text "\"$output\"\n"
+               append error_text "The expected output doesn't match!\n"
+               append error_text "match string:\n"
+               append error_text "\"$match_string\"\n\n"
+            }
          }
-         set help [create_bundle_string "bootstrap.log.info.jvm_started" xzy "*"]
-         set match_string "$help\r\n$help"  ;# we expect 2
-      }
-      default {
-         add_proc_error "startup_hedeby_host" -1 "unexpected host type: \"$type\" supported are \"managed\" or \"master\""
-         set ret_val 1
       }
    }
-   if { [string match "*$match_string*" $output]} {
-      puts $CHECK_OUTPUT "output matches expected result"
-   } else {
-      set error_text ""
-      append error_text "startup hedeby host ${host} failed:\n"
-      append error_text "\"$output\"\n"
-      append error_text "The expected output doesn't match and exit value should not be 0:\n"
-      append error_text "match string:\n"
-      append error_text "\"$match_string\"\n"
-      add_proc_error "startup_hedeby_host" -1 $error_text
-      set ret_val 1
+
+   if { $error_text != "" } {
+      add_proc_error "startup_hedeby_hosts" -1 $error_text
+      return 1
    }
-   return $ret_val
+
+   return 0
 }
 
 
@@ -1554,9 +1788,10 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 
    set pref_type [get_hedeby_pref_type]
    set sys_name [get_hedeby_system_name]
+   set remove_user [get_hedeby_startup_user]
+
    puts $CHECK_OUTPUT "removing \"$pref_type\" preferences for hedeby system \"$sys_name\" on host \"$host\" ..."
 
-   set remove_user [get_hedeby_startup_user]
    sdmadm_command $host $remove_user "-p $pref_type -s $sys_name remove_system" prg_exit_state "" $raise_error
 }
 
@@ -1646,6 +1881,11 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       set back_exit_state -1
       puts $CHECK_OUTPUT "${host}($user): starting binary INTERACTIVE \"sdmadm $arg_line\" ..."
       set pr_id [open_remote_spawn_process $host $user $sdmadm_path $arg_line 0 "" my_env 0]
+      if { [info exists tasks(RETURN_ISPID)] } {
+         puts $CHECK_OUTPUT "sdmadm_command(): returning internal spawn id to caller!"
+         return $pr_id
+      }
+
       set sp_id [lindex $pr_id 1]
       set timeout 60
       set error_text ""
@@ -1664,7 +1904,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
         -i $sp_id -- "*\[ \n\]" {
            set token $expect_out(0,string)
            if { [string match "*_exit_status_:(*" $token ] } {
-              puts $CHECK_OUTPUT "script terminated!" 
+              debug_puts "script terminated!" 
               set help $token
               set st [string first "(" $help]
               set ed [string first ")" $help]
@@ -1693,7 +1933,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
                  }
               }
            }
-           if {[string first "_start_mark_:" $token]} {
+           if {[string first "_start_mark_:" $token] >= 0} {
               set found_start 1
            }
            if { $do_stop == 0 } {
@@ -1711,6 +1951,248 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       return $output
    }
 }
+
+#****** util/get_jvm_from_run_list() *************************************
+#  NAME
+#     get_jvm_from_run_list() -- help proc for shutdown_hedeby_hosts()
+#
+#  SYNOPSIS
+#     get_jvm_from_run_list { pid run_list } 
+#
+#  FUNCTION
+#     Used by check_hedeby_process_shutdown() and cleanup_hedeby_processes()
+#     to find out component information for hedeby pid process.
+#
+#  INPUTS
+#     pid      - pid reference in run_list
+#     run_list - internal data structure containing additional information
+#
+#  RESULT
+#     jvm name of the pid
+#
+#  SEE ALSO
+#     util/shutdown_hedeby_hosts()
+#*******************************************************************************
+proc get_jvm_from_run_list { pid run_list } {
+   global CHECK_OUTPUT
+   set component ""
+
+
+   foreach el $run_list {
+      set elem [split $el ":"]
+      set epid  [lindex $elem 0]
+      set ejvm  [lindex $elem 1]
+      set eport [lindex $elem 2]
+      if { $pid == $epid } {
+         return $ejvm
+      }
+   }
+   puts $CHECK_OUTPUT "cannot find pid $pid in runlist: $run_list"
+   return $component
+}
+
+#****** util/get_jvm_pidlist() *******************************************
+#  NAME
+#     get_jvm_pidlist() -- help proc for shutdown_hedeby_hosts()
+#
+#  SYNOPSIS
+#     get_jvm_pidlist { host user run_dir pidlist pidlistinfo 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure fills the specified lists with hedeby component data.
+#     The procedure will connect the specified host and fill pidlist and
+#     pidlistinfo with hedeby process information data.
+#
+#  INPUTS
+#     host            - hedeby host to analyze
+#     user            - user which will analyze
+#     run_dir         - run directory on host
+#     pidlist         - list where the pids are stored
+#     pidlistinfo     - list where additional info for pids is stored
+#     {raise_error 1} - optional: if 1 report testsuite errors
+#
+#  RESULT
+#     0 on success, not 0 on error
+#
+#  SEE ALSO
+#     util/shutdown_hedeby_hosts()
+#*******************************************************************************
+proc get_jvm_pidlist { host user run_dir pidlist pidlistinfo {raise_error 1}} {
+   global CHECK_OUTPUT
+   upvar $pidlist pid_list
+   upvar $pidlistinfo run_list
+   set pid_list {}
+   set ret_val 0
+
+   puts $CHECK_OUTPUT "check if host \"$host\" has running hedeby jvm_names ..."
+
+   if { [remote_file_isdirectory $host $run_dir] } {
+      set running_jvm_names [start_remote_prog $host $user "ls" "$run_dir"]
+      if { [llength $running_jvm_names] == 0 } {
+         puts $CHECK_OUTPUT "no hedeby jvm_name running on host $host!"
+         return $ret_val
+      }
+      foreach jvm_name $running_jvm_names {
+         if {[read_hedeby_jvm_pid_file pid_info $host $user $run_dir/$jvm_name] != 0} {
+            puts $CHECK_OUTPUT "cannot get pid info for host $host!"
+            set ret_val 1
+            return $ret_val
+         }
+         set pid $pid_info(pid)
+         set port $pid_info(port)
+         
+         lappend pid_list $pid
+         lappend run_list "$pid:$jvm_name:$port"
+         puts $CHECK_OUTPUT "run_list = $run_list"
+         puts $CHECK_OUTPUT "jvm $jvm_name has pid \"$pid\""
+         puts $CHECK_OUTPUT "jvm $jvm_name has port \"$port\""
+      }
+   } else {
+      puts $CHECK_OUTPUT "no hedeby run directory found on host $host!"
+   }
+   return $ret_val
+}
+
+
+#****** util/cleanup_hedeby_processes() ****************************************
+#  NAME
+#     cleanup_hedeby_processes() -- help proc for shutdown_hedeby_hosts()
+#
+#  SYNOPSIS
+#     cleanup_hedeby_processes { host user run_dir pid_list run_list 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     Kill not shutdown hedeby processes and cleanup run files. This procedure
+#     is a helper function for shutdown_hedeby_hosts().
+#
+#  INPUTS
+#     host            - host where hedeby processes are running
+#     user            - user which is doing remote commands
+#     run_dir         - run directory on remote host
+#     pid_list        - pid list on remote host
+#     run_list        - additional info for running commands
+#     {raise_error 1} - optinal: if set report errors
+#
+#  RESULT
+#     0 on success, not 0 on error
+#
+#  SEE ALSO
+#     util/shutdown_hedeby_hosts()
+#*******************************************************************************
+proc cleanup_hedeby_processes { host user run_dir pid_list run_list {raise_error 1} } {
+   global CHECK_OUTPUT
+   set ret_val 0
+
+   puts $CHECK_OUTPUT "cleaning up incorrect hedeby shutdown on host $host ..."
+   foreach pid $pid_list {
+      set jvm_name [get_jvm_from_run_list $pid $run_list]
+      puts $CHECK_OUTPUT "jvm=$jvm_name"
+      set is_pid_running [is_hedeby_process_running $host $pid]
+      if { $is_pid_running } {
+         puts $CHECK_OUTPUT "killing hedeby process ..."
+         kill_hedeby_process $host $user $jvm_name $pid
+      } else {
+         # there was an old pid file without running jvm -> delete the pid file
+         puts $CHECK_OUTPUT "delete pid file ..."
+         if {$jvm_name != ""} {
+            set del_pid_file "$run_dir/$jvm_name"
+            puts $CHECK_OUTPUT "delete pid file \"$del_pid_file\"\nfor jvm \"$jvm_name\" on host \"$host\" as user \"$user\" ..."
+            delete_remote_file $host $user $del_pid_file
+         }
+      }
+   }
+   return $ret_val
+}
+
+#****** util/check_hedeby_process_shutdown() ***********************************
+#  NAME
+#     check_hedeby_process_shutdown() -- help proc for shutdown_hedeby_hosts
+#
+#  SYNOPSIS
+#     check_hedeby_process_shutdown { host user run_dir pid_list run_list 
+#     {raise_error 1} {atimeout 60} } 
+#
+#  FUNCTION
+#     Check for correct shutdown of hedeby processes. This procedure
+#     is a helper function for shutdown_hedeby_hosts().
+#
+#  INPUTS
+#     host            - host where hedeby processes are running
+#     user            - user which is doing remote commands
+#     run_dir         - run directory on remote host
+#     pid_list        - pid list on remote host
+#     run_list        - additional info for running commands
+#     {raise_error 1} - optinal: if set report errors
+#     {atimeout 60}   - timeout when waiting for process shutdown
+#
+#  RESULT
+#     0 on success, not 0 on error
+#
+#  SEE ALSO
+#     util/shutdown_hedeby_hosts()
+#*******************************************************************************
+proc check_hedeby_process_shutdown { host user run_dir pid_list run_list {raise_error 1} {atimeout 60} } {
+   global CHECK_OUTPUT
+   set ret_val 0
+   set error_text ""
+
+   puts $CHECK_OUTPUT "checking correct hedeby shutdown on host $host ..."
+   set my_timeout [timestamp]
+   incr my_timeout $atimeout
+
+   # first setup a second pid list with pids to check
+   set pids_to_check $pid_list
+
+   # now check the pids
+   while { [timestamp] < $my_timeout } {
+      set not_removed_pids {}
+
+      foreach pid $pids_to_check {
+         set is_pid_running [is_hedeby_process_running $host $pid]
+         if { $is_pid_running } {
+            lappend not_removed_pids $pid
+         }
+      }
+
+      # store not removed pids
+      set pids_to_check $not_removed_pids
+
+      # all pids gone - break
+      if { [llength $pids_to_check] == 0 } {
+         break
+      }
+      puts $CHECK_OUTPUT "waiting for disappearance of pid(s): $pids_to_check"
+      after 1000
+   }
+
+   foreach pid $pids_to_check {
+      set ret_val 1
+      set jvm_name [get_jvm_from_run_list $pid $run_list]
+      append error_text "error shutting down jvm \"$jvm_name\" on host \"$host\" as user \"$user\".\n"
+      append error_text "(process with pid \"$pid\" is still running - killing it ...)\n\n"
+      kill_hedeby_process $host $user $jvm_name $pid
+   }
+
+   foreach pid $pid_list {
+      set jvm_name [get_jvm_from_run_list $pid $run_list]
+      set pid_file "$run_dir/$jvm_name"
+      if { [is_remote_file $host $user $pid_file] } {
+         set ret_val 1
+         append error_text "error shutdown jvm \"$jvm_name\" on host \"$host\" as user \"$user\".\n"
+         append error_text "(pid file \"$pid_file\" wasn't removed)\n\n"
+      }
+   }
+
+   if { $error_text != "" } {
+      add_proc_error "check_process_termination" -1 $error_text
+   }
+   return $ret_val
+}
+
+
+
 
 
 #****** util/remove_user_from_admin_list() *************************************

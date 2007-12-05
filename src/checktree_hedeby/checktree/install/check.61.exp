@@ -51,7 +51,8 @@ set check_functions              {}  ;# functions to call (in order)
 set check_setup_function "hedeby_install_setup"
 set check_cleanup_function "hedeby_install_cleanup"
 
-lappend check_functions "hedeby_cleanup_system"
+lappend check_functions "hedeby_shutdown_system"
+lappend check_functions "hedeby_remove_preferences"
 lappend check_functions "hedeby_install_master_host"
 lappend check_functions "hedeby_startup_master_host"
 lappend check_functions "hedeby_install_managed_hosts"
@@ -117,15 +118,17 @@ proc hedeby_add_and_verify_spare_pool_resources {} {
    }
 }
 
-proc hedeby_cleanup_system {} {
-
-   # first shutdown possible running system ...
+proc hedeby_shutdown_system {} {
+   # shutdown possible running system ...
    if { [shutdown_hedeby] != 0 } {
-      add_proc_error "hedeby_cleanup_system" -2 "error shutting down hedeby system. skip hard here."
+      add_proc_error "hedeby_shutdown_system" -2 "error shutting down hedeby system. skip hard here."
       return
    }
-   
-   # then remove system from preferences ... 
+}
+
+proc hedeby_remove_preferences {} {
+
+   # remove system from preferences ... 
    #    we don't want a error reporting, because
    #    the system might not be installed at all
    remove_hedeby_preferences 0
@@ -220,7 +223,7 @@ proc hedeby_startup_master_host {} {
    global hedeby_config
    global install_user
 
-   if { [startup_hedeby_host "master" $hedeby_config(hedeby_master_host) $install_user] != 0} {
+   if { [startup_hedeby_hosts "master" $hedeby_config(hedeby_master_host) $install_user] != 0} {
       add_proc_error "hedeby_startup_master_host" -2 "error starting master host \"$hedeby_config(hedeby_master_host)\"!\nSkip hard here."
       return
    }
@@ -232,12 +235,7 @@ proc hedeby_startup_managed_hosts {} {
    global hedeby_config
    global install_user
 
-   foreach host [get_all_hedeby_managed_hosts] {
-      set val [startup_hedeby_host "managed" $host $install_user]
-      if { $val != 0 } {
-         set ret_val 1
-      }
-   }
+   startup_hedeby_hosts "managed" [get_all_hedeby_managed_hosts] $install_user
 }
 
 
@@ -277,38 +275,59 @@ proc hedeby_install_managed_hosts {} {
 
    # first get tmp keystore and cacert files
    # the tmp files are deleted with the next test!
+   puts $CHECK_OUTPUT "copy ca certificate and admin keystore ..."
    set ca_file [get_tmp_file_name "" "ca"]
    set admin_keystore_file [get_tmp_file_name "" "keystore"]
    set master_spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
    set admin_user [get_hedeby_admin_user]
    set cp_keystore_cmd "$master_spool_dir ; cp ./security/users/$admin_user.keystore $admin_keystore_file ; cp ./security/ca/ca_top/cacert.pem $ca_file"
    set result [start_remote_prog "$hedeby_config(hedeby_master_host)" $install_user "cd" "$cp_keystore_cmd"]
-   puts $CHECK_OUTPUT "copy ca result:"
-   puts $CHECK_OUTPUT $result
-   puts $CHECK_OUTPUT "admin_keystore file should be at $admin_keystore_file"
-   puts $CHECK_OUTPUT "ca cert file should be at $ca_file"
+   puts $CHECK_OUTPUT "   copy ca result:"
+   puts $CHECK_OUTPUT "   $result"
+   puts $CHECK_OUTPUT "   admin_keystore file should be at:\n   $admin_keystore_file"
+   puts $CHECK_OUTPUT "   ca cert file should be at:\n   $ca_file"
+   puts $CHECK_OUTPUT ""
+ 
+   puts $CHECK_OUTPUT "==Install params for all managed hosts=="
+   puts $CHECK_OUTPUT "sdmadm_path:      $sdmadm_path"
+   puts $CHECK_OUTPUT "dist_path:        $dist_path" 
+   puts $CHECK_OUTPUT "cs_url:           $cs_url"
+   puts $CHECK_OUTPUT "ssl disabled:     $ssl_disabled"
+   puts $CHECK_OUTPUT "========================================"
 
-   foreach managed_host [get_all_hedeby_managed_hosts] {
-      if { $check_dirs } {
+
+   set managed_host_list [get_all_hedeby_managed_hosts]
+
+   if { $check_dirs } {
+      puts $CHECK_OUTPUT "checking for unique local spool dir for user pref install mode ..."
+      set my_spool_text ""
+      foreach managed_host $managed_host_list {
          # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
          set mHostSpoolDir [get_hedeby_local_spool_dir $managed_host]
          if { $master_spool_dir != $mHostSpoolDir } {
-            add_proc_error "hedeby_install_managed_hosts" -2 "local spool dir not unique for user pref mode!"
-            return
+            append my_spool_text "local spool dir not unique for user pref mode!\n"
+            append my_spool_text "Host \"$managed_host\" is using spool dir:\n\"$mHostSpoolDir\"\n"
+            append my_spool_text "master spool dir is:\n\"$master_spool_dir\"\n\n"
          }
       }
+      if { $my_spool_text != "" } {
+         add_proc_error "hedeby_install_managed_hosts" -2 $my_spool_text
+         return
+      }
+      puts $CHECK_OUTPUT ""
+   }
+
+   foreach managed_host $managed_host_list {
       # create and/or delete local spool directory for hedeby master host ...
       # (the spool_dir itself should not be existing)
-      set spool_dir [cleanup_hedeby_local_spool_dir $managed_host]
 
-      puts $CHECK_OUTPUT "==Install params==========================="
-      puts $CHECK_OUTPUT "sdmadm_path:      $sdmadm_path"
-      puts $CHECK_OUTPUT "dist_path:        $dist_path" 
-      puts $CHECK_OUTPUT "spool_dir:        $spool_dir"
-      puts $CHECK_OUTPUT "cs_url:           $cs_url"
-      puts $CHECK_OUTPUT "ssl disabled:     $ssl_disabled"
-      puts $CHECK_OUTPUT "======================================="
+      puts $CHECK_OUTPUT "\nCleaning up local spool dir on host $managed_host ..."
+      set managed_host_sdmadm_arguments($managed_host,spool_dir) [cleanup_hedeby_local_spool_dir $managed_host]
+      puts $CHECK_OUTPUT "   using spool dir:\n   $managed_host_sdmadm_arguments($managed_host,spool_dir)"
+   }
 
+   foreach managed_host $managed_host_list {
+      puts $CHECK_OUTPUT "Checking NFS availability of ca and keystore file on host $managed_host ..."
       # check that NFS has transported the keystore and cacert file to the managed host ...
       wait_for_remote_file $managed_host $install_user $admin_keystore_file
       wait_for_remote_file $managed_host $install_user $ca_file
@@ -321,7 +340,10 @@ proc hedeby_install_managed_hosts {} {
          after 2000
          set local_time [get_remote_time $managed_host]
       }
+   }
 
+   puts $CHECK_OUTPUT "Starting parallel managed host installation ..."
+   foreach managed_host $managed_host_list {
       # install new system ...
       set arguments "-s [get_hedeby_system_name]\
                      -p [get_hedeby_pref_type]\
@@ -330,19 +352,33 @@ proc hedeby_install_managed_hosts {} {
                      inst_managed_host\
                      -a [get_hedeby_admin_user]\
                      -d $dist_path\
-                     -l $spool_dir\
+                     -l $managed_host_sdmadm_arguments($managed_host,spool_dir)\
                      -cs_url $cs_url"
-
 
       if { $ssl_disabled == "true" } {
          append arguments " -nossl"
       }
 
       # TODO: make installation of managed host interactive - we have to trust the certificate in a question
-      set output [sdmadm_command $managed_host $install_user $arguments]
-      if { $prg_exit_state != 0 } {
-         add_proc_error "hedeby_install_master_host" -1 "${managed_host}($install_user): sdmadm $arguments failed:\n$output"
-      }
+
+      set task_info($managed_host,expected_output) ""
+      set task_info($managed_host,sdmadm_command) $arguments
+   }
+
+   set error_text [start_parallel_sdmadm_command managed_host_list $install_user task_info]
+   
+   foreach managed_host $managed_host_list {
+      set exit_state $task_info($managed_host,exit_status)
+      set output $task_info($managed_host,output)
+      debug_puts "----------------------------------"
+      debug_puts "managed_host: $managed_host"
+      debug_puts "exit status: $exit_state"
+      debug_puts "output:\n$output"
+      debug_puts "----------------------------------"
+   }
+
+   if { $error_text != "" } {
+      add_proc_error "hedeby_install_managed_hosts" -1 $error_text
    }
 }
 
