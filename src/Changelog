@@ -1,3 +1,7 @@
+CR-2007-12-05-1: Bugfix:    HOTFIX for check-in CR-2007-12-05-0
+                            startup of hedeby master host output parsing error
+                 Review:    RH
+
 CR-2007-12-05-0: Enhancem.: hedeby_install should install managed hosts parallel
                             (also shutdown startup is parallel now)
                  Issue:     hedeby issue #244

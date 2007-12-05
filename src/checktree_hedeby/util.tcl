@@ -1735,18 +1735,27 @@ proc startup_hedeby_hosts { type host_list user } {
             if { $prg_exit_state != 0 } {
                append error_text "cannot startup master host $host:\n$output\n"
             }
-            set help1 [create_bundle_string "bootstrap.log.info.jvm_started" xzy "cs_vm"]
-            set help2 [create_bundle_string "bootstrap.log.info.jvm_started" xzy "executor_vm"]
-            set help3 [create_bundle_string "bootstrap.log.info.jvm_started" xzy "rp_vm"]
-            set match_string "$help1\r\n$help2\r\n$help3"
-            if { [string match "*$match_string*" $output]} {
+            set match_strings {}
+            lappend match_strings [create_bundle_string "bootstrap.log.info.jvm_started" xzy "cs_vm"]
+            lappend match_strings [create_bundle_string "bootstrap.log.info.jvm_started" xzy "executor_vm"]
+            lappend match_strings [create_bundle_string "bootstrap.log.info.jvm_started" xzy "rp_vm"]
+
+            set match_count 0
+            foreach match_string $match_strings {
+               if { [string match "*$match_string*" $output]} {
+                   puts $CHECK_OUTPUT "output match for string \"$match_string\""
+                  incr match_count
+               }
+            }
+            if { $match_count == 3} {
                puts $CHECK_OUTPUT "output matches expected result"
             } else {
                append error_text "startup hedeby host ${host} failed:\n"
                append error_text "\"$output\"\n"
-               append error_text "The expected output doesn't match!\n"
-               append error_text "match string:\n"
-               append error_text "\"$match_string\"\n\n"
+               append error_text "The expected output doesn't match for match strings:\n"
+               foreach match_string $match_strings {
+                  append error_text "\"$match_string\"\n"
+               }
             }
          }
       }
