@@ -1942,8 +1942,7 @@ proc open_remote_spawn_process { hostname
       # Nothing we can do about it. We'll close the connection and
       # return error.
       if {$connect_errors} {
-         del_open_spawn_rlogin_session $spawn_id
-         close_spawn_process "$pid $spawn_id $nr_of_shells"
+         close_spawn_process "$pid $spawn_id $nr_of_shells" 1 0
          return ""
       }
    } else {
@@ -1966,8 +1965,7 @@ proc open_remote_spawn_process { hostname
       # Should be a rare situation.
       # We'll close the connection and return error
       add_proc_error "open_remote_spawn_process (starting command)" -2 "${error_info}\n$catch_error_message"  $raise_error
-      del_open_spawn_rlogin_session $spawn_id
-      close_spawn_process "$pid $spawn_id $nr_of_shells"
+      close_spawn_process "$pid $spawn_id $nr_of_shells" 1 0
       return ""
    }
 
@@ -2296,7 +2294,7 @@ proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr
 #     remote_procedures/add_open_spawn_rlogin_session()
 #*******************************************************************************
 proc remove_oldest_spawn_rlogin_session {} {
-   global rlogin_spawn_session_buffer
+   global CHECK_OUTPUT rlogin_spawn_session_buffer
 
    debug_puts "removing oldest not used rlogin session (rlogin_max_open_connections overflow)"
    set last [timestamp]
@@ -2322,8 +2320,7 @@ proc remove_oldest_spawn_rlogin_session {} {
       # the exit code
       set pid $rlogin_spawn_session_buffer($remove_spawn_id,pid)
       set nr_shells $rlogin_spawn_session_buffer($remove_spawn_id,nr_shells)
-      del_open_spawn_rlogin_session $remove_spawn_id
-      close_spawn_process "$pid $remove_spawn_id $nr_shells" 1
+      close_spawn_process "$pid $remove_spawn_id $nr_shells" 1 0
    }
 }
 
@@ -2657,10 +2654,9 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
             continue
          }
       }
-      del_open_spawn_rlogin_session $spawn_id
       puts -nonewline $CHECK_OUTPUT "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
       flush $CHECK_OUTPUT
-      close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 ;# don't check exit state
+      close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 0 ;# don't check exit state
       puts $CHECK_OUTPUT "done"
    }
 }
@@ -2759,8 +2755,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
       puts $CHECK_OUTPUT "check_rlogin_session: closing $spawn_id $pid to enable new rlogin session ..."
 
       # unregister connection
-      del_open_spawn_rlogin_session $spawn_id
-      close_spawn_process "$pid $spawn_id $nr_of_shells" 1 ;# don't check exit state
+      close_spawn_process "$pid $spawn_id $nr_of_shells" 1 0 ;# don't check exit state
    }
 
    return 0 ;# error
@@ -2879,7 +2874,7 @@ proc is_spawn_process_in_use {spawn_id} {
 #     remote_procedures/start_remote_tcl_prog
 #     remote_procedures/start_remote_prog
 #*******************************
-proc close_spawn_process {id {check_exit_state 0}} {
+proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    global CHECK_OUTPUT
    global CHECK_DEBUG_LEVEL
    global CHECK_SHELL_PROMPT
@@ -2904,12 +2899,12 @@ proc close_spawn_process {id {check_exit_state 0}} {
    # get connection info
    get_spawn_id_rlogin_session $spawn_id con_data
 
-   # regular call from a check.
-   # in case we shall close the connection after an error, con_data(pid) will be 0
-   # there might still be a program running
-   # stop it by sending CTRL C and mark the connection as idle
-   set do_return ""
-   if {$con_data(pid) != 0} {
+   if {$keep_open} {
+      # regular call from a check.
+      # there might still be a program running
+      # stop it by sending CTRL C and mark the connection as idle
+      set do_return ""
+
       # mark the connection idle
       set_spawn_process_in_use $spawn_id 0
 
@@ -3032,13 +3027,12 @@ proc close_spawn_process {id {check_exit_state 0}} {
          }
       } catch_error_message]
       if {$catch_return == 1} {
-         add_proc_error "close_spawn_process (exit)" -2 "$catch_error_message" 
+         puts $CHECK_OUTPUT "close_spawn_process (exit) $catch_error_message"
       }
    }
 
    # unregister connection
    del_open_spawn_rlogin_session $spawn_id
-
 
    # now shutdown the spawned process
    set catch_return [catch {
@@ -3047,7 +3041,7 @@ proc close_spawn_process {id {check_exit_state 0}} {
    } catch_error_message]
 
    if {$catch_return == 1} {
-      add_proc_error "close_spawn_process (close)" -2 "$catch_error_message" 
+      puts $CHECK_OUTPUT "close_spawn_process (close) $catch_error_message"
    }
 
    # wait for spawned process to exit
