@@ -2970,6 +2970,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    # at this point, we might have a bad rlogin session,
    # e.g. passed from check_rlogin_session.
    # expect ts_send to fail - pass raise_error = 0
+   set do_close_connection 1
    if {$nr_of_shells > 0} {
       debug_puts "nr of open shells: $nr_of_shells"
       debug_puts "-->sending $nr_of_shells exit(s) to shell on id $spawn_id"
@@ -3005,6 +3006,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
             }
             -i $spawn_id eof {
                # do not raise an error here - we use this code to close broken connections
+               set do_close_connection 0
                debug_puts "eof after exit - ok"
             }
             -i $spawn_id timeout {
@@ -3018,11 +3020,13 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
 
                # if we still have open shells, send "exit"
                if {$nr_of_shells > 0} {
+                  debug_puts "sending exit to shell (nr of shells=$nr_of_shells)..."
                   ts_send $spawn_id "exit\n" "" 0 0
-                  exp_continue
                } else {
-                  debug_puts "all shells exited - ok"
+                  debug_puts "all shells exited - wait for EOF ..."
                }
+               # we wait for eof, so we continue ...
+               exp_continue 
             }
          }
       } catch_error_message]
@@ -3034,14 +3038,17 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    # unregister connection
    del_open_spawn_rlogin_session $spawn_id
 
-   # now shutdown the spawned process
-   set catch_return [catch {
-      debug_puts "closing $spawn_id"
-      close -i $spawn_id
-   } catch_error_message]
+   if {$do_close_connection} {
+      puts $CHECK_OUTPUT "There was an error closing connection, closing spawn id ..."
+      # now shutdown the spawned process
+      set catch_return [catch {
+         debug_puts "closing $spawn_id"
+         close -i $spawn_id
+      } catch_error_message]
 
-   if {$catch_return == 1} {
-      puts $CHECK_OUTPUT "close_spawn_process (close) $catch_error_message"
+      if {$catch_return == 1} {
+         puts $CHECK_OUTPUT "close_spawn_process (close) $catch_error_message"
+      }
    }
 
    # wait for spawned process to exit

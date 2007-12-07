@@ -1,3 +1,6 @@
+CR-2007-12-07-0: Bugfix:    fixed wrong close behaviour in close_spawn_process()
+                 Review:    JG
+
 CR-2007-12-05-1: Bugfix:    HOTFIX for check-in CR-2007-12-05-0
                             startup of hedeby master host output parsing error
                  Review:    RH
