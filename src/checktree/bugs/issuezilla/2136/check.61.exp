@@ -1,0 +1,195 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2136_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2136"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "test invalid paths in (global) cluster config"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2136_setup
+set check_cleanup_function issue_2136_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2136_test"
+
+proc issue_2136_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2136_setup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2136_hosts issue_2136_backup_global issue_2136_backup_host
+
+   # let's assume we need 2 test hosts
+   set issue_2136_hosts [host_conf_get_suited_hosts]
+
+   # we want to modify the config - make a backup
+   get_config issue_2136_backup_global
+   get_config issue_2136_backup_host $issue_2136_hosts
+}
+
+proc issue_2136_cleanup {} {
+   global ts_config CHECK_OUTPUT
+   global issue_2136_hosts issue_2136_backup_global issue_2136_backup_host
+
+   # restore config
+   set_config issue_2136_backup_global
+   set_config issue_2136_backup_host $issue_2136_hosts
+
+   # unset our test's global variables
+   foreach var "issue_2136_hosts issue_2136_backup_global issue_2136_backup_host" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc issue_2136_do_test {host test} {
+   global ts_config CHECK_OUTPUT
+
+   set ok    [lindex $test 0]
+   set name  [lindex $test 1]
+   set value [subst [lindex $test 2]]
+
+   set config($name) $value
+   set result [set_config config $host 0 0]
+
+   # evaluate result
+   if {$ok} {
+      if {$result == 0} {
+         puts $CHECK_OUTPUT "ok as expected:     $name $value"
+      } else {
+         add_proc_error "issue_2136_do_test" -1 "setting $name to $value in $host config shouldn't have failed"
+      }
+   } else {
+      if {$result == 0} {
+         add_proc_error "issue_2136_do_test" -1 "setting $name to $value in $host config should have failed"
+      } else {
+         puts $CHECK_OUTPUT "failed as expected: $name $value"
+      }
+   }
+}
+
+proc issue_2136_test {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global issue_2136_hosts
+
+   # Array with test cases:
+   # Format:
+   # "expected result" "attribute name" "attribute value"
+   # expected result: 1 means this setting would be ok,
+   #                  0 means, we should see an error
+   set tests {
+      {1 "load_sensor" "$ts_config(product_root)/util/resources/loadsensors/load.sh"}
+      {1 "load_sensor" "$ts_config(product_root)/util/resources/loadsensors/load.sh,$ts_config(product_root)/util/resources/loadsensors/nuser.sh"}
+      {0 "load_sensor" "$ts_config(product_root)/util/resources/loadsensors/load.sh,blah"}
+      {0 "load_sensor" "blah"}
+      {1 "load_sensor" "none"}
+
+      {1 "set_token_cmd" "/bin/true"}
+      {0 "set_token_cmd" "blah"}
+      {1 "set_token_cmd" "none"}
+
+      {1 "pag_cmd" "/bin/true"}
+      {0 "pag_cmd" "blah"}
+      {1 "pag_cmd" "none"}
+
+      {1 "shepherd_cmd" "/bin/true"}
+      {0 "shepherd_cmd" "blah"}
+      {1 "shepherd_cmd" "none"}
+
+      {1 "mailer" "/bin/true"}
+      {0 "mailer" "blah"}
+      {0 "mailer" "none"}
+
+      {1 "xterm" "/bin/true"}
+      {0 "xterm" "blah"}
+      {0 "xterm" "none"}
+
+      {1 "qlogin_daemon" "/bin/true"}
+      {0 "qlogin_daemon" "blah"}
+      {0 "qlogin_daemon" "none"}
+
+      {1 "rlogin_daemon" "/bin/true"}
+      {0 "rlogin_daemon" "blah"}
+      {0 "rlogin_daemon" "none"}
+
+      {1 "rsh_daemon" "/bin/true"}
+      {0 "rsh_daemon" "blah"}
+      {0 "rsh_daemon" "none"}
+   }
+
+   if {$ts_config(gridengine_version) >= 62} {
+      lappend tests {1 "qlogin_daemon" "builtin"}
+      lappend tests {1 "rlogin_daemon" "builtin"}
+      lappend tests {1 "rsh_daemon" "builtin"}
+   }
+
+   foreach host "global $issue_2136_hosts" {
+      foreach test $tests {
+         issue_2136_do_test $host $test
+      }
+   }
+}
+

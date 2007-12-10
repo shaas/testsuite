@@ -205,7 +205,7 @@ proc get_complex_version {} {
    set INVALID_OPTION [translate $ts_config(master_host) 0 1 0 [sge_macro MSG_ANSWER_INVALIDOPTIONARGX_S] "-scl"]
    set INVALID_OPTION [string trim $INVALID_OPTION]
    
-   if { [string match "*$INVALID_OPTION*" $result] == 1 } {
+   if {[string match "*$INVALID_OPTION*" $result] == 1} {
       set version 1
       puts $CHECK_OUTPUT "new complex version"
    } else {
@@ -2071,6 +2071,7 @@ proc get_config { change_array {host global}} {
 #     {host global} - set configuration for a specific hostname (host) or set
 #                     the global configuration (global)
 #     {do_add 0}    - if 1: this is a new configuration, no old one exists)
+#     {raise_error} - raise error condition (1), or not (0)
 #
 #  RESULT
 #     -1 : timeout
@@ -2127,7 +2128,7 @@ proc get_config { change_array {host global}} {
 #  SEE ALSO
 #     sge_procedures/get_config()
 #*******************************
-proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
+proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
    global env CHECK_OUTPUT
    global CHECK_USER
    get_current_cluster_config_array ts_config
@@ -2150,32 +2151,25 @@ proc set_config { change_array {host global} {do_add 0} {ignore_error 0}} {
    set EDIT_FAILED [translate_macro MSG_PARSE_EDITFAILED]
    set master_arch [resolve_arch $ts_config(master_host)]
 
-   if { $ts_config(gridengine_version) == 53 } {
+   if {$ts_config(gridengine_version) == 53} {
       set MODIFIED [translate_macro MSG_SGETEXT_CONFIG_MODIFIEDINLIST_SSS $CHECK_USER "*" "*"]
       set ADDED    [translate_macro MSG_SGETEXT_CONFIG_ADDEDTOLIST_SSS $CHECK_USER "*" "*"]
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE "___ABCDEFG___" "___ABCDEFG___" "___ABCDEFG___" $raise_error]
    } else {
       set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
       set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
 
-      # early N1GE 6.0 versions don't have MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS
-      set EFFECT_DEFINE [sge_macro MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS 0]
-      if {$EFFECT_DEFINE == -1} {
-         set EFFECT "this N1GE doesn't have MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS"
-      } else {
-         set EFFECT [translate $ts_config(master_host) 1 0 0 $EFFECT_DEFINE "execd_spool_dir"]
-      }
+      # some SGE versions might not have the following macros
+      set EFFECT [translate_macro_if_possible MSG_WARN_CHANGENOTEFFECTEDUNTILRESTARTOFEXECHOSTS "execd_spool_dir"]
+      set PATH_CHECK [translate_macro_if_possible MSG_CONF_THEPATHGIVENFORXMUSTSTARTWITHANY_S "*"]
 
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE $EFFECT]
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "$qconf_cmd $host" $vi_commands $MODIFIED $EDIT_FAILED $ADDED $GIDRANGE $EFFECT $PATH_CHECK "___ABCDEFG___" $raise_error]
    }
 
-   if {$ignore_error == 1 && $result == -4} {
-      # ignore error -4 
-   } else {
-      if {$result != 0 && $result != -3 && $result != -5}  {
-         add_proc_error "set_config" -1 "could not add or modify configuration for host $host ($result)"
-      }
+   if {$result != 0 && $result != -3 && $result != -5}  {
+      add_proc_error "set_config" -1 "could not add or modify configuration for host $host ($result)" $raise_error
    }
+
    return $result
 }
 
@@ -4010,12 +4004,16 @@ proc is_job_id { job_id } {
 #  SEE ALSO
 #     sge_procedures/submit_job()
 #*******************************
-proc delete_job { jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
+proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
    global CHECK_OUTPUT
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
-   set ALREADYDELETED [translate_macro MSG_JOB_ALREADYDELETED_U "*"]
+   if {$ts_config(gridengine_version) >= 60} {
+      set ALREADYDELETED [translate_macro MSG_JOB_ALREADYDELETED_U "*"]
+   } else {
+      set ALREADYDELETED "no MSG_JOB_ALREADYDELETED_U in 5.3"
+   }
    set REGISTERED1 [translate_macro MSG_JOB_REGDELTASK_SUU "*" "*" "*"]
    if { $ts_config(gridengine_version) >= 62 } {
       set REGISTERED2 [translate_macro MSG_JOB_REGDELX_SSU "*" "job" "*" ]
@@ -7531,6 +7529,8 @@ proc get_qconf_object {procedure option output_var msg_var {list 0} {on_host ""}
 
    # parse output or raise error
    if {$prg_exit_state == 0} {
+      set ret 0
+
       # BUG: project, user - for non-existing objectname doesn't return correct error code
       if {[string first $messages(-1) $result] >= 0} {
          set ret [handle_sge_errors "$procedure" "qconf $option" $result messages $raise_error]
@@ -7542,7 +7542,6 @@ proc get_qconf_object {procedure option output_var msg_var {list 0} {on_host ""}
             parse_multiline_list result out
          }
       }
-      set ret 0      
    } else {
       set ret [handle_sge_errors "$procedure" "qconf $option" $result messages $raise_error]
    }
@@ -7754,11 +7753,15 @@ proc sge_client_messages {msg_var action obj_type obj_name {on_host ""} {as_user
          #         already exists [ object type, object name ]
          #         not modified [ ]
          set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS "$as_user" "$on_host" "$obj_name" "$obj_type"]
-         set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "$obj_type" "$obj_name"]
-         set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
          add_message_to_container messages 0 $ADDED
+
+         set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "$obj_type" "$obj_name"]
          add_message_to_container messages -2 $ALREADY_EXISTS
-         add_message_to_container messages -3 $NOT_MODIFIED
+
+         if {$ts_config(gridengine_version) >= 60} {
+            set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
+            add_message_to_container messages -3 $NOT_MODIFIED
+         }
       }
       "get" {
          # expect: does not exist [ object type, object name ]
@@ -7782,17 +7785,24 @@ proc sge_client_messages {msg_var action obj_type obj_name {on_host ""} {as_user
          #         no ulong [ value ]
          #         obiect not exists
          set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "$as_user" "$on_host" "$obj_name" "$obj_type" ]
-         set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "$obj_type" "$obj_name"]
-         set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
-         set NO_ATTR "error: [translate_macro MSG_UNKNOWNATTRIBUTENAME_S \"*\" ]"
-         set NO_ULONG [translate_macro MSG_OBJECT_VALUENOTULONG_S "*"]
-         set NOT_EXISTS [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "$obj_type" "$obj_name"]
          add_message_to_container messages 0 $MODIFIED
-         add_message_to_container messages -1 $NOT_EXISTS
+
+         set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "$obj_type" "$obj_name"]
          add_message_to_container messages -2 $ALREADY_EXISTS
-         add_message_to_container messages -3 $NOT_MODIFIED
-         add_message_to_container messages -4 $NO_ULONG
-         add_message_to_container messages -5 $NO_ATTR     
+
+         if {$ts_config(gridengine_version) >= 60} {
+            set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
+            add_message_to_container messages -3 $NOT_MODIFIED
+
+            set NO_ULONG [translate_macro MSG_OBJECT_VALUENOTULONG_S "*"]
+            add_message_to_container messages -4 $NO_ULONG
+
+            set NO_ATTR "error: [translate_macro MSG_UNKNOWNATTRIBUTENAME_S \"*\" ]"
+            add_message_to_container messages -5 $NO_ATTR     
+         }
+
+         set NOT_EXISTS [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "$obj_type" "$obj_name"]
+         add_message_to_container messages -1 $NOT_EXISTS
       }
       "list" {
          # expect: object [ result ]

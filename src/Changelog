@@ -1,3 +1,6 @@
+JG-2007-12-10-0: Enhancem.: Added test bugs/issuezilla/2136.
+                 Review:    MD
+
 CR-2007-12-07-0: Bugfix:    fixed wrong close behaviour in close_spawn_process()
                  Review:    JG
 
