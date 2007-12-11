@@ -489,7 +489,7 @@ proc exclude_check { mode_key check_name {description "Reason not specified" } }
 #  SEE ALSO
 #*******************************************************************************
 proc append_check_and_exclude_in_jgdi { check_name {description "DOES NOT WORK in JGDI" } } {
-    global CHECK_ACT_LEVEL check_description check_functions_var check_highest_level CHECK_JGDI_ENABLED CHECK_OUTPUT
+    global CHECK_ACT_LEVEL check_description check_functions check_highest_level CHECK_JGDI_ENABLED CHECK_OUTPUT
     #We need to go over all the levels
     if { $CHECK_JGDI_ENABLED == 1 } { #If JGDI enabled
        exclude_check JGDI $check_name $description

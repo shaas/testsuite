@@ -1,3 +1,7 @@
+LP-2007-12-11-0: Bugfix:    Fixed typo preventing some tests from being executed 
+                            in normal mode
+                 Review:    MP
+
 JG-2007-12-10-0: Enhancem.: Added test bugs/issuezilla/2136.
                  Review:    MD
 
