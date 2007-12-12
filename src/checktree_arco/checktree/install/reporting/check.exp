@@ -220,6 +220,14 @@ proc arco_reporting_install {} {
              send_to_spawn_id $sp_id "secret"
              continue
           }
+          -i $sp_id "Please enter the name of your cluster * >> " {
+             send_to_spawn_id $sp_id "testsuite"
+             continue
+          }
+          -i $sp_id "Do you want to add another cluster? * >>" {
+             send_to_spawn_id $sp_id "n"
+             continue
+          }
           -i $sp_id "Please enter the name of the database schema * >> " {
              if { $arco_config(database_type) == "oracle" } {
                 set input [get_arco_write_user]

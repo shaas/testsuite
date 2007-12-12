@@ -1,3 +1,7 @@
+PJ-2007-12-12-0: RFE:       ARCo should support multi-clusters
+                 Changed:   reporting
+                 Review:    JG
+
 RD-2007-12-12-0: Bugfix:    fixed migration test
                  Review:    JG
 
