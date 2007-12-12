@@ -60,20 +60,8 @@ lappend check_functions "clean_up_checkpoint_job"
 
 
 # global test variables
-global ts_config checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_pe_name migration_ckpt_name
+global checkpoint_host1 checkpoint_host2 q1 q2 q3 q4 migration_pe_name migration_ckpt_name
 global checkpoint_job_id 
-
-
-set checkpoint_hosts [host_conf_get_suited_hosts 2]
-set checkpoint_host1 [lindex $checkpoint_hosts 0]
-set checkpoint_host2 [lindex $checkpoint_hosts 1]
-set q1 "ckpt_mig-1"
-set q2 "ckpt_mig-2"
-set q3 "ckpt_mig-3"
-set q4 "ckpt_mig-4"
-set migration_pe_name "ckpt_mig_pe"
-set migration_ckpt_name "ckpt_mig_ckptobj"
-set checkpoint_job_id -1
 
 proc migration_init_level {} {
    global CHECK_ACT_LEVEL
@@ -88,6 +76,19 @@ proc migration_init_level {} {
 }
 
 proc migration_setup {} {
+   global checkpoint_hosts checkpoint_host1 checkpoint_host2 q1 q2 q3 q4
+   global migration_pe_name migration_ckpt_name checkpoint_job_id
+
+   set checkpoint_hosts [host_conf_get_suited_hosts 2]
+   set checkpoint_host1 [lindex $checkpoint_hosts 0]
+   set checkpoint_host2 [lindex $checkpoint_hosts 1]
+   set q1 "ckpt_mig-1"
+   set q2 "ckpt_mig-2"
+   set q3 "ckpt_mig-3"
+   set q4 "ckpt_mig-4"
+   set migration_pe_name "ckpt_mig_pe"
+   set migration_ckpt_name "ckpt_mig_ckptobj"
+   set checkpoint_job_id -1
    setup_queues
    setup_pe
    setup_checkpointing
