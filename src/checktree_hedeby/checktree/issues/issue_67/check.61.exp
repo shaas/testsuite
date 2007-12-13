@@ -96,7 +96,7 @@ proc issue_67_check {} {
    set expected_str "WARNING: ${match_str}\r\nWARNING: ${match_str}\r\nWARNING: ${match_str}\r\nError: ${match_str2}"
 
    # start system on master host again, don't raise errors ...
-   set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start" prg_exit_state "" 0]
+   set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj" prg_exit_state "" 0]
    set ret $prg_exit_state
 
    # now check the output ...

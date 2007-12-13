@@ -84,13 +84,13 @@ proc hedeby_issue_88_cleanup {} {
 
    # first start cs set index [lsearch $hedeby_issue_88_shutdown_components "cs_vm"]
    if { [lsearch $hedeby_issue_88_shutdown_components "cs_vm"] >= 0 } {
-      sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start -j cs_vm"
+      sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j cs_vm"
       set index [lsearch $hedeby_issue_88_shutdown_components "cs_vm"]
       set hedeby_issue_88_shutdown_components [lreplace $hedeby_issue_88_shutdown_components $index $index]
    }
 
    foreach vm $hedeby_issue_88_shutdown_components {
-      sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start -j $vm"
+      sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j $vm"
    }
 }
 
@@ -105,7 +105,7 @@ proc hedeby_issue_88_check {} {
    
    # Shutdown the CS vm
    puts $CHECK_OUTPUT "shutdown cs VM on hedeby master host ..."
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -j cs_vm -h $host"
+   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -j cs_vm -h $host"
    if { $prg_exit_state != 0 } {
       add_proc_error "hedeby_issue_88_check" -2 "Cannot shutdown cs_vm"
       return
@@ -130,7 +130,7 @@ proc hedeby_issue_88_check {} {
       # an invalid JMX connect URL.
       # The shutdown command will kill the JVM
       puts $CHECK_OUTPUT "shutdown executor VM on hedeby master host ..."
-      set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -j executor_vm -h $host"]
+      set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -j executor_vm -h $host"]
       if { $prg_exit_state != 0 } {
          add_proc_error "hedeby_issue_88_check" -1 "Cannot shutdown executor_vm"
          incr error_count
@@ -152,7 +152,7 @@ proc hedeby_issue_88_check {} {
    }
    
    # startup cs
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start -j cs_vm"
+   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j cs_vm"
    if { $prg_exit_state != 0 } {
       add_proc_error "hedeby_issue_88_check" -1 "Cannot startup cs_vm"
    }
@@ -160,7 +160,7 @@ proc hedeby_issue_88_check {} {
    set hedeby_issue_88_shutdown_components [lreplace $hedeby_issue_88_shutdown_components $index $index]
 
    # startup executor
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start -j executor_vm"
+   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj -j executor_vm"
    if { $prg_exit_state != 0 } {
       add_proc_error "hedeby_issue_88_check" -1 "Cannot startup executor_vm"
    }

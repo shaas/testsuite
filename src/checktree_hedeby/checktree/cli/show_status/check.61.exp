@@ -140,10 +140,12 @@ proc show_status_check {} {
    global CHECK_OUTPUT
    global hedeby_config
 
+   set nr_of_expected_jvms 0
+   set nr_of_expected_components 0
    # setup master host expectations ...
    set test_hosts $hedeby_config(hedeby_master_host)
-   set expected_jvms($hedeby_config(hedeby_master_host)) "executor_vm"
-   set expected_components($hedeby_config(hedeby_master_host)) "ca executor"
+   set expected_jvms($hedeby_config(hedeby_master_host)) "executor_vm rp_vm"
+   set expected_components($hedeby_config(hedeby_master_host)) "ca executor resource_provider reporter spare_pool"
    set expected_component_status "STARTED"
 
    # setup managed host expectations ...
@@ -160,7 +162,7 @@ proc show_status_check {} {
    # we don't use the pref type - hedeby must find the system anyway
    set show_user [get_hedeby_admin_user]
    set show_host $hedeby_config(hedeby_master_host)
-   set output [sdmadm_command $show_host $show_user "-s [get_hedeby_system_name] show_component_status"]
+   set output [sdmadm_command $show_host $show_user "-s [get_hedeby_system_name] sc"]
 
    set component_count [parse_show_component_output output]
    
@@ -196,9 +198,15 @@ proc show_status_check {} {
       }
    }
 
+   set expected_jvms_count 0
+   set expected_components_count 0
+   set tested_jvms {}
+   set tested_components {}
    
    foreach host $test_hosts {
       foreach jvm $expected_jvms($host) {
+         incr expected_jvms_count 1
+         lappend tested_jvms "${host}(${jvm})"
          if {[info exists found_jvms($host)]  && [lsearch $found_jvms($host) $jvm] >= 0} {
             debug_puts "Found jvm $jvm host host $host"
          } else {
@@ -206,14 +214,34 @@ proc show_status_check {} {
          }
       }
       foreach comp $expected_components($host) {
+         incr expected_components_count 1
+         lappend tested_components "${host}(${comp})"
          if {[info exists found_comps($host)] != 1 || [lsearch $found_comps($host) $comp] < 0} {
             append error_text "Component $comp did not start on host $host\n"
          }
       }
    }
-   puts $CHECK_OUTPUT "nr of jvms:       $nr_of_jvms"
-   puts $CHECK_OUTPUT "nr of components: $nr_of_components"
-   puts $CHECK_OUTPUT "nr of status infos: $component_count"
+   puts $CHECK_OUTPUT "nr of jvms:          $nr_of_jvms"
+   puts $CHECK_OUTPUT "nr of components:    $nr_of_components"
+   puts $CHECK_OUTPUT "nr of status infos:  $component_count"
+   puts $CHECK_OUTPUT "expected jvms:       $expected_jvms_count"
+   if { $nr_of_jvms != $expected_jvms_count } {
+      append error_text "Expected JVM count (=$expected_jvms_count) doesn't match found JVM count (=$nr_of_jvms)\n"
+      append error_text "Expected JVMS:\n"
+      foreach elem $tested_jvms {
+         append error_text "   $elem\n"
+      }
+   }
+
+   puts $CHECK_OUTPUT "expected components: $expected_components_count"
+   if { $nr_of_components != $expected_components_count } {
+      append error_text "Expected COMP count (=$expected_components_count) doesn't match found COMP count (=$nr_of_components)\n"
+      append error_text "Expected COMPS:\n"
+      foreach elem $tested_components {
+         append error_text "   $elem\n"
+      }
+   }
+
 
    if { $error_text != "" } {
       append error_text "\n\n---debug info (start) -----------------------------------------\n"

@@ -191,14 +191,14 @@ proc hedeby_install_master_host {} {
    # install new system ...
    set arguments "-s [get_hedeby_system_name]\
                   -p [get_hedeby_pref_type]\
-                  inst_master\
+                  imsth\
                   -ca_admin_mail \"$ca_admin_mail\"\
                   -ca_state \"$ca_state\"\
                   -ca_country \"$ca_country\"\
                   -ca_location \"$ca_location\"\
                   -ca_org_unit \"$ca_org_unit\"\
                   -ca_org \"$ca_org\"\
-                  -a [get_hedeby_admin_user]\
+                  -au [get_hedeby_admin_user]\
                   -d $dist_path\
                   -cs_port $cs_port\
                   -l $spool_dir\
@@ -347,10 +347,10 @@ proc hedeby_install_managed_hosts {} {
       # install new system ...
       set arguments "-s [get_hedeby_system_name]\
                      -p [get_hedeby_pref_type]\
-                     --keystore $admin_keystore_file\
-                     --cacert $ca_file\
-                     inst_managed_host\
-                     -a [get_hedeby_admin_user]\
+                     -k $admin_keystore_file\
+                     -cc $ca_file\
+                     imgdh\
+                     -au [get_hedeby_admin_user]\
                      -d $dist_path\
                      -l $managed_host_sdmadm_arguments($managed_host,spool_dir)\
                      -cs_url $cs_url"
@@ -358,9 +358,7 @@ proc hedeby_install_managed_hosts {} {
       if { $ssl_disabled == "true" } {
          append arguments " -nossl"
       }
-
       # TODO: make installation of managed host interactive - we have to trust the certificate in a question
-
       set task_info($managed_host,expected_output) ""
       set task_info($managed_host,sdmadm_command) $arguments
    }

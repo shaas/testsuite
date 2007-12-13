@@ -169,6 +169,7 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_dirs "spool/cs/module/ge-service-adapter/complex_mapping"
    lappend expected_dirs "spool/resource_provider"
    lappend expected_dirs "spool/spare_pool"
+   lappend expected_dirs "spool/reporter"
    lappend expected_dirs "tmp"
    lappend expected_dirs "tmp/ca"
 
@@ -269,7 +270,11 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "spool/cs/active_component/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_component/spare_pool@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_component/resource_provider@$hedeby_config(hedeby_master_host)*.xml"
+   lappend expected_files "spool/cs/active_component/reporter@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/module/ge-service-adapter/complex_mapping/default.xml"
+   lappend expected_files "spool/cs/component/reporter.xml"
+   lappend expected_files "spool/reporter/report-0.log.lck"
+   lappend expected_files "spool/reporter/report-0.log"
 
    foreach managed_host [get_all_hedeby_managed_hosts] {
       lappend expected_files "spool/cs/active_component/executor@$managed_host*.xml"

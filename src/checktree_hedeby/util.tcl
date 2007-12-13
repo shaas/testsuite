@@ -109,7 +109,7 @@ proc remove_hedeby_preferences {{raise_error 1}} {
       set host_list [get_all_hedeby_managed_hosts]
       foreach host $host_list {
          set task_info($host,expected_output) ""
-         set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name remove_system"      
+         set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name rbc"      
       }
       set error_text [start_parallel_sdmadm_command host_list $remove_user task_info $raise_error]
       
@@ -356,7 +356,7 @@ proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error
    puts $CHECK_OUTPUT $file_content
 
    # now use sdmadm command ...
-   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] add_resource -pf $file_name" prg_exit_state "" $raise_error
+   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name" prg_exit_state "" $raise_error
    return $prg_exit_state
 }
 
@@ -1389,7 +1389,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
             set sys_name [get_hedeby_system_name]
             foreach host $shutdown_host_list {
                set task_info($host,expected_output) ""
-               set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name shutdown -h $host"      
+               set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sdj -h $host"      
             }
             puts $CHECK_OUTPUT "parallel shutting down \"$type\" hosts \"$shutdown_host_list\" ..."
             append error_text [start_parallel_sdmadm_command shutdown_host_list $user task_info $raise_error]
@@ -1419,7 +1419,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
                if { [llength $hostInfoArray($host,pid_list)] == 0 } {
                   puts $CHECK_OUTPUT "no components found on host $host"
                } else {
-                  set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -h $host" prg_exit_state "" $raise_error]
+                  set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -h $host" prg_exit_state "" $raise_error]
                   if { $prg_exit_state != 0 } {
                      incr hostInfoArray($host,ret_val) 1
                   }
@@ -1481,7 +1481,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
 #     ===============================
 #        foreach host $host_list {
 #           set task_info($host,expected_output) ""
-#           set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name remove_system"      
+#           set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name rs"      
 #        }
 #     Execute the sdmadm command parallel:
 #     ====================================
@@ -1682,7 +1682,7 @@ proc startup_hedeby_hosts { type host_list user } {
          foreach host $host_list {
             puts $CHECK_OUTPUT "WARNING! Setting security disable property on host $host!"
             set propArray($host,expected_output) ""
-            set propArray($host,sdmadm_command) "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] set_system_property -n ssl_disable -v true"
+            set propArray($host,sdmadm_command) "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p ssl_disable -v true"
          }
          append error_text [start_parallel_sdmadm_command host_list $user propArray]
          foreach host $host_list {
@@ -1699,7 +1699,7 @@ proc startup_hedeby_hosts { type host_list user } {
          # to set system properties on master host
          puts $CHECK_OUTPUT "WARNING! Setting security disable property!"
          set host $hedeby_config(hedeby_master_host)
-         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] set_system_property -n ssl_disable -v true"]
+         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p ssl_disable -v true"]
          if { $prg_exit_state != 0 } {
             append error_text "cannot set security disable property on host $host:\n$output\n"
          }
@@ -1713,7 +1713,7 @@ proc startup_hedeby_hosts { type host_list user } {
          set bundle_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz "*"]
          foreach host $host_list {
             set taskArray($host,expected_output) $bundle_string
-            set taskArray($host,sdmadm_command) "-p $pref_type -s $system_name start"
+            set taskArray($host,sdmadm_command) "-p $pref_type -s $system_name suj"
          }
          append error_text [start_parallel_sdmadm_command host_list $user taskArray]
          foreach host $host_list {
@@ -1731,7 +1731,7 @@ proc startup_hedeby_hosts { type host_list user } {
             append error_text "hostlist contains more than 1 entry - hedeby has only one master host\n\n"
          } else {
             set host [lindex $host_list 0]
-            set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start"]
+            set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj"]
             if { $prg_exit_state != 0 } {
                append error_text "cannot startup master host $host:\n$output\n"
             }
@@ -1801,7 +1801,7 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 
    puts $CHECK_OUTPUT "removing \"$pref_type\" preferences for hedeby system \"$sys_name\" on host \"$host\" ..."
 
-   sdmadm_command $host $remove_user "-p $pref_type -s $sys_name remove_system" prg_exit_state "" $raise_error
+   sdmadm_command $host $remove_user "-p $pref_type -s $sys_name rbc" prg_exit_state "" $raise_error
 }
 
 
@@ -2034,12 +2034,12 @@ proc get_jvm_pidlist { host user run_dir pidlist pidlistinfo {raise_error 1}} {
    set pid_list {}
    set ret_val 0
 
-   puts $CHECK_OUTPUT "check if host \"$host\" has running hedeby jvm_names ..."
+   puts $CHECK_OUTPUT "check if host \"$host\" has running hedeby jvms ..."
 
    if { [remote_file_isdirectory $host $run_dir] } {
       set running_jvm_names [start_remote_prog $host $user "ls" "$run_dir"]
       if { [llength $running_jvm_names] == 0 } {
-         puts $CHECK_OUTPUT "no hedeby jvm_name running on host $host!"
+         puts $CHECK_OUTPUT "no hedeby jvm running on host $host!"
          return $ret_val
       }
       foreach jvm_name $running_jvm_names {
@@ -2228,7 +2228,7 @@ proc remove_user_from_admin_list { execute_host execute_user user_name {raise_er
    global CHECK_OUTPUT
    set retval 0
    
-   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] remove_admin_user $user_name" prg_exit_state "" $raise_error]
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] rau $user_name" prg_exit_state "" $raise_error]
    set exit_state $prg_exit_state
 
    set params(0) $user_name
@@ -2270,7 +2270,7 @@ proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1
    global CHECK_OUTPUT
    set retval 0
    
-   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] add_admin_user $user_name" prg_exit_state "" $raise_error ]
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] aau $user_name" prg_exit_state "" $raise_error ]
    set exit_state $prg_exit_state
 
    set params(0) $user_name
@@ -2313,7 +2313,7 @@ proc get_admin_user_list { execute_host execute_user result_list {raise_error 1}
    upvar $result_list user_list
    set retval 0
    
-   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] show_admin_users" prg_exit_state "" $raise_error ]
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sau" prg_exit_state "" $raise_error ]
    set retval $prg_exit_state
    # parse output
    set user_list {}

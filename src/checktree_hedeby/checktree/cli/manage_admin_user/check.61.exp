@@ -185,7 +185,7 @@ proc manage_admin_user_check {} {
         # now start scs interactive ...
         set tasks(username) "root"
         set tasks(password) "ROOTPW"
-        set argumentline "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] -ppw show_component_status"
+        set argumentline "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] -ppw sc"
         set tmp_output [sdmadm_command $test_host "root" $argumentline prg_exit_state tasks] 
         if { $prg_exit_state != 0 } {
            add_proc_error "manage_admin_user_check" -1 "sdmadm as user root with prompt password option failed!"
@@ -209,10 +209,14 @@ proc wait_for_role_cache_timeout {} {
    
    # Shutdown
    puts $CHECK_OUTPUT "shutdown hedeby master host ..."
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shutdown -h $host"
+   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -h $host"
 
    puts $CHECK_OUTPUT "startup hedeby master host ..."
-   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] start"
+   sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj"
+   
+   # wait for remote components to reconnect
+   # otherwise the state might be unknown
+   after 5000
 }
 
 
