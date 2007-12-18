@@ -1,3 +1,7 @@
+OJ-2007-10-30-0: Enhance:   Added testcase for IZ 2441
+                            at bugs/issuezilla/2441.
+                 Review:    MD
+
 CR-2007-12-13-0: Bugfix:    o fixed show_status test (did not check occurance
                               of all expected components and jvms)
                  Bugfix:    o enhanced security/file_permissions test to allow

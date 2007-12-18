@@ -1,0 +1,5 @@
+Issue:      2411
+Synopsis:  qhost becomes sluggish in large clusters
+This bug is verified in the following testsuite check:
+Check:      bugs/issuezila/2411/check.61.exp
+Function:   issue_2411
