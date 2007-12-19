@@ -2332,7 +2332,7 @@ proc host_conf_is_java_compile_host {host {config_var ""}} {
 #     an architecture string, e.g. sol-sparc64, darwin, ...
 #*******************************************************************************
 # CR checked
-proc host_conf_get_arch {host {config_var ""}} {
+proc host_conf_get_arch {hostname {config_var ""}} {
    global ts_host_config CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
@@ -2345,6 +2345,11 @@ proc host_conf_get_arch {host {config_var ""}} {
 
    set ret ""
 
+   # if host resolves long we have always short config entry
+   # so we use the name before the first "." as hostname
+   set host [string trim $hostname]
+   set host [split $host "."]
+   set host [lindex $host 0]
    if {[info exists config($host,arch,$ts_config(gridengine_version))]} {
       set ret $config($host,arch,$ts_config(gridengine_version))
    }
@@ -2763,7 +2768,9 @@ proc host_conf_get_windows_exec_host {} {
 #     is returned.
 #
 #  INPUTS
-#     {raise_error 1} - raise error condition or just output error message
+#     {raise_error 1}  - raise error condition or just output error message
+#     {resolve_long 0} - if set to 1 the build host is returned with domain name
+#                        (long hostname)
 #
 #  RESULT
 #     name of compile host or "", if no compile host was found
@@ -2771,7 +2778,7 @@ proc host_conf_get_windows_exec_host {} {
 #  SEE ALSO
 #     config_host/host_conf_is_java_compile_host()
 #*******************************************************************************
-proc host_conf_get_java_compile_host {{raise_error 1}} {
+proc host_conf_get_java_compile_host {{raise_error 1} {resolve_long 0}} {
    global ts_config ts_host_config CHECK_OUTPUT
 
    set compile_host ""
@@ -2786,6 +2793,10 @@ proc host_conf_get_java_compile_host {{raise_error 1}} {
       add_proc_error "host_conf_get_java_compile_host" -1 "didn't find java compile host in host configuration" $raise_error
    }
 
+   if { $resolve_long != 0 } {
+      set short_compile_host [resolve_host $compile_host 0]
+      set compile_host [resolve_host "${short_compile_host}.$ts_config(dns_domain)" 1]
+   }
    return $compile_host
 }
 

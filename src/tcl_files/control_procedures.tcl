@@ -2001,7 +2001,7 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
       set host [gethostname]
    }
    # try to retrieve architecture
-   set result [start_remote_prog $host $CHECK_USER $arch_script "" prg_exit_state 60 0 "" "" 1 0 0]
+   set result [start_remote_prog $host "ts_def_conf_arch_resolver" $arch_script "" prg_exit_state 60 0 "" "" 1 0 0]
    if {$prg_exit_state != 0} {
       return "unknown"
    }

@@ -1207,9 +1207,15 @@ proc compile_create_java_properties { compile_hosts } {
 
    if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
+      puts $CHECK_OUTPUT "deleting $properties_file"
+      foreach host $compile_hosts {
+         delete_remote_file $host $CHECK_USER $properties_file
+      }
+
+      # store long resolved host name in properties file ...
       puts $CHECK_OUTPUT "creating $properties_file"
       set f [open $properties_file "w"]
-      puts $f "java.buildhost=[host_conf_get_java_compile_host]"
+      puts $f "java.buildhost=[host_conf_get_java_compile_host 1 1]"
       close $f
  
       foreach host $compile_hosts {

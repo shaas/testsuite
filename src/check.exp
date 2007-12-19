@@ -7650,7 +7650,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
       }
 
       puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $add_config(master_host) ..."
-      set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
+      set id [open_remote_spawn_process $add_config(master_host) "ts_def_con_operate_add_cluster" "expect" $args 0 $add_config(testsuite_root_dir)]
       set script_tail_name [file tail $shell_script_name]
       set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
       puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""

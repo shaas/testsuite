@@ -230,6 +230,7 @@ proc report_create_task { report name host {link ""}} {
    }
 
    foreach handler $report_array(task_progress_handler) { 
+      debug_puts "starting \"$handler\" with report_array ..."
       $handler report_array
    }
    return $task_nr
