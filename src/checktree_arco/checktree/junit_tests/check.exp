@@ -110,7 +110,7 @@ proc arco_junit_check {} {
            set jdbc_driver "org.postgresql.Driver"
            set jdbc_url    "jdbc:postgresql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
            set db_def      "database/postgres/dbdefinition.xml"
-           set db_schema   "public"
+           set db_schema   "$arco_config(database_schema)"
       }
       "oracle"   { 
            set identifier "oracle"

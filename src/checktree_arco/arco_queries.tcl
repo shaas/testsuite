@@ -171,7 +171,6 @@ proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } } {
 #         puts "j_job_number = $job($i,j_job_number)"
 #         puts "j_task_number = $job($i,j_task_number)"
 #         puts "j_job_name = $job($i,j_job_name)"
-#         puts "j_open = $job($i,j_open)"
 #         puts "j_group = $job($i,j_group)"
 #         puts "j_owner = $job($i,j_owner)"
 #         puts "j_account = $job($i,j_account)"
@@ -198,7 +197,7 @@ proc arco_query_job {sqlutil_sp_id job_array {expected_count 1} {timeout 300}} {
    
    puts -nonewline $CHECK_OUTPUT "Searching job $job_str in table sge_job "
    
-   set sql "select j_id, j_job_number, j_task_number, j_job_name, j_open, j_group, "
+   set sql "select j_id, j_job_number, j_task_number, j_job_name, j_group, "
    append sql " j_owner, j_account, j_priority, j_submission_time, j_project, j_department"
    append sql " from sge_job"
    append sql " where j_job_number = $job(j_job_number)"

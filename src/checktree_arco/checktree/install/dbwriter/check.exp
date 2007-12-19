@@ -191,15 +191,6 @@ proc arco_dbwriter_install {} {
              send_to_spawn_id $sp_id "secret"
              continue
           }
-          -i $sp_id "Please enter the name of the database schema * >> " {
-             if { $arco_config(database_type) == "oracle" } {
-                set input [get_arco_write_user]
-             } else {
-                set input "public"
-             }             
-             send_to_spawn_id $sp_id $input
-             continue
-          }
           -i $sp_id "Should the connection to the database be tested? (y/n) * >> " {
              send_to_spawn_id $sp_id "y"
              continue
@@ -239,6 +230,15 @@ proc arco_dbwriter_install {} {
           }
           -i $sp_id "Please enter the name of TABLESPACE for indexes * >> " {
              send_to_spawn_id $sp_id $arco_config(tablespace_index)
+             continue
+          }
+          -i $sp_id "Please enter the name of the database schema * >> " {
+             if { $arco_config(database_type) == "oracle" } {
+                set input [get_arco_write_user]
+             } else {
+                set input $arco_config(database_schema)
+             } 
+             send_to_spawn_id $sp_id $input
              continue
           }
           -i $sp_id "Are this settings correct? (y/n) * >> " {

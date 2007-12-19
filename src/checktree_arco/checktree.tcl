@@ -548,6 +548,7 @@ proc arco_init_config { config_array } {
    arco_config_upgrade_1_1 config
    arco_config_upgrade_1_2 config
    arco_config_upgrade_1_3 config
+   arco_config_upgrade_1_4 config
 }
 
 proc arco_config_upgrade_1_1 { config_array } {
@@ -625,7 +626,7 @@ proc arco_config_upgrade_1_2 { config_array } {
             set config($name) [ expr ( $config($name) - 1 ) ]
          }
       }
-
+      
       # delete parameter database_schema
       set param "database_schema"
       set pos $config($param,pos)      
@@ -642,7 +643,7 @@ proc arco_config_upgrade_1_2 { config_array } {
             set config($name) [ expr ( $config($name) - 1 ) ]
          }
       }
-      
+
       # insert new parameter after swc_host parameter
       set insert_pos $config(swc_host,pos)
       incr insert_pos 1
@@ -709,6 +710,35 @@ proc arco_config_upgrade_1_3 { config_array } {
       set config(version) "1.3"
    }
 
+}
+
+proc arco_config_upgrade_1_4 { config_array } {
+   global CHECK_OUTPUT
+   
+   upvar $config_array config
+
+   if { $config(version) == "1.3" } {
+
+      puts $CHECK_OUTPUT "Upgrade to version 1.4"
+
+      if { [string compare $config(database_type) "mysql"] != 0 && [string compare $config(database_type) "oracle"] != 0 } {
+         # insert new parameter after tablespace_index parameter
+         set insert_pos $config(tablespace_index,pos)
+         incr insert_pos 1
+
+         # new parameter DB_SCHEMA
+         set parameter "database_schema"
+         set config($parameter)            ""
+         set config($parameter,desc)       "Database schema"
+         set config($parameter,default)    "public"
+         set config($parameter,setup_func) "config_$parameter"
+         set config($parameter,onchange)   "install"
+         set config($parameter,pos) $insert_pos
+      }
+      
+      # now we have a configuration version 1.4
+      set config(version) "1.4"
+   }
 }
 
 proc config_arco_source_dir { only_check name config_array } {
@@ -809,7 +839,7 @@ proc config_database_schema { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of your database schema, or press >RETURN<"
+   set help_text {  "Please enter the name of the database schema, or press >RETURN<"
                     "to use the default value." }
                     
    # TODO set global variables
