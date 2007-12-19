@@ -1,4 +1,7 @@
-OJ-2007-10-30-0: Enhance:   Added testcase for IZ 2441
+JG-2007-12-19-0: Bugfix:    Look for AR error message only with GE >= 62.
+                 Review:    RD
+
+OJ-2007-12-18-0: Enhance:   Added testcase for IZ 2441
                             at bugs/issuezilla/2441.
                  Review:    MD
 
