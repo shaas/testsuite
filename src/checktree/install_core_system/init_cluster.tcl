@@ -458,7 +458,9 @@ proc setup_conf {} {
      set params(reporting_params) "accounting=true reporting=false flush_time=00:00:05 joblog=true sharelog=00:10:00"
   }
   set params(execd_params) "none"
-  set params(qlogin_command) "telnet"
+  if { $ts_config(gridengine_version) < 62 } {
+     set params(qlogin_command) "telnet"
+  }
   set params(max_aj_instances) "2000"
   set params(max_aj_tasks) "75000"
 
@@ -583,7 +585,11 @@ proc setup_execd_conf {} {
      set removed ""
      set have_exec_spool_dir [get_local_spool_dir $host execd 0] 
      set spool_dir 0
-     set expected_entries 4
+     if {$ts_config(gridengine_version) < 62} {
+        set expected_entries 4
+     } else {
+        set expected_entries 2
+     }
      if {$have_exec_spool_dir != ""} {
         puts $CHECK_OUTPUT "host $host has spooldir in \"$have_exec_spool_dir\""
         set spool_dir 1
