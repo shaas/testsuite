@@ -1,3 +1,6 @@
+RD-2007-12-23-0: Bugfix:   fixed qmaster/advance_reservation test
+                           broken due to interface changes 
+
 HP-2007-12-21-0: Enhancem: added support for new IJS
                  Changed:  checktree/install_core_system/init_cluster.tcl
                  Review:   MD

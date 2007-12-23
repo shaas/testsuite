@@ -222,7 +222,7 @@ proc test_pe {} {
 
    # Try to remove pe settings from queue1. Should be rejected because AR requested the pe
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
-   if {$result != -3} {
+   if {$result != -8} {
       add_proc_error "test_pe" -1 "modifing queue pe_list with a advance reservation is not rejected"
    }
    set result [replace_attr queue pe_list "NONE" $queue_name1 1 "" "" 0]
@@ -231,11 +231,11 @@ proc test_pe {} {
    }
 
    # Try to lower pe_slots. Should be allowed for queue2 but not for queue1
-   set result [mod_pe $pe_name1 pe_settings 0] 
-   if {$result != -4} {
+   set result [mod_pe $pe_name1 pe_settings 1 "" "" 0] 
+   if {$result != -8} {
       add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
    }
-   set result [mod_pe $pe_name2 pe_settings 0] 
+   set result [mod_pe $pe_name2 pe_settings] 
    if {$result != 0} {
       add_proc_error "test_pe" -1 "lowering pe_slots is wrongly rejected"
    }
@@ -248,7 +248,7 @@ proc test_pe {} {
 
    # Now remove advance reservation and try it again
    start_sge_bin "qrdel" "$ar_name1"
-   set result [mod_pe $pe_name1 pe_settings 0] 
+   set result [mod_pe $pe_name1 pe_settings] 
    if {$result != 0} {
       add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
    }
@@ -298,7 +298,7 @@ proc test_ckpt {} {
 
    # Try to remove ckpt settings from queue1. Should be rejected because AR requested the ckpt
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
-   if {$result != -3} {
+   if {$result != -8} {
       add_proc_error "test_ckpt" -1 "modifing queue ckpt_list with a advance reservation is not rejected"
    }
    set result [replace_attr queue ckpt_list "NONE" $queue_name1 1 "" "" 0]
@@ -431,7 +431,7 @@ proc test_userlist {} {
 
    # Try to remove sgetest1 access from queue1. Should be rejected because AR requested the access
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
-   if {$result != -4} {
+   if {$result != -9} {
       add_proc_error "test_userlist" -1 "modifing queue user_lists with a advance reservation is not rejected"
    }
    set result [replace_attr queue xuser_lists "$userset_name1" $queue_name1 1 "" "" 0]
@@ -491,7 +491,7 @@ proc test_complexes {} {
    # Try to lower queue1 slot count. Should be rejected because 5 slots are reserved
    set queue_settings(slots) "4"
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
-   if {$result != -5} {
+   if {$result != -10} {
       add_proc_error "test_complexes" -1 "lowering queue slots for reserved queue is not rejected(1)"
    }
    set result [replace_attr queue slots "4" $queue_name1 1 "" "" 0]
