@@ -51,9 +51,10 @@ set check_init_level_procedure "tight_integration_init_level"
 # define test's name and run level descriptions
 set check_name            "tight_integration"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   1
+set check_highest_level   2
 set check_description(0)  "check tightly integrated parallel jobs submitted with qsub"
 set check_description(1)  "check tightly integrated parallel jobs submitted with qrsh"
+set check_description(2)  "check tightly integrated parallel jobs submitted with qrsh, accounting summary"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -61,6 +62,7 @@ set check_needs           "init_core_system"
 # setup and cleanup functions
 set check_setup_function tight_integration_setup
 set check_cleanup_function tight_integration_cleanup
+set check_setup_level_function tight_integration_setup_level
 
 # define test's procedure order
 set check_functions ""
@@ -88,13 +90,6 @@ set TIGHT_INTEGRATION_MASSIVE_DURATION 120
 proc tight_integration_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
-   global submit_command TIGHT_INTEGRATION_FUNCTIONAL_SLOTS
-
-   # for the functional test we want to schedule one task to each host
-   # we set the allocation rule to round_robin and request as many slots
-   # as we have exec hosts
-   set num_hosts [llength $ts_config(execd_nodes)]
-   set TIGHT_INTEGRATION_FUNCTIONAL_SLOTS $num_hosts
 
    # tight integration with csp is not working in SGE(EE) 5.3
    if {$ts_config(gridengine_version) == 53 && $ts_config(product_feature) == "csp"} {
@@ -102,17 +97,95 @@ proc tight_integration_init_level {} {
    }
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
-         set submit_command qsub
+      0 -
+      1 {
          return 0
       }
-      "1" {
-         set submit_command qrsh
-         return 0
+      2 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         }
       }
    }
 
    return -1  ;# no other level
+}
+
+proc tight_integration_setup {} {
+   global ts_config CHECK_OUTPUT
+   global CHECK_ACT_LEVEL
+   global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS
+   global tight_masterq tight_master_node
+
+   # for the functional test we want to schedule one task to each host
+   # we set the allocation rule to round_robin and request as many slots
+   # as we have exec hosts
+   set num_hosts [llength $ts_config(execd_nodes)]
+   set TIGHT_INTEGRATION_FUNCTIONAL_SLOTS $num_hosts
+
+   set tight_master_node $ts_config(master_host)
+   set tight_masterq [get_queue_instance "tight.q" $tight_master_node]
+
+   # create parallel environment
+   set pe(slots)              1000
+   set pe(user_lists)         none
+   set pe(xuser_lists)        none
+   set pe(start_proc_args)    none
+   set pe(stop_proc_args)     none
+   set pe(allocation_rule)    "\$round_robin"
+   set pe(control_slaves)     TRUE
+   set pe(job_is_first_task)  FALSE
+   add_pe tight pe
+
+   # create a queue
+   set queue_conf(load_thresholds) "np_load_avg=11"
+   set queue_conf(slots) 10 
+   set queue_conf(rerun) "true"
+   add_queue tight.q "@allhosts" queue_conf
+
+   # assign queue with pe
+   assign_queues_with_pe_object tight.q "" tight
+}
+
+proc tight_integration_setup_level {} {
+   global ts_config
+   global CHECK_ACT_LEVEL
+   global submit_command tight_integration_accounting_summary
+
+   set tight_integration_accounting_summary 0
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         set submit_command qsub
+      }
+      1 {
+         set submit_command qrsh
+      }
+      2 {
+         set submit_command qrsh
+         set tight_integration_accounting_summary 1
+      }
+   }
+   
+   # in level 2, we test with pe setting accounting_summary true
+   if {$tight_integration_accounting_summary} {
+      set pe(accounting_summary) "TRUE"
+   } else {
+      set pe(accounting_summary) "FALSE"
+   }
+
+   mod_pe "tight" pe
+}
+
+proc tight_integration_cleanup {} {
+   global ts_config CHECK_OUTPUT
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   unassign_queues_with_pe_object tight
+   del_pe tight
+   del_queue tight.q "" 0 1
 }
 
 # -------- local test procedures: initialization------------------------------
@@ -132,7 +205,7 @@ proc tight_integration_parse_execd_messages {mode} {
    set messages [get_qmaster_messages_file]
    get_file_content $tight_master_node $CHECK_USER $messages
    if {$file_array(0) < 1} {
-      add_proc_error "tight_integration_setup" -1 "no qmaster(host=$tight_master_node) messages file:\n$messages"
+      add_proc_error "tight_integration_parse_execd_messages" -1 "no qmaster(host=$tight_master_node) messages file:\n$messages"
    }
    for {set i 1} {$i <= $file_array(0)} {incr i 1} {
       if {[string match "*|E|*" $file_array($i)]} {
@@ -154,7 +227,7 @@ proc tight_integration_parse_execd_messages {mode} {
       set messages [get_execd_messages_file $execd]
       get_file_content $execd $CHECK_USER $messages 
       if {$file_array(0) < 1} {
-         add_proc_error "tight_integration_setup" -1 "no execd(host=$execd) messages file:\n$messages"
+         add_proc_error "tight_integration_parse_execd_messages" -1 "no execd(host=$execd) messages file:\n$messages"
       }
       for {set i 1} {$i <= $file_array(0)} {incr i} {
          if {[string match "*|E|*" $file_array($i)]} {
@@ -346,45 +419,6 @@ proc tight_integration_messages_check {scenario} {
 
    puts $CHECK_OUTPUT "compare error messages ..."
    tight_integration_check_messages startup cleanup $scenario
-}
-
-proc tight_integration_setup {} {
-   global ts_config CHECK_OUTPUT
-   global tight_masterq tight_master_node
-
-   set tight_master_node $ts_config(master_host)
-   set tight_masterq [get_queue_instance "tight.q" $tight_master_node]
-
-   # create parallel environment
-   set pe(slots)              1000
-   set pe(user_lists)         none
-   set pe(xuser_lists)        none
-   set pe(start_proc_args)    none
-   set pe(stop_proc_args)     none
-   set pe(allocation_rule)    "\$round_robin"
-   set pe(control_slaves)     TRUE
-   set pe(job_is_first_task)  FALSE
-   add_pe tight pe
-
-   # create a queue
-   set queue_conf(load_thresholds) "np_load_avg=11"
-   set queue_conf(slots) 10 
-   set queue_conf(rerun) "true"
-   add_queue tight.q "@allhosts" queue_conf
-
-   # assign queue with pe
-   assign_queues_with_pe_object tight.q "" tight
-}
-
-proc tight_integration_cleanup {} {
-   global ts_config CHECK_OUTPUT
-
-   delete_all_jobs
-   wait_for_end_of_all_jobs 60
-
-   unassign_queues_with_pe_object tight
-   del_pe tight
-   del_queue tight.q "" 0 1
 }
 
 # -------- local test procedures: utilities --------------------------
@@ -590,6 +624,7 @@ proc tight_integration_function {} {
    close_spawn_process $id
 
    wait_for_jobend $jobid tightf 60 0 1
+   tight_integration_acct $jobid $TIGHT_INTEGRATION_FUNCTIONAL_SLOTS
 }
 
 # check if qmaster is killed on reschedule
@@ -695,7 +730,6 @@ proc tight_integration_iz_1916 {} {
 
    # reset global config
    set_config org_global_conf
-
 }   
 
 # check if tasks are killed when they hit a wallclock limit
@@ -937,7 +971,6 @@ proc tight_integration_slave_killed {} {
    # Check for new warning/error messages and write out.
    #
    tight_integration_messages_check slave_killed
-
 }
 
 proc tight_integration_massive {} {
@@ -954,37 +987,56 @@ proc tight_integration_massive {} {
       unset queue_conf
    }
 
-   # increase the number of slots util maximum is reached
-   for {set massive_slots 19} {$massive_slots <= $TIGHT_INTEGRATION_MASSIVE_SLOTS} {incr massive_slots 10} {
-      puts $CHECK_OUTPUT "running parallel job with $massive_slots slots"
-      # check if test can run at all in this cluster
-      if {$total_slots < [expr $massive_slots + 1]} {
-         add_proc_error tight_integration_massive -3 "test cannot run massive parallel job with $massive_slots tasks + the master task - cluster only has $total_slots slots"
-         return
+   # Cluster big enough?
+   # We'll run the test anyways.
+   if {$total_slots < $TIGHT_INTEGRATION_MASSIVE_SLOTS} {
+      add_proc_error tight_integration_massive -3 "cannot start massive parallel job with $TIGHT_INTEGRATION_MASSIVE_SLOTS slots, using the maximum size provided by the cluster: $total_slots"
+   }
+
+   puts $CHECK_OUTPUT "running parallel job with $total_slots slots"
+
+   set id [submit_with_method $submit_command "-pe tight $total_slots -masterq $tight_masterq -cwd -N tightm" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $TIGHT_INTEGRATION_MASSIVE_DURATION" $tight_master_node]
+
+   set started 0
+   set finished 0
+   set jobid 0
+   set job_finished 0
+   
+   while {$job_finished == 0} {
+      set job_state [tight_integration_monitor $id started finished jobid info]
+      set job_finished [tight_integration_job_finished $job_state]
+   }
+
+   if {$started != $total_slots} {
+      add_proc_error tight_integration_massive -1 "only $started tasks out of $total_slots were started successfully"
+   }
+
+   if {$finished != $total_slots} {
+      add_proc_error tight_integration_massive -1 "only $finished tasks out of $total_slots ran through successfully"
+   }
+   set sp_id [lindex $id 1]
+   close_spawn_process $id
+
+   wait_for_jobend $jobid tightm 300 0 1
+   tight_integration_acct $jobid $total_slots
+}
+
+proc tight_integration_acct {job_id num_tasks} {
+   global tight_integration_accounting_summary
+
+   # in level 2, we do the accounting summary
+   # expect only one accounting record
+   # else the number of tasks records
+   get_qacct $job_id
+   set num_acct [llength $qacct_info(exit_status)]
+   if {$tight_integration_accounting_summary} {
+      if {$num_acct != 1} {
+         add_proc_error "tight_integration_acct" -1 "expected only one accounting record with accounting_summary enabled, but got $num_qacct"
       }
-
-      set id [submit_with_method $submit_command "-pe tight $massive_slots -masterq $tight_masterq -cwd -N tightm" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 $TIGHT_INTEGRATION_MASSIVE_DURATION" $tight_master_node]
-
-      set started 0
-      set finished 0
-      set jobid 0
-      set job_finished 0
-      
-      while {$job_finished == 0} {
-         set job_state [tight_integration_monitor $id started finished jobid info]
-         set job_finished [tight_integration_job_finished $job_state]
+   } else { 
+      set expected [expr $num_tasks + 1]
+      if {$num_acct != $expected} {
+         add_proc_error "tight_integration_acct" -1 "expected $expected accounting records, but got $num_acct"
       }
-
-      if {$started != $massive_slots} {
-         add_proc_error tight_integration_massive -1 "only $started tasks out of $massive_slots were started successfully"
-      }
-
-      if {$finished != $massive_slots} {
-         add_proc_error tight_integration_massive -1 "only $finished tasks out of $massive_slots ran through successfully"
-      }
-      set sp_id [lindex $id 1]
-      close_spawn_process $id
-
-      wait_for_jobend $jobid tightm 300 0 1
    }
 }

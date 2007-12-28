@@ -55,17 +55,23 @@ proc set_pe_defaults { change_array } {
    set chgar(slots)             "0"       
    set chgar(user_lists)        "NONE"
    set chgar(xuser_lists)       "NONE"
-   set chgar(start_proc_args)   "/bin/true"
-   set chgar(stop_proc_args)    "/bin/true"
+   set chgar(start_proc_args)   "NONE"
+   set chgar(stop_proc_args)    "NONE"
    set chgar(allocation_rule)   "\$pe_slots"
    set chgar(control_slaves)    "FALSE"
    set chgar(job_is_first_task) "TRUE"
    
    # SGE version dependent defaults
-   if { $ts_config(gridengine_version) == 53 } {
-      set chgar(queue_list)        "all"   
-   } elseif { $ts_config(gridengine_version) >= 60 } {
-      set chgar(urgency_slots)     "min"
+   if {$ts_config(gridengine_version) == 53} {
+      set chgar(queue_list) "all"   
+   }
+
+   if {$ts_config(gridengine_version) >= 60} {
+      set chgar(urgency_slots) "min"
+   }
+
+   if {$ts_config(gridengine_version) >= 62} {
+      set chgar(accounting_summary) "FALSE"
    }
 }
 
@@ -161,16 +167,16 @@ proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {
 #     sge_pe/get_pe_messages()
 #*******************************************************************************
 proc get_pe {pe_name {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_OUTPUT
+   global CHECK_OUTPUT
    upvar $output_var out
-  get_current_cluster_config_array ts_config
+   get_current_cluster_config_array ts_config
 
    puts $CHECK_OUTPUT "Get parallel environment $pe_name ... "
 
    get_pe_messages messages "get" "$pe_name" $on_host $as_user
-  
+
    return [get_qconf_object "get_pe" "-sp $pe_name" out messages 0 $on_host $as_user $raise_error]
-     }
+}
 
 #****** sge_pe/mod_pe() ********************************************************
 #
@@ -224,15 +230,14 @@ proc mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_
    } else {
       puts $CHECK_OUTPUT "Modify parallel environment $pe_name slow ..."
       set option "-mp"
-   set vi_commands [build_vi_command chgar]
+      set vi_commands [build_vi_command chgar]
       # BUG: different message for "vi" from fastadd ...
       set NOT_EXISTS [translate_macro MSG_PARALLEL_XNOTAPARALLELEVIRONMENT_S "$pe_name"]
       add_message_to_container messages -1 $NOT_EXISTS
       set result [start_vi_edit "qconf" "$option $pe_name" $vi_commands messages $on_host $as_user]
-
    }
    return [handle_sge_errors "mod_pe" "qconf $option" $result messages $raise_error]
-   }
+}
  
 #****** sge_pe/del_pe() ********************************************************
 #
@@ -383,6 +388,5 @@ proc get_pe_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
       }
       "list" {
       }
-  } 
-
+   } 
 }

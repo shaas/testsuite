@@ -92,8 +92,10 @@ set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   101
 set check_description(0)  "check reserved usage of jobs submitted with qsub (random host)"
 set check_description(1)  "check reserved usage of jobs submitted with qrsh (random host)"
+set check_description(2)  "check reserved usage of jobs submitted with qrsh (random host), accounting summary"
 set check_description(100)  "check reserved usage of jobs submitted with qsub (all architectures)"
 set check_description(101)  "check reserved usage of jobs submitted with qrsh (all architectures)"
+set check_description(102)  "check reserved usage of jobs submitted with qrsh (all architectures), accounting summary"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -102,7 +104,6 @@ set check_needs           "init_core_system"
 set check_setup_function "usage_setup"
 set check_cleanup_function "usage_cleanup"
 set check_setup_level_function "usage_setup_level"
-#set check_cleanup_level_function "usage_cleanup_level"
 
 # define test's procedure order
 set check_functions ""
@@ -116,17 +117,17 @@ proc usage_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 -
+      1 -
+      100 -
+      101 {
          return 0
       }
-      "1" {
-         return 0
-      }
-      "100" {
-         return 0
-      }
-      "101" {
-         return 0
+      2 -
+      102 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         }
       }
    }
 
@@ -138,14 +139,16 @@ proc usage_init_level {} {
 proc usage_setup_level {} {
    global ts_config CHECK_OUTPUT
    global CHECK_ACT_LEVEL
-   global submit_command usage_master_hosts
+   global submit_command usage_master_hosts usage_accounting_summary
 
+   set usage_accounting_summary 0
    switch -exact $CHECK_ACT_LEVEL {
       0 {
          set submit_command "qsub"
          set usage_master_hosts [host_conf_get_suited_hosts]
       }
-      1 {
+      1 -
+      2 {
          set submit_command "qrsh"
          set usage_master_hosts [host_conf_get_suited_hosts]
       }
@@ -153,11 +156,23 @@ proc usage_setup_level {} {
          set submit_command "qsub"
          set usage_master_hosts $ts_config(unique_arch_nodes)
       }
-      101 {
+      101 -
+      102 {
          set submit_command "qrsh"
          set usage_master_hosts $ts_config(unique_arch_nodes)
       }
    }
+   if {$CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 102} {
+      set usage_accounting_summary 1
+   }
+
+   # in levels 2 and 102, we test with pe setting accounting_summary true
+   if {$usage_accounting_summary} {
+      set pe(accounting_summary) "TRUE"
+   } else {
+      set pe(accounting_summary) "FALSE"
+   }
+   mod_pe "tight" pe
 
    puts $CHECK_OUTPUT "testing $submit_command on host(s) $usage_master_hosts"
 }
@@ -367,8 +382,9 @@ proc usage_job_finished {job_state} {
 }
 
 
-proc usage_check {jobid qstat_j_info slots} {
+proc usage_check {jobid qstat_j_info slots acct_slots} {
    global ts_config CHECK_OUTPUT
+   global usage_accounting_summary
 
    upvar $qstat_j_info online_info
 
@@ -383,7 +399,8 @@ proc usage_check {jobid qstat_j_info slots} {
    get_qacct $jobid
    set acct_cpu $qacct_info(cpu)
    set acct_mem $qacct_info(mem)
-   puts $CHECK_OUTPUT "acct_cpu = $acct_cpu, acct_mem = $acct_mem"
+   set acct_count [llength $qacct_info(exit_status)]
+   puts $CHECK_OUTPUT "acct_cpu = $acct_cpu, acct_mem = $acct_mem, acct_count = $acct_count"
 
    # calculate expected usage
    # JG: TODO: not yet perfect for parallel jobs: we have to check the 
@@ -412,6 +429,16 @@ proc usage_check {jobid qstat_j_info slots} {
    if {[expr abs($acct_mem - $expected_mem)] > [expr $expected_mem / 20]} {
       lappend result "accounting memory usage ($acct_mem) differs more than 5% from expected usage ($expected_mem) on host $qacct_info(hostname)"
    }
+   # number of accounting records
+   if {$usage_accounting_summary} {
+      if {$acct_count != 1} {
+         lappend result "got $acct_count accounting records, but expected 1 record (accounting summary)"
+      }
+   } else {
+      if {$acct_count != $acct_slots} {
+         lappend result "got $acct_count accounting records, but expected $slots records"
+      }
+   }
 
    return $result
 }
@@ -424,7 +451,7 @@ proc max {a b} {
    }
 }
 
-proc usage_monitor_check {id test_name slots} {
+proc usage_monitor_check {id test_name slots acct_slots} {
    global CHECK_OUTPUT
 
    set started 0
@@ -448,7 +475,7 @@ proc usage_monitor_check {id test_name slots} {
          set my_timeout 1
          set timeout_error 0
          if {![get_qstat_j_info $jobid]} {
-            add_proc_error test_name -1 "job terminated abnormally"
+            add_proc_error $test_name -1 "job terminated abnormally"
             set job_finished 1
          } else {
             # get online usage
@@ -475,7 +502,7 @@ proc usage_monitor_check {id test_name slots} {
    close_spawn_process $id
 
    if {$timeout_error} {
-      add_proc_error test_name -1 "job didn't run as expected"
+      add_proc_error $test_name -1 "job didn't run as expected"
       delete_all_jobs
    } else {   
       wait_for_jobend $jobid usage 60 0 1
@@ -484,9 +511,9 @@ proc usage_monitor_check {id test_name slots} {
       sleep 20
 
       if {!$job_finished} {
-         add_proc_error test_name -1 "job terminated abnormally"
+         add_proc_error $test_name -1 "job terminated abnormally"
       } else {
-         set error_list [usage_check $jobid online_info $slots]
+         set error_list [usage_check $jobid online_info $slots $acct_slots]
 
          foreach error $error_list {
             add_proc_error $test_name -1 $error
@@ -509,7 +536,7 @@ proc usage_single {} {
       set queue [get_queue_instance "usage.q" $master_host]
       set id [submit_with_method $submit_command "-N usage -q $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
-      usage_monitor_check $id "usage_single" 1
+      usage_monitor_check $id "usage_single" 1 1
    }
 }
 
@@ -530,12 +557,12 @@ proc usage_tight {} {
          set queue [get_queue_instance "usage.q" $master_host]
          set id [submit_with_method $submit_command "-pe tight 4 -N usage -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 120" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
-         usage_monitor_check $id "usage_tight" 5
+         usage_monitor_check $id "usage_tight" 5 5
       }
    }
 }
 
-proc usage_loose {pe expected_slots} {
+proc usage_loose {pe expected_slots acct_slots} {
    global ts_config
    global CHECK_OUTPUT
    global submit_command usage_master_hosts
@@ -548,14 +575,14 @@ proc usage_loose {pe expected_slots} {
       set queue [get_queue_instance "usage.q" $master_host]
       set id [submit_with_method $submit_command "-N usage -pe $pe 4 -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
-      usage_monitor_check $id "usage_loose" $expected_slots
+      usage_monitor_check $id "usage_loose" $expected_slots $acct_slots
    }
 }
 
 proc usage_loose1 {} {
-   usage_loose loose1 5
+   usage_loose loose1 5 1
 }
 
 proc usage_loose2 {} {
-   usage_loose loose2 4
+   usage_loose loose2 4 1
 }

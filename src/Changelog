@@ -1,12 +1,17 @@
-RD-2007-12-23-0: Bugfix:   fixed qmaster/advance_reservation test
-                           broken due to interface changes 
+JG-2007-12-28-0: Enhandem.: Enhanced checks functional/usage and 
+                            functional/tight_integration tests to test 
+                            "accounting_summary" pe attribute.
+                 Review:    HP
 
-HP-2007-12-21-0: Enhancem: added support for new IJS
-                 Changed:  checktree/install_core_system/init_cluster.tcl
-                 Review:   MD
+RD-2007-12-23-0: Bugfix:    fixed qmaster/advance_reservation test
+                            broken due to interface changes 
 
-JO-2007-12-19-0: Enhancem: added support for schemas
-                 Review:   AP
+HP-2007-12-21-0: Enhancem:  added support for new IJS
+                 Changed:   checktree/install_core_system/init_cluster.tcl
+                 Review:    MD
+
+JO-2007-12-19-0: Enhancem:  added support for schemas
+                 Review:    AP
 
 CR-2007-12-19-0: Bugfix:    o fixed problem with open spawn session for multi
                               cluster support if different sge_root source
