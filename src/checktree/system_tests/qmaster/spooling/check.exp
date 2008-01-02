@@ -67,7 +67,7 @@ set check_functions ""
 lappend check_functions "qmaster_spooling_prj_restart"
 lappend check_functions "qmaster_spooling_rqs_restart"
 lappend check_functions "qmaster_spooling_ar_restart"
-
+lappend check_functions "qmaster_spooling_issue2442"
 
 proc qmaster_spooling_init_level {} {
    global CHECK_ACT_LEVEL
@@ -272,4 +272,85 @@ proc qmaster_spooling_ar_restart {} {
 
       puts $CHECK_OUTPUT "test qmaster_spooling_ar_restart OK"
    }
+}
+
+# test the issue 2442: incomplete error loging in case of classic spooling failures
+proc qmaster_spooling_issue2442 {} {
+   global ts_config ts_host_config CHECK_OUTPUT CHECK_USER
+
+   # test only for classic spooling
+   if { [string compare "$ts_config(spooling_method)" "classic"] == 0 } {
+      # get all the spooled objects - read them from the qmaster spooling directory
+      set qmaster_spool_dir [get_qmaster_spool_dir]
+      set objects {}
+      # exclude the directories job_scripts, jobs, schedd and zombies
+      foreach dir [get_dir_names "$qmaster_spool_dir"] {
+         if {[string first "job" "$dir"] == -1 && [string first "zombies" "$dir"] == -1 && [string first "schedd" "$dir"] == -1} {
+            lappend objects $dir
+         }
+      }
+      # set the unique number which we use in the object name 
+      # (just for case we run the test more times without reinstalling the cluster)
+      set unq_num [expr {int(rand()*1000)}]
+      # create wrong configuration files for each object
+      foreach object $objects {
+         # if the directory contains subdirectories, create object there (example: qinstances)
+         set sub_dirs [get_dir_names "$qmaster_spool_dir/$object"]
+         if {[string compare $sub_dirs ""] == 0} {
+            start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "\"wrong_argument\" >> $qmaster_spool_dir/$object/wrong_$object$unq_num"
+         } else {
+            foreach sub_dir $sub_dirs {
+               start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "\"wrong_argument\" >> $qmaster_spool_dir/$object/$sub_dir/wrong_$object$unq_num"
+            }
+         }
+      }
+      # now restart the cluster and check the qmaster messages
+      shutdown_and_restart_qmaster
+      set error 0
+      set missing_log ""
+      foreach object $objects {
+         set sub_dirs [get_dir_names "$qmaster_spool_dir/$object"]
+         if {[string compare $sub_dirs ""] == 0} {
+            # messages are version dependend
+            if { $ts_config(gridengine_version) >= 62 } {
+               set msg "[translate_macro MSG_FLATFILE_ERROR_READINGFILE_S "$qmaster_spool_dir/$object/wrong_$object$unq_num"]"
+            } else {
+               set msg "[translate_macro MSG_CONFIG_READINGFILE_SS "$object" "wrong_$object$unq_num"]"
+            }
+            # look for the error message for the given object
+            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$qmaster_spool_dir/messages | grep \\\"$msg\\\""]
+            # remove the wrong configuration file
+            start_remote_prog $ts_config(master_host) $CHECK_USER "rm" "$qmaster_spool_dir/$object/wrong_$object$unq_num"
+         } else {
+            foreach sub_dir $sub_dirs {
+               # messages are version dependend
+               if { $ts_config(gridengine_version) >= 62 } {
+                  set msg "[translate_macro MSG_FLATFILE_ERROR_READINGFILE_S "$qmaster_spool_dir/$object/$sub_dir/wrong_$object$unq_num"]"
+               } else {
+                  set msg "[translate_macro MSG_CONFIG_READINGFILE_SS "$object/$sub_dir" "wrong_$object$unq_num"]"
+               }
+               # look for the error message for the given object
+               set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$qmaster_spool_dir/messages | grep \\\"$msg\\\""]
+               # remove the wrong configuration file
+               start_remote_prog $ts_config(master_host) $CHECK_USER "rm" "$qmaster_spool_dir/$object/$sub_dir/wrong_$object$unq_num"
+            }
+         }
+         # check the result if the message was found
+         if {[string compare $result ""] == 0} {
+            set error 1
+            lappend missing_log $object
+         }
+         
+      }
+      shutdown_and_restart_qmaster
+      if {$error == 1} {
+         add_proc_error "qmaster_spooling_issue2442" -1 "Missing messages in qmaster log file for object(s): $missing_log"
+         return -1
+      } else {
+         puts $CHECK_OUTPUT "Successfully performed error logging test qmaster_spooling_issue2442."
+      }
+   } else {
+      puts $CHECK_OUTPUT "qmaster_spooling_issue2442 test skipped for $ts_config(spooling_method) spooling method"
+   }
+   return 0
 }

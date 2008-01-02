@@ -1,3 +1,7 @@
+AP-2008-01-02-0: Enhancem.: Added test qmaster_spooling_issue2442 to 
+                            system_tests/qmaster/spooling
+                 Review:    JG
+
 JG-2007-12-28-0: Enhandem.: Enhanced checks functional/usage and 
                             functional/tight_integration tests to test 
                             "accounting_summary" pe attribute.
