@@ -1,3 +1,7 @@
+CR-2008-01-03-0: Bugfix:    first compile java build host as workaround for
+                            inconsistent ant dependencies
+                 Review:    AA
+
 AP-2008-01-02-0: Enhancem.: Added test qmaster_spooling_issue2442 to 
                             system_tests/qmaster/spooling
                  Review:    JG
