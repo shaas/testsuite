@@ -51,7 +51,7 @@ set ts_checktree($arco_checktree_nr,setup_hooks_0_verify_func)  arco_verify_conf
 set ts_checktree($arco_checktree_nr,setup_hooks_0_save_func)    arco_save_configuration
 #set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     $ACT_CHECKTREE/arco_defaults.sav
 set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "arco" ]
-set ts_checktree($arco_checktree_nr,setup_hooks_0_version)      "1.3"
+set ts_checktree($arco_checktree_nr,setup_hooks_0_version)      "1.4"
 
 set ts_checktree($arco_checktree_nr,checktree_clean_hooks_0)  "arco_clean"
 
@@ -383,6 +383,7 @@ proc arco_verify_config {config_array only_check parameter_error_list} {
    arco_config_upgrade_1_1 config
    arco_config_upgrade_1_2 config
    arco_config_upgrade_1_3 config
+   arco_config_upgrade_1_4 config
    
    return [verify_config2 config $only_check param_error_list $ts_checktree($arco_checktree_nr,setup_hooks_0_version)]   
 }
