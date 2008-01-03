@@ -1,3 +1,7 @@
+AP-2008-01-03-0: Bugfix:    Tablespace and schema related fix.
+                 Changed:   checktree_arco
+                 Review:    JO
+
 JO-2008-01-03-0: Bugfix:    Fix commit JO-2007-12-19-0
 
 CR-2008-01-03-0: Bugfix:    first compile java build host as workaround for

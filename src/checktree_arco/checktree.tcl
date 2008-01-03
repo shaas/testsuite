@@ -795,6 +795,18 @@ proc config_database_type { only_check name config_array } {
    set db_type [config_generic $only_check $name config $help_text "string" ]
 
    if { $db_type == "postgres" || $db_type == "oracle" || $db_type == "mysql" } {
+      if { $db_type == "oracle" } {
+         set config(tablespace,default)          "USERS"
+         set config(tablespace_index,default)    "USERS"
+      }
+      if { $db_type == "postgres" } {
+         set config(tablespace,default)          "pg_default"
+         set config(tablespace_index,default)    "pg_default"
+      }
+      if { $db_type == "mysql" } {
+         set config(tablespace,default)          "none"
+         set config(tablespace_index,default)    "none"
+      }
       return $db_type
    }
    return -1

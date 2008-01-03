@@ -137,7 +137,11 @@ proc oracle_init_arco_db {} {
    }
    
    set    sql "CREATE USER ${arco_write_user} PROFILE \"DEFAULT\" IDENTIFIED BY secret"
-   append sql " DEFAULT TABLESPACE \"USERS\" TEMPORARY TABLESPACE \"TEMP\" QUOTA 100 M ON \"USERS\" ACCOUNT UNLOCK"
+   append sql " DEFAULT TABLESPACE \"$arco_config(tablespace)\" TEMPORARY TABLESPACE \"TEMP\" QUOTA 100 M ON \"$arco_config(tablespace)\" "
+   if { [string compare $arco_config(tablespace) $arco_config(tablespace_index)] != 0 } {
+      append sql " QUOTA 100 M ON \"$arco_config(tablespace_index)\" "
+   }
+   append sql " ACCOUNT UNLOCK"
    
    if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
       add_sql_error "oracle_init_arco_db" "-2" "Can't create user $arco_write_user"
@@ -147,7 +151,7 @@ proc oracle_init_arco_db {} {
    
    # Grant priviliges for arco_write_user
    # from 6.1u4 and 6.2 version we don't need create any synonym privilege for arco_write_user
-   set sql "GRANT CREATE ANY SYNONYM, CREATE TABLE, CREATE VIEW, UNLIMITED TABLESPACE, CREATE SESSION TO ${arco_write_user}"
+   set sql "GRANT CREATE ANY SYNONYM, CREATE TABLE, CREATE VIEW, CREATE SESSION TO ${arco_write_user}"
 
    if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
       add_sql_error "oracle_init_arco_db" "-2" "Can't grant privileges to $arco_write_user"
@@ -156,8 +160,12 @@ proc oracle_init_arco_db {} {
    }
    
    set    sql "CREATE USER ${arco_read_user} PROFILE \"DEFAULT\" IDENTIFIED BY secret"
-   append sql " DEFAULT TABLESPACE \"USERS\" TEMPORARY TABLESPACE \"TEMP\" QUOTA 100 M ON \"USERS\" ACCOUNT UNLOCK"
-   
+   append sql " DEFAULT TABLESPACE \"$arco_config(tablespace)\" TEMPORARY TABLESPACE \"TEMP\" QUOTA 100 M ON \"$arco_config(tablespace)\" "
+   if { [string compare $arco_config(tablespace) $arco_config(tablespace_index)] != 0 } {
+      append sql " QUOTA 100 M ON \"$arco_config(tablespace_index)\" "
+   }
+   append sql " ACCOUNT UNLOCK"
+
    if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
       add_sql_error "oracle_init_arco_db" "-2" "Can't create user $arco_write_user"
       close_spawn_process $id 
@@ -307,19 +315,25 @@ proc postgres_init_arco_db {} {
       return -2
    }
 
-   set sql "create schema $arco_config(database_schema)"
-   if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
-      add_sql_error "postgres_init_arco_db" "-2" "Can't create schema $database_schema"
-      close_spawn_process $id 
-      return -2
-   }
+   if {$ts_config(gridengine_version) >= 62} {
+      set sql "SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname = '$arco_config(database_schema)'"
+      set res [sqlutil_query $sp_id $sql result_array column_names]
+      if { $res < 0 } {
+         set sql "create schema $arco_config(database_schema)"
+         if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
+            add_sql_error "postgres_init_arco_db" "-2" "Can't create schema $arco_config(database_schema)"
+            close_spawn_process $id 
+            return -2
+         }
    
-   # grant usage on schema to arco_read users
-   set sql "grant usage on schema $arco_config(database_schema) to $arco_read_user"
-   if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
-      add_sql_error "postgres_init_arco_db" "-2" "Can't grant usage on $arco_config(database_schema) to $arco_read_user"
-      close_spawn_process $id 
-     return -2
+         # grant usage on schema to arco_read users
+         set sql "grant usage on schema $arco_config(database_schema) to $arco_read_user"
+         if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
+            add_sql_error "postgres_init_arco_db" "-2" "Can't grant usage on $arco_config(database_schema) to $arco_read_user"
+            close_spawn_process $id 
+            return -2
+         }
+      }
    }
 
    # connect to the admin database
