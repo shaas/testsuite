@@ -171,7 +171,9 @@ proc tight_integration_setup_level {} {
    if {$tight_integration_accounting_summary} {
       set pe(accounting_summary) "TRUE"
    } else {
-      set pe(accounting_summary) "FALSE"
+      if {$ts_config(gridengine_version) >= 62} {
+         set pe(accounting_summary) "FALSE"
+      }
    }
 
    mod_pe "tight" pe
@@ -294,7 +296,7 @@ proc tight_integration_check_messages {mode1 mode2 scenario} {
          #
          if {$skip_message == 0} {
             if {$header_written == 0} {
-               append error_text "tight integration check produced qmaster error messages at dagored:\n"
+               append error_text "tight integration check produced qmaster error messages at $ts_config(master_host):\n"
                set header_written 1
             }
             append error_text [string range "$message\n" $mstart end]
@@ -333,7 +335,7 @@ proc tight_integration_check_messages {mode1 mode2 scenario} {
          #
          if {$skip_message == 0} {
             if {$header_written == 0} {
-               append error_text "tight integration check produced qmaster warning messages at dagored:\n"
+               append error_text "tight integration check produced qmaster warning messages at $ts_config(master_host):\n"
                set header_written 1
             }
             append error_text [string range "$message\n" $mstart end]
@@ -1022,11 +1024,16 @@ proc tight_integration_massive {} {
 }
 
 proc tight_integration_acct {job_id num_tasks} {
+   global ts_config
    global tight_integration_accounting_summary
 
    # in level 2, we do the accounting summary
    # expect only one accounting record
    # else the number of tasks records
+   # on SGE >= 60, the accounting file is buffered - wait for all records being written
+   if {$ts_config(gridengine_version) >= 60} {
+      sleep 10
+   }
    get_qacct $job_id
    set num_acct [llength $qacct_info(exit_status)]
    if {$tight_integration_accounting_summary} {
@@ -1037,6 +1044,23 @@ proc tight_integration_acct {job_id num_tasks} {
       set expected [expr $num_tasks + 1]
       if {$num_acct != $expected} {
          add_proc_error "tight_integration_acct" -1 "expected $expected accounting records, but got $num_acct"
+      }
+   }
+
+   # in 6.1u4 and higher, the submission time of tasks is specified; in older version it was 0.
+   # check that all submission times are in an interval of 5 minutes
+   if {$ts_config(gridengine_version) >= 61} {
+      set min [clock scan "tomorrow"]; set max 0
+      foreach time $qacct_info(qsub_time) {
+         if {$time < $min} {
+            set min $time
+         }
+         if {$time > $max} {
+            set max $time
+         }
+      }
+      if {[expr $max - $min] > 300} {
+         add_proc_error "" -1 "tightly integrated job and tasks were not started within 5 minutes, or tasks accounting records do not contain correct submission time:\n$qacct_info(qsub_time)"
       }
    }
 }

@@ -1,3 +1,7 @@
+JG-2008-01-03-0: Enhancem.: Added test for IZ 1689 (correct submission time for
+                            tasks of tightly integrated parallel jobs).
+                 Review:    MD
+
 AP-2008-01-03-0: Bugfix:    Tablespace and schema related fix.
                  Changed:   checktree_arco
                  Review:    JO

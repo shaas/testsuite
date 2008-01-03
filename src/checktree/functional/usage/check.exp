@@ -80,8 +80,7 @@ global env
 global ts_config
 global submit_command
 
-#set check_root_access_needs "yes"
-
+set check_root_access_needs "yes"
 
 # define a level initialization procedure:
 set check_init_level_procedure "usage_init_level"
@@ -170,7 +169,9 @@ proc usage_setup_level {} {
    if {$usage_accounting_summary} {
       set pe(accounting_summary) "TRUE"
    } else {
-      set pe(accounting_summary) "FALSE"
+      if {$ts_config(gridengine_version) >= 62} {
+         set pe(accounting_summary) "FALSE"
+      }
    }
    mod_pe "tight" pe
 

@@ -1421,10 +1421,10 @@ proc parse_qacct {input output {jobid 0}} {
    # rules for parsing an accounting record
    set rules(qname)           rule_list
    set rules(hostname)        rule_list
-   set rules(qsub_time)       rule_min
-   set rules(start_time)      rule_min
-   set rules(end_time)        rule_max
-   set rules(slots)           rule_max
+   set rules(qsub_time)       rule_list
+   set rules(start_time)      rule_list
+   set rules(end_time)        rule_list
+   set rules(slots)           rule_list
    set rules(failed)          rule_list 
    set rules(exit_status)     rule_list
    set rules(ru_wallclock)    rule_max
