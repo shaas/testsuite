@@ -308,17 +308,24 @@ proc postgres_init_arco_db {} {
       return -2
    }
    
-  # connect to the newly created database
-   if {[sqlutil_connect $sp_id 0] != 0} {
-      add_sql_error "postgres_init_arco_db" "-2" "Can not connect to database $db_name"      
-      close_spawn_process $id
-      return -2
-   }
-
    if {$ts_config(gridengine_version) >= 62} {
+
+      # connect to the newly created database
+      if {[sqlutil_connect $sp_id 0] != 0} {
+         add_sql_error "postgres_init_arco_db" "-2" "Can not connect to database $db_name"      
+         close_spawn_process $id
+         return -2
+      }
+
       set sql "SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname = '$arco_config(database_schema)'"
       set res [sqlutil_query $sp_id $sql result_array column_names]
       if { $res < 0 } {
+         add_sql_error "postgres_init_arco_db" "-2" "Can't query schema $arco_config(database_schema)"
+         close_spawn_process $id 
+         return -2
+      }
+      if { $res == 0 } {
+         # schema doesn't exist, create it
          set sql "create schema $arco_config(database_schema)"
          if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
             add_sql_error "postgres_init_arco_db" "-2" "Can't create schema $arco_config(database_schema)"
@@ -334,31 +341,32 @@ proc postgres_init_arco_db {} {
             return -2
          }
       }
-   }
 
-   # connect to the admin database
-   if {[sqlutil_connect $sp_id 1] != 0} {
-      add_sql_error "postgres_init_arco_db" "-2" "Can not connect to database $db_name"      
-      close_spawn_process $id
-      return -2
-   }
+      if { [string compare $arco_config(database_schema) "public"] != 0 } {
+         # connect to the admin database
+         if {[sqlutil_connect $sp_id 1] != 0} {
+            add_sql_error "postgres_init_arco_db" "-2" "Can not connect to database $db_name"      
+            close_spawn_process $id
+            return -2
+         }
    
-   # alter the arco_write user's search path
-   set sql "alter user $arco_write_user set search_path=$arco_config(database_schema), public"
-   if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
-      add_sql_error "postgres_init_arco_db" "-2" "Can't alter $arco_write_user search_path"
-      close_spawn_process $id 
-      return -2
-   }
+         # alter the arco_write user's search path
+         set sql "alter user $arco_write_user set search_path=$arco_config(database_schema), public"
+         if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
+            add_sql_error "postgres_init_arco_db" "-2" "Can't alter $arco_write_user search_path"
+            close_spawn_process $id 
+            return -2
+         }
 
-   # alter the arco_read user's search path
-   set sql "alter user $arco_read_user set search_path=$arco_config(database_schema), public"
-   if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
-      add_sql_error "postgres_init_arco_db" "-2" "Can't alter $arco_read_user search_path"
-      close_spawn_process $id 
-      return -2
+         # alter the arco_read user's search path
+         set sql "alter user $arco_read_user set search_path=$arco_config(database_schema), public"
+         if { [ sqlutil_exec $sp_id "$sql"] != 0 } {
+            add_sql_error "postgres_init_arco_db" "-2" "Can't alter $arco_read_user search_path"
+            close_spawn_process $id 
+            return -2
+         }
+      } 
    }
-
 
    close_spawn_process $id
    return 0
