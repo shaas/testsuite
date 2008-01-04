@@ -267,6 +267,18 @@ proc install_shadowd {} {
                continue
             }
 
+            #SMF startup is always disabled in testsuite
+            -i $sp_id -- "NOTE: If you select \"n\" SMF will be not used at all"  {
+               flush $CHECK_OUTPUT
+               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(10)"
+               if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+               }
+
+               ts_send $sp_id "$ANSWER_NO\n"
+               continue
+            }
 
             -i $sp_id "Error:" {
                add_proc_error "install_shadowd" "-1" "$expect_out(0,string)"

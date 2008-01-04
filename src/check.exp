@@ -2237,6 +2237,13 @@ proc update_ts_config_version {} {
       config_build_ts_config_1_13
       show_config ts_config
       wait_for_enter
+   }
+
+   if {[string compare $ts_config(version) "1.13"] == 0} {
+      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.13 to 1.14 ..."
+      config_build_ts_config_1_14
+      show_config ts_config
+      wait_for_enter
       return 0
    }
    

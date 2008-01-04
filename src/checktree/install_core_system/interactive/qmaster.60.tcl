@@ -492,6 +492,16 @@ proc install_qmaster {} {
           continue
        }
 
+       -i $sp_id -- "Unique cluster name" {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending cluster_name >$ts_config(cluster_name)<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "$ts_config(cluster_name)\n"
+          continue
+       }
+
        -i $sp_id -- $VERIFY_FILE_PERMISSIONS1 {
          if { $ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar" } {
             set input "$ANSWER_YES"
@@ -896,6 +906,18 @@ proc install_qmaster {} {
        }
 
        -i $sp_id $INSTALL_STARTUP_SCRIPT {
+          flush $CHECK_OUTPUT
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(10)"
+          if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+          }
+
+          ts_send $sp_id "$ANSWER_NO\n"
+          continue
+       }
+       #SMF startup is always disabled in testsuite
+       -i $sp_id -- "NOTE: If you select \"n\" SMF will be not used at all"  {
           flush $CHECK_OUTPUT
           puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(10)"
           if {$do_log_output == 1} {

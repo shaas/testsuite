@@ -4018,6 +4018,59 @@ proc config_testsuite_cell { only_check name config_array } {
    return $value
 }
 
+#****** config/config_testsuite_cluster_name() ***************************
+#  NAME
+#     config_testsuite_cluster_name() -- cluster name
+#
+#  SYNOPSIS
+#     config_testsuite_cluster_name { only_check name config_array } 
+#
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#*******************************************************************************
+proc config_testsuite_cluster_name { only_check name config_array } {
+   global CHECK_OUTPUT 
+   global ts_config
+   global fast_setup
+
+   upvar $config_array config
+   set actual_value  $config($name)
+   set default_value $config($name,default)
+   set description   $config($name,desc)
+   set value $actual_value
+
+   if { $actual_value == "" } {
+      set value $default_value
+   }
+
+   # called from setup
+   if { $only_check == 0 } {
+      puts $CHECK_OUTPUT "" 
+      puts $CHECK_OUTPUT "Please specify the cluster name (SGE_CLUSTER_NAME)"
+      puts $CHECK_OUTPUT ""
+      puts $CHECK_OUTPUT "Press >RETURN< to use the default value."
+      puts $CHECK_OUTPUT "(default: $value)"
+      puts -nonewline $CHECK_OUTPUT "> "
+      set input [ wait_for_enter 1]
+      if { [ string length $input] > 0 } {
+         set value $input 
+      } else {
+         puts $CHECK_OUTPUT "using default value"
+      }
+   } 
+   return $value
+}
+
 #****** config/config_add_compile_archs() ***************************************
 #  NAME
 #     config_add_compile_archs() -- forced compilation setup
@@ -4835,6 +4888,34 @@ proc config_build_ts_config_1_13 {} {
    set ts_config(version) "1.13"
 }
 
+proc config_build_ts_config_1_14 {} {
+   global ts_config
+
+   # we add a new parameter: cluster_name
+   # after additional_checktree_dirs
+   set insert_pos $ts_config(cell,pos)
+   incr insert_pos 1
+
+   # move positions of following parameters
+   set names [array names ts_config "*,pos"]
+   foreach name $names {
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 1]
+      }
+   }
+
+   set parameter "cluster_name"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "cluster name (SGE_CLUSTER_NAME)"
+   set ts_config($parameter,default)    "p$ts_config(commd_port)"
+   set ts_config($parameter,setup_func) "config_testsuite_cluster_name"
+   set ts_config($parameter,onchange)   "stop"
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.14
+   set ts_config(version) "1.14"
+}
+
 
 #****** config/config_select_host() ********************************************
 #  NAME
@@ -5129,7 +5210,7 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
 # MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.13"
+set actual_ts_config_version "1.14"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -5148,5 +5229,6 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_11
    config_build_ts_config_1_12
    config_build_ts_config_1_13
+   config_build_ts_config_1_14
 }
 
