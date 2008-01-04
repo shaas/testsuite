@@ -2159,7 +2159,8 @@ proc get_jvm_lib_path_for_host { host {java_version "1.5"} } {
          set jvm_lib_path $java_home/jre/lib/amd64/server/libjvm.so
       }
       "sol-x86" {
-         set jvm_lib_path $java_home/jre/lib/i386/server/libjvm.so
+         # set jvm_lib_path $java_home/jre/lib/i386/server/libjvm.so
+         set jvm_lib_path $java_home/jre/lib/i386/client/libjvm.so
       }
       "lx*-amd64" {
          set jvm_lib_path $java_home/jre/lib/amd64/server/libjvm.so

@@ -1,3 +1,6 @@
+AA-2008-01-04-0: Bugfix:    sol-x86 has to use special libjvm path 
+                 Review:    CR
+
 JG-2008-01-03-0: Enhancem.: Added test for IZ 1689 (correct submission time for
                             tasks of tightly integrated parallel jobs).
                  Review:    MD
