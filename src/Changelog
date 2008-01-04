@@ -1,3 +1,6 @@
+JO-2008-01-04-0: Enhancem: dbwriter should write checkpoint to database
+                 Review:   AP
+
 AA-2008-01-04-0: Bugfix:    sol-x86 has to use special libjvm path 
                  Review:    CR
 

@@ -78,7 +78,9 @@ set ARCO_TABLES { sge_job_usage sge_job_log sge_job_request sge_job
                   sge_version
                   sge_statistic_values
                   sge_statistic
+                  sge_checkpoint
 }
+
 if {$ts_config(gridengine_version) >= 62} {
   lappend ARCO_TABLES sge_ar_attribute
   lappend ARCO_TABLES sge_ar_usage
@@ -1368,7 +1370,7 @@ proc arco_clean_oracle_database { { drop 0 } } {
                break;
             }
          } else {
-            if { [string compare [string tolower $table] "sge_version"] != 0 } {
+            if { [string compare [string tolower $table] "sge_version"] != 0 && [string compare [string tolower $table] "sge_checkpoint"] != 0 } {
                set sql "DELETE from $table"
                set res [sqlutil_exec $sp_id $sql]
                if { $res != 0 } {
@@ -1482,7 +1484,7 @@ proc arco_clean_postgres_database { { drop 0 } } {
             break;
          }
       } else {
-         if { [string compare [string tolower $table] "sge_version"] != 0 } {
+         if { [string compare [string tolower $table] "sge_version"] != 0 && [string compare [string tolower $table] "sge_checkpoint"] != 0 } {
             set sql "DELETE from $table"
             set res [sqlutil_exec $sp_id $sql]
             if { $res != 0 } {
@@ -1595,7 +1597,7 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
             break;
          }
       } else {
-         if { [string compare [string tolower $table] "sge_version"] != 0 } {
+         if { [string compare [string tolower $table] "sge_version"] != 0 && [string compare [string tolower $table] "sge_checkpoint"] != 0 } {
             set sql "DELETE from $table"
             set res [sqlutil_exec $sp_id $sql]
             if { $res != 0 } {
