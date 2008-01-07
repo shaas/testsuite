@@ -179,6 +179,8 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "SGE_ROOT=\"$ts_config(product_root)\""
    puts $fdo "SGE_QMASTER_PORT=\"$ts_config(commd_port)\""
    puts $fdo "SGE_EXECD_PORT=\"$execd_port\""
+   puts $fdo "SGE_ENABLE_SMF=\"false\""
+   puts $fdo "SGE_CLUSTER_NAME=\"$ts_config(cluster_name)\""
    
    if {$ts_config(jmx_port) > 0} {
       set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
