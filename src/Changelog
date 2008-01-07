@@ -1,3 +1,7 @@
+OJ-2008-01-07-0: Enhance:   Simplified testcase for IZ 2411
+                            at bugs/issuezilla/2411.
+                 Review:    RD, JG
+
 JG-2008-01-07-0: Enhancem.: Instead of moving files to the testsuite_trash 
                             folder, really delete them. Added commandline switch
                             "testsuite_trash" to activate old behavior.
@@ -61,8 +65,8 @@ CR-2007-12-19-0: Bugfix:    o fixed problem with open spawn session for multi
 JG-2007-12-19-0: Bugfix:    Look for AR error message only with GE >= 62.
                  Review:    RD
 
-OJ-2007-12-18-0: Enhance:   Added testcase for IZ 2441
-                            at bugs/issuezilla/2441.
+OJ-2007-12-18-0: Enhance:   Added testcase for IZ 2411
+                            at bugs/issuezilla/2411.
                  Review:    MD
 
 CR-2007-12-13-0: Bugfix:    o fixed show_status test (did not check occurance

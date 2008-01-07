@@ -53,7 +53,7 @@ set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   1
 set check_description(0)  "test case for IZ 2411 - 80 cluster queues"
 set check_description(1)  "test case for IZ 2411 - 800 cluster queues"
-set check_description(2)  "test case for IZ 2411 - 8000 cluster queues"
+set check_description(2)  "test case for IZ 2411 - 8000 cluster queues" ; # Do  not use this one until CR6638556 is fixed
 
 
 # define test's dependencies
@@ -103,17 +103,17 @@ proc issue_2411_setup {} {
    
    set count 1
    while { $count <= $max_count } {
-       set queue_name "queue$count.q"
-       set queue_conf(slots) 10 
-       add_queue $queue_name "@allhosts" queue_conf 1
-       incr   count 
+      set queue_name "queue$count.q"
+      set queue_conf(slots) 10 
+      add_queue $queue_name "@allhosts" queue_conf 1
+      incr   count 
    }
      
 }
 
 proc issue_2411_cleanup {} {
-   global CHECK_OUTPUT  shell_time_diff
-   global CHECK_ACT_LEVEL max_count
+   global CHECK_OUTPUT    tcl_total_time
+   global CHECK_ACT_LEVEL max_count  
    
    # Delete now  $max_count queues 
    
@@ -124,24 +124,33 @@ proc issue_2411_cleanup {} {
       incr     count 
    }
       
-   puts $CHECK_OUTPUT "The time qhost took to display $max_count hosts was \n $shell_time_diff \n"
-
+   puts $CHECK_OUTPUT "The tcl time qhost took to display $max_count hosts was \n \
+                       $tcl_total_time seconds \n"
 }
 
-
 proc issue_2411  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER shell_time_diff
+   global ts_config CHECK_OUTPUT CHECK_USER tcl_total_time
    global max_count CHECK_ACTUAL_TEST_PATH  
    
    set arch [resolve_arch $ts_config(master_host)]  
 
-   # Time how long the qhost command takes.
+   # Make  sure qhost does not time out
+   set qhost_timeout 200
    
-   set catch_return [ catch { eval exec "time  /bin/csh -c '$ts_config(product_root)/bin/$arch/qhost' " } shell_time_diff ]
-   if { $catch_return != 1 } {
-            add_proc_error "issue_2411" -3 "qhost  failed for huge amount of cluster queues entries: \n$catch_return"
+   set tcl_time 0.0
+   
+   # Start now qhost with a qhost_timeout seconds timeout 
+   set tcl_start_time [timestamp]
+   set qhost_result [start_sge_bin "qhost" "" "" $CHECK_USER "" $qhost_timeout]
+
+   set tcl_total_time [expr [timestamp] - $tcl_start_time ]
+   
+   if { $qhost_result == "" } {
+      add_proc_error "issue_2411" -3 "qhost failed for a huge amount of cluster queues: \n$qhost_result"
+      return
    } else {
-   puts $CHECK_OUTPUT "the shell time measurement is \n $shell_time_diff \n"
-   } 
+     puts $CHECK_OUTPUT "qhost was OK; it took $tcl_total_time seconds \n"
+   }
+
 
 }   
