@@ -677,7 +677,7 @@ proc config_hedeby_product_root { only_check name config_array } {
    set help_text { "Please enter the path where the testsuite should install Hedeby,"
                    "or press >RETURN< to use the default value." 
                    "WARNING: The compile option will remove the content of this directory" 
-                   "and store it to \"testsuite_trash\" directory!!!" }
+                   "or store it to \"testsuite_trash\" directory with testsuite_trash commandline option!!!" }
  
    set value [config_generic $only_check $name config $help_text "directory" ]
    if {!$fast_setup} {

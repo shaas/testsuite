@@ -1,3 +1,9 @@
+JG-2008-01-07-0: Enhancem.: Instead of moving files to the testsuite_trash 
+                            folder, really delete them. Added commandline switch
+                            "testsuite_trash" to activate old behavior.
+                 Issue:     168
+                 Review:    HP
+
 AA-2008-01-07-0: Enhancem.: support for automatic install with SMF change
                  Review:    CR
 

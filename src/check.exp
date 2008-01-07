@@ -420,6 +420,10 @@ set CHECK_DEBUG_LEVEL 0
 #set CHECK_OUTPUT [open /dev/null "w"]
 set CHECK_OUTPUT stdout
 
+# move files to testsuite_trash (1), or delete them (0)?
+global CHECK_TESTSUITE_TRASH
+set CHECK_TESTSUITE_TRASH 0
+
 #
 #                                                             max. column:     |
 #****** check/debug_puts() ******
@@ -5885,7 +5889,7 @@ proc prepare_packages { } {
          puts $result
       } 
       # now delete install directory
-      puts $CHECK_OUTPUT "moving directory \"$ts_config(product_root)\" to testsuite_trash"
+      puts $CHECK_OUTPUT "deleting directory \"$ts_config(product_root)\""
       if { [delete_directory "$ts_config(product_root)"] != 0 } {
          add_proc_error "prepare_packages" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
          return -1
@@ -6056,7 +6060,7 @@ proc prepare_packages { } {
          puts $result
       } 
       # now delete install directory
-      puts $CHECK_OUTPUT "moving directory \"$ts_config(product_root)\" to testsuite_trash"
+      puts $CHECK_OUTPUT "deleting directory \"$ts_config(product_root)\""
       if { [delete_directory "$ts_config(product_root)"] != 0 } {
          add_proc_error "prepare_packages" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
          return -1
@@ -6494,7 +6498,7 @@ proc install_binaries { arch_list a_report } {
    } 
 
    # now delete install directory
-   report_task_add_message report $task_nr "moving directory \"$ts_config(product_root)\" to testsuite_trash"
+   report_task_add_message report $task_nr "deleting directory \"$ts_config(product_root)\""
    if { [delete_directory "$ts_config(product_root)"] != 0 } {
       add_proc_error "compile_source" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
       report_task_add_message report $task_nr "could not delete $ts_config(product_root) directory, critical error - stop"
@@ -7817,7 +7821,7 @@ set mail_body    "date: [exec date]\n:\n"
 # for some reason, we need this with SuSE 10 expect 5.43.0
 fconfigure stdin -blocking TRUE
 
-for { set i 0 } { $i < $argc } { incr i } {
+for {set i 0} {$i < $argc} {incr i} {
    if {([string compare [lindex $argv $i] "--setup"] == 0) || ([string compare [lindex $argv $i] "setup"] == 0) } {
       set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
       if { $catch_return == 0 } { 
@@ -7947,6 +7951,9 @@ for { set i 0 } { $i < $argc } { incr i } {
       puts "no_jgdi               specify that only normal client tests should be executed (no JGDI)"
       puts "                      Used by default. If encountered removes effect of only_jgdi flag."
       puts "only_jgdi             specify that tests should be executed just over JGDI Shell. Ignored for SGE  < 6.2"
+      puts ""
+      puts "testsuite_trash       When files shall be deleted, move them to the testsuite_trash directory,"
+      puts "                      instead of deleting them."
       puts ""
       exit 1
    }
@@ -8288,6 +8295,11 @@ for { set i 0 } { $i < $argc } { incr i } {
 
       puts $CHECK_OUTPUT " ---> using \"$CHECK_PREFERRED_ARCHS\" as preferred architectures <---"
       continue
+   }
+
+   if {[string compare [lindex $argv $i] "--testsuite_trash"] == 0 || [string compare [lindex $argv $i] "testsuite_trash"] == 0} {
+      set CHECK_TESTSUITE_TRASH 1
+      puts "using testsuite_trash"
    }
 }
 

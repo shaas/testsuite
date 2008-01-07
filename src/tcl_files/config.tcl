@@ -691,7 +691,7 @@ proc modify_setup2 {} {
 #        set help_text { "Please enter the path where the testsuite should install Hedeby,"
 #                        "or press >RETURN< to use the default value." 
 #                        "WARNING: The compile option will remove the content of this directory" 
-#                        "and store it to \"testsuite_trash\" directory!!!" }
+#                        "or store it to \"testsuite_trash\" directory with testsuite_trash commandline option!!!" }
 #      
 #        set value [config_generic $only_check $name config $help_text "directory" ]
 #        if {!$fast_setup} {
@@ -2450,7 +2450,7 @@ proc config_product_root { only_check name config_array } {
       puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
       puts $CHECK_OUTPUT "You can also specify a current installed Grid Engine system path."
       puts $CHECK_OUTPUT "WARNING: The compile option will remove the content of this directory"
-      puts $CHECK_OUTPUT "and store it to \"testsuite_trash\" directory!!!"
+      puts $CHECK_OUTPUT "or store it to \"testsuite_trash\" directory with testsuite_trash commandline option!!!"
       puts $CHECK_OUTPUT "(default: $value)"
       puts -nonewline $CHECK_OUTPUT "> "
       set input [ wait_for_enter 1]

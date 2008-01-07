@@ -2344,16 +2344,18 @@ proc check_for_core_files {hostname path} {
 }
 
 proc remote_delete_directory {hostname path {win_local_user 0}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_OUTPUT CHECK_USER CHECK_TESTSUITE_TRASH
    get_current_cluster_config_array ts_config
 
    set return_value -1
-   
+
    # we move data to a trash directory instead of deleting them immediately
    # create the trash directory, if it does not yet exist
-   puts $CHECK_OUTPUT "$hostname -> path to delete: \"$path\""
-   if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
-      file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
+   if {$CHECK_TESTSUITE_TRASH} {
+      puts $CHECK_OUTPUT "$hostname -> path to delete: \"$path\""
+      if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
+         file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
+      }
    }
 
    # verify if directory is visible on the remote machine
@@ -2366,33 +2368,43 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
    # we want to be carefull not to delete system directories
    # therefore we only accept pathes longer than 10 bytes
    if {[string length $path] > 10} {
-      puts $CHECK_OUTPUT "delete_directory - moving \"$path\" to trash folder ..."
-      set new_name [file tail $path] 
-
       # we move the directory as CHECK_USER (admin user)
-      start_remote_prog $hostname "ts_def_con2" "mv" "$path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
-      if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "delete_directory - mv error"
-         puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
-         start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
-         if { $prg_exit_state != 0 } {
-            puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder"
-            add_proc_error "remote_delete_directory" -1 "$hostname: could not mv/cp directory \"$path\" to trash folder"
-            set return_value -1
-         } else {
-            puts $CHECK_OUTPUT "copy ok -  removing directory"
-            set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
-            if { $prg_exit_state != 0 } {
-               puts $CHECK_OUTPUT "could not remove directory \"$path\""
-               add_proc_error "remote_delete_directory" -1 "$hostname (ts_def_con2=$CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
+      if {$CHECK_TESTSUITE_TRASH} {
+         puts $CHECK_OUTPUT "delete_directory - moving \"$path\" to trash folder ..."
+         set new_name [file tail $path] 
+
+         start_remote_prog $hostname "ts_def_con2" "mv" "$path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
+         if {$prg_exit_state != 0} {
+            puts $CHECK_OUTPUT "delete_directory - mv error"
+            puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
+            start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
+            if {$prg_exit_state != 0} {
+               add_proc_error "remote_delete_directory" -1 "$hostname: could not mv/cp directory \"$path\" to trash folder"
                set return_value -1
             } else {
-               puts $CHECK_OUTPUT "done"
-               set return_value 0
+               puts $CHECK_OUTPUT "copy ok -  removing directory"
+               set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
+               if {$prg_exit_state != 0} {
+                  add_proc_error "remote_delete_directory" -1 "$hostname (ts_def_con2=$CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
+                  set return_value -1
+               } else {
+                  puts $CHECK_OUTPUT "done"
+                  set return_value 0
+               }
             }
+         } else {
+            set return_value 0
          }
       } else {
-         set return_value 0
+         puts $CHECK_OUTPUT "delete_directory - removing directory \"$path\""
+         set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
+         if {$prg_exit_state != 0} {
+            add_proc_error "remote_delete_directory" -1 "$hostname (ts_def_con2=$CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
+            set return_value -1
+         } else {
+            puts $CHECK_OUTPUT "done"
+            set return_value 0
+         }
       }
    } else {
       puts $CHECK_OUTPUT "remote_delete_directory - path is to short. Will not delete\n\"$path\""
@@ -2461,81 +2473,82 @@ proc delete_file_at_startup {filename} {
 #     delete_file { filename { do_wait_for_file 1 } } 
 #
 #  FUNCTION
-#     This procedure will move/copy the file to the testsuite's trashfolder 
+#     This procedure will delete the file,
+#     or move it to the testsuite's trashfolder 
 #     (Directory testsuite_trash in the testsuite root directory). 
 #
 #  INPUTS
-#     filename - full path file name of file 
-#     { do_wait_for_file 1 } - optional wait for file before removing
+#     filename             - full path file name of file 
+#     {do_wait_for_file 1} - optional wait for file before removing
 #
 #  RESULT
 #     no results 
 #
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
 #     file_procedures/delete_directory
 #*******************************
-proc delete_file { filename { do_wait_for_file 1 } } {
-   global CHECK_OUTPUT
+proc delete_file {filename {do_wait_for_file 1}} {
+   global CHECK_OUTPUT CHECK_TESTSUITE_TRASH
    get_current_cluster_config_array ts_config
 
-   if { $do_wait_for_file == 1 } {
-      wait_for_file "$filename" 60 0 0 ;# wait for file, no error reporting!
+   if {$do_wait_for_file == 1} {
+      wait_for_file $filename 60 0 0 ;# wait for file, no error reporting!
    } else {
-      if {[file isfile "$filename"] != 1} {
+      if {[file isfile $filename] != 1} {
          puts $CHECK_OUTPUT "delete_file - no such file: \"$filename\""
          return      
       }
    }
 
-   if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
-      file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
-   }
-
-   if {[file isfile "$filename"] != 1} {
+   if {[file isfile $filename] != 1} {
       puts $CHECK_OUTPUT "delete_file - no such file: \"$filename\""
       add_proc_error "delete_file" "-1" "no such file: \"$filename\""
       return      
    }
 
+   if {$CHECK_TESTSUITE_TRASH} {
+      if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
+         file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
+      }
+   }
+
    set deleted_file 0 
    if {[string length $filename ] > 10} {
-      debug_puts "delete_file - moving \"$filename\" to trash folder ..."
-      set new_name [file tail $filename] 
-      set catch_return [catch { 
-         file rename $filename $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]
-      } result] 
-      if {$catch_return != 0} {
-         puts $CHECK_OUTPUT "delete_file - mv error:\n$result"
-         puts $CHECK_OUTPUT "delete_file - try to copy the file"
+      if {$CHECK_TESTSUITE_TRASH} {
+         debug_puts "delete_file - moving \"$filename\" to trash folder ..."
+         set new_name [file tail $filename] 
          set catch_return [catch { 
-            file copy $filename $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]
+            file rename $filename $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]
          } result] 
          if {$catch_return != 0} {
-           puts $CHECK_OUTPUT "could not mv/cp file \"$filename\" to trash folder"
-           add_proc_error "delete_file" "-1" "could not mv/cp file \"$filename\" to trash folder"
+            puts $CHECK_OUTPUT "delete_file - mv error:\n$result"
+            puts $CHECK_OUTPUT "delete_file - try to copy the file"
+            set catch_return [catch { 
+               file copy $filename $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]
+            } result] 
+            if {$catch_return != 0} {
+              add_proc_error "delete_file" "-1" "could not mv/cp file \"$filename\" to trash folder:\n$result"
+            } else {
+              puts $CHECK_OUTPUT "copy ok - deleting file \"$filename\""
+              set catch_return [catch {file delete -force $filename} result] 
+              if {$catch_return != 0} {
+                 add_proc_error "delete_file" "-1" "could not remove file \"$filename\":\n$result"
+              } else {
+                 puts $CHECK_OUTPUT "done"
+                 set deleted_file 1
+              }
+            }
          } else {
-           puts $CHECK_OUTPUT "copy ok - deleting file \"$filename\""
-           set catch_return [catch {file delete -force $filename} result] 
-           if { $catch_return != 0 } {
-              puts $CHECK_OUTPUT "could not remove file \"$filename\""
-              puts $CHECK_OUTPUT "$result"
-              add_proc_error "delete_file" "-1" "could not remove file \"$filename\" - $result"
-           } else {
-              puts $CHECK_OUTPUT "done"
-              set deleted_file 1
-           }
+           set deleted_file 1
          }
       } else {
-        set deleted_file 1
+        set catch_return [catch {file delete -force $filename} result] 
+        if {$catch_return != 0} {
+           add_proc_error "delete_file" "-1" "could not remove file \"$filename\":\n$result"
+        } else {
+           puts $CHECK_OUTPUT "done"
+           set deleted_file 1
+        }
       }
       if {$deleted_file == 1} {
          wait_for_file "$filename" "200" "1" ;# wait for file do disappear in filesystem!
@@ -2883,7 +2896,8 @@ proc delete_remote_file {hostname user path {win_local_user 0}} {
 #     delete_directory { path } 
 #
 #  FUNCTION
-#     This procedure will move/copy the given directory to the testsuite's 
+#     This procedure will delete the given directory,
+#     or move it to the testsuite's 
 #     trashfolder (Directory testsuite_trash in the testsuite root directory). 
 #
 #  INPUTS
@@ -2892,45 +2906,38 @@ proc delete_remote_file {hostname user path {win_local_user 0}} {
 #  RESULT
 #     -1 on error, 0 ok 
 #
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
 #     file_procedures/delete_directory
 #*******************************
-
-proc delete_directory { path } { 
-   global CHECK_OUTPUT CHECK_USER
+proc delete_directory {path} { 
+   global CHECK_OUTPUT CHECK_USER CHECK_TESTSUITE_TRASH
    get_current_cluster_config_array ts_config
 
    set local_host [gethostname]
-
-   set return_value -1
-   puts $CHECK_OUTPUT "path to delete: \"$path\""
-   if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
-      file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
-   }
 
    if {[file isdirectory "$path"] != 1} {
       puts $CHECK_OUTPUT "delete_directory - no such directory: \"$path\""
       add_proc_error "delete_directory" -1 "$local_host: no such directory: \"$path\""
       return -1     
    }
+   puts $CHECK_OUTPUT "path to delete: \"$path\""
+
+   if {$CHECK_TESTSUITE_TRASH} {
+      if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
+         file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
+      }
+   }
+
+   set return_value -1
  
-   if { [string length $path ] > 10 } {
-      
+   if {[string length $path ] > 10} {
+      # make sure we actually can delete the directory with all its contents.
       puts $CHECK_OUTPUT "delete_directory - testing file owner ..."
       set del_files ""
-      set dirs [get_all_subdirectories $path ]
+      set dirs [get_all_subdirectories $path]
       foreach dir $dirs {
          set file_attributes [file attributes $path/$dir]
-         if { [string match "*owner $CHECK_USER*" $file_attributes] != 1 } {
+         if {[string match "*owner $CHECK_USER*" $file_attributes] != 1} {
             puts $CHECK_OUTPUT "directory $path/$dir not owned by user $CHECK_USER"
             start_remote_prog $local_host "root" chown "-R $CHECK_USER $path/$dir" prg_exit_state 60 0 "" "" 1 0 0
             if { $prg_exit_state == 0 } {
@@ -2950,46 +2957,59 @@ proc delete_directory { path } {
          if { [string match "*owner $CHECK_USER*" $file_attributes] != 1 } {
             puts $CHECK_OUTPUT "$file not owned by user $CHECK_USER"
             start_remote_prog $local_host "root" chown "$CHECK_USER $file" prg_exit_state 60 0 "" "" 1 0 0
-            if { $prg_exit_state == 0 } {
+            if {$prg_exit_state == 0} {
                puts $CHECK_OUTPUT "set file owner to $CHECK_USER"
             } else {
                puts $CHECK_OUTPUT "error setting file permissions!"
             }
          }
       }
-      puts $CHECK_OUTPUT "delete_directory - moving \"$path\" to trash folder ..."
-      set new_name [ file tail $path ] 
-      set catch_return [ catch { 
-         eval exec "mv $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
-      } result ] 
-      if { $catch_return != 0 } {
-         puts $CHECK_OUTPUT "delete_directory - mv error:\n$result"
-         puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
-         
-         set catch_return [ catch { 
-            eval exec "cp -r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
-         } result ] 
-         if { $catch_return != 0 } {
-            puts $CHECK_OUTPUT "could not mv/cp directory \"$path\" to trash folder!"
-            puts $CHECK_OUTPUT $result
-            add_proc_error "delete_directory" -1 "$local_host: could not mv/cp directory \"$path\" to trash folder, $result"
-            set return_value -1
-         } else { 
-            puts $CHECK_OUTPUT "copy ok -  removing directory"
-            set catch_return [ catch { 
-               eval exec "rm -rf $path" 
-            } result ] 
-            if { $catch_return != 0 } {
-               puts $CHECK_OUTPUT "could not remove directory \"$path\", $result"
-               add_proc_error "delete_directory" -1 "$local_host: could not remove directory \"$path\", $result"
+
+      # now delete it, or move it to testsuite_trash
+      if {$CHECK_TESTSUITE_TRASH} {
+         puts $CHECK_OUTPUT "delete_directory - moving \"$path\" to trash folder ..."
+         set new_name [file tail $path] 
+         set catch_return [catch { 
+            eval exec "mv $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
+         } result] 
+         if {$catch_return != 0} {
+            puts $CHECK_OUTPUT "delete_directory - mv error:\n$result"
+            puts $CHECK_OUTPUT "delete_directory - try to copy the directory"
+            
+            set catch_return [catch {
+               eval exec "cp -r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
+            } result] 
+            if {$catch_return != 0} {
+               add_proc_error "delete_directory" -1 "$local_host: could not mv/cp directory \"$path\" to trash folder:\n$result"
                set return_value -1
-            } else {
-               puts $CHECK_OUTPUT "done"
-               set return_value 0
+            } else { 
+               puts $CHECK_OUTPUT "copy ok - removing directory"
+               set catch_return [catch {
+                  eval exec "rm -rf $path" 
+               } result] 
+               if {$catch_return != 0} {
+                  add_proc_error "delete_directory" -1 "$local_host: could not remove directory \"$path\":\n$result"
+                  set return_value -1
+               } else {
+                  puts $CHECK_OUTPUT "done"
+                  set return_value 0
+               }
             }
+         } else {
+            set return_value 0
          }
       } else {
-         set return_value 0
+         puts $CHECK_OUTPUT "delete_directory - removing directory"
+         set catch_return [catch {
+            eval exec "rm -rf $path" 
+         } result] 
+         if {$catch_return != 0} {
+            add_proc_error "delete_directory" -1 "$local_host: could not remove directory \"$path\":\n$result"
+            set return_value -1
+         } else {
+            puts $CHECK_OUTPUT "done"
+            set return_value 0
+         }
       }
    } else {
       puts $CHECK_OUTPUT "delete_directory - path is to short. Will not delete\n\"$path\""

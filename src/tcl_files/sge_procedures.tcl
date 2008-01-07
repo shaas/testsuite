@@ -2363,20 +2363,16 @@ proc add_exechost {change_array {fast_add 1}} {
      }
   
      foreach elem $values {
-        set value [set chgar($elem)]
+        set value $chgar($elem)
         puts $CHECK_OUTPUT "--> setting \"$elem\" to \"$value\""
         set default_array($elem) $value
      }
 
-     if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
-        file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
-     }
-
-     set tmpfile "$ts_config(testsuite_root_dir)/testsuite_trash/tmpfile"
+     set tmpfile [get_tmp_file_name]
      set file [open $tmpfile "w"]
      set values [array names default_array]
      foreach elem $values {
-        set value [set default_array($elem)]
+        set value $default_array($elem)
         puts $file "$elem                   $value"
      }
      close $file
