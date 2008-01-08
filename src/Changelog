@@ -1,3 +1,6 @@
+LP-2008-01-08-0: Enhancem.: Fixed dbwriter autoinstall
+                 Review:    JO
+
 OJ-2008-01-07-0: Enhance:   Simplified testcase for IZ 2411
                             at bugs/issuezilla/2411.
                  Review:    RD, JG

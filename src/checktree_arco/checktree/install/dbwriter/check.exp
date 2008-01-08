@@ -249,6 +249,11 @@ proc arco_dbwriter_install {} {
              send_to_spawn_id $sp_id "n"
              continue
           }
+          #SMF startup is always disabled in testsuite
+          -i $sp_id -- "NOTE: If you select \"n\" SMF will be not used at all"  {
+             send_to_spawn_id $sp_id "n"
+             continue
+          }
           -i $sp_id "Installation of dbWriter completed" {
              break
           }
@@ -276,14 +281,6 @@ proc arco_dbwriter_install {} {
        } ;# end of expect
     } ;# end of while
    close_spawn_process $id 
-   
-   if { $error_count == 0 } {
-      # installation successfully executed, start the dbwriter
-      if { [ startup_dbwriter ] != 0 } {
-         add_proc_error "arco_dbwriter_install" -1 "startup of dbwriter failed"
-         incr error_count 1
-      }
-   }
    
    return $error_count
 }
