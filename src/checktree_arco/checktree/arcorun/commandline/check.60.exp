@@ -147,7 +147,7 @@ proc arcorun_commandline_cleanup {} {
 #
 #*******************************************************************************
 proc arcorun_commandline_check {} {
-   global CHECK_ACT_LEVEL arcorun_output_dir
+   global CHECK_ACT_LEVEL arcorun_output_dir ts_config
    
    set test_dir $arcorun_output_dir/arcorun_cli_check
    set test_file $arcorun_output_dir/arcorun_cli_check/blubber
@@ -175,7 +175,9 @@ proc arcorun_commandline_check {} {
    lappend testcase  { "-o html -f $test_file" "ArcoRun.invalidOutputForHTML" }
    lappend testcase  { "__blubber__"           "ArcoRun.queryNotFound" }
    lappend testcase  { "Job Log"               "ArcoRun.missingLatebinding" }
-   
+   if {$ts_config(gridengine_version) >= 62} {
+      lappend testcase  { "-cl"                   "ArcoRun.missingClusterName }
+   }
    
    foreach testcase $testcases {
       set args [lindex $testcase 0]

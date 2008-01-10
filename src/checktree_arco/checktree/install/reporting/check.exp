@@ -177,7 +177,11 @@ proc arco_reporting_install {} {
              continue
           }
           -i $sp_id "Please enter the path to your java installation * >> " {
-             set java_home [ get_java_home_for_host $arco_config(swc_host) "1.5"]
+             if {$ts_config(gridengine_version) < 62} {
+                set java_home [get_java_home_for_host $arco_config(swc_host) "1.4"]  
+             } else {
+                set java_home [get_java_home_for_host $arco_config(swc_host) "1.5"]
+             }
              send_to_spawn_id $sp_id $java_home
              continue
           }

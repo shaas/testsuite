@@ -214,7 +214,11 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
    report_task_add_message report $task_nr "-> starting arco build.sh $target on host $build_host ..."
   
    # setup environment
-   set env(JAVA_HOME) [get_java_home_for_host $build_host "1.5"]
+   if {$ts_config(gridengine_version) < 62} {
+      set env(JAVA_HOME) [get_java_home_for_host $build_host "1.4"]  
+   } else {
+      set env(JAVA_HOME) [get_java_home_for_host $build_host "1.5"]
+   }
    set env(ARCH)      [resolve_arch $build_host]
 
    append ant_options " -Dsge.root=$ts_config(product_root)"

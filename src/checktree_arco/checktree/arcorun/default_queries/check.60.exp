@@ -206,6 +206,16 @@ proc arcorun_default_queries_check {} {
       lappend queries { "Statistic History" }
       lappend queries { "DBWriter Performance" }
    }
+   
+   if {$ts_config(gridengine_version) >= 62} {
+      lappend queries { "Advance Reservation Attributes" "-lb ar_number=1" }
+      lappend queries { "Advance Reservation Log" "-lb ar_number=1" }
+      lappend queries { "Advance Reservation Time Usage"  }
+      lappend queries { "Advance Reservation by User" "-lb ar_owner=sgetest1" }
+      lappend queries { "Accounting per AR" }
+      lappend queries { "Number of Jobs Completed per AR" }
+   }
+
 
    set error_count 0
    foreach query_spec $queries {
