@@ -640,6 +640,14 @@ proc compile_source { { do_only_hooks 0} } {
 
       # after an update, do an aimk clean
       if {$do_only_hooks == 0} {
+         # TODO: remove pre building on java host if ant build procedure
+         #       supports parallel build correctly
+         set tmp_java_compile_host [host_conf_get_java_compile_host]
+         if { [lsearch $compile_hosts $tmp_java_compile_host] >= 0 } {
+            if {[compile_with_aimk $tmp_java_compile_host report "compile_clean_java_build_host" "clean"] != 0} {
+                  incr error_count 1
+            }
+         }
          if {[compile_with_aimk $compile_hosts report "compile_clean" "clean"] != 0} {
             incr error_count 1
          } else {

@@ -1,3 +1,7 @@
+CR-2008-01-10-0: Bugfix:    first compile clean on java build host as 
+                            workaround for inconsistent ant dependencies
+                 Review:    AA
+
 JO-2008-01-10-0: Enhancem.: o added AR queries to arcorun
                             o changed arco_checktree to use java 1.5 for version
                               >= 6.2 and 1.4 for other versions
