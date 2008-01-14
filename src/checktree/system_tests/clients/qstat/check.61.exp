@@ -235,8 +235,10 @@ proc test_qstat_j_xml {} {
    # submit job sleeper.sh
    set host [host_conf_get_suited_hosts]
    set arch [resolve_arch $host]
-   set queue_name [get_queue_instance "all.q" $host]   
-   set arguments "-o /dev/null -j y -hard -q $queue_name -l a=$arch -soft -l h=$host -q $queue_name"
+   set queue_name [get_queue_instance "all.q" $host]
+   set prj "qstat_j_project"
+   
+   set arguments "-o /dev/null -j y -hard -q $queue_name -l a=$arch -soft -l h=$host -q $queue_name -P $prj -e /tmp/"
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/worker.sh 1000"]
     
    wait_for_jobstart $job_id "worker.sh" 60 1 1
@@ -249,10 +251,10 @@ proc test_qstat_j_xml {} {
    set result1 [plain_j_parse plain $job_id $plainoutput]
       
    set var_array {account exec_file gid group job_name job_number \
-      jobshare vmem notify owner "scheduling info" script_file sge_o_home \
+      jobshare notify owner "scheduling info" script_file sge_o_home \
       sge_o_host sge_o_path sge_o_shell maxvmem sge_o_workdir uid \
       hard_queue_list "hard resource_list" soft_queue_list "soft resource_list"
-      mail_list sge_o_tz}
+      mail_list sge_o_tz project shell_list merge stderr_path_list}
 
    # for each job test that the xml and plain outputs are the same
    
@@ -265,7 +267,7 @@ proc test_qstat_j_xml {} {
          plain output: [string trim $plain($elem)]"
          return
       }
-   } 
+   }
    delete_all_jobs 
    set_config stored_configuration
 }

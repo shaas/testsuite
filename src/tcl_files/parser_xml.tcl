@@ -1945,6 +1945,8 @@ proc qstat_j_xml_par { output job_id xmloutput} {
    
    # parse xml output and create array based on the attributes
    set jobNumber [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_job_number/text()]
+   set project [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_project/text()]
+   set stderrPath [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_stderr_path_list/path_list/PN_path/text()]
    set execFile [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_exec_file/text()]
    set subTime [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_submission_time/text()]
    set owner [$root selectNodes /detailed_job_info/djob_info/qmaster_response/JB_owner/text()]
@@ -1998,6 +2000,13 @@ proc qstat_j_xml_par { output job_id xmloutput} {
    set schedInfo [$root selectNodes /detailed_job_info/messages/qmaster_response/SME_global_message_list/element/MES_message/text()]
 
    set xml(job_number) [$jobNumber nodeValue]
+   set xml(project) [$project nodeValue]
+   set xml(stderr_path_list) [$stderrPath nodeValue]
+   if {[string compare [$merge nodeValue] "true"] == 0} {  
+      set xml(merge) y
+   } else {
+      set xml(merge) [$merge nodeValue]
+   }
    set xml(exec_file) [$execFile nodeValue]
    set xml(submission_time) [$subTime nodeValue]
    set xml(owner) [$owner nodeValue]
@@ -2005,7 +2014,6 @@ proc qstat_j_xml_par { output job_id xmloutput} {
    set xml(group) [$group nodeValue]
    set xml(gid) [$gid nodeValue]
    set xml(account) [$account nodeValue]
-   set xml(merge) [$merge nodeValue]
    set xml(mail_list) [$mailListUser nodeValue]@[$mailListHost nodeValue]
    set xml(notify) [string toupper [$notify nodeValue]]
    set xml(job_name) [$jobName nodeValue]

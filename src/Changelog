@@ -1,3 +1,7 @@
+MP-2008-01-14-0: Enhancem.: Added shell_path and project fields to the qstat -j
+                            output comparison test.
+                 Review:    JG
+
 CR-2008-01-10-0: Bugfix:    first compile clean on java build host as 
                             workaround for inconsistent ant dependencies
                  Review:    AA

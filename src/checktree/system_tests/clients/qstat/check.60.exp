@@ -35,6 +35,7 @@
 # Define the global veriables to give them back
 global check_name check_description check_needs check_functions
 global check_category check_root_access_needs check_highest_level
+global prj_exists
 
 set check_root_access_needs  "yes"
 
@@ -108,7 +109,7 @@ proc qstat_init_level {} {
 
 proc qstat_setup {} {
    global ts_config CHECK_OUTPUT CHECK_HAVE_TDOM
-   global first_host last_host
+   global first_host last_host prj_exists
 
    # First add queues "error" with one host (last).
    # Set prolog to non-existent path, and np_load_avg to 10
@@ -137,10 +138,22 @@ proc qstat_setup {} {
    set new_empty_queue(pe_list)  "NONE"
    set new_empty_queue(load_thresholds)  "np_load_avg=10"
    add_queue $empty_queue $first_host new_empty_queue
+
+   set prj "qstat_j_project"
+   set result0 [get_project_list]
+   set prj_exists "false"
+   foreach elem $result0 {
+      if {[string compare $elem $prj] == 0} {
+         set prj_exists "true"
+      }
+   }
+   if {$prj_exists == "false"} {
+      set result [add_project $prj]
+   }
 }
 
 proc qstat_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config CHECK_OUTPUT prj_exists
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -163,6 +176,11 @@ proc qstat_cleanup {} {
       if {$queue != "all.q"} {
          del_queue $queue "" 1 1
       }
+   }
+
+   set prj "qstat_j_project"
+   if {$prj_exists == "false"} {
+      set result [del_project $prj]
    }
 }
 
