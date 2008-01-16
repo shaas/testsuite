@@ -192,8 +192,6 @@
 #
 
 fconfigure stdin -blocking TRUE
-global last_debug_msec
-set last_debug_msec [clock clicks -milliseconds]
 global daemon_debug 
 set daemon_debug 0
 global master_debug
@@ -417,7 +415,6 @@ set CHECK_TESTS_RUNNING 0
 global CHECK_DEBUG_LEVEL
 set CHECK_DEBUG_LEVEL 0 
 
-#set CHECK_OUTPUT [open /dev/null "w"]
 set CHECK_OUTPUT stdout
 
 # move files to testsuite_trash (1), or delete them (0)?
@@ -455,33 +452,19 @@ set CHECK_TESTSUITE_TRASH 0
 #     ???/???
 #*******************************
 #
-proc debug_puts { args } {
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
-   global CHECK_CUR_PROC_NAME last_debug_msec
+proc debug_puts {args} {
+   global CHECK_DEBUG_LEVEL
 
-   if { $CHECK_DEBUG_LEVEL == 0 } {
+   if {$CHECK_DEBUG_LEVEL == 0} {
       return
    }
 
-   if { [llength [info procs "gethostname"]] != 0 } {
-      set local_host [gethostname 0]
-   } else {
-      set local_host "unknown"
-   }
    set output ""
    foreach elem $args {
       set output "$output $elem"
-   }   
-
-   if { [info exists CHECK_CUR_PROC_NAME] == 0 } {
-      set CHECK_CUR_PROC_NAME "unknown"
    }
-   set time [clock clicks -milliseconds]
-   set time [expr $time - $last_debug_msec]
 
-   set last_debug_msec [clock clicks -milliseconds]
-
-   puts $CHECK_OUTPUT "\[$time $local_host:$CHECK_CUR_PROC_NAME\] $output" 
+   ts_log_finest $output
 }
 
 #                                                             max. column:     |
@@ -514,51 +497,42 @@ proc debug_puts { args } {
 #     ???/???
 #*******************************
 proc get_current_working_dir { } {
-
   set work_dir [pwd]
-  debug_puts "working dir is $work_dir"
+  ts_log_fine "working dir is $work_dir"
   set help0 $work_dir
-  while  { 1 } {
-     set help [ split $help0 "/" ]
-     set help2 [ lreplace $help 0 1 ]
-     set new_work_dir "/[ join $help2 "/" ]"
+  while  {1} {
+     set help [split $help0 "/"]
+     set help2 [lreplace $help 0 1]
+     set new_work_dir "/[join $help2 "/"]"
      set help0 $new_work_dir
-     set catch_return_1 [ catch { 
+     set catch_return_1 [catch { 
          eval exec "ls $work_dir"
-     } result_1 ] 
+     } result_1] 
 
-     set catch_return_2 [ catch { 
+     set catch_return_2 [catch { 
          eval exec "ls $new_work_dir" 
-     } result_2 ]
-     if { $catch_return_1 == 0 && $catch_return_2 == 0} {
-        if { [ string compare $result_1 $result_2 ] == 0 } {
+     } result_2]
+     if {$catch_return_1 == 0 && $catch_return_2 == 0} {
+        if {[string compare $result_1 $result_2] == 0} {
            # possibly mounted directory try to create a file
            set f_name "testsuite_test_[timestamp]"
-           set catch_return_3 [ catch { 
+           set catch_return_3 [catch { 
               eval exec "touch $work_dir/$f_name" 
-           } result_3 ]
-           if { [ file isfile "$new_work_dir/$f_name" ] } {
-              puts "--> mount prefix found, using $new_work_dir"
+           } result_3]
+           if {[file isfile "$new_work_dir/$f_name"]} {
               set work_dir $new_work_dir
            }
-           set catch_return_4 [ catch { 
+           set catch_return_4 [catch { 
               eval exec "rm $work_dir/$f_name" 
-           } result_4 ]
+           } result_4]
         }
      }
-     if { [string compare $help0 "/" ] == 0 } {
-        break;
+     if {[string compare $help0 "/"] == 0} {
+        break
      }
   }
   return $work_dir 
 }
-
-
-set CHECK_CURRENT_WORKING_DIR [get_current_working_dir]
-set CHECK_DEFAULTS_FILE    "$CHECK_CURRENT_WORKING_DIR/defaults.sav"
-
-set CHECK_MAIN_RESULTS_DIR "$CHECK_CURRENT_WORKING_DIR/results"
-set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
 
 
 # some useful functions for test implementation
@@ -603,72 +577,26 @@ set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
 #  SEE ALSO
 #*******************************
 proc add_proc_error {proc_name result text {raise_error 1}} {
-   global CHECK_CUR_PROC_NAME CHECK_OUTPUT check_name
-   global add_proc_error_avoid_recursive_call
-   global check_errno check_errstr
    global DISABLE_ADD_PROC_ERROR
 
-   if { $DISABLE_ADD_PROC_ERROR == 1 } {
-      return;
-   }
-   # trim text message
-   set text [string trim $text]
-
-   # There are cases where we intentionally make a command fail,
-   # e.g. calling get_exechost for a non execution host.
-   # We don't want the test to go into error state in this case,
-   # but just see the error output.
-   if {!$raise_error} {
-      puts $CHECK_OUTPUT "----------------------------------------------------------------"
-      puts $CHECK_OUTPUT "!!   The following message is an *expected* error condition   !!"
-      puts $CHECK_OUTPUT $text  
-      puts $CHECK_OUTPUT "----------------------------------------------------------------"
+   if {$DISABLE_ADD_PROC_ERROR == 1} {
       return
    }
 
-   # add_proc_error could be called recursively, for example, 
-   # if errors occur while sending the error message as mail.
-   # In this case, just output the error message - Otherwise we might 
-   # end up in endless recursion.
-   if {[info exists add_proc_error_avoid_recursive_call] && $add_proc_error_avoid_recursive_call == 1} {
-      puts $CHECK_OUTPUT "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-      puts $CHECK_OUTPUT "!!! recursive call of add_proc_error !!!"
-      puts $CHECK_OUTPUT "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-      puts $CHECK_OUTPUT "$proc_name|$result|$check_name|$CHECK_CUR_PROC_NAME"
-      puts $CHECK_OUTPUT "$text"
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT ""
-      return
+   switch -- $result {
+      -1 {
+         ts_log_severe $text $raise_error $proc_name
+      }
+      -2 {
+         ts_log_warning $text $raise_error $proc_name
+      }
+      -3 {
+         ts_log_config $text $raise_error $proc_name
+      }
+      default {
+         ts_log_info $text $raise_error $proc_name
+      }
    }
-
-   # result >= 0 means ok
-   # lots of such calls come from (deprecated) set_error calls
-   if {$result >= 0} {
-      return
-   }
-
-   # avoid recursive call
-   set add_proc_error_avoid_recursive_call 1
-
-   set new_error "$proc_name|$check_name|$CHECK_CUR_PROC_NAME|$text"
-
-   # store the list of errors that occured during the run of a test
-   if {![info exists check_errno($CHECK_CUR_PROC_NAME)]} {
-      set check_errno($CHECK_CUR_PROC_NAME) {}
-      set check_errstr($CHECK_CUR_PROC_NAME) {}
-   }
-   lappend check_errno($CHECK_CUR_PROC_NAME) $result
-   lappend check_errstr($CHECK_CUR_PROC_NAME) $new_error
-
-
-   if {$check_name != "setup"} {
-      show_proc_error $result $new_error
-   } else {
-      puts $CHECK_OUTPUT [create_error_message $new_error]
-   }
-
-   # now we are through, allow further calls of add_proc_error
-   set add_proc_error_avoid_recursive_call 0
 }
 
 #****** check/print_errors() ***************************************************
@@ -696,7 +624,7 @@ proc add_proc_error {proc_name result text {raise_error 1}} {
 #     ???/???
 #*******************************************************************************
 proc print_errors {} {
-   global check_errno check_errstr CHECK_OUTPUT
+   global check_errno check_errstr
    set found_errors 0
    if { [info exists check_errno] } {
       set names [array names check_errno]
@@ -706,7 +634,7 @@ proc print_errors {} {
             set error [lindex $check_errno($name) $index]
             if { $error == -1 || $error == -2 } {
                if { $found_errors == 0 } {
-                  puts $CHECK_OUTPUT "ERROR REPORT - START"
+                  puts "ERROR REPORT - START"
                   set found_errors 1
                }
                set help [lindex $check_errstr($name) $index]
@@ -714,12 +642,12 @@ proc print_errors {} {
                set test_name [lindex $help 1]
                set test_proc [lindex $help 0]
                set test_error [lindex $help 3]
-               puts $CHECK_OUTPUT "$test_name: procedure \"$test_proc\" - $test_error"
+               puts "$test_name: procedure \"$test_proc\" - $test_error"
             }
          }
       }
       if { $found_errors != 0} {
-         puts $CHECK_OUTPUT "ERROR REPORT - DONE"
+         puts "ERROR REPORT - DONE"
       }
    }
    return $found_errors
@@ -749,7 +677,7 @@ proc print_errors {} {
 #     ???/???
 #*******************************
 proc have_ssh_access {} {
-  global CHECK_OUTPUT have_ssh_access_state ts_config
+  global have_ssh_access_state ts_config
 
   if { $have_ssh_access_state != -1 } {
      return $have_ssh_access_state
@@ -765,7 +693,7 @@ proc have_ssh_access {} {
   set local_host [gethostname]
   set run_again 0
   if { [ info exists ts_config(execd_hosts) ] != 1 } {
-     puts $CHECK_OUTPUT "no execd hosts defined, checking only local ssh connection"
+     ts_log_fine "no execd hosts defined, checking only local ssh connection"
      set run_again 1
      set host_array $local_host 
   } else {
@@ -774,7 +702,7 @@ proc have_ssh_access {} {
 
   set ssh_binary [get_binary_path $local_host ssh]
   if { $ssh_binary == "" } {
-     add_proc_error "have_ssh_access" "-1" "--> no ssh binary configured for host $local_host - please update your testsuite host configuration"
+     ts_log_severe "--> no ssh binary configured for host $local_host - please update your testsuite host configuration"
      return 0
   }
 
@@ -784,7 +712,7 @@ proc have_ssh_access {} {
   foreach elem $host_array { 
      set catch_state [ catch {
 
-        puts $CHECK_OUTPUT "trying $ssh_binary -l root $elem id"
+        ts_log_finer "trying $ssh_binary -l root $elem id"
 
         set id [ open_spawn_process "$ssh_binary" "-l" "root" "$elem" "id"]
         set sp_id [ lindex $id 1 ] 
@@ -796,12 +724,12 @@ proc have_ssh_access {} {
            log_user 0
            expect {
                -i $sp_id full_buffer {
-                  add_proc_error "have_ssh_access" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+                  ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                }
 
                -i $sp_id "uid*0*root" {
                   log_user 1 
-                  puts $CHECK_OUTPUT "--> having ssh access to host $elem"
+                  ts_log_fine "--> having ssh access to host $elem"
                   set end_val 1
                   set have_access 1
                }
@@ -810,12 +738,12 @@ proc have_ssh_access {} {
                }
                -i $sp_id timeout {
                   log_user 1 
-                  puts $CHECK_OUTPUT "--> timeout waiting to get root access"
+                  ts_log_fine "--> timeout waiting to get root access"
                   set end_val 1
                }
                -i $sp_id eof {
                   log_user 1 
-                  puts $CHECK_OUTPUT "--> end of file dedected"
+                  ts_log_fine "--> end of file dedected"
                   set end_val 1
                }
            }
@@ -825,13 +753,11 @@ proc have_ssh_access {} {
         if { $have_access != 1 } {
             log_user 1
             set have_complete_access 0
-            puts $CHECK_OUTPUT "--> no ssh access to host $elem"
-            add_proc_error "have_ssh_access" "-1" "--> no ssh access to host $elem"
+            ts_log_severe "no ssh access to host $elem"
         }
      } ] ;# end of chatch
      if { $catch_state != 0} {
-        puts $CHECK_OUTPUT "--> no ssh access to host $elem (maybe no ssh installed)"
-        add_proc_error "have_ssh_access" "-1" "--> no ssh access to host $elem (maybe no ssh installed)"
+        ts_log_severe "no ssh access to host $elem (maybe no ssh installed)"
         set have_complete_access 0
      }
   }
@@ -874,7 +800,6 @@ proc init_stored_passwd {} {
 #     check/get_root_passwd
 #*******************************
 proc set_root_passwd {} {
-   global CHECK_OUTPUT
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global stored_passwd
    global ts_config
@@ -940,17 +865,17 @@ proc set_root_passwd {} {
 #
 #*******************************************************************************
 proc get_user_passwd_hooks {} {
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
    set res 0
-   for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
-      if { [info exists ts_checktree($i,passwd_hook) ] } {
+   for {set i 0} {$i < $ts_checktree(act_nr)} {incr i 1} {
+      if {[info exists ts_checktree($i,passwd_hook)]} {
          set prog $ts_checktree($i,passwd_hook)
-         if { [info procs $prog ] != $prog } {
-            add_proc_error "exec_install_binaries_hooks" -1 "Can not execute passwd hook $ts_checktree($i,passwd_hooks_${ii}), prog not found"
+         if {[info procs $prog] != $prog} {
+            ts_log_severe "Can not execute passwd hook $ts_checktree($i,passwd_hooks_${ii}), prog not found"
             return 0
          } else {
             set res [$prog]
-            if { $res != 0} {
+            if {$res != 0} {
                break
             }
          }
@@ -981,7 +906,6 @@ proc get_user_passwd_hooks {} {
 #     check/get_root_passwd()
 #*******************************************************************************
 proc set_passwd {user root_host win_host} {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM
    global stored_passwd
 
@@ -1003,7 +927,7 @@ proc set_passwd {user root_host win_host} {
 
       # evaluate passwd
       if {$passwd == ""} {
-         puts $CHECK_OUTPUT "--> password not set!"
+         puts "--> password not set!"
          continue
       } else {
          # user explicitly requests not to have passwd?
@@ -1026,9 +950,9 @@ proc set_passwd {user root_host win_host} {
                }
 
                # try to connect to host and execute "id"
-               puts $CHECK_OUTPUT "--> testing $user access to host $host ..."
+               ts_log_fine "--> testing $user access to host $host ..."
                set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" "" 1 1 0 0]
-               puts $CHECK_OUTPUT "--> id as $user output:\n$result"
+               ts_log_fine "--> id as $user output:\n$result"
 
                # on error: allow reentering of passwd, or
                # switch to admin user system, or
@@ -1036,7 +960,7 @@ proc set_passwd {user root_host win_host} {
                if {[string first $user $result] >= 0} {
                   set error 0
                } else {
-                  puts $CHECK_OUTPUT "--> no $user access"
+                  puts "--> no $user access"
                   set passwd ""
                }
             } ;# passwd check
@@ -1076,7 +1000,7 @@ proc get_passwd {user {raise_error 1}} {
    }
 
    if {![info exists stored_passwd($user)] || $stored_passwd($user) == ""} {
-      add_proc_error "get_passwd" "-2" "$user's password not set" $raise_error
+      ts_log_warning "$user's password not set" $raise_error
       return ""
    }
 
@@ -1111,7 +1035,6 @@ proc get_passwd {user {raise_error 1}} {
 #     check/get_root_passwd
 #*******************************
 proc have_root_passwd {} {
-  global CHECK_OUTPUT
   global stored_passwd
 
   if {[have_ssh_access] == 1} {
@@ -1119,7 +1042,7 @@ proc have_root_passwd {} {
   }
 
   if {![info exists stored_passwd(root)] || $stored_passwd(root) == ""} {
-     puts $CHECK_OUTPUT "you have no ssh access and no root password"
+     ts_log_fine "you have no ssh access and no root password"
      return -1
   }
 
@@ -1151,16 +1074,12 @@ proc get_root_passwd {} {
   global stored_passwd
   
   if {![info exists stored_passwd(root)] || $stored_passwd(root) == ""} {
-     add_proc_error "get_root_passwd" "-2" "root password not set"
+     ts_log_warning "root password not set"
      return ""
   }
 
   return $stored_passwd(root)
 }
-
-
-
-
 
 #                                                  max. column:     |
 #****** check/mail_report() ******
@@ -1185,19 +1104,19 @@ proc get_root_passwd {} {
 #     check/send_mail
 #*******************************
 proc mail_report { subject body } {
-   global CHECK_REPORT_EMAIL_TO CHECK_REPORT_EMAIL_CC CHECK_OUTPUT
+   global CHECK_REPORT_EMAIL_TO CHECK_REPORT_EMAIL_CC
    global write_mail_to_file
 
    set mail_cc ""
 
    # needn't check mailto / cc if we are writing to mailfile
    if {$write_mail_to_file == 0} {
-      if { [string compare $CHECK_REPORT_EMAIL_TO "none"] == 0 } {
-         puts $CHECK_OUTPUT "--> mail_report - no mail address"
+      if {[string compare $CHECK_REPORT_EMAIL_TO "none"] == 0} {
+         ts_log_fine "--> mail_report - no mail address"
          return
       }
    
-      if { [string compare $CHECK_REPORT_EMAIL_CC "none"] != 0 } {
+      if {[string compare $CHECK_REPORT_EMAIL_CC "none"] != 0} {
          set mail_cc $CHECK_REPORT_EMAIL_CC
       }
    }
@@ -1230,12 +1149,12 @@ proc mail_report { subject body } {
 #     check/mail_report
 #*******************************
 proc send_mail { address cc subject body } {
-   global CHECK_MAILX_HOST CHECK_OUTPUT
+   global CHECK_MAILX_HOST
    global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_USER CHECK_MAX_ERROR_MAILS
    global write_mail_to_file CHECK_MAIL_OUTPUT_FILE CHECK_ENABLE_MAIL
    global ts_config
 
-   if { $write_mail_to_file != 0 } {
+   if {$write_mail_to_file != 0} {
       set fd [ open $CHECK_MAIL_OUTPUT_FILE "a" ]
       puts $fd "-=*************************************************************=-"
       puts $fd "Grid Engine Version: [get_version_info]"
@@ -1245,7 +1164,7 @@ proc send_mail { address cc subject body } {
       puts $fd "-=*=-"
       flush $fd
       close $fd 
-      puts $CHECK_OUTPUT "Added entry in mail output file $CHECK_MAIL_OUTPUT_FILE"
+      ts_log_fine "Added entry in mail output file $CHECK_MAIL_OUTPUT_FILE"
       return
    }
 
@@ -1256,11 +1175,11 @@ proc send_mail { address cc subject body } {
 
    set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
   
-   if { $CHECK_ENABLE_MAIL != 1 } {
-      puts $CHECK_OUTPUT "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
-      puts $CHECK_OUTPUT "mail new_subject: $new_subject"
-      puts $CHECK_OUTPUT "mail body:"
-      puts $CHECK_OUTPUT "$body"
+   if {$CHECK_ENABLE_MAIL != 1} {
+      ts_log_fine "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
+      ts_log_fine "mail new_subject: $new_subject"
+      ts_log_fine "mail body:"
+      ts_log_fine $body
       return
    }
  
@@ -1272,15 +1191,13 @@ proc send_mail { address cc subject body } {
    close $output_file
  
    set file_size 0
-   while { $file_size == 0 } {
+   while {$file_size == 0} {
       catch { set file_size [file size $tmp_mailfile]}
-      if { $file_size == 0 } { 
-         puts $CHECK_OUTPUT "--> file size of \"$tmp_mailfile\": $file_size ; waiting for filesize > 0"
+      if {$file_size == 0} { 
+         ts_log_fine "--> file size of \"$tmp_mailfile\": $file_size ; waiting for filesize > 0"
          sleep 1
       }
    }
- 
- 
  
    catch { exec "touch" $tmp_mailfile } result
    catch { exec "chmod" "0755" $tmp_mailfile } result
@@ -1293,9 +1210,9 @@ proc send_mail { address cc subject body } {
    set mail_output [start_remote_prog $CHECK_MAILX_HOST "ts_def_con_mail" "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
  
    if { $prg_exit_state != 0 } {
-      puts $CHECK_OUTPUT "--> send_mail - could not send mail:\n$mail_output"
+      ts_log_fine "--> send_mail - could not send mail:\n$mail_output"
    } else {
-      puts $CHECK_OUTPUT "--> send_mail - mail sent to $address"
+      ts_log_fine "--> send_mail - mail sent to $address"
       incr CHECK_MAILS_SENT 1
       if { $CHECK_MAILS_SENT == $CHECK_MAX_ERROR_MAILS } {
          if { [string compare $cc "none"] != 0 } {
@@ -1311,55 +1228,6 @@ proc send_mail { address cc subject body } {
    file delete $tmp_mailfile 
 }
 
-
-
-
-#                                                             max. column:     |
-#****** check/set_error() ******
-# 
-#  NAME
-#     set_error -- set error for current check 
-#
-#  SYNOPSIS
-#     set_error { erno errtext } 
-#
-#  FUNCTION
-#     *** deprecated ***
-#
-#     This procedure simply sets the global variables check_errno and 
-#     check_errstr to the given parameters. Beyond it the procedure 
-#     add_proc_error is called in order to append the errors to the global error 
-#     list.
-#
-#  INPUTS
-#     erno    - integer
-#               0  = no error
-#               -1 = error, but the check will run till end
-#               -2 = error, the current check will stop (no further check function
-#                    is called)
-#               -3 = warning, (e.g. test can not run on this host)
-#
-#     errtext - short error description
-#
-#
-#  EXAMPLE
-#     set_error 0 "ok"  ;# Test is "OK"
-#
-#  SEE ALSO
-#     check/add_proc_error
-#*******************************
-proc set_error {errno errtext} {
-   global CHECK_OUTPUT CHECK_CUR_PROC_NAME
-
-   puts $CHECK_OUTPUT "-------------------------------------------------------------------"
-   puts $CHECK_OUTPUT "deprecated function set_error called from \"$CHECK_CUR_PROC_NAME\""
-   puts $CHECK_OUTPUT "use add_proc_error to report errors, remove calls \"set_error 0 ...\""
-   puts $CHECK_OUTPUT "-------------------------------------------------------------------"
-
-   add_proc_error "set_error" $errno $errtext
-
-   return $errno
-}
 
 #****** check/get_testsuite_root_dir_from_file() *******************************
 #  NAME
@@ -1443,13 +1311,13 @@ proc get_testsuite_root_dir_from_file { filename } {
 #     ???/???
 #*******************************
 proc edit_defaults {} {
-  global CHECK_OUTPUT CHECK_DEFAULTS_FILE CHECK_CONFIG_DIR
+  global CHECK_DEFAULTS_FILE CHECK_CONFIG_DIR
   global env
 
   load_defaults
   set return_value -1
   if { [ write_edit_defaults_file "/tmp/testsuite_tmp_defaults_file" ] != 0 } {
-     puts $CHECK_OUTPUT "error open file \"$def_edit_file\" for writing"
+     ts_log_fine "error open file \"$def_edit_file\" for writing"
      return -1
   }
   set local_host [gethostname]
@@ -1460,30 +1328,30 @@ proc edit_defaults {} {
      if { $CHECK_CONFIG_DIR != "" } {
         set vim_binary [get_binary_path $local_host "vim"]
      } else {
-        puts $CHECK_OUTPUT "config directory path not set ..."
+        ts_log_fine "config directory path not set ..."
         set env_variable "EDITOR"
-        puts $CHECK_OUTPUT "checking for $env_variable environment setting..."
+        ts_log_fine "checking for $env_variable environment setting..."
         if { [info exists env($env_variable)] } {
-           puts $CHECK_OUTPUT "$env_variable=$env($env_variable)"
+           ts_log_fine "$env_variable=$env($env_variable)"
            set vim_binary $env($env_variable)
-           puts $CHECK_OUTPUT "using environment $env_variable"
+           ts_log_fine "using environment $env_variable"
         } else {
-           puts $CHECK_OUTPUT "environment $env_variable not set, using default"
+           ts_log_fine "environment $env_variable not set, using default"
            set vim_binary "vim"
         }
         set catch_return [ catch { eval exec which $vim_binary } catch_value ]
-        puts $CHECK_OUTPUT "exec \"which $vim_binary\" returns: $catch_return"
+        ts_log_fine "exec \"which $vim_binary\" returns: $catch_return"
         if { $catch_return != 0 } {
-           puts $CHECK_OUTPUT "error executing \"which $vim_binary\"!!!"
+           ts_log_fine "error executing \"which $vim_binary\"!!!"
         } else {
            set vim_binary $catch_value
         }
         if { [file exists $vim_binary] != 1 } {
-           puts $CHECK_OUTPUT "could not find binary"
-           puts $CHECK_OUTPUT "$vim_binary"
-           exit 1
+           ts_log_fine "could not find binary"
+           ts_log_fine "$vim_binary"
+           testsuite_shutdown 1
         }
-        puts $CHECK_OUTPUT "using \"$vim_binary\" as editor"
+        ts_log_fine "using \"$vim_binary\" as editor"
      }
      set env(EDITOR) $vim_binary
      set id [ open_spawn_process $vim_binary "$def_edit_file" ]
@@ -1494,24 +1362,24 @@ proc edit_defaults {} {
         set read_return [ read_edit_defaults_file "$def_edit_file" ] 
         if { $read_return >= 0 } { 
            if { $read_return == 0 } {
-              puts $CHECK_OUTPUT "no changes"
+              ts_log_fine "no changes"
               set return_value 1
               set exit_edit_loop 1
            } else {
-              puts $CHECK_OUTPUT "$read_return changes in defaults file \"$CHECK_DEFAULTS_FILE\""
+              ts_log_fine "$read_return changes in defaults file \"$CHECK_DEFAULTS_FILE\""
               set return_value 0
               set exit_edit_loop 1
            }
         } else {
-           puts $CHECK_OUTPUT "error reading file \"$def_edit_file\""
-           puts $CHECK_OUTPUT "\n>> press CTRL-C to abort setup configuration!"
+           ts_log_fine "error reading file \"$def_edit_file\""
+           ts_log_fine "\n>> press CTRL-C to abort setup configuration!"
            wait_for_enter
         }
      }
   }
   if { [ string first "/tmp/testsuite_tmp_defaults_file" $def_edit_file ] >= 0 } {
      file delete $def_edit_file
-     puts $CHECK_OUTPUT "file \"$def_edit_file\" deleted!" 
+     ts_log_fine "file \"$def_edit_file\" deleted!" 
   }
   return $return_value 
 }
@@ -1559,31 +1427,31 @@ proc calc_space {space name} {
 }
 
 proc get_local_hostname {} {
-   global env CHECK_OUTPUT
+   global env
 
    set catch_return [catch {exec "hostname"} result]
    if {$catch_return == 0} {
       set result [split $result "."]
       set newname [lindex $result 0]
-      puts $CHECK_OUTPUT "got hostname: \"$newname\""
+      ts_log_fine "got hostname: \"$newname\""
       return $newname
    } else {
-      puts $CHECK_OUTPUT "local hostname call failed"
-      puts $CHECK_OUTPUT "error: $result"
-      puts $CHECK_OUTPUT "trying local HOST environment variable ..."
+      ts_log_fine "local hostname call failed"
+      ts_log_fine "error: $result"
+      ts_log_fine "trying local HOST environment variable ..."
       if {[info exists env(HOST)]} {
          set result [split $env(HOST) "."]
          set newname [lindex $result 0]
          if {[string length $newname] > 0} {
-             puts $CHECK_OUTPUT "got hostname_ \"$newname\""
+             ts_log_fine "got hostname_ \"$newname\""
              return $newname
          } 
       }
    }
-   puts $CHECK_OUTPUT "tcl procedure get_local_hostname() can't get local hostname"
-   puts $CHECK_OUTPUT "please set check if binary \"hostname\" is in path or"
-   puts $CHECK_OUTPUT "set the environment variable \"HOST\" to the hostname value"
-   exit 1
+   ts_log_fine "tcl procedure get_local_hostname() can't get local hostname"
+   ts_log_fine "please set check if binary \"hostname\" is in path or"
+   ts_log_fine "set the environment variable \"HOST\" to the hostname value"
+   testsuite_shutdown 1
 }
 
 #****** check/check_executable_files() *****************************************
@@ -1600,7 +1468,6 @@ proc get_local_hostname {} {
 #     check/setup2()
 #*******************************************************************************
 proc check_executable_files {  } {
-   global CHECK_OUTPUT
    global ts_config
 
    set scripts_dir "$ts_config(testsuite_root_dir)/scripts"
@@ -1661,13 +1528,13 @@ proc check_executable_files {  } {
    foreach elem $filelist {
       set filename $elem
       if { [ file isfile $filename ] != 1  } {
-         puts $CHECK_OUTPUT "file not found: $filename"
+         ts_log_fine "file not found: $filename"
          set file_error 1
          continue
       }
       set attribs [ file attributes $filename -permissions] 
       if { [ string compare $attribs "00755" ] != 0 } {
-         puts $CHECK_OUTPUT "file not executable (attributes: $attribs):\n $filename"
+         puts "file not executable (attributes: $attribs):\n $filename"
          lappend change_files $filename
          set file_error 1
          continue
@@ -1676,24 +1543,24 @@ proc check_executable_files {  } {
 
    if { $file_error != 0 } {
       while { 1 } {
-         puts $CHECK_OUTPUT "should I set the file permissions to 00755? (yes/no)"
+         puts "should I set the file permissions to 00755? (yes/no)"
          set answer [wait_for_enter 1]
          if { [ string compare $answer "yes" ] == 0 } {
             foreach elem $change_files {
                 catch { file attributes $elem -permissions 00755 }
                 set attribs [ file attributes $elem -permissions] 
                 if { [ string compare $attribs "00755" ] != 0  } {
-                   puts $CHECK_OUTPUT "check_executable_files - error setting file permissions: $elem"
-                   exit -1
+                   ts_log_fine "check_executable_files - error setting file permissions: $elem"
+                   testsuite_shutdown 1
                 }
             }  
             break
          } 
          if { [ string compare $answer "no" ] == 0 } {
-            puts $CHECK_OUTPUT "check_executable_files - file errors. exit."
-            exit -1
+            ts_log_fine "check_executable_files - file errors. exit."
+            testsuite_shutdown 1
          } 
-         puts $CHECK_OUTPUT "please enter \"yes\" or \"no\"!"
+         puts "please enter \"yes\" or \"no\"!"
       }
    }
 }
@@ -1718,7 +1585,7 @@ proc check_executable_files {  } {
 #     file_procedures/create_shell_script()
 #*******************************************************************************
 proc set_users_environment { node {variable_name env} { show_variables 0 } } {
-   global CHECK_REMOTE_ENVIRONMENT CHECK_OUTPUT env 
+   global CHECK_REMOTE_ENVIRONMENT env 
    global CHECK_L10N ts_host_config
    global ts_config
 
@@ -1733,7 +1600,7 @@ proc set_users_environment { node {variable_name env} { show_variables 0 } } {
    }
 
    if { $show_variables } {
-      puts $CHECK_OUTPUT "==============================================================================="
+      ts_log_fine "==============================================================================="
    }
 
    if { $CHECK_L10N != 0 } {
@@ -1750,133 +1617,130 @@ proc set_users_environment { node {variable_name env} { show_variables 0 } } {
       if { [ info exist ts_host_config($host,${locale}_locale) ] } {
          set locale_env $ts_host_config($host,${locale}_locale)
          if { $locale_env == "" } {
-            debug_puts "no value for ${locale}_locale on host $host, please set LANG, LC_MESSAGES ..."
+            ts_log_finest "no value for ${locale}_locale on host $host, please set LANG, LC_MESSAGES ..."
          }
          append locale_env " SGE_ENABLE_MSG_ID=2 SGE_INFOTEXT_MAX_COLUMN=5000"
-         debug_puts "L10N enabled"
-         debug_puts "locale = \"$locale\""
-         debug_puts "environment on host $host: $locale_env"
+         ts_log_finest "L10N enabled"
+         ts_log_finest "locale = \"$locale\""
+         ts_log_finest "environment on host $host: $locale_env"
          foreach u_env $locale_env {
-            debug_puts "environment: $u_env"
+            ts_log_finest "environment: $u_env"
             set help [split $u_env "="]
             set env_name  [lindex $help 0]
             set env_value [lindex $help 1]
-            debug_puts "env_name: $env_name"
+            ts_log_finest "env_name: $env_name"
             if { [string compare $env_name ""] == 0 } {
-               puts $CHECK_OUTPUT "error setting users environment (setup parameter user_environment)"
+               ts_log_fine "error setting users environment (setup parameter user_environment)"
                return -1
             }
-            debug_puts "env_value: $env_value"
+            ts_log_finest "env_value: $env_value"
             if { [string compare $env_value ""] == 0 } {
                if { [info exists env($env_name)] } {
                   set env_value $env($env_name)
                } else {
-                  puts $CHECK_OUTPUT "error setting users environment (setup parameter user_environment)"
+                  ts_log_fine "error setting users environment (setup parameter user_environment)"
                   return -1
                }
             }
             if { [string compare $variable_name "env"] == 0 } {
                if { $show_variables } {
-                  puts $CHECK_OUTPUT "setting local l10n variable $env_name=\"$env_value\""
+                  ts_log_fine "setting local l10n variable $env_name=\"$env_value\""
                }
             } else {
                if { $show_variables } {
-                  puts $CHECK_OUTPUT "setting remote l10n variable $env_name=\"$env_value\""
+                  ts_log_fine "setting remote l10n variable $env_name=\"$env_value\""
                }
             }
             set environment($env_name) $env_value 
-            debug_puts "$env_name set to \"$env_value\""
+            ts_log_finest "$env_name set to \"$env_value\""
          }
       } else {
-         debug_puts "could not find l10n configuration for host $host"
+         ts_log_finest "could not find l10n configuration for host $host"
       }
    }
 
    foreach u_env $remote_environment {
-      debug_puts "environment: $u_env"
+      ts_log_finest "environment: $u_env"
       set help [split $u_env "="]
       set env_name  [lindex $help 0]
       set env_value [lindex $help 1]
-      debug_puts "env_name: $env_name"
+      ts_log_finest "env_name: $env_name"
       if { [string compare $env_name ""] == 0 } {
-         puts $CHECK_OUTPUT "error setting users environment (setup parameter user_environment)"
+         ts_log_fine "error setting users environment (setup parameter user_environment)"
          return -1
       }
-      debug_puts "env_value: $env_value"
+      ts_log_finest "env_value: $env_value"
       if { [string compare $env_value ""] == 0 } {
          if { [info exists env($env_name)] } {
             set env_value $env($env_name)
          } else {
-            puts $CHECK_OUTPUT "error setting users environment (setup parameter user_environment)"
+            ts_log_fine "error setting users environment (setup parameter user_environment)"
             return -1
          }
       }
       if { [string compare $variable_name "env"] == 0 } {
          if { $show_variables } {
-            puts $CHECK_OUTPUT "setting local variable $env_name=\"$env_value\""
+            ts_log_fine "setting local variable $env_name=\"$env_value\""
          }
       } else {
          if { $show_variables } {
-            puts $CHECK_OUTPUT "setting remote variable $env_name=\"$env_value\""
+            ts_log_fine "setting remote variable $env_name=\"$env_value\""
          }
       }
       set environment($env_name) $env_value 
-      debug_puts "$env_name set to \"$env_value\""
+      ts_log_finest "$env_name set to \"$env_value\""
    }
    if { $show_variables } {
-      puts $CHECK_OUTPUT "==============================================================================="
+      ts_log_fine "==============================================================================="
    }
 
    return 0
 }
 
 proc show_setup_information { } {
-
-   global CHECK_OUTPUT
-
    clear_screen
-   puts $CHECK_OUTPUT "Testsuite Setup Information"
-   puts $CHECK_OUTPUT "==========================="
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "If you are starting the testsuite for the first time you should read this short"
-   puts $CHECK_OUTPUT "setup guide to make it easier for you to understand the setup questions."
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "The testsuite needs 3 user accounts:\n"
-   puts $CHECK_OUTPUT " a) testsuite user:   The user who is starting the testsuite\n"
-   puts $CHECK_OUTPUT " b) first_foreign_system_username:  "
-   puts $CHECK_OUTPUT "                      Test user account (used for submitting, deleting jobs)"
-   puts $CHECK_OUTPUT "                      This user must be member of two system groups (use <SPACE>"
-   puts $CHECK_OUTPUT "                      to seperate the groups)\n"
-   puts $CHECK_OUTPUT " c) second_foreign_system_username:"
-   puts $CHECK_OUTPUT "                      Test user account (used for submitting, deleting jobs)"
-   puts $CHECK_OUTPUT "                      This user must be member of a system group where b) is not"
-   puts $CHECK_OUTPUT "                      group member.\n"
+   puts "Testsuite Setup Information"
+   puts "==========================="
+   puts ""
+   puts "If you are starting the testsuite for the first time you should read this short"
+   puts "setup guide to make it easier for you to understand the setup questions."
+   puts ""
+   puts "The testsuite needs 3 user accounts:\n"
+   puts " a) testsuite user:   The user who is starting the testsuite\n"
+   puts " b) first_foreign_system_username:  "
+   puts "                      Test user account (used for submitting, deleting jobs)"
+   puts "                      This user must be member of two system groups (use <SPACE>"
+   puts "                      to seperate the groups)\n"
+   puts " c) second_foreign_system_username:"
+   puts "                      Test user account (used for submitting, deleting jobs)"
+   puts "                      This user must be member of a system group where b) is not"
+   puts "                      group member.\n"
  
    wait_for_enter
 
    clear_screen
-   puts $CHECK_OUTPUT "Testsuite Setup Information"
-   puts $CHECK_OUTPUT "==========================="
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "The 3 user accounts must have rlogin access to the cluster hosts. (.rhost file)\n"
-   puts $CHECK_OUTPUT "Every output to stdout in\n"
-   puts $CHECK_OUTPUT " /etc/csh.cshrc, /etc/csh.login, \$HOME/.cshrc, \$HOME/.login , ...\n"
-   puts $CHECK_OUTPUT "is not allowed. The testsuite will use e.g. rlogin \$EXEC_HOST pwd to get the"
-   puts $CHECK_OUTPUT "working directory on that host. Any output made in the files would influence"
-   puts $CHECK_OUTPUT "the result of the call.\n" 
+   puts "Testsuite Setup Information"
+   puts "==========================="
+   puts ""
+   puts "The 3 user accounts must have rlogin access to the cluster hosts. (.rhost file)\n"
+   puts "Every output to stdout in\n"
+   puts " /etc/csh.cshrc, /etc/csh.login, \$HOME/.cshrc, \$HOME/.login , ...\n"
+   puts "is not allowed. The testsuite will use e.g. rlogin \$EXEC_HOST pwd to get the"
+   puts "working directory on that host. Any output made in the files would influence"
+   puts "the result of the call.\n" 
 
-   puts $CHECK_OUTPUT "Each of the 3 user must have read access to\n"
-   puts $CHECK_OUTPUT "   - testsuite directory"
-   puts $CHECK_OUTPUT "   - source code directory"
-   puts $CHECK_OUTPUT "   - installation directory (\$SGE_ROOT)"   
+   puts "Each of the 3 user must have read access to\n"
+   puts "   - testsuite directory"
+   puts "   - source code directory"
+   puts "   - installation directory (\$SGE_ROOT)"   
   
    wait_for_enter
 
    clear_screen
-   puts $CHECK_OUTPUT "Testsuite Setup Information"
-   puts $CHECK_OUTPUT "==========================="
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "All path statements have to be absolute. The use of links may cause troubles."
+   puts "Testsuite Setup Information"
+   puts "==========================="
+   puts ""
+   puts "All path statements have to be absolute. The use of links may cause troubles."
     
    wait_for_enter
 }
@@ -1902,12 +1766,11 @@ proc show_setup_information { } {
 #*******************************************************************************
 proc save_host_configuration { file } {
    global ts_host_config
-   global CHECK_OUTPUT
 
    set conf_name "testsuite host configuration"
 
    if { [ info exists ts_host_config(version) ] == 0 } {
-      puts $CHECK_OUTPUT "no version specified - abort saving"
+      puts "no version specified - abort saving"
       wait_for_enter
       return -1
    }
@@ -1917,7 +1780,7 @@ proc save_host_configuration { file } {
    # save old configuration 
    spool_array_to_file $file "$conf_name.old" old_host_config
    spool_array_to_file $file $conf_name ts_host_config  
-   puts $CHECK_OUTPUT "new host configuration saved: version: $ts_host_config(version)"
+   puts "new host configuration saved: version: $ts_host_config(version)"
    wait_for_enter
    return 0
 }
@@ -1942,10 +1805,9 @@ proc save_host_configuration { file } {
 #*******************************************************************************
 proc save_user_configuration { file } {
    global ts_user_config
-   global CHECK_OUTPUT
 
    if { [ info exists ts_user_config(version) ] == 0 } {
-      puts $CHECK_OUTPUT "no version specified - abort saving"
+      puts "no version specified - abort saving"
       wait_for_enter
       return -1
    }
@@ -1958,7 +1820,7 @@ proc save_user_configuration { file } {
    spool_array_to_file $file "$conf_name.old" old_user_config
    spool_array_to_file $file $conf_name ts_user_config  
    
-   puts $CHECK_OUTPUT "new user configuration saved"
+   puts "new user configuration saved"
    wait_for_enter
 
    return 0
@@ -1981,14 +1843,13 @@ proc save_user_configuration { file } {
 #*******************************************************************************
 proc save_configuration {} {
    global ts_config
-   global CHECK_OUTPUT
    global CHECK_DEFAULTS_FILE
    global pe_for_version_check_result
 
    set conf_name "testsuite configuration"
 
    if { [ info exists ts_config(version) ] == 0 } {
-      puts $CHECK_OUTPUT "no version"
+      puts "no version"
       wait_for_enter
       return -1
    }
@@ -1998,7 +1859,7 @@ proc save_configuration {} {
    # save old configuration 
    spool_array_to_file $CHECK_DEFAULTS_FILE "$conf_name.old" old_config
    spool_array_to_file $CHECK_DEFAULTS_FILE $conf_name ts_config  
-   puts $CHECK_OUTPUT "new testsuite configuration saved"
+   puts "new testsuite configuration saved"
 
    set pe_for_version_check_result "undefined"
 
@@ -2022,7 +1883,6 @@ proc save_configuration {} {
 #*******************************************************************************
 proc restore_configuration { } {
    global ts_config
-   global CHECK_OUTPUT
    global CHECK_DEFAULTS_FILE
 
    set conf_name "testsuite configuration"
@@ -2030,12 +1890,12 @@ proc restore_configuration { } {
    # first get old configuration
    read_array_from_file  $CHECK_DEFAULTS_FILE "$conf_name.old" old_config
    if { [ info exists old_config(version) ] } {
-      puts $CHECK_OUTPUT "spooling previous configuration (Version: $old_config(version)"
+      ts_log_fine "spooling previous configuration (Version: $old_config(version)"
       spool_array_to_file $CHECK_DEFAULTS_FILE $conf_name old_config
    } else {
-      puts $CHECK_OUTPUT "no previous configuration available!"
+      ts_log_fine "no previous configuration available!"
    }
-   puts $CHECK_OUTPUT "reading latest configuration ..."
+   ts_log_fine "reading latest configuration ..."
    read_array_from_file  $CHECK_DEFAULTS_FILE "$conf_name" ts_config
 
    return 0
@@ -2061,7 +1921,7 @@ proc restore_configuration { } {
 #     check/get_configuration_element_count()
 #*******************************************************************************
 proc get_configuration_element_name_on_pos { config_array config_pos } {
-   global CHECK_OUTPUT actual_ts_config_version
+   global actual_ts_config_version
    upvar  $config_array config
 
    set params ""
@@ -2103,7 +1963,7 @@ proc get_configuration_element_name_on_pos { config_array config_pos } {
 #     check/get_configuration_element_name_on_pos()
 #*******************************************************************************
 proc get_configuration_element_count { config_array } {
-   global CHECK_OUTPUT actual_ts_config_version
+   global actual_ts_config_version
    upvar  $config_array config
 
    set params ""
@@ -2143,115 +2003,114 @@ proc get_configuration_element_count { config_array } {
 proc update_ts_config_version {} {
    global actual_ts_config_version 
    global ts_config
-   global CHECK_OUTPUT
 
    if {[string compare $ts_config(version) "1.0"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.0 to 1.1 ..."
+      puts "\ntestsuite configuration update from 1.0 to 1.1 ..."
       config_build_ts_config_1_1
       show_config ts_config
       wait_for_enter
    }
 
    if {[string compare $ts_config(version) "1.1"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.1 to 1.2 ..."
+      puts "\ntestsuite configuration update from 1.1 to 1.2 ..."
       config_build_ts_config_1_2
       show_config ts_config
       wait_for_enter
    }
 
    if {[string compare $ts_config(version) "1.2"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.2 to 1.3 ..."
+      puts "\ntestsuite configuration update from 1.2 to 1.3 ..."
       config_build_ts_config_1_3
       show_config ts_config
       wait_for_enter
    }
    
    if {[string compare $ts_config(version) "1.3"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.3 to 1.4 ..."
+      puts "\ntestsuite configuration update from 1.3 to 1.4 ..."
       config_build_ts_config_1_4
       show_config ts_config
       wait_for_enter
    }
    
    if {[string compare $ts_config(version) "1.4"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.4 to 1.5 ..."
+      puts "\ntestsuite configuration update from 1.4 to 1.5 ..."
       config_build_ts_config_1_5
       show_config ts_config
       wait_for_enter
    }
    
    if {[string compare $ts_config(version) "1.5"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.5 to 1.6 ..."
+      puts "\ntestsuite configuration update from 1.5 to 1.6 ..."
       config_build_ts_config_1_6
       show_config ts_config
       wait_for_enter
    }
   
    if {[string compare $ts_config(version) "1.6"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.6 to 1.7 ..."
+      puts "\ntestsuite configuration update from 1.6 to 1.7 ..."
       config_build_ts_config_1_7
       show_config ts_config
       wait_for_enter
    }
 
    if {[string compare $ts_config(version) "1.7"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.7 to 1.8 ..."
+      puts "\ntestsuite configuration update from 1.7 to 1.8 ..."
       config_build_ts_config_1_8
       show_config ts_config
       wait_for_enter
    }
 
    if {[string compare $ts_config(version) "1.8"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.8 to 1.9 ..."
+      puts "\ntestsuite configuration update from 1.8 to 1.9 ..."
       config_build_ts_config_1_9
       show_config ts_config
       wait_for_enter
    }
 
    if {[string compare $ts_config(version) "1.9"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.9 to 1.91 ..."
+      puts "\ntestsuite configuration update from 1.9 to 1.91 ..."
       config_build_ts_config_1_91
       show_config ts_config
       wait_for_enter
    }
    
    if {[string compare $ts_config(version) "1.91"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.91 to 1.10 ..."
+      puts "\ntestsuite configuration update from 1.91 to 1.10 ..."
       config_build_ts_config_1_10
       show_config ts_config
       wait_for_enter
    }
    
    if {[string compare $ts_config(version) "1.10"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.10 to 1.11 ..."
+      puts "\ntestsuite configuration update from 1.10 to 1.11 ..."
       config_build_ts_config_1_11
       show_config ts_config
       wait_for_enter
    }
 
    if {[string compare $ts_config(version) "1.11"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.11 to 1.12 ..."
+      puts "\ntestsuite configuration update from 1.11 to 1.12 ..."
       config_build_ts_config_1_12
       show_config ts_config
       wait_for_enter
    }
    
    if {[string compare $ts_config(version) "1.12"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.12 to 1.13 ..."
+      puts "\ntestsuite configuration update from 1.12 to 1.13 ..."
       config_build_ts_config_1_13
       show_config ts_config
       wait_for_enter
    }
 
    if {[string compare $ts_config(version) "1.13"] == 0} {
-      puts $CHECK_OUTPUT "\ntestsuite configuration update from 1.13 to 1.14 ..."
+      puts "\ntestsuite configuration update from 1.13 to 1.14 ..."
       config_build_ts_config_1_14
       show_config ts_config
       wait_for_enter
       return 0
    }
    
-   puts $CHECK_OUTPUT "\nunexpected version $ts_config(version), need version $actual_ts_config_version"
+   puts "\nunexpected version $ts_config(version), need version $actual_ts_config_version"
    return -1
 }
 
@@ -2301,7 +2160,7 @@ proc get_spaces { nr } {
 proc setup2 { } {
    global sge_config
    global ts_config ts_host_config ts_user_config actual_ts_config_version
-   global CHECK_OUTPUT CHECK_DO_SETUP
+   global CHECK_DO_SETUP
    global CHECK_DEFAULTS_FILE do_nomain
    global env be_quiet fast_setup
    global check_name CHECK_ACT_LEVEL have_defaults
@@ -2359,7 +2218,7 @@ proc setup2 { } {
 
    if {[read_array_from_file $CHECK_DEFAULTS_FILE "testsuite configuration" ts_config ] == 0} {
       if {$ts_config(version) != $actual_ts_config_version} {
-         puts $CHECK_OUTPUT "unknown configuration file version: $ts_config(version)"
+         puts "unknown configuration file version: $ts_config(version)"
          while {[update_ts_config_version] != 0} {
             wait_for_enter
          }
@@ -2386,55 +2245,55 @@ proc setup2 { } {
                wait_for_enter
                set not_ok 1
                foreach elem $err_list {
-                  puts $CHECK_OUTPUT "error in: $elem"
+                  puts "error in: $elem"
                } 
-               puts $CHECK_OUTPUT "Try again? (y/n)"
+               puts "Try again? (y/n)"
                set answer [wait_for_enter 1]
                if { $answer == "n" } {
                   # restore old config ?
-                  puts $CHECK_OUTPUT "Do you want to restore previous configuration? (y/n)"
+                  puts "Do you want to restore previous configuration? (y/n)"
                   set answer [ wait_for_enter 1 ]
                   if { $answer == "y" } {
                      if { [restore_configuration] != 0 } {
-                        puts $CHECK_OUTPUT "error restoring configuration!"
-                        exit 1
+                        puts "error restoring configuration!"
+                        testsuite_shutdown 1
                      }
-                     exit 0
+                     testsuite_shutdown 0
                   }
                   # save anyway
-                  puts $CHECK_OUTPUT "Do you want to save your changes? (y/n)"
+                  puts "Do you want to save your changes? (y/n)"
                   set answer [ wait_for_enter 1 ]
                   if { $answer == "y" } {
                      if { [save_configuration] != 0 } {
-                        puts $CHECK_OUTPUT "error saving configuration!"
-                        exit 1
+                        puts "error saving configuration!"
+                        testsuite_shutdown 1
                      }
                   }
-                  exit 1
+                  testsuite_shutdown 1
                } 
             } else {
                set not_ok 0
                if { [save_configuration] != 0 } {
-                  puts $CHECK_OUTPUT "error saving configuration!"
-                  exit 1
+                  puts "error saving configuration!"
+                  testsuite_shutdown 1
                }
             }
          }
       } else {
          if { $configuration_updated } {
-            puts $CHECK_OUTPUT "Do you want to save the updated configuration? (y/n)"
+            puts "Do you want to save the updated configuration? (y/n)"
             set answer [ wait_for_enter 1 ]
             if { $answer == "y" } {
                if { [save_configuration] != 0 } {
-                  puts $CHECK_OUTPUT "error saving configuration!"
-                  exit 1
+                  puts "error saving configuration!"
+                  testsuite_shutdown 1
                }
             }
          }
       }
       set CHECK_CONFIG_DIR "not supported in setup2 config file"
       if { $be_quiet == 0 } { 
-         puts $CHECK_OUTPUT "\nstarting setup ... ok"
+         puts "\nstarting setup ... ok"
       }
       enhanced_setup
       
@@ -2444,16 +2303,16 @@ proc setup2 { } {
       
       unlock_testsuite
    } else {
-      puts $CHECK_OUTPUT "could not open defaults file."
+      puts "could not open defaults file."
       if { [ file isfile $CHECK_DEFAULTS_FILE ] } {
-         puts $CHECK_OUTPUT "file exists -> assuming old configuration file!"
+         puts "file exists -> assuming old configuration file!"
          convert_old_defaults_file_to_new_format
-         exit -1
+         testsuite_shutdown -1
       }
-      puts $CHECK_OUTPUT "press return to create new configuration file \"$CHECK_DEFAULTS_FILE\""
+      puts "press return to create new configuration file \"$CHECK_DEFAULTS_FILE\""
       wait_for_enter 1 
       if { [save_configuration] != 0 } {
-         exit -1
+         testsuite_shutdown -1
       }
       setup2
    }
@@ -2475,7 +2334,7 @@ proc setup2 { } {
 #*******************************************************************************
 proc enhanced_setup {} {
    global CHECK_ENABLED_RUNLEVELS
-   global CHECK_ENABLED_CATEGORIES CHECK_OUTPUT check_name
+   global CHECK_ENABLED_CATEGORIES check_name
    global be_quiet CHECK_PACKAGE_DIRECTORY
    global env CHECK_COMMD_PORT
    global ts_config
@@ -2513,7 +2372,7 @@ proc enhanced_setup {} {
    puts "   setting up checktree ..."
    if {[build_checktree] != 0} {
       modify_setup2
-      exit 1
+      testsuite_shutdown 1
    }
 
 
@@ -2549,7 +2408,7 @@ proc enhanced_setup {} {
 
 proc build_checktree {} {
    global ts_checktree
-   global CHECK_OUTPUT ACT_CHECKTREE
+   global ACT_CHECKTREE
    global ts_config
    
    if { [info exists ts_checktree] } {
@@ -2565,12 +2424,12 @@ proc build_checktree {} {
 
    # read_checktree_nodes is setting additional information in the checktree !!!
  
-   puts $CHECK_OUTPUT "reading checktree nodes ..."  
+   ts_log_fine "reading checktree nodes ..."  
    set error [read_checktree_nodes $ts_config(checktree_root_dir)] 
    if { $error != 0 } {
       return -1
    }
-   puts $CHECK_OUTPUT "reading additional checktrees ..."
+   ts_log_fine "reading additional checktrees ..."
    if { $ts_config(additional_checktree_dirs) != "none" } {
       foreach dir $ts_config(additional_checktree_dirs) {
          set error [read_checktree_nodes $dir]
@@ -2578,27 +2437,25 @@ proc build_checktree {} {
             return -1
          }
          if { [file isfile $dir/checktree.tcl] } {
-            puts $CHECK_OUTPUT "source additional file $dir/checktree.tcl"
+            ts_log_fine "source additional file $dir/checktree.tcl"
             set ACT_CHECKTREE $dir
             ts_source $dir/checktree
          } else {
-            puts $CHECK_OUTPUT "checktree file $dir/checktree.tcl not found"
+            ts_log_fine "checktree file $dir/checktree.tcl not found"
          }
       }
    }
 
-   
-
-   puts $CHECK_OUTPUT "verify checktree ..."
+   ts_log_fine "verify checktree ..."
    
    for {set i 0} {$i< $ts_checktree(act_nr)} {incr i 1} {
-#      puts $CHECK_OUTPUT "test $i $ts_checktree($i,dir_name) , up-dir=$ts_checktree($i,upper_nrs), subdir(s)=$ts_checktree($i,sub_nrs)"
+#      ts_log_fine "test $i $ts_checktree($i,dir_name) , up-dir=$ts_checktree($i,upper_nrs), subdir(s)=$ts_checktree($i,sub_nrs)"
       set ts_checktree($i,max_level_count) [get_max_level_count $ts_checktree($i,dir_name)]
-#      puts $CHECK_OUTPUT "dir $ts_checktree($i,dir_name) has max level state: $ts_checktree($i,max_level_count)"
+#      ts_log_fine "dir $ts_checktree($i,dir_name) has max level state: $ts_checktree($i,max_level_count)"
       if { $ts_checktree($i,test_available) == 1 } {
          set ts_checktree($i,check_levels) [get_check_levels $ts_checktree($i,dir_name)]
-#         puts $CHECK_OUTPUT "test $ts_checktree($i,check_name) has checklevels: $ts_checktree($i,check_levels)"
-#         puts $CHECK_OUTPUT "name $ts_checktree($i,check_name), $ts_checktree($i,check_category), $ts_checktree($i,check_highest_level)"
+#         ts_log_fine "test $ts_checktree($i,check_name) has checklevels: $ts_checktree($i,check_levels)"
+#         ts_log_fine "name $ts_checktree($i,check_name), $ts_checktree($i,check_category), $ts_checktree($i,check_highest_level)"
          for { set j [expr ( $i + 1 ) ] } {$j< $ts_checktree(act_nr)} {incr j 1} {
             if { $ts_checktree($j,test_available) == 1 } {
                if { $ts_checktree($i,check_name) == $ts_checktree($j,check_name) } {
@@ -2607,7 +2464,7 @@ proc build_checktree {} {
                   append error_text "please check the following tests directories:\n"
                   append error_text "$ts_checktree($i,dir_name)\n"
                   append error_text "$ts_checktree($j,dir_name)\n" 
-                  add_proc_error "build_checktree" -1 $error_text
+                  ts_log_severe $error_text
                   wait_for_enter
                   return -1
                }
@@ -2618,7 +2475,7 @@ proc build_checktree {} {
                   append error_text "please check the following tests directories:\n"
                   append error_text "$ts_checktree($i,dir_name)\n"
                   append error_text "$ts_checktree($j,dir_name)\n" 
-                  add_proc_error "build_checktree" -1 $error_text
+                  ts_log_severe $error_text
                   wait_for_enter
                   return -1
                }
@@ -2635,7 +2492,7 @@ proc build_checktree {} {
       for {set ii 0} {[info exists ts_checktree($i,setup_hooks_${ii}_name)]} {incr ii 1} {
          
          if { [info exists ts_checktree($i,setup_hooks_${ii}_filename)] == 0 } {
-            add_proc_error "build_checktree" -1 "field setup_hooks_${ii}_filename not defined for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
+            ts_log_severe "field setup_hooks_${ii}_filename not defined for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
             wait_for_enter
             return -1
          }
@@ -2648,8 +2505,8 @@ proc build_checktree {} {
 
          if { [file exists $filename] == 0 } {
             
-            puts $CHECK_OUTPUT "file \"$filename\" for \"$ts_checktree($i,setup_hooks_${ii}_name)\" not found."
-            puts $CHECK_OUTPUT "creating new configuration ..."
+            puts "file \"$filename\" for \"$ts_checktree($i,setup_hooks_${ii}_name)\" not found."
+            puts "creating new configuration ..."
             wait_for_enter
             
             $ts_checktree($i,setup_hooks_${ii}_init_func) $config_array
@@ -2662,11 +2519,11 @@ proc build_checktree {} {
                   break
                } 
                if { $res < 0 } {
-                  add_proc_error "build_checktree" -1 "Can not verify config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
+                  ts_log_severe "Can not verify config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
                   wait_for_enter
                   return -1
                }
-               puts $CHECK_OUTPUT "Errors in configuration => retry"
+               puts "Errors in configuration => retry"
                wait_for_enter
             }
             spool_array_to_file $filename $ts_checktree($i,setup_hooks_${ii}_name) $config_array
@@ -2676,12 +2533,12 @@ proc build_checktree {} {
             if { [read_array_from_file $filename $ts_checktree($i,setup_hooks_${ii}_name) $config_array] == 0 } {
                set res [$ts_checktree($i,setup_hooks_${ii}_verify_func) $config_array 1 error_list]
                if { $res < 0 } {
-                  add_proc_error "build_checktree" -1 "Can not verify config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
+                  ts_log_severe "Can not verify config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
                   wait_for_enter
                   return -1
                } 
                if { $res > 0 } {
-                  puts $CHECK_OUTPUT "Configuration $ts_checktree($i,setup_hooks_${ii}_name) has errors => retry"
+                  puts "Configuration $ts_checktree($i,setup_hooks_${ii}_name) has errors => retry"
                   wait_for_enter
                   while { 1 } {
                      set error_list {}
@@ -2691,28 +2548,27 @@ proc build_checktree {} {
                         break
                      } 
                      if { $res < 0 } {
-                        add_proc_error "build_checktree" -1 "Can not verify config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
+                        ts_log_severe "Can not verify config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
                         wait_for_enter
                         return -1
                      }
                   }
                }
             } else {
-               add_proc_error "build_checktree" -1 "Can't read config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
+               ts_log_severe "Can't read config for setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
                wait_for_enter
                return -1
             }
          }
       }
    }
-#   puts $CHECK_OUTPUT "roots: $ts_checktree(0,sub_nrs)"
+
    return 0
 }
 
 
 proc read_checktree_nodes { path } {
    global ts_checktree CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
-   global CHECK_OUTPUT
    global check_highest_level check_init_level_procedure check_name
    global check_category 
    global CHECK_ACT_LEVEL DISABLE_ADD_PROC_ERROR
@@ -2740,12 +2596,12 @@ proc read_checktree_nodes { path } {
       for { set lt 0 } { $lt <= $check_highest_level } { incr lt 1 } {
          if { [info exists check_description($lt)] } {
             if { [string match "*\n*" $check_description($lt)] } {
-               puts $CHECK_OUTPUT "--------------------------------------------------------------"
-               puts $CHECK_OUTPUT "check directory: $path"
-               puts $CHECK_OUTPUT "description($lt): \"$check_description($lt)\""
-               puts $CHECK_OUTPUT "PANIC: check \"$check_name\" contains unexpected new line characters in check description!"
-               puts $CHECK_OUTPUT "--------------------------------------------------------------"
-               exit 1
+               puts "--------------------------------------------------------------"
+               puts "check directory: $path"
+               puts "description($lt): \"$check_description($lt)\""
+               puts "PANIC: check \"$check_name\" contains unexpected new line characters in check description!"
+               puts "--------------------------------------------------------------"
+               testsuite_shutdown 1
             }
          }
       }
@@ -2787,14 +2643,14 @@ proc read_checktree_nodes { path } {
 }
 
 proc get_tests_from_checktree { { path "root" } } {
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
 
    set selected_dirs ""
 
    if { [info exists ts_checktree($path)] } {
      set selected_dirs $ts_checktree($path)
    } else {
-     add_proc_error "get_tests_from_checktree" -1 "path=$path not found in checktree"
+     ts_log_severe "path=$path not found in checktree"
    }
 
 
@@ -2820,7 +2676,7 @@ proc get_tests_from_checktree { { path "root" } } {
 }
 
 proc lappend_sub_nrs_from_checktree { dir_nr result } {
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
    upvar $result res
  
    foreach nr $ts_checktree($dir_nr,sub_nrs) {
@@ -2831,7 +2687,7 @@ proc lappend_sub_nrs_from_checktree { dir_nr result } {
 
 
 proc get_checktree_dir_names { path { only_basename 0 } } {
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
 
    # first find entry directory numbers
    set selected_dirs {}
@@ -2839,7 +2695,7 @@ proc get_checktree_dir_names { path { only_basename 0 } } {
      set nr $ts_checktree($path)
      set selected_dirs $ts_checktree($nr,sub_nrs)
    } else {
-     add_proc_error "get_tests_from_checktree" -1 "path=$path not found in checktree"
+     ts_log_severe "path=$path not found in checktree"
    }
 
    # now we have all directory numbers, generate path list
@@ -2890,7 +2746,7 @@ proc get_checktree_dir_names { path { only_basename 0 } } {
 #     ???/???
 #*******************************
 proc validate_needs {needs} {
-  global CHECK_RESULT_DIR CHECK_OUTPUT
+  global CHECK_RESULT_DIR
 
   if {$needs == ""} {
      return 0;
@@ -2904,12 +2760,12 @@ proc validate_needs {needs} {
     set core_result_files ""
     catch { set result_files [glob "$CHECK_RESULT_DIR/$elem.res.*"] }
 
-    debug_puts $result_files
+    ts_log_finest $result_files
 
-    debug_puts " validate_needs: matching files in $CHECK_RESULT_DIR: $result_files"
+    ts_log_finest " validate_needs: matching files in $CHECK_RESULT_DIR: $result_files"
 
     if {![file isfile [lindex $result_files 0]]} {
-       debug_puts " validate_needs: need to run check $elem.";
+       ts_log_finest " validate_needs: need to run check $elem.";
        incr uncomplete 1; 
     }
   }
@@ -2973,7 +2829,6 @@ proc delete_result {path runtime level} {
 #     check_name - name of the current check
 #*******************************************************************************
 proc clear_all_check_errors {check_name} {
-   global CHECK_OUTPUT
    global check_errno check_errstr
 
    if {[info exists check_errno]} {
@@ -3061,26 +2916,26 @@ proc get_all_check_functions {} {
 proc save_result {path runtime level {save_finished 1}} {
    global check_name check_description check_needs check_errno check_errstr 
    global CHECK_RESULT_DIR CHECK_BAD_RESULT_DIR
-   global CHECK_OUTPUT check_highest_level
+   global check_highest_level
 
    # only for supported levels
    if {[is_level_enabled $level] == -1} {
-      debug_puts "\n--> save_result - info: test level $level not activated, aborting\n"
+      ts_log_finest "\n--> save_result - info: test level $level not activated, aborting\n"
       return
    }
 
    # only for activated categories
    if {[is_category_enabled $path] == -1} {
-     debug_puts "\n--> save_result - info: category not activated, aborting\n"
+     ts_log_finest "\n--> save_result - info: category not activated, aborting\n"
      return
    }
   
    set good_dir $CHECK_RESULT_DIR
    set bad_dir  $CHECK_BAD_RESULT_DIR
 
-   debug_puts "saving results for $check_name (level $level)..."
-   debug_puts $good_dir
-   debug_puts $bad_dir
+   ts_log_finest "saving results for $check_name (level $level)..."
+   ts_log_finest $good_dir
+   ts_log_finest $bad_dir
 
    # decide, which in which directory to store, in which to delete
    if {$save_finished} {
@@ -3377,7 +3232,7 @@ proc format_output { prefix size text} {
 #     ???/???
 #*******************************
 proc print_results {ckpath where} {
-   global CHECK_OUTPUT CHECK_ACT_PATH
+   global CHECK_ACT_PATH
    set numb_of_check_functions 0 
    
    set filenames [get_file_names $ckpath]
@@ -3408,7 +3263,7 @@ proc print_results {ckpath where} {
       foreach elem $filenames {
          clear_screen         
          
-         puts $CHECK_OUTPUT "file: $elem"
+         puts "file: $elem"
          set data [get_test_result "$ckpath/$elem"]
    
          if {![catch {
@@ -3465,7 +3320,7 @@ proc print_results {ckpath where} {
       }
    } my_error ]
    if { $catch_return != 0 } {
-       add_proc_error "print_results" -1 "error creating test report:\n$my_error"
+       ts_log_severe "error creating test report:\n$my_error"
    }
    
 
@@ -3536,8 +3391,8 @@ proc is_category_enabled { path } {
 
 proc delete_tests {path {only_if_not_there 0}} {
    global check_errno check_errstr check_functions validate_needs check_name
-   global CHECK_OUTPUT check_highest_level check_name check_description
-   global check_init_level_procedure CHECK_ACT_LEVEL CHECK_OUTPUT
+   global check_highest_level check_name check_description
+   global check_init_level_procedure CHECK_ACT_LEVEL
    global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
    global check_setup_function check_cleanup_function 
    global check_setup_level_function check_cleanup_level_function
@@ -3547,13 +3402,12 @@ proc delete_tests {path {only_if_not_there 0}} {
    set selected_tests [get_tests_from_checktree $path]
 
    foreach elem $selected_tests {
-      flush $CHECK_OUTPUT
       set check_highest_level 0
       set check_name ""
       set check_init_level_procedure "--"
 
       if {[ts_source $elem/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT]} {
-         debug_puts "sourced \"$elem/$CHECK_INFORMATION_FILE.$CHECK_INFORMATION_EXT\""
+         ts_log_finest "sourced \"$elem/$CHECK_INFORMATION_FILE.$CHECK_INFORMATION_EXT\""
 
          # clear all errno/errstr per check_function
          clear_all_check_errors $check_name
@@ -3619,7 +3473,7 @@ proc delete_tests {path {only_if_not_there 0}} {
 #     ???/???
 #*******************************
 proc run_tests {path runcompleted} {
-   global CHECK_OUTPUT check_errstr CHECK_RESULT_DIR
+   global check_errstr CHECK_RESULT_DIR
    global CHECK_MAILS_SENT CHECK_ENABLE_MAIL CHECK_MAX_ERROR_MAILS
    global CHECK_ACT_PATH check_use_installed_system
    global check_reinit_on_tcl_error
@@ -3665,9 +3519,9 @@ proc run_tests {path runcompleted} {
 
    # check if root password is needed
    foreach elem $checks_to_do {
-      debug_puts "checking whether test in directory $elem needs root access ..."
+      ts_log_finest "checking whether test in directory $elem needs root access ..."
       if {[check_root_access $elem] == 0 && [have_root_passwd] == -1} {
-         puts $CHECK_OUTPUT "test in directory $elem needs root access ..."
+         ts_log_info "test in directory $elem needs root access ..." 0 "" 1 1 0
          set_root_passwd
       }
    }
@@ -3694,9 +3548,7 @@ proc run_tests {path runcompleted} {
    # we'll probably need multiple passes due to dependencies
    while {$stop == 0} {
       set todo [llength $checks_to_do]
-      puts $CHECK_OUTPUT "---PASS${pass_no}----------------------------------------"
-      puts $CHECK_OUTPUT "   Nr. of tests remaining: $todo"
-      puts $CHECK_OUTPUT "------------------------------------------------" 
+      ts_log_info ">>> PASS $pass_no, $todo tests still to do" 0 "" 1 1 0
 
       # run all checks
       foreach check $checks_to_do {
@@ -3731,18 +3583,18 @@ proc run_tests {path runcompleted} {
             1 {
                # test was already done in an earlier run
                # no action
-               puts $CHECK_OUTPUT "run_tests - check already done"
+               ts_log_fine "run_tests - check already done"
             }
 
             2 {
                # test has no valid test in this run level
                # no action
-               puts $CHECK_OUTPUT "test does not support actual runlevel"
+               ts_log_fine "test does not support actual runlevel"
             }
             -101 - 
             default {
                # -101: check failed due to tcl error
-               # default: check failed for other reasons (e.g. add_proc_error)
+               # default: check failed for other reasons (e.g. ts_log_severe)
                lappend check_error_name  $check
                lappend check_error_state $test_result
                lappend check_error_date  [clock format [clock seconds]]
@@ -3750,7 +3602,6 @@ proc run_tests {path runcompleted} {
  
                if {$check_reinit_on_tcl_error == 1} {
                   # reinit system
-                  puts $CHECK_OUTPUT "deleting all jobs"
                   delete_all_jobs
                   wait_for_end_of_all_jobs 15
 
@@ -3785,7 +3636,7 @@ proc run_tests {path runcompleted} {
          if {$todo == $last_to_do} {
             set stop 1
          } else {
-            puts $CHECK_OUTPUT "restarting test with missing dependencies ..."
+            ts_log_fine "restarting test with missing dependencies ..."
             set check_missing_dep ""
          }
          set last_to_do $todo
@@ -3795,10 +3646,10 @@ proc run_tests {path runcompleted} {
       }
    }  ;# while stop == 0
 
-   puts $CHECK_OUTPUT "Number of completed tests     : [llength $check_ok_name]"
-   puts $CHECK_OUTPUT "Number of failed tests        : [llength $check_error_name]"
-   puts $CHECK_OUTPUT "Number of unsupported tests   : [llength $check_warning_name]"
-   puts $CHECK_OUTPUT "Number of dependencies errors : [llength $check_missing_dep]"
+   ts_log_info "Number of completed tests     : [llength $check_ok_name]" 0 "" 1 1 0
+   ts_log_info "Number of failed tests        : [llength $check_error_name]" 0 "" 1 1 0
+   ts_log_info "Number of unsupported tests   : [llength $check_warning_name]" 0 "" 1 1 0
+   ts_log_info "Number of dependencies errors : [llength $check_missing_dep]" 0 "" 1 1 0
 
    set mail_body "Testsuite run on host $local_host complete\n\n"
 
@@ -3892,7 +3743,7 @@ proc run_tests {path runcompleted} {
 #     ???/???
 #*******************************
 proc lock_testsuite {} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_MAIN_RESULTS_DIR
    global CHECK_TESTSUITE_LOCKFILE
    global ts_config
@@ -3900,29 +3751,29 @@ proc lock_testsuite {} {
    set local_host [gethostname]
     set pid [getpid]
     
-    debug_puts "-> lock_testsuite: pid=$pid host=$local_host user=$CHECK_USER"
+    ts_log_finest "-> lock_testsuite: pid=$pid host=$local_host user=$CHECK_USER"
 
     set result 1
     set time [expr [timestamp] + 60]
     while {$result != 0} {
-       puts $CHECK_OUTPUT "waiting for lock ..."
+       ts_log_info "waiting for lock ..." 0 "" 1 1 0
        set result [catch {
           exec -- $ts_config(testsuite_root_dir)/scripts/lock.sh $CHECK_TESTSUITE_LOCKFILE $pid $local_host $CHECK_USER
        } catch_output]
-       debug_puts "======================================="
-       debug_puts "lock.sh returned $result:\n$catch_output"
-       debug_puts "======================================="
+       ts_log_finest "======================================="
+       ts_log_finest "lock.sh returned $result:\n$catch_output"
+       ts_log_finest "======================================="
        set file_size 0
        catch {set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
        if {$file_size == 0} {
-           puts $CHECK_OUTPUT "file size is 0, deleting lockfile..."
+           ts_log_fine "file size is 0, deleting lockfile..."
            sleep 60  ;# wait for NFS to update file
            unlock_testsuite
            sleep 60  ;# wait for NFS to update file
            return [lock_testsuite]  
        }
        if {$result != 0} {
-          puts $CHECK_OUTPUT "checking lockfile owner process ..."
+          ts_log_fine "checking lockfile owner process ..."
           set data ""
           catch {
               set input [open "$CHECK_TESTSUITE_LOCKFILE" "r"]
@@ -3933,24 +3784,24 @@ proc lock_testsuite {} {
           set owner_host [lindex $data 1]
           set owner_user [lindex $data 2]
 
-          debug_puts "testsuite is locked by user $owner_user, process $owner_pid on host $owner_host!"
+          ts_log_finest "testsuite is locked by user $owner_user, process $owner_pid on host $owner_host!"
           if {[lindex $data 0] == $pid && [lindex $data 1] == $local_host && [lindex $data 2] == $CHECK_USER} {
-              debug_puts "thats me, so we have the lock"
+              ts_log_finest "thats me, so we have the lock"
               set result 0
               continue
           }
-          debug_puts "checking whether process is still alive ..."
+          ts_log_finest "checking whether process is still alive ..."
            
           get_ps_info $owner_pid $owner_host
           if { $ps_info($owner_pid,error) == 0 } {
-             puts $CHECK_OUTPUT "process exists, command is \n-----\n\"$ps_info($owner_pid,string)\"\n-----"
+             ts_log_fine "process exists, command is \n-----\n\"$ps_info($owner_pid,string)\"\n-----"
           } else {
-             puts $CHECK_OUTPUT "process doesn't exist -> unlock_testsuite ..."
+             ts_log_fine "process doesn't exist -> unlock_testsuite ..."
              unlock_testsuite
           }
        }
     }
-    debug_puts "new lockfile written! Testing for correct lock ..."
+    ts_log_finest "new lockfile written! Testing for correct lock ..."
 
     set time [expr [timestamp] + 60]
     set tries 0
@@ -3963,9 +3814,9 @@ proc lock_testsuite {} {
                gets $input data
                close $input }
  
-       debug_puts "pid  [lindex $data 0] == $pid"
-       debug_puts "host [lindex $data 1] == $local_host"
-       debug_puts "user [lindex $data 2] == $CHECK_USER"
+       ts_log_finest "pid  [lindex $data 0] == $pid"
+       ts_log_finest "host [lindex $data 1] == $local_host"
+       ts_log_finest "user [lindex $data 2] == $CHECK_USER"
  
        if {[lindex $data 0] == $pid && [lindex $data 1] == $local_host && [lindex $data 2] == $CHECK_USER} {
           incr tries 1
@@ -3973,10 +3824,10 @@ proc lock_testsuite {} {
              set ok 1
           }
        }
-       debug_puts "waiting to get lock"
+       ts_log_finest "waiting to get lock"
 
        catch {set file_size [file size $CHECK_TESTSUITE_LOCKFILE]}
-       debug_puts "file size is: $file_size"
+       ts_log_finest "file size is: $file_size"
 
        if {[timestamp] > $time} {
           set failed 1
@@ -3985,15 +3836,15 @@ proc lock_testsuite {} {
     }
 
     if {$failed == 1} {
-        puts $CHECK_OUTPUT "no success! Try again ..."
+        ts_log_fine "no success! Try again ..."
         if { $file_size == 0 } {
-           debug_puts "file size is zero, deleting lockfile..."
+           ts_log_finest "file size is zero, deleting lockfile..."
            unlock_testsuite
         }
         return [lock_testsuite]
     }
 
-    debug_puts "lock success!"
+    ts_log_finest "lock success!"
 }
 
 #                                                             max. column:     |
@@ -4026,22 +3877,22 @@ proc lock_testsuite {} {
 #     ???/???
 #*******************************
 proc unlock_testsuite {} {
-    global CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR CHECK_TESTSUITE_LOCKFILE
+    global CHECK_MAIN_RESULTS_DIR CHECK_TESTSUITE_LOCKFILE
 
     if {[file isfile $CHECK_TESTSUITE_LOCKFILE] == 1 } {
-        puts $CHECK_OUTPUT "removing lockfile \"$CHECK_TESTSUITE_LOCKFILE\"" 
+        ts_log_fine "removing lockfile \"$CHECK_TESTSUITE_LOCKFILE\"" 
 
        set catch_return [ catch {exec rm "$CHECK_TESTSUITE_LOCKFILE"} ]
        if { $catch_return != 0 } {
-          puts $CHECK_OUTPUT "unlock_testsuite - could not unlock testsuite"
+          ts_log_fine "unlock_testsuite - could not unlock testsuite"
           return
        } 
        while { [ file isfile $CHECK_TESTSUITE_LOCKFILE ] == 1 } {
-          puts $CHECK_OUTPUT "file still existing" 
+          ts_log_fine "file still existing" 
           sleep 1
        }
     }
-    puts $CHECK_OUTPUT "testsuite unlocked!" 
+    ts_log_fine "testsuite unlocked!" 
 }
 
 
@@ -4085,7 +3936,7 @@ proc unlock_testsuite {} {
 #*******************************
 proc run_test_level {path runcompleted level {do_save 1}} {
    global check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
-   global check_errstr CHECK_OUTPUT check_description check_functions check_errno 
+   global check_errstr check_description check_functions check_errno 
    global CHECK_CUR_PROC_NAME
    global CHECK_CURRENT_WORKING_DIR check_init_level_procedure CHECK_ACT_LEVEL
    global errorInfo
@@ -4094,7 +3945,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    global CHECK_INTERRUPT
    
    # do not run already completed tests
-   debug_puts "runcompleted is $runcompleted"
+   ts_log_finest "runcompleted is $runcompleted"
    if {$runcompleted == 0} {
       if {[file isfile "$CHECK_RESULT_DIR/$check_name.res.$level"]} {
          return 1
@@ -4106,7 +3957,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    lock_testsuite
 
    set CHECK_ACT_LEVEL $level
-   puts $CHECK_OUTPUT "starting test functions (runlevel is $CHECK_ACT_LEVEL)..."
+   ts_log_fine "starting test functions (runlevel is $CHECK_ACT_LEVEL)..."
  
    # call init_check_level procedure!
    # JG:       init_check_level is run twice (already in run_test.
@@ -4116,7 +3967,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    #           specified runlevel
    if {[info exists check_init_level_procedure]} {
       if {[string compare $check_init_level_procedure "--"] != 0} {
-         puts $CHECK_OUTPUT "\ncalling init level function \"$check_init_level_procedure\" ..."
+         ts_log_fine "\ncalling init level function \"$check_init_level_procedure\" ..."
          $check_init_level_procedure
       }
    }
@@ -4131,7 +3982,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
        [string compare $check_needs "" ] != 0} {
       if {$ts_config(gridengine_version) < 62} {
          if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
-            add_proc_error "run_test_level" -1 "scheduler is not alive"
+            ts_log_severe "scheduler is not alive"
          }
       }
       wait_for_load_from_all_queues 60
@@ -4139,7 +3990,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
 
    # only continue, if we have check_functions at all
    if {![info exists check_functions] || [llength $check_functions] == 0} {
-      add_proc_error "run_test_level" -1 "check $check_name doesn't have any check_functions"
+      ts_log_severe "check $check_name doesn't have any check_functions"
    } else {
       # If we have a level specific setup function: execute it
       if { [info exists check_setup_level_function] }  {
@@ -4153,10 +4004,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
             if {$CHECK_INTERRUPT >= 3} {
                break
             }
-            puts $CHECK_OUTPUT "\n>>>>>>>>>>>>>>>>>>>>>>"
-            puts $CHECK_OUTPUT "$elem"    
-            puts $CHECK_OUTPUT "runlevel: [get_run_level_name $level]($level)"
-            puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>"
+            ts_log_info ">>> running check \"$check_name\", check_function \"$elem\" in runlevel: [get_run_level_name $level]($level)" 0 "" 1 1 0
 
             # set public procedure error state to "no error"
             set check_cur_proc_result "0"
@@ -4166,8 +4014,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
             # this starts the test procedure
             set catch_return [catch {$elem} errMsg]
             if {$catch_return != 0} {
-               puts $CHECK_OUTPUT $errMsg
-               add_proc_error "run_test_level" "-2" "TCL Error\n${errMsg}\n${errorInfo}" 
+               ts_log_warning "TCL Error\n${errMsg}\n${errorInfo}" 
             } 
             
             # shall we stop testing due to error conditions?
@@ -4212,18 +4059,18 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    # evaluate check status
    set finished 1
    if {$catch_return != 0} {
-      puts $CHECK_OUTPUT "T C L   E R R O R   running test \"$check_name\" in run level $level !"
+      ts_log_info "T C L   E R R O R running test \"$check_name\" in run level $level !" 0 "" 1 1 0
       set finished 0
       set ret -101 
    } elseif {$was_error > 0} {
-      puts $CHECK_OUTPUT "\ncheck \"$check_name\" F A I L E D  in run level $level !"
+      ts_log_info "\ncheck \"$check_name\" F A I L E D  in run level $level !" 0 "" 1 1 0
       set finished 0
       set ret -1
    } elseif {$was_unsupported > 0} {
-      puts $CHECK_OUTPUT "U N S U P P O R T E D   test \"$check_name\" in run level $level !"
+      ts_log_info "U N S U P P O R T E D   test \"$check_name\" in run level $level !" 0 "" 1 1 0
       set ret -2
    } else {
-      puts $CHECK_OUTPUT "S U C C E S S F U L L Y performed \"$check_name\" in run level $level !"
+      ts_log_info "S U C C E S S F U L L Y performed \"$check_name\" in run level $level !" 0 "" 1 1 0
       set ret 0
    }
 
@@ -4282,26 +4129,23 @@ proc check_root_access {path} {
 }
 
 proc delete_temp_script_files { } {
-  global CHECK_OUTPUT
   global ts_config
 
-  puts -nonewline $CHECK_OUTPUT "deleting temporary used files ..."
+  ts_log_fine "deleting temporary used files ..."
   set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
   if { [ file isfile $del_file_name ] == 1 } {
      set del_file [ open $del_file_name "r" ]
      while { [gets $del_file line] >= 0 } {
         if { [ file isfile $line ] == 1 } {
            file delete $line
-           puts -nonewline $CHECK_OUTPUT "."
-           flush $CHECK_OUTPUT
+           ts_log_progress
         }
      }
      close $del_file
      file delete $del_file_name
-     puts -nonewline $CHECK_OUTPUT "."
-     flush $CHECK_OUTPUT
+     ts_log_progress
   } 
-  puts $CHECK_OUTPUT ""
+  ts_log_fine "done"
 }
 
 #****** check/execute_setup_cleanup_function() *********************************
@@ -4326,7 +4170,7 @@ proc delete_temp_script_files { } {
 #
 #*******************************************************************************
 proc execute_setup_cleanup_function {func_name type} {
-   global CHECK_OUTPUT CHECK_ACT_LEVEL
+   global CHECK_ACT_LEVEL
    global CHECK_CUR_PROC_NAME check_category
 
    set ret 1
@@ -4343,7 +4187,7 @@ proc execute_setup_cleanup_function {func_name type} {
       # check, if the function exists
       if { [info procs $func_name] != $func_name } {
          set ret 0
-         add_proc_error "execute_setup_cleanup_function" -2 "$type procedure \"$func_name\" doesn't exist"
+         ts_log_warning "$type procedure \"$func_name\" doesn't exist"
       }
    }
 
@@ -4353,7 +4197,7 @@ proc execute_setup_cleanup_function {func_name type} {
       set old_category $check_category
       lappend check_category "USE_CLI"
 
-      puts $CHECK_OUTPUT "starting $type function $func_name"
+      ts_log_fine "starting $type function $func_name"
       set CHECK_CUR_PROC_NAME $func_name
 
       set act_level_value $CHECK_ACT_LEVEL
@@ -4368,7 +4212,7 @@ proc execute_setup_cleanup_function {func_name type} {
 
       # catch returnes an error - may be a TCL error
       if {$catch_return != 0} {
-         add_proc_error "run_test" "-2" "$type function \"$func_name\" failed:\n$catch_message" 
+         ts_log_warning "$type function \"$func_name\" failed:\n$catch_message" 
          set ret 0
       }
       #We restore original category
@@ -4427,7 +4271,7 @@ proc execute_setup_cleanup_function {func_name type} {
 #*******************************
 proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } } {
    global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
-   global check_errstr CHECK_OUTPUT check_description check_functions check_errno 
+   global check_errstr check_description check_functions check_errno 
    global CHECK_CUR_PROC_NAME check_root_access_needs
    global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
    global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER
@@ -4469,7 +4313,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    #We skip tests in JGDI  that do not have JGDI category set
    if {$CHECK_JGDI_ENABLED} {
       if { ![string match "*JGDI*" $check_category] } {
-         debug_puts "Check $check_name cannot be executed in JGDI mode - not a JGDI category"
+         ts_log_finest "Check $check_name cannot be executed in JGDI mode - not a JGDI category"
          #Mark as unsupported
          save_result $path 0 0 1
          set CHECK_TEST_RUNNING 0
@@ -4478,7 +4322,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
       #If we have no checks left we exit
       if {[llength $check_functions] == 0} {
-         debug_puts "Check $check_name cannot be executed in JGDI mode - no check functions specified"
+         ts_log_finest "Check $check_name cannot be executed in JGDI mode - no check functions specified"
          #Mark as unsupported
          save_result $path 0 0 1
          set CHECK_TEST_RUNNING 0
@@ -4504,28 +4348,24 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
    if {[string compare $run_single_test "all"] != 0} {
       set do_only_one_test 1
-      puts $CHECK_OUTPUT "running only test \"$run_single_test\""
+      ts_log_fine "running only test \"$run_single_test\""
       set check_functions "$run_single_test"
    }
 
    if {[string compare -nocase "yes" $check_root_access_needs] == 0 && [have_root_passwd] == -1} {
-      puts $CHECK_OUTPUT "test needs root access ..."
+      ts_log_fine "test needs root access ..."
       set_root_passwd
    }
 
-   puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-   puts $CHECK_OUTPUT ">>> $check_name"
-#puts $CHECK_OUTPUT ">>> $check_functions"
-   puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-   debug_puts "file: $path/check.exp"
+   ts_log_fine "file: $path/check.exp"
 
    # first check the dependencies
    # if dependencies are not fulfilled, we mark the test as not yet run
    set result [validate_needs $check_needs]
-   debug_puts "needs returned $result"
-   debug_puts "highest level of test is $check_highest_level"
+   ts_log_finest "needs returned $result"
+   ts_log_finest "highest level of test is $check_highest_level"
    if {$result != 0} {
-      puts $CHECK_OUTPUT "dependencies ($check_needs) not fulfilled! Stop!"
+      ts_log_fine "dependencies ($check_needs) not fulfilled! Stop!"
       clear_all_check_errors $check_name
       for {set level 0} {$level <= $check_highest_level} {incr level 1} {
          if {[string compare $check_init_level_procedure "--"] != 0} { 
@@ -4542,6 +4382,8 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       set CHECK_TEST_RUNNING 0
       return -2  ;# dependencies not fulfilled
    }
+
+   ts_log_info ">>> running check \"$check_name\"" 0 "" 1 1 0
 
    set nr_errors 0
    set nr_warnings 0
@@ -4610,7 +4452,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    set num_busy_sessions_before_check [get_busy_spawn_rlogin_sessions]
    if {$num_busy_sessions_before_check > 0} {
       set session_info [dump_spawn_rlogin_sessions 0]
-      add_proc_error "run_test" -3 "We have $num_busy_sessions_before_check busy rlogin sessions before starting test $check_name ($path).\nThis may indicate a problem (missing close_spawn_session call in previous check).\n\n$session_info"
+      ts_log_warning "We have $num_busy_sessions_before_check busy rlogin sessions before starting test $check_name ($path).\nThis may indicate a problem (missing close_spawn_session call in previous check).\n\n$session_info"
    }
 
    # start a setup function for this check - should it exist
@@ -4636,27 +4478,27 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
                continue
             }
          }
-         puts $CHECK_OUTPUT "\n----------------------------------------------"
-         puts $CHECK_OUTPUT "-> enter check level $level"
+         ts_log_fine "\n----------------------------------------------"
+         ts_log_fine "-> enter check level $level"
 
          if {$do_only_one_test == 0} {
             set back [run_test_level $path $runcompleted $level]
-            debug_puts "level $level return value: $back"
+            ts_log_finest "level $level return value: $back"
             incr no_level_calls 1
          } else {
             set back [run_test_level $path $runcompleted $level 0]
-            debug_puts "level $level return value of test $run_single_test: $back"
+            ts_log_finest "level $level return value of test $run_single_test: $back"
             incr no_level_calls 1
          }
 
          if {[string first "unknown" $CHECK_GROUP] >= 0} {
-            add_proc_error "run_test" -1 "CHECK_GROUP set to unknown, test was $path in level $level"
+            ts_log_severe "CHECK_GROUP set to unknown, test was $path in level $level"
          }
      
          # now we are back from executing one runlevel - evaluate the result
          if {$back == -101} {
             incr nr_errors 1
-            debug_puts "--> TCL ERROR in check $path in level $level <--"
+            ts_log_finest "--> TCL ERROR in check $path in level $level <--"
             set immediate_return -101
             break
          }
@@ -4664,7 +4506,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
          # there were errors
          if {$back == -1} {
             incr nr_errors 1
-            debug_puts "--> ERROR in check $path in level $level <--"
+            ts_log_finest "--> ERROR in check $path in level $level <--"
             set immediate_return -1
             break
          }
@@ -4672,22 +4514,22 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
          # there were warnings
          if {$back == -2} {
             incr nr_warnings 1
-            debug_puts "--> check $path in level $level: can't start test <--"
+            ts_log_finest "--> check $path in level $level: can't start test <--"
          }
 
          # test succeeded
          if {$back == 0} {
             set do_send_mail 1
             incr nr_new_done 1
-            debug_puts "no errors"
+            ts_log_finest "no errors"
          }
 
          # test had already run
          if {$back == 1} {
-            debug_puts "check already done"
+            ts_log_finest "check already done"
             incr nr_already_done 1
          }
-         debug_puts "calls=$no_level_calls, already done=$nr_already_done"
+         ts_log_finest "calls=$no_level_calls, already done=$nr_already_done"
       }
    }
 
@@ -4703,7 +4545,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    if {$num_busy_sessions_before_check < $num_busy_sessions_after_check} {
       set session_info [dump_spawn_rlogin_sessions 0]
       close_open_rlogin_sessions
-      add_proc_error "run_test" -1 "Session leak in check $check_name ($path)!\nWe have $num_busy_sessions_after_check busy rlogin sessions after starting the test.\nBefore the test, we had $num_busy_sessions_before_check busy sessions.\nMake sure the test closes all opened sessions again!\n\n$session_info\nClosing all sessions now to prepare clean reconnect."
+      ts_log_severe "Session leak in check $check_name ($path)!\nWe have $num_busy_sessions_after_check busy rlogin sessions after starting the test.\nBefore the test, we had $num_busy_sessions_before_check busy sessions.\nMake sure the test closes all opened sessions again!\n\n$session_info\nClosing all sessions now to prepare clean reconnect."
       incr nr_errors
    }
 
@@ -4739,7 +4581,8 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
             append mail_body "                   $elem\n"
          }
          append mail_body "init level proc:  $check_init_level_procedure\n"
-         mail_report "testsuite success - $check_name" $mail_body
+         #mail_report "testsuite success - $check_name" $mail_body
+         ts_log_info $mail_body 0 "" 0 0 1
       }
       set CHECK_TEST_RUNNING 0
       return 0
@@ -5000,7 +4843,7 @@ proc select_runlevel {} {
      } 
 }
 proc check_display {} {
-     global CHECK_DISPLAY_OUTPUT CHECK_USER CHECK_OUTPUT
+     global CHECK_DISPLAY_OUTPUT CHECK_USER
 
      if { [ string compare $CHECK_DISPLAY_OUTPUT "undefined" ] == 0 } {
         puts "no debug x display set"
@@ -5011,7 +4854,7 @@ proc check_display {} {
          set_root_passwd
      }
 
-     puts $CHECK_OUTPUT "using display: $CHECK_DISPLAY_OUTPUT"
+     ts_log_fine "using display: $CHECK_DISPLAY_OUTPUT"
    
      set local_host [gethostname]
      set xterm_path [get_xterm_path $local_host]
@@ -5294,7 +5137,7 @@ proc show_tests {path full} {
 }
 
 proc change_dir { { have_input "" } } {
-  global CHECK_ACT_PATH ts_checktree CHECK_OUTPUT
+  global CHECK_ACT_PATH ts_checktree
 
   set index_start 1
 
@@ -5547,7 +5390,7 @@ proc clear_screen {} {
       set clear_sequence [ format "%c%c%c%c%c%c%c" 0x1b 0x5b 0x48 0x1b 0x5b 0x32 0x4a 0x00 ]
       puts -nonewline $clear_sequence
    } else {
-      debug_puts "ignoring clear_screen() call! We are in debug mode!"
+      ts_log_finest "ignoring clear_screen() call! We are in debug mode!"
    }
 }
 
@@ -5582,7 +5425,7 @@ proc clear_screen {} {
 #*******************************
 proc print_menu_header {} {
   global CHECK_ACT_PATH CHECK_RESULT_DIR 
-  global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_BAD_RESULT_DIR 
+  global CHECK_USER CHECK_REPORT_FILE CHECK_BAD_RESULT_DIR 
   global CHECK_MAIN_RESULTS_DIR 
   global CHECK_ENABLED_RUNLEVELS CHECK_PRODUCT_VERSION_NUMBER
   global CHECK_ENABLED_CATEGORIES CHECK_USER CHECK_GROUP
@@ -5738,9 +5581,8 @@ proc print_menu_header {} {
 #     The string the user entered, or "", if he just pressed enter.
 #*******************************
 proc wait_for_enter {{no_text 0} {second_try 0}} {
-   global CHECK_OUTPUT
    global ts_config
-   flush $CHECK_OUTPUT
+   flush stdout
 
    set have_config 1
    if { [info exists ts_config(testsuite_root_dir)] == 0 } {
@@ -5755,7 +5597,7 @@ proc wait_for_enter {{no_text 0} {second_try 0}} {
    # wait for the user to press enter
    if { $have_config == 0 || $ts_config(testsuite_root_dir) == "" } {
       set current_dir [pwd]
-      debug_puts "ts config not set, using current directory ($current_dir) for testsuite_root_dir"
+      ts_log_finest "ts config not set, using current directory ($current_dir) for testsuite_root_dir"
       set wait_script "$current_dir/scripts/wait_for_enter.sh"
    } else {
       set wait_script "$ts_config(testsuite_root_dir)/scripts/wait_for_enter.sh"
@@ -5772,7 +5614,7 @@ proc wait_for_enter {{no_text 0} {second_try 0}} {
       if {$second_try} {
          # if we already tried to fix the problem, but it still fails: exit
          puts "error executing $wait_script"
-         exit 1
+         testsuite_shutdown 1
       } else {
          # try to fix file permissions and retry wait_for_enter
          file attributes $wait_script -permissions 00755
@@ -5830,7 +5672,7 @@ proc wait_for_start_time { substring } {
 # returns -1: error
 # returns 0 : no error
 proc prepare_packages { } {
-   global CHECK_PACKAGE_DIRECTORY CHECK_OUTPUT CHECK_DEFAULTS_FILE
+   global CHECK_PACKAGE_DIRECTORY CHECK_DEFAULTS_FILE
    global CHECK_JOB_OUTPUT_DIR CHECK_PACKAGE_TYPE
    global CHECK_USER CHECK_PRODUCT_TYPE CHECK_PROTOCOL_DIR
    global CHECK_GROUP check_name CHECK_CUR_PROC_NAME
@@ -5845,7 +5687,7 @@ proc prepare_packages { } {
    if {[file isdirectory "$CHECK_PROTOCOL_DIR"] != 1} {
       set catch_return [ catch {  file mkdir "$CHECK_PROTOCOL_DIR" } ]
       if { $catch_return != 0 } {
-           puts $CHECK_OUTPUT "could not create directory \"$CHECK_PROTOCOL_DIR\""
+           ts_log_fine "could not create directory \"$CHECK_PROTOCOL_DIR\""
            return -1
       } 
    }
@@ -5853,22 +5695,22 @@ proc prepare_packages { } {
    set have_tar 0
    set have_zip 0
    if { [ check_packages_directory $CHECK_PACKAGE_DIRECTORY check_tar ] == 0 } {
-      puts $CHECK_OUTPUT "found tar files"
+      ts_log_fine "found tar files"
       set have_tar 1
    }
 
    if { [ check_packages_directory $CHECK_PACKAGE_DIRECTORY check_zip ] == 0 } {
-      puts $CHECK_OUTPUT "found zip files"
+      ts_log_fine "found zip files"
       set have_zip 1
    }
 
    if { $have_tar == 0 && $CHECK_PACKAGE_TYPE == "tar" } {
-      add_proc_error "prepare_packages" -1 "not all tar files available"
+      ts_log_severe "not all tar files available"
       return -1
    }
 
    if { $have_zip == 0 && $CHECK_PACKAGE_TYPE == "zip" } {
-      add_proc_error "prepare_packages" -1 "not all zip files available"
+      ts_log_severe "not all zip files available"
       return -1
    }
 
@@ -5883,15 +5725,15 @@ proc prepare_packages { } {
       set restore_host_aliases_file 0
       # copy pos. host_aliases file 
       if { [ file isfile "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"] == 1 } {
-         puts $CHECK_OUTPUT "saving host_aliases file ..."
+         ts_log_fine "saving host_aliases file ..."
          set restore_host_aliases_file 1
          catch { exec "cp" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
          puts $result
       } 
       # now delete install directory
-      puts $CHECK_OUTPUT "deleting directory \"$ts_config(product_root)\""
+      ts_log_fine "deleting directory \"$ts_config(product_root)\""
       if { [delete_directory "$ts_config(product_root)"] != 0 } {
-         add_proc_error "prepare_packages" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
+         ts_log_warning "could not delete $ts_config(product_root) directory, critical error - stop"
          return -1
       }
       # checking permissions
@@ -5906,62 +5748,59 @@ proc prepare_packages { } {
       # copy pos. host_aliases file to new product root /cell/common
       if { [ file isfile "$CHECK_JOB_OUTPUT_DIR/host_aliases"] == 1 && 
            $restore_host_aliases_file == 1 } {
-         puts $CHECK_OUTPUT "restoring host_aliases file ..."
+         ts_log_fine "restoring host_aliases file ..."
          catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" } result
          puts $result
       }
 
       # copy package files to product root directory
-      puts $CHECK_OUTPUT "copy package files to product root directory ..."
+      ts_log_fine "copy package files to product root directory ..."
       set i 0
       foreach file $tar_files { 
-         puts -nonewline $CHECK_OUTPUT [washing_machine $i]
-         flush $CHECK_OUTPUT
+         ts_log_progress
          incr i 1
          file copy $CHECK_PACKAGE_DIRECTORY/$file $ts_config(product_root)
       } 
-      puts $CHECK_OUTPUT ""
+      ts_log_fine "done"
 
       # gunzip package files
-      puts $CHECK_OUTPUT "gunzip package files ..."
+      ts_log_fine "gunzip package files ..."
       set i 0
       foreach file $tar_files { 
-         puts -nonewline $CHECK_OUTPUT [washing_machine $i]
-         flush $CHECK_OUTPUT
+         ts_log_progress
          incr i 1
          set catch_out [catch { exec "gunzip" "$ts_config(product_root)/$file"  } result]
          if { $catch_out != 0 } {
-            puts $CHECK_OUTPUT $result
+            ts_log_fine $result
          }
       } 
-      puts $CHECK_OUTPUT ""
+      ts_log_fine "done"
 
       # extract package files
-      puts $CHECK_OUTPUT "extract package files ..."
+      ts_log_fine "extract package files ..."
       set i 0
       foreach file $tar_files { 
-         puts -nonewline $CHECK_OUTPUT [washing_machine $i]
-         flush $CHECK_OUTPUT
+         ts_log_progress
          incr i 1
          set help [ string first ".gz" $file ]
          incr help -1
          set file_no_gz [string range $file 0 $help]
          set result [start_remote_prog $local_host $CHECK_USER "tar" "-xvf $file_no_gz" prg_exit_state 60 0 $ts_config(product_root)]
          if { $prg_exit_state != 0 } {
-            puts $CHECK_OUTPUT $result
+            ts_log_fine $result
          }
       } 
-      puts $CHECK_OUTPUT ""
+      ts_log_fine "done"
      
       # delete untared package files
-      puts $CHECK_OUTPUT "delete untared package files ..."
+      ts_log_file "delete untared package files ..."
       foreach file $tar_files { 
          set help [ string first ".gz" $file ]
          incr help -1
          set file_no_gz [string range $file 0 $help]
          delete_file $ts_config(product_root)/$file_no_gz
       } 
-      puts $CHECK_OUTPUT ""
+      ts_log_file "done"
 
       # checking for correct system 
       set sys_info "unkown"
@@ -5972,32 +5811,32 @@ proc prepare_packages { } {
          set sys_info "sgeee"
       }
 
-      puts $CHECK_OUTPUT "system       : $sys_info"      
+      ts_log_fine "system       : $sys_info"      
 
       # checking for installed archs
       set sys_archs [get_dir_names $ts_config(product_root)/utilbin ]
       
       set local_host_arch [ resolve_arch $local_host ]
       set local_arch_ok 0
-      puts -nonewline $CHECK_OUTPUT "architectures:"
-     
+    
+      set arch_string {}
       foreach arch $sys_archs {
-         puts -nonewline $CHECK_OUTPUT " $arch"
+         lappend arch_string $arch
          if { [ string compare $arch $local_host_arch ] == 0 } {
             set local_arch_ok 1
          }
       }
-      puts $CHECK_OUTPUT ""
+      ts_log_fine "architectures: $arch_string"
       
       # check for testsuite host binaries
       if { $local_arch_ok != 1 } {
-         add_proc_error "prepare_packages" -1 "host architecture for host $local_host not installed"
+         ts_log_severe "host architecture for host $local_host not installed"
          return -1
       }
 
       # check if settings file is correct for the system
       if { $CHECK_PRODUCT_TYPE != $sys_info } {
-         add_proc_error "prepare_packages" -1 "setup entry for product_type is \"$CHECK_PRODUCT_TYPE\", but system is \"$sys_info\""
+         ts_log_severe "setup entry for product_type is \"$CHECK_PRODUCT_TYPE\", but system is \"$sys_info\""
          return -1
       }
 
@@ -6006,7 +5845,7 @@ proc prepare_packages { } {
       foreach elem $ts_config(execd_hosts) {
          set host_arch [ resolve_arch $elem ]
          if { [string compare $host_arch "unkown" ] == 0 } {
-            add_proc_error "prepare_packages" -1 "could not resolve host \"$elem\"!"
+            ts_log_severe "could not resolve host \"$elem\"!"
             return -1
          }
          lappend execd_archs $host_arch
@@ -6017,7 +5856,7 @@ proc prepare_packages { } {
             }
          }
          if { $found_arch != 1 } {
-            add_proc_error "prepare_packages" -1 "binaries for host \"$elem\" not in tar files, please add tar file"
+            ts_log_severe "binaries for host \"$elem\" not in tar files, please add tar file"
             return -1
          }
       }
@@ -6030,7 +5869,7 @@ proc prepare_packages { } {
             }
          }
          if { $found_arch != 1 } {
-            add_proc_error "prepare_packages" -1 "found no host for tar architecture \"$elem\""
+            ts_log_severe "found no host for tar architecture \"$elem\""
             return -1
          }
       } 
@@ -6054,15 +5893,15 @@ proc prepare_packages { } {
       set restore_host_aliases_file 0
       # copy pos. host_aliases file 
       if { [ file isfile "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"] == 1 } {
-         puts $CHECK_OUTPUT "saving host_aliases file ..."
+         ts_log_fine "saving host_aliases file ..."
          set restore_host_aliases_file 1
          catch { exec "cp" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
          puts $result
       } 
       # now delete install directory
-      puts $CHECK_OUTPUT "deleting directory \"$ts_config(product_root)\""
+      ts_log_fine "deleting directory \"$ts_config(product_root)\""
       if { [delete_directory "$ts_config(product_root)"] != 0 } {
-         add_proc_error "prepare_packages" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
+         ts_log_warning "could not delete $ts_config(product_root) directory, critical error - stop"
          return -1
       }
       # checking permissions
@@ -6077,81 +5916,73 @@ proc prepare_packages { } {
       # copy pos. host_aliases file to new product root /$SGE_CELL/common
       if { [ file isfile "$CHECK_JOB_OUTPUT_DIR/host_aliases"] == 1 && 
            $restore_host_aliases_file == 1 } {
-         puts $CHECK_OUTPUT "restoring host_aliases file ..."
+         ts_log_fine "restoring host_aliases file ..."
          catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" } result
          puts $result
       }
 
       # copy package files to product root directory
-      puts $CHECK_OUTPUT "copy package files to product root directory ..."
+      ts_log_fine "copy package files to product root directory ..."
       set i 0
       if { [catch { file mkdir "$ts_config(product_root)/tmp_zip_copy" }] != 0 } {
-         puts $CHECK_OUTPUT "could not create directory \"$ts_config(product_root)/tmp_zip_copy\""
+         ts_log_fine "could not create directory \"$ts_config(product_root)/tmp_zip_copy\""
          return -1    
       }
       foreach file $zip_files { 
-         puts -nonewline $CHECK_OUTPUT [washing_machine $i]
-         flush $CHECK_OUTPUT
+         ts_log_progress
          incr i 1
          file copy $CHECK_PACKAGE_DIRECTORY/$file $ts_config(product_root)/tmp_zip_copy
       } 
-      puts $CHECK_OUTPUT ""
+      ts_log_fine "done"
 
       
       # unzip package files
-      puts $CHECK_OUTPUT "unzip package files ..."
-      set i 0
+      ts_log_fine "unzip package files ..."
       foreach file $zip_files { 
-         puts -nonewline $CHECK_OUTPUT [washing_machine $i]
-         flush $CHECK_OUTPUT
-         incr i 1
+         ts_log_progress
          set catch_out [catch { exec "unzip" "$ts_config(product_root)/tmp_zip_copy/$file" "-d" "$ts_config(product_root)/tmp_zip_copy"  } result]
          if { $catch_out != 0 } {
-            puts $CHECK_OUTPUT $result
+            ts_log_fine $result
          }
       } 
-      puts $CHECK_OUTPUT ""
+      ts_log_fine "done"
 
       # delete untared package files
-      puts $CHECK_OUTPUT "delete untared package files ..."
+      ts_log_fine "delete untared package files ..."
       foreach file $zip_files { 
          delete_file $ts_config(product_root)/tmp_zip_copy/$file
       } 
-      puts $CHECK_OUTPUT ""
+      ts_log_fine "done"
 
 
       # now check if packages are already installed and remove installed ones
       set package_names [ get_dir_names $ts_config(product_root)/tmp_zip_copy ]
-      puts -nonewline $CHECK_OUTPUT "Found following packages:"
-      foreach pkg $package_names {
-         puts -nonewline $CHECK_OUTPUT " $pkg" 
-      }
-      puts $CHECK_OUTPUT "\n"
+      puts "Found following packages: $package_names"
       set user_key "unknown"
       foreach pkg $package_names {
-         puts -nonewline $CHECK_OUTPUT "Checking if package \"$pkg\" is already installed on host \"$local_host\" ... "
+         puts -nonewline "Checking if package \"$pkg\" is already installed on host \"$local_host\" ... "
          set output [start_remote_prog $local_host "root" "pkginfo" "$pkg"]
          if { $prg_exit_state != 0 } {
-            puts $CHECK_OUTPUT "not installed"
+            puts "not installed"
          } else {
-            puts $CHECK_OUTPUT "already installed."
-            puts $CHECK_OUTPUT "\n$output\n"
-            puts $CHECK_OUTPUT "Press \"yes\" to uninstall ALL packages listed above or \"no\" to continue ..."
+            puts "already installed."
+            puts "\n$output\n"
+            puts "Press \"yes\" to uninstall ALL packages listed above or \"no\" to continue ..."
             if { $user_key == "unknown" } {
                set user_key [ wait_for_enter 1 ]
             }
             if { $user_key == "yes" } {
-               puts $CHECK_OUTPUT "removing package \"$pkg\" ..."
+               puts "removing package \"$pkg\" ..."
                set output [start_remote_prog $local_host "root" "pkgrm" "-n $pkg"]
-               puts $CHECK_OUTPUT $output
+               puts $output
                if { $prg_exit_state != 0 } {
-                  puts $CHECK_OUTPUT "error uninstalling package \"$pkg\""
-                   puts $CHECK_OUTPUT "stop package installation"
-                   return -1
+                  puts "error uninstalling package \"$pkg\""
+                  puts "stop package installation"
+                  return -1
                }
             } else {
-               puts $CHECK_OUTPUT "will NOT remove package \"\""
-               puts $CHECK_OUTPUT "stop package installation"
+               puts "will NOT remove package \"\""
+               puts "stop package installation"
                return -1
             }
          }
@@ -6168,15 +5999,15 @@ proc prepare_packages { } {
          set do_stop 0
          set exit_state 1
          while { $do_stop == 0 } {
-            flush $CHECK_OUTPUT
+            flush stdout
             expect {
                -i $sp_id full_buffer { 
-                  add_proc_error "prepare_packages" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+                  ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                   close_spawn_process $id
                   return -1
                }
                -i $sp_id timeout {
-                  add_proc_error "prepare_packages" -1 "unexpected timeout"
+                  ts_log_severe "unexpected timeout"
                   close_spawn_process $id
                   return -1
                } 
@@ -6191,60 +6022,57 @@ proc prepare_packages { } {
                   incr s_start 1
                   incr s_end -1
                   set exit_state [ string range $buf $s_start $s_end ]
-                  puts $CHECK_OUTPUT "exit state is: \"$exit_state\""
+                  puts "exit state is: \"$exit_state\""
                   close_spawn_process $id
                   set do_stop 1
                }
                -i $sp_id "default /gridware/sge*]" {
-                  flush $CHECK_OUTPUT
+                  flush stdout
                   if { [ string length $ts_config(product_root) ] >= 5  } {
                      send -s -i $sp_id "$ts_config(product_root)\n"
                   } else {
-                     add_proc_error "prepare_packages" -1 "can't use product root directory (shorter than 5 chars)"
+                     ts_log_severe "can't use product root directory (shorter than 5 chars)"
                      close_spawn_process $id
                      return -1
                   }
-                  flush $CHECK_OUTPUT
+                  flush stdout
                } 
                -i $sp_id "default sgeadmin*]" {
-                  flush $CHECK_OUTPUT
+                  flush stdout
                   send -s -i $sp_id "$CHECK_USER\n"   
-                  flush $CHECK_OUTPUT
+                  flush stdout
                } 
                -i $sp_id "Do you want to install these as setuid/setgid files*]" {
-                  flush $CHECK_OUTPUT
+                  flush stdout
                   send -s -i $sp_id "y\n"   
-                  flush $CHECK_OUTPUT
+                  flush stdout
                }
 
 
                -i $sp_id "default adm*]" {
                   send -s -i $sp_id "$CHECK_GROUP\n"
-                  flush $CHECK_OUTPUT
+                  flush stdout
                } 
                -i $sp_id "Waiting for pkgadd of*" {
-                  add_proc_error "prepare_packages" -1 "$local_host: another pkgadd session is running...\n$expect_out(buffer)"
+                  ts_log_severe "$local_host: another pkgadd session is running...\n$expect_out(buffer)"
                   close_spawn_process $id
                   return -1
                }
                -i $sp_id "*\n" { 
-                  flush $CHECK_OUTPUT
+                  flush stdout
                } 
                -i $sp_id default {
-                  add_proc_error "prepare_packages" -1 "undefined behaviour: $expect_out(buffer)"
+                  ts_log_severe "undefined behaviour: $expect_out(buffer)"
                   close_spawn_process $id
                   return -1
                } 
             }
          }
          if { $exit_state != 0 } {
-            add_proc_error "prepare_packages" -1 "exit state of pgkadd \"$pkg\" is $exit_state -> error"
+            ts_log_severe "exit state of pgkadd \"$pkg\" is $exit_state -> error"
             return -1
          }
       }
-           
-
-
 
       # checking for correct system 
       set sys_info "unkown"
@@ -6255,32 +6083,32 @@ proc prepare_packages { } {
          set sys_info "sgeee"
       }
 
-      puts $CHECK_OUTPUT "system       : $sys_info"      
+      puts "system       : $sys_info"      
 
       # checking for installed archs
       set sys_archs [get_dir_names $ts_config(product_root)/utilbin ]
       
       set local_host_arch [ resolve_arch $local_host ]
       set local_arch_ok 0
-      puts -nonewline $CHECK_OUTPUT "architectures:"
+      puts -nonewline "architectures:"
      
       foreach arch $sys_archs {
-         puts -nonewline $CHECK_OUTPUT " $arch"
+         puts -nonewline " $arch"
          if { [ string compare $arch $local_host_arch ] == 0 } {
             set local_arch_ok 1
          }
       }
-      puts $CHECK_OUTPUT ""
+      puts ""
       
       # check for testsuite host binaries
       if { $local_arch_ok != 1 } {
-         add_proc_error "prepare_packages" -1 "host architecture for host $local_host not installed"
+         ts_log_severe "host architecture for host $local_host not installed"
          return -1
       }
 
       # check if settings file is correct for the system
       if { $CHECK_PRODUCT_TYPE != $sys_info } {
-         add_proc_error "prepare_packages" -1 "setup entry for product_type is \"$CHECK_PRODUCT_TYPE\", but system is \"$sys_info\""
+         ts_log_severe "setup entry for product_type is \"$CHECK_PRODUCT_TYPE\", but system is \"$sys_info\""
          return -1
       }
 
@@ -6289,7 +6117,7 @@ proc prepare_packages { } {
       foreach elem $ts_config(execd_hosts) {
          set host_arch [ resolve_arch $elem ]
          if { [string compare $host_arch "unkown" ] == 0 } {
-            add_proc_error "prepare_packages" -1 "could not resolve host \"$elem\"!"
+            ts_log_severe "could not resolve host \"$elem\"!"
             return -1
          }
          lappend execd_archs $host_arch
@@ -6300,7 +6128,7 @@ proc prepare_packages { } {
             }
          }
          if { $found_arch != 1 } {
-            add_proc_error "prepare_packages" -1 "binaries for host \"$elem\" not in zip files, please add zip file"
+            ts_log_severe "binaries for host \"$elem\" not in zip files, please add zip file"
             return -1
          }
       }
@@ -6313,7 +6141,7 @@ proc prepare_packages { } {
             }
          }
          if { $found_arch != 1 } {
-            add_proc_error "prepare_packages" -1 "found no host for zip architecture \"$elem\""
+            ts_log_severe "found no host for zip architecture \"$elem\""
             return -1
          }
       } 
@@ -6332,8 +6160,7 @@ proc prepare_packages { } {
 # mode : check_both, check_tar, check_zip
 # get_files : no, tar, zip
 proc check_packages_directory { path { mode "check_both" } { get_files "no" } } {
-
-   global CHECK_OUTPUT CHECK_PACKAGE_TYPE
+   global CHECK_PACKAGE_TYPE
 
    set tar_bin_files [ get_file_names $path "sge*-bin-*.tar.gz" ] 
    set zip_bin_files [ get_file_names $path "sge*-bin-*.zip" ]      
@@ -6364,21 +6191,21 @@ proc check_packages_directory { path { mode "check_both" } { get_files "no" } } 
    }
 
    if { $get_files == "no" } {
-      puts $CHECK_OUTPUT "nr. of binary tar files: $nr_tar_bin_files"
-      puts $CHECK_OUTPUT "nr. of binary zip files: $nr_zip_bin_files"
-      puts $CHECK_OUTPUT "nr. of common tar files: $nr_tar_common_files"
-      puts $CHECK_OUTPUT "nr. of common zip files: $nr_zip_common_files"
-      puts $CHECK_OUTPUT "nr. of doc tar files: $nr_tar_doc_files"
-      puts $CHECK_OUTPUT "nr. of doc zip files: $nr_zip_doc_files"
+      puts "nr. of binary tar files: $nr_tar_bin_files"
+      puts "nr. of binary zip files: $nr_zip_bin_files"
+      puts "nr. of common tar files: $nr_tar_common_files"
+      puts "nr. of common zip files: $nr_zip_common_files"
+      puts "nr. of doc tar files: $nr_tar_doc_files"
+      puts "nr. of doc zip files: $nr_zip_doc_files"
       if { $tar_complete == 1 } {
-         puts $CHECK_OUTPUT "tar files complete"
+         puts "tar files complete"
       } else {
-         puts $CHECK_OUTPUT "tar files INCOMPLETE"
+         puts "tar files INCOMPLETE"
       }
       if { $zip_complete == 1 } {
-         puts $CHECK_OUTPUT "zip files complete"
+         puts "zip files complete"
       } else {
-         puts $CHECK_OUTPUT "zip files INCOMPLETE"
+         puts "zip files INCOMPLETE"
       }
       
       if { $tar_complete == 1 && $zip_complete == 1 && $mode == "check_both" } {
@@ -6395,14 +6222,14 @@ proc check_packages_directory { path { mode "check_both" } { get_files "no" } } 
       switch -- $get_files {
          "tar" {
              if { $tar_complete == 0 } {
-                add_proc_error "check_packages_directory" -1 "tar files incomplete error"
+                ts_log_severe "tar files incomplete error"
                 return ""
              }
              return $tar_list
          }
          "zip" {
              if { $tar_complete == 0 } {
-                add_proc_error "check_packages_directory" -1 "zip files incomplete error"
+                ts_log_severe "zip files incomplete error"
                 return ""
              }
              return $zip_list
@@ -6413,7 +6240,7 @@ proc check_packages_directory { path { mode "check_both" } { get_files "no" } } 
 }
 
 proc build_distribution { arch_list } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global ts_config
 
    set local_host [gethostname]
@@ -6421,7 +6248,7 @@ proc build_distribution { arch_list } {
         $ts_config(package_directory) != "none" } {
       
       
-      puts $CHECK_OUTPUT "creating tar packages"  
+      ts_log_fine "creating tar packages"  
       # distribution will be created using mk_dist
       # figure out which commandline options to use
       set args ""
@@ -6440,7 +6267,7 @@ proc build_distribution { arch_list } {
          file mkdir $ts_config(package_directory)
       }
 
-      puts $CHECK_OUTPUT "starting mk_dist $args $arch_list"
+      ts_log_fine "starting mk_dist $args $arch_list"
       # start mk_dist
       set open_spawn [open_remote_spawn_process $local_host $CHECK_USER "./scripts/mk_dist" "$args $arch_list" 0 $ts_config(source_dir)]
       set sp_id [ lindex $open_spawn 1 ]
@@ -6449,7 +6276,7 @@ proc build_distribution { arch_list } {
       while { $done != 1 } {
          expect_user {
             -i $sp_id full_buffer {
-               puts $CHECK_OUTPUT "testsuite - compile source buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_fine "testsuite - compile source buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             }
             -i $sp_id "_exit_status_" {
                set done 1
@@ -6458,17 +6285,17 @@ proc build_distribution { arch_list } {
                set done 1
             }
             -i $sp_id "*\n" {
-               puts $CHECK_OUTPUT $expect_out(0,string)
+               ts_log_fine $expect_out(0,string)
             }
          }
       }
       close_spawn_process $open_spawn
-      puts $CHECK_OUTPUT ""
+      ts_log_fine ""
    }
 }
 
 proc install_binaries { arch_list a_report } {
-   global CHECK_OUTPUT CHECK_PRODUCT_TYPE
+   global CHECK_PRODUCT_TYPE
    global CHECK_JOB_OUTPUT_DIR
    global CHECK_USER ts_config
    upvar $a_report report
@@ -6500,16 +6327,16 @@ proc install_binaries { arch_list a_report } {
    # now delete install directory
    report_task_add_message report $task_nr "deleting directory \"$ts_config(product_root)\""
    if { [delete_directory "$ts_config(product_root)"] != 0 } {
-      add_proc_error "compile_source" -2 "could not delete $ts_config(product_root) directory, critical error - stop"
+      ts_log_warning "could not delete $ts_config(product_root) directory, critical error - stop"
       report_task_add_message report $task_nr "could not delete $ts_config(product_root) directory, critical error - stop"
       report_finish_task report $task_nr -1
       return -1
    }
  
    # wait for nfs updates
-   puts $CHECK_OUTPUT "waiting for nfs ..."
+   ts_log_fine "waiting for nfs ..."
    after 5000
-   puts $CHECK_OUTPUT "starting installation ..."
+   ts_log_fine "starting installation ..."
    
 
    catch { exec "mkdir" "$ts_config(product_root)"  } result
@@ -6543,7 +6370,7 @@ proc install_binaries { arch_list a_report } {
    set sp_id [ lindex $open_spawn 1 ]
    set timeout -1
    set done 0
-   puts -nonewline $CHECK_OUTPUT "installing "
+   ts_log_fine "installing ... "
    while { $done != 1 } {
       expect_user {
          -i $sp_id full_buffer {
@@ -6563,14 +6390,13 @@ proc install_binaries { arch_list a_report } {
          }
          -i $sp_id "*\n" {
             report_task_add_message report $task_nr $expect_out(0,string)
-            puts -nonewline $CHECK_OUTPUT "."
-            flush $CHECK_OUTPUT
+            ts_log_progress
          }
       }
    }
    close_spawn_process $open_spawn
-   puts $CHECK_OUTPUT " done"
-   puts $CHECK_OUTPUT ""
+   ts_log_fine " done"
+   ts_log_fine ""
 
    foreach elem $ts_config(execd_hosts) {
       set host_arch [ resolve_arch $elem 1]
@@ -6644,7 +6470,6 @@ proc install_binaries { arch_list a_report } {
 proc update_source { a_report do_only_hooks } {
    global do_not_update 
    global ts_config
-   global CHECK_OUTPUT 
    global CHECK_USER
    upvar $a_report report
    
@@ -6658,7 +6483,7 @@ proc update_source { a_report do_only_hooks } {
          
          set task_nr [report_create_task report "cvs_update" $ts_config(source_cvs_hostname)]
 
-         puts $CHECK_OUTPUT "updating sources (-q -z 9 update -dP) ..."
+         ts_log_fine "updating sources (-q -z 9 update -dP) ..."
          
          while { $tries <= 3 && $update_ok == 0 } {
             
@@ -6769,7 +6594,7 @@ proc update_source { a_report do_only_hooks } {
             report_add_message report "CVS Update: TESTSUITE FRAMEWORK SCRIPT was updated!!! Stop !!!\n"
             report_finish_task report $task_nr 0
             report_finish report 0
-            exit 1 
+            testsuite_shutdown 1 
          }
          if { $testsuite_update == 1 } {
             report_add_message report "CVS Update Warning: testsuite source procedures were updated!!!"
@@ -6780,7 +6605,7 @@ proc update_source { a_report do_only_hooks } {
          # TODO: next task is update additional checktree sources (see issue#82 issue#141)
          return 1
       } else {
-         puts $CHECK_OUTPUT "Skip GE cvs update , I am on do_only_hooks mode"
+         ts_log_fine "Skip GE cvs update , I am on do_only_hooks mode"
          
          # TODO: only update additional checktree sources (see issue#82 issue#141)
          return 1
@@ -6859,14 +6684,14 @@ proc run_all_at_starttime {} {
       set back [ compile_source ]
       if { $back != 0 } {
          puts "error in compile source - stop"
-         exit -1
+         testsuite_shutdown 1
       }
       set saved_path $CHECK_ACT_PATH
       set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"
       set back [ run_test $CHECK_ACT_PATH 1 ]
       if { $back != 0 } {
          puts "error in test install_core_system - stop"
-         exit -1
+         testsuite_shutdown 1
       }
       set CHECK_ACT_PATH $saved_path
    }
@@ -7046,7 +6871,7 @@ proc ask_user_yes_or_no { question } {
 #*******************************
 proc menu {} {
   global CHECK_ACT_PATH CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT CHECK_RESULT_DIR 
-  global CHECK_USER CHECK_REPORT_FILE CHECK_OUTPUT CHECK_BAD_RESULT_DIR 
+  global CHECK_USER CHECK_REPORT_FILE CHECK_BAD_RESULT_DIR 
   global CHECK_MAIN_RESULTS_DIR 
   global CHECK_ENABLED_RUNLEVELS CHECK_PRODUCT_VERSION_NUMBER CHECK_SETUP_NAMES
   global daemon_debug CHECK_DEBUG_LEVEL CHECK_DEFAULTS_FILE CHECK_DO_SETUP
@@ -7070,11 +6895,6 @@ proc menu {} {
   puts "  (7) reset completed test list (for all subdirectories)"
   puts "  (8) create check report"
   puts "  (9) run all tests at a special starttime"
-  if {[string compare "stdout" $CHECK_OUTPUT] == 0} {
-     puts " (10) use file \"${local_host}.checklog\" for output" 
-  } else {
-     puts " (10) use \"stdout\" for output"
-  }
 
   set localtest -1
   if {[info exists ts_checktree($CHECK_ACT_PATH)]} {
@@ -7130,7 +6950,7 @@ proc menu {} {
   switch -- $input {
      "19" {
            if { [have_root_passwd] == -1 } {
-              puts $CHECK_OUTPUT "need root access ..."
+              puts "need root access ..."
               set_root_passwd
            }
 
@@ -7148,12 +6968,12 @@ proc menu {} {
     "20" { restart_debug_daemons } 
     "21" { restart_debug_daemons 1 }
     "22" { set output [check_messages_files]
-           puts $CHECK_OUTPUT $output
+           TPUT $output
            wait_for_enter
          }
     "23" { 
             if {[have_root_passwd] == -1} {
-               puts $CHECK_OUTPUT "need root access ..."
+               puts "need root access ..."
                set_root_passwd
             }
 
@@ -7183,7 +7003,7 @@ proc menu {} {
          }
     "24" {
           if { [have_root_passwd] == -1 } {
-                puts $CHECK_OUTPUT "need root access ..."
+                puts "need root access ..."
                 set_root_passwd
            }
            set back [compile_source]
@@ -7248,7 +7068,7 @@ proc menu {} {
     }
     "50" {
          if { [have_root_passwd] == -1 } {
-            puts $CHECK_OUTPUT "need root access ..."
+            puts "need root access ..."
             set_root_passwd
          }
          set back [compile_source 1]
@@ -7262,7 +7082,7 @@ proc menu {} {
     }
     "51" {
          if { [have_root_passwd] == -1 } {
-               puts $CHECK_OUTPUT "need root access ..."
+               puts "need root access ..."
                set_root_passwd
          }
          shutdown_core_system 1 0
@@ -7286,10 +7106,7 @@ proc menu {} {
         }
     "4" { puts "bye!\n"
           shutdown_core_system 0 1
-          if {[string compare "stdout" $CHECK_OUTPUT] != 0} {
-             close $CHECK_OUTPUT
-          }
-          exit 0
+          testsuite_shutdown 0
         }
     "5" {
           set total [print_results $CHECK_RESULT_DIR stdout]
@@ -7320,14 +7137,6 @@ proc menu {} {
           set CHECK_INTERRUPT 0
           wait_for_enter
         }
-    "10" {
-           if {[string compare "stdout" $CHECK_OUTPUT] == 0} {
-              set CHECK_OUTPUT [open "$CHECK_MAIN_RESULTS_DIR/$local_host.checklog" "w"]  
-           } else {
-              close $CHECK_OUTPUT
-              set CHECK_OUTPUT stdout
-           }
-         }
     "11" {
           if {$localtest >= 0} {
              puts "local test description ..."
@@ -7368,10 +7177,10 @@ proc menu {} {
 }
 
 proc update_compile_html_output { content } {
-   global CHECK_HTML_DIRECTORY CHECK_OUTPUT
+   global CHECK_HTML_DIRECTORY
    if { $CHECK_HTML_DIRECTORY != "" } { 
-      puts $CHECK_OUTPUT "-> UPDATING HTML FILES IN DIRECTORY: \"$CHECK_HTML_DIRECTORY\""
-      puts $CHECK_OUTPUT "-> UPDATING file index.html"
+      ts_log_fine "-> UPDATING HTML FILES IN DIRECTORY: \"$CHECK_HTML_DIRECTORY\""
+      ts_log_fine "-> UPDATING file index.html"
       generate_html_file "$CHECK_HTML_DIRECTORY/index.html" "Nightly Build Compile Results" $content
    }
 }
@@ -7418,7 +7227,7 @@ proc get_shared_lib_path_variable_name { arch } {
 }
 
 proc setup_shared_lib_path {} {
-   global env CHECK_OUTPUT
+   global env
    global be_quiet
    get_current_cluster_config_array ts_config
 
@@ -7430,12 +7239,11 @@ proc setup_shared_lib_path {} {
       set env($name) "$ts_config(product_root)/lib/$local_arch"
    }
    if { $be_quiet == 0 } { 
-      puts $CHECK_OUTPUT "   set environment variable $name to $env($name)"
+      ts_log_fine "   set environment variable $name to $env($name)"
    }
 }
 
 proc source_tcl_files {} {
-   global CHECK_OUTPUT
    global ts_config
 
    if [info exists ts_config] {
@@ -7540,12 +7348,12 @@ proc build_java_env_list {} {
 }
 
 proc load_additional_packages {} {
-   global CHECK_HAVE_TDOM CHECK_OUTPUT
+   global CHECK_HAVE_TDOM
 
    set ret [catch {package require tdom} output]
    if {$ret == 0} {
       set CHECK_HAVE_TDOM 1
-      puts $CHECK_OUTPUT "successfully loaded tdom package version $output"
+      ts_log_fine "successfully loaded tdom package version $output"
    }
 }
 
@@ -7571,7 +7379,7 @@ proc load_additional_packages {} {
 #     check/operate_add_cluster()
 #*******************************************************************************
 proc operate_additional_clusters {operation} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global check_use_installed_system
    global ts_config
 
@@ -7580,7 +7388,7 @@ proc operate_additional_clusters {operation} {
          operate_add_cluster $filename $operation
       }
    } else {
-      puts $CHECK_OUTPUT "no additional clusters defined"
+      ts_log_fine "no additional clusters defined"
    }
 }
 
@@ -7611,7 +7419,7 @@ proc operate_additional_clusters {operation} {
 #     check/operate_additional_clusters()
 #*******************************************************************************
 proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {execute_func_return rpc_retval} } {
-   global CHECK_OUTPUT CHECK_USER CHECK_HTML_DIRECTORY
+   global CHECK_USER CHECK_HTML_DIRECTORY
    global check_use_installed_system
    global check_do_clean_compile do_not_update ts_config
    upvar $execute_func_return rpcret
@@ -7626,13 +7434,13 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
       }
       # read additional config file
       if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-         add_proc_error "operate_add_cluster $operation" -1 "cannot read additonal configuration file $filename"
+         ts_log_severe "cannot read additonal configuration file $filename"
          continue
       }
 
       # start testsuite with install option on the cluster's master host
-      puts $CHECK_OUTPUT "\n${operation}ing cluster of additional configuration $filename"
-      puts $CHECK_OUTPUT "on host $add_config(master_host) as user $CHECK_USER"
+      ts_log_fine "\n${operation}ing cluster of additional configuration $filename"
+      ts_log_fine "on host $add_config(master_host) as user $CHECK_USER"
 
       set args "check.exp file $filename fast_setup quiet"
       if {$operation == "install" && $check_use_installed_system} {
@@ -7660,14 +7468,14 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
          append args " $execute_func"
       }
 
-      puts $CHECK_OUTPUT "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $add_config(master_host) ..."
+      ts_log_fine "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $add_config(master_host) ..."
       set id [open_remote_spawn_process $add_config(master_host) "ts_def_con_operate_add_cluster" "expect" $args 0 $add_config(testsuite_root_dir)]
       set script_tail_name [file tail $shell_script_name]
       set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
-      puts $CHECK_OUTPUT "script file tail name is \"$script_tail_name\""
+      ts_log_fine "script file tail name is \"$script_tail_name\""
 
       if {$id == ""} {
-         add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\ngot no spawn id"
+         ts_log_severe "$operation in additional config $filename failed:\ngot no spawn id"
          continue
       }
       
@@ -7681,13 +7489,13 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
 
       expect {
          -i $spawn_id timeout {
-            add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\ntimeout"
+            ts_log_severe "$operation in additional config $filename failed:\ntimeout"
          }
          -i $spawn_id full_buffer {
-            add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\nbuffer overflow"
+            ts_log_severe "$operation in additional config $filename failed:\nbuffer overflow"
          }
          -i $spawn_id eof {
-            add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\nunexpected eof"
+            ts_log_severe "$operation in additional config $filename failed:\nunexpected eof"
          }
 
          -i $spawn_id -- "*\n" {
@@ -7695,7 +7503,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
             foreach line [split $expect_out(0,string) "\n"] {
                set line [string trim $line]
                if {$line != ""} {
-                  puts $CHECK_OUTPUT "\[remote ts [file tail $filename]\]$line"
+                  ts_log_fine "\[remote ts [file tail $filename]\]$line"
                   switch -glob -- $line {
                      "host access with password needed for user*" {
                         set user [lindex $line 7]
@@ -7708,7 +7516,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
                         }
 
                         if {$passwd == ""} {
-                           add_proc_error "operate_add_cluster $args" -1 "$operation in additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
+                           ts_log_severe "$operation in additional config $filename failed:\ndon't know passwd of user $user required to operate the cluster"
                            set stop 1
                         } else {
                            ts_send $spawn_id "$passwd\n" 1 1
@@ -7721,34 +7529,34 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
                                append error_text "remote testsuite terminated with exit state $remote_exit_state\n"
                                set return_value $remote_exit_state
                             }
-                            puts $CHECK_OUTPUT "got _exit_status - stopping"
+                            ts_log_fine "got _exit_status - stopping"
                             set found_end 1
                         } else {
-                           debug_puts $CHECK_OUTPUT "found an exit status"
+                           ts_log_finest "found an exit status"
                         }
                      }
                      "*_END_OF_FILE_*" {
                         if { $found_end == 1 } {
-                           puts $CHECK_OUTPUT "exit status found - last line parsed - finished"
+                           ts_log_fine "exit status found - last line parsed - finished"
                            set stop 1
                         } else {
-                           debug_puts $CHECK_OUTPUT "this is not end of my script file"
+                           ts_log_finest "this is not end of my script file"
                         }
                      }
                      "ERROR REPORT - START" {
-                        puts $CHECK_OUTPUT "found error report start"
+                        ts_log_fine "found error report start"
                         set error_found 1
                      }
                      "ERROR REPORT - DONE" {
-                        puts $CHECK_OUTPUT "found error report end"
+                        ts_log_fine "found error report end"
                         set error_found 0
                      }
                      "PROCEDURE REPORT - START" {
-                        puts $CHECK_OUTPUT "found procedure report start"
+                        ts_log_fine "found procedure report start"
                         set proc_found 1
                      }
                      "PROCEDURE REPORT - DONE" {
-                        puts $CHECK_OUTPUT "found procedure report end"
+                        ts_log_fine "found procedure report end"
                         set proc_found 0
                      }
 
@@ -7777,23 +7585,26 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
       }
       close_spawn_process $id
       if { $error_text != "" } {
-         puts $CHECK_OUTPUT "remote operation \"$args\" in remote testsuite [file tail $filename] failed:"
-         puts $CHECK_OUTPUT $error_text
+         ts_log_fine "remote operation \"$args\" in remote testsuite [file tail $filename] failed:"
+         ts_log_fine $error_text
          set proc_error_text ""
          append proc_error_text "remote operation \"$args\" in testsuite [file tail $filename] failed:\n"
          append proc_error_text $error_text
-         add_proc_error "operate_add_cluster" -1 "$proc_error_text"
+         ts_log_severe "$proc_error_text"
       } else {
-         puts $CHECK_OUTPUT "remote operation \"$args\" in remote testsuite [file tail $filename] finished successfully"
+         ts_log_fine "remote operation \"$args\" in remote testsuite [file tail $filename] finished successfully"
       }
    } else {
-      puts $CHECK_OUTPUT "no additional clusters defined"
+      ts_log_fine "no additional clusters defined"
    }
    return $return_value
 }
 
-
-
+proc testsuite_shutdown {exit_code} {
+   catch {close_open_rlogin_sessions}
+   catch {ts_log_cleanup}
+   exit $exit_code
+}
 
 # Main programm:
 
@@ -7821,6 +7632,17 @@ set mail_body    "date: [exec date]\n:\n"
 # for some reason, we need this with SuSE 10 expect 5.43.0
 fconfigure stdin -blocking TRUE
 
+# initialize the logging
+source tcl_files/logging.tcl
+ts_log_setup
+
+# initialize some global variables
+set CHECK_CURRENT_WORKING_DIR [get_current_working_dir]
+set CHECK_DEFAULTS_FILE    "$CHECK_CURRENT_WORKING_DIR/defaults.sav"
+set CHECK_MAIN_RESULTS_DIR "$CHECK_CURRENT_WORKING_DIR/results"
+set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
+
+# commandline parsing
 for {set i 0} {$i < $argc} {incr i} {
    if {([string compare [lindex $argv $i] "--setup"] == 0) || ([string compare [lindex $argv $i] "setup"] == 0) } {
       set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
@@ -7955,12 +7777,17 @@ for {set i 0} {$i < $argc} {incr i} {
       puts "testsuite_trash       When files shall be deleted, move them to the testsuite_trash directory,"
       puts "                      instead of deleting them."
       puts ""
-      exit 1
+      puts "output_level <level>  do output to stdout up to log level <level>"
+      puts "logging_level <level> do logging to logfile up to log level <level>"
+      puts "mail_level <level>    do sending of mails up to log level <level>"
+      puts "                      Valid levels are SEVERE, WARNING, CONFIG, INFO, FINE, FINER, FINEST"
+      puts ""
+      testsuite_shutdown 1
    }
 
    if {([string compare [lindex $argv $i] "--setup_help"] == 0) || ([string compare [lindex $argv $i] "setup_help"] == 0) } {
       show_setup_information
-      exit 1
+      testsuite_shutdown 1
    }
 
    if {([string compare [lindex $argv $i] "--check_macros"] == 0) || ([string compare [lindex $argv $i] "check_macros"] == 0) } {
@@ -7973,11 +7800,11 @@ for {set i 0} {$i < $argc} {incr i} {
       if { $global_macro_ignore_flag == ""  } {
          set global_macro_ignore_flag 0
       }
-      puts $CHECK_OUTPUT "checking difference for \n\"$global_macro_file1\"\n and \n\"$global_macro_file2\""
+      puts "checking difference for \n\"$global_macro_file1\"\n and \n\"$global_macro_file2\""
       if { $global_macro_ignore_flag != 0 } {
-         puts $CHECK_OUTPUT "ignoring backslashes at the end of macros"
+         puts "ignoring backslashes at the end of macros"
       } else {
-         puts $CHECK_OUTPUT "don't ignore backslashes at the end of macros"
+         puts "don't ignore backslashes at the end of macros"
       }
 
       set do_only_diff_macros 1
@@ -8039,14 +7866,14 @@ for {set i 0} {$i < $argc} {incr i} {
       incr i
       set CHECK_MAIL_OUTPUT_FILE [lindex $argv $i]
       if { [llength $CHECK_MAIL_OUTPUT_FILE] != 1 } {
-         puts $CHECK_OUTPUT "can't use \"mfile\" option without filename!"
-         exit -1 
+         puts "can't use \"mfile\" option without filename!"
+         testsuite_shutdown 1
       }
       if { ([ string first "/" $CHECK_MAIL_OUTPUT_FILE ] < 0) && ([ string first "\/" $CHECK_MAIL_OUTPUT_FILE ] < 0)} {
           set CHECK_MAIL_OUTPUT_FILE "$CHECK_CURRENT_WORKING_DIR/$CHECK_MAIL_OUTPUT_FILE"
       }
       set write_mail_to_file 1
-      puts $CHECK_OUTPUT " ---> writing all mails into \"$CHECK_MAIL_OUTPUT_FILE\" ! <---"
+      puts " ---> writing all mails into \"$CHECK_MAIL_OUTPUT_FILE\" ! <---"
       if {[file exists $CHECK_MAIL_OUTPUT_FILE]} {
          file rename -force $CHECK_MAIL_OUTPUT_FILE "$CHECK_MAIL_OUTPUT_FILE.bak"
       }
@@ -8062,15 +7889,15 @@ for {set i 0} {$i < $argc} {incr i} {
       set CHECK_DEFAULTS_FILE [ string trim $help_var ]
 
       if { [llength $CHECK_DEFAULTS_FILE] != 1 } {
-         puts $CHECK_OUTPUT "can't use \"file\" option without filename!"
-         exit -1 
+         puts "can't use \"file\" option without filename!"
+         testsuite_shutdown 1
       }
 
       if { ([ string first "/" $CHECK_DEFAULTS_FILE ] != 0) } {
           set CHECK_DEFAULTS_FILE "$CHECK_CURRENT_WORKING_DIR/$CHECK_DEFAULTS_FILE"
       }
       
-      puts $CHECK_OUTPUT "using configuration file \"$CHECK_DEFAULTS_FILE\""
+      puts "using configuration file \"$CHECK_DEFAULTS_FILE\""
       continue
    }
 
@@ -8079,32 +7906,29 @@ for {set i 0} {$i < $argc} {incr i} {
       set help_var [lindex $argv $i]
       set CHECK_HTML_DIRECTORY [ string trim $help_var ]
       if { [llength $CHECK_HTML_DIRECTORY] != 1 } {
-         puts $CHECK_OUTPUT "can't use \"html_dir\" option without filename!"
-         exit -1 
+         puts "can't use \"html_dir\" option without filename!"
+         testsuite_shutdown 1
       }
 
       if { [string first "/" $CHECK_HTML_DIRECTORY] != 0 } {
-         puts $CHECK_OUTPUT "your specified HTML directory \"$CHECK_HTML_DIRECTORY\" seems not to be an absolute path"
-         puts $CHECK_OUTPUT "please enter the full path to your HTML directory."
-         exit -1 
+         puts "your specified HTML directory \"$CHECK_HTML_DIRECTORY\" seems not to be an absolute path"
+         puts "please enter the full path to your HTML directory."
+         testsuite_shutdown 1
       }
 
       if {[file isdirectory $CHECK_HTML_DIRECTORY] == 0} {
-         puts $CHECK_OUTPUT "HTML directory $CHECK_HTML_DIRECTORY not existing. Creating ..."
+         puts "HTML directory $CHECK_HTML_DIRECTORY not existing. Creating ..."
          catch {file mkdir $CHECK_HTML_DIRECTORY} blub
-         puts $CHECK_OUTPUT "file mkdir $CHECK_HTML_DIRECTORY returned:\n$blub"
+         puts "file mkdir $CHECK_HTML_DIRECTORY returned:\n$blub"
          if {[file isdirectory $CHECK_HTML_DIRECTORY] == 0} {
-            puts $CHECK_OUTPUT "cannot create HTML directory: \"$CHECK_HTML_DIRECTORY\""
-            exit -1 
+            puts "cannot create HTML directory: \"$CHECK_HTML_DIRECTORY\""
+            testsuite_shutdown 1
          }
       }
 
-      puts $CHECK_OUTPUT " ---> using \"$CHECK_HTML_DIRECTORY\" for HTML output <---"
+      puts " ---> using \"$CHECK_HTML_DIRECTORY\" for HTML output <---"
       continue
    }
-
-  
-   
 
    if { ( [string compare [lindex $argv $i] "--install"] == 0 ) || ([string compare [lindex $argv $i] "install"] == 0 ) } {
       set do_install 1
@@ -8136,9 +7960,9 @@ for {set i 0} {$i < $argc} {incr i} {
       foreach cov $help_var {
          if {$cov == "tcov" || $cov == "insure" || $cov == "emma"} {
             lappend CHECK_COVERAGE $cov
-            puts $CHECK_OUTPUT " ---> doing code coverage analysis with \"$cov\" <---"
+            puts " ---> doing code coverage analysis with \"$cov\" <---"
          } else {
-            puts $CHECK_OUTPUT "invalid coverage method $cov"
+            puts "invalid coverage method $cov"
          }
       }
       continue
@@ -8150,11 +7974,11 @@ for {set i 0} {$i < $argc} {incr i} {
       set CHECK_COVERAGE_DIR [ string trim $help_var ]
 
       if { [llength $CHECK_COVERAGE_DIR] != 1 } {
-         puts $CHECK_OUTPUT "can't use \"profile_dir\" option without filename!"
-         exit -1 
+         puts "can't use \"profile_dir\" option without filename!"
+         testsuite_shutdown 1
       }
 
-      puts $CHECK_OUTPUT " ---> using \"$CHECK_COVERAGE_DIR\" for coverage profiles <---"
+      puts " ---> using \"$CHECK_COVERAGE_DIR\" for coverage profiles <---"
       continue
    }
 
@@ -8164,14 +7988,14 @@ for {set i 0} {$i < $argc} {incr i} {
       set GLOBAL_SEND_SPEED [ string trim $help_var ]
 
       if { [llength $GLOBAL_SEND_SPEED] != 1 } {
-         puts $CHECK_OUTPUT "can't use \"send_speed\" option without value!"
-         exit -1 
+         puts "can't use \"send_speed\" option without value!"
+         testsuite_shutdown 1
       }
 
       if { $GLOBAL_SEND_SPEED <= 0.0 } {
          set GLOBAL_SEND_SPEED 0.0
       }
-      puts $CHECK_OUTPUT " ---> using \"$GLOBAL_SEND_SPEED\" for send_speed <---"
+      puts " ---> using \"$GLOBAL_SEND_SPEED\" for send_speed <---"
       continue
    }
 
@@ -8182,10 +8006,10 @@ for {set i 0} {$i < $argc} {incr i} {
       set do_one_test_name [ lindex $argv $ru_lev ]
       set ru_lev [ expr ( 2 + $i ) ] 
       set do_one_test_level [lindex $argv $ru_lev]
-      puts $CHECK_OUTPUT "path: $do_one_test_name"
-      puts $CHECK_OUTPUT "level: $do_one_test_level"
+      puts "path: $do_one_test_name"
+      puts "level: $do_one_test_level"
       if { [ llength $do_one_test_level ] != 1 || [ llength $do_one_test_name ] != 1} {
-         puts $CHECK_OUTPUT "used check parameter without runlevel or checkname"
+         puts "used check parameter without runlevel or checkname"
          setup2
          set local_host [gethostname]
          set local_arch [resolve_arch $local_host]
@@ -8195,7 +8019,7 @@ for {set i 0} {$i < $argc} {incr i} {
          set mail_body "$mail_body product root directory is \"$ts_config(product_root)\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
          mail_report $mail_subject "$mail_body used check parameter without runlevel or checkname" 
-         exit -1
+         testsuite_shutdown 1
       }
       incr i
       continue
@@ -8206,7 +8030,7 @@ for {set i 0} {$i < $argc} {incr i} {
       set ru_lev [ expr (1 + $i) ] 
       set do_all_runlevel [lindex $argv $ru_lev]
       if { [ llength $do_all_runlevel ] != 1 } {
-         puts $CHECK_OUTPUT "used all parameter without runlevel"
+         puts "used all parameter without runlevel"
          setup2
          set local_host [gethostname]
          set local_arch [resolve_arch $local_host]
@@ -8216,7 +8040,7 @@ for {set i 0} {$i < $argc} {incr i} {
          set mail_body "$mail_body product root directory is \"$ts_config(testsuite_root_dir)\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
          mail_report $mail_subject "$mail_body used all parameter without runlevel" 
-         exit -1
+         testsuite_shutdown 1
       }
       incr i
       continue
@@ -8227,7 +8051,7 @@ for {set i 0} {$i < $argc} {incr i} {
       set ru_lev [ expr (1 + $i) ] 
       set do_category_list [lindex $argv $ru_lev]
       if { [ llength $do_category_list ] == 0 } {
-         puts $CHECK_OUTPUT "used category parameter without category list"
+         puts "used category parameter without category list"
          setup2
          set local_host [gethostname]
          set local_arch [resolve_arch $local_host]
@@ -8237,7 +8061,7 @@ for {set i 0} {$i < $argc} {incr i} {
          set mail_body "$mail_body product root directory is \"$ts_config(testsuite_root_dir)\"\n-------\n"
          set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
          mail_report $mail_subject "$mail_body used category parameter without category list" 
-         exit -1
+         testsuite_shutdown 1
       }
       incr i
       continue
@@ -8257,7 +8081,7 @@ for {set i 0} {$i < $argc} {incr i} {
       set deb_lev [ expr (1 + $i) ] 
       set CHECK_DEBUG_LEVEL [lindex $argv $deb_lev]
 
-      debug_puts "debuglevel is $CHECK_DEBUG_LEVEL"
+      ts_log_finest "debuglevel is $CHECK_DEBUG_LEVEL"
       incr i
       continue
    }
@@ -8289,11 +8113,11 @@ for {set i 0} {$i < $argc} {incr i} {
       set CHECK_PREFERRED_ARCHS [string trim $help_var]
 
       if {[llength $CHECK_PREFERRED_ARCHS] < 1} {
-         puts $CHECK_OUTPUT "please specify an architecture name together with the preferred_archs switch"
-         exit -1 
+         puts "please specify an architecture name together with the preferred_archs switch"
+         testsuite_shutdown 1
       }
 
-      puts $CHECK_OUTPUT " ---> using \"$CHECK_PREFERRED_ARCHS\" as preferred architectures <---"
+      puts " ---> using \"$CHECK_PREFERRED_ARCHS\" as preferred architectures <---"
       continue
    }
 
@@ -8301,11 +8125,29 @@ for {set i 0} {$i < $argc} {incr i} {
       set CHECK_TESTSUITE_TRASH 1
       puts "using testsuite_trash"
    }
+
+   # set logging levels via commandline
+   if {[string compare [lindex $argv $i] "--output_level"] == 0 || [string compare [lindex $argv $i] "output_level"] == 0} {
+      incr i
+      set help_var [lindex $argv $i]
+      ts_log_set_level "output" $help_var
+   } 
+   if {[string compare [lindex $argv $i] "--logging_level"] == 0 || [string compare [lindex $argv $i] "logging_level"] == 0} {
+      incr i
+      set help_var [lindex $argv $i]
+      ts_log_set_level "logging" $help_var
+      ts_log_set_logfile "testsuite.log"
+   } 
+   if {[string compare [lindex $argv $i] "--mail_level"] == 0 || [string compare [lindex $argv $i] "mail_level"] == 0} {
+      incr i
+      set help_var [lindex $argv $i]
+      ts_log_set_level "mail" $help_var
+   } 
 }
 
 if {$CHECK_COVERAGE != {} && $CHECK_COVERAGE_DIR == ""} {
-   puts $CHECK_OUTPUT "please specify a coverage profile directory with the option coverage_dir"
-   exit -1
+   puts "please specify a coverage profile directory with the option coverage_dir"
+   testsuite_shutdown 1
 }
 
 # load defaults file
@@ -8313,7 +8155,7 @@ if {$CHECK_COVERAGE != {} && $CHECK_COVERAGE_DIR == ""} {
 source_tcl_files
 
 if { $do_only_diff_macros == 1 } {
-   exit [diff_macro_files $global_macro_file1 $global_macro_file2 $global_macro_ignore_flag]
+   testsuite_shutdown [diff_macro_files $global_macro_file1 $global_macro_file2 $global_macro_ignore_flag]
 }
 
 setup2
@@ -8347,18 +8189,18 @@ set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
 
 
 if { $no_action == 1 } {
-  puts $CHECK_OUTPUT "CHECK_GROUP=$CHECK_GROUP"
+  puts "CHECK_GROUP=$CHECK_GROUP"
   puts "No action flag is set -> exit 1"
-  exit 1
+  testsuite_shutdown 1
 }
 
 if { $do_prog_start == 1 } {
-   puts $CHECK_OUTPUT "starting $exec_args ..."
+   ts_log_fine "starting $exec_args ..."
    set exit_value [eval $exec_args]
-   puts $CHECK_OUTPUT "PROCEDURE REPORT - START"
+   ts_log_fine "PROCEDURE REPORT - START"
    puts $exit_value
-   puts $CHECK_OUTPUT "PROCEDURE REPORT - DONE"
-   exit 0
+   ts_log_fine "PROCEDURE REPORT - DONE"
+   testsuite_shutdown 0
 }
 
 if { $check_reinit_on_tcl_error == 1 } {
@@ -8367,14 +8209,14 @@ if { $check_reinit_on_tcl_error == 1 } {
 
 if { $do_compile } {
    if { [have_root_passwd] == -1 } {
-         puts $CHECK_OUTPUT "need root access ..."
+         puts "need root access ..."
          set_root_passwd
    }
 
    if { [ compile_source ] != 0 } {
-      exit -1
+      testsuite_shutdown 1
    } else {
-      exit 0
+      testsuite_shutdown 0
    }
 }
 
@@ -8396,11 +8238,11 @@ if { $do_one_test } {
  
    delete_tests $CHECK_ACT_PATH
    # print_menu_header
-   puts $CHECK_OUTPUT "run all tests ..."
+   ts_log_fine "run all tests ..."
 
    run_tests $CHECK_ACT_PATH 0
 
-   exit 0
+   testsuite_shutdown 0
 }
 
 if { $do_all } {
@@ -8418,11 +8260,11 @@ if { $do_all } {
    }
 
    print_menu_header
-   puts $CHECK_OUTPUT "run all tests ..."
+   ts_log_fine "run all tests ..."
 
    run_tests $CHECK_ACT_PATH 0
 
-   exit 0
+   testsuite_shutdown 0
 } 
 
 if { $do_install } {
@@ -8433,7 +8275,7 @@ if { $do_install } {
    operate_additional_clusters install
 
    set exit_value [print_errors]
-   exit $exit_value
+   testsuite_shutdown $exit_value
 }
 
 if { $do_kill } {
@@ -8442,7 +8284,7 @@ if { $do_kill } {
    shutdown_core_system 0 1
 
    set exit_value [print_errors]
-   exit $exit_value
+   testsuite_shutdown $exit_value
 
 }
 
@@ -8452,7 +8294,7 @@ if { $do_start } {
    startup_core_system 0 1
 
    set exit_value [print_errors]
-   exit $exit_value
+   testsuite_shutdown $exit_value
 }
 
 
@@ -8472,7 +8314,7 @@ if { $do_only_reset_config == 1 } {
   run_test $CHECK_ACT_PATH 1 "setup_inhouse_cluster" 0
  
   puts "configuration reset done" 
-  exit $result
+  testsuite_shutdown $result
 }
 
 proc ctrlc {} {
@@ -8483,8 +8325,7 @@ proc ctrlc {} {
 
    # if we are not running any tests (in menu), exit immediately
    if {$CHECK_TEST_RUNNING == 0 && $CHECK_TESTS_RUNNING == 0} {
-      close_open_rlogin_sessions
-      exit 1
+      testsuite_shutdown 1
    }
 
    # offer a menu to let user decide what to do
@@ -8501,8 +8342,7 @@ proc ctrlc {} {
    set input [wait_for_enter 1]
    switch -exact [string trim $input] {
       1 {
-         close_open_rlogin_sessions
-         exit 1
+         testsuite_shutdown 1
       }
       2 {
          set CHECK_INTERRUPT 3
@@ -8519,12 +8359,11 @@ proc ctrlc {} {
 trap ctrlc { SIGINT }
  
 if {$do_nomain == 0} {
-  if { $daemon_debug != 0 } {
-     if { [check_display] != 0 } {
-        exit 1
+  if {$daemon_debug != 0} {
+     if {[check_display] != 0} {
+        testsuite_shutdown 1
      }
   }
-#  puts "please press <RETURN>"
-#  wait_for_enter 1
-  menu 
+  menu
 }
+

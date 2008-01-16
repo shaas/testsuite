@@ -36,13 +36,12 @@
 # settings in all.q
 
 proc get_complex { change_array } {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
   set result [start_sge_bin "qconf" "-sc"]
   if {$prg_exit_state != 0} {
-     add_proc_error "get_complex" "-1" "qconf -sc failed:\n$result"
+     ts_log_severe "qconf -sc failed:\n$result"
      return
   } 
 
@@ -105,7 +104,7 @@ proc get_complex { change_array } {
 #*******************************************************************************
 proc set_complex {change_array {raise_error 1}} {
    global CHECK_USER
-   global env CHECK_OUTPUT
+   global env
    get_current_cluster_config_array ts_config
    upvar $change_array chgar
    set values [array names chgar]
@@ -137,10 +136,6 @@ proc set_complex {change_array {raise_error 1}} {
       }
    }
 
-#  foreach vi_com $vi_commands {
-#     puts $CHECK_OUTPUT "\"$vi_com\""
-#  }
-
    set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS $CHECK_USER "*" "*" "*"]
    set ADDED    [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS $CHECK_USER "*" "*" "*"]
    set REMOVED  [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" "*" "*"]
@@ -158,7 +153,7 @@ proc set_complex {change_array {raise_error 1}} {
 
    set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $MODIFIED $REMOVED $ADDED $NOT_MODIFIED $STILLREF $NULL_URGENCY "___ABCDEFG___" $raise_error]
    if {$result != 0 && $result != -2 && $result != -3 && $result != -4  && $result != -6} {
-      add_proc_error "set_complex" -1 "could not modify complex: ($result)" $raise_error
+      ts_log_severe "could not modify complex: ($result)" $raise_error
    }
 
    return $result
@@ -190,11 +185,11 @@ proc set_complex {change_array {raise_error 1}} {
 #     sge_procedures.60/switch_to_root_user_system()
 #*******************************************************************************
 proc switch_to_admin_user_system {} {
-   global CHECK_OUTPUT actual_user_system
+   global actual_user_system
 
    if { $actual_user_system != "admin user system" } {
-      puts $CHECK_OUTPUT "switching from $actual_user_system to admin user system ..."
-      add_proc_error "switch_to_admin_user_system" -3 "Function not implemented"
+      ts_log_fine "switching from $actual_user_system to admin user system ..."
+      ts_log_info "Function not implemented"
       set actual_user_system "admin user system"
    }
 
@@ -225,13 +220,13 @@ proc switch_to_admin_user_system {} {
 #     sge_procedures.60/switch_to_root_user_system()
 #*******************************************************************************
 proc switch_to_root_user_system {} {
-   global CHECK_OUTPUT actual_user_system
+   global actual_user_system
     
-   add_proc_error "switch_to_root_user_system" -3 "Function not implemented"
+   ts_log_info "Function not implemented"
    return 1
 
    if { $actual_user_system != "root user system" } {
-      puts $CHECK_OUTPUT "switching from $actual_user_system to root user system ..."
+      ts_log_fine "switching from $actual_user_system to root user system ..."
       set actual_user_system "root user system"
    }
 }
@@ -260,13 +255,13 @@ proc switch_to_root_user_system {} {
 #     sge_procedures.60/switch_to_root_user_system()
 #*******************************************************************************
 proc switch_to_normal_user_system {} {
-   global CHECK_OUTPUT actual_user_system
+   global actual_user_system
 
-   add_proc_error "switch_to_root_user_system" -3 "Function not implemented"
+   ts_log_info "Function not implemented"
    return 1
 
    if { $actual_user_system != "normal user system" } {
-      puts $CHECK_OUTPUT "switching from $actual_user_system to normal user system ..."
+      ts_log_fine "switching from $actual_user_system to normal user system ..."
       set actual_user_system "normal user system"
    }
 }
@@ -298,7 +293,7 @@ proc switch_to_normal_user_system {} {
 #     file_procedures/get_execd_spooldir()
 #*******************************************************************************
 proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    set spool_dir [get_execd_spooldir $host $spool_type]
    set base_spool_dir [get_execd_spooldir $host $spool_type 1]
@@ -307,36 +302,36 @@ proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
       unset execd_config
    }
    if { [get_config execd_config $host] != 0 } {
-      add_proc_error "switch_execd_spool_dir" -1 "can't get configuration for host $host"
+      ts_log_severe "can't get configuration for host $host"
       return -1
    }
 
    if { $execd_config(execd_spool_dir) == $spool_dir && $force_restart == 0 } {
-      debug_puts "spool dir is already set to $spool_dir"
+      ts_log_finest "spool dir is already set to $spool_dir"
       return 0
    }
    
-   puts $CHECK_OUTPUT "$host: actual spool dir: $execd_config(execd_spool_dir)"
-   puts $CHECK_OUTPUT "$host: new spool dir   : $spool_dir"
+   ts_log_fine "$host: actual spool dir: $execd_config(execd_spool_dir)"
+   ts_log_fine "$host: new spool dir   : $spool_dir"
  
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
    shutdown_system_daemon $host execd
 
-   puts $CHECK_OUTPUT "changing execd_spool_dir for host $host ..."
+   ts_log_fine "changing execd_spool_dir for host $host ..."
    set execd_config(execd_spool_dir) $spool_dir
    set_config execd_config $host
-   puts $CHECK_OUTPUT "configuration changed for host $host!"
+   ts_log_fine "configuration changed for host $host!"
 
-   puts $CHECK_OUTPUT "checking base spool dir: $base_spool_dir"
+   ts_log_fine "checking base spool dir: $base_spool_dir"
    if { [ remote_file_isdirectory $host $base_spool_dir ] != 1 } {
-      puts $CHECK_OUTPUT "creating not existing base spool directory:\n\"$base_spool_dir\""
+      ts_log_fine "creating not existing base spool directory:\n\"$base_spool_dir\""
       remote_file_mkdir $host $base_spool_dir
       wait_for_remote_dir $ts_config(master_host) "ts_def_con2" $base_spool_dir
    }
 
-   puts $CHECK_OUTPUT "cleaning up spool dir $spool_dir ..."
+   ts_log_fine "cleaning up spool dir $spool_dir ..."
    cleanup_spool_dir_for_host $host $base_spool_dir "execd"
    
 
@@ -384,7 +379,6 @@ proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
 #     sge_procedures/startup_execd()
 #*******************************
 proc startup_shadowd { hostname {env_list ""} } {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -394,7 +388,7 @@ proc startup_shadowd { hostname {env_list ""} } {
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } {  
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_shadowd" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -402,16 +396,16 @@ proc startup_shadowd { hostname {env_list ""} } {
       set startup_user $CHECK_USER
    }
 
-   puts $CHECK_OUTPUT "starting up shadowd on host \"$hostname\" as user \"$startup_user\""
+   ts_log_fine "starting up shadowd on host \"$hostname\" as user \"$startup_user\""
 
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/sgemaster" "-shadowd start" prg_exit_state 60 0 "" envlist]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
    if { [string first "starting sge_shadowd" $output] >= 0 } {
        if { [is_daemon_running $hostname "sge_shadowd"] == 1 } {
           return 0
        }
    }
-   add_proc_error "startup_shadowd" -1 "could not start shadowd on host $hostname:\noutput:\"$output\""
+   ts_log_severe "could not start shadowd on host $hostname:\noutput:\"$output\""
    return -1
 }
 
@@ -435,10 +429,10 @@ proc startup_shadowd { hostname {env_list ""} } {
 #     "some error text" - if there are problems
 #*******************************************************************************
 proc check_shadowd_settings { shadowd_host } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
    set nr_shadowds [llength $ts_config(shadowd_hosts)]
-   puts $CHECK_OUTPUT "$nr_shadowds shadowd host configured ..." 
+   ts_log_fine "$nr_shadowds shadowd host configured ..." 
 
    set fine 0
    set test_host [resolve_host $shadowd_host]
@@ -458,8 +452,8 @@ proc check_shadowd_settings { shadowd_host } {
    if { $nr_shadowds == 1 } {
       set shadowd_host [resolve_host $ts_config(shadowd_hosts)]
       set master_host [resolve_host $ts_config(master_host)]
-      puts $CHECK_OUTPUT "shadowd: $shadowd_host"
-      puts $CHECK_OUTPUT "master:  $master_host"
+      ts_log_fine "shadowd: $shadowd_host"
+      ts_log_fine "master:  $master_host"
       if { $master_host == $shadowd_host } {
          return ""
       }
@@ -480,7 +474,7 @@ proc check_shadowd_settings { shadowd_host } {
          return "no nfs shared qmaster spool directory? (1)"
       } 
 
-      puts $CHECK_OUTPUT $result
+      ts_log_fine $result
       set heartbeat1 [string trim $result]
       set heartbeat1 [string trimleft $heartbeat1 "0"]
 
@@ -489,7 +483,7 @@ proc check_shadowd_settings { shadowd_host } {
          return "no nfs shared qmaster spool directory? (2)";
       }
 
-      puts $CHECK_OUTPUT $result
+      ts_log_fine $result
       set heartbeat2 [string trim $result ]
       set heartbeat2 [string trimleft $heartbeat2 "0"]
 
@@ -505,25 +499,25 @@ proc check_shadowd_settings { shadowd_host } {
       # - bdb spooling to nfsv4
       set spooling_ok 0
       if { $ts_config(spooling_method) == "classic" } {
-         puts $CHECK_OUTPUT "We have \"classic\" spooling to a shared qmaster spool dir."
+         ts_log_fine "We have \"classic\" spooling to a shared qmaster spool dir."
          set spooling_ok 1
       } else {
          if {$ts_config(spooling_method) == "berkeleydb"} {
             if {$ts_config(bdb_server) != "none"} {
-               puts $CHECK_OUTPUT "We have \"berkeleydb\" spooling with RPC server." 
+               ts_log_fine "We have \"berkeleydb\" spooling with RPC server." 
                set spooling_ok 1
             } else {
                set bdb_spooldir [get_bdb_spooldir]
                set fstype [get_fstype $bdb_spooldir $ts_config(master_host)]
                if {$fstype == "nfs4"} {
-                  puts $CHECK_OUTPUT "We have \"berkeleydb\" spooling on NFS v4" 
+                  ts_log_fine "We have \"berkeleydb\" spooling on NFS v4" 
                   set spooling_ok 1
 
                   # check that the spooldir is NFS v4 on all shadow hosts
                   foreach host $ts_config(shadowd_hosts) {
                      set fstype [get_fstype $bdb_spooldir $host]
                      if {$fstype != "nfs4"} {
-                        puts $CHECK_OUTPUT "berkeley spool directory $bdb_spooldir is not nfsv4 mounted on shadow host $host"
+                        ts_log_fine "berkeley spool directory $bdb_spooldir is not nfsv4 mounted on shadow host $host"
                         set spooling_ok 0
                         break
                      }
@@ -579,7 +573,6 @@ proc check_shadowd_settings { shadowd_host } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc startup_execd { hostname {envlist ""}} {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -588,7 +581,7 @@ proc startup_execd { hostname {envlist ""}} {
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
  
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_execd" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -596,7 +589,7 @@ proc startup_execd { hostname {envlist ""}} {
       set startup_user $CHECK_USER
    }
 
-   puts $CHECK_OUTPUT "starting up execd on host \"$hostname\" as user \"$startup_user\""
+   ts_log_fine "starting up execd on host \"$hostname\" as user \"$startup_user\""
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "start" prg_exit_state 60 0 "" my_envlist ]
 
    return 0
@@ -640,7 +633,6 @@ proc startup_execd { hostname {envlist ""}} {
 #     sge_procedures/startup_bdb_rpc()
 #*******************************
 proc startup_bdb_rpc { hostname } {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -650,7 +642,7 @@ proc startup_bdb_rpc { hostname } {
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } {  
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_bdb_rpc" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -659,14 +651,14 @@ proc startup_bdb_rpc { hostname } {
    }
  
 
-   puts $CHECK_OUTPUT "starting up BDB RPC Server on host \"$hostname\" as user \"$startup_user\""
+   ts_log_fine "starting up BDB RPC Server on host \"$hostname\" as user \"$startup_user\""
 
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/sgebdb" "start"]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
    if { [string length $output] < 15  && $prg_exit_state == 0 } {
        return 0
    }
-   add_proc_error "startup_bdb_rpc" -1 "could not start berkeley_db_svc on host $hostname:\noutput:\"$output\""
+   ts_log_severe "could not start berkeley_db_svc on host $hostname:\noutput:\"$output\""
    return -1
 }
 
@@ -706,7 +698,7 @@ proc startup_bdb_rpc { hostname } {
 #           ...
 #        }
 #     } else {
-#        add_proc_error "testproc" -1 "get_urgency_job_info failed for job $job_id on host $host"
+#        ts_log_severe "get_urgency_job_info failed for job $job_id on host $host"
 #     }
 #     ...
 #  }
@@ -763,8 +755,8 @@ proc get_sge_error_generic_vdep {messages_var} {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc drmaa_redirect_lib {version host } {
-   global CHECK_USER CHECK_OUTPUT ts_config
-   puts $CHECK_OUTPUT "Using DRMAA version $version on $host"
+   global CHECK_USER ts_config
+   ts_log_fine "Using DRMAA version $version on $host"
 
 
    set compile_arch [resolve_build_arch_installed_libs $host]
@@ -799,8 +791,8 @@ proc drmaa_redirect_lib {version host } {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc get_current_drmaa_mode { host } {
-   global CHECK_OUTPUT ts_config
-   puts $CHECK_OUTPUT "checking DRMAA version on $host ..."
+   global ts_config
+   ts_log_fine "checking DRMAA version on $host ..."
    
    set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]
@@ -809,18 +801,18 @@ proc get_current_drmaa_mode { host } {
    foreach file_base $files {
       set file "$ts_config(product_root)/lib/$install_arch/$file_base"
       set file_type [file type $file]
-      puts $CHECK_OUTPUT "$file_type: $file"
+      ts_log_fine "$file_type: $file"
       if { $file_type == "link" } {
          set linked_to [file readlink $file]
-         puts $CHECK_OUTPUT "found drmaa lib link: $file_base -> $linked_to"
-         puts $CHECK_OUTPUT "lib is linked to $linked_to"
+         ts_log_fine "found drmaa lib link: $file_base -> $linked_to"
+         ts_log_fine "lib is linked to $linked_to"
          set version_pos [string first "." $linked_to]
          incr version_pos 1
          set linked_to [string range $linked_to $version_pos end]
          set version_pos [string first "." $linked_to]
          incr version_pos 1
          set version [string range $linked_to $version_pos end ]
-         puts $CHECK_OUTPUT "version extension is \"$version\""
+         ts_log_fine "version extension is \"$version\""
          return $version
       }
    }
@@ -848,7 +840,7 @@ proc get_current_drmaa_mode { host } {
 #     sge_procedures.60/get_current_drmaa_mode()
 #*******************************************************************************
 proc get_current_drmaa_lib_extension { host } {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    
    set compile_arch [resolve_build_arch_installed_libs $host]
    set install_arch [resolve_arch $host]
@@ -865,7 +857,7 @@ proc get_current_drmaa_lib_extension { host } {
          set version_pos [string first "." $linked_to]
          incr version_pos -1
          set lib_ext [string range $linked_to 0 $version_pos ]
-         puts $CHECK_OUTPUT "lib extension is \"$lib_ext\""
+         ts_log_fine "lib extension is \"$lib_ext\""
          return $lib_ext
       }
    }

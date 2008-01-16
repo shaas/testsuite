@@ -81,17 +81,17 @@ proc vdep_validate_queue { change_array } {
          set new_chgar_qtype ""
          foreach elem $chgar(qtype) {
             if { [string match "*CHECKPOINTING*" $elem] } {
-               puts $CHECK_OUTPUT "queue type CHECKPOINTING is set by assigning a checkpointing environment to the queue"
+               ts_log_fine "queue type CHECKPOINTING is set by assigning a checkpointing environment to the queue"
             } else {
                if { [string match "*PARALLEL*" $elem] } {
-                  puts $CHECK_OUTPUT "queue type PARALLEL is set by assigning a parallel environment to the queue"
+                  ts_log_fine "queue type PARALLEL is set by assigning a parallel environment to the queue"
                } else {
                   append new_chgar_qtype "$elem "
                }
             }
          }
          set chgar(qtype) [string trim $new_chgar_qtype]
-         puts $CHECK_OUTPUT "using qtype=$chgar(qtype)" 
+         ts_log_fine "using qtype=$chgar(qtype)" 
       }
    }
 }
@@ -125,24 +125,24 @@ proc set_cqueue_default_values { current_array change_array } {
 
    upvar $current_array currar
    upvar $change_array chgar
-   puts $CHECK_OUTPUT "calling set_cqueue_default_values"
+   ts_log_finer "calling set_cqueue_default_values"
 
    # parse each attribute to be changed and set the queue default value
    foreach attribute [array names chgar] {
-      puts $CHECK_OUTPUT "--> setting queue default value for attribute $attribute"
-      puts $CHECK_OUTPUT "--> old_value = $currar($attribute)"
+      ts_log_finest "--> setting queue default value for attribute $attribute"
+      ts_log_finest "--> old_value = $currar($attribute)"
       # set the default
       set new_value $chgar($attribute)
-      puts $CHECK_OUTPUT "--> new_value = $new_value"
+      ts_log_finest "--> new_value = $new_value"
 
       # get position of host(group) specific values and append them 
       set comma_pos [string first ",\[" $currar($attribute)]
-      puts $CHECK_OUTPUT "--> comma pos = $comma_pos"
+      ts_log_finest "--> comma pos = $comma_pos"
       if {$comma_pos != -1} {
          append new_value [string range $currar($attribute) $comma_pos end]
       }
 
-      puts $CHECK_OUTPUT "--> new queue default value = $new_value"
+      ts_log_finest "--> new queue default value = $new_value"
       # write back to chgar
       set chgar($attribute) $new_value
    }
@@ -153,7 +153,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 
    upvar $current_array currar
    upvar $change_array chgar
-   puts $CHECK_OUTPUT "calling set_cqueue_specific_values"
+   ts_log_finer "calling set_cqueue_specific_values"
 
    # parse each attribute to be changed
    foreach attribute [array names chgar] {
@@ -161,8 +161,8 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
          continue
       }
 
-      puts $CHECK_OUTPUT "--> setting queue default value for attribute $attribute"
-      puts $CHECK_OUTPUT "--> old_value = $currar($attribute)"
+      ts_log_finest "--> setting queue default value for attribute $attribute"
+      ts_log_finest "--> old_value = $currar($attribute)"
      
       # split old value and store host specific values in an array
       if {[info exists host_values]} {
@@ -179,7 +179,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
       } else {
          # use old cqueue value as default, set new host specific
          set default_value [string trimright [lindex $value_list 0] ","]
-         puts $CHECK_OUTPUT "--> default value = $default_value"
+         ts_log_finest "--> default value = $default_value"
 
          # copy host specific values to array
          for {set i 1} {$i < [llength $value_list]} {incr i} {
@@ -191,14 +191,14 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
             incr first_equal_position 2
             set value [string range $host_value $first_equal_position end]
             set value [string trimright $value ",\]\\"]
-            puts $CHECK_OUTPUT "--> \"$host\" = \"$value\""
+            ts_log_finest "--> \"$host\" = \"$value\""
             set host_values($host) $value
          }
       
          # change (or set) host specific values from chgar
          foreach unresolved_host $hostlist {
             set host [resolve_host $unresolved_host]
-            puts $CHECK_OUTPUT "--> setting host_values($host) = $chgar($attribute)"
+            ts_log_finest "--> setting host_values($host) = $chgar($attribute)"
             set host_values($host) $chgar($attribute)
          }
 
@@ -211,7 +211,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
          }
       }
 
-      puts $CHECK_OUTPUT "--> new queue value = $new_value"
+      ts_log_finest "--> new queue value = $new_value"
 
       # write back to chgar
       set chgar($attribute) $new_value
@@ -223,7 +223,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 #      foreach host $hostlist {
 #         if { [lsearch -exact $currar(hostlist) $host] == -1 } {
 #            lappend new_hosts $host
-#            puts $CHECK_OUTPUT "--> host $host is not yet in hostlist"
+#            ts_log_finest "--> host $host is not yet in hostlist"
 #         }
 #      }
 #
@@ -307,7 +307,7 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""}
    }
 
    if {$ignore_hostlist || $del_cqueue} {
-      puts $CHECK_OUTPUT "Delete queue $q_name ..."
+      ts_log_fine "Delete queue $q_name ..."
       get_queue_messages messages "del" "$q_name" $on_host $as_user
       set output [start_sge_bin "qconf" "-dq $q_name" $on_host $as_user]
       return [handle_sge_errors "del_queue" "qconf -dq $q_name" $output messages $raise_error]
@@ -356,17 +356,18 @@ proc get_cluster_queue {queue_instance} {
       }
    }
 
-   puts $CHECK_OUTPUT "queue instance $queue_instance is cluster queue $cqueue"
+   ts_log_fine "queue instance $queue_instance is cluster queue $cqueue"
 
    return $cqueue
 }
+
 proc get_clear_queue_error_vdep {messages_var host} {
    upvar $messages_var messages
 
    #lappend messages(index) "-3"
    #set messages(-3) [translate_macro MSG_XYZ_S $host] #; another exechost specific error message
    #set messages(-3,description) "a highlevel description of the error"    ;# optional parameter
-   #set messages(-3,level) -2  ;# optional parameter: we only want to raise a warning
+   #set messages(-3,level) WARNING  ;# optional parameter: we only want to raise a warning
 }
 
 #****** sge_queue.60/purge_queue() *****************************************

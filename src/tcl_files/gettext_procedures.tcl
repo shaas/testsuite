@@ -66,8 +66,7 @@ global macro_messages_list
 #     ???/???
 #*******************************
 proc test_file { me two} {
-  global CHECK_OUTPUT
-  puts $CHECK_OUTPUT "printing \"$me\" \"$two\". host is [exec hostname]" 
+  ts_log_fine "printing \"$me\" \"$two\". host is [exec hostname]" 
   return "test ok"
 }
 
@@ -100,18 +99,16 @@ proc test_file { me two} {
 #     ???/???
 #*******************************************************************************
 proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "reading $file_a ..."
+   ts_log_fine "reading $file_a ..."
    read_array_from_file $file_a "macro_messages_list" macros_1 1 
-   puts $CHECK_OUTPUT "ok                               "
-   puts $CHECK_OUTPUT "messages are from $macros_1(source_code_directory)"
+   ts_log_fine "ok                               "
+   ts_log_fine "messages are from $macros_1(source_code_directory)"
 
 
-   puts $CHECK_OUTPUT "reading $file_b ..."
+   ts_log_fine "reading $file_b ..."
    read_array_from_file $file_b "macro_messages_list" macros_2 1 
-   puts $CHECK_OUTPUT "ok                               "
-   puts $CHECK_OUTPUT "messages are from $macros_2(source_code_directory)"
+   ts_log_fine "ok                               "
+   ts_log_fine "messages are from $macros_2(source_code_directory)"
 
    set macros_1_macro_names {}
    for {set i 1} {$i <= $macros_1(0) } {incr i 1} {
@@ -121,10 +118,10 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
 # ,file
 # ,message_id
 # source_code_directory
-#      puts $CHECK_OUTPUT "id:         $macros_1($i,id)"
-#      puts $CHECK_OUTPUT "macro:      $macros_1($i,macro)"
-#      puts $CHECK_OUTPUT "string:     $macros_1($i,string)"
-#      puts $CHECK_OUTPUT "-"
+#      ts_log_fine "id:         $macros_1($i,id)"
+#      ts_log_fine "macro:      $macros_1($i,macro)"
+#      ts_log_fine "string:     $macros_1($i,string)"
+#      ts_log_fine "-"
       lappend macros_1_macro_names $macros_1($i,macro)
    }
    set macros_2_macro_names {}
@@ -134,8 +131,8 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
 
    
 
-   puts $CHECK_OUTPUT "$file_a has [llength $macros_1_macro_names] macro entries!"
-   puts $CHECK_OUTPUT "$file_b has [llength $macros_2_macro_names] macro entries!"
+   ts_log_fine "$file_a has [llength $macros_1_macro_names] macro entries!"
+   ts_log_fine "$file_b has [llength $macros_2_macro_names] macro entries!"
    set not_found {}
    set compare_error {}
    set runs [llength $macros_1_macro_names]
@@ -172,12 +169,12 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
             
             if { $new_string != $macro_1_string } {
                lappend compare_error $macro
-               puts $CHECK_OUTPUT ""
-               puts $CHECK_OUTPUT "error for macro $macro:"
-               puts $CHECK_OUTPUT "$file_a:"
-               puts $CHECK_OUTPUT "\"$macro_1_string\""
-               puts $CHECK_OUTPUT "$file_b:"
-               puts $CHECK_OUTPUT "\"$new_string\""
+               ts_log_fine ""
+               ts_log_fine "error for macro $macro:"
+               ts_log_fine "$file_a:"
+               ts_log_fine "\"$macro_1_string\""
+               ts_log_fine "$file_b:"
+               ts_log_fine "\"$new_string\""
             } else {
              
             }
@@ -187,27 +184,26 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
          # macro not found in file 2
          lappend not_found $macro
       }
-      puts -nonewline $CHECK_OUTPUT "\rtodo: $runs                     "
-      flush stdout
+      ts_log_progress FINER "\rtodo: $runs                     "
       incr runs -1
    }
 
    set had_errors 0
    set new_macros 0   
 
-   puts $CHECK_OUTPUT "\n\nfollowing macros from \n\"$file_a\"\n are not in \n\"$file_b\""
+   ts_log_fine "\n\nfollowing macros from \n\"$file_a\"\n are not in \n\"$file_b\""
    foreach not_found_macro $not_found {
       incr new_macros 1
-      puts $CHECK_OUTPUT $not_found_macro
+      ts_log_fine $not_found_macro
    }
    
-   puts $CHECK_OUTPUT "\nfollowing macros from \n\"$file_a\"\n had compare errors \n\"$file_b\""
+   ts_log_fine "\nfollowing macros from \n\"$file_a\"\n had compare errors \n\"$file_b\""
    foreach error $compare_error {
       incr had_errors 1
-      puts $CHECK_OUTPUT $error
+      ts_log_fine $error
    }
-   puts $CHECK_OUTPUT "Comparison reported $had_errors errors!"
-   puts $CHECK_OUTPUT "Comparison reported $new_macros not found (new) message macros!"
+   ts_log_fine "Comparison reported $had_errors errors!"
+   ts_log_fine "Comparison reported $new_macros not found (new) message macros!"
 
    if { $had_errors != 0 } {
       return 1
@@ -222,12 +218,12 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
 
 
 proc get_macro_messages_file_name { } {
-  global CHECK_PROTOCOL_DIR CHECK_OUTPUT ts_config
+  global CHECK_PROTOCOL_DIR ts_config
   
-  puts $CHECK_OUTPUT "checking messages file ..."
+  ts_log_fine "checking messages file ..."
   if { [ file isdirectory $CHECK_PROTOCOL_DIR] != 1 } {
      file mkdir $CHECK_PROTOCOL_DIR
-     puts $CHECK_OUTPUT "creating directory: $CHECK_PROTOCOL_DIR"
+     ts_log_fine "creating directory: $CHECK_PROTOCOL_DIR"
   }
   set release $ts_config(source_cvs_release)
   set filename $CHECK_PROTOCOL_DIR/source_code_macros_${release}.dump
@@ -235,7 +231,7 @@ proc get_macro_messages_file_name { } {
 }
 
 proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
-   global CHECK_OUTPUT macro_messages_list
+   global macro_messages_list
 
    if {[info exists macro_messages_list] == 0} {
      update_macro_messages_list
@@ -243,11 +239,10 @@ proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
 
    set search_list $search_macro_list
 
-   puts $CHECK_OUTPUT "macro count: $macro_messages_list(0)"
+   ts_log_fine "macro count: $macro_messages_list(0)"
    foreach file $file_list {
-      puts $CHECK_OUTPUT "file: $file"
-      puts $CHECK_OUTPUT "macros in list: [llength $search_list]"
-      flush $CHECK_OUTPUT 
+      ts_log_finer "file: $file"
+      ts_log_finer "macros in list: [llength $search_list]"
       set file_p [ open $file r ]
  
       set file_content ""
@@ -290,9 +285,9 @@ proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
 #     gettext_procedures/update_macro_messages_list()
 #*******************************************************************************
 proc check_c_source_code_files_for_macros {} {
-   global CHECK_OUTPUT macro_messages_list check_name ts_config
+   global macro_messages_list check_name ts_config
 
-   puts $CHECK_OUTPUT "check_name: $check_name"
+   ts_log_fine "check_name: $check_name"
 
    if { [info exists macro_messages_list] == 0 } {
      update_macro_messages_list
@@ -353,7 +348,7 @@ proc check_c_source_code_files_for_macros {} {
       append full_answer $answer
       append full_answer "---------------------------------------------------------------\n"
 
-      add_proc_error "check_c_source_code_files_for_macros" -3 $full_answer
+      ts_log_info $full_answer
    }
 #
 # uncomment the following lines, if the unused macros should be removed from source code
@@ -365,15 +360,15 @@ proc check_c_source_code_files_for_macros {} {
 # --   
 # --      set file $macro_messages_list($index,file)
 # --      set file_ext 1
-# --      puts $CHECK_OUTPUT $macro_messages_list($index,macro)
-# --      puts $CHECK_OUTPUT $file
+# --      ts_log_fine $macro_messages_list($index,macro)
+# --      ts_log_fine $file
 # --      read_file $file file_dat
 # --      set lines $file_dat(0)
 # --      set changed 0
 # --      for { set i 1 } { $i <= $lines } { incr i 1 } {
 # --         if { [ string first $macro $file_dat($i) ] >= 1 && 
 # --              [ string first "_MESSAGE" $file_dat($i) ] >= 1 } {
-# --            puts $CHECK_OUTPUT $file_dat($i)
+# --            ts_log_fine $file_dat($i)
 # --            set message_pos [ string first "_MESSAGE" $file_dat($i) ]
 # --            set new_line "/* "
 # --            incr message_pos -1
@@ -382,7 +377,7 @@ proc check_c_source_code_files_for_macros {} {
 # --            incr message_pos 9
 # --            append new_line [ string range $file_dat($i) $message_pos end ]
 # --            append new_line " __TS Removed automatically from testsuite!! TS__*/"
-# --            puts $CHECK_OUTPUT $new_line
+# --            ts_log_fine $new_line
 # --            set file_dat($i) $new_line
 # --            set changed 1
 # --         }
@@ -393,7 +388,7 @@ proc check_c_source_code_files_for_macros {} {
 # --               file rename $file "$file.tmp${file_ext}" 
 # --         } ]
 # --            incr file_ext 1
-# --            puts $CHECK_OUTPUT "catch: $catch_return"
+# --            ts_log_fine "catch: $catch_return"
 # --            if { $catch_return == 0 } {
 # --               break
 # --            }
@@ -401,7 +396,7 @@ proc check_c_source_code_files_for_macros {} {
 # --         save_file $file file_dat
 # --      }
 # --   }
-# --   puts $CHECK_OUTPUT "macros removed"
+# --   ts_log_fine "macros removed"
 # --   wait_for_enter
 }
 
@@ -440,7 +435,7 @@ proc get_source_msg_files {} {
 #     check/compile_source()
 #*******************************************************************************
 proc update_macro_messages_list {} {
-   global CHECK_OUTPUT macro_messages_list
+   global macro_messages_list
    global CHECK_PROTOCOL_DIR
    global fast_setup ts_config
 
@@ -461,30 +456,31 @@ proc update_macro_messages_list {} {
          foreach msg_file $msg_files {
             set tstamp [file mtime $msg_file]
             if {$tstamp > $macro_file_tstamp} {
-               puts $CHECK_OUTPUT "$msg_file has been modified"
+               ts_log_fine "$msg_file has been modified"
                set update_required 1
                break
             }
+            ts_log_progress
          }
       }
 
       if {$update_required} {
-         puts $CHECK_OUTPUT "The macro messages spool file is not up to date."
-         puts $CHECK_OUTPUT "Recreating it ..."
+         ts_log_fine "The macro messages spool file is not up to date."
+         ts_log_fine "Recreating it ..."
       } else {
-         puts $CHECK_OUTPUT "reading macro messages spool file:\n\"$filename\" ..."
-         puts $CHECK_OUTPUT "delete this file if you want to parse the macros again!"
-         puts $CHECK_OUTPUT "======================================================="
+         ts_log_fine "reading macro messages spool file:\n\"$filename\" ..."
+         ts_log_fine "delete this file if you want to parse the macros again!"
+         ts_log_fine "======================================================="
          read_array_from_file $filename "macro_messages_list" macro_messages_list 1
 
          # Verify that the messages file comes from the correct source directory.
          if {[string compare $macro_messages_list(source_code_directory) $ts_config(source_dir)] != 0} {
-            puts $CHECK_OUTPUT "source code directory from macro spool file:"
-            puts $CHECK_OUTPUT $macro_messages_list(source_code_directory)
-            puts $CHECK_OUTPUT "actual source code directory:"
-            puts $CHECK_OUTPUT $ts_config(source_dir)
-            puts $CHECK_OUTPUT "the macro spool dir doesn't match to actual source code directory."
-            puts $CHECK_OUTPUT "start parsing new source code directory ..."
+            ts_log_fine "source code directory from macro spool file:"
+            ts_log_fine $macro_messages_list(source_code_directory)
+            ts_log_fine "actual source code directory:"
+            ts_log_fine $ts_config(source_dir)
+            ts_log_fine "the macro spool dir doesn't match to actual source code directory."
+            ts_log_fine "start parsing new source code directory ..."
             if {[info exists macro_messages_list]} {
                unset macro_messages_list
             }
@@ -501,16 +497,15 @@ proc update_macro_messages_list {} {
   set error_text ""
   set msg_files [get_source_msg_files]
 
-   puts $CHECK_OUTPUT "parsing the following messages files:"
+   ts_log_fine "parsing the following messages files:"
    foreach file $msg_files {
-      puts $CHECK_OUTPUT $file
+      ts_log_fine $file
    }
   
   set count 1
-  puts $CHECK_OUTPUT "\nparsing source code for message macros ..."
+  ts_log_fine "\nparsing source code for message macros ..."
   foreach file $msg_files {
-     puts $CHECK_OUTPUT "file: $file"
-     flush $CHECK_OUTPUT 
+     ts_log_finer "file: $file"
      set file_p [ open $file r ]
      while { [gets $file_p line] >= 0 } {
         if { [string first "_MESSAGE" $line] >= 0 } {
@@ -546,7 +541,7 @@ proc update_macro_messages_list {} {
               set line $new_line
               set new [replace_string $line "\"" "" 1]
               if { $old == $new } {
-                 puts $CHECK_OUTPUT "error in update_macro_messages_list"
+                 ts_log_fine "error in update_macro_messages_list"
                  wait_for_enter
               }
               if { [string length $cut] > 0 } { 
@@ -589,10 +584,10 @@ proc update_macro_messages_list {} {
               append error_text "\n\n-----------MESSAGE-ID-NOT-UNIQUE----------\n"
               append error_text "message id $message_id is not unique\n"
               append error_text "$macro_messages_list(0,$message_id)\nand\n$line"
-              puts $CHECK_OUTPUT "---\nmessage id $message_id is not unique"
-              puts $CHECK_OUTPUT $macro_messages_list(0,$message_id)
-              puts $CHECK_OUTPUT "and"
-              puts $CHECK_OUTPUT $line
+              ts_log_fine "---\nmessage id $message_id is not unique"
+              ts_log_fine $macro_messages_list(0,$message_id)
+              ts_log_fine "and"
+              ts_log_fine $line
            }
            set macro_messages_list(0,$message_id) $line
 
@@ -600,7 +595,7 @@ proc update_macro_messages_list {} {
                append error_text "\n\n-------UNEXPECTED-FORMAT-SPECIFIER-------\n"
                append error_text "error for message id $message_id in file \n$file:\n"
                append error_text "$org_line\nunexpected specifier: $unexpected_specifier"
-               puts $CHECK_OUTPUT "---\nerror for message id $message_id in file \n$file:\n$org_line\nunexpected specifier: -->$unexpected_specifier<--"
+               ts_log_fine "---\nerror for message id $message_id in file \n$file:\n$org_line\nunexpected specifier: -->$unexpected_specifier<--"
            }
 
            # check for "\n" at message end
@@ -608,14 +603,14 @@ proc update_macro_messages_list {} {
            if {[string range $message_string [expr $len -2] [expr $len -1]] == "\\n" } {
               append error_text "\n\n-------MESSAGE-ENDS-WITH-LINEFEED-------\n"
               append error_text "message $message_id ends with a linefeed:\n$line"
-              puts $CHECK_OUTPUT "---\nmessage $message_id ends with a linefeed:\n$line"
+              ts_log_fine "---\nmessage $message_id ends with a linefeed:\n$line"
            }
 
            # check for "\t" in messages
            if {[string first "\\t" $message_string] >= 0} {
               append error_text "\n\n-------MESSAGE-CONTAINS-TABS-------\n"
               append error_text "message $message_id contains tabs:\n$line"
-              puts $CHECK_OUTPUT "---\nmessage $message_id contains tabs:\n$line"
+              ts_log_fine "---\nmessage $message_id contains tabs:\n$line"
            }
 
            incr count 1
@@ -624,13 +619,13 @@ proc update_macro_messages_list {} {
      close $file_p
   }
   if { [string compare $error_text ""] != 0 } {
-     add_proc_error "update_macro_messages_list" "-3" $error_text
+     ts_log_info $error_text
   }
   incr count -1
   set macro_messages_list(0) $count
-  puts $CHECK_OUTPUT "parsed $count messages."
+  ts_log_fine "parsed $count messages."
 
-  puts $CHECK_OUTPUT "saving macro file ..."
+  ts_log_fine "saving macro file ..."
   
   set macro_messages_list(source_code_directory) $ts_config(source_dir)
   
@@ -658,15 +653,15 @@ proc update_macro_messages_list {} {
 #     ???/???
 #*******************************************************************************
 proc get_macro_string_from_name { macro_name } {
-  global  CHECK_OUTPUT macro_messages_list
+  global  macro_messages_list
 
   if { [info exists macro_messages_list] == 0 } {
      update_macro_messages_list
   }
   for {set i 1} {$i <= $macro_messages_list(0)} {incr i 1} {
      if { [string compare $macro_name $macro_messages_list($i,macro) ] == 0 } {
-#        puts $CHECK_OUTPUT "found macro for message id $macro_messages_list($i,id)"
-#        puts $CHECK_OUTPUT "macro number is $i"
+#        ts_log_fine "found macro for message id $macro_messages_list($i,id)"
+#        ts_log_fine "macro number is $i"
         return $macro_messages_list($i,string);
      }
   }
@@ -674,14 +669,14 @@ proc get_macro_string_from_name { macro_name } {
 }
 
 proc get_macro_id_from_name { macro_name } {
-  global  CHECK_OUTPUT macro_messages_list
+  global  macro_messages_list
 
   if { [info exists macro_messages_list] == 0 } {
      update_macro_messages_list
   }
   for {set i 1} {$i <= $macro_messages_list(0)} {incr i 1} {
      if { [string compare $macro_name $macro_messages_list($i,macro) ] == 0 } {
-#        puts $CHECK_OUTPUT "found macro for message id $macro_messages_list($i,id)"
+#        ts_log_fine "found macro for message id $macro_messages_list($i,id)"
         return $macro_messages_list($i,id);
      }
   }
@@ -690,14 +685,14 @@ proc get_macro_id_from_name { macro_name } {
 
 
 proc get_macro_string_from_id { id } {
-  global  CHECK_OUTPUT macro_messages_list
+  global  macro_messages_list
 
   if { [info exists macro_messages_list] == 0 } {
      update_macro_messages_list
   }
   for {set i 1} {$i <= $macro_messages_list(0)} {incr i 1} {
      if { $id == $macro_messages_list($i,id) } {
-#        puts $CHECK_OUTPUT "found macro for message macro $macro_messages_list($i,macro)"
+#        ts_log_fine "found macro for message macro $macro_messages_list($i,macro)"
         return $macro_messages_list($i,string);
      }
   }
@@ -705,14 +700,14 @@ proc get_macro_string_from_id { id } {
 }
 
 proc get_internal_message_number_from_id { id } {
-  global  CHECK_OUTPUT macro_messages_list
+  global  macro_messages_list
 
   if { [info exists macro_messages_list] == 0 } {
      update_macro_messages_list
   }
   for {set i 1} {$i <= $macro_messages_list(0)} {incr i 1} {
      if { $id == $macro_messages_list($i,id) } {
-#        puts $CHECK_OUTPUT "found macro for message macro $macro_messages_list($i,macro)"
+#        ts_log_fine "found macro for message macro $macro_messages_list($i,macro)"
         return $i
      }
   }
@@ -722,7 +717,7 @@ proc get_internal_message_number_from_id { id } {
 
 
 proc translate_all_macros {} {
-  global CHECK_OUTPUT macro_messages_list
+  global macro_messages_list
   global CHECK_USER ts_config
   if { [info exists macro_messages_list] == 0 } {
      update_macro_messages_list
@@ -735,7 +730,7 @@ proc translate_all_macros {} {
   set max_mess 2270 
   file delete /tmp/unused_macros.txt
   for {set i 2269} {$i <= $max_mess} {incr i 1} {
-     puts $CHECK_OUTPUT "-------$i---------------"
+     ts_log_fine "-------$i---------------"
      set format_string $macro_messages_list($i,string)
 
      set localized [translate $ts_config(master_host) 0 0 1 $format_string]
@@ -761,21 +756,21 @@ proc translate_all_macros {} {
      
      set localized [ string trim $localized]
      set format_string [ string trim $format_string ]
-     puts $CHECK_OUTPUT ">$format_string<"
-     puts $CHECK_OUTPUT ">$localized<"
+     ts_log_fine ">$format_string<"
+     ts_log_fine ">$localized<"
      
      if { [string compare $format_string $localized] == 0 } {
 
-        puts $CHECK_OUTPUT "not localized"
-        puts $CHECK_OUTPUT "macro: >$macro_messages_list($i,macro)<"
-        puts $CHECK_OUTPUT "file : >$macro_messages_list($i,file)<"
+        ts_log_fine "not localized"
+        ts_log_fine "macro: >$macro_messages_list($i,macro)<"
+        ts_log_fine "file : >$macro_messages_list($i,file)<"
         lappend not_localized $i
         # JG: TODO: This depends on environment variables C and H being set!
         #           There should be better solutions, e.g. using find.
         set back [start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $ts_config(source_dir) ; grep $macro_messages_list($i,macro) \$C \$H\""] 
         puts $back
         if { [ string first "\.c:" $back ] >= 0 } {
-           puts $CHECK_OUTPUT "used in C file !!!"
+           ts_log_fine "used in C file !!!"
         } else {
            set f_d [open "/tmp/unused_macros.txt" "a"]
            puts $f_d "\nnot used in C-File !!!"
@@ -957,7 +952,7 @@ proc translate_macro_if_possible {macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} 
 #*******************************************************************************
 proc translate { host remove_control_signs is_script no_input_parsing msg_txt { par1 "" } { par2 ""} { par3 "" } { par4 ""} { par5 ""} { par6 ""} } {
 
-   global CHECK_OUTPUT CHECK_USER l10n_raw_cache l10n_install_cache
+   global CHECK_USER l10n_raw_cache l10n_install_cache
    get_current_cluster_config_array ts_config
 
    set msg_text $msg_txt
@@ -979,12 +974,12 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
       if { [ info exists l10n_raw_cache($msg_text) ] } {
           set back $l10n_raw_cache($msg_text)
           set prg_exit_state 0
-          debug_puts "reading message from l10n raw cache ..."
+          ts_log_finest "reading message from l10n raw cache ..."
       } else {
-          debug_puts "translating message ..."
+          ts_log_finest "translating message ..."
           set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
           set l10n_raw_cache($msg_text) $back
-          debug_puts "adding message to l10n raw cache ..." 
+          ts_log_finest "adding message to l10n raw cache ..." 
       }
    } else {
       set num_params [ replace_string $msg_text "%s" "" 1]
@@ -999,12 +994,12 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
       if { [ info exists l10n_install_cache($msg_text) ] } {
          set back $l10n_install_cache($msg_text)
          set prg_exit_state 0
-         debug_puts "reading message from l10n install cache ..."
+         ts_log_finest "reading message from l10n install cache ..."
       } else {
-         debug_puts "translating message ..."
+         ts_log_finest "translating message ..."
          set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
          set l10n_install_cache($msg_text) $back
-         debug_puts "adding message to l10n install cache ..." 
+         ts_log_finest "adding message to l10n install cache ..." 
       }
    }
    if { $prg_exit_state == 0} { 
@@ -1020,7 +1015,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
 
       set msg_text $trans_mes
    } else {
-      add_proc_error "translate" -1 "gettext returned error:\n--$back\n--"
+      ts_log_severe "gettext returned error:\n--$back\n--"
    }
    # search for %....s specifiers and replace them with parameters (%n$s)
    if { $par1 != "" } {
@@ -1075,10 +1070,10 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
 
    if { [string first "-" $msg_txt] < 0  } {
       if {[string first "-" $msg_text] >= 0} {
-         debug_puts "---WARNING from translate macro procedure ------------------------------------"
-         debug_puts "   translated text of string \"$msg_txt\" contains dashes(-)!"
-         debug_puts "   Use the \"--\" option on expect pattern line when using \"$msg_text\""
-         debug_puts "------------------------------------------------------------------------------"
+         ts_log_finest "---WARNING from translate macro procedure ------------------------------------"
+         ts_log_finest "   translated text of string \"$msg_txt\" contains dashes(-)!"
+         ts_log_finest "   Use the \"--\" option on expect pattern line when using \"$msg_text\""
+         ts_log_finest "------------------------------------------------------------------------------"
       }
    }
 
@@ -1101,10 +1096,8 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
 proc perform_simple_l10n_test { } {
 
    global CHECK_USER CHECK_L10N ts_host_config
-   global CHECK_OUTPUT l10n_raw_cache
+   global l10n_raw_cache
    get_current_cluster_config_array ts_config
-   puts $CHECK_OUTPUT ""
-   flush $CHECK_OUTPUT
 
    set mem_it $CHECK_L10N
 
@@ -1118,13 +1111,13 @@ proc perform_simple_l10n_test { } {
    unset l10n_raw_cache
    set with_l10n  [translate $ts_config(master_host) 1 0 0 [sge_macro SGE_INFOTEXT_TESTSTRING_S_L10N ] " $CHECK_USER " ]
 
-   puts $CHECK_OUTPUT "\n------------------------------------------------------------------------\n"
-   puts $CHECK_OUTPUT $with_l10n
-   puts $CHECK_OUTPUT "------------------------------------------------------------------------"
+   ts_log_fine "\n------------------------------------------------------------------------\n"
+   ts_log_fine $with_l10n
+   ts_log_fine "------------------------------------------------------------------------"
    set CHECK_L10N $mem_it
 
    if { [ string compare $no_l10n $with_l10n ] == 0 } {
-      add_proc_error "perform_simple_l10n_test" -1 "localization (l10n) error:\nIs the locale directory available?"
+      ts_log_severe "localization (l10n) error:\nIs the locale directory available?"
       return -1
    } 
    return 0

@@ -181,6 +181,6 @@ proc get_clear_queue_error_vdep {messages_var host} {
 ror message
    #set messages(-3,description) "a highlevel description of the error"    ;# optional
  parameter
-   #set messages(-3,level) -2  ;# optional parameter: we only want to raise a warning
+   #set messages(-3,level) WARNING  ;# optional parameter: we only want to raise a warning
 }
 

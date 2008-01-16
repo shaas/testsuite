@@ -196,20 +196,19 @@ proc test {m p} {
 #  SEE ALSO
 #*******************************************************************************
 proc get_complex_version {} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    set version 0
 
-   puts $CHECK_OUTPUT "checking complex version ..."
+   ts_log_fine "checking complex version ..."
    set result [start_sge_bin "qconf" "-scl"]
    set INVALID_OPTION [translate $ts_config(master_host) 0 1 0 [sge_macro MSG_ANSWER_INVALIDOPTIONARGX_S] "-scl"]
    set INVALID_OPTION [string trim $INVALID_OPTION]
    
    if {[string match "*$INVALID_OPTION*" $result] == 1} {
       set version 1
-      puts $CHECK_OUTPUT "new complex version"
+      ts_log_finer "new complex version"
    } else {
-      puts $CHECK_OUTPUT "old complex version"
+      ts_log_finer "old complex version"
    }
    return $version
 }
@@ -298,7 +297,6 @@ proc set_qmaster_spool_dir {spool_dir} {
 #     sge_procedures/get_qmaster_spool_dir()
 #*******************************
 proc get_execd_spool_dir {host} {
-  global CHECK_OUTPUT 
   get_config host_config $host
   if { [info exist host_config(execd_spool_dir) ] == 0 } {
      debug_puts "--> no special execd_spool_dir for host $host"
@@ -313,7 +311,7 @@ proc get_execd_spool_dir {host} {
 }
 
 proc seek_and_destroy_sge_processes {} {
-   global ts_host_config CHECK_OUTPUT CHECK_USER
+   global ts_host_config CHECK_USER
 
    set answer_text ""
    if { [info exists kill_list] } {
@@ -321,7 +319,7 @@ proc seek_and_destroy_sge_processes {} {
    }
 
    foreach host $ts_host_config(hostlist) {
-      puts $CHECK_OUTPUT "host $host ..."
+      ts_log_fine "host $host ..."
 
       get_ps_info 0 $host ps_info
       for {set i 0} {$i < $ps_info(proc_count) } {incr i 1} {
@@ -343,12 +341,12 @@ proc seek_and_destroy_sge_processes {} {
    }
 
    if { $answer_text != "" } {
-      puts $CHECK_OUTPUT "found matching prozesses:"
-      puts $CHECK_OUTPUT "$answer_text"
+      ts_log_fine "found matching processes:"
+      ts_log_fine "$answer_text"
       foreach host $ts_host_config(hostlist) {
          if { [info exists kill_list($host)] } {
             foreach pid $kill_list($host) {
-               puts $CHECK_OUTPUT "killing pid $pid on host $host ..."
+               ts_log_fine "killing pid $pid on host $host ..."
             }
          }
       }         
@@ -373,7 +371,6 @@ proc seek_and_destroy_sge_processes {} {
 #
 #*******************************************************************************
 proc check_messages_files { } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
 
@@ -453,11 +450,9 @@ proc get_qmaster_messages_file { } {
 #*******************************************************************************
 proc check_qmaster_messages { { show_mode 0 } } {
    global CHECK_USER
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set spool_dir [get_qmaster_spool_dir]
-   puts $CHECK_OUTPUT "\"$spool_dir\""
 
    set messages_file "$spool_dir/messages"
 
@@ -524,7 +519,6 @@ proc get_schedd_messages_file { } {
 #*******************************************************************************
 proc check_schedd_messages { { show_mode 0 } } {
    global CHECK_USER
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set spool_dir [get_qmaster_spool_dir]
@@ -604,7 +598,6 @@ proc get_execd_messages_file { hostname } {
 #*******************************************************************************
 proc check_execd_messages { hostname { show_mode 0 } } {
    global CHECK_USER
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set program_arg "-sconf $hostname" 
@@ -621,7 +614,6 @@ proc check_execd_messages { hostname { show_mode 0 } } {
          set spool_dir [ lindex $line 1 ]
       }
    }
-   puts $CHECK_OUTPUT "\"$spool_dir\""
 
    set messages_file "$spool_dir/$hostname/messages"
    if { $show_mode == 2 } {
@@ -672,7 +664,7 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #     remote_procedures/start_remote_prog()
 #*******************************************************************************
 proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""} {sub_path "bin"} {line_array output_lines} } {
-   global CHECK_OUTPUT CHECK_USER  CHECK_JGDI_ENABLED jgdi_config check_category
+   global CHECK_USER CHECK_JGDI_ENABLED jgdi_config check_category
    get_current_cluster_config_array ts_config
 
    upvar $exit_var exit_state
@@ -717,10 +709,10 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
       set ret 0
       set binary "$ts_config(product_root)/$sub_path/$arch/$bin"
 
-      debug_puts "executing $binary $args\nas user $user on host $host"
-
+      ts_log_finest "executing $binary $args\nas user $user on host $host"
       # Add " around $args if there are more the 1 args....
       set result [start_remote_prog $host $user $binary "$args" exit_state $timeout 0 $cd_dir]
+      ts_log_finest $result
    }
    
    if {[info exists line_buf]} {
@@ -801,7 +793,7 @@ proc start_sge_utilbin {bin args {host ""} {user ""} {exit_var prg_exit_state} {
 #     remote_procedures/start_remote_prog()
 #*******************************************************************************
 proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {background 0} {envlist ""}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $exit_var exit_state
@@ -913,8 +905,7 @@ proc get_sge_error_generic {messages_var} {
 #     will be returned.
 #     If result doesn't contain a known error message, -999 will be returned.
 #
-#     If requested (raise_error), an error situation will be raised 
-#     (add_proc_error).
+#     If requested (raise_error), an error situation will be raised.
 #
 #     Error codes are grouped by error situation:
 #        - 100-199: communication errors
@@ -969,7 +960,7 @@ proc get_sge_error {procedure command result {raise_error 1}} {
 #     } 
 #
 #  FUNCTION
-#     Parse error messages and raise an error condition (add_proc_error), if 
+#     Parse error messages and raise an error condition, if 
 #     this is required.
 #
 #     Which messages can be recognized, a highlevel description and error
@@ -978,7 +969,7 @@ proc get_sge_error {procedure command result {raise_error 1}} {
 #     - "index", containing all possible error codes
 #     - <error_code>, containing the message for a certain error code
 #     - <error_code,description>, a highlevel description for the error
-#     - <error_code,level>, the error level for add_proc_error
+#     - <error_code,level>, the error level for ts_log (SEVERE, WARNING, ...)
 #
 #     handle_sge_errors will add generic sge error messages to the list of 
 #     application specific error messages provided by the caller.
@@ -992,7 +983,7 @@ proc get_sge_error {procedure command result {raise_error 1}} {
 #     command         - sge command that had been called (for error output)
 #     result          - output of the command
 #     messages_var    - array with possible messages and info how to handle them
-#     {raise_error 1} - whether to raise an error condition (add_proc_error) 
+#     {raise_error 1} - whether to raise an error condition
 #                       or not
 #     {prg_exit_state ""} - exit state of sge command
 #
@@ -1006,12 +997,12 @@ proc get_sge_error {procedure command result {raise_error 1}} {
 #     set messages(-1) [translate_macro MSG_SGETEXT_CANTRESOLVEHOST_S $host]
 #     set messages(-2) [translate_macro MSG_EXEC_XISNOTANEXECUTIONHOST_S $host]
 #     set messages(-2,description) "$host is not configured as exec host"
-#     set messages(-2,level) -3    ;# we only raise an "unsupported" warning
+#     set messages(-2,level) CONFIG    ;# we only raise an configuration warning
 #     set ret [handle_sge_errors "get_exechost" "qconf -se $host" $result 
 #              messages $raise_error]
 #
 #  SEE ALSO
-#     check/add_proc_error()
+#     logging/ts_log()
 #     sge_procedures/get_sge_error()
 #*******************************************************************************
 proc handle_sge_errors {procedure command result messages_var {raise_error 1} {prg_exit_state ""}} {
@@ -1034,7 +1025,7 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
 
    # in case of errors, do error reporting
    if {$ret < 0} {
-      set error_level -1
+      set error_level SEVERE
       set error_message "$command failed ($ret):\n"
 
       if {$ret == -999} {
@@ -1055,14 +1046,14 @@ proc handle_sge_errors {procedure command result messages_var {raise_error 1} {p
       }
 
       # generate error message or just informational/error output
-      add_proc_error $procedure $error_level $error_message $raise_error
+      ts_log $error_level $error_message $raise_error $procedure
 
       if {$prg_exit_state != ""} {
          if {$prg_exit_state == 0 && $ret < 0} {
-            add_proc_error $procedure -3 "$command returned 0 while reporting the error message:\n$result"
+            ts_log_info "$command returned 0 while reporting the error message:\n$result"
          }
          if {$prg_exit_state != 0 && $ret >= 0} {
-            add_proc_error $procedure -3 "$command returned error state while its output reports success:\n$result"
+            ts_log_info "$command returned error state while its output reports success:\n$result"
          }
       }
    }
@@ -1189,7 +1180,6 @@ proc submit_error_job { jobargs } {
 #
 #*******************************************************************************
 proc submit_wait_type_job {job_type host user {variable qacct_info}} {
-   global CHECK_OUTPUT
    global CHECK_DEBUG_LEVEL CHECK_USER
    global CHECK_DISPLAY_OUTPUT
    get_current_cluster_config_array ts_config
@@ -1197,7 +1187,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
 
 
    if { $user == $CHECK_USER } {
-      add_proc_error "submit_wait_type_job" -1 "This procedure only works for users != \$CHECK_USER ($CHECK_USER)"
+      ts_log_severe "This procedure only works for users != \$CHECK_USER ($CHECK_USER)"
       return -1
    }
    delete_all_jobs
@@ -1208,7 +1198,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
    set output_argument "-o /dev/null -e /dev/null"
    set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
-   puts $CHECK_OUTPUT "submitting job type \"$job_type\" ..."
+   ts_log_fine "submitting job type \"$job_type\" ..."
    switch -exact $job_type {
       "qsub" {
          set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" $user]
@@ -1217,7 +1207,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
       }
 
       "qrlogin" { ;# without command (qrsh without command)
-         puts $CHECK_OUTPUT "starting qrsh $remote_host_arg as user $user on host $ts_config(master_host) ..."
+         ts_log_fine "starting qrsh $remote_host_arg as user $user on host $ts_config(master_host) ..."
          set sid [open_remote_spawn_process $ts_config(master_host) $user "qrsh" "$remote_host_arg"]
          set sp_id [lindex $sid 1]
          set timeout 1
@@ -1226,17 +1216,16 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          while {1} {
             expect {
                -i $sp_id "_start_mark_*\n" {
-                  puts $CHECK_OUTPUT "got start mark ..."
+                  ts_log_finest "got start mark ..."
                   break
                }
                -i $sp_id default {
                        if { $my_tries > 0 } {
                            incr my_tries -1
-                           puts -nonewline $CHECK_OUTPUT "."
-                           flush $CHECK_OUTPUT
+                           ts_log_progress
                            continue
                        } else { 
-                          add_proc_error "submit_wait_type_job" -1 "startup timeout" 
+                          ts_log_severe "startup timeout" 
                           break
                        }
                    }
@@ -1247,17 +1236,16 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          while {1} {
             expect {
                -i $sp_id {[A-Za-z>$%]*} {
-                       puts $CHECK_OUTPUT "startup ..."
+                       ts_log_finest "startup ..."
                        break
                    }
                -i $sp_id default {
                        if { $my_tries > 0 } {
                            incr my_tries -1
-                           puts -nonewline $CHECK_OUTPUT "."
-                           flush $CHECK_OUTPUT
+                           ts_log_progress
                            continue
                        } else { 
-                          add_proc_error "submit_wait_type_job" -1 "startup timeout" 
+                          ts_log_severe "startup timeout" 
                           break
                        }
                    }
@@ -1270,7 +1258,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          while {!$done} {
             expect {
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
@@ -1279,9 +1267,9 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                   if { $job_id == 0 } {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
-                        puts $CHECK_OUTPUT $job
+                        ts_log_finest $job
                         if { [lindex $job 2] == "QRLOGIN" && [lindex $job 3] == $user && [lindex $job 4] == "r"  } {
-                           puts $CHECK_OUTPUT "qrlogin job id is [lindex $job 0]"
+                           ts_log_fine "qrlogin job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
                         }
                      }
@@ -1290,29 +1278,29 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                   }
 
                   if { $max_timeouts <= 0 } {
-                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     ts_log_severe "got 15 timeout errors - break"
                      set done 1 
                   }
                }
                -i $sp_id "ts_shell_response*\n" {
-                  puts $CHECK_OUTPUT "found matching shell response text! Sending exit ..."
+                  ts_log_finest "found matching shell response text! Sending exit ..."
                   ts_send $sp_id "exit\n" $host
                }
 
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_finest "remote command started"
                   set done 0
                }
                -i $sp_id "_exit_status_" {
-                  puts $CHECK_OUTPUT "remote command terminated"
+                  ts_log_finest "remote command terminated"
                   set done 1
                }
                -i $sp_id "assword" {
-                  add_proc_error "submit_wait_type_job" -1 "unexpected password question for user $user on host $host"
+                  ts_log_severe "unexpected password question for user $user on host $host"
                   set done 1
                }
                -i $sp_id "*\n" {
@@ -1323,7 +1311,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                      if { [string length $line] == 0 } {
                         continue
                      }
-                     puts $CHECK_OUTPUT $line
+                     ts_log_finest $line
                   }
                }
                -i $sp_id default {
@@ -1334,6 +1322,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
       }
 
       "qrsh" { ;# with sleeper job
+         ts_log_fine "starting qrsh $remote_host_arg $job_argument as user $user on host $ts_config(master_host) ..."
          set sid [open_remote_spawn_process $ts_config(master_host) $user "qrsh" "$remote_host_arg $job_argument"]
          set sp_id [lindex $sid 1]
          set timeout 1
@@ -1342,7 +1331,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          while {!$done} {
             expect {
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
@@ -1350,32 +1339,32 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
 
                   set job_list [get_standard_job_info 0 0 1]
                   foreach job $job_list {
-                     puts $CHECK_OUTPUT $job
+                     ts_log_finest $job
                      if { [lindex $job 2] == "sleeper.sh" && [lindex $job 3] == $user } {
-                        puts $CHECK_OUTPUT "qrsh job id is [lindex $job 0]"
+                        ts_log_fine "qrsh job id is [lindex $job 0]"
                         set job_id [lindex $job 0]
                      }
                   }
 
                   if { $max_timeouts <= 0 } {
-                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     ts_log_severe "got 15 timeout errors - break"
                      set done 1 
                   }
                }
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_finest "remote command started"
                   set done 0
                }
                -i $sp_id "_exit_status_" {
-                  puts $CHECK_OUTPUT "remote command terminated"
+                  ts_log_finest "remote command terminated"
                   set done 1
                }
                -i $sp_id "assword" {
-                  add_proc_error "submit_wait_type_job" -1 "unexpected password question for user $user on host $host"
+                  ts_log_severe "unexpected password question for user $user on host $host"
                   set done 1
                }
                -i $sp_id "*\n" {
@@ -1386,7 +1375,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                      if { [string length $line] == 0 } {
                         continue
                      }
-                     puts $CHECK_OUTPUT $line
+                     ts_log_finest $line
                   }
                }
                -i $sp_id default {
@@ -1397,7 +1386,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
       }
 
       "qlogin" {
-         puts $CHECK_OUTPUT "starting qlogin $remote_host_arg ..."
+         ts_log_fine "starting qlogin $remote_host_arg ..."
          set sid [open_remote_spawn_process $ts_config(master_host) $user "qlogin" "$remote_host_arg"]
          set sp_id [lindex $sid 1]
          set timeout 1
@@ -1406,7 +1395,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          while {!$done} {
             expect {
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
@@ -1415,29 +1404,29 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                   if { $job_id == 0 } {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
-                        puts $CHECK_OUTPUT $job
+                        ts_log_finest $job
                         if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
-                           puts $CHECK_OUTPUT "qlogin job id is [lindex $job 0]"
+                           ts_log_fine "qlogin job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
                         }
                      }
                   }
 
                   if { $max_timeouts <= 0 } {
-                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     ts_log_severe "got 15 timeout errors - break"
                      set done 1 
                   }
                }
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_finest "remote command started"
                   set done 0
                }
                -i $sp_id "_exit_status_" {
-                  puts $CHECK_OUTPUT "remote command terminated"
+                  ts_log_finest "remote command terminated"
                   set done 1
                }
 
@@ -1446,18 +1435,18 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                }
 
                -i $sp_id "assword" { 
-                  puts $CHECK_OUTPUT "got password question for user $user on host $host"
+                  ts_log_finest "got password question for user $user on host $host"
                   if { $job_id == 0 } {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
-                        puts $CHECK_OUTPUT $job
+                        ts_log_finest $job
                         if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
-                           puts $CHECK_OUTPUT "qlogin job id is [lindex $job 0]"
+                           ts_log_fine "qlogin job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
                         }
                      }
                   }
-                  puts $CHECK_OUTPUT "deleting job with id $job_id, because we don't know user password ..."
+                  ts_log_finest "deleting job with id $job_id, because we don't know user password ..."
                   delete_job $job_id
                }
 
@@ -1469,7 +1458,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                      if { [string length $line] == 0 } {
                         continue
                      }
-                     puts $CHECK_OUTPUT $line
+                     ts_log_finest $line
                   }
                }
                -i $sp_id default {
@@ -1480,8 +1469,8 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
       }
 
       "qsh" {
-         puts $CHECK_OUTPUT "starting qsh $remote_host_arg on host $ts_config(master_host) as user $user ..."
-         puts $CHECK_OUTPUT "setting DISPLAY=$CHECK_DISPLAY_OUTPUT"
+         ts_log_fine "starting qsh $remote_host_arg on host $ts_config(master_host) as user $user ..."
+         ts_log_fine "setting DISPLAY=$CHECK_DISPLAY_OUTPUT"
          
          set my_qsh_env(DISPLAY) $CHECK_DISPLAY_OUTPUT
          set abort_count 60
@@ -1492,7 +1481,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          while {!$done} {
             expect {
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
@@ -1500,33 +1489,33 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                   if { $job_id == 0 } {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
-                        puts $CHECK_OUTPUT $job
+                        ts_log_finest $job
                         if { [lindex $job 2] == "INTERACTIV" && [lindex $job 3] == $user && [lindex $job 4] == "r" } {
-                           puts $CHECK_OUTPUT "qsh job id is [lindex $job 0]"
+                           ts_log_fine "qsh job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
                         }
                      }
                   } else {
-                        puts $CHECK_OUTPUT "ok, now deleting job $job_id ..."
+                        ts_log_finest "ok, now deleting job $job_id ..."
                         delete_job $job_id
                         set done 1
                   }
                   incr abort_count -1
                   if { $abort_count <= 0 } {
-                     add_proc_error "submit_wait_type_job" -1 "timeout waiting for start of $job_type job of user $user"
+                     ts_log_severe "timeout waiting for start of $job_type job of user $user"
                      set done 1
                   }
                }
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_finest "remote command started"
                   set done 0
                }
                -i $sp_id "_exit_status_" {
-                  puts $CHECK_OUTPUT "remote command terminated"
+                  ts_log_finest "remote command terminated"
                   set done 0
                }
 
@@ -1538,7 +1527,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                      if { [string length $line] == 0 } {
                         continue
                      }
-                     puts $CHECK_OUTPUT $line
+                     ts_log_finest $line
                   }
                }
             }
@@ -1547,14 +1536,15 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
       }
 
       "tight_integrated" {
+         ts_log_fine "starting tightly integrated job"
          set master_task_id [submit_job "$remote_host_arg $output_argument -pe tight_job_start 1 $ts_config(product_root)/examples/jobs/sleeper.sh 30" 1 60 "" $user]
          wait_for_jobstart $master_task_id "leeper" 30 1 1
-         puts $CHECK_OUTPUT "tight integration job has been submitted, now submitting task ..."
+         ts_log_finer "tight integration job has been submitted, now submitting task ..."
 
          set my_tight_env(JOB_ID) $master_task_id
          set my_tight_env(SGE_TASK_ID) 1
 
-         puts $CHECK_OUTPUT "starting qrsh -inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 80 ..."
+         ts_log_finer "starting qrsh -inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 80 ..."
          set sid [open_remote_spawn_process $ts_config(master_host) $user "qrsh" "-inherit $host $ts_config(product_root)/examples/jobs/sleeper.sh 15" 0 "" my_tight_env]
          set sp_id [lindex $sid 1]
          set timeout 1
@@ -1563,7 +1553,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
          while {!$done} {
             expect {
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
@@ -1571,32 +1561,32 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
 
                   set job_list [get_standard_job_info 0 0 1]
                   foreach job $job_list {
-                     puts $CHECK_OUTPUT $job
+                     ts_log_finest $job
                      if { [lindex $job 2] == "Sleeper" && [lindex $job 3] == $user } {
-                        puts $CHECK_OUTPUT "qrsh -inherit job id is [lindex $job 0]"
+                        ts_log_fine "qrsh job id is [lindex $job 0]"
                         set job_id [lindex $job 0]
                      }
                   }
 
                   if { $max_timeouts <= 0 } {
-                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     ts_log_severe "got 15 timeout errors - break"
                      set done 1 
                   }
                }
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_finest "remote command started"
                   set done 0
                }
                -i $sp_id "_exit_status_" {
-                  puts $CHECK_OUTPUT "remote command terminated"
+                  ts_log_finest "remote command terminated"
                   set done 1
                }
                -i $sp_id "assword" {
-                  add_proc_error "submit_wait_type_job" -1 "unexpected password question for user $user on host $host"
+                  ts_log_severe "unexpected password question for user $user on host $host"
                   set done 1
                }
                -i $sp_id "*\n" {
@@ -1607,7 +1597,7 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
                      if { [string length $line] == 0 } {
                         continue
                      }
-                     puts $CHECK_OUTPUT $line
+                     ts_log_finest $line
                   }
                }
                -i $sp_id default {
@@ -1620,46 +1610,43 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
    }
 
    if { $job_id == 0 } {
-      add_proc_error "submit_wait_type_job" -1 "could not submit \"$job_type\" job to host \"$host\" as user \"$user\". XWindow DISPLAY=$CHECK_DISPLAY_OUTPUT.\nPlease be informed that this test only works if your display is shared to other users/hosts!!!"
+      ts_log_severe "could not submit \"$job_type\" job to host \"$host\" as user \"$user\". XWindow DISPLAY=$CHECK_DISPLAY_OUTPUT.\nPlease be informed that this test only works if your display is shared to other users/hosts!!!"
       return -1
    }
 
    
-   puts $CHECK_OUTPUT "waiting for job $job_id to disapear "
+   ts_log_finer "waiting for job $job_id to disapear "
    set my_timeout [timestamp]
    incr my_timeout 30
    while { [is_job_running $job_id "" ] != -1 } {
       after 500
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
       if { [timestamp] > $my_timeout } {
          break
       }
    }
-   puts $CHECK_OUTPUT ""
 
 
 
    # if job is now still running or pending, the job had problems => error
    if { [is_job_running $job_id "" ] != -1 } {
-      add_proc_error "submit_wait_type_job" -1 "job still registered! Skipping test for \"$job_type\" job to host \"$host\" as user \"$user\".\nXWindow DISPLAY=$CHECK_DISPLAY_OUTPUT\nPLEASE check that user $user can open an xterm on your display!!!"
+      ts_log_severe "job still registered! Skipping test for \"$job_type\" job to host \"$host\" as user \"$user\".\nXWindow DISPLAY=$CHECK_DISPLAY_OUTPUT\nPLEASE check that user $user can open an xterm on your display!!!"
       return -1
    }
    
 
    set my_timeout [timestamp]
    incr my_timeout 60
-   puts $CHECK_OUTPUT "waiting for accounting file to have information about job $job_id"
+   ts_log_finer "waiting for accounting file to have information about job $job_id"
    while {[get_qacct $job_id qacctinfo "" "" 0] != 0 } {
       after 500
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
       if { [timestamp] > $my_timeout } {
          break
       }
    }
 
-   puts $CHECK_OUTPUT "waiting for accounting file to have information about job $job_id slave"
+   ts_log_fine "waiting for accounting file to have information about job $job_id slave"
    if { $job_type == "tight_integrated" } {
       set my_timeout [timestamp]
       incr my_timeout 60
@@ -1669,15 +1656,13 @@ proc submit_wait_type_job {job_type host user {variable qacct_info}} {
             break
          } 
          after 500
-         puts -nonewline $CHECK_OUTPUT "."
-         flush $CHECK_OUTPUT
+         ts_log_progress
          if { [timestamp] > $my_timeout } {
             break
          }
       }
    }
 
-   puts $CHECK_OUTPUT ""
 
    if {[get_qacct $job_id qacctinfo] != 0} {
       return -1
@@ -1795,7 +1780,6 @@ proc submit_waitjob_job { jobargs wait_job_id} {
 #     ???/???
 #*******************************************************************************
 proc get_loadsensor_path { node } {
-   global CHECK_OUTPUT
    global ts_host_config
    get_current_cluster_config_array ts_config
    
@@ -1809,7 +1793,7 @@ proc get_loadsensor_path { node } {
    if {[info exists ts_host_config($host,loadsensor)]} {
       set loadsensor $ts_host_config($host,loadsensor)
    } else {
-      add_proc_error "get_loadsensor_path" -1 "no host configuration found for host \"$host\""
+      ts_log_severe "no host configuration found for host \"$host\""
    }
 
    # if we have no custom loadsensor
@@ -1850,13 +1834,12 @@ proc get_loadsensor_path { node } {
 #
 proc get_gid_range { user port } {
    get_current_cluster_config_array ts_config
-  global CHECK_OUTPUT
   global ts_user_config
 
   if { [ info exists ts_user_config($port,$user) ] } {
      return $ts_user_config($port,$user)
   }
-  add_proc_error "get_gid_range" -1 "no gid range defined for user $user on port $port"
+  ts_log_severe "no gid range defined for user $user on port $port"
   return ""
 }
 
@@ -1892,25 +1875,25 @@ proc get_gid_range { user port } {
 #     ???/???
 #*******************************
 proc move_qmaster_spool_dir { new_spool_dir } {
-  global CHECK_OUTPUT CHECK_USER 
+  global CHECK_USER 
   get_current_cluster_config_array ts_config
 
   set old_spool_dir [ get_qmaster_spool_dir ]
  
   
   if { [ string compare $old_spool_dir $new_spool_dir ] == 0 } {
-     add_proc_error "move_qmaster_spool_dir" -1 "old and new spool dir are the same"
+     ts_log_severe "old and new spool dir are the same"
      return
   }
  
   if { [ string compare "unknown" $old_spool_dir] == 0 } { 
-     add_proc_error "move_qmaster_spool_dir" -1 "can't get qmaster spool dir"
+     ts_log_severe "can't get qmaster spool dir"
      return
   }
 
   if { [string length $new_spool_dir] <= 10  } {
      # just more security (do not create undefined dirs or something like that)
-     add_proc_error "move_qmaster_spool_dir" -1 "please use path with size > 10 characters"
+     ts_log_severe "please use path with size > 10 characters"
      return
   } 
 
@@ -1930,27 +1913,27 @@ proc move_qmaster_spool_dir { new_spool_dir } {
   set vi_binary [get_binary_path $ts_config(master_host) "vim"]
   # JG: TODO: this is version dependent! Use set_qmaster_spool_dir instead!
   set result [ handle_vi_edit "$vi_binary" "$ts_config(product_root)/$ts_config(cell)/common/bootstrap" "$vi_commands" "" ] 
-  puts $CHECK_OUTPUT "result: \"$result\""
+  ts_log_finest "result: \"$result\""
   if { $result != 0 } {
-     add_proc_error "shadowd_kill_master_and_scheduler" -1 "edit error when changing global configuration"
+     ts_log_severe "edit error when changing global configuration"
   } 
 
   set_qmaster_spool_dir $new_spool_dir
 
-  puts $CHECK_OUTPUT "make copy of spool directory ..."
+  ts_log_finest "make copy of spool directory ..."
   # now copy the entries  
   set result [ start_remote_tcl_prog $ts_config(master_host) $CHECK_USER "file_procedures.tcl" "copy_directory" "$old_spool_dir $new_spool_dir" ]
   if { [ string first "no errors" $result ] < 0 } {
-      add_proc_error "shadowd_kill_master_and_scheduler" -1 "error moving qmaster spool dir"
+      ts_log_severe "error moving qmaster spool dir"
   }
 
-  puts $CHECK_OUTPUT "starting up qmaster ..."
+  ts_log_fine "starting up qmaster ..."
   startup_qmaster
   wait_for_load_from_all_queues 300
 
   set changed_spool_dir [ get_qmaster_spool_dir ]
   if { [string compare $changed_spool_dir $new_spool_dir] != 0 } {
-     add_proc_error "shadowd_kill_master_and_scheduler" -1 "error changing qmaster spool dir"
+     ts_log_severe "error changing qmaster spool dir"
   }
 
 }
@@ -2027,7 +2010,6 @@ proc move_qmaster_spool_dir { new_spool_dir } {
 #     sge_procedures/set_config()
 #*******************************
 proc get_config { change_array {host global}} {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
@@ -2037,7 +2019,7 @@ proc get_config { change_array {host global}} {
 
   set result [start_sge_bin "qconf" "-sconf $host"] 
   if {$prg_exit_state != 0} {
-     add_proc_error "get_config" "-1" "qconf -sconf $host failed:\n$result"
+     ts_log_severe "qconf -sconf $host failed:\n$result"
      return -1
   }
 
@@ -2129,7 +2111,7 @@ proc get_config { change_array {host global}} {
 #     sge_procedures/get_config()
 #*******************************
 proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
-   global env CHECK_OUTPUT
+   global env
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -2167,7 +2149,7 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
    }
 
    if {$result != 0 && $result != -3 && $result != -5}  {
-      add_proc_error "set_config" -1 "could not add or modify configuration for host $host ($result)" $raise_error
+      ts_log_severe "could not add or modify configuration for host $host ($result)" $raise_error
    }
 
    return $result
@@ -2193,7 +2175,7 @@ proc set_config {change_array {host global} {do_add 0} {raise_error 1}} {
 #               to global
 #*******************************************************************************
 proc set_config_and_propagate {config {host global}} {
-   global CHECK_OUTPUT CHECK_USER ts_user_config
+   global CHECK_USER ts_user_config
    get_current_cluster_config_array ts_config
    upvar $config my_config
 
@@ -2214,7 +2196,7 @@ proc set_config_and_propagate {config {host global}} {
       set timeout 5
       expect {
          -i $sp_id full_buffer {
-          add_proc_error "set_config_and_propagate" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
          }
@@ -2226,7 +2208,7 @@ proc set_config_and_propagate {config {host global}} {
       set_config my_config $host
 
       # Wait for change to propagate
-      puts $CHECK_OUTPUT "Waiting for configuration change to propagate to execd"
+      ts_log_fine "waiting for configuration change to propagate to execd"
 
       # choose a config to wait for
       # if it is an empty string (e.g. as we deleted an entry), use wildcards
@@ -2246,16 +2228,16 @@ proc set_config_and_propagate {config {host global}} {
 
       expect {
          -i $sp_id full_buffer {
-          add_proc_error "set_config_and_propagate" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
-            add_proc_error "set_config_and_propagate" -1 "setup failed (timeout waiting for config to change)"
+            ts_log_severe "setup failed (timeout waiting for config to change)"
          }
          -i $sp_id "\|execd\|$conf_host\|I\|using \"$value\" for $name" {
-            puts $CHECK_OUTPUT "Configuration changed: $name = \"$value\""
+            ts_log_finest "Configuration changed: $name = \"$value\""
          }
          -i $sp_id "\|  main\|$conf_host\|I\|using \"$value\" for $name" {
-            puts $CHECK_OUTPUT "Configuration changed: $name = \"$value\""
+            ts_log_finest "Configuration changed: $name = \"$value\""
          }
       }
 
@@ -2339,7 +2321,6 @@ proc compare_complex {a b} {
 #     change_array(resource_capability_factor)  "0.000000"
 #*******************************
 proc add_exechost {change_array {fast_add 1}} {
-  global CHECK_OUTPUT
   global env
   get_current_cluster_config_array ts_config
 
@@ -2364,7 +2345,7 @@ proc add_exechost {change_array {fast_add 1}} {
   
      foreach elem $values {
         set value $chgar($elem)
-        puts $CHECK_OUTPUT "--> setting \"$elem\" to \"$value\""
+        ts_log_finest "--> setting \"$elem\" to \"$value\""
         set default_array($elem) $value
      }
 
@@ -2378,12 +2359,12 @@ proc add_exechost {change_array {fast_add 1}} {
      close $file
 
      set result [start_sge_bin "qconf" "-Ae ${tmpfile}"]
-     puts $CHECK_OUTPUT $result
+     ts_log_finest $result
 
      set ADDED [translate_macro MSG_EXEC_ADDEDHOSTXTOEXECHOSTLIST_S "*"]
 
      if {[string match "*$ADDED*" $result] == 0} {
-        add_proc_error "add_exechost" "-1" "qconf -Ae $tmpfile failed:\n$result"
+        ts_log_severe "qconf -Ae $tmpfile failed:\n$result"
         return
      }
      return
@@ -2397,7 +2378,7 @@ proc add_exechost {change_array {fast_add 1}} {
   set master_arch [resolve_arch $ts_config(master_host)]
   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ae" $vi_commands $ADDED $ALREADY_EXISTS]
   if {$result != 0} {
-     add_proc_error "add_exechost" -1 "could not add queue $chgar(qname):\n$result"
+     ts_log_severe "could not add queue $chgar(qname):\n$result"
   }
   return $result
 }
@@ -2428,7 +2409,6 @@ proc add_exechost {change_array {fast_add 1}} {
 # 
 #*******************************************************************************
 proc get_scheduling_info { job_id { check_pending 1 }} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    if { $check_pending == 1 } {
@@ -2440,7 +2420,7 @@ proc get_scheduling_info { job_id { check_pending 1 }} {
    trigger_scheduling
 
    set my_timeout [ expr ( [timestamp] + 30 ) ] 
-   puts $CHECK_OUTPUT "waiting for scheduling info information ..."
+   ts_log_finer "waiting for scheduling info information ..."
    while { 1 } {
       if { [get_qstat_j_info $job_id ] } {
          set help_var_name "scheduling info" 
@@ -2460,16 +2440,13 @@ proc get_scheduling_info { job_id { check_pending 1 }} {
          set INFO_NOMESSAGE [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_NOMESSAGE]]
 
          if { [string first "no messages available" $sched_info] < 0 && [string first $INFO_NOMESSAGE $sched_info] < 0 } {
-            puts $CHECK_OUTPUT ""
-            puts $CHECK_OUTPUT $sched_info
+            ts_log_finest $sched_info
             return $sched_info
          }
       }
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
       after 500
       if { [timestamp] > $my_timeout } {
-         puts $CHECK_OUTPUT ""
          return "timeout"
       }
    }   
@@ -2491,7 +2468,7 @@ proc get_scheduling_info { job_id { check_pending 1 }} {
 #
 #  INPUTS
 #     jobid             - job identification number
-#     {do_errorcheck 1} - 1: call add_proc_error if job was not found
+#     {do_errorcheck 1} - 1: call ts_log_severe if job was not found
 #                         0: do not generate error messages
 #
 #  RESULT
@@ -2499,10 +2476,9 @@ proc get_scheduling_info { job_id { check_pending 1 }} {
 #     or the output of qacct -j
 #
 #  SEE ALSO
-#     check/add_proc_error()
+#     logging/ts_log_severe
 #*******************************
 proc was_job_running {jobid {do_errorcheck 1} } {
-  global CHECK_OUTPUT
   global check_timestamp
   get_current_cluster_config_array ts_config
 # returns
@@ -2512,7 +2488,7 @@ proc was_job_running {jobid {do_errorcheck 1} } {
   set mytime [timestamp]
 
   if {$mytime == $check_timestamp} {
-     puts $CHECK_OUTPUT "was_job_running - waiting for job ..."
+     ts_log_fine "was_job_running - waiting for job ..."
      after 1000
   }
   set check_timestamp $mytime
@@ -2521,8 +2497,7 @@ proc was_job_running {jobid {do_errorcheck 1} } {
   
   if {$prg_exit_state != 0} {
       if {$do_errorcheck == 1} { 
-         puts $CHECK_OUTPUT "debug: $result"
-         add_proc_error "was_job_running" -1 "job \"($jobid)\" not found"
+         ts_log_severe "job \"$jobid\" not found:\n$result"
       }
       return -1
   }
@@ -2533,9 +2508,7 @@ proc was_job_running {jobid {do_errorcheck 1} } {
 
 
 proc match_queue {qname qlist} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "trying to match $qname to queues in $qlist"
+   ts_log_finest "trying to match $qname to queues in $qlist"
 
    set ret {}
    foreach q $qlist {
@@ -2576,11 +2549,10 @@ proc match_queue {qname qlist} {
 #     sge_procedures/master_queue_of()
 #*******************************
 proc slave_queue_of { job_id {qlist {}}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 # return last slave queue of job
 # no slave -> return ""
-   puts $CHECK_OUTPUT "Looking for SLAVE QUEUE of Job $job_id."
+   ts_log_fine "Looking for SLAVE QUEUE of Job $job_id."
    set slave_queue ""         ;# return -1, if there is no slave queue
    
    set result [get_standard_job_info $job_id]
@@ -2592,23 +2564,23 @@ proc slave_queue_of { job_id {qlist {}}} {
             # we have to match queue name from qstat against qlist
             set matching_queues [match_queue $slave_queue $qlist]
             if {[llength $matching_queues] == 0} {
-               add_proc_error "slave_queue_of" -1 "no queue is matching queue list"
+               ts_log_severe "no queue is matching queue list"
             } else {
                if {[llength $matching_queues] > 1} {
-                  add_proc_error "slave_queue_of" -1 "multiple queues are matching queue list"
+                  ts_log_severe "multiple queues are matching queue list"
                } else {
                   set slave_queue [lindex $matching_queues 0]
                }
             }
          }
-         puts $CHECK_OUTPUT "Slave is running on queue \"$slave_queue\""
+         ts_log_fine "Slave is running on queue \"$slave_queue\""
       }
    }
 
    #set slave_queue [get_cluster_queue $slave_queue]
    
    if {$slave_queue == ""} {
-     add_proc_error "slave_queue_of" -1 "no slave queue for job $job_id found"
+     ts_log_severe "no slave queue for job $job_id found"
    } 
 
    return $slave_queue
@@ -2643,11 +2615,10 @@ proc slave_queue_of { job_id {qlist {}}} {
 #     sge_procedures/slave_queue_of()
 #*******************************
 proc master_queue_of { job_id {qlist {}}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 # return master queue of job
 # no master -> return "": ! THIS MAY NOT HAPPEN !
-   puts $CHECK_OUTPUT "Looking for MASTER QUEUE of Job $job_id."
+   ts_log_fine "Looking for MASTER QUEUE of Job $job_id."
    set master_queue ""         ;# return -1, if there is no master queue
    
    set result [get_standard_job_info $job_id]
@@ -2659,16 +2630,16 @@ proc master_queue_of { job_id {qlist {}}} {
             # we have to match queue name from qstat against qlist
             set matching_queues [match_queue $master_queue $qlist]
             if {[llength $matching_queues] == 0} {
-               add_proc_error "master_queue_of" -1 "no queue is matching queue list"
+               ts_log_severe "no queue is matching queue list"
             } else {
                if {[llength $matching_queues] > 1} {
-                  add_proc_error "master_queue_of" -1 "multiple queues are matching queue list"
+                  ts_log_severe "multiple queues are matching queue list"
                } else {
                   set master_queue [lindex $matching_queues 0]
                }
             }
          }
-         puts $CHECK_OUTPUT "Master is running on queue \"$master_queue\""
+         ts_log_fine "Master is running on queue \"$master_queue\""
          break                  ;# break out of loop, if Master found
        }
    }
@@ -2676,7 +2647,7 @@ proc master_queue_of { job_id {qlist {}}} {
    #set master_queue [get_cluster_queue $master_queue]
 
    if {$master_queue == ""} {
-     add_proc_error "master_queue_of" -1 "no master queue for job $job_id found"
+     ts_log_severe "no master queue for job $job_id found"
    }
 
    return $master_queue
@@ -2713,14 +2684,14 @@ proc master_queue_of { job_id {qlist {}}} {
 #     sge_procedures/wait_for_jobend()
 #*******************************
 proc wait_for_load_from_all_queues { seconds } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set time [timestamp]
 
+   ts_log_fine "waiting for load value report from all queues ..."
    while {1} {
-      puts $CHECK_OUTPUT "waiting for load value report from all queues ..."
       after 1000
+      ts_log_progress
       set result [start_sge_bin "qstat" "-f"]
       if {$prg_exit_state == 0} {
          # split each line as listelement
@@ -2767,12 +2738,12 @@ proc wait_for_load_from_all_queues { seconds } {
             return 0
          }
       } else {
-        puts $CHECK_OUTPUT "qstat -f failed:\n$result"
+        ts_log_fine "qstat -f failed:\n$result"
       }
 
       set runtime [expr ( [timestamp] - $time) ]
       if { $runtime >= $seconds } {
-          add_proc_error "wait_for_load_from_all_queues" -1 "timeout waiting for load values < 99"
+          ts_log_severe "timeout waiting for load values < 99"
           return -1
       }
    }
@@ -2804,18 +2775,18 @@ proc wait_for_load_from_all_queues { seconds } {
 #     sge_procedures/wait_for_queue_state()
 #*******************************************************************************
 proc wait_for_job_state {jobid state wait_timeout} {
-   global CHECK_OUTPUT 
    get_current_cluster_config_array ts_config
 
    set my_timeout [expr [timestamp] + $wait_timeout]
+   ts_log_fine "waiting for job $jobid to become job state ${state} ..."
    while {1} {
-      puts $CHECK_OUTPUT "waiting for job $jobid to become job state ${state} ..."
+      ts_log_progress
       set job_state [get_job_state $jobid]
       if {[string first $state $job_state] >= 0} {
          return $job_state
       }
       if {[timestamp] > $my_timeout} {
-         add_proc_error "wait_for_job_state" -1 "timeout waiting for job $jobid to get in \"$state\" state"
+         ts_log_severe "timeout waiting for job $jobid to get in \"$state\" state"
          return -1
       }
       sleep 1
@@ -2844,22 +2815,19 @@ proc wait_for_job_state {jobid state wait_timeout} {
 #     sge_procedures/wait_for_job_state()
 #*******************************************************************************
 proc wait_for_queue_state {queue state wait_timeout} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
-   puts -nonewline $CHECK_OUTPUT "waiting for queue $queue to get in \"${state}\" state " ; flush $CHECK_OUTPUT
+   ts_log_fine "waiting for queue $queue to get in \"${state}\" state "
    set my_timeout [expr [timestamp] + $wait_timeout]
    while {1} {
-      puts -nonewline $CHECK_OUTPUT "." ; flush $CHECK_OUTPUT
+      ts_log_progress
       after 500
       set q_state [get_queue_state $queue]
       if {[string first $state $q_state] >= 0} {
-         puts $CHECK_OUTPUT ""
          return $q_state
       }
       if {[timestamp] > $my_timeout} {
-         puts $CHECK_OUTPUT ""
-         add_proc_error "wait_for_queue_state" -1 "timeout waiting for queue $queue to get in \"${state}\" state"
+         ts_log_severe "timeout waiting for queue $queue to get in \"${state}\" state"
          return -1
       }
    }
@@ -2890,24 +2858,25 @@ proc wait_for_queue_state {queue state wait_timeout} {
 #     sge_procedures/shutdown_system_daemon()
 #*******************************************************************************
 proc soft_execd_shutdown {host} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
+   ts_log_fine "shutdown execd on host \"$host\""
    set tries 0
    while {$tries <= 8} {
       incr tries 1
       set result [start_sge_bin "qconf" "-ke $host" $ts_config(master_host) $CHECK_USER]
       if {$prg_exit_state != 0} {
-         puts $CHECK_OUTPUT "qconf -ke $host returned $prg_exit_state, hard killing execd"
+         ts_log_finer "qconf -ke $host returned $prg_exit_state, hard killing execd"
          shutdown_system_daemon $host execd
       }
       set load [wait_for_unknown_load 15 "${host}.q" 0]
       if {$load == 0} {
-         puts $CHECK_OUTPUT "execd on host $host reports 99.99 load value"
+         ts_log_finer "execd on host $host reports 99.99 load value"
          return 0
       }
    }
-   add_proc_error "soft_execd_shutdown" -1 "could not shutdown execd on host $host"
+   ts_log_severe "could not shutdown execd on host $host"
    return -1
 }
 
@@ -2935,7 +2904,6 @@ proc soft_execd_shutdown {host} {
 #  
 #*******************************************************************************
 proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    set time [timestamp]
 
@@ -2944,9 +2912,10 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
       return -1      
    }
 
+   ts_log_fine "wait_for_unknown_load - waiting for queues\n\"$queue_array\"\nto get unknown load state ..."
    while {1} {
       after 1000
-      puts $CHECK_OUTPUT "wait_for_unknown_load - waiting for queues\n\"$queue_array\"\nto get unknown load state ..."
+      ts_log_progress
       set result [start_sge_bin "qstat" "-f"]
       if {$prg_exit_state == 0} {
          # split each line as listelement
@@ -2996,9 +2965,9 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
             return 0
          }
       } else {
-        puts $CHECK_OUTPUT "qstat -f failed:\n$result"
+        ts_log_finer "qstat -f failed:\n$result"
         if {$do_error_check == 1} {
-           add_proc_error "wait_for_unknown_load" -1 "qstat -f failed:\n$result"
+           ts_log_severe "qstat -f failed:\n$result"
         }
         return -1
       }
@@ -3006,7 +2975,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
       set runtime [expr [timestamp] - $time]
       if {$runtime >= $seconds} {
           if {$do_error_check == 1} {
-             add_proc_error "wait_for_unknown_load" -1 "timeout waiting for load values >= 99"
+             ts_log_severe "timeout waiting for load values >= 99"
           }
           return -1
       }
@@ -3040,16 +3009,14 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #*******************************
 #
 proc wait_for_end_of_all_jobs {{seconds 60}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set time [timestamp]
-   puts -nonewline $CHECK_OUTPUT "waiting for end of all jobs (qstat -s pr) " ; flush $CHECK_OUTPUT
+   ts_log_fine "waiting for end of all jobs (qstat -s pr)"
    while {1} {
       set result [start_sge_bin "qstat" "-s pr"]
       if {$prg_exit_state == 0} {
          if {[string compare $result ""] == 0} {
-            puts $CHECK_OUTPUT "done"
             return 0
          }
 
@@ -3063,20 +3030,17 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
             debug_puts $elem
          }
       } else {
-        puts $CHECK_OUTPUT ""
-        add_proc_error "wait_for_end_of_all_jobs" -1 "qstat -s pr failed:\n$result"
+        ts_log_severe "qstat -s pr failed:\n$result"
         return -1
       }
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
       after 500
       
       # check timeout
       if {$seconds > 0} {
          set runtime [expr [timestamp] - $time]
          if {$runtime >= $seconds} {
-             puts $CHECK_OUTPUT ""
-             add_proc_error "wait_for_end_of_all_jobs" -1 "timeout waiting for end of all jobs:\n\"$result\""
+             ts_log_severe "timeout waiting for end of all jobs:\n\"$result\""
              return -1
          }
       }
@@ -3100,7 +3064,7 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
 #     attribute  - name of attribute to modify
 #     entry      - new value for attribute
 #     queue_list - name of queues to change
-#     add_error  - execute add_proc_error
+#     add_error  - execute ts_log_severe
 #
 #  RESULT
 #     -1 - error
@@ -3125,7 +3089,7 @@ proc mqattr {attribute entry queue_list {add_error 1}} {
 # -1 on error
 # 0 on success
   
-  global CHECK_OUTPUT CHECK_USER
+  global CHECK_USER
   get_current_cluster_config_array ts_config
 
   puts "Trying to change attribute $attribute of queues $queue_list to $entry."
@@ -3134,7 +3098,7 @@ proc mqattr {attribute entry queue_list {add_error 1}} {
   set result [start_sge_bin "qconf" "-rattr queue $help $queue_list"]
   if {$prg_exit_state != 0} {
      if {$add_error == 1} {
-        add_proc_error "mqattr" "-1" "qconf -rattr queue $help $queue_list failed:\n$result"
+        ts_log_severe "qconf -rattr queue $help $queue_list failed:\n$result"
      }
      return -1
   }
@@ -3145,11 +3109,11 @@ proc mqattr {attribute entry queue_list {add_error 1}} {
   set return_value 0
   
   foreach elem $help {
-     puts $CHECK_OUTPUT "line: $elem"
+     ts_log_finest "line: $elem"
      set queue_name [lindex $queue_list $counter]
      set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
      if { [ string match "*$MODIFIED*" $elem ] != 1 } {
-        puts $CHECK_OUTPUT "Could not modify queue $queue_name."
+        ts_log_fine "Could not modify queue $queue_name."
         set return_value -1
      } else {
         puts "Modified queue $queue_name successfully."
@@ -3159,7 +3123,7 @@ proc mqattr {attribute entry queue_list {add_error 1}} {
 
    if { $return_value != 0 } {
      if { $add_error == 1} {
-       add_proc_error "mqattr" -1 "could not modify queue \"$queue_name\""
+       ts_log_severe "could not modify queue \"$queue_name\""
      }
    }
 
@@ -3181,7 +3145,7 @@ proc mqattr {attribute entry queue_list {add_error 1}} {
 #     attribute       - name of attribute to modify 
 #     entry           - new value for attribute 
 #     host_name       - name of the host to change 
-#     { add_error 1 } - execute add_proc_error
+#     { add_error 1 } - execute ts_log_severe
 #
 #  RESULT
 #     -1 - error
@@ -3199,7 +3163,7 @@ proc mhattr { attribute entry host_name { add_error 1 } } {
 # -1 on error
 # 0 on success
   
-  global CHECK_OUTPUT CHECK_USER
+  global CHECK_USER
   get_current_cluster_config_array ts_config
 
   puts "Trying to change attribute $attribute for host $host_name to $entry."
@@ -3208,7 +3172,7 @@ proc mhattr { attribute entry host_name { add_error 1 } } {
   set result [start_sge_bin "qconf" "-rattr exechost $help $host_name"]
   if { $prg_exit_state != 0 } {
      if { $add_error == 1} {
-         add_proc_error "mhattr" "-1" "qconf -rattr exechost $help $host_name failed:\n$result"
+         ts_log_severe "qconf -rattr exechost $help $host_name failed:\n$result"
      }
      return -1
   }
@@ -3219,7 +3183,7 @@ proc mhattr { attribute entry host_name { add_error 1 } } {
    
   set MODIFIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS] $CHECK_USER "*" "*" "*"]
   if { [ string match "*$MODIFIED*" $result ] != 1 } {
-     puts $CHECK_OUTPUT "Could not modify host $host_name."
+     ts_log_fine "Could not modify host $host_name."
      set return_value -1
   } else {
      puts "Modified host $host_name successfully."
@@ -3227,7 +3191,7 @@ proc mhattr { attribute entry host_name { add_error 1 } } {
 
   if { $return_value != 0 } {
      if { $add_error == 1} {
-       add_proc_error "mhattr" -1 "could not modify host \"$host_name\""
+       ts_log_severe "could not modify host \"$host_name\""
      }
   }
 
@@ -3252,18 +3216,18 @@ proc mhattr { attribute entry host_name { add_error 1 } } {
 #     target       - target object
 #     {fast_add 1} - 0: modify the attribute using qconf -mattr, 
 #                  - 1: modify the attribute using qconf -Mattr, faster
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     integer value  0 on success, -2 on error
 #
 #*******************************************************************************
 proc mod_attr { object attribute value target {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_USER 
    get_current_cluster_config_array ts_config
 
 
-   puts $CHECK_OUTPUT "Modifying object \"$object\" attribute  \"$attribute\" value \"$value\" for target \"$target\" "
+   ts_log_fine "Modifying object \"$object\" attribute  \"$attribute\" value \"$value\" for target \"$target\" "
 
    # add queue from file?
     if { $fast_add } {
@@ -3317,7 +3281,7 @@ proc mod_attr { object attribute value target {fast_add 1} {on_host ""} {as_user
 #     attribute    - attribute of object we are modifying
 #     value        - value of attribute of object we are modifying
 #     target      - target object
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     Returncode for mod_attr function:
@@ -3406,17 +3370,17 @@ proc get_attr { object attribute target {on_host ""} {as_user ""} {raise_error 1
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
 #     {fast_add 1} - 0: modify the attribute using qconf -dattr,
 #                  - 1: modify the attribute using qconf -Dattr, faster
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     integer value  0 on success, -2 on error
 #
 #*******************************************************************************
 proc del_attr { object attribute value target {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_USER 
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "Deleting attribute \"$attribute\" for object \"$object\""
+   ts_log_fine "Deleting attribute \"$attribute\" for object \"$object\""
 
    # add queue from file?
     if { $fast_add } {
@@ -3471,7 +3435,7 @@ proc del_attr { object attribute value target {fast_add 1} {on_host ""} {as_user
 #     attribute    - attribute of object we are modifying
 #     value        - value of attribute of object we are modifying
 #     target      - target object
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     Returncode for del_attr function:
@@ -3528,17 +3492,17 @@ proc del_attr_file_error {result object tmpfile attribute target raise_error} {
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
 #     {fast_add 1} - 0: modify the attribute using qconf -aattr,
 #                  - 1: modify the attribute using qconf -Aattr, faster
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     integer value  0 on success, -2 on error
 #
 #*******************************************************************************
 proc add_attr { object attribute value target {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_USER 
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "Adding attribute \"$attribute\" for object \"$object\""
+   ts_log_fine "Adding attribute \"$attribute\" for object \"$object\""
 
    # add queue from file?
     if { $fast_add } {
@@ -3592,7 +3556,7 @@ proc add_attr { object attribute value target {fast_add 1} {on_host ""} {as_user
 #     attribute    - attribute of object we are modifying
 #     value        - value of attribute of object we are modifying
 #     target      - target object
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     Returncode for add_attr function:
@@ -3649,17 +3613,17 @@ proc add_attr_file_error {result object tmpfile attribute target raise_error} {
 #                  - 1: modify the attribute using qconf -Rattr, faster
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     integer value  0 on success, -2 on error
 #
 #*******************************************************************************
 proc replace_attr { object attribute value target {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_USER 
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "Replacing attribute \"$attribute\" of object \"$object\""
+   ts_log_fine "Replacing attribute \"$attribute\" of object \"$object\""
 
    # add queue from file?
     if { $fast_add } {
@@ -3713,7 +3677,7 @@ proc replace_attr { object attribute value target {fast_add 1} {on_host ""} {as_
 #     attribute    - attribute of object we are modifying
 #     value        - value of attribute of object we are modifying
 #     target      - target object
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     Returncode for replace_attr function:
@@ -3786,8 +3750,10 @@ proc replace_attr_file_error {result object attribute tmpfile target raise_error
 #     sge_procedures/unsuspend_job()
 #*******************************
 proc suspend_job { id {force 0} {error_check 1}} {
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_USER 
    get_current_cluster_config_array ts_config
+
+   ts_log_fine "suspending job $id"
 
    set SUSPEND1 [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_SUSPENDTASK_SUU] $CHECK_USER $id "*" ]
    set SUSPEND2 [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_SUSPENDJOB_SU] $CHECK_USER $id ]
@@ -3812,37 +3778,37 @@ proc suspend_job { id {force 0} {error_check 1}} {
 	expect {
       -i $sp_id full_buffer {
          set result -1 
-         add_proc_error "suspend_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
 	   -i $sp_id -- "$SUSPEND1" {
-         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         ts_log_finest "$expect_out(0,string)"
 	      set result 0
 	   }
 	   -i $sp_id -- "$SUSPEND2" {
-         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         ts_log_finest "$expect_out(0,string)"
 	      set result 0
 	   }
 	   -i $sp_id -- "$ALREADY_SUSP1" {
-         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         ts_log_finest "$expect_out(0,string)"
 	      set result -1
 	   }
 	   -i $sp_id -- "$ALREADY_SUSP2" {
-         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         ts_log_finest "$expect_out(0,string)"
 	      set result -1
 	   }
 	   -i $sp_id -- "$FORCED_SUSP1" {
-         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         ts_log_finest "$expect_out(0,string)"
 	      set result 0
 	   }
 	   -i $sp_id -- "$FORCED_SUSP2" {
-         puts $CHECK_OUTPUT "$expect_out(0,string)"
+         ts_log_finest "$expect_out(0,string)"
 	      set result 0
 	   }
 	   -i $sp_id "suspended job" {
 	      set result 0
 	   }
       -i $sp_id default {
-         puts $CHECK_OUTPUT "unexpected output: $expect_out(0,string)"
+         ts_log_finest "unexpected output: $expect_out(0,string)"
 	      set result -1
 	   }
 	}
@@ -3852,7 +3818,7 @@ proc suspend_job { id {force 0} {error_check 1}} {
 
    # error check
    if { $error_check && $result != 0 } {
-      add_proc_error "suspend_job" -1 "could not suspend job $id"
+      ts_log_severe "could not suspend job $id"
    }
 
    return $result
@@ -3886,6 +3852,8 @@ proc unsuspend_job { job } {
   global CHECK_USER
   get_current_cluster_config_array ts_config
 
+   ts_log_fine "unsuspending job $job"
+
 
   set UNSUSPEND1 [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_UNSUSPENDTASK_SUU] "*" "*" "*" ]
   set UNSUSPEND2 [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_JOB_UNSUSPENDJOB_SU] "*" "*" ]
@@ -3903,7 +3871,7 @@ proc unsuspend_job { job } {
   expect {
        -i $sp_id full_buffer {
           set result -1 
-          add_proc_error "unsuspend_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
        }
        -i $sp_id $UNSUSPEND1 {
           set result 0 
@@ -3924,7 +3892,7 @@ proc unsuspend_job { job } {
   close_spawn_process $sid
   log_user 1   
   if { $result != 0 } {
-     add_proc_error "unsuspend_job" -1 "could not unsuspend job $job"
+     ts_log_severe "could not unsuspend job $job"
   }
   return $result
 }
@@ -3957,16 +3925,16 @@ proc is_job_id { job_id } {
          incr pos 2
          set task_rest [ string range $job_id $pos end]
          if { [string is integer $array_id] != 1} {
-            add_proc_error "is_job_id" -1 "unexpected task job id: $array_id (no integer)"
+            ts_log_severe "unexpected task job id: $array_id (no integer)"
             return 0
          } 
       } else {
-         add_proc_error "is_job_id" -1 "unexpected job id: $job_id (no integer)"
+         ts_log_severe "unexpected job id: $job_id (no integer)"
          return 0
       }
    }
    if { $job_id <= 0 } {
-      add_proc_error "is_job_id" -1 "unexpected job id: $job_id (no positive number)"
+      ts_log_severe "unexpected job id: $job_id (no positive number)"
       return 0
    }
    return 1
@@ -4001,7 +3969,6 @@ proc is_job_id { job_id } {
 #     sge_procedures/submit_job()
 #*******************************
 proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
-   global CHECK_OUTPUT
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -4050,50 +4017,49 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
       while { $result == -100 } {
       expect {
           -i $sp_id timeout {
-             add_proc_error "delete_job" "-1" "timeout waiting for qdel" $raise_error
+             ts_log_severe "timeout waiting for qdel" $raise_error
              set result -5
           }
 
           -i $sp_id full_buffer {
              set result -5
-             add_proc_error "delete_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
+             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
           }
           -i $sp_id $REGISTERED1 {
-             puts $CHECK_OUTPUT $expect_out(0,string)
+             ts_log_finest $expect_out(0,string)
              set result 0
           }
           -i $sp_id $REGISTERED2 {
-             puts $CHECK_OUTPUT $expect_out(0,string)
+             ts_log_finest $expect_out(0,string)
              set result 0
           }
           -i $sp_id "registered the job" {
-             puts $CHECK_OUTPUT $expect_out(0,string)
+             ts_log_finest $expect_out(0,string)
              set result 0
           }
           -i $sp_id  $DELETED1 {
-             puts $CHECK_OUTPUT $expect_out(0,string)
+             ts_log_finest $expect_out(0,string)
              set result 0
           }
           -i $sp_id  $DELETED2 {
-             puts $CHECK_OUTPUT $expect_out(0,string)
+             ts_log_finest $expect_out(0,string)
              set result 0
           }
           -i $sp_id "has deleted job" {
-             puts $CHECK_OUTPUT $expect_out(0,string)
+             ts_log_finest $expect_out(0,string)
              set result 0
           }
           -i $sp_id $ALREADYDELETED {
-             puts $CHECK_OUTPUT $expect_out(0,string)
+             ts_log_finest $expect_out(0,string)
              set result 0
           }
           -i $sp_id $UNABLETOSYNC {
-            add_proc_error "delete_job" -1 "$UNABLETOSYNC" $raise_error
+            ts_log_severe "$UNABLETOSYNC" $raise_error
             set result -1
           }
           -i default {
              if { [info exists expect_out(buffer)] } {
-#                puts $CHECK_OUTPUT $expect_out(buffer)
-                add_proc_error "delete_job" -1 "expect default switch\noutput was:\n>$expect_out(buffer)<"
+                ts_log_severe "expect default switch\noutput was:\n>$expect_out(buffer)<"
              }
              set result -4 
           }
@@ -4103,35 +4069,32 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
       close_spawn_process $id 1
       log_user 1
    } else {
-      add_proc_error "delete_job" -1 "job id is no integer" $raise_error
+      ts_log_severe "job id is no integer" $raise_error
    }
    if { $result != 0 } {
-      add_proc_error "delete_job" -1 "could not delete job $jobid\nresult=$result" $raise_error
+      ts_log_severe "could not delete job $jobid\nresult=$result" $raise_error
    }
    if { $wait_for_end != 0 && $result == 0 } {
       set my_timeout [timestamp]
       set my_second_qdel_timeout $my_timeout
       incr my_second_qdel_timeout 80
       incr my_timeout 160
-      puts -nonewline $CHECK_OUTPUT "waiting for jobend (1) (qstat -j $jobid) "
-      flush $CHECK_OUTPUT
+      ts_log_fine "waiting for jobend (1) (qstat -j $jobid)"
       after 500
       while { [get_qstat_j_info $jobid ] != 0 } {
           if { [timestamp] > $my_timeout } {
-             add_proc_error "delete_job" -1 "timeout while waiting for jobend" $raise_error
+             ts_log_severe "timeout while waiting for jobend" $raise_error
              break
           }
           if { [timestamp] > $my_second_qdel_timeout } {
-             puts $CHECK_OUTPUT "timeout - deleting job!"
+             ts_log_fine "timeout - deleting job!"
              set my_second_qdel_timeout $my_timeout
              delete_job $jobid
              continue
           }
-          puts -nonewline $CHECK_OUTPUT "."
-          flush $CHECK_OUTPUT
+          ts_log_progress
           after 1000
       }
-      puts $CHECK_OUTPUT ""
    }
    return $result
 }
@@ -4152,7 +4115,7 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
 #
 #  INPUTS
 #     args                - a string of qsub arguments/parameters
-#     {raise_error 1}     - if 1 (default): add global errors (add_proc_error)
+#     {raise_error 1}     - if 1 (default): add global errors (ts_log_severe)
 #                           if 0: do not add errors
 #     {submit_timeout 30} - timeout (default is 30 sec.)
 #     {host ""}           - host on which to execute qsub (default $ts_config(master_host))
@@ -4193,7 +4156,6 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
 #     sge_procedures/submit_job_parse_job_id()
 #*******************************
 proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1} {qcmd "qsub"}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    # we first want to parse errors first, then the positive messages, 
@@ -4272,7 +4234,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    set messages(-34)    "*[translate_macro MSG_JOB_NOSUITABLEQ_S "*"]*"
 
    if {$show_args == 1} {
-      puts $CHECK_OUTPUT "job submit args:\n$args"
+      ts_log_fine "job submit args:\n$args"
    }
 
    set output [start_sge_bin $qcmd $args $host $user prg_exit_state $submit_timeout $cd_dir]
@@ -4327,7 +4289,6 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
 #     sge_procedures/submit_job()
 #*******************************************************************************
 proc submit_job_parse_job_id {output_var type message} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $output_var output
@@ -4378,7 +4339,7 @@ proc submit_job_parse_job_id {output_var type message} {
    # we didn't find the expected job start message in qsub output
    # should never happen, as message has been matched before by handle_sge_errors
    if {$ret == -1} {
-      add_proc_error "submit_job_parse_job_id" -1 "couldn't find qsub success message\n$message\nin qsub output\n$output"
+      ts_log_severe "couldn't find qsub success message\n$message\nin qsub output\n$output"
    }
 
    return $ret
@@ -4410,7 +4371,7 @@ proc submit_job_parse_job_id {output_var type message} {
 #     sge_procedures/get_suspend_state_of_job()
 #*******************************
 proc get_grppid_of_job { jobid {host ""}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    # default for host parameter, use localhost
@@ -4422,14 +4383,14 @@ proc get_grppid_of_job { jobid {host ""}} {
    get_config value $host
    if {[info exists value(execd_spool_dir)]} {
       set spool_dir $value(execd_spool_dir)
-      puts $CHECK_OUTPUT "using local exec spool dir"  
+      ts_log_finest "using local exec spool dir"  
    } else {
-      puts $CHECK_OUTPUT "using global exec spool dir"  
+      ts_log_finest "using global exec spool dir"  
       get_config value
       set spool_dir $value(execd_spool_dir)
    }
 
-   puts $CHECK_OUTPUT "Exec Spool Dir is: $spool_dir"
+   ts_log_finest "Exec Spool Dir is: $spool_dir"
 
    # build name of pid file
    set pidfile "$spool_dir/$host/active_jobs/$jobid.1/job_pid"
@@ -4439,7 +4400,7 @@ proc get_grppid_of_job { jobid {host ""}} {
    # read pid from pidfile on execution host
    set real_pid [start_remote_prog $host $CHECK_USER "cat" "$pidfile"]
    if {$prg_exit_state != 0} {
-      add_proc_error "get_grppid_of_job" -1 "can't read $pidfile on host $host: $real_pid"
+      ts_log_severe "can't read $pidfile on host $host: $real_pid"
       set real_pid ""
    }
 
@@ -4468,7 +4429,7 @@ proc get_grppid_of_job { jobid {host ""}} {
 #     jobid                      - job identification number
 #     { host "" }                - host the job is running on, default $ts_config(master_host)
 #     { pidlist pid_list }       - name of variable to store the pidlist
-#     {do_error_check 1}         - enable error messages (add_proc_error), default
+#     {do_error_check 1}         - enable error messages (ts_log_severe), default
 #                                  if not 1 the procedure will not report errors
 #     { pgi process_group_info } - string with ps output of process group of job
 #
@@ -4477,10 +4438,9 @@ proc get_grppid_of_job { jobid {host ""}} {
 #
 #  SEE ALSO
 #     sge_procedures/get_grppid_of_job()
-#     sge_procedures/add_proc_error()
+#     sge_procedures/ts_log_severe()
 #*******************************************************************************
 proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_check 1} { pgi process_group_info } } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $pidlist pidl 
@@ -4496,7 +4456,7 @@ proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_c
 
    # get process group id
    set real_pid [get_grppid_of_job $jobid $host]
-   puts $CHECK_OUTPUT "grpid is \"$real_pid\" on host \"$host\""
+   ts_log_fine "grpid is \"$real_pid\" on host \"$host\""
 
 
    set time_now [timestamp]
@@ -4516,14 +4476,14 @@ proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_c
             lappend pidl $ps_list(pid,$i)
          }
       } 
-      puts $CHECK_OUTPUT "Process group has [llength $pidl] processes ($pidl)"
+      ts_log_finest "Process group has [llength $pidl] processes ($pidl)"
     
       #  
       set state_count 0
       set state_letter ""
       set pginfo ""
       foreach elem $pidl {
-         puts $CHECK_OUTPUT $ps_list($elem,string)
+         ts_log_finest $ps_list($elem,string)
          append pginfo "$ps_list($elem,string)\n"
          if { $state_count == 0 } {
             set state_letter $ps_list($elem,state)
@@ -4542,7 +4502,7 @@ proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_c
    }
 
    if { $have_errors != 0 } {
-      add_proc_error "get_suspend_state_of_job" -1 "not all processes in pgrp has the same state \"$state_letter\""
+      ts_log_severe "not all processes in pgrp has the same state \"$state_letter\""
    }
 
    return $state_letter
@@ -4583,13 +4543,13 @@ proc get_job_info { jobid } {
    get_current_cluster_config_array ts_config
 
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "get_job_info" -1 "this call is not accepted for sge system"
+      ts_log_severe "this call is not accepted for sge system"
       return ""
    }
 
    set result [start_sge_bin "qstat" "-ext"]
    if {$prg_exit_state != 0} {
-      add_proc_error "get_job_info" -1 "qstat -ext failed:\n$result"
+      ts_log_severe "qstat -ext failed:\n$result"
       return ""
    }
 
@@ -4658,7 +4618,7 @@ proc get_job_info { jobid } {
 #     sge_procedures/get_extended_job_info()
 #*******************************
 proc get_standard_job_info {jobid {add_empty 0} {get_all 0}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    # some tests need this done via catch/exec because there is no additional user
@@ -4673,7 +4633,7 @@ proc get_standard_job_info {jobid {add_empty 0} {get_all 0}} {
    }
 
    if {$prg_exit_state != 0} {
-      add_proc_error "get_standard_job_info" -1 "qstat failed:\n$result"
+      ts_log_severe "qstat failed:\n$result"
       return ""
    }
 
@@ -4689,13 +4649,13 @@ proc get_standard_job_info {jobid {add_empty 0} {get_all 0}} {
       if {$add_empty != 0} {
          if {[llength $line] == 8} {
             lappend back "-1 $line"
-            puts $CHECK_OUTPUT "adding empty job lines" 
+            ts_log_finest "adding empty job lines" 
             continue
          }
 
          if {[llength $line] == 2} {
             lappend back "-1 0 x x x x x $line"
-            puts $CHECK_OUTPUT "adding empty job lines" 
+            ts_log_finest "adding empty job lines" 
             continue
          }
       }
@@ -4759,10 +4719,10 @@ proc get_standard_job_info {jobid {add_empty 0} {get_all 0}} {
 #     ...
 #     if {[get_extended_job_info $job_id] } {
 #        if {$job_info(cpu) < 10} {
-#           add_proc_error "testproc" -1 "online usage probably does not work on $host"
+#           ts_log_severe "online usage probably does not work on $host"
 #        }
 #     } else {
-#        add_proc_error "testproc" -1 "get_extended_jobinfo failed for job $job_id on host $host"
+#        ts_log_severe "get_extended_jobinfo failed for job $job_id on host $host"
 #     }
 #     ...
 #  }
@@ -4825,7 +4785,6 @@ proc get_extended_job_info {jobid {variable job_info} {do_replace_NA 1} {do_grou
 #     parser/parse_qstat_j()
 #*******************************************************************************
 proc get_qstat_j_info {jobid {variable qstat_j_info}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    upvar $variable jobinfo
 
@@ -4854,7 +4813,7 @@ proc get_qstat_j_info {jobid {variable qstat_j_info}} {
       parse_qstat_j my_result jobinfo $jobid 
 #      set a_names [array names jobinfo]
 #      foreach elem $a_names {
-#         puts $CHECK_OUTPUT "$elem: $jobinfo($elem)"
+#         ts_log_fine "$elem: $jobinfo($elem)"
 #      }
       return 1
    }
@@ -4883,7 +4842,7 @@ proc get_qstat_j_info {jobid {variable qstat_j_info}} {
 #      parser/parse_qconf_se()
 #*******************************************************************************
 proc get_qconf_se_info {hostname {variable qconf_se_info}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    upvar $variable jobinfo
    
    get_current_cluster_config_array ts_config
@@ -4895,13 +4854,13 @@ proc get_qconf_se_info {hostname {variable qconf_se_info}} {
    set arch [resolve_arch $ts_config(master_host)]
    set qconf "$ts_config(product_root)/bin/$arch/qconf"
    set result [start_remote_prog $ts_config(master_host) $CHECK_USER $qconf "-se $hostname"]
-#   puts $CHECK_OUTPUT $result
+
    if { $prg_exit_state == 0 } {
       set result "$result\n"
       parse_qconf_se result jobinfo $hostname
       return 1
    } else {
-      add_proc_error "get_qconf_se_info" -1 "cannot get qconf -se $hostname information"
+      ts_log_severe "cannot get qconf -se $hostname information"
    }
 
    return 0
@@ -4922,7 +4881,7 @@ proc get_qconf_se_info {hostname {variable qconf_se_info}} {
 #  INPUTS
 #     result      - qacct output
 #     job_id      - job_id for which qacct -j has been called
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - do ts_log_severe in case of errors
 #
 #  RESULT
 #     Returncode for get_qacct function:
@@ -4934,7 +4893,6 @@ proc get_qconf_se_info {hostname {variable qconf_se_info}} {
 #     There are most certainly much more error codes that could be handled.
 #*******************************************************************************
 proc get_qacct_error {result job_id raise_error} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    # recognize certain error messages and return special return code
@@ -4981,7 +4939,7 @@ proc get_qacct_error {result job_id raise_error} {
 #     if { [get_qacct $job_id] == 0 } {
 #        set cpu [expr $qacct_info(ru_utime) + $qacct_info(ru_stime)]
 #        if { $cpu < 30 } {
-#           add_proc_error "example" -1 "cpu entry in accounting ($qacct_info(cpu)) seems 
+#           ts_log_severe "cpu entry in accounting ($qacct_info(cpu)) seems 
 #                                     to be wrong for job $job_id on host $host"
 #        }
 #
@@ -4990,7 +4948,7 @@ proc get_qacct_error {result job_id raise_error} {
 #           set difference [expr $cpu - $qacct_info(cpu)]
 #           set difference [expr $difference * $difference]
 #           if { $difference > 1 } {
-#              add_proc_error "example" -1 "accounting: cpu($qacct_info(cpu)) is not the 
+#              ts_log_severe "accounting: cpu($qacct_info(cpu)) is not the 
 #                            sum of ru_utime and ru_stime ($cpu) for 
 #                            job $job_id on host $host"
 #           }
@@ -5005,7 +4963,6 @@ proc get_qacct_error {result job_id raise_error} {
 #     sge_procedures/get_qacct_error()
 #*******************************
 proc get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $variable qacctinfo
@@ -5071,7 +5028,7 @@ proc get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_er
 #     sge_procedures/is_pid_with_name_existing()
 #*******************************
 proc is_job_running {jobid jobname} {
-   global CHECK_USER CHECK_OUTPUT check_timestamp
+   global CHECK_USER check_timestamp
    get_current_cluster_config_array ts_config
 
    if {$jobname == ""} {
@@ -5094,9 +5051,7 @@ proc is_job_running {jobid jobname} {
    set check_timestamp $mytime
 
    if {$catch_state != 0} {
-      puts $CHECK_OUTPUT "debug: catch_state: $catch_state"
-      puts $CHECK_OUTPUT "debug: result: \n$result"
-      add_proc_error "is_job_running" -1 "qstat returned error"
+      ts_log_severe "qstat returned error:\n$result"
       return -1
    }
 
@@ -5106,7 +5061,6 @@ proc is_job_running {jobid jobname} {
 
    set found 0
    foreach line $help {
-#     puts $CHECK_OUTPUT "debug: $line"
      if {[lsearch $line "####*"] >= 0} {
        set running_flag 0
      }
@@ -5164,7 +5118,6 @@ proc is_job_running {jobid jobname} {
 #
 #*******************************************************************************
 proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
-   global CHECK_OUTPUT
    global check_timestamp
    get_current_cluster_config_array ts_config
    upvar $taskid r_task_id
@@ -5190,7 +5143,6 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
          set result [start_sge_bin "qstat" "-f -g t -u '*'" "" "ts_def_con"]
       }
       if {$prg_exit_state != 0} {
-         puts $CHECK_OUTPUT "debug: $result"
          return -1
       }
    
@@ -5221,7 +5173,7 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
       if {$not_all_equal == 0} {
          for {set elem 0} {$elem < [llength $states]} {incr elem 1} {
             if {[string compare [lindex $states $elem] $main_state] != 0} {
-               puts $CHECK_OUTPUT "jobstate of task $elem is: [lindex $states $elem], waiting ..."
+               ts_log_finest "jobstate of task $elem is: [lindex $states $elem], waiting ..."
                set states_all_equal 0
             }
          }
@@ -5236,7 +5188,7 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
       return $main_state
    }
  
-   add_proc_error "get_job_state" -1 "more than one job id found with different states"
+   ts_log_severe "more than one job id found with different states"
    return -1
 }
 
@@ -5285,12 +5237,11 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
 #     sge_procedures/wait_for_jobend()
 #*******************************
 proc wait_for_jobstart { jobid jobname seconds {do_errorcheck 1} {do_tsm 0} } {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
 
   if { [is_job_id $jobid] != 1  } {
      if { $do_errorcheck == 1 } {
-          add_proc_error "wait_for_jobstart" -1 "got unexpected job id: $jobid"
+          ts_log_severe "got unexpected job id: $jobid"
      }
      return -1
   }
@@ -5300,11 +5251,10 @@ proc wait_for_jobstart { jobid jobname seconds {do_errorcheck 1} {do_tsm 0} } {
    }
 
   if { $do_errorcheck != 1 } {
-     puts $CHECK_OUTPUT "error check is switched off"
+     ts_log_finest "error check is switched off"
   }
   
-  puts -nonewline $CHECK_OUTPUT "Waiting for start of job $jobid ($jobname) "
-  flush $CHECK_OUTPUT
+  ts_log_fine "Waiting for start of job $jobid ($jobname)"
   set time [timestamp]
   after 500
   while {1} {
@@ -5314,17 +5264,14 @@ proc wait_for_jobstart { jobid jobname seconds {do_errorcheck 1} {do_tsm 0} } {
     } 
     set runtime [expr ( [timestamp] - $time) ]
     if { $runtime >= $seconds } {
-       puts $CHECK_OUTPUT ""
        if { $do_errorcheck == 1 } {
-          add_proc_error "wait_for_jobstart" -1 "timeout waiting for job \"$jobid\" \"$jobname\""
+          ts_log_severe "timeout waiting for job \"$jobid\" \"$jobname\""
        }
        return -1
     }
-    puts -nonewline $CHECK_OUTPUT "."
-    flush $CHECK_OUTPUT
+    ts_log_progress
     after 500
   }
-  puts $CHECK_OUTPUT ""
   return 0
 }
 
@@ -5362,10 +5309,9 @@ proc wait_for_jobstart { jobid jobname seconds {do_errorcheck 1} {do_tsm 0} } {
 #     sge_procedures/wait_for_jobend()
 #*******************************
 proc wait_for_end_of_transfer { jobid seconds } {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
 
-  puts $CHECK_OUTPUT "Waiting for job $jobid to finish transfer state"
+  ts_log_fine "Waiting for job $jobid to finish transfer state"
   
   set time [timestamp] 
   while {1} {
@@ -5380,7 +5326,7 @@ proc wait_for_end_of_transfer { jobid seconds } {
              set job_state $tmp_job_state
           } else {
              if { $job_state != $tmp_job_state } {
-                puts $CHECK_OUTPUT "job has different states ..."
+                ts_log_finer "job has different states ..."
                 set had_error 1
                 break
              }
@@ -5394,13 +5340,13 @@ proc wait_for_end_of_transfer { jobid seconds } {
     }
 
     if { [string first "t" $job_state ] < 0} {
-       puts $CHECK_OUTPUT "job $jobid is running ($job_state)"
+       ts_log_finer "job $jobid is running ($job_state)"
        break
     }
     
     set runtime [expr ( [timestamp] - $time) ]
     if { $runtime >= $seconds } {
-       add_proc_error "wait_for_end_of_transfer" -1 "timeout waiting for job \"$jobid\""
+       ts_log_severe "timeout waiting for job \"$jobid\""
        return -1
     }
     after 1000
@@ -5446,14 +5392,12 @@ proc wait_for_end_of_transfer { jobid seconds } {
 #     sge_procedures/wait_for_jobend()
 #*******************************
 proc wait_for_jobpending {jobid jobname seconds {or_running 0}} {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
 
-  puts $CHECK_OUTPUT "Waiting for job $jobid ($jobname) to get in pending state"
+  ts_log_fine "Waiting for job $jobid ($jobname) to get in pending state"
 
   if {[is_job_id $jobid] != 1} {
-     puts $CHECK_OUTPUT "job is not integer"
-     add_proc_error "wait_for_jobpending" -1 "unexpected job id: $jobid"
+     ts_log_severe "unexpected job id: $jobid"
      return -1
   }
   after 500
@@ -5468,7 +5412,7 @@ proc wait_for_jobpending {jobid jobname seconds {or_running 0}} {
     }
     set runtime [expr ( [timestamp] - $time) ]
     if { $runtime >= $seconds } {
-       add_proc_error "wait_for_jobpending" -1 "timeout waiting for job \"$jobid\" \"$jobname\" (timeout was $seconds sec)"
+       ts_log_severe "timeout waiting for job \"$jobid\" \"$jobname\" (timeout was $seconds sec)"
        return -1
     }
     after 500
@@ -5523,7 +5467,7 @@ proc hold_job { jobid } {
    expect {
        -i $sp_id full_buffer {
           set result -1 
-          add_proc_error "hold_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" 
+          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" 
        }
        -i $sp_id "modified hold of job" {
           set result 0
@@ -5540,7 +5484,7 @@ proc hold_job { jobid } {
    close_spawn_process $id
    log_user 1
    if { $result != 0 } {
-      add_proc_error "hold_job" -1 "could not hold job $jobid"
+      ts_log_severe "could not hold job $jobid"
    }
    return $result
 
@@ -5592,7 +5536,7 @@ proc release_job { jobid } {
    expect {
        -i $sp_id full_buffer {
           set result -1
-          add_proc_error "release_job" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
        }
        -i $sp_id $MODIFIED_HOLD {
           set result 0
@@ -5613,7 +5557,7 @@ proc release_job { jobid } {
    close_spawn_process $id
    log_user 1
    if { $result != 0 } {
-      add_proc_error "release_job" -1 "could not release job $jobid"
+      ts_log_severe "could not release job $jobid"
    }
    return $result
 
@@ -5671,18 +5615,16 @@ proc release_job { jobid } {
 #     sge_procedures/wait_for_jobend()
 #*******************************
 proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
  
    if { $runcheck == 1 } {
       if { [is_job_running $jobid $jobname] != 1 } {
-         add_proc_error "wait_for_jobend" -1 "job \"$jobid\" \"$jobname\" is not running"
+         ts_log_severe "job \"$jobid\" \"$jobname\" is not running"
          return -2
       }
    }
 
-   puts -nonewline $CHECK_OUTPUT "Waiting for end of job $jobid ($jobname) "
-   flush $CHECK_OUTPUT
+   ts_log_fine "Waiting for end of job $jobid ($jobname)"
    after 500
    set time [timestamp]
    while {1} {
@@ -5692,31 +5634,25 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
      } 
      set runtime [expr ( [timestamp] - $time) ]
      if { $runtime >= $seconds } {
-        add_proc_error "wait_for_jobend" -1 "timeout waiting for job \"$jobid\" \"$jobname\":\nis_job_running returned $run_result"
+        ts_log_severe "timeout waiting for job \"$jobid\" \"$jobname\":\nis_job_running returned $run_result"
         return -1
      }
-     puts -nonewline $CHECK_OUTPUT "."
-     flush $CHECK_OUTPUT
+     ts_log_progress
      after 500
    }
-   puts $CHECK_OUTPUT ""
  
    if { $wait_for_end != 0 } {
        set my_timeout [timestamp]
        incr my_timeout 90
-       puts -nonewline $CHECK_OUTPUT "waiting for jobend (2) (qstat -j $jobid) "
-       flush $CHECK_OUTPUT
+       ts_log_fine "waiting for jobend (2) (qstat -j $jobid)"
        while { [get_qstat_j_info $jobid ] != 0 } {
            if { [timestamp] > $my_timeout } {
-              puts $CHECK_OUTPUT ""
-              add_proc_error "wait_for_jobend" -1 "timeout while waiting for jobend"
+              ts_log_severe "timeout while waiting for jobend"
               break
            }
            after 1000
-           puts -nonewline $CHECK_OUTPUT "."
-           flush $CHECK_OUTPUT
+           ts_log_progress
        }
-       puts $CHECK_OUTPUT ""
    }
    return 0
 }
@@ -5748,7 +5684,7 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
 #     sge_procedures/startup_shadowd()
 #*******************************************************************************
 proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL
    global schedd_debug master_debug CHECK_DISPLAY_OUTPUT CHECK_SGE_DEBUG_LEVEL
@@ -5766,7 +5702,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_qmaster" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -5784,18 +5720,18 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       # For the JMX MBean Server we need java 1.5
       set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
       if {$java_home == ""} {
-         add_proc_error "startup_qmaster" "-1" "Cannot start qmaster with JMX MBean Server on host $ts_config(master_host). java1.5 is not defined in host configuration"
+         ts_log_severe "Cannot start qmaster with JMX MBean Server on host $ts_config(master_host). java1.5 is not defined in host configuration"
          return                                       
       }
       set envlist(JAVA_HOME) $java_home
    }
    
-   puts $CHECK_OUTPUT "starting up qmaster $schedd_message on host \"$start_host\" as user \"$startup_user\""
+   ts_log_fine "starting up qmaster $schedd_message on host \"$start_host\" as user \"$startup_user\""
    set arch [resolve_arch $start_host]
    set xterm_path [get_xterm_path $start_host]
 
    if {$master_debug != 0} {
-      puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
+      ts_log_finest "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
       start_remote_prog "$start_host" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.qmaster.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_qmaster &" prg_exit_state 60 2 "" envlist
    } else {
       start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_qmaster" ";sleep 2" prg_exit_state 60 0 "" envlist
@@ -5806,30 +5742,30 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
          set old_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
          debug_puts "old scheduler pid is \"$old_schedd_pid\""
 
-         puts $CHECK_OUTPUT "starting up scheduler ..."
+         ts_log_fine "starting up scheduler ..."
          if { $schedd_debug != 0 } {
-            puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
-            puts $CHECK_OUTPUT "starting schedd as $startup_user" 
+            ts_log_finest "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
+            ts_log_finest "starting schedd as $startup_user" 
             start_remote_prog "$start_host" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$start_host \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2 "" envlist
          } else {
-            puts $CHECK_OUTPUT "starting schedd as $startup_user" 
+            ts_log_finest "starting schedd as $startup_user" 
             set result [start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" "" prg_exit_state 60 0 "" envlist]
-            puts $CHECK_OUTPUT $result
+            ts_log_finest $result
          }
          set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
-         puts $CHECK_OUTPUT "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
+         ts_log_finest "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
 
          set nr_of_checks 10
+         ts_log_finer "waiting for pidfile containing a new scheduler pid ..."
          while { $current_schedd_pid == $old_schedd_pid } {
-            puts $CHECK_OUTPUT "waiting for pidfile containing a new scheduler pid ..."
             after 1000
             incr nr_of_checks -1
             if { $nr_of_checks <= 0 } {
-               add_proc_error "startup_qmaster" -1 "new scheduler pid not written"
+               ts_log_severe "new scheduler pid not written"
                break
             }
             set current_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
-            puts $CHECK_OUTPUT "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
+            ts_log_finest "old pid: $old_schedd_pid, current pid: $current_schedd_pid"
          }
       }
    }
@@ -5865,7 +5801,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
 #     ???/???
 #*******************************************************************************
 proc startup_scheduler {} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL
    global schedd_debug CHECK_DISPLAY_OUTPUT CHECK_SGE_DEBUG_LEVEL
@@ -5873,7 +5809,7 @@ proc startup_scheduler {} {
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_scheduler" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -5881,11 +5817,11 @@ proc startup_scheduler {} {
       set startup_user $CHECK_USER
    } 
 
-   puts $CHECK_OUTPUT "starting up scheduler on host \"$ts_config(master_host)\" as user \"$startup_user\""
+   ts_log_fine "starting up scheduler on host \"$ts_config(master_host)\" as user \"$startup_user\""
    set arch [resolve_arch $ts_config(master_host)]
    set xterm_path [get_xterm_path $ts_config(master_host)]
    if { $schedd_debug != 0 } {
-      puts $CHECK_OUTPUT "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
+      ts_log_finest "using DISPLAY=${CHECK_DISPLAY_OUTPUT}"
       start_remote_prog "$ts_config(master_host)" "$startup_user" $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e $ts_config(testsuite_root_dir)/scripts/debug_starter.sh /tmp/out.$CHECK_USER.schedd.$ts_config(master_host) \"$CHECK_SGE_DEBUG_LEVEL\" $ts_config(product_root)/bin/${arch}/sge_schedd &" prg_exit_state 60 2
    } else {
       start_remote_prog "$ts_config(master_host)" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_schedd" ""
@@ -5914,13 +5850,12 @@ proc startup_scheduler {} {
 #     sge_procedures/startup_execd()
 #*******************************************************************************
 proc startup_execd_raw { hostname {envlist ""}} {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_execd" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -5928,7 +5863,7 @@ proc startup_execd_raw { hostname {envlist ""}} {
       set startup_user $CHECK_USER
    }
 
-   puts $CHECK_OUTPUT "starting up execd on host \"$hostname\" as user \"$startup_user\""
+   ts_log_fine "starting up execd on host \"$hostname\" as user \"$startup_user\""
    set remote_arch [ resolve_arch $hostname ]
 
    # Setup environment
@@ -5949,7 +5884,7 @@ proc startup_execd_raw { hostname {envlist ""}} {
    set ALREADY_RUNNING [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_COMMPROC_ALREADY_STARTED_S] "*"]
 
    if { [string match "*$ALREADY_RUNNING*" $output ] } {
-      add_proc_error "startup_execd" -1 "execd on host $hostname is already running"
+      ts_log_severe "execd on host $hostname is already running"
       return -1
    }
    return 0
@@ -5993,7 +5928,7 @@ proc startup_execd_raw { hostname {envlist ""}} {
 #     ???/???
 #*******************************
 proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_USER 
    get_current_cluster_config_array ts_config
 
    set qmaster_pid -1
@@ -6111,14 +6046,13 @@ proc shutdown_master_and_scheduler {hostname qmaster_spool_dir} {
 #     ???/???
 #*******************************************************************************
 proc shutdown_scheduler {hostname qmaster_spool_dir} {
-   global CHECK_OUTPUT CHECK_USER CHECK_ADMIN_USER_SYSTEM
+   global CHECK_USER CHECK_ADMIN_USER_SYSTEM
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "shutdown_scheduler ..."
+   ts_log_fine "shutdown_scheduler ..."
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "killing scheduler on host $hostname ..."
-   puts $CHECK_OUTPUT "retrieving data from spool dir $qmaster_spool_dir"
+   ts_log_finer "killing scheduler on host $hostname ..."
+   ts_log_finest "retrieving data from spool dir $qmaster_spool_dir"
 
 
 
@@ -6127,22 +6061,22 @@ proc shutdown_scheduler {hostname qmaster_spool_dir} {
    get_ps_info $scheduler_pid $hostname
    if { ($ps_info($scheduler_pid,error) == 0) } {
       if { [ is_pid_with_name_existing $hostname $scheduler_pid "sge_schedd" ] == 0 } { 
-         puts $CHECK_OUTPUT "shutdown schedd with pid $scheduler_pid on host $hostname"
-         puts $CHECK_OUTPUT "do a qconf -ks ..."
+         ts_log_finest "shutdown schedd with pid $scheduler_pid on host $hostname"
+         ts_log_finest "do a qconf -ks ..."
          set result [start_sge_bin "qconf" "-ks"]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
          after 1500
          shutdown_system_daemon $hostname sched
       } else {
-         add_proc_error "shutdown_scheduler" "-1" "scheduler pid $scheduler_pid not found"
+         ts_log_severe "scheduler pid $scheduler_pid not found"
          set scheduler_pid -1
       }
    } else {
-      add_proc_error "shutdown_scheduler" "-1" "ps_info failed (1), pid=$scheduler_pid"
+      ts_log_severe "ps_info failed (1), pid=$scheduler_pid"
       set scheduler_pid -1
    }
 
-   puts $CHECK_OUTPUT "done."
+   ts_log_finest "done."
 }  
 #****** sge_procedures/is_scheduler_alive() ************************************
 #  NAME
@@ -6297,14 +6231,13 @@ proc get_scheduler_pid { hostname qmaster_spool_dir } {
 #     ???/???
 #*******************************************************************************
 proc shutdown_qmaster {hostname qmaster_spool_dir} {
-   global CHECK_OUTPUT CHECK_USER CHECK_ADMIN_USER_SYSTEM
+   global CHECK_USER CHECK_ADMIN_USER_SYSTEM
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "shutdown_qmaster ..."
+   ts_log_fine "shutdown_qmaster ..."
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "killing qmaster on host $hostname ..."
-   puts $CHECK_OUTPUT "retrieving data from spool dir $qmaster_spool_dir"
+   ts_log_finer "killing qmaster on host $hostname ..."
+   ts_log_finest "retrieving data from spool dir $qmaster_spool_dir"
 
    set qmaster_pid -1
 
@@ -6317,20 +6250,20 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
    get_ps_info $qmaster_pid $hostname
    if { ($ps_info($qmaster_pid,error) == 0) } {
       if { [ is_pid_with_name_existing $hostname $qmaster_pid "sge_qmaster" ] == 0 } { 
-         puts $CHECK_OUTPUT "killing qmaster with pid $qmaster_pid on host $hostname"
-         puts $CHECK_OUTPUT "do a qconf -km ..."
+         ts_log_finest "killing qmaster with pid $qmaster_pid on host $hostname"
+         ts_log_finest "do a qconf -km ..."
          set result [start_sge_bin "qconf" "-km"]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
          wait_till_qmaster_is_down $hostname
          shutdown_system_daemon $hostname qmaster
       } else {
-         add_proc_error "shutdown_qmaster" "-1" "qmaster pid $qmaster_pid not found"
+         ts_log_severe "qmaster pid $qmaster_pid not found"
       }
    } else {
-      add_proc_error "shutdown_qmaster" "-1" "ps_info failed (2), pid=$qmaster_pid"
+      ts_log_severe "ps_info failed (2), pid=$qmaster_pid"
    }
 
-   puts $CHECK_OUTPUT "done."
+   ts_log_finest "done."
 }  
 
 #                                                             max. column:     |
@@ -6370,14 +6303,13 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc shutdown_all_shadowd { hostname } {
-   global CHECK_OUTPUT CHECK_ADMIN_USER_SYSTEM
+   global CHECK_ADMIN_USER_SYSTEM
    global CHECK_USER 
    get_current_cluster_config_array ts_config
 
    set num_proc 0
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "shutdown all shadowd daemon for system installed at $ts_config(product_root) ..."
+   ts_log_fine "shutdown all shadowd daemon for system installed at $ts_config(product_root) ..."
 
    set index_list [ ps_grep "$ts_config(product_root)" "$hostname" ]
    set new_index ""
@@ -6387,11 +6319,11 @@ proc shutdown_all_shadowd { hostname } {
       }
    } 
    set num_proc [llength $new_index]
-   puts $CHECK_OUTPUT "Number of matching processes: $num_proc"
+   ts_log_finest "Number of matching processes: $num_proc"
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
-         puts $CHECK_OUTPUT "killing process [ set ps_info(pid,$elem) ] ..."
+         ts_log_finest "killing process [ set ps_info(pid,$elem) ] ..."
          if { [ have_root_passwd ] == -1 } {
             set_root_passwd 
          }
@@ -6406,8 +6338,8 @@ proc shutdown_all_shadowd { hostname } {
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
-         add_proc_error "shutdown_all_shadowd" "-3" "could not shutdown shadowd at host $hostname with term signal"
-         puts $CHECK_OUTPUT "Killing process with kill signal [ set ps_info(pid,$elem) ] ..."
+         ts_log_info "could not shutdown shadowd at host $hostname with term signal"
+         ts_log_finest "Killing process with kill signal [ set ps_info(pid,$elem) ] ..."
          if { [ have_root_passwd ] == -1 } {
             set_root_passwd 
          }
@@ -6422,7 +6354,7 @@ proc shutdown_all_shadowd { hostname } {
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
-         add_proc_error "shutdown_all_shadowd" "-1" "could not shutdown shadowd at host $hostname with kill signal"
+         ts_log_severe "could not shutdown shadowd at host $hostname with kill signal"
       }
    }
 
@@ -6468,14 +6400,13 @@ proc shutdown_all_shadowd { hostname } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc shutdown_bdb_rpc { hostname } {
-   global CHECK_OUTPUT CHECK_ADMIN_USER_SYSTEM
+   global CHECK_ADMIN_USER_SYSTEM
    global CHECK_USER 
    get_current_cluster_config_array ts_config
 
    set num_proc 0
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "shutdown bdb_rpc daemon for system installed at $ts_config(product_root) ..."
+   ts_log_fine "shutdown bdb_rpc daemon for system installed at $ts_config(product_root) ..."
 
    set index_list [ ps_grep "$ts_config(product_root)" "$hostname" ]
    set new_index ""
@@ -6485,11 +6416,11 @@ proc shutdown_bdb_rpc { hostname } {
       }
    } 
    set num_proc [llength $new_index]
-   puts $CHECK_OUTPUT "Number of matching processes: $num_proc"
+   ts_log_finest "Number of matching processes: $num_proc"
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "berkeley_db_svc" ] == 0 } {
-         puts $CHECK_OUTPUT "killing process [ set ps_info(pid,$elem) ] ..."
+         ts_log_finest "killing process [ set ps_info(pid,$elem) ] ..."
          if { [ have_root_passwd ] == -1 } {
             set_root_passwd 
          }
@@ -6504,8 +6435,8 @@ proc shutdown_bdb_rpc { hostname } {
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "berkeley_db_svc" ] == 0 } {
-         add_proc_error "shutdown_bdb_rpc" "-3" "could not shutdown berkeley_db_svc at host $elem with term signal"
-         puts $CHECK_OUTPUT "Killing process with kill signal [ set ps_info(pid,$elem) ] ..."
+         ts_log_info "could not shutdown berkeley_db_svc at host $elem with term signal"
+         ts_log_finest "Killing process with kill signal [ set ps_info(pid,$elem) ] ..."
          if { [ have_root_passwd ] == -1 } {
             set_root_passwd 
          }
@@ -6520,7 +6451,7 @@ proc shutdown_bdb_rpc { hostname } {
    foreach elem $new_index {
       debug_puts $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "berkeley_db_svc" ] == 0 } {
-         add_proc_error "shutdown_bdb_rpc" "-1" "could not shutdown berkeley_db_svc at host $elem with kill signal"
+         ts_log_severe "could not shutdown berkeley_db_svc at host $elem with kill signal"
       }
    }
 
@@ -6556,17 +6487,16 @@ proc shutdown_bdb_rpc { hostname } {
 #*******************************
 #
 proc is_pid_with_name_existing { host pid proc_name } {
-  global CHECK_OUTPUT CHECK_USER
+  global CHECK_USER
   get_current_cluster_config_array ts_config
 
-  puts -nonewline $CHECK_OUTPUT "$host: checkprog $pid $proc_name ... "
-  flush $CHECK_OUTPUT
+  ts_log_finer "$host: checkprog $pid $proc_name ..."
   set my_arch [ resolve_arch $host ]
   set output [start_remote_prog $host $CHECK_USER $ts_config(product_root)/utilbin/$my_arch/checkprog "$pid $proc_name"]
   if { $prg_exit_state == 0} {
-     puts $CHECK_OUTPUT "running"
+     ts_log_finest "running"
   } else {
-     puts $CHECK_OUTPUT "not running"
+     ts_log_finest "not running"
   }
   return $prg_exit_state
 }
@@ -6619,12 +6549,12 @@ proc is_pid_with_name_existing { host pid proc_name } {
 #*******************************
 #
 proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
-   global CHECK_CORE_INSTALLED CHECK_OUTPUT CHECK_USER 
+   global CHECK_CORE_INSTALLED CHECK_USER 
    global CHECK_ADMIN_USER_SYSTEM
    get_current_cluster_config_array ts_config
 
 
-   puts $CHECK_OUTPUT "shutdown_system_daemon ... ($host/$typelist)" 
+   ts_log_fine "shutdown_system_daemon ... ($host/$typelist)" 
    set process_names ""
    foreach type $typelist {
       if { [ string compare $type "execd" ] == 0 } {
@@ -6645,8 +6575,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
    }
 
    if { [llength $process_names] != [llength $typelist] } {
-      add_proc_error "shutdown_system_daemon" -1 "type should be commd, execd, qmaster, shadowd or sched"
-      puts $CHECK_OUTPUT "shutdown_system_daemon ... done"
+      ts_log_severe "type should be commd, execd, qmaster, shadowd or sched"
       return -1
    }
 
@@ -6654,14 +6583,14 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
    set nr_of_found_qmaster_processes_or_threads 0
 
    foreach process_name $process_names {
-      puts $CHECK_OUTPUT "looking for \"$process_name\" processes on host $host ..."
+      ts_log_finest "looking for \"$process_name\" processes on host $host ..."
       set nr_of_sig_terms 0
       foreach elem $found_p {
          if { [ string first $process_name $ps_info(string,$elem) ] >= 0 } {
             debug_puts "current ps info: $ps_info(string,$elem)"
             if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
                incr nr_of_found_qmaster_processes_or_threads 1
-               puts $CHECK_OUTPUT "found running $process_name with pid $ps_info(pid,$elem) on host $host"
+               ts_log_finest "found running $process_name with pid $ps_info(pid,$elem) on host $host"
                debug_puts $ps_info(string,$elem)
                if { [ have_root_passwd ] == -1 } {
                    set_root_passwd 
@@ -6678,8 +6607,8 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
                         append kill_pid_ids " $ps_info(pid,$tmp_elem)"
                      }
                   }
-                  puts $CHECK_OUTPUT "killing (SIG_TERM) process(es) $kill_pid_ids on host $host, kill user is $kill_user"
-                  puts $CHECK_OUTPUT [start_remote_prog $host $kill_user kill $kill_pid_ids]
+                  ts_log_finest "killing (SIG_TERM) process(es) $kill_pid_ids on host $host, kill user is $kill_user"
+                  ts_log_finest [start_remote_prog $host $kill_user kill $kill_pid_ids]
                   incr nr_of_sig_terms 1
 
                   if { $nr_of_sig_terms == 1 } {
@@ -6688,7 +6617,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
                      set sig_term_wait_timeout 1
                   }
                   while { [is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name] == 0 } {
-                     puts $CHECK_OUTPUT "waiting for process termination ..." 
+                     ts_log_finest "waiting for process termination ..." 
                      after 1000
                      incr sig_term_wait_timeout -1
                      if { $sig_term_wait_timeout <= 0 } {
@@ -6697,26 +6626,25 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
                   }
                }
                if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
-                   puts $CHECK_OUTPUT "killing (SIG_KILL) process $ps_info(pid,$elem) on host $host, kill user is $kill_user"
-                   puts $CHECK_OUTPUT [start_remote_prog $host $kill_user kill "-9 $ps_info(pid,$elem)"]
+                   ts_log_finest "killing (SIG_KILL) process $ps_info(pid,$elem) on host $host, kill user is $kill_user"
+                   ts_log_finest [start_remote_prog $host $kill_user kill "-9 $ps_info(pid,$elem)"]
                    after 1000
                    if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
-                       puts $CHECK_OUTPUT "pid:$ps_info(pid,$elem) kill failed (host: $host)"
-                       add_proc_error "" -1 "could not shutdown \"$process_name\" on host $host"
+                       ts_log_finest "pid:$ps_info(pid,$elem) kill failed (host: $host)"
+                       ts_log_severe "not shutdown \"$process_name\" on host $host"
                    } else {
-                       puts $CHECK_OUTPUT "pid:$ps_info(pid,$elem) process killed (host: $host)"
+                       ts_log_finest "pid:$ps_info(pid,$elem) process killed (host: $host)"
                    }
                }
             } else {
                if { $nr_of_found_qmaster_processes_or_threads == 0 } {
-                  puts $CHECK_OUTPUT "checkprog error"
-                  add_proc_error "" -3 "could not shutdown \"$process_name\" on host $host"
+                  ts_log_info "could not shutdown \"$process_name\" on host $host"
                }
             }
          }
       }
    }
-   puts $CHECK_OUTPUT "shutdown_system_daemon ... done"
+   ts_log_finer "shutdown_system_daemon ... done"
    return 0
 }
 
@@ -6757,7 +6685,6 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
-   global CHECK_OUTPUT
    global CHECK_USER
    global CHECK_ADMIN_USER_SYSTEM do_compile
    get_current_cluster_config_array ts_config
@@ -6765,42 +6692,42 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
    exec_shutdown_hooks
 
    if { $only_hooks != 0 } {
-      puts $CHECK_OUTPUT "skip shutdown core system, I am in only hooks mode"
+      ts_log_fine "skip shutdown core system, I am in only hooks mode"
       return
    }
    
    foreach sh_host $ts_config(shadowd_hosts) {
       shutdown_all_shadowd $sh_host
    }
-   puts $CHECK_OUTPUT "killing scheduler and all execds in the cluster ..."
+   ts_log_fine "killing scheduler and all execds in the cluster ..."
 
    set result ""
    set do_ps_kill 0
    set result [start_sge_bin "qconf" "-ks -ke all"]
-   puts $CHECK_OUTPUT "qconf -ke all -ks returned $prg_exit_state"
+   ts_log_finest "qconf -ke all -ks returned $prg_exit_state"
    if { $prg_exit_state == 0 } {
-      puts $CHECK_OUTPUT $result
+      ts_log_finest $result
    } else {
       set do_ps_kill 1
-      puts $CHECK_OUTPUT "shutdown_core_system - qconf -ks -ke all failed:\n$result"
+      ts_log_finer "shutdown_core_system - qconf -ks -ke all failed:\n$result"
    }
 
 #   sleep 15 ;# give the schedd and execd's some time to shutdown
    wait_for_unknown_load 120 all.q 0
 
 
-   puts $CHECK_OUTPUT "killing qmaster ..."
+   ts_log_fine "killing qmaster ..."
 
    set result ""
    set do_ps_kill 0
    set result [start_sge_bin "qconf" "-km"]
 
-   puts $CHECK_OUTPUT "qconf -km returned $prg_exit_state"
+   ts_log_finest "qconf -km returned $prg_exit_state"
    if { $prg_exit_state == 0 } {
-      puts $CHECK_OUTPUT $result
+      ts_log_finest $result
    } else {
       set do_ps_kill 1
-      puts $CHECK_OUTPUT "shutdown_core_system - qconf -km failed:\n$result"
+      ts_log_finer "shutdown_core_system - qconf -km failed:\n$result"
    }
 
    if { [wait_till_qmaster_is_down $ts_config(master_host)] != 0 } {
@@ -6808,23 +6735,22 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
    }
 
    if { $ts_config(gridengine_version) == 53 } {
-      puts $CHECK_OUTPUT "killing all commds in the cluster ..." 
+      ts_log_fine "killing all commds in the cluster ..." 
      
       set do_it_as_root 0
       foreach elem $ts_config(execd_nodes) { 
-          puts $CHECK_OUTPUT "killing commd on host $elem"
+          ts_log_finest "killing commd on host $elem"
           if {$do_it_as_root == 0} { 
              set result [start_sge_bin "sgecommdcntl" "-U -k -host $elem" $ts_config(master_host) $CHECK_USER]
           } else {
              set result [start_sge_bin "sgecommdcntl" "-k -host $elem" $ts_config(master_host) "root"]
           } 
+          ts_log_finest $result
           if {$prg_exit_state == 0} {
-             puts $CHECK_OUTPUT $result
           } else {
-             puts $CHECK_OUTPUT $result
              if {$prg_exit_state == 255} {
-                puts $CHECK_OUTPUT "\"sgecommdcntl -k\" must be started by root user (to get reserved port)!"
-                puts $CHECK_OUTPUT "try again as root user ..." 
+                ts_log_finest "\"sgecommdcntl -k\" must be started by root user (to get reserved port)!"
+                ts_log_finest "try again as root user ..." 
                 if {[have_root_passwd] == -1} {
                    set_root_passwd 
                 }
@@ -6834,11 +6760,11 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
              }
              if {$prg_exit_state == 0} {
                 set do_it_as_root 1 
-                puts $CHECK_OUTPUT $result
-                puts $CHECK_OUTPUT "sgecommdcntl -k -host $elem - success"
+                ts_log_finest $result
+                ts_log_finest "sgecommdcntl -k -host $elem - success"
              } else {
                 set do_ps_kill 1
-                puts $CHECK_OUTPUT "shutdown_core_system - commdcntl failed:\n$result"
+                ts_log_fine "shutdown_core_system - commdcntl failed:\n$result"
              }
           }
       }
@@ -6850,7 +6776,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 
    if { $do_compile == 0} {
       if { $do_ps_kill == 1 } {
-         puts $CHECK_OUTPUT "perhaps master is not running, trying to shutdown cluster with ps information"
+         ts_log_fine "perhaps master is not running, trying to shutdown cluster with ps information"
       }
       set hosts_to_check $ts_config(master_host)
       foreach elem $ts_config(execd_nodes) {
@@ -6870,7 +6796,6 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       }
 
       foreach host $hosts_to_check { 
-            puts $CHECK_OUTPUT ""
             shutdown_system_daemon $host $proccess_names
       }
    }
@@ -6920,7 +6845,6 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 #      sge_procedures/shutdown_core_system()
 #*******************************************************************************
 proc startup_core_system {{only_hooks 0} {with_additional_clusters 0} } {
-   global CHECK_OUTPUT
    global CHECK_USER
    global CHECK_ADMIN_USER_SYSTEM do_compile
    get_current_cluster_config_array ts_config
@@ -6941,10 +6865,10 @@ proc startup_core_system {{only_hooks 0} {with_additional_clusters 0} } {
       # startup all shadowds
       # 
       foreach sh_host $ts_config(shadowd_hosts) {
-         puts $CHECK_OUTPUT "testing shadowd settings for host $sh_host ..."
+         ts_log_finer "testing shadowd settings for host $sh_host ..."
          set info [check_shadowd_settings $sh_host]
          if { $info != "" } {
-            add_proc_error "install_shadowd" -3 "skipping shadowd startup for host $sh_host:\n$info"
+            ts_log_info "skipping shadowd startup for host $sh_host:\n$info"
             continue
          }
          startup_shadowd $sh_host
@@ -6960,7 +6884,7 @@ proc startup_core_system {{only_hooks 0} {with_additional_clusters 0} } {
          operate_additional_clusters start
       }
    } else {
-      puts $CHECK_OUTPUT "skip startup core system, I am in only hooks mode"
+      ts_log_finer "skip startup core system, I am in only hooks mode"
    }
    
    # now execute all startup hooks
@@ -6968,7 +6892,6 @@ proc startup_core_system {{only_hooks 0} {with_additional_clusters 0} } {
 }
 
 proc wait_till_qmaster_is_down { host } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set process_names "sge_qmaster" 
@@ -6979,27 +6902,27 @@ proc wait_till_qmaster_is_down { host } {
       set nr_of_found_qmaster_processes_or_threads 0
 
       foreach process_name $process_names {
-         puts $CHECK_OUTPUT "looking for \"$process_name\" processes on host $host ..."
+         ts_log_finer "looking for \"$process_name\" processes on host $host ..."
          foreach elem $found_p {
             if { [ string first $process_name $ps_info(string,$elem) ] >= 0 } {
                debug_puts "current ps info: $ps_info(string,$elem)"
                if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
                   incr nr_of_found_qmaster_processes_or_threads 1
-                  puts $CHECK_OUTPUT "found running $process_name with pid $ps_info(pid,$elem) on host $host"
+                  ts_log_finest "found running $process_name with pid $ps_info(pid,$elem) on host $host"
                   debug_puts $ps_info(string,$elem)
                }
             }
          }
       }
       if { [timestamp] > $my_timeout } {
-         add_proc_error "wait_till_qmaster_is_down" -3 "timeout while waiting for qmaster going down"
+         ts_log_info "timeout while waiting for qmaster going down"
          return -1
       }
       if { $nr_of_found_qmaster_processes_or_threads == 0 } {
-         puts $CHECK_OUTPUT "no qmaster processes running"
+         ts_log_finest "no qmaster processes running"
          return 0      
       } else {
-         puts $CHECK_OUTPUT "still qmaster processes running ..."
+         ts_log_finest "still qmaster processes running ..."
       }
       after 1000
    }
@@ -7039,7 +6962,7 @@ proc wait_till_qmaster_is_down { host } {
 #*******************************
 #
 proc submit_with_method {submit_method options script args tail_host {user ""}} {
-   global CHECK_OUTPUT CHECK_USER 
+   global CHECK_USER 
    global CHECK_PROTOCOL_DIR
    get_current_cluster_config_array ts_config
  
@@ -7055,7 +6978,7 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
   
    switch -exact $submit_method {
       qsub {
-         puts $CHECK_OUTPUT "submitting job using qsub, reading from job output file"
+         ts_log_fine "submitting job using qsub, reading from job output file"
          # create job output file
          set job_output_file "$CHECK_PROTOCOL_DIR/check.out"
          catch {exec touch $job_output_file} output
@@ -7066,7 +6989,7 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
       }
 
       qrsh {
-         puts $CHECK_OUTPUT "submitting job using qrsh, reading from stdout/stderr"
+         ts_log_fine "submitting job using qrsh, reading from stdout/stderr"
 #         set command "-c \\\"$ts_config(product_root)/bin/[resolve_arch $ts_config(master_host)]/qrsh -noshell $options $script $job_args\\\""
          set command "$ts_config(product_root)/bin/[resolve_arch $ts_config(master_host)]/qrsh"
          set cmd_args "-noshell $options $script $job_args"
@@ -7079,19 +7002,19 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
             set timeout 60
             expect {
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
-                  add_proc_error "submit_with_method" -1 "timeout"
+                  ts_log_severe "timeout"
                   set done 1
                }
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_*\n" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_finest "remote command started"
                   set done 1
                }
                -i $sp_id default {
@@ -7103,11 +7026,11 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
 
       default {
          set sid ""
-         add_proc_error "submit_with_method" -1 "unknown submit method $submit_method"
+         ts_log_severe "unknown submit method $submit_method"
       }
    }
 
-   puts $CHECK_OUTPUT "submitted job, sid = $sid"
+   ts_log_finer "submitted job, sid = $sid"
    return $sid
 }
 
@@ -7130,21 +7053,19 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
 #*******************************************************************************
 proc copy_certificates { host } {
    global ts_user_config
-   global CHECK_OUTPUT CHECK_ADMIN_USER_SYSTEM CHECK_USER
+   global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
    set remote_arch [resolve_arch $host]
    
-   puts $CHECK_OUTPUT "installing CA keys"
-   puts $CHECK_OUTPUT "=================="
-   puts $CHECK_OUTPUT "host:         $host"
-   puts $CHECK_OUTPUT "architecture: $remote_arch"
-   puts $CHECK_OUTPUT "port:         $ts_config(commd_port)"
-   puts $CHECK_OUTPUT "source:       \"/var/sgeCA/port${ts_config(commd_port)}/\" on host $ts_config(master_host)"
-   puts $CHECK_OUTPUT "target:       \"/var/sgeCA/port${ts_config(commd_port)}/\" on host $host"
+   ts_log_fine "installing CA keys on host $host"
+   ts_log_finest "architecture: $remote_arch"
+   ts_log_finest "port:         $ts_config(commd_port)"
+   ts_log_finest "source:       \"/var/sgeCA/port${ts_config(commd_port)}/\" on host $ts_config(master_host)"
+   ts_log_finest "target:       \"/var/sgeCA/port${ts_config(commd_port)}/\" on host $host"
   
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } {
-      puts $CHECK_OUTPUT "we have root access, fine !"
+      ts_log_finest "we have root access, fine !"
       set CA_ROOT_DIR "/var/sgeCA"
       set TAR_FILE "${CA_ROOT_DIR}/port${ts_config(commd_port)}.tar"
       if {$remote_arch == "win32-x86"} {
@@ -7153,60 +7074,60 @@ proc copy_certificates { host } {
          set UNTAR_OPTS "-xpvf"
       }
 
-      puts $CHECK_OUTPUT "removing existing tar file \"$TAR_FILE\" ..."
+      ts_log_finest "removing existing tar file \"$TAR_FILE\" ..."
       set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$TAR_FILE"]
-      puts $CHECK_OUTPUT $result
+      ts_log_finest $result
 
-      puts $CHECK_OUTPUT "taring Certificate Authority (CA) directory into \"$TAR_FILE\""
+      ts_log_finest "taring Certificate Authority (CA) directory into \"$TAR_FILE\""
       set tar_bin [get_binary_path $ts_config(master_host) "tar"]
       set remote_command_param "$CA_ROOT_DIR; ${tar_bin} -cpvf $TAR_FILE ./port${ts_config(commd_port)}/*"
       set result [start_remote_prog "$ts_config(master_host)" "root" "cd" "$remote_command_param"]
-      puts $CHECK_OUTPUT $result
+      ts_log_finest $result
 
       if { $prg_exit_state != 0 } {
-         add_proc_error "copy_certificates" -2 "could not tar Certificate Authority (CA) directory into \"$TAR_FILE\""
+         ts_log_warning "could not tar Certificate Authority (CA) directory into \"$TAR_FILE\""
       } else {
-         puts $CHECK_OUTPUT "copy tar file \"$TAR_FILE\"\nto \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
+         ts_log_finest "copy tar file \"$TAR_FILE\"\nto \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
          set result [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "cp" "$TAR_FILE $ts_config(results_dir)/port${ts_config(commd_port)}.tar" prg_exit_state 300]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
                     
          # tar file will be on nfs - wait for it to be visible
          wait_for_remote_file $host "root" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar"
                     
-         puts $CHECK_OUTPUT "copy tar file \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\"\nto \"$TAR_FILE\" on host $host as root user ..."
+         ts_log_finest "copy tar file \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\"\nto \"$TAR_FILE\" on host $host as root user ..."
          set result [start_remote_prog "$host" "root" "cp" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar $TAR_FILE" prg_exit_state 300]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
 
          set tar_bin [get_binary_path $host "tar"]
 
-         puts $CHECK_OUTPUT "untaring Certificate Authority (CA) directory in \"$CA_ROOT_DIR\""
+         ts_log_finest "untaring Certificate Authority (CA) directory in \"$CA_ROOT_DIR\""
          start_remote_prog "$host" "root" "cd" "$CA_ROOT_DIR" 
          if { $prg_exit_state != 0 } { 
             set result [start_remote_prog "$host" "root" "mkdir" "-p $CA_ROOT_DIR"]
          }   
 
          set result [start_remote_prog "$host" "root" $tar_bin "$UNTAR_OPTS $TAR_FILE" prg_exit_state 300 0 $CA_ROOT_DIR]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
          if { $prg_exit_state != 0 } {
-            add_proc_error "copy_certificates" -2 "could not untar \"$TAR_FILE\" on host $host;\ntar-bin:$tar_bin"
+            ts_log_warning "could not untar \"$TAR_FILE\" on host $host;\ntar-bin:$tar_bin"
          } 
 
-         puts $CHECK_OUTPUT "removing tar file \"$TAR_FILE\" on host $host ..."
+         ts_log_finest "removing tar file \"$TAR_FILE\" on host $host ..."
          set result [start_remote_prog "$host" "root" "rm" "$TAR_FILE"]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
 
-         puts $CHECK_OUTPUT "removing tar file \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
+         ts_log_finest "removing tar file \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
          set result [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$ts_config(results_dir)/port${ts_config(commd_port)}.tar"]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
       }
                 
-      puts $CHECK_OUTPUT "removing tar file \"$TAR_FILE\" ..."
+      ts_log_finest "removing tar file \"$TAR_FILE\" ..."
       set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$TAR_FILE"]
-      puts $CHECK_OUTPUT $result
+      ts_log_finest $result
 
       # on windows, we have to correct the file permissions
       if {$remote_arch == "win32-x86"} {
-         puts $CHECK_OUTPUT "correcting certificate file permissions on windows host"
+         ts_log_finer "correcting certificate file permissions on windows host"
          set users "$CHECK_USER $ts_user_config(first_foreign_user) $ts_user_config(second_foreign_user)"
          foreach user $users {
             start_remote_prog $host "root" "chown" "-R $user /var/sgeCA/port${ts_config(commd_port)}/default/userkeys/$user"
@@ -7216,24 +7137,21 @@ proc copy_certificates { host } {
       # check for syncron clock times
       set my_timeout [timestamp]
       incr my_timeout 600
+      ts_log_fine "waiting for qstat -f to work ..."
       while { 1 } {
          set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f" prg_exit_state 60 0 "" "" 1 0 1]
-         puts $CHECK_OUTPUT $result
+         ts_log_finest $result
          if { $prg_exit_state == 0 } {
-            puts $CHECK_OUTPUT "qstat -f works, fine!"
+            ts_log_finer "qstat -f works, fine!"
             break
          }
-         puts $CHECK_OUTPUT "waiting for qstat -f to work ..."
-         puts $CHECK_OUTPUT "please check hosts for synchron clock times"
-         after 10000
+         sleep 2
          if { [timestamp] > $my_timeout } {
-            add_proc_error "copy_certificates" -2 "$host: timeout while waiting for qstat to work (please check hosts for synchron clock times)"
+            ts_log_warning "$host: timeout while waiting for qstat to work (please check hosts for synchron clock times)"
          }
       }
    } else {
-      puts $CHECK_OUTPUT "can not copy this files as user $CHECK_USER"
-      puts $CHECK_OUTPUT "installation error"
-      add_proc_error "copy_certificates" -2 "$host: can't copy certificate files as user $CHECK_USER"
+      ts_log_warning "$host: can't copy certificate files as user $CHECK_USER"
    }
 }
 
@@ -7268,7 +7186,6 @@ proc copy_certificates { host } {
 #
 
 proc is_daemon_running { hostname daemon } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set found_p [ ps_grep $ts_config(product_root) $hostname ]
@@ -7277,7 +7194,7 @@ proc is_daemon_running { hostname daemon } {
    foreach elem $found_p {
       if { [string match "*$daemon*" $ps_info(string,$elem)] } {
          debug_puts $ps_info(string,$elem)
-         puts $CHECK_OUTPUT "$daemon is running on host $hostname"
+         ts_log_finer "$daemon is running on host $hostname"
          incr daemon_count 1
       }
    }
@@ -7287,7 +7204,7 @@ proc is_daemon_running { hostname daemon } {
       foreach elem $found_p {
          append err_text "$ps_info(string,$elem)\n"
       }
-      add_proc_error "is_daemon_running" -1 $err_text
+      ts_log_severe $err_text
 
    }
    return $daemon_count
@@ -7310,18 +7227,18 @@ proc is_daemon_running { hostname daemon } {
 #     sge_procedures/append_to_qtask_file()
 #*******************************************************************************
 proc restore_qtask_file {} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    set ret 1
 
    # restore the qtask file from util/qtask
-   puts $CHECK_OUTPUT "restoring qtask file from template util/qtask"
+   ts_log_fine "restoring qtask file from template util/qtask"
    set qtask_file "$ts_config(product_root)/$ts_config(cell)/common/qtask"
    set qtask_template "$ts_config(product_root)/util/qtask"
    set output [start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "$qtask_template $qtask_file"]
    if {$prg_exit_state != 0} {
-      add_proc_error "restore_qtask_file" -1 "error restoring qtask file:\n$output"
+      ts_log_severe "error restoring qtask file:\n$output"
       set ret 0
    }
    foreach node $ts_config(execd_nodes) {
@@ -7354,7 +7271,6 @@ proc restore_qtask_file {} {
 #     sge_procedures/restore_qtask_file()
 #*******************************************************************************
 proc append_to_qtask_file {content} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set ret 1
@@ -7374,7 +7290,7 @@ proc append_to_qtask_file {content} {
       } output]   
 
       if {$error != 0} {
-         add_proc_error "append_to_qtask_file" -1 "error appending to qtask file:\n$output"
+         ts_log_severe "error appending to qtask file:\n$output"
          set ret 0
       }
    }
@@ -7456,7 +7372,6 @@ proc get_shared_lib_var {{hostname ""}} {
 #     sge_host/get_adminhost_list()
 #*******************************************************************************
 proc get_qconf_list {procedure option output_var {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    upvar $output_var out
 
@@ -7511,7 +7426,6 @@ proc get_qconf_list {procedure option output_var {on_host ""} {as_user ""} {rais
 #     
 #*******************************************************************************
 proc get_qconf_object {procedure option output_var msg_var {list 0} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    upvar $output_var out
    upvar $msg_var messages
@@ -7530,7 +7444,7 @@ proc get_qconf_object {procedure option output_var msg_var {list 0} {on_host ""}
       # BUG: project, user - for non-existing objectname doesn't return correct error code
       if {[string first $messages(-1) $result] >= 0} {
          set ret [handle_sge_errors "$procedure" "qconf $option" $result messages $raise_error]
-         puts $CHECK_OUTPUT "NOTE: qconf $option doesn't return correct error code" 
+         ts_log_finer "NOTE: qconf $option doesn't return correct error code" 
       } else {
          if {$list == 0} {
             parse_simple_record result out
@@ -7652,13 +7566,11 @@ proc get_event_client_list {{output_var result} {on_host ""} {as_user ""} {raise
 #     Triggers a scheduler run by calling qconf -tsm.
 #*******************************************************************************
 proc trigger_scheduling {} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "triggering scheduler run"
+   ts_log_fine "triggering scheduler run"
 
    set output [start_sge_bin "qconf" "-tsm"]
    if {$prg_exit_state != 0} {
-      add_proc_error "trigger_scheduling" -1 "qconf -tsm failed:\n$output"
+      ts_log_severe "qconf -tsm failed:\n$output"
    }
 }
 
@@ -7681,7 +7593,6 @@ proc trigger_scheduling {} {
 #     sge_procedures/get_qstat_j_info()
 #*******************************************************************************
 proc wait_for_job_end {job_id {timeout 60}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    # we wait until now + timeout
@@ -7689,20 +7600,17 @@ proc wait_for_job_end {job_id {timeout 60}} {
 
    # if the job is still in qmaster, wait until it leaves qmaster
    if {[get_qstat_j_info $job_id] != 0} {
-      puts -nonewline $CHECK_OUTPUT "waiting for job $job_id to leave qmaster ..."
-      flush $CHECK_OUTPUT
+      ts_log_fine "waiting for job $job_id to leave qmaster ..."
 
       after 500
       while {[get_qstat_j_info $job_id] != 0} {
-         puts -nonewline $CHECK_OUTPUT "."
-         flush $CHECK_OUTPUT
+         ts_log_progress
          if {[timestamp] > $my_timeout} {
-            add_proc_error "delete_job" -1 "timeout while waiting for job $job_id leave qmaster"
+            ts_log_severe "timeout while waiting for job $job_id leave qmaster"
             break
          }
          after 500
       }
-      puts $CHECK_OUTPUT ""
    }
 }
 
@@ -7730,7 +7638,6 @@ proc wait_for_job_end {job_id {timeout 60}} {
 #     sge_procedures/add_message_to_container
 #*******************************************************************************
 proc sge_client_messages {msg_var action obj_type obj_name {on_host ""} {as_user ""}} {
-   global CHECK_OUTPUT 
    get_current_cluster_config_array ts_config
    upvar $msg_var messages
 
@@ -7831,7 +7738,6 @@ proc sge_client_messages {msg_var action obj_type obj_name {on_host ""} {as_user
 #
 #*******************************************************************************
 proc add_message_to_container {msg_cont msg_code msg {msg_desc ""}} {
-   global CHECK_OUTPUT
    upvar $msg_cont container
 
    if {[info exists container(index)]} {

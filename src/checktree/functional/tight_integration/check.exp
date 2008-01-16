@@ -1047,9 +1047,9 @@ proc tight_integration_acct {job_id num_tasks} {
       }
    }
 
-   # in 6.1u4 and higher, the submission time of tasks is specified; in older version it was 0.
+   # in 6.0u13 and higher, the submission time of tasks is specified; in older version it was 0.
    # check that all submission times are in an interval of 5 minutes
-   if {$ts_config(gridengine_version) >= 61} {
+   if {$ts_config(gridengine_version) >= 60} {
       set min [clock scan "tomorrow"]; set max 0
       foreach time $qacct_info(qsub_time) {
          if {$time < $min} {

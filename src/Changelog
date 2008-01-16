@@ -1,3 +1,7 @@
+JG-2008-01-16-0: Enhancem.: New logging framework for testsuite.
+                 Issue:     9
+                 Review:    CR
+
 MP-2008-01-14-0: Enhancem.: Added shell_path and project fields to the qstat -j
                             output comparison test.
                  Review:    JG

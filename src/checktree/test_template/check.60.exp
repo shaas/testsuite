@@ -51,8 +51,8 @@
 #
 # 7) you can add any function name to check_functions (all function (no paramters allowed) are started 
 #    within each runlevel number
-#    PLEASE use add_proc_error() to submit errors
-#    add_proc_error() is used in many testsuite standard functions, so not every 
+#    PLEASE use ts_log_severe() to submit errors
+#    ts_log_severe() is used in many testsuite standard functions, so not every 
 #    function call must check the return state.
 # 
 
@@ -109,7 +109,7 @@ proc __TESTSUITE_TEST_NAME_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc __TESTSUITE_TEST_NAME_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global __TESTSUITE_TEST_NAME_hosts __TESTSUITE_TEST_NAME_backup
 
    # let's assume we need 2 test hosts
@@ -120,7 +120,7 @@ proc __TESTSUITE_TEST_NAME_setup {} {
 }
 
 proc __TESTSUITE_TEST_NAME_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global __TESTSUITE_TEST_NAME_hosts __TESTSUITE_TEST_NAME_backup
 
    delete_all_jobs
@@ -139,19 +139,19 @@ proc __TESTSUITE_TEST_NAME_cleanup {} {
 
 
 proc __TESTSUITE_TEST_NAME_test1 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global __TESTSUITE_TEST_NAME_hosts
    global CHECK_ACT_LEVEL
 
    if {$CHECK_ACT_LEVEL == 0} {
-      puts $CHECK_OUTPUT "this is the test for runlevel $CHECK_ACT_LEVEL"
+      ts_log_fine "this is the test for runlevel $CHECK_ACT_LEVEL"
    }
 
    if {$CHECK_ACT_LEVEL == 1} {
-      puts $CHECK_OUTPUT "runlevel 1 produces a warning:"
-      add_proc_error "__TESTSUITE_TEST_NAME_test" -3 "this is a dummy warning"
-      # this would be a error:
-      # add_proc_error "__TESTSUITE_TEST_NAME_test" -1 "this is a dummy error"
+      ts_log_fine "runlevel 1 produces a warning:"
+      ts_log_config "this is a dummy config message: This test can only be run with CSP mode"
+      # this would be an error:
+      # ts_log_severe "this is a dummy error"
    }
 }
 

@@ -39,5 +39,5 @@ proc get_del_manager_vdep {messages_var manager} {
    #lappend messages(index) "-3"
    #set messages(-3) [translate_macro MSG_XYZ_S $host] #; another exechost specific error message
    #set messages(-3,description) "a highlevel description of the error"    ;# optional parameter
-   #set messages(-3,level) -2  ;# optional parameter: we only want to raise a warning
+   #set messages(-3,level) WARNING  ;# optional parameter: we only want to raise a warning
 }

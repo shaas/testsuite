@@ -62,7 +62,7 @@ proc compile_check_compile_hosts {host_list} {
    # check each host in host_list
    foreach host $host_list {
       if {![host_conf_is_supported_host $host]} {
-         add_proc_error "compile_check_compile_hosts" -1 "host $host is not contained in testsuite host configuration or not supported host!"
+         ts_log_severe "host $host is not contained in testsuite host configuration or not supported host!"
       } else {
          # host's architecture
          set arch [host_conf_get_arch $host]
@@ -111,7 +111,6 @@ proc compile_check_compile_hosts {host_list} {
 #*******************************************************************************
 proc compile_host_list {} {
    global ts_host_config
-   global CHECK_OUTPUT
    global ts_config
   
    set submit_hosts ""
@@ -136,13 +135,13 @@ proc compile_host_list {} {
 
          # check whether it is cell cluster or independed cluster
          if { $cl_type == "cell" } {
-            puts $CHECK_OUTPUT "adding hosts from additional cluster configuration file"
-            puts $CHECK_OUTPUT "$filename"
-            puts $CHECK_OUTPUT "to compile host list. This cluster will be installed as GE Cell!"
+            ts_log_fine "adding hosts from additional cluster configuration file"
+            ts_log_fine "$filename"
+            ts_log_fine "to compile host list. This cluster will be installed as GE Cell!"
             foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
                if { $add_config($param) != "none" } {
                   append host_list " $add_config($param)"
-                  puts $CHECK_OUTPUT "appending $param host \"$add_config($param)\""
+                  ts_log_fine "appending $param host \"$add_config($param)\""
                }
             }
          }
@@ -163,13 +162,13 @@ proc compile_host_list {} {
    foreach host $host_list {
       set arch [host_conf_get_arch $host]
       if {$arch == ""} {
-         add_proc_error "compile_host_list" -1 "Cannot determine the architecture of host $host"
+         ts_log_severe "Cannot determine the architecture of host $host"
          return ""
       }
       if {![info exists compile_host($arch)]} {
          set c_host [compile_search_compile_host $arch]
          if {$c_host == "none"} {
-            add_proc_error "compile_host_list" -1 "Cannot determine a compile host for architecture $arch" 
+            ts_log_severe "Cannot determine a compile host for architecture $arch" 
             return ""
          } else {
             set compile_host($arch) $c_host
@@ -186,7 +185,7 @@ proc compile_host_list {} {
       set jc_arch [host_conf_get_arch $jc_host]
 
       if {$compile_host($jc_arch) != $jc_host} {
-         add_proc_error "compile_host_list" -1 "the java compile host ($jc_host) has architecture $jc_arch\nbut compile host for architecture $jc_arch is $compile_host($jc_arch).\nJava and C compile must be done on the same host"
+         ts_log_severe "the java compile host ($jc_host) has architecture $jc_arch\nbut compile host for architecture $jc_arch is $compile_host($jc_arch).\nJava and C compile must be done on the same host"
          return ""
       }
    }
@@ -210,7 +209,6 @@ proc compile_host_list {} {
 #     string containing compile options
 #*******************************************************************************
 proc get_compile_options_string { } {
-   global CHECK_OUTPUT 
    global ts_config
 
    set options $ts_config(aimk_compile_options)
@@ -220,7 +218,7 @@ proc get_compile_options_string { } {
    }
 
    if {$options != ""} {
-      puts $CHECK_OUTPUT "compile options are: \"$options\""
+      ts_log_fine "compile options are: \"$options\""
    }
 
    return $options
@@ -282,7 +280,6 @@ proc compile_unify_host_list {host_list} {
 #*******************************************************************************
 proc compile_search_compile_host {arch} {
    global ts_host_config
-   global CHECK_OUTPUT
 
    foreach host $ts_host_config(hostlist) {
       if {[host_conf_get_arch $host] == $arch && \
@@ -292,13 +289,12 @@ proc compile_search_compile_host {arch} {
    }
 
    # no compile host found for this arch
-   puts $CHECK_OUTPUT "no compile host found for architecture $arch"
+   ts_log_fine "no compile host found for architecture $arch"
    return "none"
 }
 
 
 proc compile_rebuild_arch_cache { compile_hosts {al "arch_list"} } {
-   global CHECK_OUTPUT
    upvar $al arch_list
    if { [info exists arch_list] } {
       unset arch_list
@@ -306,14 +302,12 @@ proc compile_rebuild_arch_cache { compile_hosts {al "arch_list"} } {
    resolve_arch_clear_cache
    set arch_list {}
    set compiled_mail_architectures ""
-   puts -nonewline $CHECK_OUTPUT "\narchitectures: "
    foreach elem $compile_hosts {
       set output [resolve_arch $elem 1]
       lappend arch_list $output 
-      puts -nonewline $CHECK_OUTPUT "$output "
       append compiled_mail_architectures "\n$elem ($output)"
    }
-   puts ""
+   ts_log_fine "architectures: $arch_list"
    return $compiled_mail_architectures
 }
 
@@ -345,12 +339,12 @@ proc compile_rebuild_arch_cache { compile_hosts {al "arch_list"} } {
 #  SEE ALSO
 #*******************************************************************************
 proc compile_depend { compile_hosts a_report do_clean } {
-   global ts_host_config CHECK_OUTPUT ts_config
+   global ts_host_config ts_config
    global CHECK_USER
    
    upvar $a_report report
  
-   puts $CHECK_OUTPUT "building dependencies ..."
+   ts_log_fine "building dependencies ..."
  
    # we prefer building the dependencies on a sol-sparc64 host
    # to avoid automounter issues like having a heading /tmp_mnt in paths
@@ -359,7 +353,7 @@ proc compile_depend { compile_hosts a_report do_clean } {
       set help_arch [host_conf_get_arch $help_host]
       if { [ string compare $help_arch "solaris64"] == 0 || 
            [ string compare $help_arch "sol-sparc64"] == 0 } {
-         puts $CHECK_OUTPUT "using host $help_host to create dependencies"
+         ts_log_fine "using host $help_host to create dependencies"
          set depend_host_name $help_host
       }
    }
@@ -469,7 +463,6 @@ proc compile_depend { compile_hosts a_report do_clean } {
 #*******************************************************************************
 proc compile_source { { do_only_hooks 0} } {
    global ts_host_config ts_config
-   global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE
    global CHECK_HTML_DIRECTORY
    global CHECK_DEFAULTS_FILE do_not_update check_name
@@ -501,7 +494,7 @@ proc compile_source { { do_only_hooks 0} } {
                continue
             }
             if { $cl_type == "independent" } {
-               puts $CHECK_OUTPUT "Found $cl_type additional cluster, starting remote compile ..."
+               ts_log_fine "Found $cl_type additional cluster, starting remote compile ..."
                set task_nr [report_create_task report "build_additional_${cl_type}_cluster" $add_config(master_host) "$add_config(master_host)/index.html"]
                report_task_add_message report $task_nr "------------------------------------------"
                report_task_add_message report $task_nr "-> starting remote build of additional configuration $filename ..."
@@ -569,7 +562,7 @@ proc compile_source { { do_only_hooks 0} } {
    # figure out the compile archs
    set compile_arch_list ""
    foreach chost $compile_hosts {
-      puts $CHECK_OUTPUT "\n-> checking architecture for host $chost ..."
+      ts_log_fine "\n-> checking architecture for host $chost ..."
       set output [resolve_build_arch $chost]
       if { $output == "" } {
          report_add_message report "error resolving build architecture for host $chost"
@@ -635,7 +628,7 @@ proc compile_source { { do_only_hooks 0} } {
             set do_aimk_depend_clean 0
          }
       } else {
-         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+         ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
       }
 
       # after an update, do an aimk clean
@@ -654,7 +647,7 @@ proc compile_source { { do_only_hooks 0} } {
             set aimk_clean_done 1
          }
       } else {
-         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+         ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
       }
 
       # execute all registered compile_clean hooks of the checktree
@@ -676,8 +669,8 @@ proc compile_source { { do_only_hooks 0} } {
       set macro_messages_file [get_macro_messages_file_name]
       # only clean macro file if GE sources were updated!
       if {[file isfile $macro_messages_file] && $do_only_hooks == 0} {
-         puts $CHECK_OUTPUT "deleting macro messages file after update!"
-         puts $CHECK_OUTPUT "file: $macro_messages_file"
+         ts_log_fine "deleting macro messages file after update!"
+         ts_log_fine "file: $macro_messages_file"
          file delete $macro_messages_file
       }
       update_macro_messages_list
@@ -694,7 +687,7 @@ proc compile_source { { do_only_hooks 0} } {
             set aimk_clean_done 1
          }
       } else {
-         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+         ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
       }
       # execute all registered compile_hooks of the checktree
       set res [exec_compile_clean_hooks $compile_hosts report]
@@ -713,7 +706,7 @@ proc compile_source { { do_only_hooks 0} } {
    }
 
    if {$error_count > 0} {
-      puts $CHECK_OUTPUT "Skip compile due to previous errors\n"
+      ts_log_fine "Skip compile due to previous errors\n"
    } else {
       if {$do_only_hooks == 0} {
          if { $compile_depend_done == "false" } {
@@ -721,10 +714,10 @@ proc compile_source { { do_only_hooks 0} } {
                incr error_count 1
             } 
          } else {
-            puts $CHECK_OUTPUT "Skip second depend, already done!"
+            ts_log_fine "Skip second depend, already done!"
          }
       } else {
-         puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+         ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
       }
       if {$error_count == 0} {
          # depend was successfull - sleep a bit so let nfs settle down
@@ -759,20 +752,20 @@ proc compile_source { { do_only_hooks 0} } {
                } 
             }
          } else {
-            puts $CHECK_OUTPUT "Skip aimk compile, I am on do_only_hooks mode"
+            ts_log_fine "Skip aimk compile, I am on do_only_hooks mode"
          }
          report_write_html report
          if {$error_count == 0} {
             # new all registered compile_hooks of the checktree
             set res [exec_compile_hooks $compile_hosts report]
             if { $res < 0 } {
-               puts $CHECK_OUTPUT "exec_compile_hooks returned fatal error\n"
+               ts_log_fine "exec_compile_hooks returned fatal error\n"
                incr error_count 1
             } elseif { $res > 0 } {
-               puts $CHECK_OUTPUT "$res compile hooks failed\n"
+               ts_log_fine "$res compile hooks failed\n"
                incr error_count 1
             } else {
-               puts $CHECK_OUTPUT "All compile hooks successfully executed\n"
+               ts_log_fine "All compile hooks successfully executed\n"
             }
          }
       }
@@ -874,7 +867,7 @@ proc compile_source { { do_only_hooks 0} } {
 #     ???/???
 #*******************************************************************************
 proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR ts_config
 
    upvar $a_report report
@@ -906,7 +899,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
       delete_build_number_object $host $build_number
 
       # start build jobs
-      puts $CHECK_OUTPUT "-> starting $task_name on host $host ..."
+      ts_log_fine "-> starting $task_name on host $host ..."
 
       set prog "$ts_config(testsuite_root_dir)/scripts/remotecompile.sh"
       set par1 "$ts_config(source_dir)"
@@ -918,7 +911,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
          set par2 "-java $par2"
       }
    
-      puts $CHECK_OUTPUT "$prog $par1 '$par2'"
+      ts_log_fine "$prog $par1 '$par2'"
       set open_spawn [open_remote_spawn_process $host $CHECK_USER $prog "$par1 '$par2'" 0 "" "" 0 15 0]
       set spawn_id [lindex $open_spawn 1]
 
@@ -934,7 +927,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
       incr num 1
    }
   
-   puts $CHECK_OUTPUT "now waiting for end of compile ..." 
+   ts_log_fine "now waiting for end of compile ..." 
    set status_updated 1
    set status_time 0
    set timeout 3600 ;# need this extreme long timeout because of long jgdi wrapper classes
@@ -1018,7 +1011,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
             #                          or "<compiler> .... -c ...."
             if {[llength $line] > 0} {
                set command [lindex $line 0]
-               # puts $CHECK_OUTPUT "line: $line"
+               # ts_log_finest "line: $line"
                switch -exact -- $command {
                   "cc" -
                   "gcc" -
@@ -1048,7 +1041,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
                      }
                   }
                   "\[java\]" {
-                     #puts $CHECK_OUTPUT $line
+                     #ts_log_finest $line
                      if {[lsearch -exact $line "jar.wait:"] >= 0} {
                         set status_array(file,$host) "java (wait for java build host)"
                         set status_array(status,$host) "waiting"
@@ -1082,7 +1075,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
                   default {
                      #set status_array(file,$host)   "(?)"
                      #set status_updated 1
-                     #   puts $CHECK_OUTPUT "---> unknown <--- $line"
+                     #   ts_log_finest "---> unknown <--- $line"
                   }
                }
             }
@@ -1091,7 +1084,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
       if { $do_stop == 1 } {
          foreach tmp_spawn_id $spawn_list {
             set host $host_array($tmp_spawn_id,host)
-            puts $CHECK_OUTPUT "stoping $tmp_spawn_id (host: $host)!"
+            ts_log_fine "stoping $tmp_spawn_id (host: $host)!"
 
             set report_line "[clock format [clock seconds] -format "%H:%M:%S"]: got timeout while waiting for output (some host is extremely slow)"
             report_task_add_message report $host_array($tmp_spawn_id,task_nr) $report_line
@@ -1124,10 +1117,10 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
          #   unset status_max_index_len
          #}
          clear_screen
-         puts $CHECK_OUTPUT "================================================================================"
-         puts $CHECK_OUTPUT "open compile connections (aimk $my_compile_options):\n"
-         puts $CHECK_OUTPUT $status_output
-         puts $CHECK_OUTPUT "================================================================================"
+         ts_log_frame INFO "================================================================================"
+         ts_log_info "open compile connections (aimk $my_compile_options):\n" 0 "" 1 0 0
+         ts_log_info $status_output 0 "" 1 0 0
+         ts_log_frame INFO "================================================================================"
       }
    }
    log_user 1
@@ -1135,7 +1128,7 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    set compile_error 0
    foreach spawn_id $org_spawn_list {
       if {$host_array($spawn_id,bad_compile) != 0} {
-         puts $CHECK_OUTPUT "\n=============\ncompile error on host $host_array($spawn_id,host):\n=============\n"
+         ts_log_fine "\n=============\ncompile error on host $host_array($spawn_id,host):\n=============\n"
          report_finish_task report $host_array($spawn_id,task_nr) 1
          set compile_error 1
       } else {
@@ -1219,23 +1212,23 @@ proc delete_build_number_object {host build} {
 #
 #*******************************************************************************
 proc compile_create_java_properties { compile_hosts } {
-   global CHECK_OUTPUT CHECK_USER ts_config
+   global CHECK_USER ts_config
 
    if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
-      puts $CHECK_OUTPUT "deleting $properties_file"
+      ts_log_fine "deleting $properties_file"
       foreach host $compile_hosts {
          delete_remote_file $host $CHECK_USER $properties_file
       }
 
       # store long resolved host name in properties file ...
-      puts $CHECK_OUTPUT "creating $properties_file"
+      ts_log_fine "creating $properties_file"
       set f [open $properties_file "w"]
       puts $f "java.buildhost=[host_conf_get_java_compile_host 1 1]"
       close $f
  
       foreach host $compile_hosts {
-         puts $CHECK_OUTPUT "waiting for $properties_file on host $host ..."
+         ts_log_fine "waiting for $properties_file on host $host ..."
          wait_for_remote_file $host $CHECK_USER $properties_file
       }
    }
@@ -1256,12 +1249,12 @@ proc compile_create_java_properties { compile_hosts } {
 #
 #*******************************************************************************
 proc compile_delete_java_properties {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    if {$ts_config(gridengine_version) >= 61} {
       set properties_file "$ts_config(source_dir)/build_testsuite.properties"
       if {[file isfile $properties_file]} {
-         puts $CHECK_OUTPUT "deleting $properties_file"
+         ts_log_fine "deleting $properties_file"
          file delete $properties_file
       }
    }

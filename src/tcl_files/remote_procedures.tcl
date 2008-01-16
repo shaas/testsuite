@@ -141,7 +141,7 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
          # get host specific send delay
          set delay [host_conf_get_send_speed $host]
          if {$delay > 0.0} {
-            debug_puts "WARNING: SENDING WITH DELAY OF $delay"
+            ts_log_finest "WARNING: SENDING WITH DELAY OF $delay"
             set send_slow "1 $delay"
             send -i $spawn_id -s -- "${message}"
          } else {
@@ -151,7 +151,7 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
    } catch_output]
 
    if {$catch_return != 0} {
-      add_proc_error "ts_send" -1 "send failed:\n$catch_output" $raise_error
+      ts_log_severe "send failed:\n$catch_output" $raise_error
    }
 }
 
@@ -177,7 +177,6 @@ proc ts_send {spawn_id message {host ""} {passwd 0} {raise_error 1}} {
 #     remote_procedures/cleanup_qping_dump_output()
 #*******************************************************************************
 proc setup_qping_dump { log_array  } {
-   global CHECK_OUTPUT
    upvar $log_array used_log_array
    get_current_cluster_config_array ts_config
 
@@ -188,9 +187,9 @@ proc setup_qping_dump { log_array  } {
    set qping_env(SGE_QPING_OUTPUT_FORMAT) "s:1 s:2 s:3 s:4 s:5 s:6 s:7 s:8 s:9 s:10 s:11 s:12 s:13 s:14 s:15"
 
    if { $ts_config(gridengine_version) >= 60 } {
-      puts $CHECK_OUTPUT "starting remote qping process ..."
+      ts_log_fine "starting remote qping process ..."
       set sid [open_remote_spawn_process $master_host "root" $qping_binary $qping_arguments 0 "" qping_env]
-      puts $CHECK_OUTPUT "remote qping process started!"
+      ts_log_fine "remote qping process started!"
       set sp_id [lindex $sid 1]
    } else {
       set sid   "unsupported version < 60"
@@ -208,27 +207,27 @@ proc setup_qping_dump { log_array  } {
       while { 1 } {
          expect {
             -i $used_log_array(spawn_id) -- full_buffer {
-               add_proc_error "get_qping_dump_output" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                break
             }
             -i $used_log_array(spawn_id) eof {
-               add_proc_error "setup_qping_dump" -1 "unexpected eof getting qping -dump connection to qmaster"
+               ts_log_severe "unexpected eof getting qping -dump connection to qmaster"
                break
             }
             -i $used_log_array(spawn_id) timeout {
-               add_proc_error "setup_qping_dump" -1 "timeout for getting qping -dump connection to qmaster"
+               ts_log_severe "timeout for getting qping -dump connection to qmaster"
                break
             }
             -i $used_log_array(spawn_id) -- "*debug_client*crm*\n" {
-               puts $CHECK_OUTPUT "qping is now connected to qmaster!"
+               ts_log_fine "qping is now connected to qmaster!"
                break
             }
             -i $used_log_array(spawn_id) -- "_exit_status_*\n" {
-               puts $CHECK_OUTPUT "qping doesn't support -dump switch in this version"
+               ts_log_fine "qping doesn't support -dump switch in this version"
                break
             }
             -i $used_log_array(spawn_id) -- "*\n" {
-               debug_puts $expect_out(buffer)
+               ts_log_finest $expect_out(buffer)
             }
          }     
       }
@@ -281,35 +280,35 @@ proc get_xterm_path { host } {
 #     0 on success, 1 on error
 #************************************************************************************
 proc check_all_system_times {} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    set return_value 0
    set host_list [get_all_hosts]
 
    foreach host $host_list {
-      puts $CHECK_OUTPUT "test connection to $host ..."
+      ts_log_fine "test connection to $host ..."
       set result [string trim [start_remote_prog $host $CHECK_USER "echo" "hallo"]]
-      puts $CHECK_OUTPUT $result
+      ts_log_fine $result
    }
 
    set test_start [timestamp]
    foreach host $host_list {
-      puts $CHECK_OUTPUT "test remote system time on host $host ..."
+      ts_log_fine "test remote system time on host $host ..."
       set time($host) [get_remote_time $host]
-      debug_puts "$host: remote time: $time($host)"
+      ts_log_finest "$host: remote time: $time($host)"
       # fix remote execution time difference
       set time($host) [expr ( $time($host) - [expr ( [timestamp] - $test_start ) ] )] 
-      debug_puts "$host: corrected time because of execution time: $time($host)"
+      ts_log_finest "$host: corrected time because of execution time: $time($host)"
    }
 
    set reference_time $time($ts_config(master_host))
    foreach host $host_list {
       set diff [expr ( $reference_time - $time($host) )]
-      puts $CHECK_OUTPUT "host $host has a time difference of $diff seconds compared to host $ts_config(master_host)"
+      ts_log_fine "host $host has a time difference of $diff seconds compared to host $ts_config(master_host)"
 
       if { $diff > 45 || $diff < -45 } {
-         add_proc_error "check_all_system_times" -2 "host $host has a time difference of $diff seconds compared to host $ts_config(master_host)"
+         ts_log_warning "host $host has a time difference of $diff seconds compared to host $ts_config(master_host)"
          set return_value 1
       }
 
@@ -368,7 +367,6 @@ proc get_remote_time { host } {
 #     remote_procedures/cleanup_qping_dump_output()
 #*******************************************************************************
 proc get_qping_dump_output { log_array } {
-   global CHECK_OUTPUT
    upvar $log_array used_log_array
    get_current_cluster_config_array ts_config
    set return_value 0
@@ -379,7 +377,7 @@ proc get_qping_dump_output { log_array } {
       log_user 0
       expect {
          -i $used_log_array(spawn_id) -- full_buffer {
-            add_proc_error "get_qping_dump_output" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $used_log_array(spawn_id) eof {
          }
@@ -471,7 +469,7 @@ proc get_qping_dump_output { log_array } {
    #   12 xml dump commlib xml protocol output
    #   13 info     additional information
    } else {
-      puts $CHECK_OUTPUT "qping not supported !"
+      ts_log_fine "qping not supported !"
       set return_value 1
    }
    return $return_value
@@ -496,7 +494,6 @@ proc get_qping_dump_output { log_array } {
 #     remote_procedures/cleanup_qping_dump_output()
 #*******************************************************************************
 proc cleanup_qping_dump_output { log_array } {
-   global CHECK_OUTPUT
    upvar $log_array used_log_array
    get_current_cluster_config_array ts_config
 
@@ -542,20 +539,20 @@ proc cleanup_qping_dump_output { log_array } {
 #*******************************
 proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
    global CHECK_DEFAULTS_FILE
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    get_current_cluster_config_array ts_config
  
    log_user 1
-   puts $CHECK_OUTPUT "--- start_remote_tcl_prog start ---"
+   ts_log_fine "--- start_remote_tcl_prog start ---"
    set tcl_bin [ get_binary_path $host "expect"]
    set tcl_prog "$ts_config(testsuite_root_dir)/scripts/remote_tcl_command.sh"
    set tcl_testhome "$ts_config(testsuite_root_dir)"
    set tcl_defaults  "$CHECK_DEFAULTS_FILE"
    
-   debug_puts "tcl_bin: \"$tcl_bin\""
-   debug_puts "tcl_prog: \"$tcl_prog\""
-   debug_puts "tcl_testhome: \"$tcl_testhome\""
-   debug_puts "tcl_defaults: \"$tcl_defaults\""
+   ts_log_finest "tcl_bin: \"$tcl_bin\""
+   ts_log_finest "tcl_prog: \"$tcl_prog\""
+   ts_log_finest "tcl_testhome: \"$tcl_testhome\""
+   ts_log_finest "tcl_defaults: \"$tcl_defaults\""
 
 
    set debug_arg ""
@@ -565,17 +562,17 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
    set remote_args "$tcl_bin $ts_config(testsuite_root_dir)/tcl_files/$tcl_file $tcl_testhome $tcl_procedure \"$tcl_procargs\" $tcl_defaults $debug_arg"
 
    set result ""
-   debug_puts "prog: $tcl_prog"
-   debug_puts "remote_args: $remote_args"
+   ts_log_finest "prog: $tcl_prog"
+   ts_log_finest "remote_args: $remote_args"
    log_user 1
 
    set result [start_remote_prog "$host" "$user" "$tcl_prog" "$remote_args" prg_exit_state 600 0 "" "" 1 0 0]
    if { [string first "Error in procedure" $result] >= 0 } {
-      add_proc_error "start_remote_tcl_prog" -2 "error in $tcl_file, proc $tcl_procedure $tcl_procargs"
+      ts_log_warning "error in $tcl_file, proc $tcl_procedure $tcl_procargs"
    }
    puts $result
    log_user 1
-   puts $CHECK_OUTPUT "--- start_remote_tcl_prog end   ---"
+   ts_log_fine "--- start_remote_tcl_prog end   ---"
    return $result
 }
 
@@ -645,7 +642,7 @@ proc start_remote_prog { hostname
                          {without_start_output 0}
                          {without_sge_single_line 0}
                        } {
-   global CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR CHECK_DEBUG_LEVEL 
+   global CHECK_MAIN_RESULTS_DIR CHECK_DEBUG_LEVEL 
    upvar $exit_var back_exit_state
 
    if {$envlist != ""} {
@@ -668,7 +665,7 @@ proc start_remote_prog { hostname
    # open connection
    set id [open_remote_spawn_process "$hostname" "$user" "$exec_command" "$exec_arguments" $background $cd_dir users_env $source_settings_file 15 $set_shared_lib_path $raise_error $win_local_user $without_start_output $without_sge_single_line]
    if {$id == ""} {
-      add_proc_error "start_remote_prog" -1 "got no spawn id" $raise_error
+      ts_log_severe "got no spawn id" $raise_error
       set back_exit_state -255
       return ""
    }
@@ -688,13 +685,13 @@ proc start_remote_prog { hostname
    set real_start_found 0
    set nr_of_lines 0
    set find_out_more 0
-   debug_puts "start_remote_prog: expecting ..."
+   ts_log_finest "start_remote_prog: expecting ..."
    expect {
      -i $myspawn_id timeout {
         set find_out_more 1
      }
      -i $myspawn_id full_buffer {
-        add_proc_error "start_remote_prog" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
+        ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
      }
      -i $myspawn_id -- "*\n" {
         foreach line [split $expect_out(0,string) "\n"] {
@@ -710,7 +707,7 @@ proc start_remote_prog { hostname
                     if {$tmp_exit_status_end >= 0 } {
                        set tmp_exit_status_string [ string range $tmp_exit_status_string 0 $tmp_exit_status_end ]
                     } else {
-                       add_proc_error "start_remote_prog" -1 "unexpected error - did not get full exit status string" $raise_error
+                       ts_log_severe "unexpected error - did not get full exit status string" $raise_error
                     }
                     set real_end_found 1
                     set real_start_found 0
@@ -747,24 +744,24 @@ proc start_remote_prog { hostname
       append info_message_text "expect_out(buffer):\n>$expect_out(buffer)<\n"
       append info_message_text "more information in next error message in 5 seconds!!!\n"
       append info_message_text ""
-      add_proc_error "start_remote_prog" "-1" "$info_message_text" $raise_error
+      ts_log_severe "$info_message_text" $raise_error
       set timeout 5
       expect {
          -i $myspawn_id full_buffer {
-            add_proc_error "start_remote_prog" "-1" "buffer overflow! Increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
+            ts_log_severe "buffer overflow! Increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
          }
          -i $myspawn_id timeout {
-            add_proc_error "start_remote_prog" "-1" "no more output available" $raise_error
+            ts_log_severe "no more output available" $raise_error
          }
          -i $myspawn_id "*" {
-            add_proc_error "start_remote_prog" "-1" "expect buffer:\n$expect_out(buffer)" $raise_error
+            ts_log_severe "expect buffer:\n$expect_out(buffer)" $raise_error
          }
          -i $myspawn_id default {
-            add_proc_error "start_remote_prog" "-1" "default - no more output available" $raise_error
+            ts_log_severe "default - no more output available" $raise_error
          }
       }
    }
-   debug_puts "start_remote_prog: expecting ... done"
+   ts_log_finest "start_remote_prog: expecting ... done"
 
    # parse output: cut leading sequence 
    set found_start [string first "_start_mark_" $output]
@@ -793,7 +790,7 @@ proc start_remote_prog { hostname
       set exit_status -1
    }
 
-   debug_puts "E X I T   S T A T E   of remote prog: $exit_status"
+   ts_log_finest "E X I T   S T A T E   of remote prog: $exit_status"
    close_spawn_process $id
     
    if { $CHECK_DEBUG_LEVEL == 2 } {
@@ -842,19 +839,19 @@ proc start_remote_prog { hostname
 #     ???/???
 #*******************************************************************************
 proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" } { replyto "" } { organisation "" } { force_mail 0 } } {
-   global CHECK_USER CHECK_OUTPUT CHECK_ENABLE_MAIL CHECK_MAILS_SENT CHECK_MAX_ERROR_MAILS
+   global CHECK_USER CHECK_ENABLE_MAIL CHECK_MAILS_SENT CHECK_MAX_ERROR_MAILS
    get_current_cluster_config_array ts_config
 
    if { $CHECK_ENABLE_MAIL != 1 && $force_mail == 0 } {
-     puts $CHECK_OUTPUT "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
-     puts $CHECK_OUTPUT "mail subject: $subject"
-     puts $CHECK_OUTPUT "mail body:"
-     puts $CHECK_OUTPUT "$body"
+     ts_log_fine "mail sending disabled, mails sent: $CHECK_MAILS_SENT"
+     ts_log_fine "mail subject: $subject"
+     ts_log_fine "mail body:"
+     ts_log_fine "$body"
      return -1
    }
 
 
-   puts $CHECK_OUTPUT "--> sending mail to $to from host $ts_config(mailx_host) ...\n"
+   ts_log_fine "--> sending mail to $to from host $ts_config(mailx_host) ...\n"
    # setup mail message    
    set mail_file [get_tmp_file_name]
    set file [open $mail_file "w"]
@@ -907,9 +904,9 @@ proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" }
 
    set result [start_remote_prog $ts_config(mailx_host) "ts_def_con_mail" $command $arguments prg_exit_state 60 0 "" "" 1 0]
    if { $prg_exit_state != 0 } {
-      puts $CHECK_OUTPUT "=================================="
-      puts $CHECK_OUTPUT "COULD NOT SEND MAIL:\n$result"
-      puts $CHECK_OUTPUT "=================================="
+      ts_log_frame
+      ts_log_fine "COULD NOT SEND MAIL:\n$result"
+      ts_log_fine
       return -1
    }
    incr CHECK_MAILS_SENT 1
@@ -923,7 +920,7 @@ proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" }
 
 
 proc sendmail_wrapper { address cc subject body } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
 
@@ -934,18 +931,18 @@ proc sendmail_wrapper { address cc subject body } {
 #   return [sendmail $address $subject $html_text 1 $cc "" $address $address "Gridware"]
 
    if { $ts_config(mail_application) == "mailx" } {
-      puts $CHECK_OUTPUT "using mailx to send mail ..."
+      ts_log_fine "using mailx to send mail ..."
       return 1
    }
    if { $ts_config(mail_application) == "sendmail" } {
-      puts $CHECK_OUTPUT "using sendmail to send mail ..."
+      ts_log_fine "using sendmail to send mail ..."
       sendmail $address $subject $body 0 $cc "" $address $address "Gridware"
       return 0
    }
 
    
 
-   puts $CHECK_OUTPUT "starting $ts_config(mail_application) on host $$ts_config(mailx_host) to send mail ..."
+   ts_log_fine "starting $ts_config(mail_application) on host $$ts_config(mailx_host) to send mail ..."
    set tmp_file [get_tmp_file_name]
    set script [ open "$tmp_file" "w" "0755" ]
    puts $script "Grid Engine Version: [get_version_info]"
@@ -960,14 +957,12 @@ proc sendmail_wrapper { address cc subject body } {
 
    wait_for_remote_file $ts_config(mailx_host) "ts_def_con_mail" $tmp_file
    set result [start_remote_prog $ts_config(mailx_host) "ts_def_con_mail" $ts_config(mail_application) "\"$address\" \"$cc\" \"$new_subject\" \"$tmp_file\""]
-   puts $CHECK_OUTPUT "mail application returned exit code $prg_exit_state:"
-   puts $CHECK_OUTPUT $result
+   ts_log_fine "mail application returned exit code $prg_exit_state:"
+   ts_log_fine $result
    return 0
 }
 
 proc create_error_message {err_string} {
-  global CHECK_OUTPUT
-
   set err_complete  [split $err_string "|"]
   set err_procedure [lindex $err_complete 0]
   set err_checkname [lindex $err_complete 1]
@@ -996,7 +991,7 @@ proc create_error_message {err_string} {
 
 
 proc show_proc_error {result new_error} {
-   global CHECK_OUTPUT check_name
+   global check_name
    global CHECK_ACT_LEVEL
    global CHECK_SEND_ERROR_MAILS
 
@@ -1008,17 +1003,14 @@ proc show_proc_error {result new_error} {
       if { $result == -3 } {
          set category "unsupported test warning"
       }
-      puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-      puts $CHECK_OUTPUT "$category"
-      puts $CHECK_OUTPUT "runlevel    : \"[get_run_level_name $CHECK_ACT_LEVEL]\", ($CHECK_ACT_LEVEL)"
-      puts $CHECK_OUTPUT ""
+      ts_log_frame
+      ts_log_fine "$category"
+      ts_log_fine "runlevel    : \"[get_run_level_name $CHECK_ACT_LEVEL]\", ($CHECK_ACT_LEVEL)"
+      ts_log_fine ""
       set error_output [create_error_message $new_error]
-      puts $CHECK_OUTPUT $error_output 
-      puts $CHECK_OUTPUT ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+      ts_log_fine $error_output 
+      ts_log_frame
 
-
-
-      flush $CHECK_OUTPUT
       if { $CHECK_SEND_ERROR_MAILS == 1 } {
          append mail_body "\n"
          append mail_body "Date            : [exec date]\n"
@@ -1238,10 +1230,10 @@ proc map_special_users {hostname user win_local_user} {
       }
    }
 
-   debug_puts "map_special_users: $user on host $hostname"
-   debug_puts "   real_user:         $real_user"
-   debug_puts "   connect_user:      $connect_user"
-   debug_puts "   connect_full_user: $connect_full_user"
+   ts_log_finest "map_special_users: $user on host $hostname"
+   ts_log_finest "   real_user:         $real_user"
+   ts_log_finest "   connect_user:      $connect_user"
+   ts_log_finest "   connect_full_user: $connect_full_user"
 }
 
 #****** remote_procedures/open_remote_spawn_process() **************************
@@ -1303,9 +1295,9 @@ proc map_special_users {hostname user win_local_user} {
 #        }
 #     }  
 #     close_spawn_process $id
-#     puts $CHECK_OUTPUT ">>> output start <<<"
-#     puts $CHECK_OUTPUT $output
-#     puts $CHECK_OUTPUT ">>> output end <<<"
+#     ts_log_fine ">>> output start <<<"
+#     ts_log_fine $output
+#     ts_log_fine ">>> output end <<<"
 #
 #  NOTES
 #     The spawn command is from the TCL enhancement EXPECT
@@ -1336,7 +1328,7 @@ proc open_remote_spawn_process { hostname
                                  {shell_script_name_var shell_script_name}
                                } {
 
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_EXPECT_MATCH_MAX_BUFFER CHECK_DEBUG_LEVEL
    global CHECK_LOGIN_LINE CHECK_SHELL_PROMPT
    global open_remote_spawn_script_cache
@@ -1344,14 +1336,14 @@ proc open_remote_spawn_process { hostname
    get_current_cluster_config_array ts_config
 
    set testsuite_root_dir $ts_config(testsuite_root_dir)
-   debug_puts "open_remote_spawn_process on host \"$hostname\""
-   debug_puts "user:           $user"
-   debug_puts "exec_command:   $exec_command"
-   debug_puts "exec_arguments: $exec_arguments"
+   ts_log_finest "open_remote_spawn_process on host \"$hostname\""
+   ts_log_finest "user:           $user"
+   ts_log_finest "exec_command:   $exec_command"
+   ts_log_finest "exec_arguments: $exec_arguments"
 
    # check parameters
    if {$nr_of_tries < 5} {
-      add_proc_error "open_remote_spawn_process" -3 "unreasonably low nr_of_tries: $nr_of_tries, setting to 5" $raise_error
+      ts_log_config "unreasonably low nr_of_tries: $nr_of_tries, setting to 5" $raise_error
    }
    # the win_local_user feature is only needed on windows
    # reset it for non windows hosts
@@ -1370,7 +1362,7 @@ proc open_remote_spawn_process { hostname
    # unless the target host is windows - here we need each user's password
    if {$real_user != $CHECK_USER && [host_conf_get_arch $hostname] != "win32-x86"} {
       if {[have_root_passwd] == -1} {
-         add_proc_error "open_remote_spawn_process" -2 "${error_info}\nroot access required" $raise_error
+         ts_log_warning "${error_info}\nroot access required" $raise_error
          return "" 
       }
    }
@@ -1405,14 +1397,14 @@ proc open_remote_spawn_process { hostname
    # either use the previous script, or create a new one
    if {$re_use_script} {
       set script_name $open_remote_spawn_script_cache($spawn_command_arguments)
-      debug_puts "re-using script $script_name"
+      ts_log_finest "re-using script $script_name"
    } else {
       set command_name [file tail $exec_command]
       set script_name [get_tmp_file_name $hostname $command_name "sh"]
       # add script name to cache
       set open_remote_spawn_script_cache($spawn_command_arguments) $script_name
       create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line
-      debug_puts "created $script_name"
+      ts_log_finest "created $script_name"
    }
    set used_script_name $script_name
 
@@ -1429,7 +1421,7 @@ proc open_remote_spawn_process { hostname
 
       # check, if the connection is still in use - error!
       if {[is_spawn_process_in_use $spawn_id]} {
-         add_proc_error "open_remote_spawn_process" -2 "$error_info\nconnection is still in use" $raise_error
+         ts_log_warning "$error_info\nconnection is still in use" $raise_error
          return ""
       }
 
@@ -1446,7 +1438,7 @@ proc open_remote_spawn_process { hostname
       #           With the current implementation, we are slower, but a dead connection
       #           will be detected early enough to close and reopen it.
       if {[check_rlogin_session $spawn_id $pid $hostname $user $nr_of_shells]} {
-         debug_puts "Using open rlogin connection to host \"$hostname\", user \"$user\""
+         ts_log_finest "Using open rlogin connection to host \"$hostname\", user \"$user\""
          set open_new_connection 0
       }
    }
@@ -1458,7 +1450,7 @@ proc open_remote_spawn_process { hostname
       set connect_succeeded 0
       while {$connect_succeeded == 0} {
          # no open connection - open a new one
-         debug_puts "opening connection to host $hostname"
+         ts_log_finest "opening connection to host $hostname"
 
          # on unixes, we connect as CHECK_USER which will give us no passwd question,
          # and handle root passwd question when switching to the target user later on
@@ -1495,7 +1487,7 @@ proc open_remote_spawn_process { hostname
          set log_user $tmp_log_user
 
          if {$pid == 0 } {
-           add_proc_error "open_remote_spawn_process" -2 "${error_info}\ncould not spawn! (pid = $pid)"  $raise_error
+           ts_log_warning "${error_info}\ncould not spawn! (pid = $pid)"  $raise_error
            return "" 
          }
 
@@ -1510,7 +1502,7 @@ proc open_remote_spawn_process { hostname
 
          # set buffer size for new connection
          match_max -i $spawn_id $CHECK_EXPECT_MATCH_MAX_BUFFER
-         debug_puts "open_remote_spawn_process -> buffer size is: [match_max -i $spawn_id]"
+         ts_log_finest "open_remote_spawn_process -> buffer size is: [match_max -i $spawn_id]"
 
          # wait for shell to start
          set connect_errors 0
@@ -1521,34 +1513,33 @@ proc open_remote_spawn_process { hostname
             set timeout 2
             expect {
                -i $spawn_id eof {
-                  add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\nunexpected eof" $raise_error
+                  ts_log_warning "${error_info}\nunexpected eof" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id full_buffer {
-                  add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\nbuffer overflow" $raise_error
+                  ts_log_warning "${error_info}\nbuffer overflow" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id timeout {
                   incr num_tries -1
                   if {$num_tries > 0} {
                      if {$num_tries < 77} {
-                        puts -nonewline $CHECK_OUTPUT "."
-                        flush $CHECK_OUTPUT
+                        ts_log_progress
                         ts_send $spawn_id "\n" $hostname
                      }
                      increase_timeout
                      exp_continue
                   } else {
-                     add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\nstartup timeout"  $raise_error
+                     ts_log_warning "${error_info}\nstartup timeout"  $raise_error
                      set connect_errors 1
                   }
                }
                -i $spawn_id "assword:" {
                   if {$passwd == ""} {
-                     add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\ngot unexpected password question" $raise_error
+                     ts_log_warning "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
                   } else {
-                     debug_puts "Got password question"
+                     ts_log_finest "Got password question"
                      log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "$passwd\n" $hostname 1
                      if {$CHECK_DEBUG_LEVEL != 0} {
@@ -1559,17 +1550,17 @@ proc open_remote_spawn_process { hostname
                   }
                }
                -i $spawn_id -- "The authenticity of host*" {
-                  debug_puts "Got ssh \"authenticity of host\""
+                  ts_log_finest "Got ssh \"authenticity of host\""
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id -- "Are you sure you want to continue connecting (yes/no)?*" {
-                  debug_puts "Got ssh continue connection question"
+                  ts_log_finest "Got ssh continue connection question"
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
                -i $spawn_id -- "Please type 'yes' or 'no'*" {
-                  debug_puts "Go yes/no question"
+                  ts_log_finest "Go yes/no question"
                   ts_send $spawn_id "yes\n" $hostname
                   exp_continue
                }
@@ -1596,30 +1587,30 @@ proc open_remote_spawn_process { hostname
                   append error_message "\n         23"
                   append error_message "\n"
 
-                  add_proc_error "open_remote_spawn_process (startup)" -2 "$error_message" $raise_error
+                  ts_log_warning "$error_message" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id "in.rlogind: Forkpty: Permission denied." {
                   # interix (windows) rlogind doesn't let us login
                   # sleep a while and retry
-                  puts -nonewline $CHECK_OUTPUT "x" ; flush $CHECK_OUTPUT
+                  ts_log_progress FINE "x"
                   sleep 10
                   exp_continue
                }
                -i $spawn_id -re $CHECK_SHELL_PROMPT {
                   set line [ string trimright $expect_out(buffer) "\n\r" ]
-                  debug_puts "recognized shell prompt: \"$line\" - ts will continue now ..."
+                  ts_log_finest "recognized shell prompt: \"$line\" - ts will continue now ..."
                }
                -i $spawn_id -- $CHECK_LOGIN_LINE {
                   set line [ string trimright $expect_out(buffer) "\n\r" ]
-                  debug_puts "unrecognized login output: \"$line\""
+                  ts_log_finest "unrecognized login output: \"$line\""
                   lappend unrecognized_messages "$line"
                   exp_continue
                }
             }
          } catch_error_message]
          if {$catch_return == 1} {
-            add_proc_error "open_remote_spawn_process (startup)" -2 "${error_info}\n$catch_error_message"  $raise_error
+            ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
             set connect_errors 1
          }
 
@@ -1627,7 +1618,7 @@ proc open_remote_spawn_process { hostname
          if {$connect_errors} {
             catch {close_spawn_id $spawn_id}
             if {[llength unrecognized_messages] > 0} {
-                add_proc_error "open_remote_spawn_process (startup)" -2 "unrecognized_messages: $unrecognized_messages"  $raise_error
+                ts_log_warning "unrecognized_messages: $unrecognized_messages"  $raise_error
             }
             return ""
          }
@@ -1641,11 +1632,11 @@ proc open_remote_spawn_process { hostname
             set timeout 2
             expect {
                -i $spawn_id eof {
-                  add_proc_error "open_remote_spawn_process (shell_response)" -2 "${error_info}\nunexpected eof" $raise_error
+                  ts_log_warning "${error_info}\nunexpected eof" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id full_buffer {
-                  add_proc_error "open_remote_spawn_process (shell_response)" -2 "${error_info}\nbuffer overflow" $raise_error
+                  ts_log_warning "${error_info}\nbuffer overflow" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id timeout {
@@ -1657,7 +1648,7 @@ proc open_remote_spawn_process { hostname
                      exp_continue
                   } else {
                      # final timeout
-                     add_proc_error "open_remote_spawn_process (shell_response)" -2 "${error_info}\ntimeout" $raise_error
+                     ts_log_warning "${error_info}\ntimeout" $raise_error
                      ts_send $spawn_id "\003" $hostname ;# send CTRL+C to stop poss. running processes
                      set connect_errors 1
                   }
@@ -1665,7 +1656,7 @@ proc open_remote_spawn_process { hostname
                }
                -i $spawn_id "assword:" {
                   if {$passwd == ""} {
-                     add_proc_error "open_remote_spawn_process (shell_response)" -2 "${error_info}\ngot unexpected password question" $raise_error
+                     ts_log_warning "${error_info}\ngot unexpected password question" $raise_error
                      set connect_errors 1
                   } else {
                      log_user 0  ;# in any case before sending password
@@ -1690,20 +1681,20 @@ proc open_remote_spawn_process { hostname
                }
                -i $spawn_id "ts_shell_response*\n" {
                   # got output from shell_start_output.sh - leaving expect
-                  debug_puts "shell started"
+                  ts_log_finest "shell started"
                   set connect_succeeded 1
                }
                -i $spawn_id "in.rlogind: Forkpty: Permission denied." {
                   # interix (windows) rlogind doesn't let us login
                   # sleep a while and retry
-                  puts -nonewline $CHECK_OUTPUT "x" ; flush $CHECK_OUTPUT
+                  ts_log_progress FINE "x"
                   sleep 10
                   continue
                }
             }
          } catch_error_message ]
          if { $catch_return == 1 } {
-            add_proc_error "open_remote_spawn_process (shell response)" -2 "${error_info}\n$catch_error_message"  $raise_error
+            ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
             set connect_errors 1
          }
              
@@ -1722,11 +1713,11 @@ proc open_remote_spawn_process { hostname
          set timeout 2
          expect {
             -i $spawn_id eof {
-               add_proc_error "open_remote_spawn_process (identity)" -2 "${error_info}\nunexpected eof" $raise_error
+               ts_log_warning "${error_info}\nunexpected eof" $raise_error
                set connect_errors 1
             }
             -i $spawn_id full_buffer {
-               add_proc_error "open_remote_spawn_process (identity)" -2 "${error_info}\nbuffer overflow" $raise_error
+               ts_log_warning "${error_info}\nbuffer overflow" $raise_error
                set connect_errors 1
             }
             -i $spawn_id timeout {
@@ -1737,18 +1728,18 @@ proc open_remote_spawn_process { hostname
                   exp_continue
                } else {
                   # final timeout
-                  add_proc_error "open_remote_spawn_process (identity)" -2 "${error_info}\nshell doesn't start or runs not as user $CHECK_USER on host $hostname"  $raise_error
+                  ts_log_warning "${error_info}\nshell doesn't start or runs not as user $CHECK_USER on host $hostname"  $raise_error
                   ts_send $spawn_id "\003" $hostname ;# send CTRL+C to stop poss. running processes
                   set connect_errors 1
                }
              }
              -i $spawn_id -- "TS_ID: ->*${connect_user}*\n" { 
-                 debug_puts "logged in as ${connect_user} - fine" 
+                 ts_log_finest "logged in as ${connect_user} - fine" 
              }
           }
       } catch_error_message]
       if {$catch_return == 1} {
-         add_proc_error "open_remote_spawn_process (identity)" -2 "${error_info}\n$catch_error_message"  $raise_error
+         ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
          set connect_errors 1
       }
 
@@ -1769,18 +1760,18 @@ proc open_remote_spawn_process { hostname
       }
 
       if {$switch_user} {
-         debug_puts "we have to switch user"
+         ts_log_finest "we have to switch user"
          set catch_return [ catch {
             if {[have_ssh_access]} {
-               debug_puts "have ssh root access - switching to $real_user"
+               ts_log_finest "have ssh root access - switching to $real_user"
                ts_send $spawn_id "su - $real_user\n" $hostname
             } else {
                # we had rlogin access and are CHECK_USER
                if {$real_user == "root"} {
-                  debug_puts "switching to root user"
+                  ts_log_finest "switching to root user"
                   ts_send $spawn_id "su - root\n" $hostname
                } else {
-                  debug_puts "switching to $real_user user"
+                  ts_log_finest "switching to $real_user user"
                   ts_send $spawn_id "su - root -c 'su - $real_user'\n"  $hostname
                }
             }
@@ -1791,21 +1782,21 @@ proc open_remote_spawn_process { hostname
                set timeout 60
                expect {
                   -i $spawn_id full_buffer {
-                     add_proc_error "open_remote_spawn_process (switch user)" -2 "${error_info}\nbuffer overflow" $raise_error
+                     ts_log_warning "${error_info}\nbuffer overflow" $raise_error
                      set connect_errors 1
                   }
                   -i $spawn_id eof {
-                     add_proc_error "open_remote_spawn_process (switch user)" -2 "${error_info}\nunexpected eof" $raise_error
+                     ts_log_warning "${error_info}\nunexpected eof" $raise_error
                      set connect_errors 1
                   }
                   -i $spawn_id timeout {
-                     add_proc_error "open_remote_spawn_process (switch user)" -2 "${error_info}\ntimeout waiting for passwd question" $raise_error
+                     ts_log_warning "${error_info}\ntimeout waiting for passwd question" $raise_error
                      set connect_errors 1
                   }
                   -i $spawn_id "assword:" {
                      log_user 0  ;# in any case before sending password
                      ts_send $spawn_id "[get_root_passwd]\n" $hostname 1
-                     debug_puts "root password sent" 
+                     ts_log_finest "root password sent" 
                      if {$CHECK_DEBUG_LEVEL != 0} {
                         log_user 1
                      }
@@ -1814,7 +1805,7 @@ proc open_remote_spawn_process { hostname
             }
          } catch_error_message]
          if {$catch_return == 1} {
-            add_proc_error "open_remote_spawn_process (switch user)" -2 "${error_info}\n$catch_error_message"  $raise_error
+            ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
             set connect_errors 1
          }
 
@@ -1832,11 +1823,11 @@ proc open_remote_spawn_process { hostname
             set timeout 2
             expect {
                -i $spawn_id eof {
-                  add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nunexpected eof" $raise_error
+                  ts_log_warning "${error_info}\nunexpected eof" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id full_buffer {
-                  add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nbuffer overflow" $raise_error
+                  ts_log_warning "${error_info}\nbuffer overflow" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id timeout {
@@ -1847,34 +1838,34 @@ proc open_remote_spawn_process { hostname
                      exp_continue
                   } else {
                      # final timeout
-                     add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nshell doesn't start or runs not as user $real_user on host $hostname"  $raise_error
+                     ts_log_warning "${error_info}\nshell doesn't start or runs not as user $real_user on host $hostname"  $raise_error
                      ts_send $spawn_id "\003" $hostname ;# send CTRL+C to stop poss. still running processes
                      set connect_errors 1
                   }
                }
                -i $spawn_id -- "TS_ID: ->*${real_user}*\n" { 
-                  debug_puts "correctly switched to user $real_user - fine" 
+                  ts_log_finest "correctly switched to user $real_user - fine" 
                }
                -i $spawn_id -- "TS_ID: ->*${connect_user}*\n" { 
-                  add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nswitch to user $real_user didn't succeed, we are still ${connect_user}" $raise_error
+                  ts_log_warning "${error_info}\nswitch to user $real_user didn't succeed, we are still ${connect_user}" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id "ermission denied" {
-                  add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\npermission denied" $raise_error
+                  ts_log_warning "${error_info}\npermission denied" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id "does not exist" {
-                  add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nuser $real_user doesn not exist on host $hostname" $raise_error
+                  ts_log_warning "${error_info}\nuser $real_user doesn not exist on host $hostname" $raise_error
                   set connect_errors 1
                }
                -i $spawn_id "nknown*id" {
-                  add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\nuser $real_user doesn not exist on host $hostname" $raise_error
+                  ts_log_warning "${error_info}\nuser $real_user doesn not exist on host $hostname" $raise_error
                   set connect_errors 1
                }
             }
          } catch_error_message]
          if {$catch_return == 1} {
-            add_proc_error "open_remote_spawn_process (new identity)" -2 "${error_info}\n$catch_error_message"  $raise_error
+            ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
             set connect_errors 1
          }
 
@@ -1892,7 +1883,7 @@ proc open_remote_spawn_process { hostname
          # JG: TODO: what if the target user has a sh/ksh/bash?
       } catch_error_message]
       if {$catch_return == 1} {
-         add_proc_error "open_remote_spawn_process (unset autologout)" -2 "${error_info}\n$catch_error_message"  $raise_error
+         ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
          catch {close_spawn_id $spawn_id}
          return ""
       }
@@ -1910,11 +1901,11 @@ proc open_remote_spawn_process { hostname
          set timeout 2
          expect {
             -i $spawn_id full_buffer {
-               add_proc_error "open_remote_spawn_process (file check)" -2 "${error_info}\nbuffer overflow" $raise_error
+               ts_log_warning "${error_info}\nbuffer overflow" $raise_error
                set connect_errors 1
             }
             -i $spawn_id eof {
-               add_proc_error "open_remote_spawn_process (file check)" -2 "${error_info}\nunexpected eof" $raise_error
+               ts_log_warning "${error_info}\nunexpected eof" $raise_error
                set connect_errors 1
             }
             -i $spawn_id timeout {
@@ -1924,7 +1915,7 @@ proc open_remote_spawn_process { hostname
                   increase_timeout
                   exp_continue
                } else {
-                  add_proc_error "open_remote_spawn_process (file check)" -2 "${error_info}\ntimeout waiting for file_check.sh script" $raise_error
+                  ts_log_warning "${error_info}\ntimeout waiting for file_check.sh script" $raise_error
                   set connect_errors 1
                }
             }
@@ -1933,7 +1924,7 @@ proc open_remote_spawn_process { hostname
          }
       } catch_error_message]
       if {$catch_return == 1} {
-         add_proc_error "open_remote_spawn_process (file check)" -2 "${error_info}\n$catch_error_message"  $raise_error
+         ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
          set connect_errors 1
       }
 
@@ -1946,7 +1937,7 @@ proc open_remote_spawn_process { hostname
          return ""
       }
    } else {
-      debug_puts "skip checking remote script, using already used script ..."
+      ts_log_finest "skip checking remote script, using already used script ..."
    }
 
    # prepare for background start
@@ -1955,7 +1946,7 @@ proc open_remote_spawn_process { hostname
    }
 
    # now start the commmand and set the connection to busy
-   debug_puts "$user starting command on $hostname: $exec_command $exec_arguments"
+   ts_log_finest "$user starting command on $hostname: $exec_command $exec_arguments"
    set catch_return [catch {
       ts_send $spawn_id "$script_name\n" $hostname
       set_spawn_process_in_use $spawn_id
@@ -1964,7 +1955,7 @@ proc open_remote_spawn_process { hostname
       # The connection was OK before, but send failed?
       # Should be a rare situation.
       # We'll close the connection and return error
-      add_proc_error "open_remote_spawn_process (starting command)" -2 "${error_info}\n$catch_error_message"  $raise_error
+      ts_log_warning "${error_info}\n$catch_error_message"  $raise_error
       close_spawn_process "$pid $spawn_id $nr_of_shells" 1 0
       return ""
    }
@@ -1973,15 +1964,14 @@ proc open_remote_spawn_process { hostname
    if {$background == 2} {
       set back_time 15 ;# let background process time to do his initialization
       while {$back_time > 0} {
-         puts -nonewline $CHECK_OUTPUT "."
-         flush $CHECK_OUTPUT
+         ts_log_progress
          sleep 1
          incr back_time -1
       }
-      puts $CHECK_OUTPUT "hope background process is initalized now!"
+      ts_log_fine "hope background process is initalized now!"
    }
 
-   debug_puts "number of open shells: $nr_of_shells"
+   ts_log_finest "number of open shells: $nr_of_shells"
 
    set back "$pid $spawn_id $nr_of_shells"
    return $back
@@ -2035,8 +2025,6 @@ proc open_remote_spawn_process { hostname
 #     remote_procedures/start_remote_prog
 #*******************************
 proc open_spawn_process {args} {
-
-   global CHECK_OUTPUT
    global CHECK_EXPECT_MATCH_MAX_BUFFER
 
    set arguments ""
@@ -2050,24 +2038,21 @@ proc open_spawn_process {args} {
         set arguments "$arguments $elem"
       }
    }
-   debug_puts $arguments
+   ts_log_finest $arguments
    set open_spawn_arguments $arguments
 
-   debug_puts "starting spawn process ..."
-   flush $CHECK_OUTPUT
+   ts_log_finest "starting spawn process ..."
 
    set pid   [ eval spawn $open_spawn_arguments ]
    set sp_id [ set spawn_id ]
    set back $pid
    lappend back $sp_id
-   debug_puts "open_spawn_process:  arguments: $args"
+   ts_log_finest "open_spawn_process:  arguments: $args"
       match_max -i $spawn_id $CHECK_EXPECT_MATCH_MAX_BUFFER
-      debug_puts "open_spawn_process -> buffer size is: [match_max]"
-
-   flush $CHECK_OUTPUT
+      ts_log_finest "open_spawn_process -> buffer size is: [match_max]"
 
    if {$pid == 0 } {
-     add_proc_error "open_spawn_process" -1 "could not spawn! (ret_pid = $pid)" 
+     ts_log_severe "could not spawn! (ret_pid = $pid)" 
    }
    return $back
 }
@@ -2111,17 +2096,17 @@ proc get_busy_spawn_rlogin_sessions {} {
 #  FUNCTION
 #     Dumps information about open connections to a string buffer.
 #     If do_output is 1, the string buffer will be written to 
-#     CHECK_OUTPUT.
+#     stdout.
 #
 #  INPUTS
-#     {do_output 1} - do output to CHECK_OUTPUT
+#     {do_output 1} - do output to stdout
 #
 #  RESULT
 #     string containing info output
 #
 #  EXAMPLE
 #     set output [dump_spawn_rlogin_sessions 0]
-#     puts $CHECK_OUTPUT $output
+#     ts_log_fine $output
 #                         | myname   |     root | sgetest1 | sgetest2 | 
 #     --------------------|----------|----------|----------|----------|
 #     host1               |     idle |      --  |      --  |      --  | 
@@ -2133,9 +2118,8 @@ proc get_busy_spawn_rlogin_sessions {} {
 #     host3.domain.com    |     idle |      --  |      --  |      --  | 
 #
 #*******************************************************************************
+# interactive only use - use puts to do output
 proc dump_spawn_rlogin_sessions {{do_output 1}} {
-   global CHECK_OUTPUT
-
    set host_list [host_conf_get_cluster_hosts]
    set user_list [user_conf_get_cluster_users]
    set sessions  [get_open_rlogin_sessions]
@@ -2166,9 +2150,9 @@ proc dump_spawn_rlogin_sessions {{do_output 1}} {
    set ret [print_xy_array $user_list $host_list result_array " -- "]
    
    if {$do_output} {
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT $ret
-      puts $CHECK_OUTPUT ""
+      puts ""
+      puts $ret
+      puts ""
    }
 
    return $ret
@@ -2236,11 +2220,11 @@ proc dump_spawn_rlogin_sessions {{do_output 1}} {
 #     remote_procedures/remove_oldest_spawn_rlogin_session()
 #*******************************************************************************
 proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr_of_shells real_user} {
-   global CHECK_OUTPUT rlogin_spawn_session_buffer rlogin_spawn_session_idx
+   global rlogin_spawn_session_buffer rlogin_spawn_session_idx
    global do_close_rlogin rlogin_max_open_connections 
 
    if {$do_close_rlogin != 0} {
-      debug_puts "close_rlogin argument set, closing rlogin connections after use"
+      ts_log_finest "close_rlogin argument set, closing rlogin connections after use"
       return  
    }
 
@@ -2251,11 +2235,11 @@ proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr
       set num_connections [llength $rlogin_spawn_session_buffer(index)]
    }
    if {$num_connections >= $rlogin_max_open_connections} {
-      debug_puts "number of open connections($num_connections) > rlogin_max_open_connections($rlogin_max_open_connections)"
+      ts_log_finest "number of open connections($num_connections) > rlogin_max_open_connections($rlogin_max_open_connections)"
       remove_oldest_spawn_rlogin_session
    }
 
-   debug_puts "adding spawn_id $spawn_id, pid=$pid to host $hostname, user $user"
+   ts_log_finest "adding spawn_id $spawn_id, pid=$pid to host $hostname, user $user"
 
    # add session data
    set rlogin_spawn_session_buffer($spawn_id,pid)                 $pid
@@ -2294,14 +2278,14 @@ proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr
 #     remote_procedures/add_open_spawn_rlogin_session()
 #*******************************************************************************
 proc remove_oldest_spawn_rlogin_session {} {
-   global CHECK_OUTPUT rlogin_spawn_session_buffer
+   global rlogin_spawn_session_buffer
 
-   debug_puts "removing oldest not used rlogin session (rlogin_max_open_connections overflow)"
+   ts_log_finest "removing oldest not used rlogin session (rlogin_max_open_connections overflow)"
    set last [timestamp]
    set remove_spawn_id ""
    foreach spawn_id $rlogin_spawn_session_buffer(index) {
       set time $rlogin_spawn_session_buffer($spawn_id,ltime)
-      debug_puts "$time $spawn_id $rlogin_spawn_session_buffer($spawn_id,in_use)"
+      ts_log_finest "$time $spawn_id $rlogin_spawn_session_buffer($spawn_id,in_use)"
       # only consider idle connections for closing
       if {$rlogin_spawn_session_buffer($spawn_id,in_use) == 0 && $last > $time} {
          set last $time
@@ -2311,9 +2295,9 @@ proc remove_oldest_spawn_rlogin_session {} {
 
    # if we found no idle connection - error.
    if {$remove_spawn_id == ""} {
-      add_proc_error "remove_oldest_spawn_rlogin_session" -2 "all [llength $rlogin_spawn_session_buffer(index)] sessions are in use - no oldest one to close.\nPlease check your file descriptor limit vs. cluster size.\nThis problem may also be caused by missing close_spawn_process calls."
+      ts_log_warning "all [llength $rlogin_spawn_session_buffer(index)] sessions are in use - no oldest one to close.\nPlease check your file descriptor limit vs. cluster size.\nThis problem may also be caused by missing close_spawn_process calls."
    } else {
-      debug_puts "longest not used element: $remove_spawn_id"
+      ts_log_finest "longest not used element: $remove_spawn_id"
 
       # close the connection. We are not intested in the exit code of the 
       # previously executed command, so don't make close_spawn_process check
@@ -2367,7 +2351,7 @@ proc remove_oldest_spawn_rlogin_session {} {
 #     remote_procedures/check_rlogin_session
 #*******************************************************************************
 proc get_open_spawn_rlogin_session {hostname user win_local_user back_var} {
-   global CHECK_OUTPUT rlogin_spawn_session_buffer rlogin_spawn_session_idx
+   global rlogin_spawn_session_buffer rlogin_spawn_session_idx
    global do_close_rlogin
 
    upvar $back_var back 
@@ -2389,14 +2373,14 @@ proc get_open_spawn_rlogin_session {hostname user win_local_user back_var} {
    set back(ltime)          $rlogin_spawn_session_buffer($spawn_id,ltime)
    set back(nr_shells)      $rlogin_spawn_session_buffer($spawn_id,nr_shells)
    
-   debug_puts "spawn_id  :      $back(spawn_id)"
-   debug_puts "pid       :      $back(pid)"
-   debug_puts "hostname  :      $back(hostname)"
-   debug_puts "user      :      $back(user)"
-   debug_puts "real_user :      $back(real_user)"
-   debug_puts "win_local_user : $back(win_local_user)"
-   debug_puts "ltime     :      $back(ltime)"
-   debug_puts "nr_shells :      $back(nr_shells)"
+   ts_log_finest "spawn_id  :      $back(spawn_id)"
+   ts_log_finest "pid       :      $back(pid)"
+   ts_log_finest "hostname  :      $back(hostname)"
+   ts_log_finest "user      :      $back(user)"
+   ts_log_finest "real_user :      $back(real_user)"
+   ts_log_finest "win_local_user : $back(win_local_user)"
+   ts_log_finest "ltime     :      $back(ltime)"
+   ts_log_finest "nr_shells :      $back(nr_shells)"
 
    return 1
 }
@@ -2559,7 +2543,7 @@ proc clear_open_spawn_rlogin_session {back_var} {
 #     remote_procedures/check_rlogin_session
 #*******************************************************************************
 proc get_spawn_id_rlogin_session {spawn_id back_var} {
-   global CHECK_OUTPUT rlogin_spawn_session_buffer
+   global rlogin_spawn_session_buffer
    global do_close_rlogin
 
    upvar $back_var back 
@@ -2578,14 +2562,14 @@ proc get_spawn_id_rlogin_session {spawn_id back_var} {
    set back(ltime)          $rlogin_spawn_session_buffer($spawn_id,ltime)
    set back(nr_shells)      $rlogin_spawn_session_buffer($spawn_id,nr_shells)
    
-   debug_puts "spawn_id       : $back(spawn_id)"
-   debug_puts "pid            : $back(pid)"
-   debug_puts "hostname       : $back(hostname)"
-   debug_puts "user           : $back(user)"
-   debug_puts "real_user      : $back(real_user)"
-   debug_puts "win_local_user : $back(win_local_user)"
-   debug_puts "ltime          : $back(ltime)"
-   debug_puts "nr_shells      : $back(nr_shells)"
+   ts_log_finest "spawn_id       : $back(spawn_id)"
+   ts_log_finest "pid            : $back(pid)"
+   ts_log_finest "hostname       : $back(hostname)"
+   ts_log_finest "user           : $back(user)"
+   ts_log_finest "real_user      : $back(real_user)"
+   ts_log_finest "win_local_user : $back(win_local_user)"
+   ts_log_finest "ltime          : $back(ltime)"
+   ts_log_finest "nr_shells      : $back(nr_shells)"
 
    return 1 
 }
@@ -2634,12 +2618,11 @@ proc get_spawn_id_hostname {spawn_id} {
 #
 #*******************************************************************************
 proc close_open_rlogin_sessions { { if_not_working 0 } } {
-   global CHECK_OUTPUT
    global do_close_rlogin
 
    # if we called testsuite with option close_rlogin, we have no open sessions
    if { $do_close_rlogin != 0 } {
-      puts $CHECK_OUTPUT "close_open_rlogin_sessions - open rlogin session mode not activated!"
+      ts_log_fine "close_open_rlogin_sessions - open rlogin session mode not activated!"
       return 0 
    }
 
@@ -2650,14 +2633,13 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
       get_spawn_id_rlogin_session $spawn_id back
       if {$if_not_working} {
          if {[check_rlogin_session $spawn_id $back(pid) $back(hostname) $back(user) $back(nr_shells) 1]} {
-            puts $CHECK_OUTPUT "will not close spawn id $spawn_id - session is ok!"
+            ts_log_fine "will not close spawn id $spawn_id - session is ok!"
             continue
          }
       }
-      puts -nonewline $CHECK_OUTPUT "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
-      flush $CHECK_OUTPUT
+      ts_log_fine "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
       close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 0 ;# don't check exit state
-      puts $CHECK_OUTPUT "done"
+      ts_log_fine "done"
    }
 }
 
@@ -2689,13 +2671,13 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
 #     remote_procedures/check_rlogin_session
 #*******************************************************************************
 proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 0} {raise_error 1}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
-   debug_puts "check_rlogin_session: $spawn_id $pid $hostname $user $nr_of_shells $only_check"
+   ts_log_finest "check_rlogin_session: $spawn_id $pid $hostname $user $nr_of_shells $only_check"
    if {![is_spawn_id_rlogin_session $spawn_id]} {
       # connection is not open
-      debug_puts "check_rlogin_session: connection is not open"
+      ts_log_finest "check_rlogin_session: connection is not open"
       return 0
    }
 
@@ -2714,23 +2696,22 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
       set timeout 1
       expect {
          -i $spawn_id full_buffer {
-            add_proc_error "check_rlogin_session" -3 "buffer overflow" $raise_error
+            ts_log_info "buffer overflow" $raise_error
          }
          -i $spawn_id eof {
-            add_proc_error "check_rlogin_session" -3 "unexpected eof" $raise_error
+            ts_log_info "unexpected eof" $raise_error
          }
          -i $spawn_id timeout {
             incr num_tries -1
             if {$num_tries > 0} {
                if {$num_tries < 12} {
-                  puts -nonewline $CHECK_OUTPUT "." 
-                  flush $CHECK_OUTPUT
+                  ts_log_progress
                }
                ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
                increase_timeout
                exp_continue
             } else {
-               add_proc_error "check_rlogin_session" -3 "timeout waiting for shell response" $raise_error
+               ts_log_info "timeout waiting for shell response" $raise_error
             }
          }
          -i $spawn_id -- "TS_ID: ->*${real_user}*\n" {
@@ -2739,12 +2720,12 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
       }
    } catch_error_message]
    if { $catch_return == 1 } {
-      add_proc_error "check_rlogin_session" -3 "$catch_error_message" $raise_error
+      ts_log_info "$catch_error_message" $raise_error
    }
 
    # are we done?
    if {$connection_ok} {
-      debug_puts "connection is ok"
+      ts_log_finest "connection is ok"
       return 1
    }
 
@@ -2752,7 +2733,7 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
    # in case we shall not only check, but also react on errors,
    # we'll close the connection now
    if {$only_check == 0} {
-      puts $CHECK_OUTPUT "check_rlogin_session: closing $spawn_id $pid to enable new rlogin session ..."
+      ts_log_fine "check_rlogin_session: closing $spawn_id $pid to enable new rlogin session ..."
 
       # unregister connection
       close_spawn_process "$pid $spawn_id $nr_of_shells" 1 0 ;# don't check exit state
@@ -2875,7 +2856,6 @@ proc is_spawn_process_in_use {spawn_id} {
 #     remote_procedures/start_remote_prog
 #*******************************
 proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
-   global CHECK_OUTPUT
    global CHECK_DEBUG_LEVEL
    global CHECK_SHELL_PROMPT
    get_current_cluster_config_array ts_config
@@ -2888,7 +2868,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       set nr_of_shells 0
    }
 
-   debug_puts "close_spawn_process: closing $spawn_id $pid"
+   ts_log_finest "close_spawn_process: closing $spawn_id $pid"
 
    # in debug mode we want to see all the shell output
    log_user 0
@@ -2920,40 +2900,40 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          # first check the shell by expecting the shell prompt when
          # sending just a ENTER
          # if this is not working, send CTRL-C
-         debug_puts "real user of connection is \"$con_data(real_user)\""
+         ts_log_finest "real user of connection is \"$con_data(real_user)\""
          ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname)
          set timeout 2
          set num_tries 10
          expect {
             -i $spawn_id eof {
-               add_proc_error "close_spawn_process (regular close)" -2 "unexpected eof"
+               ts_log_warning "unexpected eof"
                close_spawn_id $spawn_id
             }
             -i $spawn_id full_buffer {
-               add_proc_error "close_spawn_process (regular close)" -2 "buffer overflow"
+               ts_log_warning "buffer overflow"
                close_spawn_id $spawn_id
             }
             -i $spawn_id timeout {
                incr num_tries -1
                if {$num_tries > 0} {
-                  debug_puts "close_spawn_process: sending CTRL-C"
+                  ts_log_finest "close_spawn_process: sending CTRL-C"
                   ts_send $spawn_id "\003" $con_data(hostname) ;# CTRL-C
                   ts_send $spawn_id "\n" $con_data(hostname)
                   ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname)
                   increase_timeout
                   exp_continue
                } else {
-                  add_proc_error "close_spawn_process (regular close)" -2 "timeout waiting for shell prompt"
+                  ts_log_warning "timeout waiting for shell prompt"
                }
             }
             -i $spawn_id -- "TS_ID: ->*${con_data(real_user)}*\n" {
-               debug_puts "logged in as ${con_data(real_user)} - fine"
+               ts_log_finest "logged in as ${con_data(real_user)} - fine"
                set do_return -1
             }
          }
       } catch_error_message]
       if {$catch_return == 1} {
-         add_proc_error "close_spawn_process (regular close)" -2 "$catch_error_message" 
+         ts_log_warning $catch_error_message
       }
       
       # are we done?
@@ -2972,8 +2952,8 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    # expect ts_send to fail - pass raise_error = 0
    set do_close_connection 1
    if {$nr_of_shells > 0} {
-      debug_puts "nr of open shells: $nr_of_shells"
-      debug_puts "-->sending $nr_of_shells exit(s) to shell on id $spawn_id"
+      ts_log_finest "nr of open shells: $nr_of_shells"
+      ts_log_finest "-->sending $nr_of_shells exit(s) to shell on id $spawn_id"
 
       set catch_return [catch {
          # send CTRL-C to stop poss. still running processes
@@ -2983,18 +2963,18 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          set timeout 5
          expect {
             -i $spawn_id full_buffer {
-               add_proc_error "close_spawn_process (exit)" "-2" "buffer overflow"
+               ts_log_warning "buffer overflow"
             }
             -i $spawn_id eof {
                # do not raise an error here - we use this code to close broken connections
-               debug_puts "eof while waiting for shell prompt after CTRL-C"
+               ts_log_finest "eof while waiting for shell prompt after CTRL-C"
             }
             -i $spawn_id timeout {
                # do not raise an error here - we use this code to close broken connections
-               debug_puts "timeout while waiting for shell prompt after CTRL-C"
+               ts_log_finest "timeout while waiting for shell prompt after CTRL-C"
             }
             -i $spawn_id -re $CHECK_SHELL_PROMPT {
-               debug_puts "got shell prompt after CTRL-C"
+               ts_log_finest "got shell prompt after CTRL-C"
             }
          }
 
@@ -3002,28 +2982,28 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          ts_send $spawn_id "exit\n" "" 0 0
          expect {
             -i $spawn_id full_buffer {
-               add_proc_error "close_spawn_process (exit)" "-2" "buffer overflow"
+               ts_log_warning "buffer overflow"
             }
             -i $spawn_id eof {
                # do not raise an error here - we use this code to close broken connections
                set do_close_connection 0
-               debug_puts "eof after exit - ok"
+               ts_log_finest "eof after exit - ok"
             }
             -i $spawn_id timeout {
                # do not raise an error here - we use this code to close broken connections
-               debug_puts "timeout while waiting for shell prompt after exit"
+               ts_log_finest "timeout while waiting for shell prompt after exit"
             }
             -i $spawn_id -re $CHECK_SHELL_PROMPT {
-               debug_puts "got shell prompt after exit"
+               ts_log_finest "got shell prompt after exit"
                # if we get a shell prompt, the exit succeeded, one shell exited
                incr nr_of_shells -1
 
                # if we still have open shells, send "exit"
                if {$nr_of_shells > 0} {
-                  debug_puts "sending exit to shell (nr of shells=$nr_of_shells)..."
+                  ts_log_finest "sending exit to shell (nr of shells=$nr_of_shells)..."
                   ts_send $spawn_id "exit\n" "" 0 0
                } else {
-                  debug_puts "all shells exited - wait for EOF ..."
+                  ts_log_finest "all shells exited - wait for EOF ..."
                }
                # we wait for eof, so we continue ...
                exp_continue 
@@ -3031,7 +3011,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          }
       } catch_error_message]
       if {$catch_return == 1} {
-         puts $CHECK_OUTPUT "close_spawn_process (exit) $catch_error_message"
+         ts_log_fine "close_spawn_process (exit) $catch_error_message"
       }
    }
 
@@ -3039,15 +3019,15 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    del_open_spawn_rlogin_session $spawn_id
 
    if {$do_close_connection} {
-      puts $CHECK_OUTPUT "There was an error closing connection, closing spawn id ..."
+      ts_log_fine "There was an error closing connection, closing spawn id ..."
       # now shutdown the spawned process
       set catch_return [catch {
-         debug_puts "closing $spawn_id"
+         ts_log_finest "closing $spawn_id"
          close -i $spawn_id
       } catch_error_message]
 
       if {$catch_return == 1} {
-         puts $CHECK_OUTPUT "close_spawn_process (close) $catch_error_message"
+         ts_log_fine "close_spawn_process (close) $catch_error_message"
       }
    }
 
@@ -3060,39 +3040,39 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       set wait_error    [lindex $wait_return 2]
       set wait_code     [lindex $wait_return 3]
 
-      debug_puts "closed buffer   : $spawn_id"
-      debug_puts "wait pid        : $wait_pid"
-      debug_puts "wait spawn id   : $wait_spawn_id"
-      debug_puts "wait error      : $wait_error (-1 = operating system error, 0 = exit)"
-      debug_puts "wait code       : $wait_code  (os error code or exit status)"
+      ts_log_finest "closed buffer   : $spawn_id"
+      ts_log_finest "wait pid        : $wait_pid"
+      ts_log_finest "wait spawn id   : $wait_spawn_id"
+      ts_log_finest "wait error      : $wait_error (-1 = operating system error, 0 = exit)"
+      ts_log_finest "wait code       : $wait_code  (os error code or exit status)"
 
       # if requested by caller, do certain error checks:
       if {$check_exit_state == 0} {
          # did we close the correct spawn id?
          if {$spawn_id != $wait_spawn_id} {
-            add_proc_error "close_spawn_process (wait)" "-2" "closed wrong spawn id: expected $spawn_id, but got $wait_spawn_id"
+            ts_log_warning "closed wrong spawn id: expected $spawn_id, but got $wait_spawn_id"
          }
 
          # did we close the correct pid?
          if {$pid != $wait_pid} {
-            add_proc_error "close_spawn_process (wait)" "-2" "closed wrong pid: expected $pid, but got $wait_pid"
+            ts_log_warning "closed wrong pid: expected $pid, but got $wait_pid"
          }
 
          # on regular exit: check exit code, shall be 0
          if {$wait_error == 0} {
             if {$wait_code != 0} {
-               add_proc_error "close_spawn_process (wait)" -2 "wait exit status: $wait_code"
+               ts_log_warning "wait exit status: $wait_code"
             }
          } else {
-            debug_puts "*** operating system error: $wait_code"
-            debug_puts "spawn id: $wait_spawn_id"
-            debug_puts "wait pid: $wait_pid"
-            add_proc_error "close_spawn_process (wait)" -1 "operating system error: $wait_code"
+            ts_log_finest "*** operating system error: $wait_code"
+            ts_log_finest "spawn id: $wait_spawn_id"
+            ts_log_finest "wait pid: $wait_pid"
+            ts_log_severe -1 "operating system error: $wait_code"
          }
       }
    } catch_error_message]
    if {$catch_return == 1} {
-      add_proc_error "close_spawn_process (wait)" -2 "$catch_error_message" 
+      ts_log_warning "$catch_error_message" 
    }
 
    return $wait_code ;# return exit state

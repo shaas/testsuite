@@ -39,15 +39,13 @@ global local_hostname_cache
 set local_hostname_cache ""
 # update an array with values of a second array
 proc update_change_array { target_array change_array } {
-   global CHECK_OUTPUT
-
    upvar $target_array target
    upvar $change_array chgar
 
    if [info exists chgar] {
       foreach elem [array names chgar] {
          set value [set chgar($elem)]
-         puts $CHECK_OUTPUT "attribute \"$elem\" will be set to \"$value\""
+         ts_log_fine "attribute \"$elem\" will be set to \"$value\""
          set target($elem) $value
       }
    }
@@ -55,7 +53,6 @@ proc update_change_array { target_array change_array } {
 
 # dump an array to a temporary file, return filename
 proc dump_array_to_tmpfile { change_array } {
-   global CHECK_OUTPUT
    upvar $change_array chgar
 
    set tmpfile [ get_tmp_file_name ]
@@ -74,8 +71,6 @@ proc dump_array_to_tmpfile { change_array } {
 }
 
 proc dump_rqs_array_to_tmpfile { change_array } {
-   global CHECK_OUTPUT
-
    upvar $change_array chgar
    set tmpfile ""
 
@@ -115,7 +110,7 @@ proc dump_rqs_array_to_tmpfile { change_array } {
       puts $file "\}"
       close $file
    } else {
-      puts $CHECK_OUTPUT "WARNING: got not charray!"
+      ts_log_fine "WARNING: got not charray!"
    }
 
    return $tmpfile
@@ -144,7 +139,6 @@ proc dump_rqs_array_to_tmpfile { change_array } {
 #     string
 #*******************************************************************************
 proc get_string_value_between { start end line } {
-   global CHECK_OUTPUT
    set pos1 [string first "$start" $line]
    incr pos1 [string length $start]
 
@@ -164,7 +158,6 @@ proc get_string_value_between { start end line } {
 
 # take a name/value array and build a vi command to set new values
 proc build_vi_command { change_array {current_array no_current_array_has_been_passed}} {
-   global CHECK_OUTPUT
    upvar $change_array  chgar
    upvar $current_array curar
 
@@ -219,7 +212,6 @@ proc build_vi_command { change_array {current_array no_current_array_has_been_pa
 
 # take a rqs array and build vi comand to set new values
 proc build_rqs_vi_array { change_array } {
-   global CHECK_OUTPUT
    upvar $change_array chgar
 
    if {![info exists chgar]} {
@@ -304,7 +296,7 @@ proc build_rqs_vi_array { change_array } {
 #     {additional_expected_result2 "___ABCDEFG___"} - additional expected_result 
 #     {additional_expected_result3 "___ABCDEFG___"} - additional expected_result
 #     {qconf_error_msg "___ABCDEFG___"}            - qconf error message 
-#     {raise_error  1}                                - do add_proc_error in case of errors
+#     {raise_error  1}                                - do ts_log_severe in case of errors
 #
 #
 #  RESULT
@@ -328,7 +320,7 @@ proc build_rqs_vi_array { change_array } {
 #     ???/???
 #*******************************
 proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result {additional_expected_result "___ABCDEFG___"} {additional_expected_result2 "___ABCDEFG___"} {additional_expected_result3 "___ABCDEFG___"} {additional_expected_result4 "___ABCDEFG___"} {additional_expected_result5 "___ABCDEFG___"} {qconf_error_msg "___ABCDEFG___"} {raise_error 1}} {
-   global CHECK_OUTPUT env CHECK_DEBUG_LEVEL CHECK_USER ts_config
+   global env CHECK_DEBUG_LEVEL CHECK_USER ts_config
 
    set expected_result              [string trimright $expected_result "*"]
    set additional_expected_result   [string trimright $additional_expected_result "*"]
@@ -362,18 +354,18 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    set timeout 10
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "handle_vi_edit" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          set error 1
       }
 
       -i $sp_id eof {
          set error 1
-         add_proc_error "handle_vi_edit" -1 "unexpected end of file"
+         ts_log_severe "unexpected end of file"
       }
 
       -i $sp_id timeout {  
          set error 1
-         add_proc_error "handle_vi_edit" -2 "timeout - can't start vi"
+         ts_log_warning "timeout - can't start vi"
       }
       -i $sp_id  "_start_mark_*\n" {
          debug_puts "starting now!"
@@ -384,18 +376,18 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    expect {
       -i $sp_id full_buffer {
          set error 1
-         add_proc_error "handle_vi_edit" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
 
       -i $sp_id eof {
          set error 1
-         add_proc_error "handle_vi_edit" -1 "unexpected end of file"
+         ts_log_severe "unexpected end of file"
       }
 
 
       -i $sp_id -- "$qconf_error_msg" {
          set error $raise_error
-         add_proc_error "handle_vi_edit"  -1 "$qconf_error_msg" $raise_error
+         ts_log_severe "$qconf_error_msg" $raise_error
          set result -9
          close_spawn_process $id
          return -9
@@ -403,7 +395,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 
       -i $sp_id timeout {  
          set error 1
-         add_proc_error "handle_vi_edit" -2 "timeout - can't start vi"
+         ts_log_warning "timeout - can't start vi"
       }
       -i $sp_id -- {[A-Za-z]*} {
          debug_puts "vi should run now ..."
@@ -417,12 +409,12 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "handle_vi_edit" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          set error 1
       }
 
       -i $sp_id eof {
-         add_proc_error "handle_vi_edit" -1 "unexpected end of file"
+         ts_log_severe "unexpected end of file"
          set error 1
       }
 
@@ -430,7 +422,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          send -s -i $sp_id -- "G"
          incr timeout_count 1
          if { $timeout_count > 60 } {
-            add_proc_error "handle_vi_edit" -2 "timeout - vi doesn't respond"
+            ts_log_warning "timeout - vi doesn't respond"
             set error 1
          } else {
             exp_continue
@@ -444,7 +436,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       }
       
       -i $sp_id  "erminal too wide" {
-         add_proc_error "handle_vi_edit" -2 "got terminal to wide vi error"
+         ts_log_warning "got terminal to wide vi error"
          set error 1
       }
    }
@@ -457,11 +449,11 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       set timeout 10
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "handle_vi_edit" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
 
          -i $sp_id eof {
-            add_proc_error "handle_vi_edit" -1 "unexpected end of file"
+            ts_log_severe "unexpected end of file"
          }
 
          -i $sp_id "_exit_status*\n" {
@@ -501,12 +493,12 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       set timeout 1
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "handle_vi_edit" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             set error 1
          }
 
          -i $sp_id eof {
-            add_proc_error "handle_vi_edit" -1 "unexpected end of file"
+            ts_log_severe "unexpected end of file"
             set error 1
          }
          -i $sp_id "*Hit return*" {
@@ -527,7 +519,6 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          -i $sp_id "%" {
          }
       }
-      flush $CHECK_OUTPUT
       if { $error != 0 } {
          break
       }
@@ -558,15 +549,15 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
       if { [string compare "" $expected_result ] == 0 } {
          expect {
             -i $sp_id full_buffer {
-               add_proc_error "handle_vi_edit" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                set result -1
             }
             -i $sp_id timeout {
-               add_proc_error "handle_vi_edit" -1 "timeout error:$expect_out(buffer)"
+               ts_log_severe "timeout error:$expect_out(buffer)"
                set result -1
             }
             -i $sp_id eof {
-               add_proc_error "handle_vi_edit" -1 "eof error:$expect_out(buffer)"
+               ts_log_severe "eof error:$expect_out(buffer)"
                set result -1
             }
             -i $sp_id "_exit_status_" {
@@ -582,15 +573,15 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 
          expect {
             -i $sp_id full_buffer {
-               add_proc_error "handle_vi_edit" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                set result -1
             }
             -i $sp_id timeout {
                set result -1
-               add_proc_error "handle_vi_edit" -1 "timeout error:$expect_out(buffer)"
+               ts_log_severe "timeout error:$expect_out(buffer)"
             }
             -i $sp_id eof {
-               add_proc_error "handle_vi_edit" -1 "eof error:$expect_out(buffer)"
+               ts_log_severe "eof error:$expect_out(buffer)"
                set result -1
             }
             -i $sp_id -- "$expected_result" {
@@ -638,7 +629,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
                   append message_txt "   \"$additional_expected_result2\"\n"
                   append message_txt "   \"$additional_expected_result3\"\n"
                   append message_txt "   \"$additional_expected_result4\"\n"
-                  add_proc_error "handle_vi_edit" -1 $message_txt
+                  ts_log_severe $message_txt
                }
             }
          }
@@ -660,7 +651,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          append error_text "got timeout while sending vi commands\n"
          append error_text "please make sure that no single vi command sequence\n"
          append error_text "leaves the vi in \"insert mode\" !!!"
-         add_proc_error "handle_vi_edit" -1 $error_text
+         ts_log_severe $error_text
          return -1
       }
    }
@@ -757,7 +748,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
 #*******************************************************************************
 proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} {user ""}} {
    #TODO: Should also return the exit_code of executed prog_binary and report it up
-   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL env CHECK_JGDI_ENABLED jgdi_config
+   global CHECK_USER CHECK_DEBUG_LEVEL env CHECK_JGDI_ENABLED jgdi_config
    get_current_cluster_config_array ts_config
    upvar $msg_var messages
 
@@ -913,11 +904,11 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
       set timeout 10
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "handle_vi_edit" -1 $BUFF_OVERFLOW
+            ts_log_severe $BUFF_OVERFLOW
          }
 
          -i $sp_id eof {
-            add_proc_error "handle_vi_edit" -1 $EOF_MSG
+            ts_log_severe $EOF_MSG
          }
 
          -i $sp_id "_exit_status*\n" {
@@ -986,7 +977,6 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
          -i $sp_id "%" {
          }
       }
-      flush $CHECK_OUTPUT
       if { $error != 0 } {
          break
       }
@@ -1138,7 +1128,6 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
 #     control_procedures/get_gid()
 #*******************************************************************************
 proc get_uid { user host } {
-   global CHECK_OUTPUT
    set my_uid -1
 
    set output [start_remote_prog $host $user id ""]
@@ -1179,7 +1168,6 @@ proc get_uid { user host } {
 #     control_procedures/get_gid()
 #*******************************************************************************
 proc get_gid { user host } {
-   global CHECK_OUTPUT
    set my_gid -1
 
    set output [start_remote_prog $host $user id ""]
@@ -1369,7 +1357,7 @@ proc ps_grep { forwhat { host "local" } { variable ps_info } } {
 #     control_procedures/ps_grep
 #*******************************
 proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_run 0} } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    upvar $variable psinfo
 
    if { [string compare $host "local" ] == 0 } {
@@ -1619,7 +1607,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
    }
 
    if {$prg_exit_state != 0} {
-      add_proc_error "get_ps_info" "-1" "ps failed:\n$result"
+      ts_log_severe "ps failed:\n$result"
       return
    }
 
@@ -1644,7 +1632,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
 
    # no header found?
    if { $x == $num_lines } {
-      add_proc_error "get_ps_info" "-1" "no usable data from ps command, host=$host, host_arch=$host_arch"
+      ts_log_severe "no usable data from ps command, host=$host, host_arch=$host_arch"
       return
    }
   
@@ -1653,25 +1641,25 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
    # cut heading garbage and header line
    set ps_list [ lrange $help_list [expr $x + 1] [expr ([llength $help_list]-1)]]
    
-#   puts $CHECK_OUTPUT "index names: \n$index_names" 
-#   puts $CHECK_OUTPUT "          1         2         3         4         5         6         7         8         9"
-#   puts $CHECK_OUTPUT "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
-#   puts $CHECK_OUTPUT "header:\n$header"
+#   ts_log_fine "index names: \n$index_names" 
+#   ts_log_fine "          1         2         3         4         5         6         7         8         9"
+#   ts_log_fine "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
+#   ts_log_fine "header:\n$header"
    
    set s_index 0
    set indexcount [llength $index_names]
    foreach index $index_names { 
       incr indexcount -1
       set position1 [string first $index $header]
-#      puts $CHECK_OUTPUT "\nstringlength of $index is [string length $index]"
-#      puts $CHECK_OUTPUT "position1 is $position1"
+#      ts_log_fine "\nstringlength of $index is [string length $index]"
+#      ts_log_fine "position1 is $position1"
       set last_position [expr ($position1 + [string length $index] - 1)]
       if {$indexcount == 0 } {
          set last_position 200
       }
       set first_position $s_index 
       set s_index [ expr ($last_position + 1 )]
-      #puts $CHECK_OUTPUT "position of \"$index\" is from $first_position to $last_position"
+      #ts_log_fine "position of \"$index\" is from $first_position to $last_position"
       set read_header ""
       for { set i 0} {$i< $s_index} {incr i 1} {
           set read_header "!$read_header"
@@ -1685,7 +1673,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
 
    set process_count 0
    foreach elem $ps_list {
-#   puts $CHECK_OUTPUT $elem
+#   ts_log_fine $elem
 #         set pid_pos     0
 #         set gid_pos     1
 #         set ppid_pos    2
@@ -1811,28 +1799,28 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
          if { $additional_run == 0 } { 
             # calling second ps
             get_ps_info $pid $host ps_add_run 1
-            #puts $CHECK_OUTPUT "ps_add_run $pid is $ps_add_run($pid,string)"
+            #ts_log_fine "ps_add_run $pid is $ps_add_run($pid,string)"
             # now merge the relevant data
             for {set i 0} {$i < $psinfo(proc_count) } {incr i 1} {
                set act_pid $psinfo(pid,$i)
                #set act_pid $ps_add_run(pid,$i)
                if {[info exists ps_add_run($act_pid,vsz)]} {
-                  #puts $CHECK_OUTPUT "     copy got value vsz for pid $act_pid"
-                  #puts $CHECK_OUTPUT "       old value psinfo(vsz,$i) = $psinfo(vsz,$i)"
-                  #puts $CHECK_OUTPUT "       old value psinfo(stime,$i) = $psinfo(stime,$i)"
+                  #ts_log_fine "     copy got value vsz for pid $act_pid"
+                  #ts_log_fine "       old value psinfo(vsz,$i) = $psinfo(vsz,$i)"
+                  #ts_log_fine "       old value psinfo(stime,$i) = $psinfo(stime,$i)"
                   set psinfo(vsz,$i) $ps_add_run($act_pid,vsz)
                   set psinfo(stime,$i) $ps_add_run($act_pid,stime)
-                  #puts $CHECK_OUTPUT "       new value psinfo(vsz,$i) = $psinfo(vsz,$i)"
-                  #puts $CHECK_OUTPUT "       new value psinfo(stime,$i) = $psinfo(stime,$i)"
-                  #puts $CHECK_OUTPUT "        old value psinfo($act_pid,vsz) = $psinfo($act_pid,vsz)"
-                  #puts $CHECK_OUTPUT "        old value psinfo($act_pid,stime) = $psinfo($act_pid,stime)"
+                  #ts_log_fine "       new value psinfo(vsz,$i) = $psinfo(vsz,$i)"
+                  #ts_log_fine "       new value psinfo(stime,$i) = $psinfo(stime,$i)"
+                  #ts_log_fine "        old value psinfo($act_pid,vsz) = $psinfo($act_pid,vsz)"
+                  #ts_log_fine "        old value psinfo($act_pid,stime) = $psinfo($act_pid,stime)"
                   set psinfo($act_pid,vsz) $ps_add_run($act_pid,vsz)
                   set psinfo($act_pid,stime) $ps_add_run($act_pid,stime)
-                  #puts $CHECK_OUTPUT "        new value psinfo($act_pid,vsz) = $psinfo($act_pid,vsz)"
-                  #puts $CHECK_OUTPUT "        new value psinfo($act_pid,stime) = $psinfo($act_pid,stime)"
+                  #ts_log_fine "        new value psinfo($act_pid,vsz) = $psinfo($act_pid,vsz)"
+                  #ts_log_fine "        new value psinfo($act_pid,stime) = $psinfo($act_pid,stime)"
                   
                } else {
-                  puts $CHECK_OUTPUT "--> value vsz for pid $act_pid not found"
+                  ts_log_fine "--> value vsz for pid $act_pid not found"
                }
             }
             return
@@ -1961,7 +1949,6 @@ proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
 #     control_procedures/resolve_arch_clear_cache()
 #*******************************
 proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
-   global CHECK_OUTPUT
    global CHECK_USER
    global arch_cache
    global ts_config
@@ -1973,13 +1960,13 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
    }
 
    if { [ info exists CHECK_USER ] == 0 } {
-      puts $CHECK_OUTPUT "user not set, aborting"
+      ts_log_fine "user not set, aborting"
       return "unknown"
    }
   
    if { [ info exists ts_config(source_dir) ] == 0 } {
       if { $source_dir_value == "" } {
-         puts $CHECK_OUTPUT "source directory not set, aborting"
+         ts_log_fine "source directory not set, aborting"
          return "unknown"
       }
    }
@@ -2014,33 +2001,31 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
 
 
 proc parse_arch_output { arch_output } {
-   global CHECK_OUTPUT
-
    set result [string trim $arch_output]
    set result2 [split $result "\n"]
    if { [ llength $result2 ] > 1 } {
-      puts $CHECK_OUTPUT "util/arch script returns more than 1 line output ..."
+      ts_log_fine "util/arch script returns more than 1 line output ..."
       foreach elem $result2  {
-         puts $CHECK_OUTPUT "\"$elem\""
+         ts_log_fine "\"$elem\""
          if { [string first " " $elem ] < 0  } {
             set result $elem
-            puts $CHECK_OUTPUT "using \"$result\" as architecture"
+            ts_log_fine "using \"$result\" as architecture"
             break
          }
       }
    }
    if { [ llength $result2 ] < 1 } {
-       puts $CHECK_OUTPUT "util/arch script returns no value ..."
+       ts_log_fine "util/arch script returns no value ..."
        return "unknown"
    }
    if { [string first ":" $result] >= 0 } {
-      puts $CHECK_OUTPUT "architecture or file /dist/util/arch\" not found"
+      ts_log_fine "architecture or file /dist/util/arch\" not found"
       return "unknown"
    }
    set result [lindex $result 0]
  
    if { [ string compare $result "" ] == 0 } {
-      puts $CHECK_OUTPUT "architecture or file /dist/util/arch\" not found"
+      ts_log_fine "architecture or file /dist/util/arch\" not found"
       return "unknown"
    } 
  
@@ -2069,9 +2054,9 @@ proc parse_arch_output { arch_output } {
 #     control_procedures/resolve_arch()
 #*******************************************************************************
 proc resolve_arch_clear_cache {} {
-   global CHECK_OUTPUT arch_cache
+   global arch_cache
 
-   puts $CHECK_OUTPUT "clearing architecture cache used by resolve_arch"
+   ts_log_fine "clearing architecture cache used by resolve_arch"
    if {[info exists arch_cache]} {
       unset arch_cache
    }
@@ -2108,7 +2093,7 @@ proc resolve_arch_clear_cache {} {
 #     ???/???
 #*******************************
 proc resolve_build_arch { host } {
-  global CHECK_OUTPUT build_arch_cache
+  global build_arch_cache
   global CHECK_USER
 
   get_current_cluster_config_array ts_config
@@ -2126,11 +2111,11 @@ proc resolve_build_arch { host } {
   set result [join $result ""]
 
   if { $prg_exit_state != 0 } {
-     add_proc_error "resolve_build_arch" "-1" "architecture not found or aimk not found in $ts_config(source_dir)"
+     ts_log_severe "architecture not found or aimk not found in $ts_config(source_dir)"
      return ""
   }
   set build_arch_cache($nr,$host) $result
-  puts $CHECK_OUTPUT "build arch is \"$result\""
+  ts_log_fine "build arch is \"$result\""
 
   return $build_arch_cache($nr,$host)
 }
@@ -2160,7 +2145,7 @@ proc resolve_build_arch { host } {
 #
 #*******************************
 proc resolve_lib_path_name { host {use_source_arch 0}} {
-   global CHECK_OUTPUT libpath_cache
+   global libpath_cache
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -2185,13 +2170,13 @@ proc resolve_lib_path_name { host {use_source_arch 0}} {
 
    set result [lindex $result 0]  ;# remove CR
    set libpath_cache($host) $result
-   puts $CHECK_OUTPUT "shared lib path name variable is \"$result\""
+   ts_log_fine "shared lib path name variable is \"$result\""
 
    return $libpath_cache($host)
 }
 
 proc resolve_build_arch_installed_libs {host {raise_error 1}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    set build_arch [resolve_build_arch $host]
@@ -2201,28 +2186,28 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
       "HP1164" {
          set arch [resolve_arch $host]
          if {$arch == "hp11"} {
-            add_proc_error "resolve_build_arch_installed_lib" -3 "We are on hp11 64bit platform (build platform HP1164) with 32bit binaries installed.\nUsing hp11 (build platform HP11) test binaries" $raise_error
+            ts_log_config "We are on hp11 64bit platform (build platform HP1164) with 32bit binaries installed.\nUsing hp11 (build platform HP11) test binaries" $raise_error
             set build_arch "HP11"
          }
       }
       "LINUXAMD64_26" {
          set arch [resolve_arch $host]
          if {$arch == "lx24-amd64"} {
-            add_proc_error "resolve_build_arch_installed_lib" -3 "We are on lx26-amd64 platform (build platform LINUXAMD64_26) with lx24-amd64 binaries installed.\nUsing lx24-amd64 (build platform LINUXAMD64_24) test binaries" $raise_error
+            ts_log_config "We are on lx26-amd64 platform (build platform LINUXAMD64_26) with lx24-amd64 binaries installed.\nUsing lx24-amd64 (build platform LINUXAMD64_24) test binaries" $raise_error
             set build_arch "LINUXAMD64_24"
          }
       }
       "LINUX86_26" {
          set arch [resolve_arch $host]
          if {$arch == "lx24-x86"} {
-            add_proc_error "resolve_build_arch_installed_lib" -3 "We are on lx26-x86 platform (build platform LINUX86_26) with lx24-x86 binaries installed.\nUsing lx24-x86 (build platform LINUX86_24) test binaries" $raise_error
+            ts_log_config "We are on lx26-x86 platform (build platform LINUX86_26) with lx24-x86 binaries installed.\nUsing lx24-x86 (build platform LINUX86_24) test binaries" $raise_error
             set build_arch "LINUX86_24"
          }
       }
    }
 
    if { [is_remote_path $host $CHECK_USER $ts_config(source_dir)/$build_arch] == 0 } {
-      add_proc_error "resolve_build_arch_installed_libs" -1 "can't find build directory: $ts_config(source_dir)/$build_arch" $raise_error
+      ts_log_severe "can't find build directory: $ts_config(source_dir)/$build_arch" $raise_error
    }
 
    return $build_arch
@@ -2260,14 +2245,13 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
 #     ???/???
 #*******************************
 proc resolve_host {name {long 0}} {
-   global CHECK_OUTPUT
    global resolve_host_cache
 
    get_current_cluster_config_array ts_config
 
    # we cannot resolve hostgroups.
    if {[string range $name 0 0] == "@"} {
-      puts $CHECK_OUTPUT "hostgroups ($name) cannot be resolved"
+      ts_log_fine "hostgroups ($name) cannot be resolved"
       return $name
    }
    
@@ -2284,7 +2268,7 @@ proc resolve_host {name {long 0}} {
    set result [start_sge_utilbin "gethostbyname" "-aname $name" $ts_config(master_host) "ts_def_con_translate"]
 
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "proc resolve_host - gethostbyname failed: \n$result"
+      ts_log_fine "proc resolve_host - gethostbyname failed: \n$result"
       return "unknown"
    }
 
@@ -2297,10 +2281,10 @@ proc resolve_host {name {long 0}} {
    # cache result
    if {$long != 0} {
       set resolve_host_cache($name,long) $newname
-      puts $CHECK_OUTPUT "long resolve_host: \"$name\" resolved to \"$newname\""
+      ts_log_fine "long resolve_host: \"$name\" resolved to \"$newname\""
    } else {
       set resolve_host_cache($name,short) $newname
-      puts $CHECK_OUTPUT "short resolve_host: \"$name\" resolved to \"$newname\""
+      ts_log_fine "short resolve_host: \"$name\" resolved to \"$newname\""
    }
 
    return $newname
@@ -2323,7 +2307,6 @@ proc resolve_host {name {long 0}} {
 #
 #*******************************************************************************
 proc resolve_queue { queue } { 
-   global CHECK_OUTPUT
    set at_sign [string first "@" $queue]
    set new_queue_name $queue
    if { $at_sign >= 0 } {
@@ -2339,13 +2322,13 @@ proc resolve_queue { queue } {
          debug_puts "resolved host name:  \"$resolved_host_name\""
          set new_queue_name "$queue_name@$resolved_host_name"
       } else {
-         puts $CHECK_OUTPUT "can't resolve host \"$host_name\""
+         ts_log_fine "can't resolve host \"$host_name\""
       }
    }
    debug_puts "queue \"$queue\" resolved to \"$new_queue_name\""
 
    if { [string length $new_queue_name] > 30 } {
-      add_proc_error "resolve_queue" -3 "The length of the queue name \"$new_queue_name\" will exceed qstat queue name output"
+      ts_log_config "The length of the queue name \"$new_queue_name\" will exceed qstat queue name output"
    }
 
    return $new_queue_name 
@@ -2405,7 +2388,7 @@ proc parse_cpu_time {s_cpu} {
             incr cpu [expr $part * 3600]
          }
          default {
-            add_proc_error "usage_parse_cpu" -1 "cannot parse cpu time $s_cpu"
+            ts_log_severe "cannot parse cpu time $s_cpu"
          }
       }
 
@@ -2447,7 +2430,7 @@ proc parse_cpu_time {s_cpu} {
 #
 #*******************************************************************************
 proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
 
    set local_host [gethostname]
    if {$host == ""} {
@@ -2461,7 +2444,7 @@ proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
    set output [start_remote_prog $local_host $CHECK_USER "touch" $lock result]
 
    if {$result != 0} {
-      add_proc_error "operational_lock" -1 "Could not update lock: $output"
+      ts_log_severe "Could not update lock: $output"
       return -1
    }
 
@@ -2471,18 +2454,18 @@ proc operational_lock {operation_name {host ""} {lock_location "/tmp"}} {
    set output [start_remote_prog $local_host $CHECK_USER "ls" "-crt $all_locks | head -1" result]
 
    if {$result != 0} {
-      add_proc_error "operational_lock" -1 "Could not read locks: $output"
+      ts_log_severe "Could not read locks: $output"
       return -1
    }
 
    while {[string trim $output] != $lock} {
-      puts $CHECK_OUTPUT "Waiting for lock"
+      ts_log_fine "Waiting for lock"
       after 1000
 
       set output [start_remote_prog $local_host $CHECK_USER "ls" "-crt $all_locks | head -1" result]
 
       if {$result != 0} {
-         add_proc_error "operational_lock" -1 "Could not read locks: $output"
+         ts_log_severe "Could not read locks: $output"
          return -1
       }
    }
@@ -2529,7 +2512,7 @@ proc operational_unlock {operation_name {host ""} {lock_location "/tmp"}} {
    set output [start_remote_prog $local_host $CHECK_USER "rm" $lock result]
 
    if {$result != 0} {
-      add_proc_error "operational_lock" -1 "Could not release lock: $output"
+      ts_log_severe "Could not release lock: $output"
       return -1
    }
 

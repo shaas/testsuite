@@ -201,7 +201,6 @@ proc validate_queue {change_array} {
 #     sge_project/get_queue_messages()
 #*******************************************************************************
 proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -225,7 +224,7 @@ proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_u
    get_queue_messages messages "add" "$qname" $on_host $as_user
    
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Add queue $chgar(qname) for hostlist $chgar(hostlist) from file ..."
+      ts_log_fine "Add queue $chgar(qname) for hostlist $chgar(hostlist) from file ..."
       set option "-Aq"
       set_queue_defaults default_array
       set_lab_defaults default_array
@@ -234,7 +233,7 @@ proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_u
       set result [start_sge_bin "qconf" "-Aq ${tmpfile}" $on_host $as_user]
 
    } else {
-      puts $CHECK_OUTPUT "Add queue $chgar(qname) for hostlist $chgar(hostlist) slow ..."
+      ts_log_fine "Add queue $chgar(qname) for hostlist $chgar(hostlist) slow ..."
       set option "-aq"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "-aq" $vi_commands messages $on_host $as_user]
@@ -264,7 +263,7 @@ proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_u
 #     {fast_add 1}     - use fast mode
 #     {on_host ""}     - execute qconf on this host, default is master host
 #     {as_user ""}     - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1}  - do add_proc_error in case of errors
+#     {raise_error 1}  - raise error condition?
 #
 #  RESULT
 #       0 - success
@@ -275,7 +274,6 @@ proc add_queue {qname hostlist {change_array ""} {fast_add 1} {on_host ""} {as_u
 #     sge_queue/get_queue_messages()
 #*******************************************************************************
 proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
 
   upvar $change_array chgar
@@ -298,7 +296,7 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
    get_queue_messages messages "mod" "$qname" $on_host $as_user
      
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Modify queue $qname for hostlist $hostlist from file ..."
+      ts_log_fine "Modify queue $qname for hostlist $hostlist from file ..."
       # aja: TODO: suppress all messages coming from the procedure
       get_queue "$qname" curr_arr "" "" 0
       if {![info exists curr_arr]} {
@@ -322,7 +320,7 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
       set ret [handle_sge_errors "mod_queue" "qconf -Mq $qname" $output messages $raise_error]
 
    } else {
-      puts $CHECK_OUTPUT "Modify queue $qname for hostlist $hostlist slow ..."
+      ts_log_fine "Modify queue $qname for hostlist $hostlist slow ..."
       set vi_commands [build_vi_command chgar]
       set chgar(hostlist) $hostlist
       # BUG: different message for "vi" from fastadd ...
@@ -391,9 +389,7 @@ proc mod_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user 
 #     sge_queue/get_queue_messages()
 #*******************************************************************************
 proc get_queue { q_name {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "Get queue $q_name ..."
+   ts_log_fine "Get queue $q_name ..."
 
    upvar $output_var out
 
@@ -435,7 +431,6 @@ proc get_queue { q_name {output_var result} {on_host ""} {as_user ""} {raise_err
 #*******************************
 proc suspend_queue { qname } {
   global CHECK_USER
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
   log_user 0 
    if { $ts_config(gridengine_version) == 53 } {
@@ -457,7 +452,7 @@ proc suspend_queue { qname } {
   expect {
      -i $sp_id full_buffer {
          set result -1
-         add_proc_error "suspend_queue" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
      }
      -i $sp_id "was suspended" {
          set result 0
@@ -467,7 +462,7 @@ proc suspend_queue { qname } {
      }
 
 	  -i $sp_id default {
-         puts $CHECK_OUTPUT $expect_out(buffer)
+         ts_log_fine $expect_out(buffer)
 	      set result -1
 	  }
   }
@@ -475,7 +470,7 @@ proc suspend_queue { qname } {
   close_spawn_process $sid
   log_user 1
   if { $result != 0 } {
-     add_proc_error "suspend_queue" -1 "could not suspend queue \"$qname\""
+     ts_log_severe "could not suspend queue \"$qname\""
   }
 
   return $result
@@ -513,7 +508,6 @@ proc suspend_queue { qname } {
 #*******************************
 proc unsuspend_queue { queue } {
    global CHECK_USER
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
   set timeout 30
@@ -537,7 +531,7 @@ proc unsuspend_queue { queue } {
   expect {
       -i $sp_id full_buffer {
          set result -1
-         add_proc_error "unsuspend_queue" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id "unsuspended queue" {
          set result 0 
@@ -546,7 +540,7 @@ proc unsuspend_queue { queue } {
          set result 0 
       }
       -i $sp_id default {
-         puts $CHECK_OUTPUT $expect_out(buffer) 
+         ts_log_fine $expect_out(buffer) 
          set result -1 
       }
   }
@@ -554,7 +548,7 @@ proc unsuspend_queue { queue } {
   close_spawn_process $sid
   log_user 1   
   if { $result != 0 } {
-     add_proc_error "unsuspend_queue" -1 "could not unsuspend queue \"$queue\""
+     ts_log_severe "could not unsuspend queue \"$queue\""
   }
   return $result
 }
@@ -590,7 +584,6 @@ proc unsuspend_queue { queue } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc disable_queue { queuelist } {
-  global CHECK_OUTPUT CHECK_USER
   global CHECK_USER
   get_current_cluster_config_array ts_config
   
@@ -619,11 +612,10 @@ proc disable_queue { queuelist } {
      }   
      
      set result [start_sge_bin "qmod" "-d $queues"]
-     puts $CHECK_OUTPUT "do qmod -d $queues ..."
-     debug_puts $CHECK_OUTPUT "disable queue(s) $queues"
+     ts_log_fine "disable queue(s) $queues"
      set res_split [ split $result "\n" ]   
      foreach elem $res_split {
-        puts $CHECK_OUTPUT "line: $elem"
+        ts_log_fine "line: $elem"
         if { [ string first "has been disabled" $elem ] >= 0 } {
            incr nr_disabled 1 
         } else {
@@ -645,7 +637,7 @@ proc disable_queue { queuelist } {
   }    
 
   if { $nr_of_queues != $nr_disabled } {
-     add_proc_error "disable_queue" "-1" "could not disable all queues"
+     ts_log_severe "could not disable all queues"
      return -1
   }
  
@@ -684,7 +676,7 @@ proc disable_queue { queuelist } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc enable_queue { queuelist } {
-  global CHECK_OUTPUT CHECK_USER
+  global CHECK_USER
   get_current_cluster_config_array ts_config
   
   set return_value ""
@@ -711,11 +703,10 @@ proc enable_queue { queuelist } {
         incr i -1
      }   
      set result [start_sge_bin "qmod" "-e $queues"]
-     puts $CHECK_OUTPUT "do qmod -e $queues ..."
-     debug_puts $CHECK_OUTPUT "enable queue(s) $queues"
+     ts_log_fine "enable queue(s) $queues"
      set res_split [ split $result "\n" ]   
      foreach elem $res_split {
-        puts $CHECK_OUTPUT "line: $elem"
+        ts_log_fine "line: $elem"
         if { [ string first "has been enabled" $elem ] >= 0 } {
            incr nr_enabled 1 
         } else {
@@ -736,7 +727,7 @@ proc enable_queue { queuelist } {
   }    
 
   if { $nr_of_queues != $nr_enabled } {
-     add_proc_error "enable_queue" "-1" "could not enable all queues nr. queues: $nr_of_queues, nr_enabled: $nr_enabled"
+     ts_log_severe "could not enable all queues nr. queues: $nr_of_queues, nr_enabled: $nr_enabled"
      return -1
   }
   return 0
@@ -780,7 +771,7 @@ proc get_queue_state { queue_name } {
   set queue [resolve_queue $queue_name]
   set result [start_sge_bin "qstat" "-f -q $queue"]
   if {$prg_exit_state != 0} {
-     add_proc_error "get_queue_state" "-1" "qstat -f -q $queue failed:\n$result"
+     ts_log_severe "qstat -f -q $queue failed:\n$result"
      return ""
   }
 
@@ -794,7 +785,7 @@ proc get_queue_state { queue_name } {
       }
   }
 
-  add_proc_error "get_queue_state" -1 "queue \"$queue\" not found" 
+  ts_log_severe "queue \"$queue\" not found" 
   return ""
 }
 
@@ -867,7 +858,7 @@ proc clear_queue {queue {output_var result}  {on_host ""} {as_user ""} {raise_er
 #  INPUTS
 #     result      - qconf output
 #     queue       - queue for which qconf -cq has been called
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition?
 #
 #  RESULT
 #     Returncode for clear_queue function:
@@ -920,9 +911,7 @@ proc clear_queue_error {result queue raise_error} {
 #     sge_procedures/get_qconf_list()
 #*******************************************************************************
 proc get_queue_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "Get queue list ..."
+   ts_log_fine "Get queue list ..."
 
    upvar $output_var out
 
@@ -955,7 +944,6 @@ proc get_queue_list {{output_var result} {on_host ""} {as_user ""} {raise_error 
 #     sge_procedures/sge_client_messages()
 #*******************************************************************************
 proc get_queue_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $msg_var messages
