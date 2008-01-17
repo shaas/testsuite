@@ -2691,7 +2691,7 @@ proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} 
 #     file_procedures/wait_for_remote_file()
 #*******************************************************************************
 proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {to_go_away 0} } {
-   ts_log_fine [format "looking for directory \"%s\" on host \"\" %s" $path_to_file $hostname $to_go_away ? "to vanish" : "to appear"]
+   ts_log_fine [format "looking for directory \"%s\" on host \"%s\" as user \"%s\" %s" $path $hostname $user $to_go_away ? "to vanish" : "to appear"]
    set is_ok 0
    set my_mytimeout [ expr ( [timestamp] + $mytimeout ) ] 
 
