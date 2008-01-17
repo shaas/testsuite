@@ -67,7 +67,7 @@ lappend check_functions "issue_2372"
 proc issue_2372_init_level {} {
    global CHECK_ACT_LEVEL ts_config
 
-   if {$ts_config(gridengine_version) == "62"} {
+   if {$ts_config(gridengine_version) < "61"} {
       return -1
    }
 
@@ -168,10 +168,12 @@ proc issue_2372 {} {
          set host [host_conf_get_suited_hosts]
          set user $CHECK_USER
          set arch [resolve_arch $host]
-         set binary "time"
+         set binary "$ts_config(product_root)/bin/$arch/qsub"
          set envlist(SGE_DEBUG_LEVEL) "6 6 6 6 6 6 6 6"
-         set args "$ts_config(product_root)/bin/$arch/qsub -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
+         set args " -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
+         set time_before [timestamp]
          set result [start_remote_prog $host $user $binary $args exit_state "600" 0 "" envlist]
+         set time_after [timestamp]
 
          puts $CHECK_OUTPUT "qsub result: $result"
 
@@ -180,27 +182,24 @@ proc issue_2372 {} {
          foreach line $tmp_result {
             if {[string first "retry: 2" $line] != -1} {
                set retry_found 1
-               puts $CHECK_OUTPUT "found retry entry and setting do_stop to 1"
+               puts $CHECK_OUTPUT "found retry entry and setting retry_found to 1"
                puts $CHECK_OUTPUT "Found qsub output: $line"
             }
+         }
 
-            if {[string first "real" $line] != -1 && $retry_found == 1} {
-               set time [lindex $line 1]
-               set tmp_minute [split $time ":"]
-               set minute [lindex $tmp_minute 0]
-               set time [expr [lindex $tmp_minute 1] + ($minute*60)]
+            if {$retry_found == 1} {
+               set time [expr $time_after - $time_before] 
                if {$time >= "30.0"} {
                   set time_checked 1
                   puts $CHECK_OUTPUT "found a time value, time is correct!"
                   puts $CHECK_OUTPUT "found a time value: $time"
-                  add_proc_error "issue_2372_setup" 0 "test ok!"
                } else {
                   puts $CHECK_OUTPUT "found a time value, time is wrong!"
                   puts $CHECK_OUTPUT "found a time value: $time after 2 retries. Time must be > 30 sec!"
                   add_proc_error "issue_2372" -1 "wrong time value!"
                }
             } 
-         }
+
          if {$max_submit_num > 100} {
             add_proc_error "issue_2372" -1 "test failed and exited due to reaching max job submit number!"
             break;
