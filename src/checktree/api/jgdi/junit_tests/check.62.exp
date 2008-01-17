@@ -103,7 +103,7 @@ proc jgdi_junit_init_level {} {
 #  SEE ALSO
 #*******************************************************************************
 proc jgdi_junit_run_task { target a_report { jgdi_build_timeout 60 } } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR CHECK_ACT_LEVEL
    global ts_config ts_host_config jgdi_config do_jgdi_rebuild
    
@@ -144,7 +144,7 @@ proc jgdi_junit_run_task { target a_report { jgdi_build_timeout 60 } } {
 }
 
 proc jgdi_junit_run { JAVA_VERSION } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER
+   global jgdi_config CHECK_USER
 
    jgdi_junit_setup "$JAVA_VERSION"
 
@@ -165,7 +165,7 @@ proc jgdi_junit_run { JAVA_VERSION } {
    if { $res != 0 } {
       report_add_message report "JGDI junit tests failed using Java $JAVA_VERSION"
       report_finish report -1
-      add_proc_error "jgdi_junit_check" "-1" "JGDI junit tests failed using java $JAVA_VERSION"
+      ts_log_severe "JGDI junit tests failed using java $JAVA_VERSION"
       return -1
    } else {
       report_add_message report "JGDI junit successfully executed using java $JAVA_VERSION"

@@ -70,7 +70,6 @@ proc get_queue_instance {queue host} {
 #
 #*******************************************************************************
 proc vdep_validate_queue { change_array } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
@@ -110,8 +109,6 @@ proc vdep_set_queue_values { hostlist change_array } {
 
 # this won't be needed
 proc qinstance_to_cqueue { change_array } {
-   global CHECK_OUTPUT
-
    upvar $change_array chgar
 
    if { [info exists $chgar(hostname)] } {
@@ -121,8 +118,6 @@ proc qinstance_to_cqueue { change_array } {
 }
 
 proc set_cqueue_default_values { current_array change_array } {
-   global CHECK_OUTPUT
-
    upvar $current_array currar
    upvar $change_array chgar
    ts_log_finer "calling set_cqueue_default_values"
@@ -149,8 +144,6 @@ proc set_cqueue_default_values { current_array change_array } {
 }
 
 proc set_cqueue_specific_values {current_array change_array hostlist} {
-   global CHECK_OUTPUT
-
    upvar $current_array currar
    upvar $change_array chgar
    ts_log_finer "calling set_cqueue_specific_values"
@@ -252,9 +245,9 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 #     change_array - array containing the changed attributes.
 #     {fast_add 1} - 0: modify the attribute using qconf -mq,
 #                  - 1: modify the attribute using qconf -Mq, faster
-#     {on_host ""}    - execute qconf on this host, default is master host
-#     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     raise_error - do add_proc_error in case of errors
+#     {on_host ""} - execute qconf on this host, default is master host
+#     {as_user ""} - execute qconf as this user, default is $CHECK_USER
+#     raise_error  - raise error condition in case of errors
 #
 #  RESULT
 #
@@ -293,7 +286,7 @@ proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user 
 #*******************************************************************************
 
 proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_USER CHECK_OUTPUT
+  global CHECK_USER
   get_current_cluster_config_array ts_config
 
    if {!$ignore_hostlist} {
@@ -301,7 +294,7 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""}
       foreach host $hostlist {
          set result [start_sge_bin "qconf" "-dattr queue hostlist $host $q_name"]
          if { $prg_exit_state != 0 } {
-            add_proc_error "del_queue" "-1" "could not delete queue instance or queue domain: $result"
+            ts_log_severe "could not delete queue instance or queue domain: $result"
          }
       }
    }
@@ -427,7 +420,7 @@ proc purge_queue {queue object {on_host ""} {as_user ""} {raise_error 1}} {
 #     queue       - queue intance or queue domain for which qconf -purge 
 #                   has been called
 #     object      - object  which queue will be purged
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for purge_queue function:
@@ -441,7 +434,7 @@ proc purge_queue {queue object {on_host ""} {as_user ""} {raise_error 1}} {
 #     sge_procedures/handle_sge_errors
 #*******************************************************************************
 proc purge_queue_error {result queue object raise_error} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    set pos [string first "@" $queue]
    if {$pos < 0} {

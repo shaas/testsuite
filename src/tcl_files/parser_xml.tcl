@@ -62,7 +62,6 @@
 #
 #*******************************
 proc qstat_xml_parse { output {param ""} } {
-   global CHECK_OUTPUT
    upvar $output output_xml
 
    # Run now -xml command
@@ -143,9 +142,6 @@ proc qstat_xml_parse { output {param ""} } {
 #*******************************
 
 proc qstat_j_xml_parse { output  } {
-
-   global CHECK_OUTPUT
-
    upvar $output output_xml
 
    # Run now -xml command
@@ -199,9 +195,6 @@ proc qstat_j_xml_parse { output  } {
 #*******************************
 
 proc qstat_j_JOB_NAME_xml_parse { output {param ""} } {
-
-   global CHECK_OUTPUT
-
    upvar $output output_xml
 
    # Run now -xml command
@@ -251,9 +244,6 @@ proc qstat_j_JOB_NAME_xml_parse { output {param ""} } {
 #*******************************
 
 proc qstat_f_xml_parse { output {param ""} } {
-
-   global CHECK_OUTPUT
-
    upvar $output output_xml
    
    # Run now -xml command
@@ -332,9 +322,6 @@ proc qstat_f_xml_parse { output {param ""} } {
 #*******************************
 
 proc qstat_F_xml_parse { output {params ""} } {
-
-   global CHECK_OUTPUT
-
    upvar $output output_xml
 
    # Transform the params list into a comma separated list
@@ -393,7 +380,6 @@ proc qstat_F_xml_parse { output {params ""} } {
 #*******************************
 
 proc qstat_j_xml_jobid { node1  output} {
-   global CHECK_OUTPUT 
    upvar $output output_xml_qstat
    get_current_cluster_config_array ts_config
    
@@ -414,7 +400,7 @@ proc qstat_j_xml_jobid { node1  output} {
    set output_xml_qstat($jobid,jobid) $jobid
    lappend output_xml_qstat(jobid_list) $jobid
 
-   puts $CHECK_OUTPUT "jobid is $jobid ....\n"
+   ts_log_fine "jobid is $jobid ....\n"
    
    set column_vars "job_number jobid_msg"
       
@@ -451,7 +437,7 @@ proc qstat_j_xml_jobid { node1  output} {
    set output_xml_qstat($jobid,jobid) $jobid
    lappend output_xml_qstat(jobid_list) $jobid
          
-   puts $CHECK_OUTPUT "jobid is $jobid ....\n"
+   ts_log_fine "jobid is $jobid ....\n"
   
    foreach column $column_vars {
       set node31 [$node13111 nextSibling] ;
@@ -504,8 +490,6 @@ proc qstat_j_xml_jobid { node1  output} {
 #*******************************
 
 proc qstat_xml_jobid { node121 jobtype output} {
-   global CHECK_OUTPUT
-
    upvar $output output_xml_qstat
    
 
@@ -649,10 +633,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
       append output_xml_qstat($jobid,granted_pe_value) ""
    }
 
-      
-   #puts $CHECK_OUTPUT "$jobtype for jobid $jobid column_vars are $column_vars ... \n"
-   puts  " "
-
    foreach column $column_vars {
       set node21 [$node1211 nextSibling] ;
       if { $node21 == "" } {
@@ -668,9 +648,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
       
       set xml_param [$node211 nodeValue]
       
-      #puts $CHECK_OUTPUT " xml_param for $column is $xml_param ... \n"
-      puts  " "
-
       # For time, need the UNIX value, to compare with plain output.
       if { ($column == "time") } {
          set xml_param [transform_date_time $xml_param 1]
@@ -707,8 +684,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
       if { ($column == "hard_req_queue") && ($jobtype == "fr") && [regexp "lx" $xml_param] || \
            [regexp "sol" $xml_param]} {
           set output_xml_qstat($jobid,hard_resource) "arch=$xml_param"
-          #puts $CHECK_OUTPUT "output_xml_qstat($jobid,hard_resource) is  $output_xml_qstat($jobid,hard_resource) ... \n"
-          #set output_xml_qstat($jobid,$column) ""
           set node1211 $node21
           continue
       }
@@ -743,9 +718,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
 
       set output_xml_qstat($next_jobid,jobid) $next_jobid
       lappend output_xml_qstat(jobid_list) $next_jobid
-      
-      #puts $CHECK_OUTPUT "$jobtype for jobid $jobid column_vars are $column_vars ... \n"   
-      puts  " "
       
       set node121 $node13 ; # yes, node121, NOT node122...
       
@@ -802,9 +774,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
            continue
          }
 
-         #puts $CHECK_OUTPUT "next_xml_param for $next_column is $next_xml_param ... \n"
-         puts  " "
-         
          if { ($next_column == "time") } {
             set next_xml_param  [transform_date_time $next_xml_param 1]
          }   
@@ -860,8 +829,6 @@ proc qstat_xml_jobid { node121 jobtype output} {
 #*******************************
 
 proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
-   global CHECK_OUTPUT
-
    upvar $output output_xml_qstat
 
 
@@ -880,7 +847,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
    set output_xml_qstat($jobid,jobid) $jobid
    lappend output_xml_qstat(jobid_list) $jobid
 
-   #puts $CHECK_OUTPUT "jobid in qstat_j_ERROR_xml_jobid is $jobid ... \n"
    set  column_vars "job_name version session department exec_file script_file \
                      script_size submission_time execution_time deadline owner uid group \
                      gid account notify type reserve priority jobshare shell_list verify \
@@ -960,7 +926,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
             }
 
             set env_xml_param [$node311 nodeValue]
-            #puts $CHECK_OUTPUT "env_xml_param is $env_xml_param ... \n"
             set output_xml_qstat($jobid,$env_column) $env_xml_param
             set node1311 [$node31 nextSibling] ; # works
           }
@@ -982,7 +947,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
             }
 
             set env_xml_param [$node311 nodeValue]
-            #puts $CHECK_OUTPUT "env_xml_param2 is $env_xml_param ... \n"
             set output_xml_qstat($jobid,$env_column) $env_xml_param
             set node1311 [$node31 nextSibling]
           }
@@ -993,10 +957,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
           foreach env_column "sge_o_path_tag sge_o_path" {
              set node31 $node1311
              if { $node31 == "" } {
-                #set node1313 [$node1312 nextSibling]
-                #set node1311 [$node1313 firstChild]
-                #set node1312 $node1313
-                #puts $CHECK_OUTPUT "we are in the first continue for env_list_vars... \n"
                 continue
              }
              set node311 [$node31 firstChild] ; # <jobid info/
@@ -1008,7 +968,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
             }
 
             set env_xml_param [$node311 nodeValue]
-            #puts $CHECK_OUTPUT "env_xml_param3 is $env_xml_param ... \n"
             set output_xml_qstat($jobid,$env_column) $env_xml_param
             set node1311 [$node31 nextSibling]
           }
@@ -1030,7 +989,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
              }
 
              set env_xml_param [$node311 nodeValue]
-             #puts $CHECK_OUTPUT "env_xml_param4 is $env_xml_param ... \n"
              set output_xml_qstat($jobid,$env_column) $env_xml_param
              set node1311 [$node31 nextSibling]
           }
@@ -1052,7 +1010,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
              }
 
              set env_xml_param [$node311 nodeValue]
-             #puts $CHECK_OUTPUT "env_xml_param5 is $env_xml_param ... \n"
              set output_xml_qstat($jobid,$env_column) $env_xml_param
              set node1311 [$node31 nextSibling]
           }
@@ -1079,7 +1036,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
                 }
 
                 set env_xml_param [$node311 nodeValue]
-                #puts $CHECK_OUTPUT "env_xml_param5 is $env_xml_param ... \n"
                 set output_xml_qstat($jobid,$env_column) $env_xml_param
                 set node1311 [$node31 nextSibling]
              }
@@ -1103,7 +1059,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
              }
 
              set env_xml_param [$node311 nodeValue]
-             #puts $CHECK_OUTPUT "env_xml_param6 is $env_xml_param ... \n"
              set output_xml_qstat($jobid,$env_column) $env_xml_param
              set node1311 [$node31 nextSibling]
           }
@@ -1125,14 +1080,11 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
              }
 
              set env_xml_param [$node311 nodeValue]
-             #puts $CHECK_OUTPUT "env_xml_param7 is $env_xml_param ... \n"
              set output_xml_qstat($jobid,$env_column) $env_xml_param
              set node1311 [$node31 nextSibling]
           }
 
      }
-
-      #puts $CHECK_OUTPUT " xml_param for $column is $xml_param ... \n"
 
       set output_xml_qstat($jobid,$column) $xml_param
       set node1211 $node21
@@ -1170,8 +1122,6 @@ proc qstat_j_JOB_NAME_xml_jobid { node121 output} {
 #*******************************
 
 proc qstat_xml_queue { node1 output {param ""} } {
-   global CHECK_OUTPUT
-
    upvar $output output_xml_qstat
    # Try this way to look at the data....
 
@@ -1313,8 +1263,6 @@ proc qstat_xml_queue { node1 output {param ""} } {
 #*******************************
 
 proc qstat_F_xml_queue { node1 output {params ""} } {
-   global CHECK_OUTPUT
-   
    upvar $output output_xml_qstat
    # Try this way to look at the data....
 
@@ -1464,9 +1412,6 @@ proc qstat_F_xml_queue { node1 output {params ""} } {
 #*******************************
 
 proc qstat_g_c_xml_parse { output } {
-
-   global CHECK_OUTPUT
-
    upvar $output output_xml
 
    # Run now -xml command
@@ -1509,8 +1454,6 @@ proc qstat_g_c_xml_parse { output } {
 #*******************************
 
 proc qstat_g_c_xml_queue { node output } {
-   global CHECK_OUTPUT
-
    upvar $output output_xml_qstat
    # Try this way to look at the data....
 
@@ -1612,15 +1555,10 @@ proc qstat_g_c_xml_queue { node output } {
 #*******************************
 
 proc qstat_ext_xml_parse { output } {
-
-   global CHECK_OUTPUT
-
    upvar $output output_xml
 
    # Run now -xml command
    set XML [start_sge_bin  "qstat" "-ext -xml" ]
-   #puts $CHECK_OUTPUT "Printing the xml result of qstat $option -xml... \n"
-   #puts $CHECK_OUTPUT "$XML \n"
 
    set doc  [dom parse $XML]
 
@@ -1632,7 +1570,6 @@ proc qstat_ext_xml_parse { output } {
   
    set job_type1 "ext"
    set result1 [qstat_xml_jobid $node1 $job_type1 output_xml]
-   #puts $CHECK_OUTPUT "calling job_type is  $job_type1 ... \n"
 
    # Parse the pending jobs info using this node. Need to start here
    # NOT at root.
@@ -1642,7 +1579,6 @@ proc qstat_ext_xml_parse { output } {
 
    set job_type2 "extpending"
    set result2 [qstat_xml_jobid $node121 $job_type2 output_xml]
-   #puts $CHECK_OUTPUT "second calling job_type is  $job_type2 ... \n"
 }
 
 #****** parser_xml/qhost_xml_parse() ******

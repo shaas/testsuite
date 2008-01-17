@@ -31,10 +31,10 @@
 #___INFO__MARK_END__
 
 proc delete_all_jobs {{clear_queues 1}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "deleting all jobs"
+   ts_log_fine "deleting all jobs"
    set arch [resolve_arch $ts_config(master_host)]
    set qdel "$ts_config(product_root)/bin/$arch/qdel"
    set output [start_remote_prog $ts_config(master_host) $CHECK_USER $qdel "-uall"]
@@ -44,7 +44,7 @@ proc delete_all_jobs {{clear_queues 1}} {
       set ret 0
    }
 
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
 
    return $ret
 }

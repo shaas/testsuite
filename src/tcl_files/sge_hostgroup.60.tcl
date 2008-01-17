@@ -84,7 +84,6 @@ proc set_hostgroup_defaults {change_array} {
 #     sge_hostgroup/get_hostgroup_messages()
 #*******************************************************************************
 proc add_hostgroup {group {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -93,7 +92,7 @@ proc add_hostgroup {group {change_array ""} {fast_add 1} {on_host ""} {as_user "
    get_hostgroup_messages messages "add" "$group" $on_host $as_user
 
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Add hostgroup $group from file ..."
+      ts_log_fine "Add hostgroup $group from file ..."
       set option "-Ahgrp"
       set_hostgroup_defaults old_config
       update_change_array old_config chgar
@@ -101,7 +100,7 @@ proc add_hostgroup {group {change_array ""} {fast_add 1} {on_host ""} {as_user "
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
    } else {
-      puts $CHECK_OUTPUT "Add hostgroup $group slow ..."
+      ts_log_fine "Add hostgroup $group slow ..."
       set option "-ahgrp"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $group" $vi_commands messages$on_host $as_user]
@@ -140,10 +139,9 @@ proc add_hostgroup {group {change_array ""} {fast_add 1} {on_host ""} {as_user "
 #     sge_hostgroup/get_project_messages()
 #*******************************************************************************
 proc get_hostgroup {group {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
 
-   puts $CHECK_OUTPUT "Get hostgroup $group ..."
+   ts_log_fine "Get hostgroup $group ..."
 
    get_hostgroup_messages messages "get" "$group" $on_host $as_user
 
@@ -176,12 +174,9 @@ proc get_hostgroup {group {output_var result} {on_host ""} {as_user ""} {raise_e
 #     sge_hostgroup.60/sge_hostgroup_messages
 #*******************************************************************************
 proc del_hostgroup {group {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "Delete hostgroup $group ..."
+   ts_log_fine "Delete hostgroup $group ..."
 
    get_hostgroup_messages messages "del" "$group" $on_host $as_user
-         puts $CHECK_OUTPUT $messages(0)
    set output [start_sge_bin "qconf" "-dhgrp $group" $on_host $as_user]
 
    return [handle_sge_errors "del_hostgroup" "qconf -dhgrp $group" $output messages $raise_error]
@@ -215,9 +210,7 @@ proc del_hostgroup {group {on_host ""} {as_user ""} {raise_error 1}} {
 #     sge_hostgroup/get_hostgroup_messages()
 #*******************************************************************************
 proc get_hostgroup_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-     
-   puts $CHECK_OUTPUT "Get hostgroup list ..."
+   ts_log_fine "Get hostgroup list ..."
 
    upvar $output_var out
    
@@ -244,7 +237,7 @@ proc get_hostgroup_list {{output_var result} {on_host ""} {as_user ""} {raise_er
 #     {fast_add 1}    - use fast mode
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1}  - do add_proc_error in case of errors
+#     {raise_error 1} - raise error condition in case of errors
 #
 #  RESULT
 #       0 - success
@@ -255,7 +248,7 @@ proc get_hostgroup_list {{output_var result} {on_host ""} {as_user ""} {raise_er
 #     sge_hostgroup/get_hostgroup_messages()
 #*******************************************************************************
 proc mod_hostgroup { group change_array {fast_add 1} {on_host ""} {as_user ""}  {raise_error 1} } {
-   global CHECK_OUTPUT DISABLE_ADD_PROC_ERROR
+   global DISABLE_ADD_PROC_ERROR
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -264,7 +257,7 @@ proc mod_hostgroup { group change_array {fast_add 1} {on_host ""} {as_user ""}  
    get_hostgroup_messages messages "mod" "$group" $on_host $as_user
 
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Modify hostgroup $group from file ..."
+      ts_log_fine "Modify hostgroup $group from file ..."
       set option "-Mhgrp"
       set DISABLE_ADD_PROC_ERROR 1
       get_hostgroup $group curr_grp $on_host $as_user
@@ -274,7 +267,7 @@ proc mod_hostgroup { group change_array {fast_add 1} {on_host ""} {as_user ""}  
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
    } else {
-      puts $CHECK_OUTPUT "Modify hostgroup $group slow ..."
+      ts_log_fine "Modify hostgroup $group slow ..."
       set option "-mhgrp"
       # BUG: different message for "vi" from fastadd ...
       add_message_to_container messages -1 [translate_macro MSG_HGROUP_NOTEXIST_S "$group"]
@@ -315,10 +308,9 @@ proc mod_hostgroup { group change_array {fast_add 1} {on_host ""} {as_user ""}  
 #     sge_hostgroup/get_hostgroup_messages()
 #*******************************************************************************
 proc get_hostgroup_tree {group {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
 
-   puts $CHECK_OUTPUT "Get tree for hostgroup $group ..."
+   ts_log_fine "Get tree for hostgroup $group ..."
    
    get_hostgroup_messages messages "get_tree" "" $on_host $as_user 
 
@@ -354,10 +346,9 @@ proc get_hostgroup_tree {group {output_var result} {on_host ""} {as_user ""} {ra
 #     sge_hostgroup/get_hostgroup_messages()
 #*******************************************************************************
 proc get_hostgroup_resolved {group {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
 
-   puts $CHECK_OUTPUT "Get resolved for host group $group ..."
+   ts_log_fine "Get resolved for host group $group ..."
 
    get_hostgroup_messages messages "get_resolved" "" $on_host $as_user 
 
@@ -388,7 +379,6 @@ proc get_hostgroup_resolved {group {output_var result} {on_host ""} {as_user ""}
 #     sge_procedures/sge_client_messages()
 #*******************************************************************************
 proc get_hostgroup_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $msg_var messages

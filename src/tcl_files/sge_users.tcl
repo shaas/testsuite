@@ -88,11 +88,11 @@ proc set_user_defaults {change_array} {
 #     sge_project/get_project_messages()
 #*******************************************************************************
 proc add_user {user {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-      add_proc_error "add_user" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
 
@@ -102,7 +102,7 @@ proc add_user {user {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {ra
    get_user_messages messages "add" "$user" $on_host $as_user
   
    if {$fast_add} {
-      puts $CHECK_OUTPUT "Add user $user from file ..."
+      ts_log_fine "Add user $user from file ..."
       set option "-Auser"
       set_user_defaults old_config
       update_change_array old_config chgar
@@ -110,7 +110,7 @@ proc add_user {user {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {ra
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
      
    } else {
-      puts $CHECK_OUTPUT "Add user $user slow ..."
+      ts_log_fine "Add user $user slow ..."
       set option "-auser"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option" $vi_commands messages $on_host $as_user]
@@ -147,18 +147,17 @@ proc add_user {user {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {ra
 #     sge_users/get_user_messages()
 #*******************************************************************************
 proc get_user {user {change_array ""} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    # user doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "get_user" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
 }
 
    upvar $change_array out
 
-   puts $CHECK_OUTPUT "Get user $user ..."
+   ts_log_fine "Get user $user ..."
 
    get_user_messages messages "get" "$user" $on_host $as_user
    
@@ -192,15 +191,14 @@ proc get_user {user {change_array ""} {on_host ""} {as_user ""} {raise_error 1}}
 #     sge_users/sge_user_messages
 #*******************************************************************************
 proc del_user {user {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    if {$ts_config(product_type) == "sge"} {
-      add_proc_error "" -9 "del_user (qconf -duser) not available for sge systems" $raise_error
+      ts_log_config "del_user (qconf -duser) not available for sge systems" $raise_error
       return -1
    }
 
-   puts $CHECK_OUTPUT "Delete user $user ..."
+   ts_log_fine "Delete user $user ..."
 
    get_user_messages messages "del" "$user" $on_host $as_user
 
@@ -235,16 +233,15 @@ proc del_user {user {on_host ""} {as_user ""} {raise_error 1}} {
 #     sge_users/get_user_messages()
 #*******************************************************************************
 proc get_user_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    # user doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "get_user_list" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
    
-   puts $CHECK_OUTPUT "Get user list ..."
+   ts_log_fine "Get user list ..."
 
    upvar $output_var out
    
@@ -278,7 +275,7 @@ proc get_user_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1
 #
 #*******************************************************************************
 proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $array current_ul
@@ -314,19 +311,19 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
       set master_arch [resolve_arch $ts_config(master_host)]
       set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG $UNKNOWN_SPECIFIER $EMPTY_SPECIFIER]
       if { $result == -1 } { 
-         add_proc_error "mod_userlist" -1 "timeout error" $raise_error
+         ts_log_severe "timeout error" $raise_error
       } elseif { $result == -2 } { 
-         add_proc_error "mod_userlist" -1 "already exists" $raise_error
+         ts_log_severe "already exists" $raise_error
       } elseif { $result == -3 } { 
-         add_proc_error "mod_userlist" -1 "not modified " $raise_error
+         ts_log_severe "not modified " $raise_error
       } elseif { $result == -4 } { 
-         add_proc_error "mod_userlist" -1 "not u_long32 value" $raise_error
+         ts_log_severe "not u_long32 value" $raise_error
       } elseif { $result == -5 } { 
-         add_proc_error "mod_userlist" -1 "invalid specifier" $raise_error
+         ts_log_severe "invalid specifier" $raise_error
       } elseif { $result == -6 } { 
-         add_proc_error "mod_userlist" -1 "empty specifier" $raise_error
+         ts_log_severe "empty specifier" $raise_error
       } elseif { $result != 0  } { 
-         add_proc_error "mod_userlist" -1 "could not modify userlist " $raise_error
+         ts_log_severe "could not modify userlist " $raise_error
       }
       set ret $result
    }
@@ -355,7 +352,7 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
 #     result      - qconf output
 #     userlist    - object qconf is modifying
 #     tmpfile     - temp file for qconf -Mattr
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for mod_userlist function:
@@ -399,7 +396,7 @@ proc mod_userlist_error {result userlist tmpfile raise_error} {
 #                    adding a calendar
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - do add_proc_error in case of errors
+#     {raise_error 1} - raise error condition in case of errors
 #
 #  RESULT
 #       0 - success
@@ -410,11 +407,11 @@ proc mod_userlist_error {result userlist tmpfile raise_error} {
 #     sge_users/get_user_messages()
 #*******************************************************************************
 proc mod_user {user change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-      add_proc_error "mod_user" -1 "not possible for sge systems"
+      ts_log_severe "not possible for sge systems"
       return -9
    }
 
@@ -424,7 +421,7 @@ proc mod_user {user change_array {fast_add 1} {on_host ""} {as_user ""} {raise_e
    get_user_messages messages "mod" "$user" $on_host $as_user
 
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Modify user $user from file ..."
+      ts_log_fine "Modify user $user from file ..."
       set option "-Muser"
       get_user $user curr_user $on_host $as_user 0
       if {![info exists curr_user]} {
@@ -434,7 +431,7 @@ proc mod_user {user change_array {fast_add 1} {on_host ""} {as_user ""} {raise_e
       set tmpfile [dump_array_to_tmpfile curr_user]
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
    } else {
-      puts $CHECK_OUTPUT "Modify user $user slow ..."
+      ts_log_fine "Modify user $user slow ..."
       set option "-muser"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $user" $vi_commands messages $on_host $as_user]
@@ -598,7 +595,6 @@ proc get_operator_list {{output_var result} {on_host ""} {as_user ""} {raise_err
 #*******************************
 #
 proc add_operator { anOperator } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set result [start_sge_bin "qconf" "-ao $anOperator" ]
@@ -608,10 +604,10 @@ proc add_operator { anOperator } {
    set ALREADYEXISTS [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ALREADYEXISTS_SS] "*" $anOperator ]
 
    if {[string match $ADDEDTOLIST $result]} {
-      puts $CHECK_OUTPUT "added $anOperator to operator list"
+      ts_log_fine "added $anOperator to operator list"
       return 0
    } elseif {[string match $ALREADYEXISTS $result]} {
-      puts $CHECK_OUTPUT "operator $anOperator already exists"
+      ts_log_fine "operator $anOperator already exists"
       return 0
       } else {
       return -1
@@ -643,7 +639,6 @@ proc add_operator { anOperator } {
 #*******************************
 #
 proc delete_operator {anOperator} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set result [start_sge_bin "qconf" "-do $anOperator"]
@@ -653,10 +648,10 @@ proc delete_operator {anOperator} {
    set DOESNOTEXIST [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_DOESNOTEXIST_SS] "*" $anOperator ]
 
    if {[string match $REMOVEDFROMLIST $result]} {
-      puts $CHECK_OUTPUT "removed $anOperator from operator list"
+      ts_log_fine "removed $anOperator from operator list"
       return 0
    } elseif {[string match $DOESNOTEXIST $result]} {
-      puts $CHECK_OUTPUT "operator $anOperator does not exists"
+      ts_log_fine "operator $anOperator does not exists"
       return 0
    } else {
       return -1
@@ -686,7 +681,6 @@ proc delete_operator {anOperator} {
 #     sge_procedures/sge_client_messages()
 #*******************************************************************************
 proc get_user_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $msg_var messages

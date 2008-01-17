@@ -33,7 +33,6 @@
 proc bootstrap_sge_config {} {
    global sge_config
    global CHECK_USER CHECK_DEFAULT_DOMAIN
-   global CHECK_OUTPUT
 
    get_current_cluster_config_array ts_config
 
@@ -45,21 +44,19 @@ proc bootstrap_sge_config {} {
    # read SGE configuration file
    set bootstrap_file "$ts_config(product_root)/$ts_config(cell)/common/configuration"
    if {[file exists $bootstrap_file]} {
-      puts $CHECK_OUTPUT "reading configuration file $bootstrap_file"
+      ts_log_fine "reading configuration file $bootstrap_file"
       set f [open $bootstrap_file r]
       while {[gets $f line] > 0} {
          if {[string range $line 0 0] != "#"} {
             set name [lindex $line 0]
             set value [lrange $line 1 end]
             set sge_config($name) "$value"
-            #puts $CHECK_OUTPUT "read $name: $value"
          } else {
-            #puts $CHECK_OUTPUT "skipping comment"
          }
       }
       close $f
    } else {   
-      puts $CHECK_OUTPUT "initializing sge_config from default values"
+      ts_log_fine "initializing sge_config from default values"
       set sge_config(admin_user)        "$CHECK_USER"
       set sge_config(default_domain)    "$CHECK_DEFAULT_DOMAIN"
       set sge_config(ignore_fqdn)       "true"

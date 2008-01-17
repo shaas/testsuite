@@ -95,11 +95,11 @@ proc add_sharetree_node {project user1 shares1 user2 shares2 {on_host ""} {as_us
 #  INPUTS
 #     result      - qconf output
 #     project     - project for which qconf -astnode has been called
-#     user1           - user1   for which  we wish to chage shares;
-#     shares1         - shares   for user1;
-#     user2           - user2   for which  we wish to chage shares;
-#     shares2        - shares   for user2
-#     raise_error - do add_proc_error in case of errors
+#     user1       - user1   for which  we wish to chage shares;
+#     shares1     - shares   for user1;
+#     user2       - user2   for which  we wish to chage shares;
+#     shares2     - shares   for user2
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for add_sharetree_node function:
@@ -229,7 +229,7 @@ proc mod_sharetree_node {project user1 shares1 user2 shares2 {on_host ""} {as_us
 #     shares1         - shares   for user1;
 #     user2           - user2   for which  we wish to chage shares;
 #     shares2        - shares   for user2
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for mod_sharetree_node function:
@@ -320,7 +320,7 @@ proc del_sharetree_node {project user {on_host ""} {as_user ""} {raise_error 1}}
 #     result      - qconf output
 #     project     - project for which qconf -astnode has been called
 #     user        - user   which  we wish to delete
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for del_sharetree_node function:
@@ -469,12 +469,12 @@ proc stree_buffer_add_node {stree_var node shares} {
    set ret 0
 
    if {[lsearch -exact $stree(index) $node] >= 0 || [info exists stree($node)]} {
-      add_proc_error "stree_buffer_add_node" -1 "sharetree node $node already exists"
+      ts_log_severe "sharetree node $node already exists"
       set ret -1
    } else {
       set parent [file dirname $node]
       if {[lsearch -exact $stree(index) $parent] < 0 || ![info exists stree($parent)]} {
-         add_proc_error "stree_buffer_add_node" -1 "parent node for sharetree node $node does not exist"
+         ts_log_severe "parent node for sharetree node $node does not exist"
          set ret -2
       } else {
          lappend stree(index) $node
@@ -521,7 +521,7 @@ proc stree_buffer_mod_node {stree_var node shares} {
    set ret 0
 
    if {[lsearch -exact $stree(index) $node] < 0 || ![info exists stree($node)]} {
-      add_proc_error "stree_buffer_mod_node" -1 "sharetree node $node does not exist"
+      ts_log_severe "sharetree node $node does not exist"
       set ret -1
    } else {
       set stree($node) $shares
@@ -563,12 +563,12 @@ proc stree_buffer_del_node {stree_var node} {
    set ret 0
 
    if {$node == "/"} {
-      add_proc_error "stree_buffer_del_node" -1 "cannot delete root node $node"
+      ts_log_severe "cannot delete root node $node"
       set ret -1
    } else {
       set pos [lsearch -exact $stree(index) $node]
       if {$pos < 0 || ![info exists stree($node)]} {
-         add_proc_error "stree_buffer_del_node" -1 "sharetree node $node does not exist"
+         ts_log_severe "sharetree node $node does not exist"
          set ret -2
       } else {
          # delete all children of this node
@@ -579,12 +579,12 @@ proc stree_buffer_del_node {stree_var node} {
          # remove node from parent children list
          set parent [file dirname $node]
          if {[lsearch -exact $stree(index) $parent] < 0 || ![info exists stree($parent)]} {
-            add_proc_error "stree_buffer_del_node" -1 "parent node for sharetree node $node does not exist"
+            ts_log_severe "parent node for sharetree node $node does not exist"
             set ret -3
          } else {
             set parent_pos [lsearch -exact $stree($parent,children) $node]
             if {$parent_pos < 0} {
-               add_proc_error "stree_buffer_del_node" -1 "parent node $parent does not reference $node as child"
+               ts_log_severe "parent node $parent does not reference $node as child"
                set ret -4
             } else {
                set stree($parent,children) [lreplace $stree($parent,children) $parent_pos $parent_pos]
@@ -624,7 +624,7 @@ proc stree_buffer_get_node {stree_var node} {
    set ret -1
 
    if {[lsearch -exact $stree(index) $node] < 0 || ![info exists stree($node)]} {
-      add_proc_error "stree_buffer_mod_node" -1 "sharetree node $node does not exist"
+      ts_log_severe "sharetree node $node does not exist"
    } else {
       set ret $stree($node)
    }
@@ -657,8 +657,6 @@ proc stree_buffer_get_node {stree_var node} {
 #     sge_procedures/get_sge_error()
 #*******************************************************************************
 proc stree_buffer_commit {stree_var {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
    upvar $stree_var stree
 
    set ret 0
@@ -687,7 +685,7 @@ proc stree_buffer_commit {stree_var {on_host ""} {as_user ""} {raise_error 1}} {
          foreach child $stree($node,children) {
             set pos [lsearch -exact $stree(index) $child]
             if {$pos < 0} {
-               add_proc_error "stree_buffer_commit" -1 "cannot find child node $child in sharetree index"
+               ts_log_severe "cannot find child node $child in sharetree index"
                set ret -1
                break
             } else {
@@ -746,7 +744,7 @@ proc stree_parse_line {name line} {
    set ret ""
    set split_line [split [string trim $line] "="]
    if {[lindex $split_line 0] != $name} {
-      add_proc_error "stree_parse_line" -1 "invalid sharetree line, should be \"$name=...\", but is \"$line\""
+      ts_log_severe "invalid sharetree line, should be \"$name=...\", but is \"$line\""
    } else {
       set ret [lindex $split_line 1]
    }
@@ -773,8 +771,6 @@ proc stree_parse_line {name line} {
 #     < 0 - on error
 #*******************************************************************************
 proc stree_buffer_read {stree_var} {
-   global CHECK_OUTPUT
-
    upvar $stree_var stree
 
    set ret 0
@@ -786,7 +782,7 @@ proc stree_buffer_read {stree_var} {
 
    set result [start_sge_bin "qconf" "-sstree"]
    if {$prg_exit_state != 0} {
-      add_proc_error "stree_buffer_read" -1 "error reading sharetree:\n$result"
+      ts_log_severe "error reading sharetree:\n$result"
       set ret -1
    } else {
       set lines [split [string trim $result] "\n"]
@@ -794,7 +790,7 @@ proc stree_buffer_read {stree_var} {
       # we get 5 lines per sharetree node - do some verification
       set num_lines [llength $lines]
       if {[expr $num_lines % 5] != 0} {
-         add_proc_error "stree_buffer_read" -1 "incorrect sharetree number of lines:\n$result"
+         ts_log_severe "incorrect sharetree number of lines:\n$result"
          set ret -2
       } else {
          set line_idx 0
@@ -867,8 +863,6 @@ proc stree_buffer_read {stree_var} {
 #
 #*******************************************************************************
 proc stree_buffer_dump {stree_var} {
-   global CHECK_OUTPUT
-
    upvar $stree_var stree
 
    # determine longest node name
@@ -882,7 +876,7 @@ proc stree_buffer_dump {stree_var} {
 
    # dump nodes
    foreach node $stree(index) {
-      puts $CHECK_OUTPUT [format "%-${len}s %6d" $node $stree($node)]
+      ts_log_fine [format "%-${len}s %6d" $node $stree($node)]
    }
 }
 
@@ -912,7 +906,6 @@ proc stree_buffer_dump {stree_var} {
 #     sge_sharetree/stree_buffer_dump()
 #*******************************************************************************
 proc test_stree_buffer {} {
-   global CHECK_OUTPUT
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -931,13 +924,13 @@ proc test_stree_buffer {} {
    stree_buffer_dump sharetree
    stree_buffer_commit sharetree
 
-   puts $CHECK_OUTPUT "created sharetree"
+   ts_log_fine "created sharetree"
    wait_for_enter
 
    stree_buffer_read new_sharetree
    stree_buffer_dump new_sharetree
 
-   puts $CHECK_OUTPUT "read sharetree from qmaster"
+   ts_log_fine "read sharetree from qmaster"
    wait_for_enter
   
    # modify the read sharetree
@@ -958,16 +951,16 @@ proc test_stree_buffer {} {
    stree_buffer_dump new_sharetree
    stree_buffer_commit new_sharetree
 
-   puts $CHECK_OUTPUT "modified sharetree"
+   ts_log_fine "modified sharetree"
    wait_for_enter
 
    stree_buffer_read new_modified_sharetree
    stree_buffer_dump new_modified_sharetree
 
-   puts $CHECK_OUTPUT [stree_buffer_get_node new_modified_sharetree "/"]
-   puts $CHECK_OUTPUT [stree_buffer_get_node new_modified_sharetree "/default"]
-   puts $CHECK_OUTPUT [stree_buffer_get_node new_modified_sharetree "/mytestproject/$CHECK_USER"]
-   puts $CHECK_OUTPUT [stree_buffer_get_node new_modified_sharetree "/mytestproject/blah"] ;# supposed to fail
+   ts_log_fine [stree_buffer_get_node new_modified_sharetree "/"]
+   ts_log_fine [stree_buffer_get_node new_modified_sharetree "/default"]
+   ts_log_fine [stree_buffer_get_node new_modified_sharetree "/mytestproject/$CHECK_USER"]
+   ts_log_fine [stree_buffer_get_node new_modified_sharetree "/mytestproject/blah"] ;# supposed to fail
 
    stree_buffer_del_node new_modified_sharetree "/mytestproject"
    stree_buffer_del_node new_modified_sharetree "/" ;# supposed to fail
@@ -975,12 +968,12 @@ proc test_stree_buffer {} {
    stree_buffer_dump new_modified_sharetree
    stree_buffer_commit new_modified_sharetree
 
-   puts $CHECK_OUTPUT "reread and modified sharetree from qmaster"
+   ts_log_fine "reread and modified sharetree from qmaster"
    wait_for_enter
   
    del_sharetree
 
-   puts $CHECK_OUTPUT "deleted sharetree"
+   ts_log_fine "deleted sharetree"
 }
 
 #****** sge_sharetree/sge_share_mon() ******************************************
@@ -1023,7 +1016,6 @@ proc test_stree_buffer {} {
 #     parser/parse_csv()
 #*******************************************************************************
 proc sge_share_mon {output_var {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $output_var out

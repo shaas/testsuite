@@ -59,6 +59,5 @@ proc get_config_list {output_var {on_host ""} {as_user ""} {raise_error 1}} {
    upvar $output_var out
 
    return [get_qconf_list "get_config_list" "-sconfl" out $on_host $as_user $raise_error]
-
 }
 

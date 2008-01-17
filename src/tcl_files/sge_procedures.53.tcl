@@ -61,7 +61,7 @@
 #
 #*******************************************************************************
 proc set_complex { change_array complex_list {raise_error 1} } {
-  global env CHECK_OUTPUT
+  global env
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
   set values [array names chgar]
@@ -104,7 +104,7 @@ proc set_complex { change_array complex_list {raise_error 1} } {
      set result [ handle_vi_edit "echo" "\"\"\nSGE_ENABLE_MSG_ID=1\nexport SGE_ENABLE_MSG_ID\n$ts_config(product_root)/bin/$master_arch/qconf -ac $complex_list" $vi_commands $ADDED $EDIT_FAILED $MODIFIED "___ABCDEFG___"  "___ABCDEFG___" $raise_error]
   }
   if { $result != 0  } {
-     add_proc_error "set_complex" -1 "could not modify complex $complex_list ($result)" $raise_error
+     ts_log_severe "could not modify complex $complex_list ($result)" $raise_error
   }
   return $result
 }
@@ -135,13 +135,12 @@ proc set_complex { change_array complex_list {raise_error 1} } {
 #    
 #*******************************************************************************
 proc get_complex { change_array complex_list } {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
   set result [start_sge_bin "qconf" "-sc $complex_list"]
   if {$prg_exit_state != 0} {
-     add_proc_error "get_complex" "-1" "qconf -sc $complex_list failed:\n$result"
+     ts_log_severe "qconf -sc $complex_list failed:\n$result"
      return
   } 
 
@@ -197,7 +196,6 @@ proc get_complex { change_array complex_list } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc startup_shadowd { hostname {env_list ""} } {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
@@ -208,7 +206,7 @@ proc startup_shadowd { hostname {env_list ""} } {
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } {  
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_shadowd" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -217,14 +215,14 @@ proc startup_shadowd { hostname {env_list ""} } {
    }
  
 
-   puts $CHECK_OUTPUT "starting up shadowd on host \"$hostname\" as user \"$startup_user\""
+   ts_log_fine "starting up shadowd on host \"$hostname\" as user \"$startup_user\""
 
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/rcsge" "-shadowd" prg_exit_state 60 0 "" envlist]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
    if { [string first "starting sge_shadowd" $output] >= 0 } {
        return 0
    }
-   add_proc_error "startup_shadowd" -1 "could not start shadowd on host $hostname:\noutput:\"$output\""
+   ts_log_severe "could not start shadowd on host $hostname:\noutput:\"$output\""
    return -1
 }
 
@@ -266,14 +264,13 @@ proc startup_shadowd { hostname {env_list ""} } {
 #     sge_procedures/startup_shadowd()
 #*******************************
 proc startup_execd { hostname } {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
    get_current_cluster_config_array ts_config
 
    if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
  
       if { [have_root_passwd] != 0  } {
-         add_proc_error "startup_execd" "-2" "no root password set or ssh not available"
+         ts_log_warning "no root password set or ssh not available"
          return -1
       }
       set startup_user "root"
@@ -281,13 +278,13 @@ proc startup_execd { hostname } {
       set startup_user $CHECK_USER
    }
 
-   puts $CHECK_OUTPUT "starting up execd on host \"$hostname\" as user \"$startup_user\""
+   ts_log_fine "starting up execd on host \"$hostname\" as user \"$startup_user\""
    set output [start_remote_prog "$hostname" "$startup_user" "$ts_config(product_root)/$ts_config(cell)/common/rcsge" "-execd" prg_exit_state 180]
 
    set ALREADY_RUNNING [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_COMMPROC_ALREADY_STARTED_S] "*"]
 
    if { [string match "*$ALREADY_RUNNING*" $output ] } {
-      add_proc_error "startup_execd" -1 "execd on host $hostname is already running"
+      ts_log_severe "execd on host $hostname is already running"
       return -1
    }
 

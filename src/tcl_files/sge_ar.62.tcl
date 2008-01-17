@@ -66,8 +66,6 @@
 #
 #*******************************
 proc submit_ar {args {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
    # failure messages from jobs common valiation part:
    set messages(-3)       "*[translate_macro MSG_GDI_USAGE_USAGESTRING] qrsub*"
    set messages(-8)       "*[translate_macro MSG_SGETEXT_UNKNOWN_RESOURCE_S "*"]*"
@@ -151,11 +149,10 @@ proc submit_ar {args {on_host ""} {as_user ""} {raise_error 1}} {
 #
 #*******************************
 proc delete_all_ars {} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
-   puts $CHECK_OUTPUT "deleting all ar"
+   ts_log_fine "deleting all ar"
    set output [start_sge_bin "qrdel" "-f -u '*' "]
-   puts $CHECK_OUTPUT $output
 
    if {$prg_exit_state == 0} {
       set ret 1
@@ -195,8 +192,6 @@ proc delete_all_ars {} {
 #     delete_job
 #*******************************************************************************
 proc delete_ar {ar_id {wait_for_end 0} {all_users 0} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
    set ret 0
    set args ""
 
@@ -216,17 +211,17 @@ proc delete_ar {ar_id {wait_for_end 0} {all_users 0} {on_host ""} {as_user ""} {
    set ret [handle_sge_errors "delete_ar" "qrdel $args $ar_id" $output messages $raise_error]
 
    if {($prg_exit_state != 0 && $ret >= 0) || ($prg_exit_state == 0 && $ret < 0)} {
-      add_proc_error "delete_ar" -1 "qrdel return value and output does not match\nmessage:$output\nreturn_code: $prg_exit_state"
+      ts_log_severe "qrdel return value and output does not match\nmessage:$output\nreturn_code: $prg_exit_state"
    }
 
    if {$wait_for_end != 0 && $ret >= 0} {
-      puts $CHECK_OUTPUT "waiting for end of ar $ar_id"
+      ts_log_fine "waiting for end of ar $ar_id"
       set timeout 60
       while {[parse_qrstat $ar_id] == 0} {
          after 1000
          incr timeout -1
          if {$timeout == 0} {
-            add_proc_error "delete_ar" -1 "timout waiting for ar end" $raise_error
+            ts_log_severe "timout waiting for ar end" $raise_error
             set ret -999
             break;
          }
@@ -257,8 +252,6 @@ proc delete_ar {ar_id {wait_for_end 0} {all_users 0} {on_host ""} {as_user ""} {
 #     sge_ar/submit_ar()
 #*******************************************************************************
 proc submit_ar_parse_ar_id {output_var message} {
-   global CHECK_OUTPUT
-
    upvar $output_var output
 
    set ret -1
@@ -278,7 +271,7 @@ proc submit_ar_parse_ar_id {output_var message} {
    # we didn't find the expected job start message in qsub output
    # should never happen, as message has been matched before by handle_sge_errors
    if {$ret == -1} {
-      add_proc_error "submit_ar_parse_ar_id" -1 "couldn't find qrsub success message\n$message\nin qrsub output\n$output"
+      ts_log_severe "couldn't find qrsub success message\n$message\nin qrsub output\n$output"
    }
 
    return $ret
@@ -310,8 +303,6 @@ proc submit_ar_parse_ar_id {output_var message} {
 #***************************************************************************
 #
 proc parse_qrstat {ar_id {output qrstat_info}} {
-   global CHECK_OUTPUT
-
    upvar $output out
 
    set result [start_sge_bin qrstat "-u '*' -ar $ar_id"]
@@ -378,11 +369,9 @@ proc parse_qrstat {ar_id {output qrstat_info}} {
 #     sge_ar/parse_qrstat()
 #*******************************************************************************
 proc test_parse_qrstat { ar_id } {
-   global CHECK_OUTPUT
-
    parse_qrstat $ar_id arinfo
    foreach name [array names arinfo] {
-      puts $CHECK_OUTPUT "$name\t<$arinfo($name)>"
+      ts_log_fine "$name\t<$arinfo($name)>"
    }
 }
 
@@ -410,7 +399,6 @@ proc test_parse_qrstat { ar_id } {
 #     sge_ar/parse_qrstat()
 #*******************************************************************************
 proc parse_qrstat_check { ar_id match_values } {
-   global CHECK_OUTPUT
    upvar $match_values val
 
    parse_qrstat $ar_id arinfo
@@ -420,15 +408,15 @@ proc parse_qrstat_check { ar_id match_values } {
       set pattern "$val($name)"
       set skip [catch { set value   "$arinfo($name)" }]
       if { $skip } {
-        add_proc_error "parse_qrstat_check" -1 "The expected attribute $name is missing in the result"
+        ts_log_severe "The expected attribute $name is missing in the result"
         set ret -2
         continue
       }     
 
       if {[string match $pattern $value]} {
-         puts $CHECK_OUTPUT "SUCCESSFUL MATCH for attribute $name:\tvalue: $value"         
+         ts_log_fine "SUCCESSFUL MATCH for attribute $name:\tvalue: $value"         
       } else {
-         add_proc_error "parse_qrstat_check" -1 "Attribute: $name\tvalue: $value\t DOES NOT MATCH pattern: $pattern"
+         ts_log_severe "Attribute: $name\tvalue: $value\t DOES NOT MATCH pattern: $pattern"
          set ret -3
       } 
    }
@@ -454,7 +442,6 @@ proc parse_qrstat_check { ar_id match_values } {
 #     sge_ar/parse_qrstat()
 #*******************************************************************************
 proc test_parse_qrstat_check {} {
-   global CHECK_OUTPUT
    global CHECK_USER
 
    set    args "-a 0801010101 "
@@ -471,11 +458,11 @@ proc test_parse_qrstat_check {} {
    append args "-pe mytestpe 3 "
    append args "-q all.q "
    append args "-u '!sgetest1,sgetest2,!root' "
-   puts $CHECK_OUTPUT "qrsub with $args\n"
+   ts_log_fine "qrsub with $args"
 
    set ar_id [submit_ar "$args"]
    if {$ar_id < 0} {
-      puts $CHECK_OUTPUT "qrsub $args failed:\n"
+      ts_log_fine "qrsub $args failed:"
       return
    }
    set val(id)                             "$ar_id"
@@ -498,13 +485,13 @@ proc test_parse_qrstat_check {} {
    set val(xacl_list)                      "sgetest1,root"
 
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id"
    parse_qrstat_check $ar_id val
 
-   puts $CHECK_OUTPUT "qrdel -u *\n"
+   ts_log_fine "qrdel -u *"
    set result [start_sge_bin qrdel "-u '*'"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "couldn't execute qrdel -u *"
+      ts_log_fine "couldn't execute qrdel -u *"
       return
    }
 }

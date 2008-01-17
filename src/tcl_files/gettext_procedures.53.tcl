@@ -56,8 +56,6 @@
 #     ???/???
 #*******************************************************************************
 proc sge_macro { macro_name {raise_error 1} } {
-   global CHECK_OUTPUT
- 
    set value ""
 
    # special handling for install macros
@@ -98,14 +96,14 @@ proc sge_macro { macro_name {raise_error 1} } {
    # if it was no install macro, try to find it from messages files
    if { $value == "" } {
       set value [get_macro_string_from_name $macro_name]
-#      puts $CHECK_OUTPUT "value for $macro_name is \n\"$value\""
+#      ts_log_fine "value for $macro_name is \n\"$value\""
    }
 
    # macro nowhere found
    if {$raise_error} {
       if {$value == -1} {
          set macro_messages_file [get_macro_messages_file_name]
-         add_proc_error "sge_macro" -3 "could not find macro \"$macro_name\" in source code!!!\ndeleting macro messages file:\n$macro_messages_file"
+         ts_log_config "could not find macro \"$macro_name\" in source code!!!\ndeleting macro messages file:\n$macro_messages_file"
          if { [ file isfile $macro_messages_file] } {
             file delete $macro_messages_file
          }

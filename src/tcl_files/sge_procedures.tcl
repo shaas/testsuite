@@ -299,7 +299,7 @@ proc set_qmaster_spool_dir {spool_dir} {
 proc get_execd_spool_dir {host} {
   get_config host_config $host
   if { [info exist host_config(execd_spool_dir) ] == 0 } {
-     debug_puts "--> no special execd_spool_dir for host $host"
+     ts_log_finest "--> no special execd_spool_dir for host $host"
      get_config host_config
   }
   if { [info exist host_config(execd_spool_dir) ] != 0 } {
@@ -695,12 +695,12 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
    if { $USE_CLIENT != 1 && $CHECK_JGDI_ENABLED } {
       if { ![info exists jgdi_config] } {
          if {[jgdi_shell_setup $host] != 0} {
-            debug_puts "Skipping test using JGDI shell, there is an error in setup."
+            ts_log_finest "Skipping test using JGDI shell, there is an error in setup."
             return "JGDI shell setup failed."
          }
       #Else we setup the jgdi_config for the host
       } elseif { [setup_jgdi_config_for_host $host] != 0 } {
-         debug_puts "Skipping test using JGDI shell, there is an error in setup."
+         ts_log_finest "Skipping test using JGDI shell, there is an error in setup."
          return "JGDI shell setup failed."
       }
       set result [run_jgdi_command_as_user $host "$bin $args" $jgdi_config(java15) $user exit_state]
@@ -817,7 +817,7 @@ proc start_source_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {t
    set ret 0
    set binary "$ts_config(source_dir)/$arch/$bin"
 
-   debug_puts "executing $binary $args\nas user $user on host $host"
+   ts_log_finest "executing $binary $args\nas user $user on host $host"
    # Add " around $args if there are more the 1 args....
    set result [start_remote_prog $host $user $binary "$args" exit_state $timeout $background "" $env_var 1 0 1]
 
@@ -3025,9 +3025,9 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
  
          #remove first two lines
          set help [lreplace $help 0 1]
-         debug_puts "qstat -s pr output:"
+         ts_log_finest "qstat -s pr output:"
          foreach elem $help {
-            debug_puts $elem
+            ts_log_finest $elem
          }
       } else {
         ts_log_severe "qstat -s pr failed:\n$result"
@@ -4801,7 +4801,7 @@ proc get_qstat_j_info {jobid {variable qstat_j_info}} {
             incr close_pos 1
             set elem [ string range $elem $close_pos end]
             set elem [ string trim $elem]
-            debug_puts "removing message id: \"$elem\""
+            ts_log_finest "removing message id: \"$elem\""
          }
          if { [string first ":" $elem] >= 0 && [string first ":" $elem] < 30 } {
             append my_result "\n$elem" 
@@ -5155,7 +5155,7 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
       foreach line $help {
         if {[lindex $line 0] == $jobid} {
            lappend states [lindex $line 4]
-           debug_puts "debug: $line"
+           ts_log_finest "debug: $line"
            if {[lindex $line 7] == "MASTER"} {
               set r_task_id($lfnr,task)  [lindex $line 8]
            } else {
@@ -5740,7 +5740,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
    if {$ts_config(gridengine_version) < 62} {
       if {$and_scheduler} {
          set old_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
-         debug_puts "old scheduler pid is \"$old_schedd_pid\""
+         ts_log_finest "old scheduler pid is \"$old_schedd_pid\""
 
          ts_log_fine "starting up scheduler ..."
          if { $schedd_debug != 0 } {
@@ -6321,7 +6321,7 @@ proc shutdown_all_shadowd { hostname } {
    set num_proc [llength $new_index]
    ts_log_finest "Number of matching processes: $num_proc"
    foreach elem $new_index {
-      debug_puts $ps_info(string,$elem)
+      ts_log_finest $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
          ts_log_finest "killing process [ set ps_info(pid,$elem) ] ..."
          if { [ have_root_passwd ] == -1 } {
@@ -6336,7 +6336,7 @@ proc shutdown_all_shadowd { hostname } {
    }
 
    foreach elem $new_index {
-      debug_puts $ps_info(string,$elem)
+      ts_log_finest $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
          ts_log_info "could not shutdown shadowd at host $hostname with term signal"
          ts_log_finest "Killing process with kill signal [ set ps_info(pid,$elem) ] ..."
@@ -6352,7 +6352,7 @@ proc shutdown_all_shadowd { hostname } {
    }
 
    foreach elem $new_index {
-      debug_puts $ps_info(string,$elem)
+      ts_log_finest $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "sge_shadowd" ] == 0 } {
          ts_log_severe "could not shutdown shadowd at host $hostname with kill signal"
       }
@@ -6418,7 +6418,7 @@ proc shutdown_bdb_rpc { hostname } {
    set num_proc [llength $new_index]
    ts_log_finest "Number of matching processes: $num_proc"
    foreach elem $new_index {
-      debug_puts $ps_info(string,$elem)
+      ts_log_finest $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "berkeley_db_svc" ] == 0 } {
          ts_log_finest "killing process [ set ps_info(pid,$elem) ] ..."
          if { [ have_root_passwd ] == -1 } {
@@ -6433,7 +6433,7 @@ proc shutdown_bdb_rpc { hostname } {
    }
 
    foreach elem $new_index {
-      debug_puts $ps_info(string,$elem)
+      ts_log_finest $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "berkeley_db_svc" ] == 0 } {
          ts_log_info "could not shutdown berkeley_db_svc at host $elem with term signal"
          ts_log_finest "Killing process with kill signal [ set ps_info(pid,$elem) ] ..."
@@ -6449,7 +6449,7 @@ proc shutdown_bdb_rpc { hostname } {
    }
 
    foreach elem $new_index {
-      debug_puts $ps_info(string,$elem)
+      ts_log_finest $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "berkeley_db_svc" ] == 0 } {
          ts_log_severe "could not shutdown berkeley_db_svc at host $elem with kill signal"
       }
@@ -6587,11 +6587,11 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
       set nr_of_sig_terms 0
       foreach elem $found_p {
          if { [ string first $process_name $ps_info(string,$elem) ] >= 0 } {
-            debug_puts "current ps info: $ps_info(string,$elem)"
+            ts_log_finest "current ps info: $ps_info(string,$elem)"
             if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
                incr nr_of_found_qmaster_processes_or_threads 1
                ts_log_finest "found running $process_name with pid $ps_info(pid,$elem) on host $host"
-               debug_puts $ps_info(string,$elem)
+               ts_log_finest $ps_info(string,$elem)
                if { [ have_root_passwd ] == -1 } {
                    set_root_passwd 
                }
@@ -6905,11 +6905,11 @@ proc wait_till_qmaster_is_down { host } {
          ts_log_finer "looking for \"$process_name\" processes on host $host ..."
          foreach elem $found_p {
             if { [ string first $process_name $ps_info(string,$elem) ] >= 0 } {
-               debug_puts "current ps info: $ps_info(string,$elem)"
+               ts_log_finest "current ps info: $ps_info(string,$elem)"
                if { [ is_pid_with_name_existing $host $ps_info(pid,$elem) $process_name ] == 0 } {
                   incr nr_of_found_qmaster_processes_or_threads 1
                   ts_log_finest "found running $process_name with pid $ps_info(pid,$elem) on host $host"
-                  debug_puts $ps_info(string,$elem)
+                  ts_log_finest $ps_info(string,$elem)
                }
             }
          }
@@ -7193,7 +7193,7 @@ proc is_daemon_running { hostname daemon } {
 
    foreach elem $found_p {
       if { [string match "*$daemon*" $ps_info(string,$elem)] } {
-         debug_puts $ps_info(string,$elem)
+         ts_log_finest $ps_info(string,$elem)
          ts_log_finer "$daemon is running on host $hostname"
          incr daemon_count 1
       }

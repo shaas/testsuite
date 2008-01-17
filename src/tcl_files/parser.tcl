@@ -144,7 +144,6 @@
 #     ...
 #*******************************************************************************
 proc parse_simple_record {input_var output_var} {
-   global CHECK_OUTPUT
    upvar $input_var  in
    upvar $output_var out
 
@@ -155,7 +154,6 @@ proc parse_simple_record {input_var output_var} {
       set id [lindex $elem 0]
       set value [join [lrange $elem 1 end] " "]
       set out($id) $value
-#puts $CHECK_OUTPUT "Saved $id = $value"
    }
 }
 
@@ -958,7 +956,7 @@ proc transform_date_time {value {xml 0}} {
       if {$catch_ret == 0} {
          set ret $output
       } else {
-         add_proc_error "transform_date_time" -1 "error parsing date/time string $value"
+         ts_log_severe "error parsing date/time string $value"
       }
    }
 
@@ -1314,7 +1312,7 @@ proc parse_qstat {input output {jobid ""} {ext 0} {do_replace_NA 1 } } {
    } elseif { $ext == 2 } { 
       # qstat -urg
       if { $ts_config(gridengine_version) == 53 } {
-         add_proc_error "parse_qstat" -1 "parse qstat -urg not implemented for 5.3"
+         ts_log_severe "parse qstat -urg not implemented for 5.3"
       }  else {
          set   position(0)  "0 6"               ; set    names(0)    id
          set   position(1)  "8 14"              ; set    names(1)    prior
@@ -1595,8 +1593,6 @@ proc output_array { input } {
 #*******************************
 
 proc qstat_plain_parse { output  {params ""} } {
-   global CHECK_OUTPUT    
-
    upvar $output qstat_output
 
    # Run usual command
@@ -1631,8 +1627,6 @@ proc qstat_plain_parse { output  {params ""} } {
 #*******************************
 
 proc qstat_urg_plain_parse { output  } {
-   global  CHECK_OUTPUT    
-
    upvar $output qstat_output
 
    set qstat_output(jobid_list) ""
@@ -1641,9 +1635,6 @@ proc qstat_urg_plain_parse { output  } {
    set result [start_sge_bin "qstat" "-urg"]
    parse_multiline_list result parsed_out
    
-   #puts $CHECK_OUTPUT "output from parse_multiline_list ... \n"
-   #puts $CHECK_OUTPUT "parsed_out is $parsed_out ... \n"
-    
    set index 0
    set parsed_out_length [llength $parsed_out]
    set final_parsed_out ""
@@ -1651,7 +1642,6 @@ proc qstat_urg_plain_parse { output  } {
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -1747,8 +1737,6 @@ proc qstat_urg_plain_parse { output  } {
 #*******************************
 
 proc qstat_f_urg_plain_parse { output {param ""} } {
-   global  CHECK_OUTPUT 
-
    upvar $output qstat_output
    get_current_cluster_config_array ts_config
 
@@ -1765,7 +1753,6 @@ proc qstat_f_urg_plain_parse { output {param ""} } {
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\@\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -1812,8 +1799,6 @@ proc qstat_f_urg_plain_parse { output {param ""} } {
          }
          
          lappend qstat_output(queue_list) $id
-         #puts $CHECK_OUTPUT "queue is $id ....\n"
-         
       } else { 
 
         set jobid [lindex $single_white_space_string 0]
@@ -1889,8 +1874,6 @@ proc qstat_f_urg_plain_parse { output {param ""} } {
 #*******************************
 
 proc qstat_pri_plain_parse { output  } {
-   global  CHECK_OUTPUT    
-
    upvar $output qstat_output
 
    set qstat_output(jobid_list) ""
@@ -1907,7 +1890,6 @@ proc qstat_pri_plain_parse { output  } {
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -1992,7 +1974,7 @@ proc qstat_pri_plain_parse { output  } {
 #*******************************
 
 proc qstat_j_ERROR_plain_parse { output  } {
-   global  CHECK_OUTPUT  jobid
+   global jobid
 
    upvar $output qstat_output
 
@@ -2010,7 +1992,6 @@ proc qstat_j_ERROR_plain_parse { output  } {
    # Also construct the new, saved list... Use lappend
    # {[regexp "\[0-9\]" [lindex $parsed_out $index]] } 
    while { $index <= $parsed_out_length } {      
-      #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
       lappend final_parsed_out [lindex $parsed_out $index]
       incr index 1
    }
@@ -2032,10 +2013,6 @@ proc qstat_j_ERROR_plain_parse { output  } {
 
       regsub ":" $single_white_space_string " " input_string
       set input_string_length [llength $input_string]
-
-      
-      #puts $CHECK_OUTPUT "single_white_space_string is $single_white_space_string ...\n"
-      #puts $CHECK_OUTPUT "and input_string is $input_string ...\n"
 
       if { [ string first "job_number" $single_white_space_string ] >=0 } {
          set jobid [lindex $input_string 1]
@@ -2181,7 +2158,7 @@ proc qstat_j_ERROR_plain_parse { output  } {
 #*******************************
 
 proc qstat_j_plain_parse { output  } {
-   global CHECK_OUTPUT   jobid_message
+   global jobid_message
 
    upvar $output qstat_output
 
@@ -2198,7 +2175,7 @@ proc qstat_j_plain_parse { output  } {
 
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
-      puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
+      ts_log_fine "[lindex $parsed_out $index] \n"
       lappend final_parsed_out [lindex $parsed_out $index]
       incr index 1
    }
@@ -2261,7 +2238,7 @@ proc qstat_j_plain_parse { output  } {
 #*******************************
 
 proc qstat_r_plain_parse { output  } {
-   global CHECK_OUTPUT jobid
+   global jobid
 
    upvar $output qstat_output
 
@@ -2271,9 +2248,6 @@ proc qstat_r_plain_parse { output  } {
    set result [start_sge_bin "qstat" "-r"]
    parse_multiline_list result parsed_out
    
-   #puts $CHECK_OUTPUT "output from parse_multiline_list ... \n"
-   #puts $CHECK_OUTPUT "parsed_out is $parsed_out ... \n"
-    
    set index 0
    set parsed_out_length [llength $parsed_out]
    set final_parsed_out ""
@@ -2283,7 +2257,6 @@ proc qstat_r_plain_parse { output  } {
    # NO digits....
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9.\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -2320,7 +2293,6 @@ proc qstat_r_plain_parse { output  } {
             append qstat_output($jobid,slots) "[lindex $single_white_space_string  7] "
          } else {   
             append qstat_output($jobid,queue) "[lindex $single_white_space_string  7] "
-            #puts $CHECK_OUTPUT "qstat_output($jobid,queue) is $qstat_output($jobid,queue) ... \n"
             append qstat_output($jobid,slots) "[lindex $single_white_space_string  8] "
          }   
       }   
@@ -2335,7 +2307,6 @@ proc qstat_r_plain_parse { output  } {
             set qstat_output($jobid,full_jobname) [lindex $single_white_space_string 2]
          } elseif { [string first "Master queue" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,master_queue) [lindex $single_white_space_string 2]
-            #puts $CHECK_OUTPUT "qstat_output($jobid,master_queue) is $qstat_output($jobid,master_queue) ... \n"
          } elseif { [string first "Hard Resource" $single_white_space_string]  >= 0 } {
             set qstat_output($jobid,hard_resource) [lindex $single_white_space_string 2]
             set qstat_output($jobid,hard_resource_value) [lindex $single_white_space_string 3]
@@ -2343,7 +2314,6 @@ proc qstat_r_plain_parse { output  } {
             set qstat_output($jobid,soft_resource) [lindex $single_white_space_string 2]
          } elseif { [string first "Hard requested queues" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,hard_req_queue) [lindex $single_white_space_string 3]
-            #puts $CHECK_OUTPUT "qstat_output($jobid,hard_req_queue) is $qstat_output($jobid,hard_req_queue) ... \n"
          } elseif { [string first "Requested PE" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,req_pe) [lindex $single_white_space_string 2]
             set qstat_output($jobid,req_pe_vlaue) [lindex $single_white_space_string 3]
@@ -2382,7 +2352,7 @@ proc qstat_r_plain_parse { output  } {
 #*******************************
 
 proc qstat_f_r_plain_parse { output } {
-   global CHECK_OUTPUT jobid
+   global jobid
 
    upvar $output qstat_output
    get_current_cluster_config_array ts_config
@@ -2402,7 +2372,6 @@ proc qstat_f_r_plain_parse { output } {
    # NO digits....
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9.\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -2426,10 +2395,8 @@ proc qstat_f_r_plain_parse { output } {
       
          if { [string first "Full jobname" $single_white_space_string]  >= 0 } {
             set qstat_output($jobid,full_jobname) [lindex $single_white_space_string 2]
-            #puts $CHECK_OUTPUT "qstat_output($jobid,full_jobname) is $qstat_output($jobid,full_jobname) ... \n"
          } elseif { [string first "Master queue" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,master_queue) [lindex $single_white_space_string 2]
-            #puts $CHECK_OUTPUT "qstat_output($jobid,master_queue) is $qstat_output($jobid,master_queue) ... \n"
          } elseif { [string first "Hard Resource" $single_white_space_string]  >= 0 } {
             set qstat_output($jobid,hard_resource) [lindex $single_white_space_string 2]
             set qstat_output($jobid,hard_resource_value) [lindex $single_white_space_string 3]
@@ -2437,7 +2404,6 @@ proc qstat_f_r_plain_parse { output } {
             set qstat_output($jobid,soft_resource) [lindex $single_white_space_string 2]
          } elseif { [string first "Hard requested queues" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,hard_req_queue) [lindex $single_white_space_string 3]
-            #puts $CHECK_OUTPUT "qstat_output($jobid,hard_req_queue) is $qstat_output($jobid,hard_req_queue) ... \n"
          } elseif { [string first "Requested PE" $single_white_space_string ] >= 0 } {
             set qstat_output($jobid,req_pe) [lindex $single_white_space_string 2]
             set qstat_output($jobid,req_pe_vlaue) [lindex $single_white_space_string 3]
@@ -2535,8 +2501,6 @@ proc qstat_f_r_plain_parse { output } {
 #*******************************
 
 proc qstat_f_plain_parse { output {param ""} } {
-   global CHECK_OUTPUT
-
    upvar $output qstat_output
    get_current_cluster_config_array ts_config
 
@@ -2553,7 +2517,6 @@ proc qstat_f_plain_parse { output {param ""} } {
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -2643,8 +2606,6 @@ proc qstat_f_plain_parse { output {param ""} } {
 #*******************************
 
 proc qstat_g_c_plain_parse { output  } {
-   global CHECK_OUTPUT
-
    upvar $output qstat_output
    get_current_cluster_config_array ts_config
 
@@ -2662,7 +2623,6 @@ proc qstat_g_c_plain_parse { output  } {
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -2775,8 +2735,6 @@ proc qstat_special_parse {input_string } {
 #*******************************
 
 proc qstat_ext_plain_parse { output {param ""} } {
-   global CHECK_OUTPUT
-
    upvar $output qstat_output
    get_current_cluster_config_array ts_config
 
@@ -2786,9 +2744,6 @@ proc qstat_ext_plain_parse { output {param ""} } {
    set result [start_sge_bin "qstat" "-ext $param"]
    parse_multiline_list result parsed_out
    
-   #puts $CHECK_OUTPUT "output from parse_multiline_list ... \n"
-   #puts $CHECK_OUTPUT "parsed_out is $parsed_out ... \n"
-    
    set index 0
    set parsed_out_length [llength $parsed_out]
    set final_parsed_out ""
@@ -2796,7 +2751,6 @@ proc qstat_ext_plain_parse { output {param ""} } {
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -2930,7 +2884,7 @@ proc qstat_ext_plain_parse { output {param ""} } {
 #     parser/parse_qstat
 #*******************************
 proc qstat_F_plain_parse {  output {params ""} } {
-   global CHECK_OUTPUT queue_name
+   global queue_name
 
    upvar $output qstat_output
    get_current_cluster_config_array ts_config
@@ -2951,7 +2905,6 @@ proc qstat_F_plain_parse {  output {params ""} } {
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] || \
           [regexp ":" [lindex $parsed_out $index]]} {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -3052,8 +3005,6 @@ proc qstat_F_plain_parse {  output {params ""} } {
 #*******************************
 
 proc qstat_g_c_plain_parse { output  } {
-   global CHECK_OUTPUT    
-
    upvar $output qstat_output
 
    set qstat_output(queue_list) ""
@@ -3070,7 +3021,6 @@ proc qstat_g_c_plain_parse { output  } {
    # Also construct the new, saved list... Use lappend
    while { $index <= $parsed_out_length } {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
-         #puts $CHECK_OUTPUT "[lindex $parsed_out $index] \n"
          lappend final_parsed_out [lindex $parsed_out $index]
       }
       incr index 1
@@ -3101,7 +3051,6 @@ proc qstat_g_c_plain_parse { output  } {
 }
 
 proc parse_rqs_record {input_var output_var} {
-   global CHECK_OUTPUT
    upvar $input_var  in
    upvar $output_var out
 
@@ -3111,7 +3060,6 @@ proc parse_rqs_record {input_var output_var} {
    set name ""
    foreach line $help {
       set elem [string trim $line]
-      # puts $CHECK_OUTPUT "token: $elem" 
       if { $elem == "" } {
          # skip empty lines
       } elseif { $elem == "\{" } {
@@ -3133,7 +3081,7 @@ proc parse_rqs_record {input_var output_var} {
                set out($name,$id) $value
             }
          } else {
-            add_proc_error "parse_rqs_record" -1 "parse error resource quota set"
+            ts_log_severe "parse error resource quota set"
             break;
          }
       }
@@ -3164,8 +3112,6 @@ proc parse_rqs_record {input_var output_var} {
 #     parser/parse_qstat()
 #*******************************************************************************
 proc test_parse_qstat {jobid opt} {
-   global CHECK_OUTPUT
-
    if {$opt == ""} {
       set ext 0
    } elseif {$opt == "-ext"} {
@@ -3173,19 +3119,19 @@ proc test_parse_qstat {jobid opt} {
    } elseif {$opt == "-urg"} {
       set ext 2
    } else {
-      puts $CHECK_OUTPUT "invalid option $opt"
+      ts_log_fine "invalid option $opt"
       return
    }
 
    set result [start_sge_bin qstat "$opt"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qstat failed:\n$result"
+      ts_log_fine "qstat failed:\n$result"
       return
    }
 
    parse_qstat result jobinfo $jobid $ext 1
    foreach name [array names jobinfo] {
-      puts $CHECK_OUTPUT "$name\t$jobinfo($name)"
+      ts_log_fine "$name\t$jobinfo($name)"
    }
 }
 
@@ -3245,15 +3191,13 @@ proc test_parse_qstat {jobid opt} {
 #     sge_sharetree/sge_share_mon()
 #*******************************************************************************
 proc parse_csv {output_var input_var delimiter index} {
-   global CHECK_OUTPUT
-
    upvar $output_var out
    upvar $input_var  in
 
    get_current_cluster_config_array ts_config
 
    if {![info exists in]} {
-      add_proc_error "parse_csv" -1 "input variable $input_var does not exist"
+      ts_log_severe "input variable $input_var does not exist"
       return -1
    }
 
@@ -3261,7 +3205,7 @@ proc parse_csv {output_var input_var delimiter index} {
    set lines [split $in "\n"]
    set num_lines [llength $lines]
    if {$num_lines == 0} {
-      add_proc_error "parse_csv" -1 "input is empty string"
+      ts_log_severe "input is empty string"
       return -2
    }
 
@@ -3282,7 +3226,7 @@ proc parse_csv {output_var input_var delimiter index} {
 
    # no index field found? Error!
    if {$index_pos == -1} {
-      add_proc_error "parse_csv" -1 "couldn't find position of index field $index in header line:\n[lindex $lines 0]"
+      ts_log_severe "couldn't find position of index field $index in header line:\n[lindex $lines 0]"
       return -3
    }
 
@@ -3299,7 +3243,7 @@ proc parse_csv {output_var input_var delimiter index} {
       # split line into fields and
       set split_line [split $line $delimiter]
       if {[llength $split_line] != $num_fields} {
-         add_proc_error "parse_csv" -1 "data line doesn't contain the expected number of fields ($num_fields)\n$line"
+         ts_log_severe "data line doesn't contain the expected number of fields ($num_fields)\n$line"
          return -4
       }
 
@@ -3307,11 +3251,11 @@ proc parse_csv {output_var input_var delimiter index} {
       # we do not allow empty or duplicate index
       set name [lindex $split_line $index_pos]
       if {$name == ""} {
-         add_proc_error "parse_csv" -1 "empty index field in line $i:\n$line"
+         ts_log_severe "empty index field in line $i:\n$line"
          return -4
       }
       if {[lsearch -exact $out(index) $name] >= 0} {
-         add_proc_error "parse_csv" -1 "duplicate index $name in line $i:\n$line"
+         ts_log_severe "duplicate index $name in line $i:\n$line"
          return -5
       }
 
@@ -3382,7 +3326,7 @@ proc parse_properties_file {output_var filename {overwrite 0}} {
 
    # open properties file
    if {![file exists $filename]} {
-      add_proc_error "parse_properties_file" -3 "properties file $filename does not exist"
+      ts_log_config "properties file $filename does not exist"
       return -1
    }
    set f [open $filename "r"]

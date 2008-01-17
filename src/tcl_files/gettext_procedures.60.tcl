@@ -57,7 +57,7 @@
 #*******************************************************************************
 global warnings_already_logged
 proc sge_macro { macro_name {raise_error 1} } {
-   global CHECK_OUTPUT warnings_already_logged
+   global warnings_already_logged
  
    set value ""
 
@@ -175,14 +175,14 @@ proc sge_macro { macro_name {raise_error 1} } {
    # if it was no install macro, try to find it from messages files
    if { $value == "" } {
       set value [get_macro_string_from_name $macro_name]
-#      puts $CHECK_OUTPUT "value for $macro_name is \n\"$value\""
+#      ts_log_fine "value for $macro_name is \n\"$value\""
    }
 
    # macro nowhere found
    if {$raise_error} {
       if { $value == -1 } {
          set macro_messages_file [get_macro_messages_file_name]
-         add_proc_error "sge_macro" -3 "could not find macro \"$macro_name\" in source code!!!\ndeleting macro messages file:\n$macro_messages_file"
+         ts_log_config "could not find macro \"$macro_name\" in source code!!!\ndeleting macro messages file:\n$macro_messages_file"
          if { [ file isfile $macro_messages_file] } {
             file delete $macro_messages_file
          }
@@ -196,11 +196,10 @@ proc sge_macro { macro_name {raise_error 1} } {
       #   puts $script $macro_name
       #   close $script
       #} 
-      debug_puts $CHECK_OUTPUT "---WARNING from translate macro procedure ------------------------------------"
-      debug_puts $CHECK_OUTPUT "   translated macro \"$macro_name\" contains dashes(-)!"
-      debug_puts $CHECK_OUTPUT "   Use the \"--\" option on expect pattern line when using it!"
-#      puts $CHECK_OUTPUT "   Macro names are written into ./.testsuite_macros_with_dashes"
-      debug_puts $CHECK_OUTPUT "------------------------------------------------------------------------------"
+      ts_log_finer "---WARNING from translate macro procedure ------------------------------------"
+      ts_log_finer "   translated macro \"$macro_name\" contains dashes(-)!"
+      ts_log_finer "   Use the \"--\" option on expect pattern line when using it!"
+      ts_log_finer "------------------------------------------------------------------------------"
       set warnings_already_logged($macro_name) 1
    } 
    return $value

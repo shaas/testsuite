@@ -31,14 +31,14 @@
 #___INFO__MARK_END__
 
 proc bootstrap_sge_config {} {
-   add_proc_error "bootstrap_sge_config" -2 "don't know how to read bootstrapping information in an version independent way"
+   ts_log_warning "don't know how to read bootstrapping information in an version independent way"
 }
 
 proc dump_sge_config {} {
-   global sge_config CHECK_OUTPUT
+   global sge_config
 
    foreach entry [array names sge_config] {
-      puts $CHECK_OUTPUT "$entry: $sge_config($entry)"
+      ts_log_fine "$entry: $sge_config($entry)"
    }
 }
 

@@ -1824,7 +1824,7 @@ proc host_conf_get_nodes {host_list} {
 
    foreach host $host_list {
       if {![info exists ts_host_config($host,zones)]} {
-         add_proc_error "host_conf_get_nodes" -1 "host $host is not contained in testsuite host configuration!"
+         ts_log_severe "host $host is not contained in testsuite host configuration!"
       } else {
          set zones $ts_host_config($host,zones)
          if {[llength $zones] == 0} {
@@ -1869,7 +1869,7 @@ proc host_conf_get_unique_nodes {host_list} {
 
    foreach host $host_list {
       if {![info exists ts_host_config($host,zones)]} {
-         add_proc_error "host_conf_get_unique_nodes" -1 "host $host is not contained in testsuite host configuration!"
+         ts_log_severe "host $host is not contained in testsuite host configuration!"
       } else {
          set zones $ts_host_config($host,zones)
          if {[llength $zones] == 0} {
@@ -1910,7 +1910,7 @@ proc host_conf_get_all_nodes {host_list} {
       lappend node_list $host
 
       if {![info exists ts_host_config($host,zones)]} {
-         add_proc_error "host_conf_get_all_nodes" -1 "host $host is not contained in testsuite host configuration!"
+         ts_log_severe "host $host is not contained in testsuite host configuration!"
       } else {
          set zones $ts_host_config($host,zones)
          if {[llength $zones] > 0} {
@@ -2053,7 +2053,7 @@ proc host_conf_get_unused_host {{raise_error 1}} {
    }
 
    if {$ret == "" && $raise_error} {
-      add_proc_error "host_conf_get_unused_host" -3 "cannot find an unused host having an installed architecture" 
+      ts_log_config "cannot find an unused host having an installed architecture" 
    }
 
    return $ret
@@ -2100,7 +2100,7 @@ proc get_java_home_for_host { host {java_version "1.4"} {raise_error 1}} {
 
     if { $input == "" } {
        if { $raise_error } {
-          puts $CHECK_OUTPUT "Error: java$version is not set for host: $host"
+          ts_log_info "Error: java$version is not set for host: $host"
        }
        return ""
     }
@@ -2178,9 +2178,7 @@ proc get_jvm_lib_path_for_host { host {java_version "1.5"} } {
    return $jvm_lib_path
 }
 
-proc get_testsuite_java_version { {version "1.4"} } {
-   global CHECK_OUTPUT
-
+proc get_testsuite_java_version {{version "1.4"}} {
    switch -exact $version {
      "1.4" {
         return "14"
@@ -2192,7 +2190,7 @@ proc get_testsuite_java_version { {version "1.4"} } {
         return "16"
      }
    }
-   puts $CHECK_OUTPUT "Warning: Unknown java_version: $version. Java 1.4 will be used instead!"
+   ts_log_config "Warning: Unknown java_version: $version. Java 1.4 will be used instead!"
    return "14"
 }
 
@@ -2219,7 +2217,7 @@ proc get_testsuite_java_version { {version "1.4"} } {
 #     hostlist
 #*******************************************************************************
 proc host_conf_get_cluster_hosts {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set hosts "$ts_config(master_host) $ts_config(execd_hosts) $ts_config(execd_nodes) $ts_config(submit_only_hosts) $ts_config(bdb_server) $ts_config(shadowd_hosts)"
    set cluster_hosts [lsort -dictionary -unique $hosts]
@@ -2252,7 +2250,7 @@ proc host_conf_get_cluster_hosts {} {
 #     1: is compile host
 #*******************************************************************************
 proc host_conf_is_compile_host {host {config_var ""}} {
-   global ts_config ts_host_config CHECK_OUTPUT
+   global ts_config ts_host_config
    
    # we might work on a temporary config
    if {$config_var == ""} { 
@@ -2291,7 +2289,7 @@ proc host_conf_is_compile_host {host {config_var ""}} {
 #     1: is compile host
 #*******************************************************************************
 proc host_conf_is_java_compile_host {host {config_var ""}} {
-   global ts_config ts_host_config CHECK_OUTPUT
+   global ts_config ts_host_config
    
    # we might work on a temporary config
    if {$config_var == ""} { 
@@ -2334,7 +2332,7 @@ proc host_conf_is_java_compile_host {host {config_var ""}} {
 #*******************************************************************************
 # CR checked
 proc host_conf_get_arch {hostname {config_var ""}} {
-   global ts_host_config CHECK_OUTPUT
+   global ts_host_config
    get_current_cluster_config_array ts_config
 
    # we might work on a temporary config
@@ -2392,7 +2390,7 @@ proc host_conf_get_arch {hostname {config_var ""}} {
 #     config_host/host_conf_is_supported_host()
 #*******************************************************************************
 proc host_conf_is_known_host {host {config_var ""}} {
-   global ts_config ts_host_config CHECK_OUTPUT
+   global ts_config ts_host_config
 
    # we might work on a temporary config
    if {$config_var == ""} { 
@@ -2404,7 +2402,7 @@ proc host_conf_is_known_host {host {config_var ""}} {
    set ret 1
 
    if {[lsearch $config(hostlist) $host] < 0} {
-      puts $CHECK_OUTPUT "Host \"$host\" is not in host configuration file"
+      ts_log_fine "Host \"$host\" is not in host configuration file"
       set ret 0
    }
 
@@ -2435,7 +2433,7 @@ proc host_conf_is_known_host {host {config_var ""}} {
 #     config_host/host_conf_is_known_host()
 #*******************************************************************************
 proc host_conf_is_supported_host {host {config_var ""}} {
-   global ts_config ts_host_config CHECK_OUTPUT
+   global ts_config ts_host_config
 
    # we might work on a temporary config
    if {$config_var == ""} { 
@@ -2448,7 +2446,7 @@ proc host_conf_is_supported_host {host {config_var ""}} {
 
    if {$ret} {
       if {[host_conf_get_arch $host config] == "unsupported"} {
-         puts $CHECK_OUTPUT "Host \"$host\" is not supported with Grid Engine $ts_config(gridengine_version)"
+         ts_log_fine "Host \"$host\" is not supported with Grid Engine $ts_config(gridengine_version)"
          set ret 0
       }
    }
@@ -2739,7 +2737,7 @@ proc host_conf_get_windows_host {} {
 #     config_host/host_conf_get_arch()
 #*******************************************************************************
 proc host_conf_get_windows_exec_host {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    set ret ""
 
    # get a list of all exec hosts referenced in the cluster
@@ -2780,7 +2778,7 @@ proc host_conf_get_windows_exec_host {} {
 #     config_host/host_conf_is_java_compile_host()
 #*******************************************************************************
 proc host_conf_get_java_compile_host {{raise_error 1} {resolve_long 0}} {
-   global ts_config ts_host_config CHECK_OUTPUT
+   global ts_config ts_host_config
 
    set compile_host ""
    foreach host $ts_host_config(hostlist) {
@@ -2791,7 +2789,7 @@ proc host_conf_get_java_compile_host {{raise_error 1} {resolve_long 0}} {
    }
 
    if {$compile_host == ""} {
-      add_proc_error "host_conf_get_java_compile_host" -1 "didn't find java compile host in host configuration" $raise_error
+      ts_log_severe "didn't find java compile host in host configuration" $raise_error
    }
 
    if { $resolve_long != 0 } {
@@ -2882,7 +2880,7 @@ proc host_has_newgrp {host {raise_error 1}} {
       "nbsd-i386" -
       "darwin*" -
       "win32-x86" {
-         add_proc_error "host_has_newgrp" -3 "host $host ($arch) doesn't support newgrp" $raise_error
+         ts_log_config "host $host ($arch) doesn't support newgrp" $raise_error
          set ret 0
       }
    }
@@ -3006,7 +3004,6 @@ proc host_get_id_a_command {host} {
 #        but cannot use Linux on Itanic.
 #*******************************************************************************
 proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_archs {}} {excluded_archs {}}} {
-   global CHECK_OUTPUT
    global CHECK_PREFERRED_ARCHS
    get_current_cluster_config_array ts_config
 
@@ -3024,7 +3021,7 @@ proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_ar
    host_conf_get_suited_hosts_candidates $preferred_archs $selected_archs $excluded_archs preferred_hosts remaining_hosts
 
    if {[expr [llength $preferred_hosts] + [llength $remaining_hosts]] < $num_hosts} {
-      add_proc_error "host_conf_get_suited_hosts" -1 "host_selection doesn't return the required number of hosts ($num_hosts):\npreferred_archs:    $preferred_archs\nselected_archs:     $selected_archs\nexcluded_archs:     $excluded_archs\nresulting hostlist: $preferred_hosts $remaining_hosts"
+      ts_log_severe "host_selection doesn't return the required number of hosts ($num_hosts):\npreferred_archs:    $preferred_archs\nselected_archs:     $selected_archs\nexcluded_archs:     $excluded_archs\nresulting hostlist: $preferred_hosts $remaining_hosts"
       return {}
    }
 
@@ -3047,7 +3044,6 @@ proc host_conf_get_suited_hosts {{num_hosts 1} {preferred_archs {}} {selected_ar
 #     config_host/host_conf_get_suited_hosts()
 #*******************************************************************************
 proc host_conf_get_suited_hosts_rebuild_cache {} {
-   global CHECK_OUTPUT
    global suited_host_cache suited_arch_cache
    global suited_exec_node_backup
  
@@ -3060,7 +3056,7 @@ proc host_conf_get_suited_hosts_rebuild_cache {} {
    } else {
       # if the exec_node_list changed, clear cache
       if {$suited_exec_node_backup != $ts_config(execd_nodes)} {
-         puts $CHECK_OUTPUT "the exec node list was modified - rebuilding suited host cache"
+         ts_log_fine "the exec node list was modified - rebuilding suited host cache"
          if {[info exists suited_host_cache]} {
             unset suited_host_cache
          }
@@ -3120,7 +3116,7 @@ proc host_conf_get_suited_hosts_candidates {preferred selected excluded preferre
    # check: selected and excluded may not overlap 
    foreach arch $selected {
       if {[lsearch -exact $excluded $arch] >= 0} {
-         add_proc_error "" -1 "selected and excluded architecture list overlap:\nselected: $selected\nexcluded: $excluded"
+         ts_log_severe "selected and excluded architecture list overlap:\nselected: $selected\nexcluded: $excluded"
          return
       }
    }
@@ -3129,7 +3125,7 @@ proc host_conf_get_suited_hosts_candidates {preferred selected excluded preferre
    set all_archs [array names suited_arch_cache]
    foreach arch $selected {
       if {[lsearch -exact $all_archs $arch] < 0} {
-         add_proc_error "" -1 "selected architecture is not available in our cluster:\nselected:  $selected\navailable: $all_archs"
+         ts_log_severe "selected architecture is not available in our cluster:\nselected:  $selected\navailable: $all_archs"
          return
       }
    }
@@ -3268,13 +3264,11 @@ proc host_conf_sort_suited {a b} {
 }
 
 proc test_host_conf_get_suited_host {} {
-   global CHECK_OUTPUT
-
    # any host(s) - increase number of hosts until it failes
    set num_hosts 1
    while {1} {
       set hosts [host_conf_get_suited_hosts $num_hosts]
-      puts $CHECK_OUTPUT "-> $num_hosts\t$hosts"
+      puts "-> $num_hosts\t$hosts"
       if {$hosts == {}} {
          break
       }
@@ -3285,33 +3279,33 @@ proc test_host_conf_get_suited_host {} {
    # test preferred hosts
    # 1 which should match my test cluster
    set hosts [host_conf_get_suited_hosts 1 "sol-sparc64"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
    # here we should see fillup with other archs
    set hosts [host_conf_get_suited_hosts 4 "sol-sparc64"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
    # this one will fail
    set hosts [host_conf_get_suited_hosts 1 "nonexisting-arch"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
 
    # test selected hosts
    # 1 which should match my test cluster
    set hosts [host_conf_get_suited_hosts 1 {} "sol-sparc64"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
    # this one should fail due to lack of 4 sol-sparc64 hosts
    set hosts [host_conf_get_suited_hosts 4 {} "sol-sparc64"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
    # this one will fail due to unknown arch
    set hosts [host_conf_get_suited_hosts 1 {} "nonexisting-arch"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
    # multiple selected archs with a preferred one
    set hosts [host_conf_get_suited_hosts 2 "sol-sparc64" "sol-amd64 sol-sparc64"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
 
    # test excluded archs
    set hosts [host_conf_get_suited_hosts 6 "" "" "sol-amd64"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
 
    # this one should return a error
    set hosts [host_conf_get_suited_hosts 1 "" "sol-amd64 sol-sparc64" "sol-amd64"]
-   puts $CHECK_OUTPUT "-> $hosts" ; wait_for_enter
+   puts "-> $hosts" ; wait_for_enter
 }

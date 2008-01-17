@@ -104,7 +104,7 @@ proc set_pe_defaults { change_array } {
 #     sge_pe/get_pe_messages()
 #*******************************************************************************
 proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -112,8 +112,8 @@ proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {
 
    if { $ts_config(gridengine_version) >= 60 && [info exists chgar(queue_list) ]} {
       if { [ info exists chgar(queue_list) ] } {
-         puts $CHECK_OUTPUT "this qconf version doesn't support queue_list for pe objects"
-         add_proc_error "add_pe" -3 "this qconf version doesn't support queue_list for pe objects,\nuse assign_queues_with_pe_object() after adding pe\nobjects and don't use queue_list parameter.\nyou can call get_pe_ckpt_version() to test pe version"
+         ts_log_fine "this qconf version doesn't support queue_list for pe objects"
+         ts_log_config "this qconf version doesn't support queue_list for pe objects,\nuse assign_queues_with_pe_object() after adding pe\nobjects and don't use queue_list parameter.\nyou can call get_pe_ckpt_version() to test pe version"
          unset chgar(queue_list)
       }
    }
@@ -121,7 +121,7 @@ proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {
    get_pe_messages messages "add" "$pe_name" $on_host $as_user
 
    if {$fast_add} {
-      puts $CHECK_OUTPUT "Add parallel environment $pe_name from file ..."
+      ts_log_fine "Add parallel environment $pe_name from file ..."
       set option "-Ap"
       set_pe_defaults old_config
       update_change_array old_config chgar
@@ -129,7 +129,7 @@ proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
    } else {
-      puts $CHECK_OUTPUT "Add parallel environment $pe_name slow ..."
+      ts_log_fine "Add parallel environment $pe_name slow ..."
       set option "-ap"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $pe_name" $vi_commands messages $on_host $as_user]
@@ -167,11 +167,10 @@ proc add_pe { pe_name {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {
 #     sge_pe/get_pe_messages()
 #*******************************************************************************
 proc get_pe {pe_name {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "Get parallel environment $pe_name ... "
+   ts_log_fine "Get parallel environment $pe_name ... "
 
    get_pe_messages messages "get" "$pe_name" $on_host $as_user
 
@@ -197,7 +196,7 @@ proc get_pe {pe_name {output_var result} {on_host ""} {as_user ""} {raise_error 
 #     {fast_add 1}     - use fast mode
 #     {on_host ""}     - execute qconf on this host, default is master host
 #     {as_user ""}     - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1}  - do add_proc_error in case of errors
+#     {raise_error 1}  - raise error condition in case of errors
 #
 #  RESULT
 #       0 - success
@@ -208,7 +207,7 @@ proc get_pe {pe_name {output_var result} {on_host ""} {as_user ""} {raise_error 
 #     sge_pe/get_pe_messages()
 #*******************************************************************************
 proc mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global CHECK_OUTPUT DISABLE_ADD_PROC_ERROR
+   global DISABLE_ADD_PROC_ERROR
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -217,7 +216,7 @@ proc mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_
    get_pe_messages messages "mod" "$pe_name" $on_host $as_user
      
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Modify parallel environment $pe_name from file ..."
+      ts_log_fine "Modify parallel environment $pe_name from file ..."
       set option "-Mp"
       get_pe $pe_name curr_pe $on_host $as_user 0
       if {![info exists curr_pe]} {
@@ -228,7 +227,7 @@ proc mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
    } else {
-      puts $CHECK_OUTPUT "Modify parallel environment $pe_name slow ..."
+      ts_log_fine "Modify parallel environment $pe_name slow ..."
       set option "-mp"
       set vi_commands [build_vi_command chgar]
       # BUG: different message for "vi" from fastadd ...
@@ -266,10 +265,10 @@ proc mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_
 #     sge_pe/get_pe_messages()
 #*******************************************************************************
 proc del_pe {pe_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "Delete parallel environment $pe_name ..."
+   ts_log_fine "Delete parallel environment $pe_name ..."
    
    unassign_queues_with_pe_object $pe_name $on_host $as_user $raise_error
 
@@ -308,10 +307,9 @@ proc del_pe {pe_name {on_host ""} {as_user ""} {raise_error 1}} {
 #     sge_pe/get_pe_messages()
 #*******************************************************************************
 proc get_pe_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
    
-   puts $CHECK_OUTPUT "Get parallel environment list ..."
+   ts_log_fine "Get parallel environment list ..."
 
    get_pe_messages messages "list" "" $on_host $as_user 
    

@@ -85,7 +85,6 @@ proc set_calendar_defaults { change_array } {
 #     sge_calendar/get_calendar_messages()
 #*******************************************************************************
 proc add_calendar {calendar {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -94,7 +93,7 @@ proc add_calendar {calendar {change_array ""} {fast_add 1} {on_host ""} {as_user
    get_calendar_messages messages "add" "$calendar" $on_host $as_user
 
    if {$fast_add} {
-      puts $CHECK_OUTPUT "Add calendar $calendar from file ..."
+      ts_log_fine "Add calendar $calendar from file ..."
       set option "-Acal"
       set_calendar_defaults old_config
       update_change_array old_config chgar
@@ -102,7 +101,7 @@ proc add_calendar {calendar {change_array ""} {fast_add 1} {on_host ""} {as_user
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
      
    } else {
-      puts $CHECK_OUTPUT "Add calendar $calendar slow ..."
+      ts_log_fine "Add calendar $calendar slow ..."
       set option "-acal"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $calendar" $vi_commands messages $on_host $as_user]
@@ -141,10 +140,9 @@ proc add_calendar {calendar {change_array ""} {fast_add 1} {on_host ""} {as_user
 #     sge_calendar/get_calendar_messages()
 #*******************************************************************************
 proc get_calendar {calendar {output_var result}  {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
 
-   puts $CHECK_OUTPUT "Get calendar $calendar ..."
+   ts_log_fine "Get calendar $calendar ..."
 
    get_calendar_messages messages "get" "$calendar" $on_host $as_user
 
@@ -179,10 +177,9 @@ proc get_calendar {calendar {output_var result}  {on_host ""} {as_user ""} {rais
 #     sge_calendar/get_calendar_messages()
 #*******************************************************************************
 proc get_calendar_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
    
-   puts $CHECK_OUTPUT "Get calendar list ..."
+   ts_log_fine "Get calendar list ..."
 
    get_calendar_messages messages "list" "" $on_host $as_user 
    
@@ -208,7 +205,7 @@ proc get_calendar_list {{output_var result} {on_host ""} {as_user ""} {raise_err
 #                    adding a calendar
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - do add_proc_error in case of errors
+#     {raise_error 1} - raise an error condition in case of errors?
 #
 #  RESULT
 #       0 - success
@@ -219,7 +216,6 @@ proc get_calendar_list {{output_var result} {on_host ""} {as_user ""} {raise_err
 #     sge_calendar/get_calendar_messages()
 #*******************************************************************************
 proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
  
   upvar $change_array chgar
@@ -228,7 +224,7 @@ proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} 
   get_calendar_messages messages "mod" "$calendar" $on_host $as_user
 
   if { $fast_add != 0 } {
-      puts $CHECK_OUTPUT "Modify calendar $calendar from file ..."
+      ts_log_fine "Modify calendar $calendar from file ..."
       set option "-Mcal"
       get_calendar $calendar curr_cal $on_host $as_user 0
       if {![info exists curr_cal]} {
@@ -239,7 +235,7 @@ proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} 
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
       
    } else {
-      puts $CHECK_OUTPUT "Modify calendar $calendar slow ..."
+      ts_log_fine "Modify calendar $calendar slow ..."
       set option "-mcal"
       # BUG: different message for "vi" from fastadd ...
       set NOT_EXISTS [translate_macro MSG_CALENDAR_XISNOTACALENDAR_S "$calendar"]
@@ -279,8 +275,7 @@ proc mod_calendar {calendar change_array {fast_add 1} {on_host ""} {as_user ""} 
 #     sge_calendar/get_calendar_messages()
 #*******************************************************************************
 proc del_calendar {calendar {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-   puts $CHECK_OUTPUT "Delete calendar $calendar ..."
+   ts_log_fine "Delete calendar $calendar ..."
 
    get_calendar_messages messages "del" "$calendar" $on_host $as_user
    

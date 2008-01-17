@@ -213,17 +213,16 @@ proc coverage_compute_coverage {} {
 #     coverage/coverage_compute_coverage()
 #*******************************************************************************
 proc coverage_analyis {} {
-   global CHECK_OUTPUT
    global CHECK_COVERAGE
 
    if {$CHECK_COVERAGE == "none"} {
-      puts $CHECK_OUTPUT "No coverage information available."
-      puts $CHECK_OUTPUT "To gather coverage information, please do"
-      puts $CHECK_OUTPUT "  o compile with -cov"
-      puts $CHECK_OUTPUT "  o install the binaries"
-      puts $CHECK_OUTPUT "  o call testsuite with the coverage and coverage_dir options"
-      puts $CHECK_OUTPUT "  o run testsuite installation and checks"
-      puts $CHECK_OUTPUT "  o call this menu item"
+      ts_log_fine "No coverage information available."
+      ts_log_fine "To gather coverage information, please do"
+      ts_log_fine "  o compile with -cov"
+      ts_log_fine "  o install the binaries"
+      ts_log_fine "  o call testsuite with the coverage and coverage_dir options"
+      ts_log_fine "  o run testsuite installation and checks"
+      ts_log_fine "  o call this menu item"
       return
    }
 
@@ -272,30 +271,29 @@ proc insure_get_local_basedir {} {
 #     coverage/coverage_initialize()
 #*******************************************************************************
 proc insure_initialize {{clean 0}} {
-   global CHECK_OUTPUT
    global CHECK_COVERAGE_DIR
 
    get_current_cluster_config_array ts_config
 
    if { [have_root_passwd] == -1 } {
-      puts $CHECK_OUTPUT "need root access ..."
+      ts_log_fine "need root access ..."
       set_root_passwd
    }
 
    # create a local log directory on all hosts
    set basedir [insure_get_local_basedir]
-   puts -nonewline $CHECK_OUTPUT "creating local log directories on host" ; flush $CHECK_OUTPUT
+   ts_log_fine "creating local log directories on host"
    set hosts [host_conf_get_cluster_hosts]
    set users [user_conf_get_cluster_users]
    foreach host $hosts {
-      puts -nonewline " $host" ; flush $CHECK_OUTPUT
+      ts_log_progress FINE " $host"
       start_remote_prog $host "root" "$ts_config(testsuite_root_dir)/scripts/insure_create_log_dirs.sh" "$clean $basedir $users"
    }
-   puts $CHECK_OUTPUT " done"
+   ts_log_fine " done"
 
    # create .psrc file as temporary file
    # and copy .psrc file into users home directories
-   puts $CHECK_OUTPUT "installing .psrc files for all users"
+   ts_log_fine "installing .psrc files for all users"
    foreach user $users {
       set tmp_psrc [get_tmp_file_name]
       set f [open $tmp_psrc "w"]
@@ -330,35 +328,34 @@ proc insure_initialize {{clean 0}} {
       # the user might have local home directory,
       # so copy his .psrc to every host
       # and we have to create the local log directory on every host
-      puts -nonewline $CHECK_OUTPUT "-> user $user on host" ; flush $CHECK_OUTPUT
+      ts_log_fine "-> user $user on host"
       foreach host [host_conf_get_cluster_hosts] {
-         puts -nonewline $CHECK_OUTPUT " $host" ; flush $CHECK_OUTPUT
+         ts_log_progress FINE " $host"
          start_remote_prog $host $user "cp" "$tmp_psrc \$HOME/.psrc"
       }
-      puts $CHECK_OUTPUT " done"
+      ts_log_fine " done"
    }
 }
 
 proc insure_join_dirs {} {
-   global CHECK_OUTPUT
    global CHECK_COVERAGE_DIR
 
    get_current_cluster_config_array ts_config
 
    if { [have_root_passwd] == -1 } {
-      puts $CHECK_OUTPUT "need root access ..."
+      ts_log_fine "need root access ..."
       set_root_passwd
    }
 
    # copy from local logdir (basedir) to CHECK_COVERAGE_DIR/$host
    set basedir [insure_get_local_basedir]
-   puts -nonewline $CHECK_OUTPUT "copying local log directories from host" ; flush $CHECK_OUTPUT
+   ts_log_fine "copying local log directories from host"
    set hosts [host_conf_get_cluster_hosts]
    foreach host $hosts {
-      puts -nonewline " $host" ; flush $CHECK_OUTPUT
+      ts_log_progress FINE " $host"
       start_remote_prog $host "root" "$ts_config(testsuite_root_dir)/scripts/insure_join_log_dirs.sh" "$basedir ${CHECK_COVERAGE_DIR}/${host}" prg_exit_state 600
    }
-   puts $CHECK_OUTPUT " done"
+   ts_log_fine " done"
 }
 
 proc insure_compute_coverage {} {
@@ -411,7 +408,6 @@ proc tcov_get_local_basedir {} {
 #     coverage/tcov_per_process_setup()
 #*******************************************************************************
 proc tcov_initialize {{clean 0}} {
-   global CHECK_OUTPUT
    global CHECK_COVERAGE_DIR CHECK_USER
    global env
    get_current_cluster_config_array ts_config
@@ -419,20 +415,20 @@ proc tcov_initialize {{clean 0}} {
    set local_host [gethostname]
 
    if { [have_root_passwd] == -1 } {
-      puts $CHECK_OUTPUT "need root access ..."
+      ts_log_fine "need root access ..."
       set_root_passwd
    }
 
    # create a local log directory on all hosts
    set basedir [tcov_get_local_basedir]
-   puts -nonewline $CHECK_OUTPUT "creating local log directories on host" ; flush $CHECK_OUTPUT
+   ts_log_fine "creating local log directories on host"
    set hosts [host_conf_get_cluster_hosts]
    set users [user_conf_get_cluster_users]
    foreach host $hosts {
-      puts -nonewline " $host" ; flush $CHECK_OUTPUT
+      ts_log_progress FINE " $host"
       start_remote_prog $host "root" "$ts_config(testsuite_root_dir)/scripts/tcov_create_log_dirs.sh" "$clean $basedir $users"
    }
-   puts $CHECK_OUTPUT " done"
+   ts_log_fine " done"
 
    # setup the environment to use the profile directory
    # for processes started directly by expect (eval exec)
@@ -490,27 +486,26 @@ proc tcov_per_process_setup {host user env_var} {
 #     coverage/coverage_join_dirs()
 #*******************************************************************************
 proc tcov_join_dirs {} {
-   global CHECK_OUTPUT
    global CHECK_COVERAGE_DIR
    get_current_cluster_config_array ts_config
 
    if { [have_root_passwd] == -1 } {
-      puts $CHECK_OUTPUT "need root access ..."
+      ts_log_fine "need root access ..."
       set_root_passwd
    }
 
    # copy from local logdir (basedir) to CHECK_COVERAGE_DIR/$host
    set basedir [tcov_get_local_basedir]
-   puts -nonewline $CHECK_OUTPUT "copying local log directories from host" ; flush $CHECK_OUTPUT
+   ts_log_fine "copying local log directories from host"
    set hosts [host_conf_get_cluster_hosts]
    foreach host $hosts {
-      puts -nonewline " $host" ; flush $CHECK_OUTPUT
+      ts_log_progress FINE " $host"
       start_remote_prog $host "root" "$ts_config(testsuite_root_dir)/scripts/tcov_join_log_dirs.sh" "$basedir ${CHECK_COVERAGE_DIR}/${host}" prg_exit_state 600
    }
-   puts $CHECK_OUTPUT " done"
+   ts_log_fine " done"
 
    # join coverage files into one
-   puts $CHECK_OUTPUT "joining all coverage profiles into a single one"
+   ts_log_fine "joining all coverage profiles into a single one"
    cd $CHECK_COVERAGE_DIR
    set profiles {}
    foreach host $hosts {
@@ -519,14 +514,14 @@ proc tcov_join_dirs {} {
          lappend profiles $profile
       }
    }
-   puts -nonewline $CHECK_OUTPUT "parsing [llength $profiles] profiles " ; flush $CHECK_OUTPUT
+   ts_log_fine "parsing [llength $profiles] profiles "
    foreach profile $profiles {
       tcov_parse_coverage_file $profile
    }
-   puts $CHECK_OUTPUT " done"
-   puts -nonewline $CHECK_OUTPUT "dumping joined profile" ; flush $CHECK_OUTPUT
+   ts_log_fine " done"
+   ts_log_fine "dumping joined profile"
    tcov_dump_coverage "total.profile"
-   puts $CHECK_OUTPUT " ... done"
+   ts_log_fine "done"
 }
 
 #****** coverage/tcov_get_object_array_name() **********************************
@@ -581,11 +576,10 @@ proc tcov_get_object_array_name {} {
 #     No public interface. Only used internally be tcov coverage analyis.
 #*******************************************************************************
 proc tcov_parse_coverage_file {filename} {
-   global CHECK_OUTPUT
    global tcov_objects
 
    # open the coverage file
-   puts -nonewline $CHECK_OUTPUT "." ; flush $CHECK_OUTPUT
+   ts_log_progress
    #puts $filename
    set f [open $filename "r"]
 
@@ -696,7 +690,7 @@ proc tcov_dump_coverage {dirname} {
 #     code file.
 #*******************************************************************************
 proc tcov_compute_coverage {} {
-   global CHECK_OUTPUT CHECK_PROTOCOL_DIR
+   global CHECK_PROTOCOL_DIR
    get_current_cluster_config_array ts_config
 
    cd $ts_config(source_dir)
@@ -707,14 +701,14 @@ proc tcov_compute_coverage {} {
    set result(index) {}
    tcov_recursive_coverage "." target_dirs target_files result
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "total blocks:    $result(.,blocks)"
-   puts $CHECK_OUTPUT "blocks executed: $result(.,blocks_executed)"
+   ts_log_fine ""
+   ts_log_fine "total blocks:    $result(.,blocks)"
+   ts_log_fine "blocks executed: $result(.,blocks_executed)"
 
    if {$result(.,blocks) > 0} {
       set coverage [expr $result(.,blocks_executed) * 100.0 / $result(.,blocks)]
       set coverage_text [format "%3.0f" $coverage]
-      puts $CHECK_OUTPUT "coverage:        $coverage_text %"
+      ts_log_fine "coverage:        $coverage_text %"
    }
 
    set html_body [create_html_text "Code coverage"]
@@ -780,8 +774,6 @@ proc tcov_compute_coverage {} {
 #     result_var  - name of a TCL array to contain the results
 #*******************************************************************************
 proc tcov_recursive_coverage {node subdirs_var files_var result_var} {
-   global CHECK_OUTPUT
-
    upvar $subdirs_var subdirs
    upvar $files_var files
    upvar $result_var result
@@ -831,7 +823,7 @@ proc tcov_recursive_coverage {node subdirs_var files_var result_var} {
 #     result_var - name of TCL array to store the coverage information
 #*******************************************************************************
 proc tcov_call_tcov {file result_var} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_COVERAGE CHECK_COVERAGE_DIR CHECK_PROTOCOL_DIR
 
    upvar $result_var result
@@ -854,7 +846,7 @@ proc tcov_call_tcov {file result_var} {
    set output [start_remote_prog $local_host $CHECK_USER "tcov" "-x $profile -o $tcovfile $file"]
    set CHECK_COVERAGE "tcov"
    if {$prg_exit_state == 0} {
-      puts -nonewline $CHECK_OUTPUT "+" ; flush $CHECK_OUTPUT
+      ts_log_progress FINE "+"
       set f [open $tcovfile "r"]
       while {[gets $f line] >= 0} {
          switch -glob -- $line {
@@ -868,7 +860,7 @@ proc tcov_call_tcov {file result_var} {
       }
       close $f
    } else {
-      puts -nonewline $CHECK_OUTPUT "-" ; flush $CHECK_OUTPUT
+      ts_log_progress FINE "-"
       set result($file,error) 1
       set f [open $tcovfile "a+"]
       puts $f "================================================================================"

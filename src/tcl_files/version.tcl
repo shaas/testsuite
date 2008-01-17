@@ -60,7 +60,6 @@
 #
 proc ts_source {filebase {extension tcl}} {
    global ts_config
-   global CHECK_OUTPUT
 
    set sourced 0
    # suppress warnings when testsuite tries to resource some files
@@ -70,19 +69,19 @@ proc ts_source {filebase {extension tcl}} {
 
    # we need a testsuite config before sourcing files
    if {![info exists ts_config] || ![info exists ts_config(gridengine_version)]} {
-      add_proc_error "ts_source" -1 "can't source version specific files before knowing the version"
+      ts_log_severe "can't source version specific files before knowing the version"
    } else {
       # read a version independent file first, then the version dependent
       set version $ts_config(gridengine_version)
       set filename "${filebase}.${extension}"
       if {[file exists $filename]} {
-         debug_puts "reading file $filename"
+         ts_log_finest "reading file $filename"
          set time_now [timestamp]
          uplevel source $filename
          set time_after [timestamp]
          set source_time [expr $time_after - $time_now]
          if { $source_time > 5 } {
-            puts $CHECK_OUTPUT "sourcing $filename took $source_time!"
+            ts_log_info "sourcing $filename took $source_time!"
          }
          incr sourced
       }
@@ -94,13 +93,13 @@ proc ts_source {filebase {extension tcl}} {
          for {set i 0} {$i <= $minor} {incr i} {
             set filename "${filebase}.${major}${i}.${extension}"
             if {[file exists $filename]} {
-               debug_puts "reading version specific file $filename"
+               ts_log_finest "reading version specific file $filename"
                set time_now [timestamp]
                uplevel source $filename
                set time_after [timestamp]
                set source_time [expr $time_after - $time_now]
                if { $source_time > 5 } {
-                  puts $CHECK_OUTPUT "sourcing $filename took $source_time!"
+                  ts_log_info "sourcing $filename took $source_time!"
                }
                incr sourced
             }
@@ -109,7 +108,7 @@ proc ts_source {filebase {extension tcl}} {
    }
 
    if {$sourced == 0} {
-      debug_puts "no files sourced for filename \"$filebase.*\""
+      ts_log_finest "no files sourced for filename \"$filebase.*\""
    }
 
    return $sourced
@@ -136,7 +135,7 @@ proc ts_source {filebase {extension tcl}} {
 proc get_version_info {} {
    global sge_config
    global CHECK_PRODUCT_VERSION_NUMBER
-   global CHECK_PRODUCT_TYPE CHECK_OUTPUT CHECK_USER
+   global CHECK_PRODUCT_TYPE CHECK_USER
 
    get_current_cluster_config_array ts_config
 
@@ -178,31 +177,31 @@ proc get_version_info {} {
             }
             if { $ts_config(product_feature) == "csp" } {
                 if { [ string first "csp" $product_mode ] < 0 } {
-                    puts $CHECK_OUTPUT "get_version_info - product feature is not csp ( secure )"
-                    puts $CHECK_OUTPUT "testsuite setup error - stop"
-                    exit -1
+                    ts_log_info "get_version_info - product feature is not csp ( secure )"
+                    ts_log_info "testsuite setup error - stop"
+                    testsuite_shutdown 1
                 } 
             } else {
                 if { [ string first "csp" $product_mode ] >= 0 } {
-                    puts $CHECK_OUTPUT "get_version_info - product feature is csp ( secure )"
-                    puts $CHECK_OUTPUT "testsuite setup error - stop"
-                    exit -1
+                    ts_log_info "get_version_info - product feature is csp ( secure )"
+                    ts_log_info "testsuite setup error - stop"
+                    testsuite_shutdown 1
                 } 
             }
             if { $CHECK_PRODUCT_TYPE == "sgeee" } {
                 if { [ string first "sgeee" $product_mode ] < 0 } {
-                    puts $CHECK_OUTPUT "get_version_info - no sgeee system"
-                    puts $CHECK_OUTPUT "please remove the file"
-                    puts $CHECK_OUTPUT "\n$ts_config(product_root)/$ts_config(cell)/common/product_mode"
-                    puts $CHECK_OUTPUT "\nif you want to install a new sge system"
-                    puts $CHECK_OUTPUT "testsuite setup error - stop"
-                    exit -1
+                    ts_log_info "get_version_info - no sgeee system"
+                    ts_log_info "please remove the file"
+                    ts_log_info "\n$ts_config(product_root)/$ts_config(cell)/common/product_mode"
+                    ts_log_info "\nif you want to install a new sge system"
+                    ts_log_info "testsuite setup error - stop"
+                    testsuite_shutdown 1
                 } 
             } else {
                 if { [ string first "sgeee" $product_mode ] >= 0 } {
-                    puts $CHECK_OUTPUT "get_version_info - this is a sgeee system"
-                    puts $CHECK_OUTPUT "testsuite setup error - stop"
-                    exit -1
+                    ts_log_info "get_version_info - this is a sgeee system"
+                    ts_log_info "testsuite setup error - stop"
+                    testsuite_shutdown 1
                 } 
             }
          }

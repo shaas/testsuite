@@ -91,12 +91,11 @@ proc set_project_defaults {change_array} {
 #     sge_project/get_project_messages()
 #*******************************************************************************
 proc add_project {project {change_array ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    # project doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "add_project" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
    
@@ -106,7 +105,7 @@ proc add_project {project {change_array ""} {fast_add 1} {on_host ""} {as_user "
    get_project_messages messages "add" "$project" $on_host $as_user
    
    if {$fast_add} {
-      puts $CHECK_OUTPUT "Add project $project from file ..."
+      ts_log_fine "Add project $project from file ..."
       set option "-Aprj"
       set_project_defaults old_config
       update_change_array old_config chgar
@@ -114,7 +113,7 @@ proc add_project {project {change_array ""} {fast_add 1} {on_host ""} {as_user "
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
     } else {
-      puts $CHECK_OUTPUT "Add project $project slow ..."
+      ts_log_fine "Add project $project slow ..."
       set option "-aprj"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option" $vi_commands messages $on_host $as_user]
@@ -161,15 +160,14 @@ proc add_prj {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
 #     sge_project/get_project_messages()
 #*******************************************************************************
 proc get_project {project {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
      
    # project doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "get_project" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
-   puts $CHECK_OUTPUT "Get project $project ..."
+   ts_log_fine "Get project $project ..."
 
    upvar $output_var out
 
@@ -213,16 +211,15 @@ proc get_prj { prj_name change_array } {
 #     sge_project/get_project_messages()
 #*******************************************************************************
 proc del_project { project {on_host ""} {as_user ""} {raise_error 1} } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
    
     # project doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "del_project" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
    
-   puts $CHECK_OUTPUT "Delete project $project ..."
+   ts_log_fine "Delete project $project ..."
 
    get_project_messages messages "del" "$project" $on_host $as_user
    
@@ -265,16 +262,15 @@ proc del_prj { prj_name {raise_error 1} } {
 #     sge_project/get_project_messages()
 #*******************************************************************************
 proc get_project_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
      
    # project doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "get_project_list" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
    
-   puts $CHECK_OUTPUT "Get project list ..."
+   ts_log_fine "Get project list ..."
 
    upvar $output_var out
    
@@ -303,7 +299,7 @@ proc get_project_list {{output_var result} {on_host ""} {as_user ""} {raise_erro
 #     {fast_add 1}     - use fast mode
 #     {on_host ""}     - execute qconf on this host, default is master host
 #     {as_user ""}     - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1}  - do add_proc_error in case of errors
+#     {raise_error 1}  - raise error condition in case of errors
 #
 #  RESULT
 #       0 - success
@@ -314,12 +310,12 @@ proc get_project_list {{output_var result} {on_host ""} {as_user ""} {raise_erro
 #     sge_project/get_project_messages()
 #*******************************************************************************
 proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global CHECK_OUTPUT DISABLE_ADD_PROC_ERROR
+   global DISABLE_ADD_PROC_ERROR
    get_current_cluster_config_array ts_config
      
    # project doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "mod_project" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
    
@@ -329,7 +325,7 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
    get_project_messages messages "mod" "$project" $on_host $as_user
      
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Modify project $project from file ..."
+      ts_log_fine "Modify project $project from file ..."
       set option "-Mprj"
       set DISABLE_ADD_PROC_ERROR 1
       get_project $project curr_prj $on_host $as_user
@@ -342,7 +338,7 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
 
    } else {
-      puts $CHECK_OUTPUT "Modify project $project slow ..."
+      ts_log_fine "Modify project $project slow ..."
       set option "-mprj"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option $project" $vi_commands messages $on_host $as_user]
@@ -375,7 +371,6 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
 #     sge_procedures/sge_client_messages()
 #*******************************************************************************
 proc get_project_messages {msg_var action obj_name {on_host ""} {as_user ""}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $msg_var messages

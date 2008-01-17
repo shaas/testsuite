@@ -119,10 +119,9 @@ proc report_create { name a_report_array { send_email 1 } { write_html 1 } } {
 #     ???/???
 #*******************************************************************************
 proc report_add_message { a_report message } {
-   global CHECK_OUTPUT
    upvar $a_report report_array
    lappend report_array(messages)  $message
-   puts $CHECK_OUTPUT $message
+   ts_log_fine $message
 }
 
 #****** report_procedures/report_clear_messages() **************************************************
@@ -248,7 +247,7 @@ proc report_create_task { report name host {link ""}} {
 #     
 #     Add a message to a task
 #     The message is written into the task file
-#     and to CHECK_OUTPUT
+#     and logged
 #
 #  INPUTS
 #    report    --  the report object
@@ -460,9 +459,7 @@ proc report_send_mail { report } {
 #
 #*******************************************************************************
 proc report_write_html { report } {
-
-   global CHECK_HTML_DIRECTORY CHECK_OUTPUT
-   
+   global CHECK_HTML_DIRECTORY
    
    if { $CHECK_HTML_DIRECTORY == "" } {
       return

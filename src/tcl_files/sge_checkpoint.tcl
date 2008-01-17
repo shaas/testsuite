@@ -72,14 +72,13 @@
 #     sge_procedures/set_queue()
 #*******************************************************************************
 proc get_checkpointobj { ckpt_obj change_array } {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
    
   set result [start_sge_bin "qconf" "-sckpt $ckpt_obj"]
   if {$prg_exit_state != 0} {
-     add_proc_error "get_checkpointobj" "-1" "qconf -sckpt $ckpt_obj failed\n$result"
+     ts_log_severe "qconf -sckpt $ckpt_obj failed\n$result"
      return
   } 
 
@@ -132,7 +131,7 @@ proc get_checkpointobj { ckpt_obj change_array } {
 #
 #  INPUTS
 #     checkpoint_name - name of the checkpoint object
-#     raise_error     - do add_proc_error in case of errors
+#     raise_error     - raise error condition in case of errors
 #
 #  RESULT
 #      0  - ok
@@ -203,7 +202,7 @@ proc del_checkpointobj {checkpoint_name {on_host ""} {as_user ""} {raise_error 1
 #     sge_checkpoint/del_checkpointobj()
 #*******************************
 proc add_checkpointobj { change_array } {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -228,10 +227,10 @@ proc add_checkpointobj { change_array } {
    }
 
    # check result
-   if { $result == -1 } { add_proc_error "add_checkpointobj" -1 "timeout error" }
-   if { $result == -2 } { add_proc_error "add_checkpointobj" -1 "already exists" }
-   if { $result == -3 } { add_proc_error "add_checkpointobj" -1 "queue reference does not exist" }
-   if { $result != 0  } { add_proc_error "add_checkpointobj" -1 "could not add checkpoint object" }
+   if { $result == -1 } { ts_log_severe "timeout error" }
+   if { $result == -2 } { ts_log_severe "already exists" }
+   if { $result == -3 } { ts_log_severe "queue reference does not exist" }
+   if { $result != 0  } { ts_log_severe "could not add checkpoint object" }
 
    return $result
 }

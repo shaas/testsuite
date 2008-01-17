@@ -49,7 +49,7 @@
 #     {rqs ""}       - resource quota set name(s)
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - do add_proc_error in case of errors
+#     {raise_error 1} - raise error condition in case of errors
 #
 #  RESULT
 #     0 on success, an error code on error
@@ -91,7 +91,7 @@ proc get_rqs {output_var {rqs ""} {on_host ""} {as_user ""} {raise_error 1}} {
 #     {output_var result} - result output
 #     {on_host ""}        - execute qconf on this host, default is master host
 #     {as_user ""}        - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1}       - do add_proc_error in case of errors
+#     {raise_error 1}       - raise error condition in case of errors
 #
 #  RESULT
 #     0 on success, the error or qconf on failure
@@ -117,7 +117,7 @@ proc get_rqs_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}
 #  INPUTS
 #     result      - qconf output
 #     rqs        - name for which qconf -srqs has been called
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for the get_rqs function:
@@ -151,13 +151,13 @@ proc get_rqs_error {result rqs raise_error} {
 #     {fast_add 1}    - add fast with -Arqs or slow from CLI with -arqs
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - do add_proc_error in case of errors
+#     {raise_error 1} - raise error condition in case of errors
 #
 #  RESULT
 #     0 on success, an error code on error.
 #*******************************************************************************
 proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global env
    get_current_cluster_config_array ts_config
 
@@ -202,7 +202,7 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
       set master_arch [resolve_arch $ts_config(master_host)]
       set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-arqs $rqs_names" $vi_commands $ADDED $ALREADY_EXISTS $UNKNOWN_ATTRIBUTE]
       if { $result != 0 } {
-         add_proc_error "add_rqs" -1 "could not add resource quota set (error: $result)" $raise_error
+         ts_log_severe "could not add resource quota set (error: $result)" $raise_error
       }
    }
   return $result
@@ -225,13 +225,13 @@ proc add_rqs {change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1
 #     {fast_add 1}    - add fast with -Mrqs or slow from CLI with -mrqs
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - do add_proc_error in case of errors
+#     {raise_error 1} - raise error condition in case of errors
 #
 #  RESULT
 #     0 on success, an error code on error.
 #*******************************************************************************
 proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global env
    get_current_cluster_config_array ts_config
    
@@ -262,7 +262,7 @@ proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {rai
          set ret [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mrqs $name" $vi_commands $ADDED $MODIFIED $NOT_MODIFIED]
       }
       if { $ret != 0 } {
-         add_proc_error "mod_rqs" -1 "could not modify resource quota set (error: $result)" $raise_error
+         ts_log_severe "could not modify resource quota set (error: $result)" $raise_error
       }
    }
    return $ret
@@ -282,7 +282,7 @@ proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {rai
 #     rqs_name       - name of the resource quota set
 #     {on_host ""}    - execute qconf on this host, default is master host
 #     {as_user ""}    - execute qconf as this user, default is $CHECK_USER
-#     {raise_error 1} - do add_proc_error in case of errors
+#     {raise_error 1} - raise error condition in case of errors
 #
 #  RESULT
 #     0 on success, an error code on error.

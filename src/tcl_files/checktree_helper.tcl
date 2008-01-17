@@ -63,8 +63,7 @@
 #
 #*******************************************************************************
 proc exec_compile_hooks { compile_hosts a_report } {
-   
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
 
    upvar $a_report report
    
@@ -118,8 +117,7 @@ proc exec_compile_hooks { compile_hosts a_report } {
 #  SEE ALSO
 #*******************************************************************************
 proc exec_compile_clean_hooks { compile_hosts a_report } {
-   
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
    upvar $a_report report
    
    set error_count 0
@@ -174,12 +172,12 @@ proc exec_checktree_clean_hooks { } {
          set clean_proc $ts_checktree($i,checktree_clean_hooks_${ii})
          
          if { [info procs $clean_proc ] != $clean_proc } {
-            add_proc_error "exec_checktree_clean_hooks" "2" "Can not execute clean_proc hook ${ii} of checktree $ts_checktree($i,dir_name), clean proc not found"
+            ts_log_warning "Can not execute clean_proc hook ${ii} of checktree $ts_checktree($i,dir_name), clean proc not found"
             return -1
          } else {
             set res [$clean_proc]
             if { $res != 0 } {
-               add_proc_error "exec_checktree_clean_hooks" "2" "checktree_clean hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $clean_proc returned $res\n"
+               ts_log_warning "checktree_clean hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $clean_proc returned $res\n"
                incr error_count
             }
          }
@@ -218,8 +216,7 @@ proc exec_checktree_clean_hooks { } {
 #  SEE ALSO
 #*******************************************************************************
 proc exec_install_binaries_hooks { arch_list a_report } {
-   
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
 
    upvar $a_report report
    set error_count 0
@@ -229,7 +226,7 @@ proc exec_install_binaries_hooks { arch_list a_report } {
          set prog $ts_checktree($i,install_binary_hooks_${ii})
          
          if { [info procs $prog ] != $prog } {
-            add_proc_error "exec_install_binaries_hooks" -1 "Can not execute compile hook $ts_checktree($i,install_binary_hooks_${ii}), compile prog not found"
+            ts_log_severe "Can not execute compile hook $ts_checktree($i,install_binary_hooks_${ii}), compile prog not found"
             return -1
          } else {
             set res [$prog $arch_list report]
@@ -271,8 +268,7 @@ proc exec_install_binaries_hooks { arch_list a_report } {
 #     ???/???
 #*******************************************************************************
 proc exec_shutdown_hooks {} {
-   
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
 
    set error_count 0
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
@@ -281,12 +277,12 @@ proc exec_shutdown_hooks {} {
          set shutdown_hook $ts_checktree($i,shutdown_hooks_${ii})
          
          if { [info procs $shutdown_hook ] != $shutdown_hook } {
-            puts $CHECK_OUTPUT "Can not execute shutdown hook ${ii} of checktree $ts_checktree($i,dir_name), shutdown proc not found"
+            ts_log_fine "Can not execute shutdown hook ${ii} of checktree $ts_checktree($i,dir_name), shutdown proc not found"
             return -1
          } else {
             set res [$shutdown_hook]
             if { $res != 0 } {
-               puts $CHECK_OUTPUT "shutdown hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $shutdown_hook returned $res\n"
+               ts_log_fine "shutdown hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $shutdown_hook returned $res\n"
                incr error_count
             }
          }
@@ -324,8 +320,7 @@ proc exec_shutdown_hooks {} {
 #     ???/???
 #*******************************************************************************
 proc exec_startup_hooks {} {
-   
-   global ts_checktree CHECK_OUTPUT
+   global ts_checktree
 
    set error_count 0
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
@@ -334,12 +329,12 @@ proc exec_startup_hooks {} {
          set startup_hook $ts_checktree($i,startup_hooks_${ii})
          
          if { [info procs $startup_hook ] != $startup_hook } {
-            add_proc_error "exec_startup_hooks" -1 "Can not execute startup hook ${ii} of checktree $ts_checktree($i,dir_name), startup proc not found"
+            ts_log_severe "Can not execute startup hook ${ii} of checktree $ts_checktree($i,dir_name), startup proc not found"
             return -1
          } else {
             set res [$startup_hook]
             if { $res != 0 } {
-               add_proc_error "exec_startup_hooks" -1 "startup hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $startup_hook returned $res\n"
+               ts_log_severe "startup hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $startup_hook returned $res\n"
                incr error_count
             }
          }
@@ -375,11 +370,11 @@ proc checktree_get_required_hosts {} {
       if { [info exists ts_checktree($i,required_hosts_hook) ] } {
          set required_hosts_hook $ts_checktree($i,required_hosts_hook)
          if { [info procs $required_hosts_hook ] != $required_hosts_hook } {
-            add_proc_error "checktree_get_required_hosts" -1 "Can not execute required_hosts_hook of checktree $ts_checktree($i,dir_name), proc not found"
+            ts_log_severe "Can not execute required_hosts_hook of checktree $ts_checktree($i,dir_name), proc not found"
          } else {
             set required_host_list [$required_hosts_hook]
             if { $required_host_list == -1 } {
-               add_proc_error "checktree_get_required_hosts" -1 "required_hosts_hook of checktree  $ts_checktree($i,dir_name) failed"
+               ts_log_severe "required_hosts_hook of checktree  $ts_checktree($i,dir_name) failed"
             } else {
                foreach host $required_host_list {
                   if { [lsearch $required_hosts $host] < 0 } {
@@ -418,11 +413,11 @@ proc checktree_get_required_hosts {} {
 #  SEE ALSO
 #*******************************************************************************
 proc append_check_only_in_jgdi { check_name } {
-   global check_functions CHECK_OUTPUT CHECK_JGDI_ENABLED
+   global check_functions CHECK_JGDI_ENABLED
 
    if { $CHECK_JGDI_ENABLED == 1 } { #only_jgdi
       lappend check_functions $check_name
-#puts $CHECK_OUTPUT "Added only to JGDI: $check_name"
+#ts_log_fine "Added only to JGDI: $check_name"
    }
 }
 
@@ -453,13 +448,13 @@ proc append_check_only_in_jgdi { check_name } {
 #  SEE ALSO
 #*******************************************************************************
 proc exclude_check { mode_key check_name {description "Reason not specified" } } {
-   global check_category exclude_array CHECK_JGDI_ENABLED CHECK_OUTPUT
+   global check_category exclude_array CHECK_JGDI_ENABLED
 
    #We uniquely add a check
    if { ![info exists exclude_array($mode_key,$description)] || 
         [lsearch -exact $exclude_array($mode_key,$description) $check_name] == -1 } {
       lappend exclude_array($mode_key,$description) $check_name
-#puts $CHECK_OUTPUT "Excluded: $check_name mode:$mode_key"
+#ts_log_fine "Excluded: $check_name mode:$mode_key"
    }
 }
 
@@ -489,7 +484,7 @@ proc exclude_check { mode_key check_name {description "Reason not specified" } }
 #  SEE ALSO
 #*******************************************************************************
 proc append_check_and_exclude_in_jgdi { check_name {description "DOES NOT WORK in JGDI" } } {
-    global CHECK_ACT_LEVEL check_description check_functions check_highest_level CHECK_JGDI_ENABLED CHECK_OUTPUT
+    global CHECK_ACT_LEVEL check_description check_functions check_highest_level CHECK_JGDI_ENABLED
     #We need to go over all the levels
     if { $CHECK_JGDI_ENABLED == 1 } { #If JGDI enabled
        exclude_check JGDI $check_name $description
@@ -522,7 +517,7 @@ proc append_check_and_exclude_in_jgdi { check_name {description "DOES NOT WORK i
 #  SEE ALSO
 #*******************************************************************************
 proc create_excluded_check_email_content {} {
-    global exclude_array CHECK_OUTPUT
+    global exclude_array
 
     if { ![info exists exclude_array] } {
        return ""
@@ -535,7 +530,7 @@ proc create_excluded_check_email_content {} {
     foreach key [lsort [array names exclude_array]] {
        set mode [string range $key 0 [expr [string length [lindex [split $key ","] 0]] - 1]]
        set description [string range $key [expr [string length $mode] + 1] end]
-#puts $CHECK_OUTPUT "mode: $mode desc: $description"
+#ts_log_fine "mode: $mode desc: $description"
        if { [string compare $mode $last_mode] != 0 } {
           append out "\n=============================================\n"
           append out "FOLLOWING CHECKS ARE MARKED TO BE SKIPPED FOR\n"

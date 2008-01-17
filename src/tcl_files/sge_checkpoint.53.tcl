@@ -39,7 +39,6 @@ proc validate_checkpointobj { change_array } {
 }
 
 proc assign_queues_with_ckpt_object { qname hostlist ckpt_obj } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    if { $hostlist == "" } {
@@ -101,7 +100,7 @@ proc assign_queues_with_ckpt_object { qname hostlist ckpt_obj } {
 
 proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}} {
    global open_spawn_buffer
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -128,11 +127,11 @@ proc mod_checkpointobj { change_array {fast_add 1} {on_host ""} {as_user ""}} {
       set master_arch [resolve_arch $ts_config(master_host)]
       set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $REFERENCED_IN_QUEUE_LIST_OF_CHECKPOINT]
 
-      if { $result == -1 } { add_proc_error "mod_checkpointobj" -1 "timeout error" }
-      if { $result == -2 } { add_proc_error "mod_checkpointobj" -1 "already exists" }
-      if { $result == -3 } { add_proc_error "mod_checkpointobj" -1 "queue reference does not exist"
+      if { $result == -1 } { ts_log_severe "timeout error" }
+      if { $result == -2 } { ts_log_severe "already exists" }
+      if { $result == -3 } { ts_log_severe "queue reference does not exist"
  }
-      if { $result != 0  } { add_proc_error "mod_checkpointobj" -1 "could not modify checkpoint object" }
+      if { $result != 0  } { ts_log_severe "could not modify checkpoint object" }
 
       set ret $result
    }

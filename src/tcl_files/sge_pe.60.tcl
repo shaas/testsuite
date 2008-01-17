@@ -36,29 +36,27 @@
 # settings in all.q
 
 proc unassign_queues_with_pe_object { pe_obj {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "searching for references in cluster queues ..."
+   ts_log_fine "searching for references in cluster queues ..."
    get_queue_list queue_list $on_host $as_user $raise_error
    foreach elem $queue_list {
-      puts $CHECK_OUTPUT "queue: $elem"
+      ts_log_fine "queue: $elem"
       start_sge_bin "qconf" "-dattr queue pe_list $pe_obj $elem"
    }
-   puts $CHECK_OUTPUT "searching for references in queue instances ..."
+   ts_log_fine "searching for references in queue instances ..."
    set queue_list [get_qinstance_list "-pe $pe_obj" $on_host $as_user $raise_error]
    foreach elem $queue_list {
-      puts $CHECK_OUTPUT "queue: $elem"
+      ts_log_fine "queue: $elem"
       set output [start_sge_bin "qconf" "-dattr queue pe_list $pe_obj $elem"]
       if {$prg_exit_state != 0} {
-         add_proc_error "unassign_queues_with_pe_object" -1 "qconf -dattr failed: $output" $raise_error
+         ts_log_severe "qconf -dattr failed: $output" $raise_error
       }
    }
 }
 
 
 proc assign_queues_with_pe_object { qname hostlist pe_obj } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    set queue_list {}
@@ -72,11 +70,11 @@ proc assign_queues_with_pe_object { qname hostlist pe_obj } {
    }
 
    foreach queue $queue_list {
-      puts $CHECK_OUTPUT "queue: $queue"
+      ts_log_fine "queue: $queue"
       set result [start_sge_bin "qconf" "-aattr queue pe_list $pe_obj $queue" ]
       if { $prg_exit_state != 0 } {
          # if command fails: output error
-         add_proc_error "assign_queues_with_pe_object" -1 "error changing pe_list: $result"
+         ts_log_severe "error changing pe_list: $result"
       }
 
    }

@@ -100,14 +100,14 @@ proc drmaaj_init_level {} {
 # here the actual test is done
 proc drmaaj_check {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global CHECK_ACTUAL_TEST_PATH
    global CHECK_USER CHECK_ACT_LEVEL
 
    set local_host [gethostname]
    set local_arch [resolve_arch $local_host]
 
-   puts $CHECK_OUTPUT "arch is $local_arch"
-   puts $CHECK_OUTPUT "host is $local_host"
+   ts_log_fine "arch is $local_arch"
+   ts_log_fine "host is $local_host"
 
    # make sure that we have a drmaa.jar, drmaa-test.jar and
    # suspendable_sleeper.sh
@@ -124,7 +124,7 @@ proc drmaaj_check {} {
    }
 
    if {$missing_files != ""} {
-      add_proc_error "drmaaj_check" -3 "The following necessary files are missing: [string trim $missing_files]"
+      ts_log_config "The following necessary files are missing: [string trim $missing_files]"
       return -3
    }
 
@@ -142,7 +142,7 @@ proc drmaaj_check {} {
          }
       }
 
-      puts $CHECK_OUTPUT "Java binary is $JAVA"
+      ts_log_fine "Java binary is $JAVA"
 
       switch -- $binary_arch {
          "sol-sparc" -
@@ -161,11 +161,11 @@ proc drmaaj_check {} {
          "darwin-ppc" -
          "darwin-x86" -
          "alpha5" {
-            puts $CHECK_OUTPUT "architecture $binary_arch is supported"
+            ts_log_fine "architecture $binary_arch is supported"
          }
 
          default {
-            puts $CHECK_OUTPUT "DRMAA-J not supported for binary architecture $binary_arch"
+            ts_log_info "DRMAA-J not supported for binary architecture $binary_arch"
             continue
          }
       }
@@ -195,22 +195,22 @@ proc drmaaj_check {} {
       }
 
       set compile_arch_mt "[resolve_build_arch $host]"
-      puts $CHECK_OUTPUT "host is $host has arch $compile_arch_mt with classpath $classpath"
+      ts_log_fine "host is $host has arch $compile_arch_mt with classpath $classpath"
 
       set options [build_java_env_list]
 
       if { $binary_arch == "sol-sparc64" } {
-         puts $CHECK_OUTPUT "using 64-bit VM"
+         ts_log_fine "using 64-bit VM"
          set options "-d64 $options"
       }
 
       set options "-cp $classpath $options"
 
-      puts $CHECK_OUTPUT "Starting VM: $JAVA $options junit.textui.TestRunner DrmaaSuite"
+      ts_log_fine "Starting VM: $JAVA $options junit.textui.TestRunner DrmaaSuite"
       set test_output [start_remote_prog $host $CHECK_USER $JAVA "$options junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
       if {$prg_exit_state != 0} {
-         add_proc_error drmaa_check -1 "DRMAA-J jUnit test suite failed at host $host:\n$test_output"
+         ts_log_severe "DRMAA-J jUnit test suite failed at host $host:\n$test_output"
       }
    }
 }

@@ -103,7 +103,7 @@ proc vdep_set_queue_values {hostlist change_array} {
 #
 #*******************************************************************************
 proc set_queue { qname hostlist change_array } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -125,7 +125,7 @@ proc set_queue { qname hostlist change_array } {
 }
 
 proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""} {as_user ""} {raise_error 1}} {
-  global CHECK_USER CHECK_OUTPUT
+  global CHECK_USER
   get_current_cluster_config_array ts_config
 
    # we just get one queue name (queue instance)
@@ -143,7 +143,7 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""}
    }
 
    foreach queue $queue_list {
-      puts $CHECK_OUTPUT "Delete queue $q_name ..."
+      ts_log_fine "Delete queue $q_name ..."
       get_queue_messages messages "del" "$q_name" $on_host $as_user
       set output [start_sge_bin "qconf" "-dq $q_name" $on_host $as_user]
       return [handle_sge_errors "del_queue" "qconf -dq $q_name" $output messages $raise_error]
@@ -168,7 +168,7 @@ proc get_cluster_queue {queue_instance} {
       set cqueue [string range $queue_instance 0 [expr $pos -1]]
    }
 
-   puts $CHECK_OUTPUT "queue instance $queue_instance is cluster queue $cqueue"
+   ts_log_fine "queue instance $queue_instance is cluster queue $cqueue"
 
    return $cqueue
 }

@@ -34,7 +34,7 @@
 #___INFO__MARK_END__
 
 proc jgdi_shell_setup { {host ""} } {
-   global CHECK_USER ts_config jgdi_config CHECK_OUTPUT
+   global CHECK_USER ts_config jgdi_config
    array unset jgdi_config
 
    if { [string compare $host ""] == 0 } {
@@ -46,7 +46,7 @@ proc jgdi_shell_setup { {host ""} } {
 }
 
 proc setup_jgdi_config_for_host { host } {
-   global CHECK_USER ts_config jgdi_config CHECK_OUTPUT
+   global CHECK_USER ts_config jgdi_config
   
    set jgdi_config(target_host) $host
    set jgdi_config(java15) [get_java_home_for_host $jgdi_config(target_host) "1.5" 0]
@@ -57,7 +57,7 @@ proc setup_jgdi_config_for_host { host } {
       }
    }
    if { [llength $jgdi_config(available_java_list)] == 0 } {
-      add_proc_error "jgdi_shell_setup" -1 "No java available on host $jgdi_config(target_host)!!!"
+      ts_log_severe "No java available on host $jgdi_config(target_host)!!!"
       return -1
    }
    set arch [resolve_arch $jgdi_config(target_host)]
@@ -109,7 +109,7 @@ proc run_jgdi_command { command java_home } {
 }
 
 proc run_jgdi_command_as_user { on_host command java_home user {exit_var prg_exit_state}} {
-   global jgdi_config CHECK_OUTPUT
+   global jgdi_config
    upvar $exit_var exit_state
 
    set env(JAVA_HOME) $java_home
@@ -117,7 +117,7 @@ proc run_jgdi_command_as_user { on_host command java_home user {exit_var prg_exi
    set java $env(JAVA_HOME)/bin/java
 
    #TODO LP: Should we throw out the error output (logging)?
-puts $CHECK_OUTPUT "$user@$jgdi_config(target_host)# $java $jgdi_config(classpath) $jgdi_config(flags)  com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $command"
+   ts_log_fine "$user@$jgdi_config(target_host)# $java $jgdi_config(classpath) $jgdi_config(flags)  com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $command"
    set result [start_remote_prog $on_host $user  \
         "$java" "$jgdi_config(classpath) $jgdi_config(flags) \
         com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $command"\
@@ -237,18 +237,14 @@ com.sun.grid.jgdi.util.SGEFormatter.columns = level_long message" $filename
 #  SEE ALSO
 #*******************************************************************************
 proc jgdi_create_config_file { host content filename } { 
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    global ts_config
-
-#   puts $CHECK_OUTPUT "creating on $host $filename"
 
    set fd [open $filename w+ 0777]
    foreach line [split $content "\n"] {
       puts $fd [string trim $line]
    }
    close $fd
-
-#   puts $CHECK_OUTPUT "done"
 
    wait_for_remote_file $host $CHECK_USER $filename
 }
@@ -280,7 +276,7 @@ proc jgdi_create_config_file { host content filename } {
 #  SEE ALSO
 #*******************************************************************************
 proc compare_jgdi { commands } {
-   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
+   global CHECK_USER CHECK_DEBUG_LEVEL
    global CHECK_HTML_DIRECTORY CHECK_PROTOCOL_DIR CHECK_ACT_LEVEL
    global ts_config ts_host_config jgdi_config do_jgdi_rebuild
 
@@ -303,7 +299,7 @@ proc compare_jgdi { commands } {
    }
    set result "$HEADER\n[join $commands "\n"]\n$HEADER\n"
    #Print the header  
-   #puts $CHECK_OUTPUT $result
+   #ts_log_fine $result
 
    set cmd_list {}
    set env_var ""
@@ -313,7 +309,7 @@ proc compare_jgdi { commands } {
       lappend cmd_list $cmd
       set opts [string range $command [expr [string length $cmd] + 1] end]
       set opt [lrange [split $opts " "] 0 0]
-#puts $CHECK_OUTPUT "cmd=$cmd opts=\"$opts\" opt=\"$opt\""
+#ts_log_fine "cmd=$cmd opts=\"$opts\" opt=\"$opt\""
 
       #Init array variables
       if { [array names opt_list $cmd] == "" } {
@@ -331,13 +327,13 @@ proc compare_jgdi { commands } {
 
       set opt_list($cmd) [lsort -unique [concat $opt_list($cmd) $opt]]
 
-#puts $CHECK_OUTPUT "cmd=$cmd opts=$opts optList($cmd)=$opt_list($cmd)"
+#ts_log_fine "cmd=$cmd opts=$opts optList($cmd)=$opt_list($cmd)"
 
       #Get the outputs for command + option
       append client_output($cmd,$opt) [start_remote_prog $jgdi_config(target_host) $CHECK_USER \
                                        "$cmd" "$opts" prg_exit_state 600 0 "" $env_var]
       if { $CHECK_DEBUG_LEVEL > 0 } {
-         #puts $CHECK_OUTPUT "$cmd $opt on client:\n$client_output($cmd,$opt)\n"
+         #ts_log_fine "$cmd $opt on client:\n$client_output($cmd,$opt)\n"
          append result "$cmd $opt on client:\n$client_output($cmd,$opt)\n"
       }
    }
@@ -355,7 +351,7 @@ proc compare_jgdi { commands } {
 
          append jgdi_output($java,$cmd,$opt) [run_jgdi_command "$command" $jgdi_config($java)]
          if { $CHECK_DEBUG_LEVEL > 0 } {
-            #puts $CHECK_OUTPUT "$cmd $opt on $java:\n$jgdi_output($java,$cmd,$opt)\n"
+            #ts_log_fine "$cmd $opt on $java:\n$jgdi_output($java,$cmd,$opt)\n"
             append result "$cmd $opt on $java:\n$jgdi_output($java,$cmd,$opt)\n"
          }
       }
@@ -363,16 +359,16 @@ proc compare_jgdi { commands } {
 
    set cmd_list [lsort -unique $cmd_list]
    set res2 [compare_java jgdi_output $cmd_list opt_list]
-#puts $CHECK_OUTPUT "res2=\"$res2\""
+#ts_log_fine "res2=\"$res2\""
    set res1 [compare_client_vs_java client_output jgdi_output $cmd_list opt_list]
-#puts $CHECK_OUTPUT "res1=\"$res1\""
+#ts_log_fine "res1=\"$res1\""
 
    if { [all_ok $res1] == 0 && [all_ok $res2] == 0 } {
-      #puts $CHECK_OUTPUT "OK\n"
+      #ts_log_fine "OK\n"
       append result "OK\n"
       return $result
    }
-   #puts $CHECK_OUTPUT "$res1\n$res2"
+   #ts_log_fine "$res1\n$res2"
    append result "$res1$res2"
    return $result
 }
@@ -395,7 +391,6 @@ proc compare_jgdi { commands } {
 #     modified target_list
 #*******************************************************************************
 proc remove_values_from_list { list_to_remove target_list } {
-   global CHECK_OUTPUT
    foreach val $list_to_remove {
       set index [lsearch -exact $target_list $val]
       if { $index >= 0 } {
@@ -429,7 +424,7 @@ proc remove_values_from_list { list_to_remove target_list } {
 #     compare_jgdi
 #*******************************************************************************
 proc compare_client_vs_java { client_output jgdi_output cmd_list opt_list } {
-   global CHECK_OUTPUT jgdi_config
+   global jgdi_config
    upvar $client_output client
    upvar $jgdi_output jgdi
    upvar $opt_list opt
@@ -438,18 +433,18 @@ proc compare_client_vs_java { client_output jgdi_output cmd_list opt_list } {
    set oldest_java [lindex $jgdi_config(available_java_list) 0]
 
    foreach cmd $cmd_list {
-#puts $CHECK_OUTPUT "opt=$opt($cmd)"
+#ts_log_fine "opt=$opt($cmd)"
       foreach option $opt($cmd) {
          set out ""
          #If all java ok, option might pass
          if { $jgdi_config($cmd,$option,java_ok)  == 1 } {
             append out "\"$cmd $option\" client vs java:   "
-#puts $CHECK_OUTPUT "client $cmd,$option:\n$client($cmd,$option)"
-#puts $CHECK_OUTPUT "$oldest_java $cmd,$option:\n$jgdi($oldest_java,$cmd,$option)"
+#ts_log_fine "client $cmd,$option:\n$client($cmd,$option)"
+#ts_log_fine "$oldest_java $cmd,$option:\n$jgdi($oldest_java,$cmd,$option)"
             set cout [compare_output $client($cmd,$option) $jgdi($oldest_java,$cmd,$option)]
             append out [get_diff_result $cout]
             set ok [all_ok $out]
-#puts $CHECK_OUTPUT "$option: ok=$ok, out=\"$out\""
+#ts_log_fine "$option: ok=$ok, out=\"$out\""
             set option_already_failed [lsearch -exact $jgdi_config($cmd,failed_opts) $option]
             #If OK add to passed opts if not already in failed
             if { $ok == 0 && $option_already_failed == -1 } {
@@ -502,7 +497,7 @@ proc compare_client_vs_java { client_output jgdi_output cmd_list opt_list } {
 #     compare_jgdi
 #*******************************************************************************
 proc compare_java { jgdi_output cmd_list opt_list} {
-   global CHECK_OUTPUT jgdi_config
+   global jgdi_config
    upvar $jgdi_output jgdi
    upvar $opt_list opt
    set res 0
@@ -583,7 +578,6 @@ proc get_diff_result { cout } {
 #    -1     - differences exist (ERROR)
 #*******************************************************************************
 proc all_ok { out } {
-   global CHECK_OUTPUT
    set lines [split $out "\n"]
    foreach line $lines {
       #Match only lines with length >1 (skiping empty lines)
@@ -622,7 +616,6 @@ proc all_ok { out } {
 #     compare_jgdi
 #*******************************************************************************
 proc compare_output { a b } {
-   global CHECK_OUTPUT
    set ar [split $a "\n"]
    set br [split $b "\n"]
    
@@ -684,7 +677,6 @@ proc compare_output { a b } {
 #     otherwise -- DO NOT MATCH
 #*******************************************************************************
 proc match_lines_without_spaces { a b } {
-   global CHECK_OUTPUT
    set al [split $a " "]
    set bl [split $b " "]
    set ca {}

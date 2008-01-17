@@ -31,12 +31,10 @@
 #___INFO__MARK_END__
 
 proc delete_all_jobs {{clear_queues 1}} {
-   global CHECK_OUTPUT CHECK_USER
    get_current_cluster_config_array ts_config
 
-   puts $CHECK_OUTPUT "deleting all jobs"
+   ts_log_fine "deleting all jobs"
    set output [start_sge_bin "qdel" "-u '*' '*'"]
-   puts $CHECK_OUTPUT $output
 
    if {$prg_exit_state == 0} {
       set ret 1
@@ -45,9 +43,8 @@ proc delete_all_jobs {{clear_queues 1}} {
    }
 
    if {$clear_queues} {
-      puts $CHECK_OUTPUT "do a qmod -c \"*\" ..."
+      ts_log_fine "do a qmod -c \"*\" ..."
       set output [start_sge_bin "qmod" "-c \"*\""]
-      puts $CHECK_OUTPUT $output
    }
 
    return $ret

@@ -88,11 +88,11 @@ proc set_userset_defaults {change_array} {
 #     sge_userset/get_userset_messages()
 #*******************************************************************************
 proc add_userset {name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_USER CHECK_USER CHECK_OUTPUT
+   global CHECK_USER CHECK_USER
    get_current_cluster_config_array ts_config
  
    if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-     add_proc_error "add_userset" -1 "not possible for sge systems"
+     ts_log_config "not possible for sge systems"
      return -9
    }
    
@@ -102,7 +102,7 @@ proc add_userset {name change_array {fast_add 1} {on_host ""} {as_user ""} {rais
    get_userset_messages messages "add" "$name" $on_host $as_user
   
    if {$fast_add} {
-      puts $CHECK_OUTPUT "Add userset $name from file ..."
+      ts_log_fine "Add userset $name from file ..."
       set option "-Au"
       set_userset_defaults old_config
       update_change_array old_config chgar
@@ -111,7 +111,7 @@ proc add_userset {name change_array {fast_add 1} {on_host ""} {as_user ""} {rais
       return [handle_sge_errors "add_userset" "qconf $option" $result messages $raise_error]
       
    } else {
-      puts $CHECK_OUTPUT "Add userset using vi is not supported ..."
+      ts_log_fine "Add userset using vi is not supported ..."
       return 0
 
    }   
@@ -146,10 +146,9 @@ proc add_userset {name change_array {fast_add 1} {on_host ""} {as_user ""} {rais
 #     sge_userset/get_userset_messages()
 #*******************************************************************************
 proc get_userset {name {output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
   
-   puts $CHECK_OUTPUT "Get userset $name ..."
+   ts_log_fine "Get userset $name ..."
    
    get_userset_messages messages "get" "$name" $on_host $as_user
 
@@ -182,10 +181,10 @@ proc get_userset {name {output_var result} {on_host ""} {as_user ""} {raise_erro
 #     sge_userset/get_userset_messages()
 #*******************************************************************************
 proc del_userset { name {on_host ""} {as_user ""} {raise_error 1} } {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    get_current_cluster_config_array ts_config
    
-   puts $CHECK_OUTPUT "Delete userset $name ..."
+   ts_log_fine "Delete userset $name ..."
 
    get_userset_messages messages "del" "$name" $on_host $as_user
    
@@ -221,10 +220,9 @@ proc del_userset { name {on_host ""} {as_user ""} {raise_error 1} } {
 #     sge_userset/get_userset_messages()
 #*******************************************************************************
 proc get_userset_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $output_var out
 
-   puts $CHECK_OUTPUT "Get userset list ..."
+   ts_log_fine "Get userset list ..."
 
    get_userset_messages messages "list" "" $on_host $as_user 
    
@@ -251,7 +249,7 @@ proc get_userset_list {{output_var result} {on_host ""} {as_user ""} {raise_erro
 #                  - 1: modify the attribute using qconf -Mckpt, faster
 #     {on_host ""} - execute qconf on this host, default is master host
 #     {as_user ""} - execute qconf as this user, default is $CHECK_USER
-#     raise_error  - do add_proc_error in case of errors
+#     raise_error  - raise error condition in case of errors
 #
 #  RESULT
 #       0 - success
@@ -262,12 +260,11 @@ proc get_userset_list {{output_var result} {on_host ""} {as_user ""} {raise_erro
 #     sge_userset/get_userset_messages()
 #*******************************************************************************
 proc mod_userset {userset change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
      
    # userset doesn't exist for sge systems
    if {[string compare $ts_config(product_type) "sge"] == 0} {
-      add_proc_error "mod_userset" -1 "not possible for sge systems"
+      ts_log_config "not possible for sge systems"
       return -9
    }
    
@@ -277,7 +274,7 @@ proc mod_userset {userset change_array {fast_add 1} {on_host ""} {as_user ""} {r
    get_userset_messages messages "mod" "$userset" $on_host $as_user
      
    if { $fast_add } {
-      puts $CHECK_OUTPUT "Modify userset $userset from file ..."
+      ts_log_fine "Modify userset $userset from file ..."
       set option "-Mu"
       get_userset $userset curr_uset $on_host $as_user 0
       if {![info exists curr_uset]} {
@@ -288,7 +285,7 @@ proc mod_userset {userset change_array {fast_add 1} {on_host ""} {as_user ""} {r
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
   
    } else {
-      puts $CHECK_OUTPUT "Modify userset $userset slow ..."
+      ts_log_fine "Modify userset $userset slow ..."
       set option "-mu"
       set vi_commands [build_vi_command chgar]
       # BUG: a different message for mod userset slow when userset does not exist
@@ -304,7 +301,7 @@ proc mod_userset {userset change_array {fast_add 1} {on_host ""} {as_user ""} {r
       }
       if {$uset_exist == 0} {
          set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS "*" "*" "$userset" "userset"]
-         puts $CHECK_OUTPUT "Change the expected message for the case userset doesn't exist -> $ADDED"
+         ts_log_fine "Change the expected message for the case userset doesn't exist -> $ADDED"
          add_message_to_container messages 0 $ADDED
       }
       set result [start_vi_edit "qconf" "$option $userset" $vi_commands messages $on_host $as_user]
@@ -336,7 +333,6 @@ proc mod_userset {userset change_array {fast_add 1} {on_host ""} {as_user ""} {r
 #
 #*******************************************************************************
 proc add_access_list { user_array list_name } {
-  global CHECK_OUTPUT
   get_current_cluster_config_array ts_config
 
  # aja: TODO: format arguments
@@ -350,7 +346,7 @@ proc add_access_list { user_array list_name } {
 
   set ADDED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_GDI_ADDTOACL_SS ] $user_array $list_name]
   if { [string first "added" $result ] < 0 && [string first $ADDED $result ] < 0 } {
-     add_proc_error "add_access_list" "-1" "could not add access_list $list_name"
+     ts_log_severe "could not add access_list $list_name"
      return -1
    }
      return 0
@@ -385,18 +381,17 @@ proc add_access_list { user_array list_name } {
 #    set result [ del_user_from_access_list "codtest1" "deadlineusers" ]
 #
 #    if { $result == 0 } {
-#       puts $CHECK_OUTPUT "user codtest1 deleted from access list deadlineusers"
+#       ts_log_fine "user codtest1 deleted from access list deadlineusers"
 #    } elseif { $result == 1 } {
-#       puts $CHECK_OUTPUT "user codtest1 did not exist on the access list deadlineusers"
+#       ts_log_fine "user codtest1 did not exist on the access list deadlineusers"
 #    } else {
-#       add_proc_error "example" -1 "Can not delete user codtest1 from access list deadlineusers"
+#       ts_log_severe "Can not delete user codtest1 from access list deadlineusers"
 #    }
 # 
 #  SEE ALSO
 # 
 #*******************************************************************************
 proc del_user_from_access_list { user_name list_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    get_userset_messages messages "del_user" "$user_name $list_name" $on_host $as_user
@@ -430,8 +425,6 @@ proc del_user_from_access_list { user_name list_name {on_host ""} {as_user ""} {
 #     -1  User is already in the access_list
 #*******************************************************************************
 proc add_user_to_access_list { user_name list_name {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
    # aja: TODO: handle messages for multiple users/usersets
    set ret 0
 
@@ -464,7 +457,7 @@ proc add_user_to_access_list { user_name list_name {on_host ""} {as_user ""} {ra
 #
 #  INPUTS
 #     list_name - name of access list to delete
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     -1 on error, 0 on success
@@ -535,7 +528,6 @@ proc get_ulist { userlist change_array {raise_error 1}} {
 #     sge_procedures/sge_client_messages()
 #*******************************************************************************
 proc get_userset_messages {msg_var action obj_attr {on_host ""} {as_user ""}} {
-   global CHECK_OUTPUT
    get_current_cluster_config_array ts_config
 
    upvar $msg_var messages

@@ -104,13 +104,7 @@ proc reset_schedd_config {} {
 
    vdep_set_sched_conf_defaults default_array
 
-   set ret_value [ set_schedd_config default_array ]
-
-   if { $ret_value != 0 } {
-      add_proc_error "reset_schedd_config" $ret_value "error set_schedd_config - call"
-   } 
-
-   return $ret_value
+   return [set_schedd_config default_array]
 }
 
 #                                                             max. column:     |
@@ -225,11 +219,11 @@ proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
       set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-msconf" $vi_commands $CHANGED_SCHEDD_CONFIG $NOTULONG]  
 
       if { $result == -1 } { 
-         add_proc_error "set_schedd_config" -1 "timeout error" $raise_error 
+         ts_log_severe "timeout error" $raise_error 
       } elseif { $result == -2 } { 
-         add_proc_error "set_schedd_config" -1 "not a u_long32 value" $raise_error
+         ts_log_severe "not a u_long32 value" $raise_error
       } elseif { $result != 0 } { 
-         add_proc_error "set_schedd_config" -1 "error changing scheduler configuration" $raise_error
+         ts_log_severe "error changing scheduler configuration" $raise_error
       }
    }
   return $result
@@ -256,7 +250,7 @@ proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
 #  INPUTS
 #     result      - qconf output
 #     tmpfile     - temp file for qconf -Msconf
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for set_exechost function:
@@ -307,10 +301,8 @@ proc set_schedd_config_error {result tmpfile raise_error} {
 #     sge_host/get_exechost()
 #*******************************
 proc mod_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
    upvar $change_array chgar
-   puts $CHECK_OUTPUT "Using mod_schedd_config as wrapper for set_schedd_config \n"
+   ts_log_fine "Using mod_schedd_config as wrapper for set_schedd_config \n"
 
    return [set_schedd_config chgar $fast_add $on_host $as_user $raise_error]
 
@@ -385,7 +377,7 @@ proc get_schedd_config { change_array } {
 
   set result [start_sge_bin "qconf" "-ssconf"]
   if {$prg_exit_state != 0} {
-     add_proc_error "get_schedd_config" "-1" "qconf -ssconf failed:\n$output"
+     ts_log_severe "qconf -ssconf failed:\n$output"
      return
   }
 
@@ -434,7 +426,7 @@ proc get_schedd_config { change_array } {
 proc set_schedd_config_from_file {filename {on_host ""} {as_user ""} {raise_error 1}} {
    set result [start_sge_bin "qconf" "-Msconf $filename"]
    if {$prg_exit_state != 0} {
-      add_proc_error "set_schedd_config_from_file" -1 "qconf -Msconf $filename failed:\n$result" $raise_error
+      ts_log_severe "qconf -Msconf $filename failed:\n$result" $raise_error
       return 0
    }
 

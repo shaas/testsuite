@@ -53,7 +53,7 @@ proc get_current_cluster_config_nr { } {
 # 0 means ts_config
 # 1 ... means ($nr-1). additional config array
 proc set_current_cluster_config_nr { nr } {
-   global ts_current_cluster_config ts_config CHECK_OUTPUT
+   global ts_current_cluster_config ts_config
 
    if {$ts_config(additional_config) == "none"} {
       set ts_current_cluster_config 0
@@ -69,16 +69,16 @@ proc set_current_cluster_config_nr { nr } {
    }
    set ts_current_cluster_config $nr
    get_current_cluster_config_array new_config
-   puts $CHECK_OUTPUT "\n**************************************************"
-   puts $CHECK_OUTPUT "  switched cluster config to nr = $nr"
-   puts $CHECK_OUTPUT "  SGE_ROOT=$new_config(product_root)"
-   puts $CHECK_OUTPUT "  SGE_CELL=$new_config(cell)"
-   puts $CHECK_OUTPUT "**************************************************"
+   ts_log_frame
+   ts_log_fine "  switched cluster config to nr = $nr"
+   ts_log_fine "  SGE_ROOT=$new_config(product_root)"
+   ts_log_fine "  SGE_CELL=$new_config(cell)"
+   ts_log_frame
    return 0
 }
 
 proc get_current_cluster_config_array { aConfig } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    upvar $aConfig config
 
    if {[info exists config]} {
@@ -97,8 +97,8 @@ proc get_current_cluster_config_array { aConfig } {
          # TODO: (CR) we might be able to prevent from this situation if we
          #            make a copy of the ts_config before doing "unset config" and
          #            reset the ts_config
-         puts $CHECK_OUTPUT "WARNING! This call to \"get_current_cluster_config_array\" would overwrite the global ts_config variable"
-         puts $CHECK_OUTPUT "aborting testsuite!"
+         ts_log_fine "WARNING! This call to \"get_current_cluster_config_array\" would overwrite the global ts_config variable"
+         ts_log_fine "aborting testsuite!"
          exit 100 
          return
       }
@@ -109,7 +109,7 @@ proc get_current_cluster_config_array { aConfig } {
       get_additional_config $filename config
    }
 
-   #puts $CHECK_OUTPUT "returning ts_config id=\"$nr\" for SGE_ROOT=\"$config(product_root)\""
+   #ts_log_fine "returning ts_config id=\"$nr\" for SGE_ROOT=\"$config(product_root)\""
 }
 
 
@@ -141,7 +141,7 @@ proc get_additional_cluster_type { filename additional_config } {
 
    # read additional config file
    if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-      add_proc_error "get_additional_cluster_type" -1 "cannot read additonal configuration file $filename"
+      ts_log_severe "cannot read additonal configuration file $filename"
       return ""
    }
 
@@ -163,12 +163,12 @@ proc get_additional_config { filename aConfig } {
    }
    # read additional config file
    if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-      add_proc_error "get_additional_config" -1 "cannot read additonal configuration file $filename"
+      ts_log_severe "cannot read additonal configuration file $filename"
    }
 }
 
 proc get_all_execd_hosts { } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set host_list {}
    # 1) ts_config(execd_hosts)
@@ -192,7 +192,7 @@ proc get_all_execd_hosts { } {
 }
 
 proc get_all_qmaster_hosts { } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set host_list {}
    # 1) ts_config(master_host)
@@ -225,7 +225,7 @@ proc get_all_qmaster_hosts { } {
 #
 #*******************************************************************************
 proc get_all_hosts { } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set host_list [host_conf_get_cluster_hosts]
    # all additional checktrees

@@ -335,7 +335,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    set vi_env(EDITOR) [get_binary_path $host_for_vi "vim"]
    set result -100
 
-   debug_puts "using EDITOR=$vi_env(EDITOR)"
+   ts_log_finest "using EDITOR=$vi_env(EDITOR)"
    # start program (e.g. qconf)
    set id [open_remote_spawn_process $host_for_vi $CHECK_USER $prog_binary "$prog_args" 0 "" vi_env]
    set sp_id [ lindex $id 1 ] 
@@ -348,7 +348,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    }
    set send_slow "1 $send_speed" 
 
-   debug_puts "now waiting for vi start ..."
+   ts_log_finest "now waiting for vi start ..."
    set error 0
 
    set timeout 10
@@ -368,7 +368,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          ts_log_warning "timeout - can't start vi"
       }
       -i $sp_id  "_start_mark_*\n" {
-         debug_puts "starting now!"
+         ts_log_finest "starting now!"
       }
    }
 
@@ -398,7 +398,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          ts_log_warning "timeout - can't start vi"
       }
       -i $sp_id -- {[A-Za-z]*} {
-         debug_puts "vi should run now ..."
+         ts_log_finest "vi should run now ..."
       }
    }
 
@@ -457,7 +457,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          }
 
          -i $sp_id "_exit_status*\n" {
-            debug_puts "vi terminated! (1)"
+            ts_log_finest "vi terminated! (1)"
             exp_continue
          }
 
@@ -503,7 +503,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          }
          -i $sp_id "*Hit return*" {
             send -s -i $sp_id -- "\n"
-            debug_puts "found Hit return"
+            ts_log_finest "found Hit return"
             exp_continue
          }
          -i $sp_id timeout {
@@ -561,7 +561,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
                set result -1
             }
             -i $sp_id "_exit_status_" {
-               debug_puts "vi terminated! (2) (rt=$run_time)"
+               ts_log_finest "vi terminated! (2) (rt=$run_time)"
                set result 0
                exp_continue
             }
@@ -610,7 +610,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
             }
             
             -i $sp_id "_exit_status_" {
-               debug_puts "vi terminated! (3)  (rt=$run_time)"
+               ts_log_finest "vi terminated! (3)  (rt=$run_time)"
                if { $result == -100 } {
                   set pos [string last "\n" $expect_out(buffer)]
                   incr pos -2
@@ -634,9 +634,9 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
             }
          }
       }
-      debug_puts "sent_vi_commands = $sent_vi_commands"
+      ts_log_finest "sent_vi_commands = $sent_vi_commands"
       if { $sent_vi_commands == 0 } {
-         debug_puts "INFO: there was NO vi command sent!"
+         ts_log_finest "INFO: there was NO vi command sent!"
       }
    } else {
       if { $error == 2 } {
@@ -645,7 +645,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          send -s -i $sp_id -- ":q!\n"            ;# exit without saving
          set timeout 10
          expect -i $sp_id "_exit_status_"
-         debug_puts "vi terminated! (4)"
+         ts_log_finest "vi terminated! (4)"
          close_spawn_process $id
          set error_text ""
          append error_text "got timeout while sending vi commands\n"
@@ -661,7 +661,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    # output what we have just done
    log_user 1
    foreach elem $vi_command_sequence {
-      debug_puts "sequence: $elem"
+      ts_log_finest "sequence: $elem"
       if { [string first "A" $elem ] != 0 } {
          set index1 [ string first "." $elem ]
          incr index1 -2
@@ -689,22 +689,22 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
          set value [ split $value "\\" ]
          set value [ join $value "" ]
          if { [ string compare $value "*$/" ] == 0 || [ string compare $value "*$/#" ] == 0 } {
-            debug_puts "--> removing \"$var\" entry"
+            ts_log_finest "--> removing \"$var\" entry"
          } else {
             if { [ string compare $var "" ] != 0 && [ string compare $value "" ] != 0  } {         
-               debug_puts "--> setting \"$var\" to \"${value}\""
+               ts_log_finest "--> setting \"$var\" to \"${value}\""
             } else {
                if { [string compare $elem [format "%c" 27]] == 0 } {
-                  debug_puts "--> vi command: \"ESC\""    
+                  ts_log_finest "--> vi command: \"ESC\""    
                } else {
                   set output [replace_string $elem "\n" "\\n"]
-                  debug_puts "--> vi command: \"$output\"" 
+                  ts_log_finest "--> vi command: \"$output\"" 
                }
             }
          }
       } else {
          set add_output [ string range $elem 2 end ]
-         debug_puts "--> adding [string trim $add_output "[format "%c" 27] ^"]"
+         ts_log_finest "--> adding [string trim $add_output "[format "%c" 27] ^"]"
       }
    }
 
@@ -765,7 +765,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
    set binary "$ts_config(product_root)/bin/$arch/$prog_binary"
    set result ""
    
-   debug_puts "using EDITOR=$vi_env(EDITOR)"
+   ts_log_finest "using EDITOR=$vi_env(EDITOR)"
    # start program (e.g. qconf)
 
    if {$CHECK_JGDI_ENABLED == 1} {
@@ -775,7 +775,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
          set id [open_remote_spawn_process $host $user "$java" "$jgdi_config(classpath) $jgdi_config(flags) \
            com/sun/grid/jgdi/util/JGDIShell -c $jgdi_config(connect_cmd) $prog_binary $prog_args" 0 "" vi_env]
       } else {
-         debug_puts "Skipping test using JGDI shell, there is an error in setup."
+         ts_log_finest "Skipping test using JGDI shell, there is an error in setup."
          return "JGDI shell setup failed."
       }
    } else {
@@ -792,7 +792,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
    }
    set send_slow "1 $send_speed" 
 
-   debug_puts "now waiting for vi start ..."
+   ts_log_finest "now waiting for vi start ..."
    set error 0
    
    set BUFF_OVERFLOW "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
@@ -816,7 +816,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
          set result $TMOUT_START
       }
       -i $sp_id  "_start_mark_*\n" {
-         debug_puts "starting now!"
+         ts_log_finest "starting now!"
       }
    }
 
@@ -849,7 +849,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
                }   
             }            
          }
-         debug_puts "vi should run now ..."
+         ts_log_finest "vi should run now ..."
       }
    }
 
@@ -912,7 +912,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
          }
 
          -i $sp_id "_exit_status*\n" {
-            debug_puts "vi terminated! (1)"
+            ts_log_finest "vi terminated! (1)"
             exp_continue
          }
 
@@ -956,7 +956,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
          }
          -i $sp_id "*Hit return*" {
             send -s -i $sp_id -- "\n"
-            debug_puts "found Hit return"
+            ts_log_finest "found Hit return"
             exp_continue
          }
          -i $sp_id timeout {
@@ -988,7 +988,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
       send -s -i $sp_id -- ":q!\n"            ;# exit without saving
       set timeout 10
       expect -i $sp_id "_exit_status_"
-      debug_puts "vi terminated! (4)"
+      ts_log_finest "vi terminated! (4)"
       close_spawn_process $id
       return $result
    }
@@ -1027,7 +1027,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
       }
 
       -i $sp_id "*_exit_status_*" {
-         debug_puts "vi terminated! (2) (rt=$run_time)"
+         ts_log_finest "vi terminated! (2) (rt=$run_time)"
          foreach line [split "$expect_out(buffer)" "\n"] {
             set res_line [string trim $line]
             foreach errno $messages(index) {
@@ -1039,9 +1039,9 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
          }
       }
     }
-   debug_puts "sent_vi_commands = $sent_vi_commands"
+   ts_log_finest "sent_vi_commands = $sent_vi_commands"
    if { $sent_vi_commands == 0 } {
-      debug_puts "INFO: there was NO vi command sent!"
+      ts_log_finest "INFO: there was NO vi command sent!"
    }
 
    close_spawn_process $id
@@ -1049,7 +1049,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
    # output what we have just done
    log_user 1
    foreach elem $vi_command_sequence {
-      debug_puts "sequence: $elem"
+      ts_log_finest "sequence: $elem"
       if { [string first "A" $elem ] != 0 } {
          set index1 [ string first "." $elem ]
          incr index1 -2
@@ -1077,22 +1077,22 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
          set value [ split $value "\\" ]
          set value [ join $value "" ]
          if { [ string compare $value "*$/" ] == 0 || [ string compare $value "*$/#" ] == 0 } {
-            debug_puts "--> removing \"$var\" entry"
+            ts_log_finest "--> removing \"$var\" entry"
          } else {
             if { [ string compare $var "" ] != 0 && [ string compare $value "" ] != 0  } {         
-               debug_puts "--> setting \"$var\" to \"${value}\""
+               ts_log_finest "--> setting \"$var\" to \"${value}\""
             } else {
                if { [string compare $elem [format "%c" 27]] == 0 } {
-                  debug_puts "--> vi command: \"ESC\""    
+                  ts_log_finest "--> vi command: \"ESC\""    
                } else {
                   set output [replace_string $elem "\n" "\\n"]
-                  debug_puts "--> vi command: \"$output\"" 
+                  ts_log_finest "--> vi command: \"$output\"" 
                }
             }
          }
       } else {
          set add_output [ string range $elem 2 end ]
-         debug_puts "--> adding [string trim $add_output "[format "%c" 27] ^"]"
+         ts_log_finest "--> adding [string trim $add_output "[format "%c" 27] ^"]"
       }
    }
 
@@ -1870,10 +1870,10 @@ proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
             return $newname
          } else {
             if { $do_debug_puts } {
-               debug_puts "proc gethostname - gethostname error or binary not found"
-               debug_puts "error: $result"
-               debug_puts "error: $prg_exit_state"
-               debug_puts "trying local hostname call ..."
+               ts_log_finest "proc gethostname - gethostname error or binary not found"
+               ts_log_finest "error: $result"
+               ts_log_finest "error: $prg_exit_state"
+               ts_log_finest "trying local hostname call ..."
             }
          }
       }
@@ -1889,22 +1889,22 @@ proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
       set result [split $result "."]
       set newname [lindex $result 0]
       if { $do_debug_puts } {
-         debug_puts "got hostname: \"$newname\""
+         ts_log_finest "got hostname: \"$newname\""
       }
       return $newname
    } else {
       if { $do_debug_puts } {
-         debug_puts "local hostname error or binary not found"
-         debug_puts "error: $result"
-         debug_puts "error: $prg_exit_state"
-         debug_puts "trying local HOST environment variable ..."
+         ts_log_finest "local hostname error or binary not found"
+         ts_log_finest "error: $result"
+         ts_log_finest "error: $prg_exit_state"
+         ts_log_finest "trying local HOST environment variable ..."
       }
       if { [ info exists env(HOST) ] } {
          set result [split $env(HOST) "."]
          set newname [lindex $result 0]
          if { [ string length $newname ] > 0 } {
             if { $do_debug_puts } {
-               debug_puts "got hostname_ \"$newname\""
+               ts_log_finest "got hostname_ \"$newname\""
                return $newname
             }
          } 
@@ -2314,18 +2314,18 @@ proc resolve_queue { queue } {
       set host_name  [string range $queue $at_sign end]
       incr at_sign -2
       set queue_name [string range $queue 0 $at_sign]
-      debug_puts "queue name:          \"$queue_name\""
-      debug_puts "host name:           \"$host_name\""
+      ts_log_finest "queue name:          \"$queue_name\""
+      ts_log_finest "host name:           \"$host_name\""
       set resolved_name [resolve_host $host_name 1]
       if { $resolved_name != "unknown" } {
          set resolved_host_name $resolved_name
-         debug_puts "resolved host name:  \"$resolved_host_name\""
+         ts_log_finest "resolved host name:  \"$resolved_host_name\""
          set new_queue_name "$queue_name@$resolved_host_name"
       } else {
          ts_log_fine "can't resolve host \"$host_name\""
       }
    }
-   debug_puts "queue \"$queue\" resolved to \"$new_queue_name\""
+   ts_log_finest "queue \"$queue\" resolved to \"$new_queue_name\""
 
    if { [string length $new_queue_name] > 30 } {
       ts_log_config "The length of the queue name \"$new_queue_name\" will exceed qstat queue name output"

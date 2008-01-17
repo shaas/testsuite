@@ -51,7 +51,7 @@
 #  INPUTS
 #     result      - qconf output
 #     host        - host for which qconf -se has been called
-#     raise_error - do add_proc_error in case of errors
+#     raise_error - raise error condition in case of errors
 #
 #  RESULT
 #     Returncode for get_exechost function:
@@ -218,8 +218,6 @@ proc set_exechost { change_array {host global} {fast_add 1} {on_host ""} {as_use
 # returns
 # -1   on timeout
 # 0    if ok
-
-   global CHECK_OUTPUT
    global env
    get_current_cluster_config_array ts_config
 
@@ -380,10 +378,8 @@ proc set_exechost_error {result old_values tmpfile  raise_error} {
 #     sge_host/get_exechost()
 #*******************************
 proc mod_exechost {change_array host {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
-   global CHECK_OUTPUT
-
    upvar $change_array out
-   puts $CHECK_OUTPUT "Using mod_exechost as wrapper for set_exechost \n"
+   ts_log_fine "Using mod_exechost as wrapper for set_exechost \n"
 
    return [set_exechost out $host $fast_add $on_host $as_user $raise_error]
 
@@ -832,12 +828,9 @@ proc host_get_running_states {host} {
 #     < 0 if the lists differ
 #*******************************************************************************
 proc host_list_compare {list_1 list_2 {raise_error 1} {do_resolve 0}} {
- 
-   global CHECK_OUTPUT
-
    # lists have to have same length
    if {[llength $list_1] != [llength $list_2]} {
-      add_proc_error "host_list_compare" -1 "host lists have different length:\n$list_1\n$list_2" $raise_error
+      ts_log_severe "host lists have different length:\n$list_1\n$list_2" $raise_error
       return -1
    }
 
@@ -853,10 +846,10 @@ proc host_list_compare {list_1 list_2 {raise_error 1} {do_resolve 0}} {
          set host_1 [resolve_host $host_1_org]
          set host_2 [resolve_host $host_2_org]
          if { $host_1 != $host_1_org } {
-            puts $CHECK_OUTPUT "host \"$host_1_org\" resolved to \"$host_1\""
+            ts_log_fine "host \"$host_1_org\" resolved to \"$host_1\""
          }
          if { $host_2 != $host_2_org } {
-            puts $CHECK_OUTPUT "host \"$host_2_org\" resolved to \"$host_2\""
+            ts_log_fine "host \"$host_2_org\" resolved to \"$host_2\""
          }
       } else {
          set host_1 $host_1_org
@@ -868,7 +861,7 @@ proc host_list_compare {list_1 list_2 {raise_error 1} {do_resolve 0}} {
       set short_2 [lindex [split $host_2 "."] 0]
 
       if {[string compare -nocase $short_1 $short_2] != 0} {
-         add_proc_error "host_list_compare" -1 "host lists differ:\n$list_1\n$list_2" $raise_error
+         ts_log_severe "host lists differ:\n$list_1\n$list_2" $raise_error
          return -2
       }
    }

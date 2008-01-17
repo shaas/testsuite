@@ -136,7 +136,7 @@ proc add_implemented_untested_options_for_statistics {} {
 
 #Single options
 proc jgdi_shell_run_single_options { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -194,7 +194,7 @@ proc jgdi_shell_run_single_options { } {
 
 #CONFIGURATIONS
 proc jgdi_shell_run_batch_configuration_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -233,7 +233,7 @@ proc jgdi_shell_run_batch_configuration_1 { } {
 
 #MANAGERS
 proc jgdi_shell_run_batch_test_manager_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -266,7 +266,7 @@ proc jgdi_shell_run_batch_test_manager_1 { } {
 
 #OPERATORS
 proc jgdi_shell_run_batch_test_operator_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -299,7 +299,7 @@ proc jgdi_shell_run_batch_test_operator_1 { } {
 
 #USERLISTS
 proc jgdi_shell_run_batch_test_userlist_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER ts_config CHECK_CUR_PROC_NAME
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
    #Setup
@@ -340,7 +340,7 @@ proc jgdi_shell_run_batch_test_userlist_1 { } {
 
 #QUEUES
 proc jgdi_shell_run_batch_test_queue_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER ts_config CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -385,7 +385,7 @@ proc jgdi_shell_run_batch_test_queue_1 { } {
 
 #ADMINHOST
 proc jgdi_shell_run_batch_test_adminhost_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config ts_host_config CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER ts_config ts_host_config CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -440,7 +440,7 @@ proc jgdi_shell_run_batch_test_adminhost_1 { } {
 
 #SUBMITHOST
 proc jgdi_shell_run_batch_test_submithost_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config ts_host_config CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER ts_config ts_host_config CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -494,7 +494,7 @@ proc jgdi_shell_run_batch_test_submithost_1 { } {
 
 #HOSTGROUP
 proc jgdi_shell_run_batch_test_hostgroup_1 { } {
-global jgdi_config CHECK_OUTPUT CHECK_USER ts_host_config CHECK_CUR_PROC_NAME
+global jgdi_config CHECK_USER ts_host_config CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -579,7 +579,7 @@ global jgdi_config CHECK_OUTPUT CHECK_USER ts_host_config CHECK_CUR_PROC_NAME
 
 #SCHEDULER CONFIGURATION
 proc jgdi_shell_run_batch_test_schedconf_1 { } {
-   global jgdi_config CHECK_OUTPUT CHECK_USER ts_config CHECK_CUR_PROC_NAME
+   global jgdi_config CHECK_USER ts_config CHECK_CUR_PROC_NAME
 
    set temp [split $CHECK_CUR_PROC_NAME "_"]
    set name [join [lrange $temp [expr [llength $temp] - 2] end] "_"]
@@ -635,7 +635,7 @@ proc jgdi_shell_run_batch_test_schedconf_1 { } {
 #     0  -- SUCCESS
 #*******************************************************************************
 proc jgdi_shell_show_test_statistics { } {
-   global CHECK_OUTPUT jgdi_config check_name
+   global jgdi_config check_name
 
    set cmd [lrange [split $check_name "_"] end end]
    set out ""
@@ -698,7 +698,6 @@ proc jgdi_shell_show_test_statistics { } {
    append out "   FAILED:     $jgdi_config($cmd,failed_opts)\n"
    append out "   NOT_TESTED: $jgdi_config($cmd,notest_opts)\n"
    append out "   MISSING:    $not_implemented"
-   #puts $CHECK_OUTPUT $out
    
    #Send email
    array set report {} 
