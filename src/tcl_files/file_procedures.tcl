@@ -2560,7 +2560,11 @@ proc delete_file {filename {do_wait_for_file 1}} {
 #     sge_procedures/wait_for_jobend
 #*******************************
 proc wait_for_file { path_to_file seconds { to_go_away 0 } { do_error_check 1 } } {
-   ts_log_fine [format "looking for file \"%s\" %s" $path_to_file $to_go_away ? "to vanish" : "to appear"]
+   if {$to_go_away == 0} {
+      ts_log_fine [format "looking for file \"%s\" to appear" $path_to_file]
+   } else {
+      ts_log_fine [format "looking for file \"%s\" to vanish" $path_to_file]
+   }
 
    set time [ expr [timestamp] + $seconds]
    set wasok -1
@@ -2622,7 +2626,11 @@ proc wait_for_file { path_to_file seconds { to_go_away 0 } { do_error_check 1 } 
 #     file_procedures/wait_for_remote_dir()
 #*******************************************************************************
 proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} {to_go_away 0} } {
-   ts_log_fine [format "looking for file \"%s\" %s" $path $to_go_away ? "to vanish" : "to appear"]
+   if {$to_go_away == 0} {
+      ts_log_fine [format "looking for file \"%s\" to appear" $path]
+   } else {
+      ts_log_fine [format "looking for file \"%s\" to vanish" $path]
+   }
    set is_ok 0
    set my_mytimeout [expr [timestamp] + $mytimeout] 
 
@@ -2691,7 +2699,11 @@ proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} 
 #     file_procedures/wait_for_remote_file()
 #*******************************************************************************
 proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {to_go_away 0} } {
-   ts_log_fine [format "looking for directory \"%s\" on host \"%s\" as user \"%s\" %s" $path $hostname $user $to_go_away ? "to vanish" : "to appear"]
+   if {$to_go_away == 0} {
+      ts_log_fine [format "looking for directory \"%s\" on host \"%s\" as user \"%s\" to appear" $path $hostname $user]
+   } else {
+      ts_log_fine [format "looking for directory \"%s\" on host \"%s\" as user \"%s\" to vanish" $path $hostname $user]
+   }
    set is_ok 0
    set my_mytimeout [ expr ( [timestamp] + $mytimeout ) ] 
 
