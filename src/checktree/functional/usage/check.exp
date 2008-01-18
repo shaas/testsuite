@@ -136,7 +136,7 @@ proc usage_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc usage_setup_level {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_ACT_LEVEL
    global submit_command usage_master_hosts usage_accounting_summary
 
@@ -175,12 +175,11 @@ proc usage_setup_level {} {
    }
    mod_pe "tight" pe
 
-   puts $CHECK_OUTPUT "testing $submit_command on host(s) $usage_master_hosts"
+   ts_log_fine "testing $submit_command on host(s) $usage_master_hosts"
 }
 
 proc usage_setup {} {
    global ts_config
-   global CHECK_OUTPUT
    global saved_config
 
    # backup old config
@@ -253,7 +252,6 @@ proc usage_cleanup {} {
 # -------- local test procedures: utilities --------------------------
 proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeout 180} {timeout_error 1}} {
    global ts_config
-   global CHECK_OUTPUT
    global master_host
 
    upvar $started_var  started
@@ -269,14 +267,14 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
    expect_user {
       -i $sp_id timeout {
          if {$timeout_error} {
-            add_proc_error usage_monitor -1 "timeout waiting for tasks output (usage)"
+            ts_log_severe "timeout waiting for tasks output (usage)"
             set ret "timeout"
          } else {
             set ret "task running"
          }
       }
       -i $sp_id full_buffer {
-         add_proc_error usage_monitor -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          set ret "error"
       }
       -i $sp_id eof {
@@ -288,15 +286,15 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
       # but there seems to be no way to tell expect we want to examine each
       # individual line.
       -i $sp_id "?*\n" {
-         #puts $CHECK_OUTPUT "entered default branch, data: $expect_out(0,string)"
+         #ts_log_fine "entered default branch, data: $expect_out(0,string)"
          foreach line [string trim [split $expect_out(0,string) "\n"]] {
             set line [string trim $line]
             if {[string length $line] > 0} {
-               #puts $CHECK_OUTPUT "processing line: $line"
+               #ts_log_fine "processing line: $line"
                switch -glob -- $line {
                   "starting with method *" {
                      incr started
-                     puts $CHECK_OUTPUT "usage script started"
+                     ts_log_fine "usage script started"
                      set ret "task started"
                   }
                   "petask ??? with pid ???????? started on host*" {
@@ -305,13 +303,13 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
                      set info($task,pid) [lindex $line 4]
                      set info($task,host) [lindex $line 8]
                      incr started
-                     puts $CHECK_OUTPUT "task $task started, total started: $started"
+                     ts_log_fine "task $task started, total started: $started"
                      set ret "task started"
                   }
                   "petask ??? with pid ???????? finished*" {
                      set task [lindex $line 1]
                      incr finished
-                     puts $CHECK_OUTPUT "task $task finished, total finished: $finished"
+                     ts_log_fine "task $task finished, total finished: $finished"
                      set ret "task finished"
                   }
                   "master task started with job id ?????? and pid*" {
@@ -319,32 +317,32 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
                      lappend info(tasks) master
                      set info(master,pid) [lindex $line 9]
                      set info(master,host) $master_host
-                     puts $CHECK_OUTPUT "job $jobid started"
+                     ts_log_fine "job $jobid started"
                      set ret "master started"
                   }
                   "master task submitted all sub tasks*" {
-                     puts $CHECK_OUTPUT "master task submitted all tasks"
+                     ts_log_fine "master task submitted all tasks"
                      set ret "master submitted"
                   }
                   "master task exiting*" {
-                     puts $CHECK_OUTPUT "job $jobid exited"
+                     ts_log_fine "job $jobid exited"
                      set ret "master finished"
                   }
                   "NSLOTS ??? NHOSTS ??? NQUEUES*" {
                      set ret "task running"
                   }
                   "_start_mark_:(*)*" {
-                     puts $CHECK_OUTPUT "got start mark from remote prog shell script"
+                     ts_log_fine "got start mark from remote prog shell script"
                   }
                   "_exit_status_:(*)*" {
-                     puts $CHECK_OUTPUT "got exit status from remote prog shell script"
+                     ts_log_fine "got exit status from remote prog shell script"
                   }
                   "script done.*" {
-                     puts $CHECK_OUTPUT "got \"script done.\" from remote prog shell script"
+                     ts_log_fine "got \"script done.\" from remote prog shell script"
                   }
 
                   default {
-                     puts $CHECK_OUTPUT "skipping unexpected job output $line"
+                     ts_log_fine "skipping unexpected job output $line"
                   }
                }
             }
@@ -355,8 +353,6 @@ proc usage_monitor_job {id started_var finished_var jobid_var info_var {my_timeo
 }
 
 proc usage_job_finished {job_state} {
-   global CHECK_OUTPUT
-
    switch -exact $job_state {
       "timeout" -
       "eof" -
@@ -384,7 +380,7 @@ proc usage_job_finished {job_state} {
 
 
 proc usage_check {jobid qstat_j_info slots acct_slots} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global usage_accounting_summary
 
    upvar $qstat_j_info online_info
@@ -401,7 +397,7 @@ proc usage_check {jobid qstat_j_info slots acct_slots} {
    set acct_cpu $qacct_info(cpu)
    set acct_mem $qacct_info(mem)
    set acct_count [llength $qacct_info(exit_status)]
-   puts $CHECK_OUTPUT "acct_cpu = $acct_cpu, acct_mem = $acct_mem, acct_count = $acct_count"
+   ts_log_fine "acct_cpu = $acct_cpu, acct_mem = $acct_mem, acct_count = $acct_count"
 
    # calculate expected usage
    # JG: TODO: not yet perfect for parallel jobs: we have to check the 
@@ -410,7 +406,7 @@ proc usage_check {jobid qstat_j_info slots acct_slots} {
    set wallclock $qacct_info(ru_wallclock)
    set expected_cpu [expr $wallclock * $slots]
    set expected_mem [expr $wallclock * 500.0 * $slots / 1024]
-   puts $CHECK_OUTPUT "expected_cpu = $expected_cpu, expected_mem = $expected_mem"
+   ts_log_fine "expected_cpu = $expected_cpu, expected_mem = $expected_mem"
 
    # compare usage
    set result {}
@@ -453,8 +449,6 @@ proc max {a b} {
 }
 
 proc usage_monitor_check {id test_name slots acct_slots} {
-   global CHECK_OUTPUT
-
    set started 0
    set finished 0
    set jobid 0
@@ -476,7 +470,7 @@ proc usage_monitor_check {id test_name slots acct_slots} {
          set my_timeout 1
          set timeout_error 0
          if {![get_qstat_j_info $jobid]} {
-            add_proc_error $test_name -1 "job terminated abnormally"
+            ts_log_severe "job terminated abnormally"
             set job_finished 1
          } else {
             # get online usage
@@ -491,10 +485,10 @@ proc usage_monitor_check {id test_name slots acct_slots} {
                   set online_info(mem) [max $online_info(mem) $online_mem]
                }
             }
-            puts $CHECK_OUTPUT "job state: $job_state, cpu: $online_info(cpu), mem: $online_info(mem)"
+            ts_log_fine "job state: $job_state, cpu: $online_info(cpu), mem: $online_info(mem)"
          }
       } else {
-         puts $CHECK_OUTPUT "job state: $job_state"
+         ts_log_fine "job state: $job_state"
       }
 
       set now [clock seconds]
@@ -503,7 +497,7 @@ proc usage_monitor_check {id test_name slots acct_slots} {
    close_spawn_process $id
 
    if {$timeout_error} {
-      add_proc_error $test_name -1 "job didn't run as expected"
+      ts_log_severe "job didn't run as expected"
       delete_all_jobs
    } else {   
       wait_for_jobend $jobid usage 60 0 1
@@ -512,12 +506,12 @@ proc usage_monitor_check {id test_name slots acct_slots} {
       sleep 20
 
       if {!$job_finished} {
-         add_proc_error $test_name -1 "job terminated abnormally"
+         ts_log_severe "job terminated abnormally"
       } else {
          set error_list [usage_check $jobid online_info $slots $acct_slots]
 
          foreach error $error_list {
-            add_proc_error $test_name -1 $error
+            ts_log_severe $error
          }
       }
    }
@@ -526,13 +520,12 @@ proc usage_monitor_check {id test_name slots acct_slots} {
 # -------- local test procedures: tests ------------------------------
 proc usage_single {} {
    global ts_config
-   global CHECK_OUTPUT
    global submit_command usage_master_hosts
    global master_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    foreach master_host $usage_master_hosts {
-      puts $CHECK_OUTPUT "usage: single cpu job submitted with $submit_command to run on host $master_host"
+      ts_log_fine "usage: single cpu job submitted with $submit_command to run on host $master_host"
 
       set queue [get_queue_instance "usage.q" $master_host]
       set id [submit_with_method $submit_command "-N usage -q $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
@@ -543,17 +536,16 @@ proc usage_single {} {
 
 proc usage_tight {} {
    global ts_config
-   global CHECK_OUTPUT
    global submit_command usage_master_hosts
    global master_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    # tight integration with csp is not working in SGE(EE) 5.3
    if {$ts_config(gridengine_version) == 53 && $ts_config(product_feature) == "csp"} {
-      add_proc_error usage_tight -3 "tight integration is not available in SGE(EE) 5.3 with CSP enabled"
+      ts_log_config "tight integration is not available in SGE(EE) 5.3 with CSP enabled"
    } else {
       foreach master_host $usage_master_hosts {
-         puts $CHECK_OUTPUT "usage: tightly integrated parallel job submitted with $submit_command, master_host is $master_host"
+         ts_log_fine "usage: tightly integrated parallel job submitted with $submit_command, master_host is $master_host"
 
          set queue [get_queue_instance "usage.q" $master_host]
          set id [submit_with_method $submit_command "-pe tight 4 -N usage -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/pe_job.sh" "$ts_config(testsuite_root_dir)/scripts/pe_task.sh 1 120" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]
@@ -565,13 +557,12 @@ proc usage_tight {} {
 
 proc usage_loose {pe expected_slots acct_slots} {
    global ts_config
-   global CHECK_OUTPUT
    global submit_command usage_master_hosts
    global master_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    foreach master_host $usage_master_hosts {
-      puts $CHECK_OUTPUT "usage: parallel job in pe $pe submitted with $submit_command, master_host is $master_host"
+      ts_log_fine "usage: parallel job in pe $pe submitted with $submit_command, master_host is $master_host"
 
       set queue [get_queue_instance "usage.q" $master_host]
       set id [submit_with_method $submit_command "-N usage -pe $pe 4 -masterq $queue" "$ts_config(testsuite_root_dir)/scripts/usage.sh" "sleep 60" $master_host $CHECK_FIRST_FOREIGN_SYSTEM_USER]

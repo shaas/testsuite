@@ -59,7 +59,6 @@ lappend check_functions "job_environment_SET_LIB_PATH"
 #     job_environment_setup()
 ################################################################################
 proc job_environment_setup_60 {} {
-   global CHECK_OUTPUT
    global job_environment_exec_host job_environment_libpath
    global job_environment_libvar ts_config
 
@@ -80,10 +79,10 @@ proc job_environment_setup_60 {} {
    # Restart execd
    startup_execd $job_environment_exec_host my_environment
 
-   puts $CHECK_OUTPUT "************************************************************"
-   puts $CHECK_OUTPUT "$job_environment_libvar before starting of execd on \"$job_environment_exec_host\""
-   puts $CHECK_OUTPUT "is set to \"$job_environment_libpath\""
-   puts $CHECK_OUTPUT "************************************************************"
+   ts_log_frame
+   ts_log_fine "$job_environment_libvar before starting of execd on \"$job_environment_exec_host\""
+   ts_log_fine "is set to \"$job_environment_libpath\""
+   ts_log_frame
 }
 
 ####### job_environment_cleanup_60() ###########################################
@@ -130,9 +129,9 @@ proc job_environment_cleanup_60 {} {
 #     job_environment_amount()
 #*******************************************************************************
 proc job_environment_amount_uninherited {} {
-   global CHECK_OUTPUT job_environment_exec_host
+   global job_environment_exec_host
 
-   puts $CHECK_OUTPUT "Testing list of environment variables with INHERIT_ENV=false"
+   ts_log_fine "Testing list of environment variables with INHERIT_ENV=false"
 
    set new_config(execd_params) "INHERIT_ENV=false"
    set_config_and_propagate new_config $job_environment_exec_host
@@ -158,7 +157,7 @@ proc job_environment_amount_uninherited {} {
    }
 
    if {$errors != ""} {
-      add_proc_error "job_environment_amount_uninherited" $error_type [string trim $errors]
+      ts_log_severe [string trim $errors]
    }
 }
 
@@ -181,9 +180,9 @@ proc job_environment_amount_uninherited {} {
 #     job_environment_JOB_NAME()
 #*******************************************************************************
 proc job_environment_JOB_NAME_uninherited {} {
-   global CHECK_OUTPUT job_environment_exec_host
+   global job_environment_exec_host
 
-   puts $CHECK_OUTPUT "Testing presence of job env vars with INHERIT_ENV=false"
+   ts_log_fine "Testing presence of job env vars with INHERIT_ENV=false"
 
    # Set INHERIT_ENV=false
    set new_config(execd_params) "INHERIT_ENV=false"
@@ -210,13 +209,13 @@ proc job_environment_JOB_NAME_uninherited {} {
 #     0 -> ok   1 -> error
 #*******************************************************************************
 proc job_environment_INHERIT_ENV {} {
-   global env CHECK_OUTPUT job_environment_exec_host
+   global env job_environment_exec_host
 
    set args "-l h=$job_environment_exec_host -o /dev/null -j yes"
 
    set errors ""
 
-   puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=false"
+   ts_log_fine "Testing effects of INHERIT_ENV=false"
 
    # Set INHERIT_ENV=false
    set new_config(execd_params) "INHERIT_ENV=false"
@@ -232,7 +231,7 @@ proc job_environment_INHERIT_ENV {} {
       append errors "\nFailed submitting job, with INHERIT_ENV=false"
    }
 
-   puts $CHECK_OUTPUT "Testing effects of execd_params=none, after INHERIT_ENV=false"
+   ts_log_fine "Testing effects of execd_params=none, after INHERIT_ENV=false"
 
    # Set exced_params=none
    set new_config(execd_params) "none"
@@ -248,7 +247,7 @@ proc job_environment_INHERIT_ENV {} {
       append errors "\nFailed submitting job, with execd_params=none after INHERIT_ENV=false"
    }
 
-   puts $CHECK_OUTPUT "Testing effects of INHERIT_ENV=true"
+   ts_log_fine "Testing effects of INHERIT_ENV=true"
 
    # Set INHERIT_ENV=true
    set new_config(execd_params) "INHERIT_ENV=true"
@@ -264,7 +263,7 @@ proc job_environment_INHERIT_ENV {} {
       append errors "\nFailed submitting job, with INHERIT_ENV=true"
    }
 
-   puts $CHECK_OUTPUT "Testing effects of execd_params=none, after INHERIT_ENV=true"
+   ts_log_fine "Testing effects of execd_params=none, after INHERIT_ENV=true"
 
    # Set exced_params=none
    set new_config(execd_params) "none"
@@ -281,7 +280,7 @@ proc job_environment_INHERIT_ENV {} {
    }
 
    if {$errors != ""} {
-      add_proc_error "job_environment_INHERIT_ENV" -1 [string trim $errors]
+      ts_log_severe [string trim $errors]
    }
 }
 
@@ -307,16 +306,15 @@ proc job_environment_INHERIT_ENV {} {
 #
 #*******************************************************************************
 proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
-   global CHECK_OUTPUT job_environment_exec_host job_environment_libvar
+   global job_environment_exec_host job_environment_libvar
    upvar $error_var errors
 
    set args "-l h=$job_environment_exec_host -o /dev/null -j yes"
 
-   puts $CHECK_OUTPUT ""
    set new_config(execd_params) "$execd_params"
    set_config_and_propagate new_config $job_environment_exec_host
-   puts $CHECK_OUTPUT "Testing with execd_params set to $new_config(execd_params)"
-   puts $CHECK_OUTPUT "Expected SGE lib path is \"$expected_lib_path\" on host $job_environment_exec_host"
+   ts_log_fine "Testing with execd_params set to $new_config(execd_params)"
+   ts_log_fine "Expected SGE lib path is \"$expected_lib_path\" on host $job_environment_exec_host"
 
    set errors ""
    # Test that lib path is "SGE lib path":"execd path"
@@ -333,10 +331,10 @@ proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
          append errors "\n   $job_environment_libvar is wrongly set to \"$job_env($job_environment_libvar)\""
          return
       } else {
-         puts $CHECK_OUTPUT "**************************************************"
-         puts $CHECK_OUTPUT "libpath correctly NOT set at all for execd_params"
-         puts $CHECK_OUTPUT "set to \"$execd_params\""
-         puts $CHECK_OUTPUT "**************************************************"
+         ts_log_frame
+         ts_log_fine "libpath correctly NOT set at all for execd_params"
+         ts_log_fine "set to \"$execd_params\""
+         ts_log_frame
          return
       }
    } else {
@@ -354,12 +352,12 @@ proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
       append errors "\n   Should be set to \"$expected_lib_path\""
       return
    }
-   puts $CHECK_OUTPUT "**************************************************"
-   puts $CHECK_OUTPUT "libpath correctly set set to"
-   puts $CHECK_OUTPUT "\"$expected_lib_path\""
-   puts $CHECK_OUTPUT "for execd_params"
-   puts $CHECK_OUTPUT "set to \"$execd_params\""
-   puts $CHECK_OUTPUT "**************************************************"
+   ts_log_frame
+   ts_log_fine "libpath correctly set set to"
+   ts_log_fine "\"$expected_lib_path\""
+   ts_log_fine "for execd_params"
+   ts_log_fine "set to \"$execd_params\""
+   ts_log_frame
 }
 
 #****** job_environment_SET_LIB_PATH() *****************************************
@@ -379,7 +377,7 @@ proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
 #     0 -> ok   1 -> error
 #*******************************************************************************
 proc job_environment_SET_LIB_PATH {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_environment_exec_host job_environment_libvar
    global job_environment_libpath
 
@@ -389,25 +387,25 @@ proc job_environment_SET_LIB_PATH {} {
    # test 1
    test_job_environment_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=true" "$sge_path:$job_environment_libpath"
    if {$errors != ""} {
-      add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
+      ts_log_severe [string trim $errors]
    }
   
    # test 2
    test_job_environment_lib_path errors "INHERIT_ENV=true,SET_LIB_PATH=false" "$job_environment_libpath"
    if {$errors != ""} {
-      add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
+      ts_log_severe [string trim $errors]
    }
 
    # test 3
    test_job_environment_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=true" "$sge_path"
    if {$errors != ""} {
-      add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
+      ts_log_severe [string trim $errors]
    }
 
    # test 4
    test_job_environment_lib_path errors "INHERIT_ENV=false,SET_LIB_PATH=false" "TEST_UNSET"
    if {$errors != ""} {
-      add_proc_error "job_environment_SET_LIB_PATH" -1 [string trim $errors]
+      ts_log_severe [string trim $errors]
    }
 }
 

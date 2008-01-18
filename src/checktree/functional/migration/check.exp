@@ -129,7 +129,7 @@ proc threshold_suspend_queue_clear { queue_list } {
 
 
 proc start_checkpoint_job {} {
-   global CHECK_ACTUAL_TEST_PATH checkpoint_job_id CHECK_OUTPUT
+   global CHECK_ACTUAL_TEST_PATH checkpoint_job_id
    
    if {[check_test_dependencies] != 0} {
       return
@@ -145,7 +145,7 @@ proc start_checkpoint_job {} {
 }
 
 proc check_slave_migration {} {
-   global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -208,7 +208,7 @@ proc check_slave_migration {} {
 #     ???/???
 #*******************************
 proc check_calendardisable_migration_on_slavequeue_suspend {} {
-   global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH q1 q2
+   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH q1 q2
    global all_queue_list ckpt_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -272,7 +272,7 @@ proc check_calendardisable_migration_on_slavequeue_suspend {} {
 #     ???/???
 #*******************************
 proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
-   global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH q1 q2
+   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH q1 q2
    global all_queue_list ckpt_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -286,9 +286,9 @@ proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
 
    # find out where the slave task is running
    set slave_queue [slave_queue_of $checkpoint_job_id $all_queue_list]
-   puts $CHECK_OUTPUT "slave queue: $slave_queue"
+   ts_log_fine "slave queue: $slave_queue"
 
-   puts $CHECK_OUTPUT "disable queues (calendardisable): \"$q1\" and \"$q2\""
+   ts_log_fine "disable queues (calendardisable): \"$q1\" and \"$q2\""
    calendardisable_queue $ckpt_queue_list  ;# pass list of queues to procedure
   
    # now threshold suspend the slave queue
@@ -340,7 +340,7 @@ proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
 #     ???/???
 #*******************************
 proc check_master_migration {} {
-   global checkpoint_job_id CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -403,7 +403,7 @@ proc check_master_migration {} {
 #     ???/???
 #*******************************
 proc check_calendarsuspend_master_migration {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT
+   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -466,7 +466,7 @@ proc check_calendarsuspend_master_migration {} {
 #     ???/???
 #*******************************
 proc check_calendarsuspend_slave_migration {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT
+   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -478,7 +478,7 @@ proc check_calendarsuspend_slave_migration {} {
 
    # find out where the slave task is running
    set slave_queue [slave_queue_of $checkpoint_job_id $all_queue_list]
-   puts $CHECK_OUTPUT "---> slave queue is $slave_queue"
+   ts_log_fine "---> slave queue is $slave_queue"
 
    # now calendarsuspend the slave queue
    calendarsuspend_queue $slave_queue
@@ -531,7 +531,7 @@ proc check_calendarsuspend_slave_migration {} {
 #     ???/???
 #*******************************
 proc clean_up_checkpoint_job {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT
+   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
 
    if {[check_test_dependencies] != 0} {
       return
@@ -539,7 +539,7 @@ proc clean_up_checkpoint_job {} {
 
 
    if {$checkpoint_job_id < 0} {
-      add_proc_error "clean_up_checkpoint_job" -1 "no checkpoint job started" 
+      ts_log_severe "no checkpoint job started" 
       return
    }
 
@@ -550,7 +550,7 @@ proc clean_up_checkpoint_job {} {
    set result [delete_job $checkpoint_job_id 1]
    
    if {$result != 0} {
-      add_proc_error "clean_up_checkpoint_job" -1 "could not delete job $checkpoint_job_id" 
+      ts_log_severe "could not delete job $checkpoint_job_id" 
       return
    }
 
@@ -610,7 +610,7 @@ proc setup_checkpointing {} {
 
    set result [add_checkpointobj "ckpt_param"]
    if {$result != 0} {
-      add_proc_error "setup_checkpointing" -1 "could not add checkpoint ENV $migration_ckpt_name (result of add_checkpointobj: $result)"
+      ts_log_severe "could not add checkpoint ENV $migration_ckpt_name (result of add_checkpointobj: $result)"
       return
    }
  
@@ -667,7 +667,7 @@ proc clean_up_checkpointing {} {
    }
 
    if {$error != 0} {
-      add_proc_error "clean_up_checkpointing" -1 "could not delete pe(s) $not_deleted"
+      ts_log_severe "could not delete pe(s) $not_deleted"
    }
 }
 
@@ -687,7 +687,7 @@ proc check_test_dependencies { } {
    global ts_config
 
    if {[llength $ts_config(execd_nodes)] < 2} {
-      add_proc_error "check_test_dependencies" -3 "need 2 execution daemons"
+      ts_log_config "need 2 execution daemons"
       return 1
    }
 
@@ -741,7 +741,7 @@ proc setup_pe {} {
 
   set result [add_pe "$migration_pe_name" pe_param]
   if {$result != 0} {
-     add_proc_error "setup_pe" -1 "could not add PE $migration_pe_name (result of add_pe: $result)"
+     ts_log_severe "could not add PE $migration_pe_name (result of add_pe: $result)"
      return
   }
   
@@ -796,7 +796,7 @@ proc clean_up_pe {} {
    }
 
    if {$error != 0} {
-      add_proc_error "clean_up_pe" -1 "could not delete pe(s) $not_deleted"
+      ts_log_severe "could not delete pe(s) $not_deleted"
    }
 }
 
@@ -851,14 +851,14 @@ proc setup_queues {} {
   lappend all_queue_list [get_queue_instance $q1 $checkpoint_host1]
   set result [add_queue $q1 $checkpoint_host1 q_param]
   if {$result != 0} {
-     add_proc_error "setup_queues" -1 "could not add queue $q1"
+     ts_log_severe "could not add queue $q1"
      return
   }
 
   lappend all_queue_list [get_queue_instance $q3 $checkpoint_host1]
   set result [add_queue $q3 $checkpoint_host1 q_param]
   if {$result != 0} {
-     add_proc_error "setup_queues" -1 "could not add queue $q3"
+     ts_log_severe "could not add queue $q3"
      return
   }
 
@@ -866,14 +866,14 @@ proc setup_queues {} {
   lappend all_queue_list [get_queue_instance $q2 $checkpoint_host2]
   set result [add_queue $q2 $checkpoint_host2 q_param]
   if {$result != 0} {
-     add_proc_error "setup_queues" -1 "could not add queue $q2"
+     ts_log_severe "could not add queue $q2"
      return
   }
   
   lappend all_queue_list [get_queue_instance $q4 $checkpoint_host2]
   set result [add_queue $q4 $checkpoint_host2 q_param]
   if {$result != 0} {
-     add_proc_error "setup_queues" -1 "could not add queue $q4"
+     ts_log_severe "could not add queue $q4"
      return
   } 
 }
@@ -939,6 +939,6 @@ proc clean_up_queues {} {
    }
 
    if {$error != 0} {
-      add_proc_error "clean_up_queues" -1 "could not delete queue(s) $not_deleted"
+      ts_log_severe "could not delete queue(s) $not_deleted"
    }
 }

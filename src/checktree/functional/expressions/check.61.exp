@@ -87,21 +87,21 @@ proc eval_expression_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc eval_expression_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 }
 
 proc qsub_queue_expression_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global eval_expression_test_hosts check_description
 
    set remote_host_arg "-q 'a*&!excluded@*'"
    set output_argument "-o /dev/null -e /dev/null"
    set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
-   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+   ts_log_fine "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub qinstance
    set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
    wait_for_job_state $job_id "r" 60
@@ -109,14 +109,14 @@ proc qsub_queue_expression_test {} {
 
 
 proc qsub_host_expression_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global eval_expression_test_hosts check_description
 
    set remote_host_arg "-q '*@*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
    set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
-   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+   ts_log_fine "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub qhost
    set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
    wait_for_job_state $job_id "r" 60
@@ -124,28 +124,28 @@ proc qsub_host_expression_test {} {
 
 
 proc qsub_group_expression_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global eval_expression_test_hosts check_description
 
    set remote_host_arg "-q '*@@*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
    set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
-   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+   ts_log_fine "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub group
    set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
    wait_for_job_state $job_id "r" 60
 }
  
 proc qsub_complex_expression_test1 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global eval_expression_test_hosts check_description
 
    set remote_host_arg "-l 'h=*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
    set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
-   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+   ts_log_fine "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub comlex host
    set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
    wait_for_job_state $job_id "r" 60
@@ -153,14 +153,14 @@ proc qsub_complex_expression_test1 {} {
     
     
 proc qsub_complex_expression_test2 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global eval_expression_test_hosts check_description
 
    set remote_host_arg "-l 'arch=*&!excluded'"
    set output_argument "-o /dev/null -e /dev/null"
    set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
-   puts $CHECK_OUTPUT "Submit job: $remote_host_arg $output_argument $job_argument"
+   ts_log_fine "Submit job: $remote_host_arg $output_argument $job_argument"
 # qsub comlex host
    set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" ""]
    wait_for_job_state $job_id "r" 60

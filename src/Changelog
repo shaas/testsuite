@@ -1,3 +1,6 @@
+JG-2008-01-18-0: Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
+                            functional checks.
+
 CR-2008-01-18-0: Enhancem.: o Added check that SMF is not active for testsuite
                               system
                             o Wait for act_qmaster file before starting execd

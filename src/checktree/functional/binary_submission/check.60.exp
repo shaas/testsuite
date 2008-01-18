@@ -79,7 +79,6 @@ proc binary_submission_init_level {} {
 
 proc binary_submission_setup {} {
    global ts_config
-   global CHECK_OUTPUT 
 
    #
    # Save sge_aliases file which was created during installation
@@ -95,7 +94,6 @@ proc binary_submission_setup {} {
 
 proc binary_submission_cleanup {} {
    global ts_config
-   global CHECK_OUTPUT
 
    #
    # Restore sge_aliases file
@@ -114,11 +112,10 @@ proc binary_submission_cleanup {} {
 
 proc binary_submission_check {} {
    global ts_config
-   global CHECK_OUTPUT
    global CHECK_USER
    global qrsh_hostlist
  
-   puts $CHECK_OUTPUT "binary_submission_check ..."
+   ts_log_fine "binary_submission_check ..."
 
    #
    # Scenario 1:
@@ -252,7 +249,7 @@ proc binary_submission_check {} {
          continue
       }
 
-      puts "STARTING WITH SCENARIO $scenario"
+      ts_log_fine "STARTING WITH SCENARIO $scenario"
 
       # 
       # delete default file or delete file used in last scenario
@@ -332,7 +329,7 @@ proc binary_submission_check {} {
          }
          incr job_id 1
 
-         puts "qrsh arguments: $qsub_arguments"
+         ts_log_fine "qrsh arguments: $qsub_arguments"
          set output [start_sge_bin "qrsh" $qsub_arguments $ts_config(master_host)]
          set output [string trim $output] 
          set result $prg_exit_state
@@ -343,22 +340,18 @@ proc binary_submission_check {} {
       #
       if {$sub_cmd == 0} {
          if {$job_id == -1  && $s_error == 0} { 
-            add_proc_error "binary_submission_check" "-1" \
-               "unable to start job in scenario $scenario"
+            ts_log_severe "unable to start job in scenario $scenario"
             return
          } elseif {$job_id > 0 && $s_error == 1} {
-            add_proc_error "binary_submission_check" "-1" \
-               "Submitted job which should be rej. in scenario $scenario" 
+            ts_log_severe "Submitted job which should be rej. in scenario $scenario" 
             return
          }
       } elseif {$sub_cmd == 1} {
          if {$result != 0 && $s_error == 0} {
-            add_proc_error "binary_submission_check" "-1" \
-               "unable to start job in scenario $scenario"
+            ts_log_severe "unable to start job in scenario $scenario"
             return
          } elseif {$result == 0 && $s_error == 1} {
-            add_proc_error "binary_submission_check" "-1" \
-               "Submitted job which should be rej. in scenario $scenario"
+            ts_log_severe "Submitted job which should be rej. in scenario $scenario"
             return
          }
       }
@@ -391,8 +384,7 @@ proc binary_submission_check {} {
                sleep 1
             }   
             if {$E_state_ok != 1} {
-               add_proc_error "binary_submission_check" "-1" \
-                  "Job did not switch into E state in scenario $scenario"
+               ts_log_severe "Job did not switch into E state in scenario $scenario"
                return
             }
             delete_job $job_id
@@ -407,8 +399,7 @@ proc binary_submission_check {} {
                # check if output of command is correct
                #
                if {[string compare $output $job_name] != 0} {
-                  add_proc_error "binary_submission_check" "-1" \
-                     "Invalid output in $scenario" 
+                  ts_log_severe "Invalid output in $scenario" 
                }
             }
          } elseif {$e_error == 1} {
@@ -427,7 +418,7 @@ proc binary_submission_check {} {
          was_job_running $job_id
       }
 
-      puts "TEST FOR SCENARIO $scenario WAS SUCCESSFULL"
+      ts_log_fine "TEST FOR SCENARIO $scenario WAS SUCCESSFULL"
    }
 }
 

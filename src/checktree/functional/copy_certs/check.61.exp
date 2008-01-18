@@ -67,7 +67,6 @@ proc copy_certs_init_level {} {
 
 proc copy_certs_setup {} {
    global ts_config
-   global CHECK_OUTPUT 
    global CHECK_USER
 
    set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
@@ -96,28 +95,28 @@ proc copy_certs_setup {} {
    while {1} {
       set timeout 30
       log_user 1
-      add_proc_error "copy_certs" "0" "reset error status"
+      ts_log_fine "reset error status"
       expect {
          -i $sp_id $HIT_RETURN_TO_CONTINUE {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(1)"
+            ts_log_fine "\n -->testsuite: sending >RETURN<(1)"
             if {$do_log_output == 1} {
-               puts "-->testsuite: press RETURN (HIT_RETURN_TO_CONTINUE)"
+               ts_log_fine "-->testsuite: press RETURN (HIT_RETURN_TO_CONTINUE)"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id "\n"
             continue
          }
          -i $sp_id $CURRENT_GRID_ROOT_DIRECTORY {
-            puts $CHECK_OUTPUT "\n --> testsuite: sending >RETURN<(2)"
+            ts_log_fine "\n --> testsuite: sending >RETURN<(2)"
             ts_send $sp_id "\n"
             continue
          }
          -i $sp_id $CELL_NAME_FOR_EXECD {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
+            ts_log_fine "\n -->testsuite: sending $ts_config(cell)"
             set input "$ts_config(cell)\n"
   
             if {$do_log_output == 1} {
-               puts "-->testsuite: press RETURN (CELL_NAME_FOR_QMASTER)"
+               ts_log_fine "-->testsuite: press RETURN (CELL_NAME_FOR_QMASTER)"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id $input
@@ -125,89 +124,87 @@ proc copy_certs_setup {} {
          }
          -i $sp_id $ENTER_HOSTS {
             if {$hostcount >= [llength $submit_hosts]} {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(3)"
+               ts_log_fine "\n -->testsuite: sending >RETURN<(3)"
                ts_send $sp_id "\n"
             } else {
                set submit_host [lindex $submit_hosts $hostcount]
                incr hostcount
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >${submit_host}<"
+               ts_log_fine "\n -->testsuite: sending >${submit_host}<"
                ts_send $sp_id "$submit_host\n"
             }
             continue
          }
          -i $sp_id $FINISHED_ADDING_HOSTS {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(4)"
+            ts_log_fine "\n -->testsuite: sending >RETURN<(4)"
             if {$do_log_output == 1} {
-               puts $CHECK_OUTPUT "-->testsuite: press RETURN (FINISHED_ADDING_HOSTS)"
+               ts_log_fine "-->testsuite: press RETURN (FINISHED_ADDING_HOSTS)"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id "\n"
             continue
          }
          -i $sp_id $FILE_FOR_HOSTLIST {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(5)"
+            ts_log_fine "\n -->testsuite: sending >RETURN<(5)"
             if {$do_log_output == 1} {
-               puts $CHECK_OUTPUT "-->testsuite: press RETURN (FILE_FOR_HOSTLIST)"
+               ts_log_fine "-->testsuite: press RETURN (FILE_FOR_HOSTLIST)"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id "\n"
             continue
          }
          -i $sp_id $CSP_COPY_CERTS {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(6)"
+            ts_log_fine "\n -->testsuite: sending >RETURN<(6)"
             if {$do_log_output == 1} {
-               puts $CHECK_OUTPUT "-->testsuite: press RETURN (CSP_COPY_CERTS)"
+               ts_log_fine "-->testsuite: press RETURN (CSP_COPY_CERTS)"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id "\n"
             continue
          }
          -i $sp_id $CSP_COPY_CMD {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending y (yes)"
+            ts_log_fine "\n -->testsuite: sending y (yes)"
             set input "y\n"
   
             if {$do_log_output == 1} {
-               puts $CHECK_OUTPUT "-->testsuite: press RETURN (CSP_COPY_CMD)"
+               ts_log_fine "-->testsuite: press RETURN (CSP_COPY_CMD)"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id $input
             continue
          }
          -i $sp_id "Copying certificates is complete!" {
-            puts $CHECK_OUTPUT "copy successful" 
+            ts_log_fine "copy successful" 
             break   
          }
          # Errors
          -i $sp_id "No CSP system installed!" {
-            add_proc_error "copy_certs" "-3" "No csp system, copy not necessary and possible" 
+            ts_log_info "No csp system, copy not necessary and possible" 
             break   
          }
          -i $sp_id "The certificate copy failed!" {
-            add_proc_error "copy_certs" "-3" "copy failed" 
+            ts_log_info "copy failed" 
             continue   
          }
          -i $sp_id "Certificates couldn't be copied!" {
-            add_proc_error "copy_certs" "-3" "rsh is not working" 
+            ts_log_info "rsh is not working" 
             continue   
          }
          -i $sp_id "Permission denied" {
-            add_proc_error "copy_certs" "-3" "rsh is working but copy error happened"
+            ts_log_info "rsh is working but copy error happened"
             continue   
          }
 
          -i $sp_id timeout {
-            add_proc_error "copy_certs" "-1" "$expect_out(0,string)"
+            ts_log_severe "$expect_out(0,string)"
             close_spawn_process $id
             return
          }
          -i $sp_id "ommand failed*\n" {
-            add_proc_error "copy_cert" "-1" "$expect_out(0,string)"
+            ts_log_severe "$expect_out(0,string)"
             close_spawn_process $id
             return
          }
       }
-
-      flush $CHECK_OUTPUT
    }
 
    # close the connection to inst_sge
