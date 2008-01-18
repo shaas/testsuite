@@ -94,7 +94,7 @@ proc xauthority_issue_init_level {} {
 
 
 proc xauthority_issue_setup {} {
-   global CHECK_OUTPUT ts_config xauthority_issue_test_hosts
+   global ts_config xauthority_issue_test_hosts
 
    set xauthority_issue_test_hosts $ts_config(execd_nodes)
 
@@ -109,7 +109,7 @@ proc xauthority_issue_setup {} {
 }
 
 proc xauthority_issue_cleanup {} {
-   global CHECK_OUTPUT ts_config xauthority_issue_test_hosts
+   global ts_config xauthority_issue_test_hosts
 
    foreach host $xauthority_issue_test_hosts {
       shutdown_system_daemon $host execd
@@ -121,7 +121,7 @@ proc xauthority_issue_cleanup {} {
 
 proc xauthority_issue_test1 {} {
    global xauthority_issue_test_hosts
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global ts_user_config
 
    if {$CHECK_ACT_LEVEL == 0} {
@@ -129,10 +129,10 @@ proc xauthority_issue_test1 {} {
       set success_text ""
       foreach host $xauthority_issue_test_hosts {
          set ok "true"
-         puts $CHECK_OUTPUT "checking for correct test setup on host $host ..."
+         ts_log_fine "checking for correct test setup on host $host ..."
          set output [start_sge_bin "qrsh" "-q all.q@$host env | grep MY_OWN_TESTSUITE_ENVIRONMENT" $ts_config(master_host)]
          if {[string match "*MY_OWN_TESTSUITE_ENVIRONMENT*" $output]} {
-            puts $CHECK_OUTPUT "test is setup correctly!"
+            ts_log_fine "test is setup correctly!"
          } else {
             append error_text "host: $host\n"
             append error_text "===========\n"
@@ -144,7 +144,7 @@ proc xauthority_issue_test1 {} {
             append error_text "info: qrsh -q all.q@$host hostname returned:\n$output"
          }
 
-         puts $CHECK_OUTPUT "checking for XAUTHORITY set in job environment on host $host ..."
+         ts_log_fine "checking for XAUTHORITY set in job environment on host $host ..."
          set output [start_sge_bin "qrsh" "-q all.q@$host env | grep XAUTHORITY" $ts_config(master_host)]
          if {[string match "*XAUTHORITY*" $output]} {
             append error_text "host: $host\n"
@@ -158,7 +158,7 @@ proc xauthority_issue_test1 {} {
          }
       }
       if {$error_text != ""} {
-         add_proc_error "xauthority_issue_test1" -1 "$error_text\n$success_text"
+         ts_log_severe "$error_text\n$success_text"
       }
    }
 

@@ -79,30 +79,29 @@ proc issue_524_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_524_check {} {
-   global CHECK_OUTPUT ts_config CHECK_USER
+   global ts_config CHECK_USER
 
-   puts $CHECK_OUTPUT "Submitting sleeper ..."
+   ts_log_fine "Submitting sleeper ..."
    set arguments "-h $ts_config(product_root)/examples/jobs/sleeper.sh 5"
    set job_id1 [submit_job "$arguments"]
 
-   puts "Submitting 2000 jobs (one '.' represents 100 jobs)"
+   ts_log_fine "Submitting 2000 jobs (one '.' represents 100 jobs)"
    for {set i 0} {$i < 20} {incr i} {
       for {set j 0} {$j < 100} {incr j} {
          set output [start_sge_bin "qresub" "-h u $job_id1"]
          if {$prg_exit_state != 0} {
-            add_proc_error "issue_524_check" -1 "qresub failed:\n$output"
+            ts_log_severe "qresub failed:\n$output"
             return
          }
       }
-      puts -nonewline "."
-      flush stdout
+      ts_log_progress
    }
-   puts ""
+   ts_log_fine " done"
 
-   puts $CHECK_OUTPUT "Deleting Sleeper ..."
+   ts_log_fine "Deleting Sleeper ..."
    set output [start_sge_bin "qdel" "-u $CHECK_USER"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_524_check" "-1" "qdel -u $CHECK_USER failed:\n$output"
+      ts_log_severe "qdel -u $CHECK_USER failed:\n$output"
       return
    } 
 

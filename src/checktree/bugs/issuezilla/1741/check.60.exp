@@ -93,7 +93,7 @@ proc issue_1741_init_level {} {
 }
 
 proc issue_1741_setup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global check_host
 
    set check_host [host_conf_get_suited_hosts]
@@ -109,7 +109,7 @@ proc issue_1741_setup  {} {
 }
 
 proc issue_1741_cleanup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global check_host
 
    delete_all_jobs
@@ -120,7 +120,7 @@ proc issue_1741_cleanup  {} {
 }
 
 proc issue_1741_run  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global check_host
 
    set aq [get_queue_instance "a.q" $check_host]

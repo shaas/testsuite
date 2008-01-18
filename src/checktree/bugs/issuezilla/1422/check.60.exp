@@ -86,7 +86,7 @@ proc issue_1422_run {} {
       catch {eval exec "/bin/ls -lR $session_directory | wc -l"} result2
 
       if {$result1 != $result2} {
-         add_proc_error "issue_1422_run" -1 "qsub did not clean up the session directory"
+         ts_log_severe "qsub did not clean up the session directory"
       }
    }
 }

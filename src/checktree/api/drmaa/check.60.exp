@@ -175,7 +175,7 @@ proc drmaa_check_single_threaded_part_01 {} {
       drmaa_test_failing_control_operations $host $binary_path
 
       # unset SGE_ROOT and try test_drmaa -h
-      puts "starting single threaded test $drmaa_binary_name -h without SGE_ROOT"
+      ts_log_fine "starting single threaded test $drmaa_binary_name -h without SGE_ROOT"
       set test_output [start_remote_prog $host $CHECK_USER "unset" "SGE_ROOT\n$drmaa_preamble$binary_path/$drmaa_binary_name -h" prg_exit_state 500 0 "" "" 0 0 1]
       if { $prg_exit_state == 0 } {
          ts_log_severe "$drmaa_binary_name -h without SGE_ROOT must exit with unequal 0 at host $host"
@@ -216,7 +216,7 @@ proc drmaa_check_single_threaded_part_02 {} {
       lappend test_scenario "ST_UNSUPPORTED_VATTR"
 
       foreach st_test $test_scenario {
-         puts "starting single threaded test $st_test"
+         ts_log_fine "starting single threaded test $st_test"
          drmaa_test $host $binary_path $st_test ""
       }
     
@@ -229,7 +229,7 @@ proc drmaa_check_single_threaded_part_02 {} {
       lappend test_scenario "DRMAA_CONTROL_RELEASE"
       lappend test_scenario "DRMAA_CONTROL_TERMINATE"
       foreach control_op $test_scenario {
-         puts "starting single threaded test ST_EMPTY_SESSION_CONTROL $control_op"
+         ts_log_fine "starting single threaded test ST_EMPTY_SESSION_CONTROL $control_op"
          drmaa_test $host $binary_path ST_EMPTY_SESSION_CONTROL "$control_op"
       }
    }
@@ -274,7 +274,7 @@ proc drmaa_check_single_threaded_part_03 {} {
       lappend test_scenario "ST_RECOVERABLE_SESSION"
 
       foreach st_test $test_scenario {
-         puts "starting single threaded test $st_test"
+         ts_log_fine "starting single threaded test $st_test"
          drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
       }
 
@@ -283,7 +283,7 @@ proc drmaa_check_single_threaded_part_03 {} {
       lappend test_scenario "ST_SUBMIT_NO_RUN_WAIT"
       foreach st_test $test_scenario {
          set n 100
-         puts "starting single threaded test $st_test $n times each"
+         ts_log_fine "starting single threaded test $st_test $n times each"
          for {set i 0} {$i < $n} {incr i} {
             ts_log_fine "test $i/$n"
             drmaa_test $host $binary_path $st_test $ts_config(testsuite_root_dir)/scripts/suspendable_sleeper.sh
@@ -309,7 +309,7 @@ proc drmaa_check_single_threaded_part_04 {} {
       lappend test_scenario "ST_EXIT_STATUS"
       lappend test_scenario "ST_USAGE_CHECK"
       foreach ste_test $test_scenario {
-         puts "starting single threaded test $ste_test"
+         ts_log_fine "starting single threaded test $ste_test"
          drmaa_test $host $binary_path $ste_test $ts_config(testsuite_root_dir)/scripts/exit.sh
       }
 
@@ -318,7 +318,7 @@ proc drmaa_check_single_threaded_part_04 {} {
       # need to add the entry "test.cat -N ExitTest -h" to qtask file
       # need to add "-m a" to sge_request file 
       # test assumes job do run at submission host
-      # puts "starting single threaded test ST_ATTRIBUTE_CHECK"
+      # ts_log_fine "starting single threaded test ST_ATTRIBUTE_CHECK"
       # drmaa_test $host $binary_path ST_ATTRIBUTE_CHECK $ts_config(testsuite_root_dir)/scripts/exit.sh "$CHECK_USER@localhost"
       # need to remove "-m a" from sge_request file 
       # need to move entry "test.cat -N ExitTest -h" to users .qtask file
@@ -346,7 +346,7 @@ proc drmaa_check_multi_threaded {} {
       lappend test_scenario "MT_EXIT_DURING_SUBMIT_OR_WAIT"
       lappend test_scenario "MT_SUBMIT_BEFORE_INIT_WAIT"
       foreach mt_test $test_scenario {
-         puts "starting multi threaded test $mt_test"
+         ts_log_fine "starting multi threaded test $mt_test"
          drmaa_test $host $binary_path $mt_test $ts_config(product_root)/examples/jobs/sleeper.sh
       }
    }
@@ -542,14 +542,14 @@ proc drmaa_test_failing_control_operations { host binary_path } {
    # submit sequential job in hold state as user1 
    #
 
-   puts "going to submit a job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   ts_log_fine "going to submit a job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    set job_id [ submit_job "-o /dev/null -j y -h $ts_config(product_root)/examples/jobs/sleeper.sh 15" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER ]
-   puts "submitted job $job_id as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   ts_log_fine "submitted job $job_id as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
 
    # ensure control operations forbidden for user2 result in a DRMAA_ERRNO_AUTH_FAILURE 
    # test broken for DRMAA_CONTROL_TERMINATE operation due to #979
    foreach control_op "DRMAA_CONTROL_SUSPEND DRMAA_CONTROL_RESUME DRMAA_CONTROL_HOLD DRMAA_CONTROL_RELEASE" {
-      puts "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_AUTH_FAILURE"
+      ts_log_fine "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_AUTH_FAILURE"
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_AUTH_FAILURE $job_id" $CHECK_SECOND_FOREIGN_SYSTEM_USER
    }
 
@@ -564,7 +564,7 @@ proc drmaa_test_failing_control_operations { host binary_path } {
    # ensure control operation isused as user1 on no longer existing job results in a DRMAA_ERRNO_INVALID_JOB 
    foreach control_op "DRMAA_CONTROL_SUSPEND DRMAA_CONTROL_RESUME DRMAA_CONTROL_HOLD \
          DRMAA_CONTROL_RELEASE DRMAA_CONTROL_TERMINATE" {
-      puts "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_INVALID_JOB"
+      ts_log_fine "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_INVALID_JOB"
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_INVALID_JOB $job_id" $CHECK_FIRST_FOREIGN_SYSTEM_USER
    }
 
@@ -572,15 +572,15 @@ proc drmaa_test_failing_control_operations { host binary_path } {
    # submit job array in hold state as user1 
    #
 
-   puts "going to submit a job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   ts_log_fine "going to submit a job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    set job_id [ submit_job "-t 1-2 -o /dev/null -j y -h $ts_config(product_root)/examples/jobs/sleeper.sh 15" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER ]
-   puts "submitted job $job_id as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   ts_log_fine "submitted job $job_id as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
 
    # ensure control operations forbidden for user2 result in a DRMAA_ERRNO_AUTH_FAILURE 
    # test broken for DRMAA_CONTROL_TERMINATE operation due to #979
    foreach control_op "DRMAA_CONTROL_SUSPEND DRMAA_CONTROL_RESUME DRMAA_CONTROL_HOLD \
          DRMAA_CONTROL_RELEASE" {
-      puts "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_AUTH_FAILURE"
+      ts_log_fine "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_AUTH_FAILURE"
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_AUTH_FAILURE $job_id.1" $CHECK_SECOND_FOREIGN_SYSTEM_USER
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_AUTH_FAILURE $job_id.2" $CHECK_SECOND_FOREIGN_SYSTEM_USER
    }
@@ -598,7 +598,7 @@ proc drmaa_test_failing_control_operations { host binary_path } {
    # ensure control operation isused as user1 on no longer existing job results in a DRMAA_ERRNO_INVALID_JOB 
    foreach control_op "DRMAA_CONTROL_SUSPEND DRMAA_CONTROL_RESUME DRMAA_CONTROL_HOLD \
          DRMAA_CONTROL_RELEASE DRMAA_CONTROL_TERMINATE" {
-      puts "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_INVALID_JOB"
+      ts_log_fine "starting single threaded test ST_DRMAA_CONTROL $control_op DRMAA_ERRNO_INVALID_JOB"
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_INVALID_JOB $job_id.1" $CHECK_FIRST_FOREIGN_SYSTEM_USER
       drmaa_test $host $binary_path ST_DRMAA_CONTROL "$control_op DRMAA_ERRNO_INVALID_JOB $job_id.2" $CHECK_FIRST_FOREIGN_SYSTEM_USER
    }

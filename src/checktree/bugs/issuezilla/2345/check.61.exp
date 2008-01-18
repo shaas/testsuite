@@ -77,7 +77,7 @@ proc issue_2345_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2345_setup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global consumable_complex_backup  
 
    # create test complex
@@ -105,7 +105,7 @@ proc issue_2345_setup {} {
 }
 
 proc issue_2345_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global consumable_complex_backup  
    
    del_queue "A.q" "" 1 1
@@ -116,7 +116,7 @@ proc issue_2345_cleanup  {} {
    
    if {[get_rqs_list rqs_names "" "" 0] == 0} {
       foreach elem $rqs_names {
-         puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+         ts_log_fine "Removing resource quota sets $elem ...\n"
          del_rqs $elem
        }
    }
@@ -140,9 +140,8 @@ proc issue_2345_cleanup  {} {
 #*******************************************************************************
 
 proc issue_2345 {} {
-
    global ts_config
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
 
    # Delete any remaining jobs
@@ -157,7 +156,7 @@ proc issue_2345 {} {
    # 6.job should be running
    set run_result [wait_for_jobstart $job_id "sleep" 20]
    if {$run_result != 0} {
-      add_proc_error "ts_2345" -1 "job was not scheduled"
+      ts_log_severe "job was not scheduled"
    } 
    
    delete_all_jobs

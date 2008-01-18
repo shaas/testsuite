@@ -72,24 +72,19 @@ proc issue_1104_init_level {} {
 
 
 proc issue_1104_run {} {
-   global ts_config orig_config CHECK_OUTPUT CHECK_USER
+   global ts_config orig_config CHECK_USER
 
    # backup config of master host
    get_config orig1104_config $ts_config(master_host)
 
    set result [start_sge_bin "qconf" "-sconf $ts_config(master_host)"]
-   puts $CHECK_OUTPUT $result
-
    set result [start_sge_bin "qconf" "-dconf $ts_config(master_host)"]
-   puts $CHECK_OUTPUT $result
-
    set result [start_sge_bin "qconf" "-sconf $ts_config(master_host)"]
-   puts $CHECK_OUTPUT $result
 
    set NOTDEFINED [translate_macro MSG_ANSWER_CONFIGXNOTDEFINED_S "*"]
 
    if {![string match $NOTDEFINED [string trim $result]]} {
-      add_proc_error "issue_1104_run" "-1" "could not delete local configuration for host $ts_config(master_host)"
+      ts_log_severe "could not delete local configuration for host $ts_config(master_host)"
    } 
 
    # restart qmaster
@@ -113,7 +108,7 @@ proc issue_1104_run {} {
    # now test if qmaster is still alive
    start_sge_bin "qstat" ""
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1104_run" "-1" "could not contact qmaster and add configuration on host $ts_config(master_host), original config stored at $temp_file"
+      ts_log_severe "could not contact qmaster and add configuration on host $ts_config(master_host), original config stored at $temp_file"
    } else {
       file delete $temp_file
       file delete "$ts_config(product_root)/tmp"

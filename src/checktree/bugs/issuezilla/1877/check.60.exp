@@ -90,21 +90,21 @@ proc issue_1877_init_level {} {
 }
 
 proc issue_1877_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set new_values(terminate_method) "$ts_config(product_root)/examples/jobs/sleeper.sh 30 0"
    mod_queue "all.q" "" new_values
 }
 
 proc issue_1877_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set new_values(terminate_method) "NONE"
    mod_queue "all.q" "" new_values
 }
 
 proc issue_1877_run {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # submit a job (sleeper 30)
    set arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 15"
@@ -123,6 +123,6 @@ proc issue_1877_run {} {
 
    #job has to run at least 30 seconds (terminate method run time)
    if {$nowtime < $mytime} {
-      add_proc_error "issue_1877_run" -1 "issue 1877 is present"
+      ts_log_severe "issue 1877 is present"
    }
 }

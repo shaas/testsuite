@@ -64,16 +64,16 @@ proc issue_1780_init_level {} {
 }
 
 proc issue_1780_run  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    set tmp_file [get_tmp_file_name]
    set arch [resolve_arch $ts_config(master_host)]
 
 
-   puts $CHECK_OUTPUT "retrieving hosts via ypcat"
+   ts_log_fine "retrieving hosts via ypcat"
    set output [start_remote_prog $ts_config(master_host) $CHECK_USER "ypcat" "hosts" result]
    if {$result != 0} {
-      add_proc_error "issue_1780_run" -3 "couldn't call ypcat - skipping this test:\n$output"
+      ts_log_config "couldn't call ypcat - skipping this test:\n$output"
       return
    }
 
@@ -87,7 +87,7 @@ proc issue_1780_run  {} {
    }
 
    # write queue config to temporary file
-   puts $CHECK_OUTPUT "creating queue config file"
+   ts_log_fine "creating queue config file"
    set f [open "$tmp_file" w]
 
    puts $f "qname\t3000_hosts.q"
@@ -115,11 +115,11 @@ proc issue_1780_run  {} {
    close $f
 
    if {$count < $max_count} {
-      add_proc_error "issue_1780" -3 "unable to add enough hosts to test issue 1780"
+      ts_log_config "unable to add enough hosts to test issue 1780"
       return
    }
 
-   puts $CHECK_OUTPUT "Adding $count hosts via \"qconf -Aq $tmp_file\""
+   ts_log_fine "Adding $count hosts via \"qconf -Aq $tmp_file\""
    # Test that the queue can be modified.  We're not actually testing
    # whether the modification works.  We're just looking for seg faults in
    # qconf.
@@ -131,10 +131,10 @@ proc issue_1780_run  {} {
    set result [start_remote_prog $ts_config(master_host) $CHECK_USER "$ts_config(product_root)/bin/$arch/qconf" "-Aq $tmp_file" exit_code 610]
    
    set total_time [expr [timestamp]- $start_time]
-   puts $CHECK_OUTPUT "the time qconf took to add 3000 hosts was $total_time seconds "
+   ts_log_fine "the time qconf took to add 3000 hosts was $total_time seconds "
    
    if {$exit_code != 0} {
-      add_proc_error "issue_1780_run" -1 "qconf -Mconf with huge amout of host entries broken:\n$result"
+      ts_log_severe "qconf -Mconf with huge amout of host entries broken:\n$result"
    }
    
    sleep 5
@@ -143,9 +143,9 @@ proc issue_1780_run  {} {
    # Start now qstat with a qstat_timeout seconds timeout
    set qstat_result [start_sge_bin "qstat" "" "" $CHECK_USER "" $qstat_timeout]
    if {$qstat_result != ""} {
-      add_proc_error "issue_1780_run" -1 "qstat failed for queue with huge amount of host entries: \n$result"
+      ts_log_severe "qstat failed for queue with huge amount of host entries: \n$result"
    } else {
-      puts $CHECK_OUTPUT "qstat was OK"
+      ts_log_fine "qstat was OK"
    }
       
    # Now submit a sleeper job, with "-q all.q" request,

@@ -78,7 +78,7 @@ proc issue_2433_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2433_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # there might be a queue and a pe left over from the tests
    del_pe "issue_2433_pe" "" "" 0
@@ -87,14 +87,14 @@ proc issue_2433_cleanup {} {
 
 
 proc issue_2433_queue {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    
    # try to create a queue with invalid slot count
    set queue_name "issue_2433_queue"
    set queue(slots) 1000000000
    set ret [add_queue $queue_name "@allhosts" queue 1 "" "" 0]
    if {$ret == 0} {
-      add_proc_error "" -1 "adding a queue with invalid slot count should have failed"
+      ts_log_severe "adding a queue with invalid slot count should have failed"
       return
    }
 
@@ -111,20 +111,20 @@ proc issue_2433_queue {} {
    set queue(slots) 10000000
    set ret [mod_queue $queue_name "@allhosts" queue 1 "" "" 0]
    if {$ret == 0} {
-      add_proc_error "" -1 "modifying a queue with invalid slot count should have failed"
+      ts_log_severe "modifying a queue with invalid slot count should have failed"
       return
    }
 }
 
 proc issue_2433_pe {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # try to create a pe with invalid slot count
    set pe_name "issue_2433_pe"
    set pe(slots) 1000000000
    set ret [add_pe $pe_name pe 1 "" "" 0]
    if {$ret == 0} {
-      add_proc_error "" -1 "adding a pe with invalid slot count should have failed"
+      ts_log_severe "adding a pe with invalid slot count should have failed"
       return
    }
 
@@ -141,7 +141,7 @@ proc issue_2433_pe {} {
    set pe(slots) 10000000
    set ret [mod_pe $pe_name pe 1 "" "" 0]
    if {$ret == 0} {
-      add_proc_error "" -1 "modifying a pe with invalid slot count should have failed"
+      ts_log_severe "modifying a pe with invalid slot count should have failed"
       return
    }
 }

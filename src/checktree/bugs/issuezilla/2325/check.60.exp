@@ -79,7 +79,7 @@ proc issue_2325_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2325_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -87,13 +87,13 @@ proc issue_2325_cleanup {} {
 
 
 proc issue_2325_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    set script "$ts_config(product_root)/examples/jobs/sleeper.sh"
    set output [start_source_bin "test_drmaa" "ST_BACKFILL_FINISH_ORDER $script ' -cwd' '' ''"]
    set ERROR "*[translate_macro MSG_ANSWER_UNKOWNOPTIONX_S "script"]*"
    if {[string match $ERROR $output]} {
-      add_proc_error "issue_2325_test" -1 "drmaa didn't accept native spec starting with whitespace (' -cwd'):\n$output"
+      ts_log_severe "drmaa didn't accept native spec starting with whitespace (' -cwd'):\n$output"
    }
 }
 

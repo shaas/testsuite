@@ -94,7 +94,7 @@ proc execd_uninstall_init_level {} {
 
 
 proc execd_uninstall_setup  {} {
-   global CHECK_OUTPUT ts_config check_execd CHECK_USER
+   global ts_config check_execd CHECK_USER
 
    set exit_state 1
 
@@ -102,13 +102,13 @@ proc execd_uninstall_setup  {} {
 
    foreach tmp_check_execd $ts_config(execd_nodes) {
       set DENIED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_CANTDELADMINQMASTER_S] "*" ]
-      puts $CHECK_OUTPUT "Try to remove host $tmp_check_execd from adminhost list!" 
+      ts_log_fine "Try to remove host $tmp_check_execd from adminhost list!" 
       set output [start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-dh $tmp_check_execd" exit_state 60 ]
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
       if { $exit_state != 0 || [string match "*$DENIED*" $output] } {
-         puts $CHECK_OUTPUT "failed, trying next!"
+         ts_log_fine "failed, trying next!"
       } else {
-         puts $CHECK_OUTPUT "OK, taking this one!"
+         ts_log_fine "OK, taking this one!"
          set check_execd $tmp_check_execd
          break;
       }
@@ -116,23 +116,23 @@ proc execd_uninstall_setup  {} {
 }
 
 proc execd_uninstall_cleanup  {} {
-   global CHECK_OUTPUT ts_config check_execd CHECK_USER
+   global ts_config check_execd CHECK_USER
 
    if { $check_execd != "unknown" } {
-      puts $CHECK_OUTPUT "Readding host $check_execd to adminhost list!" 
+      ts_log_fine "Readding host $check_execd to adminhost list!" 
       set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER "qconf" "-ah $check_execd"] 
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
       set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER "qmod" "-e all.q"] 
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
       set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER "qmod" "-us all.q"] 
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
    }
 }
 
 
 proc issue_1451_uninstall_execd {} {
    global ts_config
-   global CHECK_OUTPUT CORE_INSTALLED
+   global CORE_INSTALLED
    global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
@@ -143,7 +143,7 @@ proc issue_1451_uninstall_execd {} {
    set LOCAL_ALREADY_CHECKED 0 
  
    if { $check_execd == "unknown" } {
-      add_proc_error "uninstall_execd" -2 "not host for uninstallation found"
+      ts_log_warning "not host for uninstallation found"
       return
    }
 
@@ -151,7 +151,7 @@ proc issue_1451_uninstall_execd {} {
 
  
    if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-      add_proc_error "issue_1451_uninstall_execd" -1 "inst_sge - inst_sge file not found"
+      ts_log_severe "inst_sge - inst_sge file not found"
       return
    }
 
@@ -164,8 +164,8 @@ proc issue_1451_uninstall_execd {} {
    set EXECD_UNINST_ERROR_CASE      [translate $check_execd 0 1 0 [sge_macro DISTINST_EXECD_UNINST_ERROR_CASE] ]
    set CHECK_AGAIN                  [translate $check_execd 0 1 0 [sge_macro DISTINST_CHECK_AGAIN] ]
 
-   puts $CHECK_OUTPUT "Trying to uninstall execution host: $check_execd"
-   puts $CHECK_OUTPUT "inst_sge -ux -host $check_execd"
+   ts_log_fine "Trying to uninstall execution host: $check_execd"
+   ts_log_fine "inst_sge -ux -host $check_execd"
    set id [open_remote_spawn_process "$check_execd" "root"  "./inst_sge" "-ux -host \"$check_execd\"" 0 $ts_config(product_root)]
 
    log_user 1
@@ -184,8 +184,6 @@ proc issue_1451_uninstall_execd {} {
 
    set do_stop 0
    while {$do_stop == 0} {
-      flush stdout
-      flush $CHECK_OUTPUT
       if {$do_log_output == 1} {
           puts "press RETURN"
           set anykey [wait_for_enter 1]
@@ -195,13 +193,13 @@ proc issue_1451_uninstall_execd {} {
       log_user 1 
       expect {
          -i $sp_id timeout { 
-            add_proc_error "uninstall_execd" "-1" "uninstall_execd - timeout while waiting for output"; 
+            ts_log_severe "uninstall_execd - timeout while waiting for output"; 
             close_spawn_process $id;
             set do_stop 1
          }
 
          -i $sp_id $CELL_NAME_FOR_EXECD {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
+            ts_log_fine "\n -->testsuite: sending $ts_config(cell)"
             set input "$ts_config(cell)\n"
 
             if {$do_log_output == 1} {
@@ -213,7 +211,7 @@ proc issue_1451_uninstall_execd {} {
          } 
 
          -i $sp_id $CURRENT_GRID_ROOT_DIRECTORY {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "-->testsuite: press RETURN"
                  set anykey [wait_for_enter 1]
@@ -223,7 +221,7 @@ proc issue_1451_uninstall_execd {} {
          }
 
          -i $sp_id $HIT_RETURN_TO_CONTINUE { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -234,7 +232,7 @@ proc issue_1451_uninstall_execd {} {
          }
 
          -i $sp_id $CHECK_AGAIN { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >ANSWER_NO<"
+            ts_log_fine "\n -->testsuite: sending >ANSWER_NO<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -245,7 +243,7 @@ proc issue_1451_uninstall_execd {} {
          }
 
          -i $sp_id $EXECD_UNINST_NO_ADMIN { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending"
+            ts_log_fine "\n -->testsuite: sending"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -256,19 +254,19 @@ proc issue_1451_uninstall_execd {} {
          }
 
          -i $sp_id $EXECD_UNINST_ERROR_CASE {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending"
+            ts_log_fine "\n -->testsuite: sending"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
             }
 
             ts_send $sp_id ""
-            add_proc_error "uninstall_execd" "-1" "uninstall_execd test failed!"
+            ts_log_severe "uninstall_execd test failed!"
             break
          }
 
          -i $sp_id default {
-            add_proc_error "uninstall_execd" "-1" "uninstall_execd - undefined behaiviour: $expect_out(buffer)"
+            ts_log_severe "uninstall_execd - undefined behaiviour: $expect_out(buffer)"
             break
          }
       }

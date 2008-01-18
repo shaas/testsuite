@@ -82,15 +82,13 @@ proc issue_360_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_360_setup  {} {
-   global CHECK_OUTPUT 
 }
 
 
 proc issue_360_check {} {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 }
 
 proc issue_360_cleanup  {} {
-   global CHECK_OUTPUT
 }
 

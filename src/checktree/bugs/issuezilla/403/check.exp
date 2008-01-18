@@ -80,7 +80,7 @@ proc issue_403_init_level {} {
 
 proc issue_403_check {} {
    global CHECK_USER
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set priority 0
    set the_command "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3600"
@@ -91,7 +91,7 @@ proc issue_403_check {} {
 
    # call qalter on each architecture
    foreach host $ts_config(unique_arch_nodes) {
-      puts $CHECK_OUTPUT "calling qalter on host $host"
+      ts_log_fine "calling qalter on host $host"
 
       # decrease priority with each qalter call by one
       set priority [expr $priority -1]
@@ -109,13 +109,12 @@ proc issue_403_check {} {
 
       # do qalter -p -2
       set qalteroutput [start_sge_bin "qalter" "$p_option $job_id"]
-      puts $CHECK_OUTPUT "expecting: $EXPECTED_MESSAGE"
-      puts $CHECK_OUTPUT "received:  $qalteroutput"
+      ts_log_fine "expecting: $EXPECTED_MESSAGE"
+      ts_log_fine "received:  $qalteroutput"
 
       # evaluate result
       if {![string match $EXPECTED_MESSAGE [string trim $qalteroutput]]} {
-         add_proc_error "issue_403_check" "-1" \
-                        "Success message of qalter -p <neg> priority shows wrong msg:\nExpected: \"$EXPECTED_MESSAGE\"\nbut got:  \"$qalteroutput\"\n"
+         ts_log_severe "Success message of qalter -p <neg> priority shows wrong msg:\nExpected: \"$EXPECTED_MESSAGE\"\nbut got:  \"$qalteroutput\"\n"
       }
    }
 

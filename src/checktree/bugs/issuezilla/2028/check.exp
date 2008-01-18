@@ -82,7 +82,7 @@ proc issue_2028_init_level {} {
 
 
 proc issue_2028_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global issue_2028_backup_seqno
 
    # backup jobseqnum
@@ -97,7 +97,7 @@ proc issue_2028_setup {} {
 }
 
 proc issue_2028_cleanup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global issue_2028_backup_seqno
 
    # cleanup cluster
@@ -132,9 +132,9 @@ proc issue_2028_submit {scenario {jobcount 5}} {
          lappend id_list $job_id
       } else {
          if {$job_id == -25} {
-            add_proc_error "issue_2028_submit" -1 "iz 2028 is present - job submission failed $scenario"
+            ts_log_severe "iz 2028 is present - job submission failed $scenario"
          } else {
-            add_proc_error "issue_2028_submit" -1 "job submission failed $scenario - seemingly due to other problem than iz 2028"
+            ts_log_severe "job submission failed $scenario - seemingly due to other problem than iz 2028"
          }
          break
       }
@@ -144,7 +144,7 @@ proc issue_2028_submit {scenario {jobcount 5}} {
 }
 
 proc issue_2028_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    set qmaster_spool_dir [get_qmaster_spool_dir]
 

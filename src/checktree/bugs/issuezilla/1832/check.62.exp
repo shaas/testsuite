@@ -75,31 +75,31 @@ proc issue_1832_cleanup {} {
 }
 
 proc issue_1832_run_simple  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set host $ts_config(master_host)
 
    # use only drmaa_wait() for task status information 
    set output [start_source_bin "test_drmaa_issue1832" "$ts_config(product_root)/examples/jobs/sleeper.sh" $host]
-   puts $CHECK_OUTPUT "output:\n$output"
+   ts_log_fine "output:\n$output"
 
    # If we segfault on any architecture, the bug still exists.
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1832_run_simple" -1 "test binary test_drmaa_issue1832 failed on host $host:\n$output"
+      ts_log_severe "test binary test_drmaa_issue1832 failed on host $host:\n$output"
    }
 
    # retrieve task status via drmaa_job_ps() during run
    set output [start_source_bin "test_drmaa_issue1832" "-ps $ts_config(product_root)/examples/jobs/sleeper.sh" $host]
-   puts $CHECK_OUTPUT "output:\n$output"
+   ts_log_fine "output:\n$output"
 
    # If we segfault on any architecture, the bug still exists.
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1832_run_simple" -1 "test binary test_drmaa_issue1832 failed on host $host:\n$output"
+      ts_log_severe "test binary test_drmaa_issue1832 failed on host $host:\n$output"
    }
 }
 
 proc issue_1832_run_master_down  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    set host $ts_config(master_host)
 
    set arch [resolve_build_arch_installed_libs $host]
@@ -129,9 +129,9 @@ proc issue_1832_run_master_down  {} {
         foreach line [split $expect_out(0,string) "\n"] {
            if {$line != ""} {
               append output "${line}\n"
-              puts $CHECK_OUTPUT $line
+              ts_log_fine $line
               if { [string match "ddd*" $line] && $master_down == 0} {
-                  puts $CHECK_OUTPUT "shutting down qmaster ..."
+                  ts_log_fine "shutting down qmaster ..."
                   shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
                   set master_down 1
                   set my_master_start_time [timestamp]
@@ -140,19 +140,19 @@ proc issue_1832_run_master_down  {} {
               if { $my_master_start_time > 0 && 
                    [timestamp] >= $my_master_start_time &&
                    $master_restarted == 0 } {
-                 puts $CHECK_OUTPUT "starting up qmaster ..."
+                 ts_log_fine "starting up qmaster ..."
                  startup_qmaster
                  set master_restarted 1
               }
               if { [string match "*_exit_status_:(*" $line ] } {
-                 puts $CHECK_OUTPUT "script terminated!" 
+                 ts_log_fine "script terminated!" 
                  set help $line
                  set st [string first "(" $help]
                  set ed [string first ")" $help]
                  incr st 1
                  incr ed -1
                  set exit_state [string range $help $st $ed]
-                 puts $CHECK_OUTPUT "found exit status of client: ($exit_state)"
+                 ts_log_fine "found exit status of client: ($exit_state)"
                  set do_stop 1
               }
            }
@@ -165,7 +165,7 @@ proc issue_1832_run_master_down  {} {
    close_spawn_process $pr_id
 
    if {$exit_state != 0} {
-      add_proc_error "issue_1832_run_master_down" -1 "test binary test_drmaa_issue1832 failed on host $host\n$output"
+      ts_log_severe "test binary test_drmaa_issue1832 failed on host $host\n$output"
    }
    if { $master_restarted == 0 } {
       startup_qmaster
@@ -173,7 +173,7 @@ proc issue_1832_run_master_down  {} {
 
 
    if { $error_text != "" } {
-      add_proc_error "issue_1832_run_master_down" -1 $error_text
+      ts_log_severe $error_text
    }
 }
 

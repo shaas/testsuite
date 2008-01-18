@@ -81,7 +81,7 @@ proc issue_2300_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2300_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global global_host_backup queue_backup
 
    # backup the queue settings
@@ -141,7 +141,7 @@ proc issue_2300_setup {} {
 }
 
 proc issue_2300_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global global_host_backup queue_backup
 
    delete_all_jobs
@@ -247,7 +247,7 @@ proc issue_2300_cleanup {} {
 #  jeder_nur_eins/1   F010=1/1             projects Project1
 #*******************************************************************************
 proc issue_2300_P {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # submit a job for each project and wait for them to be running
    set args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 600"
@@ -268,19 +268,19 @@ proc issue_2300_P {} {
    # call qquota, expect 2 jobs to be output (and we have 2 header lines)
    set output [start_sge_bin "qquota" ""]
    if {[llength [split [string trim $output] "\n"]] != 5} {
-      add_proc_error "" -1 "qquota failed, expected output for projects P1 and P2, but got:\n$output"
+      ts_log_severe "qquota failed, expected output for projects P1 and P2, but got:\n$output"
    }
 
    # call qquota -P P1, expect 1 jobs to be output
    set output [start_sge_bin "qquota" "-P P1"]
    if {[llength [split [string trim $output] "\n"]] != 4} {
-      add_proc_error "" -1 "qquota failed, expected output for project P1, but got:\n$output"
+      ts_log_severe "qquota failed, expected output for project P1, but got:\n$output"
    }
 
    # call qquota -P P3, expect 0 jobs to be output
    set output [start_sge_bin "qquota" "-P P3"]
    if {[llength [split [string trim $output] "\n"]] != 3} {
-      add_proc_error "" -1 "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
+      ts_log_severe "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
    }
 
    delete_job $job_1 1
@@ -288,7 +288,7 @@ proc issue_2300_P {} {
 }
 
 proc issue_2300_PE {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # submit a job for each project and wait for them to be running
    set args "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 600"
@@ -309,19 +309,19 @@ proc issue_2300_PE {} {
    # call qquota, expect 2 jobs to be output (and we have 2 header lines)
    set output [start_sge_bin "qquota" ""]
    if {[llength [split [string trim $output] "\n"]] != 5} {
-      add_proc_error "" -1 "qquota failed, expected output for pes PE1 and PE2, but got:\n$output"
+      ts_log_severe "qquota failed, expected output for pes PE1 and PE2, but got:\n$output"
    }
 
    # call qquota -pe PE1, expect 1 jobs to be output
    set output [start_sge_bin "qquota" "-pe PE1"]
    if {[llength [split [string trim $output] "\n"]] != 4} {
-      add_proc_error "" -1 "qquota failed, expected output for pe PE1, but got:\n$output"
+      ts_log_severe "qquota failed, expected output for pe PE1, but got:\n$output"
    }
 
    # call qquota -pe PE3, expect 0 jobs to be output
    set output [start_sge_bin "qquota" "-pe PE3"]
    if {[llength [split [string trim $output] "\n"]] != 3} {
-      add_proc_error "" -1 "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
+      ts_log_severe "qquota failed, expected only output for rule iz_2300_s, but got:\n$output"
    }
 
    delete_job $job_1 1

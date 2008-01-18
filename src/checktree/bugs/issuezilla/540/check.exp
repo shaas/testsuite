@@ -79,7 +79,7 @@ proc issue_540_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_540_check {} {
-   global ts_config CHECK_OUTPUT env CHECK_USER
+   global ts_config env CHECK_USER
  
    #
    # Scenario:
@@ -89,7 +89,7 @@ proc issue_540_check {} {
    set job_sleep_time "2"
    set job_output_file "out:put.txt"
    set user_home $env(HOME)
-   puts "user_home:$user_home"
+   ts_log_fine "user_home:$user_home"
 
    set host [host_conf_get_suited_hosts]
 
@@ -99,14 +99,14 @@ proc issue_540_check {} {
    set qsub_arguments "-l h=$host -o :$job_output_file,:$job_output_file $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
    if {$job_id > 0} {
-      add_proc_error "issue_540_check" "-1" "qsub accepted the invalid option -o :out:put.txt,:out:put1.txt"
+      ts_log_severe "qsub accepted the invalid option -o :out:put.txt,:out:put1.txt"
    }
 
    #second test should fail - We submit a logfile for a not existing host
    set qsub_arguments "-l h=$host -o qwdfvb:$job_output_file $job_script $job_sleep_time"
    set job_id [submit_job $qsub_arguments 0]
    if {$job_id > 0} {
-      add_proc_error "issue_540_check" "-1" "qsub accepted an invalid host in the -o qwdfvb:out:put.txt option"   
+      ts_log_severe "qsub accepted an invalid host in the -o qwdfvb:out:put.txt option"   
    }
 
    #third test should pass - We submit a logfile with a ":" inside. This shoud be accepted
@@ -119,7 +119,7 @@ proc issue_540_check {} {
    set result [wait_for_remote_file $host $CHECK_USER $user_home/$job_output_file 120]
 
    if {$result != 0} {
-      add_proc_error "issue_540_check" "-1" "qsub did not create the specified output file $job_output_file on host $host"
+      ts_log_severe "qsub did not create the specified output file $job_output_file on host $host"
    } else {
       delete_remote_file $host $CHECK_USER $user_home/$job_output_file
    }

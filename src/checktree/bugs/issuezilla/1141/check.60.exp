@@ -64,12 +64,12 @@ proc issue_1141_init_level {} {
 }
 
 proc issue_1141_run {} {
-   global ts_config  CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    set qmaster_abort [translate_macro MSG_MIRROR_QMASTERALIVETIMEOUTEXPIRED]
    set got_send_error [translate_macro MSG_CL_RETVAL_SEND_ERROR]
-   puts $CHECK_OUTPUT "looking for string \"$qmaster_abort\""
-   puts $CHECK_OUTPUT "not expected error string is \"$got_send_error\""
+   ts_log_fine "looking for string \"$qmaster_abort\""
+   ts_log_fine "not expected error string is \"$got_send_error\""
 
    set up_arch [resolve_build_arch $ts_config(master_host)]
    set client_binary $ts_config(source_dir)/$up_arch/qevent
@@ -93,19 +93,19 @@ proc issue_1141_run {} {
       set timeout 60
       expect {
          -i $client_id full_buffer {
-            add_proc_error "issue_1141_run" -1 "expect full_buffer error"
+            ts_log_severe "expect full_buffer error"
             close_spawn_process $client_sid
             return -1
          }
          -i $client_id timeout {
-            puts $CHECK_OUTPUT "---->>>>>>>>> got timeout"
-            add_proc_error "issue_1141_run" -1 "got timeout"
+            ts_log_finer "---->>>>>>>>> got timeout"
+            ts_log_severe "got timeout"
             set in_loop 0   
          }
          -i $client_id eof {
             set spawn_id $expect_out(spawn_id)
-            puts $CHECK_OUTPUT "got eof for spawn_id $spawn_id"
-            add_proc_error "issue_1141_run" -1 "got eof"
+            ts_log_finer "got eof for spawn_id $spawn_id"
+            ts_log_severe "got eof"
             set in_loop 0   
          }
          -i $client_id -- "*\n" {
@@ -115,26 +115,26 @@ proc issue_1141_run {} {
             foreach line $output {
                incr nr_of_lines 1
                set help [string trim $line]
-               puts $CHECK_OUTPUT "qevent: $help"
+               ts_log_finer "qevent: $help"
 
                if {[string match "*$qmaster_abort*" $help]} {
-                  puts $CHECK_OUTPUT "client: $help"
-                  puts $CHECK_OUTPUT "found timeout error"
+                  ts_log_finer "client: $help"
+                  ts_log_finer "found timeout error"
                   set qmaster_abort_found 1
                   continue
                }
 
                if {[string match "*$got_send_error*" $help]} {
-                  puts $CHECK_OUTPUT "client: $help"
-                  puts $CHECK_OUTPUT "found send error"
+                  ts_log_finer "client: $help"
+                  ts_log_finer "found send error"
                   set send_error_found 1
                   continue
                }
                
                if {$qmaster_abort_found == 1} {
                   if {[string match "*ECL_STATE*" $help]} {
-                     puts $CHECK_OUTPUT "client: $help"
-                     puts $CHECK_OUTPUT "got ECL_STATE after qmaster abort"
+                     ts_log_finer "client: $help"
+                     ts_log_finer "got ECL_STATE after qmaster abort"
                      set qevent_reconnected 1
                      continue
                   }
@@ -143,17 +143,17 @@ proc issue_1141_run {} {
          }
       }
       if {$nr_of_lines > 40} {
-         add_proc_error "issue_1141_run" -1 "unexpected error - stoping test"
+         ts_log_severe "unexpected error - stoping test"
          set in_loop 0
       }
 
       if {$qmaster_abort_found == 1 && $send_error_found == 1} {
-         add_proc_error "issue_1141_run" -1 "bug #1141 is present"
+         ts_log_severe "bug #1141 is present"
          set in_loop 0
       }
       
       if {$qevent_reconnected == 1} {
-         puts $CHECK_OUTPUT "reconnect successfull! - ok"
+         ts_log_fine "reconnect successfull! - ok"
          set in_loop 0
       }
    }

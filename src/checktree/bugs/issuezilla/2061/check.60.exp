@@ -70,17 +70,17 @@ proc issue_2061_init_level {} {
 
 
 proc issue_2061_run {} {
-   global CHECK_OUTPUT check_name ts_config
+   global check_name ts_config
 
    set job_args "-N $check_name -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
-   puts $CHECK_OUTPUT "submitting job qsub $job_args ..."
+   ts_log_fine "submitting job qsub $job_args ..."
 
    set output [start_sge_bin "qsub" $job_args]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
    if {[string match "*(\"$check_name\")*" $output ]} {
-      puts $CHECK_OUTPUT "got output which contains \"$check_name\" - ok"
+      ts_log_fine "got output which contains \"$check_name\" - ok"
    } else {
-      add_proc_error "issue_2061_run" -1 "output doesn't contain the string sequence (\"$check_name\")"
+      ts_log_severe "output doesn't contain the string sequence (\"$check_name\")"
    }
 }
 

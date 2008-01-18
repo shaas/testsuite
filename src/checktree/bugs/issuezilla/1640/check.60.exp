@@ -95,7 +95,7 @@ proc issue_1640_cleanup  {} {
 }
 
 proc issue_1640_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    #
    # Scenario:
@@ -107,21 +107,20 @@ proc issue_1640_test {} {
    #
    set result [start_sge_bin "qconf" "-mattr exechost complex_values re=false global"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1640_test" -1 "error: qconf -mattr exechost complex_values re=false global:\n$result"
+      ts_log_severe "error: qconf -mattr exechost complex_values re=false global:\n$result"
       return
    }
 
    set result [start_sge_bin "qconf" "-mattr exechost complex_values re=true global"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1640_test" -1 "error: qconf -mattr exechost complex_values re=true global:\n$result"
+      ts_log_severe "error: qconf -mattr exechost complex_values re=true global:\n$result"
       return
    }
 
    get_exechost global_host "global"
    set expected_output "rerun=true"
    if {$global_host(complex_values) != $expected_output} {
-      add_proc_error "issue_1640_check" "-1" \
-                     "IZ 1640 is present: qconf gets confused by shortcuts\ngot $global_host(complex_values)\nexpected $expected_output"
+      ts_log_severe "IZ 1640 is present: qconf gets confused by shortcuts\ngot $global_host(complex_values)\nexpected $expected_output"
       return
    }
 }

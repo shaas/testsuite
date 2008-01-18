@@ -71,14 +71,14 @@ proc issue_1270_cleanup {} {
 }
 
 proc issue_1270_run  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set client_args "$ts_config(product_root)/examples/jobs/sleeper.sh"
 
    set output [start_source_bin "test_drmaa_sync" $client_args "" "" prg_exit_state 600]
 
    if {$prg_exit_state <= 0} {
-      add_proc_error "issue_1270_run" "-1" "drmaa_synchronize() did not ignore new jobs:\n$output"
+      ts_log_severe "drmaa_synchronize() did not ignore new jobs:\n$output"
    }
 }
 

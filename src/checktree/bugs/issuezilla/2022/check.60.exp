@@ -85,24 +85,24 @@ proc issue_2022_init_level {} {
 
 
 proc issue_2022_setup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global issue_2022_schedd_config
 
-   puts $CHECK_OUTPUT "backing up scheduler configuration"
+   ts_log_fine "backing up scheduler configuration"
    get_schedd_config issue_2022_schedd_config
 }
 
 proc issue_2022_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global issue_2022_schedd_config
 
-   puts $CHECK_OUTPUT "restoring up scheduler configuration"
+   ts_log_fine "restoring up scheduler configuration"
    set_schedd_config issue_2022_schedd_config
 }
 
 
 proc issue_2022_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    foreach profile "inst_schedd_high.conf inst_schedd_max.conf inst_schedd_normal.conf" {
       set_schedd_config_from_file "$ts_config(product_root)/util/install_modules/$profile"

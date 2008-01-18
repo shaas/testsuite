@@ -79,10 +79,10 @@ proc issue_1837_cleanup {} {
 }
 
 proc issue_1837_run {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # Run test binary on all architectures
-   puts $CHECK_OUTPUT "running qtcsh on all architectures"
+   ts_log_fine "running qtcsh on all architectures"
    foreach host $ts_config(unique_arch_nodes) {
       # If the bug still exists, this test will time out.  The default timeout
       # for start_remote_prog is 60 seconds.
@@ -90,7 +90,7 @@ proc issue_1837_run {} {
 
       # If we time out on any architecture, the bug still exists
       if {$prg_exit_state != 0} {
-         add_proc_error "" -1 "qtcsh failed on host $host:\n$output"
+         ts_log_severe "qtcsh failed on host $host:\n$output"
       }
    }
 }

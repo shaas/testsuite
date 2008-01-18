@@ -99,10 +99,10 @@ proc issue_1803_init_level {} {
 
 
 proc issue_1803_setup {} {
-   global CHECK_OUTPUT ts_config  issue_1803_stored_configuration 
-   puts $CHECK_OUTPUT "\n--- Setup ---"
+   global ts_config  issue_1803_stored_configuration 
+   ts_log_fine "\n--- Setup ---"
 
-   puts $CHECK_OUTPUT "saving current configuration ..."   
+   ts_log_fine "saving current configuration ..."   
    get_config issue_1803_stored_configuration
 
    # set short scheduling interval
@@ -123,7 +123,7 @@ proc issue_1803_setup {} {
    }
    set myconfig(execd_params) "$my_execd_params"
    set myconfig(load_report_time) "00:00:01"
-   puts $CHECK_OUTPUT "setting execd_params to \"$my_execd_params\" ..."
+   ts_log_fine "setting execd_params to \"$my_execd_params\" ..."
    set_config myconfig
 
    # wait some time for config to be known at exec hosts
@@ -131,13 +131,13 @@ proc issue_1803_setup {} {
 }
 
 proc issue_1803_cleanup {} {
-   global CHECK_OUTPUT ts_config issue_1803_stored_configuration
+   global ts_config issue_1803_stored_configuration
 
-   puts $CHECK_OUTPUT "--- Cleanup ---"
+   ts_log_fine "--- Cleanup ---"
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
-   puts $CHECK_OUTPUT "restoring original configuration ..."
+   ts_log_fine "restoring original configuration ..."
    reset_schedd_config
    set_config issue_1803_stored_configuration
 
@@ -151,9 +151,9 @@ proc issue_1803_cleanup {} {
 
 proc issue_1803_test {} {
    global check_description CHECK_USER ts_user_config
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global CHECK_DISPLAY_OUTPUT
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
 
    set starter_method_list {}
    lappend starter_method_list "none"
@@ -164,7 +164,7 @@ proc issue_1803_test {} {
 
       # Setting execd_params to KEEP_ACTIVE=true
       set myconfig(starter_method) "$starter_method"
-      puts $CHECK_OUTPUT "setting starter_method to \"$starter_method\" ..."
+      ts_log_fine "setting starter_method to \"$starter_method\" ..."
       mod_queue all.q "" myconfig
       
       # init_logfile_wait instead of sleep
@@ -188,12 +188,12 @@ proc issue_1803_test {} {
 
          set jobs_dir "$spool_dir/active_jobs/$job_id.1"
          set trace_file "$jobs_dir/trace"
-         puts $CHECK_OUTPUT "trace file:       $trace_file"
+         ts_log_fine "trace file:       $trace_file"
          wait_for_remote_file $host $ts_user_config(second_foreign_user) $trace_file
 
-         puts $CHECK_OUTPUT "reading $trace_file ..."
+         ts_log_fine "reading $trace_file ..."
          set trace_output [start_remote_prog $host $ts_user_config(second_foreign_user) cat $trace_file prg_exit_state 10]
-      #            puts $CHECK_OUTPUT "---\n$trace_output\n---"
+      #            ts_log_fine "---\n$trace_output\n---"
          set trace_output [split $trace_output "\r\n"]
 
          set counter 0
@@ -203,7 +203,7 @@ proc issue_1803_test {} {
                if {[string match "*execvp*" $line]} {
                   set line_split [split $line "\""]
                   foreach line_part $line_split {
-                     puts $CHECK_OUTPUT $line_part
+                     ts_log_fine $line_part
                   }
                   set binary    [get_string_value_between "execvp(" "," [lindex $line_split 0 ]]
                   set argument1 [lindex $line_split 1]
@@ -247,25 +247,25 @@ proc issue_1803_test {} {
                      set expected_argument2        "epilog"
                      set expected_argument3        ""
                   } else {
-                     add_proc_error "issue_1803_test" -1 "shepherd forked more than 3 (epilog, job, prolog) times"
+                     ts_log_severe "shepherd forked more than 3 (epilog, job, prolog) times"
                   }
                
-                  puts $CHECK_OUTPUT "binary:    \"$binary\""
-                  puts $CHECK_OUTPUT "argument1: \"$argument1\""
-                  puts $CHECK_OUTPUT "argument2: \"$argument2\""
-                  puts $CHECK_OUTPUT "argument3: \"$argument3\""
+                  ts_log_fine "binary:    \"$binary\""
+                  ts_log_fine "argument1: \"$argument1\""
+                  ts_log_fine "argument2: \"$argument2\""
+                  ts_log_fine "argument3: \"$argument3\""
 
                   if {$binary != $expected_binary} {
-                     add_proc_error "issue_1803_test" -1 "$add_error expected $expected_binary, but shepherd executed $binary"
+                     ts_log_severe "$add_error expected $expected_binary, but shepherd executed $binary"
                   }
                   if {$argument1 != $expected_argument1} {
-                     add_proc_error "issue_1803_test" -1 "$add_error expected arg1 = $expected_argument1, but arg1 = $argument1"
+                     ts_log_severe "$add_error expected arg1 = $expected_argument1, but arg1 = $argument1"
                   }
                   if {$argument2 != $expected_argument2} {
-                     add_proc_error "issue_1803_test" -1 "$add_error expected arg2 = $expected_argument2, but arg2 = $argument2"
+                     ts_log_severe "$add_error expected arg2 = $expected_argument2, but arg2 = $argument2"
                   }
                   if {$argument3 != $expected_argument3} {
-                     add_proc_error "issue_1803_test" -1 "$add_error expected arg3 = $expected_argument3, but arg3 = $argument3"
+                     ts_log_severe "$add_error expected arg3 = $expected_argument3, but arg3 = $argument3"
                   }
                   incr counter
                }   

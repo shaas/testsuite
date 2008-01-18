@@ -75,18 +75,18 @@ proc sge_strdup_test_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc sge_strdup_test_test1 {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set output [start_sge_bin "qconf" "-ae \"\""]
-   puts $CHECK_OUTPUT "output: $output"
+   ts_log_fine "output: $output"
    if {[string first "\"\"" $output] < 0} {
-      add_proc_error "sge_strdup_test_test1" -1 "issue 2122 found"
+      ts_log_severe "issue 2122 found"
    }
 
    set output [start_sge_bin "qconf" "-purge queue slots \"\""]
-   puts $CHECK_OUTPUT "output: $output"
+   ts_log_fine "output: $output"
    if {[string first "\"\"" $output] < 0} {
-      add_proc_error "sge_strdup_test_test1" -1 "issue 2122 found" 
+      ts_log_severe "issue 2122 found" 
    }
 }
 

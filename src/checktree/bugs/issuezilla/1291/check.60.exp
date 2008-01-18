@@ -65,7 +65,7 @@ proc issue_1291_init_level {} {
 }
 
 proc issue_1291_run  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    set name "\"\""
 
@@ -81,13 +81,13 @@ proc issue_1291_run  {} {
    # Test
    set result [start_sge_bin "qdel" "$name"]
    if {$result == ""} {
-      add_proc_error "issue_1291_run" -1 "qdel exited with exit code $prg_exit_state and didn't do any output"
+      ts_log_severe "qdel exited with exit code $prg_exit_state and didn't do any output"
    } else {
       if {![string match "*${INVALID_AT_QDEL}*" $result] && ![string match "*${INVALID_IDENTIFIER}*" $result]} {
          if {[string match "*${INVALID_AT_QMASTER}*" $result]} {
-            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id, but qmaster rejects it.\nqdel output: $result"
+            ts_log_severe "qdel allows $name as a valid job id, but qmaster rejects it.\nqdel output: $result"
          } else {
-            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id.\nqdel output: $result\nexpected output: $INVALID_AT_QDEL"
+            ts_log_severe "qdel allows $name as a valid job id.\nqdel output: $result\nexpected output: $INVALID_AT_QDEL"
          }
       }
    }
@@ -96,13 +96,13 @@ proc issue_1291_run  {} {
    set name "1x"
    set result [start_sge_bin "qdel" "$name"]
    if {$result == ""} {
-      add_proc_error "issue_1291_run" -1 "qdel exited with exit code $prg_exit_state and didn't do any output"
+      ts_log_severe "qdel exited with exit code $prg_exit_state and didn't do any output"
    } else {
       if {![string match "*${INVALID_AT_QDEL}*" $result]} {
          if {[string match "*${INVALID_AT_QMASTER}*" $result]} {
-            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id, but qmaster rejects it.\nqdel output: $result"
+            ts_log_severe "qdel allows $name as a valid job id, but qmaster rejects it.\nqdel output: $result"
          } else {
-            add_proc_error "issue_1291_run" -1 "qdel allows $name as a valid job id.\nqdel output: $result\nexpected output: $INVALID_AT_QDEL"
+            ts_log_severe "qdel allows $name as a valid job id.\nqdel output: $result\nexpected output: $INVALID_AT_QDEL"
          }
       }
    }

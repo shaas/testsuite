@@ -80,21 +80,21 @@ proc issue_2183_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2183_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global config_backup
 
    get_config config_backup
 }
 
 proc issue_2183_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global config_backup
 
    set_config config_backup
 }
 
 proc issue_2183_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set new_conf(reporting_params) "flush_time=-1"
    set_config new_conf
@@ -102,7 +102,7 @@ proc issue_2183_test {} {
    set output [start_sge_bin "qstat" ""]
 
    if {[string trim $output] != ""} {
-      add_proc_error "issue_2183_test" -1 "qstat output should have been empty, but was\n$output"
+      ts_log_severe "qstat output should have been empty, but was\n$output"
    }
 }
 

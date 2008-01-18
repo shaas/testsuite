@@ -79,7 +79,7 @@ proc issue_478_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_478_check {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # initialize parameter
    set job_name "n1"
@@ -119,10 +119,9 @@ proc issue_478_check {} {
 
    if {[string compare $job_id1 $out_id] != 0 || \
        [string compare $job_name $out_name] != 0} {
-      puts [format " expeced output: $formatstring" $job_id1 $job_name]
-      puts "qstat -r output: $qstatoutput"
-      add_proc_error "issue_478_check" "-1" \
-                     "qstat -r output is not corrrect for predecessor Jobs"
+      ts_log_fine [format " expeced output: $formatstring" $job_id1 $job_name]
+      ts_log_fine "qstat -r output: $qstatoutput"
+      ts_log_severe "qstat -r output is not corrrect for predecessor Jobs"
       return
    }
 

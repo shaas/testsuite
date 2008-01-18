@@ -64,13 +64,13 @@ proc issue_1146_init_level {} {
 }
 
 proc issue_1146_run  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    set qname "thisis@atest"
    
    set test_host [lindex $ts_config(execd_nodes) 0]
 
-   puts $CHECK_OUTPUT "creating queue \"$qname\" for hostlist \"$test_host\""
+   ts_log_fine "creating queue \"$qname\" for hostlist \"$test_host\""
 
    set qparam(qname)     "$qname"
    set qparam(hostlist)  "$test_host"

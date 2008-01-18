@@ -4004,7 +4004,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
             if {$CHECK_INTERRUPT >= 3} {
                break
             }
-            ts_log_info ">>> running check \"$check_name\", check_function \"$elem\" in runlevel: [get_run_level_name $level]($level)" 0 "" 1 1 0
+            ts_log_info ">>> running \"$check_name\": \"$elem\", runlevel $level ([get_run_level_name $level])" 0 "" 1 1 0
 
             # set public procedure error state to "no error"
             set check_cur_proc_result "0"
@@ -4383,7 +4383,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       return -2  ;# dependencies not fulfilled
    }
 
-   ts_log_info ">>> running check \"$check_name\"" 0 "" 1 1 0
+   ts_log_fine "entering check \"$check_name\"" 0 "" 1 1 0
 
    set nr_errors 0
    set nr_warnings 0

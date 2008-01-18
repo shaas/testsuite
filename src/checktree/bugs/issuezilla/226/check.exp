@@ -80,7 +80,7 @@ proc issue_226_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_226_check {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # NONE should be allowed
    set my_cluster_conf(gid_range) "NONE"
@@ -90,20 +90,23 @@ proc issue_226_check {} {
    set my_cluster_conf(gid_range) "100-200"
    set_config my_cluster_conf "global"
 
-   # value blow 100 should be rejected
+   # value below 100 should be rejected
    set my_cluster_conf(gid_range) "99"
-   set_config my_cluster_conf "global" "0" "1"
+   set ret [set_config my_cluster_conf "global" 0 0]
+   if {$ret == 0} {
+      ts_log_severe "gid_range of 99 should have got rejected"
+   }
 }
 
 proc issue_226_setup  {} {
-   global ts_config CHECK_OUTPUT stored_configuration
+   global ts_config stored_configuration
 
    # get configuration
    get_config stored_configuration
 }
 
 proc issue_226_cleanup  {} {
-   global ts_config CHECK_OUTPUT stored_configuration
+   global ts_config stored_configuration
 
    # reset saved configuration
    if {[info exists stored_configuration]} {

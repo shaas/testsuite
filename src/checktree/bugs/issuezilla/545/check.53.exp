@@ -93,22 +93,22 @@ proc issue_545_cleanup {} {
 }
 
 proc issue_545_check {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # submit one job
-   puts $CHECK_OUTPUT "Submitting 1 sleeper (3600s) ..."
+   ts_log_fine "Submitting 1 sleeper (3600s) ..."
    set arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 3600"
    set job_id [submit_job "$arguments"]
 
    # wait for the job to start
-   puts $CHECK_OUTPUT "Waiting for job to start ..."
+   ts_log_fine "Waiting for job to start ..."
    wait_for_jobstart $job_id "Sleeper" 20 1 1
 
    # change -p priority of running job
-   puts $CHECK_OUTPUT "Change priority of running job"
+   ts_log_fine "Change priority of running job"
    set output [start_sge_bin "qalter" "-p 100 $job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_545_check" "-1" "qalter -p failed for job:\n$output"
+      ts_log_severe "qalter -p failed for job:\n$output"
       return
    }
 }

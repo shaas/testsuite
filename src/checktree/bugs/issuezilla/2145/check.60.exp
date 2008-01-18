@@ -82,7 +82,7 @@ proc issue_2145_init_level {} {
 
 
 proc issue_2145_setup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global complex_backup
 
    # backup complex
@@ -93,7 +93,7 @@ proc issue_2145_setup {} {
 }
 
 proc issue_2145_cleanup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global complex_backup
 
    # reset complex configuration
@@ -102,7 +102,7 @@ proc issue_2145_cleanup {} {
 
 
 proc issue_2145_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set exechost_name [host_conf_get_suited_hosts]
    set qinstance_name [get_queue_instance all.q $exechost_name]
@@ -117,7 +117,7 @@ proc issue_2145_test {} {
    # check if queue is returned
    set result [start_sge_bin "qselect" "-l test=5"]
    if {[string compare $qinstance_name $result] == 0} {
-      add_proc_error "issue_2145_test" -1 "qselect returned queue although there was no output expected"
+      ts_log_severe "qselect returned queue although there was no output expected"
    }   
 
    # add a value test=1 to all.q@$exechost_name
@@ -126,7 +126,7 @@ proc issue_2145_test {} {
    # check if queue is returned
    set result [start_sge_bin "qselect" "-l test=1"]
    if {[string compare $qinstance_name $result] == 0} {
-      add_proc_error "issue_2145_test" -1 "qselect returned queue although there was one expected after modifying qinstance"
+      ts_log_severe "qselect returned queue although there was one expected after modifying qinstance"
    }   
 
    # add a value test=1 to all.q@$exechost_name 

@@ -71,6 +71,6 @@ proc issue_1529_run  {} {
    set output [start_source_bin "test_drmaa_no_bin" $client_args]
 
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1529_run" "-1" "DRMAA failed to accept non-binary job:\n$output"
+      ts_log_severe "DRMAA failed to accept non-binary job:\n$output"
    }
 }

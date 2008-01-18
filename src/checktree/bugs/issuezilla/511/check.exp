@@ -91,12 +91,12 @@ proc issue_511_setup  {} {
 
 
 proc issue_511_check {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # TEST
 
    # submit 5 jobs
-   puts $CHECK_OUTPUT "Submitting 5 sleeper (3600s) ..."
+   ts_log_fine "Submitting 5 sleeper (3600s) ..."
    set arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 3600"
    set job_id1 [ submit_job "$arguments" ]
    set job_id2 [ submit_job "$arguments" ]
@@ -105,7 +105,7 @@ proc issue_511_check {} {
    set job_id5 [ submit_job "$arguments" ]
 
    # wait for the start of 4 jobs
-   puts $CHECK_OUTPUT "Waiting job satrt of 4 jobs ..."
+   ts_log_fine "Waiting job satrt of 4 jobs ..."
    wait_for_jobstart $job_id1 "Sleeper" 20 1 1
    wait_for_jobstart $job_id2 "Sleeper" 15 1 1
    wait_for_jobstart $job_id3 "Sleeper" 15 1 1
@@ -117,40 +117,39 @@ proc issue_511_check {} {
    set output [start_sge_bin "qstat" "-j $job_id5"]
    set expected_output "job dropped because of user limitations"
    if {[string first $expected_output $output] < 0} {
-      add_proc_error "issue_511_check" "-1" \
-                     "qstat -j output is not correct for last pending job: expected\n$expected_output\nbut received\n$output"
+      ts_log_severe "qstat -j output is not correct for last pending job: expected\n$expected_output\nbut received\n$output"
       return
    } 
 
    # qmod -s <1st_job_id>
-   puts $CHECK_OUTPUT "Change one job into suspended state"
+   ts_log_fine "Change one job into suspended state"
    set output [start_sge_bin "qmod" "-s $job_id1"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_511_check" "-1" "qmod -s failed for first job:\n$output"
+      ts_log_severe "qmod -s failed for first job:\n$output"
       return
    }
 
    # qhold <2nd_job_id>
-   puts $CHECK_OUTPUT "Change one job into hold state"
+   ts_log_fine "Change one job into hold state"
    set output [start_sge_bin "qhold" "$job_id2"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_511_check" "-1" "qhold failed for second job:\n$output"
+      ts_log_severe "qhold failed for second job:\n$output"
       return
    }
    
    # qalter -a <starttime_in_future> <3nd_job_id>
-   puts $CHECK_OUTPUT "Attaching new start time for one job "
+   ts_log_fine "Attaching new start time for one job "
    set output [start_sge_bin "qalter" "-a 203001010000 $job_id3"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_511_check" "-1" "qalter -a failed for third job:\n$output"
+      ts_log_severe "qalter -a failed for third job:\n$output"
       return
    }
 
    # qalter -hold_jid <5th_job_id> <4nd_job_id>
-   puts $CHECK_OUTPUT "Changing dependency of one job"
+   ts_log_fine "Changing dependency of one job"
    set output [start_sge_bin "qalter" "-hold_jid $job_id5 $job_id4"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_511_check" "-1" "qalter -a failed for third job:\n$output"
+      ts_log_severe "qalter -a failed for third job:\n$output"
       return
    }
 
@@ -159,8 +158,7 @@ proc issue_511_check {} {
    set expected_output "job dropped because of user limitations"
    set output [start_sge_bin "qstat" "-j $job_id5"]
    if {[string first $expected_output $output] < 0} {
-      add_proc_error "issue_511_check" "-1" \
-                     "qstat -j output is not correct for last pending job: expected\n$expected_output\nbut received\n$output"
+      ts_log_severe "qstat -j output is not correct for last pending job: expected\n$expected_output\nbut received\n$output"
       return
    }
 }

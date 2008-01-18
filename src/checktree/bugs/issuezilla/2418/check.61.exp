@@ -78,7 +78,7 @@ proc issue_2418_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2418_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # disable all queues
    set queue_list {}
@@ -89,7 +89,7 @@ proc issue_2418_setup {} {
 }
 
 proc issue_2418_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # cleanup
    delete_all_jobs 1
@@ -105,7 +105,7 @@ proc issue_2418_cleanup {} {
 
 
 proc issue_2418_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # submit a qrsh job
    # we call qrsh through a wrapper that output's its pid,
@@ -121,29 +121,29 @@ proc issue_2418_test {} {
    expect {
       -i $sp_id eof {
          close_spawn_process $qrsh_id
-         add_proc_error "qrsh_suspend" -1 "open_remote_spawn_process closed connection (eof)"
+         ts_log_severe "open_remote_spawn_process closed connection (eof)"
          return
       }
       -i $sp_id timeout {
          close_spawn_process $qrsh_id
-         add_proc_error "qrsh_suspend" -1 "qrsh to host $host failed"
+         ts_log_severe "qrsh to host $host failed"
          return
       }
       -i $sp_id "my pid is *" {
          set pid [lindex $expect_out(0,string) 3]
-         puts $CHECK_OUTPUT "pid is $pid"
+         ts_log_fine "pid is $pid"
          exp_continue
       }
       -i $sp_id -- $JOB_SUBMITTED {
          set job_id [lindex $expect_out(0,string) 2]
-         puts $CHECK_OUTPUT "job_id is $job_id"
+         ts_log_fine "job_id is $job_id"
       }
    }
 
    get_extended_job_info $job_id
    if {![info exists job_info(state)] || $job_info(state) != "qw"} {
       close_spawn_process $qrsh_id
-      add_proc_error "" -1 "submission of qrsh job seems to have failed"
+      ts_log_severe "submission of qrsh job seems to have failed"
       return
    }
 
@@ -155,7 +155,7 @@ proc issue_2418_test {} {
    sleep 5
    get_extended_job_info $job_id
    if {![info exists job_info(state)] || $job_info(state) != "qw"} {
-      add_proc_error "" -1 "qrsh job vanished when qrsh client was killed"
+      ts_log_severe "qrsh job vanished when qrsh client was killed"
       return
    }
 
@@ -168,14 +168,14 @@ proc issue_2418_test {} {
    sleep 15
    get_extended_job_info $job_id
    if {[info exists job_info(state)]} {
-      add_proc_error "" -1 "qrsh job $job_id is still arround - expected it to have vanished"
-      del_job $job_id
+      ts_log_severe "qrsh job $job_id is still arround - expected it to have vanished"
+      delete_job $job_id
    }
 
    # check state of all queues - they may not be in error state
    set queue_state [get_queue_state $queue_name]
    if {[string first "E" $queue_state] >= 0} {
-      add_proc_error "" -1 "queue $queue_name is in error state: $queue_state"
+      ts_log_severe "queue $queue_name is in error state: $queue_state"
    }
 }
 

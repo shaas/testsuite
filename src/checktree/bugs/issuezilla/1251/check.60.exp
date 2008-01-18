@@ -91,7 +91,7 @@ proc issue_1251_cleanup {} {
 }
 
 proc issue_1251_run {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global prj_count node_count stree
 
    set prj_count 0
@@ -111,7 +111,7 @@ proc issue_1251_run {} {
    # Print share tree
    set result [start_sge_bin "qconf" "-sstree"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1251_run" "-1" "qconf failed to display share tree:\n$result"
+      ts_log_severe "qconf failed to display share tree:\n$result"
    }
 }
 

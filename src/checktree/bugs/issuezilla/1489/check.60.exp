@@ -83,7 +83,7 @@ proc issue_1489_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1489_setup {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
    global issue_1489_log_file issue_1489_lck_file
 
@@ -110,22 +110,22 @@ proc issue_1489_setup {} {
 }
 
 proc issue_1489_cleanup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_1489_log_file issue_1489_lck_file del_queue
   
    delete_all_jobs
    wait_for_end_of_all_jobs
   
-   puts $CHECK_OUTPUT "delete test queue"
+   ts_log_fine "delete test queue"
    del_queue "iz_1489" "@allhosts" 0 1
   
-   puts $CHECK_OUTPUT "cleaning up log and lck files"
+   ts_log_fine "cleaning up log and lck files"
    delete_file $issue_1489_lck_file 0
    delete_file $issue_1489_log_file 0
 }
 
 proc issue_1489_run {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_ACTUAL_TEST_PATH
    global issue_1489_log_file issue_1489_lck_file
    
    set option "-o /dev/null -e /dev/null"
@@ -133,26 +133,26 @@ proc issue_1489_run {} {
    # -notify
    set my_job [submit_job "-q iz_1489  $option $CHECK_ACTUAL_TEST_PATH/infinity.sh $issue_1489_lck_file"]
    if {$my_job < 0 } {
-      add_proc_error "issue_1489_run" -1 "submit job failed"
+      ts_log_severe "submit job failed"
       return
    }
    
-   puts $CHECK_OUTPUT "waiting for file $issue_1489_lck_file"
+   ts_log_fine "waiting for file $issue_1489_lck_file"
    # waiting only 10 seconds for the lock file is to short for NFS directories
    set res [wait_for_file $issue_1489_lck_file 70 0]
 
    
    if {$res == 0} {
-      puts $CHECK_OUTPUT "lock file $issue_1489_lck_file has been created, job $my_job is running"
+      ts_log_fine "lock file $issue_1489_lck_file has been created, job $my_job is running"
    } else {   
-      add_proc_error "issue_1489_run" -1 "lock file $issue_1489_lck_file has not been created, job $my_job has not started"
+      ts_log_severe "lock file $issue_1489_lck_file has not been created, job $my_job has not started"
       return
    }
    
    set del_result [delete_job $my_job]
    
    if {$del_result != 0} {
-      add_proc_error "issue_1489_run" -1 "qdel of job $my_job failed"
+      ts_log_severe "qdel of job $my_job failed"
       return
    }
    
@@ -161,9 +161,9 @@ proc issue_1489_run {} {
    set res [wait_for_file $issue_1489_lck_file 70 1]
 
    if {$res == 0} {
-      puts $CHECK_OUTPUT "lock file $issue_1489_lck_file has been deleted, job $my_job gots the TERM signal"
+      ts_log_fine "lock file $issue_1489_lck_file has been deleted, job $my_job gots the TERM signal"
    } else {
-      add_proc_error "issue_1489_run" -1 "lock file $issue_1489_lck_file has not been deleted, job $my_job did not get the TERM signal"
+      ts_log_severe "lock file $issue_1489_lck_file has not been deleted, job $my_job did not get the TERM signal"
       return
    }
 }

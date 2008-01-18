@@ -78,7 +78,7 @@ proc issue_2136_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2136_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_2136_hosts issue_2136_backup_global issue_2136_backup_host
 
    # let's assume we need 2 test hosts
@@ -90,7 +90,7 @@ proc issue_2136_setup {} {
 }
 
 proc issue_2136_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_2136_hosts issue_2136_backup_global issue_2136_backup_host
 
    # restore config
@@ -106,7 +106,7 @@ proc issue_2136_cleanup {} {
 }
 
 proc issue_2136_do_test {host test} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set ok    [lindex $test 0]
    set name  [lindex $test 1]
@@ -118,21 +118,21 @@ proc issue_2136_do_test {host test} {
    # evaluate result
    if {$ok} {
       if {$result == 0} {
-         puts $CHECK_OUTPUT "ok as expected:     $name $value"
+         ts_log_fine "ok as expected:     $name $value"
       } else {
-         add_proc_error "issue_2136_do_test" -1 "setting $name to $value in $host config shouldn't have failed"
+         ts_log_severe "setting $name to $value in $host config shouldn't have failed"
       }
    } else {
       if {$result == 0} {
-         add_proc_error "issue_2136_do_test" -1 "setting $name to $value in $host config should have failed"
+         ts_log_severe "setting $name to $value in $host config should have failed"
       } else {
-         puts $CHECK_OUTPUT "failed as expected: $name $value"
+         ts_log_fine "failed as expected: $name $value"
       }
    }
 }
 
 proc issue_2136_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global issue_2136_hosts
 
    # Array with test cases:

@@ -80,7 +80,7 @@ proc issue_1798_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1798_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
    if {$back != 3} {
@@ -89,12 +89,12 @@ proc issue_1798_cleanup {} {
 
    set output [start_sge_bin "qconf" "-dattr exechost complex_values slots=1 global"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1798_cleanup" -1 "qconf -dattr failed:\n$output"
+      ts_log_severe "qconf -dattr failed:\n$output"
    }
 }
 
 proc issue_1798_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    #
    # Scenario:
@@ -106,12 +106,12 @@ proc issue_1798_test {} {
    #
    set output [start_sge_bin "qconf" "-mattr exechost complex_values slots=1 global"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1798_test" -1 "error: qconf -mattr exechost complex_values slots=1 global:\n$output"
+      ts_log_severe "error: qconf -mattr exechost complex_values slots=1 global:\n$output"
    }
 
    set output [start_sge_bin "qconf" "-mattr exechost complex_values = global"]
    if {$prg_exit_state != 1} {
-      add_proc_error "issue_1798_test" -2 "error: qconf -mattr exechost complex_values = global caused core of master:\n$output"
+      ts_log_warning "error: qconf -mattr exechost complex_values = global caused core of master:\n$output"
       return -2
    }
 }

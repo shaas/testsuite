@@ -76,7 +76,7 @@ proc issue_2328_init_level {} {
 }
 
 proc issue_2328_setup {} {
-   global CHECK_OUTPUT ts_config max_queue_count  
+   global ts_config max_queue_count  
 
    # 1. Setup the complex FOO1-F0010
    set tmp_complex(F001) "F001 INT  <= YES YES 0 0"
@@ -112,7 +112,7 @@ proc issue_2328_setup {} {
       set queue_conf(slots) 10
       set result [add_queue $queue_name "@allhosts" queue_conf 1]
       if {$result < 0} {
-         add_proc_error "issue_2328_setup" -1 "add qsub_ts_$queue_counter.q failed:\n$result"
+         ts_log_severe "add qsub_ts_$queue_counter.q failed:\n$result"
       }
    }
    
@@ -120,9 +120,9 @@ proc issue_2328_setup {} {
    # We subtract 1 for all.q, which we don't want to count
    set queues_made [llength [start_sge_bin "qconf" "-sql"]]
    set number_queues_made [expr $queues_made - 1]
-   puts $CHECK_OUTPUT "we created $number_queues_made queues and we wanted $max_queue_count queues \n"
+   ts_log_fine "we created $number_queues_made queues and we wanted $max_queue_count queues \n"
    if {$number_queues_made != $max_queue_count} {
-      add_proc_error "issue_2328_setup" -1 "we did not make all the required queues"
+      ts_log_severe "we did not make all the required queues"
    }
    
    # Create 5 projects
@@ -143,7 +143,7 @@ proc issue_2328_setup {} {
 }
 
 proc issue_2328_cleanup {} {
-   global CHECK_OUTPUT ts_config max_queue_count
+   global ts_config max_queue_count
 
    delete_all_jobs 0
    wait_for_end_of_all_jobs
@@ -209,12 +209,12 @@ proc issue_2328_cleanup {} {
 #
 #*******************************************************************************
 proc issue_2328 {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # For this test we need at least 5 hosts
    set number_of_execds [llength $ts_config(execd_nodes)]
    if {$number_of_execds < 5} {
-      add_proc_error "issue_2328" -3 "Need at least 5 hosts for this test. We only have $number_of_execds"
+      ts_log_config "Need at least 5 hosts for this test. We only have $number_of_execds"
       return
    }
 
@@ -226,10 +226,10 @@ proc issue_2328 {} {
    }
 
    # Disable all queues first
-   puts $CHECK_OUTPUT "disable queues ..."
+   ts_log_fine "disable queues ..."
    set qmod_result [start_sge_bin "qmod" "-d '*'"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_2328" -1 "disabling all queues failed:\n$qmod_result"
+      ts_log_severe "disabling all queues failed:\n$qmod_result"
       return
    }
 
@@ -252,10 +252,10 @@ proc issue_2328 {} {
    trigger_scheduling
 
    # Enable all queues now
-   puts $CHECK_OUTPUT "enable queues now ..."
+   ts_log_fine "enable queues now ..."
    set qmod_result [start_sge_bin "qmod" "-e '*'"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_2328" -1 "enabling all queues failed:\n$qmod_result"
+      ts_log_severe "enabling all queues failed:\n$qmod_result"
    }
 
    # tail -f schedd reporting file
@@ -280,8 +280,8 @@ proc issue_2328 {} {
 
    # output and error handling
    if {$dispatching_time == -1} {
-      add_proc_error "issue_2328" -1 "didn't find dispatching time in scheduler messages file:\n$result"
+      ts_log_severe "didn't find dispatching time in scheduler messages file:\n$result"
    } else {
-      puts $CHECK_OUTPUT "job dispatching took $dispatching_time s"
+      ts_log_fine "job dispatching took $dispatching_time s"
    }
 }

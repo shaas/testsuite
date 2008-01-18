@@ -113,7 +113,7 @@ proc issue_1914_cleanup {} {
 }
 
 proc issue_1914_submit_test_job {job_type host user test_path} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_DISPLAY_OUTPUT
 
    #cleaning up queues before submit test
@@ -126,11 +126,11 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
    
    set submit_host [host_conf_get_suited_hosts]
 
-   puts $CHECK_OUTPUT "submitting job type \"$job_type\" ..."
+   ts_log_fine "submitting job type \"$job_type\" ..."
    switch -exact $job_type {
 
       "qrsh" { 
-         puts $CHECK_OUTPUT "starting qrsh $remote_host_arg as user $user on host $submit_host ..."
+         ts_log_fine "starting qrsh $remote_host_arg as user $user on host $submit_host ..."
          set sid [open_remote_spawn_process $submit_host $user "qrsh" "$remote_host_arg"]
          set sp_id [lindex $sid 1]
          set timeout 1
@@ -140,11 +140,11 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
          while {!$done} {
             expect {
                -i $sp_id "_start_mark_*\n" {
-                  puts $CHECK_OUTPUT "got start mark ..."
+                  ts_log_fine "got start mark ..."
                }
  
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
@@ -153,10 +153,10 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   if { $job_id == 0 } {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
-                        puts $CHECK_OUTPUT $job
+                        ts_log_fine $job
                         if { [lindex $job 2] == "QRLOGIN" && [lindex $job 3] == $user && [lindex $job 4] == "r"  } {
 
-                                          puts $CHECK_OUTPUT "qrlogin job id is [lindex $job 0]"
+                                          ts_log_fine "qrlogin job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
                         }
                      }
@@ -165,36 +165,36 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   }
 
                   if { $max_timeouts <= 0 } {
-                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     ts_log_severe "got 15 timeout errors - break"
                      set done 1
                   }
                }
                -i $sp_id "ts_shell_response*\n" {
-                  puts $CHECK_OUTPUT "found matching shell response text! Sending exit ..."
+                  ts_log_fine "found matching shell response text! Sending exit ..."
                   ts_send $sp_id "exit\n" $host
                   set error 0
 
                }
 
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_fine "remote command started"
                   set done 0
                }
                -i $sp_id "_exit_status_" {
-                  puts $CHECK_OUTPUT "remote command terminated"
+                  ts_log_fine "remote command terminated"
                   set done 1
                }
                #detects issue 2174 
                -i $sp_id "Protocol error*" {
                   set error 1
-                  puts $CHECK_OUTPUT "Received protocol error from qrsh"
+                  ts_log_fine "Received protocol error from qrsh"
                }
                -i $sp_id "assword" {
-                  add_proc_error "submit_wait_type_job" -1 "unexpected password question for user $user on host $host"
+                  ts_log_severe "unexpected password question for user $user on host $host"
                   set done 1
                }
                -i $sp_id "*rlogin_daemon \"$test_path\" is not executable*" {
@@ -223,7 +223,7 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                      if { [string length $line] == 0 } {
                         continue
                      }
-                     puts $CHECK_OUTPUT $line
+                     ts_log_fine $line
                   }
                }
                -i $sp_id default {
@@ -233,7 +233,7 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
          close_spawn_process $sid
       }
        "qlogin" {
-         puts $CHECK_OUTPUT "starting qlogin $remote_host_arg ..."
+         ts_log_fine "starting qlogin $remote_host_arg ..."
          set sid [open_remote_spawn_process $submit_host $user "qlogin" "$remote_host_arg"]
          set sp_id [lindex $sid 1]
          set timeout 1
@@ -246,7 +246,7 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
          while {!$done} {
             expect {
                -i $sp_id full_buffer {
-                  add_proc_error "submit_with_method" -1 "expect full_buffer error"
+                  ts_log_severe "expect full_buffer error"
                   set done 1
                }
                -i $sp_id timeout {
@@ -254,29 +254,29 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   if {$job_id == 0} {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
-                        puts $CHECK_OUTPUT $job
+                        ts_log_fine $job
                         if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
-                           puts $CHECK_OUTPUT "qlogin job id is [lindex $job 0]"
+                           ts_log_fine "qlogin job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
                         }
                      }
                   }
 
                   if {$max_timeouts <= 0} {
-                     add_proc_error "submit_with_method" -1 "got 15 timeout errors - break"
+                     ts_log_severe "got 15 timeout errors - break"
                      set done 1
                   }
                }
                -i $sp_id eof {
-                  add_proc_error "submit_with_method" -1 "got eof"
+                  ts_log_severe "got eof"
                   set done 1
                }
                -i $sp_id "_start_mark_" {
-                  puts $CHECK_OUTPUT "remote command started"
+                  ts_log_fine "remote command started"
                   set done 0
                }
                -i $sp_id "_exit_status_" {
-                  puts $CHECK_OUTPUT "remote command terminated"
+                  ts_log_fine "remote command terminated"
                   set done 1
                }
 
@@ -285,19 +285,19 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                }
 
                -i $sp_id "assword" {
-                  puts $CHECK_OUTPUT "got password question for user $user on host $host"
+                  ts_log_fine "got password question for user $user on host $host"
                   set error 0 
                   if { $job_id == 0 } {
                      set job_list [get_standard_job_info 0 0 1]
                      foreach job $job_list {
-                        puts $CHECK_OUTPUT $job
+                        ts_log_fine $job
                         if { [lindex $job 2] == "QLOGIN" && [lindex $job 3] == $user } {
-                           puts $CHECK_OUTPUT "qlogin job id is [lindex $job 0]"
+                           ts_log_fine "qlogin job id is [lindex $job 0]"
                            set job_id [lindex $job 0]
                         }
                      }
                   }
-                  puts $CHECK_OUTPUT "deleting job with id $job_id, because we don't know user password ..."
+                  ts_log_fine "deleting job with id $job_id, because we don't know user password ..."
                   delete_job $job_id
                }
                -i $sp_id "*qlogin_daemon \"$test_path\" is not executable*" {
@@ -310,7 +310,7 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                   set daemon_error 1
                }
                -i $sp_id "*closed by foreign host*" {
-                  puts $CHECK_OUTPUT "telnet connection was \"closed by foreign host\""
+                  ts_log_fine "telnet connection was \"closed by foreign host\""
                   set daemon_error 1
                }
  
@@ -323,7 +323,7 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
                      if { [string length $line] == 0 } {
                         continue
                      }
-                     puts $CHECK_OUTPUT $line
+                     ts_log_fine $line
                   }
                }
                -i $sp_id default {
@@ -335,13 +335,13 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
    }
    # check if error message was received 
    if {$daemon_error == 1} {
-      puts $CHECK_OUTPUT "received error message about daemon configuration from \"$job_type\""
+      ts_log_fine "received error message about daemon configuration from \"$job_type\""
       return 1
    }
 
    # error occurs also with wrong binary defined - issue 2174
    if {$error == 1} {
-      puts $CHECK_OUTPUT "didn't get password question for qlogin or error occured for qrsh - unsupported error occured"
+      ts_log_fine "didn't get password question for qlogin or error occured for qrsh - unsupported error occured"
       return 1
    }
 
@@ -354,7 +354,6 @@ proc issue_1914_submit_test_job {job_type host user test_path} {
 #1-all in error state
 #2-queues with E state, no state, >> mixed states
 proc issue_1914_check_host_state {host} {
-   global CHECK_OUTPUT
 
    set state 0
    # delay so the queue state would be updated
@@ -380,7 +379,7 @@ proc issue_1914_check_host_state {host} {
 
 #return 1 if test passed, 0 if failed 
 proc issue_1914_test_submit {job host path error_test} {
-   global CHECK_OUTPUT ts_user_config
+   global ts_user_config
    set res [issue_1914_submit_test_job $job $host $ts_user_config(second_foreign_user) $path] 
    if {$res == [issue_1914_check_host_state $host] && $res == $error_test} {
       return 1
@@ -389,7 +388,7 @@ proc issue_1914_test_submit {job host path error_test} {
 } 
 
 proc issue_1914_test {} {
-   global ts_config ts_user_config CHECK_OUTPUT CHECK_USER backup_config
+   global ts_config ts_user_config CHECK_USER backup_config
    global test_host act_time
 
    set test_jobs {}
@@ -418,10 +417,10 @@ proc issue_1914_test {} {
       set test($daemon) $path
       set_config_and_propagate test $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         ts_log_severe "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for corrupted $daemon configuration - none daemon"
       } else {
-         puts $CHECK_OUTPUT "Test 1 for \"$job\" passed"
+         ts_log_fine "Test 1 for \"$job\" passed"
       }
 
       #testing daemon set to path that has no execution permissions
@@ -431,10 +430,10 @@ proc issue_1914_test {} {
       start_remote_prog $test_host $CHECK_USER "touch" "$path"
       start_remote_prog $test_host "root" "chmod" "-x $path"
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         ts_log_severe "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for corrupted $daemon configuration - daemon without x permissions"
       } else {
-         puts $CHECK_OUTPUT "Test 2 for \"$job\" passed"
+         ts_log_fine "Test 2 for \"$job\" passed"
       }
       #clean up file after test
       start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
@@ -444,10 +443,10 @@ proc issue_1914_test {} {
       set test($daemon) $path
       set_config_and_propagate test $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         ts_log_severe "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for corrupted $daemon configuration - relative path daemon"
       } else {
-         puts $CHECK_OUTPUT "Test 3 for \"$job\" passed"
+         ts_log_fine "Test 3 for \"$job\" passed"
       }
          
       #testing daemon set to path that doesn't exist 
@@ -457,10 +456,10 @@ proc issue_1914_test {} {
       set test($daemon) $path
       set_config_and_propagate test $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         ts_log_severe "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for corrupted $daemon configuration - non-existing file"
       } else {
-         puts $CHECK_OUTPUT "Test 4 for \"$job\" passed"
+         ts_log_fine "Test 4 for \"$job\" passed"
       }
       #test for issue 2174 when file has execution permission but is not 
       #proper daemon file - binary
@@ -470,10 +469,10 @@ proc issue_1914_test {} {
       set test($daemon) $path
       set_config_and_propagate test $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         add_proc_error "Issue 2174 test failed" -3 "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
+         ts_log_config "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
          issue 2174 fix didn't work for $daemon configuration - wrong binary issue"
       } else {
-         puts $CHECK_OUTPUT "Test 5 for \"$job\" passed"
+         ts_log_fine "Test 5 for \"$job\" passed"
       }
       #clean up file after test
       start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
@@ -484,10 +483,10 @@ proc issue_1914_test {} {
       set test($daemon) $path
       set_config_and_propagate test $test_host
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         add_proc_error "Issue 1914 test failed" -1 "Testing job $job with $daemon = \"$path\" failed,
+         ts_log_config "Testing job $job with $daemon = \"$path\" failed,
          issue 1914 fix didn't work for correct $daemon configuration"
       } else {
-         puts $CHECK_OUTPUT "Test 6 for \"$job\" passed"
+         ts_log_fine "Test 6 for \"$job\" passed"
       }
    }
 }

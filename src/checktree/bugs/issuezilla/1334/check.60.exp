@@ -87,7 +87,7 @@ proc issue_1334_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1334_setup {} {
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
+   global CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
    global issue_1334_job_stdout_file issue_1334_job_stderr_file
    
    set issue_1334_job_stdout_file "$CHECK_PROTOCOL_DIR/iz_1334.stdout"
@@ -102,13 +102,13 @@ proc issue_1334_setup {} {
 }
 
 proc issue_1334_cleanup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_1334_job_stdout_file issue_1334_job_stderr_file
    
    delete_all_jobs
    wait_for_end_of_all_jobs 60
    
-   puts $CHECK_OUTPUT "delete test queue"
+   ts_log_fine "delete test queue"
    del_queue "iz_1334" "@allhosts" 0 1
    
    # delete the job stdout and stderr file
@@ -117,7 +117,7 @@ proc issue_1334_cleanup  {} {
 }
 
 proc issue_1334_run {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global issue_1334_job_stdout_file issue_1334_job_stderr_file
    
    set option "-o $issue_1334_job_stdout_file -e $issue_1334_job_stderr_file"
@@ -127,21 +127,21 @@ proc issue_1334_run {} {
    #
    set my_job [submit_job "-q iz_1334  $option -shell n -b y /bin/true"]
    if {$my_job < 0} {
-     add_proc_error "issue_1334_run" -1 "submit job failed"
+     ts_log_severe "submit job failed"
      return
    }
  
    # wait until job ran through
    if {[wait_for_jobend $my_job "" 60 0]} {
-      add_proc_error "issue_1334_run" -1 "job was not running"
+      ts_log_severe "job was not running"
       return
    }
   
-   puts $CHECK_OUTPUT "waiting for file $issue_1334_job_stdout_file"
+   ts_log_fine "waiting for file $issue_1334_job_stdout_file"
    set res [wait_for_remote_file $ts_config(master_host) $CHECK_USER $issue_1334_job_stdout_file 120]
    
    if {$res != 0} {
-      add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
+      ts_log_severe "stdout file $issue_1334_job_stdout_file of job $my_job not found"
       return
    }
    
@@ -151,11 +151,11 @@ proc issue_1334_run {} {
    #
    set output [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
    if {[string match "*SGE_STARTER_SHELL_PATH*" $output] != 1} {
-      add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (1)"
+      ts_log_severe "jobstarter was not invoked (1)"
       return
    }
    
-   puts $CHECK_OUTPUT "content of job output file $issue_1334_job_stdout_file:\n$output\n"
+   ts_log_fine "content of job output file $issue_1334_job_stdout_file:\n$output\n"
    
    delete_file $issue_1334_job_stdout_file
    delete_file $issue_1334_job_stderr_file
@@ -165,21 +165,21 @@ proc issue_1334_run {} {
    #
    set my_job [submit_job "-q iz_1334  $option -shell y -b y /bin/true"]
    if {$my_job < 0} {
-     add_proc_error "issue_1334_run" -1 "submit job failed"
+     ts_log_severe "submit job failed"
      return
    }
    
    # wait until job ran through
    if {[wait_for_jobend $my_job "" 60 0]} {
-      add_proc_error "issue_1334_run" -1 "job was not running"
+      ts_log_severe "job was not running"
       return
    }
   
-   puts $CHECK_OUTPUT "waiting for file $issue_1334_job_stdout_file"
+   ts_log_fine "waiting for file $issue_1334_job_stdout_file"
    set res [wait_for_remote_file $ts_config(master_host) $CHECK_USER $issue_1334_job_stdout_file 120]
    
    if {$res != 0} {
-      add_proc_error "issue_1334_run" -1 "stdout file $issue_1334_job_stdout_file of job $my_job not found"
+      ts_log_severe "stdout file $issue_1334_job_stdout_file of job $my_job not found"
       return
    }
 
@@ -189,10 +189,10 @@ proc issue_1334_run {} {
    #
    set output [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$issue_1334_job_stdout_file"]
    if {[string match "*SGE_STARTER_SHELL_PATH*" $output] != 1} {
-      add_proc_error "issue_1334_run" -1 "jobstarter was not invoked (2)"
+      ts_log_severe "jobstarter was not invoked (2)"
       return
    }
-   puts $CHECK_OUTPUT "content of job output file $issue_1334_job_stdout_file:\n$output\n"
+   ts_log_fine "content of job output file $issue_1334_job_stdout_file:\n$output\n"
 
    delete_file $issue_1334_job_stdout_file
    delete_file $issue_1334_job_stderr_file

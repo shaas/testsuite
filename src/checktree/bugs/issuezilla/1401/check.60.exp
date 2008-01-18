@@ -79,7 +79,7 @@ proc issue_1401_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_1401_check {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # qsub $SGE_ROOT/examples/jobs/sleeper.sh 120
    set qsub_arguments "$ts_config(product_root)/examples/jobs/sleeper.sh 120"
@@ -88,8 +88,7 @@ proc issue_1401_check {} {
    # qstat -ext -xml 
    set result [start_sge_bin "qstat" "-ext -xml"]
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1401_check" "-1" \
-                     "qstat -ext -xml fails with following output:\n$result"
+      ts_log_severe "qstat -ext -xml fails with following output:\n$result"
       return
    }
 
@@ -98,8 +97,6 @@ proc issue_1401_check {} {
 }
 
 proc issue_1401_cleanup  {} {
-   global CHECK_OUTPUT
-
    delete_all_jobs
    wait_for_end_of_all_jobs
 }

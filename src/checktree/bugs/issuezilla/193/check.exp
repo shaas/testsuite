@@ -94,12 +94,12 @@ lappend pe_alloc_rule "\$fill_up"
 
 
 proc issue_193_init_level {} {
-   global ts_config CHECK_OUTPUT check_name
+   global ts_config check_name
    global CHECK_ACT_LEVEL hold_state pending_state queue
 
    if {$CHECK_ACT_LEVEL == 0} {
       if {[llength $ts_config(execd_nodes)] < 2} {
-         add_proc_error "issue_193_init_level" -3 "need at least 2 execd hosts for this test"
+         ts_log_config "need at least 2 execd hosts for this test"
          return -1
       }
 
@@ -111,7 +111,7 @@ proc issue_193_init_level {} {
 
 proc issue193_setup {} {
    global ts_config pe_names pe_alloc_rule ts_user_config
-   global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
+   global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global stored_configuration rerun_queue2
 
    set hosts [host_conf_get_suited_hosts 2]
@@ -128,18 +128,18 @@ proc issue193_setup {} {
    set myconfig(load_report_time) "00:00:6"
    set_config myconfig
 
-   puts $CHECK_OUTPUT "disabling all cluster queues"
+   ts_log_fine "disabling all cluster queues"
    foreach host $ts_config(execd_nodes) {
       disable_queue [get_queue_instance "all.q" $host]
    }
 
-   puts $CHECK_OUTPUT "adding $ts_user_config(first_foreign_user) as operator"
+   ts_log_fine "adding $ts_user_config(first_foreign_user) as operator"
    if {[add_operator $ts_user_config(first_foreign_user)] != 0} {
-      add_proc_error "issue193_setup" -1 "Unable to add operator $ts_user_config(first_foreign_user)"
+      ts_log_severe "Unable to add operator $ts_user_config(first_foreign_user)"
    }
 
-   puts $CHECK_OUTPUT "using host \"$rerun_host\" for queue with rerun=TRUE"
-   puts $CHECK_OUTPUT "using host \"$no_rerun_host\" for queue with rerun=FALSE"
+   ts_log_fine "using host \"$rerun_host\" for queue with rerun=TRUE"
+   ts_log_fine "using host \"$no_rerun_host\" for queue with rerun=FALSE"
 
    set new_queue(rerun)    "TRUE"
    set new_queue(qtype)    "BATCH INTERACTIVE PARALLEL CHECKPOINTING"
@@ -155,7 +155,7 @@ proc issue193_setup {} {
    add_queue $no_rerun_queue $no_rerun_host new_queue
 
    # add checkpointobject for test
-   puts $CHECK_OUTPUT "creating checkpointobjects ..."
+   ts_log_fine "creating checkpointobjects ..."
    set new_checkpointobj(ckpt_name)  "qmod_with_r"
    set new_checkpointobj(interface)  "userdefined"
    set new_checkpointobj(when) "r"
@@ -168,7 +168,7 @@ proc issue193_setup {} {
    assign_queues_with_ckpt_object $rerun_queue $rerun_host qmod_without_r
 
    # add pe_object for test
-   puts $CHECK_OUTPUT "creating pe object ..."
+   ts_log_fine "creating pe object ..."
    set new_peobj(slots)            "5"
    set index 0
    foreach elem $pe_names { 
@@ -182,7 +182,7 @@ proc issue193_setup {} {
 
 
 proc issue193_submit_jobs {} {
-   global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
+   global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global ts_config
    global ts_user_config
   
@@ -209,7 +209,7 @@ proc issue193_submit_jobs {} {
    set jobs_string ""
    foreach elem $jobs {
       if {$elem <= 0} {
-         add_proc_error "issue193_submit_jobs" -1 "job submission failed - no way to continue test"
+         ts_log_severe "job submission failed - no way to continue test"
          return
       }
       wait_for_jobstart $elem "Sleeper" 30
@@ -217,34 +217,34 @@ proc issue193_submit_jobs {} {
       append jobs_string "$elem "
    }
 
-   puts $CHECK_OUTPUT "running jobs: $jobs_string"
+   ts_log_fine "running jobs: $jobs_string"
 
-   puts $CHECK_OUTPUT "disabling queues $no_rerun_queue and $rerun_queue"
+   ts_log_fine "disabling queues $no_rerun_queue and $rerun_queue"
    disable_queue [get_queue_instance $no_rerun_queue $no_rerun_host]
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
 
    # send qmod -r to each job
-   puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
+   ts_log_fine "sending qmod -r to jobs $jobs_string"   
    set result [start_sge_bin "qmod" "-r $jobs_string" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT "qmod -r output: $result"
+   ts_log_fine "qmod -r output: $result"
 
    set sched_jobs    "[lindex $jobs 0] [lindex $jobs 2] [lindex $jobs 4 ]"
    set no_sched_jobs "[lindex $jobs 1] [lindex $jobs 3] [lindex $jobs 5 ]"
-   puts $CHECK_OUTPUT "jobs $sched_jobs should be pending ..."
+   ts_log_fine "jobs $sched_jobs should be pending ..."
    foreach elem $sched_jobs {
       wait_for_jobpending $elem "Sleeper" 60
    }
    
-   puts $CHECK_OUTPUT "jobs $no_sched_jobs should still run ..."
+   ts_log_fine "jobs $no_sched_jobs should still run ..."
    foreach elem $no_sched_jobs {
       wait_for_jobstart $elem "Sleeper" 60
    }
 
    set qmod_arg [lindex $jobs 1]
-   puts $CHECK_OUTPUT "using force flag for job $qmod_arg ..."
+   ts_log_fine "using force flag for job $qmod_arg ..."
    set result [start_sge_bin "qmod" "-f -r $qmod_arg" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
-   puts $CHECK_OUTPUT "waiting for job $qmod_arg to get in pending state ..."
+   ts_log_fine $result
+   ts_log_fine "waiting for job $qmod_arg to get in pending state ..."
    wait_for_jobpending $qmod_arg "Sleeper" 300
 
    enable_queue [get_queue_instance $no_rerun_queue $no_rerun_host]
@@ -255,30 +255,30 @@ proc issue193_submit_jobs {} {
       wait_for_end_of_transfer $elem 60
    }
    
-   puts $CHECK_OUTPUT "disabling queues $no_rerun_queue and $rerun_queue"
+   ts_log_fine "disabling queues $no_rerun_queue and $rerun_queue"
    disable_queue [get_queue_instance $no_rerun_queue $no_rerun_host]
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
 
    # send qmod -r to each job in queue 
-   puts $CHECK_OUTPUT "sending qmod -r to queues $no_rerun_queue and $rerun_queue"   
+   ts_log_fine "sending qmod -r to queues $no_rerun_queue and $rerun_queue"   
    set result [start_sge_bin "qmod" "-r [get_queue_instance $no_rerun_queue $no_rerun_host] [get_queue_instance $rerun_queue $rerun_host]" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
 
-   puts $CHECK_OUTPUT "jobs $sched_jobs should be pending ..."
+   ts_log_fine "jobs $sched_jobs should be pending ..."
    foreach elem $sched_jobs {
       wait_for_jobpending $elem "Sleeper" 60
    }
    
-   puts $CHECK_OUTPUT "jobs $no_sched_jobs should still run ..."
+   ts_log_fine "jobs $no_sched_jobs should still run ..."
    foreach elem $no_sched_jobs {
       wait_for_jobstart $elem "Sleeper" 60
    }
 
    set qmod_arg [lindex $jobs 1]
-   puts $CHECK_OUTPUT "using force flag for job $qmod_arg ..."
+   ts_log_fine "using force flag for job $qmod_arg ..."
    set result [start_sge_bin "qmod" "-f -r $qmod_arg" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
-   puts $CHECK_OUTPUT "waiting for job $qmod_arg to get in pending state ..."
+   ts_log_fine $result
+   ts_log_fine "waiting for job $qmod_arg to get in pending state ..."
    wait_for_jobpending $qmod_arg "Sleeper" 60
    
    enable_queue [get_queue_instance $no_rerun_queue $no_rerun_host]
@@ -298,7 +298,7 @@ proc issue193_submit_jobs {} {
 
 
 proc issue193_checkpointing {} {
-   global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
+   global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global ts_config
    global ts_user_config
    
@@ -319,7 +319,7 @@ proc issue193_checkpointing {} {
    set jobs_string ""
    foreach elem $jobs {
       if {$elem <= 0} {
-         add_proc_error "issue193_checkpointing" -1 "job submission failed - no way to continue test"
+         ts_log_severe "job submission failed - no way to continue test"
          return
       }
       wait_for_jobstart $elem "Sleeper" 80
@@ -327,24 +327,24 @@ proc issue193_checkpointing {} {
       append jobs_string "$elem "
    }
 
-   puts $CHECK_OUTPUT "running jobs: $jobs_string"
+   ts_log_fine "running jobs: $jobs_string"
 
-   puts $CHECK_OUTPUT "disabling queue $rerun_queue"
+   ts_log_fine "disabling queue $rerun_queue"
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
    
    # send qmod -r to each job
-   puts $CHECK_OUTPUT "sending qmod -r to jobs $jobs_string"   
+   ts_log_fine "sending qmod -r to jobs $jobs_string"   
    set result [start_sge_bin "qmod" "-r $jobs_string" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
   
    set sched_jobs    "[lindex $jobs 0]"
    set no_sched_jobs "[lindex $jobs 1] [lindex $jobs 2] [lindex $jobs 3]"
-   puts $CHECK_OUTPUT "jobs $sched_jobs should be pending ..."
+   ts_log_fine "jobs $sched_jobs should be pending ..."
    foreach elem $sched_jobs {
       wait_for_jobpending $elem "Sleeper" 80
    }
 
-   puts $CHECK_OUTPUT "jobs $no_sched_jobs should still run ..."
+   ts_log_fine "jobs $no_sched_jobs should still run ..."
    foreach elem $no_sched_jobs {
       wait_for_jobstart $elem "Sleeper" 80
    }
@@ -355,20 +355,20 @@ proc issue193_checkpointing {} {
       wait_for_end_of_transfer $elem 80
    }
    
-   puts $CHECK_OUTPUT "disabling queue $rerun_queue"
+   ts_log_fine "disabling queue $rerun_queue"
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
 
    # send qmod -r to each job in queue 
-   puts $CHECK_OUTPUT "sending qmod -r to queue $rerun_queue"   
+   ts_log_fine "sending qmod -r to queue $rerun_queue"   
    set result [start_sge_bin "qmod" "-r [get_queue_instance $rerun_queue $rerun_host]" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
 
-   puts $CHECK_OUTPUT "jobs $sched_jobs should be pending ..."
+   ts_log_fine "jobs $sched_jobs should be pending ..."
    foreach elem $sched_jobs {
       wait_for_jobpending $elem "Sleeper" 80
    }
    
-   puts $CHECK_OUTPUT "jobs $no_sched_jobs should still run ..."
+   ts_log_fine "jobs $no_sched_jobs should still run ..."
    foreach elem $no_sched_jobs {
       wait_for_jobstart $elem "Sleeper" 80
    }
@@ -389,7 +389,7 @@ proc issue193_checkpointing {} {
 
 
 proc issue193_checkpointing_forced {} {
-   global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
+   global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global ts_config
    global ts_user_config
  
@@ -410,7 +410,7 @@ proc issue193_checkpointing_forced {} {
    set jobs_string ""
    foreach elem $jobs {
       if {$elem <= 0} {
-         add_proc_error "issue193_checkpointing_forced" -1 "job submission failed - no way to continue test"
+         ts_log_severe "job submission failed - no way to continue test"
          return
       }
       wait_for_jobstart $elem "Sleeper" 80
@@ -418,24 +418,24 @@ proc issue193_checkpointing_forced {} {
       append jobs_string "$elem "
    }
 
-   puts $CHECK_OUTPUT "running jobs: $jobs_string"
+   ts_log_fine "running jobs: $jobs_string"
 
-   puts $CHECK_OUTPUT "disabling queue $rerun_queue"
+   ts_log_fine "disabling queue $rerun_queue"
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
    
    # send qmod -r to each job
-   puts $CHECK_OUTPUT "sending qmod -f -r to jobs $jobs_string"   
+   ts_log_fine "sending qmod -f -r to jobs $jobs_string"   
    set result [start_sge_bin "qmod" "-f -r $jobs_string" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
   
    set sched_jobs    "[lindex $jobs 0] [lindex $jobs 1] [lindex $jobs 2] [lindex $jobs 3]"
    set no_sched_jobs ""
-   puts $CHECK_OUTPUT "jobs $sched_jobs should be pending ..."
+   ts_log_fine "jobs $sched_jobs should be pending ..."
    foreach elem $sched_jobs {
       wait_for_jobpending $elem "Sleeper" 80
    }
    
-   puts $CHECK_OUTPUT "jobs $no_sched_jobs should still run ..."
+   ts_log_fine "jobs $no_sched_jobs should still run ..."
    foreach elem $no_sched_jobs {
       wait_for_jobstart $elem "Sleeper" 80
    }
@@ -446,20 +446,20 @@ proc issue193_checkpointing_forced {} {
       wait_for_end_of_transfer $elem 80
    }
    
-   puts $CHECK_OUTPUT "disabling queue $rerun_queue"
+   ts_log_fine "disabling queue $rerun_queue"
    disable_queue [get_queue_instance $rerun_queue $rerun_host]
 
    # send qmod -r to each job in queue 
-   puts $CHECK_OUTPUT "sending qmod -f -r to queue $rerun_queue"   
+   ts_log_fine "sending qmod -f -r to queue $rerun_queue"   
    set result [start_sge_bin "qmod" "-f -r [get_queue_instance $rerun_queue $rerun_host]" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
 
-   puts $CHECK_OUTPUT "jobs $sched_jobs should be pending ..."
+   ts_log_fine "jobs $sched_jobs should be pending ..."
    foreach elem $sched_jobs {
       wait_for_jobpending $elem "Sleeper" 80
    }
    
-   puts $CHECK_OUTPUT "jobs $no_sched_jobs should still run ..."
+   ts_log_fine "jobs $no_sched_jobs should still run ..."
    foreach elem $no_sched_jobs {
       wait_for_jobstart $elem "Sleeper" 80
    }
@@ -498,18 +498,18 @@ proc issue193_get_queue_instance {queue} {
 }
 
 proc issue193_pe_jobs {} {
-   global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
+   global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global stored_configuration rerun_queue2 pe_names
    global ts_config
    global ts_user_config
 
    foreach pe $pe_names {
-       puts $CHECK_OUTPUT "submitting job to pe $pe ..."
+       ts_log_fine "submitting job to pe $pe ..."
        set my_outputs "-o /dev/null -e /dev/null"
        set my_job "$ts_config(product_root)/examples/jobs/sleeper.sh 5000"
        set arguments "$my_outputs -pe $pe 2 -masterq [get_queue_instance $rerun_queue $rerun_host] $my_job"
        set job [submit_job $arguments]
-       puts $CHECK_OUTPUT "job $job submitted"
+       ts_log_fine "job $job submitted"
 
        wait_for_jobstart $job "Sleeper" 100
        
@@ -522,11 +522,11 @@ proc issue193_pe_jobs {} {
           set slave_queue_instance ""
           set job_info [get_standard_job_info $job 1 1]
           foreach elem $job_info {
-             puts $CHECK_OUTPUT $elem
+             ts_log_fine $elem
              if {[string first "MASTER" $elem] >= 0} {
                 set master_queue [lindex $elem 7]
                 set master_queue_instance [issue193_get_queue_instance $master_queue]
-                puts $CHECK_OUTPUT "master runs on queue $master_queue"
+                ts_log_fine "master runs on queue $master_queue"
              }
              if {[string first "SLAVE" $elem] >= 0} {
                 set slave_queue [lindex $elem 7]
@@ -536,68 +536,68 @@ proc issue193_pe_jobs {} {
                   set slave_queue $master_queue
                 }
                 set slave_queue_instance [issue193_get_queue_instance $slave_queue]
-                puts $CHECK_OUTPUT "slave runs on queue $slave_queue"
+                ts_log_fine "slave runs on queue $slave_queue"
              }
           }
-          puts $CHECK_OUTPUT "-----------" 
+          ts_log_fine "-----------" 
           if {$master_queue != "" && $slave_queue != ""} {
-             puts $CHECK_OUTPUT "MASTER and SLAVE task are running!"
+             ts_log_fine "MASTER and SLAVE task are running!"
              set run 0
           }
           set nowtime [timestamp]
           if {$nowtime > $mytime} {
              set run 0
-             add_proc_error "reschedule_pe_jobs" -1 "timeout waiting for MASTER and SLAVE task of job $job, pe $pe"
+             ts_log_severe "timeout waiting for MASTER and SLAVE task of job $job, pe $pe"
           } 
           sleep 1
        }
 
        if {[string first $rerun_queue $master_queue] == -1} {
-          puts $CHECK_OUTPUT "\"$master_queue\"\n\"$rerun_queue\""
-          add_proc_error "reschedule_pe_jobs" "-1" "job $job: master task is not on queue $rerun_queue, pe $pe"
+          ts_log_fine "\"$master_queue\"\n\"$rerun_queue\""
+          ts_log_severe "job $job: master task is not on queue $rerun_queue, pe $pe"
        }
       
        if {[string compare $pe "reschpe_1"] == 0} {
           if {[string first $rerun_queue2 $slave_queue] == -1} {
-             puts $CHECK_OUTPUT "\"$slave_queue\"\n\"$rerun_queue2\""
-             add_proc_error "reschedule_pe_jobs" "-1" "job $job: slave task is not on queue $rerun_queue2, pe $pe"
+             ts_log_fine "\"$slave_queue\"\n\"$rerun_queue2\""
+             ts_log_severe "job $job: slave task is not on queue $rerun_queue2, pe $pe"
           }
        }
 
        # ok jobs are running and we now his running queues now
-       puts $CHECK_OUTPUT "disabling queue $rerun_queue and $rerun_queue2"
+       ts_log_fine "disabling queue $rerun_queue and $rerun_queue2"
        disable_queue [get_queue_instance $rerun_queue $rerun_host]
        disable_queue [get_queue_instance $rerun_queue2 $no_rerun_host]
 
        if {[string compare $slave_queue $master_queue] != 0} {
-          puts $CHECK_OUTPUT "rescheduling SLAVE task queue \"$slave_queue\""     
+          ts_log_fine "rescheduling SLAVE task queue \"$slave_queue\""     
           set result [start_sge_bin "qmod" "-r $slave_queue_instance" "" $ts_user_config(first_foreign_user)]
-          puts $CHECK_OUTPUT $result
+          ts_log_fine $result
 
           sleep 10          
 
-          puts $CHECK_OUTPUT "job $job should still run ..."
+          ts_log_fine "job $job should still run ..."
           wait_for_jobstart $job "Sleeper" 100
        } 
  
-       puts $CHECK_OUTPUT "rescheduling MASTER task queue \"$master_queue\""     
+       ts_log_fine "rescheduling MASTER task queue \"$master_queue\""     
        set result [start_sge_bin "qmod" "-r $master_queue_instance" "" $ts_user_config(first_foreign_user)]
-       puts $CHECK_OUTPUT $result
+       ts_log_fine $result
 
        wait_for_jobpending $job "Sleeper" 100
        set run 1
        set job_info [get_standard_job_info $job 1 1]
        foreach elem $job_info {
-          puts $CHECK_OUTPUT $elem
+          ts_log_fine $elem
           if {[string first "MASTER" $elem] >= 0} {
-             add_proc_error "reschedule_pe_jobs" -1 "no MASTER task should run, pe $pe"
+             ts_log_severe "no MASTER task should run, pe $pe"
           }
           if {[string first "SLAVE" $elem] >= 0} {
-             add_proc_error "reschedule_pe_jobs" -1 "no SLAVE task should run, pe $pe"
+             ts_log_severe "no SLAVE task should run, pe $pe"
           }
        } 
 
-       puts $CHECK_OUTPUT "enable queue $rerun_queue and $rerun_queue2"
+       ts_log_fine "enable queue $rerun_queue and $rerun_queue2"
        enable_queue [get_queue_instance $rerun_queue $rerun_host]
        enable_queue [get_queue_instance $rerun_queue2 $no_rerun_host]
  
@@ -609,10 +609,10 @@ proc issue193_pe_jobs {} {
           while { $run == 1 } {
              set job_info [get_standard_job_info $job 1 1]
              foreach elem $job_info {
-                puts $CHECK_OUTPUT $elem
+                ts_log_fine $elem
                 if { [string first "MASTER" $elem ] >= 0 } {
                    set master_queue [lindex $elem 7]
-                   puts $CHECK_OUTPUT "master runs on queue $master_queue"
+                   ts_log_fine "master runs on queue $master_queue"
                 }
                 if {[string first "SLAVE" $elem] >= 0} {
                    set slave_queue [lindex $elem 7]
@@ -621,25 +621,25 @@ proc issue193_pe_jobs {} {
                    if {$slave_queue == ""} {
                      set slave_queue $master_queue
                    }
-                   puts $CHECK_OUTPUT "slave runs on queue $slave_queue"
+                   ts_log_fine "slave runs on queue $slave_queue"
                 }
              } 
              if {$master_queue != "" && $slave_queue != ""} {
-                puts $CHECK_OUTPUT "MASTER and SLAVE task are running!"
+                ts_log_fine "MASTER and SLAVE task are running!"
                 set run 0
              }
              set nowtime [timestamp]
              if {$nowtime > $mytime} {
                 set run 0
-                add_proc_error "reschedule_pe_jobs" -1 "timeout waiting for MASTER and SLAVE task of job $job, pe $pe"
+                ts_log_severe "timeout waiting for MASTER and SLAVE task of job $job, pe $pe"
              } 
              sleep 1
           }
        } else {
-          add_proc_error "reschedule_pe_jobs" -1 "job $job does not start, pe $pe"
+          ts_log_severe "job $job does not start, pe $pe"
        } 
        if {[is_job_running $job "Sleeper"] != 1} {
-          add_proc_error "issue193_pe_jobs" -1 "job $job is not running!!"
+          ts_log_severe "job $job is not running!!"
        }
 
        delete_job $job
@@ -652,14 +652,14 @@ proc issue193_pe_jobs {} {
 
 
 proc issue193_deleted_job {} {
-   global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
+   global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global stored_configuration rerun_queue2
    global pe_names pe_alloc_rule CHECK_ADMIN_USER_SYSTEM
    global ts_config CHECK_PRODUCT_TYPE
    global CHECK_ADMIN_USER_SYSTEM
    global ts_user_config
 
-   puts $CHECK_OUTPUT "submitting job to queue $no_rerun_queue ..."
+   ts_log_fine "submitting job to queue $no_rerun_queue ..."
    set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q [get_queue_instance $no_rerun_queue $no_rerun_host] -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id [submit_job $arguments]
@@ -668,29 +668,29 @@ proc issue193_deleted_job {} {
    wait_for_end_of_transfer $job_id 100
 
    # shutdown execd
-   puts $CHECK_OUTPUT "shutdown execd on host $no_rerun_host ..."
+   ts_log_fine "shutdown execd on host $no_rerun_host ..."
    set output [start_sge_bin "qconf" "-ke $no_rerun_host"]
    puts $output
    shutdown_system_daemon $no_rerun_host execd
 
 
-   puts $CHECK_OUTPUT "deleting job $job_id ..."
+   ts_log_fine "deleting job $job_id ..."
    delete_job $job_id
 
-   puts $CHECK_OUTPUT "job should still be in queue, but in delete state ..."
+   ts_log_fine "job should still be in queue, but in delete state ..."
    if {[is_job_running $job_id "Sleeper"] != 1} {
-      add_proc_error "reschedule_deleted_job" -1 "job $job_id is not running!! (queue: $no_rerun_queue)"
+      ts_log_severe "job $job_id is not running!! (queue: $no_rerun_queue)"
    }
 
    # JG: TODO: this check must fail. We need more info here.
    # Write a function rerun_job, that deliveres a status (true, false) and an
    # error message.
-   puts $CHECK_OUTPUT "reschedule of job $job_id ..."
+   ts_log_fine "reschedule of job $job_id ..."
    set result [start_sge_bin "qmod" "-r $job_id" "" $ts_user_config(first_foreign_user)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
  
    # restart execd
-   puts $CHECK_OUTPUT "restarting execd on host $no_rerun_host ..."
+   ts_log_fine "restarting execd on host $no_rerun_host ..."
    startup_execd $no_rerun_host
    wait_for_load_from_all_queues 200 
 
@@ -700,7 +700,7 @@ proc issue193_deleted_job {} {
 
 proc issue193_cleanup {} {
    global ts_config
-   global rerun_queue no_rerun_queue CHECK_OUTPUT rerun_host no_rerun_host
+   global rerun_queue no_rerun_queue rerun_host no_rerun_host
    global stored_configuration rerun_queue2
    global pe_names pe_alloc_rule ts_user_config
 
@@ -709,7 +709,7 @@ proc issue193_cleanup {} {
    reset_schedd_config
    set_config stored_configuration
 
-   puts $CHECK_OUTPUT "removing checkpointobjects ..."
+   ts_log_fine "removing checkpointobjects ..."
    del_checkpointobj "qmod_with_r"
    del_checkpointobj "qmod_without_r"
 
@@ -717,17 +717,17 @@ proc issue193_cleanup {} {
       del_pe $elem
    } 
 
-   puts $CHECK_OUTPUT "removing queues ..."
+   ts_log_fine "removing queues ..."
    del_queue $rerun_queue $rerun_host 0 1
    del_queue $no_rerun_queue $no_rerun_host 0 1
    del_queue $rerun_queue2 $no_rerun_host 0 1
 
-   puts $CHECK_OUTPUT "enabling queues ..."
+   ts_log_fine "enabling queues ..."
    foreach host $ts_config(execd_nodes) {
       enable_queue [get_queue_instance "all.q" $host]
    }
 
    if {[delete_operator $ts_user_config(first_foreign_user)] != 0} {
-      add_proc_error "issue193_cleanup" -1 "Unable to delete operator $ts_user_config(first_foreign_user)"
+      ts_log_severe "Unable to delete operator $ts_user_config(first_foreign_user)"
    }
 }

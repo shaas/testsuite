@@ -80,7 +80,7 @@ proc issue_402_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_402_check {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
  
    #
    # Scenario:
@@ -101,16 +101,13 @@ proc issue_402_check {} {
    set first_qstat_line [lindex $qstat_output 0]
    set task_id [lindex $first_qstat_line 7]
    if { [string compare $task_id "1" ] != 0 } {
-      add_proc_error "binary_submission_check" "-1" \
-               "Submitted job is not an Array Job" 
+      ts_log_severe "Submitted job is not an Array Job" 
    } 
    wait_for_jobstart $job_id $job_name 300
    wait_for_jobend $job_id $job_name 20 0
 }
 
 proc issue_402_cleanup {} {
-   global CHECK_OUTPUT
-
    delete_all_jobs
    wait_for_end_of_all_jobs
 }

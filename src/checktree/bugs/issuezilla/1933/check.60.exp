@@ -76,18 +76,18 @@ proc issue_1933_init_level {} {
 }
 
 proc issue_1933_setup  {} {
-   global CHECK_OUTPUT ts_config queue_name
+   global ts_config queue_name
 
    set queue_name "1933.q"
-   puts $CHECK_OUTPUT "add $queue_name"
+   ts_log_fine "add $queue_name"
    set q_param(prolog) "invalid_prolog"
    add_queue $queue_name "@allhosts" q_param
 }
 
 proc issue_1933_cleanup  {} {
-   global CHECK_OUTPUT ts_config queue_name
+   global ts_config queue_name
 
-   puts $CHECK_OUTPUT "delete $queue_name"
+   ts_log_fine "delete $queue_name"
    del_queue $queue_name "@allhosts" 1 1
    start_sge_bin "qmod" "-cq all.q"
 }
@@ -95,7 +95,7 @@ proc issue_1933_cleanup  {} {
 
 proc issue_1933_test {} {
    global queue_name
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global CHECK_USER
 
    set host [host_conf_get_suited_hosts]
@@ -113,7 +113,7 @@ proc issue_1933_test {} {
 
       set runtime [expr [timestamp] - $time]
       if {$runtime >= 60} {
-         add_proc_error "issue_1933_test" -1 "timeout waiting for queue ${queue_name}@$host to get in error state"
+         ts_log_severe "timeout waiting for queue ${queue_name}@$host to get in error state"
          break
       }
       sleep 1
@@ -122,17 +122,17 @@ proc issue_1933_test {} {
    delete_job $job_id
    set output [start_remote_prog $host $CHECK_USER qstat "-q ${queue_name} -explain E" exit_state 30] 
 
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
 
    if {[string first "QERROR" $output] <= 0} {
-      add_proc_error "issue_1933_test" -1 "qstat didn't print QERROR"
+      ts_log_severe "qstat didn't print QERROR"
    } else {
       if {[string first "QERROR" $output] != [string last "QERROR" $output]} {
          set message "issue 1933 present: qstat printed QERROR for one queue instance multiple times"
          if {$ts_config(gridengine_version) == 60} {
-            add_proc_error "issue_1933_test" -3 "$message\nnot fixed for 6.0"
+            ts_log_config "$message\nnot fixed for 6.0"
          } else {
-            add_proc_error "issue_1933_test" -1 $message
+            ts_log_severe $message
          }
       }
    }

@@ -70,7 +70,7 @@ proc issue_2161_init_level {} {
 }
 
 proc issue_2161_userset {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set rqs_name "issue_2161"
    set rules ""
@@ -83,7 +83,7 @@ proc issue_2161_userset {} {
 
    after 2000
    if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
-      add_proc_error "issue_2161_userset" -1 "RQS with undefined userset crashed qmaster"
+      ts_log_severe "RQS with undefined userset crashed qmaster"
       startup_qmaster 0
    }
 
@@ -91,7 +91,7 @@ proc issue_2161_userset {} {
 }
 
 proc issue_2161_project {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set rqs_name "issue_2161"
    set rules ""
@@ -104,7 +104,7 @@ proc issue_2161_project {} {
 
    after 2000
    if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
-      add_proc_error "issue_2161_project" -1 "RQS with undefined project crashed qmaster"
+      ts_log_severe "RQS with undefined project crashed qmaster"
       startup_qmaster 0
    }
 

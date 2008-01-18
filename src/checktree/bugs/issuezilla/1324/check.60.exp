@@ -67,7 +67,7 @@ proc issue_1324_init_level {} {
 }
 
 proc issue_1324_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set q2(load_thresholds) "NONE"
    add_queue "sub2" $ts_config(master_host) q2
@@ -81,18 +81,18 @@ proc issue_1324_setup {} {
 }
 
 proc issue_1324_run  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    get_queue "sub1" q
    if {![info exists q(subordinate_list)] || 
        [lsearch $q(subordinate_list) "sub2"] == -1 ||
        [lsearch $q(subordinate_list) "sub3"] == -1} {
-      add_proc_error "issue_1324_run" "-1" "qconf did not insert separators between subordinate queues:\n$result"
+      ts_log_severe "qconf did not insert separators between subordinate queues:\n$result"
    }
 }
 
 proc issue_1324_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # Cleanup
    del_queue "sub1" "" 1 1

@@ -1,3 +1,6 @@
+JG-2008-01-18-0: Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
+                            checks in bugs/issuezilla.
+
 CR-2008-01-17-0: Bugfix:    removed usage of ? operator in file_procedures.tcl
                             ? seems not to work on all tcl/expect versions
 

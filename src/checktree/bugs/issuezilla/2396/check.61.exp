@@ -79,7 +79,7 @@ proc issue_2396_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2396_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_2396_host
 
    # test host for issue_2396_host_down
@@ -100,7 +100,7 @@ proc issue_2396_setup {} {
 }
 
 proc issue_2396_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_2396_host
 
    # cleanup jobs
@@ -127,7 +127,7 @@ proc issue_2396_cleanup {} {
 }
 
 proc issue_2396_submit_check {scenario} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # submit a parallel job
    set job  "$ts_config(product_root)/examples/jobs/sleeper.sh"
@@ -137,7 +137,7 @@ proc issue_2396_submit_check {scenario} {
    # wait for it to start - it may not start!
    set ret [wait_for_jobstart $job_id "" 20 0 1]
    if {$ret == 0} {
-      add_proc_error "issue_2396_submit_check" -1 "job shouldn't have started ($scenario)"
+      ts_log_severe "job shouldn't have started ($scenario)"
    }
 
    delete_job $job_id 1

@@ -87,7 +87,7 @@ proc issue_440_init_level {} {
 
 proc issue_440_set_parameters {} {
    global ts_config
-   global CHECK_ACT_LEVEL CHECK_OUTPUT
+   global CHECK_ACT_LEVEL
    global issue_440_MAX_KBYTE check_440_host check_440_num_hosts
 
    if {$CHECK_ACT_LEVEL < $check_440_num_hosts} {
@@ -100,12 +100,12 @@ proc issue_440_set_parameters {} {
             set issue_440_MAX_KBYTE 20
          }
       }
-      puts $CHECK_OUTPUT "testing with MAX_KBYTE=$issue_440_MAX_KBYTE"
+      ts_log_fine "testing with MAX_KBYTE=$issue_440_MAX_KBYTE"
    }
 }
 
 proc issue_440_check_qsub {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_440_MAX_KBYTE check_440_host
 
    set submit_script_path "$ts_config(testsuite_root_dir)/scripts/cmd_line_output.sh" 
@@ -134,7 +134,7 @@ proc issue_440_check_qsub {} {
          }
          set command_line "-q $submit_queue -S /bin/sh -o $output_file -e $error_file -N long_cmd $submit_script_path $arg_name" 
       }
-      puts $CHECK_OUTPUT "submitting job with command line length: [string length $command_line]"
+      ts_log_fine "submitting job with command line length: [string length $command_line]"
 
       # submit job and wait for jobend
       set jobid [submit_job $command_line 1 60 $check_440_host "" "" 0]
@@ -170,7 +170,7 @@ proc issue_440_check_qsub {} {
       set output [string trim $output]
       set arg_name [string trim $arg_name]
       if { [ string compare $output $arg_name ] != 0 } {
-         add_proc_error "issue_440_check_qsub" -1 "job output not equal to commandline input:\nstrlen(cmd_line) = [string length $arg_name]\nstrlen(output) = [string length $output] on host $check_440_host\ncmd_line: $arg_name\noutput: $output"
+         ts_log_severe "job output not equal to commandline input:\nstrlen(cmd_line) = [string length $arg_name]\nstrlen(output) = [string length $output] on host $check_440_host\ncmd_line: $arg_name\noutput: $output"
       }
 
       # check for further errors
@@ -178,19 +178,19 @@ proc issue_440_check_qsub {} {
       set got_output_error 0
       set output_errors ""
       for {set i 1 } { $i <= $nr_of_lines} {incr i 1} {
-         puts $CHECK_OUTPUT $f_error($i)
+         ts_log_fine $f_error($i)
          set got_output_error 1
          append output_errors "$f_error($i)\n"
       }
       if {$got_output_error != 0} {
-         add_proc_error "issue_440_check_qsub" -1 "got error output from job script:\n$output_errors on host $check_440_host"
+         ts_log_severe "got error output from job script:\n$output_errors on host $check_440_host"
       }
 
       # increment next argument length
       incr start_length 4096
    }
 
-   puts $CHECK_OUTPUT "check if master and scheduler are running ..."
+   ts_log_fine "check if master and scheduler are running ..."
    set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
    if {$ts_config(gridengine_version) < 62} {
       set expected_result 3 
@@ -198,12 +198,12 @@ proc issue_440_check_qsub {} {
       set expected_result 2 
    }
    if {$back != $expected_result} {
-      add_proc_error "issue_440_check_qsub" -1 "are_master_and_scheduler_running returns $back submit on host $check_440_host"
+      ts_log_severe "are_master_and_scheduler_running returns $back submit on host $check_440_host"
    }
 }
 
 proc issue_440_check_qrsh {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER issue_440_MAX_KBYTE check_440_host
 
    # test script
@@ -233,15 +233,15 @@ proc issue_440_check_qrsh {} {
          }
          set command_line "-q $submit_queue $submit_script_path $arg_name" 
       }
-      puts $CHECK_OUTPUT "submitting qrsh job with command line length: [string length $command_line]"
+      ts_log_fine "submitting qrsh job with command line length: [string length $command_line]"
 
       # start qrsh job
       set output [start_remote_prog $check_440_host $CHECK_USER $qrsh_command "$command_line"]
-      puts $CHECK_OUTPUT "exit state: $prg_exit_state"
+      ts_log_fine "exit state: $prg_exit_state"
 
       # check for errors
       if {$prg_exit_state != 0} {
-         add_proc_error "issue_440_check_qrsh" -1 "error in qrsh job:\nqueue was $submit_queue\n$output on host $check_440_host"
+         ts_log_severe "error in qrsh job:\nqueue was $submit_queue\n$output on host $check_440_host"
          set start_length $end_length
       } else {
          set output [string trim $output]
@@ -263,7 +263,7 @@ proc issue_440_check_qrsh {} {
          set output [string trim $output]
          set arg_name [string trim $arg_name]
          if {[string compare $output $arg_name] != 0} {
-            add_proc_error "issue_440_check_qrsh" -1 "job output not equal to commandline input:\nstrlen(cmd_line) = [string length $arg_name]\nstrlen(output) = [string length $output] on host $check_440_host"
+            ts_log_severe "job output not equal to commandline input:\nstrlen(cmd_line) = [string length $arg_name]\nstrlen(output) = [string length $output] on host $check_440_host"
          }
       }
 
@@ -271,7 +271,7 @@ proc issue_440_check_qrsh {} {
       incr start_length 4096 
    }
 
-   puts $CHECK_OUTPUT "check if master and scheduler are running ..."
+   ts_log_fine "check if master and scheduler are running ..."
    set back [are_master_and_scheduler_running $ts_config(master_host) [get_qmaster_spool_dir]]
    if {$ts_config(gridengine_version) < 62} {
       set expected_result 3 
@@ -279,12 +279,12 @@ proc issue_440_check_qrsh {} {
       set expected_result 2 
    }
    if {$back != $expected_result} {
-      add_proc_error "issue_440_check_qrsh" -1 "are_master_and_scheduler_running returns $back after submit on host $check_440_host"
+      ts_log_severe "are_master_and_scheduler_running returns $back after submit on host $check_440_host"
    }   
 }
 
 proc issue_440_cleanup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    # check if system is running normal
    set command_line "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 5"

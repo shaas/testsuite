@@ -78,7 +78,7 @@ proc issue_314_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_314_check {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set A_option "-A \":\""
    set the_command "-h $ts_config(product_root)/examples/jobs/sleeper.sh 3600"
@@ -87,8 +87,7 @@ proc issue_314_check {} {
    set qsub_arguments "$A_option $the_command"
    set job_id [submit_job $qsub_arguments 0]
    if {$job_id > 0} {
-      add_proc_error "issue_314_check" "-1" \
-                     "qsub does not reject colon \":\" in account string"
+      ts_log_severe "qsub does not reject colon \":\" in account string"
       return      
    }
 
@@ -97,8 +96,7 @@ proc issue_314_check {} {
    set job_id [submit_job $qsub_arguments 1]
    set output [start_sge_bin "qalter" "$A_option $job_id"]
    if {$prg_exit_state == 0} {
-      add_proc_error "issue_314_check" "-1" \
-                     "qalter does not reject colon \":\" in account string:\n$output"
+      ts_log_severe "qalter does not reject colon \":\" in account string:\n$output"
       return
    }
 
@@ -107,8 +105,6 @@ proc issue_314_check {} {
 }
 
 proc issue_314_cleanup  {} {
-   global CHECK_OUTPUT
-
    delete_all_jobs
    wait_for_end_of_all_jobs
 }

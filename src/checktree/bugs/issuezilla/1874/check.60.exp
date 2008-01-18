@@ -92,7 +92,7 @@ proc issue_1874_init_level {} {
 }
 
 proc issue_1874_setup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global stree
 
    # add project
@@ -114,7 +114,7 @@ proc issue_1874_setup  {} {
 }
 
 proc issue_1874_cleanup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # delete sharetree
    del_sharetree
@@ -158,7 +158,7 @@ proc create_stree2_1874 {} {
 }
 
 proc issue_1874_run  {} {
-   global ts_config CHECK_USER CHECK_OUTPUT
+   global ts_config CHECK_USER
    global stree
 
    # create file containing sharetree
@@ -178,6 +178,6 @@ proc issue_1874_run  {} {
    set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mstree" $vi_commands $CHANGED_SHARETREE]
    
    if {$result != 0} {
-      add_proc_error "issue_1874_run" -1 "qconf failed: issue 1874 might exist"
+      ts_log_severe "qconf failed: issue 1874 might exist"
    }
 }

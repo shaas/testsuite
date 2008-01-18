@@ -96,7 +96,7 @@ proc issue_2411_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2411_setup {} {
-   global CHECK_ACT_LEVEL CHECK_OUTPUT
+   global CHECK_ACT_LEVEL
    global max_count
    
    # Add $max_count queues
@@ -112,7 +112,7 @@ proc issue_2411_setup {} {
 }
 
 proc issue_2411_cleanup {} {
-   global CHECK_OUTPUT    tcl_total_time
+   global tcl_total_time
    global CHECK_ACT_LEVEL max_count  
    
    # Delete now  $max_count queues 
@@ -124,12 +124,11 @@ proc issue_2411_cleanup {} {
       incr     count 
    }
       
-   puts $CHECK_OUTPUT "The tcl time qhost took to display $max_count hosts was \n \
-                       $tcl_total_time seconds \n"
+   ts_log_fine "The tcl time qhost took to display $max_count hosts was\n$tcl_total_time seconds"
 }
 
 proc issue_2411  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER tcl_total_time
+   global ts_config CHECK_USER tcl_total_time
    global max_count CHECK_ACTUAL_TEST_PATH  
    
    set arch [resolve_arch $ts_config(master_host)]  
@@ -146,10 +145,10 @@ proc issue_2411  {} {
    set tcl_total_time [expr [timestamp] - $tcl_start_time ]
    
    if { $qhost_result == "" } {
-      add_proc_error "issue_2411" -3 "qhost failed for a huge amount of cluster queues: \n$qhost_result"
+      ts_log_severe "qhost failed for a huge amount of cluster queues: \n$qhost_result"
       return
    } else {
-     puts $CHECK_OUTPUT "qhost was OK; it took $tcl_total_time seconds \n"
+     ts_log_fine "qhost was OK; it took $tcl_total_time seconds"
    }
 
 

@@ -77,7 +77,7 @@ proc issue_1977_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_1977_setup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global consumable_complex_backup test_host
 
    set test_host [host_conf_get_suited_hosts]
@@ -102,7 +102,7 @@ proc issue_1977_setup {} {
 }
 
 proc issue_1977_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global consumable_complex_backup test_host
 
    # modify complex values of test_host
@@ -118,7 +118,7 @@ proc issue_1977_cleanup  {} {
 }
 
 proc issue_1977 {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global test_host
 
    set qinstance [get_queue_instance all.q $test_host]
@@ -126,12 +126,11 @@ proc issue_1977 {} {
 
    set output [start_sge_bin qselect "-l t=false"]
    if {[string compare $output $NO_QUEUES_AFTER_SELECTION] == 0} {
-      add_proc_error "issue_1977" -1 "qselect -l broken"
+      ts_log_severe "qselect -l broken"
    } 
 
    set output [start_sge_bin qselect "-l t=true"]
-   puts $CHECK_OUTPUT $output
    if {[string match "*$qinstance*" $output] == 1} {
-      add_proc_error "issue_1977" -1 "qselect -l broken"
+      ts_log_severe "qselect -l broken"
    } 
 }

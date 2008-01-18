@@ -3814,7 +3814,6 @@ proc suspend_job { id {force 0} {error_check 1}} {
 	}
 	# close spawned process 
 	close_spawn_process $sid
-   log_user 1
 
    # error check
    if { $error_check && $result != 0 } {
@@ -3890,7 +3889,6 @@ proc unsuspend_job { job } {
 
   # close spawned process 
   close_spawn_process $sid
-  log_user 1   
   if { $result != 0 } {
      ts_log_severe "could not unsuspend job $job"
   }
@@ -4012,7 +4010,7 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
       set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "$program" "$args $jobid"]
       set sp_id [ lindex $id 1 ]
       set timeout 60 	
-      log_user 1
+      log_user 0
    
       while { $result == -100 } {
       expect {
@@ -4067,7 +4065,6 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
       }
       # close spawned process 
       close_spawn_process $id 1
-      log_user 1
    } else {
       ts_log_severe "job id is no integer" $raise_error
    }
@@ -5482,7 +5479,6 @@ proc hold_job { jobid } {
    }
    # close spawned process 
    close_spawn_process $id
-   log_user 1
    if { $result != 0 } {
       ts_log_severe "could not hold job $jobid"
    }
@@ -5555,7 +5551,6 @@ proc release_job { jobid } {
 
    # close spawned process 
    close_spawn_process $id
-   log_user 1
    if { $result != 0 } {
       ts_log_severe "could not release job $jobid"
    }

@@ -86,7 +86,7 @@ proc LSB_lockfile_test_init_level {} {
 
 proc LSB_lockfile_test {} {
    global LSB_lockfile_test_test_hosts check_description
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_USER
+   global ts_config CHECK_ACT_LEVEL CHECK_USER
 
    set prod_type_var "SGE_ROOT"
    set my_timeout 500
@@ -96,7 +96,7 @@ proc LSB_lockfile_test {} {
    foreach exec_host $ts_config(execd_nodes) {
       set test_arch [resolve_arch $exec_host]
 
-      puts $CHECK_OUTPUT "testing host $exec_host ..."
+      ts_log_fine "testing host $exec_host ..."
 
       switch -glob -- $test_arch {
          lx2* {
@@ -107,98 +107,98 @@ proc LSB_lockfile_test {} {
                       continue
                    } 
                    set found_linux 1
-                   puts $CHECK_OUTPUT "try to stop sge_execd as user $CHECK_USER ..."
+                   ts_log_fine "try to stop sge_execd as user $CHECK_USER ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "stop" "exit_val" $my_timeout]
                    if {$exit_val != 1} {
-                      add_proc_error "LSB_lockfile_test" -1 "failed - rc-script tries to shutdown daemons, without having permissions on host $exec_host"
+                      ts_log_severe "failed - rc-script tries to shutdown daemons, without having permissions on host $exec_host"
                       return
                    }
-                   puts $CHECK_OUTPUT $output
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "checking /var/lock/subsys/sgeexecd file ..."
+                   ts_log_fine $output
+                   ts_log_fine "ok"
+                   ts_log_fine "checking /var/lock/subsys/sgeexecd file ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "ls" "-la /var/lock/subsys | grep sgeexecd" "exit_val" $my_timeout ]
                    if {$exit_val != 0} {
-                      add_proc_error "LSB_lockfile_test" -1 "failed - /var/lock/subsys/sgeexecd has been deleted by $CHECK_USER on host $exec_host, not allowed!"
+                      ts_log_severe "failed - /var/lock/subsys/sgeexecd has been deleted by $CHECK_USER on host $exec_host, not allowed!"
                       return
                    }
-                   puts $CHECK_OUTPUT $output
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "try to stop sge_execd as user root ..."
+                   ts_log_fine $output
+                   ts_log_fine "ok"
+                   ts_log_fine "try to stop sge_execd as user root ..."
                    set output [start_remote_prog $exec_host "root" "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "stop" "exit_val" $my_timeout ]
                    if {$exit_val != 0} {
-                      add_proc_error "LSB_lockfile_test" -1 "failed - rc-script runs into any other error, tried to stop as user root on host $exec_host"
+                      ts_log_severe "failed - rc-script runs into any other error, tried to stop as user root on host $exec_host"
                       return
                    }
-                   puts $CHECK_OUTPUT $output
+                   ts_log_fine $output
 
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "checking /var/lock/subsys/sgeexecd file ..."
+                   ts_log_fine "ok"
+                   ts_log_fine "checking /var/lock/subsys/sgeexecd file ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "ls" "-la /var/lock/subsys | grep sgeexecd" "exit_val" $my_timeout]
                    if {$exit_val == 0} {
-                      add_proc_error "LSB_lockfile_test" -1 "failed - /var/lock/subsys/sgeexecd has not been deleted on host $exec_host!"
+                      ts_log_severe "failed - /var/lock/subsys/sgeexecd has not been deleted on host $exec_host!"
                       return
                    }                 
-                   puts $CHECK_OUTPUT $output
+                   ts_log_fine $output
 
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "try to start sge_execd as user $CHECK_USER ..."
+                   ts_log_fine "ok"
+                   ts_log_fine "try to start sge_execd as user $CHECK_USER ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "start" "exit_val" $my_timeout ]
                    if {$exit_val != 0} {
-                      puts $CHECK_OUTPUT $output 
-                      add_proc_error "LSB_lockfile_test" -1 "failed - rc-script runs into any error, tried to start as user $CHECK_USER on host $exec_host" 
+                      ts_log_fine $output 
+                      ts_log_severe "failed - rc-script runs into any error, tried to start as user $CHECK_USER on host $exec_host" 
                       return
                    }
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "checking /var/lock/subsys/sgeexecd file ..."
+                   ts_log_fine "ok"
+                   ts_log_fine "checking /var/lock/subsys/sgeexecd file ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "ls" "-la /var/lock/subsys | grep sgeexecd" "exit_val" $my_timeout]
                    if {$exit_val == 0} {
-                      add_proc_error "LSB_lockfile_test" -1 "failed - /var/lock/subsys/sgeexecd may not be created by user $CHECK_USER on host $exec_host!"
+                      ts_log_severe "failed - /var/lock/subsys/sgeexecd may not be created by user $CHECK_USER on host $exec_host!"
                       return
                    }
-                   puts $CHECK_OUTPUT $output
+                   ts_log_fine $output
 
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "try to stop sge_execd as user $CHECK_USER ..."
+                   ts_log_fine "ok"
+                   ts_log_fine "try to stop sge_execd as user $CHECK_USER ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "stop" "exit_val" $my_timeout]
                    if {$exit_val != 0} {
-                      add_proc_error "LSB_lockfile_test" -1 "failed - rc-script runs into any error on host $exec_host, tried to stop as $CHECK_USER"
+                      ts_log_severe "failed - rc-script runs into any error on host $exec_host, tried to stop as $CHECK_USER"
                       return
                    }
-                   puts $CHECK_OUTPUT $output
+                   ts_log_fine $output
 
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "try to start sge_execd as user root ..."
+                   ts_log_fine "ok"
+                   ts_log_fine "try to start sge_execd as user root ..."
                    set output [start_remote_prog $exec_host "root" "$ts_config(product_root)/$ts_config(cell)/common/sgeexecd" "start" "exit_val" $my_timeout]
                    if {$exit_val != 0} {
-                      puts $CHECK_OUTPUT "$output $exit_val"
-                      add_proc_error "LSB_lockfile_test" -1 "failed - rc-script runs into any error on host $exec_host, tried to start as user root"
+                      ts_log_fine "$output $exit_val"
+                      ts_log_severe "failed - rc-script runs into any error on host $exec_host, tried to start as user root"
                       return
                    }
-                   puts $CHECK_OUTPUT $output
+                   ts_log_fine $output
                    wait_for_load_from_all_queues 60
 
-                   puts $CHECK_OUTPUT "ok"
-                   puts $CHECK_OUTPUT "checking /var/lock/subsys/sgeexecd file ..."
+                   ts_log_fine "ok"
+                   ts_log_fine "checking /var/lock/subsys/sgeexecd file ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "ls" "-la /var/lock/subsys | grep sgeexecd" "exit_val" $my_timeout]
                    if {$exit_val != 0} {
-                      add_proc_error "LSB_lockfile_test" -1 "failed - /var/lock/subsys/sgeexecd on host $exec_host has not been created by rc-script!"
+                      ts_log_severe "failed - /var/lock/subsys/sgeexecd on host $exec_host has not been created by rc-script!"
                       return
                    }
-                   puts $CHECK_OUTPUT $output
+                   ts_log_fine $output
 
-                   puts $CHECK_OUTPUT "ok"
+                   ts_log_fine "ok"
                 }
               
          }
 
          default {
-               puts $CHECK_OUTPUT "looking for linux hosts ...."
+               ts_log_fine "looking for linux hosts ...."
 
          }
 
       }
    }
    if {$found_linux == 0} {
-      add_proc_error "LSB_lockfile_test" -3 "test not possible, no linux host found in configuration!"
+      ts_log_config "test not possible, no linux host found in configuration!"
    }
 }

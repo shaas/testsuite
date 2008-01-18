@@ -64,9 +64,8 @@ lappend check_functions "issue_2344_check"
 proc issue_2344_setup {} {
    global ts_config
    global global_host_backup
-   global CHECK_OUTPUT
 
-   puts $CHECK_OUTPUT "issue_2344_setup" 
+   ts_log_fine "issue_2344_setup" 
 
    # setup queues A and B each with one slot on a single host
    set queue_conf(slots)            "1"
@@ -97,10 +96,8 @@ proc issue_2344_setup {} {
 }
 
 proc issue_2344_cleanup {  } {
-
    global global_host_backup
    global ts_config
-   global CHECK_OUTPUT
 
    # restore global host and revert F001 complex definition
    set_exechost global_host_backup
@@ -121,7 +118,6 @@ proc issue_2344_cleanup {  } {
 
 proc issue_2344_check { } {
    global ts_config
-   global CHECK_OUTPUT
 
    # qsub -p 30 -q A -N RunInA -l h_rt=:3:30 -b y /bin/sleep 180
    set run_in_a [submit_job "-p 30 -q A -N RunInA -l h_rt=:3:30 $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
@@ -138,14 +134,14 @@ proc issue_2344_check { } {
    # no job other than 'run_in_a' may be in running state after qconf -tsm 
    if {[wait_for_jobstart $run_in_a "" 45 1 1] == 0 } {
       if { [is_job_running $wait_for_a ""] || [is_job_running $rsv_for_a ""] || [is_job_running $grap_f001 ""] } {
-         # puts $CHECK_OUTPUT "no job other than $run_in_a may started"
+         # ts_log_fine "no job other than $run_in_a may started"
          # wait_for_enter 1
-         add_proc_error "issue_2344_check" -1 "no job other than $run_in_a may started"
+         ts_log_severe "no job other than $run_in_a may started"
       }
    } else {
-      # puts $CHECK_OUTPUT "job $run_in_a gets not started"
+      # ts_log_fine "job $run_in_a gets not started"
       # wait_for_enter 1
-      add_proc_error "issue_2344_check" -1 "job $run_in_a gets not started"
+      ts_log_severe "job $run_in_a gets not started"
    }
 
    delete_all_jobs

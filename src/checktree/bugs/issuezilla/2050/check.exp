@@ -111,7 +111,7 @@ proc issue_2050_cleanup  {} {
 # non-existant hosts 
 
 proc issue_2050_test {} {
-   global ts_config ts_user_config CHECK_OUTPUT CHECK_USER
+   global ts_config ts_user_config CHECK_USER
    global test_queue act_time 
    set test_items {}
    set act_time [timestamp]
@@ -130,29 +130,29 @@ proc issue_2050_test {} {
    foreach item $test_items {
       switch -exact $item {
          "ul" {
-            puts $CHECK_OUTPUT "-------- Testing userlists --------"
+            ts_log_fine "-------- Testing userlists --------"
             set test_userlist "testul_$act_time"         
             #create a userlist by adding a user to it
-            puts $CHECK_OUTPUT "Creating new userlist $test_userlist"
+            ts_log_fine "Creating new userlist $test_userlist"
             set result [add_access_list $CHECK_USER $test_userlist]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "New userlist $test_userlist created adding $CHECK_USER"
+               ts_log_fine "New userlist $test_userlist created adding $CHECK_USER"
             } else {
-               puts $CHECK_OUTPUT "unable to add userlist"
+               ts_log_fine "unable to add userlist"
             }
             #add the userlist to the queue
-            puts $CHECK_OUTPUT "Adding userlist $test_userlist to $test_queueinst"
+            ts_log_fine "Adding userlist $test_userlist to $test_queueinst"
             set result [add_attr $object_spec "user_lists" $test_userlist $test_queueinst 0]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "userlist $test_userlist added to $test_queueinst"
+               ts_log_fine "userlist $test_userlist added to $test_queueinst"
             } else {
-               puts $CHECK_OUTPUT "unable to add userlist($test_userlist) to $test_queueinst"
+               ts_log_fine "unable to add userlist($test_userlist) to $test_queueinst"
             }
             #now try deleting the userlist, it should throw an error!
-            puts $CHECK_OUTPUT "Deleting userlist $test_userlist"
+            ts_log_fine "Deleting userlist $test_userlist"
             set result [del_access_list $test_userlist "" "" 0]
             if {$result == 0} {
-               add_proc_error "issue_2050" -1 " the userlist should not have been deleted!!"
+               ts_log_severe "the userlist should not have been deleted!!"
                append error_mail_output "the userlist should not have been deleted, as it is still referenced in the queue!"
             } else {
                del_attr $object_spec "user_lists" $test_userlist $test_queueinst
@@ -167,33 +167,33 @@ proc issue_2050_test {} {
          }
 
          "projects" {
-            puts $CHECK_OUTPUT "-------- Testing projects --------"
+            ts_log_fine "-------- Testing projects --------"
             set test_project "testprj_$act_time"         
             set new_project(name) "$test_project"
             set error_mail_output ""
 
             #create a project by adding a user to it
-            puts $CHECK_OUTPUT "Creating new project $test_project"
+            ts_log_fine "Creating new project $test_project"
             set result [add_prj new_project]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "New project $test_project created"
+               ts_log_fine "New project $test_project created"
             } else {
-               puts $CHECK_OUTPUT "unable to add project"
+               ts_log_fine "unable to add project"
             }
             #add the project to the queue
-            puts $CHECK_OUTPUT "Adding project $test_project to $test_queueinst"
+            ts_log_fine "Adding project $test_project to $test_queueinst"
             set result [add_attr $object_spec "projects" $test_project $test_queueinst 0]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "project $test_project added to $test_queueinst"
+               ts_log_fine "project $test_project added to $test_queueinst"
             } else {
-               puts $CHECK_OUTPUT "unable to add project($test_project) to $test_queueinst"
+               ts_log_fine "unable to add project($test_project) to $test_queueinst"
             }
              
             #now try deleting the project, it should throw an error!
-            puts $CHECK_OUTPUT "Deleting project $test_project"
+            ts_log_fine "Deleting project $test_project"
             set result [del_prj $test_project 0]
             if {$result == 0} {
-               add_proc_error "issue_2050 failed:" -1 " the project should not have been deleted!!"
+               ts_log_severe "the project should not have been deleted!!"
                append error_mail_output "the project should not have been deleted, as it is still referenced in the queue!"
             } else {
                del_attr $object_spec "projects" $test_project $test_queueinst
@@ -208,30 +208,30 @@ proc issue_2050_test {} {
          }
 
          "pe" {
-            puts $CHECK_OUTPUT "-------- Testing pe --------"
+            ts_log_fine "-------- Testing pe --------"
             set test_pe "testpe_$act_time"         
             set error_mail_output ""
             #create a pe 
-            puts $CHECK_OUTPUT "Creating new pe $test_pe"
+            ts_log_fine "Creating new pe $test_pe"
             set result [add_pe "$test_pe" new_pe]
             if {$result == 0} {
-                puts $CHECK_OUTPUT "New pe $test_pe created"
+                ts_log_fine "New pe $test_pe created"
             } else {
-               puts $CHECK_OUTPUT "unable to add pe"
+               ts_log_fine "unable to add pe"
             }
             #add the pe to the queue
-            puts $CHECK_OUTPUT "Adding pe $test_pe to $test_queueinst"
+            ts_log_fine "Adding pe $test_pe to $test_queueinst"
             set result [add_attr $object_spec "pe_list" $test_pe $test_queueinst 0]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "pe $test_pe added to $test_queueinst"
+               ts_log_fine "pe $test_pe added to $test_queueinst"
             } else {
-               puts $CHECK_OUTPUT "unable to add pe($test_pe) to $test_queueinst"
+               ts_log_fine "unable to add pe($test_pe) to $test_queueinst"
             }
             #now try deleting the pe, it should throw an error!
-            puts $CHECK_OUTPUT "Deleting pe $test_pe"
+            ts_log_fine "Deleting pe $test_pe"
             set result [del_pe $test_pe "" "" 0]
             if {$result == 0} {
-               add_proc_error "issue_2050 failed:" -1 " the pe should not have been deleted!!"
+               ts_log_severe "the pe should not have been deleted!!"
                append error_mail_output "the pe should not have been deleted, as it is still referenced in the queue!"
             } else {
                del_attr $object_spec "pe_list" $test_pe $test_queueinst
@@ -246,32 +246,32 @@ proc issue_2050_test {} {
          }
 
          "complexes" {
-            puts $CHECK_OUTPUT "-------- Testing complexes --------"
+            ts_log_fine "-------- Testing complexes --------"
             set test_complex "testcl_$act_time"         
             set error_mail_output ""
             #create a complex
-            puts $CHECK_OUTPUT "Creating new complex $test_complex"
+            ts_log_fine "Creating new complex $test_complex"
             set new_complex($test_complex) "xxxs_$act_time INT <= YES YES 1 1000"
             set result [set_complex new_complex]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "New complex $test_complex created adding $CHECK_USER"
+               ts_log_fine "New complex $test_complex created adding $CHECK_USER"
             } else {
-               puts $CHECK_OUTPUT "unable to add complex"
+               ts_log_fine "unable to add complex"
             }
             #add the complex to the queue
-            puts $CHECK_OUTPUT "Adding complex $test_complex to $test_queueinst"
+            ts_log_fine "Adding complex $test_complex to $test_queueinst"
             set result [mqattr "complex_values" "$test_complex=1" $test_queueinst]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "complex $test_complex=1 added to $test_queueinst"
+               ts_log_fine "complex $test_complex=1 added to $test_queueinst"
             } else {
-               puts $CHECK_OUTPUT "unable to add complex($test_complex=1) to $test_queueinst"
+               ts_log_fine "unable to add complex($test_complex=1) to $test_queueinst"
             }
             #now try deleting the complex, it should throw an error!
-            puts $CHECK_OUTPUT "Deleting complex $test_complex"
+            ts_log_fine "Deleting complex $test_complex"
             set new_complex($test_complex) ""
             set result [set_complex new_complex 0]
             if {$result == 0} {
-                add_proc_error "issue_2050 failed:" -1 " the complex should not have been deleted!!"
+                ts_log_severe "the complex should not have been deleted!!"
                 append error_mail_output "the complex should not have been deleted, as it is still referenced in the queue!"
             } else {
                del_attr $object_spec "complex_values" "$test_complex=1" $test_queueinst
@@ -286,31 +286,31 @@ proc issue_2050_test {} {
          }
 
          "calendars" {
-            puts $CHECK_OUTPUT "-------- Testing calendars --------"
+            ts_log_fine "-------- Testing calendars --------"
             set test_calendar "testcal_$act_time"
             set error_mail_output ""
             #create a new calendar
-            puts $CHECK_OUTPUT "Creating new calendar $test_calendar"
+            ts_log_fine "Creating new calendar $test_calendar"
             set result [add_calendar $test_calendar]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "New calendar $test_calendar"
+               ts_log_fine "New calendar $test_calendar"
             } else {
-               puts $CHECK_OUTPUT "unable to add calendar"
+               ts_log_fine "unable to add calendar"
             }
 
             #add the userlist to the queue
-            puts $CHECK_OUTPUT "Adding calendar $test_calendar to $test_queueinst"
+            ts_log_fine "Adding calendar $test_calendar to $test_queueinst"
             set result [add_attr $object_spec "calendar" $test_calendar $test_queueinst 0]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "calendar $test_calendar added to $test_queue"
+               ts_log_fine "calendar $test_calendar added to $test_queue"
             } else {
-               puts $CHECK_OUTPUT "unable to add calendar($test_calendar) to $test_queue"
+               ts_log_fine "unable to add calendar($test_calendar) to $test_queue"
             }
             #now try deleting the calendar, it should throw an error!
-            puts $CHECK_OUTPUT "Deleting calendar $test_calendar"
+            ts_log_fine "Deleting calendar $test_calendar"
             set result [del_calendar $test_calendar "" "" 0]
             if {$result == 0} {
-               add_proc_error "issue_2050 failed:" -1 " the calendar should not have been deleted!!"
+               ts_log_severe "the calendar should not have been deleted!!"
                append error_mail_output "the calendar should not have been deleted, as it is still referenced in the queue!"
             } else {
                mqattr "calendar" "NONE" $test_queueinst
@@ -326,36 +326,36 @@ proc issue_2050_test {} {
          }
 
          "ckpt" {
-            puts $CHECK_OUTPUT "-------- Testing checkpoints --------"
+            ts_log_fine "-------- Testing checkpoints --------"
             set test_checkpoint "testckpt_$act_time"     
             set new_ckpt(ckpt_name) "$test_checkpoint"
             #create a new checkpoint
-            puts $CHECK_OUTPUT "Creating new checkpoint $test_checkpoint"
+            ts_log_fine "Creating new checkpoint $test_checkpoint"
             set result [add_checkpointobj new_ckpt]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "New checkpoint $test_checkpoint"
+               ts_log_fine "New checkpoint $test_checkpoint"
             } else {
-               puts $CHECK_OUTPUT "unable to add checkpoint"
+               ts_log_fine "unable to add checkpoint"
             }
 
             #add the userlist to the queue
-            puts $CHECK_OUTPUT "Adding checkpoint $test_checkpoint to $test_queueinst"
+            ts_log_fine "Adding checkpoint $test_checkpoint to $test_queueinst"
             set result [add_attr $object_spec "ckpt_list" $test_checkpoint $test_queueinst 0]
             if {$result == 0} {
-               puts $CHECK_OUTPUT "checkpoint $test_checkpoint added to $test_queueinst"
+               ts_log_fine "checkpoint $test_checkpoint added to $test_queueinst"
             } else {
-               puts $CHECK_OUTPUT "unable to add checkpoint($test_checkpoint) to $test_queueinst"
+               ts_log_fine "unable to add checkpoint($test_checkpoint) to $test_queueinst"
             }
             #now try deleting the checkpoint, it should throw an error!
-            puts $CHECK_OUTPUT "Deleting checkpoint $test_checkpoint"
+            ts_log_fine "Deleting checkpoint $test_checkpoint"
             set result [del_checkpointobj $test_checkpoint "" "" 0]
             if {$result == 0} {
-               add_proc_error "issue_2050 failed:" -1 " the checkpoint should not have been deleted!!"
+               ts_log_severe "the checkpoint should not have been deleted!!"
                append error_mail_output "the checkpoint should not have been deleted, as it is still referenced in the queue!"
             } else {
-               puts $CHECK_OUTPUT "removing checkpoint $test_checkpoint from q"
+               ts_log_fine "removing checkpoint $test_checkpoint from q"
                del_attr $object_spec "ckpt_list" $test_checkpoint $test_queueinst
-               puts $CHECK_OUTPUT "Deleting checkpoint $test_checkpoint"
+               ts_log_fine "Deleting checkpoint $test_checkpoint"
                del_checkpointobj $test_checkpoint
             }
 

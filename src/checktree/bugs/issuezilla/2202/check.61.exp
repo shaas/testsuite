@@ -83,7 +83,7 @@ proc issue_2202_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2202_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global num_queues num_jobs
    global backup_config
 
@@ -113,7 +113,7 @@ proc issue_2202_setup {} {
 }
 
 proc issue_2202_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global num_queues
    global backup_config
 
@@ -135,7 +135,7 @@ proc issue_2202_cleanup {} {
 
 
 proc issue_2202_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global num_queues num_jobs
 
@@ -156,6 +156,6 @@ proc issue_2202_test {} {
    set result [mod_attr "resource_quota" "limit" "slots=1" "test/$rule_no" 0]
    set time_end [clock clicks -milliseconds]
 
-   puts $CHECK_OUTPUT "modifying resource quota set took [expr $time_end - $time_start]ms"
+   ts_log_fine "modifying resource quota set took [expr $time_end - $time_start]ms"
 }
 

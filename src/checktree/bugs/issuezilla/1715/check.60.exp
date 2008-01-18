@@ -64,12 +64,12 @@ proc issue_1715_init_level {} {
 }
 
 proc issue_1715_run {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # cannot run this check on linux kernel 2.4
    set qmaster_arch [resolve_arch $ts_config(master_host)]
    if {[string match $qmaster_arch "*lx24*"] == 1} {
-      add_proc_error ssue_1715 -3 "test cannot kill qmaster on lx24 because of defect threading library - testsuite will block and never quit"
+      ts_log_config "test cannot kill qmaster on lx24 because of defect threading library - testsuite will block and never quit"
       return
    }
 
@@ -77,13 +77,13 @@ proc issue_1715_run {} {
 
    set INVALIDHOST [translate_macro MSG_SGETEXT_INVALIDHOST_S "dummy"]
    set INVALIDHOST [replace_string $INVALIDHOST "dummy" "" ] 
-   puts $CHECK_OUTPUT $INVALIDHOST
+   ts_log_fine $INVALIDHOST
    set output [string trim $output]
    set INVALIDHOST [string trim $INVALIDHOST]
-   puts $CHECK_OUTPUT "$output compared to $INVALIDHOST"
+   ts_log_fine "$output compared to $INVALIDHOST"
    
    if {[string match $output $INVALIDHOST] == 0} {
-      add_proc_error "issue_1715" -1 "issue 1715 still exists, qconf -aattr queue slots \"\[=1\]\" <queue>  crashes qmaster"
+      ts_log_severe "issue 1715 still exists, qconf -aattr queue slots \"\[=1\]\" <queue>  crashes qmaster"
    }
 }
 

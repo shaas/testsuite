@@ -64,7 +64,7 @@ proc issue_1359_init_level {} {
 }
 
 proc issue_1359_run {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # prepare operation with file
    set tmp_file [get_tmp_file_name]
@@ -86,27 +86,27 @@ proc issue_1359_run {} {
    del_sharetree
 
    set master_arch [resolve_arch $ts_config(master_host)]
-   puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -astree"
+   ts_log_fine "Creating dangling child reference in sharetree with -astree"
    handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-astree" $vi_commands $INVALID
 
    del_sharetree
 
-   puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -mstree"
+   ts_log_fine "Creating dangling child reference in sharetree with -mstree"
    handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mstree" $vi_commands $INVALID
 
    del_sharetree
 
-   puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -Astree"
+   ts_log_fine "Creating dangling child reference in sharetree with -Astree"
    set result [start_sge_bin "qconf" "-Astree $tmp_file" $ts_config(master_host)]
    if {[string compare [string trim $result] $INVALID] != 0} {
-      add_proc_error "issue_1359_run" "-1" "qconf allowed dangling child reference in sharetree: $result"
+      ts_log_severe "qconf allowed dangling child reference in sharetree: $result"
    }
 
    del_sharetree
 
-   puts $CHECK_OUTPUT "Creating dangling child reference in sharetree with -Mstree"
+   ts_log_fine "Creating dangling child reference in sharetree with -Mstree"
    set result [start_sge_bin "qconf" "-Mstree $tmp_file" $ts_config(master_host)]
    if {[string compare [string trim $result] $INVALID] != 0} {
-      add_proc_error "issue_1359_run" "-1" "qconf allowed dangling child reference in sharetree: $result"
+      ts_log_severe "qconf allowed dangling child reference in sharetree: $result"
    }
 }

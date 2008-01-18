@@ -78,7 +78,7 @@ proc issue_2419_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2419_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_2419_backup issue_2419_hosts
 
    # our test host - exclude all archs where we don't get online usage
@@ -113,7 +113,7 @@ proc issue_2419_setup {} {
 }
 
 proc issue_2419_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global issue_2419_backup issue_2419_hosts
 
    delete_all_jobs
@@ -136,7 +136,7 @@ proc issue_2419_cleanup {} {
 
 
 proc issue_2419_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # start a tightly integrated parallel job
    set options "-pe tight 4 -o /dev/null -j y"
@@ -162,7 +162,7 @@ proc issue_2419_test {} {
    }
 
    if {!$job_ok} {
-      add_proc_error "issue_2419_test" -1 "didn't get usage information for the test job within one minute runtime"
+      ts_log_severe "didn't get usage information for the test job within one minute runtime"
       delete_job $job_id 1
       return
    }
@@ -185,7 +185,7 @@ proc issue_2419_test {} {
 
    # compare usage information shown by different flavors of qstat
    if {$cpu_ext != $cpu_ext_gt || $cpu_ext != $cpu_j} {
-      add_proc_error "issue_2419_test" -1 "got different usage information from qstat:\n\
+      ts_log_severe "got different usage information from qstat:\n\
                             qstat -ext:      $cpu_ext\n\
                             qstat -ext -g t: $cpu_ext_gt\n\
                             qstat -j       : $cpu_j"

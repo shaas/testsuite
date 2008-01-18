@@ -89,27 +89,27 @@ proc auto_backup_init_level {} {
 
 
 proc auto_backup_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
-   puts $CHECK_OUTPUT "Removing the backup directories!"
+   ts_log_fine "Removing the backup directories!"
    set dir_names [get_dir_names "$ts_config(product_root)"]
    foreach dir $dir_names {
       if {[string match "*auto_backup_*" $dir]} {
          delete_directory $ts_config(product_root)/$dir
-         puts $CHECK_OUTPUT $dir
+         ts_log_fine $dir
       }
    }
 }
 
 
 proc auto_backup_create_config {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    if {[file isfile "$ts_config(product_root)/autobackup_config.conf"] == 1} {
       delete_file $ts_config(product_root)/autobackup_config.conf
    }
 
-   puts $CHECK_OUTPUT "creating automatic backup config file ..."
+   ts_log_fine "creating automatic backup config file ..."
    set fdo [open $ts_config(product_root)/autobackup_config.conf w]
 
    puts $fdo "SGE_ROOT=\"$ts_config(product_root)\""
@@ -119,12 +119,12 @@ proc auto_backup_create_config {} {
    puts $fdo "BACKUP_FILE=\"backup.tar\""
    close $fdo
 
-   puts $CHECK_OUTPUT "automatic backup config file successfully created ..."
+   ts_log_fine "automatic backup config file successfully created ..."
 }
 
 
 proc auto_backup_do_backup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    set my_timeout 500
    set exit_val 0
@@ -136,6 +136,6 @@ proc auto_backup_do_backup {} {
    }
 
    if {$exit_val != 0} {
-      add_proc_error "auto_backup_do_backup" "-2" "$output"
+      ts_log_warning $output
    }
 }

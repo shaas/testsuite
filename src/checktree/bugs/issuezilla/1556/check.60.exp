@@ -69,7 +69,7 @@ proc issue_1556_run {} {
    set output [start_sge_bin "qsub" "$options $CHECK_ACTUAL_TEST_PATH/1556.sh"]
 
    if {$prg_exit_state != 0} {
-      add_proc_error "issue_1556" -1 "multi-word quoted argument was mangled; issue 1556 still exists"
+      ts_log_severe "multi-word quoted argument was mangled; issue 1556 still exists"
       return
    }
 }
