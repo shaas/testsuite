@@ -8269,6 +8269,11 @@ if { $do_all } {
 
 if { $do_install } {
    # ts_checktree ok
+   if { [have_root_passwd] == -1 } {
+      puts "need root access ..."
+      set_root_passwd
+   }
+
    puts "installing core system on host [gethostname] ..."
    set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
    run_test $CHECK_ACT_PATH 1
@@ -8279,6 +8284,10 @@ if { $do_install } {
 }
 
 if { $do_kill } {
+   if { [have_root_passwd] == -1 } {
+      puts "need root access ..."
+      set_root_passwd
+   }
    set check_name "command line"
 
    shutdown_core_system 0 1
@@ -8289,6 +8298,10 @@ if { $do_kill } {
 }
 
 if { $do_start } {
+   if { [have_root_passwd] == -1 } {
+      puts "need root access ..."
+      set_root_passwd
+   }
    set check_name "command line"
 
    startup_core_system 0 1
@@ -8299,6 +8312,10 @@ if { $do_start } {
 
 
 if { $do_only_reset_config == 1 } {
+  if { [have_root_passwd] == -1 } {
+      puts "need root access ..."
+      set_root_passwd
+  }
   set result 1
   # ts_checktree ok
   set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"

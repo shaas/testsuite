@@ -117,7 +117,6 @@ proc install_execd {} {
          add_proc_error "install_execd" "-1" "host $exec_host is not in execd list"
          return 
       }
-#      wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
       if { $check_use_installed_system != 0 } {
          puts "no need to install execd on hosts \"$ts_config(execd_nodes)\", noinst parameter is set"
          if {[startup_execd $exec_host] == 0 } {
@@ -185,9 +184,12 @@ proc install_execd {} {
       puts $CHECK_OUTPUT "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options"
 
       if {$CHECK_ADMIN_USER_SYSTEM == 0} {
+         # wait for act qmaster file
+         wait_for_remote_file $exec_host "root" "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster" 90
          set id [open_remote_spawn_process "$exec_host" "root"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
       } else {
          puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
+         wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster" 90
          set id [open_remote_spawn_process "$exec_host" "$CHECK_USER"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
       }
 

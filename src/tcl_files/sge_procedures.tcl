@@ -6574,6 +6574,8 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
       return -1
    }
 
+   check_if_smf_is_active $host
+
    set found_p [ ps_grep "$ts_config(product_root)/" $host ]
    set nr_of_found_qmaster_processes_or_threads 0
 
@@ -6642,6 +6644,46 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
    ts_log_finer "shutdown_system_daemon ... done"
    return 0
 }
+
+
+#****** sge_procedures/check_if_smf_is_active() ********************************
+#  NAME
+#     check_if_smf_is_active() -- check if host supports SMF and has entries
+#
+#  SYNOPSIS
+#     check_if_smf_is_active { host } 
+#
+#  FUNCTION
+#     If the specified host supports SMF it is checked that there is no
+#     configured service for the current testsuite system. If there
+#     is a service an error is thrown.
+#
+#  INPUTS
+#     host - host where to check SMF availability
+#*******************************************************************************
+proc check_if_smf_is_active { host } {
+   global ts_config CHECK_USER
+   # ts_config(cluster_name) is svcs name
+   set output [start_remote_prog $host $CHECK_USER "svcs" ""]
+   if { $prg_exit_state == 0 } {
+      ts_log_fine "svcs is available on host $host:"
+      ts_log_fine "looking for system \"$ts_config(cluster_name)\" ..."
+      foreach help [split $output "\n"] {
+         set line [string trim $help]
+         if { [string match "*sge*" $line] } {
+            # get all from last ":" till end
+            set mark [string last ":" $line]
+            incr mark 1
+            set svcs_system_name [string range $line $mark end]
+            ts_log_fine "found sge svcs system name: \"$svcs_system_name\""
+            if { [string compare $ts_config(cluster_name) $svcs_system_name] == 0 } {
+               ts_log_severe "found SMF service entry for system $ts_config(cluster_name)\nremove SMF service for testsuite!"
+            }
+         }
+      }
+   }
+}
+
 
 #                                                             max. column:     |
 #****** sge_procedures/shutdown_core_system() ******
@@ -6799,6 +6841,18 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       foreach rpc_host $ts_config(bdb_server) {
          shutdown_bdb_rpc $rpc_host
       }
+   }
+
+
+   # check that SMF is not active
+   set check_smf_hosts $ts_config(master_host)
+   foreach elem $ts_config(execd_nodes) {
+      if { [ string first $elem $check_smf_hosts ] < 0 } {
+         lappend check_smf_hosts $elem
+      }
+   }
+   foreach smf_host $check_smf_hosts { 
+      check_if_smf_is_active $smf_host
    }
 
    # check for core files
