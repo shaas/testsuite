@@ -1,3 +1,6 @@
+MD-2008-01-18-0: Enhancem.: Added Issue test IZ 2459
+                 Review:    HP
+
 JG-2008-01-18-0: Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
                             functional checks.
 

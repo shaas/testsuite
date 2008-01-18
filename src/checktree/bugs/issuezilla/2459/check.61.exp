@@ -1,0 +1,298 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# Template for testsuite check
+# 
+# 1) replace the following symbols by your test specific names
+#    o __TESTSUITE_TEST_NAME   name of your test (e.g. consumable_test)
+#      (vi: 21s)
+#
+# 2) set check_root_access_needs to "yes" or "no" (if you need root access)
+#
+# 3) set check_category
+#
+# 4) set check_highest_level ( e.g.: runlevel "short" has reserved values from 0 to 99 ) 
+#
+# 5) set check_needs (e.g.: "init_core_system" this means that this test is not 
+#    started without succesfull run of "init_core_system" test
+# 6) implement the default functions (e.g.: __TESTSUITE_TEST_NAME_init_level)
+#
+# 7) you can add any function name to check_functions (all function (no paramters allowed) are started 
+#    within each runlevel number
+#    PLEASE use add_proc_error() to submit errors
+#    add_proc_error() is used in many testsuite standard functions, so not every 
+#    function call must check the return state.
+# 
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2459_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2459"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level  0 
+set check_description(0)  "Testing the autoinstall and autobackup configfile checking "
+set check_description(1)  ""
+
+# define test's dependencies
+#set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2459_setup
+set check_cleanup_function issue_2459_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2459_parse_autoinstall"
+lappend check_functions "issue_2459_parse_autobackup"
+
+proc issue_2459_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2459_setup {} {
+   global ts_config CHECK_OUTPUT
+   create_auto_config
+}
+
+proc issue_2459_cleanup {} {
+   global ts_config CHECK_OUTPUT
+
+   set inst_config_file "$ts_config(product_root)/autoinst_config.conf"
+   set backup_config_file "$ts_config(product_root)/autobackup_config.conf"
+   file delete $inst_config_file
+   file delete $backup_config_file
+}
+
+
+proc issue_2459_parse_autoinstall {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global issue_2459_hosts
+   global CHECK_ACT_LEVEL
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      ts_log_fine "This test is for runlevel $CHECK_ACT_LEVEL"
+
+      set my_timeout 500
+      set exit_val 0
+
+      ts_log_fine "inst_sge -m -auto $ts_config(product_root)/autoinst_config.conf"
+      set output [start_remote_prog "$ts_config(master_host)" "root"  "./inst_sge" "-m -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
+
+      if {$exit_val == 2} {
+         ts_log_fine $output
+         ts_log_fine "test is ok!"
+         return
+      } else { 
+         add_proc_error "inst_sge" "-2" "autoinstall configfile check failed:\n$output"
+         return
+      }
+
+   }
+}
+
+proc issue_2459_parse_autobackup {} {
+   global ts_config CHECK_OUTPUT CHECK_USER
+   global issue_2459_hosts
+   global CHECK_ACT_LEVEL
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      ts_log_fine "this is the test for runlevel $CHECK_ACT_LEVEL"
+
+      set my_timeout 500
+      set exit_val 0
+
+      ts_log_fine "inst_sge -bup -auto $ts_config(product_root)/autobackup_config.conf"
+      set output [start_remote_prog "$ts_config(master_host)" "root"  "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
+
+      if {$exit_val == 2} {
+         ts_log_fine $output
+         ts_log_fine "test is ok!"
+         return
+      } else { 
+         add_proc_error "inst_sge" "-2" "autoinstall configfile check failed:\n$output"
+         return
+      }
+      
+   }
+}
+
+
+proc write_autoinst_config {filename host {do_cleanup 1}} {
+   global CHECK_USER CHECK_OUTPUT local_execd_spool_set
+   global ts_config
+
+   set fdo [open $filename w]
+
+   puts $fdo "SGE_ROOT=\"\""
+   puts $fdo "SGE_QMASTER_PORT=\"$ts_config(commd_port)\""
+   if {$ts_config(gridengine_version) > "61"} {
+      puts $fdo "SGE_ENABLE_SMF=\"false\""
+      puts $fdo "SGE_CLUSTER_NAME=\"$ts_config(cluster_name)\""
+      if {$ts_config(jmx_port) > 0} {
+         set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
+         puts $fdo "SGE_ENABLE_JMX=\"true\""
+         puts $fdo "SGE_JVM_LIB_PATH=\"$jvm_lib_path\""
+         puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
+         puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
+      } else {
+         puts $fdo "SGE_ENABLE_JMX=\"false\""
+         puts $fdo "SGE_JVM_LIB_PATH=\"\""
+         puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
+         puts $fdo "SGE_JMX_PORT=\"0\""
+      }
+   } 
+   puts $fdo "CELL_NAME=\"$ts_config(cell)\""
+   puts $fdo "ADMIN_USER=\"$CHECK_USER\""
+   set spooldir [get_local_spool_dir $host qmaster $do_cleanup]
+   if {$spooldir != ""} {
+      puts $fdo "QMASTER_SPOOL_DIR=\"$spooldir\""
+   } else {
+      puts $fdo "QMASTER_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool/qmaster\""
+   }
+   puts $fdo "EXECD_SPOOL_DIR=\"$ts_config(product_root)/$ts_config(cell)/spool/\""
+   puts $fdo "GID_RANGE=\"46000-42000\""
+   puts $fdo "SPOOLING_METHOD=\"$ts_config(spooling_method)\""
+   puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
+   if { $ts_config(submit_only_hosts) != "none" } {
+      puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
+   } else {
+      puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes)\""
+   }
+   puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
+   set spooldir [get_local_spool_dir $host execd 0]
+   if {$spooldir != ""} {
+      puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\""
+   } else {
+      puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"\""
+   }
+   puts $fdo "HOSTNAME_RESOLVING=\"1\""
+   puts $fdo "SHELL_NAME=\"rsh\""
+   puts $fdo "COPY_COMMAND=\"acp\""
+   puts $fdo "DEFAULT_DOMAIN=\"none\""
+   puts $fdo "ADMIN_MAIL=\"$ts_config(report_mail_to)\""
+   puts $fdo "ADD_TO_RC=\"false\""
+   puts $fdo "SET_FILE_PERMS=\"true\""
+   puts $fdo "RESCHEDULE_JOBS=\"wait\""
+   puts $fdo "SCHEDD_CONF=\"5\""
+   puts $fdo "SHADOW_HOST=\"$ts_config(shadowd_hosts)\""
+   puts $fdo "EXEC_HOST_LIST_RM=\"$ts_config(execd_nodes)\""
+   puts $fdo "REMOVE_RC=\"false\""
+   puts $fdo "WINDOWS_SUPPORT=\"false\""
+   puts $fdo "WIN_ADMIN_NAME=\"Administrator\""
+   if {$ts_config(gridengine_version) > "61"} {
+      puts $fdo "SERVICE_TAGS=\"enable\""
+   }
+   puts $fdo "CSP_COPY_CERTS=\"false\""
+   puts $fdo "CSP_COUNTRY_CODE=\"DE\""
+   puts $fdo "CSP_STATE=\"Germany\""
+   puts $fdo "CSP_LOCATION=\"Building\""
+   puts $fdo "CSP_ORGA=\"Organisation\""
+   puts $fdo "CSP_ORGA_UNIT=\"Organisation_unit\""
+   puts $fdo "CSP_MAIL_ADDRESS=\"name@yourdomain.com\""
+
+   close $fdo
+   wait_for_remote_file $host $CHECK_USER $filename
+}
+
+proc write_autobackup_config {filename host {do_cleanup 1}} {
+   global CHECK_USER CHECK_OUTPUT local_execd_spool_set
+   global ts_config
+
+   ts_log_fine "delete file $filename ..."
+   file delete $filename
+#   wait for remote file deletion ...
+   wait_for_remote_file $host $CHECK_USER $filename 60 1 1
+
+   set fdo [open $filename w]
+
+   puts $fdo "SGE_ROOT=\"$ts_config(product_root)\""
+   puts $fdo "SGE_CELL=\"$ts_config(cell)\""
+   puts $fdo "TAR=\"trulle\""
+   puts $fdo "BACKUP_FILE=\"\""
+   close $fdo
+   wait_for_remote_file $host $CHECK_USER $filename
+}
+
+
+
+
+proc create_auto_config {} {
+   global CHECK_USER
+   global CORE_INSTALLED CHECK_OUTPUT 
+   global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
+   global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
+   global CHECK_PROTOCOL_DIR
+   global ts_config
+
+   set inst_config_file "$ts_config(product_root)/autoinst_config.conf"
+   set backup_config_file "$ts_config(product_root)/autobackup_config.conf"
+
+   if {[file isfile $inst_config_file] == 1} {
+      file delete -force $inst_config_file
+   }
+   if {[file isfile $backup_config_file] == 1} {
+      file delete -force $backup_config_file
+   }
+
+   ts_log_fine "creating automatic install and backup config file ..."
+   write_autoinst_config $inst_config_file $ts_config(master_host) 1
+   write_autobackup_config $backup_config_file $ts_config(master_host) 1
+   ts_log_fine "automatic install and backup config file successfully created ..."
+}
