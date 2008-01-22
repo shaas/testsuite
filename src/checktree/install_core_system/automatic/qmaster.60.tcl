@@ -179,20 +179,25 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "SGE_ROOT=\"$ts_config(product_root)\""
    puts $fdo "SGE_QMASTER_PORT=\"$ts_config(commd_port)\""
    puts $fdo "SGE_EXECD_PORT=\"$execd_port\""
-   puts $fdo "SGE_ENABLE_SMF=\"false\""
-   puts $fdo "SGE_CLUSTER_NAME=\"$ts_config(cluster_name)\""
+
+   # some GE 6.2 specific parameters
+   if {$ts_config(gridengine_version) >= 62} {
+      puts $fdo "SGE_ENABLE_SMF=\"false\""
+      puts $fdo "SGE_CLUSTER_NAME=\"$ts_config(cluster_name)\""
    
-   if {$ts_config(jmx_port) > 0} {
-      set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
-      puts $fdo "SGE_ENABLE_JMX=\"true\""
-      puts $fdo "SGE_JVM_LIB_PATH=\"$jvm_lib_path\""
-      puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
-      puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
-   } else {
-      puts $fdo "SGE_ENABLE_JMX=\"false\""
-      puts $fdo "SGE_JVM_LIB_PATH=\"\""
-      puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
-      puts $fdo "SGE_JMX_PORT=\"0\""
+      if {$ts_config(jmx_port) > 0} {
+         set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
+         puts $fdo "SGE_ENABLE_JMX=\"true\""
+         puts $fdo "SGE_JVM_LIB_PATH=\"$jvm_lib_path\""
+         puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
+         puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
+      } else {
+         puts $fdo "SGE_ENABLE_JMX=\"false\""
+         puts $fdo "SGE_JVM_LIB_PATH=\"\""
+         puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
+         puts $fdo "SGE_JMX_PORT=\"0\""
+      }
+      puts $fdo "SERVICE_TAGS=\"enable\""
    }
    puts $fdo "CELL_NAME=\"$ts_config(cell)\""
    puts $fdo "ADMIN_USER=\"$CHECK_USER\""
@@ -242,7 +247,6 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "CSP_ORGA=\"Devel\""
    puts $fdo "CSP_ORGA_UNIT=\"Software\""
    puts $fdo "CSP_MAIL_ADDRESS=\"$ts_config(report_mail_to)\""
-   puts $fdo "SERVICE_TAGS=\"enable\""
    close $fdo
    wait_for_remote_file $host $CHECK_USER $filename
 }

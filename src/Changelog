@@ -1,3 +1,6 @@
+JG-2008-01-22-0: Bugfix:    Autoinstall was broken for 6.0 and 6.1 clusters.
+                 Review:    MD
+
 MD-2008-01-18-0: Enhancem.: Added Issue test IZ 2459
                  Review:    HP
 
