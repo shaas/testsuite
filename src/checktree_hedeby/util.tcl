@@ -1662,7 +1662,13 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
 proc startup_hedeby_hosts { type host_list user } {
    global CHECK_OUTPUT 
    global hedeby_config
-    
+   set expected_jvms($hedeby_config(hedeby_master_host)) "cs_vm executor_vm rp_vm"
+   # setup managed host expectations ...
+   foreach host_temp [get_all_hedeby_managed_hosts] {
+      set expected_jvms($host_temp) "executor_vm"
+   }
+
+   set success [create_bundle_string "StartJVMCommand.success"]
    set error_text ""
    if { $type != "managed" && $type != "master" } {
       add_proc_error "startup_hedeby_hosts" -1 "unexpected host type: \"$type\" supported are \"managed\" or \"master\""
@@ -1710,15 +1716,52 @@ proc startup_hedeby_hosts { type host_list user } {
       "managed" {
          set pref_type [get_hedeby_pref_type]
          set system_name [get_hedeby_system_name]
-         set bundle_string [create_bundle_string "bootstrap.log.info.jvm_started" xyz "*"]
          foreach host $host_list {
-            set taskArray($host,expected_output) $bundle_string
+            set taskArray($host,expected_output) ""
             set taskArray($host,sdmadm_command) "-p $pref_type -s $system_name suj"
          }
          append error_text [start_parallel_sdmadm_command host_list $user taskArray]
-         foreach host $host_list {
-            set exit_state $taskArray($host,exit_status)
-            set output $taskArray($host,output)
+         foreach host_tmp $host_list {
+            set exit_state $taskArray($host_tmp,exit_status)
+            set output $taskArray($host_tmp,output)
+            #make the check for the output
+            if { $exit_state != 0 } {
+               append error_text "cannot startup managed host $host_tmp:\n$output\n"
+            }
+            set jvm_count [parse_jvm_start_stop_output output]
+            set match_count 0
+            for {set i 0} {$i < $jvm_count} {incr i} {
+                set host $ss_out($i,host)
+                set jvm  $ss_out($i,jvm)
+                set res $ss_out($i,result)
+                set mes $ss_out($i,message)
+                debug_puts "Found jvm $jvm on host $host, with result $res"
+                
+                foreach match_jvm $expected_jvms($host_tmp) {
+                    if { $match_jvm == $jvm } {
+                        incr match_count
+                        if { $res == $success } {
+                            puts $CHECK_OUTPUT "output match for jvm: $jvm, host: $host, result: $res"
+                        } else {
+                           append error_text "startup hedeby host ${host} failed:\n"
+                           append error_text "\"$output\"\n"
+                           append error_text "Jvm: $jvm on host: $host exited with result: $res with message: $mes\n"
+                        }
+                    }
+                }               
+            }
+            set expected_count 0
+            foreach expect_c $expected_jvms($host_tmp) {
+                incr expected_count
+            }
+            if { $match_count == $expected_count } {
+               puts $CHECK_OUTPUT "output matched expected number of jvms: $match_count"
+            } else {
+               append error_text "startup hedeby host ${host} failed:\n"
+               append error_text "\"$output\"\n"
+               append error_text "The expected output doesn't match expected number of jvms: $match_count .\n"               
+            } 
+
             debug_puts "----------------------------------"
             debug_puts "host: $host"
             debug_puts "exit status: $exit_state"
@@ -1730,33 +1773,46 @@ proc startup_hedeby_hosts { type host_list user } {
          if { [llength $host_list] != 1 } {
             append error_text "hostlist contains more than 1 entry - hedeby has only one master host\n\n"
          } else {
-            set host [lindex $host_list 0]
-            set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj"]
+            set host_tmp [lindex $host_list 0]
+            set output [sdmadm_command $host_tmp $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj"]
             if { $prg_exit_state != 0 } {
-               append error_text "cannot startup master host $host:\n$output\n"
+               append error_text "cannot startup master host $host_tmp:\n$output\n"
             }
-            set match_strings {}
-            lappend match_strings [create_bundle_string "bootstrap.log.info.jvm_started" xzy "cs_vm"]
-            lappend match_strings [create_bundle_string "bootstrap.log.info.jvm_started" xzy "executor_vm"]
-            lappend match_strings [create_bundle_string "bootstrap.log.info.jvm_started" xzy "rp_vm"]
-
+            set jvm_count [parse_jvm_start_stop_output output]
             set match_count 0
-            foreach match_string $match_strings {
-               if { [string match "*$match_string*" $output]} {
-                   puts $CHECK_OUTPUT "output match for string \"$match_string\""
-                  incr match_count
-               }
+            for {set i 0} {$i < $jvm_count} {incr i} {
+                set host $ss_out($i,host)
+                set jvm  $ss_out($i,jvm)
+                set res $ss_out($i,result)
+                set mes $ss_out($i,message)
+                debug_puts "Found jvm $jvm on host $host, with result $res"
+                
+                foreach match_jvm $expected_jvms($host_tmp) {
+                    if { $match_jvm == $jvm } {
+                        incr match_count
+                        if { $res == $success } {
+                            puts $CHECK_OUTPUT "output match for jvm: $jvm, host: $host, result: $res"
+
+                        } else {
+                           append error_text "startup hedeby host ${host} failed:\n"
+                           append error_text "\"$output\"\n"
+                           append error_text "Jvm: $jvm on host: $host exited with result: $res with message: $mes\n"
+                        }
+                    }
+                }               
             }
-            if { $match_count == 3} {
-               puts $CHECK_OUTPUT "output matches expected result"
+            set expected_count 0
+            foreach expect_c $expected_jvms($host_tmp) {
+                incr expected_count
+            }
+            if { $match_count == $expected_count } {
+               puts $CHECK_OUTPUT "output matched expected number of jvms: $match_count"
             } else {
                append error_text "startup hedeby host ${host} failed:\n"
                append error_text "\"$output\"\n"
-               append error_text "The expected output doesn't match for match strings:\n"
-               foreach match_string $match_strings {
-                  append error_text "\"$match_string\"\n"
-               }
-            }
+               append error_text "The expected output doesn't match expected number of jvms: $match_count .\n"
+               
+            }        
          }
       }
    }
@@ -2442,6 +2498,116 @@ proc parse_show_component_output { output_var {status_array "ss_out" } } {
    return $line_count
 }
 
+#****** util/parse_jvm_start_stop_output() *********************************
+#  NAME
+#     parse_jvm_start_stop_output() -- parse sdmadm show_status output
+#
+#  SYNOPSIS
+#     parse_jvm_start_stop_output { output_var {status_array "ss_out" } } 
+#
+#  FUNCTION
+#     This procedure is used to parse the output of the sdmadm suj/sdj
+#     command and return the parsed values in the specified result array.
+#
+#  INPUTS
+#     output_var               - output of the sdmadm suj/sdj cli command
+#     {status_array "ss_out" } - name of the array were the parsed information
+#                                should be stored. 
+#                                The array (default="ss_out") has the following
+#                                settings:
+#                                ss_out(JVMNAME,HOSTNAME,result,message)
+#
+#  RESULT
+#     number of parsed rows or -1 if the output could not be parsed
+#
+#  EXAMPLE
+#     
+#   set jvm_count [parse_jvm_start_stop_output output]
+#   
+#   for {set i 0} {$i < $component_count} {incr i} {
+#      set host   $ss_out($i,host)
+#      set jvm    $ss_out($i,jvm)
+#      set res   $ss_out($i,result)
+#      set mes  $ss_out($i,message)
+#   }
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#*******************************************************************************
+proc parse_jvm_start_stop_output { output_var {status_array "ss_out" } } {
+   global CHECK_OUTPUT
+   upvar $output_var out
+   upvar $status_array ss
+
+   set help [split $out "\n"]
+   set line_count -1
+   set col_count 0
+   array set last_values {}
+   
+   set known_colums(host)  [create_bundle_string "StartJVMCliCommand.col.host"]
+   set known_colums(jvm)  [create_bundle_string "StartJVMCliCommand.col.jvm"]
+   set known_colums(result)  [create_bundle_string "StartJVMCliCommand.col.result"]
+   set known_colums(message)  [create_bundle_string "StartJVMCliCommand.col.message"]
+
+   
+   foreach line $help {
+      debug_puts "Process line $line_count: \"$line\""
+      if { [string first "Error:" $line] >= 0 } {
+         return -1
+      } elseif {$line_count < 0} {
+         
+         set line [string trim $line]
+         foreach col_name [split $line " "] {
+            if {[string length $col_name] > 0} {
+               set real_col_name ""
+               foreach known_col [array names known_colums] {
+                  if { $known_colums($known_col) == $col_name } {
+                     set real_col_name $known_col
+                     break;
+                  }
+               }
+               if {$real_col_name == ""} {
+                  add_proc_error "parse_jvm_start_stop_output" -1 "Found unknown column $col_name in output of \"sdmadm suj or sdj\""
+                  return -1
+               }
+               set col($col_count,name)  $real_col_name
+               set col($col_count,start_index) [string first "$col_name" "$line"]
+               incr col_count
+            }
+         }
+         set last_col_index [expr $col_count - 1]
+         for {set i 0} {$i < $last_col_index} {incr i} {
+            set col($i,end_index) $col([expr $i + 1],start_index)
+            incr col($i,end_index) -1
+            debug_puts "col$i: $col($i,name) = $col($i,start_index) -> $col($i,end_index)"
+         }
+         # We do not known the index of the last col
+         # -1 means that the last col cosumes the rest of the line
+         set col($last_col_index,end_index) -1
+         debug_puts "col$i: $col($last_col_index,name) = $col($last_col_index,start_index) -> $col($last_col_index,end_index)"
+         set line_count 0
+      } elseif { [string length $line] == 0 } {
+         continue
+      } elseif { [string first "-------" $line] >= 0 } {
+         continue
+      } else {
+         for {set i 0} {$i < $col_count} {incr i} {
+            set col_name $col($i,name)
+            if { $col($i,end_index) < 0 } {
+               set end_index [string length $line]
+            } else {
+               set end_index $col($i,end_index)
+            }
+            set tvalue [string range $line $col($i,start_index) $end_index]
+            set tvalue [string trim $tvalue]
+            
+            set ss($line_count,$col_name) $tvalue
+         }
+         incr line_count
+      }
+   }
+   return $line_count
+}
 
 #****** util/read_hedeby_jvm_pid_info() **************************************************
 #  NAME

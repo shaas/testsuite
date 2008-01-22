@@ -1,3 +1,6 @@
+RM-2008-01-22-0: Enhancem.: Updated parsing for new sdmadm suj hedeby command
+                 Review:    MG
+
 MD-2008-01-22-1: Bugfix:    autoinstall config checktest used wrong string
  
 JG-2008-01-22-1: Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
