@@ -212,7 +212,7 @@ proc qdel_translate_message {msg {p1 ""} {p2 ""} {p3 ""}} {
 #     ???/???
 #*******************************
 proc qdel_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qdel_queue qdel_host
 
    delete_all_jobs
@@ -223,7 +223,7 @@ proc qdel_cleanup {} {
 
 proc qdel_submit_delete_when_transfered {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_ACT_LEVEL
 
    # we only execute this check in runlevel 0 - the other runlevels have no meaning here
@@ -260,7 +260,7 @@ proc qdel_submit_delete_when_transfered {} {
    foreach host $ts_config(execd_nodes) {
       set qinstance [get_queue_instance "all.q" $host]
       set output [start_sge_bin "qmod" "-c $qinstance"]
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
    }
 }
 
@@ -295,7 +295,7 @@ proc qdel_submit_delete_when_transfered {} {
 #     ???/???
 #*******************************
 proc are_jobs_deleted {job_list} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set del_jobs {}
    set time [timestamp]
@@ -311,8 +311,8 @@ proc are_jobs_deleted {job_list} {
          }
       }
      
-      puts $CHECK_OUTPUT "Jobs_deleted: $del_jobs"
-      puts $CHECK_OUTPUT "All jobs:     $job_list"
+      ts_log_fine "Jobs_deleted: $del_jobs"
+      ts_log_fine "All jobs:     $job_list"
  
       if {$jobs_deleted == [llength $job_list]} {
          return 0
@@ -357,7 +357,7 @@ proc are_jobs_deleted {job_list} {
 #     ???/???
 #*******************************
 proc submit_testjobs {{user ""} {additional_job_args ""} {testjob_count "4"} {array_job ""} {check_job_state 1}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global qdel_qinstance hold_state pending_state
 
    set joblist {}
@@ -470,7 +470,7 @@ proc submit_testjobs {{user ""} {additional_job_args ""} {testjob_count "4"} {ar
 #     ???/???
 #*******************************
 proc qdel_iz_125_case_2 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
   
    # 2) Submit a job.
    set job_list [submit_testjobs "" "" 1]
@@ -489,9 +489,9 @@ proc qdel_iz_125_case_2 {} {
 
    if {[string first $msg_deleted $output] >= 0 ||
        [string first $msg_registered $output] >= 0} {
-  	   puts $CHECK_OUTPUT "first delete OK"
+  	   ts_log_fine "first delete OK"
    } else {
-	   add_proc_error "qdel_iz_125_case_2" -1 "First delete of case 2), IZ 125 failed:\n$output"
+	   ts_log_severe "First delete of case 2), IZ 125 failed:\n$output"
       set do_continue 0
    }
 
@@ -503,16 +503,16 @@ proc qdel_iz_125_case_2 {} {
       # qdel always has to return some text.
       # if output is empty, we hit IZ 1860
       if {[string trim $output] == ""} {
-         add_proc_error "qdel_iz_125_case_2" "-1" "qdel didn't return any text - this is IZ 1860"
+         ts_log_severe "qdel didn't return any text - this is IZ 1860"
          set do_continue 0
       }
 
       if {$do_continue} {
          if {[string first $msg_already $output] >= 0 ||
              [string first $msg_notexist $output] >= 0} {
-            puts $CHECK_OUTPUT "second delete OK"
+            ts_log_fine "second delete OK"
          } else {
-            add_proc_error "qdel_iz_125_case_2" -1 "Second delete of case 2), IZ 125 failed:\n$output"
+            ts_log_severe "Second delete of case 2), IZ 125 failed:\n$output"
             set do_continue 0
          }
       }
@@ -525,9 +525,9 @@ proc qdel_iz_125_case_2 {} {
       # Check that we get a response
       if {[string first $msg_already $output] >= 0 ||
           [string first $msg_notexist $output] >= 0} {
-         puts $CHECK_OUTPUT "third delete OK"
+         ts_log_fine "third delete OK"
       } else {
-         add_proc_error "qdel_iz_125_case_2" -1 "Third delete of case 2), IZ 125 failed:\n$output"
+         ts_log_severe "Third delete of case 2), IZ 125 failed:\n$output"
          set do_continue 0
       }
    }
@@ -541,9 +541,9 @@ proc qdel_iz_125_case_2 {} {
 
       # Check that we get a response
       if {[string first $msg_notexist $output] >= 0} {
-         puts $CHECK_OUTPUT "fourth delete OK"
+         ts_log_fine "fourth delete OK"
       } else {
-         add_proc_error "qdel_iz_125_case_2" -1 "Fourth delete of case 2), IZ 125 failed:\n$output"
+         ts_log_severe "Fourth delete of case 2), IZ 125 failed:\n$output"
          set do_continue 0
       }
    }
@@ -555,9 +555,9 @@ proc qdel_iz_125_case_2 {} {
 
       # Check that we get a response
       if {[string first $msg_notexist $output] >= 0} {
-         puts $CHECK_OUTPUT "fifth delete OK"
+         ts_log_fine "fifth delete OK"
       } else {
-         add_proc_error "qdel_iz_125_case_2" -1 "Fifth delete of case 2), IZ 125 failed:\n$output"
+         ts_log_severe "Fifth delete of case 2), IZ 125 failed:\n$output"
          set do_continue 0
       }
    }
@@ -567,7 +567,7 @@ proc qdel_iz_125_case_2 {} {
 
 #*******************************
 proc qdel_iz_125_case_3 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # 3) Setup list of tasks to be deleted: the first 5; the remaing 5 are
    # for wait and delete.
@@ -595,9 +595,9 @@ proc qdel_iz_125_case_3 {} {
         [string first [qdel_translate_message REGISTERED_TASK $CHECK_USER $job  9] $output] >= 0    ) &&
        ([string first [qdel_translate_message DELETED_TASK    $CHECK_USER $job 10] $output] >= 0 || 
         [string first [qdel_translate_message REGISTERED_TASK $CHECK_USER $job 10] $output] >= 0    )} {
-      puts $CHECK_OUTPUT "deletion of tasks 5-10 OK"
+      ts_log_fine "deletion of tasks 5-10 OK"
    } else {
-       add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 5-10 failed:\n$output"
+       ts_log_severe  "Case 3) deletion of tasks 5-10 failed:\n$output"
    }
    # End delete of tasks 5 - 10
 
@@ -613,9 +613,9 @@ proc qdel_iz_125_case_3 {} {
         [string first [qdel_translate_message REGISTERED_TASK $CHECK_USER $job 2] $output] >= 0    ) &&
        ([string first [qdel_translate_message DELETED_TASK    $CHECK_USER $job 3] $output] >= 0 || 
         [string first [qdel_translate_message REGISTERED_TASK $CHECK_USER $job 3] $output] >= 0    )} {
-      puts $CHECK_OUTPUT "deletion of tasks 2-3 OK"
+      ts_log_fine "deletion of tasks 2-3 OK"
    } else {
-      add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 2-3 failed:\n$output"
+      ts_log_severe  "Case 3) deletion of tasks 2-3 failed:\n$output"
    }
 
    # wait some time for the already deleted tasks to vanish
@@ -631,9 +631,9 @@ proc qdel_iz_125_case_3 {} {
         [string first [qdel_translate_message DOESNOTEXIST_TASK $job 2] $output] >= 0 &&
         [string first [qdel_translate_message DOESNOTEXIST_TASK $job 3] $output] >= 0 &&
         [string first [qdel_translate_message DOESNOTEXIST_TASK $job 5] $output] >= 0    } {
-      puts $CHECK_OUTPUT "deletion of task 4 OK, 2, 3, and 5 didn't exist"
+      ts_log_fine "deletion of task 4 OK, 2, 3, and 5 didn't exist"
    } else {
-      add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 2 - 5 failed:\n$output"
+      ts_log_severe  "Case 3) deletion of tasks 2 - 5 failed:\n$output"
    }
 
    # Delete here tasks 6 - 7 ; they do not exist.
@@ -641,9 +641,9 @@ proc qdel_iz_125_case_3 {} {
 
    if {[string first [qdel_translate_message DOESNOTEXIST_TASK $job 6] $output] >= 0 &&
        [string first [qdel_translate_message DOESNOTEXIST_TASK $job 7] $output] >= 0    } {
-      puts $CHECK_OUTPUT "deletion of tasks 6 and 7 failed as expected"
+      ts_log_fine "deletion of tasks 6 and 7 failed as expected"
    } else {
-      add_proc_error "qdel_iz_125_case_3" -1  "Case 3) deletion of tasks 6 - 7 failed:\n$output"
+      ts_log_severe  "Case 3) deletion of tasks 6 - 7 failed:\n$output"
    }
 
    # A little cleanup
@@ -653,7 +653,7 @@ proc qdel_iz_125_case_3 {} {
 
 #*******************************
 proc qdel_iz_125_case_4 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global qdel_host
 
    # Create queues for -pe jobs 
@@ -675,7 +675,7 @@ proc qdel_iz_125_case_4 {} {
    assign_queues_with_pe_object "test2.q" $qdel_host mype2
 
    # Submit -pe jobs
-   puts $CHECK_OUTPUT "submitting jobs requesting pe mype1 ..."
+   ts_log_fine "submitting jobs requesting pe mype1 ..."
 
    set job_id_list {}
    set arguments "-o /dev/null -e /dev/null -h -pe mype1 2"
@@ -686,7 +686,7 @@ proc qdel_iz_125_case_4 {} {
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 3000"]
    lappend job_id_list $job_id
 
-   puts $CHECK_OUTPUT "submitting job requesting pe mype2 ..."
+   ts_log_fine "submitting job requesting pe mype2 ..."
    set arguments "-o /dev/null -e /dev/null -h -pe mype2 2"
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 3000"]
    lappend job_id_list $job_id
@@ -699,7 +699,7 @@ proc qdel_iz_125_case_4 {} {
        [string first [qdel_translate_message DELETED_JOB $CHECK_USER [lindex $job_id_list 2]] $output] >= 0 &&
        [string first [qdel_translate_message DELETED_JOB $CHECK_USER [lindex $job_id_list 3]] $output] >= 0    } {
       } else {
-      add_proc_error "qdel_iz_125_case_4" -1 "Case 4) deletion of pe jobs failed:\n$output"
+      ts_log_severe "Case 4) deletion of pe jobs failed:\n$output"
    }
 
    # Clean up the pe environment
@@ -715,7 +715,7 @@ proc qdel_iz_125_case_4 {} {
 #*******************************
 
 proc qdel_iz_125_case_5 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # we work on this number of jobs
    # we verify only every n'th job
@@ -736,9 +736,9 @@ proc qdel_iz_125_case_5 {} {
       set job [lindex $jobs $i]
       if {[string first [qdel_translate_message DELETED_JOB    $CHECK_USER $job 4] $output] >= 0 || 
           [string first [qdel_translate_message REGISTERED_JOB $CHECK_USER $job 4] $output] >= 0    } {
-         puts $CHECK_OUTPUT "job $i ($job) was deleted"
+         ts_log_fine "job $i ($job) was deleted"
       } else {
-         add_proc_error "qdel_iz_125_case_5" -1 "qdel on $num_jobs failed, job $i ($job) was not deleted:\n$output"
+         ts_log_severe "qdel on $num_jobs failed, job $i ($job) was not deleted:\n$output"
       }
    }
 
@@ -776,7 +776,7 @@ proc qdel_iz_125_case_5 {} {
 #     ???/???
 #*******************************
 proc qdel_delete_task_range {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # Submit a task array of 10 tasks
    set job [submit_testjobs "" "" 1 "-t 1-10"]
@@ -786,9 +786,9 @@ proc qdel_delete_task_range {} {
    set output [start_sge_bin "qdel" $job_range]
    if {[string first [qdel_translate_message DELETED_TASKS   $CHECK_USER "1-10:1" $job] $output] >= 0 || 
        [string first [qdel_translate_message REGISTERED_TASK $CHECK_USER $job 1] $output] >= 0           } {
-      puts $CHECK_OUTPUT "deletion of $job_range succeeded"
+      ts_log_fine "deletion of $job_range succeeded"
    } else {
-      add_proc_error "qdel_delete_task_range" -1 "deletion of $job_range failed:\n$output"
+      ts_log_severe "deletion of $job_range failed:\n$output"
    }
 
    # Sleep a little
@@ -797,7 +797,7 @@ proc qdel_delete_task_range {} {
    # Now check with qstat that there are no more jobs
    set output [start_sge_bin "qstat" ""]
    if {[string trim $output] != ""} {
-      add_proc_error "qdel_delete_task_range" -1 "job $job_range was not deleted:\n$output"
+      ts_log_severe "job $job_range was not deleted:\n$output"
    }
 
    # Clean up the queues
@@ -834,18 +834,18 @@ proc qdel_delete_task_range {} {
 #     ???/???
 #*******************************
 proc qdel_delete_job_0 {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 
    set output [start_sge_bin "qdel" "0"]
    if {$prg_exit_state != 1} {
-      add_proc_error "qdel_delete_job" -1 "prg_exit_state is not 1:\n$output"
+      ts_log_severe "prg_exit_state is not 1:\n$output"
    }
 
    if {[string length $output] < 10} {
-      add_proc_error "qdel_delete_job" -1 "possible wrong output - please check output manually:\n$output"
+      ts_log_severe "possible wrong output - please check output manually:\n$output"
    }
 }
 
@@ -879,7 +879,7 @@ proc qdel_delete_job_0 {} {
 #     ???/???
 #*******************************
 proc qdel_help {} {
-   global ts_config CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
+   global ts_config CHECK_PRODUCT_VERSION_NUMBER
    global qdel_help_lines
 
    delete_all_jobs
@@ -888,19 +888,19 @@ proc qdel_help {} {
    set output [start_sge_bin "qdel" "-help"]
 
    if {$prg_exit_state != 0} {
-      add_proc_error "qdel_help" -1 "qdel -help failed:\n$output"
+      ts_log_severe "qdel -help failed:\n$output"
    }
 
    set output [string trim $output]
    if {[string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0} {
-      add_proc_error "qdel_help" -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found in qdel -help output:\n$output"
+      ts_log_severe "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found in qdel -help output:\n$output"
    } 
  
    set lines [split $output "\n"]
    set nr_of_lines [llength $lines] 
 
    if {$nr_of_lines != $qdel_help_lines} {
-      add_proc_error "qdel_help" -1 "help output has $nr_of_lines, but expected are $qdel_help_lines lines:\n$output"
+      ts_log_severe "help output has $nr_of_lines, but expected are $qdel_help_lines lines:\n$output"
    }
 }
 
@@ -934,7 +934,7 @@ proc qdel_help {} {
 #     ???/???
 #*******************************
 proc qdel_job_task_list {} {
-    global ts_config CHECK_OUTPUT
+    global ts_config
 
     delete_all_jobs
     wait_for_end_of_all_jobs
@@ -945,7 +945,7 @@ proc qdel_job_task_list {} {
 
     # Errorhandling not functional yet because qdel returns always 0 it doesn't matter if the job exists or not
     if {$prg_exit_state != 0} {
-       add_proc_error "qdel_job_task_list" -1 "qdel $job_list failed:\n$qdel_output"
+       ts_log_severe "qdel $job_list failed:\n$qdel_output"
     }
 
     set time [timestamp]
@@ -964,7 +964,7 @@ proc qdel_job_task_list {} {
 
       set runtime [expr [timestamp] - $time]
       if {$runtime >= 300} {
-         add_proc_error "qdel_job_task_list" -1 "timeout while waiting for end of testjobs $job_list"
+         ts_log_severe "timeout while waiting for end of testjobs $job_list"
          break  
       }
    }    
@@ -986,7 +986,7 @@ proc qdel_job_task_list {} {
 #
 #*******************************
 proc qdel_delete_unknown_jobid {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -1037,7 +1037,7 @@ proc qdel_delete_unknown_jobid {} {
 }
 
 proc qdel_delete_unknown_jobid_proc {job_list default_output} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set qdel_output ""
    start_sge_bin "qdel" "$job_list"
@@ -1050,16 +1050,16 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
    }
   
    if {[string first "\[" $qdel_output] == 0} {
-      puts $CHECK_OUTPUT "removing message id from output ..."
+      ts_log_fine "removing message id from output ..."
       set cut [string first "\]" $qdel_output]
       incr cut 2
       set qdel_output [string range $qdel_output $cut end] 
-      puts $CHECK_OUTPUT "qsub qdel_output is: \"$qdel_output\""
+      ts_log_fine "qsub qdel_output is: \"$qdel_output\""
   }
  
 
    if {$prg_exit_state == 0} {
-      add_proc_error "qdel_delete_unknown_jobid_proc" -1 "exit state is 0"
+      ts_log_severe "exit state is 0"
    } 
 
    set nr_of_jobs [llength $job_list]
@@ -1067,20 +1067,20 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
    set nr_of_output_lines [llength $qd_out]
 
    if {$nr_of_jobs != $nr_of_output_lines} {
-      add_proc_error "qdel_delete_unknown_jobid_proc" -1 "nr of jobs doesn't match output lines"
+      ts_log_severe "nr of jobs doesn't match output lines"
    }
 
    set last_job_output [lindex $qd_out [expr $nr_of_output_lines - 1]]
    if {[string first "\[" $last_job_output] == 0} {
-      puts $CHECK_OUTPUT "removing message id from output ..."
+      ts_log_fine "removing message id from output ..."
       set cut [string first "\]" $last_job_output]
       incr cut 2
       set last_job_output [string range $last_job_output $cut end] 
-      puts $CHECK_OUTPUT "qsub last_job_output is: \"$last_job_output\""
+      ts_log_fine "qsub last_job_output is: \"$last_job_output\""
    }
 
    if {[string compare $default_output $last_job_output] != 0} {
-      add_proc_error "qdel_delete_unknown_jobid_proc" -1 "deleting of not existing job produces wrong output (\"$last_job_output\")"
+      ts_log_severe "deleting of not existing job produces wrong output (\"$last_job_output\")"
    }
 }
 
@@ -1114,19 +1114,19 @@ proc qdel_delete_unknown_jobid_proc {job_list default_output} {
 #     ???/???
 #*******************************
 proc qdel_delete_negative_jobid {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 
    set output [start_sge_bin "qdel" "-1"]
    if {$prg_exit_state == 0} {
-      add_proc_error "qdel_delete_negative_jobid" -1 "qdel with negative job id didn't fail:\n$output"
+      ts_log_severe "qdel with negative job id didn't fail:\n$output"
    }
 
    set output_length [string length $output]
    if {$output_length < 10 } {
-      add_proc_error "qdel_delete_negative_jobid" -1 "possible wrong output - please check output manually"
+      ts_log_severe "possible wrong output - please check output manually"
    }
 }
 
@@ -1161,7 +1161,7 @@ proc qdel_delete_negative_jobid {} {
 #*******************************
 proc qdel_all {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -1174,15 +1174,15 @@ proc qdel_all {} {
 
    # submit jobs to delete
    set job_list_user1 [submit_testjobs] 
-   puts $CHECK_OUTPUT "user 1 has jobs $job_list_user1"
+   ts_log_fine "user 1 has jobs $job_list_user1"
 
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
+   ts_log_fine "user 2 has jobs $job_list_user2"
    
    # now delete jobs of user 1
    set qdel_output [start_sge_bin "qdel" $all_args]
    if {$prg_exit_state != 0} {
-       add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $prg_exit_state):\n$qdel_output"
+       ts_log_severe "could not delete jobs $job_list_user1 (exit status: $prg_exit_state):\n$qdel_output"
    }
 
    set time [timestamp] 
@@ -1201,11 +1201,10 @@ proc qdel_all {} {
 
       set runtime [expr [timestamp] - $time]
       if {$runtime >= 60} {
-         add_proc_error "qdel_all" -1 "timeout while waiting for end of testjobs $job_list_user1"
+         ts_log_severe "timeout while waiting for end of testjobs $job_list_user1"
          break
       }
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
       sleep 1
    }
 
@@ -1213,17 +1212,17 @@ proc qdel_all {} {
    foreach job_id $job_list_user2 {
       set result [is_job_running $job_id "qdel_check"]
       if {$result == -1} {
-         add_proc_error "qdel_all" -1 "(3) jobs of different user deleted" 
+         ts_log_severe "(3) jobs of different user deleted" 
       }
    } 
   
    # now submit new jobs for user 1
    set job_list_user1 [submit_testjobs]  
-   puts $CHECK_OUTPUT "user 1 has jobs $job_list_user1"
+   ts_log_fine "user 1 has jobs $job_list_user1"
 
    # now delete jobs of user 2
    set result [start_sge_bin "qdel" "$all_args" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "qdel_output = \n$result" 
+   ts_log_fine "qdel_output = \n$result" 
 
    set time [timestamp] 
    while {1} {
@@ -1241,11 +1240,10 @@ proc qdel_all {} {
 
       set runtime [expr [timestamp] - $time]
       if { $runtime >= 60 } {
-         add_proc_error "qdel_all" -1 "timeout while waiting for end of testjobs $job_list_user2"
+         ts_log_severe "timeout while waiting for end of testjobs $job_list_user2"
          break
       }
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
       sleep 1
    }
 
@@ -1253,14 +1251,14 @@ proc qdel_all {} {
    foreach job_id $job_list_user1 {
       set result [is_job_running $job_id "qdel_check"]
       if {$result == -1} {
-         add_proc_error "qdel_all" -1 "(4) jobs of different user deleted" 
+         ts_log_severe "(4) jobs of different user deleted" 
       }
    }
 
    # now delete jobs of user1
    set qdel_output [start_sge_bin "qdel" $all_args]
    if {$prg_exit_state != 0} {
-      add_proc_error "qdel_all" -1 "could not delete jobs $job_list_user1 (exit status: $prg_exit_state):\n$qdel_output"
+      ts_log_severe "could not delete jobs $job_list_user1 (exit status: $prg_exit_state):\n$qdel_output"
    }
 
    set time [timestamp]
@@ -1279,12 +1277,11 @@ proc qdel_all {} {
 
       set runtime [expr [timestamp] - $time]
       if {$runtime >= 60} {
-         add_proc_error "qdel_all" -1 "timeout while waiting for end of testjobs $job_list_user1"
+         ts_log_severe "timeout while waiting for end of testjobs $job_list_user1"
          break
       }
       sleep 1
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
    }
 }
 
@@ -1318,14 +1315,9 @@ proc qdel_all {} {
 #     ???/???
 #*******************************
 proc qdel_uall {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
 
-   if {[have_root_passwd] == -1} {
-      add_proc_error "qdel_uall" -3 "root access required"
-      return
-   }
-   
    delete_all_jobs
    wait_for_end_of_all_jobs
 
@@ -1337,13 +1329,13 @@ proc qdel_uall {} {
 
    # submit jobs to delete
    set job_list_user1 [submit_testjobs]
-   puts $CHECK_OUTPUT "user 1 has jobs $job_list_user1"
+   ts_log_fine "user 1 has jobs $job_list_user1"
  
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
+   ts_log_fine "user 2 has jobs $job_list_user2"
 
    set job_list_user3 [submit_testjobs $CHECK_SECOND_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 3 has jobs $job_list_user3"
+   ts_log_fine "user 3 has jobs $job_list_user3"
 
    # now delete all jobs as user 2 ( only submit user )
    set result [start_sge_bin "qdel" $uall_args "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
@@ -1353,17 +1345,17 @@ proc qdel_uall {} {
 
    # test if all jobs are still there:
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3"
-   puts $CHECK_OUTPUT "following jobs must be in the system: $all_jobs"
+   ts_log_fine "following jobs must be in the system: $all_jobs"
    foreach job_id $all_jobs {
       set result [is_job_running $job_id "qdel_check"]
       if {$result == -1} {
-         add_proc_error "qdel_uall" -1 "(5) jobs of different user deleted" 
+         ts_log_severe "(5) jobs of different user deleted" 
       }
    } 
 
    # now delete all jobs as user 1 ( manager )
    set result [start_sge_bin "qdel" $uall_args "" $CHECK_USER]
-   puts $CHECK_OUTPUT "qdel_output = \n$result" 
+   ts_log_fine "qdel_output = \n$result" 
 
    # now check if all jobs are deleted
    set time [timestamp] 
@@ -1382,7 +1374,7 @@ proc qdel_uall {} {
 
       set runtime [expr [timestamp] - $time]
       if {$runtime >= 300} {
-         add_proc_error "qdel_uall" -1 "timeout while waiting for end of testjobs $all_jobs"
+         ts_log_severe "timeout while waiting for end of testjobs $all_jobs"
          break
       }
       sleep 1
@@ -1419,26 +1411,21 @@ proc qdel_uall {} {
 #     ???/???
 #*******************************
 proc qdel_user_list {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
-
-   if {[have_root_passwd] == -1} {
-      add_proc_error "qdel_user_list" -3 "root access required"
-      return
-   }
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 
    # submit jobs to delete
    set job_list_user1 [submit_testjobs]  
-   puts $CHECK_OUTPUT "user 1 has jobs $job_list_user1"
+   ts_log_fine "user 1 has jobs $job_list_user1"
  
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
+   ts_log_fine "user 2 has jobs $job_list_user2"
 
    set job_list_user3 [submit_testjobs $CHECK_SECOND_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 3 has jobs $job_list_user3"
+   ts_log_fine "user 3 has jobs $job_list_user3"
 
    # now delete all jobs as user 2 ( only submit user ) of user 3 ( only submit user)
    set result [start_sge_bin "qdel" "-u $CHECK_SECOND_FOREIGN_SYSTEM_USER" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
@@ -1451,11 +1438,11 @@ proc qdel_user_list {} {
 
    # test if all jobs are still there:
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3"
-   puts $CHECK_OUTPUT "following jobs must be in the system: $all_jobs"
+   ts_log_fine "following jobs must be in the system: $all_jobs"
    foreach job_id $all_jobs {
       set result [is_job_running $job_id "qdel_check"]
       if {$result == -1} {
-         add_proc_error "qdel_user_list" -1 "(1) jobs of different user deleted"
+         ts_log_severe "(1) jobs of different user deleted"
       }
    }
 
@@ -1464,48 +1451,48 @@ proc qdel_user_list {} {
 
    # now test if his jobs are deleted
    if {[are_jobs_deleted $job_list_user2] != 0} {
-      add_proc_error "qdel_user_list" -1 "(1) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER are deleted"
+      ts_log_severe "(1) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER are deleted"
    }
 
    # submit new jobs for user 2
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
+   ts_log_fine "user 2 has jobs $job_list_user2"
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3"
 
    # now delete all jobs as user 2
    set result [start_sge_bin "qdel" "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "starting qdel -u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"
-   puts $CHECK_OUTPUT "as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
-   puts $CHECK_OUTPUT "qdel_output = \n$result" 
+   ts_log_fine "starting qdel -u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"
+   ts_log_fine "as user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   ts_log_fine "qdel_output = \n$result" 
 
    # now test if his jobs are deleted
    if {[are_jobs_deleted $job_list_user2] != 0} {
-      add_proc_error "qdel_user_list" -1 "(2) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+      ts_log_severe "(2) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
    } 
 
    # now test if the jobs of user1 and user3 are still here
    set all_jobs "$job_list_user1 $job_list_user3"
-   puts $CHECK_OUTPUT "following jobs must be in the system: $all_jobs"
+   ts_log_fine "following jobs must be in the system: $all_jobs"
    foreach job_id $all_jobs {
       set result [is_job_running $job_id "qdel_check"]
       if {$result == -1} {
-         puts $CHECK_OUTPUT "job $job_id is not running"
-         add_proc_error "qdel_user_list" -1 "(2) jobs of different user deleted"
+         ts_log_fine "job $job_id is not running"
+         ts_log_severe "(2) jobs of different user deleted"
       }
    }
 
    # submit new jobs for user 2
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
+   ts_log_fine "user 2 has jobs $job_list_user2"
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3"
 
    # now delete all jobs as user 1 (manager)
    set qdel_output [start_sge_bin "qdel" "-u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"]
-   puts $CHECK_OUTPUT "starting qdel -u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"
-   puts $CHECK_OUTPUT "qdel_result = $prg_exit_state"
-   puts $CHECK_OUTPUT "qdel_output = $qdel_output" 
+   ts_log_fine "starting qdel -u $CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"
+   ts_log_fine "qdel_result = $prg_exit_state"
+   ts_log_fine "qdel_output = $qdel_output" 
    if {$prg_exit_state != 0} {
-      add_proc_error "qdel_user_list" -1 "Could not delete jobs $job_list_user1 (exit status: $prg_exit_state):\n$qdel_output"
+      ts_log_severe "Could not delete jobs $job_list_user1 (exit status: $prg_exit_state):\n$qdel_output"
    }
 
    set all_jobs "$job_list_user1 $job_list_user2 $job_list_user3"
@@ -1519,7 +1506,7 @@ proc qdel_user_list {} {
       }
    }
    if {$was_error != 0} {
-      add_proc_error "qdel_user_list" -1 "not all jobs are deleted ($all_jobs)"
+      ts_log_severe "not all jobs are deleted ($all_jobs)"
    }
 }
 
@@ -1553,21 +1540,16 @@ proc qdel_user_list {} {
 #     ???/???
 #*******************************
 proc qdel_force {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global pending_state qdel_host
-
-   if {[have_root_passwd] == -1} {
-      add_proc_error "qdel_force" -3 "root access required"
-      return
-   }
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 
    # unset ENABLE_FORCED_QDEL with set_config
    get_config saved_array 
-   puts $CHECK_OUTPUT "qmaster_params=$saved_array(qmaster_params)"
+   ts_log_fine "qmaster_params=$saved_array(qmaster_params)"
    set saved_qmaster_params $saved_array(qmaster_params)
    if {$saved_qmaster_params != "none"} {
       set change_array(qmaster_params) "none"
@@ -1576,10 +1558,10 @@ proc qdel_force {} {
 
    # submit jobs to delete
    set job_list_user1 [submit_testjobs]
-   puts $CHECK_OUTPUT "user 1 has jobs $job_list_user1"
+   ts_log_fine "user 1 has jobs $job_list_user1"
 
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
+   ts_log_fine "user 2 has jobs $job_list_user2"
 
 
    # shutdown execd
@@ -1590,7 +1572,7 @@ proc qdel_force {} {
    foreach job_id $all_jobs {
       set result [is_job_running $job_id "qdel_check"]
       if {$result == -1} {
-         add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system"
+         ts_log_severe "jobs $all_jobs should still be in the queueing system"
       }
    }
 
@@ -1598,7 +1580,7 @@ proc qdel_force {} {
    set qdel_output [start_sge_bin "qdel" $job_list_user1]
 
    if {$prg_exit_state != 0} {
-      add_proc_error "qdel_force" -1 "qdel $job_list_user1 failed:\n$qdel_output"
+      ts_log_severe "qdel $job_list_user1 failed:\n$qdel_output"
    }
 
    # delete the jobs of user 2 as user 2 without -f switch
@@ -1606,14 +1588,14 @@ proc qdel_force {} {
 
    if {$pending_state == 0} {
       # when jobs were in running state
-      puts $CHECK_OUTPUT "running jobs must still be in the queue"
+      ts_log_fine "running jobs must still be in the queue"
       sleep 10
       # now test if his jobs still running or pending
       set all_jobs "$job_list_user1 $job_list_user2"
       foreach job_id $all_jobs {
           set result [is_job_running $job_id "qdel_check"]
           if {$result == -1} {
-             add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system"
+             ts_log_severe "jobs $all_jobs should still be in the queueing system"
           }
       }
 
@@ -1623,7 +1605,7 @@ proc qdel_force {} {
 
    # wait for deletion of the jobs
    if {[are_jobs_deleted $all_jobs] != 0} {
-       add_proc_error "qdel_force" -1 "(3) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+       ts_log_severe "(3) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
    }
 
    if {$pending_state != 0} {
@@ -1635,10 +1617,10 @@ proc qdel_force {} {
 
    # submit jobs to delete
    set job_list_user1 [submit_testjobs]
-   puts $CHECK_OUTPUT "user 1 has jobs $job_list_user1"
+   ts_log_fine "user 1 has jobs $job_list_user1"
 
    set job_list_user2 [submit_testjobs $CHECK_FIRST_FOREIGN_SYSTEM_USER]
-   puts $CHECK_OUTPUT "user 2 has jobs $job_list_user2"
+   ts_log_fine "user 2 has jobs $job_list_user2"
 
    # shutdown execd
    soft_execd_shutdown $qdel_host
@@ -1648,14 +1630,14 @@ proc qdel_force {} {
    foreach job_id $all_jobs {
       set result [is_job_running $job_id "qdel_check"]
       if {$result == -1} {
-         add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system"
+         ts_log_severe "jobs $all_jobs should still be in the queueing system"
       }
    }
 
    # delete the jobs of user 1 as user 1 with -f switch
    set qdel_output [start_sge_bin "qdel" "-f $job_list_user1"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qdel_force" -1 "exit state is not 0"
+      ts_log_severe "exit state is not 0"
    }
 
    # delete the jobs of user 2 as user 2 with -f switch
@@ -1663,43 +1645,43 @@ proc qdel_force {} {
 
    # wait for deletion of the jobs of user 1 (manager)
    if {[are_jobs_deleted $job_list_user1] != 0} {
-      add_proc_error "qdel_force" -1 "(4) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+      ts_log_severe "(4) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
    }
 
    if {$pending_state != 0} {
       # wait for deletion of the jobs of user 2 (submit user)
       if {[are_jobs_deleted $job_list_user2] != 0} {
-         add_proc_error "qdel_force" -1 "(5) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
+         ts_log_severe "(5) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted"
       }
    } else {
-      puts $CHECK_OUTPUT "running jobs of user $CHECK_FIRST_FOREIGN_SYSTEM_USER must still be in the queue"
+      ts_log_fine "running jobs of user $CHECK_FIRST_FOREIGN_SYSTEM_USER must still be in the queue"
       sleep 10
       # if jobs were running the submituser (user2) can't use the force flag!
       # now test if his jobs still running or pending
       foreach job_id $job_list_user2 {
          set result [is_job_running $job_id "qdel_check"]
          if {$result == -1} {
-            add_proc_error "qdel_force" -1 "jobs $all_jobs should still be in the queueing system"
+            ts_log_severe "jobs $all_jobs should still be in the queueing system"
          }
       }
 
       # set ENABLE_FORCED_QDEL with set_config
       set change_array(qmaster_params) "ENABLE_FORCED_QDEL"
       set_config change_array
-      puts $CHECK_OUTPUT "qmaster_params set to $change_array(qmaster_params)"
+      ts_log_fine "qmaster_params set to $change_array(qmaster_params)"
 
       # delete the jobs of user 2 as user 2 with -f switch
       set result [start_sge_bin "qdel" "-f $job_list_user2" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER prg_exit_state 120]
 
       # wait for deletion of the jobs of user 2 (submit user) (now it must go)
       if {[are_jobs_deleted $job_list_user2] != 0} {
-         add_proc_error "qdel_force" -1 "(6) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted (ENABLE_FORCED_QDEL is not working)"
+         ts_log_severe "(6) not all jobs of $CHECK_FIRST_FOREIGN_SYSTEM_USER deleted (ENABLE_FORCED_QDEL is not working)"
       }
    } 
 
    set change_array(qmaster_params) $saved_qmaster_params
    set_config change_array
-   puts $CHECK_OUTPUT "qmaster_params set to $change_array(qmaster_params)"
+   ts_log_fine "qmaster_params set to $change_array(qmaster_params)"
 
    # now restart execd
    startup_execd $qdel_host
@@ -1738,7 +1720,7 @@ proc qdel_force {} {
 #     ???/???
 #*******************************
 proc qdel_delete_large_array {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
     
    set hostname [host_conf_get_suited_hosts]
 
@@ -1758,7 +1740,7 @@ proc qdel_delete_large_array {} {
    # Now check with qstat that there are no more jobs
    set output [start_sge_bin "qstat" ""]
    if {[string trim $output] != ""} {
-      add_proc_error "qdel_delete_large_array" -1 "not all tasks of job $job were deleted:\n$output"
+      ts_log_severe "not all tasks of job $job were deleted:\n$output"
    }
 
    # Clean up the queues

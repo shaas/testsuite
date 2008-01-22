@@ -93,7 +93,7 @@ proc qrsh_init_level {} {
 
 # -------- local test procedures -----------------------------------------------
 proc qrsh_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_FIRST_FOREIGN_SYSTEM_GROUP
    global qrsh_hostlist qrsh_submithost
    global QSUB_GID_USER QSUB_GID_GROUPS
@@ -109,8 +109,8 @@ proc qrsh_setup {} {
       }
    }
 
-   puts $CHECK_OUTPUT "using submit host  $qrsh_submithost"
-   puts $CHECK_OUTPUT "using exec host(s) $qrsh_hostlist"
+   ts_log_fine "using submit host  $qrsh_submithost"
+   ts_log_fine "using exec host(s) $qrsh_hostlist"
 
    # setup some user info
    set QSUB_GID_USER   $CHECK_FIRST_FOREIGN_SYSTEM_USER
@@ -163,10 +163,10 @@ proc qrsh_cleanup {} {
 #     ???/???
 #*******************************
 proc qrsh_function {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
-   puts $CHECK_OUTPUT "qrsh functional test"
+   ts_log_fine "qrsh functional test"
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
       set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
@@ -175,17 +175,17 @@ proc qrsh_function {} {
       set timeout 60
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_function" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "qrsh sucessfully started" {
-            puts $CHECK_OUTPUT "qrsh to host $host ok"
+            ts_log_fine "qrsh to host $host ok"
             exp_continue
          }
          -i $sp_id "_exit_status_:(*)*\n" {
-            puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+            ts_log_fine "got exit status from script:\n$expect_out(buffer)"
          }
          -i $sp_id default {
-            add_proc_error "qrsh_function" -1 "qrsh to host $host failed"
+            ts_log_severe "qrsh to host $host failed"
          }
       }
 
@@ -197,7 +197,7 @@ proc qrsh_function {} {
 
 
 proc qrsh_h {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global qrsh_submithost
 
    set my_outputs "-o /dev/null -e /dev/null"
@@ -218,11 +218,11 @@ proc qrsh_h {} {
    foreach line $run_result {
       set tmp_job_id [lindex $line 0]
       set tmp_job_state [lindex $line 4]
-      puts $CHECK_OUTPUT "job id: $tmp_job_id, job state: $tmp_job_state"
+      ts_log_fine "job id: $tmp_job_id, job state: $tmp_job_state"
    }
 
    if {$tmp_job_state != "hqw"} {
-      add_proc_error "qrsh_h" -1 "qrsh -h job is not in pending state"
+      ts_log_severe "qrsh -h job is not in pending state"
    }
 
    trigger_scheduling
@@ -230,13 +230,13 @@ proc qrsh_h {} {
    set timeout 15
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "qrsh_h" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id "qrsh sucessfully started" {
-         add_proc_error "qrsh_h" -1 "qrsh -h failed"
+         ts_log_severe "qrsh -h failed"
       }
       -i $sp_id default {
-         puts $CHECK_OUTPUT "qrsh -h timeout for hold state ok, now releasing job $job_id"
+         ts_log_fine "qrsh -h timeout for hold state ok, now releasing job $job_id"
       }
    }
 
@@ -246,25 +246,25 @@ proc qrsh_h {} {
    set timeout 60
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "qrsh_h" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id "qrsh sucessfully started" {
-         puts $CHECK_OUTPUT "qrsh -h ok"
+         ts_log_fine "qrsh -h ok"
       }
       -i $sp_id default {
-         add_proc_error "qrsh_h" -1 "qrsh -h failed for job $job_id"
+         ts_log_severe "qrsh -h failed for job $job_id"
       }
    }
 
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "qrsh_h" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id "_exit_status_:(*)*\n" {
-         puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+         ts_log_fine "got exit status from script:\n$expect_out(buffer)"
       }
       -i $sp_id default {
-         add_proc_error "qrsh_h" -1 "got timeout for job $job_id"
+         ts_log_severe "got timeout for job $job_id"
       }
    }
 
@@ -274,7 +274,7 @@ proc qrsh_h {} {
 }
 
 proc qrsh_hold_jid {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global qrsh_submithost
 
    set my_outputs "-o /dev/null -e /dev/null"
@@ -293,11 +293,11 @@ proc qrsh_hold_jid {} {
    foreach line $run_result {
       set tmp_job_id [lindex $line 0]
       set tmp_job_state [ lindex $line 4 ]
-      puts $CHECK_OUTPUT "job id: $tmp_job_id, job state: $tmp_job_state"
+      ts_log_fine "job id: $tmp_job_id, job state: $tmp_job_state"
    }
 
    if {$tmp_job_state != "hqw"} {
-      add_proc_error "qrsh_hold_jid" -1 "qrsh -hold_jid job is not in pending state"
+      ts_log_severe "qrsh -hold_jid job is not in pending state"
    }
 
    trigger_scheduling
@@ -305,13 +305,13 @@ proc qrsh_hold_jid {} {
    set timeout 15
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "qrsh_hold_jid" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id "qrsh sucessfully started" {
-         add_proc_error "qrsh_hold_jid" -1 "qrsh -hold_jid failed"
+         ts_log_severe "qrsh -hold_jid failed"
       }
       -i $sp_id default {
-         puts $CHECK_OUTPUT "qrsh -hold_jid timeout for hold state ok, now deleting job $hold_job_id"
+         ts_log_fine "qrsh -hold_jid timeout for hold state ok, now deleting job $hold_job_id"
       }
    }
 
@@ -321,25 +321,25 @@ proc qrsh_hold_jid {} {
    set timeout 60
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "qrsh_hold_jid" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id "qrsh sucessfully started" {
-         puts $CHECK_OUTPUT "qrsh -hold_jid ok"
+         ts_log_fine "qrsh -hold_jid ok"
       }
       -i $sp_id default {
-         add_proc_error "qrsh_hold_jid" -1 "qrsh -hold_jid failed for job $job_id"
+         ts_log_severe "qrsh -hold_jid failed for job $job_id"
       }
    }
 
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "qrsh_hold_jid" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id "_exit_status_:(*)*\n" {
-         puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+         ts_log_fine "got exit status from script:\n$expect_out(buffer)"
       }
       -i $sp_id default {
-         add_proc_error "qrsh_hold_jid" -1 "qrsh -hold_jid failed for job $job_id"
+         ts_log_severe "qrsh -hold_jid failed for job $job_id"
       }
    }
 
@@ -377,7 +377,7 @@ proc qrsh_hold_jid {} {
 #     ???/???
 #*******************************
 proc qrsh_alltoall {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qrsh_hostlist
 
    foreach source $qrsh_hostlist {
@@ -388,20 +388,20 @@ proc qrsh_alltoall {} {
          set timeout 60
          expect {
             -i $sp_id full_buffer {
-               add_proc_error "qrsh_alltoall" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             }
             -i $sp_id eof {
-               add_proc_error "qrsh_alltoall"  -1 "open_remote_spawn_process closed connection (eof)"
+               ts_log_severe "open_remote_spawn_process closed connection (eof)"
             }
             -i $sp_id "qrsh sucessfully started" {
-               puts $CHECK_OUTPUT "qrsh from host $source to host $dest ok"
+               ts_log_fine "qrsh from host $source to host $dest ok"
                exp_continue
             }
             -i $sp_id "_exit_status_:(*)*\n" {
-               puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+               ts_log_fine "got exit status from script:\n$expect_out(buffer)"
             }
             -i $sp_id default {
-               add_proc_error "qrsh_alltoall" -1 "qrsh from host $source to host $dest failed"
+               ts_log_severe "qrsh from host $source to host $dest failed"
             }
          }
 
@@ -413,7 +413,7 @@ proc qrsh_alltoall {} {
 }
 
 proc qrsh_starter_method {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_ACTUAL_TEST_PATH
    global qrsh_hostlist qrsh_submithost
 
    # set starter method
@@ -429,7 +429,7 @@ proc qrsh_starter_method {} {
       set starter_method 0
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_starter_method" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "starter method started" {
             set starter_method 1
@@ -437,17 +437,17 @@ proc qrsh_starter_method {} {
          }
          -i $sp_id "qrsh sucessfully started" {
             if {$starter_method == 0} {
-               add_proc_error "qrsh_starter_method" -1 "qrsh job started without starter_method on host $host"
+               ts_log_severe "qrsh job started without starter_method on host $host"
             } else {
-               puts $CHECK_OUTPUT "qrsh to host $host ok"
+               ts_log_fine "qrsh to host $host ok"
             }
             exp_continue
          }
          -i $sp_id "_exit_status_:(*)*\n" {
-            puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+            ts_log_fine "got exit status from script:\n$expect_out(buffer)"
          }
          -i $sp_id default {
-            add_proc_error "qrsh_starter_method" -1 "qrsh to host $host failed"
+            ts_log_severe "qrsh to host $host failed"
          }
       }
 
@@ -491,7 +491,7 @@ proc qrsh_starter_method {} {
 #     ???/???
 #*******************************
 proc qrsh_accounting {} {
-   global ts_config CHECK_OUTPUT CHECK_PRODUCT_TYPE
+   global ts_config CHECK_PRODUCT_TYPE
    global qrsh_hostlist qrsh_submithost
 
    if {$ts_config(gridengine_version) == 53} {
@@ -515,45 +515,45 @@ proc qrsh_accounting {} {
          set timeout 80
          expect {
             -i $sp_id full_buffer {
-               add_proc_error "qrsh_accounting" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                set state exit
             }
             -i $sp_id eof {
-               add_proc_error "qrsh_accounting"  -1 "open_remote_spawn_process closed connection (eof)"
+               ts_log_severe "open_remote_spawn_process closed connection (eof)"
                set state exit
             }
             -i $sp_id timeout {
                # now (after 80s) the job should be running
                if {[string compare $state running]} {
-                  add_proc_error "qrsh_accounting"  -1 "qrsh to host $host failed"
+                  ts_log_severe "qrsh to host $host failed"
                   set state exit
                } else {
                   # in sgeee mode, we can check the online usage
                   if {$CHECK_PRODUCT_TYPE == "sgeee"} {
                      if {$job_id == ""} {
-                        add_proc_error "qrsh_accounting"  -1 "unknown job_id for qrsh job on host $host"
+                        ts_log_severe "unknown job_id for qrsh job on host $host"
                      } else {
                         if {[info exists job_info]} {
                            unset job_info
                         }
                         if {[get_extended_job_info $job_id] == 1} {
                            if {$job_info(cpu) < 10} {
-                              add_proc_error "qrsh_accounting"  -3 "online usage probably does not work on $host"
+                              ts_log_config "online usage probably does not work on $host"
                            }
                         } else {
-                           add_proc_error "qrsh_accounting"  -1 "get_extended_jobinfo failed for job $job_id on host $host"
+                           ts_log_severe "get_extended_jobinfo failed for job $job_id on host $host"
                         }
                      }
                   }
                }
             }
             -i $sp_id $INTERACTIVE_JOB {
-               puts "jobstart: \"$expect_out(0,string)\""
+               ts_log_finer "jobstart: \"$expect_out(0,string)\""
                set job_id [string range $expect_out(0,string) $job_id_start end]
                set space_start [string first " " $job_id]
                set job_id [string range $job_id 0 $space_start]
                set job_id [string trim $job_id]
-               puts $CHECK_OUTPUT "job id is: \"$job_id\""
+               ts_log_fine "job id is: \"$job_id\""
                set state scheduled
             }
             -i $sp_id "Forking" { ;# "Forking" printout is from worker job (utilbin/work.c)
@@ -561,7 +561,7 @@ proc qrsh_accounting {} {
             }
             -i $sp_id "_exit_status_" {   ;# _exit_status_ is from open_remote_spawn_process - generated script
                if {[string compare $state running]} {
-                  add_proc_error "qrsh_accounting"  -1 "qrsh to host $host failed"
+                  ts_log_severe "qrsh to host $host failed"
                }
                set state exit
             }
@@ -577,7 +577,7 @@ proc qrsh_accounting {} {
          if {[get_qacct $job_id] == 0} {
             set cpu [expr $qacct_info(ru_utime) + $qacct_info(ru_stime)]
             if {$cpu < 30} {
-               add_proc_error "qrsh_accounting"  -1 "cpu entry \"$cpu\" in accounting seems to be wrong for job $job_id on host $host"
+               ts_log_severe "cpu entry \"$cpu\" in accounting seems to be wrong for job $job_id on host $host"
             }
 
             if {$CHECK_PRODUCT_TYPE == "sgeee"} {
@@ -585,7 +585,7 @@ proc qrsh_accounting {} {
                set difference [expr $cpu - $qacct_info(cpu)]
                set difference [expr $difference * $difference]
                if {$difference > 2} {
-                  add_proc_error "qrsh_accounting"  -1 "accounting: cpu($qacct_info(cpu)) is not the sum of ru_utime and ru_stime ($cpu) for job $job_id on host $host"
+                  ts_log_severe "accounting: cpu($qacct_info(cpu)) is not the sum of ru_utime and ru_stime ($cpu) for job $job_id on host $host"
                }
             }
          }
@@ -625,7 +625,7 @@ proc qrsh_accounting {} {
 #     ???/???
 #*******************************
 proc qrsh_suspend {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qrsh_hostlist qrsh_submithost
 
    set arch [resolve_arch $qrsh_submithost]
@@ -643,24 +643,24 @@ proc qrsh_suspend {} {
       expect {
          -i $sp_id full_buffer {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_suspend" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "my pid is *\n" {
             set job_pid [lindex $expect_out(0,string) 3]
             set job_id [lindex $expect_out(0,string) 7]
-            puts $CHECK_OUTPUT "job has pid $job_pid and job id $job_id"
+            ts_log_fine "job has pid $job_pid and job id $job_id"
          }
          -i $sp_id timeout {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_suspend" -1 "qrsh to host $host failed"
+            ts_log_severe "qrsh to host $host failed"
          }
          -i $sp_id "_exit_status_" {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_suspend" -1 "qrsh to host $host failed"
+            ts_log_severe "qrsh to host $host failed"
          }
          -i $sp_id eof {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_suspend" -1 "open_remote_spawn_process closed connection (eof)"
+            ts_log_severe "open_remote_spawn_process closed connection (eof)"
          }
       }
 
@@ -671,15 +671,15 @@ proc qrsh_suspend {} {
          
          if {$ps_info($job_pid,error) != 0} {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_suspend" -1 "cannot get info about process $job_pid on host $host"
+            ts_log_severe "cannot get info about process $job_pid on host $host"
             continue
          }
-         puts $CHECK_OUTPUT "job should be running"
-         puts $CHECK_OUTPUT $ps_info($job_pid,index_names) 
-         puts $CHECK_OUTPUT $ps_info($job_pid,string)
+         ts_log_fine "job should be running"
+         ts_log_fine $ps_info($job_pid,index_names) 
+         ts_log_fine $ps_info($job_pid,string)
          if {[string first $ps_info($job_pid,state) $running_states] == -1} {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_suspend" -1 "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)\nps output:\n$ps_info($job_pid,index_names)\n$ps_info($job_pid,string)"
+            ts_log_severe "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)\nps output:\n$ps_info($job_pid,index_names)\n$ps_info($job_pid,string)"
             continue
          }
 
@@ -689,15 +689,15 @@ proc qrsh_suspend {} {
          # process status should be suspended
          get_ps_info $job_pid $host
          if {$ps_info($job_pid,error) != 0} {
-            add_proc_error "qrsh_suspend" -1 "cannot get info about process $job_pid on host $host"
+            ts_log_severe "cannot get info about process $job_pid on host $host"
             close_spawn_process $qrsh_id
             continue
          }
-         puts $CHECK_OUTPUT "job should be suspended"
-         puts $CHECK_OUTPUT $ps_info($job_pid,index_names) 
-         puts $CHECK_OUTPUT $ps_info($job_pid,string)
+         ts_log_fine "job should be suspended"
+         ts_log_fine $ps_info($job_pid,index_names) 
+         ts_log_fine $ps_info($job_pid,string)
          if {[string first $ps_info($job_pid,state) $suspended_states] == -1} {
-            add_proc_error "qrsh_suspend" -1 "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)"
+            ts_log_severe "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)"
             close_spawn_process $qrsh_id
             continue
          }
@@ -708,15 +708,15 @@ proc qrsh_suspend {} {
          # process status should be sleeping or running
          get_ps_info $job_pid $host
          if {$ps_info($job_pid,error) != 0} {
-            add_proc_error "qrsh_suspend" -1 "cannot get info about process $job_pid on host $host"
+            ts_log_severe "cannot get info about process $job_pid on host $host"
             close_spawn_process $qrsh_id
             continue
          }
-         puts $CHECK_OUTPUT "job should be running"
-         puts $CHECK_OUTPUT $ps_info($job_pid,index_names) 
-         puts $CHECK_OUTPUT $ps_info($job_pid,string)
+         ts_log_fine "job should be running"
+         ts_log_fine $ps_info($job_pid,index_names) 
+         ts_log_fine $ps_info($job_pid,string)
          if {[string first $ps_info($job_pid,state) $running_states] == -1} {
-            add_proc_error "qrsh_suspend" -1 "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)"
+            ts_log_severe "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)"
             close_spawn_process $qrsh_id
             continue
          }
@@ -725,13 +725,13 @@ proc qrsh_suspend {} {
       set timeout 60
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_suspend" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_suspend" -1 "timeout waiting for qrsh to host $host to finish"
+            ts_log_severe "timeout waiting for qrsh to host $host to finish"
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_suspend" -1 "open_remote_spawn_process closed connection (eof)"
+            ts_log_severe "open_remote_spawn_process closed connection (eof)"
          }
          -i $sp_id "_exit_status_" {
          }
@@ -773,7 +773,7 @@ proc qrsh_suspend {} {
 #     ???/???
 #*******************************
 proc qrsh_delete {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_ACTUAL_TEST_PATH
    global qrsh_hostlist qrsh_submithost
 
    set arch [resolve_arch $qrsh_submithost]
@@ -788,22 +788,22 @@ proc qrsh_delete {} {
       expect {
          -i $sp_id full_buffer {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_delete" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             set error 1
          }
          -i $sp_id "my pid is*" {
-            puts $CHECK_OUTPUT "got pid of job!"
+            ts_log_fine "got pid of job!"
             set job_pid [lindex $expect_out(0,string) 3]
             set job_id [lindex $expect_out(0,string) 7]
          }
          -i $sp_id timeout {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_delete" -1 "qrsh to host $host failed - timeout"
+            ts_log_severe "qrsh to host $host failed - timeout"
             set error 1
          }
          -i $sp_id eof {
             close_spawn_process $qrsh_id
-            add_proc_error "qrsh_delete" -1 "qrsh to host $host failed - eof"
+            ts_log_severe "qrsh to host $host failed - eof"
             set error 1
          }
          
@@ -812,15 +812,15 @@ proc qrsh_delete {} {
       if {$error == 0} {
          if {[info exists job_pid] && [info exists job_id]} {
             # qdel 
-            puts $CHECK_OUTPUT "now deleting job $job_id ..."
+            ts_log_fine "now deleting job $job_id ..."
             delete_job $job_id 1
 
             # check if shell script is still running
             get_ps_info $job_pid $host
             if {$ps_info($job_pid,error) == 0} {
-               add_proc_error "qrsh_delete" -1 "process of deleted job $job_pid on host $host is still running"
+               ts_log_severe "process of deleted job $job_pid on host $host is still running"
             } else {
-               puts $CHECK_OUTPUT "job is gone - ok !"
+               ts_log_fine "job is gone - ok !"
             }
          }
       }
@@ -829,7 +829,7 @@ proc qrsh_delete {} {
 
       set q_state [get_queue_state "all.q@${host}"]
       if {[string first "E" $q_state] >= 0} {
-         add_proc_error "qrsh_delete" -1 "queue all.q@${host} goes to state \"$q_state\" after job deletion"
+         ts_log_severe "queue all.q@${host} goes to state \"$q_state\" after job deletion"
          delete_all_jobs ;# this will remove the E state
       }
    }
@@ -867,7 +867,7 @@ proc qrsh_delete {} {
 #     ???/???
 #*******************************
 proc qrsh_terminate {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_USER CHECK_ACTUAL_TEST_PATH
    global qrsh_hostlist qrsh_submithost
 
    set terminate_out_file [get_tmp_file_name]
@@ -887,15 +887,15 @@ proc qrsh_terminate {} {
       set timeout 60
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_terminate" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             set error 1
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_terminate" -1 "qrsh to host $host failed - timeout"
+            ts_log_severe "qrsh to host $host failed - timeout"
             set error 1
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_terminate" -1 "qrsh to host $host failed - eof"
+            ts_log_severe "qrsh to host $host failed - eof"
             set error 1
          }
          -i $sp_id "my pid is*" {
@@ -918,10 +918,10 @@ proc qrsh_terminate {} {
             after 1000
             start_remote_prog $host $CHECK_USER ls $terminate_out_file exit_code
             if {$exit_code == 0} {
-               puts $CHECK_OUTPUT "terminate method has been started"
+               ts_log_fine "terminate method has been started"
                break
             } else {
-               puts $CHECK_OUTPUT "waiting for terminate method"
+               ts_log_fine "waiting for terminate method"
             }
          }   
 
@@ -930,17 +930,17 @@ proc qrsh_terminate {} {
          # check contents of terminate.out
          set line [start_remote_prog $host $CHECK_USER cat $terminate_out_file exit_code]
          if {$exit_code != 0} {
-            add_proc_error "qrsh_terminate" -1 "error reading from terminate method output file on host $host"
+            ts_log_severe "error reading from terminate method output file on host $host"
          } else {
             if {[scan $line "job_id=%d job_pid=%d" t_job_id t_job_pid] != 2} {
-               add_proc_error "qrsh_terminate" -1 "error reading from terminate method output file on host $host"
+               ts_log_severe "error reading from terminate method output file on host $host"
             } else {
                # t_job_pid should be ppid of job_pid
                if {![info exists ps_info($job_pid,ppid)]} {
-                  add_proc_error "qrsh_terminate" -1 "info about ppid of pid $job_pid not available on host $host"
+                  ts_log_severe "info about ppid of pid $job_pid not available on host $host"
                } else {
                   if {$ps_info($job_pid,ppid) != $t_job_pid} {
-                     add_proc_error "qrsh_terminate" -1 "wrong job_pid passed to terminate method for job $job_id on host $host, should be $ps_info($job_pid,ppid) but is $t_job_pid"
+                     ts_log_severe "wrong job_pid passed to terminate method for job $job_id on host $host, should be $ps_info($job_pid,ppid) but is $t_job_pid"
                   }
                }
             }
@@ -948,20 +948,20 @@ proc qrsh_terminate {} {
          # check if shell script is still running
          get_ps_info $job_pid $host
          if {$ps_info($job_pid,error) == 0} {
-            add_proc_error "qrsh_terminate" -1 "process of deleted job $job_pid on host $host is still running"
+            ts_log_severe "process of deleted job $job_pid on host $host is still running"
          }
       }
 
       set timeout 60
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_terminate" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_terminate" -1 "timeout waiting for qrsh to host $host to finish"
+            ts_log_severe "timeout waiting for qrsh to host $host to finish"
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_terminate" -1 "open_remote_spawn_process closed connection (eof)"
+            ts_log_severe "open_remote_spawn_process closed connection (eof)"
          }
          -i $sp_id "_exit_status_" {
          }
@@ -1009,12 +1009,10 @@ proc qrsh_terminate {} {
 #     ???/???
 #*******************************
 proc check_qsub_gid_output {output check_group} {
-   global CHECK_OUTPUT
-
    set substring [string range $output [string first "gid=" $output] end]
    set group [string trim [string range $substring [string first "(" $substring] [string first ")" $substring]] "()"]
 
-   puts $CHECK_OUTPUT "process was executed under user group $group"
+   ts_log_fine "process was executed under user group $group"
 
    if {[string compare $group $check_group] == 0} {
       return 1
@@ -1024,12 +1022,12 @@ proc check_qsub_gid_output {output check_group} {
 }
 
 proc qrsh_qsub_gid {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_PROTOCOL_DIR
    global QSUB_GID_USER QSUB_GID_GROUPS
    global qrsh_hostlist qrsh_submithost
 
    if {![host_has_newgrp $qrsh_submithost 0]} {
-      add_proc_error "qrsh_qsub_gid" -3 "cannot run this test:\nqrsh submithost $qrsh_submithost doesn't have the newgrp command"
+      ts_log_config "cannot run this test:\nqrsh submithost $qrsh_submithost doesn't have the newgrp command"
       return
    }
 
@@ -1044,7 +1042,7 @@ proc qrsh_qsub_gid {} {
    set submit_host_arch [resolve_arch $qrsh_submithost]
 
    foreach host $qrsh_hostlist {
-      puts $CHECK_OUTPUT "using host $host"
+      ts_log_fine "using host $host"
       # dump commandfile to file
       set f [open $CHECK_PROTOCOL_DIR/qrsh.sh w]
       set id_command [host_get_id_a_command $host]
@@ -1058,7 +1056,7 @@ proc qrsh_qsub_gid {} {
       set output [start_remote_prog $qrsh_submithost $QSUB_GID_USER "$CHECK_ACTUAL_TEST_PATH/qsub_gid.sh" "[lindex $QSUB_GID_GROUPS 1] $CHECK_PROTOCOL_DIR/qrsh.sh"]
       set group [lindex $QSUB_GID_GROUPS 0]
       if {[check_qsub_gid_output $output $group] == 0} {
-         add_proc_error "qrsh_qsub_gid" -1 "qrsh job on host $host was executed with wrong gid, should be $group, output of qrsh job was $output"
+         ts_log_severe "qrsh job on host $host was executed with wrong gid, should be $group, output of qrsh job was $output"
       }
 
       # set parameter USE_QSUB_GID
@@ -1080,7 +1078,7 @@ proc qrsh_qsub_gid {} {
       set output [start_remote_prog $qrsh_submithost $QSUB_GID_USER "$CHECK_ACTUAL_TEST_PATH/qsub_gid.sh" "[lindex $QSUB_GID_GROUPS 1] $CHECK_PROTOCOL_DIR/qrsh.sh"]
       set group [lindex $QSUB_GID_GROUPS 1]
       if {[check_qsub_gid_output $output $group] == 0} {
-         add_proc_error "qrsh_qsub_gid" -1 "qrsh job on host $host was executed with wrong gid, should be $group, output of qrsh job was $output"
+         ts_log_severe "qrsh job on host $host was executed with wrong gid, should be $group, output of qrsh job was $output"
       }
 
       # unset USE_QSUB_GID 
@@ -1122,10 +1120,10 @@ proc qrsh_qsub_gid {} {
 #     ???/???
 #*******************************
 proc qrsh_batch {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
-   puts $CHECK_OUTPUT "check qrsh in immediate and batch mode (-now yes / no)"
+   ts_log_fine "check qrsh in immediate and batch mode (-now yes / no)"
    set COULD_NOT_BE_SCHEDULED [translate_macro MSG_QSH_REQUESTCANTBESCHEDULEDTRYLATER_S "*" ]
    if { $ts_config(gridengine_version) == 53 } {
       set HAS_BEEN_SUBMITTED  [translate_macro MSG_JOB_SUBMITJOB_USS "*" "*" "*" ]
@@ -1137,7 +1135,7 @@ proc qrsh_batch {} {
       set queue [get_queue_instance "all.q" $host]
       # disable queue
       disable_queue $queue
-      puts $CHECK_OUTPUT "queue should be disabled now ..."
+      ts_log_fine "queue should be disabled now ..."
       # start qrsh - must be rejected
       set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-q $queue -N immediate echo blahblah"]
       set sp_id [lindex $qrsh_id 1]
@@ -1148,26 +1146,26 @@ proc qrsh_batch {} {
       log_user 1
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_batch" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "blahblah" {
-            add_proc_error "qrsh_batch" -1 "qrsh -now yes ran despite no resources free on host $host"
+            ts_log_severe "qrsh -now yes ran despite no resources free on host $host"
          }
          -i $sp_id $COULD_NOT_BE_SCHEDULED {
-            puts $CHECK_OUTPUT "qrsh aborted correctly"
+            ts_log_fine "qrsh aborted correctly"
             set error 0
          } 
          -i $sp_id timeout {
-            add_proc_error "qrsh_batch" -1 "timeout waiting for qrsh -now yes on host $host to fail due to lack of resources"
+            ts_log_severe "timeout waiting for qrsh -now yes on host $host to fail due to lack of resources"
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_batch" -1 "qrsh -now yes failed without error message on host $host"
+            ts_log_severe "qrsh -now yes failed without error message on host $host"
          }
       }
       close_spawn_process $qrsh_id
  
       if {$error} {
-         add_proc_error "qrsh_batch" -1 "skipping test on host $host"
+         ts_log_severe "skipping test on host $host"
          enable_queue [get_queue_instance "all.q" $host]
          continue
       }
@@ -1181,32 +1179,32 @@ proc qrsh_batch {} {
       log_user 1
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_batch" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             set error 1
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_batch" -1 "timeout waiting for qrsh -now no to be submitted to host $host"
+            ts_log_severe "timeout waiting for qrsh -now no to be submitted to host $host"
             set error 1
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_batch" -1 "eof waiting for qrsh -now no to be submitted to host $host"
+            ts_log_severe "eof waiting for qrsh -now no to be submitted to host $host"
             set error 1
          }
          -i $sp_id $HAS_BEEN_SUBMITTED {
             set job_id [lindex $expect_out(0,string) 2]
-            puts $CHECK_OUTPUT "qrsh job $job_id correctly submitted"
+            ts_log_fine "qrsh job $job_id correctly submitted"
             set error 0
          }
       }
       if {$error} {
-         add_proc_error "qrsh_batch" -1 "skipping test on host $host"
+         ts_log_severe "skipping test on host $host"
          close_spawn_process $qrsh_id
          enable_queue $queue
          continue
       }
 
       if {[get_extended_job_info $job_id] == 0} {
-         add_proc_error "qrsh_batch" -1 "no job info for job $job_id - skipping test on host $host"
+         ts_log_severe "no job info for job $job_id - skipping test on host $host"
          delete_job $job_id 1
          close_spawn_process $qrsh_id
          enable_queue $queue
@@ -1214,7 +1212,7 @@ proc qrsh_batch {} {
       }
 
       if {$job_info(state) != "qw"} {
-         add_proc_error "qrsh_batch" -1 "state of job is $job_info(state), should be qw, skipping test on host $host"
+         ts_log_severe "state of job is $job_info(state), should be qw, skipping test on host $host"
          delete_job $job_id 1
          close_spawn_process $qrsh_id
          enable_queue $queue
@@ -1222,7 +1220,7 @@ proc qrsh_batch {} {
       }
 
       # enable queue, trigger scheduling
-      puts $CHECK_OUTPUT "now enable the queue ..."
+      ts_log_fine "now enable the queue ..."
       enable_queue $queue
       trigger_scheduling
 
@@ -1230,35 +1228,35 @@ proc qrsh_batch {} {
       set timeout 60
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_batch" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "blahblah" {
-            puts $CHECK_OUTPUT "got qrsh job output as expected (blahblah)!"
+            ts_log_fine "got qrsh job output as expected (blahblah)!"
          }
          -i $sp_id $COULD_NOT_BE_SCHEDULED { 
-            add_proc_error "qrsh_batch" -1 "message \"could not be scheduled\" should not occur with batch jobs"
+            ts_log_severe "message \"could not be scheduled\" should not occur with batch jobs"
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_batch" -1 "timeout waiting for qrsh to be scheduled to host $host"
+            ts_log_severe "timeout waiting for qrsh to be scheduled to host $host"
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_batch" -1 "qrsh exited without executing command on host $host"
+            ts_log_severe "qrsh exited without executing command on host $host"
          }
       }
 
       # now wait for shell termination
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_batch" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_batch" -1 "timeout waiting for exit_status on host $host"
+            ts_log_severe "timeout waiting for exit_status on host $host"
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_batch" -1 "got eof on host $host"
+            ts_log_severe "got eof on host $host"
          }
          -i $sp_id "_exit_status_:(*)*\n" {
-            puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+            ts_log_fine "got exit status from script:\n$expect_out(buffer)"
          }
       }
       close_spawn_process $qrsh_id
@@ -1297,10 +1295,10 @@ proc qrsh_batch {} {
 #     ???/???
 #*******************************
 proc qrsh_limits {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
-   puts $CHECK_OUTPUT "check if limits are propagated to qrsh jobs"
+   ts_log_fine "check if limits are propagated to qrsh jobs"
    set limit_in 10
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
@@ -1310,36 +1308,36 @@ proc qrsh_limits {} {
       set timeout 60
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_limits" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_limits" -1 "qrsh to host $host failed"
+            ts_log_severe "qrsh to host $host failed"
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_limits" -1 "qrsh to host $host failed"
+            ts_log_severe "qrsh to host $host failed"
          }
          -i $sp_id "CPU limit is *\n" {
             set limit_out [lindex $expect_out(0,string) 3]
-            puts $CHECK_OUTPUT "qrsh to host $host ok, CPU limit is $limit_out s"
+            ts_log_fine "qrsh to host $host ok, CPU limit is $limit_out s"
 
             if {$limit_out != $limit_in} {
-               add_proc_error "qrsh_limits" -1 "limit on host $host not correctly set"
+               ts_log_severe "limit on host $host not correctly set"
             }
          }
       }
 
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "qrsh_limits" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id timeout {
-            add_proc_error "qrsh_limits" -1 "timeout error while waiting for exit_status on host $host"
+            ts_log_severe "timeout error while waiting for exit_status on host $host"
          }
          -i $sp_id eof {
-            add_proc_error "qrsh_limits" -1 "got eof on host $host"
+            ts_log_severe "got eof on host $host"
          }
          -i $sp_id "_exit_status_:(*)*\n" {
-            puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+            ts_log_fine "got exit status from script:\n$expect_out(buffer)"
          }
       }
       close_spawn_process $qrsh_id
@@ -1349,20 +1347,20 @@ proc qrsh_limits {} {
 }
 
 proc qrsh_reservation {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qrsh_submithost
 
    set output [start_sge_bin "qrsh" "-R y echo blahblah" $qrsh_submithost]
    if {$prg_exit_state != 0 || [string trim $output] != "blahblah"} {
-      add_proc_error "qrsh_reservation" -1 "qrsh -R y failed - see Issue: 1306:\n$output"
+      ts_log_severe "qrsh -R y failed - see Issue: 1306:\n$output"
    }
 }
 
 proc qrsh_env {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global qrsh_submithost
 
-   puts $CHECK_OUTPUT "check if environment variables are set correctly"
+   ts_log_fine "check if environment variables are set correctly"
 
    # Set a dummy env var
    set inherited_value "ThIsIsAtEsT"
@@ -1376,14 +1374,14 @@ proc qrsh_env {} {
    if {[string compare [string trim $output] $inherited_value] != 0} {
       set error_text "qrsh did not inherit test environment variable: $inherited_value != $output\n"
       append error_text "Bug 1255: qrsh does not properly pass along environment variables"
-      add_proc_error "qrsh_env" -1 $error_text
+      ts_log_severe $error_text
    }
 
    set output [start_remote_prog $qrsh_submithost $CHECK_USER $qrsh_bin "-v QRSH_ENV_TEST_DUMMY=$explicit_value 'echo \$QRSH_ENV_TEST_DUMMY'" prg_exit_state 60 0 "" my_env]
    if {[string compare [string trim $output] $explicit_value] != 0} {
       set error_text "qrsh did not inherit test environment variable: $explicit_value != $output\n"
       append error_text "Bug 1255: qrsh does not properly pass along environment variables"
-      add_proc_error "qrsh_env" -1 $error_text
+      ts_log_severe $error_text
    }
 }
 
@@ -1403,7 +1401,7 @@ proc qrsh_env {} {
 #*******************************
 
 proc qrsh_sigterm_running_job {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qrsh_submithost
 
    # start qrsh 
@@ -1415,13 +1413,13 @@ proc qrsh_sigterm_running_job {} {
    set timeout 30
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "qrsh_qrsh_sigterm_running_job" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id -- "started" {
-         puts $CHECK_OUTPUT "qrsh job started as expected!"
+         ts_log_fine "qrsh job started as expected!"
       }
       -i $sp_id timeout {
-         add_proc_error "qrsh_sigterm_running_job" -1 "timeout waiting for qrsh to be scheduled"
+         ts_log_severe "timeout waiting for qrsh to be scheduled"
       }
    }
 
@@ -1432,12 +1430,12 @@ proc qrsh_sigterm_running_job {} {
    set output [start_sge_bin qstat "-s pr"]
    if {$prg_exit_state == 0} {
       if {$output == ""} {
-         puts $CHECK_OUTPUT "no further jobs in system"
+         ts_log_fine "no further jobs in system"
       } else {
-         add_proc_error "qrsh_sigterm_running_job" -1 "CTRL-C for running qrsh job does not delete job - issue 1639:\n$output"
+         ts_log_severe "CTRL-C for running qrsh job does not delete job - issue 1639:\n$output"
       }
    } else {
-      add_proc_error "qrsh_sigterm_running_job" -1 "error executing qstat -s pr:\n$output"
+      ts_log_severe "error executing qstat -s pr:\n$output"
    }
 
    delete_all_jobs
@@ -1459,7 +1457,7 @@ proc qrsh_sigterm_running_job {} {
 #     qrsh_sigterm_running_job  
 #*******************************
 proc qrsh_sigterm_pending_job {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qrsh_submithost
 
    set arch [resolve_arch $qrsh_submithost]
@@ -1470,7 +1468,7 @@ proc qrsh_sigterm_pending_job {} {
    set timer 10
    while {[get_job_info -1] == 0} {
       if {$timer == 0} {
-         add_proc_error "qrsh_sigterm_pending_job" -1 "error submitting qrsh job"
+         ts_log_severe "error submitting qrsh job"
          break
       }
       sleep 1
@@ -1484,12 +1482,12 @@ proc qrsh_sigterm_pending_job {} {
    set output [start_sge_bin qstat "-s pr"]
    if {$prg_exit_state == 0} {
       if {$output == ""} {
-         puts $CHECK_OUTPUT "no further jobs in system"
+         ts_log_fine "no further jobs in system"
       } else {
-         add_proc_error "qrsh_sigterm_pending_job" -1 "CTRL-C for pending qrsh job does not delete job - issue 1639:\n$output"
+         ts_log_severe "CTRL-C for pending qrsh job does not delete job - issue 1639:\n$output"
       }
    } else {
-      add_proc_error "qrsh_sigterm_pending_job" -1 "error executing qstat -s pr:\n$output"
+      ts_log_severe "error executing qstat -s pr:\n$output"
    }
 
    delete_all_jobs

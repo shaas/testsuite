@@ -44,7 +44,7 @@ lappend check_functions "qrsh_wd"                    ;# test the -wd <dir>/-cwd 
 #
 #*******************************
 proc qrsh_wd {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qrsh_submithost qrsh_hostlist
 
    # Set a directory
@@ -57,7 +57,7 @@ proc qrsh_wd {} {
       set output [string trim $output]
       if {[string compare $output $wdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $wdir != $output"
-         add_proc_error "qrsh_wd" -1 $error_text
+         ts_log_severe $error_text
       }
 
       # Test2 -cwd
@@ -65,7 +65,7 @@ proc qrsh_wd {} {
       set output [string trim $output]
       if {[string compare $output $cwdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $cwdir != $output"
-         add_proc_error "qrsh_wd" -1 $error_text
+         ts_log_severe $error_text
       }
 
       # Test3 -cwd -wd $wdir
@@ -73,7 +73,7 @@ proc qrsh_wd {} {
       set output [string trim $output]
       if {[string compare $output $wdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $wdir != $output"
-         add_proc_error "qrsh_wd" -1 $error_text
+         ts_log_severe $error_text
       }
 
       # Test3 -wd $wdir -cwd
@@ -81,7 +81,7 @@ proc qrsh_wd {} {
       set output [string trim $output]
       if {[string compare $output $cwdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $cwdir != $output"
-         add_proc_error "qrsh_wd" -1 $error_text
+         ts_log_severe $error_text
       }
    }
 

@@ -108,19 +108,19 @@ proc qstat_init_level {} {
 }
 
 proc qstat_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_HAVE_TDOM
+   global ts_config CHECK_HAVE_TDOM
    global first_host last_host prj_exists
 
    # First add queues "error" with one host (last).
    # Set prolog to non-existent path, and np_load_avg to 10
    if {[llength $ts_config(execd_nodes)] < 2} {
-      add_proc_error "qstat_setup" -3 "we need a minumum of 2 hosts to run the qstat test"
+      ts_log_config "we need a minumum of 2 hosts to run the qstat test"
       return -1
    }
 
    # verify if we can perform the qstat -xml tests
    if {$CHECK_HAVE_TDOM == 0} {
-      add_proc_error "qstat_setup" -3 "The tDOM TCL package is not installed!\nWe cannot run the qstat -xml tests!"
+      ts_log_config "The tDOM TCL package is not installed!\nWe cannot run the qstat -xml tests!"
    }
 
    # our test hosts
@@ -153,7 +153,7 @@ proc qstat_setup {} {
 }
 
 proc qstat_cleanup {} {
-   global ts_config CHECK_OUTPUT prj_exists
+   global ts_config prj_exists
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -196,17 +196,17 @@ proc qstat_cleanup {} {
 #     ??? 
 #
 #  INPUTS
-#     func_name     - name of the calling function. needed for add_proc_error 
+#     func_name     - name of the calling function. needed for ts_log_severe
 #     qstat_options - options for qstat 
 #     expected_jobs - the nr of the expected job count
 #
 #*******************************************************************************
 proc qstat_count_jobs {func_name qstat_options expected_jobs} {
-   global ts_config CHECK_OUTPUT
+   global ts_config 
    
-   puts $CHECK_OUTPUT "\nrunning qstat $qstat_options"
+   ts_log_fine "\nrunning qstat $qstat_options"
    set output [start_sge_bin "qstat" "$qstat_options"]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
 
    if {$prg_exit_state == 0} {
       if {[info exists jobinfo]} {
@@ -216,12 +216,12 @@ proc qstat_count_jobs {func_name qstat_options expected_jobs} {
       set shown_jobs $jobinfo(index)
       set nr_jobs [llength $shown_jobs]
 
-      puts $CHECK_OUTPUT "number of jobs: $nr_jobs"
+      ts_log_fine "number of jobs: $nr_jobs"
       if {$nr_jobs != $expected_jobs} {
-         add_proc_error "$func_name" -1 "qstat $qstat_options broken, got $nr_jobs but expected $expected_jobs"
+         ts_log_severe "$func_name: qstat $qstat_options broken, got $nr_jobs but expected $expected_jobs"
       }
    } else {
-      add_proc_error "$func_name" -1 "qstat $qstat_options exit status not 0"
+      ts_log_severe "$func_name: qstat $qstat_options exit status not 0"
    }
 }
 
@@ -256,7 +256,6 @@ proc qstat_count_jobs {func_name qstat_options expected_jobs} {
 #     ???/???
 #*******************************
 proc check_core_queues {} {
-  global CHECK_OUTPUT
   global ts_config CHECK_USER
 
   set check_host [host_conf_get_suited_hosts]
@@ -325,18 +324,18 @@ proc check_core_queues {} {
 
   # check if number of queues matches core system queue count
   if {[llength $ts_config(execd_nodes)] != $qcount} {
-     add_proc_error "check_core_queues" -1 "queue count doesn't match (number of queues should be [llength $ts_config(execd_nodes)])"
+     ts_log_severe "queue count doesn't match (number of queues should be [llength $ts_config(execd_nodes)])"
      return
   }
 
   # check if slots for host $check_host are correct (needs successfully tested "loadcheck" check)
   set numofproc [node_get_processors $check_host]
-  puts $CHECK_OUTPUT "got $numofproc slots"
+  ts_log_fine "got $numofproc slots"
 
   set queue_name [get_queue_instance "all.q" [resolve_host $check_host 1]]
   set reported_slots [lindex $slots [lsearch $qnames $queue_name]]
   if {$reported_slots != [expr $numofproc * 10]} {
-     add_proc_error "check_core_queues" -1 "queue $queue_name should have [expr $numofproc * 10] slots) (cpu count * 10)\nqstat reported $reported_slots"
+     ts_log_severe "queue $queue_name should have [expr $numofproc * 10] slots) (cpu count * 10)\nqstat reported $reported_slots"
      return
   }
 
@@ -344,28 +343,28 @@ proc check_core_queues {} {
   set ind 0
   foreach elem $load {
     if {$elem >= 99} {
-       add_proc_error "check_core_queues" -1 "queue [lindex $qnames $ind] has load > 99"
+       ts_log_severe "queue [lindex $qnames $ind] has load > 99"
        return
     }
     incr ind 1
   }
 
-  puts $CHECK_OUTPUT "check_core_queues\n- number of queues: $qcount\n- qnames: $qnames\n- slots: $slots\n- load: $load"
+  ts_log_fine "check_core_queues\n- number of queues: $qcount\n- qnames: $qnames\n- slots: $slots\n- load: $load"
 }
 
 proc qstat_option_l {} {
-  global ts_config CHECK_OUTPUT
+  global ts_config
 
    set check_host [host_conf_get_suited_hosts]
    set my_arch [resolve_arch $check_host]
 
-   puts $CHECK_OUTPUT "submitting job requesting arch=$my_arch ..."   
+   ts_log_fine "submitting job requesting arch=$my_arch ..."   
    set arguments "-o /dev/null -e /dev/null -h -l arch=$my_arch"
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
-   puts $CHECK_OUTPUT "submitting job requesting arch=undefined_arch ..."  
+   ts_log_fine "submitting job requesting arch=undefined_arch ..."  
    set arguments "-o /dev/null -e /dev/null -h -l arch=undefined_arch"
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
@@ -376,9 +375,9 @@ proc qstat_option_l {} {
 }
 
 proc qstat_option_q {} {
-  global ts_config CHECK_OUTPUT
+  global ts_config
 
-  puts $CHECK_OUTPUT "submitting jobs requesting each queue ..."   
+  ts_log_fine "submitting jobs requesting each queue ..."   
   foreach host $ts_config(execd_nodes) {
      set qname [get_queue_instance "all.q" $host]
      set arguments "-o /dev/null -e /dev/null -h -q $qname"
@@ -396,7 +395,7 @@ proc qstat_option_q {} {
 
 
 proc qstat_option_pe {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set hostname [host_conf_get_suited_hosts]
 
@@ -416,7 +415,7 @@ proc qstat_option_pe {} {
    assign_queues_with_pe_object "test2.q" $hostname mype2
 
    set job_id_list ""
-   puts $CHECK_OUTPUT "submitting job requesting pe mype1 ..."   
+   ts_log_fine "submitting job requesting pe mype1 ..."   
    set arguments "-o /dev/null -e /dev/null -pe mype1 2"
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
    lappend job_id_list $job_id
@@ -425,7 +424,7 @@ proc qstat_option_pe {} {
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
    lappend job_id_list $job_id
 
-   puts $CHECK_OUTPUT "submitting job requesting pe mype2 ..."  
+   ts_log_fine "submitting job requesting pe mype2 ..."  
    set arguments "-o /dev/null -e /dev/null -pe mype2 2"
    set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
    lappend job_id_list $job_id
@@ -451,7 +450,7 @@ proc qstat_option_pe {} {
 }
 
 proc qstat_option_U {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    set hostname [host_conf_get_suited_hosts]
@@ -461,13 +460,13 @@ proc qstat_option_U {} {
    add_queue "test.q" $hostname testq
    set qname [get_queue_instance "test.q" $hostname]
 
-   puts $CHECK_OUTPUT "submitting jobs as user $CHECK_USER ..."   
+   ts_log_fine "submitting jobs as user $CHECK_USER ..."   
    set arguments "-o /dev/null -e /dev/null  -q $qname"
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_USER
 
-   puts $CHECK_OUTPUT "submitting job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
+   ts_log_fine "submitting job as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
    set arguments "-o /dev/null -e /dev/null -h -q $qname"
    submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000" 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
 
@@ -488,36 +487,36 @@ proc qstat_option_U {} {
 }
 
 proc qstat_option_s {} {
-  global ts_config CHECK_OUTPUT
+  global ts_config
 
-  puts $CHECK_OUTPUT "submitting a long running batch job ..."   
+  ts_log_fine "submitting a long running batch job ..."   
   set arguments "-o /dev/null -e /dev/null"
   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100000"]
   wait_for_jobstart $job_id "Sleeper" 60
 
-  puts $CHECK_OUTPUT "submitting & suspending a batch job ..."   
+  ts_log_fine "submitting & suspending a batch job ..."   
   set arguments "-o /dev/null -e /dev/null"
   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100000"]
   wait_for_jobstart $job_id "Sleeper" 60
   set result [start_sge_bin "qmod" "-s $job_id"]
 
-  puts $CHECK_OUTPUT "submitting an user hold batch job ..."   
+  ts_log_fine "submitting an user hold batch job ..."   
   set arguments "-h -o /dev/null -e /dev/null"
   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
-  puts $CHECK_OUTPUT "submitting an system hold batch job ..."   
+  ts_log_fine "submitting an system hold batch job ..."   
   set arguments "-h -o /dev/null -e /dev/null"
   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
   set result [start_sge_bin "qalter" "-h s $job_id"]
   set result [start_sge_bin "qalter" "-h U $job_id"]
 
-  puts $CHECK_OUTPUT "submitting an operator hold batch job ..."   
+  ts_log_fine "submitting an operator hold batch job ..."   
   set arguments "-h -o /dev/null -e /dev/null"
   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
   set result [start_sge_bin "qalter" "-h o $job_id"]
   set result [start_sge_bin "qalter" "-h U $job_id"]
 
-  puts $CHECK_OUTPUT "submitting an dependency hold batch job ..."   
+  ts_log_fine "submitting an dependency hold batch job ..."   
   set arguments "-hold_jid \"Sleeper\" -o /dev/null -e /dev/null"
   submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"
 
@@ -557,7 +556,7 @@ proc qstat_option_s {} {
 
 
   #-s ha
-  puts $CHECK_OUTPUT "submitting an date hold batch job ..."   
+  ts_log_fine "submitting an date hold batch job ..."   
   #
   # Set duetime well in the future. No hard coded values, please.
   # 
@@ -573,10 +572,10 @@ proc qstat_option_s {} {
 }
 
 proc qstat_issue1800 {} {
-  global ts_config CHECK_OUTPUT CHECK_USER 
+  global ts_config CHECK_USER 
   global first_host
 
-  puts $CHECK_OUTPUT "submitting an array job ..."   
+  ts_log_fine "submitting an array job ..."   
   set arguments "-l h=$first_host -o /dev/null -e /dev/null -t 1-1000"
   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 1000"]
   wait_for_jobstart $job_id "Sleeper" 60
@@ -617,11 +616,11 @@ proc qstat_issue1800 {} {
 #*******************************************************************************
 
 proc qstat_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return
    }
 
@@ -636,13 +635,13 @@ proc qstat_plain_xml_comparison {} {
    # qstat_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_plain_output]
 
-   puts $CHECK_OUTPUT "plain qstat array .... \n"
+   ts_log_fine "plain qstat array .... \n"
    parray qstat_plain_output
 
    # qstat_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_xml_output]
 
-   puts $CHECK_OUTPUT "xml qstat array .... \n"
+   ts_log_fine "xml qstat array .... \n"
    parray qstat_xml_output
 
    # Now let's compare them by jobid.
@@ -663,17 +662,17 @@ proc qstat_plain_xml_comparison {} {
          }
 
          if {$qstat_plain_output($jobid,$column) != $qstat_xml_output($jobid,$column)} {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_plain_output was $qstat_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_xml_output was $qstat_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_plain_output was $qstat_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_xml_output was $qstat_xml_output($jobid,$column)... \n"
             incr error_flag 1
          }
       }
    }
 
    if {$error_flag != 0} {
-      add_proc_error "qstat_plain_xml_comparison" -1 "error in plain, XML qstat"
+      ts_log_severe "error in plain, XML qstat"
    }
 
    delete_all_jobs
@@ -701,11 +700,11 @@ proc qstat_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_ne_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -720,13 +719,13 @@ proc qstat_ne_plain_xml_comparison {} {
    # qstat_ne)plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_ne_plain_output "-ne"]
    
-   puts $CHECK_OUTPUT "plain qstat -ne array .... \n"
+   ts_log_fine "plain qstat -ne array .... \n"
    parray qstat_ne_plain_output
    
    # qstat_ne_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_ne_xml_output "-ne"]
    
-   puts $CHECK_OUTPUT "xml qstat -ne array .... \n"
+   ts_log_fine "xml qstat -ne array .... \n"
    parray qstat_ne_xml_output
 
    # Now let's compare them by jobid. 
@@ -747,17 +746,17 @@ proc qstat_ne_plain_xml_comparison {} {
          }
          
          if { $qstat_ne_plain_output($jobid,$column) != $qstat_ne_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_ne_plain_output was $qstat_ne_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_ne_xml_output was $qstat_ne_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_ne_plain_output was $qstat_ne_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_ne_xml_output was $qstat_ne_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_ne_plain_xml_comparison" -1 "error in plain, XML qstat -ne"
+      ts_log_severe "error in plain, XML qstat -ne"
    }
    
    delete_all_jobs
@@ -784,11 +783,11 @@ proc qstat_ne_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_j_ERROR_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH  CHECK_USER
+   global ts_config CHECK_ACTUAL_TEST_PATH  CHECK_USER
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -803,13 +802,13 @@ proc qstat_j_ERROR_plain_xml_comparison {} {
    # qstat_j_ERROR_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_j_ERROR_plain_parse qstat_j_ERROR_plain_output]
    
-   puts $CHECK_OUTPUT "plain qstat -j ERROR array .... \n"
+   ts_log_fine "plain qstat -j ERROR array .... \n"
    parray qstat_j_ERROR_plain_output
    
    # qstat_j_ERROR_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_j_JOB_NAME_xml_parse qstat_j_ERROR_xml_output "ERROR"]
    
-   puts $CHECK_OUTPUT "xml qstat -j ERROR array .... \n"
+   ts_log_fine "xml qstat -j ERROR array .... \n"
    parray qstat_j_ERROR_xml_output
 
    set jobid_list  $qstat_j_ERROR_plain_output(jobid_list)
@@ -836,17 +835,17 @@ proc qstat_j_ERROR_plain_xml_comparison {} {
          }
          
          if { $qstat_j_ERROR_plain_output($jobid,$column) != $qstat_j_ERROR_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_j_ERROR_plain_output was $qstat_j_ERROR_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_j_ERROR_xml_output was $qstat_j_ERROR_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_j_ERROR_plain_output was $qstat_j_ERROR_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_j_ERROR_xml_output was $qstat_j_ERROR_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_j_ERROR_plain_xml_comparison" -1 "error in plain, XML qstat -j ERROR"
+      ts_log_severe "error in plain, XML qstat -j ERROR"
    }
    
    delete_all_jobs
@@ -873,15 +872,15 @@ proc qstat_j_ERROR_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_j_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH  CHECK_USER
+   global ts_config CHECK_ACTUAL_TEST_PATH  CHECK_USER
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
     
-#     puts $CHECK_OUTPUT "skipping this test, as qstat -j is broken. See IZ 2076, 2077, 2079"
+#     ts_log_fine "skipping this test, as qstat -j is broken. See IZ 2076, 2077, 2079"
 #     return
    
    # Run some jobs      
@@ -895,13 +894,13 @@ proc qstat_j_plain_xml_comparison {} {
    # qstat_j_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_j_plain_parse qstat_j_plain_output]
    
-   puts $CHECK_OUTPUT "plain qstat -j  array .... \n"
+   ts_log_fine "plain qstat -j  array .... \n"
    parray qstat_j_plain_output
    
    # qstat_j_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_j_xml_parse qstat_j_xml_output]
    
-   puts $CHECK_OUTPUT "xml qstat -j array .... \n"
+   ts_log_fine "xml qstat -j array .... \n"
    parray qstat_j_xml_output
 
    set jobid_list  $qstat_j_plain_output(jobid_list)
@@ -923,17 +922,17 @@ proc qstat_j_plain_xml_comparison {} {
                continue
             }
             
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_j_plain_output was $qstat_j_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_j_xml_output was $qstat_j_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_j_plain_output was $qstat_j_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_j_xml_output was $qstat_j_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_j_plain_xml_comparison" -1 "error in plain, XML qstat -j "
+      ts_log_severe "error in plain, XML qstat -j "
    }
    
    delete_all_jobs
@@ -958,11 +957,11 @@ proc qstat_j_plain_xml_comparison {} {
 #
 #*******************************************************************************
 proc qstat_r_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -981,13 +980,13 @@ proc qstat_r_plain_xml_comparison {} {
    # qstat_r_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_r_plain_parse qstat_r_plain_output]
    
-   puts $CHECK_OUTPUT "plain qstat -r array .... \n"
+   ts_log_fine "plain qstat -r array .... \n"
    parray qstat_r_plain_output
    
    # qstat_r_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_r_xml_output "-r"]
    
-   puts $CHECK_OUTPUT "xml qstat -r array .... \n"
+   ts_log_fine "xml qstat -r array .... \n"
    parray qstat_r_xml_output
 
    # Now let's compare them by jobid.  
@@ -1019,17 +1018,17 @@ proc qstat_r_plain_xml_comparison {} {
          }
          
          if { $qstat_r_plain_output($jobid,$column) != $qstat_r_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_r_plain_output was $qstat_r_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_r_xml_output was $qstat_r_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_r_plain_output was $qstat_r_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_r_xml_output was $qstat_r_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_r_plain_xml_comparison" -1 "error in plain, XML qstat -r"
+      ts_log_severe "error in plain, XML qstat -r"
    }
    
    delete_all_jobs
@@ -1055,11 +1054,11 @@ proc qstat_r_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_f_r_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1078,13 +1077,13 @@ proc qstat_f_r_plain_xml_comparison {} {
    # qstat_f_r_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_f_r_plain_parse qstat_f_r_plain_output]
       
-   puts $CHECK_OUTPUT "plain qstat -f -r array .... \n"
+   ts_log_fine "plain qstat -f -r array .... \n"
    parray qstat_f_r_plain_output
       
    # qstat_f_r_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_f_xml_parse qstat_f_r_xml_output "-r"]
       
-   puts $CHECK_OUTPUT "xml qstat -f -r array .... \n"
+   ts_log_fine "xml qstat -f -r array .... \n"
    parray qstat_f_r_xml_output
 
    # Now let's compare them by jobid. 
@@ -1118,10 +1117,10 @@ proc qstat_f_r_plain_xml_comparison {} {
          }
             
          if { $qstat_f_r_plain_output($jobid,$column) != $qstat_f_r_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_r_plain_output was $qstat_f_r_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_r_xml_output was $qstat_f_r_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_r_plain_output was $qstat_f_r_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_f_r_xml_output was $qstat_f_r_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
@@ -1143,17 +1142,17 @@ proc qstat_f_r_plain_xml_comparison {} {
    foreach queue $queue_list {
       foreach column $column_vars {
          if { $qstat_f_r_plain_output($queue,$column) != $qstat_f_r_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_r_plain_output was $qstat_f_r_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_r_xml_output was $qstat_f_r_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_r_plain_output was $qstat_f_r_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_f_r_xml_output was $qstat_f_r_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
       
    if {$error_flag != 0} {  
-      add_proc_error "qstat_f_r_plain_xml_comparison" -1 "error in plain, XML qstat -f -r"
+      ts_log_severe "error in plain, XML qstat -f -r"
    }
    
    delete_all_jobs
@@ -1181,11 +1180,11 @@ proc qstat_f_r_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_urg_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global  CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1200,13 +1199,13 @@ proc qstat_urg_plain_xml_comparison {} {
    # qstat_urg_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_urg_plain_parse qstat_urg_plain_output ]
    
-   puts $CHECK_OUTPUT "plain qstat -urg array .... \n"
+   ts_log_fine "plain qstat -urg array .... \n"
    parray qstat_urg_plain_output
    
    # qstat_urg_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_urg_xml_output "-urg"]
    
-   puts $CHECK_OUTPUT "xml qstat -urg array .... \n"
+   ts_log_fine "xml qstat -urg array .... \n"
    parray qstat_urg_xml_output
 
    # Now let's compare them by jobid.
@@ -1224,17 +1223,17 @@ proc qstat_urg_plain_xml_comparison {} {
          }
          
          if { $qstat_urg_plain_output($jobid,$column) != $qstat_urg_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_urg_plain_output was $qstat_urg_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_urg_xml_output was $qstat_urg_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_urg_plain_output was $qstat_urg_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_urg_xml_output was $qstat_urg_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_urg_plain_xml_comparison" -1 "error in plain, XML qstat -urg"
+      ts_log_severe "error in plain, XML qstat -urg"
    }
    
    delete_all_jobs
@@ -1260,11 +1259,11 @@ proc qstat_urg_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_f_urg_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global  CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1280,13 +1279,13 @@ proc qstat_f_urg_plain_xml_comparison {} {
    # qstat_f_urg_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_f_urg_plain_parse qstat_f_urg_plain_output "-f"]]
    
-   puts $CHECK_OUTPUT "plain qstat -f -urg array .... \n"
+   ts_log_fine "plain qstat -f -urg array .... \n"
    parray qstat_f_urg_plain_output
    
    # qstat_f_urg_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_f_xml_parse qstat_f_urg_xml_output "-urg"]
    
-   puts $CHECK_OUTPUT "xml qstat -f -urg array .... \n"
+   ts_log_fine "xml qstat -f -urg array .... \n"
    parray qstat_f_urg_xml_output
 
    # Now let's compare them by jobid.
@@ -1308,10 +1307,10 @@ proc qstat_f_urg_plain_xml_comparison {} {
          }
          
          if { $qstat_f_urg_plain_output($jobid,$column) != $qstat_f_urg_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_urg_plain_output was $qstat_f_urg_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_urg_xml_output was $qstat_f_urg_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_urg_plain_output was $qstat_f_urg_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_f_urg_xml_output was $qstat_f_urg_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
@@ -1333,17 +1332,17 @@ proc qstat_f_urg_plain_xml_comparison {} {
    foreach queue $queue_list {
       foreach column $column_vars {
          if { $qstat_f_urg_plain_output($queue,$column) != $qstat_f_urg_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_urg_plain_output was $qstat_f_urg_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_urg_xml_output was $qstat_f_urg_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_urg_plain_output was $qstat_f_urg_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_f_urg_xml_output was $qstat_f_urg_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
          
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_f_urg_plain_xml_comparison" -1 "error in plain, XML qstat -f -urg"
+      ts_log_severe "error in plain, XML qstat -f -urg"
    }
    
    delete_all_jobs
@@ -1369,11 +1368,11 @@ proc qstat_f_urg_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_pri_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1388,13 +1387,13 @@ proc qstat_pri_plain_xml_comparison {} {
    # qstat_pri_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_pri_plain_parse qstat_pri_plain_output ]
    
-   puts $CHECK_OUTPUT "plain qstat -pri array .... \n"
+   ts_log_fine "plain qstat -pri array .... \n"
    parray qstat_pri_plain_output
    
    # qstat_pri_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_pri_xml_output "-pri"]
    
-   puts $CHECK_OUTPUT "xml qstat -pri array .... \n"
+   ts_log_fine "xml qstat -pri array .... \n"
    parray qstat_pri_xml_output
 
    # Now let's compare them by jobid. 
@@ -1420,17 +1419,17 @@ proc qstat_pri_plain_xml_comparison {} {
          }
          
          if { $qstat_pri_plain_output($jobid,$column) != $qstat_pri_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_pri_plain_output was $qstat_pri_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_pri_xml_output was $qstat_pri_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_pri_plain_output was $qstat_pri_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_pri_xml_output was $qstat_pri_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_pri_plain_xml_comparison" -1 "error in plain, XML qstat -pri"
+      ts_log_severe "error in plain, XML qstat -pri"
    }
    
    delete_all_jobs
@@ -1457,11 +1456,11 @@ proc qstat_pri_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_l_q_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1476,13 +1475,13 @@ proc qstat_l_q_plain_xml_comparison {} {
    # qstat_l_q_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_l_q_plain_output "-l q=all.q"]
    
-   puts $CHECK_OUTPUT "plain qstat -l q=all.q array .... \n"
+   ts_log_fine "plain qstat -l q=all.q array .... \n"
    parray qstat_l_q_plain_output
    
    # qstat_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_l_q_xml_output "-l q=all.q"]
    
-   puts $CHECK_OUTPUT "xml qstat -l q=all.q array .... \n"
+   ts_log_fine "xml qstat -l q=all.q array .... \n"
    parray qstat_l_q_xml_output
 
    # Now let's compare them by jobid. 
@@ -1499,7 +1498,7 @@ proc qstat_l_q_plain_xml_comparison {} {
    
    # Check that we have same number of jobs in plain listing as in XML listing
    if {$plain_jobid_length != $xml_jobid_length} {
-      add_proc_error "qstat_l_q_plain_xml_comparison" -1 "length of job list differs between plain and xml:\n$qstat_l_q_plain_output(index)\n$qstat_l_q_xml_output(jobid_list)"
+      ts_log_severe "length of job list differs between plain and xml:\n$qstat_l_q_plain_output(index)\n$qstat_l_q_xml_output(jobid_list)"
       incr error_flag 1
    }
    
@@ -1514,17 +1513,17 @@ proc qstat_l_q_plain_xml_comparison {} {
          
          
          if { $qstat_l_q_plain_output($jobid,$column) != $qstat_l_q_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_l_q_plain_output was $qstat_l_q_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_l_q_xml_output was $qstat_l_q_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_l_q_plain_output was $qstat_l_q_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_l_q_xml_output was $qstat_l_q_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_l_q_plain_xml_comparison" -1 "error in plain, XML qstat -l q=all.q"
+      ts_log_severe "error in plain, XML qstat -l q=all.q"
    }
    
    delete_all_jobs
@@ -1549,11 +1548,11 @@ proc qstat_l_q_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_ext_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1568,14 +1567,14 @@ proc qstat_ext_plain_xml_comparison {} {
    # qstat_ext_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_ext_plain_parse qstat_ext_plain_output]
    
-   puts $CHECK_OUTPUT "plain qstat -ext array .... \n"
+   ts_log_fine "plain qstat -ext array .... \n"
    parray qstat_ext_plain_output
    
    append qstat_ext_xml_output(jobid_list) ""
    # qstat_ext_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_ext_xml_parse qstat_ext_xml_output]
    
-   puts $CHECK_OUTPUT "xml qstat -ext array .... \n"
+   ts_log_fine "xml qstat -ext array .... \n"
    parray qstat_ext_xml_output
 
    # Now let's compare them by jobid. For now we skip the last entry
@@ -1613,17 +1612,17 @@ proc qstat_ext_plain_xml_comparison {} {
                   $qstat_ext_xml_output($jobid,$column)] >=0) } {
                continue ; # plain parsing is incomplete for column "department"
             }
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_ext_plain_output was $qstat_ext_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_ext_xml_output was $qstat_ext_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_ext_plain_output was $qstat_ext_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_ext_xml_output was $qstat_ext_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_ext_plain_xml_comparison" -1 "error in plain, XML qstat -ext"
+      ts_log_severe "error in plain, XML qstat -ext"
    }
    
    delete_all_jobs
@@ -1649,11 +1648,11 @@ proc qstat_ext_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_f_ext_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1668,13 +1667,13 @@ proc qstat_f_ext_plain_xml_comparison {} {
    # qstat_f_ext_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_ext_plain_parse qstat_f_ext_plain_output "-f"]
    
-   puts $CHECK_OUTPUT "plain qstat -f -ext array .... \n"
+   ts_log_fine "plain qstat -f -ext array .... \n"
    parray qstat_f_ext_plain_output
    
    # qstat_f_ext_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_f_xml_parse qstat_f_ext_xml_output "-ext"]
    
-   puts $CHECK_OUTPUT "xml qstat -f -ext array .... \n"
+   ts_log_fine "xml qstat -f -ext array .... \n"
    parray qstat_f_ext_xml_output
 
    # Now let's compare them by jobid. For now we skip the last entry
@@ -1712,10 +1711,10 @@ proc qstat_f_ext_plain_xml_comparison {} {
                   $qstat_f_ext_xml_output($jobid,$column)] >=0) } {
                continue ; # plain parsing is incomplete for column "department"
             }
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_ext_plain_output was $qstat_f_ext_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_ext_xml_output was $qstat_f_ext_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_ext_plain_output was $qstat_f_ext_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_f_ext_xml_output was $qstat_f_ext_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
@@ -1737,17 +1736,17 @@ proc qstat_f_ext_plain_xml_comparison {} {
    foreach queue $queue_list {
       foreach column $column_vars {
          if { $qstat_f_ext_plain_output($queue,$column) != $qstat_f_ext_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_ext_plain_output was $qstat_f_ext_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_ext_xml_output was $qstat_f_ext_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_ext_plain_output was $qstat_f_ext_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_f_ext_xml_output was $qstat_f_ext_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
    
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_f_ext_plain_xml_comparison" -1 "error in plain, XML qstat -f -ext"
+      ts_log_severe "error in plain, XML qstat -f -ext"
    }
    
    delete_all_jobs
@@ -1776,11 +1775,11 @@ proc qstat_f_ext_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_f_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER  
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER  
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1799,13 +1798,13 @@ proc qstat_f_plain_xml_comparison {} {
 
    set result1 [qstat_f_plain_parse qstat_f_plain_output]
 
-   puts $CHECK_OUTPUT "plain qstat -f array .... \n"
+   ts_log_fine "plain qstat -f array .... \n"
    parray qstat_f_plain_output
 
    # qstat_f_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_f_xml_parse qstat_f_xml_output]
 
-   puts $CHECK_OUTPUT "xml qstat -f array .... \n"
+   ts_log_fine "xml qstat -f array .... \n"
    parray qstat_f_xml_output
 
    # Now let's compare them by jobid
@@ -1830,10 +1829,10 @@ proc qstat_f_plain_xml_comparison {} {
          set qstat_f_plain_output($jobid,task_id) [string trim $qstat_f_plain_output($jobid,task_id)]
 
          if { $qstat_f_plain_output($jobid,$column) != $qstat_f_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_plain_output was $qstat_f_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_xml_output was $qstat_f_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_plain_output was $qstat_f_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_f_xml_output was $qstat_f_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }   
@@ -1855,17 +1854,17 @@ proc qstat_f_plain_xml_comparison {} {
    foreach queue $queue_list {
       foreach column $column_vars {
          if { $qstat_f_plain_output($queue,$column) != $qstat_f_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_plain_output was $qstat_f_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_xml_output was $qstat_f_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_plain_output was $qstat_f_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_f_xml_output was $qstat_f_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
    
    if {$error_flag != 0} {
-      add_proc_error "qstat_f_plain_xml_comparison" -1 "error in plain, XML qstat -f"
+      ts_log_severe "error in plain, XML qstat -f"
    }
 
    # Delete all jobs
@@ -1896,11 +1895,11 @@ proc qstat_f_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_explain_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER  
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER  
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -1919,13 +1918,13 @@ proc qstat_explain_plain_xml_comparison {} {
 
    set result1 [qstat_f_plain_parse qstat_explain_plain_output "-explain E"]
 
-   puts $CHECK_OUTPUT "plain qstat -explain E array .... \n"
+   ts_log_fine "plain qstat -explain E array .... \n"
    parray qstat_explain_plain_output
 
    # qstat_explain_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_f_xml_parse qstat_explain_xml_output "-explain E"]
 
-   puts $CHECK_OUTPUT "xml qstat -explain E array .... \n"
+   ts_log_fine "xml qstat -explain E array .... \n"
    parray qstat_explain_xml_output
 
    #Now let's compare them by jobid
@@ -1951,10 +1950,10 @@ proc qstat_explain_plain_xml_comparison {} {
          set qstat_explain_plain_output($jobid,task_id) [string trim $qstat_explain_plain_output($jobid,task_id)]
 
          if { $qstat_explain_plain_output($jobid,$column) != $qstat_explain_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_explain_plain_output was $qstat_explain_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_explain_xml_output was $qstat_explain_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_explain_plain_output was $qstat_explain_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_explain_xml_output was $qstat_explain_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }   
@@ -1976,17 +1975,17 @@ proc qstat_explain_plain_xml_comparison {} {
    foreach queue $queue_list {
       foreach column $column_vars {
          if { $qstat_explain_plain_output($queue,$column) != $qstat_explain_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_explain_plain_output was $qstat_explain_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_explain_xml_output was $qstat_explain_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_explain_plain_output was $qstat_explain_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_explain_xml_output was $qstat_explain_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
    
    if {$error_flag != 0} {
-      add_proc_error "qstat_explain_plain_xml_comparison" -1 "error in plain, XML qstat -explain E"
+      ts_log_severe "error in plain, XML qstat -explain E"
    }
 
    # Delete all jobs
@@ -2018,11 +2017,11 @@ proc qstat_explain_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_f_q_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER 
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER 
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2041,13 +2040,13 @@ proc qstat_f_q_plain_xml_comparison {} {
 
    set result1 [qstat_f_plain_parse qstat_f_q_plain_output "-q all.q"]
 
-   puts $CHECK_OUTPUT "plain qstat -f -q all.q array .... \n"
+   ts_log_fine "plain qstat -f -q all.q array .... \n"
    parray qstat_f_q_plain_output
 
    # qstat_f_q_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_f_xml_parse qstat_f_q_xml_output "-q all.q"]
 
-   puts $CHECK_OUTPUT "xml qstat -f qs all.q array .... \n"
+   ts_log_fine "xml qstat -f qs all.q array .... \n"
    parray qstat_f_q_xml_output
 
    #Now let's compare them by jobid
@@ -2073,10 +2072,10 @@ proc qstat_f_q_plain_xml_comparison {} {
          set qstat_f_q_plain_output($jobid,task_id) [string trim $qstat_f_q_plain_output($jobid,task_id)]
 
          if { $qstat_f_q_plain_output($jobid,$column) != $qstat_f_q_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_q_plain_output was $qstat_f_q_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_q_xml_output was $qstat_f_q_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_q_plain_output was $qstat_f_q_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_f_q_xml_output was $qstat_f_q_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }   
@@ -2098,17 +2097,17 @@ proc qstat_f_q_plain_xml_comparison {} {
    foreach queue $queue_list {
       foreach column $column_vars {
          if { $qstat_f_q_plain_output($queue,$column) != $qstat_f_q_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_f_q_plain_output was $qstat_f_q_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_f_q_xml_output was $qstat_f_q_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_f_q_plain_output was $qstat_f_q_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_f_q_xml_output was $qstat_f_q_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
    
    if { $error_flag != 0 } {
-      add_proc_error "qstat_f_q_plain_xml_comparison" -1 "error in plain, XML qstat -f -q all.q"
+      ts_log_severe "error in plain, XML qstat -f -q all.q"
    }
 
    # Delete all jobs
@@ -2139,15 +2138,15 @@ proc qstat_f_q_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_f_qs_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER 
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER 
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
-   puts $CHECK_OUTPUT "skipping this test, as qstat -f -qs E is broken. See IZ 2073 ...\n" 
+   ts_log_fine "skipping this test, as qstat -f -qs E is broken. See IZ 2073 ...\n" 
 }
 
 
@@ -2171,11 +2170,11 @@ proc qstat_f_qs_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_f_ne_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER  
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER  
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2194,13 +2193,13 @@ proc qstat_f_ne_plain_xml_comparison {} {
 
    set result1 [qstat_f_plain_parse qstat_f_ne_plain_output "-ne"]
 
-   puts $CHECK_OUTPUT "plain qstat -f -ne array .... \n"
+   ts_log_fine "plain qstat -f -ne array .... \n"
    parray qstat_f_ne_plain_output
 
    # qstat_f_ne_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_f_xml_parse qstat_f_ne_xml_output "-ne"]
 
-   puts $CHECK_OUTPUT "xml qstat -f -ne array .... \n"
+   ts_log_fine "xml qstat -f -ne array .... \n"
    parray qstat_f_ne_xml_output
 
    #Now let's compare them by jobid
@@ -2226,10 +2225,10 @@ proc qstat_f_ne_plain_xml_comparison {} {
          set qstat_f_ne_plain_output($jobid,task_id) [string trim $qstat_f_ne_plain_output($jobid,task_id)]
 
          if { $qstat_f_ne_plain_output($jobid,$column) != $qstat_f_ne_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_plain_output was $qstat_f_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_xml_output was $qstat_f_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_plain_output was $qstat_f_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_xml_output was $qstat_f_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }   
@@ -2237,7 +2236,7 @@ proc qstat_f_ne_plain_xml_comparison {} {
       
       
    if { $error_flag != 0 } {
-      add_proc_error "qstat_f_ne_plain_xml_comparison" -1 "error in plain, XML qstat -f -ne"
+      ts_log_severe "error in plain, XML qstat -f -ne"
    }
 
    # Delete all jobs
@@ -2266,11 +2265,11 @@ proc qstat_f_ne_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_F_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER  
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER  
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2289,17 +2288,17 @@ proc qstat_F_plain_xml_comparison {} {
 
    set result1 [qstat_F_plain_parse qstat_F_plain_output ""]
 
-   puts $CHECK_OUTPUT "plain qstat -F array .... \n"
+   ts_log_fine "plain qstat -F array .... \n"
    parray qstat_F_plain_output
 
    # qstat_F_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_F_xml_parse qstat_F_xml_output ""]
 
-   puts $CHECK_OUTPUT "xml qstat -F array .... \n"
+   ts_log_fine "xml qstat -F array .... \n"
    parray qstat_F_xml_output
 
-   #puts $CHECK_OUTPUT "plain jobid's are these: $qstat_F_plain_output(jobid_list) ...\n"
-   #puts $CHECK_OUTPUT "xml jobid's are these: $qstat_F_xml_output(jobid_list) ...\n"
+   #ts_log_fine "plain jobid's are these: $qstat_F_plain_output(jobid_list) ...\n"
+   #ts_log_fine "xml jobid's are these: $qstat_F_xml_output(jobid_list) ...\n"
 
    #Now let's compare them by jobid
 
@@ -2324,10 +2323,10 @@ proc qstat_F_plain_xml_comparison {} {
          set qstat_F_plain_output($jobid,task_id) [string trim $qstat_F_plain_output($jobid,task_id)]
 
          if { $qstat_F_plain_output($jobid,$column) != $qstat_F_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_plain_output was $qstat_F_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_xml_output was $qstat_F_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_plain_output was $qstat_F_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_xml_output was $qstat_F_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }   
@@ -2356,17 +2355,17 @@ proc qstat_F_plain_xml_comparison {} {
    foreach queue $queue_list {
       foreach column $column_vars {
          if { $qstat_F_plain_output($queue,$column) != $qstat_F_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_plain_output was $qstat_F_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_xml_output was $qstat_F_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_plain_output was $qstat_F_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_xml_output was $qstat_F_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
    
    if { $error_flag != 0 } {
-      add_proc_error "qstat_F_plain_xml_comparison" -1 "error in plain, XML qstat -F"
+      ts_log_severe "error in plain, XML qstat -F"
    }
 
    # Delete all jobs
@@ -2395,11 +2394,11 @@ proc qstat_F_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER  
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER  
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2419,14 +2418,14 @@ proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
    # Pass "rerun h_vmem" to qstat_F_plain_parse to get this output
    set result1 [qstat_F_plain_parse qstat_F_rerun_h_vmem_plain_output "rerun h_vmem"]
 
-   puts $CHECK_OUTPUT "plain qstat -F rerun,h_vmem array .... \n"
+   ts_log_fine "plain qstat -F rerun,h_vmem array .... \n"
    parray qstat_F_rerun_h_vmem_plain_output
 
    # qstat_F_rerun_h_vmem_xml_output contains the XML qstat output in an assoc. array
    #set result2 [qstat_F_rerun_h_vmem_xml_parse qstat_F_rerun_h_vmem_xml_output]
    set result2 [qstat_F_xml_parse qstat_F_rerun_h_vmem_xml_output "rerun h_vmem"]
 
-   puts $CHECK_OUTPUT "xml qstat -F rerun,h_vmem array .... \n"
+   ts_log_fine "xml qstat -F rerun,h_vmem array .... \n"
    parray qstat_F_rerun_h_vmem_xml_output
 
    #Now let's compare them by jobid
@@ -2455,11 +2454,11 @@ proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
 
          if { $qstat_F_rerun_h_vmem_plain_output($jobid,$column) != \
             $qstat_F_rerun_h_vmem_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_F_rerun_h_vmem_plain_output was \
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_F_rerun_h_vmem_plain_output was \
             $qstat_F_rerun_h_vmem_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_F_rerun_h_vmem_xml_output was \
+            ts_log_fine "while qstat_F_rerun_h_vmem_xml_output was \
             $qstat_F_rerun_h_vmem_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
@@ -2486,17 +2485,17 @@ proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
       foreach column $column_vars {
          if { $qstat_F_rerun_h_vmem_plain_output($queue,$column) \
            != $qstat_F_rerun_h_vmem_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_F_rerun_h_vmem_plain_output was $qstat_F_rerun_h_vmem_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_F_rerun_h_vmem_xml_output was $qstat_F_rerun_h_vmem_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_F_rerun_h_vmem_plain_output was $qstat_F_rerun_h_vmem_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_F_rerun_h_vmem_xml_output was $qstat_F_rerun_h_vmem_xml_output($queue,$column)... \n"
             incr error_flag 1
          } 
       }   
    }
    
    if { $error_flag != 0 } {
-      add_proc_error "qstat_F_rerun_h_vmem_plain_xml_comparison" -1 "error in plain, XML qstat -F rerun,h_vmem"
+      ts_log_severe "error in plain, XML qstat -F rerun,h_vmem"
    }
 
    # Delete all jobs
@@ -2523,11 +2522,11 @@ proc qstat_F_rerun_h_vmem_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_g_c_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2542,13 +2541,13 @@ proc qstat_g_c_plain_xml_comparison {} {
    # qstat_g_c_plain_output contains the plain qstat output in an assoc. array
    set result1 [qstat_g_c_plain_parse qstat_g_c_plain_output]
    
-   puts $CHECK_OUTPUT "plain qstat -g c array .... \n"
+   ts_log_fine "plain qstat -g c array .... \n"
    parray qstat_g_c_plain_output
    
    # qstat_g_c_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_g_c_xml_parse qstat_g_c_xml_output]
    
-   puts $CHECK_OUTPUT "xml qstat -g c array .... \n"
+   ts_log_fine "xml qstat -g c array .... \n"
    parray qstat_g_c_xml_output
 
    # Now let's compare them by queues. For now we skip the last entry
@@ -2573,10 +2572,10 @@ proc qstat_g_c_plain_xml_comparison {} {
          # For queue or master values, need to trim XML output to match
          # the plain output.
          if { $qstat_g_c_plain_output($queue,$column) != $qstat_g_c_xml_output($queue,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for queue $queue...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_g_c_plain_output was $qstat_g_c_plain_output($queue,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_g_c_xml_output was $qstat_g_c_xml_output($queue,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for queue $queue...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_g_c_plain_output was $qstat_g_c_plain_output($queue,$column)... \n"
+            ts_log_fine "while qstat_g_c_xml_output was $qstat_g_c_xml_output($queue,$column)... \n"
             incr error_flag 1
          }
          
@@ -2584,7 +2583,7 @@ proc qstat_g_c_plain_xml_comparison {} {
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_g_c_plain_xml_comparison" -1 "error in plain, XML qstat -g c"
+      ts_log_severe "error in plain, XML qstat -g c"
    }
    
    delete_all_jobs
@@ -2609,11 +2608,11 @@ proc qstat_g_c_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_g_d_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2629,13 +2628,13 @@ proc qstat_g_d_plain_xml_comparison {} {
    # qstat_g_d_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_g_d_plain_output "-g d"]
    
-   puts $CHECK_OUTPUT "plain qstat -g d array .... \n"
+   ts_log_fine "plain qstat -g d array .... \n"
    parray qstat_g_d_plain_output
    
    # qstat_g_d_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_g_d_xml_output "-g d"]
    
-   puts $CHECK_OUTPUT "xml qstat -g d array .... \n"
+   ts_log_fine "xml qstat -g d array .... \n"
    parray qstat_g_d_xml_output
 
    # Now let's compare them by jobid.  We skip the last item
@@ -2665,10 +2664,10 @@ proc qstat_g_d_plain_xml_comparison {} {
          }
 
          if { $qstat_g_d_plain_output($jobid,$column) != $qstat_g_d_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_g_d_plain_output was $qstat_g_d_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_g_d_xml_output was $qstat_g_d_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_g_d_plain_output was $qstat_g_d_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_g_d_xml_output was $qstat_g_d_xml_output($jobid,$column)... \n"
             incr error_flag 1
          }
          
@@ -2676,7 +2675,7 @@ proc qstat_g_d_plain_xml_comparison {} {
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_g_d_plain_xml_comparison" -1 "error in plain, XML qstat -g d"
+      ts_log_severe "error in plain, XML qstat -g d"
    }
    
    delete_all_jobs
@@ -2701,11 +2700,11 @@ proc qstat_g_d_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_g_t_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2723,13 +2722,13 @@ proc qstat_g_t_plain_xml_comparison {} {
    # qstat_g_t_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_g_t_plain_output "-g t"]
    
-   puts $CHECK_OUTPUT "plain qstat -g t array .... \n"
+   ts_log_fine "plain qstat -g t array .... \n"
    parray qstat_g_t_plain_output
    
    # qstat_g_d_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_g_t_xml_output "-g t"]
    
-   puts $CHECK_OUTPUT "xml qstat -g t array .... \n"
+   ts_log_fine "xml qstat -g t array .... \n"
    parray qstat_g_t_xml_output
 
    # Now let's compare them by jobid.   
@@ -2761,10 +2760,10 @@ proc qstat_g_t_plain_xml_comparison {} {
             set qstat_g_t_plain_output($id,$column) [string trim $qstat_g_t_plain_output($id,$column)]
          }
          if { $qstat_g_t_plain_output($jobid,$column) != $qstat_g_t_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_g_t_plain_output was $qstat_g_t_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_g_t_xml_output was $qstat_g_t_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_g_t_plain_output was $qstat_g_t_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_g_t_xml_output was $qstat_g_t_xml_output($jobid,$column)... \n"
             incr error_flag 1
          }
          
@@ -2772,7 +2771,7 @@ proc qstat_g_t_plain_xml_comparison {} {
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_g_t_plain_xml_comparison" -1 "error in plain, XML qstat -g t"
+      ts_log_severe "error in plain, XML qstat -g t"
    }
    
    delete_all_jobs
@@ -2797,11 +2796,11 @@ proc qstat_g_t_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_s_a_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2817,13 +2816,13 @@ proc qstat_s_a_plain_xml_comparison {} {
    # qstat_s_a_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_s_a_plain_output "-s a"]
    
-   puts $CHECK_OUTPUT "plain qstat -s a array .... \n"
+   ts_log_fine "plain qstat -s a array .... \n"
    parray qstat_s_a_plain_output
    
    # qstat_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_s_a_xml_output "-s a"]
    
-   puts $CHECK_OUTPUT "xml qstat -s a array .... \n"
+   ts_log_fine "xml qstat -s a array .... \n"
    parray qstat_s_a_xml_output
 
    # Now let's compare them by jobid. 
@@ -2844,17 +2843,17 @@ proc qstat_s_a_plain_xml_comparison {} {
          }
          
          if { $qstat_s_a_plain_output($jobid,$column) != $qstat_s_a_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_s_a_plain_output was $qstat_s_a_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_s_a_xml_output was $qstat_s_a_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_s_a_plain_output was $qstat_s_a_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_s_a_xml_output was $qstat_s_a_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_s_a_plain_xml_comparison" -1 "error in plain, XML qstat -s a"
+      ts_log_severe "error in plain, XML qstat -s a"
    }
    
    delete_all_jobs
@@ -2879,11 +2878,11 @@ proc qstat_s_a_plain_xml_comparison {} {
 #
 #*******************************************************************************
 proc qstat_s_p_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2898,13 +2897,13 @@ proc qstat_s_p_plain_xml_comparison {} {
    # qstat_s_p_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_s_p_plain_output "-s p"]
    
-   puts $CHECK_OUTPUT "plain qstat -s p array .... \n"
+   ts_log_fine "plain qstat -s p array .... \n"
    parray qstat_s_p_plain_output
    
    # qstat_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_s_p_xml_output "-s p"]
    
-   puts $CHECK_OUTPUT "xml qstat -s p array .... \n"
+   ts_log_fine "xml qstat -s p array .... \n"
    parray qstat_s_p_xml_output
 
    # Now let's compare them by jobid. 
@@ -2927,17 +2926,17 @@ proc qstat_s_p_plain_xml_comparison {} {
          
          
          if { $qstat_s_p_plain_output($jobid,$column) != $qstat_s_p_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_s_p_plain_output was $qstat_s_p_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_s_p_xml_output was $qstat_s_p_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_s_p_plain_output was $qstat_s_p_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_s_p_xml_output was $qstat_s_p_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_s_p_plain_xml_comparison" -1 "error in plain, XML qstat -s p"
+      ts_log_severe "error in plain, XML qstat -s p"
    }
    
    delete_all_jobs
@@ -2965,11 +2964,11 @@ proc qstat_s_p_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_s_r_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER     
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER     
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -2984,13 +2983,13 @@ proc qstat_s_r_plain_xml_comparison {} {
    # qstat_s_r_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_s_r_plain_output "-s r"]
    
-   puts $CHECK_OUTPUT "plain qstat -s r array .... \n"
+   ts_log_fine "plain qstat -s r array .... \n"
    parray qstat_s_r_plain_output
    
    # qstat_s_r_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_s_r_xml_output "-s r"]
    
-   puts $CHECK_OUTPUT "xml qstat array -s r .... \n"
+   ts_log_fine "xml qstat array -s r .... \n"
    parray qstat_s_r_xml_output
 
    # Now let's compare them by jobid.
@@ -3011,17 +3010,17 @@ proc qstat_s_r_plain_xml_comparison {} {
          }
          
          if { $qstat_s_r_plain_output($jobid,$column) != $qstat_s_r_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_s_r_plain_output was $qstat_s_r_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_s_r_xml_output was $qstat_s_r_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_s_r_plain_output was $qstat_s_r_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_s_r_xml_output was $qstat_s_r_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {
-      add_proc_error "qstat_s_r_plain_xml_comparison" -1 "error in plain, XML qstat -s r"
+      ts_log_severe "error in plain, XML qstat -s r"
    }
    
    delete_all_jobs
@@ -3048,11 +3047,11 @@ proc qstat_s_r_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_s_s_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER     
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER     
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -3067,7 +3066,7 @@ proc qstat_s_s_plain_xml_comparison {} {
    # qstat_s_s_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_s_s_plain_output "-s s"]
    
-   puts $CHECK_OUTPUT "plain qstat -s s array .... \n"
+   ts_log_fine "plain qstat -s s array .... \n"
    parray qstat_s_s_plain_output
    
    # Initialize it to blank
@@ -3075,7 +3074,7 @@ proc qstat_s_s_plain_xml_comparison {} {
    # qstat_s_s_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_s_s_xml_output "-s s"]
    
-   puts $CHECK_OUTPUT "xml qstat array -s s .... \n"
+   ts_log_fine "xml qstat array -s s .... \n"
    parray qstat_s_s_xml_output
 
    # Now let's compare them by jobid.
@@ -3097,17 +3096,17 @@ proc qstat_s_s_plain_xml_comparison {} {
          }
          
          if { $qstat_s_s_plain_output($jobid,$column) != $qstat_s_s_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_s_s_plain_output was $qstat_s_s_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_s_s_xml_output was $qstat_s_s_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_s_s_plain_output was $qstat_s_s_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_s_s_xml_output was $qstat_s_s_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_s_s_plain_xml_comparison" -1 "error in plain, XML qstat -s s"
+      ts_log_severe "error in plain, XML qstat -s s"
    }
    
    delete_all_jobs
@@ -3134,11 +3133,11 @@ proc qstat_s_s_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_s_z_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER     
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER     
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -3153,7 +3152,7 @@ proc qstat_s_z_plain_xml_comparison {} {
    # qstat_s_z_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_s_z_plain_output "-s z"]
    
-   puts $CHECK_OUTPUT "plain qstat -s z array .... \n"
+   ts_log_fine "plain qstat -s z array .... \n"
    parray qstat_s_z_plain_output
    
    # Initialize it to blank
@@ -3161,7 +3160,7 @@ proc qstat_s_z_plain_xml_comparison {} {
    # qstat_s_z_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_s_z_xml_output "-s z"]
    
-   puts $CHECK_OUTPUT "xml qstat array -s z .... \n"
+   ts_log_fine "xml qstat array -s z .... \n"
    parray qstat_s_z_xml_output
 
    # Now let's compare them by jobid. 
@@ -3182,17 +3181,17 @@ proc qstat_s_z_plain_xml_comparison {} {
          }
          
          if { $qstat_s_z_plain_output($jobid,$column) != $qstat_s_z_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_s_z_plain_output was $qstat_s_z_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_s_z_xml_output was $qstat_s_z_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_s_z_plain_output was $qstat_s_z_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_s_z_xml_output was $qstat_s_z_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_s_z_plain_xml_comparison" -1 "error in plain, XML qstat -s z"
+      ts_log_severe "error in plain, XML qstat -s z"
    }
    
    delete_all_jobs
@@ -3218,11 +3217,11 @@ proc qstat_s_z_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_s_hs_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER     
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER     
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -3237,7 +3236,7 @@ proc qstat_s_hs_plain_xml_comparison {} {
    # qstat_s_hs_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_s_hs_plain_output "-s hs"]
    
-   puts $CHECK_OUTPUT "plain qstat -s hs array .... \n"
+   ts_log_fine "plain qstat -s hs array .... \n"
    parray qstat_s_hs_plain_output
    
    # Initialize it to blank
@@ -3245,7 +3244,7 @@ proc qstat_s_hs_plain_xml_comparison {} {
    # qstat_s_hs_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_s_hs_xml_output "-s hs"]
    
-   puts $CHECK_OUTPUT "xml qstat array -s hs .... \n"
+   ts_log_fine "xml qstat array -s hs .... \n"
    parray qstat_s_hs_xml_output
 
    # Now let's compare them by jobid.
@@ -3267,17 +3266,17 @@ proc qstat_s_hs_plain_xml_comparison {} {
          }
          
          if { $qstat_s_hs_plain_output($jobid,$column) != $qstat_s_hs_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_s_hs_plain_output was $qstat_s_hs_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_s_hs_xml_output was $qstat_s_hs_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_s_hs_plain_output was $qstat_s_hs_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_s_hs_xml_output was $qstat_s_hs_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_s_hs_plain_xml_comparison" -1 "error in plain, XML qstat -s hs"
+      ts_log_severe "error in plain, XML qstat -s hs"
    }
    
    delete_all_jobs
@@ -3304,11 +3303,11 @@ proc qstat_s_hs_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_s_hu_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER     
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER     
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -3323,13 +3322,13 @@ proc qstat_s_hu_plain_xml_comparison {} {
    # qstat_s_hu_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_s_hu_plain_output "-s hu"]
    
-   puts $CHECK_OUTPUT "plain qstat -s hu array .... \n"
+   ts_log_fine "plain qstat -s hu array .... \n"
    parray qstat_s_hu_plain_output
    
    # qstat_s_hu_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_s_hu_xml_output "-s hu"]
    
-   puts $CHECK_OUTPUT "xml qstat array -s hu .... \n"
+   ts_log_fine "xml qstat array -s hu .... \n"
    parray qstat_s_hu_xml_output
 
    # Now let's compare them by jobid.
@@ -3351,17 +3350,17 @@ proc qstat_s_hu_plain_xml_comparison {} {
          }
          
          if { $qstat_s_hu_plain_output($jobid,$column) != $qstat_s_hu_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_s_hu_plain_output was $qstat_s_hu_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_s_hu_xml_output was $qstat_s_hu_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_s_hu_plain_output was $qstat_s_hu_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_s_hu_xml_output was $qstat_s_hu_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_s_hu_plain_xml_comparison" -1 "error in plain, XML qstat -s hu"
+      ts_log_severe "error in plain, XML qstat -s hu"
    }
    
    delete_all_jobs
@@ -3386,11 +3385,11 @@ proc qstat_s_hu_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_u_valid_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER   
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER   
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -3405,13 +3404,13 @@ proc qstat_u_valid_plain_xml_comparison {} {
    # qstat_u_valid_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_u_valid_plain_output "-u $CHECK_USER"]
    
-   puts $CHECK_OUTPUT "plain qstat -u $CHECK_USER array .... \n"
+   ts_log_fine "plain qstat -u $CHECK_USER array .... \n"
    parray qstat_u_valid_plain_output
    
    # qstat_u_valid_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_u_valid_xml_output "-u $CHECK_USER"]
    
-   puts $CHECK_OUTPUT "xml qstat -u $CHECK_USER array .... \n"
+   ts_log_fine "xml qstat -u $CHECK_USER array .... \n"
    parray qstat_u_valid_xml_output
 
    # Now let's compare them by jobid. 
@@ -3433,17 +3432,17 @@ proc qstat_u_valid_plain_xml_comparison {} {
          }
          
          if { $qstat_u_valid_plain_output($jobid,$column) != $qstat_u_valid_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_u_valid_plain_output was $qstat_u_valid_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_u_valid_xml_output was $qstat_u_valid_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_u_valid_plain_output was $qstat_u_valid_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_u_valid_xml_output was $qstat_u_valid_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_u_valid_plain_xml_comparison" -1 "error in plain, XML qstat -u $CHECK_USER"
+      ts_log_severe "error in plain, XML qstat -u $CHECK_USER"
    }
    
    delete_all_jobs
@@ -3468,11 +3467,11 @@ proc qstat_u_valid_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_u_invalid_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER 
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER 
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -3487,7 +3486,7 @@ proc qstat_u_invalid_plain_xml_comparison {} {
    # qstat_u_invalid_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_u_invalid_plain_output "-u wrong_user"]
    
-   puts $CHECK_OUTPUT "plain qstat -u wrong_user array .... \n"
+   ts_log_fine "plain qstat -u wrong_user array .... \n"
    parray qstat_u_invalid_plain_output
    
    # Initialize to blank
@@ -3495,7 +3494,7 @@ proc qstat_u_invalid_plain_xml_comparison {} {
    # qstat_u_invalid_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_u_invalid_xml_output "-u wrong_user"]
    
-   puts $CHECK_OUTPUT "xml qstat -u wrong_user array .... \n"
+   ts_log_fine "xml qstat -u wrong_user array .... \n"
    parray qstat_u_invalid_xml_output
 
    # Now let's compare them by jobid. 
@@ -3517,17 +3516,17 @@ proc qstat_u_invalid_plain_xml_comparison {} {
          }
          
          if { $qstat_u_invalid_plain_output($jobid,$column) != $qstat_u_invalid_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_u_invalid_plain_output was $qstat_u_invalid_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_u_invalid_xml_output was $qstat_u_valid_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_u_invalid_plain_output was $qstat_u_invalid_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_u_invalid_xml_output was $qstat_u_valid_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_u_invalid_plain_xml_comparison" -1 "error in plain, XML qstat -u wrong_user"
+      ts_log_severe "error in plain, XML qstat -u wrong_user"
    }
    
    delete_all_jobs
@@ -3552,11 +3551,11 @@ proc qstat_u_invalid_plain_xml_comparison {} {
 #*******************************************************************************
 
 proc qstat_U_valid_plain_xml_comparison {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER 
+   global ts_config CHECK_ACTUAL_TEST_PATH CHECK_USER 
    global CHECK_HAVE_TDOM
 
    if {!$CHECK_HAVE_TDOM} {
-      puts $CHECK_OUTPUT "skipping qstat -xml cases ... \n"
+      ts_log_fine "skipping qstat -xml cases ... \n"
       return 
    }
 
@@ -3571,13 +3570,13 @@ proc qstat_U_valid_plain_xml_comparison {} {
    # qstat_U_valid_plain_output(jobid) contains a list of jobids.
    set result1 [qstat_plain_parse qstat_U_valid_plain_output "-U $CHECK_USER"]
    
-   puts $CHECK_OUTPUT "plain qstat -U $CHECK_USER array .... \n"
+   ts_log_fine "plain qstat -U $CHECK_USER array .... \n"
    parray qstat_U_valid_plain_output
    
    # qstat_U_valid_xml_output contains the XML qstat output in an assoc. array
    set result2 [qstat_xml_parse qstat_U_valid_xml_output "-U $CHECK_USER"]
    
-   puts $CHECK_OUTPUT "xml qstat -U $CHECK_USER array .... \n"
+   ts_log_fine "xml qstat -U $CHECK_USER array .... \n"
    parray qstat_U_valid_xml_output
 
    # Now let's compare them by jobid. 
@@ -3599,17 +3598,17 @@ proc qstat_U_valid_plain_xml_comparison {} {
          }
          
          if { $qstat_U_valid_plain_output($jobid,$column) != $qstat_U_valid_xml_output($jobid,$column) } {
-            puts $CHECK_OUTPUT "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
-            puts $CHECK_OUTPUT "and column $column... \n"
-            puts $CHECK_OUTPUT "qstat_U_valid_plain_output was $qstat_U_valid_plain_output($jobid,$column)... \n"
-            puts $CHECK_OUTPUT "while qstat_U_valid_xml_output was $qstat_U_valid_xml_output($jobid,$column)... \n"
+            ts_log_fine "Plain output and XML output DO NOT agree for jobid $jobid ...\n"
+            ts_log_fine "and column $column... \n"
+            ts_log_fine "qstat_U_valid_plain_output was $qstat_U_valid_plain_output($jobid,$column)... \n"
+            ts_log_fine "while qstat_U_valid_xml_output was $qstat_U_valid_xml_output($jobid,$column)... \n"
             incr error_flag 1
          } 
       }
    }
 
    if { $error_flag != 0 } {  
-      add_proc_error "qstat_U_valid_plain_xml_comparison" -1 "error in plain, XML qstat -U $CHECK_USER"
+      ts_log_severe "error in plain, XML qstat -U $CHECK_USER"
    }
    
    delete_all_jobs
@@ -3617,7 +3616,7 @@ proc qstat_U_valid_plain_xml_comparison {} {
 }
 
 proc test_issue123 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+   global ts_config CHECK_USER CHECK_HAVE_TDOM
    
    # verify if we can perform the qstat -xml tests
    if {$CHECK_HAVE_TDOM == 0} {
@@ -3642,9 +3641,9 @@ proc test_issue123 {} {
       foreach elem $var_array {
          if {[ string compare [string trim $xml(job$ind,$elem)] \
             [string trim $plain(job$ind,$elem)]] != 0} {
-            add_proc_error "test_xml_tdom" -1 "outputs do not match from \
+            ts_log_severe "outputs do not match from \
             plain and xml for $elem."
-            add_proc_error "test_xml_tdom" -1 "xml output: [string trim $xml($elem)] \
+            ts_log_severe "xml output: [string trim $xml($elem)] \
             plain output: [string trim $plain($elem)]"
             return
          }
@@ -3671,10 +3670,10 @@ proc test_issue123 {} {
    foreach elem $var_array1 {
       if {[ string compare [string trim $xml($elem)] \
          [string trim $plain($elem)]] != 0} {
-         puts "xml = [string trim $xml($elem)] , plain = [string trim $plain($elem)]"
-         add_proc_error "test_xml_tdom" -1 "outputs do not match from \
+         ts_log_fine "xml = [string trim $xml($elem)] , plain = [string trim $plain($elem)]"
+         ts_log_severe "outputs do not match from \
          plain and xml for $elem."
-         add_proc_error "test_xml_tdom" -1 "xml output: [string trim $xml($elem)] \
+         ts_log_severe "xml output: [string trim $xml($elem)] \
          plain output: [string trim $plain($elem)]"
          return
       }

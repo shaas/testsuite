@@ -1,3 +1,7 @@
+JG-2008-01-22-1: Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
+                            system_tests/clients checks.
+                            Removed outdated performance tests.
+
 MD-2008-01-22-0: Enhancem.: added testfunctionality to Issuetest 2459 from
                             checkin MD-2008-01-18-0
                  Review:    JG

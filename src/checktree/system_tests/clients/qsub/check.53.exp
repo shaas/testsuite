@@ -63,7 +63,7 @@ lappend check_functions "check_option_qs_args"
 #     ???/???
 #*******************************
 proc check_option_qs_args {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir test_host
 
    # first clean up output directory:  
@@ -73,10 +73,10 @@ proc check_option_qs_args {} {
    set jobargs "$option -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
   
    set result [submit_job $jobargs 0]  
-   puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
+   ts_log_fine "\njob $result has args: \"$jobargs\""
 
    if {$result < 0} {
-      add_proc_error "check_option_qs_args" -1 "could not submit job:\n$result"
+      ts_log_severe "could not submit job:\n$result"
       return
    }
 
@@ -88,7 +88,7 @@ proc check_option_qs_args {} {
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]
          if {$back != 2} {
-            add_proc_error "check_option_qs_args" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+            ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
             return
          } else {
             return
@@ -96,11 +96,11 @@ proc check_option_qs_args {} {
       }
    }
  
-   add_proc_error "check_option_qs_args" -1 "timeout while waiting for job accounting"
+   ts_log_severe "timeout while waiting for job accounting"
 }
 
 proc check_qhold_jobname {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global job_output_dir test_host
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
@@ -119,7 +119,7 @@ proc check_qhold_jobname {} {
 
    # job 1 should not run within the next 60 seconds
    if {[wait_for_jobstart $hold_job1 "Sleeper" 60 0] != -1} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job1 should not run until yet(1)"
+      ts_log_severe "job $hold_job1 should not run until yet(1)"
    }
 
    # release job 1
@@ -128,7 +128,7 @@ proc check_qhold_jobname {} {
 
    # job 2 should not run within the next minute
    if {[wait_for_jobstart $hold_job2 "Sleeper" 60 0] != -1} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job2 should not run until yet(2)"
+      ts_log_severe "job $hold_job2 should not run until yet(2)"
    }
 
    # job1 will stop in ca. 30 sec
@@ -142,25 +142,25 @@ proc check_qhold_jobname {} {
 
    set back [del_job_files $hold_job1 $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job1 did not produce error and output file"
+      ts_log_severe "job $hold_job1 did not produce error and output file"
    }
 
    set back [del_job_files $hold_job2 $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job2 did not produce error and output file"
+      ts_log_severe "job $hold_job2 did not produce error and output file"
    }
 
-   puts $CHECK_OUTPUT "Test wait for not existent job (job should immediately run)"
+   ts_log_fine "Test wait for not existent job (job should immediately run)"
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set job_id [submit_job $jobargs]
    wait_for_jobstart $job_id "Sleeper" 60
    wait_for_jobend $job_id "Sleeper" 60 0
 
-   puts $CHECK_OUTPUT "additional job submit with same name test"
+   ts_log_fine "additional job submit with same name test"
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job1 [submit_job $jobargs]
 
-   puts $CHECK_OUTPUT "additional job submit with same name test"
+   ts_log_fine "additional job submit with same name test"
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job2 [submit_job $jobargs]
 
@@ -170,30 +170,30 @@ proc check_qhold_jobname {} {
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job3 [submit_job $jobargs 0]
    if {$hold_job3 != -14} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job3 should produce non-ambiguous error"
+      ts_log_severe "job $hold_job3 should produce non-ambiguous error"
    } else {
-      puts $CHECK_OUTPUT "got non-ambiguous error: $hold_job3 - correct"
+      ts_log_fine "got non-ambiguous error: $hold_job3 - correct"
    }
  
    delete_job $hold_job1
 
-   puts $CHECK_OUTPUT "submitting hold job ..."
+   ts_log_fine "submitting hold job ..."
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job3 [submit_job $jobargs]
 
-   puts $CHECK_OUTPUT "submitting job with same name (FIRST) ..."
+   ts_log_fine "submitting job with same name (FIRST) ..."
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
-   puts $CHECK_OUTPUT $jobargs
+   ts_log_fine $jobargs
    set hold_job1 [submit_job $jobargs 0]
    if {$hold_job1 != -15} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job1 should produce violates reference unambiguousness error"
+      ts_log_severe "job $hold_job1 should produce violates reference unambiguousness error"
    } else {
-      puts $CHECK_OUTPUT "got violates reference unambiguousness error: $hold_job1 - correct"
+      ts_log_fine "got violates reference unambiguousness error: $hold_job1 - correct"
    }
 
-   puts $CHECK_OUTPUT "submitting job with same name (FIRST) as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
+   ts_log_fine "submitting job with same name (FIRST) as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
-   puts $CHECK_OUTPUT $jobargs
+   ts_log_fine $jobargs
    set hold_job1 [submit_job $jobargs 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
    release_job $hold_job1
@@ -206,29 +206,29 @@ proc check_qhold_jobname {} {
    wait_for_jobend $hold_job3 "Sleeper" 75 0
 
    # test foreign user influence ...
-   puts $CHECK_OUTPUT "checking hold for foreign user ..."
-   puts $CHECK_OUTPUT "submitting job with same name (FIRST) as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
+   ts_log_fine "checking hold for foreign user ..."
+   ts_log_fine "submitting job with same name (FIRST) as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
-   puts $CHECK_OUTPUT $jobargs
+   ts_log_fine $jobargs
    set hold_job1 [submit_job $jobargs 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
-   puts $CHECK_OUTPUT "submitting hold job ..."
+   ts_log_fine "submitting hold job ..."
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job3 [submit_job $jobargs]
 
    wait_for_jobstart $hold_job3 "Sleeper" 75
    wait_for_jobend $hold_job3 "Sleeper" 75 0
 
-   puts $CHECK_OUTPUT "additional job submit with same name test"
+   ts_log_fine "additional job submit with same name test"
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job2 [submit_job $jobargs]
 
-   puts $CHECK_OUTPUT "submitting hold job ..."
+   ts_log_fine "submitting hold job ..."
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job3 [submit_job $jobargs]
 
    if {[wait_for_jobstart $hold_job3 "Sleeper" 60 0] != -1} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job3 should not run until yet(3)"
+      ts_log_severe "job $hold_job3 should not run until yet(3)"
    }
 
    delete_job $hold_job3
@@ -238,11 +238,11 @@ proc check_qhold_jobname {} {
    wait_for_jobstart $hold_job1 "FIRST" 60
    wait_for_jobend $hold_job1 "FIRST" 60 0
 
-   puts $CHECK_OUTPUT "done."
+   ts_log_fine "done."
 }
 
 proc check_option_v {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir test_host
 
    # first clean up output directory:  

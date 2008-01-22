@@ -137,7 +137,7 @@ proc qmod_auto_reschedule_init_level {} {
 }
 
 proc auto_reschedule_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global queue1 queue2 auto_reschedule_host1 auto_reschedule_host2
    global stored_configuration
    global stored_auto_reschedule_host1_config global_resch
@@ -184,7 +184,7 @@ proc auto_reschedule_setup {} {
       get_config tmp_config
    }
 
-   puts $CHECK_OUTPUT "waiting for change on host $auto_reschedule_host2 ..."
+   ts_log_fine "waiting for change on host $auto_reschedule_host2 ..."
    set messages_name "$tmp_config(execd_spool_dir)/$auto_reschedule_host2/messages"
    set tail_id [open_remote_spawn_process $auto_reschedule_host2 "ts_def_con3" "/usr/bin/tail" "-f $messages_name"]
    set sp_id [ lindex $tail_id 1 ] 
@@ -200,7 +200,7 @@ proc auto_reschedule_setup {} {
       set myconfig(reschedule_unknown) "00:00:00"
    }
    set_config myconfig
-   puts $CHECK_OUTPUT "changed global config"
+   ts_log_fine "changed global config"
 
    get_config stored_auto_reschedule_host1_config $auto_reschedule_host1
    if {[info exists stored_auto_reschedule_host1_config(reschedule_unknown)] != 1} {
@@ -209,37 +209,37 @@ proc auto_reschedule_setup {} {
    set myhostconfig(reschedule_unknown) "00:01:00"
    set_config myhostconfig $auto_reschedule_host1
 
-   puts $CHECK_OUTPUT "changed config for host $auto_reschedule_host1"
+   ts_log_fine "changed config for host $auto_reschedule_host1"
 
-   puts $CHECK_OUTPUT "disabling all cluster queues"
+   ts_log_fine "disabling all cluster queues"
    foreach host $ts_config(execd_nodes) {
       set q [get_queue_instance all.q $host]
       disable_queue $q
    }
 
    set timeout 90
-   puts $CHECK_OUTPUT "waiting for configuration change ..."
+   ts_log_fine "waiting for configuration change ..."
    expect {
      -i $sp_id full_buffer {
-       add_proc_error "auto_reschedule_setup" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+       ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
      -i $sp_id timeout {
          set output $expect_out(buffer)
-         add_proc_error "auto_reschedule_setup" -1 "setup failed (timeout waiting for config to change):\noutput:\n$output"
+         ts_log_severe "setup failed (timeout waiting for config to change):\noutput:\n$output"
       }
       -i $sp_id "using*${global_reschedule_value}*reschedule_unknown" {
-         puts $CHECK_OUTPUT "configuration changed"
+         ts_log_fine "configuration changed"
       }
    }
 
    close_spawn_process $tail_id
 
-   puts $CHECK_OUTPUT "submitting job to queue $queue1 ..."
+   ts_log_fine "submitting job to queue $queue1 ..."
    set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set job_id1 [submit_job $arguments]
 
-   puts $CHECK_OUTPUT "submitting job to queue $queue2 ..."
+   ts_log_fine "submitting job to queue $queue2 ..."
    set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 60"
    set job_id2 [submit_job $arguments]
@@ -252,7 +252,7 @@ proc auto_reschedule_setup {} {
 }
 
 proc auto_reschedule_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global queue1 queue2 auto_reschedule_host1 auto_reschedule_host2
    global stored_configuration
    global stored_auto_reschedule_host1_config
@@ -274,27 +274,27 @@ proc auto_reschedule_cleanup {} {
    set_config stored_configuration
    set_config stored_auto_reschedule_host1_config $auto_reschedule_host1
 
-   puts $CHECK_OUTPUT "removing queues ..."
+   ts_log_fine "removing queues ..."
    del_queue queue1 $auto_reschedule_host1 0 1
    del_queue queue2 $auto_reschedule_host2 0 1
 
-   puts $CHECK_OUTPUT "enabling queues ..."
+   ts_log_fine "enabling queues ..."
    foreach host $ts_config(execd_nodes) {
-      puts $CHECK_OUTPUT $host
+      ts_log_fine $host
       enable_queue [get_queue_instance all.q $host]
    }
     
    set timeout 300
-   puts $CHECK_OUTPUT "waiting for configuration change ..."
+   ts_log_fine "waiting for configuration change ..."
    expect {
      -i $sp_id full_buffer {
-       add_proc_error "auto_reschedule_cleanup" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+       ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
      -i $sp_id default {
-         add_proc_error "auto_reschedule_cleanup" -1 "setup failed"
+         ts_log_severe "setup failed"
       }
       -i $sp_id "using*00:00:00*reschedule_unknown" {
-         puts $CHECK_OUTPUT "configuration changed"
+         ts_log_fine "configuration changed"
       }
    }
 
@@ -303,16 +303,16 @@ proc auto_reschedule_cleanup {} {
 }
 
 proc auto_reschedule_unknown_check_master {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global queue1 queue2 auto_reschedule_host1 auto_reschedule_host2
    global global_resch
 
-   puts $CHECK_OUTPUT "submitting job to queue $queue1 ..."
+   ts_log_fine "submitting job to queue $queue1 ..."
    set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id1 [submit_job $arguments]
 
-   puts $CHECK_OUTPUT "submitting job to queue $queue2 ..."
+   ts_log_fine "submitting job to queue $queue2 ..."
    set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id2 [submit_job $arguments]
@@ -325,31 +325,31 @@ proc auto_reschedule_unknown_check_master {} {
 
    shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
 
-   puts $CHECK_OUTPUT "master and scheduler must be down now"
+   ts_log_fine "master and scheduler must be down now"
 
-   puts $CHECK_OUTPUT "killing execd on host $auto_reschedule_host2"
+   ts_log_fine "killing execd on host $auto_reschedule_host2"
    shutdown_system_daemon $auto_reschedule_host2 "execd"
-   puts $CHECK_OUTPUT "execd on auto_reschedule_host2 ($auto_reschedule_host2) should be down now"   
+   ts_log_fine "execd on auto_reschedule_host2 ($auto_reschedule_host2) should be down now"   
 
    startup_qmaster
-   puts $CHECK_OUTPUT "master and scheduler should be up again now"
+   ts_log_fine "master and scheduler should be up again now"
 
    if {$global_resch != 0} {
       # here we have global reschedule_unkown enabled
-      puts $CHECK_OUTPUT "global reschedule_unkown enabled"
+      ts_log_fine "global reschedule_unkown enabled"
       wait_for_jobpending $job_id2 "Sleeper" 360
    } else {
       # here we have global reschedule_unkown set to 00:00:00
-      puts $CHECK_OUTPUT "global reschedule_unkown set to 00:00:00"
+      ts_log_fine "global reschedule_unkown set to 00:00:00"
       set my_timeout [expr [timestamp] + 260]
       while {[timestamp] <= $my_timeout}  {
          set j_state [is_job_running $job_id2 "Sleeper"]
          if {$j_state != 1} {
-            add_proc_error "auto_reschedule_unknown_check" -1 "job $job_id2 should still run"
+            ts_log_severe "job $job_id2 should still run"
             break
          } else {
             set to_go [expr $my_timeout - [timestamp]]
-            puts $CHECK_OUTPUT "job $job_id2 still running, continue in $to_go seconds ... "
+            ts_log_fine "job $job_id2 still running, continue in $to_go seconds ... "
          }
          sleep 10
       }
@@ -372,16 +372,16 @@ proc auto_reschedule_unknown_check_master {} {
 }
 
 proc auto_reschedule_unknown_check {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global queue1 queue2 auto_reschedule_host1 auto_reschedule_host2
    global global_resch 
 
-   puts $CHECK_OUTPUT "submitting job to queue $queue1 ..."
+   ts_log_fine "submitting job to queue $queue1 ..."
    set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id1 [submit_job $arguments]
 
-   puts $CHECK_OUTPUT "submitting job to queue $queue2 ..."
+   ts_log_fine "submitting job to queue $queue2 ..."
    set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id2 [submit_job $arguments]
@@ -393,22 +393,22 @@ proc auto_reschedule_unknown_check {} {
    wait_for_end_of_transfer $job_id2 100
 
    # shutdown execds
-   puts $CHECK_OUTPUT "killing execd on host $auto_reschedule_host1 ..."
+   ts_log_fine "killing execd on host $auto_reschedule_host1 ..."
    shutdown_system_daemon $auto_reschedule_host1 "execd" 
-   puts $CHECK_OUTPUT "killing execd on host $auto_reschedule_host2 ..."
+   ts_log_fine "killing execd on host $auto_reschedule_host2 ..."
    shutdown_system_daemon $auto_reschedule_host2 "execd"  
 
    set my_queue_names $queue1
    lappend my_queue_names $queue2
    wait_for_unknown_load 100 $my_queue_names
-   puts $CHECK_OUTPUT "both execd should be down now"
+   ts_log_fine "both execd should be down now"
 
    if {$global_resch != 0} {
       # here we have global reshedule_unkown enabled
       wait_for_jobpending $job_id1  "Sleeper" 80
       set j_state [ is_job_running $job_id2 "Sleeper" ]
       if {$j_state != 1} {
-          add_proc_error "auto_reschedule_unknown_check" -1 "job $job_id2 should still run(1)"
+          ts_log_severe "job $job_id2 should still run(1)"
       }
       wait_for_jobpending $job_id2  "Sleeper" 220
    } else {
@@ -418,11 +418,11 @@ proc auto_reschedule_unknown_check {} {
       while {[timestamp] <= $my_timeout}  {
          set j_state [is_job_running $job_id2 "Sleeper"]
          if {$j_state != 1} {
-            add_proc_error "auto_reschedule_unknown_check" -1 "job $job_id2 should still run(2)"
+            ts_log_severe "job $job_id2 should still run(2)"
             break
          } else {
             set to_go [expr $my_timeout - [timestamp]]
-            puts $CHECK_OUTPUT "job $job_id2 still running, continue in $to_go seconds ... "
+            ts_log_fine "job $job_id2 still running, continue in $to_go seconds ... "
          }
          sleep 10
       }

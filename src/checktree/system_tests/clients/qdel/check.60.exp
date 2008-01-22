@@ -71,7 +71,7 @@ lappend check_functions "qdel_delete_by_job_wildcard"            ;# Add another 
 #     ???/???
 #*******************************
 proc delete_by_job_name {{delete_name "test_job"} {testjob_count "10"}} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # submit jobs to delete
    set job_args "-o /dev/null -e /dev/null"
@@ -90,7 +90,7 @@ proc delete_by_job_name {{delete_name "test_job"} {testjob_count "10"}} {
    # Now delete the jobs with name "$delete_name"
    set output [start_sge_bin "qdel" $delete_name]
    if {$prg_exit_state != 0} {
-      add_proc_error "delete_by_job_name" -1 "qdel $delete_name failed:\n$output"
+      ts_log_severe "qdel $delete_name failed:\n$output"
    }
 
    # Sleep a little
@@ -142,12 +142,12 @@ proc delete_by_job_name {{delete_name "test_job"} {testjob_count "10"}} {
 #     ???/???
 #*******************************
 proc qdel_delete_by_job_name {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set delete_by_job_name_return [delete_by_job_name]
 
    if {$delete_by_job_name_return != 0} {
-      add_proc_error "qdel_delete_by_job_name" -1 "Extended case 1 of qdel failed"
+      ts_log_severe "Extended case 1 of qdel failed"
    }
 
    delete_all_jobs
@@ -187,12 +187,12 @@ proc qdel_delete_by_job_name {} {
 #     ???/???
 #*******************************
 proc qdel_delete_by_job_wildcard {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set delete_by_job_wildcard_return [delete_by_job_name "test_j*"]
 
    if {$delete_by_job_wildcard_return != 0} {
-      add_proc_error "qdel_delete_by_job_wildcard" -1 "Extended case 2 of qdel failed"
+      ts_log_severe "Extended case 2 of qdel failed"
    }
 
    delete_all_jobs

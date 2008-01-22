@@ -82,7 +82,7 @@ proc client_ar_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc client_ar_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global job_output_dir default_args
    
    # set default jobargs
@@ -90,7 +90,7 @@ proc client_ar_setup {} {
 }
 
 proc client_ar_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs
@@ -100,7 +100,7 @@ proc client_ar_cleanup {} {
 
 
 proc test_qsh_ar_switch {} {
-   global ts_config CHECK_OUTPUT CHECK_USER default_args
+   global ts_config CHECK_USER default_args
 
    # Test setup
    delete_all_ars   
@@ -111,7 +111,7 @@ proc test_qsh_ar_switch {} {
    set job_name "test_${cmd}"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-      add_proc_error "test_qsh_ar_switch" -3 "submit ar failed"
+      ts_log_info "submit ar failed"
       return
    }
    
@@ -119,7 +119,7 @@ proc test_qsh_ar_switch {} {
    set args  "-ar $ar_id -N $job_name $default_args"
    set job_id [submit_job $args 1 60 "" "" "" 1 $cmd]
    if {$job_id < 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submitted"
+      ts_log_severe "interactive job was not submitted"
       return
    }
    
@@ -129,9 +129,9 @@ proc test_qsh_ar_switch {} {
    #job should be running
    set run_result [wait_for_jobstart $job_id  $job_name 20]
    if {$run_result != 0} {
-       add_proc_error "${job_name}_ar_switch" -1 "job was not scheduled to with ar option"
+       ts_log_severe "job was not scheduled to with ar option"
    } 
-   puts $CHECK_OUTPUT "delete AR: $ar_id and job should ends soon"
+   ts_log_fine "delete AR: $ar_id and job should ends soon"
    delete_ar $ar_id
    wait_for_job_end $job_id 60
 
@@ -139,16 +139,16 @@ proc test_qsh_ar_switch {} {
    set args  "-ar $ar_id -N $job_name $default_args"
    set job_id [submit_job $args 0 60 "" "" "" 1 $cmd]
    if {$job_id > 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "interactive job should not be submited"
+      ts_log_severe "interactive job should not be submited"
       delete_job $job_id
       return
    }
-   puts $CHECK_OUTPUT "${job_name}_ar_switch OK"
+   ts_log_fine "${job_name}_ar_switch OK"
  
 }
 
 proc test_qrsh_ar_switch {} {
-   global ts_config CHECK_OUTPUT CHECK_USER  default_args
+   global ts_config CHECK_USER  default_args
 
    # Test setup
    delete_all_ars   
@@ -159,7 +159,7 @@ proc test_qrsh_ar_switch {} {
    set job_name "test_${cmd}"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-      add_proc_error "test_qrsh_ar_switch" -3 "submit ar failed"
+      ts_log_info "submit ar failed"
       return
    }
    
@@ -168,23 +168,23 @@ proc test_qrsh_ar_switch {} {
    set args  "-ar $ar_id -N $job_name $default_args echo '$echo'"
    set job_id [submit_job $args 0 60 "" "" "" 1 $cmd]
    if {$job_id < 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "interactive job was not submitted"
+      ts_log_severe "interactive job was not submitted"
       return
    }
-   puts $CHECK_OUTPUT "delete AR: $ar_id and job should ends soon"
+   ts_log_fine "delete AR: $ar_id and job should ends soon"
    delete_ar $ar_id
    wait_for_job_end $job_id 60
 
    set job_id [submit_job $args 0 60 "" "" "" 1 $cmd]
    if {$job_id == 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "interactive job submited for non existing AR!"
+      ts_log_severe "interactive job submited for non existing AR!"
       return
    }
-   puts $CHECK_OUTPUT "${job_name}_ar_switch OK"
+   ts_log_fine "${job_name}_ar_switch OK"
 }
 
 proc test_qlogin_ar_switch {} {
-   global ts_config CHECK_OUTPUT CHECK_USER  default_args
+   global ts_config CHECK_USER  default_args
 
    # Test setup
    delete_all_ars   
@@ -195,32 +195,32 @@ proc test_qlogin_ar_switch {} {
    set job_name "test_${cmd}"
    set ar_id [submit_ar $args]
    if {$ar_id < 0} {
-      add_proc_error "${job_name}_ar_switch" -3 "submit ar failed"
+      ts_log_info "submit ar failed"
       return
    }
 
 
    set ret [qlogin_ar_call $ar_id $job_name]
    if {$ret != 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "submit of qlogin with -ar switch failed!"
+      ts_log_severe "submit of qlogin with -ar switch failed!"
       return
    }
    
    #delete the ar
-   puts $CHECK_OUTPUT "delete AR: $ar_id and job should ends soon"
+   ts_log_fine "delete AR: $ar_id and job should ends soon"
    delete_ar $ar_id
 
    set ret [qlogin_ar_call $ar_id $job_name]
    if {$ret == 0} {
-      add_proc_error "${job_name}_ar_switch" -1 "submit of qlogin with not existing ar not failed!"
+      ts_log_severe "submit of qlogin with not existing ar not failed!"
       return
    }
-   puts $CHECK_OUTPUT "${job_name}_ar_switch OK"
+   ts_log_fine "${job_name}_ar_switch OK"
 }
 
 
 proc qlogin_ar_call {ar_id job_name} {
-   global ts_config CHECK_OUTPUT CHECK_USER  default_args
+   global ts_config CHECK_USER  default_args
    global local_arch
 
    # Submit qsh job with advance reservation 
@@ -238,7 +238,7 @@ proc qlogin_ar_call {ar_id job_name} {
    
 
    # Submit qlogin
-   puts $CHECK_OUTPUT "open_remote_spawn_process $host $CHECK_USER qlogin $args"
+   ts_log_fine "open_remote_spawn_process $host $CHECK_USER qlogin $args"
 #   set pr_id  [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qlogin" "$args"]
    set pr_id  [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qlogin" "$args"]
    set sp_id  [lindex $pr_id 1]
@@ -249,7 +249,7 @@ proc qlogin_ar_call {ar_id job_name} {
       expect {
          -i $sp_id full_buffer {     ;# input buffer default size is 2000 byte 
             set do_stop 1
-            add_proc_error "qlogin_ar_call" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          }
          -i $sp_id "login:" {
 #            set output "$output$expect_out(0,string)"
@@ -271,15 +271,15 @@ proc qlogin_ar_call {ar_id job_name} {
          }
       }
    }  
-   puts $CHECK_OUTPUT "close_spawn_process $pr_id\n"
+   ts_log_fine "close_spawn_process $pr_id\n"
    close_spawn_process $pr_id
  
-   puts $CHECK_OUTPUT ">>> qlogin output start <<<"
-   puts $CHECK_OUTPUT $output
-   puts $CHECK_OUTPUT ">>> qlogin output end <<<\n"
+   ts_log_fine ">>> qlogin output start <<<"
+   ts_log_fine $output
+   ts_log_fine ">>> qlogin output end <<<\n"
    
    set ret [handle_sge_errors "qlogin_ar_call" "qlogin" $output messages 0]
-   puts $CHECK_OUTPUT "qlogin_ar_call ret: $ret"
+   ts_log_fine "qlogin_ar_call ret: $ret"
  
    return $ret
 }

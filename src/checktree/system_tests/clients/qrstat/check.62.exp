@@ -111,7 +111,7 @@ proc qrstat_test_cleanup {} {
 }
 
 proc qrstat_help {} {
-   global ts_config CHECK_OUTPUT CHECK_PRODUCT_VERSION_NUMBER
+   global ts_config CHECK_PRODUCT_VERSION_NUMBER
    global qrstat_help_lines
 
    delete_all_jobs
@@ -119,38 +119,36 @@ proc qrstat_help {} {
 
    set output [start_sge_bin "qrstat" "-help"]
 
-   puts $CHECK_OUTPUT "qrstat output    : \n---"
-   puts $CHECK_OUTPUT "$output"
-   puts $CHECK_OUTPUT "---\n"
-   puts $CHECK_OUTPUT "qrstat exit state: $prg_exit_state"
+   ts_log_fine "qrstat output    : \n---"
+   ts_log_fine "$output"
+   ts_log_fine "---\n"
+   ts_log_fine "qrstat exit state: $prg_exit_state"
 
    if {$prg_exit_state != 0} {
-      add_proc_error "qrstat_help" -1 "exit state is not 0"
+      ts_log_severe "exit state is not 0"
       return
    }
 
    set output [string trim $output]
 
    if {[string first $CHECK_PRODUCT_VERSION_NUMBER $output] < 0} {
-      add_proc_error "qrstat_help" -1 "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
+      ts_log_severe "version string ($CHECK_PRODUCT_VERSION_NUMBER) not found"
    } 
  
    set lines [split $output "\n"]
    set nr_of_lines [llength $lines] 
 
-   puts $CHECK_OUTPUT "Output has $nr_of_lines lines"
+   ts_log_fine "Output has $nr_of_lines lines"
 
    if {$nr_of_lines != $qrstat_help_lines} {
-      add_proc_error "qrstat_help" -1 "help output has $nr_of_lines, but expected are $qdel_help_lines lines:\n$output"
+      ts_log_severe "help output has $nr_of_lines, but expected are $qdel_help_lines lines:\n$output"
    }
 }
 
 proc qrstat_count_entries { qrstat_options expected_entries } {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "\nrunning qrstat $qrstat_options"
+   ts_log_fine "\nrunning qrstat $qrstat_options"
    set result [start_sge_bin "qrstat" "$qrstat_options" "" "" exit_code]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    if {$exit_code == 0} {
       set tmp [split $result "\n"]
       set nr_entries [llength $tmp]
@@ -163,12 +161,12 @@ proc qrstat_count_entries { qrstat_options expected_entries } {
          incr nr_entries -2
       }
 
-      puts $CHECK_OUTPUT "number of entries: $nr_entries"
+      ts_log_fine "number of entries: $nr_entries"
       if {$nr_entries != $expected_entries} {
-         add_proc_error "qrstat_count_entries" -1 "qrstat $qrstat_options broken, got $nr_entries but expected $expected_entries"
+         ts_log_severe "qrstat $qrstat_options broken, got $nr_entries but expected $expected_entries"
       }
    } else {
-      add_proc_error "qrstat_count_entries" -1 "qrstat $qrstat_options exit status not 0"
+      ts_log_severe "qrstat $qrstat_options exit status not 0"
    }
 }
 
@@ -213,14 +211,14 @@ proc qrstat_option_u {} {
 proc parse_explain_option {message} {
    set output [start_sge_bin "qrstat" "-explain"]
    if {$prg_exit_state != 0} {
-      add_proc_error "parse_explain_option" -1 "exit state is not 0"
+      ts_log_severe "exit state is not 0"
       return
    }
    set output [string trim $output]
    set output [split $output "\n"]
 
    if {[string match "*$message*" [lindex $output 3]] < 0} {
-      add_proc_error "parse_explain_option" -1 "message was not found in qrstat -explain output"
+      ts_log_severe "message was not found in qrstat -explain output"
    } 
 }
 
@@ -238,7 +236,7 @@ proc qrstat_option_explain {} {
 
    set ar_id [submit_ar "-d 3600 -q $qrstat_queue"]
    if {$ar_id <= 0} {
-      add_proc_error "qrstat_option_explain" -1 "AR submit failed"
+      ts_log_severe "AR submit failed"
       return
    }
 
@@ -285,7 +283,6 @@ proc qrstat_option_explain {} {
 
 proc qrstat_option_ar {} {
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
-   global CHECK_OUTPUT
 
    # submit 1 AR for every user
    set ar_id1 [submit_ar "-d 3600"]
@@ -293,25 +290,25 @@ proc qrstat_option_ar {} {
 
    start_sge_bin "qrstat" "-ar $ar_id1"
    if {$prg_exit_state != 0} {
-      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for AR of submit user(1)"
+      ts_log_severe "qrstat -ar is broken for AR of submit user(1)"
       return
    }
 
    start_sge_bin "qrstat" "-ar $ar_id2"
    if {$prg_exit_state != 0} {
-      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for ARs of different user(1)"
+      ts_log_severe "qrstat -ar is broken for ARs of different user(1)"
       return
    }
 
    start_sge_bin "qrstat" "-ar $ar_id1" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
    if {$prg_exit_state != 0} {
-      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for AR of different user(2)"
+      ts_log_severe "qrstat -ar is broken for AR of different user(2)"
       return
    }
 
    start_sge_bin "qrstat" "-ar $ar_id2" "" $CHECK_FIRST_FOREIGN_SYSTEM_USER
    if {$prg_exit_state != 0} {
-      add_proc_error "parse_explain_ar" -1 "qrstat -ar is broken for ARs of same user(2)"
+      ts_log_severe "qrstat -ar is broken for ARs of same user(2)"
       return
    }
 

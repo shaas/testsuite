@@ -152,9 +152,9 @@ proc qalter_cleanup {} {
 #     ???/???
 #*******************************
 proc run_dummy_jobs {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
-   global CHECK_OUTPUT hold_job_D hold_job_U
+   global hold_job_D hold_job_U
    global normal_job_id hold_job_A hold_job_B hold_job_C hold_job_T
    global ts_user_config nonadmin_user nonadmin_hold_job
    global qalter_queue
@@ -167,7 +167,7 @@ proc run_dummy_jobs {} {
 
    # wait for job to run
    if {[wait_for_jobstart $submitresult "leeper" 200] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult does not start"
+      ts_log_severe "job $submitresult does not start"
       delete_all_jobs
       return
    }
@@ -181,7 +181,7 @@ proc run_dummy_jobs {} {
    
    # wait for job to get in pending state
    if {[wait_for_jobpending $submitresult "leeper" 200] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -194,7 +194,7 @@ proc run_dummy_jobs {} {
    
    # wait for job to get in pending state
    if {[wait_for_jobpending $submitresult "leeper" 200] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -207,7 +207,7 @@ proc run_dummy_jobs {} {
    
    # wait for job to get in pending state
    if {[wait_for_jobpending $submitresult "leeper" 200 ] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -220,7 +220,7 @@ proc run_dummy_jobs {} {
    
    # wait for job to get in pending state
    if {[wait_for_jobpending $submitresult "leeper" 200] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -233,7 +233,7 @@ proc run_dummy_jobs {} {
    
    # wait for job to get in pending state
    if {[wait_for_jobpending $submitresult "leeper" 200] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -246,7 +246,7 @@ proc run_dummy_jobs {} {
    
    # wait for job to get in pending state
    if {[wait_for_jobpending $submitresult "leeper" 200 ] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -262,7 +262,7 @@ proc run_dummy_jobs {} {
    
    # wait for job to get in pending state
    if {[wait_for_jobpending $submitresult "leeper" 200] != 0} {
-      add_proc_error "run_dummy_jobs" -1 "job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -305,7 +305,7 @@ proc start_testjob {} {
    global ts_config
    global submitresult
    global job_output_dir CHECK_JOB_OUTPUT_DIR
-   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_USER
    global qalter_queue
 
    set job_output_dir $CHECK_JOB_OUTPUT_DIR
@@ -315,7 +315,7 @@ proc start_testjob {} {
    }
    # wait for job to get in pending state 
    if {[wait_for_jobpending $submitresult "leeper" 200] != 0} {
-      add_proc_error "start_testjob" -1 "start_testjob - job $submitresult is not in pending state"
+      ts_log_severe "job $submitresult is not in pending state"
       delete_all_jobs
       return 
    }
@@ -351,29 +351,29 @@ proc start_testjob {} {
 #     ???/???
 #*******************************
 proc qalter_ac {} {
-   global ts_config normal_job_id CHECK_OUTPUT
+   global ts_config normal_job_id
 
    set option "-ac myvar=test -ac myvar2=\\\'test2a,test2b\\\' -ac myvar3=\\\"test3a,test3b\\\""
 
    set qalteroutput [start_sge_bin "qalter" "$option $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_ac" -1 "qalter $option - $qalteroutput"
+      ts_log_severe "qalter $option - $qalteroutput"
       return
    }
 
    set qstatoutput [start_sge_bin "qstat" "-j $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_ac" -1 "qalter $option - qstat error:\n$qstatoutput"
+      ts_log_severe "qalter $option - qstat error:\n$qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\r\n} $qstatoutput context vars] != 1} {
-      add_proc_error "qalter_ac" -1 "qalter $option - qalter error: context variables were not set (1)"
+      ts_log_severe "qalter $option - qalter error: context variables were not set (1)"
       return
    }
 
    if {$vars != "myvar=test,myvar2='test2a,test2b',myvar3=\"test3a,test3b\""} {
-      add_proc_error "qalter_ac" -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      ts_log_severe "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
 }
@@ -408,13 +408,13 @@ proc qalter_ac {} {
 #     ???/???
 #*******************************
 proc qalter_A {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-A blahblah"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_A" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -449,13 +449,13 @@ proc qalter_A {} {
 #     ???/???
 #*******************************
 proc qalter_c {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-c n -ckpt testcheckpointobject"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_c" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -490,13 +490,13 @@ proc qalter_c {} {
 #     ???/???
 #*******************************
 proc qalter_ckpt {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-ckpt testcheckpointobject"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_ckpt" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -531,13 +531,13 @@ proc qalter_ckpt {} {
 #     ???/???
 #*******************************
 proc qalter_clear {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-clear"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_clear" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -572,13 +572,13 @@ proc qalter_clear {} {
 #     ???/???
 #*******************************
 proc qalter_cwd {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-cwd"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_cwd" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -613,30 +613,30 @@ proc qalter_cwd {} {
 #     ???/???
 #*******************************
 proc qalter_dc {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global normal_job_id
 
    # Test delete with double-quoted list
    set option "-dc myvar3"
    set qalteroutput [start_sge_bin "qalter" "$option $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_dc" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 
    set qstatoutput [start_sge_bin "qstat" "-j $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qstat error:\n$qstatoutput"
+      ts_log_severe "qalter $option - qstat error:\n$qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\r\n} $qstatoutput context vars] != 1} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables were not set (2)"
+      ts_log_severe "qalter $option - qalter error: context variables were not set (2)"
       return
    }
 
    if {$vars != "myvar=test,myvar2='test2a,test2b'"} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      ts_log_severe "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
 
@@ -644,23 +644,23 @@ proc qalter_dc {} {
    set option "-dc myvar2"
    set qalteroutput [start_sge_bin "qalter" "$option $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_dc" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 
    set qstatoutput [start_sge_bin "qstat" "-j $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qstat error:\n$qstatoutput"
+      ts_log_severe "qalter $option - qstat error:\n$qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\r\n} $qstatoutput context vars] != 1} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables were not set (3)"
+      ts_log_severe "qalter $option - qalter error: context variables were not set (3)"
       return
    }
 
    if {$vars != "myvar=test"} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      ts_log_severe "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
 
@@ -668,18 +668,18 @@ proc qalter_dc {} {
    set option "-dc myvar"
    set qalteroutput [start_sge_bin "qalter" "$option $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_dc" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 
    set qstatoutput [start_sge_bin "qstat" "-j $normal_job_id"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qstat error:\n$qstatoutput"
+      ts_log_severe "qalter $option - qstat error:\n$qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\r\n} $qstatoutput context vars] == 1} {
-      add_proc_error "qalter_dc" -1 "qalter $option - qalter error: context variables were not deleted"
+      ts_log_severe "qalter $option - qalter error: context variables were not deleted"
       return
    }
 }
@@ -714,13 +714,13 @@ proc qalter_dc {} {
 #     ???/???
 #*******************************
 proc qalter_e {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult job_output_dir
 
    set option "-e $job_output_dir"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_e" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -755,14 +755,14 @@ proc qalter_e {} {
 #     ???/???
 #*******************************
 proc qalter_hard {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult qalter_queue
 
    set option "-hard -q $qalter_queue"
-   puts $CHECK_OUTPUT "calling: qalter $option $submitresult"
+   ts_log_fine "calling: qalter $option $submitresult"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_hard" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -797,44 +797,44 @@ proc qalter_hard {} {
 #     ???/???
 #*******************************
 proc qalter_hold {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult normal_job_id hold_job_A hold_job_B hold_job_C 
   
    set option "-hold_jid $normal_job_id,$hold_job_B,$hold_job_C,[expr $hold_job_C + 1000]"
-   puts $CHECK_OUTPUT "calling: qalter $option $hold_job_A"
+   ts_log_fine "calling: qalter $option $hold_job_A"
    set qalteroutput [start_sge_bin "qalter" "$option $hold_job_A"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_hold" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 
    if {[release_job $hold_job_A] != 0} {
-      add_proc_error "qalter_hold" -1 "could not release job $hold_job_A"
+      ts_log_severe "could not release job $hold_job_A"
       return
    }
 
    # wait for job to run
    if {[wait_for_jobstart $hold_job_A "leeper" 200 0] != -1} {
-      add_proc_error "qalter_hold" -1 "job $hold_job_A should not start yet"
+      ts_log_severe "job $hold_job_A should not start yet"
       delete_all_jobs
       return 
    }
 
    # release job B 
    if {[release_job $hold_job_B] != 0} {
-      add_proc_error "qalter_hold" -1 "could not release job $hold_job_B"
+      ts_log_severe "could not release job $hold_job_B"
       return
    }
 
    # release job C
    if {[release_job $hold_job_C] != 0} {
-      add_proc_error "qalter_hold" -1 "could not release job $hold_job_C"
+      ts_log_severe "could not release job $hold_job_C"
       return
    }
 
    # wait for job A to run 
    if {[wait_for_jobstart $hold_job_A "leeper" 200] != 0} {
-      add_proc_error "qalter_hold" -1 "job $hold_job_A does not run"
+      ts_log_severe "job $hold_job_A does not run"
       delete_all_jobs
       return 
    }
@@ -870,13 +870,13 @@ proc qalter_hold {} {
 #     ???/???
 #*******************************
 proc qalter_j {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-j y"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_j" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -911,13 +911,13 @@ proc qalter_j {} {
 #     ???/???
 #*******************************
 proc qalter_l {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult qalter_host
 
    set option "-l h=$qalter_host"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_l" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -952,13 +952,13 @@ proc qalter_l {} {
 #     ???/???
 #*******************************
 proc qalter_m {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-m beas"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_m" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -993,13 +993,13 @@ proc qalter_m {} {
 #     ???/???
 #*******************************
 proc qalter_notify {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-notify"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_notify" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1034,18 +1034,18 @@ proc qalter_notify {} {
 #     ???/???
 #*******************************
 proc qalter_M {} {
-   global ts_config CHECK_OUTPUT CHECK_REPORT_EMAIL_TO
+   global ts_config CHECK_REPORT_EMAIL_TO
    global submitresult
 
    if {[string compare $CHECK_REPORT_EMAIL_TO "none"] == 0} {
-      add_proc_error "qalter_M" -1 "no email address specified"  
+      ts_log_severe "no email address specified"  
       return
    }
 
    set option "-M $CHECK_REPORT_EMAIL_TO"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_M" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1080,13 +1080,13 @@ proc qalter_M {} {
 #     ???/???
 #*******************************
 proc qalter_N {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-N Sleeper_job"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_N" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1121,13 +1121,13 @@ proc qalter_N {} {
 #     ???/???
 #*******************************
 proc qalter_o {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult job_output_dir
 
    set option "-o $job_output_dir"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_o" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1162,19 +1162,19 @@ proc qalter_o {} {
 #     ???/???
 #*******************************
 proc qalter_P {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-P mytestproject"
    if {[string compare $ts_config(product_type) "sgeee"] == 0} {
       set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
       if {$prg_exit_state != 0} {
-         add_proc_error "qalter_P" -1 "qalter $option failed:\n$qalteroutput"
+         ts_log_severe "qalter $option failed:\n$qalteroutput"
          return
       }
    } else {
       # not possible for sge systems!
-      add_proc_error "qalter_P" -3 "qalter $option - not possible for sge system"
+      ts_log_config "qalter $option - not possible for sge system"
       return
    }
 }
@@ -1209,13 +1209,13 @@ proc qalter_P {} {
 #     ???/???
 #*******************************
 proc qalter_p {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-p 1024"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_p" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1250,13 +1250,13 @@ proc qalter_p {} {
 #     ???/???
 #*******************************
 proc qalter_pe {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-pe mytestpe 1-3"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_pe" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1291,13 +1291,13 @@ proc qalter_pe {} {
 #     ???/???
 #*******************************
 proc qalter_q {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult qalter_queue
 
    set option "-q $qalter_queue"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_q" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1332,13 +1332,13 @@ proc qalter_q {} {
 #     ???/???
 #*******************************
 proc qalter_ry {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-r y"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_ry" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1373,13 +1373,13 @@ proc qalter_ry {} {
 #     ???/???
 #*******************************
 proc qalter_rn {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-r n"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_rn" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1414,30 +1414,30 @@ proc qalter_rn {} {
 #     ???/???
 #*******************************
 proc qalter_sc {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global hold_job_D
 
    set option "-ac myvar=test4 -sc myvar=test,myvar2=\\\'test2a,test2b\\\',myvar3=\\\"test3a,test3b\\\""
    # At this point, hold_job_D is the only single job still hanging around
    set qalteroutput [start_sge_bin "qalter" "$option $hold_job_D"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_sc" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 
    set qstatoutput [start_sge_bin "qstat" "-j $hold_job_D"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_sc" -1 "qalter $option - qstat error:\n$qstatoutput"
+      ts_log_severe "qalter $option - qstat error:\n$qstatoutput"
       return
    }
 
    if {[regexp {context:[ \t]+([^ \t\r\n]+)\r\n} $qstatoutput context vars] != 1} {
-      add_proc_error "qalter_sc" -1 "qalter $option - qalter error: context variables were not set (4)"
+      ts_log_severe "qalter $option - qalter error: context variables were not set (4)"
       return
    }
 
    if {$vars != "myvar=test,myvar2='test2a,test2b',myvar3=\"test3a,test3b\""} {
-      add_proc_error "qalter_sc" -1 "qalter $option - qalter error: context variables incorrect: $vars"
+      ts_log_severe "qalter $option - qalter error: context variables incorrect: $vars"
       return
    }
 }
@@ -1472,13 +1472,13 @@ proc qalter_sc {} {
 #     ???/???
 #*******************************
 proc qalter_soft {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult qalter_queue
 
    set option "-soft -q $qalter_queue"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_soft" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1513,13 +1513,13 @@ proc qalter_soft {} {
 #     ???/???
 #*******************************
 proc qalter_S {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-S /bin/sh"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_S" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1554,13 +1554,13 @@ proc qalter_S {} {
 #     ???/???
 #*******************************
 proc qalter_v {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-v DISPLAY"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_v" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1595,13 +1595,13 @@ proc qalter_v {} {
 #     ???/???
 #*******************************
 proc qalter_verify {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-verify"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_verify" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1636,13 +1636,13 @@ proc qalter_verify {} {
 #     ???/???
 #*******************************
 proc qalter_V {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult
 
    set option "-V"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_V" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1677,13 +1677,13 @@ proc qalter_V {} {
 #     ???/???
 #*******************************
 proc qalter_w {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult qalter_queue
 
    set option "-w e -q $qalter_queue"
    set qalteroutput [start_sge_bin "qalter" "$option $submitresult"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qalter_w" -1 "qalter $option failed:\n$qalteroutput"
+      ts_log_severe "qalter $option failed:\n$qalteroutput"
       return
    }
 }
@@ -1718,7 +1718,7 @@ proc qalter_w {} {
 #     ???/???
 #*******************************
 proc qalter_a {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global submitresult job_output_dir qalter_queue
 
    set job_id [submit_job "-h -q $qalter_queue -e $job_output_dir -o $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 15"]
@@ -1734,46 +1734,46 @@ proc qalter_a {} {
 
    set option "-a $start"
 
-   puts $CHECK_OUTPUT "$option $job_id"
+   ts_log_fine "$option $job_id"
    set qalteroutput [start_sge_bin "qalter" "$option $job_id"]
    if {$prg_exit_state != 0} {
-     add_proc_error "qalter_a" -1 "qalter $option failed - couldn't change starttime:\nqalteroutput$"
+     ts_log_severe "qalter $option failed - couldn't change starttime:\nqalteroutput$"
      return
    }
    
    #Release job
-   puts $CHECK_OUTPUT "will qrls $job_id now ..."
+   ts_log_fine "will qrls $job_id now ..."
    set qrlsoutput [start_sge_bin "qrls" "$job_id"]
-   puts $CHECK_OUTPUT "qrls result is $prg_exit_state"
-   puts $CHECK_OUTPUT "qrls output is $qrlsoutput"
+   ts_log_fine "qrls result is $prg_exit_state"
+   ts_log_fine "qrls output is $qrlsoutput"
 
    # calulate time until job should run
    set wait_time 100
-   puts $CHECK_OUTPUT "qalter $option - job should not start the next $wait_time seconds"
+   ts_log_fine "qalter $option - job should not start the next $wait_time seconds"
    if {[wait_for_jobstart $job_id "leeper" $wait_time 0] != -1} {
-      add_proc_error "qalter_a" -1 "qalter $option - job should not run until yet"
+      ts_log_severe "qalter $option - job should not run until yet"
       delete_all_jobs
       return 
    } 
 
    # wait for job to start
-   puts $CHECK_OUTPUT "qalter $option - ok now the job should start"
+   ts_log_fine "qalter $option - ok now the job should start"
    if {[wait_for_jobstart $job_id "leeper" 60] == -1} {
-      add_proc_error "qalter_a" -1 "qalter $option - job doesn't start"
+      ts_log_severe "qalter $option - job doesn't start"
       del_job_files $job_id $job_output_dir 2
       return 
    } 
  
    # wait for end of job
    if {[wait_for_jobend $job_id "leeper" 300 0] == -1} {
-      add_proc_error "qalter_a" -1 "qalter $option - job doesn't stop"
+      ts_log_severe "qalter $option - job doesn't stop"
       del_job_files $job_id $job_output_dir 2
       return 
    } 
   
    set back [del_job_files $job_id $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "qalter_a" -1 "qalter $option - can't delete Jobfile $job_id"
+      ts_log_severe "qalter $option - can't delete Jobfile $job_id"
    }
 }
 

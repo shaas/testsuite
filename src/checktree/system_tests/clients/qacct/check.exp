@@ -80,7 +80,7 @@ proc qacct_init_level {} {
 
 # -------- local test procedures: initialization------------------------------
 proc qacct_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qacct_reporting_backup
 
    # set the accounting_flush_time to 0 to speedup writing of accounting info
@@ -94,7 +94,7 @@ proc qacct_setup {} {
 }
 
 proc qacct_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qacct_reporting_backup
 
    delete_all_jobs
@@ -108,7 +108,7 @@ proc qacct_cleanup {} {
 
 # --------------- test procedures for both 5.3 and 6.x
 proc qacct_basic {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER
 
    set qacct_fields "qname hostname group owner project department jobname jobnumber taskid account priority qsub_time start_time end_time granted_pe slots failed exit_status ru_wallclock ru_utime ru_stime ru_maxrss ru_ixrss ru_ismrss ru_idrss ru_isrss ru_minflt ru_majflt ru_nswap ru_inblock ru_oublock ru_msgsnd ru_msgrcv ru_nsignals ru_nvcsw ru_nivcsw cpu mem io iow maxvmem"
@@ -140,29 +140,29 @@ proc qacct_basic {} {
       # if fields are missing: error.
       # otherwise check some of the content
       if {[llength $missing] > 0} {
-         add_proc_error "qacct_basic" -1 "the following fields were missing in qacct output:\n$missing"
+         ts_log_severe "the following fields were missing in qacct output:\n$missing"
       } else {
          if {$qacct_info(owner) != $CHECK_USER} {
-            add_proc_error "qacct_basic" -1 "incorrect owner in qacct info, expected $CHECK_USER, but got $qacct_info(owner)"
+            ts_log_severe "incorrect owner in qacct info, expected $CHECK_USER, but got $qacct_info(owner)"
          }
          if {$qacct_info(jobname) != "qacct_test"} {
-            add_proc_error "qacct_basic" -1 "incorrect jobname in qacct info, expected qacct_test, but got $qacct_info(jobname)"
+            ts_log_severe "incorrect jobname in qacct info, expected qacct_test, but got $qacct_info(jobname)"
          }
          if {$qacct_info(ru_wallclock) < 10 || $qacct_info(ru_wallclock) > 15} {
-            add_proc_error "qacct_basic" -1 "incorrect ru_wallclock in qacct info, expected 10, but got $qacct_info(ru_wallclock)"
+            ts_log_severe "incorrect ru_wallclock in qacct info, expected 10, but got $qacct_info(ru_wallclock)"
          }
       }
    }
 }
 
 proc qacct_unknown_job_id {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # we can't get that high job id's due to job id wrapping
    set job_id 4000000000
 
    # qacct has to fail
    if {[get_qacct $job_id qacct_info "" "" 0] == 0} {
-      add_proc_error "qacct_unknown_job_id" -1 "qacct didn't fail on unknown job id"
+      ts_log_severe "qacct didn't fail on unknown job id"
    }
 }

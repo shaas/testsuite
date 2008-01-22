@@ -75,10 +75,10 @@ append_check_and_exclude_in_jgdi "qconf_purge_queue" "BROKEN -purge succeeds wit
 #
 #*******************************
 proc qconf_backslash_default_space_check {} {
-   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_PRODUCT_TYPE 
+   global CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE 
    global CHECK_USER ts_config
 
-   puts $CHECK_OUTPUT "testing qconf default backslash parsing with spaces ..."
+   ts_log_fine "testing qconf default backslash parsing with spaces ..."
    set master_host [resolve_host $ts_config(master_host)]
 
    # Setup
@@ -90,13 +90,13 @@ proc qconf_backslash_default_space_check {} {
    foreach group $setup_groups {
       set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Ahgrp $group"]
       set output [string trim $output]
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
       if { [regexp $ADDED $output match groupname] == 0 } {
-         add_proc_error "qconf_backslash_default_space_check" -1 "error parsing file \"$group\" in qconf_backslash_default_space_check ($output)"
+         ts_log_severe "error parsing file \"$group\" in qconf_backslash_default_space_check ($output)"
          return
       }
       lappend required_groups $groupname
-      puts $CHECK_OUTPUT "added host group \"$groupname\""
+      ts_log_fine "added host group \"$groupname\""
    }
 
    set required_groups [lsort $required_groups]
@@ -107,29 +107,29 @@ proc qconf_backslash_default_space_check {} {
    set added_groups ""
 
    foreach group $space_groups {
-      puts $CHECK_OUTPUT "parsing host group file: $group"
+      ts_log_fine "parsing host group file: $group"
       set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Ahgrp $group" ]
 
       if { [regexp $ADDED $output match groupname] == 0 } {
-         add_proc_error "qconf_backslash_default_space_check" -1 "error parsing file \"$group\" in qconf_backslash_default_space_check"
+         ts_log_severe "error parsing file \"$group\" in qconf_backslash_default_space_check"
          continue
       }
 
-      puts $CHECK_OUTPUT "added host group $groupname"
+      ts_log_fine "added host group $groupname"
       lappend added_groups $groupname
 
       # Check that the hostgroup was added correctly
       set output [start_sge_bin "qconf" "-shgrp $groupname" ]
 
       if { [regexp {hostlist[ \t]+([^\n]+)} $output match hostlist] == 0 } {
-         add_proc_error "qconf_backslash_default_space_check" -1 "error parsing file \"$group\" in qconf_backslash_default_space_check"
+         ts_log_severe "error parsing file \"$group\" in qconf_backslash_default_space_check"
          continue
       }
 
       set hostlist [lsort $hostlist]
 
       if { $hostlist != $required_groups } {
-         add_proc_error "qconf_backslash_default_space_check" -1 "error parsing file \"$group\" in qconf_backslash_default_space_check"
+         ts_log_severe "error parsing file \"$group\" in qconf_backslash_default_space_check"
          continue
       }
    }
@@ -139,11 +139,11 @@ proc qconf_backslash_default_space_check {} {
    catch { set space_groups [glob "$CHECK_ACTUAL_TEST_PATH/backslash_space_fail_hostgroup*"] }
 
    foreach group $space_groups {
-      puts $CHECK_OUTPUT "parsing host group file: $group"
+      ts_log_fine "parsing host group file: $group"
       catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Ahgrp $group" }
 
       if { $prg_exit_state == 0 } {
-         add_proc_error "qconf_backslash_default_space_check" -1 "allowed bad file \"$group\" in qconf_backslash_default_space_check"
+         ts_log_severe "allowed bad file \"$group\" in qconf_backslash_default_space_check"
          continue
       }
    }
@@ -176,10 +176,10 @@ proc qconf_backslash_default_space_check {} {
 #
 #*******************************
 proc qconf_backslash_default_comma_check {} {
-   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_PRODUCT_TYPE
+   global CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE
    global CHECK_USER ts_config
 
-   puts $CHECK_OUTPUT "testing qconf default backslash parsing with commas ..."
+   ts_log_fine "testing qconf default backslash parsing with commas ..."
    set master_host [resolve_host $ts_config(master_host)]
 
    # Check backslash parsing with commas
@@ -188,29 +188,29 @@ proc qconf_backslash_default_comma_check {} {
    set required_userlists [lsort "root bin sys"]
 
    set ADDED    [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER [resolve_host $ts_config(master_host) 1] "(\[@a-zA-Z0-9_-\]+)" "userset"]
-   puts $CHECK_OUTPUT "added is \"$ADDED\""
+   ts_log_fine "added is \"$ADDED\""
    foreach userlist $comma_userlists {
-      puts $CHECK_OUTPUT "parsing userlist file: $userlist"
+      ts_log_fine "parsing userlist file: $userlist"
       set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Au $userlist" ]
-      puts $CHECK_OUTPUT "output is \"$output\""
+      ts_log_fine "output is \"$output\""
       if { [regexp $ADDED $output match userlistname] == 0 } {
-         add_proc_error "qconf_backslash_default_comma_check" -1 "error parsing file \"$userlist\" in qconf_backslash_comma_check\n(output: $output)"
+         ts_log_severe "error parsing file \"$userlist\" in qconf_backslash_comma_check\n(output: $output)"
          return
       }
-      puts $CHECK_OUTPUT "added userlist $userlistname"
+      ts_log_fine "added userlist $userlistname"
       # Check that the userlist was added correctly
       set output [start_sge_bin "qconf" "-su $userlistname"]
       start_sge_bin "qconf" "-dul $userlistname"
 
       if { [regexp {entries[ \t]+([^\n]+)} $output match users] == 0 } {
-         add_proc_error "qconf_backslash_default_comma_check" -1 "error parsing file \"$userlist\" in qconf_backslash_comma_check"
+         ts_log_severe "error parsing file \"$userlist\" in qconf_backslash_comma_check"
          continue
       }
 
       set users [lsort [join [split $users ", "]]]
 
       if { $required_userlists != $users } {
-         add_proc_error "qconf_backslash_default_comma_check" -1 "error parsing file \"$userlist\" in qconf_backslash_comma_check -- unknown users: $user1, $user2"
+         ts_log_severe "error parsing file \"$userlist\" in qconf_backslash_comma_check -- unknown users: $user1, $user2"
       }
    }
 
@@ -219,11 +219,11 @@ proc qconf_backslash_default_comma_check {} {
    catch { set comma_userlists [glob "$CHECK_ACTUAL_TEST_PATH/backslash_comma_fail_userlist*"] }
 
    foreach userlist $comma_userlists {
-      puts $CHECK_OUTPUT "parsing userlist file: $userlist"
+      ts_log_fine "parsing userlist file: $userlist"
       catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Au $userlist" }
 
       if { $prg_exit_state == 0 } {
-         add_proc_error "qconf_backslash_default_comma_check" -1 "error parsing file \"$userlist\" in qconf_backslash_comma_check"
+         ts_log_severe "error parsing file \"$userlist\" in qconf_backslash_comma_check"
          continue
       }
    }
@@ -253,10 +253,10 @@ proc qconf_backslash_default_comma_check {} {
 #
 #*******************************
 proc qconf_backslash_custom_space_check {} {
-   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_PRODUCT_TYPE
+   global CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE
    global CHECK_USER ts_config
 
-   puts $CHECK_OUTPUT "testing qconf custom backslash parsing with spaces ..."
+   ts_log_fine "testing qconf custom backslash parsing with spaces ..."
    set master_host [resolve_host $ts_config(master_host)]
 
    # Setup
@@ -271,12 +271,12 @@ proc qconf_backslash_custom_space_check {} {
       set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Au $user"]
 
       if { [regexp $ADDED $output match username] == 0 } {
-         add_proc_error "qconf_backslash_custom_space_check" -1 "error parsing file \"$user\" in qconf_backslash_custom_space_check"
+         ts_log_severe "error parsing file \"$user\" in qconf_backslash_custom_space_check"
          return
       }
 
       lappend required_users $username
-      puts $CHECK_OUTPUT "added userlist $username"
+      ts_log_fine "added userlist $username"
    }
 
    set required_users [lsort $required_users]
@@ -289,29 +289,29 @@ proc qconf_backslash_custom_space_check {} {
  
 
    foreach queue $space_queues {
-      puts $CHECK_OUTPUT "parsing queue file: $queue"
+      ts_log_fine "parsing queue file: $queue"
       set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" ]
 
       if { [regexp $ADDED $output match queuename] == 0 } {
-         add_proc_error "qconf_backslash_custom_space_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
+         ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
          continue
       }
 
-      puts $CHECK_OUTPUT "added queue $queuename"
+      ts_log_fine "added queue $queuename"
 
       # Check that the hostgroup was added correctly
       set output [start_sge_bin "qconf" "-sq $queuename"]
       start_sge_bin "qconf" "-dq $queuename"
 
       if { [regexp {user_lists[ \t]+([^\n]+)} $output match userlist] == 0 } {
-         add_proc_error "qconf_backslash_custom_space_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
+         ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
          continue
       }
 
       set userlist [lsort $userlist]
 
       if { $userlist != $required_users } {
-         add_proc_error "qconf_backslash_custom_space_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
+         ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_space_check"
       }
    }
 
@@ -320,11 +320,11 @@ proc qconf_backslash_custom_space_check {} {
    catch { set space_queues [glob "$CHECK_ACTUAL_TEST_PATH/backslash_space_fail_queue*"] }
 
    foreach queue $space_queues {
-      puts $CHECK_OUTPUT "parsing queue file: $queue"
+      ts_log_fine "parsing queue file: $queue"
       catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" }
 
       if { $prg_exit_state == 0 } {
-         add_proc_error "qconf_backslash_custom_space_check" -1 "allowed bad file \"$queue\" in qconf_backslash_custom_space_check"
+         ts_log_severe "allowed bad file \"$queue\" in qconf_backslash_custom_space_check"
          continue
       }
    }
@@ -359,10 +359,10 @@ proc qconf_backslash_custom_space_check {} {
 #
 #*******************************
 proc qconf_backslash_custom_comma_check {} {
-   global CHECK_ACTUAL_TEST_PATH CHECK_OUTPUT CHECK_PRODUCT_TYPE
+   global CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE
    global CHECK_USER ts_config
 
-   puts $CHECK_OUTPUT "testing qconf custom backslash parsing with commas ..."
+   ts_log_fine "testing qconf custom backslash parsing with commas ..."
    set master_host [resolve_host $ts_config(master_host)]
 
    # Setup
@@ -376,12 +376,12 @@ proc qconf_backslash_custom_comma_check {} {
       set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Au $user"]
 
       if { [regexp $ADDED $output match username] == 0 } {
-         add_proc_error "qconf_backslash_custom_comma_check" -1 "error parsing file \"$user\" in qconf_backslash_custom_space_check"
+         ts_log_severe "error parsing file \"$user\" in qconf_backslash_custom_space_check"
          return
       }
 
       lappend required_users $username
-      puts $CHECK_OUTPUT "added userlist $username"
+      ts_log_fine "added userlist $username"
    }
 
    set required_users [lsort $required_users]
@@ -394,15 +394,15 @@ proc qconf_backslash_custom_comma_check {} {
    set ADDED    [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER [resolve_host $ts_config(master_host) 1] "(\[@a-zA-Z0-9_-\]+)" "cluster queue"]
 
    foreach queue $comma_queues {
-      puts $CHECK_OUTPUT "parsing queue file: $queue"
+      ts_log_fine "parsing queue file: $queue"
       set output [start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" ]
 
       if { [regexp $ADDED $output match queuename] == 0 } {
-         add_proc_error "qconf_backslash_custom_comma_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
+         ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
          continue
       }
 
-      puts $CHECK_OUTPUT "added queue $queuename"
+      ts_log_fine "added queue $queuename"
       lappend added_queues $queuename
 
       # Check that the hostgroup was added correctly
@@ -410,14 +410,14 @@ proc qconf_backslash_custom_comma_check {} {
       start_sge_bin "qconf" "-dq $queuename"
 
       if { [regexp {user_lists[ \t]+([^\n]+)} $output match userlist] == 0 } {
-         add_proc_error "qconf_backslash_custom_comma_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
+         ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
          continue
       }
 
       set userlist [lsort [join [split $userlist ", "]]]
 
       if { $userlist != $required_users } {
-         add_proc_error "qconf_backslash_custom_comma_check" -1 "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
+         ts_log_severe "error parsing file \"$queue\" in qconf_backslash_custom_comma_check"
       }
    }
 
@@ -426,11 +426,11 @@ proc qconf_backslash_custom_comma_check {} {
    catch { set comma_queues [glob "$CHECK_ACTUAL_TEST_PATH/backslash_space_fail_queue*"] }
 
    foreach queue $comma_queues {
-      puts $CHECK_OUTPUT "parsing queue file: $queue"
+      ts_log_fine "parsing queue file: $queue"
       catch { start_remote_prog $master_host $CHECK_USER "qconf" "-Aq $queue" }
 
       if { $prg_exit_state == 0 } {
-         add_proc_error "qconf_backslash_custom_comma_check" -1 "allowed bad file \"$queue\" in qconf_backslash_custom_comma_check"
+         ts_log_severe "allowed bad file \"$queue\" in qconf_backslash_custom_comma_check"
          continue
       }
    }
@@ -465,9 +465,9 @@ proc qconf_backslash_custom_comma_check {} {
 #
 #*******************************
 proc qconf_backslash_space_output_check {} {
-   global ts_config CHECK_OUTPUT CHECK_USER env
+   global ts_config CHECK_USER env
 
-   puts $CHECK_OUTPUT "testing qconf backslash line continuation in output"
+   ts_log_fine "testing qconf backslash line continuation in output"
    set master_host [resolve_host $ts_config(master_host)]
 
    # Set up failure report
@@ -490,11 +490,11 @@ proc qconf_backslash_space_output_check {} {
    # 1 + 3 + offset + spaces = 80
    # 1 + 4 + offset + spaces = 81
 
-   puts $CHECK_OUTPUT "adding host groups"
+   ts_log_fine "adding host groups"
 
    # Add each of the names as a host group
    foreach name $names {
-      puts $CHECK_OUTPUT "adding host group: $name"
+      ts_log_fine "adding host group: $name"
       # localize messages
       set short_name [string range $name 0 99]
       set ADDED [translate $master_host 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$master_host*" $short_name "host group"]
@@ -503,7 +503,7 @@ proc qconf_backslash_space_output_check {} {
       handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ahgrp $name" "" $ADDED
    }
 
-   puts $CHECK_OUTPUT "done adding host groups"
+   ts_log_fine "done adding host groups"
 
    # Store the long names
    set lname [lindex $names 0]
@@ -522,7 +522,7 @@ proc qconf_backslash_space_output_check {} {
    # For each relevant permutation of the names list
    for {set mindex 0} {$mindex < 4} {incr mindex} {
       for {set lindex 0} {$lindex < 5} {incr lindex} {
-         puts $CHECK_OUTPUT "testing permutation $mindex-$lindex"
+         ts_log_fine "testing permutation $mindex-$lindex"
 
          set permutation [linsert $names $mindex $mname]
          set permutation [linsert $permutation $lindex $lname]
@@ -564,7 +564,7 @@ proc qconf_backslash_space_output_check {} {
             set reserve 2
 
             if {$index >= [llength $permutation]} {
-               puts $CHECK_OUTPUT "too many tokens: $tokens"
+               ts_log_fine "too many tokens: $tokens"
                lappend failures "permutation $mindex-$lindex"
                set failed 1
                break
@@ -584,24 +584,24 @@ proc qconf_backslash_space_output_check {} {
                 ($length > 0)
             } then {
                if {$token != "\\"} {
-                  puts $CHECK_OUTPUT "expected backslash: $token"
+                  ts_log_fine "expected backslash: $token"
                   lappend failures "permutation $mindex-$lindex"
                   set failed 1
                   break
                }
 
-               puts $CHECK_OUTPUT "matched backslash"
+               ts_log_fine "matched backslash"
 
                set length 0
             } else {
                if {$name != $token} {
-                  puts $CHECK_OUTPUT "expected $name: $token"
+                  ts_log_fine "expected $name: $token"
                   lappend failures "permutation $mindex-$lindex"
                   set failed 1
                   break
                }
 
-               puts $CHECK_OUTPUT "matched token with $strlen characters"
+               ts_log_fine "matched token with $strlen characters"
 
                # Count the space
                if {$length > 0} {
@@ -614,7 +614,7 @@ proc qconf_backslash_space_output_check {} {
          }
 
          if {($failed != 1) && ([llength $permutation] > $index)} {
-            puts $CHECK_OUTPUT "expected $name -- too few tokens: $tokens"
+            ts_log_fine "expected $name -- too few tokens: $tokens"
             lappend failures "permutation $mindex-$lindex"
             set failed 1
          }
@@ -633,7 +633,7 @@ proc qconf_backslash_space_output_check {} {
    }
 
    if {$failed} {
-      add_proc_error "qconf_backslash_space_output_check" "-1" "error printing hostgroup in qconf_backslash_space_output_check -- failed for $failures"
+      ts_log_severe "error printing hostgroup in qconf_backslash_space_output_check -- failed for $failures"
    }
 }
 
@@ -661,23 +661,23 @@ proc qconf_backslash_space_output_check {} {
 #
 #*******************************
 proc qconf_backslash_comma_output_check {} {
-   global ts_config CHECK_OUTPUT CHECK_USER env
+   global ts_config CHECK_USER env
 
    set master_host [resolve_host $ts_config(master_host)]
 
-   puts $CHECK_OUTPUT "testing qconf backslash line continuation in output"
+   ts_log_fine "testing qconf backslash line continuation in output"
 
    # Set up failure report
    set failures ""
 
    set names ""
 
-   puts $CHECK_OUTPUT "adding complex variables"
+   ts_log_fine "adding complex variables"
 
    # Add each of the names as a complex variable
    for {set count 1} {$count <= 5} {incr count} {
       set name "complexvar$count"
-      puts $CHECK_OUTPUT "adding complex variable: $name"
+      ts_log_fine "adding complex variable: $name"
       # localize messages
       set ADDED [translate $master_host 1 0 0 [sge_macro MSG_SGETEXT_ADDEDTOLIST_SSSS] $CHECK_USER "$master_host*" $name "complex entry"]
       # add by handling vi
@@ -688,7 +688,7 @@ proc qconf_backslash_comma_output_check {} {
       lappend names $name
    }
 
-   puts $CHECK_OUTPUT "done adding complex variables"
+   ts_log_fine "done adding complex variables"
 
    # Setup desired line lengths
    # 100 + comma + offset = 123
@@ -745,7 +745,7 @@ proc qconf_backslash_comma_output_check {} {
    # For each relevant permutation of the names list
    for {set mindex 0} {$mindex < 4} {incr mindex} {
       for {set lindex 0} {$lindex < 5} {incr lindex} {
-         puts $CHECK_OUTPUT "testing permutation $mindex-$lindex"
+         ts_log_fine "testing permutation $mindex-$lindex"
 
          set permutation [linsert $snames $mindex $mname]
          set permutation [linsert $permutation $lindex $lname]
@@ -794,7 +794,7 @@ proc qconf_backslash_comma_output_check {} {
             set reserve 4
 
             if {$index >= [llength $permutation]} {
-               puts $CHECK_OUTPUT "too many tokens: $tokens"
+               ts_log_fine "too many tokens: $tokens"
                lappend failures "permutation $mindex-$lindex"
                set failed 1
                break
@@ -819,24 +819,24 @@ proc qconf_backslash_comma_output_check {} {
                 ($length > 0)
             } then {
                if {"$token" != "\\"} {
-                  puts $CHECK_OUTPUT "expected backslash: $token"
+                  ts_log_fine "expected backslash: $token"
                   lappend failures "permutation $mindex-$lindex"
                   set failed 1
                   break
                }
 
-               puts $CHECK_OUTPUT "matched backslash"
+               ts_log_fine "matched backslash"
 
                set length 0
             } else {
                if {$name != "$token"} {
-                  puts $CHECK_OUTPUT "expected $name: $token"
+                  ts_log_fine "expected $name: $token"
                   lappend failures "permutation $mindex-$lindex"
                   set failed 1
                   break
                }
 
-               puts $CHECK_OUTPUT "matched token with $strlen characters"
+               ts_log_fine "matched token with $strlen characters"
 
                # Count the comma
                if {$length > 0} {
@@ -849,7 +849,7 @@ proc qconf_backslash_comma_output_check {} {
          }
 
          if {($failed != 1) && ([llength $permutation] > $index)} {
-            puts $CHECK_OUTPUT "expected $name -- too few tokens: $tokens"
+            ts_log_fine "expected $name -- too few tokens: $tokens"
             lappend failures "permutation $mindex-$lindex"
             set failed 1
          }
@@ -868,7 +868,7 @@ proc qconf_backslash_comma_output_check {} {
    handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mc" $vi_commands $REMOVED
 
    if {$failed} {
-      add_proc_error "qconf_backslash_comma_output_check" "-1" "error printing hostgroup in qconf_backslash_comma_output_check -- failed for $failures"
+      ts_log_severe "error printing hostgroup in qconf_backslash_comma_output_check -- failed for $failures"
    }
 }
 
@@ -892,16 +892,14 @@ proc qconf_backslash_comma_output_check {} {
 #
 #*******************************************************************************
 proc check_double_output { string1 string2 } {
-   global CHECK_OUTPUT
-
    set index [ string last "$string1" "$string2" ]
    if { $index > 0 } {
       set string2 [ string range "$string2" 0 $index ] 
       if { [ string first "$string1" "$string2" ] >= 0 } {
-         add_proc_error "check_double_output" -1 "detected issue 1767\n$string1 printed 2 or more times" 
+         ts_log_severe "detected issue 1767\n$string1 printed 2 or more times" 
       } 
    } elseif { $index < 0 } {
-      add_proc_error "check_double_output" -1 "qconf doesn't reject invalid values"
+      ts_log_severe "qconf doesn't reject invalid values"
    }
 }
 
@@ -922,7 +920,7 @@ proc check_double_output { string1 string2 } {
 #     check_double_output
 #*******************************************************************************
 proc qconf_issue1767 {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    
    set master_host [resolve_host $ts_config(master_host)]
 
@@ -948,7 +946,7 @@ proc qconf_issue1767 {} {
    set REJECTED [translate $master_host 1 0 0 [ sge_macro  MSG_PE_STARTPROCARGS_SS ] "mytestpe" "unknown variable \"invalid\"" ]
    set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe | sed /start_proc_args/d > $tmp_file1  } result ]
    set exit_code [catch { exec echo "start_proc_args '\$invalid'" >> $tmp_file1 } result ]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file1  } result ]
    check_double_output $REJECTED $result
 
@@ -956,7 +954,7 @@ proc qconf_issue1767 {} {
    set REJECTED [translate $master_host 1 0 0 [ sge_macro MSG_PE_STOPPROCARGS_SS ] "mytestpe" "unknown variable \"invalid\"" ]
    set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -sp mytestpe | sed /stop_proc_args/d > $tmp_file1  } result ]
    set exit_code [catch { exec echo "stop_proc_args '\$invalid'" >> $tmp_file1 } result ]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    set exit_code [catch { exec "$ts_config(product_root)/bin/$local_arch/qconf" -Mp $tmp_file1  } result ]
    check_double_output $REJECTED $result
 }
@@ -979,26 +977,26 @@ proc qconf_issue1767 {} {
 #*******************************
 proc qconf_shgrp_tree_check {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    # First do a positive test
-   puts $CHECK_OUTPUT "Positive test for qconf -shgrp_tree ...\n"
+   ts_log_fine "Positive test for qconf -shgrp_tree ...\n"
    set result0 [get_hostgroup_tree "@qconf_test" ]
 
    if { ( $result0 == 0 ) } {
-      puts $CHECK_OUTPUT "qconf -shgrp_tree @qconf_test succeded"
+      ts_log_fine "qconf -shgrp_tree @qconf_test succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result0"
+      ts_log_fine "result is $result0"
    }
 
    # next do a negative test
-   puts $CHECK_OUTPUT "Negative test for qconf -shgrp_tree ...\n"
+   ts_log_fine "Negative test for qconf -shgrp_tree ...\n"
    set result1 [get_hostgroup_tree "wrong_hostgroup" result $ts_config(master_host) $CHECK_USER 0]
 
    if { ( $result1 == -1 ) } {
-      puts $CHECK_OUTPUT "qconf -shgrp_tree wrong_hostgroup succeded"
+      ts_log_fine "qconf -shgrp_tree wrong_hostgroup succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result1"
+      ts_log_fine "result is $result1"
    }
 }
 #                                                             max. column:     |
@@ -1020,25 +1018,25 @@ proc qconf_shgrp_tree_check {} {
 #*******************************
 proc qconf_shgrp_resolved_check {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    # First do a positive test
-   puts $CHECK_OUTPUT "Positive test for qconf -shgrp_resolved ...\n"
+   ts_log_fine "Positive test for qconf -shgrp_resolved ...\n"
    set result0 [get_hostgroup_resolved "@qconf_test" ]
    if { ( $result0 == 0 ) } {
-      puts $CHECK_OUTPUT "qconf -shgrp_resolved @qconf_test  succeded"
+      ts_log_fine "qconf -shgrp_resolved @qconf_test  succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result0"
+      ts_log_fine "result is $result0"
    }
 
    # next do a negative test
-   puts $CHECK_OUTPUT "Negative test for qconf -shgrp_resolved ...\n"
+   ts_log_fine "Negative test for qconf -shgrp_resolved ...\n"
    set result1 [get_hostgroup_resolved "wrong_hostgroup" result $ts_config(master_host) $CHECK_USER 0]
 
    if { ( $result1 == -1 ) } {
-      puts $CHECK_OUTPUT "qconf -shgrp_resolved wrong_hostgroup succeded"
+      ts_log_fine "qconf -shgrp_resolved wrong_hostgroup succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result1"
+      ts_log_fine "result is $result1"
    }
 }
 #****** qconf/check.60.exp/qconf_modify_hostgroup() ******
@@ -1057,54 +1055,54 @@ proc qconf_shgrp_resolved_check {} {
 #*******************************
 proc qconf_modify_hostgroup {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    set host [host_conf_get_suited_hosts]
 
    # Now modify the host list
-   puts $CHECK_OUTPUT "Modify host group  @qconf_test  from file ...\n"
+   ts_log_fine "Modify host group  @qconf_test  from file ...\n"
    set chgar(hostlist) "$host"
    set result1 [mod_hostgroup "@qconf_test" chgar]
 
    if { ( $result1 == 0 ) } {
-      puts $CHECK_OUTPUT "qconf -Mhgrp succeded\n"
+      ts_log_fine "qconf -Mhgrp succeded\n"
    } else {
-      puts $CHECK_OUTPUT "result is $result1"
+      ts_log_fine "result is $result1"
    }
 
    # Now do it with a wrong parameter
-   puts $CHECK_OUTPUT "Modify host group  @qconf_test wrongly from file ...\n"
+   ts_log_fine "Modify host group  @qconf_test wrongly from file ...\n"
    set chgar(stuff) "$host"
    set result11 [mod_hostgroup "@qconf_test" chgar 1 $host $CHECK_USER 0]
 
    if { ( $result11 == -1 ) } {
-      puts $CHECK_OUTPUT "qconf -Mhgrp failed  correctly\n"
+      ts_log_fine "qconf -Mhgrp failed  correctly\n"
    } else {
       # See IZ 1968 on why this does not fail as expected
-      puts $CHECK_OUTPUT "result is $result11"
+      ts_log_fine "result is $result11"
    }
 
     # Now do it with a wrong parameter again
-   puts $CHECK_OUTPUT "Modify host group  @qconf_test wrongly from file  again...\n"
+   ts_log_fine "Modify host group  @qconf_test wrongly from file  again...\n"
    set chgar(hostlist) whatever
    set result11 [mod_hostgroup "@qconf_test" chgar 1 $host $CHECK_USER 0]
 
    if { ( $result11 == -3 ) } {
-      puts $CHECK_OUTPUT "qconf -Mhgrp failed  correctly again \n"
+      ts_log_fine "qconf -Mhgrp failed  correctly again \n"
    } else {
       # See IZ 1968 on why this does not fail as expected
-      puts $CHECK_OUTPUT "result is $result11"
+      ts_log_fine "result is $result11"
    }
 
    # Now do it from CLI with wrong param again
    set chgar(hostlist) "stuff"
-   puts $CHECK_OUTPUT "Modify host group  @qconf_test  wrongly from CLI again...\n"
+   ts_log_fine "Modify host group  @qconf_test  wrongly from CLI again...\n"
    set result21 [mod_hostgroup "@qconf_test" chgar 0 $host $CHECK_USER 0]
 
    if { ( $result21 == -3 ) } {
-      puts $CHECK_OUTPUT "qconf -mhgrp failed  correctly\n"
+      ts_log_fine "qconf -mhgrp failed  correctly\n"
    } else {
-      puts $CHECK_OUTPUT "result is $result21"
+      ts_log_fine "result is $result21"
    }
 }
 
@@ -1130,7 +1128,7 @@ proc qconf_modify_hostgroup {} {
 #*******************************
 proc qconf_purge_queue {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    # add a test queue
    set host [host_conf_get_suited_hosts]
@@ -1142,14 +1140,14 @@ proc qconf_purge_queue {} {
    # queue instances or queue domains
    set ret [purge_queue "cluster_queue" "prolog" "" "" 0]
    if {$ret != -5} {
-      add_proc_error "qconf_purge_queue" -1 "purge_queue accepted a cluster queue name"
+      ts_log_severe "purge_queue accepted a cluster queue name"
    }
    
    # negative test:
    # purge without attribute name
    set ret [purge_queue $qi "" "" "" 0]
    if {$ret != -7} {
-      add_proc_error "qconf_purge_queue" -1 "purge_queue accepted an empty string as attribute"
+      ts_log_severe "purge_queue accepted an empty string as attribute"
    }
 
    # negative test: qconf -purge from non admin host
@@ -1157,76 +1155,76 @@ proc qconf_purge_queue {} {
    if {$non_cluster_host != ""} {
       set ret [purge_queue $qi "load_thresholds" $non_cluster_host "" 0]
       if {$ret == 0} {
-         add_proc_error "qconf_purge_queue" -1 "qconf -purge from $non_cluster_host (non cluster host) should have failed"
+         ts_log_severe "qconf -purge from $non_cluster_host (non cluster host) should have failed"
       }
    }
 
    # Now try load_thresholds for purge on a queue instance
    # set queue instance specific value
    mod_attr "queue" "load_thresholds" "load_avg=20" $qi
-   puts $CHECK_OUTPUT "Positive test of qconf -purge load_thresholds ...\n"
+   ts_log_fine "Positive test of qconf -purge load_thresholds ...\n"
    set result [purge_queue $qi "load_thresholds"]
    if {$result == 0} {
-      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds qconf_queue.q succeded"
+      ts_log_fine "qconf -purge queue load_thresholds qconf_queue.q succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result"
+      ts_log_fine "result is $result"
    }
 
    # negative test - purging it a second time may not work
    set result [purge_queue $qi "load_thresholds" "" "" 0]
    if {$result == -2} {
-      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds second call failed as expected"
+      ts_log_fine "qconf -purge queue load_thresholds second call failed as expected"
    } else {
-      add_proc_error "qconf_purge_queue" -1 "qconf -purge for the second time on the same attribute should have failed"
+      ts_log_severe "qconf -purge for the second time on the same attribute should have failed"
    }
 
    # Now try load_thresholds for purge on a queue domain
    # set queue domain specific value
    mod_attr "queue" "load_thresholds" "load_avg=20" "qconf_queue.q@@qconf_test"
-   puts $CHECK_OUTPUT "Positive test of qconf -purge load_thresholds ...\n"
+   ts_log_fine "Positive test of qconf -purge load_thresholds ...\n"
    set result [purge_queue "qconf_queue.q@@qconf_test" "load_thresholds"]
    if {$result == 0} {
-      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds qconf_queue.q@@qconf_test succeded"
+      ts_log_fine "qconf -purge queue load_thresholds qconf_queue.q@@qconf_test succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result"
+      ts_log_fine "result is $result"
    }
 
    # negative test - purging it a second time may not work
    set result [purge_queue "qconf_queue.q@@qconf_test" "load_thresholds" "" "" 0]
    if {$result == -2} {
-      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds second call failed as expected"
+      ts_log_fine "qconf -purge queue load_thresholds second call failed as expected"
    } else {
-      add_proc_error "qconf_purge_queue" -1 "qconf -purge for the second time on the same attribute should have failed"
+      ts_log_severe "qconf -purge for the second time on the same attribute should have failed"
    }
 
    # Now purge queue "wrong_queue.q"
-   puts $CHECK_OUTPUT "Negative test of qconf -purge load_thresholds...\n"
+   ts_log_fine "Negative test of qconf -purge load_thresholds...\n"
    set result [purge_queue [get_queue_instance "wrong_queue.q" $host] "load_thresholds" "" "" 0]
    if {$result == -1} {
-      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds wrong_queue.q failed as expected"
+      ts_log_fine "qconf -purge queue load_thresholds wrong_queue.q failed as expected"
    } else {
-      add_proc_error "qconf_purge_queue" -1 "qconf -purge with a wrong queue didn't fail"
+      ts_log_severe "qconf -purge with a wrong queue didn't fail"
    }
 
    # Now purge wrong queue domain
    # it doesn't complain about the hostgroup not existing, but about not finding the value
-   puts $CHECK_OUTPUT "Negative test of qconf -purge load_thresholds...\n"
+   ts_log_fine "Negative test of qconf -purge load_thresholds...\n"
    set result [purge_queue "qconf_queue.q@@non_existing_hgroup" "load_thresholds" "" "" 0]
    if {$result == -2} {
-      puts $CHECK_OUTPUT "qconf -purge queue load_thresholds wrong_queue.q failed as expected"
+      ts_log_fine "qconf -purge queue load_thresholds wrong_queue.q failed as expected"
    } else {
-      add_proc_error "qconf_purge_queue" -1 "qconf -purge with a wrong queue didn't fail"
+      ts_log_severe "qconf -purge with a wrong queue didn't fail"
    }
 
 
    # Now delete queue "qconf_queue.q"
-   puts $CHECK_OUTPUT "Positive test of qconf -dq qconf_queue.q...\n"
+   ts_log_fine "Positive test of qconf -dq qconf_queue.q...\n"
    set result [del_queue "qconf_queue.q" $host 1]
 
    if {$result == 0} {
-      puts $CHECK_OUTPUT "qconf -dq qconf_queue.q succeded"
+      ts_log_fine "qconf -dq qconf_queue.q succeded"
    } else {
-      puts $CHECK_OUTPUT "result is $result"
+      ts_log_fine "result is $result"
    }
 }
 
@@ -1261,54 +1259,54 @@ proc qconf_purge_queue {} {
 #*******************************
 proc qconf_de_check {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_PRODUCT_TYPE CHECK_USER CHECK
-   puts $CHECK_OUTPUT "testing qconf -de ..."
+   global CHECK_PRODUCT_TYPE CHECK_USER CHECK
+   ts_log_fine "testing qconf -de ..."
 
    # Setup
    set execd [host_conf_get_suited_hosts]
    set arch [resolve_arch $ts_config(master_host)]
 
-   puts $CHECK_OUTPUT "using execd host $execd"
+   ts_log_fine "using execd host $execd"
 
    # the tmp_file is automatically removed from testsuite
    set tmp_file [get_tmp_file_name]
    set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf -se $execd | grep -v load_values | grep -v processors > $tmp_file" } result ]
    if { $catch_result != 0 } {
-      add_proc_error "qconf_de_check" "-1" "could not store execd config: $result"
+      ts_log_severe "could not store execd config: $result"
    }
-   puts $CHECK_OUTPUT "tmp file is: $tmp_file"
-   puts $CHECK_OUTPUT "doing qconf -dattr hostgroup hostlist $execd @allhosts:"
+   ts_log_fine "tmp file is: $tmp_file"
+   ts_log_fine "doing qconf -dattr hostgroup hostlist $execd @allhosts:"
    set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf -dattr hostgroup hostlist $execd @allhosts @qconf_test" } result ]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
  
    if { $catch_result != 0 } {
-      add_proc_error "qconf_de_check" "-1" "could not remove host from hostgroup @allhosts: $result"
+      ts_log_severe "could not remove host from hostgroup @allhosts: $result"
    }
 
  
    # Test
-   puts $CHECK_OUTPUT "doing qconf -de $execd"
+   ts_log_fine "doing qconf -de $execd"
    set catch_result [ catch {  eval exec "$ts_config(product_root)/bin/$arch/qconf" "-de" "$execd" } result ]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    
    set EXEC_HOST_REMOVED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS] $CHECK_USER [resolve_host $ts_config(master_host) 1] [resolve_host $execd 1] "execution host"]
 
-   puts $CHECK_OUTPUT "looking for : \"$EXEC_HOST_REMOVED\""
-   puts $CHECK_OUTPUT "answer was  : \"$result\""
+   ts_log_fine "looking for : \"$EXEC_HOST_REMOVED\""
+   ts_log_fine "answer was  : \"$result\""
 
    if { [ string match "*$EXEC_HOST_REMOVED*" $result ] == 0 } {
-      add_proc_error "qconf_de_check" "-1" "could not delete live execd: $result\nBug 1269: qconf -de still crashes qmaster"
+      ts_log_severe "could not delete live execd: $result\nBug 1269: qconf -de still crashes qmaster"
    }
-   puts $CHECK_OUTPUT "removed execd $execd from cluster"
+   ts_log_fine "removed execd $execd from cluster"
 
-   puts $CHECK_OUTPUT "doing qconf -Ae $tmp_file"
+   ts_log_fine "doing qconf -Ae $tmp_file"
    catch { eval exec "$ts_config(product_root)/bin/$arch/qconf -Ae $tmp_file" } result 
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
 
-   puts $CHECK_OUTPUT "doing qconf -aattr hostgroup hostlist $execd @allhosts"
+   ts_log_fine "doing qconf -aattr hostgroup hostlist $execd @allhosts"
    catch { eval exec "$ts_config(product_root)/bin/$arch/qconf -aattr hostgroup hostlist $execd @allhosts" } result
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
 
-   puts $CHECK_OUTPUT "added execd $execd to cluster"
+   ts_log_fine "added execd $execd to cluster"
 }
 

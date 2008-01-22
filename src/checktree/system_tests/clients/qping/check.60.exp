@@ -92,13 +92,13 @@ proc qping_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc qping_issue_1810 {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # we have to start qping as root on the master host
    set host $ts_config(master_host)
    set arch [resolve_arch $host]
    set qping_path $ts_config(product_root)/bin/$arch/qping
-   puts $CHECK_OUTPUT "qping path: $qping_path"
+   ts_log_fine "qping path: $qping_path"
 
    set qping_env(SGE_QPING_OUTPUT_FORMAT) "s:12"
    set id [open_remote_spawn_process $host "root" $qping_path "-dump $host $ts_config(commd_port) qmaster 1" 0 "" qping_env]
@@ -111,42 +111,42 @@ proc qping_issue_1810 {} {
       expect {
          -i $sp_id full_buffer {
             set return_value -1
-            add_proc_error "qping_issue_1810" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             break
          }
          -i $sp_id timeout {
-            add_proc_error "qping_issue_1810" "-1" "got timeout(1) error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
+            ts_log_severe "got timeout(1) error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
             break
          }
          -i $sp_id eof {
-            add_proc_error "qping_issue_1810" "-1" "got eof error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
+            ts_log_severe "got eof error\nexpect_out(buffer):\n\"$expect_out(buffer)\""
             break
          }
 
          -i $sp_id -- "<sim version*</sim>" {
-            puts $CHECK_OUTPUT $expect_out(0,string)
-            puts $CHECK_OUTPUT "found sim!"
+            ts_log_fine $expect_out(0,string)
+            ts_log_fine "found sim!"
          }
 
          -i $sp_id -- "<sirm version*</sirm>" {
             if {$sim_sent == 1} {
-               puts $CHECK_OUTPUT $expect_out(0,string)
-               puts $CHECK_OUTPUT "found sirm - ok"
+               ts_log_fine $expect_out(0,string)
+               ts_log_fine "found sirm - ok"
                set sirm_received 1
             }
          }
 
          -i $sp_id "_exit_status_" {
-            puts $CHECK_OUTPUT $expect_out(0,string)
-            add_proc_error "qping_issue_1810" "-1" "got unexpected exit_status output:\n\"$expect_out(buffer)\""
+            ts_log_fine $expect_out(0,string)
+            ts_log_severe "got unexpected exit_status output:\n\"$expect_out(buffer)\""
             break
          }
 
          "debug_client" {
             if {$sim_sent == 0} {
-               puts $CHECK_OUTPUT "starting standard qping -info ..."
+               ts_log_fine "starting standard qping -info ..."
                set output [start_remote_prog $host "$CHECK_USER" $qping_path "-info $host $ts_config(commd_port) qmaster 1"]
-               puts $CHECK_OUTPUT $output
+               ts_log_fine $output
                set sim_sent 1
             }
          }

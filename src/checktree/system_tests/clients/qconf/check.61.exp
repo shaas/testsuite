@@ -50,7 +50,7 @@ global rqs_name_cli
 
 proc qconf_add_rqs {} {
    global ts_config env rqs_name_fast rqs_name_cli
-   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    set rqs_name_fast "qconf_rqs_fast"
    set rqs_name_cli "qconf_rqs_cli"
@@ -75,17 +75,17 @@ proc qconf_add_rqs {} {
    set rqs_charray($rqs_name_invalid,limit) "$rules"
    set result [add_rqs rqs_charray 1 "" "" 0]
    if { $result != -2 } {
-      add_proc_error "qconf_add_rqs" -1 "qconf -Arqs with invalid RQS returned wrong message"
+      ts_log_severe "qconf -Arqs with invalid RQS returned wrong message"
    }
    if { [get_rqs tmp_rqs_charray $rqs_name_invalid  "" "" 0] == 0} {
-      add_proc_error "qconf_add_rqs" -1 "qconf -Arqs added invalid RQS"
+      ts_log_severe "qconf -Arqs added invalid RQS"
       del_rqs $rqs_name_invalid
    }
 
    # Try to add invalid CLI
    set result [add_rqs rqs_charray 0 "" "" 0]
    if { [get_rqs tmp_rqs_charray $rqs_name_invalid "" "" 0] == 0} {
-      add_proc_error "qconf_add_rqs" -1 "qconf -arqs added invalid RQS"
+      ts_log_severe "qconf -arqs added invalid RQS"
       del_rqs $rqs_name_invalid
    }
 
@@ -98,21 +98,21 @@ proc qconf_add_rqs {} {
 
    set ret [add_rqs rqs_charray  1 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
    if {$ret != -210} {
-      add_proc_error "qconf_add_rqs" -1 "qconf -Arqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      ts_log_severe "qconf -Arqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
       del_rqs $rqs_name
    }
    set non_cluster_host [host_conf_get_unused_host]
    if {$non_cluster_host != ""} {
       set ret [add_rqs rqs_charray  1 $non_cluster_host "" 0]
       if {![check_for_non_cluster_host_error $ret "any"]} {
-         add_proc_error "qconf_add_rqs" -1 "qconf -Arqs should have failed on host $non_cluster_host"
+         ts_log_severe "qconf -Arqs should have failed on host $non_cluster_host"
       }
    }
 }
 
 proc qconf_modify_rqs {} {
    global ts_config env rqs_name_fast rqs_name_cli
-   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    get_rqs_list old_rqs
    set old_rqs_count [llength $old_rqs]
@@ -134,7 +134,7 @@ proc qconf_modify_rqs {} {
    set new_rqs_count [llength $result]
 
    if { $old_rqs_count != $new_rqs_count } {
-      add_proc_error "qconf_modify_rqs" -1 "modify fast replaced wrongly all resource quota sets"
+      ts_log_severe "modify fast replaced wrongly all resource quota sets"
    }
 
    # Modify from CLI
@@ -146,7 +146,7 @@ proc qconf_modify_rqs {} {
    set new_rqs_count [llength $result]
 
    if { $old_rqs_count != $new_rqs_count } {
-      add_proc_error "qconf_modify_rqs" -1 "modify cli replaced wrongly all resource quota sets"
+      ts_log_severe "modify cli replaced wrongly all resource quota sets"
    }
 
    # Modify unknown rqs
@@ -154,7 +154,7 @@ proc qconf_modify_rqs {} {
    set new_rqs_charray("unknown_rqs",limit) "$rules"
    set result [mod_rqs new_rqs_charray "unknown_rqs" 1 "" "" 0]
    if { $result == 0 } {
-      add_proc_error "qconf_modify_rqs" -1 "no error was reported for modifing unknown rqs"
+      ts_log_severe "no error was reported for modifing unknown rqs"
    }
 
    # try to modify resource quota set with insufficient permissions
@@ -166,13 +166,13 @@ proc qconf_modify_rqs {} {
    set new_rqs_charray($rqs_name_fast,limit) "$rules"
    set ret [mod_rqs new_rqs_charray "$rqs_name_fast" 1 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
    if {$ret != -210} {
-      add_proc_error "qconf_modify_rqs" -1 "qconf -Mrqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      ts_log_severe "qconf -Mrqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
    if {$non_cluster_host != ""} {
       set ret [mod_rqs new_rqs_charray "$rqs_name_fast" 1 $non_cluster_host "" 0]
       if {![check_for_non_cluster_host_error $ret "any"]} {
-         add_proc_error "qconf_modify_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
+         ts_log_severe "qconf -Mrqs should have failed on host $non_cluster_host"
       }
    }
 
@@ -195,18 +195,18 @@ proc qconf_modify_rqs {} {
    set result [start_sge_bin "qconf" "-Mrqs $filename" $ts_config(master_host)]
 
    if {$prg_exit_state == 0} {
-      add_proc_error "qconf_modify_rqs" -1 "qconf should have failed:\n$result"
+      ts_log_severe "qconf should have failed:\n$result"
    } else {
       set expected_message [translate_macro MSG_RQS_REQUEST_DUPLICATE_NAME_S $rqs_name_fast]
       if {[string match "*$expected_message*" $result] == 0} {
-         add_proc_error "qconf_modify_rqs" -1 "qconf should have failed with the error message\n$expected_message\nbut returned\n$result"
+         ts_log_severe "qconf should have failed with the error message\n$expected_message\nbut returned\n$result"
       }
    }
 }
 
 proc qconf_modifyreplace_rqs {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    get_rqs old_rqs_config
 
@@ -226,7 +226,7 @@ proc qconf_modifyreplace_rqs {} {
    set new_rqs_count [llength $result]
 
    if { $old_rqs_count == $new_rqs_count } {
-      add_proc_error "qconf_modifyreplace_rqs" -1 "modify replace fast doesn't replaced all resource quota sets"
+      ts_log_severe "modify replace fast doesn't replaced all resource quota sets"
    }
 
    # Replace resource quota sets fast
@@ -236,7 +236,7 @@ proc qconf_modifyreplace_rqs {} {
    set new_rqs_count [llength $result]
 
    if { $old_rqs_count != $new_rqs_count } {
-      add_proc_error "qconf_modifyreplace_rqs" -1 "modify replace cli doesn't replaced all resource quota sets"
+      ts_log_severe "modify replace cli doesn't replaced all resource quota sets"
    }
 
    # try to replace resource quota set with insufficient permissions
@@ -244,53 +244,53 @@ proc qconf_modifyreplace_rqs {} {
    # - from non admin host
    set ret [mod_rqs old_rqs_config "" 1 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
    if {$ret != -210} {
-      add_proc_error "qconf_modifyreplace_rqs" -1 "qconf -Mrqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      ts_log_severe "qconf -Mrqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
    if {$non_cluster_host != ""} {
       set ret [mod_rqs old_rqs_config "" 1 $non_cluster_host "" 0]
       if {![check_for_non_cluster_host_error $ret "any"]} {
-         add_proc_error "qconf_modifyreplace_rqs" -1 "qconf -Mrqs should have failed on host $non_cluster_host"
+         ts_log_severe "qconf -Mrqs should have failed on host $non_cluster_host"
       }
    }
 }
 
 proc qconf_remove_rqs {} {
    global ts_config env rqs_name_fast rqs_name_cli
-   global CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    # try to delete resource quota set with insufficient permissions
    # - as non admin user
    # - from non admin host
    set ret [del_rqs $rqs_name_fast "" $CHECK_FIRST_FOREIGN_SYSTEM_USER 0]
    if {$ret != -210} {
-      add_proc_error "qconf_remove_rqs" -1 "qconf -drqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+      ts_log_severe "qconf -drqs should have failed for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    }
    set non_cluster_host [host_conf_get_unused_host]
    if {$non_cluster_host != ""} {
       set ret [del_rqs $rqs_name_fast $non_cluster_host "" 0]
       if {![check_for_non_cluster_host_error $ret "admin"]} {
-         add_proc_error "qconf_remove_rqs" -1 "qconf -drqs should have failed on host $non_cluster_host"
+         ts_log_severe "qconf -drqs should have failed on host $non_cluster_host"
       }
    }
 
    # delete rqs the first time, should be OK 
-   puts $CHECK_OUTPUT "deleting resource quota set \"$rqs_name_fast\""
+   ts_log_fine "deleting resource quota set \"$rqs_name_fast\""
    del_rqs $rqs_name_fast
-   puts $CHECK_OUTPUT "deleting resource quota set \"$rqs_name_cli\""
+   ts_log_fine "deleting resource quota set \"$rqs_name_cli\""
    del_rqs $rqs_name_cli
 
    # delete rqs the second time, should be not OK
-   puts $CHECK_OUTPUT "deleting resource quota set \"$rqs_name_fast\" the second time"
+   ts_log_fine "deleting resource quota set \"$rqs_name_fast\" the second time"
    set result [del_rqs $rqs_name_fast "" "" 0]
    if {$result == 0} {
-      add_proc_error "qconf_remove_rqs" -1 "qconf -drqs shows no error for invalid rule set"
+      ts_log_severe "qconf -drqs shows no error for invalid rule set"
    }
 }
 
 proc qconf_dynamic_limit {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    set rqs_name "dynamic_rqs"
 
@@ -309,7 +309,7 @@ proc qconf_dynamic_limit {} {
    set rqs_charray($rqs_name,limit) "$rules"
    set ret [mod_rqs rqs_charray "$rqs_name" 1 "" "" 0]
    if { $ret == 0 } {
-      add_proc_error "qconf_dynamic_limit" -1 "invalid dynamic limit was accepted (1)"
+      ts_log_severe "invalid dynamic limit was accepted (1)"
    }
 
    # Try to add invalid dynamic limit (2)
@@ -320,7 +320,7 @@ proc qconf_dynamic_limit {} {
    set rqs_charray($rqs_name,limit) "$rules"
    set ret [mod_rqs rqs_charray "$rqs_name" 1 "" "" 0]
    if { $ret == 0 } {
-      add_proc_error "qconf_dynamic_limit" -1 "invalid dynamic limit was accepted (2)"
+      ts_log_severe "invalid dynamic limit was accepted (2)"
    }
 
    del_rqs $rqs_name
@@ -350,14 +350,14 @@ proc qconf_rqs_Xattr {} {
    # test mattr for name
    set result [mod_attr "$object_name" "name" "bla" "$rqs_name1" 0 "" "" 0]
    if { $result != -2 } {
-      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name name bla $rqs_name1 should have failed"
+      ts_log_severe "qconf -mattr $object_name name bla $rqs_name1 should have failed"
    }
 
    # test mattr for enabled
    set result [mod_attr "$object_name" "enabled" "true" "$rqs_name1" 0]
    get_rqs modified_rqs
    if { $modified_rqs($rqs_name1,enabled) == "FALSE" || $modified_rqs($rqs_name2,enabled) == "TRUE" } {
-      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name enabled true $rqs_name1 failed"
+      ts_log_severe "qconf -mattr $object_name enabled true $rqs_name1 failed"
    }
 
    # test mattr for description
@@ -365,7 +365,7 @@ proc qconf_rqs_Xattr {} {
    set result [mod_attr "$object_name" "description" "\"$descr\"" "$rqs_name2" 0]
    get_rqs modified_rqs
    if { $modified_rqs($rqs_name1,description) == $descr || $modified_rqs($rqs_name2,description) != $descr } {
-      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name description \"$descr\" $rqs_name1 failed"
+      ts_log_severe "qconf -mattr $object_name description \"$descr\" $rqs_name1 failed"
    }
 
    # test mattr for limit
@@ -374,7 +374,7 @@ proc qconf_rqs_Xattr {} {
    set org_value [lindex $rqs_charray($rqs_name2,limit) 2]
    set new_value [lindex $modified_rqs($rqs_name2,limit) 2]
    if { $org_value == $new_value } {
-      add_proc_error "qconf_rqs_Xattr" -1 "qconf -mattr $object_name limit slots=3 $rqs_name1/3 failed"
+      ts_log_severe "qconf -mattr $object_name limit slots=3 $rqs_name1/3 failed"
    }
 
    # test aattr for limit
@@ -383,7 +383,7 @@ proc qconf_rqs_Xattr {} {
    set org_value [lindex $rqs_charray($rqs_name1,limit) 1]
    set new_value [lindex $modified_rqs($rqs_name1,limit) 1]
    if { $org_value == $new_value } {
-      add_proc_error "qconf_rqs_Xattr" -1 "qconf -aattr $object_name limit arch=bla $rqs_name1/rule_2 failed"
+      ts_log_severe "qconf -aattr $object_name limit arch=bla $rqs_name1/rule_2 failed"
    }
 
    # rattr/dattr are not rqs specific and need to be tested generally for all objects
@@ -395,7 +395,7 @@ proc qconf_rqs_Xattr {} {
 
 proc qconf_rqs_rattr_qmaster_dump {} {
    global ts_config env
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    set object_name "resource_quota"
 
@@ -417,7 +417,7 @@ proc qconf_rqs_rattr_qmaster_dump {} {
    set result [mod_attr "$object_name" "limit" "slots=\$num_proc" "$rqs_name" 0 "" "" 0]
    after 2000
    if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
-      add_proc_error "qconf_rqs_rattr_qmaster_dump" -1 "modattr with invalid rule name crashed qmaster"
+      ts_log_severe "modattr with invalid rule name crashed qmaster"
       startup_qmaster 0
    }
 
@@ -444,7 +444,7 @@ proc qconf_rqs_rattr_qmaster_dump {} {
 #
 #*******************************************************************************
 proc qconf_issue_2383 {} {
-   global CHECK_OUTPUT  ts_config
+   global ts_config
     
    # Create a faulty complex. note that there is NO urgency value
 
@@ -454,10 +454,9 @@ proc qconf_issue_2383 {} {
       
    # check that we get the correct error message MSG_CENTRY_NULL_URGENCY
    if {$result != -6 } {
-      add_proc_error "issue_2383" -3 "qconf -mc test for IZ 2383 failed"
+      ts_log_info "qconf -mc test for IZ 2383 failed"
    } else {
-      puts $CHECK_OUTPUT " qconf -mc test for IZ 2383 passed \n"
+      ts_log_fine "qconf -mc test for IZ 2383 passed"
    }
-
 }
 

@@ -81,14 +81,14 @@ proc client_setup_init_level {} {
 
 
 proc client_setup_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global did_shutdown
 
    set did_shutdown 0
 }
 
 proc client_setup_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global did_shutdown
 
    if {$did_shutdown} {
@@ -97,7 +97,7 @@ proc client_setup_cleanup {} {
 }
 
 proc client_setup_do_test {scenario expected_error} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # client list:
    # all clients, except
@@ -133,13 +133,13 @@ proc client_setup_do_test {scenario expected_error} {
       set ret [handle_sge_errors "client_setup_do_test" "$command $commands($command,args)" $output messages 0 $prg_exit_state]
 
       if {$ret != $expected_error} {
-         add_proc_error "client_setup_do_test" -1 "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output"
+         ts_log_severe "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output"
       }
    }
 }
 
 proc client_setup_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global did_shutdown
 
    # test clients with non existing bootstrap file

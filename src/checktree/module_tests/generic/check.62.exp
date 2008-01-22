@@ -31,35 +31,12 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-global check_functions
 
-lappend check_functions "qdel_wc_job_range_list"
+global generic_module_tests
 
-
-proc qdel_wc_job_range_list {} {
-   global ts_config CHECK_USER CHECK_ACT_LEVEL
-
-   if {$CHECK_ACT_LEVEL == 0} {
-      set arguments "-N job1 -o /dev/null -j y"
-      set job_id1 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-      set arguments "-N job2 -o /dev/null -j y"
-      set job_id2 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-      set arguments "-N job3 -o /dev/null -j y"
-      set job_id3 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-      set arguments "-N job4 -o /dev/null -j y"
-      set job_id4 [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
-      wait_for_jobstart $job_id4 "job4" 60 1 1 
-      
-      # Now delete them using wc_job_range_list: job_id1,job2,job3 job_id4
-      set output [start_sge_bin "qdel" "$job_id1,job2,job3 $job_id4"]
-      if {$prg_exit_state != 0} {
-         ts_log_severe "qdel failed:\n$output"
-         return
-      }
-      
-      # Now wait 10 seconds for all jobs to finish.
-      # If they were not deleted correctly, they would run for 100 seconds.
-      # Errors (jobs still running) are generated in wait_for_end_of_all_jobs.
-      wait_for_end_of_all_jobs 10
-   }
+# remove test_ff_cl test it doesn't exist any longer in 6.2 and higher
+set pos [lsearch -exact $generic_module_tests "test_ff_cl"]
+if {$pos >= 0} {
+   set generic_module_tests [lreplace $generic_module_tests $pos $pos]
 }
+

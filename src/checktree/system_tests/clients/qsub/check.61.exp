@@ -45,7 +45,7 @@ lappend check_functions "check_qsub_ts_iz_145" ; # Testcase for TS IZ 145
 #
 #*******************************
 proc qsub_wd {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # Set a directory
    set wdir "/tmp"
@@ -57,7 +57,7 @@ proc qsub_wd {} {
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$wdir"] != 0} {
       set error_text "qsub did not set the correct working dir(1): $wdir != $qstat_j_info(cwd)\n"
-      add_proc_error "qsub_wd" -1 $error_text
+      ts_log_severe $error_text
    }
    delete_job $hold_job1
 
@@ -67,7 +67,7 @@ proc qsub_wd {} {
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
       set error_text "qsub did not set the correct working dir(2): $cwdir != $qstat_j_info(cwd)\n"
-      add_proc_error "qsub_wd" -1 $error_text
+      ts_log_severe $error_text
    }
    delete_job $hold_job1
 
@@ -77,7 +77,7 @@ proc qsub_wd {} {
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$wdir"] != 0} {
       set error_text "qsub did not set the correct working dir(3): $wdir != $qstat_j_info(cwd)\n"
-      add_proc_error "qsub_wd" -1 $error_text
+      ts_log_severe $error_text
    }
    delete_job $hold_job1
 
@@ -87,7 +87,7 @@ proc qsub_wd {} {
    get_qstat_j_info $hold_job1
    if {[string compare "$qstat_j_info(cwd)" "$cwdir"] != 0} {
       set error_text "qsub did not set the correct working dir(4): $cwdir != $qstat_j_info(cwd)\n"
-      add_proc_error "qsub_wd" -1 $error_text
+      ts_log_severe $error_text
    }
    delete_job $hold_job1
    wait_for_end_of_all_jobs
@@ -149,7 +149,7 @@ proc check_qsub_ts_iz_145 {} {
 proc qsub_ts_iz_145 { {t_sge_task_first "1"} {t_sge_task_last "4"}
                       {t_sge_task_stepsize "4" } } {
    global ts_config env                     
-   global CHECK_OUTPUT CHECK_USER CHECK_ACTUAL_TEST_PATH
+   global CHECK_USER CHECK_ACTUAL_TEST_PATH
 
    set SGE_TASK_FIRST $t_sge_task_first
    set SGE_TASK_LAST $t_sge_task_last
@@ -170,33 +170,33 @@ proc qsub_ts_iz_145 { {t_sge_task_first "1"} {t_sge_task_last "4"}
    
    set result [start_remote_prog $host $CHECK_USER cat $output_tmpfile exit_code]
    # echo first $SGE_TASK_FIRST last $SGE_TASK_LAST step $SGE_TASK_STEPSIZE
-   # puts $CHECK_OUTPUT "result is \n $result"
+   # ts_log_fine "result is \n $result"
    
    if {$exit_code != 0 || $result == ""} {
-      add_proc_error "qsub_ts_iz_145" -1 "error reading from output file on host $host:\n$result"
+      ts_log_severe "error reading from output file on host $host:\n$result"
    } else {
       if {[scan $result "first  %d last %d step %d" sge_task_first sge_task_last sge_task_stepsize] != 3 } {
-         add_proc_error "qsub_ts_iz_145" -1 "error parsing output file from host $host:\n$result"
+         ts_log_severe "error parsing output file from host $host:\n$result"
       } else {
          # sge_task_first should be $SGE_TASK_FIRST 
          if {$sge_task_first != $SGE_TASK_FIRST} {
-            add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_FIRST is incorrect:\n$sge_task_first, expected $SGE_TASK_FIRST"
+            ts_log_severe "SGE_TASK_FIRST is incorrect:\n$sge_task_first, expected $SGE_TASK_FIRST"
          } else {
-            puts $CHECK_OUTPUT "SGE_TASK_FIRST is $sge_task_first \n"
+            ts_log_fine "SGE_TASK_FIRST is $sge_task_first \n"
          }
          
          # sge_task_last should be $SGE_TASK_LAST 
          if {$sge_task_last != $SGE_TASK_LAST} {
-            add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_LAST is incorrect:\n$sge_task_last, expected $SGE_TASK_LAST"
+            ts_log_severe "SGE_TASK_LAST is incorrect:\n$sge_task_last, expected $SGE_TASK_LAST"
          } else {
-            puts $CHECK_OUTPUT "SGE_TASK_LAST is $sge_task_last \n"
+            ts_log_fine "SGE_TASK_LAST is $sge_task_last \n"
          }
             
          # sge_task_stepsize should be $SGE_TASK_STEPSIZE
          if {$sge_task_stepsize != $SGE_TASK_STEPSIZE} {
-            add_proc_error "qsub_ts_iz_145" -1 "SGE_TASK_STEPSIZE is incorrect:\n$sge_task_stepsize, expected $SGE_TASK_STEPSIZE"
+            ts_log_severe "SGE_TASK_STEPSIZE is incorrect:\n$sge_task_stepsize, expected $SGE_TASK_STEPSIZE"
          } else {
-            puts $CHECK_OUTPUT "SGE_TASK_STEPSIZE is $sge_task_stepsize \n"
+            ts_log_fine "SGE_TASK_STEPSIZE is $sge_task_stepsize \n"
          }
       }
    }

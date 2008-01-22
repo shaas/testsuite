@@ -64,7 +64,7 @@ lappend check_functions "qalter_qs_args"
 #*******************************
 proc qalter_qs_args {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    set option "-qs_args arg1 arg2 arg3 -qs_end"
    set arch [resolve_arch $ts_config(master_host)]
@@ -78,7 +78,7 @@ proc qalter_qs_args {} {
 
    # evaluate result
    if {$qalterresult != 0} {
-      add_proc_error "qalter_qs_args" -1 "qalter $option $job_id failed:\n$qalteroutput"
+      ts_log_severe "qalter $option $job_id failed:\n$qalteroutput"
    }
 }
 

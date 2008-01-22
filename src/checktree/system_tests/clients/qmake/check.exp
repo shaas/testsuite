@@ -74,7 +74,7 @@ lappend check_functions "qmake_recursive"
 lappend check_functions "qmake_rreq"         ;# only for dynamic allocation mode
 
 proc qmake_init_level {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
@@ -97,7 +97,7 @@ proc qmake_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc qmake_setup {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
 
    # create a qmake queue
    set queue(load_thresholds) "np_load_avg=11"
@@ -106,7 +106,7 @@ proc qmake_setup {} {
 }
 
 proc qmake_setup_level {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global CHECK_ACT_LEVEL
    global qmake_options pe_options qmake_host
 
@@ -147,14 +147,14 @@ proc qmake_setup_level {} {
 }
 
 proc qmake_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # delete queue
    del_queue qmake.q "" 0 1
 }
 
 proc qmake_cleanup_level {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_ACT_LEVEL
 
    delete_all_jobs
@@ -173,7 +173,7 @@ proc qmake_cleanup_level {} {
 }
 
 proc qmake_submit {slots target {variables ""}} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER CHECK_ACTUAL_TEST_PATH
    global qmake_options pe_options qmake_host
 
@@ -183,8 +183,8 @@ proc qmake_submit {slots target {variables ""}} {
       set arguments "$pe_options $slots $qmake_options $target $variables"
    }
 
-   puts $CHECK_OUTPUT "cd $CHECK_ACTUAL_TEST_PATH"
-   puts $CHECK_OUTPUT "$CHECK_USER@$qmake_host submitting qmake $arguments"
+   ts_log_fine "cd $CHECK_ACTUAL_TEST_PATH"
+   ts_log_fine "$CHECK_USER@$qmake_host submitting qmake $arguments"
    set id [open_remote_spawn_process $qmake_host $CHECK_USER "sleep" "1 ; qmake $arguments" 0 $CHECK_ACTUAL_TEST_PATH]
    set sp_id [lindex $id 1]
    set done 0
@@ -192,15 +192,15 @@ proc qmake_submit {slots target {variables ""}} {
       set timeout 60
       expect_user {
          -i $sp_id full_buffer {
-            add_proc_error "qmake_submit" -1 "expect full_buffer error"
+            ts_log_severe "expect full_buffer error"
             set done 1
          }
          -i $sp_id timeout {
-            add_proc_error "qmake_submit" -1 "timeout"
+            ts_log_severe "timeout"
             set done 1
          }
          -i $sp_id eof {
-            add_proc_error "qmake_submit" -1 "got eof"
+            ts_log_severe "got eof"
             set done 1
          }
          -i $sp_id  "?*\n" {
@@ -209,7 +209,7 @@ proc qmake_submit {slots target {variables ""}} {
                if {$line != ""} {
                   switch -glob -- $line {
                      "*_start_mark_*" {
-                        puts $CHECK_OUTPUT "qmake starting"
+                        ts_log_fine "qmake starting"
                         set done 1
                      }
                      "*.sh" -
@@ -217,7 +217,7 @@ proc qmake_submit {slots target {variables ""}} {
                         # ignore this output
                      }
                      default {
-                        puts $CHECK_OUTPUT "qmake_submit: unexpected output: $line"
+                        ts_log_fine "qmake_submit: unexpected output: $line"
                      }
                   }
                }
@@ -235,7 +235,7 @@ proc qmake_close_channel {id} {
 }
 
 proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    upvar $check_vars_name check_vars
 
@@ -247,15 +247,15 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
       set timeout 60
       expect_user {
          -i $sp_id full_buffer {
-            add_proc_error "qmake_monitor" -1 "expect full_buffer error"
+            ts_log_severe "expect full_buffer error"
             set done 1
          }
          -i $sp_id timeout {
-            add_proc_error "qmake_monitor" -1 "timeout"
+            ts_log_severe "timeout"
             set done 1
          }
          -i $sp_id eof {
-            add_proc_error "qmake_monitor" -1 "got eof"
+            ts_log_severe "got eof"
             set done 1
          }
          -i $sp_id  "?*\n" {
@@ -266,9 +266,9 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
                      "_exit_status_:*" {
                         set split_line [split $line ":"]
                         scan [lindex $split_line 1] "(%d)" exit_status
-                        puts $CHECK_OUTPUT "qmake exited with status $exit_status"
+                        ts_log_fine "qmake exited with status $exit_status"
                         if {$exit_status != 0} {
-                           add_proc_error $scenario -1 "qmake failed with exit status $exit_status"
+                           ts_log_severe "$scenario: qmake failed with exit status $exit_status"
                         }
                         set done 1
                      }
@@ -295,7 +295,7 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
                         set pos [string first "=" $line]
                         set variable [string range $line 0 [expr $pos - 1]]
                         set value [string range $line [expr $pos + 1] end]
-                        puts $CHECK_OUTPUT "make variable $variable set to $value"
+                        ts_log_fine "make variable $variable set to $value"
                         set variables($variable) $value
                      }
                      "compiling*" {
@@ -311,13 +311,13 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
                         set link(end) [clock seconds]
                      }
                      "*leaving directory*" {
-                        puts $CHECK_OUTPUT "qmake_monitor: qmake done"
+                        ts_log_fine "qmake_monitor: qmake done"
                      }
                      "script done." {
-                        puts $CHECK_OUTPUT "qmake_monitor: testsuite script done"
+                        ts_log_fine "qmake_monitor: testsuite script done"
                      }
                      default {
-                        puts $CHECK_OUTPUT "qmake_monitor: unexpected output: $line"
+                        ts_log_fine "qmake_monitor: unexpected output: $line"
                      }
                   }
                }
@@ -330,10 +330,10 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
    # check variables
    foreach var [array names check_vars] {
       if {![info exists variables($var)]} {
-         add_proc_error $scenario -1 "variable $var hasn't been set in make task environment"
+         ts_log_severe "$scenario: variable $var hasn't been set in make task environment"
       } else {
          if {[string compare $variables($var) $check_vars($var)] != 0} {
-            add_proc_error $scenario -1 "variable $var should have value \"$check_vars($var)\", but has \"$variables($var)\""
+            ts_log_severe "$scenario: variable $var should have value \"$check_vars($var)\", but has \"$variables($var)\""
          }
       }
    }
@@ -344,12 +344,12 @@ proc qmake_monitor {scenario id check_vars_name {parallel 0}} {
       if {$parallel} {
          # compile runs must be parallel (run 2 has to start before run 1 end)
          if {$compile(2,start) >= $compile(1,end)} {
-            add_proc_error $scenario -1 "compile runs didn't run in parallel (run 1 ended at [clock format $compile(1,end)], run 2 started at [clock format $compile(2,start)]"
+            ts_log_severe "$scenario: compile runs didn't run in parallel (run 1 ended at [clock format $compile(1,end)], run 2 started at [clock format $compile(2,start)]"
          }
       } else {
          # compile runs must be sequential (run 2 may not start before run 1 end)
          if {$compile(2,start) < $compile(1,end)} {
-            add_proc_error $scenario -1 "compile runs didn't run sequentially (run 1 ended at [clock format $compile(1,end)], run 2 started at [clock format $compile(2,start)]"
+            ts_log_severe "$scenario: compile runs didn't run sequentially (run 1 ended at [clock format $compile(1,end)], run 2 started at [clock format $compile(2,start)]"
          }
       }
    }
@@ -393,10 +393,10 @@ proc qmake_recursive {} {
 }
 
 proc qmake_rreq {} {
-   global CHECK_OUTPUT CHECK_ACT_LEVEL
+   global CHECK_ACT_LEVEL
 
    if {$CHECK_ACT_LEVEL != 2} {
-      puts $CHECK_OUTPUT "qmake_rreq - resource requests only available in dynamic allocation mode"
+      ts_log_fine "qmake_rreq - resource requests only available in dynamic allocation mode"
    } else {
       set check_vars(QMAKE_TEST) rreq
 

@@ -38,7 +38,7 @@ lappend check_functions "test_qstat_j_xml"
 
 
 proc qstat_profile {} {
-   global CHECK_OUTPUT CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global  CHECK_USER
    global ts_config
@@ -63,7 +63,7 @@ proc qstat_profile {} {
    # - run qstat with command line option -u sgetest2
    # - check if we got only one line of output for this user
    #
-   puts $CHECK_OUTPUT "checking sge_qstat file functionality ...."
+   ts_log_fine "checking sge_qstat file functionality ...."
 
    set home [glob ~/]
 
@@ -76,7 +76,7 @@ proc qstat_profile {} {
    set testq(slots) 10
    add_queue test.q $hostname testq
    set qname [get_queue_instance test.q $hostname]
-   puts $CHECK_OUTPUT "Created test queue $qname"
+   ts_log_fine "Created test queue $qname"
    set job_id_list ""
    set job_args "-o /dev/null -e /dev/null -q $qname"
    set job_id_list {}
@@ -86,7 +86,7 @@ proc qstat_profile {} {
    foreach user "$CHECK_SECOND_FOREIGN_SYSTEM_USER $CHECK_FIRST_FOREIGN_SYSTEM_USER $CHECK_USER" {
       set job_id [submit_job "$job_args $ts_config(product_root)/examples/jobs/sleeper.sh 60" 1 30 "" $user]
       if {$job_id <= 0} {
-         add_proc_error "qstat_profile" -1 "can't start job for qstat profile test user $user"
+         ts_log_severe "can't start job for qstat profile test user $user"
          return -1
       }
 
@@ -118,9 +118,9 @@ proc qstat_profile {} {
    #
    # The real test begins right now.
    #
-   puts $CHECK_OUTPUT "\nrunning qstat without any command line options...."
+   ts_log_fine "\nrunning qstat without any command line options...."
    set result [start_sge_bin "qstat" "" $ts_config(master_host)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    if {$prg_exit_state == 0} {
       if { [info exists jobinfo] } {
          unset jobinfo
@@ -132,10 +132,10 @@ proc qstat_profile {} {
       set shown_jobs $jobinfo(index)
       set nr_jobs [llength $shown_jobs]
       if { $nr_jobs != 1 || [lsearch $result $CHECK_FIRST_FOREIGN_SYSTEM_USER] == -1 } {
-         add_proc_error "qstat_profile" -1 "qstat using cluster profile should show one entry for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+         ts_log_severe "qstat using cluster profile should show one entry for user $CHECK_FIRST_FOREIGN_SYSTEM_USER"
       }
    } else {
-      add_proc_error "qstat_profile" -1 "qstat using cluster profile: exit != 0"
+      ts_log_severe "qstat using cluster profile: exit != 0"
    }
    #
    #
@@ -151,7 +151,7 @@ proc qstat_profile {} {
    # of check user and sgetest1 user.
    #
    set result [start_sge_bin "qstat" "" $ts_config(master_host)]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    if { $prg_exit_state == 0 } {
       if { [info exists jobinfo] } {
          unset jobinfo
@@ -166,17 +166,17 @@ proc qstat_profile {} {
       if { $nr_jobs != 2 || \
        [lsearch $result $CHECK_FIRST_FOREIGN_SYSTEM_USER] == -1 || \
        [lsearch $result $CHECK_USER] == -1 } {
-         add_proc_error "qstat_profile" -1 "qstat using local profile should show two active jobs"
+         ts_log_severe "qstat using local profile should show two active jobs"
       }
    } else {
-      add_proc_error "qstat_profile" -1 "qstat using local profile: exit != 0"
+      ts_log_severe "qstat using local profile: exit != 0"
    }
    #
    # Now with global and local profile active, select second foreign
    # test user from command line.
    #
    set result [start_sge_bin "qstat" "-u $CHECK_SECOND_FOREIGN_SYSTEM_USER"]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    if { $prg_exit_state == 0 } {
       if { [info exists jobinfo] } {
          unset jobinfo
@@ -189,11 +189,10 @@ proc qstat_profile {} {
       set shown_jobs $jobinfo(index)
       set nr_jobs [llength $shown_jobs]
       if { $nr_jobs != 1 || [lsearch $result $CHECK_SECOND_FOREIGN_SYSTEM_USER] == -1 } {
-         add_proc_error  \
-               "qstat_profile" -1 "qstat started with -u command line option should show one entry for user $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+         ts_log_severe "qstat started with -u command line option should show one entry for user $CHECK_SECOND_FOREIGN_SYSTEM_USER"
       }
    } else {
-      add_proc_error "qstat_profile" -1 "qstat started with -u command line option: exit != 0"
+      ts_log_severe "qstat started with -u command line option: exit != 0"
    }
    #
    # OK, cleanup.
@@ -209,13 +208,13 @@ proc qstat_profile {} {
    #
    get_queue_list queue_list
    if {[lsearch $queue_list "test.q"] != -1} {
-      puts $CHECK_OUTPUT "Deleting test.q"
+      ts_log_fine "Deleting test.q"
       del_queue test.q $hostname 0 1
    }
 }
 
 proc test_qstat_j_xml {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_HAVE_TDOM
+   global ts_config CHECK_USER CHECK_HAVE_TDOM
    global stored_configuration
    
    # verify if we can perform the qstat -xml tests
@@ -261,9 +260,9 @@ proc test_qstat_j_xml {} {
    foreach elem $var_array {
       if {[ string compare [string trim $xml($elem)] \
          [string trim $plain($elem)]] != 0} {
-         add_proc_error "test_xml_tdom" -1 "outputs do not match from \
+         ts_log_severe "outputs do not match from \
          plain and xml for $elem."
-         add_proc_error "test_xml_tdom" -1 "xml output: [string trim $xml($elem)] \
+         ts_log_severe "xml output: [string trim $xml($elem)] \
          plain output: [string trim $plain($elem)]"
          return
       }

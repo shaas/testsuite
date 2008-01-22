@@ -93,11 +93,11 @@ lappend check_functions "check_option_masterq"
 # -------- local test procedures: initialization------------------------------
 
 proc qrsub_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global actual_host 
    global qinstance 
 
-   puts $CHECK_OUTPUT "qrsub test setup"
+   ts_log_fine "qrsub test setup"
 
    set actual_host [host_conf_get_suited_hosts]
 
@@ -110,14 +110,14 @@ proc qrsub_setup {} {
 }
 
 proc qrsub_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_jobs
    delete_all_ars
    wait_for_end_of_all_jobs 60
    unassign_queues_with_pe_object "qrsub_pe"
    del_pe "qrsub_pe"
-   puts $CHECK_OUTPUT "qrsub cleanup function"
+   ts_log_fine "qrsub cleanup function"
 }
 
 proc qrsub_init_level {} {
@@ -131,7 +131,7 @@ proc qrsub_init_level {} {
 }
 
 proc check_submit_ar {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
  
    # positive tests
    set args "-d 1000"
@@ -141,11 +141,11 @@ proc check_submit_ar {} {
       return
    }
 
-   puts $CHECK_OUTPUT "test check_submit_ar OK"
+   ts_log_fine "test check_submit_ar OK"
 }
 
 proc check_submit_ar_noargs {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
   
    # positive tests
    set args ""
@@ -153,14 +153,14 @@ proc check_submit_ar_noargs {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -36} {
-      add_proc_error "check_submit_ar_noargs" -1 "error 'no options argument' was not shown"
+      ts_log_severe "error 'no options argument' was not shown"
       return
    }
-   puts $CHECK_OUTPUT "test check_submit_ar_noargs OK"
+   ts_log_fine "test check_submit_ar_noargs OK"
 }
 
 proc check_submit_ar_invalid_arg {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
   
    # negative tests
    set args "dfdf -d 1000"
@@ -168,13 +168,13 @@ proc check_submit_ar_invalid_arg {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -32} {
-      add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
+      ts_log_severe "error 'invalid option argument' was not shown"
    }
-   puts $CHECK_OUTPUT "test check_submit_ar_invalid_arg OK"
+   ts_log_fine "test check_submit_ar_invalid_arg OK"
 }
 
 proc check_submit_ar_invalid_option_arg {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
   
    # negative tests
    set args "-dl 1101010101 -d 1000"
@@ -182,15 +182,15 @@ proc check_submit_ar_invalid_option_arg {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -31} {
-      add_proc_error "check_submit_ar_noargs" -1 "error 'invalid option argument' was not shown"
+      ts_log_severe "error 'invalid option argument' was not shown"
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_submit_ar_invalid_option_arg OK"
+   ts_log_fine "test check_submit_ar_invalid_option_arg OK"
 }
 
 proc check_option_a {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    
    set now [clock seconds]
    set then [expr $now + 10000]
@@ -207,7 +207,7 @@ proc check_option_a {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(start_time)                     "$starto"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
@@ -220,7 +220,7 @@ proc check_option_a {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -55} {
-      add_proc_error "submit_ar" -1 "error 'end time or duration' was not shown"
+      ts_log_severe "error 'end time or duration' was not shown"
       return
    }
 
@@ -229,7 +229,7 @@ proc check_option_a {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -58} {
-      add_proc_error "submit_ar" -1 "error 'start time is in the past' was not shown"
+      ts_log_severe "error 'start time is in the past' was not shown"
       return
    }
 
@@ -238,7 +238,7 @@ proc check_option_a {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -57} {
-      add_proc_error "submit_ar" -1 "error 'start time is later than end time' was not shown"
+      ts_log_severe "error 'start time is later than end time' was not shown"
       return
    }
 
@@ -247,15 +247,15 @@ proc check_option_a {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -38} {
-      add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong date/time format' was not shown"
+      ts_log_severe "error $ar_id: 'Wrong date/time format' was not shown"
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_a OK"
+   ts_log_fine "test check_option_a OK"
 }
 
 proc check_option_A {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # positive tests
    set elm "test_ar_account"
@@ -266,18 +266,18 @@ proc check_option_A {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(account)                        "$elm"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_A OK"
+   ts_log_fine "test check_option_A OK"
 }
 
 proc check_option_ckpt {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config 
 
    # positive tests
    set elm "test_ar_ckpt"
@@ -288,18 +288,18 @@ proc check_option_ckpt {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(checkpoint_name)                        "$elm"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_ckpt OK"
+   ts_log_fine "test check_option_ckpt OK"
 }
 
 proc check_option_d {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # positive tests
    set args "-d 3600"
@@ -309,7 +309,7 @@ proc check_option_d {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(duration)                     "01:00:00"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
@@ -323,7 +323,7 @@ proc check_option_d {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(duration)                     "01:01:01"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
@@ -336,15 +336,15 @@ proc check_option_d {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -40} {
-      add_proc_error "submit_ar" -1 "error $ar_id: 'Wrong time format' was not shown"
+      ts_log_severe "error $ar_id: 'Wrong time format' was not shown"
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_d OK"
+   ts_log_fine "test check_option_d OK"
 }
 
 proc check_option_e {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set now [clock seconds]
    set then [expr $now + 20000]
@@ -360,7 +360,7 @@ proc check_option_e {} {
    }
 
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(end_time)                     "$starto"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
@@ -372,7 +372,7 @@ proc check_option_e {} {
  
    set ar_id [submit_ar $args "" "" 0]
    if {$ar_id != -58} {
-      add_proc_error "submit_ar" -1 "error 'end time is in the past' was not shown"
+      ts_log_severe "error 'end time is in the past' was not shown"
       return
    }
 
@@ -381,15 +381,15 @@ proc check_option_e {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -38} {
-      add_proc_error "submit_ar" -1 "error $ar_id: 'Invalid day specification.' was not shown"
+      ts_log_severe "error $ar_id: 'Invalid day specification.' was not shown"
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_e OK"
+   ts_log_fine "test check_option_e OK"
 }
 
 proc check_option_help {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # positive tests
    set args "-help"
@@ -397,15 +397,15 @@ proc check_option_help {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -2} {
-      add_proc_error "submit_ar" -1 "error in help $ar_id"
+      ts_log_severe "error in help $ar_id"
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_help OK"
+   ts_log_fine "test check_option_help OK"
 }
 
 proc check_option_he {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # positive tests
    set args "-he yes -d 1000"
@@ -415,7 +415,7 @@ proc check_option_he {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(error_handling)                     "true"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
@@ -428,15 +428,15 @@ proc check_option_he {} {
    set ar_id [submit_ar $args "" "" 0]
 
    if {$ar_id != -31} {
-      add_proc_error "submit_ar" -1 "invalid option error in -he blaf not shown"
+      ts_log_severe "invalid option error in -he blaf not shown"
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_he OK"
+   ts_log_fine "test check_option_he OK"
 }
 
 proc check_option_l {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global actual_host
 
    # positive tests
@@ -447,18 +447,18 @@ proc check_option_l {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(resource_list)                     "hostname=$actual_host, h_rt=1000"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_l OK"
+   ts_log_fine "test check_option_l OK"
 }
 
 proc check_option_m {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # positive tests
    set args "-m abe -d 1000"
@@ -468,18 +468,18 @@ proc check_option_m {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(mail_options)                     "abe"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_m OK"
+   ts_log_fine "test check_option_m OK"
 }
 
 proc check_option_now {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # positive tests
    set args "-now y -d 1000"
@@ -496,11 +496,11 @@ proc check_option_now {} {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_now OK"
+   ts_log_fine "test check_option_now OK"
 }
 
 proc check_option_M {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global CHECK_REPORT_EMAIL_TO
 
    set args "-M $CHECK_REPORT_EMAIL_TO -d 1000"
@@ -510,18 +510,18 @@ proc check_option_M {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(mail_list)                     "$CHECK_REPORT_EMAIL_TO"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_M OK"
+   ts_log_fine "test check_option_M OK"
 }
 
 proc check_option_N {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set args "-N test_ar_name -d 1000"
  
@@ -530,22 +530,22 @@ proc check_option_N {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(name)                     "test_ar_name"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_N OK"
+   ts_log_fine "test check_option_N OK"
 }
 
 proc check_option_pe {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qinstance
 
    if {[llength $ts_config(execd_nodes)] < 3} {
-      add_proc_error "check_option_pe" -3 "test is not supported with less than 3 exec hosts"
+      ts_log_config "test is not supported with less than 3 exec hosts"
       return
    }
 
@@ -558,7 +558,7 @@ proc check_option_pe {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(granted_parallel_environment)   "qrsub_pe slots 3"
    set check_values(granted_slots_list)             "all.q@*=1,all.q@*=1,all.q@*=1"
    set ret [parse_qrstat_check $ar_id check_values]
@@ -566,11 +566,11 @@ proc check_option_pe {} {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_pe OK"
+   ts_log_fine "test check_option_pe OK"
 }
 
 proc check_option_q {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qinstance
 
    set args "-q $qinstance -d 1000"
@@ -581,25 +581,25 @@ proc check_option_q {} {
    }
 
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(granted_slots_list)                     "$qinstance=1"
    set ret [parse_qrstat_check $ar_id check_values]
    if {$ret != 0 } {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_q OK"
+   ts_log_fine "test check_option_q OK"
 }
 
 proc check_option_w {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set args " -w e -d 1000"
  
    set ar_id [submit_ar $args]
 
    if {$ar_id < 0} {
-      add_proc_error "submit_ar" -1 "invalid submition message"
+      ts_log_severe "invalid submition message"
       return
    }
 
@@ -608,15 +608,15 @@ proc check_option_w {} {
    set ar_id [submit_ar $args]
 
    if {$ar_id != 1} {
-      add_proc_error "submit_ar" -1 "invalid submition message"
+      ts_log_severe "invalid submition message"
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_w OK"
+   ts_log_fine "test check_option_w OK"
 }
 
 proc check_option_u {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_USER
@@ -628,7 +628,7 @@ proc check_option_u {} {
       return
    }
 
-   puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+   ts_log_fine "qrstat -ar $ar_id\n"
    set check_values(acl_list)               "$CHECK_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER"
    set check_values(xacl_list)              "$CHECK_FIRST_FOREIGN_SYSTEM_USER,root"
    set ret [parse_qrstat_check $ar_id check_values]
@@ -636,11 +636,11 @@ proc check_option_u {} {
       return
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_u OK"
+   ts_log_fine "test check_option_u OK"
 }
 
 proc check_option_masterq {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    foreach host $ts_config(execd_nodes) {
       set masterq "all.q@$host"
@@ -658,5 +658,5 @@ proc check_option_masterq {} {
       delete_ar $ar_id
    }
    delete_all_ars
-   puts $CHECK_OUTPUT "test check_option_masterq OK"
+   ts_log_fine "test check_option_masterq OK"
 }

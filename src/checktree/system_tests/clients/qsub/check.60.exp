@@ -38,7 +38,7 @@ lappend check_functions "check_option_sync_ww"
 lappend check_functions "check_option_terse"
 
 proc check_qhold_jobname {} {
-   global ts_config CHECK_OUTPUT 
+   global ts_config
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global job_output_dir test_host
 
@@ -58,7 +58,7 @@ proc check_qhold_jobname {} {
 
    # job 1 should not run within the next 60 seconds  (user hold)
    if {[wait_for_jobstart $hold_job1 "Sleeper" 60 0] != -1} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job1 should not run until yet(1)"
+      ts_log_severe "job $hold_job1 should not run until yet(1)"
    }
 
    # release job 1
@@ -67,7 +67,7 @@ proc check_qhold_jobname {} {
 
    # job 2 should not run within the next minute (dependency)
    if {[wait_for_jobstart $hold_job2 "Sleeper" 60 0] != -1} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job2 should not run until yet(2)"
+      ts_log_severe "job $hold_job2 should not run until yet(2)"
    }
 
    # job1 will stop in ca. 30 sec
@@ -81,25 +81,25 @@ proc check_qhold_jobname {} {
 
    set back [del_job_files $hold_job1 $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job1 did not produce error and output file"
+      ts_log_severe "job $hold_job1 did not produce error and output file"
    }
 
    set back [ del_job_files $hold_job2 $job_output_dir 2 ] 
    if { $back != 2 } {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job2 did not produce error and output file"
+      ts_log_severe "job $hold_job2 did not produce error and output file"
    }
 
-   puts $CHECK_OUTPUT "Test wait for not existent job (job should immediately run)"
+   ts_log_fine "Test wait for not existent job (job should immediately run)"
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set job_id [submit_job $jobargs]
    wait_for_jobstart $job_id "Sleeper" 60
    wait_for_jobend $job_id "Sleeper" 60 0
 
-   puts $CHECK_OUTPUT "additional job submit with same name test"
+   ts_log_fine "additional job submit with same name test"
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job1 [submit_job $jobargs]
 
-   puts $CHECK_OUTPUT "additional job submit with same name test"
+   ts_log_fine "additional job submit with same name test"
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job2 [submit_job $jobargs]
 
@@ -109,25 +109,25 @@ proc check_qhold_jobname {} {
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job3 [submit_job $jobargs 0]
    if {$hold_job3 <= 0} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job3 should depend on multiple jobs, selected by name"
+      ts_log_severe "job $hold_job3 should depend on multiple jobs, selected by name"
    } else {
-      puts $CHECK_OUTPUT "submitted job with multiple predecessors selected by job name: $hold_job3 - correct"
+      ts_log_fine "submitted job with multiple predecessors selected by job name: $hold_job3 - correct"
    } 
     
    delete_job $hold_job1
 
-   puts $CHECK_OUTPUT "submitting hold job ..."
+   ts_log_fine "submitting hold job ..."
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30" 
    set hold_job3 [submit_job $jobargs]
 
-   puts $CHECK_OUTPUT "submitting job with same name (FIRST) ..."
+   ts_log_fine "submitting job with same name (FIRST) ..."
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
-   puts $CHECK_OUTPUT $jobargs
+   ts_log_fine $jobargs
    set hold_job1 [submit_job $jobargs 0]
    if {$hold_job1 <= 0} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job1 should have been submitted - -N name is ok, even if job dependencies containing this name exist"
+      ts_log_severe "job $hold_job1 should have been submitted - -N name is ok, even if job dependencies containing this name exist"
    } else {
-      puts $CHECK_OUTPUT "could submit job reusing jobname that is in use in a job dependency: $hold_job1 - correct"
+      ts_log_fine "could submit job reusing jobname that is in use in a job dependency: $hold_job1 - correct"
    }
 
    delete_job $hold_job1
@@ -135,29 +135,29 @@ proc check_qhold_jobname {} {
    delete_job $hold_job3
 
    # test foreign user influence ...
-   puts $CHECK_OUTPUT "checking hold for foreign user ..."
-   puts $CHECK_OUTPUT "submitting job with same name (FIRST) as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
+   ts_log_fine "checking hold for foreign user ..."
+   ts_log_fine "submitting job with same name (FIRST) as user $CHECK_FIRST_FOREIGN_SYSTEM_USER ..."
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
-   puts $CHECK_OUTPUT $jobargs
+   ts_log_fine $jobargs
    set hold_job1 [submit_job $jobargs 1 30 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
 
-   puts $CHECK_OUTPUT "submitting hold job ..."
+   ts_log_fine "submitting hold job ..."
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job3 [submit_job $jobargs]
 
    wait_for_jobstart $hold_job3 "Sleeper" 75
    wait_for_jobend $hold_job3 "Sleeper" 75 0
 
-   puts $CHECK_OUTPUT "additional job submit with same name test"
+   ts_log_fine "additional job submit with same name test"
    set jobargs "-h -l h=${test_host} -N FIRST -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job2 [submit_job $jobargs]
 
-   puts $CHECK_OUTPUT "submitting hold job ..."
+   ts_log_fine "submitting hold job ..."
    set jobargs "-hold_jid FIRST -l h=${test_host} -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 30"
    set hold_job3 [submit_job $jobargs]
 
    if {[wait_for_jobstart $hold_job3 "Sleeper" 60 0] != -1} {
-      add_proc_error "check_qhold_jobname" -1 "job $hold_job3 should not run until yet(3)"
+      ts_log_severe "job $hold_job3 should not run until yet(3)"
    }
 
    delete_job $hold_job3
@@ -198,7 +198,7 @@ proc check_qhold_jobname {} {
 #     ???/???
 #*******************************
 proc check_option_v {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir test_host
 
    # first clean up output directory:
@@ -208,17 +208,17 @@ proc check_option_v {} {
    set jobargs "$option -l h=${test_host} -o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/sleeper.sh 5"
 
    set result [submit_job $jobargs 0]
-   puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
+   ts_log_fine "\njob $result has args: \"$jobargs\""
 
    if {$result < 0} {
-      add_proc_error "check_option_v" -1 "could not submit job"
+      ts_log_severe "could not submit job"
       return
    }
 
    # check if the environment variables are set correctly in the job object
    set qstat_out [start_sge_bin qstat "-j"]
    if {[string match *DISPLAY*,test_var1=hello=world,test_var2=hello=my=friend* $qstat_out] == -1} {
-      add_proc_error "check_option_v" -1 "-v option failed, equal sign within variable values not supported"
+      ts_log_severe "-v option failed, equal sign within variable values not supported"
    }
 
    # JG: TODO: instead of starting the example sleeper job, we should output the environment and sleep for some
@@ -231,13 +231,13 @@ proc check_option_v {} {
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]
          if {$back != 2} {
-            add_proc_error "check_option_v" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+            ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
          }
          return
       }
    }
  
-   add_proc_error "check_option_v" -1 "timeout while waiting for job accounting"
+   ts_log_severe "timeout while waiting for job accounting"
 }
 
 #                                                             max. column:     |
@@ -270,7 +270,7 @@ proc check_option_v {} {
 #     ???/???
 #*******************************
 proc check_option_sync {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir test_host
 
    # first clean up output directory:  
@@ -279,10 +279,10 @@ proc check_option_sync {} {
    set option "-sync y"
    set jobargs "$option -o /dev/null -j y $ts_config(testsuite_root_dir)/scripts/qsub_exit.sh 5" 
    set result [start_sge_bin "qsub" $jobargs]
-   puts $CHECK_OUTPUT "\njob has args: \"$jobargs\""
-   puts $CHECK_OUTPUT "exit code: $prg_exit_state"
+   ts_log_fine "\njob has args: \"$jobargs\""
+   ts_log_fine "exit code: $prg_exit_state"
    if {$prg_exit_state != 5} {
-      add_proc_error "check_option_sync" -1 "qsub did not exit with correct exit code: $result"
+      ts_log_severe "qsub did not exit with correct exit code: $result"
    }
 }
 
@@ -316,7 +316,7 @@ proc check_option_sync {} {
 #     ???/???
 #*******************************
 proc check_option_sync_t {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir test_host
 
    # first clean up output directory:  
@@ -325,15 +325,15 @@ proc check_option_sync_t {} {
    set option "-sync y -t 1-2"
    set jobargs "$option -o /dev/null -j y $ts_config(testsuite_root_dir)/scripts/qsub_exit.sh 5"
    set result [start_sge_bin "qsub" "$jobargs"]
-   puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
-   puts $CHECK_OUTPUT "exit state: $prg_exit_state"
+   ts_log_fine "\njob $result has args: \"$jobargs\""
+   ts_log_fine "exit state: $prg_exit_state"
    if {$prg_exit_state != 5} {
-      add_proc_error "check_option_sync_t" -1 "qsub did not exit with correct exit code: $result"
+      ts_log_severe "qsub did not exit with correct exit code: $result"
    }
 }
 
 proc check_option_sync_ww {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set found_warning 0
    set found_job_submitted 0
@@ -352,7 +352,7 @@ proc check_option_sync_ww {} {
    set timeout 20
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "check_option_sync_ww" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
        -i $sp_id -- "$NOSUITABLEQ_S" {
          set found_warning 1
@@ -364,7 +364,7 @@ proc check_option_sync_ww {} {
          exp_continue
       }
       -i $sp_id "_exit_status_:(*)*\n" {
-            puts $CHECK_OUTPUT "got exit status from script:\n$expect_out(buffer)"
+            ts_log_fine "got exit status from script:\n$expect_out(buffer)"
       }
       -i $sp_id timeout {
          set found_timeout 1
@@ -373,11 +373,11 @@ proc check_option_sync_ww {} {
    close_spawn_process $qsub_id
 
    if {$found_warning == 0} {
-      add_proc_error "check_option_sync_ww" -1 "IZ 1945: qsub -sync -w w broken - got no warning message"
+      ts_log_severe "IZ 1945: qsub -sync -w w broken - got no warning message"
    } elseif {$found_job_submitted == 0} {
-      add_proc_error "check_option_sync_ww" -1 "IZ 1945: qsub -sync -w w broken - got no submitted message"
+      ts_log_severe "IZ 1945: qsub -sync -w w broken - got no submitted message"
    } elseif {$found_timeout == 0} {
-      add_proc_error "check_option_sync_ww" -1 "IZ 1945: qsub -sync -w w broken - sync does not wait until jobend"
+      ts_log_severe "IZ 1945: qsub -sync -w w broken - sync does not wait until jobend"
    }
 
    delete_all_jobs
@@ -479,26 +479,26 @@ proc valid_job_has_valid_account_string {option} {
 #*******************************
 
 proc check_option_terse {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
-   puts $CHECK_OUTPUT "Testing qsub -terse option"
+   ts_log_fine "Testing qsub -terse option"
    set job_args "-terse $default_args"
    set output ""
    set not_expected [translate_macro MSG_QSUB_YOURJOBHASBEENSUBMITTED_SS "*" "*"]
-   puts $CHECK_OUTPUT "Running qsub -terse option: $job_args"
+   ts_log_fine "Running qsub -terse option: $job_args"
    set output [start_sge_bin "qsub" $job_args]
    # now check if the output contained "Your job ", which means the option is not
    # working
    # Do a second check to see if the job has been submitted, and $output has jobid
    if {$prg_exit_state == 0} {
       if {[string first $not_expected $output] == 0 && [get_extended_job_info $output] == 1} {
-         add_proc_error "check_option_terse" -1 "not working:\n$output"
+         ts_log_severe "not working:\n$output"
       } else {
-         puts $CHECK_OUTPUT "The -terse is working!!!!\n$output)"
+         ts_log_fine "The -terse is working!!!!\n$output)"
       }
    } else {
-      add_proc_error "check_option_terse" -1 "qsub $job_args failed:\n$output"
+      ts_log_severe "qsub $job_args failed:\n$output"
    }
 }
 
@@ -532,11 +532,11 @@ proc check_option_terse {} {
 #     ???/???
 #*******************************
 proc check_deadline {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global test_host job_output_dir
 
    if {$ts_config(product_type) == "sge"} {
-      add_proc_error "check_deadline" -3 "not possible in sge system"
+      ts_log_config "not possible in sge system"
       return
    }
 
@@ -549,18 +549,18 @@ proc check_deadline {} {
    # start job
    set job_id [submit_job $jobargs]
    if {$job_id < 0} {
-      add_proc_error "check_deadline" -1 "could not submit job"
+      ts_log_severe "could not submit job"
       return
    }
 
    # now job is in queueing system (get timestamp now)
-   puts $CHECK_OUTPUT "monitoring job $job_id"
+   ts_log_fine "monitoring job $job_id"
 
    set dlcontr_min 999999999
    set dlcontr_max 0
    while {[get_urgency_job_info ""] == 1 && $job_info(index) == $job_id} {
       set dlcontr $job_info($job_id,dlcontr)
-      puts $CHECK_OUTPUT "job has deadline $job_info($job_id,deadline), dlcontr $dlcontr"
+      ts_log_fine "job has deadline $job_info($job_id,deadline), dlcontr $dlcontr"
       if {$dlcontr < $dlcontr_min} {
          set dlcontr_min $dlcontr
       }
@@ -573,21 +573,21 @@ proc check_deadline {} {
    # now the job is done - delete job files
    set back [del_job_files $job_id $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "check_deadline" -1 "job $job_id did not produce error and output file"
+      ts_log_severe "job $job_id did not produce error and output file"
    }
 
    # and now analyze the deadline policy info
    get_schedd_config schedd_config
 
-   puts $CHECK_OUTPUT "minimum dlcontr was $dlcontr_min"
-   puts $CHECK_OUTPUT "maximum dlcontr was $dlcontr_max"
-   puts $CHECK_OUTPUT "weight_deadline is  $schedd_config(weight_deadline)"
+   ts_log_fine "minimum dlcontr was $dlcontr_min"
+   ts_log_fine "maximum dlcontr was $dlcontr_max"
+   ts_log_fine "weight_deadline is  $schedd_config(weight_deadline)"
 
    if {$dlcontr_min != 0} {
-      add_proc_error "" -1 "expected a minimum dlcontr of 0, but got $dlcontr_min"
+      ts_log_severe "expected a minimum dlcontr of 0, but got $dlcontr_min"
    }
    if {$dlcontr_max != $schedd_config(weight_deadline)} {
-      add_proc_error "" -1 "expected a maximum dlcontr of $schedd_config(weight_deadline), but got $dlcontr_max"
+      ts_log_severe "expected a maximum dlcontr of $schedd_config(weight_deadline), but got $dlcontr_max"
    }
 }
 

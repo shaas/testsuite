@@ -82,14 +82,14 @@ proc client_override_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc client_override_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # needn't backup the original sge_request file - the template is in $SGE_ROOT/util
    start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "-f  $ts_config(testsuite_root_dir)/checktree/system_tests/clients/qsub/override/test_files/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"
 }
 
 proc client_override_cleanup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    # restore sge_request file
    start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "-f $ts_config(product_root)/util/sge_request $ts_config(product_root)/$ts_config(cell)/common/sge_request"
@@ -111,6 +111,6 @@ proc client_override_test1 {} {
    get_qstat_j_info $job_id
    if {[string compare "$qstat_j_info(hard_queue_list)" "all.q@$hostname"] != 0} {
       set error_text "qsub did not set the correct queue: $hostname \n"
-      add_proc_error "client_override_test1" -1 " overriding of default script file failed"
+      ts_log_severe " overriding of default script file failed"
    }
 }

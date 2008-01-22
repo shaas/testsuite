@@ -141,7 +141,7 @@ proc qsub_init_level {} {
 }
 
 proc qsub_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_JOB_OUTPUT_DIR
    global stored_configuration
    global job_output_dir test_host default_args default_q_args default_h_args
@@ -193,7 +193,7 @@ proc qsub_setup {} {
 }
 
 proc qsub_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global stored_configuration
    global job_output_dir test_host default_args default_q_args default_h_args
    global steps_per_queue size_interval
@@ -217,7 +217,7 @@ proc qsub_cleanup {} {
 }
 
 proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_files 2}} {
-   global ts_config CHECK_OUTPUT CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
    global job_output_dir
 
    # default user is the first "foreign" user!
@@ -240,14 +240,14 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
    set job_id [submit_job $jobargs $submit_error_check 60 $host $user]
    if {$expect_submit_error} {
       if {$job_id > 0} {
-         add_proc_error "qsub_submit_check" -1 "submission of job \"$jobargs\" as user $user should have failed"
+         ts_log_severe "submission of job \"$jobargs\" as user $user should have failed"
          delete_job $job_id
       }
       # are done
       return 0
    } else {
       if {$job_id < 0} {
-         add_proc_error "qsub_submit_check" -1 "submission of job \"$jobargs\" as user $user failed:\nerror $job_id"
+         ts_log_severe "submission of job \"$jobargs\" as user $user failed:\nerror $job_id"
          return 0
       }
    }
@@ -260,7 +260,7 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
       if {$back != -1} {
          set back [del_job_files $job_id $job_output_dir $output_files]
          if {$back != $output_files} {
-            add_proc_error "qsub_submit_check" -1 "job $job_id (\"$jobargs\") did not produce error and output file"
+            ts_log_severe "job $job_id (\"$jobargs\") did not produce error and output file"
             return 0
          } else {
             # job ran through successfully
@@ -270,7 +270,7 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
    }
 
    # if we get here, we didn't find an accounting record within reasonable time
-   add_proc_error "qsub_submit_check" -1 "timeout waiting for job $job_id (\"$jobargs\")"
+   ts_log_severe "timeout waiting for job $job_id (\"$jobargs\")"
 
    # cleanup
    delete_job $job_id
@@ -307,7 +307,7 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
 #     ???/???
 #*******************************
 proc check_submit {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -315,19 +315,19 @@ proc check_submit {} {
    
    # submit from every architecture
    foreach host $ts_config(unique_arch_nodes) {
-      puts $CHECK_OUTPUT "--> submit on host $host"
+      ts_log_fine "--> submit on host $host"
       qsub_submit_check $default_args 0 "" $host
    }
 
    # submit to every architecture
    foreach host $ts_config(unique_arch_nodes) {
-      puts $CHECK_OUTPUT "--> submit to host $host"
+      ts_log_fine "--> submit to host $host"
       qsub_submit_check "-l h=${host} $default_args" 0
    }
 }
 
 proc qsub_starter_method {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_ACTUAL_TEST_PATH
    global job_output_dir test_host
    global default_q_args default_h_args
 
@@ -344,7 +344,7 @@ proc qsub_starter_method {} {
    set result [submit_job $jobargs]
 
    if {$result < 0} {
-      add_proc_error "qsub_starter_method" -1 "could not submit job: $jobargs"
+      ts_log_severe "could not submit job: $jobargs"
       set ok 0
    }
 
@@ -352,7 +352,7 @@ proc qsub_starter_method {} {
    if {$ok} {
       set back [wait_for_jobstart $result "leeper" 300]
       if {$back != 0} {
-         add_proc_error "qsub_starter_method" -1 "job $result doesn't start"
+         ts_log_severe "job $result doesn't start"
          set ok 0
       }
    }
@@ -361,7 +361,7 @@ proc qsub_starter_method {} {
    if {$ok} {
       set back [wait_for_jobend $result "leeper" 300 0]
       if {$back != 0} {
-         add_proc_error "qsub_starter_method" -1 "job $result doesn't stop"
+         ts_log_severe "job $result doesn't stop"
          set ok 0
       }
    }
@@ -370,10 +370,10 @@ proc qsub_starter_method {} {
    if {$ok} {
       sleep 2
       set outfilename "$job_output_dir/Sleeper.o$result"
-      puts $CHECK_OUTPUT "checking output file $outfilename"
+      ts_log_fine "checking output file $outfilename"
 
       if {![file exists $outfilename]} {
-         add_proc_error "qsub_starter_method" -1 "output file for job $result on host $test_host does not exist"
+         ts_log_severe "output file for job $result on host $test_host does not exist"
          set ok 0
       } else {
          set f [open $outfilename r]
@@ -381,18 +381,18 @@ proc qsub_starter_method {} {
          set num_lines 0
          while {[gets $f line] >= 0} {
             incr num_lines
-            puts $CHECK_OUTPUT $line
+            ts_log_fine $line
                if {[string compare $line "starter method started"] == 0} {
                set files_ok 1
                break
             }
          }
          if {$num_lines == 0} {
-            add_proc_error "qsub_starter_method" -1 "error reading from job output file for job $result on host $test_host"
+            ts_log_severe "error reading from job output file for job $result on host $test_host"
             set ok 0
          } else {
             if {$files_ok == 0} {
-               add_proc_error "qsub_starter_method" -1 "starter method was not started for job $result on host $test_host"
+               ts_log_severe "starter method was not started for job $result on host $test_host"
                set ok 0
             }
          }  
@@ -403,7 +403,7 @@ proc qsub_starter_method {} {
    # cleanup
    set back [del_job_files $result $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "qsub_starter_method" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+      ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
    }
    if {!$ok && $result > 0} {
       delete_job $result
@@ -444,11 +444,11 @@ proc qsub_starter_method {} {
 #     ???/???
 #*******************************
 proc setup_output_directory {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir 
    
    if {[string length $job_output_dir] < 5} {
-      add_proc_error "setup_output_directory" -1 "job output dir path must at least have 5 characters\ngot \"$job_output_dir\""
+      ts_log_severe "job output dir path must at least have 5 characters\ngot \"$job_output_dir\""
       return -1
    }
 
@@ -457,14 +457,14 @@ proc setup_output_directory {} {
    set files_deleted 0
    if {![file isdirectory "$job_output_dir"]} {
       file mkdir "$job_output_dir"
-      puts $CHECK_OUTPUT "new output directory \"$job_output_dir\" generated!"
+      ts_log_fine "new output directory \"$job_output_dir\" generated!"
    } else {
-      puts $CHECK_OUTPUT "deleting all files in output directory \"$job_output_dir\"!"
+      ts_log_fine "deleting all files in output directory \"$job_output_dir\"!"
       set files [glob -nocomplain $job_output_dir/*]
       foreach elem $files {
-         puts $CHECK_OUTPUT $elem
+         ts_log_fine $elem
          if {[file isfile $elem] == 1 } {
-            puts $CHECK_OUTPUT "deleting file $elem"
+            ts_log_fine "deleting file $elem"
             incr files_deleted
             delete_file $elem
          }
@@ -507,7 +507,7 @@ proc setup_output_directory {} {
 #     ???/???
 #*******************************
 proc check_hold {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir test_host default_args
 
    set ok 1
@@ -518,34 +518,34 @@ proc check_hold {} {
    set jobargs "-h $default_args"
    set result [submit_job $jobargs] 
    if {$result < 0} {
-      add_proc_error "check_hold" -1 "error submitting job \"$jobargs\"\nerror $result"
+      ts_log_severe "error submitting job \"$jobargs\"\nerror $result"
    }
  
    # wait for job to get in pending state 
    if {[wait_for_jobpending $result "leeper" 200] != 0} {
-      add_proc_error "check_hold" -1 "job $result is not in pending state"
+      ts_log_severe "job $result is not in pending state"
       set ok 0
    }
 
    # job should not run within the next 2 minutes 
    if {$ok} {
-      puts $CHECK_OUTPUT "check_hold - set hold for job $result, job should not start"
+      ts_log_fine "check_hold - set hold for job $result, job should not start"
       if {[wait_for_jobstart $result "leeper" 120 0] != -1} {
-         add_proc_error "check_hold" -1 "job $result should not run until yet"
+         ts_log_severe "job $result should not run until yet"
          set ok 0
       }
    }
 
    # release job
    if {$ok} {
-      puts $CHECK_OUTPUT "check_hold - ok now we release the job"
+      ts_log_fine "check_hold - ok now we release the job"
       release_job $result
    }
 
    # wait for job to start
    if {$ok} {
       if {[wait_for_jobstart $result "leeper" 300] == -1} {
-         add_proc_error "check_hold" -1 "check_hold - job $result doesn't start"
+         ts_log_severe "check_hold - job $result doesn't start"
          set ok 0
       }
    }
@@ -553,7 +553,7 @@ proc check_hold {} {
    # wait for end of job
    if {$ok} {
       if {[wait_for_jobend $result "leeper" 300 0] == -1} {
-         add_proc_error "check_hold" -1 "check_hold - job $result doesn't stop"
+         ts_log_severe "check_hold - job $result doesn't stop"
          set ok 0
       }
    }
@@ -561,7 +561,7 @@ proc check_hold {} {
    # cleanup
    set back [del_job_files $result $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "check_hold" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+      ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
    }
    if {!$ok && $result > 0} {
       delete_job $result
@@ -598,7 +598,7 @@ proc check_hold {} {
 #     ???/???
 #*******************************
 proc check_start_time {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global job_output_dir test_host
 
    # first clean up output directory:  
@@ -616,31 +616,31 @@ proc check_start_time {} {
    # submit job
    set result [submit_job $jobargs]
    if {$result < 0} {
-      add_proc_error "check_start_time" -1 "error submitting job \"$jobargs\"\nerror $result"
+      ts_log_severe "error submitting job \"$jobargs\"\nerror $result"
    }
 
    # wait for job to get in pending state
    if {[wait_for_jobpending $result "leeper" 200] != 0} {
-      add_proc_error "check_start_time" -1 "job $result is not in pending state"
+      ts_log_severe "job $result is not in pending state"
       set ok 0
    }
 
    # calulate time until job should run
    if {$ok} {
       set wait_time 10
-      puts $CHECK_OUTPUT "check_start_time - job should not start the next $wait_time seconds"
+      ts_log_fine "check_start_time - job should not start the next $wait_time seconds"
       set now [clock seconds]
       if {[wait_for_jobstart $result "leeper" $wait_time 0] != -1} {
-         add_proc_error "check_start_time" -1 "check_start_time - job $result should not run until yet"
+         ts_log_severe "check_start_time - job $result should not run until yet"
          set ok 0
       }
    }
 
    # wait for job to start
    if {$ok} {
-      puts $CHECK_OUTPUT "check_start_time - ok now the job should start"
+      ts_log_fine "check_start_time - ok now the job should start"
       if {[wait_for_jobstart $result "leeper" 300] == -1} {
-         add_proc_error "check_start_time" -1 "check_start_time - job $result doesn't start"
+         ts_log_severe "check_start_time - job $result doesn't start"
          set ok 0
       }
    }
@@ -648,7 +648,7 @@ proc check_start_time {} {
    # wait for end of job
    if {$ok} {
       if {[wait_for_jobend $result "leeper" 300 0] == -1} {
-         add_proc_error "check_start_time" -1 "check_start_time - job $result doesn't stop"
+         ts_log_severe "check_start_time - job $result doesn't stop"
          set ok 0
       }
    }
@@ -656,7 +656,7 @@ proc check_start_time {} {
    # cleanup
    set back [del_job_files $result $job_output_dir 2]
    if {$back != 2} {
-      add_proc_error "check_start_time" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+      ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
    }
    if {!$ok && $result > 0} {
       delete_job $result
@@ -693,7 +693,7 @@ proc check_start_time {} {
 #     ???/???
 #*******************************
 proc check_option_ac {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_ACTUAL_TEST_PATH
    global job_output_dir test_host
 
    # first clean up output directory:
@@ -705,40 +705,40 @@ proc check_option_ac {} {
    set result [submit_job $jobargs 0]
 
    if {$result < 0} {
-      add_proc_error "check_option_ac" -1 "error submitting job \"$jobargs\"\nerror $result"
+      ts_log_severe "error submitting job \"$jobargs\"\nerror $result"
       return
    }
 
    set qstatoutput [start_sge_bin "qstat" "-j $result"]
 
    if {$prg_exit_state != 0} {
-      add_proc_error "check_option_ac" -1 "error executing qstat -j $result"
+      ts_log_severe "error executing qstat -j $result"
       return
    }
 
    if {[regexp {context:([^\r\n]+\r?\n)} $qstatoutput match vars] != 1} {
-      add_proc_error "check_option_ac" -1 "qsub $option - qsub error: context variables were not set"
+      ts_log_severe "qsub $option - qsub error: context variables were not set"
       return
    }
 
-   puts $CHECK_OUTPUT "context variables: $vars"
+   ts_log_fine "context variables: $vars"
 
    if {[regexp {[ \t,]myvar1=test 1[,\r\n]} $vars match] != 1} {
-      add_proc_error "check_option_ac" -1 "qsub $option - qsub error: command-line context variable was not set"
+      ts_log_severe "qsub $option - qsub error: command-line context variable was not set"
       return
    } elseif {[regexp {[ \t,]myvar2=test 2[,\r\n]} $vars match] != 1} {
-      add_proc_error "check_option_ac" -1 "qsub $option - qsub error: command-line context variable was not set"
+      ts_log_severe "qsub $option - qsub error: command-line context variable was not set"
       return
    } elseif {[regexp {[ \t,]myvar3=test 3[,\r\n]} $vars match] != 1} {
-      add_proc_error "check_option_ac" -1 "qsub $option - qsub error: inline context variable was not set"
+      ts_log_severe "qsub $option - qsub error: inline context variable was not set"
       return
    } elseif {[regexp {[ \t,]myvar4=test 4[,\r\n]} $vars match] != 1} {
       if {[regexp {[ \t,]myvar4='test 4'[,\r\n]} $vars match] == 1} {
-         add_proc_error "check_option_ac" -3 "qsub $option - qsub error: issue IZ1850 encountered only fixed for versions > 6.0"
+         ts_log_info "qsub $option - qsub error: issue IZ1850 encountered only fixed for versions > 6.0"
          return
       }
 
-      add_proc_error "check_option_ac" -1 "qsub $option - qsub error: inline context variable was not set"
+      ts_log_severe "qsub $option - qsub error: inline context variable was not set"
       return
    }
 
@@ -749,13 +749,13 @@ proc check_option_ac {} {
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]
          if {$back != 2} {
-            add_proc_error "check_option_ac" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+            ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
          }
          return
       }
    }
  
-   add_proc_error "check_option_ac" -1 "timeout while waiting for job accounting"
+   ts_log_severe "timeout while waiting for job accounting"
 }
 
 #                                                             max. column:     |
@@ -788,7 +788,7 @@ proc check_option_ac {} {
 #     ???/???
 #*******************************
 proc check_option_A {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -804,7 +804,7 @@ proc check_option_A {} {
          get_qacct $job_id
          set acct_string $qacct_info(account)
          if {$acct_string != $string} {
-            add_proc_error -1 "check_option_A" "account string requested with -A option missing in accounting record:\nexpected $string, but accounting record contains $acct_string\nfor job $job_id"
+            ts_log_severe "account string requested with -A option missing in accounting record:\nexpected $string, but accounting record contains $acct_string\nfor job $job_id"
          }
       }
    }
@@ -847,7 +847,7 @@ proc check_option_A {} {
 #     ???/???
 #*******************************
 proc check_option_clear {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -860,7 +860,7 @@ proc check_option_clear {} {
    if {$job_id > 0} {
       get_qacct $job_id
       if {$qacct_info(account) == "blahblah"} {
-         add_proc_error -1 "check_option_A" "-clear option didn't earlier -A option"
+         ts_log_severe "-clear option didn't earlier -A option"
       }
    }
 }
@@ -895,7 +895,7 @@ proc check_option_clear {} {
 #     ???/???
 #*******************************
 proc check_option_c {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -936,7 +936,7 @@ proc check_option_c {} {
 #     ???/???
 #*******************************
 proc check_option_ckpt {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -977,7 +977,7 @@ proc check_option_ckpt {} {
 #     ???/???
 #*******************************
 proc check_option_cwd {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1018,7 +1018,7 @@ proc check_option_cwd {} {
 #     ???/???
 #*******************************
 proc check_option_C {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1059,7 +1059,7 @@ proc check_option_C {} {
 #     ???/???
 #*******************************
 proc check_option_dc {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1100,7 +1100,7 @@ proc check_option_dc {} {
 #     ???/???
 #*******************************
 proc check_option_e {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1140,7 +1140,7 @@ proc check_option_e {} {
 #     ???/???
 #*******************************
 proc check_option_hard {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1181,7 +1181,7 @@ proc check_option_hard {} {
 #     ???/???
 #*******************************
 proc check_option_help {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1222,7 +1222,7 @@ proc check_option_help {} {
 #     ???/???
 #*******************************
 proc check_option_hold_jid {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1270,7 +1270,7 @@ proc check_option_hold_jid {} {
 #     ???/???
 #*******************************
 proc check_option_j_y {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1311,7 +1311,7 @@ proc check_option_j_y {} {
 #     ???/???
 #*******************************
 proc check_option_j_n {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1352,7 +1352,7 @@ proc check_option_j_n {} {
 #     ???/???
 #*******************************
 proc check_option_l {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_h_args
 
    # first clean up output directory:
@@ -1393,7 +1393,7 @@ proc check_option_l {} {
 #     ???/???
 #*******************************
 proc check_option_m {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1434,7 +1434,7 @@ proc check_option_m {} {
 #     ???/???
 #*******************************
 proc check_option_notify {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1475,7 +1475,7 @@ proc check_option_notify {} {
 #     ???/???
 #*******************************
 proc check_option_now_yes {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args job_output_dir
 
    # first clean up output directory:
@@ -1489,16 +1489,16 @@ proc check_option_now_yes {} {
       if {$result != -6} {
          break
       } else {
-         add_proc_error "check_option_now_yes" -3 "bugtraq id: 4938859 ->\nqsub -now yes returned job could not be scheduled, try later - error - trying again ... (try $i)"
-         puts $CHECK_OUTPUT "sleeping 5 sec ..."
+         ts_log_info "bugtraq id: 4938859 ->\nqsub -now yes returned job could not be scheduled, try later - error - trying again ... (try $i)"
+         ts_log_fine "sleeping 5 sec ..."
          sleep 5
       }
    }
  
-   puts $CHECK_OUTPUT "\njob $result has args: \"$jobargs\""
+   ts_log_fine "\njob $result has args: \"$jobargs\""
 
    if {$result < 0} {
-      add_proc_error "check_option_now_yes" -1 "could not submit job\n -> return value of submit_job: $result"
+      ts_log_severe "could not submit job\n -> return value of submit_job: $result"
       return
    }
 
@@ -1510,7 +1510,7 @@ proc check_option_now_yes {} {
       if {$back != -1} {
          set back [del_job_files $result $job_output_dir 2]
          if {$back != 2} {
-            add_proc_error "check_option_now_yes" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+            ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
             return
          } else {
             return
@@ -1518,13 +1518,13 @@ proc check_option_now_yes {} {
       }
    }
  
-   add_proc_error "check_option_now_yes" -1 "timeout while waiting for job accounting"
+   ts_log_severe "timeout while waiting for job accounting"
 
    # negative test: expect job not to be scheduled
    # disable all queues
    #set result [submit_job $jobargs 0]
    #if {$result != -6} {
-   #   add_proc_error "qsub_option_now_yes" -1 "qsub -now yes should have failed with all queues disabled"
+   #   ts_log_severe "qsub -now yes should have failed with all queues disabled"
    #}
    # enable all queues
 }
@@ -1559,7 +1559,7 @@ proc check_option_now_yes {} {
 #     ???/???
 #*******************************
 proc check_option_now_no {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1600,12 +1600,12 @@ proc check_option_now_no {} {
 #     ???/???
 #*******************************
 proc check_option_M {} {
-   global ts_config CHECK_OUTPUT CHECK_REPORT_EMAIL_TO
+   global ts_config CHECK_REPORT_EMAIL_TO
    global default_args
 
    # can't run the check, if no email address has been configured
    if {[string compare $CHECK_REPORT_EMAIL_TO "none"] == 0} {
-      add_proc_error "check_option_M" -3 "no email address configured - can't run qsub -M check"
+      ts_log_config "no email address configured - can't run qsub -M check"
       return
    }
 
@@ -1647,7 +1647,7 @@ proc check_option_M {} {
 #     ???/???
 #*******************************
 proc check_option_N {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1663,7 +1663,7 @@ proc check_option_N {} {
          get_qacct $job_id
          set acct_string $qacct_info(jobname)
          if {$acct_string != $string} {
-            add_proc_error -1 "check_option_N" "job name string requested with -N option missing in accounting record:\nexpected $string, but accounting record contains $acct_string\nfor job $job_id"
+            ts_log_severe "job name string requested with -N option missing in accounting record:\nexpected $string, but accounting record contains $acct_string\nfor job $job_id"
          }
       }
    }
@@ -1706,7 +1706,7 @@ proc check_option_N {} {
 #     ???/???
 #*******************************
 proc check_option_o {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1746,7 +1746,7 @@ proc check_option_o {} {
 #     ???/???
 #*******************************
 proc check_option_P {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1759,7 +1759,7 @@ proc check_option_P {} {
    if {$job_id > 0} {
       get_qacct $job_id
       if {$qacct_info(project) != "mytestproject"} {
-         add_proc_error -1 "check_option_P" "project specified by -P switch missing in accounting record"
+         ts_log_severe "project specified by -P switch missing in accounting record"
       }
    }
 }
@@ -1794,7 +1794,7 @@ proc check_option_P {} {
 #     ???/???
 #*******************************
 proc check_option_p {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global ts_config CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
    global default_args
 
    # first clean up output directory:
@@ -1856,7 +1856,7 @@ proc check_option_p {} {
 #     ???/???
 #*******************************
 proc check_option_pe {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1869,10 +1869,10 @@ proc check_option_pe {} {
    if {$job_id > 0} {
       get_qacct $job_id
       if {$qacct_info(granted_pe) != "mytestpe"} {
-         add_proc_error -1 "check_option_pe" "granted_pe missing in accounting record"
+         ts_log_severe "granted_pe missing in accounting record"
       }
       if {$qacct_info(slots) != 3} {
-         add_proc_error -1 "check_option_pe" "slots incorrect in accounting record"
+         ts_log_severe "slots incorrect in accounting record"
       }
    }
 }
@@ -1907,7 +1907,7 @@ proc check_option_pe {} {
 #     ???/???
 #*******************************
 proc check_option_q {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args test_host
 
    # first clean up output directory:
@@ -1957,7 +1957,7 @@ proc check_option_q {} {
 #     ???/???
 #*******************************
 proc check_option_r_y {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -1998,7 +1998,7 @@ proc check_option_r_y {} {
 #     ???/???
 #*******************************
 proc check_option_r_n {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -2080,7 +2080,7 @@ proc check_option_sc {} {
 #     ???/???
 #*******************************
 proc check_option_soft {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -2121,7 +2121,7 @@ proc check_option_soft {} {
 #     ???/???
 #*******************************
 proc check_option_S {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global default_args job_output_dir
 
    # first clean up output directory:
@@ -2141,7 +2141,7 @@ proc check_option_S {} {
       set result [start_remote_prog $windows_host $CHECK_USER "ls" "/net/es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe" prg_exit_state 60 0 "" "" 1 1 1 1 1]
 
       if {$prg_exit_state == 1} {
-       puts $CHECK_OUTPUT "The binary submission test is currently not working in environments outside of SUN.\n RFE 77 will fix this issue. Try again later, please!!!"
+       ts_log_fine "The binary submission test is currently not working in environments outside of SUN.\n RFE 77 will fix this issue. Try again later, please!!!"
       } else {
          set bin_option "-b y"
          set job_script "-o $job_output_dir -e $job_output_dir \"//es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe\" \"5\""
@@ -2185,7 +2185,7 @@ proc check_option_S {} {
 #     ???/???
 #*******************************
 proc check_option_t {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -2240,7 +2240,7 @@ proc check_option_t {} {
 #     ???/???
 #*******************************
 proc check_option_verify {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -2262,7 +2262,7 @@ proc check_option_verify {} {
    }
 
    if {!$found} {
-      add_proc_error "check_option_verify" -1 "no verify output on -verify command:\n$output"
+      ts_log_severe "no verify output on -verify command:\n$output"
    }
 }
 
@@ -2296,7 +2296,7 @@ proc check_option_verify {} {
 #     ???/???
 #*******************************
 proc check_option_V {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global default_args
 
    # first clean up output directory:
@@ -2337,7 +2337,7 @@ proc check_option_V {} {
 #     ???/???
 #*******************************
 proc check_option_w {} {
-   global job_output_dir CHECK_OUTPUT
+   global job_output_dir
    global test_host default_args
 
    # first clean up output directory:
@@ -2381,7 +2381,7 @@ proc check_option_w {} {
 #     ???/???
 #*******************************
 proc check_option_@ {} {
-   global ts_config CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_ACTUAL_TEST_PATH
    global default_args
 
    # first clean up output directory:
@@ -2392,7 +2392,7 @@ proc check_option_@ {} {
    set result [submit_job $jobargs 0]
 
    if {$result != -2} {
-      add_proc_error "check_option_@" -1 "no help output on -@ commandfile option"
+      ts_log_severe "no help output on -@ commandfile option"
    }
 }
 
@@ -2426,7 +2426,7 @@ proc check_option_@ {} {
 #     ???/???
 #*******************************
 proc check_huge_script {} {
-   global ts_config CHECK_OUTPUT CHECK_PROTOCOL_DIR
+   global ts_config CHECK_PROTOCOL_DIR
    global job_output_dir test_host
    global HUGE_SCRIPT_SIZE HUGE_SCRIPT_PATTERN HUGE_SCRIPT_TIMEOUT steps_per_queue size_interval
 
@@ -2458,19 +2458,19 @@ proc check_huge_script {} {
       close $f
    
       set submit_size [file size $filename]
-      puts $CHECK_OUTPUT "submitting job script of size $submit_size bytes allowing a timeout of $HUGE_SCRIPT_TIMEOUT s"
+      ts_log_fine "submitting job script of size $submit_size bytes allowing a timeout of $HUGE_SCRIPT_TIMEOUT s"
    
       set jobargs "-l h=${test_host} -o $job_output_dir -e $job_output_dir $filename 5"
       set submit_start [clock seconds]
       set result [submit_job $jobargs 1 $HUGE_SCRIPT_TIMEOUT]
       if {$result < 0} {
-         add_proc_error "check_huge_script" -1 "could not submit job (result: $result)"
+         ts_log_severe "could not submit job (result: $result)"
          close $protocol
          return
       } else {
          set sched_start [clock seconds]
          set submit_time [expr $sched_start - $submit_start]
-         puts $CHECK_OUTPUT "submitting lasted $submit_time s"
+         ts_log_fine "submitting lasted $submit_time s"
          wait_for_jobstart $result "Sleeper" $HUGE_SCRIPT_TIMEOUT
          set run_start [clock seconds]
          set sched_time [expr $run_start - $sched_start]
@@ -2485,7 +2485,7 @@ proc check_huge_script {} {
 
       set back [del_job_files $result $job_output_dir 2]
       if {$back != 2} {
-         add_proc_error "check_huge_script" -1 "job $result did not produce error and output file\njobargs: $jobargs"
+         ts_log_severe "job $result did not produce error and output file\njobargs: $jobargs"
          close $protocol
          return
       }
@@ -2512,7 +2512,7 @@ proc check_huge_script {} {
 #
 #*******************************************************************************
 proc check_qsub_ts_iz_72 {} {
-	global ts_config CHECK_OUTPUT
+	global ts_config
 
    # Delete any remaining jobs
    delete_all_jobs
@@ -2524,13 +2524,13 @@ proc check_qsub_ts_iz_72 {} {
    # qstat_plain_output contains the plain qstat output in an assoc. array
    # qstat_plain_output(jobid) contains a list of jobids.
    qstat_plain_parse qstat_plain_output
-   puts $CHECK_OUTPUT "qstat array ..."
+   ts_log_fine "qstat array ..."
    parray qstat_plain_output
 
    # Now let's compare them by jobid. 
    set jobid_list $qstat_plain_output(index)
 	set jobid [lindex $jobid_list 0]
-   puts $CHECK_OUTPUT "get the jobid ..."
+   ts_log_fine "get the jobid ..."
 	
    # 2. qalter one task into system hold
    start_sge_bin "qalter" "-h s $jobid.1"
@@ -2544,19 +2544,19 @@ proc check_qsub_ts_iz_72 {} {
    # 5. check, if the task in system hold is still there.
    qstat_plain_parse qstat_plain_output1
       
-   puts $CHECK_OUTPUT "qstat array at the end .... \n"
+   ts_log_fine "qstat array at the end .... \n"
    parray qstat_plain_output1
 	
 	if {$qstat_plain_output1($jobid,state) != "hqw"} {
-		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 not in hold state"
+		ts_log_severe "Task 2 not in hold state"
 	} elseif {$qstat_plain_output1($jobid,jatask) == "2"} {
-		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still around"
+		ts_log_severe "Task 2 is still around"
 	} elseif {$qstat_plain_output1($jobid,jatask) == "1,2"} {
-		add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 was never scheduled"
+		ts_log_severe "Task 2 was never scheduled"
 	} elseif {[llength $qstat_plain_output1($jobid,jatask)] == 2} {
-	   add_proc_error "check_qsub_ts_iz_72" -1 "Task 2 is still around"
+	   ts_log_severe "Task 2 is still around"
 	} else {
-		puts $CHECK_OUTPUT "Task in system hold is still around as expected"
+		ts_log_fine "Task in system hold is still around as expected"
 	} 
 	
 	delete_all_jobs

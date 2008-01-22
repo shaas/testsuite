@@ -45,14 +45,14 @@ proc qacct_issue1686 {} {
 
    set result [start_sge_bin "qacct" "-o -D -f $acct_file"]
    if {[string first "testuser1defaultdepartment" $result] > 0} {
-      add_proc_error "qacct_issue1686" -1 "detected issue 1686:\n$output" 
+      ts_log_severe "detected issue 1686:\n$output" 
    } 
 }
 
 proc qacct_issue1720 {} {
    set output [start_sge_bin qacct "-h unresolvable_host_xyz"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qacct_issue1720" -1 "qacct tried to resolve unknown hostname:\n$output"
+      ts_log_severe "qacct tried to resolve unknown hostname:\n$output"
    }
 }
 
@@ -62,17 +62,17 @@ proc qacct_issue2127 {} {
    set master_arch [resolve_arch $ts_config(master_host)]
    set output [start_sge_bin qacct "-l h=$ts_config(master_host)"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qacct_issue2127" -1 "qacct -l h=$ts_config(master_host) output:\n$output"
+      ts_log_severe "qacct -l h=$ts_config(master_host) output:\n$output"
    }
 
    set output [start_sge_bin qacct "-l a=$master_arch"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qacct_issue2127" -1 "qacct -l a=$master_arch output:\n$output"
+      ts_log_severe "qacct -l a=$master_arch output:\n$output"
    }
 }
 
 proc qacct_issue2189 {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # create a new queue
    set test_qname "test_issue2189.q"
@@ -101,7 +101,7 @@ proc qacct_issue2189 {} {
       return
    }    
    
-   puts $CHECK_OUTPUT "Counting of expected ignored jobs ..."
+   ts_log_fine "Counting of expected ignored jobs ..."
    set ignored_jobs 0    
    #  for all jobs find out if the queue for the spec. host exists
    set jobs_list [split [start_sge_bin qacct "-j | grep jobnumber"] "\n"]
@@ -134,7 +134,7 @@ proc qacct_issue2189 {} {
          }
       }
    }
-   puts $CHECK_OUTPUT "$ignored_jobs jobs should be ignored for accounting" 
+   ts_log_fine "$ignored_jobs jobs should be ignored for accounting" 
 
    # get qacct result after deleting queue
    set qacct_res_after_qdel [start_sge_bin "qacct" "-l hostname=$test_host"]
@@ -142,9 +142,9 @@ proc qacct_issue2189 {} {
    if {$ignored_jobs != 0} {
       set expected_output [translate_macro MSG_HISTORY_IGNORINGJOBXFORACCOUNTINGMASTERQUEUEYNOTEXISTS_IS $ignored_jobs]
       if {[string match "$expected_output*" $qacct_res_after_qdel] == 0} {
-         add_proc_error "qacct_issue2189" -1 "number of ignored jobs should be $ignored_jobs, the qacct result is: $qacct_res_after_qdel"
+         ts_log_severe "number of ignored jobs should be $ignored_jobs, the qacct result is: $qacct_res_after_qdel"
       }
    } else {
-      add_proc_error "qacct_issue2189" -1 "at least one job should be ignored..."
+      ts_log_severe "at least one job should be ignored..."
    }
 }

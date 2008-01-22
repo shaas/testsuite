@@ -68,7 +68,7 @@ set qdel_help_lines 14
 #*******************************
 proc qdel_verify {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
 
    # submit jobs to delete
@@ -76,7 +76,7 @@ proc qdel_verify {} {
 
    set output [start_sge_bin "qdel" "-verify $job_list"]
    if {$prg_exit_state != 0} {
-      add_proc_error "qdel_verify" -1 "qdel failed:\n$output"
+      ts_log_severe "qdel failed:\n$output"
    } 
 
    set nr_of_jobs [llength $job_list]
@@ -88,11 +88,11 @@ proc qdel_verify {} {
       }
    }
    
-   puts $CHECK_OUTPUT "nr_of_jobs = $nr_of_jobs"
-   puts $CHECK_OUTPUT "nr_of_output_lines = $nr_of_output_lines"
+   ts_log_fine "nr_of_jobs = $nr_of_jobs"
+   ts_log_fine "nr_of_output_lines = $nr_of_output_lines"
    
    if {$nr_of_jobs != $nr_of_output_lines} {
-      add_proc_error "qdel_verify" -1 "nr of jobs doesn't match output lines"
+      ts_log_severe "nr of jobs doesn't match output lines"
    }
 
    foreach job $job_list {
