@@ -1,3 +1,5 @@
+MD-2008-01-22-1: Bugfix:    autoinstall config checktest used wrong string
+ 
 JG-2008-01-22-1: Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
                             system_tests/clients checks.
                             Removed outdated performance tests.

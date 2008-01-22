@@ -276,7 +276,7 @@ proc issue_2459_parse_autobackup {} {
             "*SGE_ROOT*" {
                   set found_backup_entries(SGE_ROOT) 1  
             }
-            "*CELL_NAME*" {
+            "*SGE_CELL*" {
                   set found_backup_entries(SGE_CELL) 1  
             }
             "*BACKUP_DIR*" {
@@ -455,7 +455,7 @@ proc init_found_install_entries {} {
       set found_install_entries(SGE_CLUSTER_NAME) 0  
       set found_install_entries(SGE_ENABLE_JMX) 0  
       set found_install_entries(SGE_JMX_PORT) 0  
-      set found_install_entries(SGE_JVM_LIB_PATH) 0
+      set found_install_entries(SGE_JVM_LIB_PATH) 1
    } else {
       set found_install_entries(SERVICE_TAGS) 1  
       set found_install_entries(SGE_ENABLE_SMF) 1  
