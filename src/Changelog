@@ -1,3 +1,7 @@
+MD-2008-01-22-0: Enhancem.: added testfunctionality to Issuetest 2459 from
+                            checkin MD-2008-01-18-0
+                 Review:    JG
+
 JG-2008-01-22-0: Bugfix:    Autoinstall was broken for 6.0 and 6.1 clusters.
                  Review:    MD
 
