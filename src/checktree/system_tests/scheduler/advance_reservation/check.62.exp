@@ -78,6 +78,8 @@ lappend check_functions "scheduler_ar_parallel_consuamble"
 lappend check_functions "scheduler_ar_rqs"
 lappend check_functions "scheduler_pending_ar_jobs"
 lappend check_functions "scheduler_ar_non_reserved_complex_requests"
+lappend check_functions "scheduler_ar_soft_error_handling"
+lappend check_functions "scheduler_ar_hard_error_handling"
 
 proc scheduler_advance_reservation_init_level {} {
    global CHECK_ACT_LEVEL
@@ -112,7 +114,7 @@ proc scheduler_advance_reservation_setup {} {
    set queue_complex "queue_complex"
 
    set pe_settings(slots)  10 
-   set pe_settings(allocation_rule) "\$fill_up"
+   set pe_settings(allocation_rule) "\$round_robin"
    add_pe "ar_pe" pe_settings
 
    set queue_settings(slots) 4
@@ -142,7 +144,7 @@ proc scheduler_advance_reservation_setup {} {
    set_exechost config [lindex $test_hosts 0]
 
    # add complex_queue_name
-   set queue_settings(slots) 1
+   set queue_settings(slots) 2
    set queue_settings(complex_values) "$host_consumable=2,$queue_complex=bla"
    add_queue $complex_queue_name $test_hosts queue_settings
    puts $CHECK_OUTPUT "added queue $complex_queue_name for hosts $test_hosts"
@@ -613,5 +615,92 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    }
 
    delete_ar $ar_id
+}
 
+proc scheduler_ar_soft_error_handling {} {
+   global test_hosts
+   global ts_config
+   global complex_queue_name
+
+   delete_all_ars
+
+   set host [lindex $test_hosts 0]
+
+   # reserve 4 slots with soft error handling (default)
+   set ar_id [submit_ar "-pe ar_pe 4 -d 3600 -q $complex_queue_name"]
+
+   set job_args "-ar $ar_id -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 100"
+
+   # kill first execd, AR should now in error state
+   start_sge_bin "qconf" "-ke $host"
+   set check_values(state)   "E"
+   if {[parse_qrstat_check $ar_id check_values] != 0} {
+      startup_execd $host
+      delete_ar $ar_id
+      return
+   }
+
+   # test sequential job
+   set job_id [submit_job "$job_args"]
+   set job_state [wait_for_jobstart $job_id "leeper" 10 0 1]
+   if {$job_state != 0} {
+      ts_log_severe "soft error handling is broken - sequential job did not start with AR in error state"
+   }
+   delete_job $job_id 1
+
+   # test parallel job
+   set job_id [submit_job "-pe ar_pe 2 $job_args"]
+   set job_state [wait_for_jobstart $job_id "leeper" 10 0 1]
+   if {$job_state != 0} {
+      ts_log_severe "soft error handling is broken - parallel job did not start with AR in error state"
+   }
+   delete_job $job_id 1
+   delete_ar $ar_id
+
+   startup_execd $host
+   wait_for_load_from_all_queues 10
+}
+
+proc scheduler_ar_hard_error_handling {} {
+   global test_hosts
+   global ts_config
+   global complex_queue_name
+
+   delete_all_ars
+
+   set host [lindex $test_hosts 0]
+  
+   # reserve 4 slots with soft error handling (default)
+   set ar_id [submit_ar "-he y -pe ar_pe 4 -d 3600 -q $complex_queue_name"]
+
+   set job_args "-ar $ar_id -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 100"
+
+   # kill first execd, AR should now in error state
+   start_sge_bin "qconf" "-ke $host"
+   set check_values(state)   "E"
+   if {[parse_qrstat_check $ar_id check_values] != 0} {
+      startup_execd $host
+      delete_ar $ar_id
+      return
+   }
+
+   # test sequential job
+   set job_id [submit_job "$job_args"]
+   set job_state [wait_for_jobstart $job_id "leeper" 10 0 1]
+   if {$job_state == 0} {
+      ts_log_severe "hard error handling is broken - sequential job started with AR in error state"
+   }
+   delete_job $job_id 1
+
+   # test parallel job
+   set job_id [submit_job "-pe ar_pe 2 $job_args"]
+   set job_state [wait_for_jobstart $job_id "leeper" 10 0 1]
+   if {$job_state == 0} {
+      ts_log_severe "soft hard handling is broken - parallel job started with AR in error state"
+   }
+   delete_job $job_id 1
+   delete_ar $ar_id
+
+   startup_execd $host
+   wait_for_load_from_all_queues 10
 }
