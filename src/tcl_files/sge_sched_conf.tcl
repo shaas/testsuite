@@ -377,7 +377,7 @@ proc get_schedd_config { change_array } {
 
   set result [start_sge_bin "qconf" "-ssconf"]
   if {$prg_exit_state != 0} {
-     ts_log_severe "qconf -ssconf failed:\n$output"
+     ts_log_severe "qconf -ssconf failed:\n$result"
      return
   }
 

@@ -1,3 +1,9 @@
+RH-2008-01-23-0: Bugfix:    tcl error in setup_schedconf fixed
+                 Review:    JG
+
+OJ-2008-01-23-0: Enhance:   Added test case 2387 at bugs/issuezilla/2387.
+	 	 Issue:     2387
+
 RD-2008-01-23-0: Enhancem.: Added test for advance reservation hard/soft error
                  Review:    JG
 
