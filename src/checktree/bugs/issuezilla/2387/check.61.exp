@@ -1,0 +1,197 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs  
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2387_init_level"
+
+# define test's name and run level descriptions
+set check_root_access_needs  "yes"
+set check_name            "issue_2387"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "Check for Issue 2387 - Multiple occurrence of a name in RQS limit definition break classic spooling"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2387_setup
+set check_cleanup_function issue_2387_cleanup
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2387"
+
+
+proc issue_2387_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+    }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2387_setup {} {
+   global ts_config rqs_name  
+   
+   #  setup the test queue A
+   set first_queue_name "A"
+   set queue_conf(slots) 10
+   add_queue $first_queue_name "@allhosts" queue_conf 1
+
+   
+   #  Add rqs another_new_rqs
+   set rqs_name              "another_new_rqs"
+   set rules                  ""
+   lappend rules "name A queues A to slots=10 "
+   set rqs_charray($rqs_name,limit)   "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set rqs_charray($rqs_name,description) "global"
+   
+   add_rqs rqs_charray
+   
+}
+
+proc issue_2387_cleanup  {} {
+   global rqs_name ts_config 
+   
+   del_queue "A" "" 1 1
+   
+   del_rqs $rqs_name
+
+}
+
+#***********************************************************
+#  NAME
+#     issue_2387() -- Testcase for IZ 2387.
+#
+#  SYNOPSIS
+#
+#     1. create rqs with name and queue same
+#     2. check that srqs works
+#     6. stop qmaster
+#     4. restart qmaster
+#     5. check that srqs works again
+#
+#
+#  FUNCTION
+#     Check if IZ 2387 has been fixed.
+#  INPUTS
+#
+#*******************************************************************************
+
+proc issue_2387 {} {
+
+   global ts_config rqs_name
+
+   set local_host $ts_config(master_host)
+   
+   set arch   [resolve_arch $local_host]
+   
+   # Delete any remaining jobs
+   delete_all_jobs
+
+   # submit job
+   set job_id [submit_job "-q A -o /dev/null -j y -b y /bin/sleep 360"]
+
+   # start job
+   trigger_scheduling
+
+   # job should be running
+   set run_result [wait_for_jobstart $job_id "sleep" 20]
+   if {$run_result != 0} {
+      ts_log_severe  "job was not scheduled"
+      return ""
+   }
+   
+   # Show rqs with qconf -sqrs
+   set result [start_sge_bin "qconf" "-srqs $rqs_name"]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "qconf -rqs $rqs_name failed:\n$result"
+      return ""
+   }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   
+   # stop/restart qmaster and scheduler
+   
+   shutdown_and_restart_qmaster
+   
+   # Sleep to give time to the cluster to restart
+   sleep 30
+   
+   # redo the job submission
+   
+   # submit job again
+   set job_id [submit_job "-q A -o /dev/null -j y -b y /bin/sleep 360"]
+
+   # start job
+   trigger_scheduling
+
+   # job should be running
+   set run_result [wait_for_jobstart $job_id "sleep" 20]
+   if {$run_result != 0} {
+      ts_log_severe "second job was not scheduled"
+      return ""
+   }
+   
+   # Show rqs again, should not be corrupted
+   set result [start_sge_bin "qconf" "-srqs $rqs_name"]
+   if {$prg_exit_state != 0} {
+     ts_log_severe  "qconf -rqs $rqs_name failed second time:\n$result"
+     return ""
+   }
+   
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   
+}
+

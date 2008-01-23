@@ -1,0 +1,5 @@
+Issue:      2387
+Synopsis:  Multiple occurrence of a name in RQS limit definition break classic spooling 
+This bug is verified in the following testsuite check:
+Check:      bugs/issuezila/2387/check.61.exp
+Function:   issue_2387

@@ -1,3 +1,7 @@
+OJ-2008-01-23-0: Enhance:   Added test case 2387 at bugs/issuezilla/2387.
+	 	 Issue:     2387
+                 Review:    JG
+
 RM-2008-01-22-0: Enhancem.: Updated parsing for new sdmadm suj hedeby command
                  Review:    MG
 
