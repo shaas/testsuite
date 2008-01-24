@@ -106,6 +106,13 @@ proc hedeby_check_master_host_file_permissions {} {
    global CHECK_OUTPUT
    global hedeby_config
    set error_text ""
+   set ge_master_hosts [get_hedeby_default_services service_names]
+   set expected_ge_jvm_hosts {}
+   foreach ge_host $ge_master_hosts {
+      if { [lsearch -exact $expected_ge_jvm_hosts $ge_host] < 0 } {
+         lappend expected_ge_jvm_hosts $ge_host
+      }
+   }
 
    puts $CHECK_OUTPUT "checking file permissions on master host ..."
    set spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
@@ -146,6 +153,11 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_dirs "security/ca/ca_top/certs"
    lappend expected_dirs "security/ca/ca_top/crl"
    lappend expected_dirs "security/ca/ca_top/newcerts"
+   lappend expected_dirs "security/ca/ca_top/usercerts"
+   lappend expected_dirs "security/ca/ca_top/usercerts/$startup_user"
+   if { $startup_user != $admin_user } {
+      lappend expected_dirs "security/ca/ca_top/usercerts/$admin_user"
+   }
    lappend expected_dirs "security/ca/ca_local_top"
    lappend expected_dirs "security/ca/ca_local_top/userkeys"
    lappend expected_dirs "security/ca/ca_local_top/userkeys/$startup_user"
@@ -226,6 +238,10 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "security/ca/ca_top/index.txt.attr.old"
    lappend expected_files "security/ca/ca_top/serial.old"
    lappend expected_files "security/ca/ca_top/index.txt.old"
+   lappend expected_files "security/ca/ca_top/usercerts/$startup_user/cert.pem"
+   if { $startup_user != $admin_user } {
+      lappend expected_files "security/ca/ca_top/usercerts/$admin_user/cert.pem"
+   }
    lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/rand.seed"
    lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/key.pem"
    lappend expected_files "security/ca/ca_local_top/userkeys/$startup_user/req.pem"
@@ -263,6 +279,12 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "spool/cs/component/ca.xml"
    lappend expected_files "spool/cs/component/resource_provider.xml"
    lappend expected_files "spool/cs/component/spare_pool.xml"
+   foreach ge_host $expected_ge_jvm_hosts {
+      foreach service $service_names(service,$ge_host) {
+         ts_log_fine "expecting component configuration for service \"$service\" on host $ge_host"
+         lappend expected_files "spool/cs/component/$service.xml"
+      }
+   }
    lappend expected_files "spool/cs/active_component/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_component/executor@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_component/ca@$hedeby_config(hedeby_master_host)*.xml"
@@ -280,6 +302,20 @@ proc hedeby_check_master_host_file_permissions {} {
       lappend expected_files "spool/cs/active_component/executor@$managed_host*.xml"
       lappend expected_files "spool/cs/active_component/executor_vm@$managed_host*.xml"
    }
+   
+   foreach ge_host $expected_ge_jvm_hosts {
+      ts_log_fine "expecting active component jvm \"rp_vm\" on host \"$ge_host\""
+      lappend expected_files "spool/cs/active_component/rp_vm@$ge_host*.xml"
+      foreach service $service_names(service,$ge_host) {
+         ts_log_fine "expecting active component for service \"$service\" on host \"$ge_host\""
+         lappend expected_files "spool/cs/active_component/$service@$ge_host*.xml"
+      }
+   }
+
+   
+
+
+
    lappend expected_files "spool/cs/active_jvm/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_jvm/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_jvm/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
@@ -287,6 +323,10 @@ proc hedeby_check_master_host_file_permissions {} {
       lappend expected_files "spool/cs/active_jvm/executor_vm@$managed_host*.xml"
    }
 
+   foreach jvm_host $expected_ge_jvm_hosts {
+      ts_log_fine "expecting active jvm \"rp_vm\" on host \"$jvm_host\""
+      lappend expected_files "spool/cs/active_jvm/rp_vm@$jvm_host*.xml"
+   }
    foreach resource_host $hedeby_config(hedeby_host_resources) {
       lappend expected_files "spool/spare_pool/$resource_host*"
    }
@@ -333,6 +373,10 @@ proc hedeby_check_master_host_file_permissions {} {
    set user_rw_ignore_match {}
    lappend user_rw_ignore_match "security/ca/ca_top/certs/cert.pem"
    lappend user_rw_ignore_match "security/ca/ca_top/cacert.pem"
+   lappend user_rw_ignore_match "security/ca/ca_top/usercerts/$startup_user/cert.pem"
+   if { $startup_user != $admin_user } {
+      lappend user_rw_ignore_match "security/ca/ca_top/usercerts/$admin_user/cert.pem"
+   }
 
 
    set startup_user_owner [get_hedeby_startup_user]
@@ -415,10 +459,17 @@ proc hedeby_check_managed_host_file_permissions {} {
    global CHECK_OUTPUT
    global hedeby_config
 
+   set ge_master_hosts [get_hedeby_default_services service_names]
    set error_text ""
    foreach managed_host [get_all_hedeby_managed_hosts] {
 
       puts $CHECK_OUTPUT "checking file permissions on managed host \"$managed_host\" ..."
+      if { [lsearch -exact $ge_master_hosts $managed_host] >= 0 } {
+         ts_log_fine "host \"$managed_host\" is GE service host"
+         set is_ge_service_host 1
+      } else {
+         set is_ge_service_host 0
+      }
       set host $managed_host
       set spool_dir [get_hedeby_local_spool_dir $host]
       set startup_user [get_hedeby_startup_user]
@@ -460,6 +511,13 @@ proc hedeby_check_managed_host_file_permissions {} {
       lappend expected_dirs "tmp"
       lappend expected_dirs "tmp/ca"
 
+      if {$is_ge_service_host} {
+         foreach service_name $service_names(service,$host) {
+            ts_log_fine "expecting spool dir for service \"$service_name\""
+            lappend expected_dirs "spool/$service_name"
+         }
+      }
+
       puts $CHECK_OUTPUT "checking directories ..."
       if { [llength $spool_directories] != [llength $expected_dirs] } {
          append error_text "expected dirs length on host \"$host\" ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
@@ -495,6 +553,20 @@ proc hedeby_check_managed_host_file_permissions {} {
       lappend expected_files "security/daemons/rp_vm.keystore"
       lappend expected_files "security/java.policy"
       lappend expected_files "security/jaas.config"
+      if {$is_ge_service_host} {
+         ts_log_fine "expecting files for service vm for service(s) \"$$service_names(service,$host)\""
+         lappend expected_files "log/rp_vm.stdout"
+         lappend expected_files "log/rp_vm.stderr"
+         lappend expected_files "log/rp_vm-0.log.lck"
+         lappend expected_files "log/rp_vm-0.log"
+         lappend expected_files "run/rp_vm@$host*"
+         foreach service $service_names(service,$host) {
+            foreach execd $service_names(execd_hosts,$service) {
+               ts_log_fine "expecting files for service \"$service\" execd \"$execd\""
+               lappend expected_files "spool/$service/$execd*"
+            }
+         }
+      }
 
       puts $CHECK_OUTPUT "checking files ..."
       if { [llength $spool_files] != [llength $expected_files] } {

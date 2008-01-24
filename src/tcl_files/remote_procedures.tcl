@@ -2639,7 +2639,6 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
       }
       ts_log_fine "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
       close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 0 ;# don't check exit state
-      ts_log_fine "done"
    }
 }
 

@@ -112,10 +112,9 @@ proc show_status_init_level {} {
 # the setup function for this test is storing the current
 # cluster config nr in a global variable.
 proc show_status_setup {} {
-   global CHECK_OUTPUT
    global show_status_current_cluster_config
    
-   puts $CHECK_OUTPUT "doing setup ..."
+   ts_log_fine "doing setup ..."
    set show_status_current_cluster_config [get_current_cluster_config_nr]
 }
 
@@ -123,10 +122,9 @@ proc show_status_setup {} {
 # current cluster config nr from the global variable set 
 # be the setup function.
 proc show_status_cleanup {} {
-   global CHECK_OUTPUT
    global show_status_current_cluster_config
 
-   puts $CHECK_OUTPUT "doing cleanup ..."
+   ts_log_fine "doing cleanup ..."
 
    set_current_cluster_config_nr $show_status_current_cluster_config
 }
@@ -137,8 +135,10 @@ proc show_status_cleanup {} {
 # If the output does not show all components in the "started"
 # status the test will fail.
 proc show_status_check {} {
-   global CHECK_OUTPUT
    global hedeby_config
+
+
+   set ge_qmaster_hosts [get_hedeby_default_services service_names]
 
    set nr_of_expected_jvms 0
    set nr_of_expected_components 0
@@ -151,8 +151,18 @@ proc show_status_check {} {
    # setup managed host expectations ...
    foreach host [get_all_hedeby_managed_hosts] {
       lappend test_hosts $host
-      set expected_jvms($host) "executor_vm"
-      set expected_components($host) "executor"
+      if { [lsearch -exact $ge_qmaster_hosts $host] >= 0 } {
+         ts_log_fine "expecting ge adapter on host \"$host\" in vm \"rp_vm\""
+         set expected_jvms($host) "executor_vm rp_vm"
+         set component_helper "executor $service_names(service,$host)"
+         ts_log_fine "expecting components \"$component_helper\" on host \"$host\""
+         set expected_components($host) "$component_helper"
+      } else {
+         ts_log_fine "expecting vm \"executor_vm\" on host \"$host\""
+         set expected_jvms($host) "executor_vm"
+         ts_log_fine "expecting component \"executor\" on host \"$host\""
+         set expected_components($host) "executor"
+      }
    }
 
    set nr_of_jvms 0
@@ -221,10 +231,10 @@ proc show_status_check {} {
          }
       }
    }
-   puts $CHECK_OUTPUT "nr of jvms:          $nr_of_jvms"
-   puts $CHECK_OUTPUT "nr of components:    $nr_of_components"
-   puts $CHECK_OUTPUT "nr of status infos:  $component_count"
-   puts $CHECK_OUTPUT "expected jvms:       $expected_jvms_count"
+   ts_log_fine "nr of jvms:          $nr_of_jvms"
+   ts_log_fine "nr of components:    $nr_of_components"
+   ts_log_fine "nr of status infos:  $component_count"
+   ts_log_fine "expected jvms:       $expected_jvms_count"
    if { $nr_of_jvms != $expected_jvms_count } {
       append error_text "Expected JVM count (=$expected_jvms_count) doesn't match found JVM count (=$nr_of_jvms)\n"
       append error_text "Expected JVMS:\n"
@@ -233,7 +243,7 @@ proc show_status_check {} {
       }
    }
 
-   puts $CHECK_OUTPUT "expected components: $expected_components_count"
+   ts_log_fine "expected components: $expected_components_count"
    if { $nr_of_components != $expected_components_count } {
       append error_text "Expected COMP count (=$expected_components_count) doesn't match found COMP count (=$nr_of_components)\n"
       append error_text "Expected COMPS:\n"

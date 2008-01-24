@@ -96,7 +96,6 @@
 #*******************************************************************************
 proc remove_hedeby_preferences {{raise_error 1}} {
    global hedeby_config
-   global CHECK_OUTPUT
    # first step: remove preferences for all managed hosts
 
    set pref_type [get_hedeby_pref_type]
@@ -166,7 +165,6 @@ proc remove_hedeby_preferences {{raise_error 1}} {
 #     util/reset_hedeby()
 #*******************************************************************************
 proc shutdown_hedeby { { only_raise_cannot_kill_error 0 } } {
-   global CHECK_OUTPUT
    global hedeby_config
 
    set ret_val 0
@@ -219,7 +217,6 @@ proc shutdown_hedeby { { only_raise_cannot_kill_error 0 } } {
 #     util/reset_hedeby()
 #*******************************************************************************
 proc startup_hedeby {} {
-   global CHECK_OUTPUT
    global hedeby_config
 
    set ret_val 0
@@ -322,7 +319,6 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 #*******************************************************************************
 proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error 1} } {
    global hedeby_config
-   global CHECK_OUTPUT
    global CHECK_USER
 
    if { $on_host == "" } {
@@ -339,6 +335,7 @@ proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error
    # write resource property file on the execution host
    set file_name [get_tmp_file_name $exec_host]
    set osArch [resolve_arch $host_resource]
+   # TODO: resolve arch hedeby specific
    set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
    set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
 
@@ -351,9 +348,9 @@ proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error
 
    # print out created file
    set file_content [start_remote_prog $exec_host $exec_user cat $file_name]
-   puts $CHECK_OUTPUT "adding host resource \"$host_resource\" to hedeby system ..."
-   puts $CHECK_OUTPUT "properties file:"
-   puts $CHECK_OUTPUT $file_content
+   ts_log_fine "adding host resource \"$host_resource\" to hedeby system ..."
+   ts_log_fine "properties file:"
+   ts_log_fine $file_content
 
    # now use sdmadm command ...
    sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name" prg_exit_state "" $raise_error
@@ -433,7 +430,6 @@ proc get_hedeby_system_name { } {
 proc get_hedeby_pref_type { } {
    global CHECK_ADMIN_USER_SYSTEM
    global hedeby_config
-   global CHECK_OUTPUT
    if {$CHECK_ADMIN_USER_SYSTEM == 0} {
       return $hedeby_config(preferences_mode)
    } else {
@@ -441,7 +437,7 @@ proc get_hedeby_pref_type { } {
          set error_text "WARNING: It is not possible to save \"system\" preferences without having root permissions!\n"
          append error_text "Please provide root password OR modify hedeby configuration to use preferences_mode \"user\"!\n"
          append error_text "INFO: Testsuite will store bootstrap information in \"user\" preferences!!!"
-         puts $CHECK_OUTPUT $error_text
+         ts_log_fine $error_text
       }
       return "user"
    }
@@ -556,13 +552,12 @@ proc read_bundle_properties_cache { } {
 #*******************************************************************************
 proc parse_bundle_properties_files { source_dir } {
    global bundle_cache
-   global CHECK_OUTPUT
    global CHECK_USER
    global hedeby_config
    global ts_config
 
    # TODO: reparse messages if one file timestamp is newer than the file stamp
-   #       of the cached files (same as for GE message files)        
+   #       of the cached files (same as for Grid Engine message files)        
    if {[info exists bundle_cache]} {
       unset bundle_cache
    }
@@ -574,7 +569,7 @@ proc parse_bundle_properties_files { source_dir } {
       wait_for_remote_file $ts_config(master_host) $CHECK_USER $filename 70 1 1
    }
 
-   puts $CHECK_OUTPUT "looking for properties files in dir \"$source_dir\" ..."
+   ts_log_fine "looking for properties files in dir \"$source_dir\" ..."
    
    # get all files ending with .properties in all subdirectories
    set prop_files {}
@@ -667,13 +662,12 @@ proc parse_bundle_properties_files { source_dir } {
 #*******************************************************************************
 proc get_properties_messages_file_name { } {
    global CHECK_PROTOCOL_DIR 
-   global CHECK_OUTPUT
    global hedeby_config
   
-   puts $CHECK_OUTPUT "checking properties file ..."
+   ts_log_fine "checking properties file ..."
    if { [ file isdirectory $CHECK_PROTOCOL_DIR] != 1 } {
       file mkdir $CHECK_PROTOCOL_DIR
-      puts $CHECK_OUTPUT "creating directory: $CHECK_PROTOCOL_DIR"
+      ts_log_fine "creating directory: $CHECK_PROTOCOL_DIR"
    }
    set release $hedeby_config(hedeby_source_cvs_release)
    set filename $CHECK_PROTOCOL_DIR/source_code_properties_${release}.dump
@@ -776,19 +770,18 @@ proc get_bundle_string { id } {
 #     util/parse_bundle_string_params()
 #*******************************************************************************
 proc create_bundle_string { id {params_array "params"} {default_param ""} } {
-   global CHECK_OUTPUT
    upvar $params_array params
    # get bundle string
    set bundle_string [get_bundle_string $id]
    set result_string $bundle_string
 
-   # puts $CHECK_OUTPUT "bundle string: \"$result_string\""
+   # ts_log_fine "bundle string: \"$result_string\""
    # get number of params in bundle string
    set i 0
    while { [string match "*{$i}*" $bundle_string] } {
       incr i 1
    }
-   # puts $CHECK_OUTPUT "bundle string has $i parameter"
+   # ts_log_fine "bundle string has $i parameter"
    for { set x 0 } { $x < $i } { incr x 1 } {
       set par_start [string first "{$x}" $result_string]
       set par_end $par_start
@@ -803,9 +796,9 @@ proc create_bundle_string { id {params_array "params"} {default_param ""} } {
          set param_string "{$x}"
       }
       set result_string [string replace $result_string $par_start $par_end $param_string]
-      #puts $CHECK_OUTPUT "result $x: \"$result_string\""
+      #ts_log_fine "result $x: \"$result_string\""
    }
-   # puts $CHECK_OUTPUT "output string: \"$result_string\""
+   # ts_log_fine "output string: \"$result_string\""
    return $result_string
 }
 
@@ -862,7 +855,6 @@ proc create_bundle_string { id {params_array "params"} {default_param ""} } {
 #     util/parse_bundle_string_params()
 #*******************************************************************************
 proc parse_bundle_string_params { output id {params_array params}  } {
-   global CHECK_OUTPUT
    upvar $params_array par
 
    if { [info exists par] } {
@@ -872,8 +864,8 @@ proc parse_bundle_string_params { output id {params_array params}  } {
    set par(count) 0
 
    set bundle_string [get_bundle_string $id]
-   #puts $CHECK_OUTPUT "output: $output"
-   #puts $CHECK_OUTPUT "bundle: $bundle_string"
+   #ts_log_fine "output: $output"
+   #ts_log_fine "bundle: $bundle_string"
    set i 0
    while { [string match "*{$i}*" $bundle_string] } {
       incr i 1
@@ -907,7 +899,7 @@ proc parse_bundle_string_params { output id {params_array params}  } {
       } else {
          set par($x,before) ""
       }
-      #puts $CHECK_OUTPUT "before $x ($irange_start - $irange_end): \"$par($x,before)\""
+      #ts_log_fine "before $x ($irange_start - $irange_end): \"$par($x,before)\""
    }
 
    set last_static_string ""
@@ -920,7 +912,7 @@ proc parse_bundle_string_params { output id {params_array params}  } {
       # handle situations where the last param is not the last string content
       set restString [string range $bundle_string $endOfLastParam end ]
    }
-   #puts $CHECK_OUTPUT "rest string: \"$restString\""
+   #ts_log_fine "rest string: \"$restString\""
 
    
 
@@ -936,7 +928,7 @@ proc parse_bundle_string_params { output id {params_array params}  } {
             add_proc_error "parse_bundle_string_params" -1 $error_text
          } else {
             set parse_string [string range $parse_string $before_length end]
-            #puts $CHECK_OUTPUT "remaining parse string: \"$parse_string\"" 
+            #ts_log_fine "remaining parse string: \"$parse_string\"" 
          }
       }
       set next_param $x
@@ -964,8 +956,8 @@ proc parse_bundle_string_params { output id {params_array params}  } {
          incr index 1
          set parse_string [string range $parse_string $index end]
       }
-      #puts $CHECK_OUTPUT "par($x) = \"$par($x)\""
-      #puts $CHECK_OUTPUT "remaining parse string: \"$parse_string\"" 
+      #ts_log_fine "par($x) = \"$par($x)\""
+      #ts_log_fine "remaining parse string: \"$parse_string\"" 
    }
 }
 
@@ -1000,7 +992,6 @@ proc parse_bundle_string_params { output id {params_array params}  } {
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_startup_user { } {
-   global CHECK_OUTPUT
    global CHECK_USER
    set pref_type [get_hedeby_pref_type]
    if { $pref_type == "system" } {
@@ -1111,7 +1102,6 @@ proc get_hedeby_local_spool_dir { host } {
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc cleanup_hedeby_local_spool_dir { host } {
-   global CHECK_OUTPUT 
    global CHECK_USER
    # to be able to cleanup (delete) the spooldir the file
    # permissions have to be set to the testsuite user
@@ -1124,9 +1114,9 @@ proc cleanup_hedeby_local_spool_dir { host } {
          } else {
             set chown_user $CHECK_USER
          }
-         puts $CHECK_OUTPUT "${host}($chown_user): doing chown $comargs ..."
+         ts_log_fine "${host}($chown_user): doing chown $comargs ..."
          set output [start_remote_prog $host $chown_user "chown" $comargs]
-         puts $CHECK_OUTPUT $output
+         ts_log_fine $output
          if { $prg_exit_state != 0 } {
             add_proc_error "cleanup_hedeby_local_spool_dir" -1 "doing chown $comargs returned exit code: $prg_exit_state\n$output"
          }
@@ -1148,7 +1138,7 @@ proc cleanup_hedeby_local_spool_dir { host } {
 #
 #  FUNCTION
 #     The procedure returns a list of all possible managed host candidates of
-#     the specified GE clusters including all hedeby (host) resources.
+#     the specified Grid Engine clusters including all hedeby (host) resources.
 #
 #  INPUTS
 #
@@ -1168,7 +1158,6 @@ proc cleanup_hedeby_local_spool_dir { host } {
 #*******************************************************************************
 proc get_all_hedeby_managed_hosts {} {
    global hedeby_config
-   global CHECK_OUTPUT
    set host_list $hedeby_config(hedeby_host_resources) 
    
    foreach host [get_all_execd_hosts] {
@@ -1178,6 +1167,55 @@ proc get_all_hedeby_managed_hosts {} {
    }
    return $host_list
 }
+
+#****** util/get_hedeby_default_services() *************************************
+#  NAME
+#     get_hedeby_default_services() -- get information about ge services
+#
+#  SYNOPSIS
+#     get_hedeby_default_services { service_names } 
+#
+#  FUNCTION
+#     This procedure is used to get information about grid engine services
+#     from testsuite configurations.
+#
+#  INPUTS
+#     service_names - name of a array where to store service information
+#
+#  RESULT
+#     1) returns list of qmaster hosts where ge services are running
+#     2) informations in service_names:
+#
+#         array name                          | value
+#         ================================================================
+#         service_names(service,$host)        | list of all services on $host
+#         service_names(execd_hosts,$service) | list of all execds of $service
+#
+#*******************************************************************************
+proc get_hedeby_default_services { service_names } {
+   upvar $service_names ret
+   set current_cluster_config [get_current_cluster_config_nr]
+   set cluster 0
+   set ge_master_hosts {}
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      get_current_cluster_config_array ts_config
+      lappend ge_master_hosts $ts_config(master_host)
+      if { [info exists ret(service,$ts_config(master_host))] } {
+         set old_val $ret(service,$ts_config(master_host))
+         set ret(service,$ts_config(master_host)) "$old_val $ts_config(cluster_name)"
+      } else {
+         set ret(service,$ts_config(master_host)) "$ts_config(cluster_name)"
+      }
+      set ret(execd_hosts,$ts_config(cluster_name)) $ts_config(execd_hosts)
+      ts_log_fine "execds for service \"$ts_config(cluster_name)\": $ret(execd_hosts,$ts_config(cluster_name))"
+      ts_log_fine "service names for hedeby on host \"$ts_config(master_host)\": $ret(service,$ts_config(master_host))"
+      incr cluster 1
+   }
+   set_current_cluster_config_nr $current_cluster_config
+   ts_log_fine "current ge master hosts: $ge_master_hosts"
+   return $ge_master_hosts
+}
+
 
 #****** util/is_hedeby_process_running() ***************************************
 #  NAME
@@ -1210,22 +1248,21 @@ proc get_all_hedeby_managed_hosts {} {
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc is_hedeby_process_running { host pid } {
-   global CHECK_OUTPUT
 
-   puts $CHECK_OUTPUT "checking pid $pid on host $host ..."
+   ts_log_fine "checking pid $pid on host $host ..."
    get_ps_info $pid $host ps_info
 
    set result 0
    if {$ps_info($pid,error) == 0} {
         if { [string match "*java*" $ps_info($pid,string)] >= 0 } {
-           puts $CHECK_OUTPUT "process string of pid $pid is $ps_info($pid,string)"
+           ts_log_fine "process string of pid $pid is $ps_info($pid,string)"
            set result 1
         } else {
-           puts $CHECK_OUTPUT "hedeby process should have java string in command line"
+           ts_log_fine "hedeby process should have java string in command line"
            set result 0
         }
    } else {
-        puts $CHECK_OUTPUT "pid $pid not found!"
+        ts_log_fine "pid $pid not found!"
         set result 0
    }
    return $result
@@ -1264,17 +1301,16 @@ proc is_hedeby_process_running { host pid } {
 #     util/startup_hedeby()
 #*******************************************************************************
 proc kill_hedeby_process { host user component pid {atimeout 60}} {
-   global CHECK_OUTPUT
 
    set del_pid_file [get_hedeby_local_spool_dir $host]
    append del_pid_file "/run/$component"
    if { [is_remote_file $host $user $del_pid_file] == 0 } {
-      puts $CHECK_OUTPUT "cannot find pid file of component $component in the hedeby run directory"
+      ts_log_fine "cannot find pid file of component $component in the hedeby run directory"
    }
 
    set delete_pid_file 0
-   puts $CHECK_OUTPUT "***********************************************************************"
-   puts $CHECK_OUTPUT "killing component \"$component\" with pid \"$pid\" using SIGTERM ..."
+   ts_log_fine "***********************************************************************"
+   ts_log_fine "killing component \"$component\" with pid \"$pid\" using SIGTERM ..."
    start_remote_prog $host $user "kill" "$pid"
    set wait_time [timestamp]
    incr wait_time $atimeout
@@ -1288,8 +1324,8 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
       }
    }
    if { $terminated == 0 } {
-      puts $CHECK_OUTPUT "***********************************************************************"
-      puts $CHECK_OUTPUT "killing component \"$component\" with pid \"$pid\" using SIGKILL ..."
+      ts_log_fine "***********************************************************************"
+      ts_log_fine "killing component \"$component\" with pid \"$pid\" using SIGKILL ..."
       start_remote_prog $host $user "kill" "-9 $pid"
       set is_pid_running [is_hedeby_process_running $host $pid]
       if { $is_pid_running } {
@@ -1301,7 +1337,7 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
    }
    # components should have delete the pidfiles by itself here (SIGTERM is normal shutdown)
    if { $delete_pid_file } {
-      puts $CHECK_OUTPUT "delete pid file \"$del_pid_file\"\nfor component \"$component\" on host \"$host\" as user \"$user\" ..."
+      ts_log_fine "delete pid file \"$del_pid_file\"\nfor component \"$component\" on host \"$host\" as user \"$user\" ..."
       delete_remote_file $host $user $del_pid_file
    }
 }
@@ -1337,7 +1373,6 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
 #     util/startup_hedeby()
 #*******************************************************************************
 proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 0 } } {
-   global CHECK_OUTPUT 
    global hedeby_config
 
    set error_text ""
@@ -1352,7 +1387,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
       return 1
    }
 
-   puts $CHECK_OUTPUT "shutting down hedeby host(s): $host_list"
+   ts_log_fine "shutting down hedeby host(s): $host_list"
 
    foreach host $host_list {
       # get local run directory path
@@ -1378,7 +1413,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
                continue
             }
             if { [llength $hostInfoArray($host,pid_list)] == 0 } {
-               puts $CHECK_OUTPUT "no jvms found on host $host"
+               ts_log_fine "no jvms found on host $host"
             } else {
                lappend shutdown_host_list $host
             }
@@ -1391,7 +1426,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
                set task_info($host,expected_output) ""
                set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sdj -h $host"      
             }
-            puts $CHECK_OUTPUT "parallel shutting down \"$type\" hosts \"$shutdown_host_list\" ..."
+            ts_log_fine "parallel shutting down \"$type\" hosts \"$shutdown_host_list\" ..."
             append error_text [start_parallel_sdmadm_command shutdown_host_list $user task_info $raise_error]
 
             foreach host $shutdown_host_list {
@@ -1417,7 +1452,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
                incr hostInfoArray($host,ret_val) 1
             } else {
                if { [llength $hostInfoArray($host,pid_list)] == 0 } {
-                  puts $CHECK_OUTPUT "no components found on host $host"
+                  ts_log_fine "no components found on host $host"
                } else {
                   set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -h $host" prg_exit_state "" $raise_error]
                   if { $prg_exit_state != 0 } {
@@ -1501,7 +1536,6 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
 #
 #*******************************************************************************
 proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {parallel 1}} {
-   global CHECK_OUTPUT
    set spawn_list {}
    set error_text ""
 
@@ -1518,11 +1552,11 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
          set tasks(RETURN_ISPID) 0
          set ispid [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
          set ispid_list($host) $ispid
-         puts $CHECK_OUTPUT "got ispid: $ispid"
+         ts_log_fine "got ispid: $ispid"
          set spawn_id [lindex $ispid 1]
          set ispid_list($host,sp_id) $spawn_id
          set ispid_list($spawn_id) $host
-         puts $CHECK_OUTPUT "sp_id on host $host is $ispid_list($host,sp_id)"
+         ts_log_fine "sp_id on host $host is $ispid_list($host,sp_id)"
          lappend spawn_list $ispid_list($host,sp_id)
       } else {
          set task_info($host,output) [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
@@ -1530,6 +1564,7 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
       }
    }
 
+   set last_running ""
    if { $parallel == 1 }  {
       set timeout 60
       set expect_runs 0
@@ -1553,7 +1588,7 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
             set tokensline [split $buffer "\n"]
             foreach tokenl $tokensline {
                set token "$tokenl\n"
-   #            puts $CHECK_OUTPUT "line ($host_name): [string trim $token]"
+   #            ts_log_fine "line ($host_name): [string trim $token]"
                if { [string match "*_exit_status_:(*" $token ] } {
                   set help $token
                   set st [string first "(" $help]
@@ -1583,12 +1618,16 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
                }
             }
             incr expect_runs 1
-            puts -nonewline $CHECK_OUTPUT "[washing_machine $expect_runs 1] FINISHED: | $finished_hosts | RUNNING: $running_hosts |            \r"
-            flush $CHECK_OUTPUT
+            
+            if { $last_running != $running_hosts } {
+               ts_log_fine "finished: $finished_hosts | running:  $running_hosts"
+               set last_running $running_hosts
+            }
+
             if { $all_exited == 0 } {
                exp_continue
             } else {
-               puts $CHECK_OUTPUT "\nall commands terminated!"
+               ts_log_fine "all commands terminated!"
             }
          }
       }
@@ -1602,7 +1641,7 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
       set reported_error 0
       if { $task_info($host,expected_output) != "" } {
          if {[string match "*$task_info($host,expected_output)*" $task_info($host,output)]} {
-            puts $CHECK_OUTPUT "matchstring found"
+            ts_log_fine "matchstring found"
          } else {
             append error_text "----------------------------------\n"
             append error_text "host: $host\n"
@@ -1660,7 +1699,6 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
 #     util/startup_hedeby()
 #*******************************************************************************
 proc startup_hedeby_hosts { type host_list user } {
-   global CHECK_OUTPUT 
    global hedeby_config
    set expected_jvms($hedeby_config(hedeby_master_host)) "cs_vm executor_vm rp_vm"
    # setup managed host expectations ...
@@ -1675,7 +1713,7 @@ proc startup_hedeby_hosts { type host_list user } {
       return 1
    }
 
-   puts $CHECK_OUTPUT "starting up hedeby host(s): $host_list"
+   ts_log_fine "starting up hedeby host(s): $host_list"
 
    # TODO: add more checking for "managed" and "master"
    # TODO: test with get_ps_info if the processes have started
@@ -1686,7 +1724,7 @@ proc startup_hedeby_hosts { type host_list user } {
       set pref_type [get_hedeby_pref_type]
       if { $pref_type == "system" } {
          foreach host $host_list {
-            puts $CHECK_OUTPUT "WARNING! Setting security disable property on host $host!"
+            ts_log_fine "WARNING! Setting security disable property on host $host!"
             set propArray($host,expected_output) ""
             set propArray($host,sdmadm_command) "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p ssl_disable -v true"
          }
@@ -1703,7 +1741,7 @@ proc startup_hedeby_hosts { type host_list user } {
       } else {
          # the user installation is shared in home directory it is only necessary
          # to set system properties on master host
-         puts $CHECK_OUTPUT "WARNING! Setting security disable property!"
+         ts_log_fine "WARNING! Setting security disable property!"
          set host $hedeby_config(hedeby_master_host)
          set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p ssl_disable -v true"]
          if { $prg_exit_state != 0 } {
@@ -1741,7 +1779,7 @@ proc startup_hedeby_hosts { type host_list user } {
                     if { $match_jvm == $jvm } {
                         incr match_count
                         if { $res == $success } {
-                            puts $CHECK_OUTPUT "output match for jvm: $jvm, host: $host, result: $res"
+                            ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
                         } else {
                            append error_text "startup hedeby host ${host} failed:\n"
                            append error_text "\"$output\"\n"
@@ -1755,7 +1793,7 @@ proc startup_hedeby_hosts { type host_list user } {
                 incr expected_count
             }
             if { $match_count == $expected_count } {
-               puts $CHECK_OUTPUT "output matched expected number of jvms: $match_count"
+               ts_log_fine "output matched expected number of jvms: $match_count"
             } else {
                append error_text "startup hedeby host ${host} failed:\n"
                append error_text "\"$output\"\n"
@@ -1791,7 +1829,7 @@ proc startup_hedeby_hosts { type host_list user } {
                     if { $match_jvm == $jvm } {
                         incr match_count
                         if { $res == $success } {
-                            puts $CHECK_OUTPUT "output match for jvm: $jvm, host: $host, result: $res"
+                            ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
 
                         } else {
                            append error_text "startup hedeby host ${host} failed:\n"
@@ -1806,7 +1844,7 @@ proc startup_hedeby_hosts { type host_list user } {
                 incr expected_count
             }
             if { $match_count == $expected_count } {
-               puts $CHECK_OUTPUT "output matched expected number of jvms: $match_count"
+               ts_log_fine "output matched expected number of jvms: $match_count"
             } else {
                append error_text "startup hedeby host ${host} failed:\n"
                append error_text "\"$output\"\n"
@@ -1849,13 +1887,12 @@ proc startup_hedeby_hosts { type host_list user } {
 #     util/remove_prefs_on_hedeby_host()
 #*******************************************************************************
 proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
-   global CHECK_OUTPUT 
 
    set pref_type [get_hedeby_pref_type]
    set sys_name [get_hedeby_system_name]
    set remove_user [get_hedeby_startup_user]
 
-   puts $CHECK_OUTPUT "removing \"$pref_type\" preferences for hedeby system \"$sys_name\" on host \"$host\" ..."
+   ts_log_fine "removing \"$pref_type\" preferences for hedeby system \"$sys_name\" on host \"$host\" ..."
 
    sdmadm_command $host $remove_user "-p $pref_type -s $sys_name rbc" prg_exit_state "" $raise_error
 }
@@ -1886,12 +1923,83 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     util/shutdown_hedeby()
 #     util/reset_hedeby()
 #*******************************************************************************
+set is_reset_hedeby_logged 0
 proc reset_hedeby {} {
-   add_proc_error "reset_hedeby" -3 "not implemented"
+   global is_reset_hedeby_logged
+   if {$is_reset_hedeby_logged == 0} {
+      ts_log_config "reset_hedeby must be implemented in that way to recreate the default testsuite installation scenario"
+      set is_reset_hedeby_logged 1
+   }
    # TODO: reset all resources to install state = OK
    # TODO: all resources which are added by install test should be in the spare
    #       pool after reset_hedeby()
    return 0
+}
+
+#****** util/parse_table_output() **********************************************
+#  NAME
+#     parse_table_output() -- parse table output from sdmadm command
+#
+#  SYNOPSIS
+#     parse_table_output { output array_name delemitter } 
+#
+#  FUNCTION
+#     This procedure is used to parse the table output of sdmadm command into
+#     a tcl array. 
+#
+#  INPUTS
+#     output     - the output from sdmadm 
+#     array_name - name of the array to set the parsed the result
+#     delemitter - column delemitter of the table output 
+#
+#  RESULT
+#     Array which contains the name of the first column and the rest of the line
+#
+#*******************************************************************************
+#TODO (CR): implement this like done in parse_show_component_output and 
+#      remove or update parse_show_component_output()
+proc parse_table_output { output array_name delemitter } {
+   upvar $array_name data
+
+   set columns {}
+
+   set lines [split $output "\n\r"]
+   set found_header_line 0
+   set current_line -1  ;# header line delem is line -1
+   foreach elem $lines {
+      set line [string trim $elem]
+      if { $line == "" } {
+         continue
+      }
+      if { [string first $delemitter $line] >= 0 } {
+         if { $found_header_line == 0 } {
+            set found_header_line 1
+            set col_row [split $line $delemitter]
+            foreach name $col_row {
+               lappend columns [string trim $name]
+            }
+            set data(columns) $columns
+         } else {
+            set row [split $line $delemitter]
+            set index 0
+            foreach name $row {
+               set column [lindex $columns $index]
+               lappend data($column) [string trim $name]
+               incr index 1
+            }
+            incr current_line 1
+         }
+      } else {
+         lappend data($current_line) $line
+         set data(lines) $current_line
+      }
+   }
+   incr current_line 1
+   set data(lines) $current_line
+   set names [array names data]
+   foreach column $names {
+      debug_puts "\"$column\": \"$data($column)\""
+   }
 }
 
 #****** util/sdmadm_command() **************************************************
@@ -1925,29 +2033,38 @@ proc reset_hedeby {} {
 #  SEE ALSO
 #     util/sdmadm_command()
 #*******************************************************************************
-proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } {raise_error 1} } {
-   global CHECK_OUTPUT
+proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } {raise_error 1} {table_output ""} } {
    upvar $exit_var back_exit_state
    if { $interactive_tasks != "" } {
       upvar $interactive_tasks tasks
    }
+   if { $table_output != "" } {
+      upvar $table_output table
+      append arg_line " -coldel \"|\" -dupval"
+   }
+
+   # this is only for getting debug output
+#   set arg_line "-d $arg_line"
+
    set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
    set my_env(JAVA_HOME) [get_java_home_for_host $host "1.5"]
+   set my_env(EDITOR) [get_binary_path $host "vim"]
 
    if { $interactive_tasks == "" } {
-      puts $CHECK_OUTPUT "${host}($user): starting binary not interactive \"sdmadm $arg_line\" ..."
+      ts_log_fine "${host}($user): starting binary not interactive \"sdmadm $arg_line\" ..."
       set output [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0 $raise_error]
       if { $back_exit_state != 0 } {
          add_proc_error "sdmadm_command" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
       }
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
+      parse_table_output $output table "|"
       return $output
    } else {
       set back_exit_state -1
-      puts $CHECK_OUTPUT "${host}($user): starting binary INTERACTIVE \"sdmadm $arg_line\" ..."
+      ts_log_fine "${host}($user): starting binary INTERACTIVE \"sdmadm $arg_line\" ..."
       set pr_id [open_remote_spawn_process $host $user $sdmadm_path $arg_line 0 "" my_env 0]
       if { [info exists tasks(RETURN_ISPID)] } {
-         puts $CHECK_OUTPUT "sdmadm_command(): returning internal spawn id to caller!"
+         ts_log_fine "returning internal spawn id \"$pr_id\" to caller!"
          return $pr_id
       }
 
@@ -1976,7 +2093,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
               incr st 1
               incr ed -1
               set back_exit_state [string range $help $st $ed]
-              puts $CHECK_OUTPUT "found exit status of client: ($back_exit_state)"
+              ts_log_fine "found exit status of client: ($back_exit_state)"
               set do_stop 1
               set found_end 1
            }
@@ -1987,13 +2104,13 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
                 if { [string match "*${name}*" $token] } {
                     set was_expected 1
                     if { $tasks($name) != "ROOTPW" } {
-                       puts $CHECK_OUTPUT ".....found \"$name\", sending \"$tasks($name)\" ..."
+                       ts_log_fine ".....found \"$name\", sending \"$tasks($name)\" ..."
                        ts_send $sp_id "$tasks($name)\n"
                     } else {
                        log_user 0  ;# in any case before sending password
                        ts_send $sp_id "[get_root_passwd]\n" "" 1
                        log_user 1
-                       puts $CHECK_OUTPUT ".....found \"$name\", sent \"$tasks($name)\" without prompt ..."
+                       ts_log_fine ".....found \"$name\", sent \"$tasks($name)\" without prompt ..."
                     }
                  }
               }
@@ -2013,6 +2130,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       if { $back_exit_state != 0 } {
          add_proc_error "sdmadm_command" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
       }
+      parse_table_output $output table "|"
       return $output
    }
 }
@@ -2039,7 +2157,6 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
 #     util/shutdown_hedeby_hosts()
 #*******************************************************************************
 proc get_jvm_from_run_list { pid run_list } {
-   global CHECK_OUTPUT
    set component ""
 
 
@@ -2052,7 +2169,7 @@ proc get_jvm_from_run_list { pid run_list } {
          return $ejvm
       }
    }
-   puts $CHECK_OUTPUT "cannot find pid $pid in runlist: $run_list"
+   ts_log_fine "cannot find pid $pid in runlist: $run_list"
    return $component
 }
 
@@ -2084,23 +2201,21 @@ proc get_jvm_from_run_list { pid run_list } {
 #     util/shutdown_hedeby_hosts()
 #*******************************************************************************
 proc get_jvm_pidlist { host user run_dir pidlist pidlistinfo {raise_error 1}} {
-   global CHECK_OUTPUT
    upvar $pidlist pid_list
    upvar $pidlistinfo run_list
    set pid_list {}
    set ret_val 0
 
-   puts $CHECK_OUTPUT "check if host \"$host\" has running hedeby jvms ..."
-
+   ts_log_fine "check if host \"$host\" has running hedeby jvms ..."
    if { [remote_file_isdirectory $host $run_dir] } {
       set running_jvm_names [start_remote_prog $host $user "ls" "$run_dir"]
       if { [llength $running_jvm_names] == 0 } {
-         puts $CHECK_OUTPUT "no hedeby jvm running on host $host!"
+         ts_log_fine "no hedeby jvm running on host $host!"
          return $ret_val
       }
       foreach jvm_name $running_jvm_names {
          if {[read_hedeby_jvm_pid_file pid_info $host $user $run_dir/$jvm_name] != 0} {
-            puts $CHECK_OUTPUT "cannot get pid info for host $host!"
+            ts_log_fine "cannot get pid info for host $host!"
             set ret_val 1
             return $ret_val
          }
@@ -2109,12 +2224,13 @@ proc get_jvm_pidlist { host user run_dir pidlist pidlistinfo {raise_error 1}} {
          
          lappend pid_list $pid
          lappend run_list "$pid:$jvm_name:$port"
-         puts $CHECK_OUTPUT "run_list = $run_list"
-         puts $CHECK_OUTPUT "jvm $jvm_name has pid \"$pid\""
-         puts $CHECK_OUTPUT "jvm $jvm_name has port \"$port\""
+         ts_log_fine "run_list = $run_list"
+         ts_log_fine "jvm $jvm_name has pid \"$pid\""
+         ts_log_fine "jvm $jvm_name has port \"$port\""
       }
    } else {
-      puts $CHECK_OUTPUT "no hedeby run directory found on host $host!"
+      ts_log_fine "no hedeby run directory found on host $host!"
+      ts_log_fine "run directory was \"$run_dir\""
    }
    return $ret_val
 }
@@ -2147,23 +2263,22 @@ proc get_jvm_pidlist { host user run_dir pidlist pidlistinfo {raise_error 1}} {
 #     util/shutdown_hedeby_hosts()
 #*******************************************************************************
 proc cleanup_hedeby_processes { host user run_dir pid_list run_list {raise_error 1} } {
-   global CHECK_OUTPUT
    set ret_val 0
 
-   puts $CHECK_OUTPUT "cleaning up incorrect hedeby shutdown on host $host ..."
+   ts_log_fine "cleaning up incorrect hedeby shutdown on host $host ..."
    foreach pid $pid_list {
       set jvm_name [get_jvm_from_run_list $pid $run_list]
-      puts $CHECK_OUTPUT "jvm=$jvm_name"
+      ts_log_fine "jvm=$jvm_name"
       set is_pid_running [is_hedeby_process_running $host $pid]
       if { $is_pid_running } {
-         puts $CHECK_OUTPUT "killing hedeby process ..."
+         ts_log_fine "killing hedeby process ..."
          kill_hedeby_process $host $user $jvm_name $pid
       } else {
          # there was an old pid file without running jvm -> delete the pid file
-         puts $CHECK_OUTPUT "delete pid file ..."
+         ts_log_fine "delete pid file ..."
          if {$jvm_name != ""} {
             set del_pid_file "$run_dir/$jvm_name"
-            puts $CHECK_OUTPUT "delete pid file \"$del_pid_file\"\nfor jvm \"$jvm_name\" on host \"$host\" as user \"$user\" ..."
+            ts_log_fine "delete pid file \"$del_pid_file\"\nfor jvm \"$jvm_name\" on host \"$host\" as user \"$user\" ..."
             delete_remote_file $host $user $del_pid_file
          }
       }
@@ -2199,11 +2314,10 @@ proc cleanup_hedeby_processes { host user run_dir pid_list run_list {raise_error
 #     util/shutdown_hedeby_hosts()
 #*******************************************************************************
 proc check_hedeby_process_shutdown { host user run_dir pid_list run_list {raise_error 1} {atimeout 60} } {
-   global CHECK_OUTPUT
    set ret_val 0
    set error_text ""
 
-   puts $CHECK_OUTPUT "checking correct hedeby shutdown on host $host ..."
+   ts_log_fine "checking correct hedeby shutdown on host $host ..."
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -2228,7 +2342,7 @@ proc check_hedeby_process_shutdown { host user run_dir pid_list run_list {raise_
       if { [llength $pids_to_check] == 0 } {
          break
       }
-      puts $CHECK_OUTPUT "waiting for disappearance of pid(s): $pids_to_check"
+      ts_log_fine "waiting for disappearance of pid(s): $pids_to_check"
       after 1000
    }
 
@@ -2281,7 +2395,6 @@ proc check_hedeby_process_shutdown { host user run_dir pid_list run_list {raise_
 #     0 on success, 1 on error
 #*******************************************************************************
 proc remove_user_from_admin_list { execute_host execute_user user_name {raise_error 1} } {
-   global CHECK_OUTPUT
    set retval 0
    
    set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] rau $user_name" prg_exit_state "" $raise_error]
@@ -2323,7 +2436,6 @@ proc remove_user_from_admin_list { execute_host execute_user user_name {raise_er
 #     0 on success, 1 on error
 #*******************************************************************************
 proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1} } {
-   global CHECK_OUTPUT
    set retval 0
    
    set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] aau $user_name" prg_exit_state "" $raise_error ]
@@ -2365,7 +2477,6 @@ proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1
 #     0 on success, 1 on error
 #*******************************************************************************
 proc get_admin_user_list { execute_host execute_user result_list {raise_error 1} } {
-   global CHECK_OUTPUT
    upvar $result_list user_list
    set retval 0
    
@@ -2420,7 +2531,6 @@ proc get_admin_user_list { execute_host execute_user result_list {raise_error 1}
 #     util/sdmadm_command()
 #*******************************************************************************
 proc parse_show_component_output { output_var {status_array "ss_out" } } {
-   global CHECK_OUTPUT
    upvar $output_var out
    upvar $status_array ss
 
@@ -2634,10 +2744,10 @@ proc parse_jvm_start_stop_output { output_var {status_array "ss_out" } } {
 #   set jvm_name "executor_vm"
 #
 #   if {[read_hedeby_jvm_pid_info pid_info $host $jvm_name] != 0} {
-#      puts $CHECK_OUTPUT "pid file for jvm $jvm_name at $host not found"
+#      ts_log_fine "pid file for jvm $jvm_name at $host not found"
 #   } else {
-#      puts $CHECK_OUTPUT "pid is $pid_info(pid)"
-#      puts $CHECK_OUTPUT "url is $pid_info(url)"
+#      ts_log_fine "pid is $pid_info(pid)"
+#      ts_log_fine "url is $pid_info(url)"
 #   }
 #
 #  NOTES
@@ -2650,7 +2760,6 @@ proc parse_jvm_start_stop_output { output_var {status_array "ss_out" } } {
 #     util/read_hedeby_jvm_pid_file
 #*******************************************************************************
 proc read_hedeby_jvm_pid_info { a_pid_info host user jvm_name } {
-   global CHECK_OUTPUT 
    global hedeby_config
    
    upvar pid_info $a_pid_info
@@ -2730,7 +2839,6 @@ proc get_pid_file_for_jvm { host jvm_name } {
 #*******************************************************************************
 proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
    
-   global CHECK_OUTPUT 
    upvar pid_info $a_pid_info
    if { [info exists pid_info] } {
       unset pid_info
@@ -2744,4 +2852,358 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
        add_proc_error "read_hedeby_jvm_pid_file" -1 "runfile $pid_file on host $host contains not the expected 2 lines"
        return 1
    }
+}
+
+
+#****** util/create_fixed_usage_slo() ******************************************
+#  NAME
+#     create_fixed_usage_slo() -- create fixed usage slo xml string
+#
+#  SYNOPSIS
+#     create_fixed_usage_slo { {urgency 50 } { name "fixed_usage" } } 
+#
+#  FUNCTION
+#     creates xml string with specified values
+#
+#  INPUTS
+#     {urgency 50 }          - urgency value
+#     { name "fixed_usage" } - name value
+#
+#  RESULT
+#     xml string
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/set_hedeby_slos()
+#*******************************************************************************
+proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
+   set slo {}
+   lappend slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\"/>"
+   return $slo
+}
+
+#****** util/create_min_resource_slo() *****************************************
+#  NAME
+#     create_min_resource_slo() -- create min resource slo xml string
+#
+#
+#  SYNOPSIS
+#     create_min_resource_slo { {urgency 50 } { name "min_res" } { min 2 } } 
+#
+#  FUNCTION
+#     creates xml string with specified values
+#
+#  INPUTS
+#     {urgency 50 }      - urcency value 
+#     { name "min_res" } - name value
+#     { min 2 }          - min value
+#
+#  RESULT
+#     xml string
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/set_hedeby_slos()
+#*******************************************************************************
+proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 }} {
+   set slo {}
+   lappend slo "<common:slo xsi:type=\"common:MinResourceSLOConfig\" min=\"$min\" urgency=\"$urgency\" name=\"$name\"/>"
+   return $slo
+}
+
+
+#****** util/hedeby_mod_setup() ************************************************
+#  NAME
+#     hedeby_mod_setup() -- startup hedeby (vi) modification sdmadm command
+#
+#  SYNOPSIS
+#     hedeby_mod_setup { host execute_user sdmadm_arguments error_log } 
+#
+#  FUNCTION
+#     This procedure will startup sdmadm mod command and will wait for started
+#     up vi. After that the remote spawn id object is returned.
+#
+#  INPUTS
+#     host             - host where to start the command
+#     execute_user     - user who should start the command
+#     sdmadm_arguments - sdmadm command arguments
+#     error_log        - name of variable to store error messages
+#
+#  RESULT
+#     internal spawn id array (returned from open_remote_spawn_process())
+#
+#  SEE ALSO
+#     util/hedeby_mod_setup()
+#     util/hedeby_mod_sequence()
+#     util/hedeby_mod_cleanup()
+#*******************************************************************************
+set current_hedeby_mod_arguments ""
+proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
+   global current_hedeby_mod_arguments 
+   upvar $error_log errors
+   set errors ""
+
+   set current_hedeby_mod_arguments $sdmadm_arguments
+   set tasks(RETURN_ISPID) ""
+   set ispid [sdmadm_command $host $execute_user $sdmadm_arguments prg_exit_state tasks 1]
+   set sp_id [ lindex $ispid 1 ]
+   set timeout 30
+   log_user 0  ;# we don't want to see vi output
+   set clear_sequence [ format "%c%c%c%c%c%c%c" 0x1b 0x5b 0x48 0x1b 0x5b 0x32 0x4a 0x00 ]
+   expect {
+      -i $sp_id  "_start_mark_*\n" {
+      }
+   }
+   ts_log_fine "got start mark"
+
+   set timeout 10
+   expect {
+      -i $sp_id -- "$clear_sequence" {
+         send -i $sp_id -- "G"
+         ts_log_fine "got screen clear sequence"
+
+      }
+      -i $sp_id -- {[A-Za-z]+} {
+         ts_log_fine "got screen output"
+         send -i $sp_id -- "G"
+      }
+   }
+
+
+   # now wait for 100% output
+   set timeout 1
+   set break_timer 10
+   expect {
+      -i $sp_id  "100%" {
+         send -i $sp_id -- "1G"
+      }
+      -i $sp_id timeout {
+         incr break_timer -1
+         send -i $sp_id -- "G"
+         if { $break_timer > 0 } {
+            exp_continue
+         } else {
+            append errors "Error starting \"sdmadm $sdmadm_arguments\": vi does not start\n" 
+            
+         }
+      }
+   }
+   ts_log_fine "vi started"
+   return $ispid
+}
+
+#****** util/hedeby_mod_sequence() *********************************************
+#  NAME
+#     hedeby_mod_sequence() -- send vi mod sequences to open vi
+#
+#  SYNOPSIS
+#     hedeby_mod_sequence { ispid sequence error_log } 
+#
+#  FUNCTION
+#     This procedure is used to send the specified vi secquences to the open
+#     remote spawn id.
+#
+#  INPUTS
+#     ispid     - spawn id array returned by hedeby_mod_setup()
+#     sequence  - list of vi command sequences
+#     error_log - name of variable to store error messages
+#
+#  SEE ALSO
+#     util/hedeby_mod_setup()
+#     util/hedeby_mod_sequence()
+#     util/hedeby_mod_cleanup()
+#*******************************************************************************
+proc hedeby_mod_sequence { ispid sequence error_log } {
+   upvar $error_log errors
+   if { $ispid == "" } {
+      ts_log_fine "no ispid value - returning"
+      return
+   }
+
+   if { $errors != "" } {
+      ts_log_fine "skip sending sequence, there were errors!"
+      return
+   }
+
+   set sp_id [ lindex $ispid 1 ]
+
+   set timeout 0
+   set nr 0
+   
+   foreach seq $sequence {
+      ts_log_finer "sequence: $seq"
+      send -i $sp_id -- $seq
+   }
+}
+
+#****** util/hedeby_mod_cleanup() **********************************************
+#  NAME
+#     hedeby_mod_cleanup() -- finish mod (vi) session and return output
+#
+#  SYNOPSIS
+#     hedeby_mod_cleanup { ispid error_log {exit_var prg_exit_state} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is used to cleanup an open hedeby mod (vi) session
+#     started with hedeby_mod_setup(). It returns the programm exit state
+#     and the output.
+#
+#  INPUTS
+#     ispid                     - spawn id array returned by hedeby_mod_setup()
+#     error_log                 - name of variable to store error messages
+#     {exit_var prg_exit_state} - optional: 
+#                                    name of variable to store sdmadm exit state
+#     {raise_error 1}           - optional:
+#                                    raise error if there where errors
+#
+#  RESULT
+#     the output of the command (also containing vi control characters which
+#     are replaced with "?" characters)
+#
+#
+#  SEE ALSO
+#     util/hedeby_mod_setup()
+#     util/hedeby_mod_sequence()
+#     util/hedeby_mod_cleanup()
+#*******************************************************************************
+proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 1}} {
+   global current_hedeby_mod_arguments 
+   upvar $exit_var exit_value
+   upvar $error_log errors
+
+   if { $ispid == "" } {
+      ts_log_fine "no ispid value - returning"
+      return
+   }
+
+   if { $errors != "" } {
+      ts_log_fine "skip sending vi sequence, there were errors!"
+   } else { 
+      set sequence {}
+      lappend sequence "[format "%c" 27]" ;# ESC
+      lappend sequence ":wq\n"        ;# save and quit
+      hedeby_mod_sequence $ispid $sequence errors
+   }
+
+   set sp_id [ lindex $ispid 1 ]
+   set timeout 15
+   set do_stop 0
+   set output ""
+   expect {
+      -i $sp_id timeout {
+      }
+      -i $sp_id -- "*\n" {
+        foreach line [split $expect_out(0,string) "\n\r"] {
+           set line [string trim $line]
+           if {$line != ""} {
+              if { [string first "_exit_status_" $line] >= 0 } {
+                 set exit_value [get_string_value_between "_exit_status_:(" ")" $line]
+              } 
+              if { [string first "_END_OF_FILE_" $line] >= 0 } {
+                 set do_stop 1
+              }
+            
+              set output_string ""
+              for {set i 0} {$i<[string length $line]} {incr i 1} {
+                 set char [string index $line $i]
+                 if { ![string is control $char] } {
+                    append output_string $char
+                 } else {
+                    append output_string "?"
+                 }
+              }  
+              append output "$output_string\n"
+           }
+        }
+        if { $do_stop == 0 } {
+           exp_continue
+        }
+      }
+   }
+   log_user 1
+   close_spawn_process $ispid
+   if { $errors != "" } {
+      append errors "output of command:\n"
+      append errors $output
+   }
+   if { $raise_error } {
+      if { $exit_value != 0 || $errors != "" } {
+         ts_log_severe "error calling \"sdmadm $current_hedeby_mod_arguments\":\n$errors\nexit_value: $exit_value" 
+      }
+   }
+   return $output
+}
+
+
+#****** util/set_hedeby_slos() *************************************************
+#  NAME
+#     set_hedeby_slos() -- used to set slo configuration for a hedeby service
+#
+#  SYNOPSIS
+#     set_hedeby_slos { host exec_user service slos } 
+#
+#  FUNCTION
+#     This procedure is used to set the slo configuration for a hedeby ge service.
+#
+#  INPUTS
+#     host      - host where to start command
+#     exec_user - user who start command
+#     service   - service which should be modified
+#     slos      - list with slos to set (created with create_???_slo() and put
+#                 into list)
+#
+#  RESULT
+#     ??? 
+#
+#  NOTES
+#     TODO: This procedure is not finished
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/set_hedeby_slos()
+#*******************************************************************************
+proc set_hedeby_slos { host exec_user service slos } {
+   global CHECK_DEBUG_LEVEL
+   ts_log_fine "setting slos for service \"$service\" ..."
+   foreach new_slo $slos {
+      ts_log_fine "new slo: $new_slo"
+   }
+   set arguments "-s [get_hedeby_system_name] mc -c $service"
+
+   set ispid [hedeby_mod_setup $host $exec_user $arguments error_text]
+
+   set sp_id [ lindex $ispid 1 ]
+   
+   set timeout 30
+    
+   # remove slo section
+   set sequence {}
+   lappend sequence "/<common:slos>\n"
+   lappend sequence "ma/<\\/common:slos>\n"
+   lappend sequence ":'a,.d\n"
+
+   # add new slo section
+   lappend sequence "i"
+   lappend sequence "<common:slos>\n"
+   foreach new_slo $slos {
+      lappend sequence $new_slo
+      lappend sequence "\n"
+   }
+   lappend sequence "</common:slos>\n"
+   lappend sequence "[format "%c" 27]" ;# ESC
+
+   hedeby_mod_sequence $ispid $sequence error_text
+   set output [hedeby_mod_cleanup $ispid error_text]
+
+   ts_log_fine "exit_status: $prg_exit_state"
+   if { $prg_exit_state == 0 } {
+      ts_log_fine "output: \n$output"
+   }
+
+   # TODO: check correct slo settings with sdmadm
+   # TODO: should service be restarted or only updated
 }

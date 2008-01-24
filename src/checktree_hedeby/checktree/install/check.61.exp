@@ -50,15 +50,18 @@ set check_init_level_procedure   "hedeby_install_init_level"
 set check_functions              {}  ;# functions to call (in order)
 set check_setup_function "hedeby_install_setup"
 set check_cleanup_function "hedeby_install_cleanup"
+ lappend check_functions "hedeby_shutdown_system"
+ lappend check_functions "hedeby_remove_preferences"
+ lappend check_functions "hedeby_install_master_host"
+ lappend check_functions "hedeby_startup_master_host"
+ lappend check_functions "hedeby_install_managed_hosts"
+ lappend check_functions "hedeby_startup_managed_hosts"
+ lappend check_functions "hedeby_add_spare_pool_resources"
+ 
+#lappend check_functions "hedeby_check_spare_pool_resources"
+ lappend check_functions "hedeby_add_ge_services"
+ lappend check_functions "hedeby_startup_ge_services"
 
-lappend check_functions "hedeby_shutdown_system"
-lappend check_functions "hedeby_remove_preferences"
-lappend check_functions "hedeby_install_master_host"
-lappend check_functions "hedeby_startup_master_host"
-lappend check_functions "hedeby_install_managed_hosts"
-lappend check_functions "hedeby_startup_managed_hosts"
-lappend check_functions "hedeby_add_and_verify_spare_pool_resources"
-#lappend check_functions "hedeby_add_and_verify_ge_service"
 #lappend check_functions "hedeby_add_and_verify_ge_service_resources"
 
 
@@ -108,14 +111,246 @@ proc hedeby_install_cleanup {} {
 }
 
 
-proc hedeby_add_and_verify_spare_pool_resources {} {
+proc hedeby_add_spare_pool_resources {} {
    global hedeby_config
    global CHECK_OUTPUT 
    global CHECK_USER
 
+   # TODO: remove this sleep of 5 sec when problems with adding resources directly
+   #       after starting up the jvms are solved or analysed!
+   after 5000 
+  
    foreach host $hedeby_config(hedeby_host_resources) {
-      add_host_resource $host
+      set exit_state [add_host_resource $host]
+      ts_log_fine "exit_state: $exit_state"
    }
+}
+
+proc hedeby_check_spare_pool_resources {} {
+   global hedeby_config
+   global CHECK_OUTPUT 
+   global CHECK_USER
+
+   set execute_user [get_hedeby_admin_user]
+   set execute_host $hedeby_config(hedeby_master_host)
+
+
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all" prg_exit_state ""  1 table]
+
+   set error_text ""   
+   
+   set expected_hosts $hedeby_config(hedeby_host_resources)
+   foreach col $table(columns) {
+      set values $table($col)
+      switch -exact -- $col {
+         "service" {
+            foreach elem $values {
+               if { [string compare $elem "spare_pool"] != 0 } {
+                  append error_text "no match for spare_pool service\n"
+               }
+            }
+         }
+         "state" {
+            foreach elem $values {
+               if { [string compare $elem "ASSIGNED"] != 0 } {
+                  append error_text "no match for ASSIGNED state\n"
+               }
+            }
+         }
+         "type" {
+            foreach elem $values {
+               if { [string compare $elem "host"] != 0 } {
+                  append error_text "no match for type host\n"
+               }
+            }
+         }
+         "id" {
+            set nr 0
+            foreach elem $values {
+               set host_index  [lsearch $expected_hosts $elem]
+               if { $host_index >= 0 } {
+                  set expected_hosts [lreplace $expected_hosts $host_index $host_index]
+                  puts $CHECK_OUTPUT "found host $elem - resource index $nr"
+                  set id_map_array($nr) $elem
+                  incr nr 1
+               }
+            }
+            if { [llength $expected_hosts] != 0 } {
+               append error_text "did not find resource hosts: $expected_hosts\n"
+            }
+         }
+
+         default {
+            puts $CHECK_OUTPUT "not checked: $col: $table($col)"
+         }
+      }
+   }
+
+   for {set i 0} {$i<$table(lines)} {incr i 1} {
+      set resource($i) ""
+      foreach elem $table($i) {
+         set propval [split $elem "="]
+         set prop [lindex $propval 0]
+         set val  [lindex $propval 1]
+         set resource($i,$prop) $val
+         lappend resource($i) $prop
+      }
+   }
+
+   for {set i 0} {$i<$table(lines)} {incr i 1} {
+      puts $CHECK_OUTPUT "resource $i has properties:"
+      set ip_found 0
+      foreach elem $resource($i) {
+         set value $resource($i,$elem)
+         switch -exact -- $elem {
+            "resourceHostname" {
+               if { [string compare $value $id_map_array($i)] != 0 } {
+                  append error_text "resourceHostname=$value doesn't match hostname=$id_map_array($i)\n" 
+               } else {
+                  puts $CHECK_OUTPUT " found resourceHostname=$value which matches $id_map_array($i)"
+               }
+            }
+            "resourceIPAddress" {
+               set ip_found 1
+               puts $CHECK_OUTPUT " found resourceIPAddress"
+            }
+            default {
+               debug_puts "ignore: $elem=$value"
+            }
+         }
+      }
+      if { $ip_found == 0 } {
+         append error_text "resource $id_map_array($i) has no property \"resourceIPAddress\"\n"
+      }
+   }
+
+   if { $error_text != "" } {
+      add_proc_error  "hedeby_check_spare_pool_resources" -1 $error_text
+   }
+}
+
+
+
+# TODO: startup rp_vm on the ge adapter hosts!
+proc hedeby_startup_ge_services {} {
+   global CHECK_OUTPUT
+   global hedeby_config
+   global install_user
+   global install_current_cluster_config
+   
+   set cluster 0
+   set restart_hosts {}
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      get_current_cluster_config_array ts_config
+      if { [lsearch $restart_hosts $ts_config(master_host)] < 0 } {
+         lappend restart_hosts $ts_config(master_host)
+      }
+      incr cluster 1
+   }
+   set_current_cluster_config_nr $install_current_cluster_config
+
+   puts $CHECK_OUTPUT "shutting down jvms for ge adapter hosts: $restart_hosts"
+   shutdown_hedeby_hosts "managed" $restart_hosts $install_user 
+   puts $CHECK_OUTPUT "starting up jvms for ge adapter hosts: $restart_hosts"
+   startup_hedeby_hosts "managed" $restart_hosts $install_user
+}
+
+
+proc hedeby_add_ge_services {} {
+   global hedeby_config
+   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global install_current_cluster_config
+   global install_user
+
+   # first calculate spooldirs
+   set managed_host_list [get_all_hedeby_managed_hosts]
+   foreach host $managed_host_list {
+      set spool_dir [get_hedeby_local_spool_dir $host]
+      if { [info exists spool($spool_dir)] == 0 } {
+         set spool($spool_dir) $host  
+      } else {
+         set spool($spool_dir) "$spool($spool_dir) $host"
+      }
+   }
+
+   set spool_dirs [array names spool]
+   foreach spd $spool_dirs {
+      puts $CHECK_OUTPUT "spool dir \"$spd\" used for hosts \"$spool($spd)\""
+   }
+   
+
+   set cluster 0
+   set execute_user [get_hedeby_admin_user]
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      get_current_cluster_config_array ts_config
+      set host $ts_config(master_host)
+      puts $CHECK_OUTPUT "adding GE service \"$ts_config(cluster_name)\" for cluster #$cluster on qmaster host \"$host\" ..."
+      set arguments "-s [get_hedeby_system_name] ags -h $host -j rp_vm -s $ts_config(cluster_name)"
+      set ispid [hedeby_mod_setup $host $execute_user $arguments error_text]
+      
+      set master_port $ts_config(commd_port)
+      set execd_port $master_port
+      incr execd_port 1
+      set admin_user [get_hedeby_admin_user]
+
+      set sequence {}
+      lappend sequence "[format "%c" 27]" ;# ESC
+      lappend sequence ":%s/password=\"password&amp;\"/password=\"\"/\n"
+      lappend sequence ":%s/username=\"username\"/username=\"$admin_user\"/\n"
+      lappend sequence ":%s/jmxPort=\"0\"/jmxPort=\"$ts_config(jmx_port)\"/\n"
+      lappend sequence ":%s/execdPort=\"0\"/execdPort=\"$execd_port\"/\n"
+      lappend sequence ":%s/masterPort=\"0\"/masterPort=\"$master_port\"/\n"
+      lappend sequence ":%s/cell=\"default\"/cell=\"$ts_config(cell)\"/\n"
+      set path [split $ts_config(product_root) {/}]
+      set sge_root_val [join $path {\/}]
+      lappend sequence ":%s/root=\"\"/root=\"$sge_root_val\"/\n"
+      lappend sequence ":%s/clusterName=\"sge\"/clusterName=\"$ts_config(cluster_name)\"/\n"
+
+      
+#     now delete <slos>...</slos> and enter new slos
+      lappend sequence "[format "%c" 27]" ;# ESC
+      lappend sequence "/<common:slos>\n"
+      lappend sequence "ma/<\\/common:slos>\n:'a,.d\n"
+      lappend sequence "i"
+      lappend sequence "<common:slos>\n"
+      lappend sequence "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"50\" name=\"fixed_usage\"/>\n"
+      lappend sequence "</common:slos>\n"
+      lappend sequence "[format "%c" 27]" ;# ESC
+
+
+#     now we setup execd install settings (local spool dir filter)
+      lappend sequence "/ge_adapter:execd\n"
+      lappend sequence "dd"
+      lappend sequence "i"
+      foreach spd $spool_dirs {
+      #   puts $CHECK_OUTPUT "spool dir \"$spd\" used for hosts \"$spool($spd)\""
+         lappend sequence "<ge_adapter:execd adminUsername=\"root\" defaultDomain=\"\" ignoreFQDN=\"true\" rcScript=\"false\" adminHost=\"true\"\n"
+         lappend sequence "submitHost=\"false\" cleanupDefault=\"false\">\n"
+         lappend sequence "<ge_adapter:filter>\n"
+         set isFirst 1
+         foreach host $spool($spd) {
+            if { $isFirst == 0 } {
+               lappend sequence " | "
+            }
+            lappend sequence "resourceHostname = \"$host\"\n"
+            set isFirst 0
+         }
+         lappend sequence "</ge_adapter:filter>\n"
+         lappend sequence "<ge_adapter:localSpoolDir>$spd</ge_adapter:localSpoolDir>\n"
+         lappend sequence "</ge_adapter:execd>\n"
+         lappend sequence "\n"
+      }
+      lappend sequence "[format "%c" 27]" ;# ESC
+
+      hedeby_mod_sequence $ispid $sequence error_text
+      set output [hedeby_mod_cleanup $ispid error_text]
+      ts_log_fine "exit_status: $prg_exit_state"
+      if { $prg_exit_state == 0 } {
+         ts_log_fine "output: \n$output"
+      }
+      incr cluster 1
+   }
+   set_current_cluster_config_nr $install_current_cluster_config
 }
 
 proc hedeby_shutdown_system {} {
