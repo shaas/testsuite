@@ -114,12 +114,12 @@ proc qmaster_size_init_level {} {
 
    set when "startup"
 
-   set MONITOR_SIZE_ERROR -1
+   set MONITOR_SIZE_ERROR SEVERE
 
    switch -exact $CHECK_ACT_LEVEL {
       0 {
          # in functional test, it is ok for qmaster/schedd to grow
-         set MONITOR_SIZE_ERROR       0
+         set MONITOR_SIZE_ERROR       FINE
 
          set monitor_size_interval   10
          set schedule_interval       "00:00:10"
@@ -218,7 +218,6 @@ proc qmaster_size_init_level {} {
 #     ???/???
 #*******************************
 proc qmaster_size_setup {} {
-   global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE CHECK_ACTUAL_TEST_PATH CHECK_USER
    global time_start MONITOR_SIZE_FILENAME
    global CHECK_ACT_LEVEL CHECK_PROTOCOL_DIR
@@ -240,7 +239,7 @@ proc qmaster_size_setup {} {
          delete_file $MONITOR_SIZE_FILENAME
       }
    } else {
-      add_proc_error "qmaster_size_setup" "-1" "file name length of monitor size file should be longer than 5 characters"
+      ts_log_severe "file name length of monitor size file should be longer than 5 characters"
    }
 
    monitor_header
@@ -251,7 +250,7 @@ proc qmaster_size_setup {} {
 
    set time [timestamp]
    while { 1 } {
-      puts $CHECK_OUTPUT "waiting for startup of qmaster (and scheduler if version < 62) ..."
+      ts_log_fine "waiting for startup of qmaster (and scheduler if version < 62) ..."
       sleep 5
       set running [ are_master_and_scheduler_running $ts_config(master_host) $qmaster_spool_dir]
       if {$ts_config(gridengine_version) < 62} {
@@ -264,7 +263,7 @@ proc qmaster_size_setup {} {
       }
       set runtime [expr ( [timestamp] - $time) ]
       if { $runtime >= 300 } {
-          add_proc_error "qmaster_size_setup" -1 "timeout while waiting for startup of qmaster and scheduler"
+          ts_log_severe "timeout while waiting for startup of qmaster and scheduler"
           break;
       }
    } 
@@ -274,30 +273,29 @@ proc qmaster_size_setup {} {
 }
 
 proc init_ps {} {
-   global CHECK_OUTPUT
    global cmd_ps size_unit
    global qmaster_spool_dir
    global ts_config
 
    # get qmaster pid
    set qmaster_pid [get_qmaster_pid]
-   puts $CHECK_OUTPUT "qmaster pid: $qmaster_pid"
+   ts_log_fine "qmaster pid: $qmaster_pid"
 
    if {$ts_config(gridengine_version) < 62} {
       # get schedd pid
       set schedd_pid [get_schedd_pid]
-      puts $CHECK_OUTPUT "schedd  pid: $schedd_pid "
+      ts_log_fine "schedd  pid: $schedd_pid "
    }
 
 
    if { $qmaster_pid == "" } {
-      add_proc_error "init_ps" 1 "could not evaluate pid of qmaster"
+      ts_log_severe "could not evaluate pid of qmaster"
       return
    }
 
    if {$ts_config(gridengine_version) < 62} {
       if { $schedd_pid == "" } {
-         add_proc_error "init_ps" 1 "could not evaluate pid of schedd"
+         ts_log_severe "could not evaluate pid of schedd"
          return
       }
    }
@@ -365,7 +363,7 @@ proc init_ps {} {
          set size_unit pages
       }
       default {
-         add_proc_error "init_ps" -2 "this check has never been ported to architecture $local_arch"
+         ts_log_config "this check has never been ported to architecture $local_arch"
          return
       }
    }
@@ -374,7 +372,7 @@ proc init_ps {} {
    set result [catch {set size [get_size master]} output]
 
    if { $result != 0 } {
-      add_proc_error "init_ps" -3 "executing ps command\n$cmd_ps(master)\nfailed\n$output"
+      ts_log_info "executing ps command\n$cmd_ps(master)\nfailed\n$output"
       return
    }
    
@@ -386,7 +384,7 @@ proc init_ps {} {
 }
 
 proc get_size {who} {
-   global cmd_ps CHECK_OUTPUT
+   global cmd_ps
 
    set result [catch {set size [exec /bin/sh -c $cmd_ps($who)]} output]
 
@@ -414,7 +412,7 @@ proc get_size {who} {
    }
    
    if { $result != 0 } {
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
       return 0
    }
 
@@ -465,10 +463,8 @@ proc monitor_size {jobs {when ""}} {
 }
 
 proc stabilize {text delay interval commands} {
-   global CHECK_OUTPUT
-
    if { $delay > 0 } {
-      puts $CHECK_OUTPUT "waiting $delay s for system to stabilize $text"
+      ts_log_fine "waiting $delay s for system to stabilize $text"
 
       set end [expr [clock seconds] + $delay]
       set now 0
@@ -485,13 +481,12 @@ proc stabilize {text delay interval commands} {
 
 proc output_monitor_result {start_size end_size} {
    global MONITOR_SIZE_ERROR
-   global CHECK_OUTPUT
    global size_unit
 
    if { $start_size < $end_size } {
       set message "size of qmaster increased from $start_size $size_unit to $end_size $size_unit"
-      puts $CHECK_OUTPUT $message
-      add_proc_error "output_monitor_result" $MONITOR_SIZE_ERROR $message
+      ts_log_fine $message
+      ts_log $MONITOR_SIZE_ERROR $message
    } else {
       if { $start_size == $end_size } {
          set message "size of qmaster remained $end_size $size_unit"
@@ -502,10 +497,8 @@ proc output_monitor_result {start_size end_size} {
 }
 
 proc monitor {text duration interval commands} {
-   global CHECK_OUTPUT
-
    if { $duration > 0 } {
-      puts $CHECK_OUTPUT "monitoring size for $duration s $text"
+      ts_log_fine "monitoring size for $duration s $text"
 
       set start_size [get_size master]
       set now 0
@@ -524,14 +517,12 @@ proc monitor {text duration interval commands} {
 }
 
 proc check_idle {} {
-   global CHECK_OUTPUT
-
    upvar check_idle_after    when
    upvar CHECK_IDLE_DELAY    delay
    upvar CHECK_IDLE_DURATION duration
    upvar CHECK_IDLE_INTERVAL interval
 
-   puts $CHECK_OUTPUT "check_idle after $when"
+   ts_log_fine "check_idle after $when"
 
    monitor_size [get_job_count] "check_idle"
    stabilize "doing nothing" $delay $interval {}
@@ -542,13 +533,11 @@ proc qstat_test {} {
    global CHECK_ACTUAL_TEST_PATH
    set result [catch {exec $CHECK_ACTUAL_TEST_PATH/sge_start.sh $CHECK_ACTUAL_TEST_PATH/qstat.sh} output]
    if { $result != 0 } {
-      puts $output
+      ts_log_fine $output
    }
 }
 
 proc check_qstat {} {
-   global CHECK_OUTPUT
-
    upvar check_idle_after when
    upvar CHECK_QSTAT_DELAY    delay
    upvar CHECK_QSTAT_DURATION duration
@@ -563,7 +552,6 @@ proc check_qstat {} {
 
 proc check_miniworm {} {
    global ts_config
-   global CHECK_OUTPUT
    global CHECK_ACTUAL_TEST_PATH CHECK_USER
    global size_unit
 
@@ -577,7 +565,7 @@ proc check_miniworm {} {
 
    set last_job [get_last_jobid]
    
-   puts $CHECK_OUTPUT "submitting miniworms with delays $types \[s\]"
+   ts_log_fine "submitting miniworms with delays $types \[s\]"
 
    foreach host $ts_config(execd_nodes) {
       foreach i $types {
@@ -594,15 +582,15 @@ proc check_miniworm {} {
    foreach i $ts_config(execd_nodes) {
       lappend queue_list [get_queue_instance all.q $i]
    }
-   puts $CHECK_OUTPUT "disabling queues $queue_list"
+   ts_log_fine "disabling queues $queue_list"
    disable_queue $queue_list
-   puts $CHECK_OUTPUT "deleting miniworms"
+   ts_log_fine "deleting miniworms"
    
    while {[get_job_count] > 0} {
       exec "$CHECK_ACTUAL_TEST_PATH/sge_start.sh" "qdel" "-u" "$CHECK_USER"
       sleep 5
    }   
-   puts $CHECK_OUTPUT "enabling queues $queue_list"
+   ts_log_fine "enabling queues $queue_list"
    enable_queue $queue_list
 
    monitor_size [get_job_count] "check_miniworm finished [expr [get_last_jobid] - $last_job] jobs"
@@ -629,7 +617,6 @@ proc get_last_jobid {} {
 }
 
 proc get_job_count {} {
-   global CHECK_OUTPUT
    set job_count 0
    # get number of lines of qstat output
    set output [start_sge_bin "qstat" ""]
@@ -641,14 +628,14 @@ proc get_job_count {} {
          set job_count [expr $output - 2]
       }
    } else {
-      add_proc_error "get_job_count" -1 "qstat failed: $output"
+      ts_log_severe "qstat failed: $output"
    }
    return $job_count
 }
 
 proc check_flood {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE CHECK_COMMD_PORT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE CHECK_COMMD_PORT CHECK_USER
 
    upvar check_idle_after when
    upvar CHECK_FLOOD_AMOUNTS amounts
@@ -679,7 +666,7 @@ proc check_flood {} {
 
       set jobs_total [expr $num_hosts * $jobs_per_host * [llength $types]]
    
-      puts $CHECK_OUTPUT "disabling queues $queue_list"
+      ts_log_fine "disabling queues $queue_list"
       disable_queue $queue_list
 
       monitor_size [get_job_count] "check_flood submitting $jobs_total"
@@ -693,13 +680,13 @@ proc check_flood {} {
 
       # WARNING: using "ts_def_con" user - CHECK_USER is used in sub commands by start_remote_prog or start_sge_bin !!!
       foreach host $ts_config(execd_nodes) {
-         puts $CHECK_OUTPUT "start flooding qsubs on host $host"
+         ts_log_fine "start flooding qsubs on host $host"
          set flood_id [open_remote_spawn_process $host "ts_def_con" "$CHECK_ACTUAL_TEST_PATH/flood_sleeper.sh" "$ts_config(product_root) $ts_config(cell) $jobs_per_host '$types' $num"]
          set spawn_id [lindex $flood_id 1]
          set flood_ids($spawn_id) $flood_id
          lappend spawn_list $spawn_id
          incr num
-         puts $CHECK_OUTPUT "started flood submitter on host $host with spawn id $spawn_id"
+         ts_log_fine "started flood submitter on host $host with spawn id $spawn_id"
 
          if {$num >= $num_hosts } {
             break
@@ -714,28 +701,28 @@ proc check_flood {} {
          set timeout $interval
          expect {
             full_buffer {
-               add_proc_error "check_flood" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             }
             timeout {
-               puts $CHECK_OUTPUT "expect timeout during flood submit"
+               ts_log_fine "expect timeout during flood submit"
             }
             -i $spawn_list -- "finished submitting" {
                set spawn_id $expect_out(spawn_id)
-               puts $CHECK_OUTPUT "reaping (1) flood submitter with id $spawn_id"
+               ts_log_fine "reaping (1) flood submitter with id $spawn_id"
                close_spawn_process $flood_ids($spawn_id)
                set index [lsearch -exact $spawn_list $spawn_id]
                set spawn_list [lreplace $spawn_list $index $index]
             }
             -i $spawn_list -- "_exit_status_" {
                set spawn_id $expect_out(spawn_id)
-               puts $CHECK_OUTPUT "reaping (2) flood submitter with id $spawn_id"
+               ts_log_fine "reaping (2) flood submitter with id $spawn_id"
                close_spawn_process $flood_ids($spawn_id)
                set index [lsearch -exact $spawn_list $spawn_id]
                set spawn_list [lreplace $spawn_list $index $index]
             }
             -i $spawn_list default {
                set spawn_id $expect_out(spawn_id)
-               puts $CHECK_OUTPUT "reaping failed flood submitter with id $spawn_id"
+               ts_log_fine "reaping failed flood submitter with id $spawn_id"
                close_spawn_process $flood_ids($spawn_id)
                set index [lsearch -exact $spawn_list $spawn_id]
                set spawn_list [lreplace $spawn_list $index $index]
@@ -746,12 +733,12 @@ proc check_flood {} {
 
       set size [monitor_size [get_job_count] "check_flood submitted $jobs_total"]
 
-      puts $CHECK_OUTPUT "enabling queues $queue_list"
+      ts_log_fine "enabling queues $queue_list"
       enable_queue $queue_list
      
       stabilize "after enabling queues" $flood_stab_delay $flood_stab_interval {}
 
-      puts $CHECK_OUTPUT "monitoring size until no jobs remain"
+      ts_log_fine "monitoring size until no jobs remain"
       set start_size [get_size master]
       set job_count [get_job_count]
       while { $job_count > 0 } {

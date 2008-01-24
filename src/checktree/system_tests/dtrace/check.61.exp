@@ -83,7 +83,6 @@ proc dtrace_init_level {} {
 #*******************************
 proc check_dtrace_probes {} {
    global ts_config
-   global CHECK_OUTPUT 
 
    # Run test on Solaris 10 only where "uname -r -s" returns "SunOS 5.10"
    set output [start_remote_prog "$ts_config(master_host)" "root" "uname" "-r -s"]
@@ -91,9 +90,9 @@ proc check_dtrace_probes {} {
    if { [string match "SunOS 5.10" $output ] } { 
       set result [start_remote_prog "$ts_config(master_host)" "root" "cd" "$ts_config(product_root)/dtrace ; ./monitor.sh -interval 1sec -verify"]
       if { $prg_exit_state != 0 } {
-         add_proc_error "check_dtrace_probes" -1 "dtrace probe verification failed\nerror_message: $result"
+         ts_log_severe "dtrace probe verification failed\nerror_message: $result"
       }
    } else {
-      puts "dtrace test is run on S10 only"
+      ts_log_fine "dtrace test is run on S10 only"
    }
 }

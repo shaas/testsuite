@@ -94,7 +94,7 @@ proc sge_share_mon_init_level {} {
 
 
 proc sge_share_mon_setup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global have_share_tree submitted_jobs
 
@@ -130,7 +130,7 @@ proc sge_share_mon_setup  {} {
 }
 
 proc sge_share_mon_cleanup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global have_share_tree submitted_jobs
 
@@ -167,13 +167,11 @@ proc sge_share_mon_cleanup  {} {
 #     {shares -1}   - expected number of shares. -1 means: do not check
 #
 #  RESULT
-#     No return code. Errors are reported via add_proc_error.
-#
-#  SEE ALSO
+#     No return code. Errors are reported via ts_log_severe
 #     sge_sharetree/sge_share_mon()
 #*******************************************************************************
 proc share_mon_sharetree_check_node {sharetree_var node exists {shares -1}} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    upvar $sharetree_var sharetree
    
@@ -181,18 +179,18 @@ proc share_mon_sharetree_check_node {sharetree_var node exists {shares -1}} {
 
    # expect that node exists, but didn't find it?
    if {$exists && $pos < 0} {
-      add_proc_error "share_mon_sharetree_contains" -1 "couldn't find node $node in sge_share_mon output"
+      ts_log_severe "couldn't find node $node in sge_share_mon output"
    }
 
    # expect that node does not exists, but found it?
    if {!$exists && $pos >= 0} {
-      add_proc_error "share_mon_sharetree_contains" -1 "found node $node in sge_share_mon output, which was not expected to be there"
+      ts_log_severe "found node $node in sge_share_mon output, which was not expected to be there"
    }
 
    # verify if the shares are reported correctly
    if {$exists && $pos >= 0 && $shares >= 0} {
       if {$sharetree($node,shares) != $shares} {
-         add_proc_error "share_mon_sharetree_contains" -1 "node $node in sge_share_mon output contains incorrect shares:\nexpected $shares, but sge_share_mon reported $sharetree($node,shares)" 
+         ts_log_severe "node $node in sge_share_mon output contains incorrect shares:\nexpected $shares, but sge_share_mon reported $sharetree($node,shares)" 
       }
    }
 }
@@ -211,7 +209,7 @@ proc share_mon_sharetree_check_node {sharetree_var node exists {shares -1}} {
 #     verified that nodes are created under default for these users.
 #*******************************************************************************
 proc share_mon_sharetree {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global have_share_tree
    global submitted_jobs
@@ -220,7 +218,7 @@ proc share_mon_sharetree {} {
       # sge_share_mon must fail with an error message
       set result [sge_share_mon sharetree "" "" 0]
       if {$result != -1} {
-         add_proc_error "share_mon_sharetree" -1 "sge_share_mon should have reported \"No share tree\""
+         ts_log_severe "sge_share_mon should have reported \"No share tree\""
       }
    } else {
       # call sge_share_mon
@@ -289,7 +287,7 @@ proc share_mon_sharetree {} {
 #        - must be on an admin or submit host
 #*******************************************************************************
 proc share_mon_permissions {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global have_share_tree
 
@@ -303,7 +301,7 @@ proc share_mon_permissions {} {
    set non_cluster_host [host_conf_get_unused_host]
    set result [sge_share_mon sharetree $non_cluster_host "" 0]
    if {![check_for_non_cluster_host_error $result "any"]} {
-      add_proc_error "share_mon_permissions" -1 "sge_share_mon request should have been rejected from non cluster host $non_cluster_host"
+      ts_log_severe "sge_share_mon request should have been rejected from non cluster host $non_cluster_host"
    }
 }
 

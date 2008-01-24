@@ -125,7 +125,7 @@ global complex_host
 global complex_old_config
 
 proc complex_init_level {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_ACT_LEVEL
    global complex_host
 
@@ -151,7 +151,7 @@ proc complex_init_level {} {
 
 
 proc complex_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_ACT_LEVEL
+   global ts_config CHECK_USER CHECK_ACT_LEVEL
    global complex_host
    global complex_global_host_backup complex_host_backup
 
@@ -194,7 +194,7 @@ proc complex_setup {} {
 }
 
 proc complex_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global complex_host complex_global_host_backup complex_host_backup
 
    # cleanup
@@ -235,7 +235,7 @@ proc complex_cleanup {} {
    if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
-            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            ts_log_fine "Removing resource quota sets $elem ...\n"
             del_rqs $elem
          }
       }
@@ -243,7 +243,7 @@ proc complex_cleanup {} {
 }
 
 proc complex_loadsensor_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_ACT_LEVEL
+   global ts_config CHECK_USER CHECK_ACT_LEVEL
    global complex_host
 
    if { $CHECK_ACT_LEVEL == 0 } {
@@ -270,19 +270,19 @@ proc complex_loadsensor_test {} {
 
       get_qconf_se_info $complex_host
       if { [string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0 } {
-         add_proc_error "complex_loadsensor_test" "-1" "no test_string load value reported"
+         ts_log_severe "no test_string load value reported"
       }
       if { [string first "test_hostname=" $qconf_se_info(load_values) ] < 0 } {
-         add_proc_error "complex_loadsensor_test" "-1" "no test_hostname load value reported"
+         ts_log_severe "no test_hostname load value reported"
       }
       if { [string first "test_double=55.55" $qconf_se_info(load_values) ] < 0 } {
-         add_proc_error "complex_loadsensor_test" "-1" "no test_double load value reported"
+         ts_log_severe "no test_double load value reported"
       }
       if { [string first "test_memory=123456789" $qconf_se_info(load_values) ] < 0 } {
-         add_proc_error "complex_loadsensor_test" "-1" "no test_memory load value reported"
+         ts_log_severe "no test_memory load value reported"
       }
       if { [string first "test_integer=123456" $qconf_se_info(load_values) ] < 0 } {
-         add_proc_error "complex_loadsensor_test" "-1" "no test_integer load value reported"
+         ts_log_severe "no test_integer load value reported"
       }
 
       set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 
@@ -291,7 +291,7 @@ proc complex_loadsensor_test {} {
       lappend job_ids [submit_job "-l test_hostname=$complex_host $jobargs 35"]
       set not_requestable_job [submit_job "-l test_double=55.55 $jobargs 60" 0 ]
       if {$not_requestable_job != -10} {
-          add_proc_error "complex_loadsensor_test" -1 "resource test_double should not be requestable"
+          ts_log_severe "resource test_double should not be requestable"
       }
       lappend job_ids [submit_job "-l test_memory=123321 $jobargs 40"]
       lappend job_ids [submit_job "-l test_integer=123456 $jobargs 45"]
@@ -308,7 +308,7 @@ proc complex_loadsensor_test {} {
       }
 
       # reset host complex, stop loadsensor
-      puts $CHECK_OUTPUT "resetting configuration for host $complex_host"
+      ts_log_fine "resetting configuration for host $complex_host"
       set_config complex_old_config $complex_host
 
       # wait for loadsensor to be down
@@ -345,9 +345,9 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
    # Added variable "runnable" to allow to run cases which cause error, but which we
    # will allow to run so we can complete the test run. These are bugs in qsub
    # Once the qsub bug is resolved, these parts of the code will be removed.
-   # Namely, where we invoke add_proc_error with value -3.
+   # Namely, where we invoke ts_log_info.
    
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 5"
    if {$variable == ""} {
@@ -361,13 +361,13 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
    if {!$submittable} { 
       if {$job_id > 0} {
          if {$runnable == 1} { 
-            add_proc_error "complex_run_job" -3 "scenario $scenario, $job_args should have failed"
+            ts_log_info "scenario $scenario, $job_args should have failed"
          } else {
-            add_proc_error "complex_run_job" -1 "scenario $scenario, $job_args should have failed"
+            ts_log_severe "scenario $scenario, $job_args should have failed"
         }
          delete_job $job_id
       } else {
-         puts $CHECK_OUTPUT "ok, submission failed with status $job_id"
+         ts_log_fine "ok, submission failed with status $job_id"
       }
    } else {
       # submit errors are handled in submit_job, but don't continue, if submission failed
@@ -379,27 +379,27 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
          if {$pending} {
             if {$ret == 0} {
                if {$runnable == 1} { 
-                  add_proc_error "complex_run_job" -3 "scenario $scenario, $job_args should not be running"
+                  ts_log_info "scenario $scenario, $job_args should not be running"
                } else {
-                  add_proc_error "complex_run_job" -1 "scenario $scenario, $job_args should not be running"
+                  ts_log_severe "scenario $scenario, $job_args should not be running"
                }
             } else {
-               puts $CHECK_OUTPUT "ok, job is not running"
+               ts_log_fine "ok, job is not running"
             }
 
             delete_job $job_id
          } else {
             # test case: job should be scheduled and running by now
             if {$ret == 0} {
-               puts $CHECK_OUTPUT "ok, job is running"
+               ts_log_fine "ok, job is running"
                wait_for_jobend $job_id "Sleeper" 60 0
             } else {
                get_qstat_j_info $job_id
                set schedd_info $qstat_j_info(scheduling info)
                if {$runnable == 1} { 
-                  add_proc_error "complex_run_job" -3 "scenario $scenario, $job_args should be running\n$schedd_info"
+                  ts_log_info "scenario $scenario, $job_args should be running\n$schedd_info"
                } else {   
-                  add_proc_error "complex_run_job" -1 "scenario $scenario, $job_args should be running\n$schedd_info"
+                  ts_log_severe "scenario $scenario, $job_args should be running\n$schedd_info"
                }
                delete_job $job_id
             }
@@ -409,7 +409,7 @@ proc complex_run_job {scenario variable value submittable pending { runnable "0"
 }
 
 proc complex_global_host {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
 
    if { $CHECK_ACT_LEVEL == 0 } {
       # set all test attributes in global host
@@ -687,7 +687,7 @@ proc complex_global_host {} {
    if { $CHECK_ACT_LEVEL == 1 } {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
-            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            ts_log_fine "Removing resource quota sets $elem ...\n"
             del_rqs $elem
          }
       }
@@ -695,7 +695,7 @@ proc complex_global_host {} {
 }
 
 proc complex_host {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global complex_host
 
    if { $CHECK_ACT_LEVEL == 0 } {
@@ -803,7 +803,7 @@ proc complex_host {} {
    if { $CHECK_ACT_LEVEL == 1 } {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
-            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            ts_log_fine "Removing resource quota sets $elem ...\n"
             del_rqs $elem
          }
       }
@@ -811,7 +811,7 @@ proc complex_host {} {
 }
 
 proc complex_queue {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global complex_host
 
    if { $CHECK_ACT_LEVEL == 0 } {
@@ -916,7 +916,7 @@ proc complex_queue {} {
    if { $CHECK_ACT_LEVEL == 1 } {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
-            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            ts_log_fine "Removing resource quota sets $elem ...\n"
             del_rqs $elem
          }
       }
@@ -924,7 +924,7 @@ proc complex_queue {} {
 }
 
 proc complex_default_request {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global complex_host
 
    if {$CHECK_ACT_LEVEL == 0} {
@@ -951,7 +951,7 @@ proc complex_default_request {} {
    if {$CHECK_ACT_LEVEL == 1} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
-            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            ts_log_fine "Removing resource quota sets $elem ...\n"
             del_rqs $elem
          }
       }
@@ -959,28 +959,28 @@ proc complex_default_request {} {
 }
 
 proc complex_test_rattr { value } {
-    global ts_config CHECK_OUTPUT
+    global ts_config
     global complex_host
 
     # test queue?
     set ret [mqattr "complex_values" $value [get_queue_instance "complex" $complex_host] 0 ]
     if { $ret == 0 } {
-      add_proc_error "issue_1847" -1 "qconf -rattr does not reject invalid complex $value"
+      ts_log_severe "qconf -rattr does not reject invalid complex $value"
     } else {
-      puts $CHECK_OUTPUT "rejected, OK!"
+      ts_log_fine "rejected, OK!"
     }
 
     # test host
     set ret [mhattr "complex_values" $value $complex_host 0 ]
     if { $ret == 0 } {
-      add_proc_error "issue_1847" -1 "qconf -me does not reject invalid complex $value"
+      ts_log_severe "qconf -me does not reject invalid complex $value"
     } else {
-      puts $CHECK_OUTPUT "rejected, OK!"
+      ts_log_fine "rejected, OK!"
     }
 }
 
 proc issue_1847 {} {
-   global ts_config CHECK_OUTPUT CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global complex_host
 
    # this fix has not yet been merged to V60s2_BRANCH

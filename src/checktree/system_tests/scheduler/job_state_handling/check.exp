@@ -97,7 +97,6 @@ proc job_state_handling_setup  {} {
 
 proc job_state_handling_hold_pending_running_finished {} {
    global ts_config
-   global CHECK_OUTPUT
    global test_array_jobs
 
    set master_queue [lindex $ts_config(execd_nodes) 0]
@@ -111,14 +110,14 @@ proc job_state_handling_hold_pending_running_finished {} {
 
    set back [ wait_for_jobpending $result "leeper" 100 ]
    if { $back != 0 } { 
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not pending"  
+      ts_log_severe "job $result not pending"  
    }
 
    trigger_scheduling
 
    set job_state [ get_job_state $result ]
    if { [ string compare $job_state "hqw" ] != 0 } {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job state not \"hqw\": $job_state"  
+      ts_log_severe "job state not \"hqw\": $job_state"  
    }
  
    trigger_scheduling
@@ -127,7 +126,7 @@ proc job_state_handling_hold_pending_running_finished {} {
    set correct_info [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_JOBHOLD_]]
    if { [ string first  "job dropped because of hold" $scheduling_info_result ] <  0 && 
         [ string first  $correct_info $scheduling_info_result ] <  0 } {
-       add_proc_error "job_state_handling_hold_pending_running_finished" -1 "scheduling info not \"job dropped because of hold\"" 
+       ts_log_severe "scheduling info not \"job dropped because of hold\"" 
    }
    
    set queue_list ""
@@ -135,16 +134,16 @@ proc job_state_handling_hold_pending_running_finished {} {
       append queue_list "$host.q "
    }  
    set queue_list [string trim $queue_list]
-   puts $CHECK_OUTPUT "disable queues: \"$queue_list\""
+   ts_log_fine "disable queues: \"$queue_list\""
    disable_queue $queue_list
 
    release_job $result   
 
    set job_state [ get_job_state $result ]
-   puts $CHECK_OUTPUT "job state = \"$job_state\""
+   ts_log_fine "job state = \"$job_state\""
 
    if { [ string compare $job_state "qw" ] != 0 } {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job state not \"qw\": $job_state"  
+      ts_log_severe "job state not \"qw\": $job_state"  
    }
 
    hold_job $result
@@ -158,7 +157,7 @@ proc job_state_handling_hold_pending_running_finished {} {
    set t_state_ok 0
    while { $my_timeout > [timestamp] } {
       set job_state [ get_job_state $result ]
-      puts $CHECK_OUTPUT "job state = \"$job_state\""
+      ts_log_fine "job state = \"$job_state\""
       if { [ string compare $job_state "t" ] == 0 } {
          set t_state_ok 1
          break
@@ -172,23 +171,23 @@ proc job_state_handling_hold_pending_running_finished {} {
       sleep 1
    }   
    if { $t_state_ok != 1 } {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job state not \"t\": $job_state"  
+      ts_log_severe "job state not \"t\": $job_state"  
    }
 
    wait_for_end_of_transfer $result 300
    set job_state [get_job_state $result]
    if {[string compare $job_state "r"] != 0} {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job state not \"r\": $job_state"  
+      ts_log_severe "job state not \"r\": $job_state"  
    }
  
    set back [wait_for_jobend $result "leeper" 100 0]
    if {$back != 0} {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not finished"
+      ts_log_severe "job $result not finished"
    }
 
    set back [was_job_running $result]
    if {[string first $result $back] < 0} {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $result not in accouting file"
+      ts_log_severe "job $result not in accouting file"
    }
 }
 
@@ -197,7 +196,6 @@ proc job_state_handling_hold_pending_running_finished {} {
 proc job_state_handling_error_timehold_jobhold {} {
    global ts_config
    global test_array_jobs
-   global CHECK_OUTPUT 
 
    if { $test_array_jobs == 0 } { 
       set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15" 
@@ -229,11 +227,11 @@ proc job_state_handling_error_timehold_jobhold {} {
    set correct_text [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_JOBINERROR_]]
    if { [ string first "job is in error state" $scheduler_info_text  ] < 0 &&
         [ string first  $correct_text $scheduler_info_text ] < 0  } {
-       add_proc_error "job_state_handling_hold_pending_running_finished" -1 "scheduling info not \"job is in error state\"" 
+       ts_log_severe "scheduling info not \"job is in error state\"" 
    }
    if { [get_qstat_j_info $time_job ] } {
-      puts $CHECK_OUTPUT "job $time_job submit time:    $qstat_j_info(submission_time)"
-      puts $CHECK_OUTPUT "job $time_job execution time: $qstat_j_info(execution_time)"
+      ts_log_fine "job $time_job submit time:    $qstat_j_info(submission_time)"
+      ts_log_fine "job $time_job execution time: $qstat_j_info(execution_time)"
       set time_job_execution_time $qstat_j_info(execution_time)
 
       set scheduler_info_text [get_scheduling_info $time_job]
@@ -241,32 +239,31 @@ proc job_state_handling_error_timehold_jobhold {} {
 
       if { [ string first "execution time not reached" $scheduler_info_text ] < 0 && 
            [ string first $correct_text $scheduler_info_text ] < 0 } {
-          add_proc_error "job_state_handling_hold_pending_running_finished" -1 "scheduling info not \"execution time not reached\"" 
+          ts_log_severe "scheduling info not \"execution time not reached\"" 
       }
    }
    set scheduler_info_text [ get_scheduling_info $waitjob_job]
    set correct_text [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SCHEDD_INFO_JOBDEPEND_]]
    if { [ string first "job dropped because of job dependencies" $scheduler_info_text ] < 0  && 
         [ string first $correct_text $scheduler_info_text ] < 0  } {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "scheduling info not \"job dropped because of job dependencies\"" 
+      ts_log_severe "scheduling info not \"job dropped because of job dependencies\"" 
    }
 
    while { [timestamp] < $time_job_execution_time } {
       set job_state [ get_job_state $time_job ]
       if { [ string compare $job_state "qw" ] != 0 } {
-         add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job state not \"qw\": $job_state"
+         ts_log_severe "job state not \"qw\": $job_state"
          continue
       }
-      puts -nonewline $CHECK_OUTPUT "\rjob $time_job is in state $job_state, continue in [expr ( $time_job_execution_time - [timestamp] ) ] seconds ...   "
-      flush $CHECK_OUTPUT
+      ts_log_fine "job $time_job is in state $job_state, continue in [expr ( $time_job_execution_time - [timestamp] ) ] seconds ...   "
       sleep 1
    } 
-   puts $CHECK_OUTPUT ""
+   ts_log_fine ""
    wait_for_jobstart $time_job    "leeper" 100
    
    set job_state [ get_job_state $waitjob_job ]
    if { [ string compare $job_state "hqw" ] != 0 } {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $waitjob_job state not \"hqw\": $job_state"
+      ts_log_severe "job $waitjob_job state not \"hqw\": $job_state"
    }
 
    wait_for_jobstart $waitjob_job "leeper" 200
@@ -274,14 +271,13 @@ proc job_state_handling_error_timehold_jobhold {} {
 
    set job_state [ get_job_state $error_job ]
    if { [ string compare $job_state "Eqw" ] != 0 } {
-      add_proc_error "job_state_handling_hold_pending_running_finished" -1 "job $waitjob_job state not \"Eqw\": $job_state"
+      ts_log_severe "job $waitjob_job state not \"Eqw\": $job_state"
    }
    delete_job $error_job
 }
 
 proc job_state_handling_max_aj_instances {} {
    global ts_config
-   global CHECK_OUTPUT
    global test_array_jobs
 
    get_config old_config
@@ -311,19 +307,19 @@ proc job_state_handling_max_aj_instances {} {
           set array_jobs_found [llength $array_states]
           set control_sum [ expr ( $waiting + $running ) ]
           if { $control_sum != $array_jobs_found } {
-             add_proc_error "job_state_handling_max_aj_instances" -1 "some array tasks are in unexpected state(s)"
+             ts_log_severe "some array tasks are in unexpected state(s)"
           }
           if { $running > 4 } {
-             add_proc_error "job_state_handling_max_aj_instances" -1 "to mutch array tasks are running"
+             ts_log_severe "to mutch array tasks are running"
           } 
           if { $running > 0 } {
              for { set i 0 } { $i < $array_jobs_found } { incr i 1 } {
                  if { $task_id($i,task) > 0 && $task_id($i,task) <= 10 } {
                     if { [string first $task_id($i,task) $tasks_done ] < 0 } {
                        lappend tasks_done $task_id($i,task)
-                       puts $CHECK_OUTPUT "\ntasks done: $tasks_done"
+                       ts_log_fine "\ntasks done: $tasks_done"
                        for { set ia 0 } { $ia < $array_jobs_found } { incr ia 1 } {
-                           puts $CHECK_OUTPUT "task_id: $task_id($ia,task), state: $task_id($ia,state)"
+                           ts_log_fine "task_id: $task_id($ia,task), state: $task_id($ia,state)"
                        }
                     }
                  }
@@ -333,17 +329,16 @@ proc job_state_handling_max_aj_instances {} {
 
              set scheduling_info_text [get_scheduling_info $result 0 ]
              set correct_text [ translate $ts_config(master_host) 1 0 0 [ sge_macro MSG_SCHEDD_INFO_MAX_AJ_INSTANCES_ ]]
-#             puts $CHECK_OUTPUT "schedd_info_text: $scheduling_info_text"
-#             puts $CHECK_OUTPUT "correct_text    : $correct_text"
+#             ts_log_fine "schedd_info_text: $scheduling_info_text"
+#             ts_log_fine "correct_text    : $correct_text"
              if { [ string first "not all array task may be started due to 'max_aj_instances'" $scheduling_info_text ] < 0 &&
                   [ string first $correct_text $scheduling_info_text ] < 0 } {
-                add_proc_error "job_state_handling_hold_pending_running_finished" -1 "scheduling info not \"not all array task may be started due to 'max_aj_instances'\"" 
+                ts_log_severe "scheduling info not \"not all array task may be started due to 'max_aj_instances'\"" 
                 break;
              }
           }
 
-          puts -nonewline $CHECK_OUTPUT "."
-          flush $CHECK_OUTPUT
+          ts_log_progress
       }
    } else {
       set job_array ""
@@ -365,7 +360,7 @@ proc job_state_handling_max_aj_instances {} {
       foreach elem $job_array {
          set state [get_job_state $elem ]
          if { $state != "r" } {
-            add_proc_error "job_state_handling_max_aj_instances" -1 "normal jobs should still be scheduled"
+            ts_log_severe "normal jobs should still be scheduled"
          }
       }
       
@@ -380,7 +375,6 @@ proc job_state_handling_max_aj_instances {} {
 
 proc job_state_handling_max_aj_tasks {} {
    global ts_config  
-   global CHECK_OUTPUT
    global test_array_jobs
 
    get_config old_config
@@ -392,14 +386,14 @@ proc job_state_handling_max_aj_tasks {} {
       set jobargs "-t 1-6 -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 10"
       set result [submit_job $jobargs 0]
       if { $result != -7 } {
-         add_proc_error "job_state_handling_max_aj_tasks" -1 "it should be denied to submit a array with more than 5 tasks"
+         ts_log_severe "it should be denied to submit a array with more than 5 tasks"
       }
 
 
       set jobargs "-t 1-12:2 -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 10"
       set result [submit_job $jobargs 0]
       if { $result != -7 } {
-         add_proc_error "job_state_handling_max_aj_tasks" -1 "it should be denied to submit a array with more than 5 tasks"
+         ts_log_severe "it should be denied to submit a array with more than 5 tasks"
       }
 
 
@@ -413,14 +407,14 @@ proc job_state_handling_max_aj_tasks {} {
       set valid_task_ids "1 3 5 7 9"
       set task_ids ""
       for { set ia 0 } { $ia < $array_tasks_found } { incr ia 1 } {
-          puts $CHECK_OUTPUT "task_id: $task_id($ia,task), state: $task_id($ia,state)"
+          ts_log_fine "task_id: $task_id($ia,task), state: $task_id($ia,state)"
           lappend task_ids $task_id($ia,task) 
       }
       set task_ids [lsort $task_ids]
-      puts $CHECK_OUTPUT "task list: $task_ids"
+      ts_log_fine "task list: $task_ids"
       for { set ia 0 } { $ia < 5 } { incr ia 1 } {
           if { [ lindex $valid_task_ids $ia ] !=  [ lindex $task_ids $ia ] } {
-             add_proc_error "job_state_handling_max_aj_tasks" -1 "found wrong task id [ lindex $task_ids $ia ] in array job"
+             ts_log_severe "found wrong task id [ lindex $task_ids $ia ] in array job"
           } 
       } 
       delete_job $array1
@@ -435,14 +429,14 @@ proc job_state_handling_max_aj_tasks {} {
       set valid_task_ids "1 2 3 4 5"
       set task_ids ""
       for { set ia 0 } { $ia < $array_tasks_found } { incr ia 1 } {
-          puts $CHECK_OUTPUT "task_id: $task_id($ia,task), state: $task_id($ia,state)"
+          ts_log_fine "task_id: $task_id($ia,task), state: $task_id($ia,state)"
           lappend task_ids $task_id($ia,task) 
       }
       set task_ids [lsort $task_ids]
-      puts $CHECK_OUTPUT "task list: $task_ids"
+      ts_log_fine "task list: $task_ids"
       for { set ia 0 } { $ia < 5 } { incr ia 1 } {
           if { [ lindex $valid_task_ids $ia ] !=  [ lindex $task_ids $ia ] } {
-             add_proc_error "job_state_handling_max_aj_tasks" -1 "found wrong task id [ lindex $task_ids $ia ] in array job"
+             ts_log_severe "found wrong task id [ lindex $task_ids $ia ] in array job"
           } 
       } 
       delete_job $array1
@@ -466,7 +460,7 @@ proc job_state_handling_max_aj_tasks {} {
       foreach elem $job_array {
          set state [get_job_state $elem ]
          if { $state != "r" } {
-            add_proc_error "job_state_handling_max_aj_tasks" -1 "normal jobs should still be scheduled"
+            ts_log_severe "normal jobs should still be scheduled"
          }
       }
       
@@ -480,12 +474,11 @@ proc job_state_handling_max_aj_tasks {} {
 }
 
 proc job_state_handling_cleanup  {} {
-   global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE 
    global CHECK_USER
 
-   puts $CHECK_OUTPUT "do qdel -uall"
+   ts_log_fine "do qdel -uall"
    set catch_result [delete_all_jobs]
-   puts $CHECK_OUTPUT $catch_result
+   ts_log_fine $catch_result
 }
 

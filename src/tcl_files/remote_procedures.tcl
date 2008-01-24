@@ -2560,6 +2560,7 @@ proc get_spawn_id_rlogin_session {spawn_id back_var} {
    set back(real_user)      $rlogin_spawn_session_buffer($spawn_id,real_user)
    set back(win_local_user) $rlogin_spawn_session_buffer($spawn_id,win_local_user)
    set back(ltime)          $rlogin_spawn_session_buffer($spawn_id,ltime)
+   set back(in_use)         $rlogin_spawn_session_buffer($spawn_id,in_use)
    set back(nr_shells)      $rlogin_spawn_session_buffer($spawn_id,nr_shells)
    
    ts_log_finest "spawn_id       : $back(spawn_id)"
@@ -2617,11 +2618,11 @@ proc get_spawn_id_hostname {spawn_id} {
 #     This procedure closes all open rlogin expect sessions.
 #
 #*******************************************************************************
-proc close_open_rlogin_sessions { { if_not_working 0 } } {
+proc close_open_rlogin_sessions {{if_not_working 0} {older_than 0}} {
    global do_close_rlogin
 
    # if we called testsuite with option close_rlogin, we have no open sessions
-   if { $do_close_rlogin != 0 } {
+   if {$do_close_rlogin} {
       ts_log_fine "close_open_rlogin_sessions - open rlogin session mode not activated!"
       return 0 
    }
@@ -2630,16 +2631,55 @@ proc close_open_rlogin_sessions { { if_not_working 0 } } {
    set sessions [get_open_rlogin_sessions]
    # close all sessions
    foreach spawn_id $sessions {
-      get_spawn_id_rlogin_session $spawn_id back
+      if {![get_spawn_id_rlogin_session $spawn_id back]} {
+         # spawn_id has been closed in the meantime
+         continue
+      }
       if {$if_not_working} {
          if {[check_rlogin_session $spawn_id $back(pid) $back(hostname) $back(user) $back(nr_shells) 1]} {
             ts_log_fine "will not close spawn id $spawn_id - session is ok!"
             continue
          }
       }
+
+      # delete outdated connections only if they have not been recently in use
+      if {$older_than > 0} {
+         # ignore connections that are in use
+         if {$back(in_use)} {
+            continue
+         }
+         set now [timestamp]
+         if {$back(ltime) > [expr $now - $older_than]} {
+            continue
+         } else {
+            ts_log_fine "session $spawn_id hasn't been used since [clock format $back(ltime)]"
+         }
+      }
+
+      # now close the connection
       ts_log_fine "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
       close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 0 ;# don't check exit state
    }
+}
+
+global last_close_outdated_rlogin_sessions
+set last_close_outdated_rlogin_sessions 0
+proc close_outdated_rlogin_sessions {} {
+   global last_close_outdated_rlogin_sessions
+
+   # only do this check once a minute
+   if {$last_close_outdated_rlogin_sessions > [expr [timestamp] - 60]} {
+      return
+   }
+   # set the last check timestamp here,
+   # to reduce the probability of recursive calls
+   set last_close_outdated_rlogin_sessions [timestamp]
+
+   # close connections idle for more than 10 minutes
+   close_open_rlogin_sessions 0 600
+
+   # set the last check timestamp - no check for one minute
+   set last_close_outdated_rlogin_sessions [timestamp]
 }
 
 #****** remote_procedures/check_rlogin_session() *******************************
@@ -2937,6 +2977,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       
       # are we done?
       if {$do_return != ""} {
+         close_outdated_rlogin_sessions
          return $do_return
       }
       
@@ -3074,6 +3115,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       ts_log_warning "$catch_error_message" 
    }
 
+   close_outdated_rlogin_sessions
    return $wait_code ;# return exit state
 }
 

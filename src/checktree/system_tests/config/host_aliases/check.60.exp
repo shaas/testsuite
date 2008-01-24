@@ -89,7 +89,7 @@ proc host_aliases_test_init_level {} {
 
 
 proc host_aliases_test_setup  {} {
-   global CHECK_OUTPUT ts_config have_host_aliases CHECK_USER
+   global ts_config have_host_aliases CHECK_USER
    if { [is_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases] } {
       start_remote_prog $ts_config(master_host) $CHECK_USER "mv" \
          "$ts_config(product_root)/$ts_config(cell)/common/host_aliases $ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved"
@@ -103,7 +103,7 @@ proc host_aliases_test_setup  {} {
 }
 
 proc host_aliases_test_cleanup  {} {
-   global CHECK_OUTPUT ts_config have_host_aliases CHECK_USER
+   global ts_config have_host_aliases CHECK_USER
    shutdown_core_system
    if { $have_host_aliases == "true" } {
       if { [is_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases.saved] } {
@@ -119,7 +119,6 @@ proc host_aliases_test_cleanup  {} {
 }
 
 proc parse_gethostbyname_output { output {result host_name_array}} {
-   global CHECK_OUTPUT
    upvar $result res_array
    set lines [split $output "\n"]
    foreach line $lines {
@@ -143,33 +142,33 @@ proc parse_gethostbyname_output { output {result host_name_array}} {
 
 proc host_aliases_test_test1 {} {
    global host_aliases_test_test_hosts check_description CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL have_host_aliases
+   global ts_config CHECK_ACT_LEVEL have_host_aliases
 
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
 
    # first we remove the host_alias file (to support clusters which need it)
    delete_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
    if { $CHECK_ACT_LEVEL == 0 } {
       set output [start_sge_bin "gethostbyname" "-all $ts_config(master_host)" $ts_config(master_host) "" prg_exit_state 60 "" "utilbin"]
       parse_gethostbyname_output $output
-      puts $CHECK_OUTPUT "hostname: \"$host_name_array(hostname)\""
-      puts $CHECK_OUTPUT "sgename:  \"$host_name_array(sgename)\""
-      puts $CHECK_OUTPUT "aliases:  \"$host_name_array(aliases)\""
+      ts_log_fine "hostname: \"$host_name_array(hostname)\""
+      ts_log_fine "sgename:  \"$host_name_array(sgename)\""
+      ts_log_fine "aliases:  \"$host_name_array(aliases)\""
 
       set nr_aliases [llength $host_name_array(aliases)]
       if { $nr_aliases == 0 } {
-         add_proc_error "host_aliases_test_test1" -3 "can't run test, host $ts_config(master_host) has no aliases"
+         ts_log_config "can't run test, host $ts_config(master_host) has no aliases"
       } else {
          if { $host_name_array(hostname) != $host_name_array(sgename) } {
-            add_proc_error "host_aliases_test_test1" -1 "there seems to be an host_aliases file, because hostname and sgename are not identical"
+            ts_log_severe "there seems to be an host_aliases file, because hostname and sgename are not identical"
          }
          set last_alias $nr_aliases
          incr last_alias -1
          set aliased_name [lindex $host_name_array(aliases) $last_alias]
  
-         puts $CHECK_OUTPUT "expecting sge name: \"$aliased_name\""
-         puts $CHECK_OUTPUT "writing alias file $ts_config(product_root)/$ts_config(cell)/common/host_aliases ..."
+         ts_log_fine "expecting sge name: \"$aliased_name\""
+         ts_log_fine "writing alias file $ts_config(product_root)/$ts_config(cell)/common/host_aliases ..."
 
          # test the hostname case compare by using upper letters for the hostname
          set name_to_alias [string toupper $host_name_array(hostname)]
@@ -179,16 +178,16 @@ proc host_aliases_test_test1 {} {
          start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "\"$aliased_name $name_to_alias\" > $ts_config(product_root)/$ts_config(cell)/common/host_aliases"
          wait_for_remote_file $ts_config(master_host) $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/host_aliases
          set file [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"]
-         puts $CHECK_OUTPUT "cat host_aliases:\n$file"
+         ts_log_fine "cat host_aliases:\n$file"
          # re-resolve the host
          set output [start_sge_bin "gethostbyname" "-all $ts_config(master_host)" $ts_config(master_host) "" prg_exit_state 60 "" "utilbin"]
          parse_gethostbyname_output $output result
-         puts $CHECK_OUTPUT "hostname: \"$result(hostname)\""
-         puts $CHECK_OUTPUT "sgename:  \"$result(sgename)\""
-         puts $CHECK_OUTPUT "aliases:  \"$result(aliases)\""
+         ts_log_fine "hostname: \"$result(hostname)\""
+         ts_log_fine "sgename:  \"$result(sgename)\""
+         ts_log_fine "aliases:  \"$result(aliases)\""
          
          if { $result(sgename) != $aliased_name } {
-            add_proc_error "host_aliases_test_test1" -1 "host aliasing not working!"
+            ts_log_severe "host aliasing not working!"
          }
       }
    }

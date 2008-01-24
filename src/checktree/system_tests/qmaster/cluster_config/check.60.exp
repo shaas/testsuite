@@ -98,7 +98,7 @@ proc cluster_config_cleanup {} {
 
 
 proc cluster_config_test1 {} {
-   global CHECK_OUTPUT CHECK_USER ts_config
+   global CHECK_USER ts_config
    global cluster_config_test_hosts CHECK_ACT_LEVEL
    global messages_name
    
@@ -132,6 +132,6 @@ proc cluster_config_test1 {} {
    close_spawn_process $tail_id
 
    if { $res == "1" } {      
-      add_proc_error "cluster_config_test1" -1 "checking of qmaster param was not ok"         
+      ts_log_severe "checking of qmaster param was not ok"         
    }    
 }

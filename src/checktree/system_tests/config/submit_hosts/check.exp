@@ -83,7 +83,6 @@ proc submit_hosts_init_level {} {
 
 
 proc submit_hosts_setup {} {
-   global CHECK_OUTPUT
    global ts_config
    global CHECK_JOB_OUTPUT_DIR
    global submit_hosts_use_local_conf
@@ -91,30 +90,29 @@ proc submit_hosts_setup {} {
    if { $ts_config(submit_only_hosts) != "none" } {
       foreach submit_host $ts_config(submit_only_hosts) { 
          set result [start_sge_bin "qconf" "-ds $submit_host"]
-         puts $CHECK_OUTPUT "$result"
+         ts_log_fine "$result"
 
          if { $submit_hosts_use_local_conf != 0 } {
             set used_arch [resolve_arch $submit_host]
-            puts $CHECK_OUTPUT "generating submit script for host $submit_host"
+            ts_log_fine "generating submit script for host $submit_host"
             create_shell_script $CHECK_JOB_OUTPUT_DIR/rsh_${submit_host}.sh $submit_host "echo" "WRAPPER_SCRIPT ; $ts_config(product_root)/utilbin/$used_arch/rsh \$\*"
-            puts $CHECK_OUTPUT "generating local cluster configuration for host $submit_host"
+            ts_log_fine "generating local cluster configuration for host $submit_host"
             set new_conf(rsh_command) "$CHECK_JOB_OUTPUT_DIR/rsh_${submit_host}.sh"
             set_config new_conf $submit_host 1
-            puts $CHECK_OUTPUT "setup done"
+            ts_log_fine "setup done"
          } else {
-            puts $CHECK_OUTPUT "removing local cluster configuration for host $submit_host"
+            ts_log_fine "removing local cluster configuration for host $submit_host"
             set result [start_sge_bin "qconf" "-dconf $submit_host"]
-            puts $CHECK_OUTPUT "$result"
+            ts_log_fine "$result"
          }
       }
    } else {
-      puts $CHECK_OUTPUT "no submithosts defined!"
+      ts_log_fine "no submithosts defined!"
    }
-   puts $CHECK_OUTPUT "done"
+   ts_log_fine "done"
 }
 
 proc submit_hosts_cleanup {} {
-   global CHECK_OUTPUT
    global ts_config
    global CHECK_JOB_OUTPUT_DIR
    global submit_hosts_use_local_conf
@@ -125,14 +123,14 @@ proc submit_hosts_cleanup {} {
    if { $ts_config(submit_only_hosts) != "none" } {
       foreach submit_host $ts_config(submit_only_hosts) {
          set result [start_sge_bin "qconf" "-ds $submit_host"]
-         puts $CHECK_OUTPUT "$result"
-         puts $CHECK_OUTPUT "removing local cluster configuration for host $submit_host"
+         ts_log_fine "$result"
+         ts_log_fine "removing local cluster configuration for host $submit_host"
          set result [start_sge_bin "qconf" "-dconf $submit_host"]
-         puts $CHECK_OUTPUT "$result"
+         ts_log_fine "$result"
          file delete $CHECK_JOB_OUTPUT_DIR/rsh_${submit_host}.sh
       }
    } else {
-      puts $CHECK_OUTPUT "no submithosts defined!"
+      ts_log_fine "no submithosts defined!"
    }
 }
 
@@ -140,13 +138,12 @@ proc submit_hosts_cleanup {} {
 
 proc submit_hosts_test {} {
    global ts_config
-   global CHECK_OUTPUT
    global CHECK_USER
    global submit_hosts_use_local_conf
    
 
    if {[llength $ts_config(submit_only_hosts)] <= 0 || $ts_config(submit_only_hosts) == "none" } {
-      add_proc_error "submit_hosts_test" -3 "No submit hosts specified in test configuration file - run setup option"
+      ts_log_config "No submit hosts specified in test configuration file - run setup option"
       return
    }
 
@@ -154,40 +151,40 @@ proc submit_hosts_test {} {
    wait_for_jobend $actual_id "leeper" 30 0
  
    foreach submit_host $ts_config(submit_only_hosts) { 
-      puts $CHECK_OUTPUT "testing host $submit_host"
+      ts_log_fine "testing host $submit_host"
 
-      puts $CHECK_OUTPUT "*** step 1 on $submit_host ***"
+      ts_log_fine "*** step 1 on $submit_host ***"
       set arguments "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 20"
       set output [ start_remote_prog $submit_host $CHECK_USER "qsub" $arguments ]
-      puts $CHECK_OUTPUT $output
-      puts $CHECK_OUTPUT "qsub exit state: $prg_exit_state"
+      ts_log_fine $output
+      ts_log_fine "qsub exit state: $prg_exit_state"
       if { $prg_exit_state == 0 } {
-         add_proc_error "submit_hosts_test" -1 "submitting on host $submit_host should not work here"
+         ts_log_severe "submitting on host $submit_host should not work here"
       } 
  
-      puts $CHECK_OUTPUT "*** step 2 on $submit_host ***"
+      ts_log_fine "*** step 2 on $submit_host ***"
       set output [ start_remote_prog $submit_host $CHECK_USER "qstat" "-f" ]
-      puts $CHECK_OUTPUT $output
-      puts $CHECK_OUTPUT "qstat exit state: $prg_exit_state"
+      ts_log_fine $output
+      ts_log_fine "qstat exit state: $prg_exit_state"
       if { $prg_exit_state == 0 } {
-         add_proc_error "submit_hosts_test" -1 "qstat -f on host $submit_host should not work here"
+         ts_log_severe "qstat -f on host $submit_host should not work here"
       }
 
-      puts $CHECK_OUTPUT "*** step 3 on $submit_host ***"
+      ts_log_fine "*** step 3 on $submit_host ***"
       set output [ start_remote_prog $submit_host $CHECK_USER "qrsh" "uname -n" ]
-      puts $CHECK_OUTPUT $output
-      puts $CHECK_OUTPUT "qrsh exit state: $prg_exit_state"
+      ts_log_fine $output
+      ts_log_fine "qrsh exit state: $prg_exit_state"
       if { $prg_exit_state == 0 } {
-         add_proc_error "submit_hosts_test" -1 "qrsh on host $submit_host should not work here"
+         ts_log_severe "qrsh on host $submit_host should not work here"
       }
 
-      puts $CHECK_OUTPUT "*** step 4 on $submit_host ***"
+      ts_log_fine "*** step 4 on $submit_host ***"
       set output [ start_remote_prog $submit_host $CHECK_USER "qconf" "-mconf" ]
-      puts $CHECK_OUTPUT $output
-      puts $CHECK_OUTPUT "qconf exit state: $prg_exit_state"
+      ts_log_fine $output
+      ts_log_fine "qconf exit state: $prg_exit_state"
       set NOR_SUBMIT_OR_ADMIN_HOST [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_NOSUBMITORADMINHOST_S] $submit_host] 
       if { [ string first "neither submit nor admin host" $output ] < 0 && [ string first $NOR_SUBMIT_OR_ADMIN_HOST $output ] < 0 } {
-         add_proc_error "submit_hosts_test" -1 "qconf -mconf on host $submit_host should not work here"
+         ts_log_severe "qconf -mconf on host $submit_host should not work here"
       }
    } 
   
@@ -198,16 +195,16 @@ proc submit_hosts_test {} {
 
    foreach submit_host $ts_config(submit_only_hosts) { 
       set result [start_sge_bin "qconf" "-as $submit_host"]
-      puts $CHECK_OUTPUT "$result"
+      ts_log_fine "$result"
    }
    foreach submit_host $ts_config(submit_only_hosts) { 
-      puts $CHECK_OUTPUT "testing host $submit_host"
+      ts_log_fine "testing host $submit_host"
       set arguments "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
       set output [ start_remote_prog $submit_host $CHECK_USER "qsub" $arguments ]
-      puts $CHECK_OUTPUT $output
-      puts $CHECK_OUTPUT "qsub exit state: $prg_exit_state"
+      ts_log_fine $output
+      ts_log_fine "qsub exit state: $prg_exit_state"
       if { $prg_exit_state != 0 } {
-         add_proc_error "submit_hosts_test" -1 "submitting on host $submit_host doesn't work"
+         ts_log_severe "submitting on host $submit_host doesn't work"
       } 
    }
 
@@ -219,42 +216,42 @@ proc submit_hosts_test {} {
       delete_job $actual_id
    }
    foreach submit_host $ts_config(submit_only_hosts) { 
-      puts $CHECK_OUTPUT "testing host $submit_host"
+      ts_log_fine "testing host $submit_host"
 
       set output [ start_remote_prog $submit_host $CHECK_USER "qstat" "-f" ]
-      puts $CHECK_OUTPUT $output
-      puts $CHECK_OUTPUT "qstat exit state: $prg_exit_state"
+      ts_log_fine $output
+      ts_log_fine "qstat exit state: $prg_exit_state"
       if { $prg_exit_state != 0 } {
-         add_proc_error "submit_hosts_test" -1 "qstat -f on host $submit_host doesn't work"
+         ts_log_severe "qstat -f on host $submit_host doesn't work"
       } 
 
       foreach host $ts_config(unique_arch_nodes) {
          set command_args "qrsh -l h=${host} uname -n"
          set output [ start_remote_prog $submit_host $CHECK_USER "qrsh" "-l h=${host} uname -n" ]
-         puts $CHECK_OUTPUT $output
-         puts $CHECK_OUTPUT "qrsh exit state: $prg_exit_state"
+         ts_log_fine $output
+         ts_log_fine "qrsh exit state: $prg_exit_state"
          if { $prg_exit_state != 0 } {
-            add_proc_error "submit_hosts_test" -1 "${command_args} on host $submit_host doesn't work\n$output"
+            ts_log_severe "${command_args} on host $submit_host doesn't work\n$output"
          }
          if { $submit_hosts_use_local_conf != 0 } {
             if { [ string first "WRAPPER_SCRIPT" $output] < 0 } {
-               add_proc_error "submit_hosts_test" -1 "${command_args} on host $submit_host did not use local configuration\n$output"
+               ts_log_severe "${command_args} on host $submit_host did not use local configuration\n$output"
             }
          } else {
             if { [ string first "WRAPPER_SCRIPT" $output] >= 0 } {
-               add_proc_error "submit_hosts_test" -1 "${command_args} on host $submit_host should not use local configuration\n$output"
+               ts_log_severe "${command_args} on host $submit_host should not use local configuration\n$output"
             }
          }
          if { [ string first $host $output] < 0 } {
-            add_proc_error "submit_hosts_test" -1 "${command_args} on host $submit_host did no \"rsh uname -n\" on host \"${host}\"\n$output"
+            ts_log_severe "${command_args} on host $submit_host did no \"rsh uname -n\" on host \"${host}\"\n$output"
          }
       }
 
       set output [ start_remote_prog $submit_host $CHECK_USER "qconf" "-mconf" ]
-      puts $CHECK_OUTPUT $output
-      puts $CHECK_OUTPUT "qconf exit state: $prg_exit_state"
+      ts_log_fine $output
+      ts_log_fine "qconf exit state: $prg_exit_state"
       if { $prg_exit_state == 0 } {
-         add_proc_error "submit_hosts_test" -1 "qconf -mconf on host $submit_host should only work on admin host"
+         ts_log_severe "qconf -mconf on host $submit_host should only work on admin host"
       }
 
    }

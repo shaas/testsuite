@@ -85,7 +85,7 @@ proc sge_st_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc sge_st_setup {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global sge_st_cmd st_file
 
    set st_file "$ts_config(product_root)/$ts_config(cell)/common/st.enabled"
@@ -93,19 +93,19 @@ proc sge_st_setup {} {
 }
 
 proc sge_st_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
 }
 
 proc sge_st { cmd } {
-   global ts_config CHECK_OUTPUT CHECK_USER sge_st_cmd
+   global ts_config CHECK_USER sge_st_cmd
 
    #there must be root,to avoid the permision denied
    set user "root"
 
 
    if { [is_remote_file $ts_config(master_host) $user $sge_st_cmd 1] == 0 } {
-      add_proc_error "sge_st" -1 "The $ts_config(product_root)/util/sgeST/sge_st command not found. Try to update you sources and call the distinst"
+      ts_log_severe "The $ts_config(product_root)/util/sgeST/sge_st command not found. Try to update you sources and call the distinst"
       return ""
    }
 
@@ -114,74 +114,64 @@ proc sge_st { cmd } {
 }
 
 proc test_enable {} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "sge_st enable"
-   puts $CHECK_OUTPUT [sge_st "enable"]
+   ts_log_fine "sge_st enable"
+   ts_log_fine [sge_st "enable"]
 
    set output [sge_st "enabled"]
-   puts $CHECK_OUTPUT "sge_st enabled output: $output should be true"
+   ts_log_fine "sge_st enabled output: $output should be true"
    if { "$output" != "true" } {
-      add_proc_error "sge_st_setup" -1 "The Service Tags Support should be enabled"
+      ts_log_severe "The Service Tags Support should be enabled"
    }
 }
 
 proc test_disable {} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "sge_st disable"
-   puts $CHECK_OUTPUT [sge_st "disable"]
+   ts_log_fine "sge_st disable"
+   ts_log_fine [sge_st "disable"]
 
    set output [sge_st "enabled"]
-   puts $CHECK_OUTPUT "sge_st enabled output: $output should be false"
+   ts_log_fine "sge_st enabled output: $output should be false"
    if { $output != "false" } {
-      add_proc_error "sge_st_setup" -1 "The Service Tags Support should be disabled"
+      ts_log_severe "The Service Tags Support should be disabled"
    }
   
 }
 proc test_register {} {
-   global CHECK_OUTPUT
-
    if { [sge_st "supported"] == "false" } {
-      add_proc_error "test_supported" -3 "The Service Tags packages are not present, the test is unsupported"
+      ts_log_config "The Service Tags packages are not present, the test is unsupported"
       return 0
    }
 
-   puts $CHECK_OUTPUT "sge_st register"
-   puts $CHECK_OUTPUT [sge_st "register"]
+   ts_log_fine "sge_st register"
+   ts_log_fine [sge_st "register"]
 
    set output [sge_st "check"]
-   puts $CHECK_OUTPUT "sge_st check output: $output should not be unregistered"
+   ts_log_fine "sge_st check output: $output should not be unregistered"
    if { $output == "unregistered" } {
-      add_proc_error "sge_st_setup" -1 "The Product instance should be registered"
+      ts_log_severe "The Product instance should be registered"
    }
 }
 
 proc test_unregister {} {
-   global CHECK_OUTPUT
-
    if { [sge_st "supported"] == "false" } {
-      add_proc_error "test_supported" -3 "The Service Tags packages are not present, the test is unsupported"
+      ts_log_config "The Service Tags packages are not present, the test is unsupported"
       return 0
    }
 
-   puts $CHECK_OUTPUT "sge_st unregister"
-   puts $CHECK_OUTPUT [sge_st "unregister"]
+   ts_log_fine "sge_st unregister"
+   ts_log_fine [sge_st "unregister"]
 
    set output [sge_st "check"]
-   puts $CHECK_OUTPUT "sge_st check output: $output should be unregistered"
+   ts_log_fine "sge_st check output: $output should be unregistered"
    if {  $output != "unregistered" } {
-      add_proc_error "sge_st_setup" -1 "The Product instance should be unregistered"
+      ts_log_severe "The Product instance should be unregistered"
    }
 }
 
 
 proc test_supported {} {
-   global CHECK_OUTPUT
-
-   puts $CHECK_OUTPUT "The service tags are supported = [sge_st supported ]"
+   ts_log_fine "The service tags are supported = [sge_st supported ]"
    if { [sge_st "supported"] == "false" } {
-      add_proc_error "test_supported" -3 "The Service Tags packages are not present, the test is unsupported"
+      ts_log_config "The Service Tags packages are not present, the test is unsupported"
       return 0
    }
 }

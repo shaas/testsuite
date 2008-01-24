@@ -87,12 +87,12 @@ proc qmaster_spooling_setup {} {
 }
 
 proc qmaster_spooling_cleanup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
-            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            ts_log_fine "Removing resource quota sets $elem ...\n"
             del_rqs $elem
          }
       }
@@ -117,15 +117,15 @@ proc cmp_config { conf_a conf_b fields check} {
    foreach field $fields {
       # error - field name doesn't exist
       if { ![info exists a($field)] } {
-         add_proc_error "$check" -1 "original object doesn't contain attribute $field"
+         ts_log_severe "$check: original object doesn't contain attribute $field"
       } else {
          # error - field name doesn't exist
          if { ![info exists b($field)] } {
-            add_proc_error "$check" -1 "reread object doesn't contain attribute $field"
+            ts_log_severe "$check: reread object doesn't contain attribute $field"
          } else {
             # error - fields differ
             if { [string compare $a($field) $b($field)] != 0 } {
-               add_proc_error "$check" -1 "attribute field differs between original object:\n old ($a($field))\n new ($b($field))"
+               ts_log_severe "$check: attribute field differs between original object:\n old ($a($field))\n new ($b($field))"
             }
          }
       }
@@ -134,10 +134,10 @@ proc cmp_config { conf_a conf_b fields check} {
 
 # check if spooled projects are still available after qmaster restart
 proc qmaster_spooling_prj_restart {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    if {$ts_config(product_type) != "sgeee"} {
-      add_proc_error qmaster_spooling_prj_restart -3 "this can only run in sgeee clusters"
+      ts_log_config "this can only run in sgeee clusters"
    } else {
       set check_fields "name oticket fshare acl xacl"
 
@@ -164,7 +164,7 @@ proc qmaster_spooling_prj_restart {} {
 
 # check if spooled rqs are still available after qmaster restart
 proc qmaster_spooling_rqs_restart {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    if {$ts_config(gridengine_version) >= 61} {
       set rqs_name "test_spooling"
@@ -193,7 +193,7 @@ proc qmaster_spooling_rqs_restart {} {
 }
 
 proc qmaster_spooling_ar_restart {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global actual_host  
    global qinstance
    global CHECK_USER
@@ -230,7 +230,7 @@ proc qmaster_spooling_ar_restart {} {
       append args "-q $qinstance "
       append args "-u '!$CHECK_FIRST_FOREIGN_SYSTEM_USER,$CHECK_SECOND_FOREIGN_SYSTEM_USER,!root' "
 
-      puts $CHECK_OUTPUT "qrsub $args\n"
+      ts_log_fine "qrsub $args\n"
       set ar_id [submit_ar "$args"]
       if {$ar_id < 0} {
        return
@@ -256,7 +256,7 @@ proc qmaster_spooling_ar_restart {} {
       set check_values(xacl_list)                      "$CHECK_FIRST_FOREIGN_SYSTEM_USER,root"
 
 
-      puts $CHECK_OUTPUT "qrstat -ar $ar_id\n"
+      ts_log_fine "qrstat -ar $ar_id\n"
       set ret [parse_qrstat_check $ar_id check_values]
       if {$ret != 0 } {
        return
@@ -264,19 +264,19 @@ proc qmaster_spooling_ar_restart {} {
 
       shutdown_and_restart_qmaster
 
-      puts $CHECK_OUTPUT "check output of qrstat -ar $ar_id after spooling\n"
+      ts_log_fine "check output of qrstat -ar $ar_id after spooling\n"
       set ret [parse_qrstat_check $ar_id check_values]
       if {$ret != 0 } {
        return
       }
 
-      puts $CHECK_OUTPUT "test qmaster_spooling_ar_restart OK"
+      ts_log_fine "test qmaster_spooling_ar_restart OK"
    }
 }
 
 # test the issue 2442: incomplete error loging in case of classic spooling failures
 proc qmaster_spooling_issue2442 {} {
-   global ts_config ts_host_config CHECK_OUTPUT CHECK_USER
+   global ts_config ts_host_config CHECK_USER
 
    # test only for classic spooling
    if { [string compare "$ts_config(spooling_method)" "classic"] == 0 } {
@@ -344,13 +344,13 @@ proc qmaster_spooling_issue2442 {} {
       }
       shutdown_and_restart_qmaster
       if {$error == 1} {
-         add_proc_error "qmaster_spooling_issue2442" -1 "Missing messages in qmaster log file for object(s): $missing_log"
+         ts_log_severe "Missing messages in qmaster log file for object(s): $missing_log"
          return -1
       } else {
-         puts $CHECK_OUTPUT "Successfully performed error logging test qmaster_spooling_issue2442."
+         ts_log_fine "Successfully performed error logging test qmaster_spooling_issue2442."
       }
    } else {
-      puts $CHECK_OUTPUT "qmaster_spooling_issue2442 test skipped for $ts_config(spooling_method) spooling method"
+      ts_log_fine "qmaster_spooling_issue2442 test skipped for $ts_config(spooling_method) spooling method"
    }
    return 0
 }

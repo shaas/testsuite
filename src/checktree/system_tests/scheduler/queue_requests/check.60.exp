@@ -101,7 +101,7 @@ proc scheduler_queue_requests_get_qname {num} {
 }
 
 proc scheduler_queue_requests_setup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global queue_count pe_count sched_conf_backup
 
    # backup schedd config
@@ -137,7 +137,7 @@ proc scheduler_queue_requests_setup  {} {
 }
 
 proc scheduler_queue_requests_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global queue_count pe_count sched_conf_backup
 
    # restore old schedd config
@@ -160,8 +160,6 @@ proc scheduler_queue_requests_cleanup  {} {
 }
 
 proc scheduler_queue_requests_sched_time {} {
-   global CHECK_OUTPUT
-
    set duration -1
 
    set pattern "*job dispatching took*"
@@ -169,10 +167,10 @@ proc scheduler_queue_requests_sched_time {} {
    set profile_lines [split $log_output "\n"]
    foreach line $profile_lines {
       if {[string match $pattern $line]} {
-#         puts $CHECK_OUTPUT $line
+#         ts_log_fine $line
          set split_line [split $line]
          set duration [lindex $split_line 5]
-#         puts $CHECK_OUTPUT $duration
+#         ts_log_fine $duration
          break
       }
    }
@@ -212,7 +210,7 @@ proc scheduler_queue_requests_softcq {} {
 
 
 proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global queue_count queue_request_count
 
    # general submit options
@@ -253,7 +251,7 @@ proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
    }
 
    set queue_request [join $queue_request_list ","]
-   puts $CHECK_OUTPUT $queue_request_list
+   ts_log_fine $queue_request_list
    
    # submit a job and request this queue list
    if {$soft} {
@@ -270,7 +268,7 @@ proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
    # wait for the job to start and evaluate queue
    wait_for_jobstart $job_id "" 60
    get_extended_job_info $job_id
-   puts $CHECK_OUTPUT "job is running in queue $job_info(queue)"
+   ts_log_fine "job is running in queue $job_info(queue)"
 
    if {$soft == 0} {
       foreach queue $job_info(queue) {
@@ -279,13 +277,13 @@ proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
                set at_pos [string first "@" $queue]
                incr at_pos -1
                set cqueue [string range $queue 0 $at_pos]
-               puts $CHECK_OUTPUT "substring of $queue is $cqueue"
+               ts_log_fine "substring of $queue is $cqueue"
                if {[lsearch -exact $queue_request_list $cqueue] < 0} {
-                  add_proc_error $scenario -1 "job is running in queue $cqueue, expected it to run in one of $queue_request_list"
+                  ts_log_severe "$scenario: job is running in queue $cqueue, expected it to run in one of $queue_request_list"
                }
             } else {
                if {[lsearch -exact $queue_request_list $queue] < 0} {
-                  add_proc_error $scenario -1 "job is running in queue $queue, expected it to run in one of $queue_request_list"
+                  ts_log_severe "$scenario: job is running in queue $queue, expected it to run in one of $queue_request_list"
                }
             }
          }
@@ -304,7 +302,7 @@ proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
    }
 
    if {$default_duration < [expr $duration / $factor ]} {
-      add_proc_error $scenario -1 "scheduling of job with queue requests took too long ($duration vs. $default_duration without requests). This is probably IZ 1981"
+      ts_log_severe "$scenario: scheduling of job with queue requests took too long ($duration vs. $default_duration without requests). This is probably IZ 1981"
    }
 
    # close the tail to schedd messages file

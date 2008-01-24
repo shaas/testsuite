@@ -1,3 +1,11 @@
+JG-2008-01-24-0: Bugfix:    Fixed authuser test.
+                 Review:    RH
+                 Enhancem.: Close rlogin connections that have been idle for
+                            more than 10 minutes.
+                 Review:    CR
+                 Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
+                            checks in checktree/system_tests.
+
 CR-2008-01-24-3: Bugfix:    o ts menu "4" exit should ask for root pw if needed
                             o fixed hedeby tests "issue_67" and "issue_88"
                  Review:    RH
@@ -18,9 +26,6 @@ CR-2008-01-24-0: Bugfix:    o logging.tcl was not sourced in source_tcl_files()
 RH-2008-01-23-0: Bugfix:    tcl error in setup_schedconf fixed
                  Review:    JG
 
-OJ-2008-01-23-0: Enhance:   Added test case 2387 at bugs/issuezilla/2387.
-	 	 Issue:     2387
-
 RD-2008-01-23-0: Enhancem.: Added test for advance reservation hard/soft error
                  Review:    JG
 
@@ -32,7 +37,7 @@ RM-2008-01-22-0: Enhancem.: Updated parsing for new sdmadm suj hedeby command
                  Review:    MG
 
 MD-2008-01-22-1: Bugfix:    autoinstall config checktest used wrong string
- 
+
 JG-2008-01-22-1: Enhancem.: Use the logging framework (JG-2008-01-16-0) for all
                             system_tests/clients checks.
                             Removed outdated performance tests.

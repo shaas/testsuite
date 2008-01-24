@@ -71,7 +71,7 @@ proc commlib_issues_setup {} {
 }
 
 proc commlib_issues_run  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    
    set server_host [lindex $ts_config(execd_nodes) 0]
    set client_host [lindex $ts_config(execd_nodes) 1]
@@ -79,14 +79,14 @@ proc commlib_issues_run  {} {
    set execd_no 2
    set client_up_arch [resolve_build_arch $client_host]
    while { [string match "*AIX*" $client_up_arch] || [string match "*IRIX*" $client_up_arch] } {
-      puts $CHECK_OUTPUT "skipping aix/irix host because there may be a malloc() problem for this test"
+      ts_log_fine "skipping aix/irix host because there may be a malloc() problem for this test"
       set client_host [lindex $ts_config(execd_nodes) $execd_no]
       set client_up_arch [resolve_build_arch $client_host]
       incr execd_no 1
    }
    
-   puts $CHECK_OUTPUT "using server host $server_host"
-   puts $CHECK_OUTPUT "using client host $client_host"
+   ts_log_fine "using server host $server_host"
+   ts_log_fine "using client host $client_host"
 
    set server_up_arch [resolve_build_arch $server_host]
    set client_up_arch [resolve_build_arch $client_host]
@@ -112,20 +112,20 @@ proc commlib_issues_run  {} {
       set timeout 600
       expect {
          -i $both_list full_buffer {
-            add_proc_error "commlib_issues_run" -1 "expect full_buffer error"
+            ts_log_severe "expect full_buffer error"
             close_spawn_process $server_sid
             close_spawn_process $client_sid
             return -1
          }
          -i $both_list timeout {
-            puts $CHECK_OUTPUT "---->>>>>>>>> got timeout"
-            add_proc_error "commlib_issues_run" -1 "got timeout"
+            ts_log_fine "---->>>>>>>>> got timeout"
+            ts_log_severe "got timeout"
             set in_loop 0   
          }
          -i $both_list eof {
             set spawn_id $expect_out(spawn_id)
-            puts $CHECK_OUTPUT "got eof for spawn_id $spawn_id"
-            add_proc_error "commlib_issues_run" -1 "got eof"
+            ts_log_fine "got eof for spawn_id $spawn_id"
+            ts_log_severe "got eof"
             set in_loop 0   
          }
          -i $server_id -- "*\n" {
@@ -133,7 +133,7 @@ proc commlib_issues_run  {} {
             set output [ split $output "\n" ]
             foreach line $output {
                set help [string trim $line]
-               puts $CHECK_OUTPUT "server: $help"
+               ts_log_fine "server: $help"
             }
          }
          -i $client_id -- "*\n" {
@@ -141,7 +141,7 @@ proc commlib_issues_run  {} {
             set output [ split $output "\n" ]
             foreach line $output {
                set help [string trim $line]
-               puts $CHECK_OUTPUT "client: $help"
+               ts_log_fine "client: $help"
                if { [string match "*malloc() error*" $help] } {
                   set found_malloc_error 1
                }
@@ -152,24 +152,24 @@ proc commlib_issues_run  {} {
                   incr st 1
                   incr ed -1
                   set exit_state [string range $help $st $ed]
-                  puts $CHECK_OUTPUT "found exit status of client: ($exit_state)"
+                  ts_log_fine "found exit status of client: ($exit_state)"
                   if { $exit_state != 0 } {
                      set known_exit_state 0
                      if { $exit_state == 1 && $found_malloc_error == 0 } {
-                        add_proc_error "commlib_issues_run" -1 "issue #1389 is present\nNotice this test may fail on hosts which have to less memory or are not fast enough!\n$expect_out(0,string)"
+                        ts_log_severe "issue #1389 is present\nNotice this test may fail on hosts which have to less memory or are not fast enough!\n$expect_out(0,string)"
                         set known_exit_state 1
                      } 
                      if { $exit_state == 1 && $found_malloc_error != 0 } {
-                        add_proc_error "commlib_issues_run" -3 "can't test issue #1389 because of malloc error on host $client_host"
+                        ts_log_config "can't test issue #1389 because of malloc error on host $client_host"
                         set known_exit_state 1
                      } 
 
                      if { $exit_state == 2 } {
-                        add_proc_error "commlib_issues_run" -1 "issue #1400 is present"
+                        ts_log_severe "issue #1400 is present"
                         set known_exit_state 1
                      }
                      if { $known_exit_state != 1 } {
-                        add_proc_error "commlib_issues_run" -1 "exit state of client is $exit_state"
+                        ts_log_severe "exit state of client is $exit_state"
                      }
                   }
                  

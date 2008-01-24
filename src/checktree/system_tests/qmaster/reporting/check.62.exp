@@ -41,12 +41,12 @@ lappend check_functions "reporting_ar_warning_state_test"
 proc reporting_wait_for_pattern {pattern {timeout 10}} {
    set output [logfile_wait $pattern $timeout 0]
    if {$logfile_wait_error != 0} {
-      add_proc_error "reporting_wait_for_pattern" -1 "there were no pattern '$pattern' in the reporting file, got only\n$output"
+      ts_log_severe "there were no pattern '$pattern' in the reporting file, got only\n$output"
    }
 }
 
 proc reporting_ar_error_state_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global reporting_file reporting_test_host
 
    delete_all_ars
@@ -63,7 +63,7 @@ proc reporting_ar_error_state_test {} {
    ################
    set ar_id [submit_ar "-q reporting -d 3600"]
    if {$ar_id <= 0} {
-      add_proc_error "reporting_ar_error_state_test" -1 "AR submit failed"
+      ts_log_severe "AR submit failed"
       close_logfile_wait
       return
    }
@@ -136,7 +136,7 @@ proc reporting_ar_error_state_test {} {
 }
 
 proc reporting_ar_warning_state_test {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global reporting_file reporting_test_host
 
    delete_all_ars
@@ -158,7 +158,7 @@ proc reporting_ar_warning_state_test {} {
    ################
    set ar_id [submit_ar "-a $start -q reporting -d 3600"]
    if {$ar_id <= 0} {
-      add_proc_error "reporting_ar_warning_state_test" -1 "AR submit failed"
+      ts_log_severe "AR submit failed"
       close_logfile_wait
       return
    }

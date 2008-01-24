@@ -101,7 +101,7 @@ proc SGE_Helper_Service_setup {} {
       return
    }
 
-   puts $CHECK_OUTPUT "using $host as test host"
+   ts_log_fine "using $host as test host"
 
    # set the accounting_flush_time to 0 to speedup writing of accounting info
    get_config old_config
@@ -272,14 +272,14 @@ proc get_display_win_gui_parameter {} {
 proc start_SGE_Helper_Service {} {
    global CHECK_OUTPUT
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "starting N1 Grid Engine Helper Service"
+   ts_log_fine ""
+   ts_log_fine "starting N1 Grid Engine Helper Service"
    
    set ret [control_SGE_Helper_Service 1]
    if {$ret == 0} {
-      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is running"
+      ts_log_fine "N1 Grid Engine Helper Service is running"
    } else {
-      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is not running! Test failed!"
+      ts_log_fine "N1 Grid Engine Helper Service is not running! Test failed!"
    }
    return $ret
 }
@@ -305,13 +305,13 @@ proc start_SGE_Helper_Service {} {
 proc stop_SGE_Helper_Service {} {
    global CHECK_OUTPUT
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "stopping N1 Grid Engine Helper Service"
+   ts_log_fine ""
+   ts_log_fine "stopping N1 Grid Engine Helper Service"
    set ret [control_SGE_Helper_Service 0]
    if {$ret == 0} {
-      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is stopped"
+      ts_log_fine "N1 Grid Engine Helper Service is stopped"
    } else {
-      puts $CHECK_OUTPUT "N1 Grid Engine Helper Service is not stopped! \
+      ts_log_fine "N1 Grid Engine Helper Service is not stopped! \
                           Test failed!"
    }
    return $ret
@@ -433,7 +433,7 @@ proc submit_job_expect_failure {submit_command expected_failure} {
    set    queue "all.q"
 
    # submit job
-   puts $CHECK_OUTPUT ""
+   ts_log_fine ""
    set job_id [submit_job $submit_command]
 
    if {$job_id < 0} {
@@ -457,7 +457,7 @@ proc submit_job_expect_failure {submit_command expected_failure} {
          # look if queue instance is in error state
          set queue_state [get_queue_state "$queue@$host"]
          if {[ string compare $queue_state "E" ] == 0} {
-            puts $CHECK_OUTPUT "Queue was set in error state, test was successful."
+            ts_log_fine "Queue was set in error state, test was successful."
             break
          }
 
@@ -472,14 +472,14 @@ proc submit_job_expect_failure {submit_command expected_failure} {
       }
    } elseif {[string compare $expected_failure "job_error"] == 0} {
       # check if job is in error state
-      puts $CHECK_OUTPUT "Waiting for failure of job $job_id"
+      ts_log_fine "Waiting for failure of job $job_id"
       set seconds 60
       set time [timestamp]
       while {1} {
          # look if job is in error state
          set job_state [get_job_state $job_id]
          if {[string compare $job_state "Eqw"] == 0} {
-            puts $CHECK_OUTPUT "Job $job_id failed. Test was successful."
+            ts_log_fine "Job $job_id failed. Test was successful."
             break
          }
 
@@ -500,9 +500,9 @@ proc submit_job_expect_failure {submit_command expected_failure} {
    delete_job $job_id
 
    # clear error state from queue
-   puts $CHECK_OUTPUT "do a qmod -c \"*\" ..."
+   ts_log_fine "do a qmod -c \"*\" ..."
    set output [start_sge_bin "qmod" "-c \"*\""]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
 
    return 0
 }

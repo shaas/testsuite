@@ -90,7 +90,6 @@ proc deadline_calculation_setup {  } {
 
    global deadline_queue_name deadline_job_name
    global ts_config
-   global CHECK_OUTPUT
    
    set deadline_job_name    "dljob"
    
@@ -98,7 +97,7 @@ proc deadline_calculation_setup {  } {
    set deadline_queue_name "deadline_queue"
    set queue_conf(slots) 0
 
-   puts $CHECK_OUTPUT "Add queue $deadline_queue_name"
+   ts_log_fine "Add queue $deadline_queue_name"
    
    add_queue $deadline_queue_name "@allhosts" queue_conf 1
    
@@ -128,11 +127,11 @@ proc deadline_calculation_cleanup {  } {
 
 proc deadline_test_permission { } {
    global ts_config  deadline_queue_name
-   global CHECK_ACT_LEVEL CHECK_OUTPUT CHECK_USER
+   global CHECK_ACT_LEVEL CHECK_USER
 
 
    if { $CHECK_ACT_LEVEL != 2 } {
-      puts $CHECK_OUTPUT "Skip permission test for run level $CHECK_ACT_LEVEL"
+      ts_log_fine "Skip permission test for run level $CHECK_ACT_LEVEL"
       return 0
    }
    
@@ -149,10 +148,10 @@ proc deadline_test_permission { } {
    if { $result == -22 } {
       set result 0
    } elseif { $result == 0 } {
-      add_proc_error "deadline_test_permission" -1 "user $non_deadline_user can submit jobs with deadline, despite it is not in the deadlineusers group"
+      ts_log_severe "user $non_deadline_user can submit jobs with deadline, despite it is not in the deadlineusers group"
       set result -1
    } else {
-      add_proc_error "deadline_test_permission" -1 "submit_job returns an unexpected error ($result)"
+      ts_log_severe "submit_job returns an unexpected error ($result)"
       set result -1
    }
 
@@ -167,7 +166,7 @@ proc deadline_test_permission { } {
 }
 
 proc deadline_jobs_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global deadline_job_name
    global CHECK_ACT_LEVEL
    
@@ -187,14 +186,14 @@ proc deadline_jobs_test {} {
          set deadlines  "0 0 0 0 0 0 0 0 0 -10"
       }
       default {
-         puts $CHECK_OUTPUT "deadline_jobs_test skipped in run level $CHECK_ACT_LEVEL"
+         ts_log_fine "deadline_jobs_test skipped in run level $CHECK_ACT_LEVEL"
          return 0 
       }      
    }
    
    set job_count [deadline_create_job_array jobs $priorities $deadlines]
    if { $job_count <= 0 } {
-      add_proc_error "deadline_jobs_test" -1 "Invalid configuration"
+      ts_log_severe "Invalid configuration"
       return -1
    }
 
@@ -203,7 +202,7 @@ proc deadline_jobs_test {} {
    set result [deadline_submit_jobs jobs $job_count]
    
    if { $result != 0 } {
-      add_proc_error "deadline_jobs_test" -1 "submit of jobs failed"
+      ts_log_severe "submit of jobs failed"
       return -1
    }
    
@@ -214,7 +213,7 @@ proc deadline_jobs_test {} {
    
    set result [ wait_for_jobstart $jobs(9,id) $deadline_job_name 60 1 1 ]
    if { $result != 0 } {      
-      add_proc_error "deadline_jobs_test" -1 "job with id $jobs(9,id) and deadline $jobs(9,deadline) is not running"
+      ts_log_severe "job with id $jobs(9,id) and deadline $jobs(9,deadline) is not running"
       return -1
    }
    
@@ -223,20 +222,18 @@ proc deadline_jobs_test {} {
 }
 
 proc deadline_calc_deadline { deadline } {
-   global CHECK_OUTPUT 
-   
    set now [clock seconds]
    set deadline_time [expr $now + ($deadline * 60)]
    
    set result [clock format $deadline_time -format "%m%d%H%M"] 
    
-   puts $CHECK_OUTPUT "Deadline now + $deadline minutes = $result"
+   ts_log_fine "Deadline now + $deadline minutes = $result"
    return $result
 }
 
 proc deadline_create_job_array { jobs priorities deadlines } {
    
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    
    upvar $jobs tmp_jobs
    
@@ -248,13 +245,13 @@ proc deadline_create_job_array { jobs priorities deadlines } {
    } elseif { $deadline_count > 0 } {
       set job_count $deadline_count
    } else {
-      add_proc_error "deadline_create_job_array" -1 "invalid arguments"
+      ts_log_severe "invalid arguments"
       return -1
    }
    
    if { $priority_count > 0 } {
       if { $priority_count != $job_count } {
-         add_proc_error "deadline_create_job_array" -1 "Invalid number of priorities ($job_count expected)"
+         ts_log_severe "Invalid number of priorities ($job_count expected)"
          return -1
       } else {
          set i 0
@@ -271,7 +268,7 @@ proc deadline_create_job_array { jobs priorities deadlines } {
    
    if { $deadline_count > 0 } {
       if { $deadline_count != $job_count } {
-         add_proc_error "deadline_create_job_array"  -1 "Invalid number of deadlines ($job_count expected)"
+         ts_log_severe "Invalid number of deadlines ($job_count expected)"
          return -1
       } else {
          set i 0
@@ -293,7 +290,7 @@ proc deadline_submit_jobs { jobs job_count } {
    
    global ts_config
    global deadline_queue_name deadline_job_name
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
     
    upvar $jobs tmp_jobs
    
@@ -313,12 +310,12 @@ proc deadline_submit_jobs { jobs job_count } {
       append job_args " $post_args"
       set result [ submit_job $job_args 1 60 "" "" ]
       if { $result <= 0 } {
-         add_proc_error "deadline_submit_jobs" -1 "submit_job failed ($result)"
+         ts_log_severe "submit_job failed ($result)"
          return -1
       }
       set tmp_jobs($i,id) $result
       
-      puts $CHECK_OUTPUT "job\($i\) has id $tmp_jobs($i,id)"
+      ts_log_fine "job\($i\) has id $tmp_jobs($i,id)"
    }
    return 0
 }
@@ -327,7 +324,7 @@ proc deadline_submit_jobs { jobs job_count } {
 
 proc deadline_set_slot_count { slot_count } {
 
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global ts_config
    global deadline_queue_name
    
@@ -343,11 +340,11 @@ proc deadline_set_slot_count { slot_count } {
       }
       set result [ start_sge_bin "qconf" $qconf_args $ts_config(master_host) $CHECK_USER exit_state]
       if { $exit_state != 0 } {
-        add_proc_error "deadline_set_slot_count" -1 "qconf -mattr failed ($exit_state) ----\n $result \n -----"
+        ts_log_severe "qconf -mattr failed ($exit_state) ----\n $result \n -----"
         return -1
       }
    }
-   puts $CHECK_OUTPUT "set slot count of queue $deadline_queue_name to $slot_count"
+   ts_log_fine "set slot count of queue $deadline_queue_name to $slot_count"
    return 0
 }
 

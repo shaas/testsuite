@@ -88,7 +88,6 @@ proc urgency_calculation_setup {  } {
    global urgency_queue_name urgency_job_name urgency_pe_name 
    global urgency_org_slots_complex
    global ts_config
-   global CHECK_OUTPUT
    
    set urgency_job_name   "urgjob"
    set urgency_pe_name    "urgpe"
@@ -102,15 +101,15 @@ proc urgency_calculation_setup {  } {
    
    set result [set_schedd_config schedconf]
    if {$result != 0} {
-      add_proc_error "urgency_calculation_setup" -1 "setup of scheduler failed"
+      ts_log_severe "setup of scheduler failed"
       return -1
    }
-   puts $CHECK_OUTPUT "Scheduler configured"
+   ts_log_fine "Scheduler configured"
 
    # setup the test queue
    set urgency_queue_name "urg_queue"   
    set queue_conf(slots) 0
-   puts $CHECK_OUTPUT "Add queue $urgency_queue_name"
+   ts_log_fine "Add queue $urgency_queue_name"
    add_queue $urgency_queue_name "@allhosts" queue_conf 1
    
    # Disable all queue instances of the urgency_queue
@@ -129,10 +128,10 @@ proc urgency_calculation_setup {  } {
    set tmp_complex(dummy) "du1 INT <= YES YES 1 500"
    set result [set_complex tmp_complex]
    if {$result < -4} {
-      add_proc_error "urgency_calculation_setup" -1 "set complexes failed ($result)"
+      ts_log_severe "set complexes failed ($result)"
       return -1
    }
-   puts $CHECK_OUTPUT "complexes setup complete"
+   ts_log_fine "complexes setup complete"
    
    # setup pe
    set pe_conf(slots)              0
@@ -145,7 +144,7 @@ proc urgency_calculation_setup {  } {
    set pe_conf(job_is_first_task)  "FALSE"
    set result [add_pe $urgency_pe_name pe_conf]
    if { $result < 0 } {
-      add_proc_error "urgency_calculation_setup" -1 "add_pe failed ($result)"
+      ts_log_severe "add_pe failed ($result)"
       return -1
    }
    
@@ -153,7 +152,7 @@ proc urgency_calculation_setup {  } {
 }
 
 proc urgency_calculation_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global urgency_queue_name urgency_org_slots_complex urgency_pe_name
 
    delete_all_jobs
@@ -166,18 +165,18 @@ proc urgency_calculation_cleanup {} {
 
    set result [del_pe $urgency_pe_name]
    if {$result != 0} {
-      add_proc_error "urgency_calculation_cleanup" -1 "deletion of pe failed"
+      ts_log_severe "deletion of pe failed"
    }
 
    # reset the scheduler configuration
    set result [reset_schedd_config]
    if {$result != 0} {
-      add_proc_error "urgency_calculation_cleanup" -1 "result scheduler failed ($result)"
+      ts_log_severe "result scheduler failed ($result)"
    }
 
    set result [del_queue $urgency_queue_name "" 1 1]
    if {$result != 0} {
-      add_proc_error "urgency_calculation_cleanup" -1 "del_queue failed ($result)"
+      ts_log_severe "del_queue failed ($result)"
    }
 
    # Reset slots complex    
@@ -185,14 +184,14 @@ proc urgency_calculation_cleanup {} {
    set tmp_complex(dummy) ""
    set result [set_complex tmp_complex]
    if {$result < -4} {
-      add_proc_error "urgency_calculation_cleanup" -1 "reset of slots complex failed ($result)"
+      ts_log_severe "reset of slots complex failed ($result)"
    }
 }
 
 
 
 proc urgency_calculation {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
 
    set value_names { slots urg nurg rrcontr }
 
@@ -218,7 +217,7 @@ proc urgency_calculation {} {
    # Submit the jobs
    set result [urgency_submit_jobs jobs $job_count]
    if {$result != 0} {
-      add_proc_error "urgency_calculation" -1 "submit jobs failed"
+      ts_log_severe "submit jobs failed"
       return -1
    }
    
@@ -230,10 +229,10 @@ proc urgency_calculation {} {
 
    # Delete the job(3) and check the values
    # Urgency must not be changed   
-   puts $CHECK_OUTPUT "Delete job(3) $jobs(3,id)"
+   ts_log_fine "Delete job(3) $jobs(3,id)"
    set result [delete_job $jobs(3,id) 60]
    if {$result != 0} {
-      add_proc_error "delete job 3 (id=$jobs(3,id)) failed"
+      ts_log_severe "delete job 3 (id=$jobs(3,id)) failed"
       return -1
    }
    
@@ -249,10 +248,10 @@ proc urgency_calculation {} {
    # Delete the job(2) and check the values
    # Urgency has to be changed   
    
-   puts $CHECK_OUTPUT "Delete job(2) $jobs(2,id)"
+   ts_log_fine "Delete job(2) $jobs(2,id)"
    set result [delete_job $jobs(2,id) 60]
    if {$result != 0} {
-      add_proc_error "delete job 2 (id=$jobs(2,id)) failed"
+      ts_log_severe "delete job 2 (id=$jobs(2,id)) failed"
       return -1
    }
    # set id of job 2 to zero, urgency_check_values will skip this job
@@ -276,7 +275,7 @@ proc urgency_calculation {} {
 }
 
 proc urgency_check_values {jobs job_count value_names} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    
    upvar $jobs tmp_jobs
    
@@ -286,24 +285,24 @@ proc urgency_check_values {jobs job_count value_names} {
    set error_count 0
    for {set i 0} {$i < $job_count} {incr i 1} {
       if {$tmp_jobs($i,id) == 0} {
-         puts $CHECK_OUTPUT "skip job $i $tmp_jobs($i,id)"
+         ts_log_fine "skip job $i $tmp_jobs($i,id)"
          continue
       }
       set result [get_urgency_job_info $tmp_jobs($i,id)]
       if { $result == 0 } {
-         add_proc_error "urgency_calculation" -1 "job($i) $tmp_jobs($i,id) unknown"
+         ts_log_severe "job($i) $tmp_jobs($i,id) unknown"
          return -1
       } elseif {$result != 1} {
-         add_proc_error "urgency_calculation" -1 "get_urgency_job_info for job($i) $tmp_jobs($i,id) failed ($result)"
+         ts_log_severe "get_urgency_job_info for job($i) $tmp_jobs($i,id) failed ($result)"
          return -1
       }
       
       foreach value_name $value_names {
          if {$job_info($value_name) != $tmp_jobs($i,$value_name)} {
-            add_proc_error "urgency_calculation" -1 "Invalid $value_name $job_info($value_name) for job $i $tmp_jobs($i,id) (expected was $tmp_jobs($i,$value_name))"
+            ts_log_severe "Invalid $value_name $job_info($value_name) for job $i $tmp_jobs($i,id) (expected was $tmp_jobs($i,$value_name))"
             incr error_count 1
          } else {
-            puts $CHECK_OUTPUT "job $i $tmp_jobs($i,id) has correct $value_name $job_info($value_name)"
+            ts_log_fine "job $i $tmp_jobs($i,id) has correct $value_name $job_info($value_name)"
          }
       }
    }
@@ -329,7 +328,7 @@ proc urgency_build_job_array_entry {jobs entry_name entry_list} {
 proc urgency_submit_jobs {jobs job_count} {
    global ts_config urgency_job_name
    global urgency_queue_name urgency_job_name urgency_pe_name
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
     
    upvar $jobs tmp_jobs
    
@@ -347,12 +346,12 @@ proc urgency_submit_jobs {jobs job_count} {
       append job_args " $post_args"
       set result [submit_job $job_args 1 60 "" ""]
       if {$result <= 0} {
-         add_proc_error "ticket_submit_jobs" -1 "submit_job failed ($result)"
+         ts_log_severe "submit_job failed ($result)"
          return -1
       }
       set tmp_jobs($i,id) $result
       
-      puts $CHECK_OUTPUT "job\($i\) has id $tmp_jobs($i,id)"
+      ts_log_fine "job\($i\) has id $tmp_jobs($i,id)"
    }
 
    return 0

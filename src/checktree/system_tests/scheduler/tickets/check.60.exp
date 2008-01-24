@@ -91,7 +91,6 @@ proc ticket_calculation_setup {  } {
 
    global ticket_queue_name ticket_job_name ticket_departments ticket_projects
    global ts_config
-   global CHECK_OUTPUT
    
    set ticket_job_name    "tjob"
    set ticket_departments "dep1 dep2 dep3"
@@ -110,17 +109,17 @@ proc ticket_calculation_setup {  } {
    
    set result [ set_schedd_config schedconf ]
    if { $result != 0 } {
-      add_proc_error "ticket_calculation_setup" -1 "setup of scheduler for overwrite ticket test failed"
+      ts_log_severe "setup of scheduler for overwrite ticket test failed"
       return -1
    }
    
-   puts $CHECK_OUTPUT "Scheduler configured"
+   ts_log_fine "Scheduler configured"
 
    # setup the ticket test queue
    set ticket_queue_name "ticket_queue"
    set queue_conf(slots) 0
 
-   puts $CHECK_OUTPUT "Add queue $ticket_queue_name"
+   ts_log_fine "Add queue $ticket_queue_name"
    
    add_queue $ticket_queue_name "@allhosts" queue_conf 1
    
@@ -155,7 +154,7 @@ proc tight_calculation_cleanup {  } {
 
 proc ticket_for_jobs { } {
    
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_ACT_LEVEL
 
    global ts_config
@@ -184,7 +183,7 @@ proc ticket_for_jobs { } {
       set shares   "0.06 0.20 0.12 0.15 0.19 0.12 0.27 0.09 0.36 0.07"
       
    } else {
-      add_proc_error "ticket_for_jobs" -1 "Unsupported CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
+      ts_log_severe "Unsupported CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
       return -1
    }
    
@@ -205,7 +204,7 @@ proc ticket_for_jobs { } {
 
 proc ticket_for_departments { } {
    
-   global CHECK_USER ts_user_config ticket_departments CHECK_OUTPUT
+   global CHECK_USER ts_user_config ticket_departments
    global CHECK_ACT_LEVEL
    
    
@@ -267,7 +266,7 @@ proc ticket_for_departments { } {
 
       set result [ add_userset $departments($i,name) dep_conf ]
       if { $result != 0 } {
-         add_proc_error "ticket_for_departments" -1 "Can not add department $departments($i,name)"
+         ts_log_severe "Can not add department $departments($i,name)"
          # remove the previously added departments
          for { set ii 0 } { $ii <= $i } { incr ii 1 } {
             del_access_list $departments($ii,name)
@@ -286,7 +285,7 @@ proc ticket_for_departments { } {
    set fshares    ""
    set shares     "0.09 0.12 0.20 0.18 0.08 0.15 0.12 0.24 0.36 0.09"
    
-   puts $CHECK_OUTPUT "job_users: $job_users"
+   ts_log_fine "job_users: $job_users"
    
    set job_start_order "2 1 5 0 4"
     
@@ -340,7 +339,7 @@ proc ticket_for_projects { } {
       set oticket_incr 0
       set fshare_incr 1000
    } else {
-      add_proc_error "ticket_for_projects" -1 "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
+      ts_log_severe "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
       return -1
    }
    
@@ -362,7 +361,7 @@ proc ticket_for_projects { } {
       
       set result [ add_prj project_conf ]
       if { $result != 0 } {
-         add_proc_error "ticket_for_projects" -1 "Can not add project $projects($i,name)"
+         ts_log_severe "Can not add project $projects($i,name)"
          for {set ii 0} {$ii < $i} { incr ii 1 } {
             del_prj $projects($ii,name)
          }
@@ -443,7 +442,7 @@ proc ticket_for_users { } {
       set users(1,fshare) 2000
       set users(2,fshare) 3000
    } else {
-      add_proc_error "ticket_for_users" -1 "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
+      ts_log_severe "Unknown CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
       return -1
    }
    
@@ -453,7 +452,7 @@ proc ticket_for_users { } {
 
       set result [ mod_user $users($i,name) user_conf ]
       if { $result != 0 } {
-         add_proc_error "ticket_for_users" -1 "Can not modify user $users($i,name)"
+         ts_log_severe "Can not modify user $users($i,name)"
          # reset the user settings
          for {set ii 0} {$ii < $i} { incr ii 1 } {
             set user_conf(oticket) 0
@@ -506,7 +505,7 @@ proc ticket_for_users { } {
 
 proc ticket_scheduler_setup { } {
  
-   global CHECK_ACT_LEVEL CHECK_OUTPUT
+   global CHECK_ACT_LEVEL
    
    set schedconf(weight_waiting_time)       "0.000000"
    set schedconf(weight_deadline)           "0.000000"
@@ -518,12 +517,12 @@ proc ticket_scheduler_setup { } {
    if { $CHECK_ACT_LEVEL == 0 } {
       # overwrite
       set schedconf(weight_tickets_functional) "0"
-      puts $CHECK_OUTPUT "setting weight_tickets_functional to 0"
+      ts_log_fine "setting weight_tickets_functional to 0"
    } elseif { $CHECK_ACT_LEVEL == 1 } {
       set schedconf(weight_tickets_functional) "100000"
-      puts $CHECK_OUTPUT "setting weight_tickets_functional to 100000"
+      ts_log_fine "setting weight_tickets_functional to 100000"
    } else {
-      add_proc_error "ticket_scheduler_setup" -1 "Unsupported CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
+      ts_log_severe "Unsupported CHECK_ACT_LEVEL $CHECK_ACT_LEVEL"
       return -1
    }
 
@@ -540,13 +539,13 @@ proc ticket_scheduler_setup { } {
 
 proc ticket_submit_job_and_check_share { jobs job_count job_start_order } {
 
-   global ts_config CHECK_OUTPUT
+   global ts_config
    
    upvar $jobs job
    
    # First clear usage
    set result [start_sge_bin "qconf" "-clearusage"]
-   puts $CHECK_OUTPUT $result
+   ts_log_fine $result
    
    # Submit jobs
    set result [ ticket_submit_jobs job $job_count ]
@@ -561,7 +560,7 @@ proc ticket_submit_job_and_check_share { jobs job_count job_start_order } {
    
    set result [ ticket_check_start_order $job_id_start_order ]
    if { $result != 0 } {
-      add_proc_error "ticket_submit_job_and_check_share" -1 "incorrect start order of jobs"
+      ts_log_severe "incorrect start order of jobs"
       return -1
    }
    
@@ -576,7 +575,7 @@ proc ticket_submit_job_and_check_share { jobs job_count job_start_order } {
 
 proc ticket_create_job_array { jobs users otickets fshares shares { projects "" } } {
    
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    
    upvar $jobs tmp_jobs
    
@@ -597,13 +596,13 @@ proc ticket_create_job_array { jobs users otickets fshares shares { projects "" 
    } elseif { $project_count > 0 } {
       set job_count $project_count
    } else {
-      add_proc_error "ticket_create_job_array" -1 "invalid arguments"
+      ts_log_severe "invalid arguments"
       return -1
    }
    
    if { $user_count > 0 } {
       if { $user_count != $job_count } {
-         add_proc_error "ticket_create_job_array" -1 "Invalid number of users ($job_count expected)"
+         ts_log_severe "Invalid number of users ($job_count expected)"
          return -1
       } else {
          set i 0
@@ -620,7 +619,7 @@ proc ticket_create_job_array { jobs users otickets fshares shares { projects "" 
    
    if { $oticket_count > 0 } {
       if { $oticket_count != $job_count } {
-         add_proc_error "ticket_create_job_array"  -1 "Invalid number of otickets ($job_count expected)"
+         ts_log_severe "Invalid number of otickets ($job_count expected)"
          return -1
       } else {
          set i 0
@@ -637,7 +636,7 @@ proc ticket_create_job_array { jobs users otickets fshares shares { projects "" 
 
    if { $fshare_count > 0 } {
       if { $fshare_count != $job_count } {
-         add_proc_error "ticket_create_job_array"  -1 "Invalid number of fshares ($job_count expected)"
+         ts_log_severe "Invalid number of fshares ($job_count expected)"
          return -1
       } else {
          set i 0
@@ -654,7 +653,7 @@ proc ticket_create_job_array { jobs users otickets fshares shares { projects "" 
    
    if { $share_count > 0 } {
       if { $share_count != $job_count } {
-         add_proc_error "ticket_create_job_array"  -1 "Invalid number of shares ($job_count expected)"
+         ts_log_severe "Invalid number of shares ($job_count expected)"
          return -1
       } else {
          set i 0
@@ -671,7 +670,7 @@ proc ticket_create_job_array { jobs users otickets fshares shares { projects "" 
    
    if { $project_count > 0 } {
       if { $project_count != $job_count } {
-         add_proc_error "ticket_create_job_array"  -1 "Invalid number of projects ($job_count expected)"
+         ts_log_severe "Invalid number of projects ($job_count expected)"
          return -1
       } else {
          set i 0
@@ -693,7 +692,7 @@ proc ticket_submit_jobs { jobs job_count } {
    
    global ts_config
    global ticket_queue_name ticket_job_name
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
     
    upvar $jobs tmp_jobs
    
@@ -712,7 +711,7 @@ proc ticket_submit_jobs { jobs job_count } {
       append job_args " $post_args"
       set result [ submit_job $job_args 1 60 "" $tmp_jobs($i,user) ]
       if { $result <= 0 } {
-         add_proc_error "ticket_submit_jobs" -1 "submit_job failed ($result)"
+         ts_log_severe "submit_job failed ($result)"
          return -1
       }
       set tmp_jobs($i,id) $result
@@ -720,18 +719,18 @@ proc ticket_submit_jobs { jobs job_count } {
       if { $tmp_jobs($i,oticket) != 0 } {
         set result [ ticket_set_overwrite_tickets_for_job $tmp_jobs($i,id) $tmp_jobs($i,oticket) ]
         if { $result != 0 } {
-           add_proc_error "ticket_submit_jobs" -1 "qalter -ot of job $tmp_jobs($i,id) failed"
+           ts_log_severe "qalter -ot of job $tmp_jobs($i,id) failed"
            return -1
         }
       }
-      puts $CHECK_OUTPUT "job\($i\) has id $tmp_jobs($i,id)"
+      ts_log_fine "job\($i\) has id $tmp_jobs($i,id)"
    }
    return 0
 }
 
 proc ticket_check_job_share { jobs job_count } {
    
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    upvar $jobs job
 
@@ -746,7 +745,7 @@ proc ticket_check_job_share { jobs job_count } {
 #     set  ok 0 
 #     for {set ii 0} {$ii < 60} { incr ii 1 } {
 #        if {[get_extended_job_info $job($i,id) job_info 0] } {
-#           puts $CHECK_OUTPUT "job_info(cpu) is set to \"$job_info(cpu)\""
+#           ts_log_fine "job_info(cpu) is set to \"$job_info(cpu)\""
 #
 #           if { $job_info(cpu) != "NA" } {
 #              set ok 1
@@ -756,14 +755,14 @@ proc ticket_check_job_share { jobs job_count } {
 #              after 3000
 #           }
 #        } else {
-#           add_proc_error "ticket_check_job_share" -1 "Can not get extended job info of job\($i\) $job($i,id)" 
+#           ts_log_severe "Can not get extended job info of job\($i\) $job($i,id)" 
 #           return -1
 #        }
 #        
 #     }
 #
 #     if { $ok != 1 } {
-#        add_proc_error "ticket_check_job_share" -3 "Could not check share of job($i) $job($i,id), no load values available"
+#        ts_log_info "Could not check share of job($i) $job($i,id), no load values available"
 #        continue
 #     }
 
@@ -785,13 +784,13 @@ proc ticket_check_job_share { jobs job_count } {
        # the shares of running jobs we consider pending
        # jobs only
        if { $job_info(state) == "qw" } {
-          add_proc_error "ticket_check_job_share" -1 "Invalid share of job\($i\) $job($i,id): expected was $job($i,share), but it is $job_info(share)"
+          ts_log_severe "Invalid share of job\($i\) $job($i,id): expected was $job($i,share), but it is $job_info(share)"
        } else {
           # for running jobs we write only a warning
-          add_proc_error "ticket_check_job_share" -3 "Invalid share of running job\($i\) $job($i,id): expected was $job($i,share), but it is $job_info(share)" 0
+          ts_log_info "Invalid share of running job\($i\) $job($i,id): expected was $job($i,share), but it is $job_info(share)" 0
        }
       } else {
-         puts $CHECK_OUTPUT "job\($i\) $job($i,id) has correct share $job_info(share)"
+         ts_log_fine "job\($i\) $job($i,id) has correct share $job_info(share)"
       }
    }
 }
@@ -807,7 +806,7 @@ proc ticket_check_start_order { job_start_order } {
       
       set result [ wait_for_jobstart $job_id $ticket_job_name 60 1 1 ]
       if { $result != 0 } {      
-         add_proc_error "ticket_check_start_order" -1 "job with id $job_id ($ticket_job_name) is not running"
+         ts_log_severe "job with id $job_id ($ticket_job_name) is not running"
          return -1
       }
       incr i 1
@@ -820,21 +819,21 @@ proc ticket_check_start_order { job_start_order } {
 proc ticket_set_overwrite_tickets_for_job { job_id  otickets } {
 
    global ts_config
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    
    set qalter_args "-ot $otickets $job_id"
    set result [ start_sge_bin "qalter" $qalter_args $ts_config(master_host) $CHECK_USER exit_state]
    if { $exit_state != 0 } {
-      add_proc_error "ticket_set_overwrite_tickets_for_job" -1 "qalter of job $job_id failed ($exit_state)-----\n $result\n ----------- "
+      ts_log_severe "qalter of job $job_id failed ($exit_state)-----\n $result\n ----------- "
       return -1
    }
-   puts $CHECK_OUTPUT "set overwrite tickets of job $job_id to $otickets"
+   ts_log_fine "set overwrite tickets of job $job_id to $otickets"
    return 0
 }
 
 proc ticket_set_slot_count { slot_count } {
 
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global ts_config
    global ticket_queue_name
    
@@ -850,11 +849,11 @@ proc ticket_set_slot_count { slot_count } {
       }
       set result [ start_sge_bin "qconf" "$qconf_args" $ts_config(master_host) $CHECK_USER exit_state]
       if { $exit_state != 0 } {
-        add_proc_error "ticket_set_slot_count" -1 "qconf -mattr failed ($exit_state) ----\n$result\n -----"
+        ts_log_severe "qconf -mattr failed ($exit_state) ----\n$result\n -----"
         return -1
       }
    }
-   puts $CHECK_OUTPUT "set slot count of queue $ticket_queue_name to $slot_count"
+   ts_log_fine "set slot count of queue $ticket_queue_name to $slot_count"
    return 0
 }
 

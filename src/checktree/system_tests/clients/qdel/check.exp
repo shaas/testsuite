@@ -84,7 +84,9 @@ lappend check_functions "qdel_delete_large_array"    ;# implement large array de
 proc qdel_init_level {} {
   global CHECK_ACT_LEVEL
   global hold_state pending_state
-
+if {$CHECK_ACT_LEVEL != 2} {
+   return -1
+}
   switch -- $CHECK_ACT_LEVEL {
      "0" { set hold_state 0 ; set pending_state 1 ; return 0 }
      "1" { set hold_state 1 ; set pending_state 1 ; return 0 }
@@ -138,6 +140,8 @@ proc qdel_setup {} {
    set q_param(slots)                 "50"
 
    add_queue $qdel_queue $qdel_host q_param
+global check_functions
+set check_functions "qdel_force"
 }
 
 proc qdel_translate_message {msg {p1 ""} {p2 ""} {p3 ""}} {

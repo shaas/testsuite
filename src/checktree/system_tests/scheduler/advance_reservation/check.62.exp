@@ -99,7 +99,7 @@ proc scheduler_advance_reservation_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc scheduler_advance_reservation_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global queue_name test_host test_hosts
    global complex_queue_name
    global global_consumable host_consumable
@@ -123,7 +123,7 @@ proc scheduler_advance_reservation_setup {} {
 
    # add queue_name
    add_queue $queue_name $test_host queue_settings
-   puts $CHECK_OUTPUT "added queue $queue_name for hosts $test_host"
+   ts_log_fine "added queue $queue_name for hosts $test_host"
 
    # create new complex attributes
    #           name            short  type    op.   requ.  cons. default  urgency
@@ -147,12 +147,12 @@ proc scheduler_advance_reservation_setup {} {
    set queue_settings(slots) 2
    set queue_settings(complex_values) "$host_consumable=2,$queue_complex=bla"
    add_queue $complex_queue_name $test_hosts queue_settings
-   puts $CHECK_OUTPUT "added queue $complex_queue_name for hosts $test_hosts"
+   ts_log_fine "added queue $complex_queue_name for hosts $test_hosts"
 
 }
 
 proc scheduler_advance_reservation_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global queue_name test_host test_hosts
    global complex_queue_name
    global global_consumable host_consumable
@@ -204,7 +204,7 @@ proc scheduler_advance_reservation_level_cleanup {} {
 
 
 proc scheduler_ar_unlimited_runtime_job {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global check_description
    global CHECK_ACT_LEVEL
    global queue_name test_host
@@ -220,24 +220,24 @@ proc scheduler_ar_unlimited_runtime_job {} {
    trigger_scheduling
    set job_state [wait_for_jobstart $job_id "leeper" 20]
    if {$job_state == -1} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting job(1)"
+      ts_log_severe "error submitting job(1)"
       return
    }
    set job_id [submit_job "$job_args"]
    trigger_scheduling
    set job_state [wait_for_jobstart $job_id "leeper" 20]
    if {$job_state == -1} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting job(2)"
+      ts_log_severe "error submitting job(2)"
       return
    }
    set ar_id1 [submit_ar "$ar_args"]
    if {$ar_id1 <= 0} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting AR(1)"
+      ts_log_severe "error submitting AR(1)"
       return
    }
    set ar_id2 [submit_ar "$ar_args"]
    if {$ar_id2 <= 0} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "error submitting AR(2)"
+      ts_log_severe "error submitting AR(2)"
       return
    }
 
@@ -247,24 +247,24 @@ proc scheduler_ar_unlimited_runtime_job {} {
    trigger_scheduling
    set job_state [wait_for_jobstart $job_id "leeper" 20 0]
    if {$job_state != -1} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "sequential job was scheduled into a full cluster"
+      ts_log_severe "sequential job was scheduled into a full cluster"
    }
 
    set job_id [submit_job "-pe mytestpe 2 $job_args"]
    trigger_scheduling
    set job_state [wait_for_jobstart $job_id "leeper" 20 0]
    if {$job_state != -1} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "parallel job was scheduled into a full cluster"
+      ts_log_severe "parallel job was scheduled into a full cluster"
    }
 
    set ar_id [submit_ar "$ar_args" "" "" 0]
    if {$ar_id > 0} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "sequential AR was not rejecteced"
+      ts_log_severe "sequential AR was not rejecteced"
    }
 
    set ar_id [submit_ar "-pe mytestpe 2 $ar_args" "" "" 0]
    if {$ar_id > 0} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "sequential AR was not rejecteced"
+      ts_log_severe "sequential AR was not rejecteced"
    }
 
    # But jobs using two slots into the AR should work
@@ -272,14 +272,14 @@ proc scheduler_ar_unlimited_runtime_job {} {
    trigger_scheduling
    set job_state [wait_for_jobstart $job_id "leeper" 20 0]
    if {$job_state == -1} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "ar job was not scheduled(1)"
+      ts_log_severe "ar job was not scheduled(1)"
    }
 
    set job_id [submit_job "-ar $ar_id2 $job_args"]
    trigger_scheduling
    set job_state [wait_for_jobstart $job_id "leeper" 20 0]
    if {$job_state == -1} {
-      add_proc_error "scheduler_ar_unlimited_runtime_job" -1 "ar job was not scheduled(2)"
+      ts_log_severe "ar job was not scheduled(2)"
    }
    
    delete_all_jobs
@@ -297,7 +297,7 @@ proc scheduler_ar_parallel_consuamble {} {
    # Submit AR and request all host_consumable and global_consumable
    set ar_id [submit_ar "-pe ar_pe 2 -l $host_consumable=2,$global_consumable=2 -d 3600"]
    if {$ar_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "AR submit failed"
+      ts_log_severe "AR submit failed"
       return
    }
 
@@ -306,7 +306,7 @@ proc scheduler_ar_parallel_consuamble {} {
    # Positive Tests
    set job_id [submit_job "$job_args"]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (1)"
+      ts_log_severe "job submit was wrongly rejected (1)"
       return
    } else {
       delete_job $job_id
@@ -314,7 +314,7 @@ proc scheduler_ar_parallel_consuamble {} {
 
    set job_id [submit_job "-pe mytestpe 2 $job_args"]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (2)"
+      ts_log_severe "job submit was wrongly rejected (2)"
       return
    } else {
       delete_job $job_id
@@ -322,7 +322,7 @@ proc scheduler_ar_parallel_consuamble {} {
 
    set job_id [submit_job "-pe mytestpe 2 -l $host_consumable=2 $job_args"]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (3)"
+      ts_log_severe "job submit was wrongly rejected (3)"
       return
    } else {
       delete_job $job_id
@@ -330,7 +330,7 @@ proc scheduler_ar_parallel_consuamble {} {
 
    set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=2 $job_args"]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (4)"
+      ts_log_severe "job submit was wrongly rejected (4)"
       return
    } else {
       delete_job $job_id
@@ -338,7 +338,7 @@ proc scheduler_ar_parallel_consuamble {} {
 
    set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=2,$host_consumable=2,h_vmem=1M $job_args"]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (5)"
+      ts_log_severe "job submit was wrongly rejected (5)"
       return
    } else {
       delete_job $job_id
@@ -346,7 +346,7 @@ proc scheduler_ar_parallel_consuamble {} {
 
    set job_id [submit_job "-l $host_consumable=1,arch=\* $job_args"]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was wrongly rejected (6)"
+      ts_log_severe "job submit was wrongly rejected (6)"
       return
    } else {
       delete_job $job_id
@@ -356,21 +356,21 @@ proc scheduler_ar_parallel_consuamble {} {
    set job_id [submit_job "-l $global_consumable=5 $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (1)"
+      ts_log_severe "job submit was not rejected (1)"
       return
    }
 
    set job_id [submit_job "-l $host_consumable=3 $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (2)"
+      ts_log_severe "job submit was not rejected (2)"
       return
    } 
 
    set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=3 $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "job submit was not rejected (3)"
+      ts_log_severe "job submit was not rejected (3)"
       return
    }
 
@@ -394,27 +394,27 @@ proc scheduler_ar_rqs {} {
 
    set ar_id [submit_ar "-d 3600"]
    if {$ar_id <= 0} {
-      add_proc_error "scheduler_ar_rqs" -1 "sequential AR is wronlgy denied because of a RQS"
+      ts_log_severe "sequential AR is wronlgy denied because of a RQS"
    } else {
       set job_id [submit_job "-ar $ar_id $job_args"]
       if {$job_id > 0} {
          trigger_scheduling
          wait_for_jobstart $job_id "leeper" 20
       } else {
-         add_proc_error "scheduler_ar_rqs" -1 "sequential AR job is wronlgy denied because of a RQS"
+         ts_log_severe "sequential AR job is wronlgy denied because of a RQS"
       }
    }
 
    set ar_id [submit_ar "-pe mytestpe 2 -d 3600"]
    if {$ar_id <= 0} {
-      add_proc_error "scheduler_ar_rqs" -1 "parallel AR is wronlgy denied because of a RQS"
+      ts_log_severe "parallel AR is wronlgy denied because of a RQS"
    } else {
       set job_id [submit_job "-ar $ar_id -pe mytestpe 2 $job_args"]
       if {$job_id > 0} {
          trigger_scheduling
          wait_for_jobstart $job_id "leeper" 20
       } else {
-         add_proc_error "scheduler_ar_rqs" -1 "parallel AR job is wronlgy denied because of a RQS"
+         ts_log_severe "parallel AR job is wronlgy denied because of a RQS"
       }
    }
 
@@ -440,7 +440,7 @@ proc scheduler_pending_ar_jobs {} {
       trigger_scheduling
       set job_state [wait_for_jobstart $job_id_r "leeper" 10 0]
       if {$job_state != 0} {
-         add_proc_error "scheduler_pending_ar_jobs" -1 "submitted sequential job did not start"
+         ts_log_severe "submitted sequential job did not start"
          return
       }
    }
@@ -451,12 +451,12 @@ proc scheduler_pending_ar_jobs {} {
       trigger_scheduling
       set job_state [wait_for_jobstart $job_id "leeper" 10 0]
       if {$job_state == 0} {
-         add_proc_error "scheduler_ar_parallel_consuamble" -1 "sequential job was wrongly scheduled"
+         ts_log_severe "sequential job was wrongly scheduled"
          return
       }
       delete_job $job_id
    } else {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "sequential job submit was wrongly rejected"
+      ts_log_severe "sequential job submit was wrongly rejected"
    }
    delete_job $job_id_r
    delete_ar $ar_id
@@ -472,7 +472,7 @@ proc scheduler_pending_ar_jobs {} {
       trigger_scheduling
       set job_state [wait_for_jobstart $job_id_r "leeper" 10 0]
       if {$job_state != 0} {
-         add_proc_error "scheduler_pending_ar_jobs" -1 "submitted parallel job did not start"
+         ts_log_severe "submitted parallel job did not start"
          return
       }
    }
@@ -483,12 +483,12 @@ proc scheduler_pending_ar_jobs {} {
       trigger_scheduling
       set job_state [wait_for_jobstart $job_id "leeper" 10 0]
       if {$job_state == 0} {
-         add_proc_error "scheduler_ar_parallel_consuamble" -1 "parallel job was wrongly scheduled"
+         ts_log_severe "parallel job was wrongly scheduled"
          return
       }
       delete_job $job_id
    } else {
-      add_proc_error "scheduler_ar_parallel_consuamble" -1 "parallel job submit was wrongly rejected"
+      ts_log_severe "parallel job submit was wrongly rejected"
    }
    delete_job $job_id_r
    delete_ar $ar_id
@@ -499,7 +499,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    global global_consumable host_consumable
    global host_complex queue_complex
    global test_hosts
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    delete_all_ars
 
@@ -512,7 +512,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set ar_id [submit_ar "-l h=$host -q $complex_queue_name -d 3600"]
    set job_id [submit_job "-ar $ar_id -l $host_complex=bla $job_args" 0]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was wrongly rejected (1)"
+      ts_log_severe "sequential job submit was wrongly rejected (1)"
    } else {
       delete_job $job_id
    }
@@ -520,7 +520,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set job_id [submit_job "-ar $ar_id -l $host_complex=nix $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (1)"
+      ts_log_severe "sequential job submit was not rejected (1)"
    }
 
    delete_ar $ar_id
@@ -532,7 +532,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set job_id [submit_job "-ar $ar_id -l $host_complex=bla $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (2)"
+      ts_log_severe "sequential job submit was not rejected (2)"
    }
    delete_ar $ar_id
 
@@ -540,7 +540,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set ar_id [submit_ar "-q $complex_queue_name -d 3600"]
    set job_id [submit_job "-ar $ar_id -l $queue_complex=bla $job_args" 0]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was wrongly rejected (2)"
+      ts_log_severe "sequential job submit was wrongly rejected (2)"
    } else {
       delete_job $job_id
    }
@@ -548,7 +548,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set job_id [submit_job "-ar $ar_id -l $queue_complex=nix $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (3)"
+      ts_log_severe "sequential job submit was not rejected (3)"
    }
 
    delete_ar $ar_id
@@ -558,7 +558,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set job_id [submit_job "-ar $ar_id -l $queue_complex=bla $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "sequential job submit was not rejected (4)"
+      ts_log_severe "sequential job submit was not rejected (4)"
    }
 
    delete_ar $ar_id
@@ -573,7 +573,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
 
    set job_id [submit_job "-pe ar_pe 1 -ar $ar_id -l $host_complex=bla $job_args" 0]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was wrongly rejected (1)"
+      ts_log_severe "parallel job submit was wrongly rejected (1)"
    } else {
       delete_job $job_id
    }
@@ -582,7 +582,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
 
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was not rejected (1)"
+      ts_log_severe "parallel job submit was not rejected (1)"
    }
 
    delete_ar $ar_id
@@ -593,7 +593,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
 
    set job_id [submit_job "-pe ar_pe 2 -ar $ar_id -l $queue_complex=bla $job_args" 0]
    if {$job_id <= 0} {
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was wrongly rejected (2)"
+      ts_log_severe "parallel job submit was wrongly rejected (2)"
    } else {
       delete_job $job_id
    }
@@ -601,7 +601,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set job_id [submit_job "-pe ar_pe 2 -ar $ar_id -l $queue_complex=nix $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was not rejected (3)"
+      ts_log_severe "parallel job submit was not rejected (3)"
    }
 
    delete_ar $ar_id
@@ -611,7 +611,7 @@ proc scheduler_ar_non_reserved_complex_requests {} {
    set job_id [submit_job "-pe ar_pe 2 -ar $ar_id -l $queue_complex=bla $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
-      add_proc_error "scheduler_ar_non_reserved_complex_requests" -1 "parallel job submit was not rejected (4)"
+      ts_log_severe "parallel job submit was not rejected (4)"
    }
 
    delete_ar $ar_id

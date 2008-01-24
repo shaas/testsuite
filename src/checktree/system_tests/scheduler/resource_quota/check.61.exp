@@ -81,7 +81,7 @@ proc resource_quota_init_level {} {
 }
 
 proc resource_quota_setup  {} {
-   global CHECK_OUTPUT ts_config resource_quota_test_host resource_quota_test_qname
+   global ts_config resource_quota_test_host resource_quota_test_qname
 
    set resource_quota_test_host [lindex $ts_config(execd_nodes) 0]
    set resource_quota_test_qname "resource_quota.q"
@@ -90,17 +90,17 @@ proc resource_quota_setup  {} {
    set queue_settings(slots) 1000
    set queue_settings(load_thresholds) "np_load_avg=11.75"
    add_queue $resource_quota_test_qname $resource_quota_test_host queue_settings
-   puts $CHECK_OUTPUT "added queue $resource_quota_test_qname for hosts $resource_quota_test_host"
+   ts_log_fine "added queue $resource_quota_test_qname for hosts $resource_quota_test_host"
 }
 
 proc resource_quota_cleanup  {} {
-   global CHECK_OUTPUT ts_config resource_quota_test_host resource_quota_test_qname
+   global ts_config resource_quota_test_host resource_quota_test_qname
 
    del_queue $resource_quota_test_qname $resource_quota_test_host 0 1
 
    if {[get_rqs_list rqs_names "" "" 0] == 0} {
       foreach elem $rqs_names {
-         puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+         ts_log_fine "Removing resource quota sets $elem ...\n"
          del_rqs $elem
       }
    }
@@ -108,7 +108,7 @@ proc resource_quota_cleanup  {} {
 
 proc resource_quota_dynamic_limit {} {
    global resource_quota_test_host resource_quota_test_qname
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    set job_options "-o /dev/null -j y -q $resource_quota_test_qname $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
@@ -117,7 +117,7 @@ proc resource_quota_dynamic_limit {} {
    set host_num_proc [node_get_processors $resource_quota_test_host]
    set max_slots [expr $host_num_proc * 2]
 
-   puts $CHECK_OUTPUT "testing dynamic limit on host $resource_quota_test_host with num_proc=$host_num_proc"
+   ts_log_fine "testing dynamic limit on host $resource_quota_test_host with num_proc=$host_num_proc"
 
    set rules ""
    lappend rules "users $CHECK_USER hosts {*} queues $resource_quota_test_qname to slots=\$num_proc*2"
@@ -139,7 +139,7 @@ proc resource_quota_dynamic_limit {} {
    trigger_scheduling
    set ret [wait_for_jobstart $job_id "leeper" 20 0]
    if { $ret == 0 } {
-      add_proc_error "resource_quota_dynamic_limit" -1 "dynamic limit does not work. To many jobs were started"
+      ts_log_severe "dynamic limit does not work. To many jobs were started"
    }
   
    # try to start one job as a different user (not affected by resource quota 
@@ -173,7 +173,7 @@ proc issue_xxx {} {
    trigger_scheduling
    set ret [wait_for_jobstart $job_id "leeper" 20 0]
    if { $ret == -1 } {
-      add_proc_error "issue_xxx" -1 "RQS does not work"
+      ts_log_severe "RQS does not work"
       return
    }
 
@@ -183,7 +183,7 @@ proc issue_xxx {} {
       set job_id [submit_job "$job_options"]
       trigger_scheduling
       if { [wait_for_jobstart $job_id "leeper" 20] == -1} {
-         add_proc_error "issue_xxx" -1 "RQS Scheduling failed. Non RQS affected jobs did not start"
+         ts_log_severe "RQS Scheduling failed. Non RQS affected jobs did not start"
          break;
       }
    }

@@ -43,7 +43,7 @@ global check_init_level_procedure
 global check_root_access_needs
 global env
 
-#set check_root_access_needs "yes"
+set check_root_access_needs "yes"
 
 # define a level initialization procedure:
 set check_init_level_procedure "authuser_init_level"
@@ -58,21 +58,15 @@ set check_description(0)  "test authuser"
 # define test's dependencies
 set check_needs           "init_core_system" 
 
-# setup and cleanup functions
-#set check_setup_function authuser_setup
-#set check_cleanup_function authuser_cleanup
-
-
-
 # define test's procedure order
 set check_functions {}
-lappend check_functions "test_authuser_permissions"
+lappend check_functions "test_authuser"
 
 proc authuser_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 {
          return 0
       }
    }
@@ -80,41 +74,49 @@ proc authuser_init_level {} {
    return -1  ;# no other level
 }
 
-# -------- local test procedures: initialization------------------------------
-#
-# Currently we don't need setup/cleanup
-#proc authuser_setup {} {
-#   global ts_config CHECK_OUTPUT
-#}
-#
-#proc authuser_cleanup {} {
-#   global ts_config CHECK_OUTPUT
-#}
-#
-
-#test whether authuser with non-root user works!
-proc test_authuser_permissions {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+proc test_authuser {} {
+   global ts_config CHECK_USER
 
    set arch [resolve_arch $ts_config(master_host)]
    set authuser "$ts_config(product_root)/utilbin/$arch/authuser"
-   puts $CHECK_OUTPUT "test_authuser_permissions: negative test with user:$CHECK_USER on host:$ts_config(master_host)"
+
+   set ONLYSUUSER [translate_macro MSG_AUTHUSER_ONLY_ROOT_S "*"]
 
    set sid [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $authuser "system"]
    set sp_id [lindex $sid 1]
-   set ONLYSUUSER [translate_macro MSG_AUTHUSER_ONLY_ROOT_S "*"]
 
+   set timeout 10
    expect {
-      -i $sp_id "sername:" {
-       add_proc_error "test_authuser_permissions" -1 "Got username question ...negative test failed!!!"
+      -i $sp_id eof {
+         ts_log_severe "got eof while waiting for authuser output"
+      }
+      -i $sp_id timeout {
+         ts_log_severe "timeout while waiting for authuser output"
       }
       -i $sp_id $ONLYSUUSER {
-       puts $CHECK_OUTPUT "Got expected error, \n test_authuser_permissions negative test success!!!"
+         ts_log_severe "authuser binary apparently not suid root:\n$ONLYSUUSER"
       }
-      -i $sp_id default {
-       add_proc_error "test_authuser_permissions" -1 "Generic error, ...negative test failed!!!"
-     }
+      -i $sp_id "sername:" {
+         ts_log_fine "got username question, sending \"root\""
+         ts_send $sp_id "root\n" $ts_config(master_host)
+         exp_continue
+      }
+      -i $sp_id "assword:" {
+         sleep 1
+         set root_passwd [get_root_passwd]
+         ts_log_fine "got password question, sending root passwd"
+         ts_send $sp_id "${root_passwd}\n" $ts_config(master_host) 1
+         exp_continue
+      }
+      -i $sp_id "_exit_status_:(*)" {
+         set exit_status [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
+         ts_log_fine "authuser exited with exit code $exit_status"
+         if {$exit_status != 0} {
+            ts_log_severe "authuser exited with exit status $exit_status"
+         }
+      }
    }
 
    close_spawn_process $sid
 }
+

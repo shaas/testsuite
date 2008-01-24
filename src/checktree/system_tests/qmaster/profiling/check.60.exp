@@ -80,35 +80,35 @@ proc qmaster_profiling_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc qmaster_profiling_setup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global global_config
 
    # backup global config - we'll change it
-   puts $CHECK_OUTPUT "backup global config"
+   ts_log_fine "backup global config"
    get_config global_config
 }
 
 proc qmaster_profiling_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global global_config
 
-   puts $CHECK_OUTPUT "reset global config"
+   ts_log_fine "reset global config"
    set_config global_config
 }
 
 proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    # some information output
    switch -exact $expected_prof {
       NONE {
-         puts $CHECK_OUTPUT "expecting that no profiling message shows up the next $tail_timeout s"
+         ts_log_fine "expecting that no profiling message shows up the next $tail_timeout s"
       }
       CONSUME {
-         puts $CHECK_OUTPUT "consuming messages for $tail_timeout s"
+         ts_log_fine "consuming messages for $tail_timeout s"
       }
       default {
-         puts $CHECK_OUTPUT "expecting $expected_prof messages showing up within the next $tail_timeout s"
+         ts_log_fine "expecting $expected_prof messages showing up within the next $tail_timeout s"
       }
    }
 
@@ -135,29 +135,29 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
       expect_user {
          -i $sp_id timeout {
             # output how long we'll still wait
-            puts $CHECK_OUTPUT "[expr $end -$now]\r"
+            ts_log_fine "[expr $end -$now]\r"
          }
          -i $sp_id full_buffer {
-            add_proc_error qmaster_profiling_monitor -1 "buffer overflow, please increase CHECK_EXPECT_MATCH_MAX_BUFFER"
+            ts_log_severe "buffer overflow, please increase CHECK_EXPECT_MATCH_MAX_BUFFER"
          }
          -i $sp_id eof {
-            add_proc_error qmaster_profiling_monitor -1 "unexpected eof"
+            ts_log_severe "unexpected eof"
          }
          -i $sp_id "?*\n" {
             # parse new lines in messages file
-            #puts $CHECK_OUTPUT "received new line in messages file"
+            #ts_log_fine "received new line in messages file"
             foreach line [ string trim [split $expect_out(0,string) "\n"]] {
                set line [string trim $line]
                if {[string length $line] > 0} {
-                  #puts $CHECK_OUTPUT "processing line: $line"
+                  #ts_log_fine "processing line: $line"
                   set split_line [split $line "|"]
                   set message [lindex $split_line 4]
                   switch -glob -- $message {
                      "PROF*profiling summary:" {
                         # for profiling messages, store per thread info
-                        puts $CHECK_OUTPUT "$message"
+                        ts_log_fine "$message"
                         set thread [lindex $message 1]
-                        #puts $CHECK_OUTPUT $thread
+                        #ts_log_fine $thread
                         switch -exact $thread {
                            signal {
                               incr prof(PROF_SIGNAL)
@@ -175,13 +175,13 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
                               incr prof(PROF_TEVENT)
                            }
                            default {
-                              puts $CHECK_OUTPUT "unknown thread name $thread"
+                              ts_log_fine "unknown thread name $thread"
                            }
                         }
                      }
 
                      default {
-                        puts $CHECK_OUTPUT "ignoring: [string range $message 0 50] ..."
+                        ts_log_fine "ignoring: [string range $message 0 50] ..."
                      }
                   } ;# switch
                } ;# valid line
@@ -193,17 +193,17 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
    } ;# while
 
    # some informational output
-   puts $CHECK_OUTPUT "PROF_SIGNAL:  $prof(PROF_SIGNAL)"
+   ts_log_fine "PROF_SIGNAL:  $prof(PROF_SIGNAL)"
    if {$ts_config(gridengine_version) >= 62} {
-      puts $CHECK_OUTPUT "PROF_LISTENER: $prof(PROF_LISTENER)"
+      ts_log_fine "PROF_LISTENER: $prof(PROF_LISTENER)"
    } else {
-      puts $CHECK_OUTPUT "PROF_MESSAGE: $prof(PROF_MESSAGE)"
+      ts_log_fine "PROF_MESSAGE: $prof(PROF_MESSAGE)"
    }
-   puts $CHECK_OUTPUT "PROF_DELIVER: $prof(PROF_DELIVER)"
-   puts $CHECK_OUTPUT "PROF_TEVENT:  $prof(PROF_TEVENT)"
+   ts_log_fine "PROF_DELIVER: $prof(PROF_DELIVER)"
+   ts_log_fine "PROF_TEVENT:  $prof(PROF_TEVENT)"
 
    # now check for the expected result
-   puts $CHECK_OUTPUT "verifying results"
+   ts_log_fine "verifying results"
    switch -exact $expected_prof {
       NONE {
          # here we may not have received any profiling messages
@@ -222,7 +222,7 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
          }
 
          if {$error} {
-            add_proc_error qmaster_profiling_monitor -1 $message
+            ts_log_severe $message
          }
       }
       CONSUME {
@@ -253,7 +253,7 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
          }
 
          if {$error} {
-            add_proc_error qmaster_profiling_monitor -1 $message
+            ts_log_severe $message
          }
       }
    }
@@ -261,10 +261,10 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
 }
 
 proc qmaster_profiling_dynamic {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    # tail -f to qmaster messages file
-   puts $CHECK_OUTPUT "tail -f to qmaster messages file"
+   ts_log_fine "tail -f to qmaster messages file"
    set spooldir [get_qmaster_spool_dir]
    set id [init_logfile_wait $ts_config(master_host) "$spooldir/messages"]
 
@@ -279,7 +279,7 @@ proc qmaster_profiling_dynamic {} {
       set prof_strings "PROF_MESSAGE PROF_DELIVER PROF_TEVENT"
    }
    foreach prof $prof_strings {
-      puts $CHECK_OUTPUT "testing profiling $prof"
+      ts_log_fine "testing profiling $prof"
    
       # switch on profiling
       set global_conf(qmaster_params) "$prof=true"
@@ -303,10 +303,10 @@ proc qmaster_profiling_dynamic {} {
 }
 
 proc qmaster_profiling_restart {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    # tail -f to qmaster messages file
-   puts $CHECK_OUTPUT "tail -f to qmaster messages file"
+   ts_log_fine "tail -f to qmaster messages file"
    set spooldir [get_qmaster_spool_dir]
    set id [init_logfile_wait $ts_config(master_host) "$spooldir/messages"]
 

@@ -103,8 +103,6 @@ proc share_tree_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc wait_for_job_tickes { job_id } {
-   global CHECK_OUTPUT
-
    set my_timeout [timestamp]
    incr my_timeout 300
    
@@ -114,17 +112,15 @@ proc wait_for_job_tickes { job_id } {
       if {[info exists job_info_var(tckts)]} {
          set last_job_tickets $job_info_var(tckts)
       }
-      puts $CHECK_OUTPUT "waiting for job $job_id to get its tickets ..."
+      ts_log_fine "waiting for job $job_id to get its tickets ..."
       sleep 1
    }
    if { [timestamp] >= $my_timeout } {
-      add_proc_error "wait_for_job_tickes" -1 "timeout while waiting for job tickets"
+      ts_log_severe "timeout while waiting for job tickets"
    }
 }
 
 proc get_job_tickets { job_list_prj1 job_list_prj2 job_list_prj3 array_name } {
-   global CHECK_OUTPUT
- 
    upvar $array_name my_tickets   
    
    set job_list ""
@@ -145,16 +141,13 @@ proc get_job_tickets { job_list_prj1 job_list_prj2 job_list_prj3 array_name } {
       unset job_info_var
       get_extended_job_info $elem job_info_var
       set my_tickets($elem) $job_info_var(tckts)
-      puts -nonewline $CHECK_OUTPUT "\rjob to do: $nr_of_jobs ..."
-      flush $CHECK_OUTPUT
+      ts_log_progress FINE "\rjob to do: $nr_of_jobs ...\r"
       incr nr_of_jobs -1
    }
-   puts $CHECK_OUTPUT "                        "
+   ts_log_fine "                        "
 }
 
 proc get_ticket_sum { job_list ticket_array_name } {
-   global CHECK_OUTPUT
-
    upvar $ticket_array_name my_tickets
 
    set sum 0
@@ -253,8 +246,6 @@ proc get_normalized_ticket_order { job_list_prj1 job_list_prj2 job_list_prj3 mos
 
 
 proc set_share_tree {} {
-   global CHECK_OUTPUT
-
    set s_tree ""  
    lappend s_tree "id=0"
    lappend s_tree "name=Root"
@@ -292,12 +283,11 @@ proc set_share_tree {} {
 
 proc share_tree_setup  {} {
    global ts_config
-   global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE
    global sharetree_stored_configuration test_queue test_host
 
    if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] != 0} {
-      add_proc_error "share_tree_setup" -3 "not available for sge system"
+      ts_log_config "not available for sge system"
       return 
    }
     
@@ -345,7 +335,7 @@ proc share_tree_setup  {} {
    set qmaster_arch [resolve_arch $ts_config(master_host)]
    set result [ handle_vi_edit "$ts_config(product_root)/bin/$qmaster_arch/qconf" "-astree" $vi_commands $CHANGED_SHARETREE $CAN_T_READ ]  
    if { $result != 0 } {
-      add_proc_error "share_tree_setup" -1 "could not add sharetree (error: $result)"
+      ts_log_severe "could not add sharetree (error: $result)"
    }
 
    get_schedd_config my_config 
@@ -379,7 +369,7 @@ proc get_project_member { prj1 prj2 prj3 job_id } {
 
 
 proc share_tree_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_PRODUCT_TYPE 
    global share_tree_job_counter CHECK_PROTOCOL_DIR
    global share_tree_percentage_variation
@@ -387,7 +377,7 @@ proc share_tree_test {} {
    global test_queue
 
    if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] != 0} {
-      add_proc_error "share_tree_test" -3 "not available for sge system"
+      ts_log_config "not available for sge system"
       return 
    }
    
@@ -419,26 +409,26 @@ proc share_tree_test {} {
    
 
    if { $answer(job_count) != [ expr ( $share_tree_job_counter * 3 )]  } {
-      add_proc_error "share_tree_test" "-1" "not all jobs in list"
+      ts_log_severe "not all jobs in list"
    }
 
    set ticket_count 0
    for {set i 0} { $i < $answer(job_count) } {incr i 1} {
-       puts $CHECK_OUTPUT "($i) tickets: $answer($i,tickets) job_id: $answer($i,job_id) project: $answer($i,project)"  
+       ts_log_fine "($i) tickets: $answer($i,tickets) job_id: $answer($i,job_id) project: $answer($i,project)"  
        incr ticket_count $answer($i,tickets) 
    }
-   puts $CHECK_OUTPUT "SUM of tickets: $ticket_count"
-   puts $CHECK_OUTPUT "last job of project 2: $answer(last_prior_job_nr)"
-   puts $CHECK_OUTPUT "job counts:"
-   puts $CHECK_OUTPUT "prj1: $answer(job_count_prj1)"
-   puts $CHECK_OUTPUT "prj2: $answer(job_count_prj2)"
-   puts $CHECK_OUTPUT "prj3: $answer(job_count_prj3)"
-   puts $CHECK_OUTPUT "============"
-   puts $CHECK_OUTPUT "sum : $answer(job_sum)"
-   puts $CHECK_OUTPUT "percentage:"
-   puts $CHECK_OUTPUT "prj1: $answer(job_percent_prj1)"
-   puts $CHECK_OUTPUT "prj2: $answer(job_percent_prj2)"
-   puts $CHECK_OUTPUT "prj3: $answer(job_percent_prj3)"
+   ts_log_fine "SUM of tickets: $ticket_count"
+   ts_log_fine "last job of project 2: $answer(last_prior_job_nr)"
+   ts_log_fine "job counts:"
+   ts_log_fine "prj1: $answer(job_count_prj1)"
+   ts_log_fine "prj2: $answer(job_count_prj2)"
+   ts_log_fine "prj3: $answer(job_count_prj3)"
+   ts_log_fine "============"
+   ts_log_fine "sum : $answer(job_sum)"
+   ts_log_fine "percentage:"
+   ts_log_fine "prj1: $answer(job_percent_prj1)"
+   ts_log_fine "prj2: $answer(job_percent_prj2)"
+   ts_log_fine "prj3: $answer(job_percent_prj3)"
 
    set p1_abs [ expr ( int($answer(job_percent_prj1)) )  ]
    set p2_abs [ expr ( int($answer(job_percent_prj2)) )  ]
@@ -447,13 +437,13 @@ proc share_tree_test {} {
    set x $share_tree_percentage_variation
 
    if { $p1_abs < [ expr ( 32 - $x ) ] || $p1_abs > [ expr ( 32 + $x ) ]  } {
-      add_proc_error "share_tree_test" -1 "project1 percentage not 32 +/- $x % (value=$answer(job_percent_prj1),$p1_abs)"
+      ts_log_severe "project1 percentage not 32 +/- $x % (value=$answer(job_percent_prj1),$p1_abs)"
    }
    if { $p2_abs < [ expr ( 48 - $x ) ] || $p2_abs > [ expr ( 48 + $x ) ] } {
-      add_proc_error "share_tree_test" -1 "project2 percentage not 48 +/- $x % (value=$answer(job_percent_prj2),$p2_abs)"
+      ts_log_severe "project2 percentage not 48 +/- $x % (value=$answer(job_percent_prj2),$p2_abs)"
    }
    if { $p3_abs < [ expr ( 20 - $x ) ] || $p3_abs > [ expr ( 20 + $x ) ] } {
-      add_proc_error "share_tree_test" -1 "project3 percentage not 20 +/- $x % (value=$answer(job_percent_prj3),$p3_abs)"
+      ts_log_severe "project3 percentage not 20 +/- $x % (value=$answer(job_percent_prj3),$p3_abs)"
    }
 
 
@@ -508,7 +498,7 @@ proc share_tree_test {} {
    }
    disable_queue "$test_queue"
    if { [timestamp] >= $my_timeout } {
-      add_proc_error "share_tree_test" -1 "timeout while waiting for start of jobs"
+      ts_log_severe "timeout while waiting for start of jobs"
    }
      
 
@@ -532,14 +522,14 @@ proc share_tree_test {} {
          incr prj2_count 1
       }
    }
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "project1 count: $prj1_count"
-   puts $CHECK_OUTPUT "project2 count: $prj2_count"
-   puts $CHECK_OUTPUT "project3 count: $prj3_count"
+   ts_log_fine ""
+   ts_log_fine "project1 count: $prj1_count"
+   ts_log_fine "project2 count: $prj2_count"
+   ts_log_fine "project3 count: $prj3_count"
 
    set all_prj_count [ expr ( $prj1_count + $prj2_count + $prj3_count ) ]
-   puts $CHECK_OUTPUT "====================="
-   puts $CHECK_OUTPUT "sum: $all_prj_count"  
+   ts_log_fine "====================="
+   ts_log_fine "sum: $all_prj_count"  
  
    set all_prj_count_unit [ expr ( $all_prj_count / 100.0 ) ]
 
@@ -548,20 +538,20 @@ proc share_tree_test {} {
    set prj3_percentage [ expr ( $prj3_count / $all_prj_count_unit ) ]
   
 
-   puts $CHECK_OUTPUT "project1 % $prj1_percentage"
-   puts $CHECK_OUTPUT "project2 % $prj2_percentage"
-   puts $CHECK_OUTPUT "project3 % $prj3_percentage"
+   ts_log_fine "project1 % $prj1_percentage"
+   ts_log_fine "project2 % $prj2_percentage"
+   ts_log_fine "project3 % $prj3_percentage"
 
    set x $share_tree_percentage_variation
 
    if { $prj1_percentage < [ expr ( 32 - $x ) ] || $prj1_percentage > [ expr ( 32 + $x ) ]  } {
-      add_proc_error "share_tree_test" -1 "project1 running percentage not 32 +/- $x % (value=$prj1_percentage)"
+      ts_log_severe "project1 running percentage not 32 +/- $x % (value=$prj1_percentage)"
    }
    if { $prj2_percentage < [ expr ( 48 - $x ) ] || $prj2_percentage > [ expr ( 48 + $x ) ] } {
-      add_proc_error "share_tree_test" -1 "project2 running percentage not 48 +/- $x % (value=$prj2_percentage)"
+      ts_log_severe "project2 running percentage not 48 +/- $x % (value=$prj2_percentage)"
    }
    if { $prj3_percentage < [ expr ( 20 - $x ) ] || $prj3_percentage > [ expr ( 20 + $x ) ] } {
-      add_proc_error "share_tree_test" -1 "project3 running percentage not 20 +/- $x % (value=$prj3_percentage)"
+      ts_log_severe "project3 running percentage not 20 +/- $x % (value=$prj3_percentage)"
    }
 
    foreach job [concat $prj1_id_list $prj2_id_list $prj3_id_list] {
@@ -574,7 +564,6 @@ proc share_tree_test {} {
 
 proc share_tree_cleanup  {} {
    global ts_config
-   global CHECK_OUTPUT
    global CHECK_PRODUCT_TYPE 
    global prj1_id_list prj2_id_list prj3_id_list
    global sharetree_stored_configuration test_host
@@ -584,20 +573,20 @@ proc share_tree_cleanup  {} {
 
    reset_schedd_config
 
-   puts $CHECK_OUTPUT "ensure that no jobs are referenced in qmaster any longer ..."
+   ts_log_fine "ensure that no jobs are referenced in qmaster any longer ..."
    foreach job [concat $prj1_id_list $prj2_id_list $prj3_id_list] {
-      puts -nonewline $CHECK_OUTPUT "$job " ; flush $CHECK_OUTPUT
+      ts_log_progress
       set my_timeout [timestamp]
       incr my_timeout 120
       while { [get_qstat_j_info $job] != 0 } {
-          puts -nonewline $CHECK_OUTPUT "." ; flush $CHECK_OUTPUT
+          ts_log_progress
           if { [timestamp] > $my_timeout } {
              delete_job $job 1
              break
           }
           sleep 1
       }
-      puts $CHECK_OUTPUT " done"
+      ts_log_fine " done"
    }
 
    foreach elem $ts_config(execd_nodes) {
@@ -617,7 +606,7 @@ proc share_tree_cleanup  {} {
 
 
 proc issue_751 {} {
-  global ts_config CHECK_USER CHECK_OUTPUT  
+  global ts_config CHECK_USER
   global prj1_id_list prj2_id_list prj3_id_list
 
   set prj1_id_list ""
@@ -628,22 +617,22 @@ proc issue_751 {} {
 
    # the bug has only be fixed in maintrunk for 6.1
    # do only raise a warning for ealier versions
-   set error_level -1
+   set error_level SEVERE
    set additional_message ""
    if {$ts_config(gridengine_version) <= 60} {
-      set error_level -3
+      set error_level INFO
       set additional_message "\nhas been fixed only for 6.1 and higher"
    }
 
   set output [start_remote_prog $host $CHECK_USER "qconf" "-sstnode /" exit_state 30]
-  puts $CHECK_OUTPUT $output
+  ts_log_fine $output
   if { $exit_state != 0 } {
-      add_proc_error "issue_751" $error_level "Issue 751: qconf -sstnode / broken$additional_message"
+      ts_log $error_level "Issue 751: qconf -sstnode / broken$additional_message"
   }
 
   set output [start_remote_prog $host $CHECK_USER "qconf" "-sstnode Root" exit_state 30]
-  puts $CHECK_OUTPUT $output
+  ts_log_fine $output
   if { $exit_state != 0 } {
-      add_proc_error "issue_751" $error_level "Issue 751: qconf -sstnode Root broken$additional_message"
+      ts_log $error_level "Issue 751: qconf -sstnode Root broken$additional_message"
   }
 }

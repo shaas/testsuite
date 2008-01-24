@@ -97,7 +97,7 @@ proc advance_reservation_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc advance_reservation_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global queue_name1 queue_name2
    global complex_name1 complex_name2 gr_cplx
    global test_host 
@@ -133,11 +133,11 @@ proc advance_reservation_setup {} {
    set queue_settings(load_thresholds) "np_load_avg=11.75"
 
    add_queue $queue_name1 $test_host queue_settings
-   puts $CHECK_OUTPUT "added queue $queue_name1 for hosts $test_host"
+   ts_log_fine "added queue $queue_name1 for hosts $test_host"
 
    set qname "$queue_name2"
    add_queue $queue_name2 $test_host queue_settings
-   puts $CHECK_OUTPUT "added queue $queue_name2 for hosts $test_host"
+   ts_log_fine "added queue $queue_name2 for hosts $test_host"
 
    #           name            short  type    op.   requ.  cons. default  urgency
    set complex($complex_name1)  "cplx1    INT       <=    YES    NO   0        0"
@@ -150,7 +150,7 @@ proc advance_reservation_setup {} {
 }
 
 proc advance_reservation_cleanup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global pe_name1 pe_name2
    global ckpt_name1 ckpt_name2
    global cal_name1 cal_name2
@@ -194,7 +194,7 @@ proc advance_reservation_cleanup {} {
 
 
 proc test_pe {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global pe_name1 pe_name2
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -215,46 +215,46 @@ proc test_pe {} {
 
    # Submit advance reservation with queue1 AND pe1 request
    set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -pe $pe_name1 2 -d 36000"]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
    # Submit advance reservation with queue2 and NO pe request
    set output [start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 36000"]
-   puts $CHECK_OUTPUT $output
+   ts_log_fine $output
 
    # Try to remove pe settings from queue1. Should be rejected because AR requested the pe
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
    if {$result != -8} {
-      add_proc_error "test_pe" -1 "modifing queue pe_list with a advance reservation is not rejected"
+      ts_log_severe "modifing queue pe_list with a advance reservation is not rejected"
    }
    set result [replace_attr queue pe_list "NONE" $queue_name1 1 "" "" 0]
    if {$result != -2} {
-      add_proc_error "test_pe" -1 "modifing queue pe_list with rattr with a advance reservation is not rejected"
+      ts_log_severe "modifing queue pe_list with rattr with a advance reservation is not rejected"
    }
 
    # Try to lower pe_slots. Should be allowed for queue2 but not for queue1
    set result [mod_pe $pe_name1 pe_settings 1 "" "" 0] 
    if {$result != -8} {
-      add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
+      ts_log_severe "lowering pe_slots below reserved slots is not rejected"
    }
    set result [mod_pe $pe_name2 pe_settings] 
    if {$result != 0} {
-      add_proc_error "test_pe" -1 "lowering pe_slots is wrongly rejected"
+      ts_log_severe "lowering pe_slots is wrongly rejected"
    }
 
    # Try to remove pe settings from queue2. Should be allowed because the AR for queue2 did not requested a pe
    set result [mod_queue $queue_name2 "" queue_settings]
    if {$result != 0} {
-      add_proc_error "test_pe" -1 "modifing queue pe_list without a advance reservation is wrongly rejected(1)"
+      ts_log_severe "modifing queue pe_list without a advance reservation is wrongly rejected(1)"
    }
 
    # Now remove advance reservation and try it again
    start_sge_bin "qrdel" "$ar_name1"
    set result [mod_pe $pe_name1 pe_settings] 
    if {$result != 0} {
-      add_proc_error "test_pe" -1 "lowering pe_slots below reserved slots is not rejected"
+      ts_log_severe "lowering pe_slots below reserved slots is not rejected"
    }
    set result [mod_queue $queue_name1 "" queue_settings]
    if {$result != 0} {
-      add_proc_error "test_pe" -1 "modifing queue pe_list without advance reservation is wrongly rejected(2)"
+      ts_log_severe "modifing queue pe_list without advance reservation is wrongly rejected(2)"
    }
 
    # Test Cleanup
@@ -267,7 +267,7 @@ proc test_pe {} {
 }
 
 proc test_ckpt {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global ckpt_name1 ckpt_name2
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -288,35 +288,35 @@ proc test_ckpt {} {
    # Submit advance reservation with queue1 AND ckpt1 request
    set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -ckpt $ckpt_name1 -d 36000"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+      ts_log_fine "qrsub failed, output is: $output"
    }
    # Submit advance reservation with queue2 and NO ckpt request
    set output [start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 36000"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+      ts_log_fine "qrsub failed, output is: $output"
    }
 
    # Try to remove ckpt settings from queue1. Should be rejected because AR requested the ckpt
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
    if {$result != -8} {
-      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list with a advance reservation is not rejected"
+      ts_log_severe "modifing queue ckpt_list with a advance reservation is not rejected"
    }
    set result [replace_attr queue ckpt_list "NONE" $queue_name1 1 "" "" 0]
    if {$result != -2} {
-      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list with rattr with a advance reservation is not rejected"
+      ts_log_severe "modifing queue ckpt_list with rattr with a advance reservation is not rejected"
    }
 
    # Try to remove ckpt settings from queue2. Should be allowed because the AR for queue2 did not requested the ckpt
    set result [mod_queue $queue_name2 "" queue_settings]
    if {$result != 0} {
-      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list without a advance reservation is wrongly rejected(1)"
+      ts_log_severe "modifing queue ckpt_list without a advance reservation is wrongly rejected(1)"
    }
 
    # Now remove advance reservation and try it again
    start_sge_bin "qrdel" "$ar_name1"
    set result [mod_queue $queue_name1 "" queue_settings]
    if {$result != 0} {
-      add_proc_error "test_ckpt" -1 "modifing queue ckpt_list without advance reservation is wrongly rejected(2)"
+      ts_log_severe "modifing queue ckpt_list without advance reservation is wrongly rejected(2)"
    }
 
    # Cleanup
@@ -329,7 +329,7 @@ proc test_ckpt {} {
 }
 
 proc test_cal {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global cal_name1 cal_name2
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -349,12 +349,12 @@ proc test_cal {} {
    # Submit advance reservation to queue1
    set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -d 36000"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+      ts_log_fine "qrsub failed, output is: $output"
    }
    # Submit advance reservation to queue2
    set output [start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 3600"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+      ts_log_fine "qrsub failed, output is: $output"
    }
 
    # Try to calendar disable queue1, should be rejected because of AR
@@ -362,7 +362,7 @@ proc test_cal {} {
    set calendar(calendar_name) "$cal_name1"
    set result [mod_calendar "$cal_name1" calendar 1 "" "" 0]
    if {$result != -8} {
-      add_proc_error "test_cal" -1 "modifing calendar that disables reserved queue is not rejected"
+      ts_log_severe "modifing calendar that disables reserved queue is not rejected"
    }
 
    # Calendar disable queue2 in the far future, should be allowed
@@ -374,7 +374,7 @@ proc test_cal {} {
    set calendar(week)    "NONE"
    set result [mod_calendar "$cal_name1" calendar]
    if {$result != 0} {
-      add_proc_error "test_cal" -1 "modifing calendar that is wrongly rejected(1)"
+      ts_log_severe "modifing calendar that is wrongly rejected(1)"
    }
 
    # Now remove advance reservation and try it again
@@ -384,7 +384,7 @@ proc test_cal {} {
    set calendar(calendar_name) "$cal_name1"
    set result [mod_calendar "$cal_name1" calendar]
    if {$result != 0} {
-      add_proc_error "test_cal" -1 "modifing calendar that is wrongly rejected(2)"
+      ts_log_severe "modifing calendar that is wrongly rejected(2)"
    }
 
    # Cleanup
@@ -397,7 +397,7 @@ proc test_cal {} {
 }
 
 proc test_userlist {} {
-   global ts_config CHECK_OUTPUT CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global ts_config CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
    global userset_name1 userset_name2
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -421,40 +421,40 @@ proc test_userlist {} {
    # Submit advance reservation with queue1 AND acl request
    set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -u $CHECK_FIRST_FOREIGN_SYSTEM_USER -d 36000"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+      ts_log_fine "qrsub failed, output is: $output"
    }
    # Submit advance reservation with queue2 and NO acl request
    set output [start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -d 36000"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qrsub failed, output is: $output"
+      ts_log_fine "qrsub failed, output is: $output"
    }
 
    # Try to remove sgetest1 access from queue1. Should be rejected because AR requested the access
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
    if {$result != -9} {
-      add_proc_error "test_userlist" -1 "modifing queue user_lists with a advance reservation is not rejected"
+      ts_log_severe "modifing queue user_lists with a advance reservation is not rejected"
    }
    set result [replace_attr queue xuser_lists "$userset_name1" $queue_name1 1 "" "" 0]
    if {$result != -3} {
-      add_proc_error "test_userlist" -1 "modifing queue user_lists with rattr with a advance reservation is not rejected"
+      ts_log_severe "modifing queue user_lists with rattr with a advance reservation is not rejected"
    }
 
    # Try to remove sgetest1 from userset1. Should be allowed for queue2 but not for queue1
    set result [del_user_from_access_list sgetest1 $userset_name1 "" "" 0]
    if {$result != -3} {
-      add_proc_error "test_userlist" -1 "removing user from userset used for advance reservation is not rejected"
+      ts_log_severe "removing user from userset used for advance reservation is not rejected"
    }
 
    set result [del_user_from_access_list sgetest1 $userset_name2]
    if {$result != 0} {
-      add_proc_error "test_userlist" -1 "removing user from userset is wrongly rejected(1)"
+      ts_log_severe "removing user from userset is wrongly rejected(1)"
    }
 
    # Now remove advance reservation and try it again
    start_sge_bin "qrdel" "$ar_name1"
    set result [del_user_from_access_list sgetest1 $userset_name1]
    if {$result != 0} {
-      add_proc_error "test_userlist" -1 "removing user from userset is wrongly rejected(2)"
+      ts_log_severe "removing user from userset is wrongly rejected(2)"
    }
 
    # Cleanup
@@ -469,7 +469,7 @@ proc test_userlist {} {
 }
 
 proc test_complexes {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global complex_name1 complex_name2
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -483,7 +483,7 @@ proc test_complexes {} {
    # Submit advance reservation with queue1 AND 5 complex1 requests 
    set output [start_sge_bin "qrsub" "-q $queue_name1 -N $ar_name1 -pe mytestpe 5 -l $complex_name1=1 -d 36000"]
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "qrsub: $output"
+      ts_log_fine "qrsub: $output"
    }
    # Submit advance reservation with queue2 and NO complex request
    # start_sge_bin "qrsub" "-q $queue_name2 -N $ar_name2 -pe mytestpe 5 -d 36000"
@@ -492,38 +492,38 @@ proc test_complexes {} {
    set queue_settings(slots) "4"
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
    if {$result != -10} {
-      add_proc_error "test_complexes" -1 "lowering queue slots for reserved queue is not rejected(1)"
+      ts_log_severe "lowering queue slots for reserved queue is not rejected(1)"
    }
    set result [replace_attr queue slots "4" $queue_name1 1 "" "" 0]
    if {$result != -4} {
-      add_proc_error "test_complexes" -1 "lowering queue slots for reserved queue is not rejected(2)"
+      ts_log_severe "lowering queue slots for reserved queue is not rejected(2)"
    }
 
    # Lower complex1 to 5, should be allowed
    set host_config(complex_values) "$complex_name1=5,$complex_name2=10"
    set result [set_exechost host_config $test_host]
    if {$result != 0} {
-      add_proc_error "test_complexes" -1 "lowering reserved host consumable is wrongly rejected"
+      ts_log_severe "lowering reserved host consumable is wrongly rejected"
    }
    # Lower complex2 to 1, should be allowed
    set host_config(complex_values) "$complex_name1=5,$complex_name2=1"
    set result [set_exechost host_config $test_host]
    if {$result != 0} {
-      add_proc_error "test_complexes" -1 "lowering unreserved host consumable is wrongly rejected"
+      ts_log_severe "lowering unreserved host consumable is wrongly rejected"
    }
 
    # Lower complex1 to 1, should be rejected 
    set host_config(complex_values) "$complex_name1=1,$complex_name2=1"
    set result [set_exechost host_config $test_host 1 "" "" 0]
    if {$result != -2} {
-      add_proc_error "test_complexes" -1 "lowering consumable smaller than reserved one is not rejected"
+      ts_log_severe "lowering consumable smaller than reserved one is not rejected"
    }
    
    # Try to lower queue2 slot count. Should be allowed
    set queue_settings(slots) "4"
    set result [mod_queue $queue_name2 "" queue_settings 1 "" "" 0]
    if {$result != 0} {
-      add_proc_error "test_complexes" -1 "lowering queue slots on unreserved queue is wrongly rejected"
+      ts_log_severe "lowering queue slots on unreserved queue is wrongly rejected"
    }
 
    # Remove advance reservation and try again 
@@ -533,27 +533,27 @@ proc test_complexes {} {
    set host_config(complex_values) "$complex_name1=1,$complex_name2=1"
    set result [set_exechost host_config $test_host]
    if {$result != 0} {
-      add_proc_error "test_complexes" -1 "lowering unreserved host comsumable is wrongly rejected"
+      ts_log_severe "lowering unreserved host comsumable is wrongly rejected"
    }
    # Try to lower queue1 slot count. Should be rejected because 5 slots are reserved
    set queue_settings(slots) "4"
    set result [mod_queue $queue_name1 "" queue_settings 1 "" "" 0]
    if {$result != 0} {
-      add_proc_error "test_complexes" -1 "lowering queue slots for unreserved queue is wrongly rejected(1)"
+      ts_log_severe "lowering queue slots for unreserved queue is wrongly rejected(1)"
    }
    set result [replace_attr queue slots "4" $queue_name1 1 "" "" 0]
    if {$result != 0} {
-      add_proc_error "test_complexes" -1 "lowering queue slots for unreserved queue is wrongly rejected(2)"
+      ts_log_severe "lowering queue slots for unreserved queue is wrongly rejected(2)"
    }
 
    # Cleanup
-   puts $CHECK_OUTPUT "doing cleanup"
+   ts_log_fine "doing cleanup"
    set host_config(complex_values) "NONE"
    set_exechost host_config $test_host
 }
 
 proc test_require_more_than_reserved {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global complex_name1 complex_name2 gr_cplx
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -581,13 +581,13 @@ proc test_require_more_than_reserved {} {
    set args "-ar $ar_id -l $gr_cplx=3,h_rt=100 $default_args"
    set job_id [submit_job $args 0]
    if {$job_id != -34} {
-      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+      ts_log_severe "error 'no suitable queues' was not shown"
    }
 
    set args "-ar $ar_id -l $gr_cplx=1,h_rt=10000 $default_args"
    set job_id [submit_job $args 0]
    if {$job_id != -35} {
-      add_proc_error "test_require_more_than_reserved" -1 "error 'job duration is longer than duration of AR' was not shown"
+      ts_log_severe "error 'job duration is longer than duration of AR' was not shown"
    }
 
    delete_all_ars
@@ -612,7 +612,7 @@ proc test_require_more_than_reserved {} {
    set args "-ar $ar_id -l 'a=bla' $default_args"
    set job_id [submit_job $args 0]
    if {$job_id != -34} {
-      add_proc_error "test_require_more_than_reserved" -1 "error  'no suitable queues' was not shown"
+      ts_log_severe "error  'no suitable queues' was not shown"
       return
    }
     
@@ -635,18 +635,18 @@ proc test_require_more_than_reserved {} {
    set args "-ar $ar_id -pe mytestpe 4 -l $gr_cplx=2 $default_args"
    set job_id [submit_job $args 0]
    if {$job_id != -34} {
-      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+      ts_log_severe "error 'no suitable queues' was not shown"
    }
 
    set args "-ar $ar_id -pe mytestpe 2 -l $gr_cplx=4 $default_args"
    set job_id [submit_job $args 0]
    if {$job_id != -34} {
-      add_proc_error "test_require_more_than_reserved" -1 "error 'no suitable queues' was not shown"
+      ts_log_severe "error 'no suitable queues' was not shown"
    }
 }
 
 proc test_changing_ar_id {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global complex_name1 complex_name2 gr_cplx
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -682,13 +682,13 @@ proc test_changing_ar_id {} {
 
    set res [wait_for_jobstart $job_id $job_name 300]
    if {$res!=0} {
-      add_proc_error "test_changing_ar_id" -1 "job is not running"
+      ts_log_severe "job is not running"
    }
 
-	puts $CHECK_OUTPUT "change the ar of running job\nrun qalter -ar $ar_id2 $job_id\n"
+	ts_log_fine "change the ar of running job\nrun qalter -ar $ar_id2 $job_id\n"
    set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id"]
    if {$prg_exit_state==0} {
-      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on running job should fail:\n$result1"
+      ts_log_severe "error qalter -ar on running job should fail:\n$result1"
    }
 
    # Test setup
@@ -716,18 +716,18 @@ proc test_changing_ar_id {} {
 
    set res [wait_for_jobpending $job_id $job_name 300]
    if {$res!=0} {
-      add_proc_error "test_changing_ar_id" -1 "job is not pending"
+      ts_log_severe "job is not pending"
    } 
 
-	puts $CHECK_OUTPUT "change the ar of pending job\nrun qalter -ar $ar_id2 $job_id\n"
+	ts_log_fine "change the ar of pending job\nrun qalter -ar $ar_id2 $job_id\n"
    set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id" ]
    if {$prg_exit_state!=0} {
-      add_proc_error "test_changing_ar_id" -1 "error qalter -ar on pending job\n$result1"
+      ts_log_severe "error qalter -ar on pending job\n$result1"
    }
 }
 
 proc test_waitingjob_future_ar {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global complex_name1 complex_name2 gr_cplx
    global ar_name1 ar_name2
    global queue_name1 queue_name2
@@ -755,7 +755,7 @@ proc test_waitingjob_future_ar {} {
    
    set res [wait_for_jobstart $job_id $ar_name 30 0]
    if {$res==0} {
-      add_proc_error "test_changing_ar_id" -1 "job expected to wait is running"
+      ts_log_severe "job expected to wait is running"
     }
 
    delete_ar $ar_id
@@ -776,13 +776,13 @@ proc test_ar_access_list {} {
 
    set job_id [submit_job "-ar $ar_id $default_args" 0]
    if {$job_id != -34} {
-      add_proc_error "test_ar_access_list" -1 "(1) error 'no suitable queues' was not shown"
+      ts_log_severe "(1) error 'no suitable queues' was not shown"
       delete_job $job_id
    }
 
    set job_id [submit_job "-ar $ar_id $default_args" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if {$job_id < 0} {
-      add_proc_error "test_ar_access_list" -1 "(1) job was wrongly rejected"
+      ts_log_severe "(1) job was wrongly rejected"
    } else {
       delete_job $job_id
    }
@@ -795,14 +795,14 @@ proc test_ar_access_list {} {
      
    set job_id [submit_job "-ar $ar_id $default_args" 1]
    if {$job_id < 0} {
-      add_proc_error "test_ar_access_list" -1 "(2) job was wrongly rejected"
+      ts_log_severe "(2) job was wrongly rejected"
    } else {
       delete_job $job_id
    }
 
    set job_id [submit_job "-ar $ar_id $default_args" 0 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if {$job_id != -34} {
-      add_proc_error "test_ar_access_list" -1 "(2) error 'no suitable queues' was not shown"
+      ts_log_severe "(2) error 'no suitable queues' was not shown"
       delete_job $job_id
    }
 
@@ -814,13 +814,13 @@ proc test_ar_access_list {} {
 
    set job_id [submit_job "-ar $ar_id $default_args" 0]
    if {$job_id != -34} {
-      add_proc_error "test_ar_access_list" -1 "(1) error 'no suitable queues' was not shown"
+      ts_log_severe "(1) error 'no suitable queues' was not shown"
       delete_job $job_id
    }
 
    set job_id [submit_job "-ar $ar_id $default_args" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if {$job_id < 0} {
-      add_proc_error "test_ar_access_list" -1 "(1) job was wrongly rejected"
+      ts_log_severe "(1) job was wrongly rejected"
    } else {
       delete_job $job_id
    }
@@ -833,14 +833,14 @@ proc test_ar_access_list {} {
      
    set job_id [submit_job "-ar $ar_id $default_args"]
    if {$job_id < 0} {
-      add_proc_error "test_ar_access_list" -1 "(2) job was wrongly rejected"
+      ts_log_severe "(2) job was wrongly rejected"
    } else {
       delete_job $job_id
    }
 
    set job_id [submit_job "-ar $ar_id $default_args" 0 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if {$job_id != -34} {
-      add_proc_error "test_ar_access_list" -1 "(2) error 'no suitable queues' was not shown"
+      ts_log_severe "(2) error 'no suitable queues' was not shown"
       delete_job $job_id
    }
 
@@ -866,7 +866,7 @@ proc test_job_runtime_limit {} {
    sleep 20
    set run_result [is_job_running $job_id "leeper"]
    if {$run_result != 1} {
-       add_proc_error "test_job_runtime_limit" -1 "job was wrongly killed or not scheduled"
+       ts_log_severe "job was wrongly killed or not scheduled"
    } else { 
       wait_for_job_end $job_id 20
    }
@@ -881,7 +881,7 @@ proc test_job_runtime_limit {} {
    sleep 20
    set run_result [is_job_running $job_id "leeper"]
    if {$run_result != 1} {
-       add_proc_error "test_job_runtime_limit" -1 "job was wrongly killed or not scheduled"
+       ts_log_severe "job was wrongly killed or not scheduled"
    } else { 
       wait_for_job_end $job_id 20
    }
@@ -913,11 +913,11 @@ proc test_masterq {} {
 
    set job_id [submit_job "-ar $ar_id $test_args $default_args"]
    if {$job_id < 0} {
-      add_proc_error "test_masterq" -1 "masterq job is not scheduled properly"
+      ts_log_severe "masterq job is not scheduled properly"
    } else {
       trigger_scheduling
       if {[is_job_running $job_id "leeper"] != 1} {
-          add_proc_error "test_masterq" -1 "job was wrongly killed or not scheduled"
+          ts_log_severe "job was wrongly killed or not scheduled"
       }
       delete_job $job_id
    }
@@ -926,7 +926,7 @@ proc test_masterq {} {
    set test_args "-pe $pe_name1 2 -masterq $queue_name2"
    set job_id [submit_job "-ar $ar_id $test_args $default_args" 0]
    if {$job_id > 0} {
-      add_proc_error "test_masterq" -1 "job requesting different master is not rejected"
+      ts_log_severe "job requesting different master is not rejected"
       delete_job $job_id
    }
 

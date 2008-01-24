@@ -84,7 +84,7 @@ global submit_del_check_queue
 
 proc submit_del_setup  {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_MAIN_RESULTS_DIR CHECK_USER
    global submit_del_qconfig
    global submit_del_check_queue
@@ -101,7 +101,6 @@ proc submit_del_setup  {} {
 
 proc submit_del_test { } {
    global ts_config
-   global CHECK_OUTPUT
    global submit_del_qconfig submit_del_check_queue CHECK_USER
    global CHECK_DEBUG_LEVEL
    global CHECK_L10N ts_config
@@ -136,12 +135,12 @@ proc submit_del_test { } {
          set job_id_pos [ string first "__JOB_ID__" $JOB_SUBMITTED_DUMMY ]
          set job_name_pos [ string first "__JOB_NAME__" $JOB_SUBMITTED_DUMMY ]
          if { $job_id_pos > $job_name_pos  } {
-            add_proc_error "submit_del_test" "-1" "locale switches parameter for qsub string! This is not supported yet"
+            ts_log_severe "locale switches parameter for qsub string! This is not supported yet"
          }
          incr job_id_pos -1
          set job_id_prefix [ string range $JOB_SUBMITTED_DUMMY 0 $job_id_pos ]
          set job_id_prefix_length [ string length $job_id_prefix]
-         puts $CHECK_OUTPUT "job id prefix is: \"$job_id_prefix\""
+         ts_log_fine "job id prefix is: \"$job_id_prefix\""
    }
 
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 1000"
@@ -151,7 +150,7 @@ proc submit_del_test { } {
       foreach host $ts_config(execd_nodes) {
          set arguments "-o /dev/null -e /dev/null -l h=$host"
          set catch_return [ catch { eval exec "$qsub_program $arguments $job_script" } result ]
-         puts $CHECK_OUTPUT $result
+         ts_log_fine $result
          if { $CHECK_L10N == 0 } {   
             set job_id [lindex $result 2]    
          } else {
@@ -162,18 +161,18 @@ proc submit_del_test { } {
             set job_id [string range $job_id 0 $space_pos ]
             set job_id [string trim $job_id]
          }
-         puts $CHECK_OUTPUT "job id is: $job_id"
+         ts_log_fine "job id is: $job_id"
          wait_for_jobstart $job_id "leeper" 60
-         puts $CHECK_OUTPUT "job $job_id started, deleting it"
+         ts_log_fine "job $job_id started, deleting it"
          set catch_return [ catch { eval exec "$qdel_program $job_id" } result ]
-         puts $CHECK_OUTPUT $result
+         ts_log_fine $result
          incr runs -1
       }
    }
    set runs [ expr ( [llength $ts_config(execd_nodes) ] * 5 ) ]
 
    wait_for_end_of_all_jobs 180
-   puts $CHECK_OUTPUT "pass 1 completed"
+   ts_log_fine "pass 1 completed"
    
    incr job_id 1  ;# prepare job_id for next job !!!
    while { $runs > 0 } { 
@@ -181,7 +180,7 @@ proc submit_del_test { } {
          set arguments "-o /dev/null -e /dev/null -l h=$host"
 
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "$arguments $job_script \nqdel $job_id"]
-         puts $CHECK_OUTPUT $result 
+         ts_log_fine $result 
          incr job_id 1
          incr runs -1
       }
@@ -189,13 +188,12 @@ proc submit_del_test { } {
    
    wait_for_end_of_all_jobs 180
 
-   puts $CHECK_OUTPUT "pass 2 completed"
+   ts_log_fine "pass 2 completed"
 }
 
 
 proc submit_del_cleanup  {} {
    global ts_config
-   global CHECK_OUTPUT
    global submit_del_qconfig submit_del_check_queue
 
 
@@ -208,10 +206,10 @@ proc submit_del_cleanup  {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 100
 
-   puts $CHECK_OUTPUT "do qmod -c for all queues"
+   ts_log_fine "do qmod -c for all queues"
    foreach hostname $ts_config(execd_nodes) {
       set output [start_sge_bin "qmod" "-c [get_queue_instance all.q $hostname]"]
-      puts $CHECK_OUTPUT $output
+      ts_log_fine $output
    }
 }
 

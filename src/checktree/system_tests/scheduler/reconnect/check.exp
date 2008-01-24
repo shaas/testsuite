@@ -85,7 +85,7 @@ proc schedd_reconnect_init_level {} {
 
 
 proc schedd_reconnect_cleanup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # wait for load reports to proceed with next test
    wait_for_load_from_all_queues 120
@@ -93,7 +93,7 @@ proc schedd_reconnect_cleanup  {} {
 
 
 proc schedd_reconnect_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set expected_reconnect_time 30
    set test_runs 10
@@ -111,11 +111,11 @@ proc schedd_reconnect_test {} {
 
       while {[timestamp] < $mytimeout } {
          set ret [get_scheduler_status result1 "" "" 0]
-         puts $CHECK_OUTPUT "qconf -sss returned $ret: $result1"
+         ts_log_fine "qconf -sss returned $ret: $result1"
          set result [lindex $result1 0]
          if { [llength $result] == 1 && $ret == 0 } {
             if { [host_list_compare $ts_config(master_host) $result 0 1] == 0 } {
-               puts $CHECK_OUTPUT "scheduler reconnected!"
+               ts_log_fine "scheduler reconnected!"
                set success 1
                break
             }
@@ -129,6 +129,6 @@ proc schedd_reconnect_test {} {
    }
 
    if { $failures_output != "" } {
-      add_proc_error "schedd_reconnect_test" -1 "reconnect failed in $failures from $test_runs test runs:\n$failures_output"
+      ts_log_severe "reconnect failed in $failures from $test_runs test runs:\n$failures_output"
    }
 }

@@ -89,7 +89,6 @@ proc soft_requests_setup  {} {
    global soft_requests_test_hosts
    global soft_requests_saved_slot_count
    global consumable_complex_backup
-   global CHECK_OUTPUT
 
    # backup complex - we will modify it during the test
    get_complex consumable_complex_backup
@@ -99,7 +98,7 @@ proc soft_requests_setup  {} {
 
    foreach host $ts_config(execd_nodes) {
       lappend soft_requests_test_hosts "$host"
-      puts $CHECK_OUTPUT "using host $host"
+      ts_log_fine "using host $host"
    }
 
    set queue_list {}
@@ -116,11 +115,11 @@ proc soft_requests_setup  {} {
    set queue_settings(pe_list)          "round_robin"
    set qname "res.q"
    add_queue $qname $soft_requests_test_hosts queue_settings
-   puts $CHECK_OUTPUT "added queue $qname for hosts $soft_requests_test_hosts"
+   ts_log_fine "added queue $qname for hosts $soft_requests_test_hosts"
 }
 
 proc soft_requests_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global soft_requests_test_hosts
    global soft_requests_saved_slot_count
    global consumable_complex_backup
@@ -138,7 +137,7 @@ proc soft_requests_cleanup  {} {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    enable_queue $queue_list
-   puts $CHECK_OUTPUT "enabled $queue_list"
+   ts_log_fine "enabled $queue_list"
 
    # delete test queue and pe
    set qname "res.q"
@@ -150,7 +149,7 @@ proc soft_requests_cleanup  {} {
 }
 
 proc soft_requests_submit_pejobs_and_wait { request host_list } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set job_id [submit_job "-o /dev/null -e /dev/null -pe round_robin 2 -soft -l $request $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
@@ -166,7 +165,7 @@ proc soft_requests_submit_pejobs_and_wait { request host_list } {
          foreach line $job_std_state {
             foreach host $host_list {
                set host [resolve_host $host 1]
-               puts "host: $host queue: [lindex $line 7]"
+               ts_log_fine "host: $host queue: [lindex $line 7]"
                if { [string match "*$host*" [lindex $line 7] ] == 1 } {
                   incr match 1
                }
@@ -175,17 +174,17 @@ proc soft_requests_submit_pejobs_and_wait { request host_list } {
          incr running_jobs 1
          if { $match == 0 } {
             set error 1
-            add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "soft requests: job did not run in the specified host list: $host_list \n $job_std_state"
+            ts_log_warning "soft requests: job did not run in the specified host list: $host_list \n $job_std_state"
          }
       }
 
       if { $job_state == -1 } {
-         add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "job was not submitted - stop"
+         ts_log_warning "job was not submitted - stop"
          set error 1
          break
       }
 
-      puts $CHECK_OUTPUT "running jobs count: $running_jobs"
+      ts_log_fine "running jobs count: $running_jobs"
       if { $running_jobs == 1 || $error != 0 } {
          break
       }
@@ -196,7 +195,7 @@ proc soft_requests_submit_pejobs_and_wait { request host_list } {
 }
 
 proc soft_requests_submit_jobs_and_wait { request host_list } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set job_id [submit_job "-o /dev/null -e /dev/null -soft -l $request $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
@@ -212,7 +211,7 @@ proc soft_requests_submit_jobs_and_wait { request host_list } {
          foreach line $job_std_state {
             foreach host $host_list {
                set host [resolve_host $host 1]
-               puts "host: $host queue: [lindex $line 7]"
+               ts_log_fine "host: $host queue: [lindex $line 7]"
                if { [string match "*$host*" [lindex $line 7] ] == 1 } {
                   incr match 1
                }
@@ -221,17 +220,17 @@ proc soft_requests_submit_jobs_and_wait { request host_list } {
          incr running_jobs 1
          if { $match == 0 } {
             set error 1
-            add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "soft requests: job did not run in the specified host list $host_list \n $job_std_state"
+            ts_log_warning "soft requests: job did not run in the specified host list $host_list \n $job_std_state"
          }
       }
 
       if { $job_state == -1 } {
-         add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "job was not submitted - stop"
+         ts_log_warning "job was not submitted - stop"
          set error 1
          break
       }
 
-      puts $CHECK_OUTPUT "running jobs count: $running_jobs"
+      ts_log_fine "running jobs count: $running_jobs"
       if { $running_jobs == 1 || $error != 0 } {
          break
       }
@@ -242,7 +241,7 @@ proc soft_requests_submit_jobs_and_wait { request host_list } {
 }
 
 proc soft_requests_submit_pejobs_and_wait2 { } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    foreach host $ts_config(execd_nodes) {
       set arch [resolve_arch $host]
@@ -256,7 +255,7 @@ proc soft_requests_submit_pejobs_and_wait2 { } {
    set job_id_arch {}
 
    foreach arch [ array names map ] {
-      puts "arch: $arch hosts: $map($arch)" 
+      ts_log_fine "arch: $arch hosts: $map($arch)" 
       set request "arch=$arch"
       incr submited_jobs 1
       lappend job_id_arch $arch
@@ -281,7 +280,7 @@ proc soft_requests_submit_pejobs_and_wait2 { } {
             foreach line $job_std_state {
                foreach host $host_list {
                   set host [resolve_host $host 1]
-                  puts "host: $host queue: [lindex $line 7]"
+                  ts_log_fine "host: $host queue: [lindex $line 7]"
                   if { [string match "*$host*" [lindex $line 7] ] == 1 } {
                      incr match 1
                   }
@@ -290,19 +289,19 @@ proc soft_requests_submit_pejobs_and_wait2 { } {
             incr running_jobs 1
             if { $match == 0 } {
                set error 1
-               add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "soft requests: job did not run in the specified host list $host_list \n $job_std_state"
+               ts_log_warning "soft requests: job did not run in the specified host list $host_list \n $job_std_state"
             }
          }
          incr counter 1
       }
 
       if { $job_state == -1 } {
-         add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "job was not submitted - stop"
+         ts_log_warning "job was not submitted - stop"
          set error 1
          break
       }
 
-      puts $CHECK_OUTPUT "running jobs count: $running_jobs"
+      ts_log_fine "running jobs count: $running_jobs"
       if { $running_jobs == $submited_jobs || $error != 0 } {
          break
       }
@@ -313,7 +312,7 @@ proc soft_requests_submit_pejobs_and_wait2 { } {
 }
 
 proc soft_requests_submit_jobs_and_wait2 { } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    foreach host $ts_config(execd_nodes) {
       set arch [resolve_arch $host]
@@ -327,7 +326,7 @@ proc soft_requests_submit_jobs_and_wait2 { } {
    set job_id_arch {}
 
    foreach arch [ array names map ] {
-      puts "arch: $arch hosts: $map($arch)" 
+      ts_log_fine "arch: $arch hosts: $map($arch)" 
       set request "arch=$arch"
       incr submited_jobs 1
       lappend job_id_arch $arch
@@ -352,7 +351,7 @@ proc soft_requests_submit_jobs_and_wait2 { } {
             foreach line $job_std_state {
                foreach host $host_list {
                   set host [resolve_host $host 1]
-                  puts "host: $host queue: [lindex $line 7]"
+                  ts_log_fine "host: $host queue: [lindex $line 7]"
                   if { [string match "*$host*" [lindex $line 7] ] == 1 } {
                      incr match 1
                   }
@@ -361,19 +360,19 @@ proc soft_requests_submit_jobs_and_wait2 { } {
             incr running_jobs 1
             if { $match == 0 } {
                set error 1
-               add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "soft requests: job did not run in the specified host list $host_list \n $job_std_state"
+               ts_log_warning "soft requests: job did not run in the specified host list $host_list \n $job_std_state"
             }
          }
          incr counter 1
       }
 
       if { $job_state == -1 } {
-         add_proc_error "soft_requests_submit_pejobs_and_wait" -2 "job was not submitted - stop"
+         ts_log_warning "job was not submitted - stop"
          set error 1
          break
       }
 
-      puts $CHECK_OUTPUT "running jobs count: $running_jobs"
+      ts_log_fine "running jobs count: $running_jobs"
       if { $running_jobs == $submited_jobs || $error != 0 } {
          break
       }
@@ -385,15 +384,15 @@ proc soft_requests_submit_jobs_and_wait2 { } {
 
 proc soft_requests_test {} {
    global soft_requests_test_hosts check_description
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
 
    if { $CHECK_ACT_LEVEL == 0 } {
 
       # case a)
       #      fixed values as soft requests uses hostname (queue level)
-      puts $CHECK_OUTPUT "\ncase a)"
+      ts_log_fine "\ncase a)"
 
       foreach host $ts_config(execd_nodes) {
          set request "hostname=$host"
@@ -403,7 +402,7 @@ proc soft_requests_test {} {
 
       # case b)
       #     load values as soft requests uses arch 
-      puts $CHECK_OUTPUT "\ncase b)"
+      ts_log_fine "\ncase b)"
 
       foreach host $ts_config(execd_nodes) {
          set arch [resolve_arch $host]
@@ -411,7 +410,7 @@ proc soft_requests_test {} {
       }
 
       foreach arch [ array names map ] {
-         puts "arch: $arch hosts: $map($arch)" 
+         ts_log_fine "arch: $arch hosts: $map($arch)" 
          set request "arch=$arch"
          soft_requests_submit_pejobs_and_wait $request $map($arch)
          soft_requests_submit_jobs_and_wait $request $map($arch)
@@ -419,11 +418,11 @@ proc soft_requests_test {} {
 
       # case c)
       #     test multiple jobs with soft requests in one scheduling run...
-      puts $CHECK_OUTPUT "\ncase c)"
+      ts_log_fine "\ncase c)"
       soft_requests_submit_jobs_and_wait2
       soft_requests_submit_pejobs_and_wait2
 
-      puts $CHECK_OUTPUT "done"
+      ts_log_fine "done"
    }
 }
 

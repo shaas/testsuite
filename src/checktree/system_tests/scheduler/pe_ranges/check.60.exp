@@ -92,7 +92,6 @@ proc pe_ranges_init_level {} {
 proc pe_ranges_setup {} {
    global ts_config
    global pe_ranges_test_hosts
-   global CHECK_OUTPUT
 
    set pe_ranges_test_hosts {}
    set execd_count 0
@@ -100,7 +99,7 @@ proc pe_ranges_setup {} {
       if {$execd_count < 2} {
          incr execd_count 1
          lappend pe_ranges_test_hosts $host
-         puts $CHECK_OUTPUT "using host $host"
+         ts_log_fine "using host $host"
       } 
    }
 
@@ -110,7 +109,7 @@ proc pe_ranges_setup {} {
    }
 
    disable_queue $queue_list
-   puts $CHECK_OUTPUT "disabled $queue_list"
+   ts_log_fine "disabled $queue_list"
    
    set pe(slots)             "999"
    set pe(allocation_rule)   "\$round_robin"
@@ -121,11 +120,11 @@ proc pe_ranges_setup {} {
    set queue_settings(pe_list)          "round_robin"
    set qname "res.q"
    add_queue $qname $pe_ranges_test_hosts queue_settings
-   puts $CHECK_OUTPUT "added queue $qname for hosts $pe_ranges_test_hosts"
+   ts_log_fine "added queue $qname for hosts $pe_ranges_test_hosts"
 }
 
 proc pe_ranges_cleanup {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global pe_ranges_test_hosts
 
    delete_all_jobs
@@ -137,7 +136,7 @@ proc pe_ranges_cleanup {} {
       lappend queue_list [get_queue_instance "all.q" $host]
    }
    enable_queue $queue_list
-   puts $CHECK_OUTPUT "enabled $queue_list"
+   ts_log_fine "enabled $queue_list"
 
 
    set qname "res.q"
@@ -149,7 +148,7 @@ proc pe_ranges_cleanup {} {
    if {$ts_config(gridengine_version) >= 61} {
       if {[get_rqs_list rqs_names "" "" 0] == 0} {
          foreach elem $rqs_names {
-            puts $CHECK_OUTPUT "Removing resource quota sets $elem ...\n"
+            ts_log_fine "Removing resource quota sets $elem ...\n"
             del_rqs $elem
          }
       }
@@ -157,7 +156,7 @@ proc pe_ranges_cleanup {} {
 }
 
 proc pe_ranges_submit_pejobs_and_wait { job_arguments job_count job_count_max run_job_count } {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set job_id [submit_job "-pe round_robin $job_count-$job_count_max $job_arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
 
@@ -174,17 +173,17 @@ proc pe_ranges_submit_pejobs_and_wait { job_arguments job_count job_count_max ru
       }
 
       if { $job_state == -1 } {
-         add_proc_error "pe_ranges_submit_jobs_and_wait" -2 "job was not submitted - stop"
+         ts_log_warning "job was not submitted - stop"
          set error 1
          break
       }
 
-      puts $CHECK_OUTPUT "running jobs count: $running_jobs"
+      ts_log_fine "running jobs count: $running_jobs"
       if { $running_jobs == $run_job_count || $error != 0 } {
          break
       }
       if { $running_jobs != 0 } {
-         add_proc_error "pe_ranges_submit_jobs_and_wait" -2 "job (range: $job_count-$job_count_max) ran with the wrong slot count $running_jobs expected $run_job_count"
+         ts_log_warning "job (range: $job_count-$job_count_max) ran with the wrong slot count $running_jobs expected $run_job_count"
          set error 1
          break
       }
@@ -196,7 +195,7 @@ proc pe_ranges_submit_pejobs_and_wait { job_arguments job_count job_count_max ru
 
 proc pe_ranges_test1 {} {
    global pe_ranges_test_hosts check_description
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
 
    set job_arguments "-l test1=1 -o /dev/null -e /dev/null"
 
@@ -225,11 +224,11 @@ proc pe_ranges_test1 {} {
 
 proc pe_ranges_test {} {
    global pe_ranges_test_hosts check_description
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
 
    # case a)
    #        test auto select pe range alg.
-   puts $CHECK_OUTPUT "\ncase a)"
+   ts_log_fine "\ncase a)"
 
    # create test1 complex
    set test1_complex(test1) "t1 INT <= YES YES 0 1000"
@@ -264,7 +263,7 @@ proc pe_ranges_test {} {
 
    # case b)
    #          test hightest pe-range match alg.
-   puts $CHECK_OUTPUT "\ncase b)"
+   ts_log_fine "\ncase b)"
    set schedconf(params) "pe_range_alg=highest"
    set result [ set_schedd_config schedconf ]
 
@@ -272,7 +271,7 @@ proc pe_ranges_test {} {
 
    # case c)
    #          test bin pe-range match alg.
-   puts $CHECK_OUTPUT "\ncase c)"
+   ts_log_fine "\ncase c)"
 
    set schedconf(params) "pe_range_alg=bin"
    set result [ set_schedd_config schedconf ]
@@ -281,7 +280,7 @@ proc pe_ranges_test {} {
 
    # case d)
    #         test least pe-range match alg.
-   puts $CHECK_OUTPUT "\ncase d)"
+   ts_log_fine "\ncase d)"
    
    set schedconf(params) "pe_range_alg=least"
    set result [ set_schedd_config schedconf ]
@@ -302,7 +301,7 @@ proc pe_ranges_test {} {
       del_rqs $rqs_name
    }
 
-   puts $CHECK_OUTPUT "done"
+   ts_log_fine "done"
 }
 
 

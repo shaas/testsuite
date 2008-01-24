@@ -101,44 +101,44 @@ proc parse_monitor_tet { line } {
    set index 0
 
    foreach elem $split_line {
-      puts "<$index>:$elem"
+      ts_log_fine "<$index>:$elem"
       incr index 1
    }
 }
 
 
 proc qmaster_monitoring_setup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global global_config
 
    # backup global config - we'll change it
-   puts $CHECK_OUTPUT "backup global config"
+   ts_log_fine "backup global config"
    get_config global_config
 }
 
 proc qmaster_monitoring_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global global_config
 
-   puts $CHECK_OUTPUT "reset global config"
+   ts_log_fine "reset global config"
    set_config global_config
 }
 
 
 
 proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    # some information output
    switch -exact $expected_prof {
       NONE {
-         puts $CHECK_OUTPUT "expecting that no monitoring message shows up the next $tail_timeout s"
+         ts_log_fine "expecting that no monitoring message shows up the next $tail_timeout s"
       }
       CONSUME {
-         puts $CHECK_OUTPUT "consuming messages for $tail_timeout s"
+         ts_log_fine "consuming messages for $tail_timeout s"
       }
       default {
-         puts $CHECK_OUTPUT "expecting monitoring messages showing up within the next $tail_timeout s"
+         ts_log_fine "expecting monitoring messages showing up within the next $tail_timeout s"
       }
    }
 
@@ -168,22 +168,22 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
       expect_user {
          -i $sp_id timeout {
             # output how long we'll still wait
-            puts $CHECK_OUTPUT "[expr $end -$now]\r"
+            ts_log_fine "[expr $end -$now]\r"
          }
          -i $sp_id full_buffer {
-            add_proc_error qmaster_monitoring_monitor -1 "buffer overflow, please increase CHECK_EXPECT_MATCH_MAX_BUFFER"
+            ts_log_severe "buffer overflow, please increase CHECK_EXPECT_MATCH_MAX_BUFFER"
          }
          -i $sp_id eof {
-            add_proc_error qmaster_monitoring_monitor -1 "unexpected eof"
+            ts_log_severe "unexpected eof"
          }
          -i $sp_id "?*\n" {
             # parse new lines in messages file
-            #puts $CHECK_OUTPUT "received new line in messages file"
+            #ts_log_fine "received new line in messages file"
             if { $qping == 1 } {
                foreach line [ string trim [split $expect_out(0,string) "\n"]] {
                   set line [string trim $line]
                   if {[string length $line] > 0} {
-                     #puts $CHECK_OUTPUT "processing line: $line"
+                     #ts_log_fine "processing line: $line"
                      set split_line [split $line "|"]
                      set message [lindex $split_line 1]
                      if {$ts_config(gridengine_version) >= 62} { 
@@ -206,7 +206,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                               #parse_monitor_tet $message
                            }
                            default {
-#     puts $CHECK_OUTPUT "unknown monitoring message $message"
+#     ts_log_fine "unknown monitoring message $message"
                            }
                         }
                      } else {
@@ -229,7 +229,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                               #parse_monitor_tet $message
                            }
                            default {
-#     puts $CHECK_OUTPUT "unknown monitoring message $message"
+#     ts_log_fine "unknown monitoring message $message"
                            }
                         }
                      }
@@ -239,7 +239,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                foreach line [ string trim [split $expect_out(0,string) "\n"]] {
                   set line [string trim $line]
                   if {[string length $line] > 0} {
-                     #puts $CHECK_OUTPUT "processing line: $line"
+                     #ts_log_fine "processing line: $line"
                      set split_line [split $line "|"]
                      set monitoring [lindex $split_line 3]   
                      set message [lindex $split_line 4]
@@ -265,12 +265,12 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                                     #parse_monitor_tet $message
                                  }
                                  default {
-                               #     puts $CHECK_OUTPUT "unknown monitoring message $message"
+                               #     ts_log_fine "unknown monitoring message $message"
                                  }
                               }
                            }
                            default {
-                           #   puts $CHECK_OUTPUT "ignoring: [string range $line 0 50] ..."
+                           #   ts_log_fine "ignoring: [string range $line 0 50] ..."
                            }
                         } ;# switch
                      } else {
@@ -295,12 +295,12 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                                     #parse_monitor_tet $message
                                  }
                                  default {
-                               #     puts $CHECK_OUTPUT "unknown monitoring message $message"
+                               #     ts_log_fine "unknown monitoring message $message"
                                  }
                               }
                            }
                            default {
-                           #   puts $CHECK_OUTPUT "ignoring: [string range $line 0 50] ..."
+                           #   ts_log_fine "ignoring: [string range $line 0 50] ..."
                            }
                         } ;# switch
                      }
@@ -315,19 +315,19 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
 
    # some informational output
    if {$ts_config(gridengine_version) >= 62} {
-      puts $CHECK_OUTPUT "SIGNALERT:  $prof(SIGNALERT)"
-      puts $CHECK_OUTPUT "LISTENERT:  $prof(LISTENERT)"
-      puts $CHECK_OUTPUT "DELIVERERT: $prof(DELIVERERT)"
-      puts $CHECK_OUTPUT "TIMERT:     $prof(TIMERT)"
+      ts_log_fine "SIGNALERT:  $prof(SIGNALERT)"
+      ts_log_fine "LISTENERT:  $prof(LISTENERT)"
+      ts_log_fine "DELIVERERT: $prof(DELIVERERT)"
+      ts_log_fine "TIMERT:     $prof(TIMERT)"
    } else {
-      puts $CHECK_OUTPUT "SIGT: $prof(SIGT)"
-      puts $CHECK_OUTPUT "MT:   $prof(MT)"
-      puts $CHECK_OUTPUT "EDT:  $prof(EDT)"
-      puts $CHECK_OUTPUT "TET:  $prof(TET)"
+      ts_log_fine "SIGT: $prof(SIGT)"
+      ts_log_fine "MT:   $prof(MT)"
+      ts_log_fine "EDT:  $prof(EDT)"
+      ts_log_fine "TET:  $prof(TET)"
    }
 
    # now check for the expected result
-   puts $CHECK_OUTPUT "verifying results"
+   ts_log_fine "verifying results"
    switch -exact $expected_prof {
       NONE {
          # here we may not have received any monitoring messages
@@ -346,7 +346,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
          }
 
          if {$error} {
-            add_proc_error qmaster_monitoring_monitor -1 $message
+            ts_log_severe $message
          }
       }
       CONSUME {
@@ -370,7 +370,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
          }
 
          if {$error} {
-            add_proc_error qmaster_monitoring_monitor -1 $message
+            ts_log_severe $message
          }
       }
    }   
@@ -378,13 +378,13 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
 
 
 proc qmaster_monitoring_dynamic_qping {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    set ps_interval 4
    set qping_host $ts_config(master_host)
    set qping_arch [resolve_arch $qping_host]
-   puts $CHECK_OUTPUT "starting qping monitor on host $qping_host"
+   ts_log_fine "starting qping monitor on host $qping_host"
    set id [open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1"]
    
    # wait for monitoring messages - no such messages may show up
@@ -392,7 +392,7 @@ proc qmaster_monitoring_dynamic_qping {} {
 
    set prof "MONITOR_TIME"
    
-   puts $CHECK_OUTPUT "testing monitoring $prof"
+   ts_log_fine "testing monitoring $prof"
 
 # 1)
 # check, wether the monitoring works
@@ -459,10 +459,10 @@ proc qmaster_monitoring_dynamic_qping {} {
 }
 
 proc qmaster_monitoring_dynamic {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    # tail -f to qmaster messages file
-   puts $CHECK_OUTPUT "tail -f to qmaster messages file"
+   ts_log_fine "tail -f to qmaster messages file"
    set spooldir [get_qmaster_spool_dir]
    set id [init_logfile_wait $ts_config(master_host) "$spooldir/messages"]
 
@@ -472,7 +472,7 @@ proc qmaster_monitoring_dynamic {} {
 
    set prof "MONITOR_TIME"
    
-   puts $CHECK_OUTPUT "testing monitoring $prof"
+   ts_log_fine "testing monitoring $prof"
 
 # 1)
 # check, wether the monitoring works
@@ -547,10 +547,10 @@ proc qmaster_monitoring_dynamic {} {
 
 
 proc qmaster_monitoring_restart {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
 
    # tail -f to qmaster messages file
-   puts $CHECK_OUTPUT "tail -f to qmaster messages file"
+   ts_log_fine "tail -f to qmaster messages file"
    set spooldir [get_qmaster_spool_dir]
    set id [init_logfile_wait $ts_config(master_host) "$spooldir/messages"]
 
@@ -594,7 +594,7 @@ proc qmaster_monitoring_restart {} {
 }
 
 proc qmaster_monitoring_restart_qping {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    set spooldir [get_qmaster_spool_dir]
@@ -602,7 +602,7 @@ proc qmaster_monitoring_restart_qping {} {
    set ps_interval 4
    set qping_host $ts_config(master_host)
    set qping_arch [resolve_arch $qping_host]
-   puts $CHECK_OUTPUT "starting qping monitor on host $qping_host"
+   ts_log_fine "starting qping monitor on host $qping_host"
    set id [open_remote_spawn_process $qping_host $CHECK_FIRST_FOREIGN_SYSTEM_USER "$ts_config(product_root)/bin/$qping_arch/qping" "-i $ps_interval -f $ts_config(master_host) $ts_config(commd_port) qmaster 1"]
       
    # enable some monitoring level

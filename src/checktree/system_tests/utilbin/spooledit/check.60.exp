@@ -75,7 +75,7 @@ proc spooledit_init_level {} {
 
    # we run this test only with berkeley db spooling
    if {$ts_config(spooling_method) != "berkeleydb"} {
-      add_proc_error "spooledit_init_level" -3 "this test only works for spooling_method == berkeleydb"
+      ts_log_config "this test only works for spooling_method == berkeleydb"
       return -1
    }
 
@@ -92,57 +92,48 @@ proc spooledit_init_level {} {
 #
 # Currently we don't need setup/cleanup
 #proc spooledit_setup {} {
-#   global ts_config CHECK_OUTPUT
 #}
 #
 #proc spooledit_cleanup {} {
-#   global ts_config CHECK_OUTPUT
 #}
 #
 
 proc spooledit_list {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    set output [start_sge_utilbin "spooledit" "list" $ts_config(master_host)]
    if {$prg_exit_state != 0} {
-      add_proc_error "spooledit_list" -1 "spooledit list failed:\n$output"
+      ts_log_severe "spooledit list failed:\n$output"
    } else {
       parse_multiline_list output spooled_objects
       set num_objs [llength $spooled_objects]
-      puts $CHECK_OUTPUT "spooledit list reported $num_objs spooled objects"
-#      puts $CHECK_OUTPUT "spooled objects:"
-#      foreach obj $spooled_objects {
-#         puts -nonewline $CHECK_OUTPUT "$obj "
-#      }
-#      puts $CHECK_OUTPUT ""
+      ts_log_fine "spooledit list reported $num_objs spooled objects"
 
       # TODO: we could do extended checks here, e.g. existance of certain objects
       if {$num_objs < 10} {
-         add_proc_error "spooledit_list" -1 "spooledit list didn't find any spooled objects, output was\n$output"
+         ts_log_severe "spooledit list didn't find any spooled objects, output was\n$output"
       }
    }
 }
 
 proc spooledit_dump {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
 
    # read the list of objects
    set output [start_sge_utilbin "spooledit" "list" $ts_config(master_host)]
    if {$prg_exit_state != 0} {
-      add_proc_error "spooledit_dump" -1 "spooledit list failed:\n$output"
+      ts_log_severe "spooledit list failed:\n$output"
       return
    }
    parse_multiline_list output spooled_objects
 
    # now dump every object
-   puts $CHECK_OUTPUT ""
+   ts_log_fine ""
    foreach obj $spooled_objects {
-      puts -nonewline $CHECK_OUTPUT "\r$obj                             "
-      flush $CHECK_OUTPUT
+      ts_log_progress FINE "\r$obj                             \r"
       set output [start_sge_utilbin "spooledit" "dump $obj" $ts_config(master_host)]
       if {$prg_exit_state != 0} {
-         add_proc_error "spooledit_dump" -1 "spooledit dump $obj failed:\n$output"
-         puts $CHECK_OUTPUT ""
+         ts_log_severe "spooledit dump $obj failed:\n$output"
       }
    }
 }

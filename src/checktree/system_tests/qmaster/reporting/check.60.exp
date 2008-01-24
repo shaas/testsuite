@@ -111,7 +111,7 @@ proc reporting_init_level {} {
 
 
 proc reporting_setup  {} {
-   global ts_config CHECK_OUTPUT CHECK_USER
+   global ts_config CHECK_USER
    global reporting_old_config reporting_old_exechost
    global reporting_file reporting_acct_file reporting_test_host
 
@@ -209,7 +209,7 @@ proc reporting_cleanup {} {
 
 proc reporting_do_accounting_test {scenario} {
    global ts_config CHECK_USER
-   global CHECK_OUTPUT reporting_acct_file
+   global reporting_acct_file
 
    # Check accounting file size
    # we might be the first test after installation - in this case no accounting file exists
@@ -249,7 +249,7 @@ proc reporting_do_accounting_test {scenario} {
       after 1000
 
       if {$new_mtime != [file mtime $reporting_acct_file]} {
-         add_proc_error $scenario -1 "accounting file was flushed before flush interval\nexpected: $new_mtime \ngot: [file mtime $reporting_acct_file]"
+         ts_log_severe "$scenario: accounting file was flushed before flush interval\nexpected: $new_mtime \ngot: [file mtime $reporting_acct_file]"
          set failed 1
          break
       }
@@ -260,7 +260,7 @@ proc reporting_do_accounting_test {scenario} {
       after 1000
 
       if {$new_mtime == [file mtime $reporting_acct_file]} {
-         add_proc_error $scenario -1 "accounting file was not flushed at flush interval"
+         ts_log_severe "$scenario: accounting file was not flushed at flush interval"
       }
    }
 
@@ -286,7 +286,7 @@ proc reporting_reporting_accounting_test {} {
 
 proc reporting_immediate_accounting_test {} {
    global ts_config CHECK_USER
-   global CHECK_OUTPUT reporting_acct_file
+   global reporting_acct_file
 
    # Set accounting_flush_time to 00:00:00
    set new_config(reporting_params) "accounting=true reporting=false flush_time=00:00:15 joblog=false sharelog=00:00:00 accounting_flush_time=00:00:00"
@@ -308,7 +308,7 @@ proc reporting_immediate_accounting_test {} {
    # Check accounting file mtime
    set new_mtime [file mtime $reporting_acct_file]
    if {$mtime == $new_mtime} {
-       add_proc_error "reporting_immediate_accounting_test" -1 "accounting file was not flushed before job finish event"
+       ts_log_severe "accounting file was not flushed before job finish event"
        return
    }
 
@@ -323,23 +323,23 @@ proc reporting_immediate_accounting_test {} {
 
    # Check accounting file mtime
    if {$new_mtime == [file mtime $reporting_acct_file]} {
-       add_proc_error "reporting_immediate_accounting_test" -1 "accounting file was not flushed before job finish event"
+       ts_log_severe "accounting file was not flushed before job finish event"
        return
    }
 }
 
 proc reporting_wait_for_queue_state {state {timeout 10}} {
-   global ts_config CHECK_OUTPUT reporting_test_host
+   global ts_config reporting_test_host
 
    # make sure the queue actually is in the requested state
    set queue_state [get_queue_state [get_queue_instance "reporting" $reporting_test_host]]
-   puts $CHECK_OUTPUT "queue is in state \"$queue_state\""
+   ts_log_fine "queue is in state \"$queue_state\""
    if {$state != $queue_state} {
-      add_proc_error "reporting_wait_for_queue_state" -1 "queue is not in expected state \"$state\", but in state \"$queue_state\""
+      ts_log_severe "queue is not in expected state \"$state\", but in state \"$queue_state\""
    }
 
    # now read from reporting file and check for queue records and the expected state
-   puts $CHECK_OUTPUT "waiting for queue state \"$state\" in reporting file"
+   ts_log_fine "waiting for queue state \"$state\" in reporting file"
 
    set pattern ":queue:reporting:"
    set output [logfile_wait $pattern $timeout 0]
@@ -351,20 +351,20 @@ proc reporting_wait_for_queue_state {state {timeout 10}} {
             set split_line [split $line ":"]
             set reported_state [lindex $split_line 5]
             if {$state != $reported_state} {
-               add_proc_error "reporting_wait_for_queue_state" -1 "reporting: expected queue state \"$state\" but got \"$reported_state\""
+               ts_log_severe "reporting: expected queue state \"$state\" but got \"$reported_state\""
             }
          }
       }
 
       # There was no queue record at all? That's bad ...
       if {!$queue_state_found} {
-         add_proc_error "reporting_wait_for_queue_state" -1 "there were no queue records in the reporting file, got only\n$output"
+         ts_log_severe "there were no queue records in the reporting file, got only\n$output"
       }
    }
 }
 
 proc reporting_queue_state_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global reporting_file reporting_test_host
 
    # activate reporting and set short reporting flush time
@@ -514,7 +514,7 @@ if {0} {
 }
 
 proc reporting_complex_change_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global reporting_file reporting_test_host
 
    # activate reporting and set short reporting flush time
@@ -589,12 +589,12 @@ proc reporting_read_consumable_records {pattern {expect_records 1}} {
    set pos [string first $pattern $output]
    if {$expect_records} {
       if {$pos == -1} {
-         add_proc_error "reporting_read_consumable_records" -1 "expected $pattern to be reported, but got:\n$output"
+         ts_log_severe "expected $pattern to be reported, but got:\n$output"
          set output ""
       }
    } else {
       if {$pos >= 0} {
-         add_proc_error "reporting_read_consumable_records" -1 "expected $pattern not to be reported, but got:\n$output"
+         ts_log_severe "expected $pattern not to be reported, but got:\n$output"
          set output ""
       }
    }
@@ -611,11 +611,11 @@ proc reporting_check_consumable_records {output pattern consumables {expect_cons
             foreach consumable $consumables {
                if {[string first $consumable $line] == -1} {
                   if {$expect_consumable} {
-                     add_proc_error "reporting_check_consumable_records" -1 "didn't find $consumable in $pattern:\n$line"
+                     ts_log_severe "didn't find $consumable in $pattern:\n$line"
                   }
                } else {
                   if {! $expect_consumable} {
-                     add_proc_error "reporting_check_consumable_records" -1 "found $consumable in $pattern, which shouldn't be there:\n$line"
+                     ts_log_severe "found $consumable in $pattern, which shouldn't be there:\n$line"
                   }
                }
             }
@@ -625,7 +625,7 @@ proc reporting_check_consumable_records {output pattern consumables {expect_cons
 }
 
 proc reporting_consumables_test {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global reporting_file reporting_test_host
 
    # activate reporting and set short reporting flush time

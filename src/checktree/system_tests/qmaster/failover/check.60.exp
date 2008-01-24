@@ -59,7 +59,6 @@ lappend check_functions  "check_queue_state"
 # Fun starts here.
 #
 proc qmaster_failover_setup {} {
-   global CHECK_OUTPUT
    global test_hostname
 
    #
@@ -72,7 +71,7 @@ proc qmaster_failover_setup {} {
    #
    get_queue_list queue_list
    if {[lsearch $queue_list "test.q"] != -1} {
-      puts $CHECK_OUTPUT "Deleting test.q"
+      ts_log_fine "Deleting test.q"
       del_queue test.q $test_hostname 0 1
    }
 
@@ -80,13 +79,13 @@ proc qmaster_failover_setup {} {
 }
 
 proc qmaster_failover_cleanup {} {
-   global CHECK_OUTPUT test_hostname 
+   global test_hostname 
    #
    # Clean up test.q if it's still around.
    #
    get_queue_list queue_list
    if {[lsearch $queue_list "test.q"] != -1} {
-      puts $CHECK_OUTPUT "Deleting test.q"
+      ts_log_fine "Deleting test.q"
       del_queue test.q $test_hostname 0 1
    }
    return 0
@@ -97,7 +96,6 @@ proc qmaster_failover_cleanup {} {
 # enabled.
 #
 proc check_queue_state {} {
-   global CHECK_OUTPUT 
    global test_hostname
    global ts_config
 
@@ -113,7 +111,7 @@ proc check_queue_state {} {
    # * let execd's re-connect to qmaster and ship queue status
    # * check if queue still enabled, otherwise test failed
    #
-   puts $CHECK_OUTPUT \
+   ts_log_fine \
         "checking state of queue with with initial_state =\
         disabled for qmaster failover"
 
@@ -133,18 +131,15 @@ proc check_queue_state {} {
    set testq(initial_state) "disabled"
    add_queue test.q $test_hostname testq
    set qname [get_queue_instance test.q $test_hostname]
-   puts $CHECK_OUTPUT "Created test queue $qname"
+   ts_log_fine "Created test queue $qname"
    #
    # Queue should be disabled; better x-check.
    #
    set q_state [ get_queue_state $qname ]
    if { $q_state == "d" } {
-      puts $CHECK_OUTPUT "Queue $qname state DISABLED as expected"
+      ts_log_fine "Queue $qname state DISABLED as expected"
    } else {
-      add_proc_error "check_queue_state" \
-                     -1 \
-                     "unexpected state for queue $qname: $q_state.\
-                      Should be: disabled"
+      ts_log_severe "unexpected state for queue $qname: $q_state. Should be: disabled"
       return
    }
    #
@@ -156,12 +151,9 @@ proc check_queue_state {} {
    #
    set q_state [ get_queue_state $qname ]
    if { $q_state == "" } {
-      puts $CHECK_OUTPUT "Queue $qname state ENABLED as expected"
+      ts_log_fine "Queue $qname state ENABLED as expected"
    } else {
-      add_proc_error "check_queue_state" \
-                     -1 \
-                     "unexpected state for $qname: $q_state.\
-                     Should be enabled"
+      ts_log_severe "unexpected state for $qname: $q_state. Should be enabled"
       return
    }
     
@@ -180,15 +172,12 @@ proc check_queue_state {} {
       #
       # Queue is enabled. All well, exit from here.
       #
-      puts $CHECK_OUTPUT "Queue $qname state ENABLED as expected"
+      ts_log_fine "Queue $qname state ENABLED as expected"
    } else {
       #
       # We are having problems here. Report error and bail out.
       #
-      add_proc_error "check_queue_state" \
-                     -1 \
-                     "unexpected state for $qname: $q_state.\
-                     Should be enabled"
+      ts_log_severe "unexpected state for $qname: $q_state. Should be enabled"
    }
 }
 
