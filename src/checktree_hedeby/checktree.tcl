@@ -1467,20 +1467,68 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
       } 
    }
 
-   # now check that every host has a local spool directory
    set error_text ""
+   # now check for hedeby resource hosts to be in compile host list of addition clusters
+   foreach filename $ts_config(additional_config) {
+      set cl_type [get_additional_cluster_type $filename add_config]
+      if { $cl_type == "" } {
+         continue
+      }
+      if { $cl_type == "independent" } {
+         set independent_used_hosts {}
+         ts_log_fine "checking that remote cluster config $filename has all hedeby resource architectures ..."
+         foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
+            if { $add_config($param) != "none" } {
+               append independent_used_hosts " $add_config($param)"
+            }
+         }
+         ts_log_fine "following hosts are used: $independent_used_hosts"
+         set independent_compile_arch_list {}
+         foreach host $independent_used_hosts {
+            set iarch [resolve_arch $host]
+            if { [lsearch -exact $independent_compile_arch_list $iarch] < 0 } {
+               lappend independent_compile_arch_list $iarch
+            }
+         }
+         foreach compile_arch $add_config(add_compile_archs) {
+            if { $compile_arch != "none" } {
+               if { [lsearch -exact $independent_compile_arch_list $compile_arch] < 0 } {
+                  ts_log_fine "adding forced compile arch \"$compile_arch\" to list"
+                  lappend independent_compile_arch_list $compile_arch 
+               }
+            }
+         }
+         ts_log_fine "following architectures are compiled: $independent_compile_arch_list"
+         set missing_archs {}
+         foreach hedeby_host $config(hedeby_host_resources) {
+            set harch [resolve_arch $hedeby_host]
+            if { [lsearch -exact $independent_compile_arch_list $harch] < 0 } {
+               lappend missing_archs $harch
+            }
+         }
+         if { [llength $missing_archs] > 0 } {
+            append error_text "additional cluster configuration \"$filename\"\n"
+            append error_text "has missing compile architecutes: \"$missing_archs\"\n"
+         }
+      }
+   }
+   if { $error_text != "" } {
+      puts $CHECK_OUTPUT "==> Hedeby currently does require to have hedeby resource architectures compiled!"
+      puts $CHECK_OUTPUT $error_text
+      return -1
+   }
+
+
+
+   # now check that every host has a local spool directory
    foreach host [hedeby_get_all_hosts] {
       set spool_dir [get_local_spool_dir $host "" 0]
       puts $CHECK_OUTPUT "local testsuite spooldir for host \"$host\": \"$spool_dir\""
       if { $spool_dir == "" } {
-         append error_text "local spool directory on host \"$host\" is not set!\n"
-         append error_text "Hedeby requires to have a local spool directory for each host!\n"
+         puts $CHECK_OUTPUT "local spool directory on host \"$host\" is not set!\n"
+         puts $CHECK_OUTPUT "Hedeby requires to have a local spool directory for each host!\n"
+         return -1
       }
-   }
-
-   if { $error_text != "" } {
-      append error_text "==> Hedeby currently does require to have the same local spool dir for user preferences mode!\n\n"
-      add_proc_error "hedeby_get_required_hosts" -3 $error_text
    }
 
    # now check all local spool directories to have the same path
@@ -1505,7 +1553,7 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
 
       if { $error_text != "" } {
          append error_text "==> Hedeby currently does require to have the same local spool dir for user preferences mode!\n\n"
-         add_proc_error "hedeby_get_required_hosts" -3 $error_text
+         add_proc_error "hedeby_verify_config" -3 $error_text
       }
    }
 

@@ -1,3 +1,7 @@
+CR-2008-01-24-0: Bugfix:    o logging.tcl was not sourced in source_tcl_files()
+                            o enhanced hedeby configuration checking
+                 Review:    RH
+
 RH-2008-01-23-0: Bugfix:    tcl error in setup_schedconf fixed
                  Review:    JG
 

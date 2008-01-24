@@ -4478,7 +4478,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
                continue
             }
          }
-         ts_log_fine "\n----------------------------------------------"
+         ts_log_fine "----------------------------------------------"
          ts_log_fine "-> enter check level $level"
 
          if {$do_only_one_test == 0} {
@@ -7253,6 +7253,7 @@ proc source_tcl_files {} {
    }
 
    # these files have to be version independent
+   source $libdir/logging.tcl
    source $libdir/version.tcl
    source $libdir/config.tcl
 
