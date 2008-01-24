@@ -7105,6 +7105,10 @@ proc menu {} {
     "3" { show_tests $CHECK_ACT_PATH 1
         }
     "4" { puts "bye!\n"
+          if { [have_root_passwd] == -1 } {
+               puts "need root access ..."
+               set_root_passwd
+          }
           shutdown_core_system 0 1
           testsuite_shutdown 0
         }

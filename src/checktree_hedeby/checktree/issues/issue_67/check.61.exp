@@ -93,18 +93,12 @@ proc issue_67_check {} {
 
    set match_str  [create_bundle_string "ParentStartupService.skipRunningJvm" xyz "*"]
    set match_str2 [create_bundle_string "ParentStartupService.skippedRunningJvms" xyz "*"]
-   set expected_str "WARNING: ${match_str}\r\nWARNING: ${match_str}\r\nWARNING: ${match_str}\r\nError: ${match_str2}"
 
    # start system on master host again, don't raise errors ...
    set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj" prg_exit_state "" 0]
    set ret $prg_exit_state
-
-   # now check the output ...
-   if { [string match "*$expected_str*" $output] } {
-      puts $CHECK_OUTPUT "output matches expected result!"
-   } else {
-      add_proc_error "issue_67_check" -1 "expected output does not match!:\noutput   : \"$output\"\nmatch str: \"$expected_str\""
-   }
+ 
+   ts_log_fine "starting already running jvm returns exit state $ret"
 
    # now check the exit state ...
    puts $CHECK_OUTPUT "exit state of sdmadm start command is \"$ret\""

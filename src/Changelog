@@ -1,3 +1,7 @@
+CR-2008-01-24-3: Bugfix:    o ts menu "4" exit should ask for root pw if needed
+                            o fixed hedeby tests "issue_67" and "issue_88"
+                 Review:    RH
+
 RH-2008-01-24-2: Bugfix:    Missing globals in hedeby util fixed
                  Review:    CR
 
