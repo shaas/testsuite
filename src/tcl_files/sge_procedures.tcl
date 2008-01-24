@@ -7483,6 +7483,9 @@ proc get_qconf_object {procedure option output_var msg_var {list 0} {on_host ""}
    if {[info exists out]} {
       unset out
    }
+   if {$list} {
+      set out {}
+   }
 
    set result [start_sge_bin "qconf" $option $on_host $as_user]
 

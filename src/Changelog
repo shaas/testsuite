@@ -1,3 +1,6 @@
+RH-2008-01-24-1: Bugfix:    output variable of get_conf_object will be initialized
+                 Review:    JG
+
 CR-2008-01-24-1: Enhancm.   enhanced hedeby installation to support ge services
                  Review:    RH
 
