@@ -1,3 +1,6 @@
+RH-2008-01-24-2: Bugfix:    Missing globals in hedeby util fixed
+                 Review:    CR
+
 RH-2008-01-24-1: Bugfix:    output variable of get_conf_object will be initialized
                  Review:    JG
 

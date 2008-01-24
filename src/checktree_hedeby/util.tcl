@@ -1923,6 +1923,7 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     util/shutdown_hedeby()
 #     util/reset_hedeby()
 #*******************************************************************************
+global is_reset_hedeby_logged
 set is_reset_hedeby_logged 0
 proc reset_hedeby {} {
    global is_reset_hedeby_logged
@@ -2939,6 +2940,7 @@ proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 }} {
 #     util/hedeby_mod_sequence()
 #     util/hedeby_mod_cleanup()
 #*******************************************************************************
+global current_hedeby_mod_arguments
 set current_hedeby_mod_arguments ""
 proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
    global current_hedeby_mod_arguments 
