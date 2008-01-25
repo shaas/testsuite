@@ -1,0 +1,140 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "no"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2465_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2465"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level  0 
+set check_description(0)  "Testing of additional error message when job not running because of RQs"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2465_setup
+set check_cleanup_function issue_2465_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2465"
+
+proc issue_2465_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2465_setup {} {
+   global ts_config CHECK_USER
+   
+   set rqs_name "issue_2465"
+   set rules ""
+   lappend rules "users $CHECK_USER to slots=3"
+
+   # Add resource quota sets 
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   add_rqs rqs_charray
+
+}
+
+
+proc issue_2465_cleanup {} {
+   
+   del_rqs "issue_2465"   
+}
+
+proc issue_2465 {} {
+   global ts_config CHECK_USER
+   
+   # submit 3 sleeper.sh jobs for fill up the users slots
+   set arguments "-o /dev/null -j y"
+
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+
+   wait_for_jobstart $job_id "Sleeper" 60 1 1
+   
+   # Get a parallel environment to use for submitting a job
+   set prlE ""
+   set prlEnv [start_sge_bin "qconf" "-spl"]
+   set prl_split [ split $prlEnv "\n" ] 
+   
+   foreach prl $prl_split {
+      puts "prl == $prl"
+      set prlE [string trim $prl]
+      break
+   }
+
+   # setup arguments and submit parallel job
+   set arguments "-pe $prlE 3 -b y -o /dev/null -j y"
+   set job_id [submit_job "$arguments $ts_config(product_root)/examples/jobs/sleeper.sh 30"]
+   sleep 10
+
+   # Get the scheduling information from the qstat -j output
+   set schedInfo [start_sge_bin "qstat" "-j $job_id | grep \"scheduling info\""]   
+   
+   # Check to see that the scheduling info does not include the unwanted message
+   if {[string first "-l slots=1" $schedInfo] != -1} {
+      ts_log_severe "Error message should not have been displayed"
+   }
+   
+   delete_all_jobs 
+
+}
+

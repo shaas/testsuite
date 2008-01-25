@@ -1,3 +1,8 @@
+MP-2008-01-25-0: Enhancem.: Added test for IZ 2465 dealing with unwanted error
+                            message when job not running due to RQs
+                 Issue:     2465
+                 Review:    OJ
+
 JG-2008-01-24-0: Bugfix:    Fixed authuser test.
                  Review:    RH
                  Enhancem.: Close rlogin connections that have been idle for
