@@ -1,3 +1,7 @@
+OJ-2008-01-28-0: Enhancem.: Added test case 2445 at in qconf/check.61.exp
+                 Issue:     2445
+                 Review:    MP
+
 RD-2008-01-28-2: Bugfix:    enabled all runlevels for qdel test
                  Review:    JG
 
