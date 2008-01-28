@@ -1,3 +1,6 @@
+RD-2008-01-28-0: Enhancem.: disabled drmaa 0.95 for 6.2
+                 Review:    AH
+
 MP-2008-01-25-0: Enhancem.: Added test for IZ 2465 dealing with unwanted error
                             message when job not running due to RQs
                  Issue:     2465

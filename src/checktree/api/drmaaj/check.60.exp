@@ -73,9 +73,13 @@ proc drmaaj_init_level {} {
 
   # returning -1 causes disabling a certain runlevel
   # here per run level settings can be prepared
-  switch -- $CHECK_ACT_LEVEL {
-     "200" { 
-           return 0
+   switch -- $CHECK_ACT_LEVEL {
+      "200" { 
+         if {$ts_config(gridengine_version) < 62} {
+            return 0
+         } else {
+            return -1
+         }
      } 
      "201" {
            if {$ts_config(gridengine_version) == 60} {
