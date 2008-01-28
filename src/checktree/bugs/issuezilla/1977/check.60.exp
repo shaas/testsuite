@@ -122,15 +122,22 @@ proc issue_1977 {} {
    global test_host
 
    set qinstance [get_queue_instance all.q $test_host]
-   set NO_QUEUES_AFTER_SELECTION [translate_macro MSG_QSTAT_NOQUEUESREMAININGAFTERSELECTION]
 
    set output [start_sge_bin qselect "-l t=false"]
-   if {[string compare $output $NO_QUEUES_AFTER_SELECTION] == 0} {
-      ts_log_severe "qselect -l broken"
-   } 
+   if {$ts_config(gridengine_version) < 61} {
+      set NO_QUEUES_AFTER_SELECTION [translate_macro MSG_QSTAT_NOQUEUESREMAININGAFTERSELECTION]
+      set output [string trim $output]
+      if {[string compare $output $NO_QUEUES_AFTER_SELECTION] != 0} {
+         ts_log_severe "qselect -l broken, queues are wrongly shown"
+      } 
+   } else {
+      if {$output != ""} {
+         ts_log_severe "qselect -l broken, queues are wrongly shown"
+      }
+   }
 
    set output [start_sge_bin qselect "-l t=true"]
    if {[string match "*$qinstance*" $output] == 1} {
-      ts_log_severe "qselect -l broken"
+      ts_log_severe "qselect -l broken, didn't find available queue"
    } 
 }

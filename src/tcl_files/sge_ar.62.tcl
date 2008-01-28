@@ -98,7 +98,6 @@ proc submit_ar {args {on_host ""} {as_user ""} {raise_error 1}} {
    set messages(-56)      "*[translate_macro MSG_AR_START_END_DURATION_INVALID]*"
    set messages(-57)      "*[translate_macro MSG_AR_START_LATER_THAN_END]*"
    set messages(-58)      "*[translate_macro MSG_AR_START_IN_PAST]*"
-   set messages(-59)      "*[translate_macro MSG_AR_XISINVALIDARID_U "*"]*"
 
    # success messages:
    set messages(0)        "*[translate_macro MSG_AR_GRANTED_U "*"]*"
