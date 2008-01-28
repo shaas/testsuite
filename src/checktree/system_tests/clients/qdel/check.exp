@@ -84,9 +84,7 @@ lappend check_functions "qdel_delete_large_array"    ;# implement large array de
 proc qdel_init_level {} {
   global CHECK_ACT_LEVEL
   global hold_state pending_state
-if {$CHECK_ACT_LEVEL != 2} {
-   return -1
-}
+
   switch -- $CHECK_ACT_LEVEL {
      "0" { set hold_state 0 ; set pending_state 1 ; return 0 }
      "1" { set hold_state 1 ; set pending_state 1 ; return 0 }
@@ -623,12 +621,13 @@ proc qdel_iz_125_case_3 {} {
    }
 
    # wait some time for the already deleted tasks to vanish
-   sleep 10
+   # at least the load_report interval
+   sleep 15
 
    # Delete here tasks 2 - 5 ; only task 4 should be reported, error state=0
    set delete_list_2_5 "$job.2 $job.3 $job.4 $job.5"
    set output [start_sge_bin "qdel" $delete_list_2_5]
-
+   
    # Check that only task 4 for was deleted.
    if {([string first [qdel_translate_message DELETED_TASK      $CHECK_USER $job 4] $output] >= 0 || 
         [string first [qdel_translate_message REGISTERED_TASK   $CHECK_USER $job 4] $output] >= 0    ) &&

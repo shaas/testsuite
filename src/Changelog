@@ -1,3 +1,6 @@
+RD-2008-01-28-2: Bugfix:    enabled all runlevels for qdel test
+                 Review:    JG
+
 RD-2008-01-28-1: Bugfix:    removed use of obsolete message macros
                  Review:    JG
 
