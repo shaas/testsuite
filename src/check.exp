@@ -7505,10 +7505,10 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
 
          -i $spawn_id -- "*\n" {
             set stop 0
-            foreach line [split $expect_out(0,string) "\n"] {
+            foreach line [split $expect_out(0,string) "\r\n"] {
                set line [string trim $line]
                if {$line != ""} {
-                  ts_log_fine "\[remote ts [file tail $filename]\]$line"
+                  ts_log_fine "\[[file tail $filename]\]$line"
                   switch -glob -- $line {
                      "host access with password needed for user*" {
                         set user [lindex $line 7]
@@ -7527,7 +7527,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
                            ts_send $spawn_id "$passwd\n" 1 1
                         }
                      }
-                     "_exit_status_:(*)*" {
+                     "_exit_status_:*sh" {
                         if { [string match "*$script_tail_name*" $line] } {
                             set remote_exit_state [get_string_value_between "(" ")" $line]
                             if { $remote_exit_state != 0 } {
@@ -7537,7 +7537,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
                             ts_log_fine "got _exit_status - stopping"
                             set found_end 1
                         } else {
-                           ts_log_finest "found an exit status"
+                           ts_log_fine "found an exit status, but not for operate_add_cluster() call!"
                         }
                      }
                      "*_END_OF_FILE_*" {
@@ -7545,7 +7545,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
                            ts_log_fine "exit status found - last line parsed - finished"
                            set stop 1
                         } else {
-                           ts_log_finest "this is not end of my script file"
+                           ts_log_fine "this is not end of my script file"
                         }
                      }
                      "ERROR REPORT - START" {

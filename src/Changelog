@@ -1,3 +1,6 @@
+CR-2008-01-29-0: Bugfix:    Fixed expect problems in operate_add_cluster()
+                 Review:    RD
+
 OJ-2008-01-28-0: Enhancem.: Added test case 2445 at in qconf/check.61.exp
                  Issue:     2445
                  Review:    MP
