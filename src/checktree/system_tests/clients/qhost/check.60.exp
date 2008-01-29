@@ -69,7 +69,9 @@ lappend check_functions "test_issue132_j"
 lappend check_functions "test_issue132_u"
 lappend check_functions "test_issue132_l"
 lappend check_functions "test_issue132_F"
-
+if {$ts_config(gridengine_version) >= "61"} {
+   lappend check_functions "test_issue245"
+}
 
 proc qhost_init_level {} {
    global CHECK_ACT_LEVEL
@@ -508,4 +510,32 @@ proc test_issue132_F {} {
       }
    }
    
+}
+
+proc test_issue245 {} {
+
+   global ts_config CHECK_USER 
+
+   # qhost -l h=<hostname>
+
+   #get arbitrary hostname
+   set host [host_conf_get_suited_hosts]
+
+   ts_log_fine "host $host selected for test"
+
+   set args "-l h=$host"
+   set results1 [qhost_parse plain job $args]
+
+   if {[string first $host $plain(host0,name)] < 0} {
+      ts_log_severe "qhost -l h=<hostname> test failed, wrong or no hostname returned!"
+      return
+   }
+
+   if {[info exists plain(host1,name)] } {
+      ts_log_severe "qhost -l h=<hostname> test failed, more than one hostname returned!"
+      return
+   }
+
+   ts_log_fine "qhost -l h=hostname test ok!"
+   return
 }

@@ -1,3 +1,6 @@
+MD-2008-01-29-0: Ehhancem.: Added IZ 245 issue test, as part of qhost system_test
+                 Review:    JG
+
 CR-2008-01-29-1: Enhancem.: Finished hedeby install test, updated hedeby tests
                  Issue:     hedeby #209
                  Review:    RH
