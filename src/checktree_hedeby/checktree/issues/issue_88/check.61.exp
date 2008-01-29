@@ -136,7 +136,6 @@ proc hedeby_issue_88_check {} {
          incr error_count
       } else {
          # Check if the output of "sdmadm shutdown" contains the kill message
-         set msg_params(0) "executor_vm"
          set msg [create_bundle_string "StopJVMCommand.JVMStopper.processKilled"]
          
          if { [string match "*${msg}*" $output] == 0} {

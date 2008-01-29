@@ -1469,8 +1469,22 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
 
    set error_text ""
    # now check for hedeby resource hosts to be in compile host list of addition clusters
+   set master_host_list {}
+   set execd_host_list {}
    foreach filename $ts_config(additional_config) {
       set cl_type [get_additional_cluster_type $filename add_config]
+      set cur_master_host $add_config(master_host)
+      if {[lsearch -exact $master_host_list $cur_master_host] >= 0} {
+         append error_text "qmaster host \"$cur_master_host\" already defined for different cluster!\n => cur. config: $filename\n"
+      }
+      lappend master_host_list $cur_master_host
+
+      foreach execd $add_config(execd_hosts) {
+         if {[lsearch -exact $execd_host_list $execd] >= 0} {
+            append error_text "execd host \"$execd\" already defined for different cluster!\n => cur. config: $filename\n"
+         }
+         lappend execd_host_list $execd
+      }
       if { $cl_type == "" } {
          continue
       }

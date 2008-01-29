@@ -50,19 +50,17 @@ set check_init_level_procedure   "hedeby_install_init_level"
 set check_functions              {}  ;# functions to call (in order)
 set check_setup_function "hedeby_install_setup"
 set check_cleanup_function "hedeby_install_cleanup"
- lappend check_functions "hedeby_shutdown_system"
- lappend check_functions "hedeby_remove_preferences"
- lappend check_functions "hedeby_install_master_host"
- lappend check_functions "hedeby_startup_master_host"
- lappend check_functions "hedeby_install_managed_hosts"
- lappend check_functions "hedeby_startup_managed_hosts"
- lappend check_functions "hedeby_add_spare_pool_resources"
- 
-#lappend check_functions "hedeby_check_spare_pool_resources"
- lappend check_functions "hedeby_add_ge_services"
- lappend check_functions "hedeby_startup_ge_services"
 
-#lappend check_functions "hedeby_add_and_verify_ge_service_resources"
+lappend check_functions "hedeby_shutdown_system"
+lappend check_functions "hedeby_remove_preferences"
+lappend check_functions "hedeby_install_master_host"
+lappend check_functions "hedeby_startup_master_host"
+lappend check_functions "hedeby_install_managed_hosts"
+lappend check_functions "hedeby_startup_managed_hosts"
+lappend check_functions "hedeby_add_ge_services"
+lappend check_functions "hedeby_startup_ge_services"
+lappend check_functions "hedeby_add_spare_pool_resources"
+lappend check_functions "hedeby_check_resources"
 
 
 
@@ -116,117 +114,101 @@ proc hedeby_add_spare_pool_resources {} {
    global CHECK_OUTPUT 
    global CHECK_USER
 
-   # TODO: remove this sleep of 5 sec when problems with adding resources directly
-   #       after starting up the jvms are solved or analysed!
-   after 5000 
-  
    foreach host $hedeby_config(hedeby_host_resources) {
       set exit_state [add_host_resource $host]
       ts_log_fine "exit_state: $exit_state"
    }
 }
 
-proc hedeby_check_spare_pool_resources {} {
+proc hedeby_check_resources {} {
    global hedeby_config
    global CHECK_OUTPUT 
    global CHECK_USER
 
-   set execute_user [get_hedeby_admin_user]
-   set execute_host $hedeby_config(hedeby_master_host)
-
-
-   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all" prg_exit_state ""  1 table]
-
-   set error_text ""   
-   
-   set expected_hosts $hedeby_config(hedeby_host_resources)
-   foreach col $table(columns) {
-      set values $table($col)
-      switch -exact -- $col {
-         "service" {
-            foreach elem $values {
-               if { [string compare $elem "spare_pool"] != 0 } {
-                  append error_text "no match for spare_pool service\n"
-               }
-            }
-         }
-         "state" {
-            foreach elem $values {
-               if { [string compare $elem "ASSIGNED"] != 0 } {
-                  append error_text "no match for ASSIGNED state\n"
-               }
-            }
-         }
-         "type" {
-            foreach elem $values {
-               if { [string compare $elem "host"] != 0 } {
-                  append error_text "no match for type host\n"
-               }
-            }
-         }
-         "id" {
-            set nr 0
-            foreach elem $values {
-               set host_index  [lsearch $expected_hosts $elem]
-               if { $host_index >= 0 } {
-                  set expected_hosts [lreplace $expected_hosts $host_index $host_index]
-                  puts $CHECK_OUTPUT "found host $elem - resource index $nr"
-                  set id_map_array($nr) $elem
-                  incr nr 1
-               }
-            }
-            if { [llength $expected_hosts] != 0 } {
-               append error_text "did not find resource hosts: $expected_hosts\n"
-            }
-         }
-
-         default {
-            puts $CHECK_OUTPUT "not checked: $col: $table($col)"
-         }
-      }
+   set ret [get_resource_info]
+   if {$ret != 0} {
+      ts_log_severe "get_resource_info() returned $ret"
+      return
    }
 
-   for {set i 0} {$i<$table(lines)} {incr i 1} {
-      set resource($i) ""
-      foreach elem $table($i) {
-         set propval [split $elem "="]
-         set prop [lindex $propval 0]
-         set val  [lindex $propval 1]
-         set resource($i,$prop) $val
-         lappend resource($i) $prop
-      }
+   if {[llength $res_list_not_uniq] > 0} {
+      ts_log_severe "got not ambiguous resources"
+      return
    }
 
-   for {set i 0} {$i<$table(lines)} {incr i 1} {
-      puts $CHECK_OUTPUT "resource $i has properties:"
-      set ip_found 0
-      foreach elem $resource($i) {
-         set value $resource($i,$elem)
-         switch -exact -- $elem {
-            "resourceHostname" {
-               if { [string compare $value $id_map_array($i)] != 0 } {
-                  append error_text "resourceHostname=$value doesn't match hostname=$id_map_array($i)\n" 
-               } else {
-                  puts $CHECK_OUTPUT " found resourceHostname=$value which matches $id_map_array($i)"
-               }
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   set error_text ""
+   foreach res $res_list {
+      ts_log_fine "checking resource \"$res\" ..."
+     
+      # check if we have more than one entry in lists
+      if {[llength $res_info($res,type)] != 1} {
+         append error_text "resource \"$res\" flag list should contain 1 elem, but it has [llength $res_info($res,type)] (\"$res_info($res,type)\")\n"
+      }
+
+      
+      # service
+      set service [lindex $res_info($res,service) 0]
+      ts_log_fine "   resource assigned to service \"$res_info($res,service)\""
+      if {[info exists service_names(service,$res)]} {
+         if { $service != $service_names(service,$res) } {
+            append error_text "resource \"$res\" should be assigned to \"$service_names(service,$res)\" but is assigned to \"$service\"\n"
+         }
+      } else {
+         # it might be an execd or spare_pool
+         if {[info exists service_names(execd_hosts,$service)]} {
+            # must be execd
+            set execd_list $service_names(execd_hosts,$service)
+            if {[lsearch -exact $execd_list $res] < 0} {
+               append error_text "wrong assignment of resource \"$res\" to service \"$service\"\n"
+            } else {
+               ts_log_fine "   found resource \"$res\" in execd list of service \"$service\": $execd_list"
             }
-            "resourceIPAddress" {
-               set ip_found 1
-               puts $CHECK_OUTPUT " found resourceIPAddress"
-            }
-            default {
-               debug_puts "ignore: $elem=$value"
+         } else {
+            # must be spare_pool
+            if { $service != "spare_pool" } {
+               append error_text "resource \"$res\" should be assigned to \"spare_pool\" but is assigned to \"$service\"\n"
             }
          }
       }
-      if { $ip_found == 0 } {
-         append error_text "resource $id_map_array($i) has no property \"resourceIPAddress\"\n"
-      }
-   }
 
+      # state ASSIGNED
+      set state [lindex $res_info($res,state) 0]
+      ts_log_fine "   resource has state \"$state\""
+      if {$state != "ASSIGNED"} {
+         append error_text "resource \"$res\" should should have state \"ASSIGNED\" but it's state is \"$res_info($res,state)\"\n"
+      }
+
+      # flags "" or "S" (static) for services
+      set flags [lindex $res_info($res,flags) 0]
+      ts_log_fine "   resource has flags \"$flags\""
+      if {[lsearch -exact $ge_hosts $res] >= 0} {
+         # this is ge master host assume "S" for static flag
+         if {$flags != "S"} {
+            append error_text "resource \"$res\" should should have flags \"S\", but it's flags are \"$res_info($res,flags)\"\n"
+         }
+      } else {
+         # this is regular resource expect no flag
+         if {$flags != ""} {
+            append error_text "resource \"$res\" should should have emty flags, but it's flags are \"$res_info($res,flags)\"\n"
+         }
+      }
+
+   }
    if { $error_text != "" } {
-      add_proc_error  "hedeby_check_spare_pool_resources" -1 $error_text
+      ts_log_severe $error_text
    }
+
+
+   # test resource properties 
+   # hardwareCpuArchitecture=x86
+   # hardwareCpuCount=2
+   # operatingSystemName=Linux
+   # operatingSystemRelease=24
+   # resourceHostname=sowa.germany.sun.com
+   # resourceIPAddress=129.157.141.63
+
 }
 
 
@@ -237,22 +219,39 @@ proc hedeby_startup_ge_services {} {
    global hedeby_config
    global install_user
    global install_current_cluster_config
-   
-   set cluster 0
-   set restart_hosts {}
-   while { [set_current_cluster_config_nr $cluster] == 0 } {
-      get_current_cluster_config_array ts_config
-      if { [lsearch $restart_hosts $ts_config(master_host)] < 0 } {
-         lappend restart_hosts $ts_config(master_host)
-      }
-      incr cluster 1
-   }
-   set_current_cluster_config_nr $install_current_cluster_config
+ 
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
 
-   puts $CHECK_OUTPUT "shutting down jvms for ge adapter hosts: $restart_hosts"
-   shutdown_hedeby_hosts "managed" $restart_hosts $install_user 
-   puts $CHECK_OUTPUT "starting up jvms for ge adapter hosts: $restart_hosts"
-   startup_hedeby_hosts "managed" $restart_hosts $install_user
+   set ge_hosts [get_hedeby_default_services service_names]
+   ts_log_fine "got following GE hosts: $ge_hosts"
+   set rp_vms_to_start {}
+   foreach ge_host $ge_hosts {
+      # master host has already running rp_vm
+      if {$ge_host != $hedeby_config(hedeby_master_host)} {
+         if {[lsearch -exact $rp_vms_to_start $ge_host] < 0} {
+            lappend rp_vms_to_start $ge_host
+         }
+      } else {
+         ts_log_fine "shutting down hedeby master host \"$ge_host\" ..."
+         shutdown_hedeby_hosts "master" $ge_host $install_user 
+         ts_log_fine "starting up hedeby master host \"$ge_host\" ..."
+         startup_hedeby_hosts  "master" $ge_host $install_user
+
+         # TODO: This does not work if component was added to running jvm !!!
+         #ts_log_fine "starting component \"$service_names(service,$ge_host)\" on hedeby master host"
+         #set sdmadm_command "-p $pref_type -s $sys_name suc -h $ge_host -c $service_names(service,$ge_host)"
+         #sdmadm_command $ge_host [get_hedeby_admin_user] $sdmadm_command
+      }
+   }
+   ts_log_fine "starting rp_vm on hosts: $rp_vms_to_start"
+
+   foreach host $rp_vms_to_start {
+      set task_info($host,expected_output) ""
+      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name suj -j rp_vm"
+   }
+   start_parallel_sdmadm_command rp_vms_to_start [get_hedeby_admin_user] task_info
 }
 
 
@@ -279,6 +278,7 @@ proc hedeby_add_ge_services {} {
    }
    
 
+   # TODO: use -start option to startup ge services if possible
    set cluster 0
    set execute_user [get_hedeby_admin_user]
    while { [set_current_cluster_config_nr $cluster] == 0 } {
@@ -287,7 +287,7 @@ proc hedeby_add_ge_services {} {
       puts $CHECK_OUTPUT "adding GE service \"$ts_config(cluster_name)\" for cluster #$cluster on qmaster host \"$host\" ..."
       set arguments "-s [get_hedeby_system_name] ags -h $host -j rp_vm -s $ts_config(cluster_name)"
       set ispid [hedeby_mod_setup $host $execute_user $arguments error_text]
-      
+
       set master_port $ts_config(commd_port)
       set execd_port $master_port
       incr execd_port 1

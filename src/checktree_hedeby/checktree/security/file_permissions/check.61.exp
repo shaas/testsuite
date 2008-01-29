@@ -554,7 +554,7 @@ proc hedeby_check_managed_host_file_permissions {} {
       lappend expected_files "security/java.policy"
       lappend expected_files "security/jaas.config"
       if {$is_ge_service_host} {
-         ts_log_fine "expecting files for service vm for service(s) \"$$service_names(service,$host)\""
+         ts_log_fine "expecting files for service vm for service(s) \"$service_names(service,$host)\""
          lappend expected_files "log/rp_vm.stdout"
          lappend expected_files "log/rp_vm.stderr"
          lappend expected_files "log/rp_vm-0.log.lck"

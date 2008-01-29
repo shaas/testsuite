@@ -335,15 +335,30 @@ proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error
    # write resource property file on the execution host
    set file_name [get_tmp_file_name $exec_host]
    set osArch [resolve_arch $host_resource]
-   # TODO: resolve arch hedeby specific
-   set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
-   set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
+   
+   get_hedeby_ge_complex_mapping $osArch
+   set cur_line 1
+   foreach prop [array names res_prop] {
+      set data($cur_line) $prop=$res_prop($prop)
+      incr cur_line 1
+   }
 
-   set data(0) 4
-   set data(1) "hardwareCpuArchitecture=$osArch"
-   set data(2) "operatingSystemName=$osName"
-   set data(3) "operatingSystemRelease=$osRel"
-   set data(4) "resourceHostname=$host_resource"
+   # in case we have no mapping ...
+   if {$cur_line == 1 } {
+      # ... we simply use uname info
+      set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
+      set data($cur_line) "operatingSystemName=$osName"
+      incr cur_line 1
+      set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
+      set data($cur_line) "operatingSystemRelease=$osRel"
+      incr cur_line 1
+      set data($cur_line) "hardwareCpuArchitecture=$osArch"
+      incr cur_line 1
+   }
+
+   set data($cur_line) "resourceHostname=$host_resource"
+   set data(0) $cur_line
+
    write_remote_file $host_resource $exec_user $file_name data
 
    # print out created file
@@ -355,6 +370,83 @@ proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error
    # now use sdmadm command ...
    sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name" prg_exit_state "" $raise_error
    return $prg_exit_state
+}
+
+global ge_arch_mapping_table
+if {[info exists ge_arch_mapping_table]} {
+   unset ge_arch_mapping_table
+}
+#****** util/get_hedeby_ge_complex_mapping() ***********************************
+#  NAME
+#     get_hedeby_ge_complex_mapping() -- parse ge complex mapping values
+#
+#  SYNOPSIS
+#     get_hedeby_ge_complex_mapping { arch {rp res_prop} } 
+#
+#  FUNCTION
+#     This procedure is used to map the ge arch strings to hedeby resource
+#     properties. The output of sdmadm sgcm is used to create a mapping
+#     cache which is only updated, when an architecture was not found
+#     or the testsuite is re-sourcing the tcl script files.
+#
+#  INPUTS
+#     arch          - ts or ge arch string
+#     {rp res_prop} - array name to store resource properties
+#
+#  RESULT
+#     return value: 0 on success, 1 on error
+#     The returned res_prop array contains following settings
+#     
+#          res_prop(PROPERTY) VALUE
+#
+#  EXAMPLE
+#     get_hedeby_ge_complex_mapping [resolve_arch $hedeby_config(hedeby_master_host)] 
+#     foreach name [array names res_prop] {
+#        ts_log_fine "$name=$res_prop($name)"
+#     }
+#
+#*******************************************************************************
+proc get_hedeby_ge_complex_mapping { arch {rp res_prop} } {
+   global hedeby_config
+   global ge_arch_mapping_table
+
+   upvar $rp resource_properties
+   if {[info exists resource_properties]} {
+      unset resource_properties
+   }
+   
+   if {![info exists ge_arch_mapping_table($arch,properties)]} {
+      ts_log_fine "re-reading ge_arch_mapping_table ..."
+      set command "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sgcm -match default"
+      sdmadm_command $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $command prg_exit_state "" 1 table
+      for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+         foreach col $table(table_columns) {
+   #         puts "line $line => $col: \"$table($col,$line)\""
+            if { $col == "complex" && $table($col,$line) == "arch"} {
+               set res_property $table(resource property,$line)
+               set complex_arch $table(complex value,$line)
+               set res_value $table(resource value,$line)
+               if {![info exists ge_arch_mapping_table($complex_arch,properties)]} {
+                  set ge_arch_mapping_table($complex_arch,properties) {}
+               }
+               lappend ge_arch_mapping_table($complex_arch,properties) $res_property
+               ts_log_finest "ge_arch_mapping_table($complex_arch,properties)=$ge_arch_mapping_table($complex_arch,properties)"
+               set ge_arch_mapping_table($complex_arch,$res_property) $res_value
+            }
+         }
+      }
+   } else {
+      ts_log_fine "using chached ge_arch_mapping_table ..."
+   }
+   
+   if {[info exists ge_arch_mapping_table($arch,properties)]} {
+      foreach prop $ge_arch_mapping_table($arch,properties) {
+         set resource_properties($prop) $ge_arch_mapping_table($arch,$prop)
+      }
+      return 0
+   }
+   ts_log_info "cannot find architecture mapping for ge arch \"$arch\""
+   return 1
 }
 
 #****** util/get_hedeby_system_name() ******************************************
@@ -1542,125 +1634,132 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
    upvar $info task_info
    upvar $host_list hostlist
 
-   foreach host $hostlist {
-      set task_info($host,start_found) 0
-      set task_info($host,end_found) 0
-      set task_info($host,exit_status) -1
-      set task_info($host,output) ""
+   if {[llength $hostlist] <= 0} {
+      append error_text "got empty hostlist\n"
+   } else {
+      foreach host $hostlist {
+         set task_info($host,start_found) 0
+         set task_info($host,end_found) 0
+         set task_info($host,exit_status) -1
+         set task_info($host,output) ""
 
-      if { $parallel == 1 } {
-         set tasks(RETURN_ISPID) 0
-         set ispid [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
-         set ispid_list($host) $ispid
-         ts_log_fine "got ispid: $ispid"
-         set spawn_id [lindex $ispid 1]
-         set ispid_list($host,sp_id) $spawn_id
-         set ispid_list($spawn_id) $host
-         ts_log_fine "sp_id on host $host is $ispid_list($host,sp_id)"
-         lappend spawn_list $ispid_list($host,sp_id)
-      } else {
-         set task_info($host,output) [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
-         set task_info($host,exit_status) $prg_exit_state
+         if { $parallel == 1 } {
+            set tasks(RETURN_ISPID) 0
+            set ispid [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
+            set ispid_list($host) $ispid
+            ts_log_fine "got ispid: $ispid"
+            set spawn_id [lindex $ispid 1]
+            set ispid_list($host,sp_id) $spawn_id
+            set ispid_list($spawn_id) $host
+            ts_log_fine "sp_id on host $host is $ispid_list($host,sp_id)"
+            lappend spawn_list $ispid_list($host,sp_id)
+         } else {
+            set task_info($host,output) [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
+            set task_info($host,exit_status) $prg_exit_state
+         }
       }
-   }
 
-   set last_running ""
-   if { $parallel == 1 }  {
-      set timeout 60
-      set expect_runs 0
-      expect {
-         -i $spawn_list full_buffer {
-            append error_text "expect full_buffer error\n"
-         }
-         -i $spawn_list timeout {
-            append error_text "expect timeout error\n"
-         }
-         -i $spawn_list eof {
-            set spawn_id $expect_out(spawn_id)
-            set host_name $ispid_list($spawn_id)
-            append error_text "expect eof error for host $host_name\nbuffer:\n$expect_out(0,string)\n"
-         }
-         -i $spawn_list -- "*\n" {
-            set spawn_id $expect_out(spawn_id)
-            set host_name $ispid_list($spawn_id)
-            set buffer $expect_out(0,string)
-            set buffer [string trim $buffer]
-            set tokensline [split $buffer "\n"]
-            foreach tokenl $tokensline {
-               set token "$tokenl\n"
-   #            ts_log_fine "line ($host_name): [string trim $token]"
-               if { [string match "*_exit_status_:(*" $token ] } {
-                  set help $token
-                  set st [string first "(" $help]
-                  set ed [string first ")" $help]
-                  incr st 1
-                  incr ed -1
-                  set task_info($host_name,exit_status) [string range $help $st $ed]
-                  set task_info($host_name,end_found) 1
-               }
-               if { $task_info($host_name,start_found) == 1 && $task_info($host_name,end_found) == 0 } {
-                  append task_info($host_name,output) $token
-               }
-               if {[string first "_start_mark_:" $token] >= 0} {
-                  set task_info($host_name,start_found) 1
-               }
+      set last_running ""
+      if { $parallel == 1 }  {
+         set timeout 60
+         set expect_runs 0
+         expect {
+            -i $spawn_list full_buffer {
+               append error_text "expect full_buffer error\n"
             }
+            -i $spawn_list timeout {
+               append error_text "expect timeout error\n"
+            }
+            -i $spawn_list eof {
+               set spawn_id $expect_out(spawn_id)
+               set host_name $ispid_list($spawn_id)
+               append error_text "expect eof error for host $host_name\nbuffer:\n$expect_out(0,string)\n"
+            }
+            -i $spawn_list -- "*\n" {
+               set spawn_id $expect_out(spawn_id)
+               set host_name $ispid_list($spawn_id)
+               set buffer $expect_out(0,string)
+               set buffer [string trim $buffer]
+               set tokensline [split $buffer "\n"]
+               foreach tokenl $tokensline {
+                  set token "$tokenl\n"
+      #            ts_log_fine "line ($host_name): [string trim $token]"
+                  if { [string match "*_exit_status_:(*" $token ] } {
+                     set help $token
+                     set st [string first "(" $help]
+                     set ed [string first ")" $help]
+                     incr st 1
+                     incr ed -1
+                     set task_info($host_name,exit_status) [string range $help $st $ed]
+                     set task_info($host_name,end_found) 1
+                  }
+                  if { $task_info($host_name,start_found) == 1 && $task_info($host_name,end_found) == 0 } {
+                     append task_info($host_name,output) $token
+                  }
+                  if {[string first "_start_mark_:" $token] >= 0} {
+                     set task_info($host_name,start_found) 1
+                  }
+               }
 
-            set all_exited 1
-            set finished_hosts ""
-            set running_hosts ""
-            foreach host $hostlist {
-               if { $task_info($host,exit_status) == "-1" } {
-                  set all_exited 0
-                  append running_hosts "$host "
+               set all_exited 1
+               set finished_hosts ""
+               set running_hosts ""
+               foreach host $hostlist {
+                  if { $task_info($host,exit_status) == "-1" } {
+                     set all_exited 0
+                     append running_hosts "$host "
+                  } else {
+                     append finished_hosts "$host "
+                  }
+               }
+               incr expect_runs 1
+               
+               if { $last_running != $running_hosts } {
+                  ts_log_fine "finished: $finished_hosts | running:  $running_hosts"
+                  set last_running $running_hosts
+               }
+
+               if { $all_exited == 0 } {
+                  exp_continue
                } else {
-                  append finished_hosts "$host "
+                  ts_log_fine "all commands terminated!"
                }
             }
-            incr expect_runs 1
-            
-            if { $last_running != $running_hosts } {
-               ts_log_fine "finished: $finished_hosts | running:  $running_hosts"
-               set last_running $running_hosts
-            }
-
-            if { $all_exited == 0 } {
-               exp_continue
-            } else {
-               ts_log_fine "all commands terminated!"
-            }
          }
-      }
+
+         foreach host $hostlist {
+            close_spawn_process $ispid_list($host)
+         }
+      } 
 
       foreach host $hostlist {
-         close_spawn_process $ispid_list($host)
-      }
-   } 
-
-   foreach host $hostlist {
-      set reported_error 0
-      if { $task_info($host,expected_output) != "" } {
-         if {[string match "*$task_info($host,expected_output)*" $task_info($host,output)]} {
-            ts_log_fine "matchstring found"
-         } else {
+         set reported_error 0
+         if { $task_info($host,expected_output) != "" } {
+            if {[string match "*$task_info($host,expected_output)*" $task_info($host,output)]} {
+               ts_log_fine "matchstring found"
+            } else {
+               append error_text "----------------------------------\n"
+               append error_text "host: $host\n"
+               append error_text "command(as user $exec_user): sdmadm $task_info($host,sdmadm_command)\n"
+               append error_text "Exit status: $task_info($host,exit_status)\n"
+               append error_text "Cannot find matchstring on host \"$host\":\n"
+               append error_text "Matchstring: $task_info($host,expected_output)\n"
+               append error_text "Output:\n$task_info($host,output)\n"
+               incr reported_error
+            }
+         }
+     
+         if { $task_info($host,exit_status) != 0 && $reported_error == 0 } {
             append error_text "----------------------------------\n"
             append error_text "host: $host\n"
             append error_text "command(as user $exec_user): sdmadm $task_info($host,sdmadm_command)\n"
             append error_text "Exit status: $task_info($host,exit_status)\n"
-            append error_text "Cannot find matchstring on host \"$host\":\n"
-            append error_text "Matchstring: $task_info($host,expected_output)\n"
             append error_text "Output:\n$task_info($host,output)\n"
-            incr reported_error
          }
       }
-  
-      if { $task_info($host,exit_status) != 0 && $reported_error == 0 } {
-         append error_text "----------------------------------\n"
-         append error_text "host: $host\n"
-         append error_text "command(as user $exec_user): sdmadm $task_info($host,sdmadm_command)\n"
-         append error_text "Exit status: $task_info($host,exit_status)\n"
-         append error_text "Output:\n$task_info($host,output)\n"
-      }
+   }
+   if { $raise_error != 0 && $error_text != ""} {
+      ts_log_severe "error starting parallel sdmadm command:\n$error_text"
    }
    return $error_text
 }
@@ -1939,68 +2038,379 @@ proc reset_hedeby {} {
 
 #****** util/parse_table_output() **********************************************
 #  NAME
-#     parse_table_output() -- parse table output from sdmadm command
+#     parse_table_output() -- parse any sdmadm table output
 #
 #  SYNOPSIS
 #     parse_table_output { output array_name delemitter } 
 #
 #  FUNCTION
-#     This procedure is used to parse the table output of sdmadm command into
-#     a tcl array. 
+#     This procedure can be used to parse any sdmadm table output which was
+#     generated with column delemitter AND dupval option.
+#     If table has AutoWordWrap enabled the first column of the table MUST
+#     always have a value.
+#     
 #
 #  INPUTS
-#     output     - the output from sdmadm 
-#     array_name - name of the array to set the parsed the result
-#     delemitter - column delemitter of the table output 
+#     output     - output from sdmadm which contains table 
+#     array_name - name of array to save parsing results
+#     delemitter - table delemitter character (one character)
 #
 #  RESULT
-#     Array which contains the name of the first column and the rest of the line
+#     no return value
+#     array has following data structure:
+#                  
+#          array(table_lines)      - nr of lines in table
+#          array(table_columns)    - list with names of columns
+#          array(COLUMN_NAME,LINE) - value of table position
+#          array(additional,LINE)  - list with additional lines for  this
+#                                    table row (e.g. resource properties)
 #
+#          where COLUMN_NAME is column id
+#                LINE        is row id
+#
+#  EXAMPLE
+#     set execute_host $hedeby_config(hedeby_master_host)
+#        set execute_user [get_hedeby_admin_user]
+#        set output [sdmadm_command $execute_host $execute_user \
+#                    "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all" \
+#                     prg_exit_state ""  1 table]
+#        for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+#           puts "-------"
+#           foreach col $table(table_columns) {
+#              puts "line $line => $col: \"$table($col,$line)\""
+#           }
+#           if { [llength $table(additional,$line)] > 0 } { 
+#              puts "   additional info:"
+#              foreach elem $table(additional,$line) {
+#                 puts "   $elem"
+#              }
+#           }
+#        }
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/parse_table_output()
+#     util/get_resource_info()
 #*******************************************************************************
-#TODO (CR): implement this like done in parse_show_component_output and 
-#      remove or update parse_show_component_output()
 proc parse_table_output { output array_name delemitter } {
    upvar $array_name data
 
+   ts_log_fine "parsing table output ..."
    set columns {}
-
    set lines [split $output "\n\r"]
-   set found_header_line 0
-   set current_line -1  ;# header line delem is line -1
-   foreach elem $lines {
-      set line [string trim $elem]
-      if { $line == "" } {
-         continue
-      }
-      if { [string first $delemitter $line] >= 0 } {
-         if { $found_header_line == 0 } {
-            set found_header_line 1
-            set col_row [split $line $delemitter]
-            foreach name $col_row {
-               lappend columns [string trim $name]
+   set header_line ""
+   set act_table_line -1
+   for {set i 0} {$i<[llength $lines]} {incr i 1} {
+      set line [lindex $lines $i]
+      ts_log_finest "$line"
+      
+      if { $header_line == "" } {
+         # still searching for header containing delemiter
+         if { [string first $delemitter $line] >= 0 } {
+            set header_line $line
+            # now find out column index
+            set column_nr 0
+            set column_start($column_nr) 0
+            set column_end($column_nr) 0
+            ts_log_fine "header line: \"$header_line\""
+            set last_pos 0
+            while {1} {
+               set pos [string first $delemitter $header_line $last_pos]
+               if { $pos < 0 } {
+                  break
+               }
+               set column_end($column_nr) [ expr ( $pos - 1 ) ]
+               incr column_nr 1
+               set last_pos [ expr ( $pos + 1) ]
+               set column_start($column_nr) $last_pos
             }
-            set data(columns) $columns
-         } else {
-            set row [split $line $delemitter]
-            set index 0
-            foreach name $row {
-               set column [lindex $columns $index]
-               lappend data($column) [string trim $name]
-               incr index 1
+            set column_end($column_nr) "end"
+
+            ts_log_finest "found [expr ($column_nr + 1)] columns:"
+            set table_col_list {}
+            for {set b 0} {$b<=$column_nr} {incr b 1} {
+               ts_log_finest "c$b s$column_start($b) e$column_end($b)"
+               set value [string trim [string range $line $column_start($b) $column_end($b)]]
+               set column_names($b) $value
+               lappend table_col_list $value
+               ts_log_finest "found column \"$column_names($b)\""
             }
-            incr current_line 1
+            set data(table_columns) $table_col_list
+
          }
       } else {
-         lappend data($current_line) $line
-         set data(lines) $current_line
+         # here we have found an header
+         
+         # find out delemitter count of current line
+         set is_table_line 0
+         set nr_delemitters 0
+         for {set b 0} {$b<[string length $line]} {incr b 1} {
+            if {[string index $line $b] == $delemitter} {
+               incr nr_delemitters 1
+            }
+         }
+         if {$nr_delemitters == $column_nr} {
+            set is_table_line 1
+         }
+ 
+         if { $is_table_line } {
+            ts_log_finest "parsing table line \"[expr ($act_table_line + 1)]\""
+            set is_word_wrap 0
+            for {set b 0} {$b<=$column_nr} {incr b 1} {
+               set value [string trim [string range $line $column_start($b) $column_end($b)]]
+
+               if { $value == "" && $b == 0} {
+                  # we say word wrap is active if first column has empty value (dupval is enabled)
+                  set is_word_wrap 1
+                  break
+               }
+               if { $b == 0 } {
+                  incr act_table_line 1
+               }
+
+               # we want to have tcl lists here, so we init data with empty list value
+               set data($column_names($b),$act_table_line) {}
+               lappend data($column_names($b),$act_table_line) $value
+            }
+            if { $is_word_wrap == 0 } { 
+               set data(additional,$act_table_line) {}
+            } else {
+               # append word wrap content to table values
+               for {set b 0} {$b<=$column_nr} {incr b 1} {
+                  set value [string trim [string range $line $column_start($b) $column_end($b)]]
+                  if { $value != ""} {
+                     lappend data($column_names($b),$act_table_line) $value
+#                     set old_value $data($column_names($b),$act_table_line)
+#                     set new_value "$old_value $value"
+#                     set data($column_names($b),$act_table_line) $new_value
+                  }
+               }
+            }
+         } else {
+            if {$act_table_line >= 0} {
+               set help [string trim $line]
+               if {$help != ""} {
+                  ts_log_fine "parsing additional info for line $act_table_line: \"$help\""
+                  lappend data(additional,$act_table_line) $help
+               }
+            }
+         }
       }
    }
-   incr current_line 1
-   set data(lines) $current_line
-   set names [array names data]
-   foreach column $names {
-      debug_puts "\"$column\": \"$data($column)\""
+   if { $act_table_line > 0 } {
+      set data(table_lines) [ expr ( $act_table_line + 1 ) ]
+   } else {
+      set data(table_lines) 0
    }
+}
+
+
+#****** util/get_resource_info() ***********************************************
+#  NAME
+#     get_resource_info() -- get resource information (via sdmadm sr)
+#
+#  SYNOPSIS
+#     get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} 
+#     {rl res_list} {da res_list_not_uniq} } 
+#
+#  FUNCTION
+#     This procedure starts an sdmadm sr command and parses the output.
+#
+#  INPUTS
+#     {host ""}              - host where to start command
+#                                 (default: hedeby master host)
+#     {user ""}              - user who starts command
+#                                 (default: hedeby admin user)
+#     {ri res_info}          - name of array for resource informations
+#                                 (default: res_info)
+#     {rp res_prop}          - name of array for resource properties
+#                                 (default: res_prop) 
+#     {rl res_list}          - name of array list with TS resource names 
+#                                 (default: res_list)
+#     {da res_list_not_uniq} - name of array list with not unique resoures
+#                                 (default: res_list_not_uniq)
+#
+#  RESULT
+#     Return value: "0" on success, "1" on error 
+#
+#     Arrays:
+#             res_list          - tcl list with testsuite resource names
+#             res_list_not_uniq - tcl list with testsuite resource names
+#                                 which are ambiguous (double or more
+#                                 times assignment to a service)
+#
+#             res_info(TS_NAME,INFO_TYPE) - resource info value
+#
+#             res_prop(TS_NAME,PROPERTY)  - resource property value  
+#
+#                where TS_NAME is testsuite resource name
+#                where INFO_TYPE is "id", "service", "state", "type",
+#                                   "annotation", "flags" or "usage"
+#                where PROPERTY is hedeby resource property
+#                                   e.g. "resourceHostname"
+#
+#  EXAMPLE
+#     if {[get_resource_info] == 0} {
+#        ts_log_fine "ambiguous resources: $res_list_not_uniq"
+#        ts_log_fine "resources: $res_list"
+#        foreach res $res_list {
+#           ts_log_fine "resource \"$res\" (id=\"$res_info($res,id)\") is assinged to \"$res_info($res,service)\""
+#           ts_log_fine "  resourceHostname=$res_prop($res,resourceHostname)"
+#        }
+#     }
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/parse_table_output()
+#     util/get_resource_info()
+#*******************************************************************************
+proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq}} {
+   global hedeby_config
+
+   # setup arguments
+   upvar $ri resource_info
+   upvar $rp resource_properties
+   upvar $da resource_ambiguous
+   upvar $rl resource_list
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # first we delete possible existing info arrays
+   if { [info exists resource_info] } {
+      unset resource_info
+   }
+   if { [info exists resource_properties] } {
+      unset resource_properties
+   }
+   if { [info exists resource_ambiguous] } {
+      unset resource_ambiguous
+   }
+
+   # now we start sdmadm sr command ...
+   set sdmadm_command "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all"
+   set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" 1 table]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting"
+      return 1
+   }
+
+   # we expect the following table commands for ShowResourceStateCliCommand ...
+   set exp_columns {}
+   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.id"]
+   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.service"]
+   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.state"]
+   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.type"]
+   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.anno"]
+   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.flags"]
+   lappend exp_columns [create_bundle_string "ShowResourceStateCliCommand.col.usage"]
+   set used_col_names "id service state type annotation flags usage"
+
+   set res_ignore_list {}
+   lappend res_ignore_list [create_bundle_string "ShowResourceStateCliCommand.error"]
+   foreach col $exp_columns {
+      set pos [lsearch -exact $table(table_columns) $col]
+      if {$pos < 0} {
+         ts_log_severe "cannot find expected column name \"$col\""
+         return 1
+      }
+      ts_log_fine "found expected col \"$col\" on position $pos"
+      if {[lsearch -exact $used_col_names $col] < 0} {
+         ts_log_severe "used column name \"$col\" not expected - please check table column names!"
+         return 1
+      }
+   }
+   
+   set res_id_col [lindex $exp_columns 0]
+   set res_service_col [lindex $exp_columns 1]
+
+   # now we fill up the arrays ... 
+   set resource_list {}
+   set double_assigned_resource_list {}
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      set resource_id $table($res_id_col,$line)
+      set do_ignore 0
+      foreach ignore_resource $res_ignore_list {
+         if { [string match $ignore_resource $resource_id] } {
+            set do_ignore 1
+            break
+         }
+      }
+      if {!$do_ignore} {
+         set ts_resource_name [resolve_host $resource_id]
+         if {$ts_resource_name != $resource_id} {
+            ts_log_fine "using resource name \"$ts_resource_name\" for resource id \"$resource_id\""
+         }
+         if { [lsearch -exact $resource_list $ts_resource_name] < 0 } { 
+            lappend resource_list "$ts_resource_name"
+         } else {
+            lappend double_assigned_resource_list $ts_resource_name
+         }
+         foreach col $table(table_columns) {
+            if {![info exists resource_info($ts_resource_name,$col)]} {
+               set resource_info($ts_resource_name,$col) {}
+            }
+            lappend resource_info($ts_resource_name,$col) [lindex $table($col,$line) 0]
+            ts_log_fine "resource_info($ts_resource_name,$col) = $resource_info($ts_resource_name,$col)"
+         }
+         if {[llength $table(additional,$line)] > 0} {
+            foreach elem $table(additional,$line) {
+               set pos [string first "=" $elem]
+               if {$pos > 0} {
+                  set property [string range $elem 0 [expr ( $pos - 1 )]]
+                  set value [string range $elem [expr ( $pos + 1)] end]
+                  set property [string trim $property]
+                  set value [string trim $value]
+                  
+                  if {![info exists resource_properties($ts_resource_name,prop_list)]} {
+                     set resource_properties($ts_resource_name,prop_list) {}
+                  }
+                  lappend resource_properties($ts_resource_name,prop_list) $property
+
+                  if {![info exists resource_properties($ts_resource_name,$property)]} {
+                     set resource_properties($ts_resource_name,$property) {}
+                  }
+                  lappend resource_properties($ts_resource_name,$property) $value
+                  ts_log_fine "resource_properties($ts_resource_name,$property) = $resource_properties($ts_resource_name,$property)"
+               }
+            }
+         } else {
+            ts_log_warning "resource \"$ts_resource_name\" seems not to have any resource properties"
+         }
+      } else {
+         ts_log_fine "SKIPPING RESOURCE \"$resource_id\"!"
+      }
+   }
+
+   if {[llength $double_assigned_resource_list] > 0} {
+      set error_text ""
+      foreach resource $double_assigned_resource_list {
+         append error_text "\nINFO: Resource \"$resource\" is assigned to [llength $resource_info($resource,$res_service_col)] services\n"
+         append error_text "   resource_info:\n"
+         append error_text "   ==============\n"
+         foreach col $exp_columns {
+            append error_text "      $col: $resource_info($resource,$col)\n"
+         }
+         append error_text "      properties\n"
+         append error_text "      ==========\n"
+         foreach property $resource_properties($resource,prop_list) {
+            append error_text "         $property=$resource_properties($resource,$property)\n"
+         }
+      }
+      ts_log_info $error_text
+   }
+
+   ts_log_fine "double assigned resources: $double_assigned_resource_list"
+   ts_log_fine "resource list: $resource_list"
+   set resource_ambiguous $double_assigned_resource_list
+   return 0
 }
 
 #****** util/sdmadm_command() **************************************************
@@ -2027,6 +2437,7 @@ proc parse_table_output { output array_name delemitter } {
 #                                 if this array contains entries the sdmadm
 #                                 command is started interactive.
 #     {raise_error 1}           - optional if set to 1 errors are reported
+#     {table_output ""}         - table output parsed with parse_table_output()
 #
 #  RESULT
 #     The output of the sdmadm command
@@ -2493,121 +2904,6 @@ proc get_admin_user_list { execute_host execute_user result_list {raise_error 1}
    return $retval;
 }
 
-#****** util/parse_show_component_output() *********************************
-#  NAME
-#     parse_show_component_output() -- parse sdmadm show_status output
-#
-#  SYNOPSIS
-#     parse_show_component_output { output_var {status_array "ss_out" } } 
-#
-#  FUNCTION
-#     This procedure is used to parse the output of the sdmadm show_status
-#     command and return the parsed values in the specified result array.
-#
-#  INPUTS
-#     output_var               - output of the sdmadm show_status cli command
-#     {status_array "ss_out" } - name of the array were the parsed information
-#                                should be stored. 
-#                                The array (default="ss_out") has the following
-#                                settings:
-#                                ss_out(HOSTNAME,COMPONENT_NAME,status)
-#                                ss_out(HOSTNAME,COMPONENT_NAME,section)
-#
-#  RESULT
-#     number of parsed rows or -1 if the output could not be parsed
-#
-#  EXAMPLE
-#     
-#   set component_count [parse_show_component_output output]
-#   
-#   for {set i 0} {$i < $component_count} {incr i} {
-#      set host   $ss_out($i,host)
-#      set jvm    $ss_out($i,jvm)
-#      set comp   $ss_out($i,component)
-#      set state  $ss_out($i,state)
-#      set type   $ss_out($i,type)
-#   }
-#
-#  SEE ALSO
-#     util/sdmadm_command()
-#*******************************************************************************
-proc parse_show_component_output { output_var {status_array "ss_out" } } {
-   upvar $output_var out
-   upvar $status_array ss
-
-   set help [split $out "\n"]
-   set line_count -1
-   set col_count 0
-   array set last_values {}
-   
-   set known_colums(host)  [create_bundle_string "ShowComponentStatusCliCommand.HostCol"]
-   set known_colums(jvm)  [create_bundle_string "ShowComponentStatusCliCommand.JvmCol"]
-   set known_colums(component)  [create_bundle_string "ShowComponentStatusCliCommand.NameCol"]
-   set known_colums(state)  [create_bundle_string "ShowComponentStatusCliCommand.StateCol"]
-   set known_colums(type)  [create_bundle_string "ShowComponentStatusCliCommand.TypeCol"]
-   
-   foreach line $help {
-      debug_puts "Process line $line_count: \"$line\""
-      if { [string first "Error:" $line] >= 0 } {
-         return -1
-      } elseif {$line_count < 0} {
-         
-         set line [string trim $line]
-         foreach col_name [split $line " "] {
-            if {[string length $col_name] > 0} {
-               set real_col_name ""
-               foreach known_col [array names known_colums] {
-                  if { $known_colums($known_col) == $col_name } {
-                     set real_col_name $known_col
-                     break;
-                  }
-               }
-               if {$real_col_name == ""} {
-                  add_proc_error "parse_show_component_output" -1 "Found unknown column $col_name in output of \"sdmadm show_status\""
-                  return -1
-               }
-               set col($col_count,name)  $real_col_name
-               set col($col_count,start_index) [string first "$col_name" "$line"]
-               incr col_count
-            }
-         }
-         set last_col_index [expr $col_count - 1]
-         for {set i 0} {$i < $last_col_index} {incr i} {
-            set col($i,end_index) $col([expr $i + 1],start_index)
-            incr col($i,end_index) -1
-            debug_puts "col$i: $col($i,name) = $col($i,start_index) -> $col($i,end_index)"
-         }
-         # We do not known the index of the last col
-         # -1 means that the last col cosumes the rest of the line
-         set col($last_col_index,end_index) -1
-         debug_puts "col$i: $col($last_col_index,name) = $col($last_col_index,start_index) -> $col($last_col_index,end_index)"
-         set line_count 0
-      } elseif { [string length $line] == 0 } {
-         continue
-      } elseif { [string first "-------" $line] >= 0 } {
-         continue
-      } else {
-         for {set i 0} {$i < $col_count} {incr i} {
-            set col_name $col($i,name)
-            if { $col($i,end_index) < 0 } {
-               set end_index [string length $line]
-            } else {
-               set end_index $col($i,end_index)
-            }
-            set tvalue [string range $line $col($i,start_index) $end_index]
-            set tvalue [string trim $tvalue]
-            if {[string length $tvalue] == 0} {
-               set tvalue $last_values($col_name)
-            } else {
-               set last_values($col_name) $tvalue
-            }
-            set ss($line_count,$col_name) $tvalue
-         }
-         incr line_count
-      }
-   }
-   return $line_count
-}
 
 #****** util/parse_jvm_start_stop_output() *********************************
 #  NAME
@@ -2947,7 +3243,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
    upvar $error_log errors
    set errors ""
 
-   set current_hedeby_mod_arguments $sdmadm_arguments
+   set current_hedeby_mod_arguments "${host}(${execute_user}) sdmadm $sdmadm_arguments"
    set tasks(RETURN_ISPID) ""
    set ispid [sdmadm_command $host $execute_user $sdmadm_arguments prg_exit_state tasks 1]
    set sp_id [ lindex $ispid 1 ]
@@ -3133,6 +3429,11 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
    }
    if { $raise_error } {
       if { $exit_value != 0 || $errors != "" } {
+         if { $errors == "" } {
+            append errors "output of command:\n"
+            append errors $output
+         }
+
          ts_log_severe "error calling \"sdmadm $current_hedeby_mod_arguments\":\n$errors\nexit_value: $exit_value" 
       }
    }

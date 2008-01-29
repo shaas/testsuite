@@ -1,3 +1,7 @@
+CR-2008-01-29-1: Enhancem.: Finished hedeby install test, updated hedeby tests
+                 Issue:     hedeby #209
+                 Review:    RH
+
 CR-2008-01-29-0: Bugfix:    Fixed expect problems in operate_add_cluster()
                  Review:    RD
 
