@@ -1,3 +1,7 @@
+AH-2008-01-30-0: Bugfix:    2nd run of resource_reservation test failed because 
+                            calendar object was added but not removed. 
+                 Review:    RD
+
 MD-2008-01-29-0: Ehhancem.: Added IZ 245 issue test, as part of qhost system_test
                  Review:    JG
 

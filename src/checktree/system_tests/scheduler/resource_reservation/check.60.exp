@@ -379,6 +379,7 @@ proc resource_reservation_level_cleanup {} {
 
    if {$CHECK_ACT_LEVEL == 4} {
       del_queue $rr_cal_queue_name "@allhosts" 0 1
+      del_calendar "always_suspend_calendar"
    }
  
    # remove PEs
