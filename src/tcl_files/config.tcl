@@ -92,7 +92,7 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
       puts $CHECK_OUTPUT "Expected version is \"$expected_version\""
       lappend error_list "unexpected version"
       incr errors 1
-      return -1
+      return -1      
    } else {
       debug_puts "Configuration Version: $config(version)"
    }
@@ -504,8 +504,8 @@ proc show_config { conf_array {short 1} { output "not_set" } } {
 #     check/setup2()
 #*******************************************************************************
 proc modify_setup2 {} {
-   global ts_checktree ts_config ts_host_config ts_user_config CHECK_ACT_LEVEL
-   global CHECK_OUTPUT CHECK_PACKAGE_DIRECTORY check_name
+   global ts_checktree ts_config ts_host_config ts_user_config ts_db_config 
+   global CHECK_ACT_LEVEL CHECK_OUTPUT CHECK_PACKAGE_DIRECTORY check_name
 
 
    lock_testsuite
@@ -538,7 +538,13 @@ proc modify_setup2 {} {
    set setup_hook(3,save_func)    "save_user_configuration"
    set setup_hook(3,filename)     "$ts_config(user_config_file)"
    
-   set numSetups 3
+   set setup_hook(4,name) "Database file configuration"
+   set setup_hook(4,config_array) "ts_db_config"
+   set setup_hook(4,verify_func)  "verify_db_config"
+   set setup_hook(4,save_func)    "save_db_configuration"
+   set setup_hook(4,filename)     "$ts_config(db_config_file)"
+
+   set numSetups 4
    set numAddConfigs [llength $ts_config(additional_config)]
    
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
@@ -562,12 +568,12 @@ proc modify_setup2 {} {
 
     while { 1 } {
       clear_screen
-      puts $CHECK_OUTPUT "------------------------------------------------------------------"
+      puts $CHECK_OUTPUT "--------------------------------------------------------------------"
       puts $CHECK_OUTPUT "Modify testsuite configuration"
-      puts $CHECK_OUTPUT "------------------------------------------------------------------"
+      puts $CHECK_OUTPUT "--------------------------------------------------------------------"
       
       for { set i 1 } { $i <= $numSetups } { incr i 1 } {
-         puts $CHECK_OUTPUT [format "    (%d) %-26s (%ds) %s" $i $setup_hook($i,name) $i $setup_hook($i,name)]
+         puts $CHECK_OUTPUT [format "    (%d) %-27s (%ds) %s" $i $setup_hook($i,name) $i $setup_hook($i,name)]
       }   
          
       puts $CHECK_OUTPUT ""
@@ -679,6 +685,10 @@ proc modify_setup2 {} {
 #                    "directory": request a directory path
 #                    "string":    request a string value
 #                    "boolean":   request "true" or "false" string
+#                    "filename":  request a path to existing file
+#                    "choice" :   request a value from the list $choice_list
+#                                 the parameter choice_list is mandatory
+#     { choice_list "" } - The list of values from which the value is choosed
 #
 #  RESULT
 #     The value of the configuration parameter or "-1" on error
@@ -709,15 +719,24 @@ proc modify_setup2 {} {
 #        return $value
 #     }
 #*******************************************************************************
-proc config_generic { only_check name config_array help_text check_type } {
-   global CHECK_OUTPUT CHECK_USER ts_host_config ts_user_config
+proc config_generic { only_check name config_array help_text check_type {choice_list ""} } {
+   global CHECK_OUTPUT CHECK_USER ts_host_config ts_user_config ts_db_config
    global fast_setup 
 
    upvar $config_array config
 
    set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   if { [info exists config($name,default)] } {
+      set default_value $config($name,default)
+   } else {
+      set default_value ""
+   }
+   # this parameter is not used ...
+   if { [info exists config($name,desc)] } {
+      set description $config($name,desc)
+   } else {
+      set description ""
+   }
    set value $actual_value
    if { $actual_value == "" && $check_type != "host" && $check_type != "hosts"} {
       set value $default_value
@@ -733,6 +752,28 @@ proc config_generic { only_check name config_array help_text check_type } {
          }
          "host" {
             set value [config_select_host_list config $name $value $help_text 1]
+         }
+         "choice" {
+            upvar $choice_list choices
+            set index 0
+            puts $help_text
+            foreach item $choices {
+               incr index 1
+               puts "($index) $item"
+            }
+            puts "\n"
+            puts -nonewline "Please enter value/number or return to exit: "
+            set value [ wait_for_enter 1 ]
+            if { [string length $value] > 0 } {
+               if { [string is integer $value] } {
+                  incr value -1
+                  set value [ lindex $choices $value ]
+               }   
+            }
+            if { [ lsearch $choices $value ] < 0 } {
+               puts "value \"$value\" not found in list"
+               return -1
+            }
          }
          default {
             # do setup  
@@ -810,6 +851,12 @@ proc config_generic { only_check name config_array help_text check_type } {
                return -1
             }
          }
+         "filename" {
+            if {[file isfile $value] != 1} {
+               puts "no such file $value"
+               return -1
+            }
+         }
          "host" {
             # this must be a testsuite host
          }
@@ -825,6 +872,9 @@ proc config_generic { only_check name config_array help_text check_type } {
                puts $CHECK_OUTPUT "Boolean must be \"true\" or \"false\""
                return -1
             }
+         }
+         "choice" {
+            # already checked
          }
          default {
             add_proc_error "hedeby_conf_generic" -2 "unexpected generic config type: $check_type"
@@ -1900,6 +1950,103 @@ proc config_user_config_file { only_check name config_array } {
       setup_user_config $value
    }
   
+   return $value
+}
+
+#****** config/config_db_config_file() *****************************************
+#  NAME
+#     config_db_config_file() -- database configuration file setup
+#
+#  SYNOPSIS
+#     config_db_config_file { only_check name config_array } 
+#
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#*******************************************************************************
+proc config_db_config_file { only_check name config_array } {
+   global fast_setup
+
+   upvar $config_array config
+   
+   set actual_value  $config($name)
+   set default_value $config($name,default)
+   set description   $config($name,desc)
+   
+   set value $actual_value
+   if { $actual_value == "" } {
+      set value $default_value
+      if { $default_value == "" } { 
+         set value "none"
+      }
+   }
+
+   if { $only_check == 0 } {
+      # do setup  
+      puts "" 
+      puts "Please enter the full pathname of the database configuration file, or press >RETURN< "
+      puts "to use the default value."
+      puts "The database configuration file is used to define the cluster database needed "
+      puts "for the ARCo testsuite, therefore this parameter is mandatory for ARCo tests. "
+      puts "(default: $value)"
+      puts -nonewline "> "
+      set input [ wait_for_enter 1]
+      if { [ string length $input] > 0 } {
+         set value $input 
+      } else {
+         puts "using default value"
+      }
+   } 
+
+   # now verify
+   if {!$fast_setup} {
+
+      # must be set if checktree_arco is set
+      if { [string compare $value "none"] == 0 } {
+         if { $config(additional_checktree_dirs) != "none" } {
+            foreach dir $config(additional_checktree_dirs) {
+               if { [string match "*checktree_arco" $dir] == 1 } {
+                  puts "\nThe path to database configuration file must be set."
+                  return -1
+               }
+            }
+         }
+
+      } else {
+         set dbconfdone 0
+         # is full path ?
+         if { [ string first "/" $value ] != 0 } {
+            puts "Path \"$value\" doesn't start with \"/\""
+            return -1
+         }
+
+         # is file ?
+         if { [ file isfile $value ] != 1 && $only_check != 0 } {
+            if { $only_check != 0 } {
+               puts "File \"$value\" not found"
+               return -1
+            } else {
+               setup_db_config $value
+               set dbconfdone 1 
+            }
+         }
+
+         if { $dbconfdone == 0} {
+            setup_db_config $value
+         }
+
+      }
+   }
+
    return $value
 }
 
@@ -4916,6 +5063,32 @@ proc config_build_ts_config_1_14 {} {
    set ts_config(version) "1.14"
 }
 
+proc config_build_ts_config_1_15 {} {
+   global ts_config
+
+   # insert new parameter after user_config_file
+   set insert_pos $ts_config(user_config_file,pos)
+   incr insert_pos 1
+
+   # move positions of following parameters
+   set names [array names ts_config "*,pos"]
+   foreach name $names {
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 1]
+      }
+   }
+
+   set parameter "db_config_file"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "Testsuite's global database configuration file"
+   set ts_config($parameter,default)    "none"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   ""
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.15
+   set ts_config(version) "1.15"
+}
 
 #****** config/config_select_host() ********************************************
 #  NAME
@@ -5000,13 +5173,6 @@ proc config_select_host_list {config_var name selected {help_descr ""} {only_one
    upvar $config_var config
 
    set description   $config($name,desc)
-
-   if { $only_one_host != 0 } {
-      if { [llength $selected] > 1} {
-         add_proc_error "config_select_host_list" -1 "please select only one host"
-         return ""
-      }
-   }
 
    while {1} {
       # output description and host lists
@@ -5098,13 +5264,18 @@ proc config_select_host_list {config_var name selected {help_descr ""} {only_one
       }
    }
 
-   
-   
    # make sure we have compile hosts for all selected hosts
    if {[compile_check_compile_hosts $selected] != 0} {
       puts $CHECK_OUTPUT "Press enter to edit global host configuration ..."
       wait_for_enter
       setup_host_config $config(host_config_file) 1
+   }
+
+   if { $only_one_host != 0 } {
+      if { [llength $selected] > 1} {
+         add_proc_error "config_select_host_list" -1 "please select only one host"
+         return ""
+      }
    }
 
    return $selected
@@ -5210,7 +5381,7 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
 # MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.14"
+set actual_ts_config_version "1.15"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -5230,5 +5401,6 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_12
    config_build_ts_config_1_13
    config_build_ts_config_1_14
+   config_build_ts_config_1_15
 }
 

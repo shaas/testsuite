@@ -1827,6 +1827,46 @@ proc save_user_configuration { file } {
 }
 
 
+#****** check/save_db_configuration() ******************************************
+#  NAME
+#     save_db_configuration() -- save database configuration file
+#
+#  SYNOPSIS
+#     save_db_configuration { file } 
+#
+#  FUNCTION
+#     This procedure will save the actual database configuration to the given
+#     file. (ts_db_config array)
+#
+#  INPUTS
+#     file - database configuration file
+#
+#  SEE ALSO
+#     check/save_configuration()
+#
+#*******************************************************************************
+proc save_db_configuration { file } {
+   global ts_db_config
+
+   if { [ info exists ts_db_config(version) ] == 0 } {
+      ts_log_severe "no version specified - abort saving"
+      wait_for_enter
+      return -1
+   }
+
+   set conf_name "testsuite database configuration"
+   # first get old configuration
+   read_array_from_file  $file $conf_name old_db_config
+   # save old configuration 
+   spool_array_to_file $file "$conf_name.old" old_db_config
+   spool_array_to_file $file $conf_name ts_db_config  
+   
+   puts "new database configuration saved"
+   wait_for_enter
+
+   return 0
+}
+
 #****** check/save_configuration() *********************************************
 #  NAME
 #     save_configuration() -- save testsuite configuration (ts_config array)
@@ -2107,9 +2147,16 @@ proc update_ts_config_version {} {
       config_build_ts_config_1_14
       show_config ts_config
       wait_for_enter
-      return 0
    }
    
+   if {[string compare $ts_config(version) "1.14"] == 0} {
+      puts "\ntestsuite configuration update from 1.14 to 1.15 ..."
+      config_build_ts_config_1_15
+      show_config ts_config
+      wait_for_enter
+      return 0
+   }
+
    puts "\nunexpected version $ts_config(version), need version $actual_ts_config_version"
    return -1
 }
@@ -7266,6 +7313,7 @@ proc source_tcl_files {} {
    # all the following library files may be version dependent
    ts_source $libdir/config_user
    ts_source $libdir/config_host
+   ts_source $libdir/config_database
 
    ts_source $libdir/compile
    ts_source $libdir/file_procedures

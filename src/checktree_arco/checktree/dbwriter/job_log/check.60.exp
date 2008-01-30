@@ -94,7 +94,7 @@ proc arco_dbwriter_job_log_init_level {} {
 
 
 proc arco_dbwriter_job_log_setup  {} {
-   global CHECK_OUTPUT ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_org_config
    
@@ -102,28 +102,28 @@ proc arco_dbwriter_job_log_setup  {} {
    
    if { [get_dbwriter_status 0] != 0 } {
       if {[startup_dbwriter] != 0 } {
-         add_proc_error "arco_dbwriter_job_log_setup" -1 "Can not start dbwriter"
+         ts_log_severe "Can not start dbwriter"
          return -1
       }
    }
    
-   puts $CHECK_OUTPUT "Create sqlutil as $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   ts_log_fine "Create sqlutil as $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    set sqlutil_id [sqlutil_create $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if { $sqlutil_id == "-1" } {
-      add_sql_error "arco_dbwriter_job_log_setup" -1 "Can not create sqlutil"
+      ts_log_severe "Can not create sqlutil"
       set sqlutil_id ""
       return -1
    }   
    set sqlutil_sp_id [ lindex $sqlutil_id 1 ]
 
    if { [ sqlutil_connect $sqlutil_sp_id] != 0 } {
-      add_sql_error "arco_dbwriter_job_log_setup" -1 "Can not connect to database"
+      ts_log_severe "Can not connect to database"
       close_spawn_process $sqlutil_id;
       set sqlutil_id ""
       return -2
    }
    
-   puts $CHECK_OUTPUT "sqlutil created ($sqlutil_id)"
+   ts_log_fine "sqlutil created ($sqlutil_id)"
    
    # setup reporting params (enable job_log)
    if {[info exists arco_dbwriter_job_log_org_config]} {
@@ -135,7 +135,7 @@ proc arco_dbwriter_job_log_setup  {} {
 
 
 proc arco_dbwriter_job_log_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_org_config
 
@@ -149,7 +149,7 @@ proc arco_dbwriter_job_log_cleanup  {} {
    set sqlutil_sp_id ""
    
    if {[set_config arco_dbwriter_job_log_org_config] != 0} {
-      add_proc_error "arco_dbwriter_job_log_cleanup" -1 "Can not reset configuration"
+      ts_log_severe "Can not reset configuration"
       return -1
    }
 }
@@ -157,11 +157,11 @@ proc arco_dbwriter_job_log_cleanup  {} {
 
 
 proc arco_dbwriter_job_log_execute {} {
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global check_description
    global sqlutil_sp_id
    
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
    
    switch -- $CHECK_ACT_LEVEL {
       "0" {
@@ -171,20 +171,20 @@ proc arco_dbwriter_job_log_execute {} {
          set joblog "false"
       }
       default {
-         add_proc_error "arco_dbwriter_job_log_execute" -1 "Invalid runlevel $CHECK_ACT_LEVEL"
+         ts_log_severe "Invalid runlevel $CHECK_ACT_LEVEL"
          return -1
       }
    }
    
    set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=$joblog sharelog=00:10:00"
    if {[set_config config] != 0} {
-      add_proc_error "arco_dbwriter_job_log_setup" -1 "Can not set reporting_params"
+      ts_log_severe "Can not set reporting_params"
       return -1
    }
    
    
    if { [arco_clean_database] < 0 } {
-      add_sql_error "arco_dbwriter_job_log_reusesetup" -1 "Can not clean arco database"
+      ts_log_severe "arco_dbwriter_job_log_reusesetup" -1 "Can not clean arco database"
       return -1
    }
 
@@ -228,18 +228,18 @@ proc arco_dbwriter_job_log_execute {} {
          }
          if { [info exists job($task_index,ju_ru_wallclock)] } {
             set wallclock  $job($task_index,ju_ru_wallclock)
-            if { $wallclock < 5 || $wallclock > 15 } {
-               add_proc_error "arco_dbwriter_job_log_execute" -1  "Got invalid wallclock time for job [arco_job_to_string task] ($wallclock, expected was a value between 5 und 15"
+            if { $wallclock < 5 || $wallclock > 30 } {
+               ts_log_severe "Got invalid wallclock time for job [arco_job_to_string task] ($wallclock, expected was a value between 5 and 30"
             }
          } else {
-            add_proc_error "arco_dbwriter_job_log_execute" -1  "Got no wallclock time for job [arco_job_to_string task]"
+            ts_log_severe "Got no wallclock time for job [arco_job_to_string task]"
          }
          if { [info exists job($task_index,ju_exit_status)] } {
             if { $job($task_index,ju_exit_status) != 0 } {
-               add_proc_error "arco_dbwriter_job_log_execute" -1  "Got invalid exit status for job [arco_job_to_string task] ($job($task_index,ju_exit_status), expected was 0"
+               ts_log_severe "Got invalid exit status for job [arco_job_to_string task] ($job($task_index,ju_exit_status), expected was 0"
             }
          } else {
-            add_proc_error "arco_dbwriter_job_log_execute" -1  "Got no exit status for job [arco_job_to_string task]"
+            ts_log_severe "Got no exit status for job [arco_job_to_string task]"
          }
       }
       

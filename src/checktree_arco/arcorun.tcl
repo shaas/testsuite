@@ -32,7 +32,6 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-global $CHECK_OUTPUT
 
 #****** check/arcorun_change_spooldir_owner() **************************************************
 #  NAME
@@ -61,7 +60,7 @@ proc arcorun_change_spooldir_owner { owner { a_spool_dir "" } } {
    set spool_dir [get_local_spool_dir $arco_config(swc_host) arco 0]
    
    if { $spool_dir == "" } {
-      add_proc_error "install_reporting" -1 "Can not get local spool dir for host $swc_host"
+      ts_log_severe "Can not get local spool dir for host $swc_host"
       return -1
    }
 
@@ -71,7 +70,7 @@ proc arcorun_change_spooldir_owner { owner { a_spool_dir "" } } {
    foreach dir $dirs {
       set output [start_remote_prog $arco_config(swc_host) root "chown" "-R $owner $spool_dir/$dir"]
       if { $prg_exit_state != 0 } {
-         add_proc_error "arcorun_check_options" -3 "Can not change owner of directory $spool_dir/$dir: $output"
+         ts_log_config "Can not change owner of directory $spool_dir/$dir: $output"
          return -1
       }
    }
@@ -106,7 +105,7 @@ proc arcorun_change_spooldir_owner { owner { a_spool_dir "" } } {
 #
 #*******************************************************************************
 proc arcorun_exec {args output {timeout 60}} {
-   global ts_config arco_config CHECK_OUTPUT CHECK_USER
+   global ts_config arco_config CHECK_USER
    
    upvar $output my_output
    
@@ -119,7 +118,8 @@ proc arcorun_exec {args output {timeout 60}} {
    }
    set my_env(SGE_ROOT) "$ts_config(product_root)"
    set my_env(SGE_CELL) "$ts_config(cell)"
-puts $CHECK_OUTPUT "---> executing on $swc_host as $CHECK_USER: $arco_run_cmd $args"
+   ts_log_fine "---> executing on $swc_host as $CHECK_USER:"
+   ts_log_fine "$arco_run_cmd $args"
    set my_output [start_remote_prog $swc_host $CHECK_USER $arco_run_cmd $args prg_exit_state $timeout 0 "" my_env]
    return $prg_exit_state
 }

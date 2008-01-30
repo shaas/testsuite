@@ -71,7 +71,7 @@ proc arco_reporting_install_init_level {} {
 
 
 proc arco_reporting_install {} {
-   global CHECK_OUTPUT CHECK_USER CHECK_DEBUG_LEVEL
+   global CHECK_USER CHECK_DEBUG_LEVEL
    global ts_config arco_config ts_host_config ts_user_config
    
    
@@ -79,19 +79,20 @@ proc arco_reporting_install {} {
       shutdown_dbwriter
    }
    
-   puts $CHECK_OUTPUT "install reporting module on host $arco_config(swc_host) ..."
+   ts_log_fine "install reporting module on host $arco_config(swc_host) ..."
    
    if {[file isfile "$ts_config(product_root)/reporting/inst_reporting"] != 1} {
-      add_proc_error "arco_reporting_install" -1 "reporting install script not found"
+      ts_log_severe "reporting install script not found"
       return -1
    }
    
-   if {$arco_config(jdbc_driver) != "NONE"} {
+   set jdbc_driver_path [get_jdbc_driver_path]
+   if {$jdbc_driver_path != "NONE"} {
       # copy the jdbc driver
-      set args "$arco_config(jdbc_driver) $ts_config(product_root)/reporting/WEB-INF/lib"
+      set args "$jdbc_driver_path $ts_config(product_root)/reporting/WEB-INF/lib"
       start_remote_prog "$arco_config(dbwriter_host)" $CHECK_USER "cp" "$args"
       if {$prg_exit_state != 0} {
-         add_proc_error "arco_reporting_install" -1 "copy jdbc driver failed"
+         ts_log_severe "copy jdbc driver failed"
          return -1
       }
    }
@@ -110,7 +111,7 @@ proc arco_reporting_install {} {
     set spool_dir [get_local_spool_dir $arco_config(swc_host) arco 0]
     
     if {$spool_dir == ""} {
-       add_proc_error "arco_reporting_install" -1 "Can not get local spool dir for host $arco_config(swc_host)"
+       ts_log_severe "Can not get local spool dir for host $arco_config(swc_host)"
        return -1
     }
 
@@ -122,7 +123,7 @@ proc arco_reporting_install {} {
    # no we can cleanup the spool directory
    set spool_dir [get_local_spool_dir $arco_config(swc_host) arco 1]
    
-   puts $CHECK_OUTPUT "inst_reporting"
+   ts_log_fine "inst_reporting"
    set id [open_remote_spawn_process "$arco_config(swc_host)" "root"  "./inst_reporting" "" 0 $ts_config(product_root)/reporting]
    set sp_id [ lindex $id 1 ]
    
@@ -133,34 +134,32 @@ proc arco_reporting_install {} {
     while { $error_count == 0 } {
        if {$CHECK_DEBUG_LEVEL > 1} {
          flush stdout
-         flush $CHECK_OUTPUT
        }
        if {$CHECK_DEBUG_LEVEL > 2} {
-         puts $CHECK_OUTPUT "-->testsuite: press RETURN"
+         ts_log_fine "-->testsuite: press RETURN"
          set anykey [wait_for_enter 1]
        }
        log_user 1
        set timeout 60
        expect {
           flush stdout
-          flush $CHECK_OUTPUT 
           -i $sp_id full_buffer {
-             add_proc_error "arco_reporting_install" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
              incr error_count 1
              break
           }   
           -i $sp_id eof { 
-             add_proc_error "arco_reporting_install" -1 "unexpected eof"
+             ts_log_severe "unexpected eof"
              incr error_count 1
              break
           }
           -i $sp_id "coredump" {
-             add_proc_error "arco_reporting_install" "-2" "install_reporting - coredump"
+             ts_log_severe "install_reporting - coredump"
              incr error_count 1
              break
           }
           -i $sp_id timeout { 
-             add_proc_error "arco_reporting_install" -1 "timeout while waiting for output" 
+             ts_log_severe "timeout while waiting for output" 
              incr error_count 1
              break
           }
@@ -190,22 +189,16 @@ proc arco_reporting_install {} {
              continue
           }
           -i $sp_id "Enter your database type * >> " {
-             if { $arco_config(database_type) == "oracle" } {
-                set input "o"
-             } elseif { $arco_config(database_type) == "postgres" } {
-                set input "p"
-             } else {
-                set input "m"
-             }
+             set input [string range [get_database_type] 0 0 ]
              send_to_spawn_id $sp_id $input
              continue
           }
           -i $sp_id "Please enter the name of your * db host * >> " {
-             send_to_spawn_id $sp_id $arco_config(database_host)
+             send_to_spawn_id $sp_id [get_database_host]
              continue
           }
           -i $sp_id "Please enter the port of your * db * >> " {
-             send_to_spawn_id $sp_id $arco_config(database_port)
+             send_to_spawn_id $sp_id [get_database_port]
              continue
           }
           -i $sp_id "Please enter the name of your * database * >> " {
@@ -217,19 +210,15 @@ proc arco_reporting_install {} {
              continue
           }
           -i $sp_id "Please enter the password of the database user >> " {
-             send_to_spawn_id $sp_id "secret"
+             send_to_spawn_id $sp_id [get_arco_user_pwd]
              continue
           }
           -i $sp_id "Please retype the password >> " {
-             send_to_spawn_id $sp_id "secret"
+             send_to_spawn_id $sp_id [get_arco_user_pwd]
              continue
           }
           -i $sp_id "Please enter the name of the database schema * >> " {
-            if { $arco_config(database_type) == "oracle" } {
-                set input [get_arco_write_user]
-             } else {
-                set input $arco_config(database_schema)
-             } 
+            set input [get_database_schema]
              send_to_spawn_id $sp_id $input
              continue
           }
@@ -246,7 +235,7 @@ proc arco_reporting_install {} {
              continue
           }
           -i $sp_id "Do you want to repeat database connection setup? (y/n) * >>" {
-             add_proc_error "arco_reporting_install" "-2" "inst_dbwriter could not setup the database connection"
+             ts_log_severe "inst_dbwriter could not setup the database connection"
              incr error_count 1
              break
           }
@@ -279,23 +268,23 @@ proc arco_reporting_install {} {
              break
           }
           -i $sp_id "Error:" {
-             add_proc_error "arco_reporting_install" -1 "Unexpected Error: $expect_out(0,string)"
+             ts_log_severe "Unexpected Error: $expect_out(0,string)"
              break
           }
           -i $sp_id "ommand failed*\n" {
-             add_proc_error "arco_reporting_install" -1 "Command failed: $expect_out(0,string)"
+             ts_log_severe "Command failed: $expect_out(0,string)"
              break
           }
           -i "_exit_status_:(*)" {
              set exit_status [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
              if { $exit_status != 0 } {
-                add_proc_error "arco_reporting_install" -1 "install_reporting failed with exist status $exit_statues"
+                ts_log_severe "install_reporting failed with exist status $exit_statues"
                 incr error_count 1
              }   
              break
           }
           -i $sp_id default {
-             add_proc_error "arco_reporting_install" -1 "undefined behaviour: $expect_out(buffer)"
+             ts_log_severe "undefined behaviour: $expect_out(buffer)"
              incr error_count 1
              break
           }

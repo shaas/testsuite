@@ -1,3 +1,10 @@
+AP-2008-01-30-0: Enhancem.: o Adding the global database configuration
+                            o Use the database configuration in checktree_arco
+                            o Use the logging framework (JG-2008-01-16-0) in 
+                              checktree_arco
+                 Issue:     124
+                 Review:    JG
+
 MD-2008-01-30-0: Bugfix:    ts_config was not declared as global in qhost test
 
 JG-2008-01-30-0: Enhancem.: Added new test system_tests/clients/qselect.

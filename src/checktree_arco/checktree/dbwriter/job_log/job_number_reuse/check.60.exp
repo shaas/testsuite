@@ -94,30 +94,30 @@ proc arco_dbwriter_job_log_reuse_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc arco_dbwriter_job_log_reuse_setup  {} {
-   global CHECK_OUTPUT ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global ts_config CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_ACT_LEVEL
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_reuseorg_config
    
    set sqlutil_id ""
    
-   puts $CHECK_OUTPUT "Create sqlutil as $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   ts_log_fine "Create sqlutil as $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    set sqlutil_id [sqlutil_create $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if { $sqlutil_id == "-1" } {
-      add_sql_error "arco_dbwriter_job_log_reusesetup" -1 "Can not create sqlutil"
+      ts_log_severe "Can not create sqlutil"
       set sqlutil_id ""
       return -1
    }   
    set sqlutil_sp_id [ lindex $sqlutil_id 1 ]
 
    if { [ sqlutil_connect $sqlutil_sp_id] != 0 } {
-      add_sql_error "arco_dbwriter_job_log_reusesetup" -1 "Can not connect to database"
+      ts_log_severe "Can not connect to database"
       close_spawn_process $sqlutil_id;
       set sqlutil_id ""
       return -2
    }
    
-   puts $CHECK_OUTPUT "sqlutil created ($sqlutil_id)"
+   ts_log_fine "sqlutil created ($sqlutil_id)"
    
    array set arco_dbwriter_job_log_reuseorg_config {}
    get_config arco_dbwriter_job_log_reuseorg_config
@@ -128,7 +128,7 @@ proc arco_dbwriter_job_log_reuse_setup  {} {
 
 
 proc arco_dbwriter_job_log_reuse_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_reuseorg_config
 
@@ -143,7 +143,7 @@ proc arco_dbwriter_job_log_reuse_cleanup  {} {
    
    set_config arco_dbwriter_job_log_reuseorg_config
    if { [set_config config] != 0 } {
-      add_proc_error "arco_dbwriter_job_log_reusecleanup" -1 "Can not reset configuration"
+      ts_log_severe "Can not reset configuration"
       return -1
    }
    
@@ -173,7 +173,7 @@ proc arco_dbwriter_job_log_reuse_cleanup  {} {
 #*******************************************************************************
 proc arco_dbwriter_job_log_reuse_execute {} {
    
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
    global sqlutil_id sqlutil_sp_id
    
    switch -- $CHECK_ACT_LEVEL {
@@ -184,7 +184,7 @@ proc arco_dbwriter_job_log_reuse_execute {} {
          set joblog "false"
       }
       default {
-         add_proc_error "arco_dbwriter_job_log_reuse_execute" -1 "Invalid runlevel $CHECK_ACT_LEVEL"
+         ts_log_severe "Invalid runlevel $CHECK_ACT_LEVEL"
          return -1
       }
    }
@@ -195,25 +195,25 @@ proc arco_dbwriter_job_log_reuse_execute {} {
    
    set_config config
    if { [set_config config] != 0 } {
-      add_proc_error "arco_dbwriter_job_log_reuse_execute" -1 "Can not set reporting_params"
+      ts_log_severe "Can not set reporting_params"
       return -1
    }
    
 
    if { [shutdown_dbwriter] != 0 } {
-      add_proc_error "arco_dbwriter_job_log_reuse_execute" -1 "Can not stop dbwriter"
+      ts_log_severe "Can not stop dbwriter"
       return -1
    }
    
    if { [arco_clean_database] < 0 } {
-      add_proc_error "arco_dbwriter_job_log_reuse_execute" -1 "Can not clean arco database"
+      ts_log_severe "Can not clean arco database"
       return -1
    }
 
    set start_dbwriter_in_debug_mode 0
    set res [startup_dbwriter "--" $start_dbwriter_in_debug_mode]
    if {  $start_dbwriter_in_debug_mode == 0 && $res != 0 } {
-      add_proc_error "arco_dbwriter_job_log_reuse_execute" -1 "Can not start dbwriter"
+      ts_log_severe "Can not start dbwriter"
       return -1
    }
    
@@ -262,17 +262,17 @@ proc arco_dbwriter_job_log_reuse_execute {} {
          if { [info exists job($task_index,ju_ru_wallclock)] } {
             set wallclock  $job($task_index,ju_ru_wallclock)
             if { $wallclock < 5 || $wallclock > 15 } {
-               add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got invalid wallclock time for job [arco_job_to_string task] ($wallclock, expected was a value between 5 und 15"
+               ts_log_severe "Got invalid wallclock time for job [arco_job_to_string task] ($wallclock, expected was a value between 5 und 15"
             }
          } else {
-            add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got no wallclock time for job [arco_job_to_string task]"
+            ts_log_severe "Got no wallclock time for job [arco_job_to_string task]"
          }
          if { [info exists job($task_index,ju_exit_status)] } {
             if { $job($task_index,ju_exit_status) != 0 } {
-               add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got invalid exit status for job [arco_job_to_string task] ($job($task_index,ju_exit_status), expected was 0"
+               ts_log_severe "Got invalid exit status for job [arco_job_to_string task] ($job($task_index,ju_exit_status), expected was 0"
             }
          } else {
-            add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got no exit status for job [arco_job_to_string task]"
+            ts_log_severe "Got no exit status for job [arco_job_to_string task]"
          }
       }
       
@@ -315,17 +315,17 @@ proc arco_dbwriter_job_log_reuse_execute {} {
          if { [info exists reused($task_index,ju_ru_wallclock)] } {
             set wallclock  $reused($task_index,ju_ru_wallclock)
             if { $wallclock < 5 || $wallclock > 15 } {
-               add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got invalid wallclock time for job [arco_job_to_string task] ($wallclock, expected was a value between 5 und 15"
+               ts_log_severe "Got invalid wallclock time for job [arco_job_to_string task] ($wallclock, expected was a value between 5 und 15"
             }
          } else {
-            add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got no wallclock time for job [arco_job_to_string task]"
+            ts_log_severe "Got no wallclock time for job [arco_job_to_string task]"
          }
          if { [info exists reused($task_index,ju_exit_status)] } {
             if { $reused($task_index,ju_exit_status) != 0 } {
-               add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got invalid exit status for job [arco_job_to_string task] ($reused($task_index,ju_exit_status), expected was 0"
+               ts_log_severe "Got invalid exit status for job [arco_job_to_string task] ($reused($task_index,ju_exit_status), expected was 0"
             }
          } else {
-            add_proc_error "arco_dbwriter_job_log_reuse_execute" -1  "Got no exit status for job [arco_job_to_string task]"
+            ts_log_severe "Got no exit status for job [arco_job_to_string task]"
          }
       }
       
@@ -337,12 +337,12 @@ proc arco_dbwriter_job_log_reuse_execute {} {
       }
       
       if { $job(j_job_number) != $reused(j_job_number) } {
-         add_proc_error "arco_dbwriter_job_log_reuse_execute" -1 "job [arco_job_to_string job] and [arco_job_to_string reused] do not have the same id"
+         ts_log_severe "job [arco_job_to_string job] and [arco_job_to_string reused] do not have the same id"
          return 1
       }
          
       if { $job(0,j_id) == $reused(0,j_id) } {
-         add_proc_error "arco_dbwriter_job_log_reuse_execute" -1 "Reused job did not get it's own job entry"
+         ts_log_severe "Reused job did not get it's own job entry"
          return -1
       }
          
@@ -353,7 +353,7 @@ proc arco_dbwriter_job_log_reuse_execute {} {
 
 
 proc arco_dbwriter_job_log_reuse_reset_job_number { job_number } {
-   global CHECK_OUTPUT ts_config CHECK_USER
+   global ts_config CHECK_USER
    
    delete_all_jobs
    wait_for_end_of_all_jobs 60
@@ -371,7 +371,7 @@ proc arco_dbwriter_job_log_reuse_reset_job_number { job_number } {
    startup_qmaster 1
    
    if { $cat_result != 0 } {
-      add_proc_error "arco_dbwriter_job_log_reuse_reset_job_number" -1 "Can not write job number into $spooldir/jobseqnum:\n$output"
+      ts_log_severe "Can not write job number into $spooldir/jobseqnum:\n$output"
       return -1
    }
    

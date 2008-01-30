@@ -32,11 +32,12 @@
 #___INFO__MARK_END__
 
 
-global ts_checktree, arco_config
-global CHECK_OUTPUT CHECK_DEFAULTS_FILE
+global ts_checktree arco_config
+global CHECK_DEFAULTS_FILE
 global arco_checktree_nr
 global ACT_CHECKTREE
 
+ts_source $ACT_CHECKTREE/config
 ts_source $ACT_CHECKTREE/sql_util
 ts_source $ACT_CHECKTREE/arcorun
 ts_source $ACT_CHECKTREE/arco_queries
@@ -49,9 +50,8 @@ set ts_checktree($arco_checktree_nr,setup_hooks_0_config_array) arco_config
 set ts_checktree($arco_checktree_nr,setup_hooks_0_init_func)    arco_init_config
 set ts_checktree($arco_checktree_nr,setup_hooks_0_verify_func)  arco_verify_config
 set ts_checktree($arco_checktree_nr,setup_hooks_0_save_func)    arco_save_configuration
-#set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     $ACT_CHECKTREE/arco_defaults.sav
 set ts_checktree($arco_checktree_nr,setup_hooks_0_filename)     [ get_additional_config_file_path "arco" ]
-set ts_checktree($arco_checktree_nr,setup_hooks_0_version)      "1.4"
+set ts_checktree($arco_checktree_nr,setup_hooks_0_version)      "1.5"
 
 set ts_checktree($arco_checktree_nr,checktree_clean_hooks_0)  "arco_clean"
 
@@ -89,14 +89,14 @@ if {$ts_config(gridengine_version) >= 62} {
   lappend ARCO_TABLES sge_ar
 }
 
-set ARCO_VIEWS { view_job_times view_jobs_completed
+set ARCO_VIEWS { view_job_times_subquery view_job_times view_jobs_completed
                  view_job_log view_department_values view_group_values view_host_values
                  view_project_values view_queue_values view_user_values view_accounting
                  view_statistic
 }
 
 if {$ts_config(gridengine_version) >= 62} {
-   set ARCO_VIEWS { view_ar_time_usage view_job_times view_jobs_completed
+   set ARCO_VIEWS { view_ar_time_usage view_job_times_subquery view_job_times view_jobs_completed
                  view_job_log view_department_values view_group_values view_host_values
                  view_project_values view_queue_values view_user_values view_statistic
                  view_ar_time_usage view_ar_attribute view_ar_log view_ar_usage 
@@ -104,7 +104,7 @@ if {$ts_config(gridengine_version) >= 62} {
    }
 }
 
-#****** checktree/arco_compile() **************************************************
+#****** checktree/arco_compile() ***********************************************
 #  NAME
 #    arco_compile() -- ???
 #
@@ -135,7 +135,7 @@ proc arco_compile { compile_hosts a_report } {
    return [arco_build $compile_hosts "all" report]
 }
 
-#****** checktree/arco_compile_clean() **************************************************
+#****** checktree/arco_compile_clean() *****************************************
 #  NAME
 #    arco_compile_clean() -- compile clean hook for ARCo
 #
@@ -172,7 +172,7 @@ proc arco_compile_clean { compile_hosts a_report } {
 }
 
 
-#****** checktree/arco_build() **************************************************
+#****** checktree/arco_build() *************************************************
 #  NAME
 #    arco_build() -- start the arco build script
 #
@@ -268,15 +268,13 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
    report_finish_task report $task_nr $error
 
    if { $error != 0 } {
-      puts $CHECK_OUTPUT "------------------------------------------\n"
-      puts $CHECK_OUTPUT "return state: $error\n"
-      puts $CHECK_OUTPUT "------------------------------------------\n"
+      ts_log_severe "return state: $error"
       return -1
    }      
    return 0
 }
 
-#****** checktree/arco_get_required_hosts() **************************************************
+#****** checktree/arco_get_required_hosts() ************************************
 #  NAME
 #    arco_get_required_hosts() -- required hosts hook for arco
 #
@@ -297,16 +295,16 @@ proc arco_build { compile_hosts target a_report { ant_options "" } { arco_build_
 #     checktree_helper/checktree_get_required_hosts
 #*******************************************************************************
 proc arco_get_required_hosts {} {
-   global arco_config CHECK_OUTPUT
+   global arco_config
    set res {}
    lappend res $arco_config(dbwriter_host)
    lappend res $arco_config(swc_host)
    
-   puts $CHECK_OUTPUT "Required hosts for arco: $res"
+   ts_log_fine "Required hosts for arco: $res"
    return $res
 }
 
-#****** checktree/arco_install_binaries() **************************************************
+#****** checktree/arco_install_binaries() **************************************
 #  NAME
 #    arco_install_binaries() -- ???
 #
@@ -335,7 +333,7 @@ proc arco_get_required_hosts {} {
 #*******************************************************************************
 proc arco_install_binaries { arch_list a_report } {
    
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global ts_config ts_host_config arco_config
    
    upvar $a_report report
@@ -381,654 +379,6 @@ proc arco_install_binaries { arch_list a_report } {
    return 0
 }
 
-proc arco_verify_config {config_array only_check parameter_error_list} {
-   global ts_checktree arco_checktree_nr CHECK_OUTPUT
-   upvar $config_array config
-   upvar $parameter_error_list param_error_list
-   
-   arco_config_upgrade_1_1 config
-   arco_config_upgrade_1_2 config
-   arco_config_upgrade_1_3 config
-   arco_config_upgrade_1_4 config
-   
-   return [verify_config2 config $only_check param_error_list $ts_checktree($arco_checktree_nr,setup_hooks_0_version)]   
-}
-
-proc arco_save_configuration { filename } {
-   global arco_config ts_checktree arco_checktree_nr
-   global CHECK_OUTPUT
-
-   set conf_name $ts_checktree($arco_checktree_nr,setup_hooks_0_name)
-   
-   if { [ info exists arco_config(version) ] == 0 } {
-      puts $CHECK_OUTPUT "no version"
-      wait_for_enter
-      return -1
-   }
-
-   # first get old configuration
-   read_array_from_file  $filename $conf_name old_config
-   # save old configuration 
-   spool_array_to_file $filename "$conf_name.old" old_config
-   spool_array_to_file $filename $conf_name arco_config  
-   puts $CHECK_OUTPUT "new $conf_name saved"
-
-   wait_for_enter
-
-   return 0
-}
-
-
-proc arco_init_config { config_array } {
-   global arco_config arco_checktree_nr ts_checktree
-   global CHECK_CURRENT_WORKING_DIR
-   
-   upvar $config_array config
-   # arco_config defaults 
-   set ts_pos 1
-   set parameter "version"
-   set config($parameter)            "1.0"
-   set config($parameter,desc)       "ARCo configuration setup"
-   set config($parameter,default)    "1.0"
-   set config($parameter,setup_func) ""
-   set config($parameter,onchange)   "stop"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "arco_source_dir"
-   set config($parameter)            ""
-   set config($parameter,desc)       "Path to ARCo source directory"
-   set config($parameter,default)    ""
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "stop"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "dbwriter_host"
-   set config($parameter)            ""
-   set config($parameter,desc)       "Host where dbwriter should run"
-   set config($parameter,default)    "check_host"   ;# config_arco_generic will resolve the host
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "stop"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-   
-   set parameter "database_type"
-   set config($parameter)            ""
-   set config($parameter,desc)       "ARCO database type"
-   set config($parameter,default)    ""
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "database_host"
-   set config($parameter)            ""
-   set config($parameter,desc)       "ARCO database host"
-   set config($parameter,default)    ""
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "database_port"
-   set config($parameter)            ""
-   set config($parameter,desc)       "ARCO database port"
-   set config($parameter,default)    "5432"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-   
-   set parameter "database_name"
-   set config($parameter)            ""
-   set config($parameter,desc)       "ARCO database name"
-   set config($parameter,default)    "arco"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "database_schema"
-   set config($parameter)            ""
-   set config($parameter,desc)       "ARCO database schema"
-   set config($parameter,default)    "public"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-   
-   set parameter "database_write_user"
-   set config($parameter)            ""
-   set config($parameter,desc)       "ARCo database user with write access"
-   set config($parameter,default)    "arco_write"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "database_write_pw"
-   set config($parameter)            ""
-   set config($parameter,desc)       "Password for the database user with write access"
-   set config($parameter,default)    "arco_write"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "database_read_user"
-   set config($parameter)            ""
-   set config($parameter,desc)       "ARCo database user with read access"
-   set config($parameter,default)    "arco_read"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "database_read_pw"
-   set config($parameter)            ""
-   set config($parameter,desc)       "Password for the database user with read access"
-   set config($parameter,default)    "arco_read"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-   
-   set parameter "arco_dbwriter_debug_level"
-   set config($parameter)            ""
-   set config($parameter,desc)       "dbwriter debug level"
-   set config($parameter,default)    "INFO"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-
-   set parameter "arco_dbwriter_interval"
-   set config($parameter)            ""
-   set config($parameter,desc)       "dbwriter interval"
-   set config($parameter,default)    "60"
-   set config($parameter,setup_func) "config_$parameter"
-   set config($parameter,onchange)   "install"
-   set config($parameter,pos)        $ts_pos
-   incr ts_pos 1
-   
-   arco_config_upgrade_1_1 config
-   arco_config_upgrade_1_2 config
-   arco_config_upgrade_1_3 config
-   arco_config_upgrade_1_4 config
-}
-
-proc arco_config_upgrade_1_1 { config_array } {
-   global CHECK_OUTPUT   
-
-   upvar $config_array config
-
-   if { $config(version) == "1.0" } {
-      puts $CHECK_OUTPUT "Upgrade to version 1.1"
-      # insert new parameter after arco_dbwriter_interval parameter
-      set insert_pos $config(arco_dbwriter_interval,pos)
-      incr insert_pos 1
-      
-      # move positions of following parameters
-      set names [array names config "*,pos"]
-      foreach name $names {
-         if { $config($name) >= $insert_pos } {
-            set config($name) [ expr ( $config($name) + 1 ) ]
-         }
-      }
-   
-      # new parameter l10n_test_locale
-      set parameter "swc_host"
-      set config($parameter)            ""
-      set config($parameter,desc)       "Java Web Console Host"
-      set config($parameter,default)    "check_host" ;# config_arco_generic will resolve the host
-      set config($parameter,setup_func) "config_$parameter"
-      set config($parameter,onchange)   "install"
-      set config($parameter,pos) $insert_pos
-   
-      # now we have a configuration version 1.1
-      set config(version) "1.1"
-   }
-}
-
-proc arco_config_upgrade_1_2 { config_array } {
-   global CHECK_OUTPUT
-   
-   upvar $config_array config
-
-   if { $config(version) == "1.1" } {
-   
-      puts $CHECK_OUTPUT "Upgrade to version 1.2"
-
-      # delete parameter database_read_user
-      set param "database_read_user"
-      set pos $config($param,pos)  
-      
-      array unset config "$param"
-      array unset config "$param,desc"
-      array unset config "$param,default"
-      array unset config "$param,setup_func"
-      array unset config "$param,onchange"
-      array unset config "$param,pos"
-      set names [array names config "*,pos"]
-      foreach name $names {
-         if { $config($name) >= $pos } {
-            set config($name) [ expr ( $config($name) - 1 ) ]
-         }
-      }
-      
-      # delete parameter database_read_pw
-      set param "database_read_pw"
-      set pos $config($param,pos)      
-      array unset config "$param"
-      array unset config "$param,desc"
-      array unset config "$param,default"
-      array unset config "$param,setup_func"
-      array unset config "$param,onchange"
-      array unset config "$param,pos"
-      
-      set names [array names config "*,pos"]
-      foreach name $names {
-         if { $config($name) >= $pos } {
-            set config($name) [ expr ( $config($name) - 1 ) ]
-         }
-      }
-      
-      # delete parameter database_schema
-      set param "database_schema"
-      set pos $config($param,pos)      
-      array unset config "$param"
-      array unset config "$param,desc"
-      array unset config "$param,default"
-      array unset config "$param,setup_func"
-      array unset config "$param,onchange"
-      array unset config "$param,pos"
-      
-      set names [array names config "*,pos"]
-      foreach name $names {
-         if { $config($name) >= $pos } {
-            set config($name) [ expr ( $config($name) - 1 ) ]
-         }
-      }
-
-      # insert new parameter after swc_host parameter
-      set insert_pos $config(swc_host,pos)
-      incr insert_pos 1
-      
-      # move positions of following parameters
-      set names [array names config "*,pos"]
-      foreach name $names {
-         if { $config($name) >= $insert_pos } {
-            set config($name) [ expr ( $config($name) + 1 ) ]
-         }
-      }
-   
-      # new parameter l10n_test_locale
-      set parameter "jdbc_driver"
-      set config($parameter)            ""
-      set config($parameter,desc)       "JDBC Driver"
-      set config($parameter,default)    "NONE"
-      set config($parameter,setup_func) "config_$parameter"
-      set config($parameter,onchange)   "install"
-      set config($parameter,pos) $insert_pos
-   
-      # now we have a configuration version 1.2
-      set config(version) "1.2"
-   }
-}
-
-proc arco_config_upgrade_1_3 { config_array } {
-   global CHECK_OUTPUT
-   
-   upvar $config_array config
-
-   if { $config(version) == "1.2" } {
-
-      puts $CHECK_OUTPUT "Upgrade to version 1.3"
-
-      if { [string compare $config(database_type) "mysql"] != 0 } {
-         # insert new parameter after jdbc_driver host parameter
-         set insert_pos $config(jdbc_driver,pos)
-         incr insert_pos 1
-
-         # new parameter TABLESPACE
-         set parameter "tablespace"
-         set config($parameter)            ""
-         set config($parameter,desc)       "TABLESPACE for tables"
-         set config($parameter,default)    "USERS"
-         set config($parameter,setup_func) "config_$parameter"
-         set config($parameter,onchange)   "install"
-         set config($parameter,pos) $insert_pos
-
-         incr insert_pos 1
-
-         # new parameter TABLESPACE_INDEX
-         set parameter "tablespace_index"
-         set config($parameter)            ""
-         set config($parameter,desc)       "TABLESPACE for indexes"
-         set config($parameter,default)    "USERS"
-         set config($parameter,setup_func) "config_$parameter"
-         set config($parameter,onchange)   "install"
-         set config($parameter,pos) $insert_pos
-
-      }
-
-      # now we have a configuration version 1.3
-      set config(version) "1.3"
-   }
-
-}
-
-proc arco_config_upgrade_1_4 { config_array } {
-   global CHECK_OUTPUT
-   
-   upvar $config_array config
-
-   if { $config(version) == "1.3" } {
-
-      puts $CHECK_OUTPUT "Upgrade to version 1.4"
-
-      if { [string compare $config(database_type) "mysql"] != 0 && [string compare $config(database_type) "oracle"] != 0 } {
-         # insert new parameter after tablespace_index parameter
-         set insert_pos $config(tablespace_index,pos)
-         incr insert_pos 1
-
-         # new parameter DB_SCHEMA
-         set parameter "database_schema"
-         set config($parameter)            ""
-         set config($parameter,desc)       "Database schema"
-         set config($parameter,default)    "public"
-         set config($parameter,setup_func) "config_$parameter"
-         set config($parameter,onchange)   "install"
-         set config($parameter,pos) $insert_pos
-      }
-      
-      # now we have a configuration version 1.4
-      set config(version) "1.4"
-   }
-}
-
-proc config_arco_source_dir { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the path to ARCo source directory, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "directory" ]
-}
-
-proc config_dbwriter_host { only_check name config_array } {
-   global ts_checktree ts_host_config fast_setup arco_checktree_nr
-   global CHECK_OUTPUT
-
-   upvar $config_array config
-   
-   set help_text {  "Please enter hostname where dbwriter should run, or press >RETURN<"
-                    "to use the default value." }
-                    
-   set dbwriter_host [ config_generic $only_check $name config $help_text "host" ]
-   
-   if {$fast_setup == 0} {
-      if {![host_conf_is_known_host $dbwriter_host]} {
-         puts $CHECK_OUTPUT "Host $dbwriter_host is not defined in the host configuration"
-         return -1
-      }
-# AP: commented after removing the java property from host configuration
-# (replaced by java14, java15, java16) 
-# TODO: change the behaviour when java is not set -> now -> can't get to the testsuite setup 
-#      if {[get_binary_path $dbwriter_host "java"] == "java"} { 
-#         puts $CHECK_OUTPUT "Java is not configured for host $dbwriter_host"
-#         return -1
-#      }
-   }
-
-   return $dbwriter_host
-}
-
-
-proc config_database_type { only_check name config_array } {
-   global CHECK_OUTPUT
-   upvar $config_array config
-   
-   set help_text {  "Please enter the database type, or press >RETURN<"
-                    "to use the default value."
-                    "Valid values are \"postgres\", \"oracle\" or \"mysql\"" }
-                    
-       
-   set db_type [config_generic $only_check $name config $help_text "string" ]
-
-   if { $db_type == "postgres" || $db_type == "oracle" || $db_type == "mysql" } {
-      if { $db_type == "oracle" } {
-         set config(tablespace,default)          "USERS"
-         set config(tablespace_index,default)    "USERS"
-      }
-      if { $db_type == "postgres" } {
-         set config(tablespace,default)          "pg_default"
-         set config(tablespace_index,default)    "pg_default"
-      }
-      if { $db_type == "mysql" } {
-         set config(tablespace,default)          "none"
-         set config(tablespace_index,default)    "none"
-      }
-      return $db_type
-   }
-   return -1
-}
-
-proc config_database_host { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of your database host, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_database_port { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of your database port, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_database_name { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of your database, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_database_schema { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of the database schema, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_database_write_user { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of the user which has write permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_database_read_user { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of the user which has read permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_database_write_pw { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the password of the user which has write permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_database_read_pw { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the password of the user which has read permissions on the database, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_arco_spool_dir { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter path to the ARCo spool directory, or press >RETURN<"
-                    "to use the default value." }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "directory" ]
-}
-
-proc config_arco_dbwriter_debug_level { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter debug level for dbwriter, or press >RETURN<"
-                    "to use the default value."
-                    "Valid values are \"WARNING\", \"INFO\", \"FINE\""}
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-
-
-proc config_arco_dbwriter_interval { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the dbwriter interval in seconds, or press >RETURN<"
-                    "to use the default value."  }
-                    
-   # TODO set global variables
-   
-   return [ config_generic $only_check $name config $help_text "string" ]
-}
-
-proc config_jdbc_driver { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the path to the JDBC driver or press >RETURN<"
-                    "to use the default value."  }
-     
-   return [ config_generic $only_check $name config $help_text "string" ]
-   
-}
-
-proc config_swc_host {only_check name config_array} {
-   global ts_checktree ts_host_config fast_setup arco_checktree_nr
-   global CHECK_OUTPUT CHECK_USER
-   upvar $config_array config
-
-   set help_text {"Please enter the name of your the host where the Java Web Console is installed, or press >RETURN<"
-                  "to use the default value."}
-   
-   set swc_host [config_generic $only_check $name config $help_text "host" ]
-      
-   if {$fast_setup == 0} {
-      if {![host_conf_is_known_host $swc_host]} {
-         puts $CHECK_OUTPUT "Host $swc_host is not defined in the host configuration"
-         return -1
-      }
-      
-      array set swc_version {}
-      
-      if {[get_java_web_console_version swc_version $swc_host]  < 0} {
-         puts $CHECK_OUTPUT "Can not determine version of java webconsole on host $swc_host"
-         return -1
-      }
-   
-      set num_version [expr $swc_version(major) * 10000 + $swc_version(minor) * 100 + $swc_version(micro)]  
-      set exp_version [expr 2 * 10000 + 2 * 100 + 1]
-      if {$num_version < $exp_version} {
-         puts $CHECK_OUTPUT "Version 2.2.1 or higher is required"
-         return -1
-      }
-   }
-
-   return $swc_host
-}
-
-proc config_java_home { only_check name config_array } {
-   
-   upvar $config_array config
-   
-   set help_text {  "Please enter the JAVA_HOME path or press >RETURN<"
-                    "to use the default value."  }
-     
-   return [ config_generic $only_check $name config $help_text "directory" ]
-   
-}
-
-proc config_tablespace { only_check name config_array } {
-
-   upvar $config_array config
-
-   set help_text {  "Please enter the name of TABLESPACE for tables"  }
-     
-   return [ config_generic $only_check $name config $help_text "string" ]
-
-}
-
-proc config_tablespace_index { only_check name config_array } {
-
-   upvar $config_array config
-   
-   set help_text {  "Please enter the name of TABLESPACE for indexes"  }
-     
-   return [ config_generic $only_check $name config $help_text "string" ]
-
-}
-
 #****** checktree/startup_dbwriter() **************************************************
 #  NAME
 #    startup_dbwriter() -- startup the dbwriter
@@ -1055,7 +405,7 @@ proc config_tablespace_index { only_check name config_array } {
 #     checktree/is_dbwriter_running
 #*******************************************************************************
 proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
-   global ts_config arco_config CHECK_USER CHECK_OUTPUT
+   global ts_config arco_config CHECK_USER
    
    if { $hostname == "--" } {
       set hostname $arco_config(dbwriter_host)
@@ -1064,11 +414,7 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
    if { [file exists "$ts_config(product_root)/$ts_config(cell)/spool/dbwriter"] != 1 } {
       set output [start_remote_prog "$hostname" "$CHECK_USER" "mkdir" "-p $ts_config(product_root)/$ts_config(cell)/spool/dbwriter"]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "Can not create spool directory for dbwriter"
-         puts $CHECK_OUTPUT "--------------------------------------------------"
-         puts $CHECK_OUTPUT $output
-         puts $CHECK_OUTPUT "--------------------------------------------------"
-         add_proc_error "startup_dbwriter" -1 "Can not create spool directory for dbwriter"
+         ts_log_severe "Can not create spool directory for dbwriter: $output"
          return -1;
       }
    }
@@ -1094,15 +440,11 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
       set output [start_remote_prog "$hostname" "$CHECK_USER" "$prog" $args prg_exit_state 60 0 "" dbwriter_env]
       
       if {$debugmode == 1} {
-        puts $CHECK_OUTPUT "dbwriter has been started in debug mode"
-        puts $CHECK_OUTPUT "Please connect with a jpda debugger to $hostname (Port 8000)!"
+        puts "dbwriter has been started in debug mode"
+        puts "Please connect with a jpda debugger to $hostname (Port 8000)!"
         wait_for_enter
       } elseif {$prg_exit_state != 0} {
-         puts $CHECK_OUTPUT "startup of dbwriter failed (exit code $prg_exit_state)"
-         puts $CHECK_OUTPUT "--------------------------------------------------"
-         puts $CHECK_OUTPUT $output
-         puts $CHECK_OUTPUT "--------------------------------------------------"
-         add_proc_error "startup_dbwriter" -1 "startup of dbwriter failed (exit code $prg_exit_state)"
+         ts_log_severe "startup of dbwriter failed: $output (exit code $prg_exit_state)"
       }
       return $prg_exit_state;
    } else {
@@ -1110,7 +452,7 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
    }
 }
 
-#****** checktree/get_dbwriter_status() **************************************************
+#****** checktree/get_dbwriter_status() ****************************************
 #  NAME
 #    get_dbwriter_status() -- get the status of the dbwriter
 #
@@ -1147,7 +489,7 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
 #
 #*******************************************************************************
 proc get_dbwriter_status { { raise_error 1 } { hostname "--" } } {
-   global ts_config arco_config CHECK_USER CHECK_OUTPUT
+   global ts_config arco_config CHECK_USER
    
    if { $hostname == "--" } {
       set hostname $arco_config(dbwriter_host)
@@ -1165,13 +507,13 @@ proc get_dbwriter_status { { raise_error 1 } { hostname "--" } } {
       return $prg_exit_state
    } else {
       if { $raise_error } {
-         add_proc_error "get_dbwriter_status" -1 "Can not startup dbwriter, $prog does not exists"
+         ts_log_severe "Can not startup dbwriter, $prog does not exists"
       }
       return -1
    }
 }
 
-#****** checktree/shutdown_dbwriter() **************************************************
+#****** checktree/shutdown_dbwriter() ******************************************
 #  NAME
 #    shutdown_dbwriter() -- shutdown the dbwriter
 #
@@ -1201,7 +543,7 @@ proc get_dbwriter_status { { raise_error 1 } { hostname "--" } } {
 #     ???/???
 #*******************************************************************************
 proc shutdown_dbwriter { { hostname "--" } } {
-   global ts_config arco_config CHECK_USER CHECK_OUTPUT
+   global ts_config arco_config CHECK_USER
    
    if { $hostname == "--" } {
       set hostname $arco_config(dbwriter_host)
@@ -1214,20 +556,20 @@ proc shutdown_dbwriter { { hostname "--" } } {
       
       switch -- $prg_exit_state {
          "0" {
-            puts $CHECK_OUTPUT "dbwriter has been stopped"
+            ts_log_fine "dbwriter has been stopped"
             return 0
          }
          "1" {
-            puts $CHECK_OUTPUT "dbwriter has not been started"
+            ts_log_fine "dbwriter has not been started"
             return 0
          }
          default {
-            add_proc_error "shutdown_dbwriter" "-2" "shutdown of dbwriter failed, exit status $prg_exit_state"
+            ts_log_severe "shutdown of dbwriter failed, exit status $prg_exit_state"
             return -1
          }
       }
    } else {
-      puts $CHECK_OUTPUT "Can not shutdown dbwriter, $prog does not exists"
+      puts "Can not shutdown dbwriter, $prog does not exists"
       return -1
    }
 }
@@ -1244,21 +586,21 @@ proc arco_clean {} {
 proc arco_clean_database { { drop 0 } } {
    global arco_config
    
-   if { $arco_config(database_type) == "oracle" } {
+   if { [get_database_type] == "oracle" } {
       return [arco_clean_oracle_database $drop]
-   } elseif { $arco_config(database_type) == "postgres" } {
+   } elseif { [get_database_type] == "postgres" } {
       return [arco_clean_postgres_database $drop ]
-   } elseif { $arco_config(database_type) == "mysql" } {
+   } elseif { [get_database_type] == "mysql" } {
       return [arco_clean_mysql_database $drop ]
    }
 } 
 
 proc arco_clean_oracle_database { { drop 0 } } {
-   global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
+   global ARCO_TABLES ARCO_VIEWS
    
    set id [sqlutil_create]
    if { $id == "-1" } {
-      add_sql_error "arco_clean_oracle_database" "-2" "Can not create sqlutil"
+      ts_log_severe "Can not create sqlutil"
       return -1
    }   
    set sp_id [ lindex $id 1 ]
@@ -1266,7 +608,7 @@ proc arco_clean_oracle_database { { drop 0 } } {
    
    # first of all connect to the admin db and check wether the database exists
    if { [ sqlutil_connect $sp_id 1 ] != 0 } {
-      add_sql_error "arco_clean_oracle_database" "-2" "Can not connect to admin database"
+      ts_log_severe "Can not connect to admin database"
       close_spawn_process $id;
       return -2
    }
@@ -1280,7 +622,7 @@ proc arco_clean_oracle_database { { drop 0 } } {
    
    set res [sqlutil_query $sp_id $sql result_array column_names]
    if { $res == 0 } {
-      puts $CHECK_OUTPUT "user ${arco_write_user} does not exist => nothing to clean"
+      ts_log_fine "user ${arco_write_user} does not exist => nothing to clean"
       close_spawn_process $id;
       return 0
    }
@@ -1294,20 +636,20 @@ proc arco_clean_oracle_database { { drop 0 } } {
          set sql "select SYNONYM_NAME from all_synonyms where SYNONYM_NAME = '$synonym' and OWNER = '${arco_read_user}'" 
          set res [sqlutil_query $sp_id $sql result_array column_names]
          if { $res == 0 } {
-            puts $CHECK_OUTPUT "synonym $synonym does not exist"
+            ts_log_fine "synonym $synonym does not exist"
             continue
          } elseif { $res < 0 } {
-            add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not query synonym $synonym" 
+            ts_log_severe "Error: Can not query synonym $synonym" 
             set result -1
             close_spawn_process $id;
             return -1
          }
          
          set sql "DROP SYNONYM ${arco_read_user}.${synonym}"
-         puts $CHECK_OUTPUT "drop synonym ${arco_read_user}.${synonym}"
+         ts_log_fine "drop synonym ${arco_read_user}.${synonym}"
          set res [sqlutil_exec $sp_id $sql]
          if { $res != 0 } {
-            add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not drop synonym $synonym"
+            ts_log_severe "Error: Can not drop synonym $synonym"
             close_spawn_process $id;
             return -1
          }
@@ -1316,7 +658,7 @@ proc arco_clean_oracle_database { { drop 0 } } {
    
    # now connect to the test database
    if { [ sqlutil_connect $sp_id 0 ] != 0 } {
-      add_sql_error "arco_clean_oracle_database" "-2" "Can not connect to database [get_database_name 0]"
+      ts_log_severe "Can not connect to database [get_database_name 0]"
       close_spawn_process $id;
       return -2
    }
@@ -1328,19 +670,19 @@ proc arco_clean_oracle_database { { drop 0 } } {
          set sql "select VIEW_NAME from user_views where VIEW_NAME = '$view'"
          set res [sqlutil_query $sp_id $sql result_array column_names]
          if { $res == 0 } {
-            puts $CHECK_OUTPUT "view $view does not exist"
+            ts_log_fine "view $view does not exist"
             continue
          } elseif { $res < 0 } {
-            add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not query view $view" 
+            ts_log_severe "Error: Can not query view $view" 
             set result -1
             break;
          }
          
          set sql "DROP VIEW $view"
-         puts $CHECK_OUTPUT "drop view ${view}"
+         ts_log_fine "drop view ${view}"
          set res [sqlutil_exec $sp_id $sql]
          if { $res != 0 } {
-            add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not query view $view"
+            ts_log_severe "Error: Can not query view $view"
             set result -1
             break;
          }
@@ -1356,20 +698,20 @@ proc arco_clean_oracle_database { { drop 0 } } {
          set column_names {}
          set res [sqlutil_query $sp_id $sql result_array column_names]
          if { $res == 0 } {
-            puts $CHECK_OUTPUT "table $table does not exist"
+            ts_log_fine "table $table does not exist"
             continue
          } elseif { $res < 0 } {
-            add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not query table $table"
+            ts_log_severe "Error: Can not query table $table"
             set result -1
             break;
          }
          
          if { $drop } {
             set sql "DROP TABLE $table"
-            puts $CHECK_OUTPUT "drop table ${table}"
+            ts_log_fine "drop table ${table}"
             set res [sqlutil_exec $sp_id $sql]
             if { $res != 0 } {
-               add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not drop table $table"
+               ts_log_severe "Error: Can not drop table $table"
                set result -1
                break;
             }
@@ -1378,7 +720,7 @@ proc arco_clean_oracle_database { { drop 0 } } {
                set sql "DELETE from $table"
                set res [sqlutil_exec $sp_id $sql]
                if { $res != 0 } {
-                  add_sql_error "arco_clean_oracle_database" "-2" "Error: Can not delete table $table"
+                  ts_log_severe "Error: Can not delete table $table"
                   set result -1
                   break;
                }
@@ -1387,7 +729,7 @@ proc arco_clean_oracle_database { { drop 0 } } {
          set sql "COMMIT"
          set res [sqlutil_exec $sp_id $sql]
          if { $res != 0 } {
-            add_sql_error "arco_clean_postgres_database" "-2" "Error: Commit failed"
+            ts_log_severe "Error: Commit failed"
             set result -1
             break;
          }
@@ -1399,11 +741,11 @@ proc arco_clean_oracle_database { { drop 0 } } {
 
 
 proc arco_clean_postgres_database { { drop 0 } } {
-   global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
+   global ARCO_TABLES ARCO_VIEWS
    
    set id [sqlutil_create]
    if { $id == "-1" } {
-      add_sql_error "arco_clean_postgres_database" "-2" "Can not create sqlutil"
+      ts_log_severe "Can not create sqlutil"
       return -1
    }   
    set sp_id [ lindex $id 1 ]
@@ -1411,7 +753,7 @@ proc arco_clean_postgres_database { { drop 0 } } {
    
    # first of all connect to the admin db and check wether the database exists
    if { [ sqlutil_connect $sp_id 1 ] != 0 } {
-      add_sql_error "arco_clean_postgres_database" "-2" "Can not connect to admin database"
+      ts_log_severe "Can not connect to admin database"
       close_spawn_process $id;
       return -2
    }
@@ -1423,14 +765,14 @@ proc arco_clean_postgres_database { { drop 0 } } {
    set column_names {}
    set res [sqlutil_query $sp_id $sql result_array column_names]
    if {$res <= 0} {
-      puts $CHECK_OUTPUT "database $db_name does not exist => nothing to clean"
+      ts_log_fine "database $db_name does not exist => nothing to clean"
       close_spawn_process $id;
       return 0
    }
 
    # now connect to the test database
    if { [ sqlutil_connect $sp_id 0 ] != 0 } {
-      add_sql_error "arco_clean_postgres_database" "-2" "Can not connect to database $db_name"
+      ts_log_severe "Can not connect to database $db_name"
       close_spawn_process $id;
       return -2
    }
@@ -1445,19 +787,19 @@ proc arco_clean_postgres_database { { drop 0 } } {
          set sql "select viewname from pg_views where viewname = '$view'";
          set res [sqlutil_query $sp_id $sql result_array column_names]
          if { $res == 0 } {
-            puts $CHECK_OUTPUT "view $view does not exist"
+            ts_log_fine "view $view does not exist"
             continue
          } elseif { $res < 0 } {
-            add_sql_error "arco_clean_postgres_database" "-2" "Error: Can not query view $view"
+            ts_log_severe "Error: Can not query view $view"
             close_spawn_process $id;
             return -1
          }
          
          set sql "DROP VIEW $view"
-         puts $CHECK_OUTPUT "drop view $view"
+         ts_log_fine "drop view $view"
          set res [sqlutil_exec $sp_id $sql]
          if { $res != 0 } {
-            add_sql_error "arco_clean_postgres_database" "-2" "Error: Can not drop view $VIEW"
+            ts_log_severe "Error: Can not drop view $VIEW"
             close_spawn_process $id;
             return -1
          }
@@ -1470,20 +812,20 @@ proc arco_clean_postgres_database { { drop 0 } } {
       set column_names {}
       set res [sqlutil_query $sp_id $sql result_array column_names]
       if { $res == 0 } {
-         puts $CHECK_OUTPUT "table $table does not exist"
+         ts_log_fine "table $table does not exist"
          continue
       } elseif { $res < 0 } {
-         add_sql_error "arco_clean_postgres_database" "-2" "Error: Can not query table $table"
+         ts_log_severe "Error: Can not query table $table"
          close_spawn_process $id
          return -1
       }
       
       if { $drop } {
          set sql "DROP TABLE $table CASCADE"
-         puts $CHECK_OUTPUT "drop table $table"
+         ts_log_fine "drop table $table"
          set res [sqlutil_exec $sp_id $sql]
          if { $res != 0 } {
-            add_sql_error "arco_clean_postgres_database" "-2" "Error: Can not drop table $table"
+            ts_log_severe "Error: Can not drop table $table"
             set result -1
             break;
          }
@@ -1492,7 +834,7 @@ proc arco_clean_postgres_database { { drop 0 } } {
             set sql "DELETE from $table"
             set res [sqlutil_exec $sp_id $sql]
             if { $res != 0 } {
-               add_sql_error "arco_clean_postgres_database" "-2" "Error: Can not delete table $table"
+               ts_log_severe "Error: Can not delete table $table"
                set result -1
                break;
             } 
@@ -1501,7 +843,7 @@ proc arco_clean_postgres_database { { drop 0 } } {
       set sql "COMMIT"
       set res [sqlutil_exec $sp_id $sql]
       if { $res != 0 } {
-         add_sql_error "arco_clean_postgres_database" "-2" "Error: Commit failed"
+         ts_log_severe "Error: Commit failed"
          set result -1
          break;
       }
@@ -1513,11 +855,11 @@ proc arco_clean_postgres_database { { drop 0 } } {
 
 proc arco_clean_mysql_database { { drop 0 } } {
 
-global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
+global ARCO_TABLES ARCO_VIEWS
    
    set id [sqlutil_create]
    if { $id == "-1" } {
-      add_sql_error "arco_clean_mysql_database" "-2" "Can not create sqlutil"
+      ts_log_severe "Can not create sqlutil"
       return -1
    }   
    set sp_id [ lindex $id 1 ]
@@ -1525,7 +867,7 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
    
    # first of all connect to the admin db and check wether the database exists
    if { [ sqlutil_connect $sp_id 1 ] != 0 } {
-      add_sql_error "arco_clean_mysql_database" "-2" "Can not connect to admin database"
+      ts_log_severe "Can not connect to admin database"
       close_spawn_process $id;
       return -2
    }
@@ -1537,14 +879,14 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
    set column_names {}
    set res [sqlutil_query $sp_id $sql result_array column_names]
    if {$res <= 0} {
-      puts $CHECK_OUTPUT "database $db_name does not exist => nothing to clean"
+      ts_log_fine "database $db_name does not exist => nothing to clean"
       close_spawn_process $id;
       return 0
    }
 
    # now connect to the test database
    if { [ sqlutil_connect $sp_id 0 ] != 0 } {
-      add_sql_error "arco_clean_mysql_database" "-2" "Can not connect to database $db_name"
+      ts_log_severe "Can not connect to database $db_name"
       close_spawn_process $id;
       return -2
    }
@@ -1558,19 +900,19 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
          set sql "select table_name from information_schema.views where table_name = '$view' and table_schema = '${db_name}'";
          set res [sqlutil_query $sp_id $sql result_array column_names]
          if { $res == 0 } {
-            puts $CHECK_OUTPUT "view $view does not exist"
+            ts_log_fine "view $view does not exist"
             continue
          } elseif { $res < 0 } {
-            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not query view $view"
+            ts_log_severe "Error: Can not query view $view"
             close_spawn_process $id;
             return -1
          }
          
          set sql "DROP VIEW $view"
-         puts $CHECK_OUTPUT "drop view $view"
+         ts_log_fine "drop view $view"
          set res [sqlutil_exec $sp_id $sql]
          if { $res != 0 } {
-            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not drop view $VIEW"
+            ts_log_severe "Error: Can not drop view $VIEW"
             close_spawn_process $id;
             return -1
          }
@@ -1583,20 +925,20 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
       set column_names {}
       set res [sqlutil_query $sp_id $sql result_array column_names]
       if { $res == 0 } {
-         puts $CHECK_OUTPUT "table $table does not exist"
+         ts_log_fine "table $table does not exist"
          continue
       } elseif { $res < 0 } {
-         add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not query table $table"
+         ts_log_severe "Error: Can not query table $table"
          close_spawn_process $id
          return -1
       }
       
       if { $drop } {
          set sql "DROP TABLE $table CASCADE"
-         puts $CHECK_OUTPUT "drop table $table"
+         ts_log_fine "drop table $table"
          set res [sqlutil_exec $sp_id $sql]
          if { $res != 0 } {
-            add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not drop table $table"
+            ts_log_severe "Error: Can not drop table $table"
             set result -1
             break;
          }
@@ -1605,7 +947,7 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
             set sql "DELETE from $table"
             set res [sqlutil_exec $sp_id $sql]
             if { $res != 0 } {
-               add_sql_error "arco_clean_mysql_database" "-2" "Error: Can not delete table $table"
+               ts_log_severe "Error: Can not delete table $table"
                set result -1
                break;
             }
@@ -1614,7 +956,7 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
       set sql "COMMIT"
       set res [sqlutil_exec $sp_id $sql]
       if { $res != 0 } {
-         add_sql_error "arco_clean_mysql_database" "-2" "Error: Commit failed"
+         ts_log_severe "Error: Commit failed"
          set result -1
          break;
       }
@@ -1625,7 +967,7 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
 
 }
 
-#****** checktree/get_java_web_console_status() **************************************************
+#****** checktree/get_java_web_console_status() ********************************
 #  NAME
 #    get_java_web_console_status() -- get the status of the java web console
 #
@@ -1658,7 +1000,7 @@ global CHECK_OUTPUT ARCO_TABLES ARCO_VIEWS
 #
 #*******************************************************************************
 proc get_java_web_console_status { { swc_host "" } } {
-   global arco_config CHECK_OUTPUT CHECK_USER stored_passwd
+   global arco_config CHECK_USER stored_passwd
    
    if { $swc_host == "" } {
       set swc_host $arco_config(swc_host)
@@ -1679,12 +1021,12 @@ proc get_java_web_console_status { { swc_host "" } } {
     #  if {[string compare "You must be the system's root user to manage the server." "$output"] == 0 } {
     #     return 0
     #  }
-       puts $CHECK_OUTPUT "------------------------------------------------------------------"
-       puts $CHECK_OUTPUT "Command '/usr/sbin/smcwebserver status' on host $swc_host failed"
-       puts $CHECK_OUTPUT "------------------------------------------------------------------"
-       puts $CHECK_OUTPUT $output"
-       puts $CHECK_OUTPUT "------------------------------------------------------------------"
-       add_proc_error "get_java_web_console_status" -1 "Can not get status Java Web Console on host $swc_host"
+       puts "------------------------------------------------------------------"
+       puts "Command '/usr/sbin/smcwebserver status' on host $swc_host failed"
+       puts "------------------------------------------------------------------"
+       puts $output
+       puts "------------------------------------------------------------------"
+       ts_log_severe "Can not get status Java Web Console on host $swc_host"
        return -1
    }
    
@@ -1693,13 +1035,13 @@ proc get_java_web_console_status { { swc_host "" } } {
    } else if { [string first "is running" $output] > 0 } {
       return 1
    } else {
-      puts $CHECK_OUTPUT "Unexpected output of command '/usr/sbin/smcwebserver status' on host $swc_host:"
-      puts $CHECK_OUTPUT $output
+      puts "Unexpected output of command '/usr/sbin/smcwebserver status' on host $swc_host:"
+      puts $output
       return -1
    }
 }
 
-#****** checktree/get_java_web_console_version() **************************************************
+#****** checktree/get_java_web_console_version() *******************************
 #  NAME
 #    get_java_web_console_version() -- get the version of the java web console
 #
@@ -1730,7 +1072,7 @@ proc get_java_web_console_status { { swc_host "" } } {
 #
 #*******************************************************************************
 proc get_java_web_console_version { version_array { swc_host "" } } {
-   global arco_config CHECK_OUTPUT CHECK_USER stored_passwd
+   global arco_config CHECK_USER stored_passwd
    upvar $version_array va
    
    if { $swc_host == "" } {
@@ -1748,18 +1090,18 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
    set output [start_remote_prog $swc_host root  "/usr/sbin/smcwebserver" "-V"]
 
    if { $prg_exit_state != 0 } {
-      puts $CHECK_OUTPUT "------------------------------------------------------------------"
-      puts $CHECK_OUTPUT "'/usr/sbin/smcwebserver -V' on host $swc_host failed"
-      puts $CHECK_OUTPUT "------------------------------------------------------------------"
-      puts $CHECK_OUTPUT $output"
-      puts $CHECK_OUTPUT "------------------------------------------------------------------"
-      add_proc_error "get_java_web_console_version" -1 "Can not get the version of Java Web Console on host $swc_host"
+      puts "------------------------------------------------------------------"
+      puts "'/usr/sbin/smcwebserver -V' on host $swc_host failed"
+      puts "------------------------------------------------------------------"
+      puts $output
+      puts "------------------------------------------------------------------"
+      ts_log_severe "Can not get the version of Java Web Console on host $swc_host"
       return -1
    }
    
    set list [split $output " "]
    if { [llength $list] != 2 || [lindex $list 0] != "Version" } {
-       add_proc_error "get_java_web_console_version" -1 "Got invalid version string $output from '/usr/sbin/smcwebserver -V' on host $swc_host"
+       ts_log_severe "Got invalid version string $output from '/usr/sbin/smcwebserver -V' on host $swc_host"
        return -1
    }
    set output [lindex $list 1]
@@ -1779,9 +1121,8 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
         return 0
       }
       default {
-         add_proc_error "get_java_web_console_version" -1 "Got invalid version string $output from '/usr/sbin/smcwebserver -V' on host $swc_host"
+         ts_log_severe "Got invalid version string $output from '/usr/sbin/smcwebserver -V' on host $swc_host"
          return -1
       }
    }
 }
-

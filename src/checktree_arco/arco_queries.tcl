@@ -102,18 +102,18 @@ proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } } {
    upvar $job_object job
    
    if { [info exists job(j_job_name)] != 1 } {
-      add_proc_error "arco_job_submit" -1 "Missing element j_job_name in job object"
+      ts_log_severe "Missing element j_job_name in job object"
       return -1
    }
    if { [info exists job(args)] != 1 } {
-      add_proc_error "arco_job_submit" -1 "Missing element args in job object"
+      ts_log_severe "Missing element args in job object"
       return -1
    }
    
    set res [submit_job "-N $job(j_job_name) $job(args)"]
    
    if { $res < 0 } {
-      add_proc_error "arco_job_submit" -1 "submission of job [arco_job_to_string job] failed"
+      ts_log_severe "submission of job [arco_job_to_string job] failed"
       return -1
    }
    set job(j_job_number) $res
@@ -189,13 +189,13 @@ proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } } {
 #     sql_util/sqlutil_create
 #*******************************************************************************
 proc arco_query_job {sqlutil_sp_id job_array {expected_count 1} {timeout 300}} {
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    
    upvar $job_array job
    
    set job_str [arco_job_to_string job]
    
-   puts -nonewline $CHECK_OUTPUT "Searching job $job_str in table sge_job "
+   puts -nonewline "Searching job $job_str in table sge_job "
    
    set sql "select j_id, j_job_number, j_task_number, j_job_name, j_group, "
    append sql " j_owner, j_account, j_priority, j_submission_time, j_project, j_department"
@@ -212,26 +212,24 @@ proc arco_query_job {sqlutil_sp_id job_array {expected_count 1} {timeout 300}} {
    
    while { 1 } {
       if { [clock seconds] > $end_time } {
-         add_proc_error "arco_query_job" -1 "Timeout while waiting for job $job_str in table sge_job"
+         ts_log_severe "Timeout while waiting for job $job_str in table sge_job"
          return -1
       }
       array set result {}
       set columns {}
       set res [sqlutil_query $sqlutil_sp_id $sql result columns]
       if { $res < 0 } {
-         add_sql_error "arco_dbwriter_job_log_reuse_query_job" -1 "Can not execute sql query"
+         ts_log_severe "Can not execute sql query"
          return -2
       } 
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
+      ts_log_progress
       if {$res >= $expected_count} {
-         puts $CHECK_OUTPUT " ok ($res Tasks)"
+         puts " ok ($res Tasks)"
          set job(task_count) $res
          set col_count [llength $columns]
          for {set i 0} {$i < $res} {incr i} {
             set col 0
             foreach col_name $columns {
-               # puts $CHECK_OUTPUT "task${i}, ${col_name}: $result($i,$col)"
                set job($i,$col_name) $result($i,$col)
                incr col
             }
@@ -281,7 +279,7 @@ proc arco_query_job {sqlutil_sp_id job_array {expected_count 1} {timeout 300}} {
 #     sql_util/sqlutil_create
 #*******************************************************************************
 proc arco_query_job_log {sqlutil_sp_id job_array {timeout 300}} {
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    
    upvar $job_array job
    
@@ -307,7 +305,7 @@ proc arco_query_job_log {sqlutil_sp_id job_array {timeout 300}} {
 
       set job_str [arco_job_to_string task]
 
-      puts $CHECK_OUTPUT "Searching events for job $job_str in table sge_job_log"
+      puts "Searching events for job $job_str in table sge_job_log"
       
       foreach event $events {
          set    sql "select count(jl_parent) from sge_job_log "
@@ -324,14 +322,13 @@ proc arco_query_job_log {sqlutil_sp_id job_array {timeout 300}} {
    
          set msg [format "    -> %10s "   $event]
          if { $CHECK_DEBUG_LEVEL == 0 } {
-            puts -nonewline $CHECK_OUTPUT $msg
+            puts -nonewline $msg
          } else {
-            puts $CHECK_OUTPUT $msg
+            puts $msg
          }
          while { 1 } {
             if { [clock seconds] > $end_time } {
-               puts $CHECK_OUTPUT "Timeout"
-               add_proc_error "arco_query_job_log" -1 "timeout error while waiting for job_log entries of job $job_str"
+               ts_log_severe "timeout error while waiting for job_log entries of job $job_str"
                return -1
             }
             
@@ -339,17 +336,16 @@ proc arco_query_job_log {sqlutil_sp_id job_array {timeout 300}} {
             set columns {}
             set count [sqlutil_query $sqlutil_sp_id $sql result columns]
             if { $count < 0 } {
-               add_sql_error "arco_query_job_log" -1 "Can not execute query --------\n$sql\n --------------------"
+               ts_log_severe "Can not execute query --------\n$sql\n --------------------"
                return -2
             } 
             set count $result(0,0)
             if { $CHECK_DEBUG_LEVEL == 0 } {
-               puts -nonewline $CHECK_OUTPUT "."
-               flush $CHECK_OUTPUT
+               ts_log_progress
             }
             if { $count >= 1 } {
                # we have found entries for the current event
-               puts $CHECK_OUTPUT " ok"
+               puts " ok"
                set job($event) $count
                break
             }
@@ -403,7 +399,7 @@ proc arco_query_job_log {sqlutil_sp_id job_array {timeout 300}} {
 #     arco_queries/arco_query_job
 #*******************************************************************************
 proc arco_query_job_usage {sqlutil_sp_id job_array {timeout 300}} {
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    
    upvar $job_array job
    
@@ -423,7 +419,7 @@ proc arco_query_job_usage {sqlutil_sp_id job_array {timeout 300}} {
 
       set job_str [arco_job_to_string task]
 
-      puts -nonewline $CHECK_OUTPUT "Searching for job $job_str in table sge_job_usage "
+      puts -nonewline "Searching for job $job_str in table sge_job_usage "
       
       set    sql "select ju_ru_wallclock, ju_exit_status from sge_job_usage "
       append sql "where ju_parent in ("
@@ -436,8 +432,7 @@ proc arco_query_job_usage {sqlutil_sp_id job_array {timeout 300}} {
       while { 1 } {
          
          if { [clock seconds] > $end_time } {
-            puts $CHECK_OUTPUT "Timeout"
-            add_proc_error "arco_query_job_usage" -1 "timeout error while waiting for job_usage entries of job $job_str"
+            ts_log_severe "timeout error while waiting for job_usage entries of job $job_str"
             return -1
          }
          
@@ -445,17 +440,16 @@ proc arco_query_job_usage {sqlutil_sp_id job_array {timeout 300}} {
          set columns {}
          set count [sqlutil_query $sqlutil_sp_id $sql result columns]
          if { $count < 0 } {
-            add_sql_error "arco_query_job_usage" -1 "Can not execute query --------\n$sql\n --------------------"
+            ts_log_severe "Can not execute query --------\n$sql\n --------------------"
             return -2
          } 
          if { $CHECK_DEBUG_LEVEL == 0 } {
-            puts -nonewline $CHECK_OUTPUT "."
-            flush $CHECK_OUTPUT
+            ts_log_progress
          }
          
          if { $count >= 1 } {
             # we have found entries for current task
-            puts $CHECK_OUTPUT " ok"
+            puts " ok"
             
             set col_count [llength $columns]
             for { set col 0 } { $col < $col_count } { incr col } {

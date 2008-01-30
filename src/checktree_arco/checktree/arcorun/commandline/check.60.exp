@@ -94,13 +94,13 @@ proc arcorun_commandline_setup {} {
    
    start_remote_prog $arco_config(swc_host) $CHECK_USER "mkdir" "-p $arcorun_output_dir"
    if { $prg_exit_state != 0 } {
-      add_proc_error "arcorun_commandline_setup" -1 "Can not create directory $arcorun_output_dir"
+      ts_log_severe "Can not create directory $arcorun_output_dir"
       return -1
    }
    
    start_remote_prog $arco_config(swc_host) $CHECK_USER "rm" "-f $arcorun_output_dir/*"
    if { $prg_exit_state != 0 } {
-      add_proc_error "arcorun_commandline_setup" -3 "Can not clean directory $arcorun_output_dir"
+      ts_log_config "Can not clean directory $arcorun_output_dir"
       return -1
    }
    
@@ -126,7 +126,7 @@ proc arcorun_commandline_cleanup {} {
    
    start_remote_prog $arco_config(swc_host) $CHECK_USER "rm" "-r $arcorun_output_dir"
    if { $prg_exit_state != 0 } {
-      add_proc_error "arcorun_setup" -1 "Can not clean directory $arcorun_output_dir"
+      ts_log_severe "Can not clean directory $arcorun_output_dir"
       return -1
    }
    
@@ -185,10 +185,10 @@ proc arcorun_commandline_check {} {
       
       set res [arcorun_exec "$args" output]
       if { $res == 0 } {
-         add_proc_error "arcorun_cli_check" -1 "Invalid exit state ($args)"
+         ts_log_severe "Invalid exit state ($args)"
       }
       if { [string first $msg $output] >= 0 } {
-         add_proc_error "arcorun_cli_check" -1 "Error message '$msg' is not translated"
+         ts_log_severe "Error message '$msg' is not translated"
       }
 
    }

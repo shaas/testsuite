@@ -93,7 +93,7 @@ proc arco_dbwriter_performance_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc arco_dbwriter_performance_setup  {} {
-   global CHECK_OUTPUT ts_config 
+   global ts_config 
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_org_config
    
@@ -101,28 +101,28 @@ proc arco_dbwriter_performance_setup  {} {
    
    if { [get_dbwriter_status 0] != 0 } {
       if {[startup_dbwriter] != 0 } {
-         add_proc_error "arco_dbwriter_job_log_setup" -1 "Can not start dbwriter"
+         ts_log_severe "Can not start dbwriter"
          return -1
       }
    }
    
-   puts $CHECK_OUTPUT "Create sqlutil as ts_def_con2"
+   ts_log_fine "Create sqlutil as ts_def_con2"
    set sqlutil_id [sqlutil_create ts_def_con2]
    if { $sqlutil_id == "-1" } {
-      add_sql_error "arco_dbwriter_performance_setup" -1 "Can not create sqlutil"
+      ts_log_severe "Can not create sqlutil"
       set sqlutil_id ""
       return -1
    }   
    set sqlutil_sp_id [ lindex $sqlutil_id 1 ]
 
    if { [ sqlutil_connect $sqlutil_sp_id] != 0 } {
-      add_sql_error "arco_dbwriter_performance_setup" -1 "Can not connect to database"
+      ts_log_severe "Can not connect to database"
       close_spawn_process $sqlutil_id;
       set sqlutil_id ""
       return -2
    }
    
-   puts $CHECK_OUTPUT "sqlutil created ($sqlutil_id)"
+   ts_log_fine "sqlutil created ($sqlutil_id)"
    
    # setup reporting params (enable job_log)
    if {[info exists arco_dbwriter_performance_org_config]} {
@@ -132,7 +132,7 @@ proc arco_dbwriter_performance_setup  {} {
    
    set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=true sharelog=00:10:00"
    if {[set_config config] != 0} {
-      add_proc_error "arco_dbwriter_performance_setup" -1 "Can not set reporting_params"
+      ts_log_severe "Can not set reporting_params"
       return -1
    }
    
@@ -146,12 +146,12 @@ proc arco_dbwriter_performance_setup  {} {
    set prj(name) "project2"
    add_prj prj
    
-   puts $CHECK_OUTPUT "projects created"
+   ts_log_fine "projects created"
    
 }
 
 proc arco_dbwriter_performance_cleanup  {} {
-   global CHECK_OUTPUT ts_config
+   global ts_config
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_performance_org_config
 
@@ -165,7 +165,7 @@ proc arco_dbwriter_performance_cleanup  {} {
    set sqlutil_sp_id ""
    
    if {[set_config arco_dbwriter_performance_org_config] != 0} {
-      add_proc_error "arco_dbwriter_performance_cleanup" -1 "Can not reset configuration"
+      ts_log_severe "Can not reset configuration"
       return -1
    }
    
@@ -177,11 +177,11 @@ proc arco_dbwriter_performance_cleanup  {} {
 
 
 proc arco_dbwriter_performance_execute {} {
-   global CHECK_OUTPUT CHECK_USER CHECK_ACT_LEVEL 
+   global CHECK_USER CHECK_ACT_LEVEL 
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global ts_config check_description sqlutil_sp_id
    
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
    
    
    set job_sleep_time 10
@@ -204,7 +204,7 @@ proc arco_dbwriter_performance_execute {} {
          set test_time [expr 60 * 60 * 1000 * 24 * 2 ]   ;# test time is 2 days
       }
       default {
-         add_proc_error "arco_dbwriter_performance_execute" -1 "Invalid runlevel $CHECK_ACT_LEVEL"
+         ts_log_severe "Invalid runlevel $CHECK_ACT_LEVEL"
          return -1
       }
    }   
@@ -218,7 +218,7 @@ proc arco_dbwriter_performance_execute {} {
       foreach user $users {
          set res [submit_job "$job_args -P $project" 1 60 $ts_config(master_host) $user]
          if { $res < 0 } {
-            add_proc_error "arco_dbwriter_performance_execute" -1 "submission of job failed"
+            ts_log_severe "submission of job failed"
             return -1
          }
       }
@@ -238,7 +238,7 @@ proc arco_dbwriter_performance_execute {} {
       set hours [expr $minutes / 60 ]
       set minutes [expr $minutes % 60 ]
       set seconds [expr $seconds % 60]
-      puts $CHECK_OUTPUT [format "Remaining time %02d:%02d:%02d" ${hours} ${minutes} ${seconds}]
+      ts_log_fine [format "Remaining time %02d:%02d:%02d" ${hours} ${minutes} ${seconds}]
       
       after $sleep_time
       set test_time [expr $test_time - $cycle_time]
@@ -249,15 +249,15 @@ proc arco_dbwriter_performance_execute {} {
 
 proc arco_dbwriter_performance_query { sqlutil_sp_id } {
    
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global CHECK_DEBUG_LEVEL
    
    set sql "select num_value from view_statistic where time_end = (select max(time_end) from view_statistic where variable = 'lines_per_second')"
 
    set res [sqlutil_query $sqlutil_sp_id $sql rows columns 300]
    if { $res <= 0 } {
-      puts $CHECK_OUTPUT "Got not statistics from db"
+      ts_log_fine "Got no statistics from db"
    } else {
-      puts $CHECK_OUTPUT "Current dbwriter performance is $rows(0,0) lines/second"
+      ts_log_fine "Current dbwriter performance is $rows(0,0) lines/second"
    }
 }
 

@@ -92,50 +92,26 @@ proc arco_junit_check {} {
    #  Use the template from arco_source dir
    set cmd "sed"
 
-   set cmd_args ""
-   set jdbc_driver ""
-   set jdbc_url    ""
-   set db_name     [get_database_name]
-   set write_user  [get_arco_write_user]
-   set write_user_pw secret
-   set read_user   [get_arco_read_user]
-   set read_user_pw secret
-   set file_name   $CHECK_PROTOCOL_DIR/arco_junit_config.properties
-   set db_tablespace "$arco_config(tablespace)"
-   set db_index_tablespace "$arco_config(tablespace_index)"
-
-   switch -- $arco_config(database_type) {
-      "postgres" { 
-           set identifier "postgres"
-           set jdbc_driver "org.postgresql.Driver"
-           set jdbc_url    "jdbc:postgresql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
-           set db_def      "database/postgres/dbdefinition.xml"
-           set db_schema   "$arco_config(database_schema)"
-      }
-      "oracle"   { 
-           set identifier "oracle"
-           set jdbc_driver "oracle.jdbc.driver.OracleDriver" 
-           set jdbc_url    "jdbc:oracle:thin:@${arco_config(database_host)}:${arco_config(database_port)}:$db_name"
-           set db_def      "database/oracle/dbdefinition.xml"
-           set db_schema   $write_user
-      }
-      "mysql"    {
-           set identifier "mysql"
-           set jdbc_driver "com.mysql.jdbc.Driver" 
-           set jdbc_url    "jdbc:mysql://${arco_config(database_host)}:${arco_config(database_port)}/$db_name"
-           set db_def      "database/mysql/dbdefinition.xml"
-           set db_schema   $db_name
-      }
-      default    {
-         add_proc_error "arco_junit_check" -1 "Unkown database type $arco_config(database_type)"
-         return 0
-      }
-   }
+   set cmd_args            ""
+   set db_name             [get_database_name]
+   set db_host             [get_database_host]
+   set write_user          [get_arco_write_user]
+   set write_user_pw       [get_arco_user_pwd]
+   set read_user           [get_arco_read_user]
+   set read_user_pw        [get_arco_user_pwd]
+   set file_name           $CHECK_PROTOCOL_DIR/arco_junit_config.properties
+   set db_tablespace       $arco_config(tablespace)
+   set db_index_tablespace $arco_config(tablespace_index)
+   set identifier          [get_database_type]
+   set jdbc_driver         [get_jdbc_driver]
+   set jdbc_url            [get_jdbc_url $db_name]
+   set db_def              database/$identifier/dbdefinition.xml
+   set db_schema           [get_database_schema]
    
    append cmd_args " -e 's%@@IDENTIFIER@@%${identifier}%g'"
    append cmd_args " -e 's%@@JDBC_DRIVER@@%${jdbc_driver}%g'"
    append cmd_args " -e 's%@@DB_NAME@@%${db_name}%g'"
-   append cmd_args " -e 's%@@DB_HOST@@%${arco_config(database_host)}%g'"
+   append cmd_args " -e 's%@@DB_HOST@@%${db_host}%g'"
    append cmd_args " -e 's%@@JDBC_URL@@%${jdbc_url}%g'"
    append cmd_args " -e 's%@@JDBC_USER@@%${write_user}%g'"
    append cmd_args " -e 's%@@JDBC_PASSWORD@@%${write_user_pw}%g'"
@@ -161,7 +137,7 @@ proc arco_junit_check {} {
       report_add_message report "sed of DBWriterTestConfig.properties.template failed, exit state $prg_exit_state"
       report_add_message report "$output"
       report_finish report -1
-      add_proc_error "arco_junit_check" -1 "sed of DBWriterTestConfig.properties.template failed"
+      ts_log_severe "sed of DBWriterTestConfig.properties.template failed"
       return -1
    }
    
@@ -174,7 +150,7 @@ proc arco_junit_check {} {
    if { $res != 0 } {
       report_add_message report "ARCo junit tests failed"
       report_finish report -1
-      add_proc_error "arco_junit_check" "-1" "ARCo junit tests failed"
+      ts_log_severe "ARCo junit tests failed"
       return -1
    } else {
       report_add_message report "ARCo junit successfully executed"
