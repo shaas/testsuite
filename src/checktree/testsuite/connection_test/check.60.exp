@@ -99,60 +99,60 @@ proc connection_test_init_level {} {
 
 
 proc connection_test_setup  {} {
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
+   global ts_config CHECK_ACT_LEVEL
 
-   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
-   puts $CHECK_OUTPUT "this is a dummy setup function"
+   ts_log_fine "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   ts_log_fine "this is a dummy setup function"
 }
 
 proc connection_test_setup2  {} {
-   global CHECK_OUTPUT ts_config 
+   global ts_config 
    global CHECK_ACT_LEVEL
    global connection_test_dummy_act_level_counter2
 
-   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   ts_log_fine "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
    if { $CHECK_ACT_LEVEL != $connection_test_dummy_act_level_counter2 } {
-      add_proc_error "connection_test_setup" -1 "CHECK_ACT_LEVEL is not set correctly"
+      ts_log_severe "CHECK_ACT_LEVEL is not set correctly"
    }
 
    incr connection_test_dummy_act_level_counter2 1
 
 
-   puts $CHECK_OUTPUT "this is a dummy level setup function"
+   ts_log_fine "this is a dummy level setup function"
 }
 
 
 proc connection_test_cleanup  {} {
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL
-   puts $CHECK_OUTPUT "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
-   puts $CHECK_OUTPUT "this is a dummy cleanup function"
+   global ts_config CHECK_ACT_LEVEL
+   ts_log_fine "CHECK_ACT_LEVEL=$CHECK_ACT_LEVEL"
+   ts_log_fine "this is a dummy cleanup function"
 }
 
 
 proc connection_test_cleanup2  {} {
-   global CHECK_OUTPUT CHECK_ACT_LEVEL CHECK_ACT_LEVEL 
+   global CHECK_ACT_LEVEL CHECK_ACT_LEVEL 
    global ts_config connection_test_dummy_act_level_counter
    if { $CHECK_ACT_LEVEL != $connection_test_dummy_act_level_counter } {
-      puts $CHECK_OUTPUT "CHECK_ACT_LEVEL is not set correctly"
+      ts_log_fine "CHECK_ACT_LEVEL is not set correctly"
    }
    incr connection_test_dummy_act_level_counter 1
-   puts $CHECK_OUTPUT "this is a dummy level cleanup function"
+   ts_log_fine "this is a dummy level cleanup function"
 }
 
 
 proc connection_test_test {} {
    global connection_test_test_hosts check_description CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
+   global ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
    global ts_user_config
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
 
    set host_list_short [get_all_hosts]
    set java_compile_host [host_conf_get_java_compile_host]
    if { [lsearch $host_list_short $java_compile_host] } {
-      puts $CHECK_OUTPUT "java compile host \"$java_compile_host\" is already in host list"
+      ts_log_fine "java compile host \"$java_compile_host\" is already in host list"
    } else {
-      puts $CHECK_OUTPUT "adding java compile host \"$java_compile_host\""
+      ts_log_fine "adding java compile host \"$java_compile_host\""
       lappend host_list_short $java_compile_host
    }
 
@@ -174,11 +174,11 @@ proc connection_test_test {} {
       }
    }
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "starting remote echo calls ..."
+   ts_log_newline
+   ts_log_fine "starting remote echo calls ..."
    foreach user $user_list {
       foreach host $host_list {
-         puts $CHECK_OUTPUT "Testing login from host \"[gethostname]\" to host \"$host\" as user \"$user\" ..."
+         ts_log_fine "Testing login from host \"[gethostname]\" to host \"$host\" as user \"$user\" ..."
          set result [start_remote_prog $host $user "echo" "hallo"]
       }
    }

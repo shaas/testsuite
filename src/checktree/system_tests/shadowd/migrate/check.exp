@@ -254,7 +254,7 @@ proc shadowd_migrate_test {} {
                break
             }
          }
-         ts_log_fine ""
+         ts_log_newline
 
          set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cat" $act_qmaster_file]
          set new_act_qmaster [string trim $result]

@@ -128,7 +128,7 @@ proc spooledit_dump {} {
    parse_multiline_list output spooled_objects
 
    # now dump every object
-   ts_log_fine ""
+   ts_log_newline
    foreach obj $spooled_objects {
       ts_log_progress FINE "\r$obj                             \r"
       set output [start_sge_utilbin "spooledit" "dump $obj" $ts_config(master_host)]

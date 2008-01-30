@@ -72,7 +72,6 @@ proc SGE_Helper_Service_init_level {} {
    global CHECK_ACT_LEVEL
 
    if {![host_conf_have_windows]} {
-      add_proc_error "" -3 "no windows execution host configured for this cluster - skipping this test"
       return -1
    }
 
@@ -88,7 +87,7 @@ proc SGE_Helper_Service_init_level {} {
 
 # -------- local test procedures: initialization------------------------------
 proc SGE_Helper_Service_setup {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qacct_reporting_backup
    global SGE_Helper_Service_was_running
    global host
@@ -97,7 +96,7 @@ proc SGE_Helper_Service_setup {} {
 
    if {$host == ""} {
       # no windows execution host in cluster, test not possible
-      add_proc_error "SGE_Helper_Service" -1 "no windows execution host"
+      ts_log_severe "no windows execution host"
       return
    }
 
@@ -114,7 +113,7 @@ proc SGE_Helper_Service_setup {} {
 }
 
 proc SGE_Helper_Service_cleanup  {} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global qacct_reporting_backup
    global SGE_Helper_Service_was_running
 
@@ -127,14 +126,12 @@ proc SGE_Helper_Service_cleanup  {} {
    if {$SGE_Helper_Service_was_running == 0} {
       # stop "N1 Grid Engine Helper Service" again on the exec host.
       if {[stop_SGE_Helper_Service] != 0} {
-         add_proc_error "service_error_handling" -1 \
-            "error stopping N1 Grid Engine Helper Service"
+         ts_log_severe "error stopping N1 Grid Engine Helper Service"
       }
    } else {
       # start "N1 Grid Engine Helper Service" again on the exec host
       if {[start_SGE_Helper_Service] != 0} {
-         add_proc_error "service_error_handling" -1 \
-            "error starting N1 Grid Engine Helper Service"
+         ts_log_severe "error starting N1 Grid Engine Helper Service"
       }
    }
 }
@@ -182,8 +179,7 @@ proc service_error_handling { } {
    # make sure that the "N1 Grid Engine Helper Service" doesn't run
    # on the exec host.
    if {[stop_SGE_Helper_Service] != 0} {
-      add_proc_error "service_error_handling" -1 \
-         "error stopping N1 Grid Engine Helper Service"
+      ts_log_severe "error stopping N1 Grid Engine Helper Service"
    }
 
    set submit_command [get_display_win_gui_parameter]
@@ -202,8 +198,7 @@ proc service_error_handling { } {
    # make sure that the "N1 Grid Engine Helper Service" runs
    # on the exec host.
    if {[start_SGE_Helper_Service] != 0} {
-      add_proc_error "service_error_handling" -1 \
-         "error starting N1 Grid Engine Helper Service"
+      ts_log_severe "error starting N1 Grid Engine Helper Service"
    }
 
    set submit_command [get_display_win_gui_parameter]
@@ -270,9 +265,7 @@ proc get_display_win_gui_parameter {} {
 #  SEE ALSO
 #*******************************************************************************
 proc start_SGE_Helper_Service {} {
-   global CHECK_OUTPUT
-
-   ts_log_fine ""
+   ts_log_newline
    ts_log_fine "starting N1 Grid Engine Helper Service"
    
    set ret [control_SGE_Helper_Service 1]
@@ -303,9 +296,7 @@ proc start_SGE_Helper_Service {} {
 #  SEE ALSO
 #*******************************************************************************
 proc stop_SGE_Helper_Service {} {
-   global CHECK_OUTPUT
-
-   ts_log_fine ""
+   ts_log_newline
    ts_log_fine "stopping N1 Grid Engine Helper Service"
    set ret [control_SGE_Helper_Service 0]
    if {$ret == 0} {
@@ -428,23 +419,21 @@ proc is_SGE_Helper_Service_running {host} {
 #  SEE ALSO
 #*******************************************************************************
 proc submit_job_expect_failure {submit_command expected_failure} {
-   global CHECK_OUTPUT
    global host
    set    queue "all.q"
 
    # submit job
-   ts_log_fine ""
+   ts_log_newline
    set job_id [submit_job $submit_command]
 
    if {$job_id < 0} {
-      add_proc_error "service_error_handling" -1 "error submitting job" 
+      ts_log_severe "error submitting job" 
       return -1
    }
 
    # job is submitted, wait for job start
    if {[wait_for_jobstart $job_id "" 30 0 1] != 0} {
-      add_proc_error "service_error_handling" -1 \
-         "job was not scheduled to exec host"
+      ts_log_severe "job was not scheduled to exec host"
       return -1
    }
 
@@ -463,9 +452,7 @@ proc submit_job_expect_failure {submit_command expected_failure} {
 
          set runtime [expr [timestamp] - $time]
          if {$runtime >= $seconds} {
-            add_proc_error "service_error_handling" -1 \
-               "timeout waiting for queue \"$queue@$host\" going to error \
-               state due to job \"$job_id\""
+            ts_log_severe "timeout waiting for queue \"$queue@$host\" going to error state due to job \"$job_id\""
             return -1
          }
          after 1000
@@ -485,15 +472,13 @@ proc submit_job_expect_failure {submit_command expected_failure} {
 
          set runtime [expr [timestamp] - $time]
          if {$runtime >= $seconds} {
-            add_proc_error "service_error_handling" -1 \
-               "timeout waiting for job \"$job_id\" going to error state"
+            ts_log_severe "timeout waiting for job \"$job_id\" going to error state"
             return -1
          }
          after 1000
       }
    } else {
-      add_proc_error "service_error_handling" -1 \
-         "invalid value for parameter expected_failure"
+      ts_log_severe "invalid value for parameter expected_failure"
    }
 
    # delete job

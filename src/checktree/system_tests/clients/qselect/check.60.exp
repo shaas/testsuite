@@ -1,0 +1,302 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "qselect_init_level"
+
+# define test's name and run level descriptions
+set check_name            "qselect"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "test qselect client"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function qselect_setup
+set check_cleanup_function qselect_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "qselect_plain"
+lappend check_functions "qselect_l"
+lappend check_functions "qselect_pe"
+lappend check_functions "qselect_q"
+lappend check_functions "qselect_qs"
+lappend check_functions "qselect_U"
+
+proc qselect_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc qselect_setup {} {
+   global ts_config
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global qselect_host
+
+   # let's assume we need 2 test hosts
+   set qselect_host [host_conf_get_suited_hosts]
+
+   add_pe "qsel_pe"
+   add_access_list $CHECK_FIRST_FOREIGN_SYSTEM_USER "qsel_users"
+
+   set q(pe_list) "qsel_pe"
+   set q(user_lists) "qsel_users"
+   add_queue "qsel" "@allhosts" q
+}
+
+proc qselect_cleanup {} {
+   global ts_config
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "qsel" "" 1 1
+   del_access_list "qsel_users"
+   del_pe "qsel_pe"
+}
+
+proc qselect_plain {} {
+   global ts_config
+
+   set result [start_sge_bin "qselect" ""]
+
+   if {$prg_exit_state != 0} {
+      ts_log_severe "qselect failed:\n$result"
+      return
+   }
+
+   parse_multiline_list result queue_list
+   ts_log_fine "queue list: $queue_list"
+
+   # expect one queue instance per cqueue (all.q and qsel)
+   # and host
+   set num_expected [expr 2 * [llength $ts_config(execd_nodes)]]
+   if {[llength $queue_list] != $num_expected} {
+      ts_log_severe "expected $num_expected queue instances, but got\n$result"
+   }
+}
+
+proc qselect_l {} {
+   global ts_config
+   global qselect_host
+
+   # empty queue list after selection
+   set option "-l a=blablabla"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 1} {
+      ts_log_info "expected qselect $option to exit 1"
+   }
+   if {[string trim $result] != ""} {
+      ts_log_severe "expected empty list from qselect $option, but got\n$result"
+   }
+
+   set arch [resolve_arch $qselect_host]
+   set option "-l a=$arch"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "qselect $option failed:\n$result"
+      return
+   }
+
+   parse_multiline_list result queue_list
+   ts_log_fine "queue list: $queue_list"
+
+   # expect to find our test host's queues in the queue list
+   foreach cqueue "all.q qsel" {
+      set qinstance [get_queue_instance $cqueue $qselect_host]
+      if {[lsearch -exact $queue_list $qinstance] < 0} {
+         ts_log_severe "didn't find $qinstance in queue list:\n$queue_list"
+      }
+   }
+
+   # expect to find only queues with the selected arch in the queue list
+   foreach queue $queue_list {
+      set host_name [lindex [split $queue "@"] 1]
+      set host_arch [resolve_arch $host_name]
+      ts_log_fine "queue $queue, host $host_name, arch $host_arch"
+      if {$host_arch != $arch} {
+         ts_log_severe "expected to see only queue instances on hosts with arch $arch\nbut $queue is on host $host_name with arch $host_arch"
+      }
+   }
+}
+
+
+proc qselect_pe {} {
+   global ts_config
+   global qselect_host
+
+   set option "-pe qsel_pe"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 0} {
+      ts_log_info "qselect $option failed:\n$result"
+   }
+
+   parse_multiline_list result queue_list
+   ts_log_fine "queue list: $queue_list"
+
+   # expect to see qinstances of qsel queue from all hosts
+   if {[llength $queue_list] != [llength $ts_config(execd_nodes)]} {
+      ts_log_severe "expected to see all queue instances of qsel queue, but got\n$queue_list"
+   }
+
+   foreach host $ts_config(execd_nodes) {
+      set qinstance [get_queue_instance "qsel" $host]
+      if {[lsearch $queue_list $qinstance] < 0} {
+         ts_log_severe "expected to get $qinstance from qselect $option, but got\n$queue_list"
+      }
+   }
+}
+
+proc qselect_q {} {
+   global ts_config
+   global qselect_host
+
+   # test qselect -q <cqueue>
+   set option "-q qsel"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 0} {
+      ts_log_info "qselect $option failed:\n$result"
+   }
+
+   parse_multiline_list result queue_list
+   ts_log_fine "queue list: $queue_list"
+
+   # expect to see qinstances of qsel queue from all hosts
+   if {[llength $queue_list] != [llength $ts_config(execd_nodes)]} {
+      ts_log_severe "expected to see all queue instances of qsel queue, but got\n$queue_list"
+   }
+
+   foreach host $ts_config(execd_nodes) {
+      set qinstance [get_queue_instance "qsel" $host]
+      if {[lsearch $queue_list $qinstance] < 0} {
+         ts_log_severe "expected to get $qinstance from qselect $option, but got\n$queue_list"
+      }
+   }
+
+   # test qselect -q <qinstance>
+   set qinstance [get_queue_instance "qsel" $qselect_host]
+   set option "-q $qinstance"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 0} {
+      ts_log_info "qselect $option failed:\n$result"
+   }
+
+   if {[string trim $result] != $qinstance} {
+      ts_log_severe "expected to get $qinstance from qselect $option, but got\n$result"
+   }
+}
+
+proc qselect_qs {} {
+   global ts_config
+   global qselect_host
+
+   # suspend a queue, and expect it to be shown by qselect -s
+   set qinstance [get_queue_instance "qsel" $qselect_host]
+   suspend_queue $qinstance
+
+   set option "-qs s"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 0} {
+      ts_log_info "qselect $option failed:\n$result"
+   }
+
+   if {[string trim $result] != $qinstance} {
+      ts_log_severe "expected to get $qinstance from qselect $option, but got\n$result"
+   }
+
+   unsuspend_queue $qinstance
+}
+
+proc qselect_U {} {
+   global ts_config
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global qselect_host
+
+   # select all queues accessable by CHECK_FIRST_FOREIGN_SYSTEM_USER
+   set option "-U $CHECK_FIRST_FOREIGN_SYSTEM_USER"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 0} {
+      ts_log_info "qselect $option failed:\n$result"
+   }
+
+   parse_multiline_list result queue_list
+   ts_log_fine "queue list: $queue_list"
+
+   # expect to see qinstances of all.q and qsel queue from all hosts
+   if {[llength $queue_list] != [expr [llength $ts_config(execd_nodes)] * 2]} {
+      ts_log_severe "expected to see all queue instances of all.q and qsel queue, but got\n$queue_list"
+   }
+
+   # select all queues accessable by CHECK_SECOND_FOREIGN_SYSTEM_USER
+   set option "-U $CHECK_SECOND_FOREIGN_SYSTEM_USER"
+   set result [start_sge_bin "qselect" $option]
+   if {$prg_exit_state != 0} {
+      ts_log_info "qselect $option failed:\n$result"
+   }
+
+   parse_multiline_list result queue_list
+   ts_log_fine "queue list: $queue_list"
+
+   # expect to see only the all.q
+   if {[llength $queue_list] != [llength $ts_config(execd_nodes)]} {
+      ts_log_severe "expected to see all queue instances of all.q queue, but got\n$queue_list"
+   }
+   if {[string first $queue_list "qsel@"] >= 0} {
+      ts_log_severe "expected not to see any qinstance of qsel queue, but got\n$queue_list"
+   }
+}
+

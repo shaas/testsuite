@@ -522,7 +522,7 @@ proc share_tree_test {} {
          incr prj2_count 1
       }
    }
-   ts_log_fine ""
+   ts_log_newline
    ts_log_fine "project1 count: $prj1_count"
    ts_log_fine "project2 count: $prj2_count"
    ts_log_fine "project3 count: $prj3_count"

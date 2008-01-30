@@ -133,7 +133,7 @@ proc issue_1802_test {} {
          ts_log_severe "qstat exit state is $prg_exit_state, expected 0\n$output"
       }
 
-      ts_log_fine ""
+      ts_log_newline
       set command_options "-days -1 -renew $CHECK_USER"
       ts_log_fine "now make user certificate for user $CHECK_USER invalid ..."
       ts_log_fine "starting sge_ca $command_options as root user ..."

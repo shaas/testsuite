@@ -79,19 +79,18 @@ proc display_test_init_level {} {
 
 proc display_test_test {} {
    global display_test_test_hosts check_description CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
+   global ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
    global ts_user_config
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
 
    set users [user_conf_get_cluster_users]
    set hosts [get_all_hosts]
 
    foreach user $users {
-      puts $CHECK_OUTPUT "user: $user"
+      ts_log_fine "user: $user"
       foreach host $hosts {
-         puts -nonewline $CHECK_OUTPUT "   open xterm on host $host: "
-         flush $CHECK_OUTPUT
+         ts_log_progress FINE "\r   open xterm on host $host: \r"
          set xterm_path [get_xterm_path $host]
          set output [start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 0"]
          if { $prg_exit_state != 0 } {
@@ -100,17 +99,17 @@ proc display_test_test {} {
             set error_result($user,$host,cmd) "${host}(${user}): $xterm_path -bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 0"
 
              
-            puts $CHECK_OUTPUT "xterm returned exit state: $prg_exit_state\nOutput:\n$output"
+            ts_log_fine "xterm returned exit state: $prg_exit_state\nOutput:\n$output"
          } else {
             set disp_result($user,$host) 1
-            puts $CHECK_OUTPUT "ok"
+            ts_log_fine "ok"
             # just for fun !!!
             start_remote_prog $host $user $xterm_path "-bg darkolivegreen -fg navajowhite -sl 5000 -sb -j -display $CHECK_DISPLAY_OUTPUT -e sleep 3" prg_exit_state 60 1
 
          } 
       }
    }
-   puts $CHECK_OUTPUT [print_xy_array $users $hosts disp_result]
+   ts_log_fine [print_xy_array $users $hosts disp_result]
    set error_text ""
    foreach user $users {
       foreach host $hosts {
@@ -123,7 +122,7 @@ proc display_test_test {} {
       }
    }
    if { $error_text != "" } {
-      add_proc_error "display_test_test" -1 $error_text
+      ts_log_severe $error_text
    }
 }
 

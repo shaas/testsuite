@@ -81,10 +81,10 @@ proc execution_time_init_level {} {
 
 proc execution_time_test {} {
    global execution_time_test_hosts check_description CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
+   global ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
    global ts_user_config
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
 
    set max_user_len 0
    set max_host_len 0
@@ -106,19 +106,19 @@ proc execution_time_test {} {
 
    foreach user $user_list {
       foreach host $host_list {
-         puts $CHECK_OUTPUT [format "%-${max_user_len}s on %-${max_host_len}s: open connection ..." $user $host]
+         ts_log_fine [format "%-${max_user_len}s on %-${max_host_len}s: open connection ..." $user $host]
          start_remote_prog $host $user "echo" "hallo"
       }
    }
 
 
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "starting performance test ..."
+   ts_log_newline
+   ts_log_fine "starting performance test ..."
    set total_runs 0
    set total_result 0
    foreach user $user_list {
       foreach host $host_list {
-         puts -nonewline $CHECK_OUTPUT [format "%-${max_user_len}s on %-${max_host_len}s: " $user $host]
+         ts_log_fine [format "%-${max_user_len}s on %-${max_host_len}s: " $user $host]
  
          set starttime [clock clicks -milliseconds]
          set runs 5
@@ -135,19 +135,19 @@ proc execution_time_test {} {
             set max_user_len [string length $result ]
          }
          set result_array($user,$host) $result
-         puts $CHECK_OUTPUT [format "average execution time: %5s ms" $result]
+         ts_log_fine [format "average execution time: %5s ms" $result]
 
          incr total_runs
          incr total_result $result
       }
    }
    
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT [print_xy_array $user_list $host_list result_array]
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT "total average: [expr $total_result / $total_runs]"
-   puts $CHECK_OUTPUT ""
-   puts $CHECK_OUTPUT ""
+   ts_log_newline
+   ts_log_fine [print_xy_array $user_list $host_list result_array]
+   ts_log_newline
+   ts_log_fine "total average: [expr $total_result / $total_runs]"
+   ts_log_newline
+   ts_log_newline
 }
 
 

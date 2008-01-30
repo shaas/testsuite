@@ -87,7 +87,7 @@ proc sgepasswd_init_level {} {
 
 proc sgepasswd_setup {} {
    global ts_config
-   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH 
+   global CHECK_DEBUG_LEVEL CHECK_ACTUAL_TEST_PATH 
    global log_user
    global file_exists 
    global actual_time
@@ -159,14 +159,14 @@ proc sgepasswd_setup {} {
             close_spawn_process $id
             }
       }
-   puts $CHECK_OUTPUT "Check_setup function finished"
+   ts_log_fine "Check_setup function finished"
    close_spawn_process $id
 }
 
 proc sgepasswd_cleanup {} {
 
    global ts_config
-   global CHECK_DEBUG_LEVEL CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH CHECK_USER
+   global CHECK_DEBUG_LEVEL CHECK_ACTUAL_TEST_PATH CHECK_USER
    global log_user
    global file_exists
    global actual_time
@@ -215,7 +215,7 @@ proc sgepasswd_cleanup {} {
       set log_user 0 
    }
 
-   puts $CHECK_OUTPUT "Clean up function finished"
+   ts_log_fine "Clean up function finished"
 }
 
 #                                                             max. column:     |
@@ -243,11 +243,11 @@ proc sgepasswd_cleanup {} {
 #*******************************
 proc sgepasswd_6472859 {} {
    global ts_config
-   global CHECK_OUTPUT CHECK_ACTUAL_TEST_PATH 
+   global CHECK_ACTUAL_TEST_PATH 
 
 
    if { $ts_config(product_feature) == "csp" } {
-      add_proc_error "sgepasswd_6472859" -3 "can't run this test for CSP systems"
+      ts_log_config "can't run this test for CSP systems"
       return
    }
 
@@ -272,7 +272,7 @@ proc sgepasswd_6472859 {} {
 
       #get only name of file for notifications 
       set name [file tail $filename]
-      puts $CHECK_OUTPUT "Testing file: $name ..."
+      ts_log_fine "Testing file: $name ..."
  
       #run sgepasswd program and test it
       set master_arch [resolve_arch $ts_config(master_host)]
@@ -293,31 +293,31 @@ proc sgepasswd_6472859 {} {
             exp_continue
             } 
          -i $sp_id  "Password changed" { 
-            puts $CHECK_OUTPUT "Password changed for file: $name"
+            ts_log_fine "Password changed for file: $name"
             close_spawn_process $id 
             }
          -i $sp_id  "sgepasswd: sgepasswd file corrupted" {
-            puts $CHECK_OUTPUT "Password not changed (corrupted file) for file: $name" 
+            ts_log_fine "Password not changed (corrupted file) for file: $name" 
             close_spawn_process $id
             }
           #Segmentation fault should not appear if test is going to pass
          -i $sp_id  "*Segmentation Fault" {
             close_spawn_process $id
-            add_proc_error "sgepasswd_6472859" -1 "Test failed - Segmentation fault with test file $name " 
+            ts_log_severe "Test failed - Segmentation fault with test file $name " 
             }
          -i $sp_id  eof {
-            puts $CHECK_OUTPUT "expect eof"
+            ts_log_fine "expect eof"
             close_spawn_process $id
             }
          -i $sp_id  timeout {
-            puts $CHECK_OUTPUT "expect timeout"
+            ts_log_fine "expect timeout"
             close_spawn_process $id
             }
       }
-   puts $CHECK_OUTPUT "Test file: $name completed"
+   ts_log_fine "Test file: $name completed"
    close_spawn_process $id
 
    #close foreach
    }
-   puts $CHECK_OUTPUT "Test finished successfully"
+   ts_log_fine "Test finished successfully"
 }

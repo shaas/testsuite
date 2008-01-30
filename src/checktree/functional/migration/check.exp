@@ -96,7 +96,7 @@ proc migration_setup {} {
 
 proc migration_cleanup {} {
    delete_all_jobs
-   wait_for_end_of_all_jobs 60
+   wait_for_end_of_all_jobs
 
    clean_up_checkpointing
    clean_up_pe

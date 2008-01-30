@@ -90,7 +90,7 @@ proc display_win_gui {} {
    # GUI on the visible desktop. 0 means that it wasn't able to display it.
 
    if {$ts_config(gridengine_version) < 61} {
-      puts $CHECK_OUTPUT "Grid Engine version below 6.1, not testing \
+      ts_log_fine "Grid Engine version below 6.1, not testing \
             display_win_gui complex variable."
       return 0
    }
@@ -99,8 +99,7 @@ proc display_win_gui {} {
 
    # make sure that the "N1 Grid Engine Helper Service" runs on the exec host.
    if {[start_SGE_Helper_Service] != 0} {
-      add_proc_error "display_win_gui" -1 \
-         "error starting N1 Grid Engine Helper Service"
+      ts_log_severe "error starting N1 Grid Engine Helper Service"
    }
    
    # do all submits according to the table above and check "failed" and
@@ -113,18 +112,16 @@ proc display_win_gui {} {
          # of the submits.
 
          if {[stop_SGE_Helper_Service] != 0} {
-            add_proc_error "display_win_gui" -1 \
-               "error stopping N1 Grid Engine Helper Service"
+            ts_log_severe "error stopping N1 Grid Engine Helper Service"
          }
       }
 
       # submit job
-      puts $CHECK_OUTPUT ""
-      set job_id [submit_job "-l $request -l h=$host -b y -shell no\
-                  $ts_config(source_dir)/WIN32_X86/GUI_test.exe"]
+      ts_log_newline
+      set job_id [submit_job "-l $request -l h=$host -b y -shell no $ts_config(source_dir)/WIN32_X86/GUI_test.exe"]
 
       if {$job_id < 0} {
-         add_proc_error "display_win_gui" -1 "error submitting job" 
+         ts_log_severe "error submitting job" 
       }
 
       # wait for job end - now accounting should be written
@@ -132,41 +129,36 @@ proc display_win_gui {} {
       if {$ret == -1} {
          if {[lindex $expected $i] == "x"} {
             # in this case, it's expected that the job is not scheduled
-            puts $CHECK_OUTPUT "expected that this job doesn't get scheduled, and it\
+            ts_log_fine "expected that this job doesn't get scheduled, and it\
                   wasn't scheduled. deleting it."
             delete_all_jobs
             wait_for_job_end 60
          } else {
-            add_proc_error "display_win_gui" -1 \
-               "job was not scheduled to exec host"
+            ts_log_severe "job was not scheduled to exec host"
          }
       }
 
       # if job ought be scheduled, wait for jobend and analyze accounting data.
       if {[lindex $expected $i] != "x"} {
          if {[wait_for_jobend $job_id "" 30 1] != 0} {
-            add_proc_error "display_win_gui" -1 \
-               "job didn't end within timeout"
+            ts_log_severe "job didn't end within timeout"
          }
 
          # get accounting
          if {[get_qacct $job_id] == 0} {
             # check if job failed
             if {[string index $qacct_info(failed) 0] != "0" } {
-               add_proc_error -1 "job failed, $qacct_info(failed)"
+               ts_log_severe "job failed, $qacct_info(failed)"
             }
 
             # read job exit_status from accounting record
             if {$qacct_info(exit_status) != [lindex $expected $i]} {
-               add_proc_error "display_win_gui" -1 \
-                  "incorrect job exit status, expected [lindex $expected $i],\
-                   but got $qacct_info(exit_status)"
+               ts_log_severe "incorrect job exit status, expected [lindex $expected $i], but got $qacct_info(exit_status)"
             }
-            puts $CHECK_OUTPUT "exit_status expected: [lindex $expected $i], exit_status\
+            ts_log_fine "exit_status expected: [lindex $expected $i], exit_status\
                   read from qacct: $qacct_info(exit_status)"
          } else {
-            add_proc_error "display_win_gui" -1 \
-               "field exit_status is missing in qacct output."
+            ts_log_severe "field exit_status is missing in qacct output"
          }
       }
       incr i
@@ -174,8 +166,7 @@ proc display_win_gui {} {
    if {$SGE_Helper_Servcie_was_running == 1} {
       # start "N1 Grid Engine Helper Service" again on the exec host.
       if {[start_SGE_Helper_Service] != 0} {
-         add_proc_error "display_win_gui" -1 \
-            "error starting N1 Grid Engine Helper Service"
+         ts_log_severe "error starting N1 Grid Engine Helper Service"
       }
    }
 }
@@ -223,26 +214,23 @@ proc service_error_handling {} {
    # make sure that the "N1 Grid Engine Helper Service" doesn't run
    # on the exec host.
    if {[stop_SGE_Helper_Service] != 0} {
-      add_proc_error "service_error_handling" -1 \
-         "error stopping N1 Grid Engine Helper Service"
+      ts_log_severe "error stopping N1 Grid Engine Helper Service"
    }
 
    set submit_command [get_display_win_gui_parameter]
-   set submit_command "$submit_command -q $queue -l h=$host -b y\
-                      -shell no /dev/fs/C/WINDOWS/notepad.exe"
+   set submit_command "$submit_command -q $queue -l h=$host -b y -shell no /dev/fs/C/WINDOWS/notepad.exe"
 
    # submit job
-   puts $CHECK_OUTPUT ""
+   ts_log_newline
    set job_id [submit_job $submit_command]
 
    if {$job_id < 0} {
-      add_proc_error "service_error_handling" -1 "error submitting job"
+      ts_log_severe "error submitting job"
    }
 
    # wait for job to be scheduled, expect timeout
    if {[wait_for_jobstart $job_id "" 30 0 1] == 0} {
-      add_proc_error "service_error_handling" -1 \
-         "job was scheduled, but was expected to get not scheduled."
+      ts_log_severe "job was scheduled, but was expected to get not scheduled."
       return -1
    }
 
@@ -255,8 +243,7 @@ proc service_error_handling {} {
    # make sure that the "N1 Grid Engine Helper Service" runs
    # on the exec host.
    if {[start_SGE_Helper_Service] != 0} {
-      add_proc_error "service_error_handling" -1 \
-         "error starting N1 Grid Engine Helper Service"
+      ts_log_severe "error starting N1 Grid Engine Helper Service"
    }
 
    set submit_command [get_display_win_gui_parameter]

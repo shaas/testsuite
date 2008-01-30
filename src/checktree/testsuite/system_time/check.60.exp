@@ -76,10 +76,10 @@ proc system_time_init_level {} {
 # -------- local test procedures: initialization------------------------------
 proc system_time_test {} {
    global system_time_test_hosts check_description CHECK_USER
-   global CHECK_OUTPUT ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
+   global ts_config CHECK_ACT_LEVEL CHECK_DISPLAY_OUTPUT
    global ts_user_config
 
-   puts $CHECK_OUTPUT $check_description($CHECK_ACT_LEVEL)
+   ts_log_fine $check_description($CHECK_ACT_LEVEL)
 
    check_all_system_times
 }

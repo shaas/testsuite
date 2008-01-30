@@ -130,7 +130,7 @@ proc reporting_setup  {} {
    set schedd_conf(flush_finish_sec) 1
    set_schedd_config schedd_conf
 
-   # create a consumable for consumable reporting test
+   # create consumables for consumable reporting test
    set complex(F001) "F001 INT <= YES YES 0 0"
    set complex(F002) "F002 INT <= YES YES 0 0"
    set complex(F003) "F003 INT <= YES YES 0 0"
@@ -519,6 +519,12 @@ proc reporting_complex_change_test {} {
 
    # activate reporting and set short reporting flush time
    set new_config(reporting_params) "reporting=true flush_time=00:00:1"
+
+   # in 6.2, the default changed to log_consumables=false
+   # make sure we start with the correct settings
+   if {$ts_config(gridengine_version) >= 62} {
+      append new_config(reporting_params) " log_consumables=true"
+   }
    set_config new_config
 
    # tail -f reporting file
@@ -630,6 +636,11 @@ proc reporting_consumables_test {} {
 
    # activate reporting and set short reporting flush time
    set new_config(reporting_params) "reporting=true flush_time=00:00:1 joblog=true"
+   # in 6.2, the default changed to log_consumables=false
+   # make sure we start with the correct settings
+   if {$ts_config(gridengine_version) >= 62} {
+      append new_config(reporting_params) " log_consumables=true"
+   }
    set_config new_config
 
    # tail -f reporting file

@@ -705,10 +705,11 @@ proc issue193_cleanup {} {
    global pe_names pe_alloc_rule ts_user_config
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
+   trigger_scheduling
 
    reset_schedd_config
    set_config stored_configuration
-
    ts_log_fine "removing checkpointobjects ..."
    del_checkpointobj "qmod_with_r"
    del_checkpointobj "qmod_without_r"

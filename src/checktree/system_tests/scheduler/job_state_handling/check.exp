@@ -258,7 +258,7 @@ proc job_state_handling_error_timehold_jobhold {} {
       ts_log_fine "job $time_job is in state $job_state, continue in [expr ( $time_job_execution_time - [timestamp] ) ] seconds ...   "
       sleep 1
    } 
-   ts_log_fine ""
+   ts_log_newline
    wait_for_jobstart $time_job    "leeper" 100
    
    set job_state [ get_job_state $waitjob_job ]
