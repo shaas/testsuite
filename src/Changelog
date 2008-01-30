@@ -1,3 +1,7 @@
+CR-2008-01-30-0: Bugfix:    first compile clean on java build host as 
+                            workaround for inconsistent ant dependencies
+                 Review:    AA
+
 AP-2008-01-30-0: Enhancem.: o Adding the global database configuration
                             o Use the database configuration in checktree_arco
                             o Use the logging framework (JG-2008-01-16-0) in 
