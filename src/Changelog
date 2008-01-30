@@ -1,3 +1,6 @@
+RD-2008-01-30-0: Bugfix:    fixed 1914 testsuite test
+                 Review:    JG
+
 CR-2008-01-30-0: Bugfix:    first compile clean on java build host as 
                             workaround for inconsistent ant dependencies
                  Review:    AA
