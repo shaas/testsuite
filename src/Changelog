@@ -1,3 +1,8 @@
+JG-2008-01-30-0: Enhancem.: Added new test system_tests/clients/qselect.
+                 Review:    RD
+                 Enhancem.: Use the logging framework (JG-2008-01-16-0) for 
+                            further checks in checktree.
+
 AH-2008-01-30-0: Bugfix:    2nd run of resource_reservation test failed because 
                             calendar object was added but not removed. 
                  Review:    RD

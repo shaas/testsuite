@@ -701,7 +701,7 @@ proc tcov_compute_coverage {} {
    set result(index) {}
    tcov_recursive_coverage "." target_dirs target_files result
 
-   ts_log_fine ""
+   ts_log_newline
    ts_log_fine "total blocks:    $result(.,blocks)"
    ts_log_fine "blocks executed: $result(.,blocks_executed)"
 

@@ -1006,7 +1006,7 @@ proc show_proc_error {result new_error} {
       ts_log_frame
       ts_log_fine "$category"
       ts_log_fine "runlevel    : \"[get_run_level_name $CHECK_ACT_LEVEL]\", ($CHECK_ACT_LEVEL)"
-      ts_log_fine ""
+      ts_log_newline
       set error_output [create_error_message $new_error]
       ts_log_fine $error_output 
       ts_log_frame

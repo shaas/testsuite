@@ -169,7 +169,7 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
             
             if { $new_string != $macro_1_string } {
                lappend compare_error $macro
-               ts_log_fine ""
+               ts_log_newline
                ts_log_fine "error for macro $macro:"
                ts_log_fine "$file_a:"
                ts_log_fine "\"$macro_1_string\""

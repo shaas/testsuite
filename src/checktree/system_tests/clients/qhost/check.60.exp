@@ -69,6 +69,8 @@ lappend check_functions "test_issue132_j"
 lappend check_functions "test_issue132_u"
 lappend check_functions "test_issue132_l"
 lappend check_functions "test_issue132_F"
+
+global ts_config
 if {$ts_config(gridengine_version) >= "61"} {
    lappend check_functions "test_issue245"
 }

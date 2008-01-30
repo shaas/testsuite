@@ -80,6 +80,7 @@
 #     logging/ts_log()
 #     logging/ts_log_progress()
 #     logging/ts_log_frame()
+#     logging/ts_log_newline()
 #*******************************************************************************
 
 # ================================================================================
@@ -643,6 +644,35 @@ proc ts_log_frame {{level FINE} {line ""}} {
       } else {
          puts $line
       }
+   } else {
+      ts_log_washing_machine
+   }
+}
+
+#****** logging/ts_log_newline() *************************************************
+#  NAME
+#     ts_log_newline() -- print a newline
+#
+#  SYNOPSIS
+#     ts_log_newline {{level FINE}}
+#
+#  FUNCTION
+#     Prints a newline, if the given runlevel
+#     is active, otherwise the "washing machine".
+#
+#     Output is done only to stdout.
+#
+#  INPUTS
+#     {level FINE} - log level
+#*******************************************************************************
+proc ts_log_newline {{level FINE}} {
+   global ts_log_config
+  
+   set level [ts_log_get_level_name $level]
+   if {$ts_log_config(output) >= $level} {
+      puts "\n"
+   } else {
+      ts_log_washing_machine
    }
 }
 

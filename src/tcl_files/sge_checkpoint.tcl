@@ -145,13 +145,11 @@ proc del_checkpointobj {checkpoint_name {on_host ""} {as_user ""} {raise_error 1
    get_current_cluster_config_array ts_config
 
    unassign_queues_with_ckpt_object $checkpoint_name $on_host $as_user $raise_error
-
    set messages(index) "0 -1"
    set messages(0) [translate_macro MSG_SGETEXT_REMOVEDFROMLIST_SSSS $CHECK_USER "*" $checkpoint_name "*"]
    set messages(-1) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "*" $checkpoint_name]
    
    set output [start_sge_bin "qconf" "-dckpt $checkpoint_name" $on_host $as_user]
-
    set ret [handle_sge_errors "del_checkpointobj" "qconf -dckpt $checkpoint_name" $output messages $raise_error $prg_exit_state]
    return $ret
 }

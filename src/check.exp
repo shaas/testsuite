@@ -6290,7 +6290,7 @@ proc build_distribution { arch_list } {
          }
       }
       close_spawn_process $open_spawn
-      ts_log_fine ""
+      ts_log_newline
    }
 }
 
@@ -6396,7 +6396,7 @@ proc install_binaries { arch_list a_report } {
    }
    close_spawn_process $open_spawn
    ts_log_fine " done"
-   ts_log_fine ""
+   ts_log_newline
 
    foreach elem $ts_config(execd_hosts) {
       set host_arch [ resolve_arch $elem 1]
