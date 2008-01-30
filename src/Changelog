@@ -1,3 +1,5 @@
+MD-2008-01-30-0: Bugfix:    ts_config was not declared as global in qhost test
+
 JG-2008-01-30-0: Enhancem.: Added new test system_tests/clients/qselect.
                  Review:    RD
                  Enhancem.: Use the logging framework (JG-2008-01-16-0) for 
