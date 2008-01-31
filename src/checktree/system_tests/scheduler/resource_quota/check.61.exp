@@ -63,7 +63,8 @@ set check_cleanup_function resource_quota_cleanup
 # define test's procedure order
 set check_functions ""
 lappend check_functions "resource_quota_dynamic_limit"
-lappend check_functions "issue_xxx"
+lappend check_functions "issue_2250"
+lappend check_functions "resource_quota_redebitation"
 
 global resource_quota_test_host
 global resource_quota_test_qname
@@ -149,9 +150,11 @@ proc resource_quota_dynamic_limit {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 20
+
+   del_rqs $rqs_name
 }
 
-proc issue_xxx {} {
+proc issue_2250 {} {
    global ts_config resource_quota_test_host resource_quota_test_qname
 
    set job_options "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
@@ -191,4 +194,39 @@ proc issue_xxx {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 20
 
+   del_rqs $rqs_name
+}
+
+proc resource_quota_redebitation {} {
+   global ts_config
+
+   set job_options "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+
+   set rqs_name "redebit_test"
+   set rules ""
+   lappend rules "to slots=1"
+
+   # Add resource quota sets 
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "false"
+   set result [add_rqs rqs_charray]
+
+   # submit one job and wait until it's running
+   set job_id [submit_job $job_options]
+   wait_for_jobstart $job_id "leeper" 20 1 1
+
+   # now enable the RQS via mattr and test if the already running jobs
+   # are properly debited
+   set result [mod_attr "resource_quota" "enabled" "true" "$rqs_name"]
+
+   # a additional job should be rejected
+   set job_id [submit_job $job_options]
+   if {[wait_for_jobstart $job_id "leeper" 20 0 1] != -1} {
+      ts_log_severe "RQS debitation after enabling failed."
+   } 
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs 20
+
+   del_rqs $rqs_name
 }
