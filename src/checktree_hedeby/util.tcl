@@ -299,7 +299,7 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 #     add_host_resource() -- add a host resource to hedeby
 #
 #  SYNOPSIS
-#     add_host_resource { host_resource { on_host "" } { as_user ""} 
+#     add_host_resource { host_resource { service "" } { on_host "" } { as_user ""} 
 #     {raise_error 1} } 
 #
 #  FUNCTION
@@ -311,13 +311,15 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 #                       if not set the hedeby master host is used
 #     { as_user ""}   - optional: user name which starts sdmadm command 
 #                       if not set the hedeby admin user is used
+#     { service ""}   - optional: name of the service which will be the owner
+#                       of the resource
 #     {raise_error 1} - if set to 1 testsuite reports errors on failure 
 #
 #  RESULT
 #     the prg_exit_state of the sdmadm command
 #
 #*******************************************************************************
-proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error 1} } {
+proc add_host_resource { host_resource { service "" } { on_host "" } { as_user ""} {raise_error 1} } {
    global hedeby_config
    global CHECK_USER
 
@@ -363,12 +365,19 @@ proc add_host_resource { host_resource { on_host "" } { as_user ""} {raise_error
 
    # print out created file
    set file_content [start_remote_prog $exec_host $exec_user cat $file_name]
-   ts_log_fine "adding host resource \"$host_resource\" to hedeby system ..."
+   if {$service != "" } {
+      set add_args "-s $service"
+      ts_log_fine "adding host resource \"$host_resource\" to service $service of hedeby system ..."
+   } else {
+      set add_args ""
+      ts_log_fine "adding host resource \"$host_resource\" to hedeby system ..."
+   }
    ts_log_fine "properties file:"
    ts_log_fine $file_content
 
+
    # now use sdmadm command ...
-   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name" prg_exit_state "" $raise_error
+   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name $add_args" prg_exit_state "" $raise_error
    return $prg_exit_state
 }
 
