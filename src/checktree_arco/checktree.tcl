@@ -441,7 +441,7 @@ proc startup_dbwriter { { hostname "--" } { debugmode "0" } } {
       
       if {$debugmode == 1} {
         puts "dbwriter has been started in debug mode"
-        puts "Please connect with a jpda debugger to $hostname (Port 8000)!"
+        puts "Connect with a jpda debugger to $hostname (Port 8000)!"
         wait_for_enter
       } elseif {$prg_exit_state != 0} {
          ts_log_severe "startup of dbwriter failed: $output (exit code $prg_exit_state)"

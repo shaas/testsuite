@@ -13,7 +13,6 @@
 #
 #
 #  Sun Industry Standards Source License Version 1.2
-#  =================================================
 #  The contents of this file are subject to the Sun Industry Standards
 #  Source License Version 1.2 (the "License"); You may not use this file
 #  except in compliance with the License. You may obtain a copy of the
@@ -144,7 +143,7 @@ proc arco_reporting_install {} {
        expect {
           flush stdout
           -i $sp_id full_buffer {
-             ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+             ts_log_severe "buffer overflow, increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
              incr error_count 1
              break
           }   
@@ -175,7 +174,7 @@ proc arco_reporting_install {} {
              send_to_spawn_id $sp_id $ts_config(cell)
              continue
           }
-          -i $sp_id "Please enter the path to your java installation * >> " {
+          -i $sp_id "Enter the path to your java installation * >> " {
              if {$ts_config(gridengine_version) < 62} {
                 set java_home [get_java_home_for_host $arco_config(swc_host) "1.4"]  
              } else {
@@ -184,7 +183,7 @@ proc arco_reporting_install {} {
              send_to_spawn_id $sp_id $java_home
              continue
           }
-          -i $sp_id "Please enter the path to the spool directory * >> " {
+          -i $sp_id "Enter the path to the spool directory * >> " {
              send_to_spawn_id $sp_id $spool_dir
              continue
           }
@@ -193,36 +192,36 @@ proc arco_reporting_install {} {
              send_to_spawn_id $sp_id $input
              continue
           }
-          -i $sp_id "Please enter the name of your * db host * >> " {
+          -i $sp_id "Enter the name of your * database host * >> " {
              send_to_spawn_id $sp_id [get_database_host]
              continue
           }
-          -i $sp_id "Please enter the port of your * db * >> " {
+          -i $sp_id "Enter the port of your * database * >> " {
              send_to_spawn_id $sp_id [get_database_port]
              continue
           }
-          -i $sp_id "Please enter the name of your * database * >> " {
+          -i $sp_id "Enter the name of your * database * >> " {
              send_to_spawn_id $sp_id [get_database_name]
              continue
           }
-          -i $sp_id "Please enter the name of the database user * >> " {
+          -i $sp_id "Enter the name of the database user * >> " {
              send_to_spawn_id $sp_id [get_arco_read_user]
              continue
           }
-          -i $sp_id "Please enter the password of the database user >> " {
+          -i $sp_id "Enter the password of the database user >> " {
              send_to_spawn_id $sp_id [get_arco_user_pwd]
              continue
           }
-          -i $sp_id "Please retype the password >> " {
+          -i $sp_id "Retype the password >> " {
              send_to_spawn_id $sp_id [get_arco_user_pwd]
              continue
           }
-          -i $sp_id "Please enter the name of the database schema * >> " {
+          -i $sp_id "Enter the name of the database schema * >> " {
             set input [get_database_schema]
              send_to_spawn_id $sp_id $input
              continue
           }
-          -i $sp_id "Please enter the name of your cluster * >> " {
+          -i $sp_id "Enter the name of your cluster * >> " {
              send_to_spawn_id $sp_id "testsuite"
              continue
           }

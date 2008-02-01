@@ -548,7 +548,7 @@ proc config_arco_source_dir { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the path to ARCo source directory, or press >RETURN<"
+   set help_text {  "Enter the path to ARCo source directory, or press >RETURN<"
                     "to use the default value." }
    
    return [ config_generic $only_check $name config $help_text "directory" ]
@@ -559,7 +559,7 @@ proc config_dbwriter_host { only_check name config_array } {
 
    upvar $config_array config
    
-   set help_text {  "Please enter hostname where dbwriter should run, or press >RETURN<"
+   set help_text {  "Enter hostname where dbwriter should run, or press >RETURN<"
                     "to use the default value." }
                     
    set dbwriter_host [ config_generic $only_check $name config $help_text "host" ]
@@ -585,7 +585,7 @@ proc config_dbwriter_host { only_check name config_array } {
 proc config_database_type { only_check name config_array } {
    upvar $config_array config
    
-   set help_text {  "Please enter the database type, or press >RETURN<"
+   set help_text {  "Enter the database type, or press >RETURN<"
                     "to use the default value."
                     "Valid values are \"postgres\", \"oracle\" or \"mysql\"" }
                     
@@ -604,7 +604,7 @@ proc config_database_host { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of your database host, or press >RETURN<"
+   set help_text {  "Enter the name of your database host, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -615,7 +615,7 @@ proc config_database_port { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of your database port, or press >RETURN<"
+   set help_text {  "Enter the name of your database port, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -626,7 +626,7 @@ proc config_database_name { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of your database, or press >RETURN<"
+   set help_text {  "Enter the name of your database, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -636,7 +636,7 @@ proc config_database_schema { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of the database schema, or press >RETURN<"
+   set help_text {  "Enter the name of the database schema, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -647,7 +647,7 @@ proc config_database_write_user { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of the user which has write permissions on the database, or press >RETURN<"
+   set help_text {  "Enter the name of the user which has write permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -658,7 +658,7 @@ proc config_database_read_user { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the name of the user which has read permissions on the database, or press >RETURN<"
+   set help_text {  "Enter the name of the user which has read permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -669,7 +669,7 @@ proc config_database_write_pw { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the password of the user which has write permissions on the database, or press >RETURN<"
+   set help_text {  "Enter the password of the user which has write permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -680,7 +680,7 @@ proc config_database_read_pw { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the password of the user which has read permissions on the database, or press >RETURN<"
+   set help_text {  "Enter the password of the user which has read permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -691,7 +691,7 @@ proc config_arco_spool_dir { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter path to the ARCo spool directory, or press >RETURN<"
+   set help_text {  "Enter path to the ARCo spool directory, or press >RETURN<"
                     "to use the default value." }
 
    return [ config_generic $only_check $name config $help_text "directory" ]
@@ -701,7 +701,7 @@ proc config_arco_dbwriter_debug_level { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter debug level for dbwriter, or press >RETURN<"
+   set help_text {  "Enter debug level for dbwriter, or press >RETURN<"
                     "to use the default value."
                     "Valid values are \"WARNING\", \"INFO\", \"FINE\""}
 
@@ -712,7 +712,7 @@ proc config_arco_dbwriter_interval { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the dbwriter interval in seconds, or press >RETURN<"
+   set help_text {  "Enter the dbwriter interval in seconds, or press >RETURN<"
                     "to use the default value."  }
 
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -723,7 +723,7 @@ proc config_jdbc_driver { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the path to the JDBC driver or press >RETURN<"
+   set help_text {  "Enter the path to the JDBC driver or press >RETURN<"
                     "to use the default value."  }
      
    return [ config_generic $only_check $name config $help_text "string" ]
@@ -735,7 +735,7 @@ proc config_swc_host {only_check name config_array} {
    global CHECK_USER
    upvar $config_array config
 
-   set help_text {"Please enter the name of your the host where the Java Web Console is installed, or press >RETURN<"
+   set help_text {"Enter the name of your the host where the Java Web Console is installed, or press >RETURN<"
                   "to use the default value."}
    
    set swc_host [config_generic $only_check $name config $help_text "host" ]
@@ -769,7 +769,7 @@ proc config_java_home { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Please enter the JAVA_HOME path or press >RETURN<"
+   set help_text {  "Enter the JAVA_HOME path or press >RETURN<"
                     "to use the default value."  }
      
    return [ config_generic $only_check $name config $help_text "directory" ]
@@ -780,7 +780,7 @@ proc config_tablespace { only_check name config_array } {
 
    upvar $config_array config
 
-   set help_text {  "Please enter the name of TABLESPACE for tables"  }
+   set help_text {  "Enter the name of TABLESPACE for tables"  }
      
    return [ config_generic $only_check $name config $help_text "string" ]
 
@@ -790,7 +790,7 @@ proc config_tablespace_index { only_check name config_array } {
 
    upvar $config_array config
    
-   set help_text {  "Please enter the name of TABLESPACE for indexes"  }
+   set help_text {  "Enter the name of TABLESPACE for indexes"  }
      
    return [ config_generic $only_check $name config $help_text "string" ]
 
