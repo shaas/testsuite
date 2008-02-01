@@ -6740,13 +6740,18 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 
    set result ""
    set do_ps_kill 0
-   set result [start_sge_bin "qconf" "-ks -ke all"]
-   ts_log_finest "qconf -ke all -ks returned $prg_exit_state"
+   if {$ts_config(gridengine_version) <= 61} {
+      set qconf_option "-ks -ke all"
+   } else {
+      set qconf_option "-ke all"
+   }
+   set result [start_sge_bin "qconf" $qconf_option]
+   ts_log_finest "qconf $qconf_option returned $prg_exit_state"
    if { $prg_exit_state == 0 } {
       ts_log_finest $result
    } else {
       set do_ps_kill 1
-      ts_log_finer "shutdown_core_system - qconf -ks -ke all failed:\n$result"
+      ts_log_finer "shutdown_core_system - qconf $qconf_option failed:\n$result"
    }
 
 #   sleep 15 ;# give the schedd and execd's some time to shutdown
