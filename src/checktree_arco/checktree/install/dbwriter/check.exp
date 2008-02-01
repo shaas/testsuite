@@ -250,6 +250,11 @@ proc arco_dbwriter_install {} {
           -i $sp_id "Installation of dbWriter completed" {
              break
           }
+          -i $sp_id "Installation of dbWriter failed" {
+             ts_log_severe "install_dbwriter - FAILED"
+             incr error_count 1
+             break
+          }
           -i $sp_id "Error:" {
              ts_log_severe "install_dbwriter - $expect_out(0,string)"
              break
@@ -258,7 +263,7 @@ proc arco_dbwriter_install {} {
              ts_log_severe "install_dbwriter - $expect_out(0,string)"
              break
           }
-          -i "_exit_status_:(*)" {
+          -i $sp_id "_exit_status_:(*)" {
              set exit_status [get_string_value_between "_exit_status_:(" ")" $expect_out(0,string)]
              if { $exit_status != 0 } {
                 ts_log_severe "install_dbwriter failed with exist status $exit_status"

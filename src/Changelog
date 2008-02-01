@@ -1,3 +1,6 @@
+LP-2008-02-01-0: Bugfix.:   Fix for dbwriter _exit_status message
+                 Review:    JO
+
 JO-2008-02-01-0: Enhamcem.: Synchronized install prompts with the install scripts
 
 RH-2008-02-01-0: Bugfix:    Hedeby: install test assigns additional resources
