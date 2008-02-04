@@ -71,14 +71,12 @@ proc arco_junit_init_level {} {
 }
 
 proc arco_junit_setup_level {} {
-   shutdown_dbwriter
    # clean the arco database (drop all objects)
    arco_clean_database 1
 }
 
 proc arco_junit_cleanup_level {} {
-   #arco_clean_database
-   startup_dbwriter
+   #nothing to do, dbwriter is started up imediately after it is installed
 }
 
 proc arco_junit_check {} {
