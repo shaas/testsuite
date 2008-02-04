@@ -2516,6 +2516,117 @@ proc config_jmx_port { only_check name config_array } {
    return $value
 }
 
+#****** config/config_jmx_ssl() **********************************************
+#  NAME
+#     config_jmx_ssl() -- jmx ssl server authentication option setup
+#
+#  SYNOPSIS
+#     config_jmx_ssl { only_check name config_array } 
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#
+#*******************************************************************************
+proc config_jmx_ssl { only_check name config_array } {
+   global CHECK_OUTPUT 
+   global CHECK_COMMD_PORT
+   global CHECK_USER
+   global ts_user_config fast_setup
+
+   upvar $config_array config
+   
+   set helptext {
+      "Please enter true to enable SSL server authentication for qmaster JMX mbean server"
+      "or press >RETURN< to use the default value."
+   }   
+   set value [config_generic $only_check $name config $helptext "boolean" ] 
+
+   return $value
+}
+
+#****** config/config_jmx_ssl_client() **********************************************
+#  NAME
+#     config_jmx_ssl_client() -- jmx ssl client authentication option setup
+#
+#  SYNOPSIS
+#     config_jmx_ssl_client { only_check name config_array } 
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#
+#*******************************************************************************
+proc config_jmx_ssl_client { only_check name config_array } {
+   global CHECK_OUTPUT 
+   global CHECK_COMMD_PORT
+   global CHECK_USER
+   global ts_user_config fast_setup
+
+   upvar $config_array config
+   
+   set helptext {
+      "Please enter true to enable SSL client authentication for qmaster JMX mbean server"
+      "or press >RETURN< to use the default value."
+   }   
+   set value [config_generic $only_check $name config $helptext "boolean"] 
+
+   return $value
+}
+
+#****** config/config_jmx_ssl_keystore_pw() **********************************************
+#  NAME
+#     config_jmx_ssl_keystore_pw() -- jmx ssl keystore password
+#
+#  SYNOPSIS
+#     config_jmx_ssl_keystore_pw { only_check name config_array } 
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#
+#*******************************************************************************
+proc config_jmx_ssl_keystore_pw { only_check name config_array } {
+   global CHECK_OUTPUT 
+   global CHECK_COMMD_PORT
+   global CHECK_USER
+   global ts_user_config fast_setup
+
+   upvar $config_array config
+   
+   set helptext {
+      "Please enter the JMX SSL keystore pw for qmaster JMX mbean server"
+      "or press >RETURN< to use the default value."
+   }   
+   set value [config_generic $only_check $name config $helptext "string"] 
+
+   return $value
+}
+
 #****** config/config_reserved_port() **********************************************
 #  NAME
 #     config_reserved_port() -- reserved option setup
@@ -5090,6 +5201,54 @@ proc config_build_ts_config_1_15 {} {
    set ts_config(version) "1.15"
 }
 
+proc config_build_ts_config_1_16 {} {
+   global ts_config
+
+   # we add two new parameters: jmx_ssl and jmx_ssl_client
+   # after JMX port
+   set insert_pos $ts_config(jmx_port,pos)
+   incr insert_pos 1
+
+   # move positions of following parameters
+   set names [array names ts_config "*,pos"]
+   foreach name $names {
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 3]
+      }
+   }
+
+   set parameter "jmx_ssl"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "JMX SSL server authentication"
+   set ts_config($parameter,default)    "false"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   "stop"
+   set ts_config($parameter,pos)        $insert_pos
+
+   incr insert_pos 1
+
+   set parameter "jmx_ssl_client"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "JMX SSL client authentication"
+   set ts_config($parameter,default)    "false"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   "stop"
+   set ts_config($parameter,pos)        $insert_pos
+
+   incr insert_pos 1
+
+   set parameter "jmx_ssl_keystore_pw"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "JMX SSL keystore pw"
+   set ts_config($parameter,default)    "changeit"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   "stop"
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.16
+   set ts_config(version) "1.16"
+}
+
 #****** config/config_select_host() ********************************************
 #  NAME
 #     config_select_host() -- select a host
@@ -5381,7 +5540,7 @@ proc config_verify_hostlist {hostlist name {check_host_first 0}} {
 
 # MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.15"
+set actual_ts_config_version "1.16"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -5402,5 +5561,6 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_13
    config_build_ts_config_1_14
    config_build_ts_config_1_15
+   config_build_ts_config_1_16
 }
 

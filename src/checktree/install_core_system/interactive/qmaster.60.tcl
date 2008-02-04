@@ -186,6 +186,10 @@ proc install_qmaster {} {
  set JMX_JAVA_HOME                [translate_macro DISTINST_JAVA_HOME "*" ]
  set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS]
  set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
+ set JMX_SSL_QUESTION             [translate_macro DISTINST_JMX_SSL]
+ set JMX_SSL_CLIENT_QUESTION      [translate_macro DISTINST_JMX_SSL_CLIENT]
+ set JMX_SSL_KEYSTORE_QUESTION    [translate_macro DISTINST_JMX_SSL_KEYSTORE "*" ]
+ set JMX_SSL_KEYSTORE_PW_QUESTION [translate_macro DISTINST_JMX_SSL_KEYSTORE_PW]
  set JMX_USE_DATA                 [translate_macro DISTINST_JMX_USE_DATA]
  
  cd "$ts_config(product_root)"
@@ -429,6 +433,56 @@ proc install_qmaster {} {
              set anykey [wait_for_enter 1]
           }
           ts_send $sp_id "$ts_config(jmx_port)\n"
+          continue
+       }
+
+       -i $sp_id $JMX_SSL_QUESTION {
+          if { $ts_config(jmx_ssl) == true } {
+             set enable_jmx_ssl "$ANSWER_YES"
+          } else {
+             set enable_jmx_ssl "$ANSWER_NO"
+          }
+          puts $CHECK_OUTPUT "\n -->testsuite: sending jmx ssl >${enable_jmx_ssl}<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "${enable_jmx_ssl}\n"
+          continue
+       }
+
+       -i $sp_id $JMX_SSL_CLIENT_QUESTION {
+          if { $ts_config(jmx_ssl_client) == true } {
+             set enable_jmx_ssl_client "$ANSWER_YES"
+          } else {
+             set enable_jmx_ssl_client "$ANSWER_NO"
+          }
+          puts $CHECK_OUTPUT "\n -->testsuite: sending jmx ssl client >${enable_jmx_ssl_client}<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "${enable_jmx_ssl_client}\n"
+          continue
+       }
+
+       -i $sp_id $JMX_SSL_KEYSTORE_QUESTION {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending jmx ssl keystore >Return<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "\n"
+          continue
+       }
+
+       -i $sp_id $JMX_SSL_KEYSTORE_PW_QUESTION {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending jmx ssl keystore pw >$ts_config(jmx_ssl_keystore_pw)<"
+          if {$do_log_output == 1} {
+             puts "press RETURN"
+             set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "$ts_config(jmx_ssl_keystore_pw)\n"
           continue
        }
 

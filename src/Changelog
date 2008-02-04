@@ -1,3 +1,6 @@
+AA-2008-02-04-0: Enhancem.: SSL support changes for JMX server
+                 Review:    RH
+
 JG-2008-02-01-0: Enhancem.: No need to shutdown scheduler with 6.2 and higher.
 
 LP-2008-02-01-0: Bugfix.:   Fix for dbwriter _exit_status message
