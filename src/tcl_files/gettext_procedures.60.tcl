@@ -65,6 +65,7 @@ proc sge_macro { macro_name {raise_error 1} } {
    switch -exact $macro_name {
       "DISTINST_LICENSE_AGREEMENT" { set value "Do you agree with that license? (y/n) \[n\] >> " } 
       "DISTINST_HIT_RETURN_TO_CONTINUE" { set value "\nHit <RETURN> to continue >>" } 
+      "DISTINST_HIT_RETURN_TO_CONTINUE_BDB_RPC" { set value "Hit <RETURN> to continue!" }
       "DISTINST_HOSTNAME_KNOWN_AT_MASTER" { set value "\nThis hostname is known at qmaster as an administrative host.\n\nHit <RETURN> to continue >>" }
       "DISTINST_CHECK_AGAIN" { set value "Check again (y/n) ('n' will abort) \[y\] >> " }
       "DISTINST_NOT_COMPILED_IN_SECURE_MODE" { set value "\n>sge_qmaster< binary is not compiled with >-secure< option!\n" }
@@ -174,6 +175,11 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_JMX_SSL_KEYSTORE"   { set value "Enter JMX SSL server keystore path \[%s\] >> " }
       "DISTINST_JMX_SSL_KEYSTORE_PW"   { set value "Enter JMX SSL server keystore pw >> " }
       "DISTINST_JMX_USE_DATA"   { set value "Do you want to use these data (y/n) \[y\] >> " }
+      "DISTINST_UNIQUE_CLUSTER_NAME" {set value "Unique cluster name" }
+      "DISTINST_DETECT_CHOOSE_NEW_NAME" {set value "NOTE: Choose 'n' to select new SGE_CLUSTER_NAME  (y/n) *" }
+      "DISTINST_DETECT_REMOVE_OLD_CLUSTER" {set value "Stop the installation (YES) or remove detected cluster (NO)? (y/n) *" }
+      "DISTINST_SMF_IMPORT_SERVICE" {set value "NOTE: If you select \"n\" SMF will be not used at all" }
+      "DISTINST_DETECT_BDB_KEEP_CELL" {set value "Do you want to keep * or delete * the directory? (y/n) *" }
    }
 
    # if it was no install macro, try to find it from messages files

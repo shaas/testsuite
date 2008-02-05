@@ -133,6 +133,9 @@ proc install_shadowd {} {
       set HOSTNAME_KNOWN_AT_MASTER     [translate $shadow_host 0 1 0 [sge_macro DISTINST_HOSTNAME_KNOWN_AT_MASTER] ]
       set OTHER_USER_ID_THAN_ROOT      [translate $shadow_host 0 1 0 [sge_macro DISTINST_OTHER_USER_ID_THAN_ROOT] ]
       set INSTALL_AS_ADMIN_USER        [translate $shadow_host 0 1 0 [sge_macro DISTINST_INSTALL_AS_ADMIN_USER] "$CHECK_USER" ]
+      set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME] ]
+      set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER] ]
+      set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
 
 
       puts $CHECK_OUTPUT "inst_sge -sm"
@@ -204,7 +207,29 @@ proc install_shadowd {} {
                }
                ts_send $sp_id $input
                continue
-            } 
+            }
+
+            -i $sp_id -- $DETECT_CHOOSE_NEW_NAME {
+               puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_YES<"
+               if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+               }
+               ts_send $sp_id "$ANSWER_YES\n"
+               continue
+            }
+
+            #Delete detected services for chosen cluster_name
+            #We don't need answers for RC uninstall as TS does not use RC yet
+            -i $sp_id -- $DETECT_REMOVE_OLD_CLUSTER {
+               puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_NO<"
+               if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+               }
+               ts_send $sp_id "$ANSWER_NO\n"
+               continue
+            }
 
             -i $sp_id $HOSTNAME_KNOWN_AT_MASTER { 
                puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
@@ -268,7 +293,7 @@ proc install_shadowd {} {
             }
 
             #SMF startup is always disabled in testsuite
-            -i $sp_id -- "NOTE: If you select \"n\" SMF will be not used at all"  {
+            -i $sp_id -- $SMF_IMPORT_SERVICE {
                flush $CHECK_OUTPUT
                puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(10)"
                if {$do_log_output == 1} {

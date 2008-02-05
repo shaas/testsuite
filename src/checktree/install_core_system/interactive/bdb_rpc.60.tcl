@@ -113,6 +113,11 @@ proc install_bdb_rpc {} {
    set HIT_RETURN_TO_CONTINUE       [translate $bdb_host 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
    set INSTALL_SCRIPT               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
    set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ]
+   set HIT_RETURN_TO_CONTINUE_BDB_RPC [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE_BDB_RPC] ]
+   set UNIQUE_CLUSTER_NAME          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNIQUE_CLUSTER_NAME] ]
+   set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME] ]
+   set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER] ]
+   set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
 
    set prod_type_var "SGE_ROOT"
 
@@ -243,13 +248,35 @@ proc install_bdb_rpc {} {
             continue
          }
 
-         -i $sp_id -- "Unique cluster name" {
+         -i $sp_id -- $UNIQUE_CLUSTER_NAME {
             puts $CHECK_OUTPUT "\n -->testsuite: sending cluster_name >$ts_config(cluster_name)<"
             if {$do_log_output == 1} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
             }
             ts_send $sp_id "$ts_config(cluster_name)\n"
+            continue
+         }
+
+         -i $sp_id -- $DETECT_CHOOSE_NEW_NAME {
+            puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         #Delete detected services for chosen cluster_name
+         #We don't need answers for RC uninstall as TS does not use RC yet
+         -i $sp_id -- $DETECT_REMOVE_OLD_CLUSTER {
+            puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_NO\n"
             continue
          }
 
@@ -333,7 +360,7 @@ proc install_bdb_rpc {} {
          }
           
          #SMF startup is always disabled in testsuite
-         -i $sp_id -- "NOTE: If you select \"n\" SMF will be not used at all"  {
+         -i $sp_id -- $SMF_IMPORT_SERVICE {
             flush $CHECK_OUTPUT
             puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(10)"
             if {$do_log_output == 1} {
@@ -389,6 +416,17 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $HIT_RETURN_TO_CONTINUE { 
+            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+  
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $HIT_RETURN_TO_CONTINUE_BDB_RPC { 
             puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"

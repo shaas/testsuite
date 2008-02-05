@@ -97,6 +97,8 @@ proc arco_dbwriter_install {} {
    set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
    set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
    set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
+   set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME] ]
+   set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER] ]
    
    ts_log_fine "inst_dbwriter"
    set id [open_remote_spawn_process "$arco_config(dbwriter_host)" "root"  "./inst_dbwriter" "" 0 "$ts_config(product_root)/dbwriter"]
@@ -149,6 +151,19 @@ proc arco_dbwriter_install {} {
              send_to_spawn_id $sp_id $ts_config(cell)
              continue
           }
+
+          -i $sp_id -- $DETECT_CHOOSE_NEW_NAME {
+             send_to_spawn_id $sp_id "y"
+             continue
+          }
+
+          #Delete detected dbwriter service for chosen cluster_name
+          #We don't need answers for RC uninstall as TS does not use RC yet
+          -i $sp_id -- $DETECT_REMOVE_OLD_CLUSTER {
+             send_to_spawn_id $sp_id "n"
+             continue
+          }
+
           -i $sp_id "Enter the path to your java installation * >> " {
              if {$ts_config(gridengine_version) < 62} {
                 set java_home [get_java_home_for_host $arco_config(dbwriter_host) "1.4"]  

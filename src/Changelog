@@ -1,3 +1,7 @@
+LP-2008-02-05-0: Enhancem.: Testsuite can hadle new 'remove old cluster' 
+                            questions
+                 Review:    MD
+
 JO-2008-02-04-0: Enhancem.: updated arco_checktree junit_tests to compensate
                             for dbw being started automatically after install.
 
