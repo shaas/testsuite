@@ -1525,7 +1525,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
             set sys_name [get_hedeby_system_name]
             foreach host $shutdown_host_list {
                set task_info($host,expected_output) ""
-               set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sdj -h $host"      
+               set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sdj -h $host -all"      
             }
             ts_log_fine "parallel shutting down \"$type\" hosts \"$shutdown_host_list\" ..."
             append error_text [start_parallel_sdmadm_command shutdown_host_list $user task_info $raise_error]
@@ -1555,7 +1555,7 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
                if { [llength $hostInfoArray($host,pid_list)] == 0 } {
                   ts_log_fine "no components found on host $host"
                } else {
-                  set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -h $host" prg_exit_state "" $raise_error]
+                  set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdj -h $host -all" prg_exit_state "" $raise_error]
                   if { $prg_exit_state != 0 } {
                      incr hostInfoArray($host,ret_val) 1
                   }
