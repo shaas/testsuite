@@ -218,7 +218,7 @@ proc qmaster_size_init_level {} {
 #     ???/???
 #*******************************
 proc qmaster_size_setup {} {
-   global CHECK_PRODUCT_TYPE CHECK_ACTUAL_TEST_PATH CHECK_USER
+   global CHECK_USER
    global time_start MONITOR_SIZE_FILENAME
    global CHECK_ACT_LEVEL CHECK_PROTOCOL_DIR
    global qmaster_spool_dir
@@ -635,7 +635,8 @@ proc get_job_count {} {
 
 proc check_flood {} {
    global ts_config
-   global CHECK_ACTUAL_TEST_PATH CHECK_PRODUCT_TYPE CHECK_COMMD_PORT CHECK_USER
+   global CHECK_ACTUAL_TEST_PATH
+   global CHECK_USER
 
    upvar check_idle_after when
    upvar CHECK_FLOOD_AMOUNTS amounts
@@ -678,10 +679,9 @@ proc check_flood {} {
          unset flood_ids
       }
 
-      # WARNING: using "ts_def_con" user - CHECK_USER is used in sub commands by start_remote_prog or start_sge_bin !!!
       foreach host $ts_config(execd_nodes) {
          ts_log_fine "start flooding qsubs on host $host"
-         set flood_id [open_remote_spawn_process $host "ts_def_con" "$CHECK_ACTUAL_TEST_PATH/flood_sleeper.sh" "$ts_config(product_root) $ts_config(cell) $jobs_per_host '$types' $num"]
+         set flood_id [open_remote_spawn_process $host $CHECK_USER "$CHECK_ACTUAL_TEST_PATH/flood_sleeper.sh" "$ts_config(product_root) $ts_config(cell) $jobs_per_host '$types' $num"]
          set spawn_id [lindex $flood_id 1]
          set flood_ids($spawn_id) $flood_id
          lappend spawn_list $spawn_id

@@ -108,8 +108,8 @@ proc issue_1832_run_master_down  {} {
 
    set error_text ""
    set output ""
-   # "ts_def_con"
-   set pr_id [open_remote_spawn_process $host "ts_def_con_translate" $binary $bin_args 0 "" "" 0 15 1]
+
+   set pr_id [open_remote_spawn_process $host $CHECK_USER $binary $bin_args 0 "" "" 0 15 1]
    set sp_id [lindex $pr_id 1]
 
    set master_down 0

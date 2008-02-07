@@ -977,7 +977,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
           ts_log_finest "reading message from l10n raw cache ..."
       } else {
           ts_log_finest "translating message ..."
-          set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
+          set back [start_remote_prog $host $CHECK_USER $ts_config(product_root)/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
           set l10n_raw_cache($msg_text) $back
           ts_log_finest "adding message to l10n raw cache ..." 
       }
@@ -997,7 +997,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
          ts_log_finest "reading message from l10n install cache ..."
       } else {
          ts_log_finest "translating message ..."
-         set back [start_remote_prog $host "ts_def_con_translate" $ts_config(product_root)/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
+         set back [start_remote_prog $host $CHECK_USER $ts_config(product_root)/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
          set l10n_install_cache($msg_text) $back
          ts_log_finest "adding message to l10n install cache ..." 
       }

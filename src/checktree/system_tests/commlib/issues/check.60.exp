@@ -71,7 +71,8 @@ proc commlib_issues_setup {} {
 }
 
 proc commlib_issues_run  {} {
-   global ts_config CHECK_USER
+   global ts_config
+   global CHECK_USER
    
    set server_host [lindex $ts_config(execd_nodes) 0]
    set client_host [lindex $ts_config(execd_nodes) 1]
@@ -99,7 +100,7 @@ proc commlib_issues_run  {} {
 
    set server_sid [open_remote_spawn_process $server_host "root" $server_binary $server_args]
    after 5000
-   set client_sid [open_remote_spawn_process $client_host "ts_def_con" $client_binary $client_args]
+   set client_sid [open_remote_spawn_process $client_host $CHECK_USER $client_binary $client_args]
 
    set server_id [lindex $server_sid 1]
    set client_id [lindex $client_sid 1]

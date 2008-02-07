@@ -293,7 +293,7 @@ proc switch_to_normal_user_system {} {
 #     file_procedures/get_execd_spooldir()
 #*******************************************************************************
 proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
-   global ts_config
+   global ts_config CHECK_USER
 
    set spool_dir [get_execd_spooldir $host $spool_type]
    set base_spool_dir [get_execd_spooldir $host $spool_type 1]
@@ -328,7 +328,7 @@ proc switch_execd_spool_dir { host spool_type { force_restart 0 } } {
    if { [ remote_file_isdirectory $host $base_spool_dir ] != 1 } {
       ts_log_fine "creating not existing base spool directory:\n\"$base_spool_dir\""
       remote_file_mkdir $host $base_spool_dir
-      wait_for_remote_dir $ts_config(master_host) "ts_def_con2" $base_spool_dir
+      wait_for_remote_dir $ts_config(master_host) $CHECK_USER $base_spool_dir
    }
 
    ts_log_fine "cleaning up spool dir $spool_dir ..."

@@ -922,7 +922,7 @@ proc set_passwd {user root_host win_host} {
       }
       puts "user $user's password: "
       stty -echo
-      set passwd [wait_for_enter 1]
+      set passwd [wait_for_enter 1 0 1]
       stty echo
 
       # evaluate passwd
@@ -1207,7 +1207,7 @@ proc send_mail { address cc subject body } {
    } else {
       set mail_args "-s \"$new_subject\" \"$address\" < \"$tmp_mailfile\""
    }
-   set mail_output [start_remote_prog $CHECK_MAILX_HOST "ts_def_con_mail" "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
+   set mail_output [start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0]
  
    if { $prg_exit_state != 0 } {
       ts_log_fine "--> send_mail - could not send mail:\n$mail_output"
@@ -1220,7 +1220,7 @@ proc send_mail { address cc subject body } {
          } else {
             set mail_args "-s \"max mail count reached\" \"$address\" < \"$tmp_mailfile\""
          }
-         start_remote_prog $CHECK_MAILX_HOST "ts_def_con_mail" "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
+         start_remote_prog $CHECK_MAILX_HOST $CHECK_USER "mailx" "$mail_args" prg_exit_state 60 0 "" "" 1 0 
          set CHECK_ENABLE_MAIL 0
       }  
    }
@@ -4337,6 +4337,9 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    global CHECK_INTERRUPT
    global exclude_array CHECK_JGDI_ENABLED
 
+   testsuite_background_tasks
+   
+
    set CHECK_ACT_LEVEL 0
 
    # monitor, that we are currently running a test
@@ -5607,7 +5610,9 @@ proc print_menu_header {} {
   puts ""
   set hours [ expr ( $time_count / 60 ) ]
   set minutes [ expr (  $time_count % 60 ) ]
-  puts " est. run time      :  $hours h $minutes m"
+  set date_output [ exec date "+%D %H:%M:%S" ]
+
+  puts " est. run time      :  $hours h $minutes m (current time: $date_output)"
   puts "===============================================================================" 
   foreach elem $test_text {
      puts $elem
@@ -5622,7 +5627,7 @@ proc print_menu_header {} {
 #     wait_for_enter -- wait for the user to press any keys
 #
 #  SYNOPSIS
-#     wait_for_enter {{no_text 0} {second_try 0}} 
+#     wait_for_enter {{no_text 0} {atimeout 0} {hide_output 0} } 
 #
 #  FUNCTION
 #     Wait for the user to press enter.
@@ -5631,53 +5636,102 @@ proc print_menu_header {} {
 #  INPUTS
 #      {no_text 0} - 0: will output "press enter" before waiting
 #                    1: output nothing
+#      {atimeout 0}   : timeout (0=off, >0 timeout in seconds)
+#      {hide_output 0}: do not log input to output file
 #
 #  RESULT
 #     The string the user entered, or "", if he just pressed enter.
 #*******************************
-proc wait_for_enter {{no_text 0} {second_try 0}} {
+proc wait_for_enter {{no_text 0} {atimeout 0} {hide_output 0}} {
    global ts_config
    flush stdout
-
-   set have_config 1
-   if { [info exists ts_config(testsuite_root_dir)] == 0 } {
-      set have_config 0
-   }
 
    # output some message
    if {$no_text == 0} {
       puts "\npress enter..."
    }
 
-   # wait for the user to press enter
-   if { $have_config == 0 || $ts_config(testsuite_root_dir) == "" } {
-      set current_dir [pwd]
-      ts_log_finest "ts config not set, using current directory ($current_dir) for testsuite_root_dir"
-      set wait_script "$current_dir/scripts/wait_for_enter.sh"
+   if { $atimeout == 0 } {
+      set timeout 60  ;# perform background tasks
    } else {
-      set wait_script "$ts_config(testsuite_root_dir)/scripts/wait_for_enter.sh"
+      set timeout $atimeout
    }
-
-
-   set output ""
-   set en_result [catch { set output [eval exec $wait_script] } catch_output]
-
-   # if wait_for_enter.sh cannot be executed (e.g. due to incorrect file permissions),
-   # exit testsuite.
-   # For example netbeans checkout will not set the correct file permissions (strip the x flag).
-   if {$en_result != 0} {
-      if {$second_try} {
-         # if we already tried to fix the problem, but it still fails: exit
-         puts "error executing $wait_script"
-         testsuite_shutdown 1
-      } else {
-         # try to fix file permissions and retry wait_for_enter
-         file attributes $wait_script -permissions 00755
-         return [wait_for_enter $no_text 1]
+   set buffer ""
+   expect_user {
+      timeout {
+         if { $atimeout == 0 } {
+            testsuite_background_tasks
+            exp_continue
+         }
+         ts_log_finest "got timeout"
+      }
+      "*\n" {
+         set buffer $expect_out(0,string)
       }
    }
+   set buffer [string trim $buffer]
+   if {$hide_output == 0} {
+      ts_log_finer "return \"$buffer\""
+   } else {
+      ts_log_finer "returning"
+   }
+   return $buffer
+}
 
-   return [string trim $output]
+#****** check/testsuite_background_tasks() *************************************
+#  NAME
+#     testsuite_background_tasks() -- testsuite background tasks procedure
+#
+#  SYNOPSIS
+#     testsuite_background_tasks { } 
+#
+#  FUNCTION
+#     This procedure is periodically called when testsuite is waiting for user
+#     input in wait_for_enter(). Currently close_outdated_rlogin_sessions()
+#     is called here.
+#
+#  INPUTS
+#
+#  NOTES
+#     This procedure might also be called when there are no tcl files sourced.
+#     This means that it has to be checked if procedures are available or not.
+#     This can be archieved by using info procs call ...
+#*******************************************************************************
+proc testsuite_background_tasks {} {
+   global CHECK_DEBUG_LEVEL ts_log_washing_machine_enabled
+   
+   set washing_machine_value 0
+   set have_logging 0
+
+   if {[llength [info procs get_ts_log_washing_machine]] == 1} {
+      set have_logging 1
+   }
+   
+   # never output here, only in debug level and if logging module loaded !!!
+
+   if {$CHECK_DEBUG_LEVEL != 0 && $have_logging} {
+      ts_log_fine "starting background tasks ..."
+   } 
+  
+   # turn off washing machine if loaded logging module found
+   if {$CHECK_DEBUG_LEVEL == 0 && $have_logging} {
+      set washing_machine_value [get_ts_log_washing_machine]
+      set_ts_log_washing_machine 0
+   } 
+
+   if {[llength [info procs close_outdated_rlogin_sessions]] == 1} {
+      close_outdated_rlogin_sessions
+   }
+
+   # reactivate washing machine if loaded logging module found
+   if {$CHECK_DEBUG_LEVEL == 0 && $have_logging} {
+      set_ts_log_washing_machine $washing_machine_value
+   } 
+
+   if {$CHECK_DEBUG_LEVEL != 0 && $have_logging} {
+      ts_log_fine "background tasks finished!"
+   }
+
 }
 
 #                                                             max. column:     |
@@ -6996,7 +7050,7 @@ proc menu {} {
    puts "You can also enter a test name to switch directly to the test directory."
    puts -nonewline "\n> "
 
-  set input [wait_for_enter 1]; 
+   set input [wait_for_enter 1] 
 
 #  clear_screen
   #We always reset exclude_array in the menu
@@ -7482,7 +7536,7 @@ proc operate_additional_clusters {operation} {
 proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {execute_func_return rpc_retval} } {
    global CHECK_USER CHECK_HTML_DIRECTORY
    global check_use_installed_system
-   global check_do_clean_compile do_not_update ts_config
+   global check_do_clean_compile do_not_update ts_config ts_log_config
    upvar $execute_func_return rpcret
 
 
@@ -7516,6 +7570,10 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
          append args " no_update"
       }
 
+      if {[info exists ts_log_config(logging)]} {
+         append args " logging_level $ts_log_config(logging)"
+      }
+
       if {$CHECK_HTML_DIRECTORY != ""} {
          remote_file_mkdir $add_config(master_host) $CHECK_HTML_DIRECTORY/$add_config(master_host)
          wait_for_remote_dir $add_config(master_host) $CHECK_USER $CHECK_HTML_DIRECTORY/$add_config(master_host)
@@ -7530,7 +7588,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
       }
 
       ts_log_fine "starting expect $args in $add_config(testsuite_root_dir) as user $CHECK_USER on host $add_config(master_host) ..."
-      set id [open_remote_spawn_process $add_config(master_host) "ts_def_con_operate_add_cluster" "expect" $args 0 $add_config(testsuite_root_dir)]
+      set id [open_remote_spawn_process $add_config(master_host) $CHECK_USER "expect" $args 0 $add_config(testsuite_root_dir)]
       set script_tail_name [file tail $shell_script_name]
       set script_tail_name [file rootname $script_tail_name] ;# remove dot (.) because of glob switch
       ts_log_fine "script file tail name is \"$script_tail_name\""
@@ -7662,8 +7720,13 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
 }
 
 proc testsuite_shutdown {exit_code} {
-   catch {close_open_rlogin_sessions}
-   catch {ts_log_cleanup}
+   set catch_return [catch {
+      close_open_rlogin_sessions
+      ts_log_cleanup
+   } catch_error_message]
+   if { $catch_return == 1 } {
+      puts "testsuite_shutdown: $catch_error_message" 
+   }
    exit $exit_code
 }
 
@@ -7704,6 +7767,8 @@ set CHECK_MAIN_RESULTS_DIR "$CHECK_CURRENT_WORKING_DIR/results"
 set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
 
 # commandline parsing
+set log_to_file 0
+set ts_logging_file_name "testsuite.log"
 for {set i 0} {$i < $argc} {incr i} {
    if {([string compare [lindex $argv $i] "--setup"] == 0) || ([string compare [lindex $argv $i] "setup"] == 0) } {
       set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
@@ -7959,6 +8024,10 @@ for {set i 0} {$i < $argc} {incr i} {
       }
       
       puts "using configuration file \"$CHECK_DEFAULTS_FILE\""
+     
+      set ts_logging_file_name [file rootname $CHECK_DEFAULTS_FILE]
+      set ts_logging_file_name "$ts_logging_file_name.ts.log"
+
       continue
    }
 
@@ -8197,7 +8266,7 @@ for {set i 0} {$i < $argc} {incr i} {
       incr i
       set help_var [lindex $argv $i]
       ts_log_set_level "logging" $help_var
-      ts_log_set_logfile "testsuite.log"
+      set log_to_file 1
    } 
    if {[string compare [lindex $argv $i] "--mail_level"] == 0 || [string compare [lindex $argv $i] "mail_level"] == 0} {
       incr i
@@ -8205,6 +8274,12 @@ for {set i 0} {$i < $argc} {incr i} {
       ts_log_set_level "mail" $help_var
    } 
 }
+
+if {$log_to_file} {
+   ts_log_set_logfile $ts_logging_file_name
+   puts "logging to file \"$ts_logging_file_name\""
+}
+
 
 if {$CHECK_COVERAGE != {} && $CHECK_COVERAGE_DIR == ""} {
    puts "please specify a coverage profile directory with the option coverage_dir"

@@ -111,7 +111,7 @@ proc vdep_set_queue_values { hostlist change_array } {
 proc qinstance_to_cqueue { change_array } {
    upvar $change_array chgar
 
-   if { [info exists $chgar(hostname)] } {
+   if { [info exists chgar(hostname)] } {
       unset chgar(hostname)
    }
 

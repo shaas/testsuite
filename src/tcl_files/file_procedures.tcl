@@ -2255,7 +2255,8 @@ proc cleanup_spool_dir_for_host {hostname topleveldir subdir} {
 # return 0 if not
 # return 1 if is directory
 proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
-  start_remote_prog $hostname "ts_def_con2" "cd" "$dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user
+  global CHECK_USER
+  start_remote_prog $hostname $CHECK_USER "cd" "$dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user
   if { $prg_exit_state == 0 } {
      return 1  
   }
@@ -2263,7 +2264,8 @@ proc remote_file_isdirectory {hostname dir {win_local_user 0}} {
 }
 
 proc remote_file_mkdir {hostname dir {win_local_user 0}} {
-  start_remote_prog $hostname "ts_def_con2" "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user
+  global CHECK_USER
+  start_remote_prog $hostname $CHECK_USER "mkdir" "-p $dir" prg_exit_state 60 0 "" "" 1 0 0 1 $win_local_user
 }
 
 proc check_for_core_files {hostname path} {
@@ -2277,7 +2279,7 @@ proc check_for_core_files {hostname path} {
    }
 
    # try to find core files in path
-   set core_files [start_remote_prog $hostname "ts_def_con2" "find" "$path -name core -print" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+   set core_files [start_remote_prog $hostname $CHECK_USER "find" "$path -name core -print" prg_exit_state 60 0 "" "" 1 0 0 1 1]
    if { $prg_exit_state != 0 } {
       ts_log_severe "find core files in directory $path on host $hostname failed: $core_files"
    } else {
@@ -2343,19 +2345,19 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
          ts_log_finer "delete_directory - moving \"$path\" to trash folder ..."
          set new_name [file tail $path] 
 
-         start_remote_prog $hostname "ts_def_con2" "mv" "$path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
+         start_remote_prog $hostname $CHECK_USER "mv" "$path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
          if {$prg_exit_state != 0} {
             ts_log_finer "delete_directory - mv error"
             ts_log_finer "delete_directory - try to copy the directory"
-            start_remote_prog $hostname "ts_def_con2" "cp" "-r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
+            start_remote_prog $hostname $CHECK_USER "cp" "-r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user
             if {$prg_exit_state != 0} {
                ts_log_severe "$hostname: could not mv/cp directory \"$path\" to trash folder"
                set return_value -1
             } else {
                ts_log_finer "copy ok -  removing directory"
-               set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
+               set rm_output [start_remote_prog $hostname $CHECK_USER "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
                if {$prg_exit_state != 0} {
-                  ts_log_severe "$hostname (ts_def_con2=$CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
+                  ts_log_severe "$hostname ($CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
                   set return_value -1
                } else {
                   ts_log_finer "done"
@@ -2367,9 +2369,9 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
          }
       } else {
          ts_log_finer "delete_directory - removing directory \"$path\""
-         set rm_output [start_remote_prog $hostname "ts_def_con2" "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
+         set rm_output [start_remote_prog $hostname $CHECK_USER "rm" "-rf $path" prg_exit_state 300 0 "" "" 1 0 0 1 $win_local_user]
          if {$prg_exit_state != 0} {
-            ts_log_severe "$hostname (ts_def_con2=$CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
+            ts_log_severe "$hostname ($CHECK_USER): could not remove directory \"$path\"\nexit state =\"$prg_exit_state\"\noutput:\n$rm_output"
             set return_value -1
          } else {
             ts_log_finer "done"
@@ -2996,8 +2998,8 @@ proc delete_directory {path} {
 #     init_logfile_wait { hostname logfile } 
 #
 #  FUNCTION
-#     This procedure is using the reserved open remote spawn connection
-#     "ts_def_con" in order to start a tail process that observes the given
+#     This procedure is using starting an open remote spawn connection
+#     in order to start a tail process that observes the given
 #     file. The open spawn id is stored in a global variable to make it
 #     possible for the logfile_wait() procedure to expect data from
 #     the tail process.
@@ -3013,9 +3015,9 @@ proc delete_directory {path} {
 #     file_procedures/close_logfile_wait()
 #*******************************************************************************
 proc init_logfile_wait { hostname logfile  } {
-   global file_procedure_logfile_wait_sp_id
+   global file_procedure_logfile_wait_sp_id CHECK_USER
 
-   set sid [open_remote_spawn_process $hostname "ts_def_con_log" "tail" "-f $logfile"]
+   set sid [open_remote_spawn_process $hostname $CHECK_USER "tail" "-f $logfile"]
    set sp_id [lindex $sid 1]
    set timeout 5
    ts_log_finest "spawn id: $sp_id"

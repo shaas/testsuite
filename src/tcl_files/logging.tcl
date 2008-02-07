@@ -1134,6 +1134,7 @@ proc ts_private_log_do_logging {level message raise_error function} {
    for {set i 1} {$i < [llength $lines]} {incr i} {
       puts $ts_log_logfile [format $FORMAT " + " $level_abbrev " + " [lindex $lines $i]]
    }
+   flush $ts_log_logfile
 }
 
 #****** logging/ts_private_log_send_mail() *************************************
@@ -1261,12 +1262,18 @@ proc ts_private_log_send_mail {level message raise_error function} {
 #  FUNCTION
 #     Prints the "washing machine" on stdout.
 #*******************************************************************************
-global ts_log_washing_machine_next_timestamp ts_log_washing_machine_counter
+global ts_log_washing_machine_next_timestamp ts_log_washing_machine_counter ts_log_washing_machine_enabled
 set ts_log_washing_machine_next_timestamp 0
 set ts_log_washing_machine_counter 0
+set ts_log_washing_machine_enabled 1
 proc ts_log_washing_machine {} {
-   global ts_log_washing_machine_next_timestamp ts_log_washing_machine_counter
+   global ts_log_washing_machine_next_timestamp
+   global ts_log_washing_machine_counter
+   global ts_log_washing_machine_enabled
 
+   if {!$ts_log_washing_machine_enabled} {
+      return
+   }
    set now [clock clicks -milliseconds]
    if {$ts_log_washing_machine_next_timestamp < $now} {
       set ts_log_washing_machine_next_timestamp [expr $now + 100]
@@ -1279,6 +1286,17 @@ proc ts_log_washing_machine {} {
       incr ts_log_washing_machine_counter
    }
 }
+
+proc set_ts_log_washing_machine { value } {
+   global ts_log_washing_machine_enabled
+   set ts_log_washing_machine_enabled $value
+}
+
+proc get_ts_log_washing_machine { } {
+   global ts_log_washing_machine_enabled
+   return $ts_log_washing_machine_enabled
+}
+
 
 # end of private functions
 # ================================================================================

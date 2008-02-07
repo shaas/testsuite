@@ -169,7 +169,7 @@ proc qrsh_function {} {
    ts_log_fine "qrsh functional test"
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
       set sp_id [lindex $qrsh_id 1]
   
       set timeout 60
@@ -207,7 +207,7 @@ proc qrsh_h {} {
 
    incr job_id 1       ;# job id of next job !
    set arch [resolve_arch $qrsh_submithost]
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-h echo qrsh sucessfully started"]
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-h echo qrsh sucessfully started"]
    set sp_id [lindex $qrsh_id 1]
 
    trigger_scheduling
@@ -282,7 +282,7 @@ proc qrsh_hold_jid {} {
    set hold_job_id [submit_job $arguments]
    set job_id [expr $hold_job_id + 1]
    set arch [resolve_arch $qrsh_submithost]
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-hold_jid $hold_job_id echo qrsh sucessfully started"]
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-hold_jid $hold_job_id echo qrsh sucessfully started"]
    set sp_id [lindex $qrsh_id 1]
   
    trigger_scheduling
@@ -378,12 +378,13 @@ proc qrsh_hold_jid {} {
 #*******************************
 proc qrsh_alltoall {} {
    global ts_config
+   global CHECK_USER
    global qrsh_hostlist
 
    foreach source $qrsh_hostlist {
       set source_arch [resolve_arch $source]
       foreach dest $qrsh_hostlist {
-         set qrsh_id [open_remote_spawn_process "$source" "ts_def_con" "$ts_config(product_root)/bin/$source_arch/qrsh" "-l hostname=$dest echo qrsh sucessfully started"]
+         set qrsh_id [open_remote_spawn_process "$source" $CHECK_USER "$ts_config(product_root)/bin/$source_arch/qrsh" "-l hostname=$dest echo qrsh sucessfully started"]
          set sp_id [lindex $qrsh_id 1]
          set timeout 60
          expect {
@@ -414,6 +415,7 @@ proc qrsh_alltoall {} {
 
 proc qrsh_starter_method {} {
    global ts_config CHECK_ACTUAL_TEST_PATH
+   global CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
    # set starter method
@@ -422,7 +424,7 @@ proc qrsh_starter_method {} {
 
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
       set sp_id [lindex $qrsh_id 1] 
   
       set timeout 60
@@ -492,6 +494,7 @@ proc qrsh_starter_method {} {
 #*******************************
 proc qrsh_accounting {} {
    global ts_config CHECK_PRODUCT_TYPE
+   global CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
    if {$ts_config(gridengine_version) == 53} {
@@ -505,7 +508,7 @@ proc qrsh_accounting {} {
 
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-verbose -nostdin -l hostname=$host $ts_config(product_root)/examples/jobs/worker.sh 120"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-verbose -nostdin -l hostname=$host $ts_config(product_root)/examples/jobs/worker.sh 120"]
       
       set state startup
       set job_id ""
@@ -626,6 +629,7 @@ proc qrsh_accounting {} {
 #*******************************
 proc qrsh_suspend {} {
    global ts_config
+   global CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
    set arch [resolve_arch $qrsh_submithost]
@@ -634,7 +638,7 @@ proc qrsh_suspend {} {
       set suspended_states [host_get_suspended_states $host]
 
       # start qrsh job (shell script that outputs its pid)
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $ts_config(testsuite_root_dir)/scripts/work_pid.sh 60"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $ts_config(testsuite_root_dir)/scripts/work_pid.sh 60"]
       
       # evaluate pid and JOB_ID
       set sp_id [ lindex $qrsh_id 1 ] 
@@ -774,12 +778,13 @@ proc qrsh_suspend {} {
 #*******************************
 proc qrsh_delete {} {
    global ts_config CHECK_ACTUAL_TEST_PATH
+   global CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
       # start qrsh job (shell script that outputs its pid)
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $CHECK_ACTUAL_TEST_PATH/sleep_pid.sh 120"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $CHECK_ACTUAL_TEST_PATH/sleep_pid.sh 120"]
       set sp_id [ lindex $qrsh_id 1 ] 
  
       # evaluate pid and JOB_ID
@@ -879,7 +884,7 @@ proc qrsh_terminate {} {
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
       # start qrsh job (shell script that outputs its pid)
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $CHECK_ACTUAL_TEST_PATH/sleep_pid.sh 120"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $CHECK_ACTUAL_TEST_PATH/sleep_pid.sh 120"]
       
       # evaluate pid and JOB_ID
       set sp_id [lindex $qrsh_id 1] 
@@ -1120,7 +1125,8 @@ proc qrsh_qsub_gid {} {
 #     ???/???
 #*******************************
 proc qrsh_batch {} {
-   global ts_config CHECK_USER
+   global ts_config
+   global CHECK_USER
    global qrsh_hostlist qrsh_submithost
 
    ts_log_fine "check qrsh in immediate and batch mode (-now yes / no)"
@@ -1137,7 +1143,7 @@ proc qrsh_batch {} {
       disable_queue $queue
       ts_log_fine "queue should be disabled now ..."
       # start qrsh - must be rejected
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-q $queue -N immediate echo blahblah"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-q $queue -N immediate echo blahblah"]
       set sp_id [lindex $qrsh_id 1]
 
       # evaluate pid and JOB_ID
@@ -1171,7 +1177,7 @@ proc qrsh_batch {} {
       }
 
       # start qrsh -now no
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-verbose -q $queue -now no -N batch echo blahblah"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-verbose -q $queue -now no -N batch echo blahblah"]
       # must be in pending jobs
       set sp_id [lindex $qrsh_id 1] 
 
@@ -1302,7 +1308,7 @@ proc qrsh_limits {} {
    set limit_in 10
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
-      set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host -l h_cpu=$limit_in $CHECK_ACTUAL_TEST_PATH/ulimit.sh"]
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host -l h_cpu=$limit_in $CHECK_ACTUAL_TEST_PATH/ulimit.sh"]
       set sp_id [lindex $qrsh_id 1]
 
       set timeout 60
@@ -1402,11 +1408,12 @@ proc qrsh_env {} {
 
 proc qrsh_sigterm_running_job {} {
    global ts_config
+   global CHECK_USER
    global qrsh_submithost
 
    # start qrsh 
    set arch [resolve_arch $qrsh_submithost]
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" "$ts_config(product_root)/bin/$arch/qrsh" "\"echo started; sleep 3600\""]
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(product_root)/bin/$arch/qrsh" "\"echo started; sleep 3600\""]
    set sp_id [lindex $qrsh_id 1]
 
    # job must be scheduled
@@ -1458,11 +1465,12 @@ proc qrsh_sigterm_running_job {} {
 #*******************************
 proc qrsh_sigterm_pending_job {} {
    global ts_config
+   global CHECK_USER
    global qrsh_submithost
 
    set arch [resolve_arch $qrsh_submithost]
    # start qrsh 
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost "ts_def_con" "$ts_config(product_root)/bin/$arch/qrsh" "-now n -l arch=bla sleep 3600"]
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(product_root)/bin/$arch/qrsh" "-now n -l arch=bla sleep 3600"]
    set sp_id [lindex $qrsh_id 1]
 
    set timer 10

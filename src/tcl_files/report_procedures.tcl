@@ -219,7 +219,7 @@ proc report_create_task { report name host {link ""}} {
    } else {
       set myfilename "$CHECK_PROTOCOL_DIR/$relative_filename"
    }
-   delete_remote_file $host "ts_def_con_report" $myfilename
+   delete_remote_file $host $CHECK_USER $myfilename
    
    set report_array(task_$task_nr,filename) $myfilename
    set report_array(task_$task_nr,relative_filename) $relative_filename

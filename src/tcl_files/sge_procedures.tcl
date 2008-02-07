@@ -5115,7 +5115,7 @@ proc is_job_running {jobid jobname} {
 #
 #*******************************************************************************
 proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
-   global check_timestamp
+   global check_timestamp CHECK_USER
    get_current_cluster_config_array ts_config
    upvar $taskid r_task_id
 
@@ -5133,11 +5133,11 @@ proc get_job_state {jobid {not_all_equal 0} {taskid task_id}} {
       set states_all_equal 1
 
       if {$ts_config(gridengine_version) == 53} {
-         set result [start_sge_bin "qstat" "-f" "" "ts_def_con"]
+         set result [start_sge_bin "qstat" "-f" "" $CHECK_USER]
       } elseif {$ts_config(gridengine_version) == 60} {
-         set result [start_sge_bin "qstat" "-f -g t" "" "ts_def_con"]
+         set result [start_sge_bin "qstat" "-f -g t" "" $CHECK_USER]
       } else {
-         set result [start_sge_bin "qstat" "-f -g t -u '*'" "" "ts_def_con"]
+         set result [start_sge_bin "qstat" "-f -g t -u '*'" "" $CHECK_USER]
       }
       if {$prg_exit_state != 0} {
          return -1

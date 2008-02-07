@@ -88,7 +88,7 @@ proc issue_1126_run {} {
    set server_binary $ts_config(source_dir)/$up_arch/test_server_connection
    set server_args "0 $ts_config(commd_port) 10"
    
-   set client_sid [open_remote_spawn_process $test_host "ts_def_con" $client_binary $client_args]
+   set client_sid [open_remote_spawn_process $test_host $CHECK_USER $client_binary $client_args]
    set client_id  [lindex $client_sid 1]
 
    set server_sid [open_remote_spawn_process $test_host "root" $server_binary $server_args]

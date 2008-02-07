@@ -107,7 +107,7 @@ proc cluster_config_test1 {} {
    # get path of hosts messages file
    set messages_name "[get_qmaster_spool_dir]/messages"
    
-   set tail_id [open_remote_spawn_process $ts_config(master_host) "ts_def_con" /usr/bin/tail "-f $messages_name"]
+   set tail_id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER /usr/bin/tail "-f $messages_name"]
    set skipping 1
    set sp_id [ lindex $tail_id 1 ]
    set res "1"

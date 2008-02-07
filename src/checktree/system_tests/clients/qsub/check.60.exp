@@ -334,6 +334,7 @@ proc check_option_sync_t {} {
 
 proc check_option_sync_ww {} {
    global ts_config
+   global CHECK_USER
 
    set found_warning 0
    set found_job_submitted 0
@@ -346,7 +347,7 @@ proc check_option_sync_ww {} {
    set option "-sync y -w w -l arch=no_arch"
    set jobargs "$option -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 100"
 
-   set qsub_id [open_remote_spawn_process $ts_config(master_host) "ts_def_con" "qsub" "$jobargs"]
+   set qsub_id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "qsub" "$jobargs"]
    set sp_id [lindex $qsub_id 1]
   
    set timeout 20

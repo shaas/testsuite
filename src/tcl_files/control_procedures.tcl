@@ -1988,7 +1988,7 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
       set host [gethostname]
    }
    # try to retrieve architecture
-   set result [start_remote_prog $host "ts_def_conf_arch_resolver" $arch_script "" prg_exit_state 60 0 "" "" 1 0 0]
+   set result [start_remote_prog $host $CHECK_USER $arch_script "" prg_exit_state 60 0 "" "" 1 0 0]
    if {$prg_exit_state != 0} {
       return "unknown"
    }
@@ -2245,7 +2245,7 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
 #     ???/???
 #*******************************
 proc resolve_host {name {long 0}} {
-   global resolve_host_cache
+   global resolve_host_cache CHECK_USER
 
    get_current_cluster_config_array ts_config
 
@@ -2265,7 +2265,7 @@ proc resolve_host {name {long 0}} {
       }
    }
 
-   set result [start_sge_utilbin "gethostbyname" "-aname $name" $ts_config(master_host) "ts_def_con_translate"]
+   set result [start_sge_utilbin "gethostbyname" "-aname $name" $ts_config(master_host) $CHECK_USER]
 
    if {$prg_exit_state != 0} {
       ts_log_fine "proc resolve_host - gethostbyname failed: \n$result"

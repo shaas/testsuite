@@ -96,6 +96,7 @@ proc arco_dbwriter_performance_setup  {} {
    global ts_config 
    global sqlutil_id sqlutil_sp_id
    global arco_dbwriter_job_log_org_config
+   global CHECK_USER
    
    set sqlutil_id ""
    
@@ -106,8 +107,8 @@ proc arco_dbwriter_performance_setup  {} {
       }
    }
    
-   ts_log_fine "Create sqlutil as ts_def_con2"
-   set sqlutil_id [sqlutil_create ts_def_con2]
+   ts_log_fine "Create sqlutil as $CHECK_USER"
+   set sqlutil_id [sqlutil_create $CHECK_USER]
    if { $sqlutil_id == "-1" } {
       ts_log_severe "Can not create sqlutil"
       set sqlutil_id ""

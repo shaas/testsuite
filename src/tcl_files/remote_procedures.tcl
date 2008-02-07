@@ -64,34 +64,6 @@ set rlogin_max_open_connections [expr ($descriptors - 15) / 3]
 puts "    * rlogin_max_open_connections = $rlogin_max_open_connections"
 puts "    *********************************************"
 
-# ts_send() -- send to a spawned process (spawn_id)
-# setup_qping_dump() -- start qping dump as remote process (as root)
-# check_all_system_times() -- check clock synchronity on each cluster deamon host
-# get_qping_dump_output() -- get qping dump output
-# cleanup_qping_dump_output() -- shutdwon qping dump connection
-# start_remote_tcl_prog -- ??? 
-# start_remote_prog() -- start remote application
-# sendmail() -- sendmail in mime format (first prototype)
-# close_spawn_id() -- close spawn_id and wait child process
-# increase_timeout() -- stepwise increase expect timeout
-# map_special_users() -- map special user names and windows user names
-# open_remote_spawn_process() -- open spawn process on remote host
-# open_spawn_process -- start process with the expect "spawn" command
-# get_busy_spawn_rlogin_sessions() -- get number of busy rlogin sessions
-# dump_spawn_rlogin_sessions() -- dump connection information
-# add_open_spawn_rlogin_session() -- add spawn id to open connection list
-# remove_oldest_spawn_rlogin_session() -- remove oldest idle rlogin session
-# get_open_spawn_rlogin_session() -- get rlogin connection data
-# del_open_spawn_rlogin_session() -- remove rlogin session
-# is_spawn_id_rlogin_session() -- does a certain session exist?
-# get_open_rlogin_sessions() -- return list of all spawn ids
-# get_spawn_id_rlogin_session() -- get rlogin connection data
-# get_spawn_id_hostname() -- get host associated with spawn_id
-# close_open_rlogin_sessions() -- close all open rlogin sessions
-# check_rlogin_session() -- check if rlogin session is alive
-# set_spawn_process_in_use() -- set info if a session is in use
-# is_spawn_process_in_use() -- check if spawn id is in use
-
 #****** remote_procedures/ts_send() ********************************************
 #  NAME
 #     ts_send() -- send to a spawned process (spawn_id)
@@ -902,7 +874,7 @@ proc sendmail { to subject body { send_html 0 } { cc "" } { bcc "" } { from "" }
    set command "/usr/lib/sendmail"
    set arguments "-B 8BITMIME -t < $mail_file"
 
-   set result [start_remote_prog $ts_config(mailx_host) "ts_def_con_mail" $command $arguments prg_exit_state 60 0 "" "" 1 0]
+   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER $command $arguments prg_exit_state 60 0 "" "" 1 0]
    if { $prg_exit_state != 0 } {
       ts_log_frame
       ts_log_fine "COULD NOT SEND MAIL:\n$result"
@@ -955,8 +927,8 @@ proc sendmail_wrapper { address cc subject body } {
 
    set new_subject "[get_version_info] ($ts_config(cell)) - $subject"
 
-   wait_for_remote_file $ts_config(mailx_host) "ts_def_con_mail" $tmp_file
-   set result [start_remote_prog $ts_config(mailx_host) "ts_def_con_mail" $ts_config(mail_application) "\"$address\" \"$cc\" \"$new_subject\" \"$tmp_file\""]
+   wait_for_remote_file $ts_config(mailx_host) $CHECK_USER $tmp_file
+   set result [start_remote_prog $ts_config(mailx_host) $CHECK_USER $ts_config(mail_application) "\"$address\" \"$cc\" \"$new_subject\" \"$tmp_file\""]
    ts_log_fine "mail application returned exit code $prg_exit_state:"
    ts_log_fine $result
    return 0
@@ -1024,7 +996,7 @@ proc show_proc_error {result new_error} {
          append mail_body "execution hosts : $ts_config(execd_hosts)\n\n"
 
          append mail_body "$error_output"
-         catch {
+         set catch_return [catch {
             foreach level "1 2 3 4" {
                upvar $level expect_out out
                if {[info exists out]} {
@@ -1034,6 +1006,9 @@ proc show_proc_error {result new_error} {
                   }
                }
             }
+         } catch_error_message ]
+         if { $catch_return != 0 } {
+            ts_log_fine "catch returned not 0: $catch_error_message"
          }
        
          append mail_body "\nTestsuite configuration (ts_config):\n"
@@ -1102,16 +1077,8 @@ proc increase_timeout {{max 5} {step 1}} {
 #     map_special_users { hostname user win_local_user } 
 #
 #  FUNCTION
-#     Does username mapping for testsuite special users and windows users.
+#     Does username mapping for windows users.
 #
-#     Testsuite special users are user names beginning with "ts_def_con".
-#     If such a user name is passed to a function opening a rlogin connection,
-#     the connection will be opened as CHECK_USER.
-#     If a connection as CHECK_USER or another ts_def_con user already exists,
-#     a new, additional connection will be opened instead of reusing the 
-#     existing one.
-#
-#     Further mapping is done for windows users:
 #     The user id "root" is mapped to the windows user name "Administrator".
 #     If we connect to a windows machine, usually the connection will be done
 #     as windows domain user.
@@ -1152,11 +1119,6 @@ proc increase_timeout {{max 5} {step 1}} {
 #        connect_user      = sgetest
 #        connect_full_user = sgetest
 #
-#     map_special_users unix_host ts_def_con_translate 1
-#        real_user         = CHECK_USER
-#        connect_user      = CHECK_USER
-#        connect_full_user = CHECK_USER
-#
 #     map_special_users win_host root 0
 #        real_user         = Administrator
 #        connect_user      = Administrator
@@ -1182,13 +1144,7 @@ proc map_special_users {hostname user win_local_user} {
    upvar connect_user      connect_user       ;# we'll connect as this user
    upvar connect_full_user connect_full_user  ;# using this name in rlogin/ssh -l option (windows domain!)
 
-   # handle special user ids
-   # for these special user id's, we connect as local users to windows hosts
-   if {[string match "ts_def_con*" $user] == 1} {
-      set real_user $CHECK_USER
-   } else {
-      set real_user $user
-   }
+   set real_user $user
 
    # on interix, the root user is Administrator
    # and we have to connect as the target user, as su doesn't work
@@ -1310,7 +1266,6 @@ proc map_special_users {hostname user win_local_user} {
 #     remote_procedures/close_spawn_id()
 #     remote_procedures/map_special_users()
 #*******************************************************************************
-# CR checked
 proc open_remote_spawn_process { hostname
                                  user
                                  exec_command
@@ -1410,36 +1365,49 @@ proc open_remote_spawn_process { hostname
 
 
    # get info about an already open rlogin connection
-   get_open_spawn_rlogin_session $hostname $user $win_local_user con_data
-
-   # we might have the required connection open
+   set create_alternate_connection 0
    set open_new_connection 1
-   if {$con_data(pid) != 0} {
-      set pid          $con_data(pid)
-      set spawn_id     $con_data(spawn_id)
-      set nr_of_shells $con_data(nr_shells)
+   if {[get_open_spawn_rlogin_session $hostname $user $win_local_user con_data]} {
+      if { $con_data(in_use) } {
+         set info_text "connection to host \"$con_data(hostname)\" ad user \"$con_data(user)\" is in use by script:\n"
+         append info_text "$con_data(command_script)\n"
+         append info_text "command string: $con_data(command_name) $con_data(command_args)\n"
+         ts_log_finer $info_text
 
-      # check, if the connection is still in use - error!
-      if {[is_spawn_process_in_use $spawn_id]} {
-         ts_log_warning "$error_info\nconnection is still in use" $raise_error
-         return ""
-      }
-
-      # check if the connection is OK - if not, we'll try to reopen it
-      # JG: TODO: We had an optimization before:
-      #           in case of not re_use_script, we do not test the connection here,
-      #           but assume the connection is OK.  
-      #           In the file check section, the called script file_check.sh outputs
-      #           the id string (same as in check_identity.sh), and we check
-      #           for correct id and file available in the same expect section.
-      #           Advantage: It is faster (up to 100 ms per call)
-      #           Disadvantage: We detect a dead connection too late. If the rlogin
-      #           connection is dead, open_remote_spawn_process will fail.
-      #           With the current implementation, we are slower, but a dead connection
-      #           will be detected early enough to close and reopen it.
-      if {[check_rlogin_session $spawn_id $pid $hostname $user $nr_of_shells]} {
-         ts_log_finest "Using open rlogin connection to host \"$hostname\", user \"$user\""
-         set open_new_connection 0
+         set found_alternative 0
+         ts_log_finest "session is in use, looking for alternate session ..."
+         foreach alternative $con_data(alternate_sessions) {
+            if {[is_spawn_process_in_use $alternative] == 0} {
+               fill_session_info_array $alternative con_data
+               ts_log_finest "found alternate session!"
+               set found_alternative 1
+##               # check if the connection is OK - if not, we'll try to reopen it
+##               if {[check_rlogin_session $con_data(spawn_id) $con_data(pid) $hostname $user $con_data(nr_shells)]} {
+##                  ts_log_finest "Using open rlogin connection to host \"$hostname\", user \"$user\""
+##                  set open_new_connection 0
+##                  set spawn_id     $con_data(spawn_id)
+##                  set pid          $con_data(pid)
+##                  set nr_of_shells $con_data(nr_shells)
+##                  ts_log_finest "session \"$spawn_id\" has alternate sessions: $con_data(alternate_sessions)"
+##               }
+               break
+            }
+         }
+         if {!$found_alternative} { 
+            ts_log_finest "no alternate session available!"
+            set create_alternate_connection 1
+         }
+      } 
+      if {$create_alternate_connection == 0} {
+         # check if the connection is OK - if not, we'll try to reopen it
+         if {[check_rlogin_session $con_data(spawn_id) $con_data(pid) $hostname $user $con_data(nr_shells)]} {
+            ts_log_finest "Using open rlogin connection to host \"$hostname\", user \"$user\""
+            set open_new_connection 0
+            set spawn_id     $con_data(spawn_id)
+            set pid          $con_data(pid)
+            set nr_of_shells $con_data(nr_shells)
+            ts_log_finest "session \"$spawn_id\" has alternate sessions: $con_data(alternate_sessions)"
+         }
       }
    }
 
@@ -1888,9 +1856,18 @@ proc open_remote_spawn_process { hostname
          return ""
       }
       # store the connection
-      add_open_spawn_rlogin_session $hostname $user $win_local_user $spawn_id $pid $nr_of_shells $real_user
+      if {$create_alternate_connection} {
+         set alternate_connection_of $con_data(spawn_id)    
+      } else {
+         set alternate_connection_of ""    
+      }
+
+      add_open_spawn_rlogin_session $hostname     $user           $win_local_user $spawn_id    \
+                                    $pid          $nr_of_shells   $real_user      $script_name \
+                                    $exec_command $exec_arguments $alternate_connection_of
    } ;# opening new connection
 
+   ts_log_finest "working on session \"$spawn_id\""
    # If we call the command for the first time, make sure it is available on the remote machine
    # we wait for some time, as the it might take some time until the command is visible (NFS)
    if {$re_use_script == 0} {
@@ -1947,6 +1924,7 @@ proc open_remote_spawn_process { hostname
 
    # now start the commmand and set the connection to busy
    ts_log_finest "$user starting command on $hostname: $exec_command $exec_arguments"
+   set_spawn_process_command_script $spawn_id $script_name $exec_command $exec_arguments
    set catch_return [catch {
       ts_send $spawn_id "$script_name\n" $hostname
       set_spawn_process_in_use $spawn_id
@@ -2181,7 +2159,6 @@ proc dump_spawn_rlogin_sessions {{do_output 1}} {
 #              - pid        pid of the expect child process from spawn command
 #              - hostname   name of host to which we connected
 #              - user       user for which the connection has been established.
-#                           This can be a special name like ts_def_con.
 #              - win_local_user For windows, we usually will connect as domain user.
 #                               For some operations, e.g. accessing the local
 #                               spool directory of an exec host, we have to use
@@ -2219,7 +2196,9 @@ proc dump_spawn_rlogin_sessions {{do_output 1}} {
 #     remote_procedures/del_open_spawn_rlogin_session
 #     remote_procedures/remove_oldest_spawn_rlogin_session()
 #*******************************************************************************
-proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr_of_shells real_user} {
+proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id \
+                                    pid nr_of_shells real_user command_script \
+                                    command_name command_args alternate_con_of} {
    global rlogin_spawn_session_buffer rlogin_spawn_session_idx
    global do_close_rlogin rlogin_max_open_connections 
 
@@ -2250,12 +2229,24 @@ proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id pid nr
    set rlogin_spawn_session_buffer($spawn_id,ltime)               [timestamp]
    set rlogin_spawn_session_buffer($spawn_id,nr_shells)           $nr_of_shells
    set rlogin_spawn_session_buffer($spawn_id,in_use)              0
+   set rlogin_spawn_session_buffer($spawn_id,command_script)      $command_script
+   set rlogin_spawn_session_buffer($spawn_id,command_name)        $command_name
+   set rlogin_spawn_session_buffer($spawn_id,command_args)        $command_args
+   set rlogin_spawn_session_buffer($spawn_id,alternate_sessions)  ""
+   set rlogin_spawn_session_buffer($spawn_id,is_alternate_of)     ""
+  
 
    # add session to index
    lappend rlogin_spawn_session_buffer(index) $spawn_id
 
-   # add session to search index
-   set rlogin_spawn_session_idx($hostname,$user,$win_local_user) $spawn_id
+   if { $alternate_con_of != "" } {
+      ts_log_finest "adding alternate session for spawn id \"$alternate_con_of\""
+      lappend rlogin_spawn_session_buffer($alternate_con_of,alternate_sessions) $spawn_id
+      set rlogin_spawn_session_buffer($spawn_id,is_alternate_of) $alternate_con_of
+   } else {
+      # add session to search index
+      set rlogin_spawn_session_idx($hostname,$user,$win_local_user) $spawn_id
+   }
 }
 
 #****** remote_procedures/remove_oldest_spawn_rlogin_session() *****************
@@ -2356,32 +2347,16 @@ proc get_open_spawn_rlogin_session {hostname user win_local_user back_var} {
 
    upvar $back_var back 
 
+   ts_log_finest "get open session for $hostname/$user/$win_local_user ..."
    # we shall not reuse connections, or
    # connection to this host/user does not exist yet
    if {$do_close_rlogin != 0 || ![info exists rlogin_spawn_session_idx($hostname,$user,$win_local_user)]} {
       clear_open_spawn_rlogin_session back
-      return 0 
+      return 0
    }
 
    set spawn_id $rlogin_spawn_session_idx($hostname,$user,$win_local_user)
-   set back(spawn_id)       $spawn_id
-   set back(pid)            $rlogin_spawn_session_buffer($spawn_id,pid)
-   set back(hostname)       $rlogin_spawn_session_buffer($spawn_id,hostname)
-   set back(user)           $rlogin_spawn_session_buffer($spawn_id,user)
-   set back(real_user)      $rlogin_spawn_session_buffer($spawn_id,real_user)
-   set back(win_local_user) $rlogin_spawn_session_buffer($spawn_id,win_local_user)
-   set back(ltime)          $rlogin_spawn_session_buffer($spawn_id,ltime)
-   set back(nr_shells)      $rlogin_spawn_session_buffer($spawn_id,nr_shells)
-   
-   ts_log_finest "spawn_id  :      $back(spawn_id)"
-   ts_log_finest "pid       :      $back(pid)"
-   ts_log_finest "hostname  :      $back(hostname)"
-   ts_log_finest "user      :      $back(user)"
-   ts_log_finest "real_user :      $back(real_user)"
-   ts_log_finest "win_local_user : $back(win_local_user)"
-   ts_log_finest "ltime     :      $back(ltime)"
-   ts_log_finest "nr_shells :      $back(nr_shells)"
-
+   fill_session_info_array $spawn_id back
    return 1
 }
 
@@ -2408,11 +2383,63 @@ proc del_open_spawn_rlogin_session {spawn_id} {
    global rlogin_spawn_session_buffer rlogin_spawn_session_idx
 
    if {[info exists rlogin_spawn_session_buffer($spawn_id,pid)]} {
-      # remove session from search index
-      set hostname       $rlogin_spawn_session_buffer($spawn_id,hostname)
-      set user           $rlogin_spawn_session_buffer($spawn_id,user)
-      set win_local_user $rlogin_spawn_session_buffer($spawn_id,win_local_user)
-      unset rlogin_spawn_session_idx($hostname,$user,$win_local_user)
+      set remove_from_index 1
+      # if session is an alternate session for a different session, remove the session reference
+      set super_session $rlogin_spawn_session_buffer($spawn_id,is_alternate_of)
+      if {$super_session != ""} {
+         ts_log_finer "super session of \"$spawn_id\" is \"$super_session\""
+         if {[info exists rlogin_spawn_session_buffer($super_session,pid)]} {
+            set remove_from_index 0  ;# never remove alternate session from search index
+            ts_log_finer "removing reference from super session \"$super_session\" to session \"$spawn_id\""
+            ts_log_finer "super session $super_session: \"$rlogin_spawn_session_buffer($super_session,alternate_sessions)\""
+            set pos [lsearch -exact $rlogin_spawn_session_buffer($super_session,alternate_sessions) $spawn_id]
+            set rlogin_spawn_session_buffer($super_session,alternate_sessions) \
+                [lreplace $rlogin_spawn_session_buffer($super_session,alternate_sessions) $pos $pos]
+            ts_log_finest "super session $super_session: \"$rlogin_spawn_session_buffer($super_session,alternate_sessions)\""
+         } else {
+            ts_log_fine "no information in session buffer for super session \"$super_session\""
+         }
+      } else {
+         ts_log_finer "no super session found"
+      }
+
+      # if session is super session make alternate session to new supersession
+      if {[llength $rlogin_spawn_session_buffer($spawn_id,alternate_sessions)] > 0} {
+         ts_log_finer "removing super session - declaring first alternate session to new super session"
+         
+         set new_super_session [lindex $rlogin_spawn_session_buffer($spawn_id,alternate_sessions) 0]
+         ts_log_finer "new supersession is: \"$new_super_session\""
+         if {[info exists rlogin_spawn_session_buffer($new_super_session,pid)]} {
+            # get all alternative session from super session and add it to first alternate session
+            set alternate_sessions $rlogin_spawn_session_buffer($spawn_id,alternate_sessions)
+            set pos [lsearch -exact $alternate_sessions $new_super_session]
+            set alternate_sessions [lreplace $alternate_sessions $pos $pos]
+            set rlogin_spawn_session_buffer($new_super_session,is_alternate_of) ""
+            set rlogin_spawn_session_buffer($new_super_session,alternate_sessions) $alternate_sessions
+            ts_log_finer "session \"$new_super_session\" will be new super session with alternate list: \"$alternate_sessions\""
+            
+            # update session index info
+            set remove_from_index 0
+            set hostname       $rlogin_spawn_session_buffer($spawn_id,hostname)
+            set user           $rlogin_spawn_session_buffer($spawn_id,user)
+            set win_local_user $rlogin_spawn_session_buffer($spawn_id,win_local_user)
+            set rlogin_spawn_session_idx($hostname,$user,$win_local_user) $new_super_session
+         } else {
+            ts_log_severe "error occured for removing super session"
+         }
+      } 
+
+      if {$remove_from_index != 0} {
+         # remove session from search index
+         set hostname       $rlogin_spawn_session_buffer($spawn_id,hostname)
+         set user           $rlogin_spawn_session_buffer($spawn_id,user)
+         set win_local_user $rlogin_spawn_session_buffer($spawn_id,win_local_user)
+         if {[info exists rlogin_spawn_session_idx($hostname,$user,$win_local_user)]} {
+            unset rlogin_spawn_session_idx($hostname,$user,$win_local_user)
+         } else {
+            ts_log_severe "spawn session index rlogin_spawn_session_idx($hostname,$user,$win_local_user) not found"
+         }
+      }
 
       # remove session from array index
       set pos [lsearch -exact $rlogin_spawn_session_buffer(index) $spawn_id]
@@ -2427,6 +2454,13 @@ proc del_open_spawn_rlogin_session {spawn_id} {
       unset rlogin_spawn_session_buffer($spawn_id,ltime)
       unset rlogin_spawn_session_buffer($spawn_id,nr_shells)
       unset rlogin_spawn_session_buffer($spawn_id,in_use)
+      unset rlogin_spawn_session_buffer($spawn_id,command_script)
+      unset rlogin_spawn_session_buffer($spawn_id,command_name)
+      unset rlogin_spawn_session_buffer($spawn_id,command_args)
+      unset rlogin_spawn_session_buffer($spawn_id,alternate_sessions)
+      unset rlogin_spawn_session_buffer($spawn_id,is_alternate_of)
+   } else {
+      ts_log_fine "session buffer not found"
    }
 }
 
@@ -2498,9 +2532,17 @@ proc clear_open_spawn_rlogin_session {back_var} {
    set back(pid)            "0"
    set back(hostname)       "0"
    set back(user)           "0"
+   set back(real_user)      ""
    set back(win_local_user) "0"
    set back(ltime)           0
+   set back(in_use)          0
    set back(nr_shells)       0
+   set back(command_script)     ""
+   set back(command_name)       ""
+   set back(command_args)       ""
+   set back(alternate_sessions) ""
+   set back(is_alternate_of)    ""
+
 }
 
 #****** remote_procedures/get_spawn_id_rlogin_session() ************************
@@ -2553,26 +2595,60 @@ proc get_spawn_id_rlogin_session {spawn_id back_var} {
       return 0 
    }
 
-   set back(spawn_id)       $spawn_id
-   set back(pid)            $rlogin_spawn_session_buffer($spawn_id,pid)
-   set back(hostname)       $rlogin_spawn_session_buffer($spawn_id,hostname)
-   set back(user)           $rlogin_spawn_session_buffer($spawn_id,user)
-   set back(real_user)      $rlogin_spawn_session_buffer($spawn_id,real_user)
-   set back(win_local_user) $rlogin_spawn_session_buffer($spawn_id,win_local_user)
-   set back(ltime)          $rlogin_spawn_session_buffer($spawn_id,ltime)
-   set back(in_use)         $rlogin_spawn_session_buffer($spawn_id,in_use)
-   set back(nr_shells)      $rlogin_spawn_session_buffer($spawn_id,nr_shells)
-   
-   ts_log_finest "spawn_id       : $back(spawn_id)"
-   ts_log_finest "pid            : $back(pid)"
-   ts_log_finest "hostname       : $back(hostname)"
-   ts_log_finest "user           : $back(user)"
-   ts_log_finest "real_user      : $back(real_user)"
-   ts_log_finest "win_local_user : $back(win_local_user)"
-   ts_log_finest "ltime          : $back(ltime)"
-   ts_log_finest "nr_shells      : $back(nr_shells)"
-
+   fill_session_info_array $spawn_id back
    return 1 
+}
+
+#****** remote_procedures/fill_session_info_array() ****************************
+#  NAME
+#     fill_session_info_array() -- set relevant session info into array
+#
+#  SYNOPSIS
+#     fill_session_info_array { spawn_id array_name } 
+#
+#  FUNCTION
+#     This procedure is used to set the specified session information into 
+#     the specified array variable
+#
+#  INPUTS
+#     spawn_id   - spawn id of session
+#     array_name - name of variable array to store information
+#
+#*******************************************************************************
+proc fill_session_info_array { spawn_id array_name } {
+   global rlogin_spawn_session_buffer
+   upvar $array_name back
+   if {[info exists back]} {
+      unset back
+   }
+   set back(spawn_id)           $spawn_id
+   set back(pid)                $rlogin_spawn_session_buffer($spawn_id,pid)
+   set back(hostname)           $rlogin_spawn_session_buffer($spawn_id,hostname)
+   set back(user)               $rlogin_spawn_session_buffer($spawn_id,user)
+   set back(real_user)          $rlogin_spawn_session_buffer($spawn_id,real_user)
+   set back(win_local_user)     $rlogin_spawn_session_buffer($spawn_id,win_local_user)
+   set back(ltime)              $rlogin_spawn_session_buffer($spawn_id,ltime)
+   set back(in_use)             $rlogin_spawn_session_buffer($spawn_id,in_use)
+   set back(nr_shells)          $rlogin_spawn_session_buffer($spawn_id,nr_shells)
+   set back(command_script)     $rlogin_spawn_session_buffer($spawn_id,command_script)
+   set back(command_name)       $rlogin_spawn_session_buffer($spawn_id,command_name)
+   set back(command_args)       $rlogin_spawn_session_buffer($spawn_id,command_args)
+   set back(alternate_sessions) $rlogin_spawn_session_buffer($spawn_id,alternate_sessions)
+   set back(is_alternate_of)    $rlogin_spawn_session_buffer($spawn_id,is_alternate_of)
+
+   ts_log_finest "spawn_id  :         $back(spawn_id)"
+   ts_log_finest "pid       :         $back(pid)"
+   ts_log_finest "hostname  :         $back(hostname)"
+   ts_log_finest "user      :         $back(user)"
+   ts_log_finest "real_user :         $back(real_user)"
+   ts_log_finest "win_local_user :    $back(win_local_user)"
+   ts_log_finest "ltime     :         $back(ltime)"
+   ts_log_finest "nr_shells :         $back(nr_shells)"
+   ts_log_finest "command_script:     $back(command_script)"
+   ts_log_finest "command_name:       $back(command_name)"
+   ts_log_finest "command_args:       $back(command_args)"
+   ts_log_finest "alternate_sessions: $back(alternate_sessions)"
+   ts_log_finest "is_alternate_of:    $back(is_alternate_of)"
 }
 
 #****** remote_procedures/get_spawn_id_hostname() ******************************
@@ -2623,13 +2699,12 @@ proc close_open_rlogin_sessions {{if_not_working 0} {older_than 0}} {
 
    # if we called testsuite with option close_rlogin, we have no open sessions
    if {$do_close_rlogin} {
-      ts_log_fine "close_open_rlogin_sessions - open rlogin session mode not activated!"
+      ts_log_finest "close_open_rlogin_sessions - open rlogin session mode not activated!"
       return 0 
    }
 
    # gather all session names
    set sessions [get_open_rlogin_sessions]
-   # close all sessions
    foreach spawn_id $sessions {
       if {![get_spawn_id_rlogin_session $spawn_id back]} {
          # spawn_id has been closed in the meantime
@@ -2637,7 +2712,7 @@ proc close_open_rlogin_sessions {{if_not_working 0} {older_than 0}} {
       }
       if {$if_not_working} {
          if {[check_rlogin_session $spawn_id $back(pid) $back(hostname) $back(user) $back(nr_shells) 1]} {
-            ts_log_fine "will not close spawn id $spawn_id - session is ok!"
+            ts_log_finest "will not close spawn id $spawn_id - session is ok!"
             continue
          }
       }
@@ -2648,29 +2723,33 @@ proc close_open_rlogin_sessions {{if_not_working 0} {older_than 0}} {
          if {$back(in_use)} {
             continue
          }
+
          set now [timestamp]
          if {$back(ltime) > [expr $now - $older_than]} {
             continue
          } else {
-            ts_log_fine "session $spawn_id hasn't been used since [clock format $back(ltime)]"
+            ts_log_finer "session $spawn_id hasn't been used since [clock format $back(ltime)]"
          }
       }
 
       # now close the connection
-      ts_log_fine "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
+      ts_log_finer "close_open_rlogin_sessions - closing $spawn_id ($back(user)@$back(hostname)) ... "
       close_spawn_process "$back(pid) $spawn_id $back(nr_shells)" 1 0 ;# don't check exit state
    }
 }
 
 global last_close_outdated_rlogin_sessions
 set last_close_outdated_rlogin_sessions 0
-proc close_outdated_rlogin_sessions {} {
+proc close_outdated_rlogin_sessions { } {
    global last_close_outdated_rlogin_sessions
 
    # only do this check once a minute
    if {$last_close_outdated_rlogin_sessions > [expr [timestamp] - 60]} {
       return
    }
+
+   ts_log_finest "checking connections ..."
+
    # set the last check timestamp here,
    # to reduce the probability of recursive calls
    set last_close_outdated_rlogin_sessions [timestamp]
@@ -2818,6 +2897,30 @@ proc set_spawn_process_in_use {spawn_id {in_use 1}} {
    set rlogin_spawn_session_buffer($spawn_id,ltime) [timestamp]
 }
 
+#****** remote_procedures/set_spawn_process_command_script() *******************
+#  NAME
+#     set_spawn_process_command_script() -- set session information data
+#
+#  SYNOPSIS
+#     set_spawn_process_command_script { spawn_id script cname cargs } 
+#
+#  FUNCTION
+#     This procedure is used to update the session buffer and set the started
+#     command script, command name and arguments
+#
+#  INPUTS
+#     spawn_id - spawn id of the session
+#     script   - script which was started
+#     cname    - command name (full path)
+#     cargs    - command arguments
+#*******************************************************************************
+proc set_spawn_process_command_script { spawn_id script cname cargs } {
+   global rlogin_spawn_session_buffer
+   set rlogin_spawn_session_buffer($spawn_id,command_script) $script
+   set rlogin_spawn_session_buffer($spawn_id,command_name) $cname
+   set rlogin_spawn_session_buffer($spawn_id,command_args) $cargs
+}
+
 #****** remote_procedures/is_spawn_process_in_use() ****************************
 #  NAME
 #     is_spawn_process_in_use() -- check if spawn id is in use
@@ -2916,7 +3019,9 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    }
 
    # get connection info
-   get_spawn_id_rlogin_session $spawn_id con_data
+   if {![get_spawn_id_rlogin_session $spawn_id con_data]} {
+      ts_log_severe "connection \"$spawn_id\" is not open"
+   }
 
    if {$keep_open} {
       # regular call from a check.
@@ -2977,14 +3082,13 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       
       # are we done?
       if {$do_return != ""} {
-         close_outdated_rlogin_sessions
+         testsuite_background_tasks
          return $do_return
       }
       
       # if we get here, we ran into an error
       # we will not return, but continue, really closing the connection
    }
-
 
    # we have shells to close (by sending exit)
    # at this point, we might have a bad rlogin session,
@@ -2994,7 +3098,6 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    if {$nr_of_shells > 0} {
       ts_log_finest "nr of open shells: $nr_of_shells"
       ts_log_finest "-->sending $nr_of_shells exit(s) to shell on id $spawn_id"
-
       set catch_return [catch {
          # send CTRL-C to stop poss. still running processes
          ts_send $spawn_id "\003" "" 0 0
@@ -3059,7 +3162,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    del_open_spawn_rlogin_session $spawn_id
 
    if {$do_close_connection} {
-      ts_log_fine "There was an error closing connection, closing spawn id ..."
+      ts_log_fine "There was no eof when closing connection, closing spawn id ..."
       # now shutdown the spawned process
       set catch_return [catch {
          ts_log_finest "closing $spawn_id"
@@ -3115,7 +3218,6 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
       ts_log_warning "$catch_error_message" 
    }
 
-   close_outdated_rlogin_sessions
    return $wait_code ;# return exit state
 }
 

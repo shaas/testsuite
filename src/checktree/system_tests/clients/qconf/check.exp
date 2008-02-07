@@ -1736,10 +1736,9 @@ proc qconf_add_show_delete_stnode {} {
 #
 #  SYNOPSIS
 #     qconf_event_client { } - First create an INTERACTIVE only queue
-#                             Then start qevent -ts as special user 
-#                            ts_def_con2
-#                            Check event client list with qconf -secl
-#			     Then kill event client with qconf -kec
+#                             Then start qevent -ts as CHECK_USER
+#                             Check event client list with qconf -secl
+#			                     Then kill event client with qconf -kec
 #
 #  FUNCTION
 #     Check basic functionality of qconf
@@ -1762,9 +1761,9 @@ proc qconf_event_client {} {
    }
    ts_log_fine "using event client: $event_client_bin"
 
-   # start event client on master host, using special user ts_def_con2
+   # start event client on master host
    ts_log_fine "starting event client with -ts option ..."
-   set event_client_sid [ open_remote_spawn_process $ts_config(master_host) "ts_def_con2" $event_client_bin "-ts"]
+   set event_client_sid [ open_remote_spawn_process $ts_config(master_host) $CHECK_USER $event_client_bin "-ts"]
    set event_client_id [lindex $event_client_sid 1]
 
    # First do a list of event clients
@@ -1791,9 +1790,9 @@ proc qconf_event_client {} {
    
    # Restart event client to do a -kec all
 
-   # start event client on master host, using special user ts_def_con2
+   # start event client on master host
    ts_log_fine "Re-starting event client with -ts option ..."
-   set event_client_sid1 [ open_remote_spawn_process $ts_config(master_host) "ts_def_con2" $event_client_bin "-ts"]
+   set event_client_sid1 [ open_remote_spawn_process $ts_config(master_host) $CHECK_USER $event_client_bin "-ts"]
    set event_client_id1 [lindex $event_client_sid1 1]
 
    set result2 [del_event_client_list "all" ""]

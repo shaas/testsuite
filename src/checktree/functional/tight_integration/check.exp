@@ -859,7 +859,7 @@ proc tight_integration_master_killed {} {
 
       # kill pid of master task and wait some seconds
       ts_log_fine "killing process group of master task: pid $info(master,pid) on host $info(master,host)"
-      start_remote_prog $info(master,host) "ts_def_con2" kill "-9 -$info(master,pid)"
+      start_remote_prog $info(master,host) $CHECK_USER kill "-9 -$info(master,pid)"
 
       if {![tight_integration_wait_for_delete_state $jobid 60]} {
          ts_log_severe "failed master task does not cause the job to be deleted (issue 579 present)"
@@ -939,8 +939,8 @@ proc tight_integration_slave_killed {} {
 
          # kill pid of slave task and wait some seconds
          ts_log_fine "killing slave task: process group $info($kill_task_nr,pid) on host $info($kill_task_nr,host)"
-         set output [start_remote_prog $info($kill_task_nr,host) "ts_def_con2" kill "-9 -$info($kill_task_nr,pid)"]
-         ts_log_fine "kill as ts_def_con2 ($CHECK_USER) kill -9 -$info($kill_task_nr,pid) returned:\n$output"
+         set output [start_remote_prog $info($kill_task_nr,host) $CHECK_USER kill "-9 -$info($kill_task_nr,pid)"]
+         ts_log_fine "kill as $CHECK_USER kill -9 -$info($kill_task_nr,pid) returned:\n$output"
          if {![tight_integration_wait_for_delete_state $jobid 60]} {
             set success 0
          }
