@@ -7,6 +7,7 @@ CR-2008-02-06-0: Enhancem.: o remove ts_dev_con impl. by sub connections
                               same directory like the specified configuration
                               file (obtained from --file cli parameter)
                  Issue:     170
+                 Review:    AA
 
 MG-2008-02-07-0: Enhancem.: quotas added for string condition
                  Review:    CR
