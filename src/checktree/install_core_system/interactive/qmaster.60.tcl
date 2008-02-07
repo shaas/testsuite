@@ -443,7 +443,7 @@ proc install_qmaster {} {
        }
 
        -i $sp_id $JMX_SSL_QUESTION {
-          if { $ts_config(jmx_ssl) == true } {
+          if { $ts_config(jmx_ssl) == "true" } {
              set enable_jmx_ssl "$ANSWER_YES"
           } else {
              set enable_jmx_ssl "$ANSWER_NO"
@@ -458,7 +458,7 @@ proc install_qmaster {} {
        }
 
        -i $sp_id $JMX_SSL_CLIENT_QUESTION {
-          if { $ts_config(jmx_ssl_client) == true } {
+          if { $ts_config(jmx_ssl_client) == "true" } {
              set enable_jmx_ssl_client "$ANSWER_YES"
           } else {
              set enable_jmx_ssl_client "$ANSWER_NO"
