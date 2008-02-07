@@ -7537,6 +7537,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
    global CHECK_USER CHECK_HTML_DIRECTORY
    global check_use_installed_system
    global check_do_clean_compile do_not_update ts_config ts_log_config
+   global CHECK_TESTSUITE_TRASH
    upvar $execute_func_return rpcret
 
 
@@ -7572,6 +7573,10 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
 
       if {[info exists ts_log_config(logging)]} {
          append args " logging_level $ts_log_config(logging)"
+      }
+
+      if {$CHECK_TESTSUITE_TRASH != 0} {
+         append args " testsuite_trash"
       }
 
       if {$CHECK_HTML_DIRECTORY != ""} {
