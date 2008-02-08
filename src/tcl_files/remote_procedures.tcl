@@ -3162,7 +3162,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    del_open_spawn_rlogin_session $spawn_id
 
    if {$do_close_connection} {
-      ts_log_fine "There was no eof when closing connection, closing spawn id ..."
+      ts_log_finer "There was no eof when closing connection, closing spawn id ..."
       # now shutdown the spawned process
       set catch_return [catch {
          ts_log_finest "closing $spawn_id"
