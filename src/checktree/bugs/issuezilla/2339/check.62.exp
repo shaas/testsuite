@@ -100,7 +100,12 @@ proc issue_2339_setup {} {
    set pe(allocation_rule)   "2"
    add_pe "two_per_host" pe
 
-   set myhosts [host_conf_get_suited_hosts 2]
+   # disable all default queues and create queue_list:
+   set queue_list {}
+   foreach host $ts_config(execd_nodes) {
+      lappend queue_list [get_queue_instance "all.q" $host]
+   }
+   disable_queue $queue_list
 
    set first [lindex $ts_config(execd_nodes) 0]
    set second [lindex $ts_config(execd_nodes) 1]
@@ -110,9 +115,9 @@ proc issue_2339_setup {} {
    set queue_conf(pe_list)          "two_per_host"
    set queue_conf(load_thresholds)  "NONE"
    set queue_conf(seq_no)           "0,\[$first=1\],\[$second=2\]"
-   add_queue "A" $myhosts queue_conf 1
+   add_queue "A" "$first $second" queue_conf 1
    set queue_conf(seq_no)           "0,\[$first=3\],\[$second=4\]"
-   add_queue "B" $myhosts queue_conf 1
+   add_queue "B" "$first $second" queue_conf 1
 
    add_rqs_single "two_in_total"   "to slots=2" 
    add_rqs_single "trap"           "hosts ${first} to slots=1"
@@ -155,6 +160,13 @@ proc issue_2339_cleanup {  } {
    del_queue "A" "" 1 1
    del_queue "B" "" 1 1
 
+   # enable all default queues and create queue_list:
+   set queue_list {}
+   foreach host $ts_config(execd_nodes) {
+      lappend queue_list [get_queue_instance "all.q" $host]
+   }
+   enable_queue $queue_list
+
    # reset the scheduler configuration
    reset_schedd_config
 }
@@ -176,9 +188,9 @@ proc issue_2339_check { } {
 	
    set jobid [submit_job "-pe two_per_host 2 $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
 
-   set ret [issue_2378_wait_for_pattern "wait for master" "${jobid}:1:STARTING:*:*:Q:A@${second}:slots:1.0*"]
+   set ret [issue_2339_wait_for_pattern "wait for master" "${jobid}:1:STARTING:*:*:Q:A@${second}:slots:1.0*"]
    if {$ret == 0} {
-      set ret [issue_2378_wait_for_pattern "wait for slave" "${jobid}:1:STARTING:*:*:Q:B@${second}:slots:1.0*"]
+      set ret [issue_2339_wait_for_pattern "wait for slave" "${jobid}:1:STARTING:*:*:Q:B@${second}:slots:1.0*"]
    }
 
    close_logfile_wait

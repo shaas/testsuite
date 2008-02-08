@@ -95,14 +95,15 @@ proc issue_2378_setup {} {
    set pe(allocation_rule)   "\$fill_up"
    add_pe "fill_up" pe
 
-   set myhosts [host_conf_get_suited_hosts 2]
+   set first [lindex $ts_config(execd_nodes) 0]
+   set second [lindex $ts_config(execd_nodes) 1]
 
    # setup queues A and B each with one slot on a single host
    set queue_conf(slots)            "1"
    set queue_conf(pe_list)          "round_robin fill_up"
    set queue_conf(load_thresholds)  "NONE"
-   add_queue "A" $myhosts queue_conf 1
-   add_queue "B" $myhosts queue_conf 1
+   add_queue "A" "$first $second" queue_conf 1
+   add_queue "B" "$first $second" queue_conf 1
 
    # enable resource reservation etc.
    set schedconf(schedule_interval)          "0:0:05"

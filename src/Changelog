@@ -1,3 +1,6 @@
+EB-2008-02-08-0: Bugfix:    Fixed issue tests which failed sometimes (2339, 2378)
+                 Review:    TBD
+
 CR-2008-02-07-0: Enhancem.: o operate_add_cluster now also appends enabled
                               testsuite_trash cli option when starting 
                               remote ts calls
