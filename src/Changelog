@@ -1,3 +1,7 @@
+MP-2008-02-11-0: Enhancem.: Modified installation script to account for spelling
+                            corrections in the install output.
+                 Review:    MD 
+                            
 EB-2008-02-08-0: Bugfix:    Fixed issue tests which failed sometimes (2339, 2378)
                  Review:    TBD
 
