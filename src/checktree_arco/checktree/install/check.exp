@@ -137,9 +137,9 @@ proc oracle_init_arco_db {} {
    }
    
    set    sql "CREATE USER ${arco_write_user} PROFILE \"DEFAULT\" IDENTIFIED BY secret"
-   append sql " DEFAULT TABLESPACE \"$arco_config(tablespace)\" TEMPORARY TABLESPACE \"TEMP\" QUOTA 100 M ON \"$arco_config(tablespace)\" "
+   append sql " DEFAULT TABLESPACE \"$arco_config(tablespace)\" TEMPORARY TABLESPACE \"TEMP\" QUOTA UNLIMITED ON \"$arco_config(tablespace)\" "
    if { [string compare $arco_config(tablespace) $arco_config(tablespace_index)] != 0 } {
-      append sql " QUOTA 100 M ON \"$arco_config(tablespace_index)\" "
+      append sql " QUOTA UNLIMITED ON \"$arco_config(tablespace_index)\" "
    }
    append sql " ACCOUNT UNLOCK"
    

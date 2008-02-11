@@ -1,3 +1,6 @@
+JO-2008-02-11-0: Enhancem.: Changed disk quota on Oracle tablespace, was insufficient
+                            for tests with larger amounts of data
+
 MP-2008-02-11-0: Enhancem.: Modified installation script to account for spelling
                             corrections in the install output.
                  Review:    MD 
