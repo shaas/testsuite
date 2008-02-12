@@ -396,12 +396,14 @@ proc hedeby_install_master_host {} {
    # get CS prot
    set cs_port $hedeby_config(hedeby_cs_port)
 
+   set hedeby_system_name [get_hedeby_system_name]
+
    # ca setup ... 
    set ca_admin_mail $ts_config(report_mail_to)
    set ca_location "Regensburg"
    set ca_country  "DE"
    set ca_org      "Sun Microsystems"
-   set ca_org_unit "Development"
+   set ca_org_unit "Hedeby system $hedeby_system_name"
    set ca_state    "Germany"
    set sge_root $ts_config(product_root)
 
@@ -424,7 +426,7 @@ proc hedeby_install_master_host {} {
    puts $CHECK_OUTPUT "======================================="
 
    # install new system ...
-   set arguments "-s [get_hedeby_system_name]\
+   set arguments "-s $hedeby_system_name\
                   -p [get_hedeby_pref_type]\
                   imsth\
                   -ca_admin_mail \"$ca_admin_mail\"\
