@@ -33,6 +33,8 @@
 
 lappend check_functions "qsub_wd"         ;# test the -wd <dir>/-cwd options
 lappend check_functions "check_qsub_ts_iz_145" ; # Testcase for TS IZ 145
+lappend check_functions "check_qsub_ts_iz_1751" ; # Testcase for TS IZ 1751
+
 
 
 #****** qsub/qsub_wd() ******
@@ -203,4 +205,44 @@ proc qsub_ts_iz_145 { {t_sge_task_first "1"} {t_sge_task_last "4"}
    
    #clean up
    file delete $output_tmpfile
+}   
+
+#****** qsub/qsub_ts_iz_1751() ******
+# 
+#  NAME
+#     qsub_ts_iz_1751 -- test that we cannot submit a job with
+#                        same -i and -o params
+#
+#  SYNOPSIS
+#     qsub_ts_iz_1751 { } 
+#
+#*******************************
+proc check_qsub_ts_iz_1751 {} {
+   global ts_config
+
+   set test_param [get_tmp_file_name]
+   
+   set host $ts_config(master_host);
+   
+   set job_args "-b y -l h=$host -i $test_param -o $test_param /bin/cat"
+
+   # Test1 that qsub with -i $test_param -o $test_param is not allowed
+   #set submit_job_result [submit_job $job_args 0 60 $host ]
+   
+   set submit_job_result [submit_job $job_args 0]
+
+   
+   if { $submit_job_result !=  -36 } {
+      set error_text "qsub -i $test_param -o $test_param did not fail as expected; \n
+                      result was $submit_job_result \n"
+      ts_log_severe $error_text
+   }
+      
+   # Check now that regular jobs still run OK
+   set job_id [submit_job "  $ts_config(product_root)/examples/jobs/sleeper.sh 120"]
+  
+   wait_for_job_state $job_id "r" 60
+      
+   delete_all_jobs 
+   
 }   
