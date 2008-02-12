@@ -2281,10 +2281,10 @@ proc resolve_host {name {long 0}} {
    # cache result
    if {$long != 0} {
       set resolve_host_cache($name,long) $newname
-      ts_log_fine "long resolve_host: \"$name\" resolved to \"$newname\""
+      ts_log_finer "long resolve_host: \"$name\" resolved to \"$newname\""
    } else {
       set resolve_host_cache($name,short) $newname
-      ts_log_fine "short resolve_host: \"$name\" resolved to \"$newname\""
+      ts_log_finer "short resolve_host: \"$name\" resolved to \"$newname\""
    }
 
    return $newname

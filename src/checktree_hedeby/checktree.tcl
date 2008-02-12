@@ -1453,6 +1453,11 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
          return -1
       }
 
+      # TODO: This might be removed if GE installation creates keystores for default installation (1/2)
+      if { $ts_config(jmx_ssl) != "true" } {
+         puts $CHECK_OUTPUT "Need enabled jmx_ssl option for GE installation!"
+      }
+
       puts $CHECK_OUTPUT "      hedeby_enhanced_config:"
       set names [array names hedeby_enhanced_config]
       foreach name $names {
@@ -1471,32 +1476,137 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
    # now check for hedeby resource hosts to be in compile host list of addition clusters
    set master_host_list {}
    set execd_host_list {}
+   set compile_archs_from_additional_cell {}
+   set config_nr 1
    foreach filename $ts_config(additional_config) {
       set cl_type [get_additional_cluster_type $filename add_config]
+      # check 1:
+      # ========
+      # master hosts must be uniq, we don't allow running more than one qmaster on a host ...
       set cur_master_host $add_config(master_host)
       if {[lsearch -exact $master_host_list $cur_master_host] >= 0} {
          append error_text "qmaster host \"$cur_master_host\" already defined for different cluster!\n => cur. config: $filename\n"
       }
       lappend master_host_list $cur_master_host
+      set arch [resolve_arch $cur_master_host]
+      ts_log_fine "master of config#$config_nr: \"$cur_master_host\" (arch=\"$arch\")"
+      if {$cl_type == "cell"} {
+         #archs from cell clusters are availabe for this cluster!
+         lappend compile_archs_from_additional_cell $arch
+      }
 
+      
+      # check 2:
+      # ========
+      # we also don't allow more than 1 execd on a host ...
       foreach execd $add_config(execd_hosts) {
          if {[lsearch -exact $execd_host_list $execd] >= 0} {
             append error_text "execd host \"$execd\" already defined for different cluster!\n => cur. config: $filename\n"
          }
          lappend execd_host_list $execd
+         set arch [resolve_arch $execd]
+         ts_log_fine "execd of config#$config_nr: \"$execd\" (arch=\"$arch\")"
+         if {$cl_type == "cell"} {
+            #archs from cell clusters are availabe for this cluster!
+            lappend compile_archs_from_additional_cell $arch
+         }
       }
-      if { $cl_type == "" } {
+      # check 3:
+      # ========
+      # check that add_config(jmx_ssl) is enabled (true)
+      # TODO: This might be removed if GE installation creates keystores for default installation (2/2)
+      if { $add_config(jmx_ssl) != "true" } {
+         append error_text "jmx_ssl must be set to \"true\"!\n => cur. config: $filename\n"
+      }
+      incr config_nr 1
+   }
+
+   ts_log_fine "masters: $master_host_list"
+   ts_log_fine "execds: $execd_host_list"
+
+   
+   # all hedeby resource archs must be compiled
+   set expect_resource_archs {}
+   foreach h_host $config(hedeby_host_resources) {
+      set arch [resolve_arch $h_host]
+      lappend expect_resource_archs $arch
+      ts_log_fine "arch for hedeby resource \"$h_host\": \"$arch\""
+   }
+   # all execd archs must be compiled
+   foreach h_host $execd_host_list {
+      # but not the master hosts
+      if {[lsearch -exact $master_host_list $h_host] >= 0} {
+         ts_log_fine "skip master host \"$h_host\" arch \"[resolve_arch $h_host]\""
          continue
+      } else {
+         ts_log_fine "add expected host \"$h_host\" arch \"[resolve_arch $h_host]\""
+         lappend  expect_resource_archs [resolve_arch $h_host]
       }
+   }
+
+   ts_log_fine "expected resource architectures for all clusters: $expect_resource_archs"
+
+   # check that all archs are also compiled for this config (1/5)
+   set this_cluster_hosts {}
+   foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
+      if { $ts_config($param) != "none" } {
+         append this_cluster_hosts " $ts_config($param)"
+      }
+   }
+   # resolve all archs for this config (2/5)
+   set this_compile_arch_list {}
+   foreach host $this_cluster_hosts {
+      set arch [resolve_arch $host]
+      if { [lsearch -exact $this_compile_arch_list $arch] < 0 } {
+         lappend this_compile_arch_list $arch
+      }
+   }
+   # add forced this compile archs (3/5)
+   foreach compile_arch $ts_config(add_compile_archs) {
+      if { $compile_arch != "none" } {
+         if { [lsearch -exact $this_compile_arch_list $compile_arch] < 0 } {
+            lappend this_compile_arch_list $compile_arch 
+         }
+      }
+   }
+   # add archs from 
+   foreach arch $compile_archs_from_additional_cell {
+      lappend this_compile_arch_list $arch
+   }
+
+   # finally check that all archs are available for this cluster (5/5)
+   set missing_archs {}
+   foreach harch $expect_resource_archs {
+      if { [lsearch -exact $this_compile_arch_list $harch] < 0 } {
+         lappend missing_archs $harch
+      }
+   }
+   # we have missing architectures, report error
+   if { [llength $missing_archs] > 0 } {
+      append error_text "This cluster configuration has missing compile architectures which are defined in additional clusters!\n"
+      append error_text "Missing compile architecutes are \"$missing_archs\"\n"
+   }
+   
+   foreach filename $ts_config(additional_config) {
+      set cl_type [get_additional_cluster_type $filename add_config]
+      
+      # checks for independent configuration (with different SGE_ROOT) ...
+      # ==================================================================
       if { $cl_type == "independent" } {
+
+         # check 1:
+         # ========
+         # get all required and used hosts ...
          set independent_used_hosts {}
-         ts_log_fine "checking that remote cluster config $filename has all hedeby resource architectures ..."
+         ts_log_finer "checking that remote cluster config $filename has all hedeby resource architectures ..."
          foreach param "master_host execd_hosts shadowd_hosts submit_only_hosts bdb_server" {
             if { $add_config($param) != "none" } {
                append independent_used_hosts " $add_config($param)"
             }
          }
-         ts_log_fine "following hosts are used: $independent_used_hosts"
+         ts_log_finer "following hosts are used: $independent_used_hosts"
+
+         # now we have the hosts, here we get the architectures ...
          set independent_compile_arch_list {}
          foreach host $independent_used_hosts {
             set iarch [resolve_arch $host]
@@ -1504,6 +1614,8 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
                lappend independent_compile_arch_list $iarch
             }
          }
+           
+         # now we add the required compile architectures for this independet cluster ...
          foreach compile_arch $add_config(add_compile_archs) {
             if { $compile_arch != "none" } {
                if { [lsearch -exact $independent_compile_arch_list $compile_arch] < 0 } {
@@ -1512,26 +1624,39 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
                }
             }
          }
-         ts_log_fine "following architectures are compiled: $independent_compile_arch_list"
+         # here we have all the archs that are compiled for the independent cluster!
+         ts_log_finer "following architectures are compiled: $independent_compile_arch_list"
+
+         # now we check if all hedeby_host_resources are compiled for this cluster ...
          set missing_archs {}
-         foreach hedeby_host $config(hedeby_host_resources) {
-            set harch [resolve_arch $hedeby_host]
+         foreach harch $expect_resource_archs {
             if { [lsearch -exact $independent_compile_arch_list $harch] < 0 } {
                lappend missing_archs $harch
             }
          }
+
+         # we have missing architectures, report error
          if { [llength $missing_archs] > 0 } {
             append error_text "additional cluster configuration \"$filename\"\n"
             append error_text "has missing compile architecutes: \"$missing_archs\"\n"
          }
       }
    }
+
+   # here we have a complete list of execds check that no arch is missing in all clusters
+
+
+
    if { $error_text != "" } {
-      puts $CHECK_OUTPUT "==> Hedeby currently does require to have hedeby resource architectures compiled!"
-      puts $CHECK_OUTPUT $error_text
+      set full_error_text "==> Hedeby does require to have following resource architectures compiled:\n$expect_resource_archs\n"
+      append full_error_text $error_text
+      ts_log_config $full_error_text
       return -1
    }
 
+
+   # further global checks
+   # =====================
 
 
    # now check that every host has a local spool directory
@@ -1545,7 +1670,7 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
       }
    }
 
-   # now check all local spool directories to have the same path
+   # now check all local spool directories to have the same path for "user" installation
    # TODO: this can be removed if hedeby supports host specific spool directories in the user preferences installation
    if { [get_hedeby_pref_type] == "user" } {
       set main_spool_dir ""

@@ -1291,6 +1291,7 @@ proc get_all_hedeby_managed_hosts {} {
 #         ================================================================
 #         service_names(service,$host)        | list of all services on $host
 #         service_names(execd_hosts,$service) | list of all execds of $service
+#         service_names(master_host,$service) | name of master of $service
 #
 #*******************************************************************************
 proc get_hedeby_default_services { service_names } {
@@ -1308,6 +1309,7 @@ proc get_hedeby_default_services { service_names } {
          set ret(service,$ts_config(master_host)) "$ts_config(cluster_name)"
       }
       set ret(execd_hosts,$ts_config(cluster_name)) $ts_config(execd_hosts)
+      set ret(master_host,$ts_config(cluster_name)) $ts_config(master_host)
       ts_log_fine "execds for service \"$ts_config(cluster_name)\": $ret(execd_hosts,$ts_config(cluster_name))"
       ts_log_fine "service names for hedeby on host \"$ts_config(master_host)\": $ret(service,$ts_config(master_host))"
       incr cluster 1
@@ -2272,6 +2274,7 @@ proc parse_table_output { output array_name delemitter } {
 #     util/sdmadm_command()
 #     util/parse_table_output()
 #     util/get_resource_info()
+#     util/get_service_info()
 #*******************************************************************************
 proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq}} {
    global hedeby_config
@@ -2419,6 +2422,119 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    ts_log_fine "double assigned resources: $double_assigned_resource_list"
    ts_log_fine "resource list: $resource_list"
    set resource_ambiguous $double_assigned_resource_list
+   return 0
+}
+
+#****** util/get_service_info() ************************************************
+#  NAME
+#     get_service_info() -- get service information (via sdmadm ss)
+#
+#  SYNOPSIS
+#     get_service_info { {host ""} {user ""} {si service_info} } 
+#
+#  FUNCTION
+#     This procedure starts an sdmadm ss command and parses the output.
+#
+#  INPUTS
+#     {host ""}              - host where to start command
+#                                 (default: hedeby master host)
+#     {user ""}              - user who starts command
+#                                 (default: hedeby admin user)
+#     {si service_info}      - name of array for service informations
+#                                 (default: service_info) 
+#
+#  RESULT
+#     Return value: "0" on success, "1" on error 
+#
+#     Arrays:
+#             service_info(SERVICE_NAME,host)   - service host
+#             service_info(SERVICE_NAME,cstate) - service component state
+#             service_info(SERVICE_NAME,sstate) - service state
+#             service_info(SERVICE_NAME,service_list) - list of all services
+#
+#  EXAMPLE
+#     get_resource_info sinfo
+#     foreach service $sinfo(service_list) {
+#        ts_log_fine "service \"$service\": host=\"$sinfo($service,host)\""
+#     }
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/parse_table_output()
+#     util/get_resource_info()
+#     util/get_service_info()
+#*******************************************************************************
+proc get_service_info { {host ""} {user ""} {si service_info} } {
+   global hedeby_config
+
+   # setup arguments
+   upvar $si sinfo
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # first we delete possible existing info arrays
+   if { [info exists sinfo] } {
+      unset sinfo
+   }
+
+   # now we start sdmadm sr command ...
+   set sdmadm_command "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ss"
+   set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" 1 table]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting"
+      return 1
+   }
+
+   # we expect the following table commands for ShowResourceStateCliCommand ...
+   set exp_columns {}
+   lappend exp_columns [create_bundle_string "ShowServicesCliCommand.col.host"]
+   lappend exp_columns [create_bundle_string "ShowServicesCliCommand.col.name"]
+   lappend exp_columns [create_bundle_string "ShowServicesCliCommand.col.cstate"]
+   lappend exp_columns [create_bundle_string "ShowServicesCliCommand.col.sstate"]
+   set used_col_names "host service cstate sstate"
+
+   lappend res_ignore_list [create_bundle_string "ShowResourceStateCliCommand.error"]
+   foreach col $exp_columns {
+      set pos [lsearch -exact $table(table_columns) $col]
+      if {$pos < 0} {
+         ts_log_severe "cannot find expected column name \"$col\""
+         return 1
+      }
+      ts_log_fine "found expected col \"$col\" on position $pos"
+      if {[lsearch -exact $used_col_names $col] < 0} {
+         ts_log_severe "used column name \"$col\" not expected - please check table column names!"
+         return 1
+      }
+   }
+   
+   set service_col [lindex $exp_columns 1]
+   set cstate_col  [lindex $exp_columns 2]
+   set sstate_col  [lindex $exp_columns 3]
+   set host_col    [lindex $exp_columns 0]
+
+   # now we fill up the arrays ... 
+   set sinfo(service_list) {}
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      set service_id $table($service_col,$line)
+      set sinfo($service_id,host)   $table($host_col,$line)
+      set sinfo($service_id,cstate) $table($cstate_col,$line)
+      set sinfo($service_id,sstate) $table($sstate_col,$line)
+      lappend sinfo(service_list) $service_id
+   }
+
+   ts_log_fine "service list: $sinfo(service_list)"
+   foreach service $sinfo(service_list) {
+      ts_log_fine "service \"$service\": host=\"$sinfo($service,host)\" cstate=\"$sinfo($service,cstate)\" sstate=\"$sinfo($service,sstate)\""
+   }
    return 0
 }
 

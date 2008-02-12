@@ -94,27 +94,57 @@ proc make_user_cert {} {
   global ts_config
 
    if { !$check_use_installed_system } {
-      if { $ts_config(product_feature) == "csp" } {
-         puts $CHECK_OUTPUT "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
-         set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$CHECK_MAIN_RESULTS_DIR/user_file.txt" ]
-         puts $CHECK_OUTPUT $result
-    
-         puts $CHECK_OUTPUT "creating file \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
-         set script [ open "$CHECK_MAIN_RESULTS_DIR/user_file.txt" "w" ]
+      # create testsuite user certificates for csp mode
+       if {$ts_config(product_feature) == "csp"} {
+          puts $CHECK_OUTPUT "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
+          set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$CHECK_MAIN_RESULTS_DIR/user_file.txt" ]
+          puts $CHECK_OUTPUT $result
+     
+          puts $CHECK_OUTPUT "creating file \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
+          set script [ open "$CHECK_MAIN_RESULTS_DIR/user_file.txt" "w" ]
+          puts $script "$CHECK_FIRST_FOREIGN_SYSTEM_USER:first_testsuite_user:$CHECK_REPORT_EMAIL_TO"
+          puts $script "$CHECK_SECOND_FOREIGN_SYSTEM_USER:second_testsuite_user:$CHECK_REPORT_EMAIL_TO"
+          flush $script
+          close $script
+         
+          set result [ start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-usercert $CHECK_MAIN_RESULTS_DIR/user_file.txt" prg_exit_state 60 0 $ts_config(product_root)]
+          puts $CHECK_OUTPUT $result
+       
+          puts $CHECK_OUTPUT "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
+          set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$CHECK_MAIN_RESULTS_DIR/user_file.txt" ]
+          puts $CHECK_OUTPUT $result
+      } else {
+         puts $CHECK_OUTPUT "no csp feature enabled"
+      }
+
+      # support jmx ssl testsuite keystore and certificate creation
+      if {$ts_config(jmx_ssl) == "true"} {
+         ts_log_fine "creating certificates and keystore files for jgdi jmx ssl access ..."
+         set file [get_tmp_file_name]
+         set script [ open $file "w" ]
          puts $script "$CHECK_FIRST_FOREIGN_SYSTEM_USER:first_testsuite_user:$CHECK_REPORT_EMAIL_TO"
          puts $script "$CHECK_SECOND_FOREIGN_SYSTEM_USER:second_testsuite_user:$CHECK_REPORT_EMAIL_TO"
          flush $script
          close $script
-        
-         set result [ start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-usercert $CHECK_MAIN_RESULTS_DIR/user_file.txt" prg_exit_state 60 0 $ts_config(product_root)]
-         puts $CHECK_OUTPUT $result
-      
-         puts $CHECK_OUTPUT "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
-         set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$CHECK_MAIN_RESULTS_DIR/user_file.txt" ]
-         puts $CHECK_OUTPUT $result
-     } else {
-        puts $CHECK_OUTPUT "no csp feature enabled"
-     }
+         ts_log_fine "creating certificates for testsuite users ..."
+         set result [ start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-usercert $file" prg_exit_state 60 0 $ts_config(product_root)]
+         ts_log_fine $result
+       
+ 
+         set file [get_tmp_file_name]
+         set script [ open $file "w" ]
+         puts $script "$ts_config(jmx_ssl_keystore_pw)"
+         flush $script
+         close $script
+             
+         # encrypt keystores by specifing -kspwf file (file is a password file)
+         ts_log_fine "creating keystore files for testsuite users ..."
+         set my_env(JAVA_HOME) [get_java_home_for_host $ts_config(master_host) "1.5"]
+         set result [start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-userks -kspwf $file" prg_exit_state 60 0 $ts_config(product_root) my_env]
+         ts_log_fine $result
+      } else {
+         ts_log_fine "jmx ssl not enabled"
+      }
    }
 }
 

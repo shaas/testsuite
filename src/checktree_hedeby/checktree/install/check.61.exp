@@ -61,6 +61,7 @@ lappend check_functions "hedeby_add_ge_services"
 lappend check_functions "hedeby_startup_ge_services"
 lappend check_functions "hedeby_add_spare_pool_resources"
 lappend check_functions "hedeby_check_resources"
+lappend check_functions "hedeby_check_services"
 
 
 
@@ -117,6 +118,103 @@ proc hedeby_add_spare_pool_resources {} {
    foreach host $hedeby_config(hedeby_host_resources) {
       set exit_state [add_host_resource $host "spare_pool"]
       ts_log_fine "exit_state: $exit_state"
+   }
+}
+
+proc hedeby_check_services {} {
+   global hedeby_config
+
+   # set timeout for this check
+   set mytimeout [timestamp]
+   incr mytimeout 60  ;# 60 seconds
+
+   set ge_hosts [get_hedeby_default_services service_names]
+   set s_names {}
+   foreach geh $ge_hosts {
+      lappend s_names $service_names(service,$geh)
+   }
+   set error_text ""
+   # now set expected service states
+   set expected_service_states "RUNNING"
+   set expected_component_states "STARTED"
+   lappend s_names "spare_pool"
+   set service_names(master_host,spare_pool) $hedeby_config(hedeby_master_host)
+
+   while { [timestamp] < $mytimeout } {
+      ts_log_fine "obtaining service information ..."
+      set ret [get_service_info]
+      if {$ret != 0} {
+         ts_log_severe "get_service_info() returned $ret"
+         return
+      }
+
+      # now check the service states
+      set error_text ""
+      foreach service $s_names {
+
+         # check service availability
+         ts_log_fine "checking service \"$service\" ..."
+         if {[lsearch $service_info(service_list) $service] < 0} {
+            append error_text "Service \"$service\" not found!\n"
+            ts_log_fine "   service not found!"
+         } else {
+            ts_log_fine "   service found!"
+         }
+         # ceck component state
+         if {[info exists service_info($service,cstate)]} {
+            if {$service_info($service,cstate) != $expected_component_states} {
+               append error_text "Service \"$service\" component state is \"$service_info($service,cstate)\""
+               append error_text ", should be \"$expected_component_states\"\n"
+               ts_log_fine "   component state \"$service_info($service,cstate)\" - error"
+            } else {
+               ts_log_fine "   component state \"$service_info($service,cstate)\" - ok"
+            }
+         } else {
+            append error_text "cannot get component state for service \"$service\"\n"
+            ts_log_fine "cannot get component state for service \"$service\""
+         }
+
+         # check service host
+         if {[info exists service_info($service,host)]} {
+            set service_info_host [resolve_host $service_info($service,host)]
+            set expected_host $service_names(master_host,$service)
+            if {$service_info_host != $expected_host} {
+               append error_text "Service \"$service\" is running on host \"$service_info_host\""
+               append error_text ", should be \"$expected_host\"\n"
+               ts_log_fine "   is running on host \"$service_info_host\" - error"
+            } else {
+               ts_log_fine "   is running on host \"$service_info_host\" - ok"
+            }
+         } else {
+            append error_text "cannot get host for service \"$service\"\n"
+            ts_log_fine "cannot get host for service \"$service\""
+         }
+
+         # check service state
+         if {[info exists service_info($service,sstate)]} {
+            if {$service_info($service,sstate) != $expected_service_states} {
+               append error_text "Service \"$service\" service state is \"$service_info($service,sstate)\""
+               append error_text ", should be \"$expected_service_states\"\n"
+               ts_log_fine "   service state \"$service_info($service,sstate)\" - error"
+            } else {
+               ts_log_fine "   service state \"$service_info($service,sstate)\" - ok"
+            }
+         } else {
+            append error_text "cannot get service state for service \"$service\"\n"
+            ts_log_fine "cannot get service state for service \"$service\""
+         }
+
+
+      }
+      if {$error_text == ""} {
+         break  ;# fine no errors skip timeout loop
+      }
+      after 1000
+      ts_log_fine "retry"
+   }
+   if {$error_text != ""} {
+      append error_text "timeout waiting for correct service information!\n"
+      ts_log_severe $error_text
    }
 }
 
@@ -295,7 +393,18 @@ proc hedeby_add_ge_services {} {
 
       set sequence {}
       lappend sequence "[format "%c" 27]" ;# ESC
-      lappend sequence ":%s/password=\"password&amp;\"/password=\"\"/\n"
+
+      if {$ts_config(jmx_ssl) == "true"} {
+         set hedeby_user [get_hedeby_admin_user]
+         set keystore_file "/var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/userkeys/$hedeby_user/keystore"
+         ts_log_fine "using keystore file: \"$keystore_file\""
+         lappend sequence ":%s#keystore=\"\"#keystore=\"$keystore_file\"#\n"
+         lappend sequence ":%s/password=\"\"/password=\"$ts_config(jmx_ssl_keystore_pw)\"/\n"
+      } else {
+         lappend sequence ":%s/password=\"\"/password=\"password\"/\n"
+         lappend sequence ":%s/keystore=\"\"/keystore=\"keystorefile\"/\n"
+         ts_log_config "installing GE adapter without jmx_ssl not supported!"
+      }
       lappend sequence ":%s/username=\"username\"/username=\"$admin_user\"/\n"
       lappend sequence ":%s/jmxPort=\"0\"/jmxPort=\"$ts_config(jmx_port)\"/\n"
       lappend sequence ":%s/execdPort=\"0\"/execdPort=\"$execd_port\"/\n"
