@@ -193,7 +193,7 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
          puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
          puts $fdo "SGE_JMX_SSL=\"$ts_config(jmx_ssl)\""
          puts $fdo "SGE_JMX_SSL_CLIENT=\"$ts_config(jmx_ssl_client)\""
-         puts $fdo "SGE_JMX_SSL_KEYSTORE=\"/var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/userkeys/$CHECK_USER\""
+         puts $fdo "SGE_JMX_SSL_KEYSTORE=\"/var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/private/keystore\""
          puts $fdo "SGE_JMX_SSL_KEYSTORE_PW=\"$ts_config(jmx_ssl_keystore_pw)\""
       } else {
          puts $fdo "SGE_ENABLE_JMX=\"false\""
