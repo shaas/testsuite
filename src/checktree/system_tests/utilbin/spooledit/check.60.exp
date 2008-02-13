@@ -59,7 +59,7 @@ set check_description(0)  "test spooledit"
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-#set check_setup_function spooledit_setup
+set check_setup_function spooledit_setup
 #set check_cleanup_function spooledit_cleanup
 
 
@@ -73,12 +73,6 @@ proc spooledit_init_level {} {
    global CHECK_ACT_LEVEL
    global ts_config
 
-   # we run this test only with berkeley db spooling
-   if {$ts_config(spooling_method) != "berkeleydb"} {
-      ts_log_config "this test only works for spooling_method == berkeleydb"
-      return -1
-   }
-
    switch -- $CHECK_ACT_LEVEL {
       "0" {
          return 0
@@ -91,15 +85,24 @@ proc spooledit_init_level {} {
 # -------- local test procedures: initialization------------------------------
 #
 # Currently we don't need setup/cleanup
-#proc spooledit_setup {} {
-#}
-#
+proc spooledit_setup {} {
+   global ts_config
+   
+   if {$ts_config(spooling_method) != "berkeleydb"} {
+      ts_log_config "this test only works for spooling_method == berkeleydb"
+   }
+}
+
 #proc spooledit_cleanup {} {
 #}
-#
+
 
 proc spooledit_list {} {
    global ts_config
+
+   if {$ts_config(spooling_method) != "berkeleydb"} {
+      return
+   }
 
    set output [start_sge_utilbin "spooledit" "list" $ts_config(master_host)]
    if {$prg_exit_state != 0} {
@@ -118,6 +121,10 @@ proc spooledit_list {} {
 
 proc spooledit_dump {} {
    global ts_config
+
+   if {$ts_config(spooling_method) != "berkeleydb"} {
+      return
+   }
 
    # read the list of objects
    set output [start_sge_utilbin "spooledit" "list" $ts_config(master_host)]

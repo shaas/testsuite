@@ -635,69 +635,82 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
    global rerun_queue no_rerun_queue rerun_host no_rerun_host
+   
+   set host $ts_config(master_host)
 
    # TODO: use open_remote_spawn_process
    set local_arch [resolve_arch [gethostname]]
-   set qrsh_id    [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
-   set qrsh_id2   [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qrsh -now no -q [get_queue_instance $rerun_queue $rerun_host] sleep 10000"]
-   set qsh_id     [open_spawn_process "$ts_config(product_root)/bin/$local_arch/qsh -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
+   set args "-now no -q [get_queue_instance $rerun_queue $rerun_host]"
+   set qrsh_id  [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qrsh" "$args"]
+
+   set args "-now no -q [get_queue_instance $rerun_queue $rerun_host] sleep 10000"
+   set qrsh_id2 [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qrsh" "$args"]
+
+   set args "-now no -q [get_queue_instance $rerun_queue $rerun_host]"
+   set qsh_id  [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qsh" "$args"]
 
    set qlogin_out_file [get_tmp_file_name "" "qlogin" "txt"]
-
    ts_log_fine "try to run scripts/qlogin.sh $qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
 
-   set qlogin_id  [open_spawn_process "scripts/qlogin.sh $qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"]
+   set args "$qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"
+   set qlogin_id [open_remote_spawn_process $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/qlogin.sh" "$args"]
+   
    set qlogin_spawn_id [lindex $qlogin_id 1]
    set no_jobs 4
    set result ""
-   set my_timeout [timestamp]
-   incr my_timeout 30
-   while {[string first "login" $result] < 0 && [string first "assword" $result] < 0} {
-      sleep 1
-      catch {eval exec "cat $qlogin_out_file"} result
-      ts_log_fine "qlogin output:\n$result"
-      if {$my_timeout < [timestamp]} {
-         break
-      }
-   }
 
-   # on some systems (Solaris 10), telnet doesn't present a login, but tries 
-   # to login current user first
-   if {[string first "assword:" $result] < 0} {
-      if {[string first "login:" $result] < 0} {
-          ts_log_severe "qlogin error, expected login:, received $result"
-      }
-
-      ts_send $qlogin_spawn_id "$CHECK_USER\n" $ts_config(master_host) 1
-      set timeout 5
-      expect {
-         -i $qlogin_spawn_id eof {
-             ts_log_fine "got eof"
-             ts_log_severe "qlogin unexpected eof"
-         }
-         -i $qlogin_spawn_id timeout {
-             ts_log_fine "success, got timeout"
+   # wait for qlogin login and password prompt only in case telnet is configured
+   # as qlogin command - this is by default the case for SGE versions < 6.2
+   if {$ts_config(gridengine_version) < 62} {
+      set my_timeout [timestamp]
+      incr my_timeout 30
+      while {[string first "login" $result] < 0 && [string first "assword" $result] < 0} {
+         sleep 1
+         catch {eval exec "cat $qlogin_out_file"} result
+         ts_log_fine "qlogin output:\n$result"
+         if {$my_timeout < [timestamp]} {
+            break
          }
       }
-      set result ""
-   }
 
-   set my_timeout [timestamp]
-   incr my_timeout 120
-   set timeout 0
-   while {[string first "assword:" $result] < 0} {
-      sleep 2
-      catch {eval exec "cat $qlogin_out_file"} result
-      ts_log_fine $result
-      if {$my_timeout < [timestamp]} {
-         ts_log_severe "timeout waiting for qlogin password question"
-         break
+      # on some systems (Solaris 10), telnet doesn't present a login, but tries 
+      # to login current user first
+      if {[string first "assword:" $result] < 0} {
+         if {[string first "login:" $result] < 0} {
+             ts_log_severe "qlogin error, expected login:, received $result"
+         }
+
+         ts_send $qlogin_spawn_id "$CHECK_USER\n" $ts_config(master_host) 1
+         set timeout 5
+         expect {
+            -i $qlogin_spawn_id eof {
+                ts_log_fine "got eof"
+                ts_log_severe "qlogin unexpected eof"
+            }
+            -i $qlogin_spawn_id timeout {
+                ts_log_fine "success, got timeout"
+            }
+         }
+         set result ""
       }
-   }
 
-   if {[string first "closed" $result] >= 0} {
-       ts_log_severe "qlogin error, connection closed"
-   }
+      set my_timeout [timestamp]
+      incr my_timeout 120
+      set timeout 0
+      while {[string first "assword:" $result] < 0} {
+         sleep 2
+         catch {eval exec "cat $qlogin_out_file"} result
+         ts_log_fine $result
+         if {$my_timeout < [timestamp]} {
+            ts_log_severe "timeout waiting for qlogin password question"
+            break
+         }
+      }
+
+      if {[string first "closed" $result] >= 0} {
+          ts_log_severe "qlogin error, connection closed"
+      }
+   } 
 
    set end_time [expr [timestamp] + 60]
    set ru_jobs 0
@@ -745,7 +758,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    }
 
    enable_queue [get_queue_instance $rerun_queue $rerun_host]
- 
+
    foreach elem $jobs_string {
       delete_job $elem
    }
