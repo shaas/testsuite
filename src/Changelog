@@ -1,3 +1,5 @@
+RD-2008-02-15-0: Bugfix:    configuration update was broken
+
 HP-2008-02-13-0: Enhancem.: Modified qmod/reschedule test to work with new IJS
                  Enhancem.: Modified spooledit test to avoid annoying warnings
                  Changed:   checktree/system_tests/clients/qmod/reschedule/check.exp
