@@ -857,7 +857,7 @@ proc test_job_runtime_limit {} {
    mod_schedd_config schedconf
 
    # 1) 
-   # job should should run at least 20 seconds and should be killed by execd after
+   # job should run at least 20 seconds and should be killed by execd after
    # 30 seconds (ar_duration - duration_offset)
    # to be safe we wait 10 seconds longer
    set ar_id [submit_ar "-d 150"]

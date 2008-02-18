@@ -1167,6 +1167,10 @@ proc get_hedeby_cs_url { } {
 #*******************************************************************************
 proc get_hedeby_local_spool_dir { host } {
    set spool_dir [get_local_spool_dir $host "hedeby_spool" 0 ]
+   # hedeby needs a local spool dir
+   if {$spool_dir == ""} {
+      ts_log_severe "Host \"$host\" has no local testsuite spool directory defined.\nHedeby needs a local spool directory for this host!"
+   }
    return $spool_dir
 }
 
@@ -1287,11 +1291,15 @@ proc get_all_hedeby_managed_hosts {} {
 #     1) returns list of qmaster hosts where ge services are running
 #     2) informations in service_names:
 #
-#         array name                          | value
+#         array name                             | value
 #         ================================================================
-#         service_names(service,$host)        | list of all services on $host
-#         service_names(execd_hosts,$service) | list of all execds of $service
-#         service_names(master_host,$service) | name of master of $service
+#         service_names(service,$host)           | list of all services on $host
+#         service_names(execd_hosts,$service)    | list of all execds of $service
+#         service_names(master_host,$service)    | name of master of $service
+#         service_names(services)                | list of all services
+#         service_names(moveable_execds,$service)| list of all not static resources of $service
+#         service_names(ts_cluster_nr,$host)     | testsuite cluster nr of service
+#         service_names(default_service,$host)   | default service of $host
 #
 #*******************************************************************************
 proc get_hedeby_default_services { service_names } {
@@ -1299,6 +1307,7 @@ proc get_hedeby_default_services { service_names } {
    set current_cluster_config [get_current_cluster_config_nr]
    set cluster 0
    set ge_master_hosts {}
+   set ret(services) {}
    while { [set_current_cluster_config_nr $cluster] == 0 } {
       get_current_cluster_config_array ts_config
       lappend ge_master_hosts $ts_config(master_host)
@@ -1310,6 +1319,18 @@ proc get_hedeby_default_services { service_names } {
       }
       set ret(execd_hosts,$ts_config(cluster_name)) $ts_config(execd_hosts)
       set ret(master_host,$ts_config(cluster_name)) $ts_config(master_host)
+      set ret(ts_cluster_nr,$ts_config(master_host)) $cluster
+      lappend ret(services) $ts_config(cluster_name)
+
+      set ret(moveable_execds,$ts_config(cluster_name)) {}
+      foreach exh $ts_config(execd_hosts) {
+         set ret(default_service,$exh) $ts_config(cluster_name)
+         if {$exh != $ts_config(master_host)} {
+            lappend ret(moveable_execds,$ts_config(cluster_name)) $exh
+            set ret(ts_cluster_nr,$exh) $cluster
+         }
+      }
+
       ts_log_fine "execds for service \"$ts_config(cluster_name)\": $ret(execd_hosts,$ts_config(cluster_name))"
       ts_log_fine "service names for hedeby on host \"$ts_config(master_host)\": $ret(service,$ts_config(master_host))"
       incr cluster 1
@@ -1694,7 +1715,6 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
                set tokensline [split $buffer "\n"]
                foreach tokenl $tokensline {
                   set token "$tokenl\n"
-      #            ts_log_fine "line ($host_name): [string trim $token]"
                   if { [string match "*_exit_status_:(*" $token ] } {
                      set help $token
                      set st [string first "(" $help]
@@ -1749,9 +1769,9 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
             if {[string match "*$task_info($host,expected_output)*" $task_info($host,output)]} {
                ts_log_fine "matchstring found"
             } else {
-               append error_text "----------------------------------\n"
-               append error_text "host: $host\n"
-               append error_text "command(as user $exec_user): sdmadm $task_info($host,sdmadm_command)\n"
+               append error_text "\n"
+               append error_text "Command \"sdmadm $task_info($host,sdmadm_command)\"\n"
+               append error_text "started as user \"$exec_user\" on host \"$host\" returned:\n"
                append error_text "Exit status: $task_info($host,exit_status)\n"
                append error_text "Cannot find matchstring on host \"$host\":\n"
                append error_text "Matchstring: $task_info($host,expected_output)\n"
@@ -1761,9 +1781,9 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
          }
      
          if { $task_info($host,exit_status) != 0 && $reported_error == 0 } {
-            append error_text "----------------------------------\n"
-            append error_text "host: $host\n"
-            append error_text "command(as user $exec_user): sdmadm $task_info($host,sdmadm_command)\n"
+            append error_text "\n"
+            append error_text "Command \"sdmadm $task_info($host,sdmadm_command)\"\n"
+            append error_text "started as user \"$exec_user\" on host \"$host\" returned:\n"
             append error_text "Exit status: $task_info($host,exit_status)\n"
             append error_text "Output:\n$task_info($host,output)\n"
          }
@@ -2123,7 +2143,7 @@ proc parse_table_output { output array_name delemitter } {
             set column_nr 0
             set column_start($column_nr) 0
             set column_end($column_nr) 0
-            ts_log_fine "header line: \"$header_line\""
+            ts_log_finer "header line: \"$header_line\""
             set last_pos 0
             while {1} {
                set pos [string first $delemitter $header_line $last_pos]
@@ -2201,7 +2221,7 @@ proc parse_table_output { output array_name delemitter } {
             if {$act_table_line >= 0} {
                set help [string trim $line]
                if {$help != ""} {
-                  ts_log_fine "parsing additional info for line $act_table_line: \"$help\""
+                  ts_log_finer "parsing additional info for line $act_table_line: \"$help\""
                   lappend data(additional,$act_table_line) $help
                }
             }
@@ -2274,6 +2294,7 @@ proc parse_table_output { output array_name delemitter } {
 #     util/sdmadm_command()
 #     util/parse_table_output()
 #     util/get_resource_info()
+#     util/wait_for_resource_info()
 #     util/get_service_info()
 #*******************************************************************************
 proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq}} {
@@ -2333,7 +2354,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
          ts_log_severe "cannot find expected column name \"$col\""
          return 1
       }
-      ts_log_fine "found expected col \"$col\" on position $pos"
+      ts_log_finer "found expected col \"$col\" on position $pos"
       if {[lsearch -exact $used_col_names $col] < 0} {
          ts_log_severe "used column name \"$col\" not expected - please check table column names!"
          return 1
@@ -2356,9 +2377,13 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
          }
       }
       if {!$do_ignore} {
-         set ts_resource_name [resolve_host $resource_id]
+         # if resources are e.g. in state UNASSIGNING at resource
+         # provider the resources have the @SERVICE appended
+         # => Testsuite is ignoring appendix of hostname
+         set help [split $resource_id "@"]
+         set ts_resource_name [resolve_host [lindex $help 0]]
          if {$ts_resource_name != $resource_id} {
-            ts_log_fine "using resource name \"$ts_resource_name\" for resource id \"$resource_id\""
+            ts_log_finer "using resource name \"$ts_resource_name\" for resource id \"$resource_id\""
          }
          if { [lsearch -exact $resource_list $ts_resource_name] < 0 } { 
             lappend resource_list "$ts_resource_name"
@@ -2370,7 +2395,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
                set resource_info($ts_resource_name,$col) {}
             }
             lappend resource_info($ts_resource_name,$col) [lindex $table($col,$line) 0]
-            ts_log_fine "resource_info($ts_resource_name,$col) = $resource_info($ts_resource_name,$col)"
+            ts_log_finer "resource_info($ts_resource_name,$col) = $resource_info($ts_resource_name,$col)"
          }
          if {[llength $table(additional,$line)] > 0} {
             foreach elem $table(additional,$line) {
@@ -2390,7 +2415,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
                      set resource_properties($ts_resource_name,$property) {}
                   }
                   lappend resource_properties($ts_resource_name,$property) $value
-                  ts_log_fine "resource_properties($ts_resource_name,$property) = $resource_properties($ts_resource_name,$property)"
+                  ts_log_finer "resource_properties($ts_resource_name,$property) = $resource_properties($ts_resource_name,$property)"
                }
             }
          } else {
@@ -2416,7 +2441,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
             append error_text "         $property=$resource_properties($resource,$property)\n"
          }
       }
-      ts_log_info $error_text
+      ts_log_fine $error_text
    }
 
    ts_log_fine "double assigned resources: $double_assigned_resource_list"
@@ -2424,6 +2449,142 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    set resource_ambiguous $double_assigned_resource_list
    return 0
 }
+
+#****** util/wait_for_resource_info() ******************************************
+#  NAME
+#     wait_for_resource_info() -- wait for expected resource information
+#
+#  SYNOPSIS
+#     wait_for_resource_info { exp_resinfo {atimeout 60} {report_error 1} 
+#     {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} 
+#     {rl res_list} {da res_list_not_uniq} } 
+#
+#  FUNCTION
+#     This procedure calls get_resource_info() until the specified
+#     resource properties occur, a timeout or error occurs.
+#
+#  INPUTS
+#     exp_resinfo            - expected resource info (same structure like
+#                              get_resource_info() is returning).
+#     {atimeout 60}          - optional timeout specification in seconds 
+#     {report_error 1}       - report testsuite errors if != 0
+#     {ev error_var }        - report error text into this tcl var
+#     {host ""}              - see get_resource_info() 
+#     {user ""}              - see get_resource_info() 
+#     {ri res_info}          - see get_resource_info() 
+#     {rp res_prop}          - see get_resource_info() 
+#     {rl res_list}          - see get_resource_info() 
+#     {da res_list_not_uniq} - see get_resource_info() 
+#
+#  RESULT
+#     0 on success, 1 on error
+#     setting of tcl arrays like known from get_resource_info()
+#
+#  EXAMPLE
+#        foreach res $static_list {
+#           set exp_resource_info($res,service) "$service_names(default_service,$res)" 
+#           set exp_resource_info($res,flags) "S"
+#           set exp_resource_info($res,state) "ASSIGNED"
+#        }
+#        # step 2: wait for expected resource informations
+#        set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
+#     
+#        # step 3: error handling
+#        if { $retval != 0} {
+#           # if there were no error till now, print output of previous actions
+#           if {$error_text == ""} {
+#              append error_text "Following action(s) was/were started:\n"
+#              foreach res $mvr_list {
+#                 append error_text $task_info($res,output)
+#              }
+#           }
+#           # append missing resources info to error output
+#           append error_text $mvr_error
+#        }
+#
+#  SEE ALSO
+#     util/get_resource_info()
+#     util/wait_for_resource_info()
+#*******************************************************************************
+proc wait_for_resource_info { exp_resinfo  {atimeout 60} {report_error 1} {ev error_var } \
+     {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} } {
+   global hedeby_config
+   # setup arguments
+   upvar $exp_resinfo exp_res_info
+   upvar $ev error_text
+   upvar $ri resource_info
+   upvar $rp resource_properties
+   upvar $da resource_ambiguous
+   upvar $rl resource_list
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # init error and timeout
+   set error_text ""
+   set my_timeout [timestamp]
+   incr my_timeout $atimeout
+
+   # set expected results info
+   set expected_resource_info ""
+   set exp_values [array names exp_res_info]
+   foreach val $exp_values {
+      append expected_resource_info "$val=\"$exp_res_info($val)\"\n"
+   }
+   ts_log_fine "expected resource infos:\n$expected_resource_info"
+
+   while {1} {
+      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous]
+      if {$retval != 0} {
+         append error_text "break because of get_resource_info() returned \"$retval\"!\n"
+         append error_text "expected resource info was:\n$expected_resource_info"
+         break
+      }
+
+      set not_matching ""
+      foreach val $exp_values {
+         if {[info exists resource_info($val)]} {
+            if {$resource_info($val) == $exp_res_info($val)} {
+               ts_log_finer "resource info \"$val\" matches expected info \"$exp_res_info($val)\""
+            } else {
+               append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
+            }
+         } else {
+            append not_matching "resource info \"$val\" not available\n"
+         }
+      }
+
+      if {$not_matching == ""} {
+         ts_log_fine "all specified resouce info are matching"
+         break
+      } else {
+         ts_log_fine "not matching resource info:\n$not_matching"
+      }
+
+      if {[timestamp] >= $my_timeout} {
+         append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected resource states!\n"
+         append error_text "==> NOT matching values:\n$not_matching"
+         break
+      }
+      after 1000
+   }
+
+   if {$error_text != "" } {
+      if {$report_error != 0} {
+         ts_log_severe $error_text
+      }
+      return 1
+   }
+   return 0
+}
+
 
 #****** util/get_service_info() ************************************************
 #  NAME
@@ -2591,9 +2752,9 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       ts_log_fine "${host}($user): starting binary not interactive \"sdmadm $arg_line\" ..."
       set output [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0 $raise_error]
       if { $back_exit_state != 0 } {
-         add_proc_error "sdmadm_command" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+         ts_log_severe "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
       }
-      ts_log_fine $output
+      ts_log_finest $output
       parse_table_output $output table "|"
       return $output
    } else {
@@ -2662,10 +2823,10 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       }
       close_spawn_process $pr_id
       if { $error_text != "" } {
-         add_proc_error "sdmadm_command" -1 "interacitve errors:\n$error_text\noutput:\n$output\nexit state: $back_exit_state" $raise_error
+         ts_log_severe "interacitve errors:\n$error_text\noutput:\n$output\nexit state: $back_exit_state" $raise_error
       }
       if { $back_exit_state != 0 } {
-         add_proc_error "sdmadm_command" -1 "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+         ts_log_severe "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
       }
       parse_table_output $output table "|"
       return $output
@@ -3505,6 +3666,9 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
    if { $errors != "" } {
       ts_log_fine "skip sending vi sequence, there were errors!"
    } else { 
+      after 1000 ;# TODO: be sure to wait one second so that file timestamp has changed
+                  # This might be done by have start timestamp and endtimestamp and only
+                  # wait if timetamp has not changed (to fast edit)
       set sequence {}
       lappend sequence "[format "%c" 27]" ;# ESC
       lappend sequence ":wq\n"        ;# save and quit

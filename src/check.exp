@@ -7625,7 +7625,7 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
             set stop 0
             foreach line [split $expect_out(0,string) "\r\n"] {
                set line [string trim $line]
-               if {$line != ""} {
+               if {$line != ""  && $line != "-" && $line != "|" && $line != "/" && $line != "\\"} {
                   ts_log_fine "\[[file tail $filename]\]$line"
                   switch -glob -- $line {
                      "host access with password needed for user*" {
@@ -7696,8 +7696,10 @@ proc operate_add_cluster {filename operation {atimeout 120} {execute_func ""} {e
                   if { $proc_found == 1 } {
                      incr proc_found 1
                   }
-
-
+               } else {
+                  if {[llength [info procs ts_log_washing_machine]] == 1} {
+                     ts_log_washing_machine
+                  }
                }
             }
            

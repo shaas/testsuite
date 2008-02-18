@@ -1,3 +1,20 @@
+CR-2008-02-18-0: Bugfix:    o operate_add_cluster(): don't log washing
+                              machine output of remote ts cluster
+                            o log severe error when hedeby host has no
+                              local spool directory in ts host config
+                            o enhanced get_hedeby_default_services()
+                            o logging cleanup
+                            o fixed problem in get_resource_info() for
+                              resources like "host@service"
+                            o new procedure: wait_for_resource_info()
+                              wait for expected resource information
+                            o wait at least 1 second after editing
+                              file with EDITOR in hedeby_mod_cleanup()
+                            o fixed local spool directory setup for
+                              ge service adapter configuration
+                            o fixed typos
+                 Review:    RH
+
 RD-2008-02-15-0: Bugfix:    configuration update was broken
 
 HP-2008-02-13-0: Enhancem.: Modified qmod/reschedule test to work with new IJS
