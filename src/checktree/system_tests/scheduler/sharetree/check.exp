@@ -402,6 +402,7 @@ proc share_tree_test {} {
    trigger_scheduling
    
    wait_for_job_tickes $last_job
+
    
    get_job_tickets $prj1_id_list $prj2_id_list $prj3_id_list tickets
    
@@ -493,16 +494,24 @@ proc share_tree_test {} {
       }
       if { $running_jobs == 0 } {
          trigger_scheduling
+      } else {
+         # Try if spooling with running jobs is working
+         if {$nr_of_jobs == 5} {
+            shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
+            startup_qmaster
+
+            trigger_scheduling
+            wait_for_job_tickes $last_job
+         }
       }
       sleep 2
+      incr nr_of_jobs 1
    }
    disable_queue "$test_queue"
    if { [timestamp] >= $my_timeout } {
       ts_log_severe "timeout while waiting for start of jobs"
    }
      
-
- 
    set prj3_count 0
    foreach job $prj3_id_list {
       if { [file isfile $CHECK_PROTOCOL_DIR/$job] == 1 } {   
@@ -516,6 +525,7 @@ proc share_tree_test {} {
          incr prj1_count 1
       }
    }
+
    set prj2_count 0
    foreach job $prj2_id_list {
       if { [file isfile $CHECK_PROTOCOL_DIR/$job] == 1 } {   
