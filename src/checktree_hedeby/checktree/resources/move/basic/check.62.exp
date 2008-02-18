@@ -1,0 +1,205 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "no"
+set check_name                 "basic_resource_assignment"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "dummy testsuite integration test"
+set check_needs                ""                  
+set check_init_level_procedure "basic_resource_assignment_init_level"
+set check_functions            ""   
+set check_highest_level        0
+
+set check_setup_function "basic_resource_assignment_setup"
+set check_cleanup_function "basic_resource_assignment_cleanup"
+
+lappend check_functions "basic_resource_assignment_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global basic_resource_assignment_current_cluster_config
+
+
+proc basic_resource_assignment_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+proc basic_resource_assignment_setup {} {
+   global CHECK_OUTPUT
+   global basic_resource_assignment_current_cluster_config
+   
+   puts $CHECK_OUTPUT "doing setup ..."
+   set basic_resource_assignment_current_cluster_config [get_current_cluster_config_nr]
+}
+
+proc basic_resource_assignment_cleanup {} {
+   global CHECK_OUTPUT
+   global basic_resource_assignment_current_cluster_config
+
+   puts $CHECK_OUTPUT "doing cleanup ..."
+
+   set_current_cluster_config_nr $basic_resource_assignment_current_cluster_config
+}
+
+proc basic_resource_assignment_check {} {
+   global CHECK_OUTPUT
+
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   set error_text ""
+
+   ts_log_fine "move all not static resources from GE services to spare_pool"
+   set mvr_list {}
+   set static_list {}
+   foreach service $service_names(services) {
+      foreach res $service_names(moveable_execds,$service) {
+         if {[lsearch -exact $mvr_list $res] < 0} {
+            lappend mvr_list $res
+         }
+      }
+      foreach res $service_names(master_host,$service) {
+         if {[lsearch -exact $static_list $res] < 0} {
+            lappend static_list $res
+         }
+      }
+   }
+   ts_log_fine "moving resource(s) \"$mvr_list\" to spare_pool ..."
+
+   # starting parallel resource movement on every resource host ...
+   foreach res $mvr_list {
+      set task_info($res,expected_output) ""
+      set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name mvr -r $res -s spare_pool"
+   }
+   set par_error [start_parallel_sdmadm_command mvr_list [get_hedeby_admin_user] task_info 0]
+   if {$par_error != ""} {
+      append error_text $par_error
+   }
+
+   # now wait and check that all moved resources are gone to spare_pool ...
+   # ======================================================================
+   # step 1: set expected resource information values
+   foreach res $mvr_list {
+      set exp_resource_info($res,service) "spare_pool"
+      set exp_resource_info($res,flags) "{}"
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+   foreach res $static_list {
+      set exp_resource_info($res,service) "$service_names(default_service,$res)" 
+      set exp_resource_info($res,flags) "S"
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+   # step 2: wait for expected resource informations
+   set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
+
+   # step 3: error handling
+   if { $retval != 0} {
+      # if there were no error till now, print output of previous actions
+      if {$error_text == ""} {
+         append error_text "Following action(s) was/were started:\n"
+         foreach res $mvr_list {
+            append error_text $task_info($res,output)
+         }
+      }
+      # append missing resources info to error output
+      append error_text $mvr_error
+   }
+   # step 4: cleanup exp_resource_info array (we use it later again)
+   unset exp_resource_info
+
+
+
+   # now check that all ge clusters only have master host execd ...
+   # ==============================================================
+   # TODO: use qhost or qstat info and do it in different test procedure
+
+   # now assign each host from spare pool to each service and back to spare_pool ...
+   # TODO: here we should check the correct resource installation by submitting job
+
+
+
+   # finally cleanup test and reset resource assignement to initial state ...
+   # TODO: make util procedure out of it and do it in test cleanup
+   unset task_info
+   set mvr_list {}
+   foreach service $service_names(services) {
+      foreach res $service_names(moveable_execds,$service) {
+         set task_info($res,expected_output) ""
+         set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name mvr -r $res -s $service"
+         lappend mvr_list $res
+      }
+   }
+   set par_error [start_parallel_sdmadm_command mvr_list [get_hedeby_admin_user] task_info 0]
+   if {$par_error != ""} {
+      append error_text $par_error
+   }
+   foreach res $mvr_list {
+      set exp_resource_info($res,service) "$service_names(default_service,$res)"
+      set exp_resource_info($res,flags) "{}"
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+   foreach res $static_list {
+      set exp_resource_info($res,service) "$service_names(default_service,$res)" 
+      set exp_resource_info($res,flags) "S"
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+   set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
+   if { $retval != 0} {
+      append error_text $mvr_error
+   }
+   unset exp_resource_info
+
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
+
+
