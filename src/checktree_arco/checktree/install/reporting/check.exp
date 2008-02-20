@@ -106,7 +106,7 @@ proc arco_reporting_install {} {
     lappend users $ts_user_config(first_foreign_user)
     lappend users $ts_user_config(second_foreign_user)
     
-    # We do not clean the arco spool dir, because the owner in noaccess
+    # We do not clean the arco spool dir, because the owner in get_SWC_USER
     set spool_dir [get_local_spool_dir $arco_config(swc_host) arco 0]
     
     if {$spool_dir == ""} {
@@ -115,7 +115,7 @@ proc arco_reporting_install {} {
     }
 
    # we have to change the ownership of the queries and results subdirectory, because
-   # the installation script set it to noaccess
+   # the installation script set it to get_SWC_USER
    start_remote_prog $arco_config(swc_host) root "chown" "-R $CHECK_USER $spool_dir/queries"
    start_remote_prog $arco_config(swc_host) root "chown" "-R $CHECK_USER $spool_dir/results"
    

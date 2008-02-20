@@ -124,16 +124,19 @@ proc arcorun_default_queries_setup {} {
 #    arcorun_default_queries_cleanup { } 
 #
 #  FUNCTION
-#     o sets the owner of the queries and results back to noaccess
+#     o sets the owner of the queries and results back to get_SWC_USER
 #     o cleans the arco run output diretory ($CHECK_PROTOCOL_DIR/arcorun)
 #
 #  INPUTS
+#
+#  SEE ALSO
+#     arcorun/get_SWC_USER
 #
 #*******************************************************************************
 proc arcorun_default_queries_cleanup {} {
    global arcorun_output_dir CHECK_USER arco_config
    
-   if { [arcorun_change_spooldir_owner noaccess] != 0 } {
+   if { [arcorun_change_spooldir_owner [get_SWC_USER]] != 0 } {
       ts_log_severe "Can not change owner of queries and results"
       return -1
    }

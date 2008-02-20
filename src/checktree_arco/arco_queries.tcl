@@ -195,7 +195,7 @@ proc arco_query_job {sqlutil_sp_id job_array {expected_count 1} {timeout 300}} {
    
    set job_str [arco_job_to_string job]
    
-   puts -nonewline "Searching job $job_str in table sge_job "
+   ts_log_fine "Searching job $job_str in table sge_job "
    
    set sql "select j_id, j_job_number, j_task_number, j_job_name, j_group, "
    append sql " j_owner, j_account, j_priority, j_submission_time, j_project, j_department"
@@ -419,7 +419,7 @@ proc arco_query_job_usage {sqlutil_sp_id job_array {timeout 300}} {
 
       set job_str [arco_job_to_string task]
 
-      puts -nonewline "Searching for job $job_str in table sge_job_usage "
+      ts_log_fine "Searching for job $job_str in table sge_job_usage "
       
       set    sql "select ju_ru_wallclock, ju_exit_status from sge_job_usage "
       append sql "where ju_parent in ("

@@ -33,9 +33,98 @@
 #___INFO__MARK_END__
 
 
-#****** check/arcorun_change_spooldir_owner() **************************************************
+#****** arcorun/get_SWC_USER() *************************************************
 #  NAME
-#    arcorun_change_spooldir_owner() -- change the owner of the arco spool directory
+#    get_SWC_USER() -- get the SWC user
+#
+#  SYNOPSIS
+#    get_SWC_USER { { swc_host "" } } 
+#
+#  FUNCTION
+#    get the SWC user under which privileges will be the web console started
+#
+#  INPUTS
+#    swc_host - name of the host where the java web console is installed
+#
+#  RESULT
+#     user which is set in SWC property com.sun.web.console.user (if set)
+#     or noaccess - if user exists in system
+#     or nobody - we assume that this user always exists
+#
+#*******************************************************************************
+proc get_SWC_USER { { swc_host "" } } {
+   global arco_config
+   
+   set swc_user ""
+   array set swc_version {}
+
+   if { $swc_host == "" } {
+      set swc_host $arco_config(swc_host)
+   }
+
+   ts_log_finest "Getting the SWC version."
+   if { [get_java_web_console_version swc_version $swc_host] < 0 } {
+      ts_log_severe "Can not determine version of java webconsole on host $swc_host"
+      return -1
+   }
+
+   ts_log_finest "Checking if the SWC user is set among web console properties."
+   if { [expr $swc_version(major)] == 3 } {
+      set output [start_remote_prog $swc_host root  "wcadmin" "list -p | grep com.sun.web.console.user | awk -F\" \" '{print \$2}'"]
+   } else {
+      set output [start_remote_prog $swc_host root  "smreg" "list -p | grep com.sun.web.console.user | awk -F= '{print \$2}'"]
+   }
+
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Unexpected error, check if SWC is properly installed, or is running. ($output)"
+      return -1
+   }
+
+   set swc_user [string trim $output]
+
+   if { [string compare $swc_user ""] != 0 } {
+      ts_log_finest "Checking if the SWC user $output can log in the host $swc_host."
+      set output [start_remote_prog $swc_host root  "getent" "passwd $swc_user | awk -F: '{print \$1}'"]
+      set swc_user [string trim $output]
+      if { $prg_exit_state != 0 } {
+         ts_log_severe "Unexpected error while looking for user. ($output)"
+         return -1
+      }
+      if { [string compare $swc_user ""] != 0 } {
+         ts_log_finest "Returning SWC user $swc_user."
+         return $swc_user
+      }
+   }
+
+   ts_log_finest "SWC user not found, checking if the user noaccess can log in the host $swc_host."
+   set output [start_remote_prog $swc_host root  "getent" "passwd noaccess | awk -F: '{print \$1}'"]
+   set swc_user [string trim $output]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Unexpected error while looking for user. ($output)"
+      return -1
+   }
+   if { [string compare $swc_user ""] != 0 } {
+      ts_log_finest "Returning SWC user $swc_user."
+      return $swc_user
+   }
+
+   # user noaccess doesn't exist, let's check if nobody user exists in system
+   ts_log_finest "User noaccess not found, checking if the user nobody can log in the host $swc_host."
+   set output [start_remote_prog $swc_host root  "getent" "passwd nobody | awk -F: '{print \$1}'"]
+   set swc_user [string trim $output]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Unexpected error while looking for user. ($output)"
+      return -1
+   }
+   # we assume that at least nobody user exists
+   ts_log_finest "Returning SWC user $output."
+   return $swc_user
+}
+
+#****** check/arcorun_change_spooldir_owner() **********************************
+#  NAME
+#    arcorun_change_spooldir_owner() -- change the owner of the arco spool 
+#                                       directory
 #
 #  SYNOPSIS
 #    arcorun_change_spooldir_owner { owner { a_spool_dir "" } } 
@@ -53,6 +142,7 @@
 #
 #  SEE ALSO
 #     file_procedures/get_local_spool_dir
+#     arcorun/get_SWC_USER
 #*******************************************************************************
 proc arcorun_change_spooldir_owner { owner { a_spool_dir "" } } {
    global arco_config
@@ -65,7 +155,7 @@ proc arcorun_change_spooldir_owner { owner { a_spool_dir "" } } {
    }
 
    # we have to change the ownership of the queries and results subdirectory, because
-   # the installation script set it to noaccess
+   # the installation script set it to get_SWC_USER
    set dirs { queries results }
    foreach dir $dirs {
       set output [start_remote_prog $arco_config(swc_host) root "chown" "-R $owner $spool_dir/$dir"]

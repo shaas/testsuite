@@ -595,6 +595,18 @@ proc arco_clean_database { { drop 0 } } {
    }
 } 
 
+proc clean_table { table_name } {
+
+   if { [string compare [string tolower $table_name] "sge_version"] == 0 } {
+      return 0
+   }
+   if { [string compare [string tolower $table_name] "sge_checkpoint"] == 0 } {
+      return 0
+   }
+
+   return 1
+}
+
 proc arco_clean_oracle_database { { drop 0 } } {
    global ARCO_TABLES ARCO_VIEWS
    
@@ -716,7 +728,7 @@ proc arco_clean_oracle_database { { drop 0 } } {
                break;
             }
          } else {
-            if { [string compare [string tolower $table] "sge_version"] != 0 && [string compare [string tolower $table] "sge_checkpoint"] != 0 } {
+            if { [ clean_table $table ] == 1 } {
                set sql "DELETE from $table"
                set res [sqlutil_exec $sp_id $sql]
                if { $res != 0 } {
@@ -830,7 +842,7 @@ proc arco_clean_postgres_database { { drop 0 } } {
             break;
          }
       } else {
-         if { [string compare [string tolower $table] "sge_version"] != 0 && [string compare [string tolower $table] "sge_checkpoint"] != 0 } {
+         if { [ clean_table $table ] == 1 } {
             set sql "DELETE from $table"
             set res [sqlutil_exec $sp_id $sql]
             if { $res != 0 } {
@@ -943,7 +955,7 @@ global ARCO_TABLES ARCO_VIEWS
             break;
          }
       } else {
-         if { [string compare [string tolower $table] "sge_version"] != 0 && [string compare [string tolower $table] "sge_checkpoint"] != 0 } {
+         if { [ clean_table $table ] == 1 } {
             set sql "DELETE from $table"
             set res [sqlutil_exec $sp_id $sql]
             if { $res != 0 } {

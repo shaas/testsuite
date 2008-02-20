@@ -808,18 +808,23 @@ proc config_database { only_check name config_array } {
    set value [ config_generic $only_check $name config $help_text "choice" ts_db_config(databaselist) ]
 
    # set the default values for tablespaces
-   default_config_values $ts_db_config($value,dbtype) config
+   if { [info exists ts_db_config($value,dbtype)] } {
+      default_config_values $ts_db_config($value,dbtype) config
 
-   if { [string compare $old_value ""] != 0 && [string compare $old_value $value] !=0 } {
-      ts_log_fine "setting tablespace to:"
-      ts_log_fine "\"$config(tablespace,default)\""
-      set config(tablespace) $config(tablespace,default)
-      ts_log_fine "setting tablespace_index to:"
-      ts_log_fine "\"$config(tablespace_index,default)\""
-      set config(tablespace_index) $config(tablespace_index,default)
-      ts_log_fine "setting database_schema to:"
-      ts_log_fine "\"$config(database_schema,default)\""
-      set config(database_schema) $config(database_schema,default)
+      if { [string compare $old_value ""] != 0 && [string compare $old_value $value] !=0 } {
+         ts_log_fine "setting tablespace to:"
+         ts_log_fine "\"$config(tablespace,default)\""
+         set config(tablespace) $config(tablespace,default)
+         ts_log_fine "setting tablespace_index to:"
+         ts_log_fine "\"$config(tablespace_index,default)\""
+         set config(tablespace_index) $config(tablespace_index,default)
+         ts_log_fine "setting database_schema to:"
+         ts_log_fine "\"$config(database_schema,default)\""
+         set config(database_schema) $config(database_schema,default)
+      }
+   } else {
+      ts_log_severe "Database $old_value was removed from database configuration."
+      return -1
    }
    return $value
 }

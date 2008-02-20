@@ -58,7 +58,7 @@ set check_cleanup_function "arcorun_commandline_cleanup"
 
 lappend check_functions "arcorun_commandline_check"
 
-# ---------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # here the tests begin ....
 global CHECK_PROTOCOL_DIR
 global arcorun_output_dir  
@@ -74,7 +74,7 @@ proc arcorun_commandline_init_level {} {
   return -1
 }
 
-#****** check/arcorun_commandline_setup() ************************************************
+#****** check/arcorun_commandline_setup() **************************************
 #  NAME
 #    arcorun__commandline_setup() -- setup procedure for the arcrun test
 #
@@ -107,7 +107,7 @@ proc arcorun_commandline_setup {} {
    return 0
 }
 
-#****** check/arcorun_commandline_cleanup() ************************************************
+#****** check/arcorun_commandline_cleanup() ************************************
 #  NAME
 #    arcorun_commandline_cleanup() -- clean up procedure for the arcrun test
 #
@@ -115,10 +115,13 @@ proc arcorun_commandline_setup {} {
 #    arcorun_commandline_cleanup { } 
 #
 #  FUNCTION
-#     o sets the owner of the queries and results back to noaccess
+#     o sets the owner of the queries and results back to get_SWC_USER
 #     o cleans the arco run output diretory ($CHECK_PROTOCOL_DIR/arcorun)
 #
 #  INPUTS
+#
+#  SEE ALSO
+#     arcorun/get_SWC_USER
 #
 #*******************************************************************************
 proc arcorun_commandline_cleanup {} {
@@ -133,9 +136,10 @@ proc arcorun_commandline_cleanup {} {
    return 0
 }
 
-#****** check/arcorun_commandline_check() **********************************************
+#****** check/arcorun_commandline_check() **************************************
 #  NAME
-#    arcorun_commandline_check() -- checks the command line options of the arcorun util
+#    arcorun_commandline_check() -- checks the command line options of the 
+#                                   arcorun util
 #
 #  SYNOPSIS
 #    arcorun_commandline_check { } 

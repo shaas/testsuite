@@ -100,13 +100,6 @@ proc arco_dbwriter_job_log_setup  {} {
    
    set sqlutil_id ""
    
-   if { [get_dbwriter_status 0] != 0 } {
-      if {[startup_dbwriter] != 0 } {
-         ts_log_severe "Can not start dbwriter"
-         return -1
-      }
-   }
-   
    ts_log_fine "Create sqlutil as $CHECK_FIRST_FOREIGN_SYSTEM_USER"
    set sqlutil_id [sqlutil_create $CHECK_FIRST_FOREIGN_SYSTEM_USER]
    if { $sqlutil_id == "-1" } {
@@ -152,6 +145,13 @@ proc arco_dbwriter_job_log_cleanup  {} {
       ts_log_severe "Can not reset configuration"
       return -1
    }
+
+   if { [get_dbwriter_status 0] == 0 } {
+      if { [shutdown_dbwriter] != 0 } {
+         ts_log_severe "Can not stop dbwriter"
+         return -1
+      }
+   }
 }
 
 
@@ -182,10 +182,23 @@ proc arco_dbwriter_job_log_execute {} {
       return -1
    }
    
-   
+   if { [get_dbwriter_status 0] == 0 } {
+      if { [shutdown_dbwriter] != 0 } {
+         ts_log_severe "Can not stop dbwriter"
+         return -1
+      }
+   }
+
    if { [arco_clean_database] < 0 } {
       ts_log_severe "arco_dbwriter_job_log_reusesetup" -1 "Can not clean arco database"
       return -1
+   }
+
+   if { [get_dbwriter_status 0] != 0 } {
+      if {[startup_dbwriter] != 0 } {
+         ts_log_severe "Can not start dbwriter"
+         return -1
+      }
    }
 
    set jobs  {}

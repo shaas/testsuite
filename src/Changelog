@@ -1,3 +1,8 @@
+AP-2008-02-20-0: Enhancem.: Adding proc get_SWC_USER
+                 Bugfix:    o ARCo test - start/stop dbwriter when necessary
+                            o handling if database removed from db configuration
+                 Review:    JG
+
 JG-2008-02-20-0: Enhancem.: added test for IZ 2495
                             speedup for auto install
                  Review:    RD
