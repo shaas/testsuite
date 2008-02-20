@@ -144,7 +144,24 @@ proc install_qmaster {} {
    }
 }
 
-proc write_autoinst_config {filename host {do_cleanup 1}} {
+#****** qmaster.60/write_autoinst_config() *************************************
+#  NAME
+#     write_autoinst_config() -- write the autoinst config file
+#
+#  SYNOPSIS
+#     write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1}} 
+#
+#  FUNCTION
+#     Writes the config file for autoinstallation.
+#
+#  INPUTS
+#     filename             - filename of the config file
+#     host                 - config file is for this host
+#     {do_cleanup 1}       - clean spool directories?
+#     {file_delete_wait 1} - delete the file before writing it, and wait for it
+#                            to vanish / reappear?
+#*******************************************************************************
+proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1}} {
    global CHECK_USER CHECK_OUTPUT local_execd_spool_set
    global ts_config
 
@@ -169,10 +186,10 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    }
    puts $CHECK_OUTPUT "db_dir is $db_dir"
 
-   puts $CHECK_OUTPUT "delete file $filename ..."
-   file delete $filename
-#   wait for remote file deletion ...
-   wait_for_remote_file $host $CHECK_USER $filename 60 1 1
+   if {$file_delete_wait} {
+      puts $CHECK_OUTPUT "delete file $filename ..."
+      delete_remote_file $host $CHECK_USER $filename
+   }
 
    set fdo [open $filename w]
 
@@ -221,13 +238,13 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "DB_SPOOLING_SERVER=\"$bdb_server\""
    puts $fdo "DB_SPOOLING_DIR=\"$db_dir\""
    puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
-   if { $ts_config(submit_only_hosts) != "none" } {
+   if {$ts_config(submit_only_hosts) != "none"} {
       puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
    } else {
       puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes)\""
    }
    puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
-   set spooldir [get_local_spool_dir $host execd 0]
+   set spooldir [get_local_spool_dir $host "execd" 0]
    if {$spooldir != ""} {
       puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\""
    } else {
@@ -256,7 +273,11 @@ proc write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "CSP_ORGA_UNIT=\"Software\""
    puts $fdo "CSP_MAIL_ADDRESS=\"$ts_config(report_mail_to)\""
    close $fdo
-   wait_for_remote_file $host $CHECK_USER $filename
+
+   # wait for file to appear
+   if {$file_delete_wait} {
+      wait_for_remote_file $host $CHECK_USER $filename
+   }
 }
 
 #                                                             max. column:     |

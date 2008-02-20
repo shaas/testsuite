@@ -4158,11 +4158,8 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
 
    # we first want to parse errors first, then the positive messages, 
    # as e.g. an immediate job might be correctly submitted, but then cannot be scheduled
-   set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33 -34 -35 "
-   if {[string first "-i" $args] >= 0 || [string first "-o" $args] >= 0 } {
-      set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33 -34 -35 -36"
-   } 
-   
+   set messages(index) "-3 -6 -7 -8 -9 -10 -11 -12 -13 -14 -15 -16 -17 -18 -19 -20 -21 -22 -23 -24 -25 -26 -27 -28 -29 -30 -31 -32 -33 -34 -35 -36 -37"
+
    append messages(index) " 0 1 2"
 
    # success messages:
@@ -4191,38 +4188,27 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       # 6.0 and higher
       set messages(-14)   "TODO: jobnet handling changed, old message NON_AMBIGUOUS"
       set messages(-15)   "TODO: jobnet handling changed, old message UNAMBIGUOUSNESS"
-      set messages(-24)    "*[translate_macro MSG_JOB_NAMETOOLONG_I "*"]*"
-      set messages(-25)    "*[translate_macro MSG_JOB_JOBALREADYEXISTS_S "*"]*"
-      set messages(-26)    "*[translate_macro MSG_INVALIDJOB_REQUEST_S "*"]*"
-      set messages(-28)    "*[translate_macro MSG_QREF_QUNKNOWN_S "*"]*"
-      if {[string first "-i" $args] >= 0 || [string first "-o" $args] >= 0 } {
-         set messages(-36)  "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]"
-      } 
+      set messages(-24)   "*[translate_macro MSG_JOB_NAMETOOLONG_I "*"]*"
+      set messages(-25)   "*[translate_macro MSG_JOB_JOBALREADYEXISTS_S "*"]*"
+      set messages(-26)   "*[translate_macro MSG_INVALIDJOB_REQUEST_S "*"]*"
+      set messages(-28)   "*[translate_macro MSG_QREF_QUNKNOWN_S "*"]*"
 
       if {$ts_config(gridengine_version) < 61} {
          set messages(-29)    "blah blah blah no MSG_JOB_NONADMINPRIO in GE < 6.1"
-         if {[string first "-i" $args] >= 0 || [string first "-o" $args] >= 0 } {
-            set messages(-36)  "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]"
-         } 
+         set messages(-36)    "blah blah blah no MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS in GE < 6.1"
+         set messages(-37)    "blah blah blah no MSG_EVAL_EXPRESSION_LONG_EXPRESSION in GE < 6.1"
       } else {
          # 6.1 and higher
          set messages(-29)    "*[translate_macro MSG_JOB_NONADMINPRIO]*"
-         if {[string first "-i" $args] >= 0 || [string first "-o" $args] >= 0 } {
-            set messages(-36)  "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]"
-         } 
+         set messages(-37)    "*[translate_macro MSG_EVAL_EXPRESSION_LONG_EXPRESSION "*"]*"
+         set messages(-36)   "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]"
       }
 
       if {$ts_config(gridengine_version) < 62} {
          set messages(-35)    "blah blah blah no MSG_JOB_HRTLIMITTOOLONG_U in GE < 62"
-         if {[string first "-i" $args] >= 0 || [string first "-o" $args] >= 0 } {
-            set messages(-36)  "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]"
-         } 
       } else {
          # 6.2 and higher
          set messages(-35)    "*[translate_macro MSG_JOB_HRTLIMITTOOLONG_U "*"]*"
-         if {[string first "-i" $args] >= 0 || [string first "-o" $args] >= 0 } {
-            set messages(-36)  "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]"
-         } 
       }
    }
    
@@ -4249,7 +4235,6 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    set messages(-32)    "*[translate_macro MSG_JOB_PRJNOSUBMITPERMS_S "*"]*"
    set messages(-33)    "*[translate_macro MSG_STREE_USERTNOACCESS2PRJ_SS "*" "*"]*"
    set messages(-34)    "*[translate_macro MSG_JOB_NOSUITABLEQ_S "*"]*"
-   set messages(-36)  "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]*"
 
    if {$show_args == 1} {
       ts_log_fine "job submit args:\n$args"
