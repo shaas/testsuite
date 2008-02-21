@@ -192,11 +192,11 @@ proc arco_reporting_install {} {
              send_to_spawn_id $sp_id $input
              continue
           }
-          -i $sp_id "*nter the name of your * database host * >> " {
+          -i $sp_id "*nter the name of your * host * >> " {
              send_to_spawn_id $sp_id [get_database_host]
              continue
           }
-          -i $sp_id "*nter the port of your * database * >> " {
+          -i $sp_id "*nter the port of your * >> " {
              send_to_spawn_id $sp_id [get_database_port]
              continue
           }
