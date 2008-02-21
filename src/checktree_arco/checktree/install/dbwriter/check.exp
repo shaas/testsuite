@@ -164,7 +164,7 @@ proc arco_dbwriter_install {} {
              continue
           }
 
-          -i $sp_id "Enter the path to your java installation * >> " {
+          -i $sp_id "*nter the path to your java installation * >> " {
              if {$ts_config(gridengine_version) < 62} {
                 set java_home [get_java_home_for_host $arco_config(dbwriter_host) "1.4"]  
              } else {
@@ -174,32 +174,32 @@ proc arco_dbwriter_install {} {
              send_to_spawn_id $sp_id $java_home
              continue
           }
-          -i $sp_id "Enter your database type * >> " {
+          -i $sp_id "*nter your database type * >> " {
              set input [string range [get_database_type] 0 0 ]
              send_to_spawn_id $sp_id $input
              continue
           }
-          -i $sp_id "Enter the name of your * database host * >> " {
+          -i $sp_id "*nter the name of your * database host * >> " {
              send_to_spawn_id $sp_id [get_database_host]
              continue
           }
-          -i $sp_id "Enter the port of your * database * >> " {
+          -i $sp_id "*nter the port of your * database * >> " {
              send_to_spawn_id $sp_id [get_database_port]
              continue
           }
-          -i $sp_id "Enter the name of your * database * >> " {
+          -i $sp_id "*nter the name of your * database * >> " {
              send_to_spawn_id $sp_id [get_database_name]
              continue
           }
-          -i $sp_id "Enter the name of the database user * >> " {
+          -i $sp_id "*nter the name of the database user * >> " {
              send_to_spawn_id $sp_id [get_arco_write_user]
              continue
           }
-          -i $sp_id "Enter the password of the database user >> " {
+          -i $sp_id "*nter the password of the database user >> " {
              send_to_spawn_id $sp_id [get_arco_user_pwd]
              continue
           }
-          -i $sp_id "Retype the password >> " {
+          -i $sp_id "*etype the password >> " {
              send_to_spawn_id $sp_id [get_arco_user_pwd]
              continue
           }
@@ -216,35 +216,35 @@ proc arco_dbwriter_install {} {
              send_to_spawn_id $sp_id "y"
              continue
           }
-          -i $sp_id "Enter the name of this database user * >> " {
+          -i $sp_id "*nter the name of this database user * >> " {
              send_to_spawn_id $sp_id [get_arco_read_user]
              continue
           }
-          -i $sp_id "Enter the interval between two dbwriter runs in seconds * >> " {
+          -i $sp_id "*nter the interval between two dbwriter runs in seconds * >> " {
              send_to_spawn_id $sp_id $arco_config(arco_dbwriter_interval)
              continue
           }
-          -i $sp_id "Enter the path of the dbwriter spool directory *>> " {
+          -i $sp_id "*nter the path of the dbwriter spool directory *>> " {
              send_to_spawn_id $sp_id ""
              continue
           }
-          -i $sp_id "Enter the file with the derived value rules * >> " {
+          -i $sp_id "*nter the file with the derived value rules * >> " {
              send_to_spawn_id $sp_id ""
              continue
           }
-          -i $sp_id "Enter the debug level of the dbwriter * >> " {
+          -i $sp_id "*nter the debug level of the dbwriter * >> " {
              send_to_spawn_id $sp_id $arco_config(arco_dbwriter_debug_level)
              continue
           }
-          -i $sp_id "Enter the name of TABLESPACE for tables * >> " {
+          -i $sp_id "*nter the name of TABLESPACE for tables * >> " {
              send_to_spawn_id $sp_id $arco_config(tablespace)
              continue
           }
-          -i $sp_id "Enter the name of TABLESPACE for indexes * >> " {
+          -i $sp_id "*nter the name of TABLESPACE for indexes * >> " {
              send_to_spawn_id $sp_id $arco_config(tablespace_index)
              continue
           }
-          -i $sp_id "Enter the name of the database schema * >> " {
+          -i $sp_id "*nter the name of the database schema * >> " {
              set input [get_database_schema]
              send_to_spawn_id $sp_id $input
              continue

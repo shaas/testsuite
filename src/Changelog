@@ -1,3 +1,6 @@
+JO-2008-02-21-0: Bugfix:    fix install messages to work with any branch
+      `          Review:    AP
+
 AP-2008-02-20-0: Enhancem.: Adding proc get_SWC_USER
                  Bugfix:    o ARCo test - start/stop dbwriter when necessary
                             o handling if database removed from db configuration
