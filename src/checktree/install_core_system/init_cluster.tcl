@@ -1188,3 +1188,76 @@ proc cleanup_tmpdirs {} {
       start_remote_prog $node $clean_user "rm" "-rf $tmpdir"
    }
 }
+
+#****** init_cluster/setup_sge_aliases_file() **********************************
+#  NAME
+#     setup_sge_aliases_file() -- adds automounter prefixes to sge_aliases file
+#
+#  SYNOPSIS
+#     setup_sge_aliases_file { } 
+#
+#  FUNCTION
+#     The installation should copy a sge_aliases file to 
+#     $SGE_ROOT/$SGE_CELL/common which contains all known fixed automounter
+#     prefixes.
+#     This function checks if the sge_aliases file was copied, if not creates
+#     a sge_aliases file. If there is a Windows/Interix host in the cluster,
+#     this function determines the automounter prefix of the curren working
+#     directory and adds it to the sge_aliases file.
+#
+#  SEE ALSO
+#*******************************************************************************
+proc setup_sge_aliases_file {} {
+   global CHECK_USER
+   global ts_config
+
+   # Check if there is a sge_aliases file in $SGE_ROOT/$SGE_CELL. If not, create one.
+   ts_log_fine "Searching '$ts_config(product_root)/$ts_config(cell)/common/sge_aliases' file"
+   set file_name "$ts_config(product_root)/$ts_config(cell)/common/sge_aliases"
+   if { [ file isfile $file_name ] == 0 } {
+      ts_log_fine "Not found, creating it"
+      set index 0
+
+      set data(src-path,$index)     "/tmp_mnt/"
+      set data(sub-host,$index)     "*"
+      set data(exec-host,$index)    "*" 
+      set data(replacement,$index)  "/"
+      incr index 1
+
+      set data(src-path,$index)     "/private/var/automount/"
+      set data(sub-host,$index)     "*"
+      set data(exec-host,$index)    "*" 
+      set data(replacement,$index)  "/"
+      incr index 1
+
+      create_path_aliasing_file ${file_name} data $index
+   } else {
+      ts_log_fine "Found '$ts_config(product_root)/$ts_config(cell)/common/sge_aliases' file"
+   }
+
+   # Check if we have a Windows (Interix) host in our cluster, if yes ask it for
+   # the automount prefix and add a mapping to the sge_aliases file.
+   ts_log_fine "Checking if sge_aliases file must be enhanced"
+   foreach host $ts_config(execd_nodes) {
+      if {[host_conf_get_arch $host] == "win32-x86"} {
+         # Do a 'cd $SGE_ROOT; pwd' on this host to get the path with
+         # automount prefix
+         ts_log_fine "Found a win32-x86 host, adding automount prefix to sge_aliases file"
+         set output [start_remote_prog $host $CHECK_USER /bin/sh "-c 'cd $ts_config(product_root);pwd;exit'"]
+         set pos [string first $ts_config(product_root) $output]
+         set prefix [string range $output 0 $pos]
+
+         set index 0
+         set data(src-path,$index)     "$prefix"
+         set data(sub-host,$index)     "*"
+         set data(exec-host,$index)    "*" 
+         set data(replacement,$index)  "/"
+         incr index 1
+
+         add_to_path_aliasing_file ${file_name} data $index
+         break
+      } 
+   }
+   ts_log_fine "Done setting up sge_aliases file"
+}
+

@@ -1,3 +1,8 @@
+HP-2008-02-25-0: Enhancem:  added automatic entering of automounter prefixes
+                            to sge_aliases file. This can also handle variable
+                            automounter prefixes (e.g. on Windows)
+                 Review:    CR
+
 AP-2008-02-21-0: Bugfix:    fix install messages to work with any branch
 
 JO-2008-02-21-0: Bugfix:    fix install messages to work with any branch

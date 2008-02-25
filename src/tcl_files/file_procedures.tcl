@@ -3261,14 +3261,16 @@ proc washing_machine { time { small 0 } } {
 #     
 #    
 #*******************************************************************************
-proc create_path_aliasing_file { filename data elements} {
+proc create_path_aliasing_file {filename data elements} {
    upvar $data mydata
  
    ts_log_fine "creating path alias file: $filename"
 
 # Path Aliasing File
-# src-path   sub-host   exec-host   replacement
-#     /tmp_mnt/    *          *           /
+# src-path                sub-host   exec-host   replacement
+# /tmp_mnt/                  *          *           /
+# /private/var/automount/    *          *           /
+#     
 # replaces any occurrence of /tmp_mnt/ by /
 # if submitting or executing on any host.
 # Thus paths on nfs server and clients are the same
@@ -3308,6 +3310,54 @@ proc create_path_aliasing_file { filename data elements} {
    close $fout
 }
 
+#****** file_procedures/add_to_path_aliasing_file() ****************************
+#  NAME
+#     add_to_path_aliasing_file() -- adds entries to the sge_aliases file
+#
+#  SYNOPSIS
+#     add_to_path_aliasing_file { filename data elements } 
+#
+#  FUNCTION
+#     This procedure will add entries to the path aliasing file.
+#
+#  INPUTS
+#     filename - full path file name of path aliasing file
+#     data     - data array with following fields:
+#                arrayname(src-path,$i)
+#                arrayname(sub-host,$i)
+#                arrayname(exec-host,$i)
+#                arrayname(replacement,$i)
+#                where $i is the index number of each entry 
+#     elements - nr. of entries (starting from zero)
+#
+#  EXAMPLE
+#     set data(src-path,0)     "/tmp_mnt/"
+#     set data(sub-host,0)     "*"
+#     set data(exec-host,0)    "*" 
+#     set data(replacement,0)  "/home/"
+#     add_to_path_aliasing_file /tmp/test.txt data 1
+#      
+#  SEE ALSO
+#     file_procedures/create_path_aliasing_file()
+#*******************************************************************************
+proc add_to_path_aliasing_file {filename data elements} {
+   upvar $data mydata
+
+   set fout [open "$filename" "a"] 
+
+   for {set i 0} {$i < $elements} {incr i 1} {
+       if {[info exists mydata(src-path,$i)] != 1} {
+          ts_log_severe "array has no (src-path,$i) element"
+          break
+       } 
+       set    line "[set mydata(src-path,$i)]\t"
+       append line "[set mydata(sub-host,$i)]\t" 
+       append line "[set mydata(exec-host,$i)]\t"
+       append line "[set mydata(replacement,$i)]"
+       puts $fout $line
+   } 
+   close $fout
+}
 
 # do we have access to a tty?
 # returns true, if we have access to a tty (via stdout)
