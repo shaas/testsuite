@@ -72,6 +72,7 @@ if {$install_mode == "automatic" && !$check_use_installed_system} {
 }
 lappend check_functions "install_bdb_rpc"
 lappend check_functions "install_qmaster"
+lappend check_functions "install_wait_for_settings_file"
 lappend check_functions "reread_bootstrap"
 if { $install_mode == "manual" } {
    lappend check_functions "make_user_cert"
@@ -147,6 +148,18 @@ proc write_install_list {} {
    set myfile [open "$CHECK_MAIN_RESULTS_DIR/cluster.$ts_config(master_host).inst" "w"]
    puts $myfile $CORE_INSTALLED
    close $myfile
+}
+
+proc install_wait_for_settings_file {} {
+   global ts_config CHECK_USER
+
+   set test_users "$CHECK_USER root"
+   foreach user $test_users {
+      foreach host [get_all_hosts] {
+         ts_log_fine "wait for settings file on host \"$host\" as user \"$user\" ..."
+         wait_for_remote_file $host $user "$ts_config(product_root)/$ts_config(cell)/common/settings.sh"
+      }
+   }
 }
 
 #                                                             max. column:     |

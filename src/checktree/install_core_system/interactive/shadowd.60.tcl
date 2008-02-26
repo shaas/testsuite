@@ -136,6 +136,7 @@ proc install_shadowd {} {
       set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME] ]
       set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER] ]
       set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
+      set DO_YOU_WANT_TO_CONTINUE      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DO_YOU_WANT_TO_CONTINUE] ]
 
 
       puts $CHECK_OUTPUT "inst_sge -sm"
@@ -302,6 +303,11 @@ proc install_shadowd {} {
                }
 
                ts_send $sp_id "$ANSWER_NO\n"
+               continue
+            }
+
+            -i $sp_id -- $DO_YOU_WANT_TO_CONTINUE {
+               ts_send $sp_id "$ANSWER_YES\n"
                continue
             }
 

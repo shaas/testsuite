@@ -1381,15 +1381,6 @@ proc open_remote_spawn_process { hostname
                fill_session_info_array $alternative con_data
                ts_log_finest "found alternate session!"
                set found_alternative 1
-##               # check if the connection is OK - if not, we'll try to reopen it
-##               if {[check_rlogin_session $con_data(spawn_id) $con_data(pid) $hostname $user $con_data(nr_shells)]} {
-##                  ts_log_finest "Using open rlogin connection to host \"$hostname\", user \"$user\""
-##                  set open_new_connection 0
-##                  set spawn_id     $con_data(spawn_id)
-##                  set pid          $con_data(pid)
-##                  set nr_of_shells $con_data(nr_shells)
-##                  ts_log_finest "session \"$spawn_id\" has alternate sessions: $con_data(alternate_sessions)"
-##               }
                break
             }
          }
