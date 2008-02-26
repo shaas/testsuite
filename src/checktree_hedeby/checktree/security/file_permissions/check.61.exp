@@ -73,7 +73,6 @@ proc file_permissions_init_level {} {
 }
 
 proc file_permissions_setup {} {
-   global CHECK_OUTPUT
    global install_current_cluster_config
    global install_user
 
@@ -81,17 +80,16 @@ proc file_permissions_setup {} {
    set install_user [get_hedeby_startup_user]
 
    # print out system information:
-   puts $CHECK_OUTPUT "======================================="
-   puts $CHECK_OUTPUT "sys_name:          [get_hedeby_system_name]"
-   puts $CHECK_OUTPUT "installation mode: [get_hedeby_pref_type]"
-   puts $CHECK_OUTPUT "admin user:        [get_hedeby_admin_user]"
-   puts $CHECK_OUTPUT "======================================="
+   ts_log_fine "======================================="
+   ts_log_fine "sys_name:          [get_hedeby_system_name]"
+   ts_log_fine "installation mode: [get_hedeby_pref_type]"
+   ts_log_fine "admin user:        [get_hedeby_admin_user]"
+   ts_log_fine "======================================="
 
 
 }
 
 proc file_permissions_cleanup {} {
-   global CHECK_OUTPUT
    global install_current_cluster_config 
 
    # set the current cluster config to the one used when starting
@@ -101,9 +99,7 @@ proc file_permissions_cleanup {} {
 
 
 
-
 proc hedeby_check_master_host_file_permissions {} {
-   global CHECK_OUTPUT
    global hedeby_config
    set error_text ""
    set ge_master_hosts [get_hedeby_default_services service_names]
@@ -114,35 +110,16 @@ proc hedeby_check_master_host_file_permissions {} {
       }
    }
 
-   puts $CHECK_OUTPUT "checking file permissions on master host ..."
+   ts_log_fine "checking file permissions on master host ..."
    set spool_dir [get_hedeby_local_spool_dir $hedeby_config(hedeby_master_host)]
    set host $hedeby_config(hedeby_master_host)
    set startup_user [get_hedeby_startup_user]
    set admin_user [get_hedeby_admin_user]
 
-
-   set files [start_remote_prog $host $startup_user "find" "${spool_dir}/* -name \"*\"" prg_exit_state 60 0 "" "" 1 0 0 1 1]
-   set file_list [split $files "\n"]
-   set spool_directories {}
-   set spool_files {}
-   foreach line $file_list {
-      set file [string trim $line] 
-      if { $file == "" } {
-         continue
-      }
-
-      # check if file is directory or file
-      if {[is_remote_path $host $startup_user $file]} {
-         puts $CHECK_OUTPUT ""
-         puts $CHECK_OUTPUT "dir $file:"
-         lappend spool_directories $file
-      } else {
-         puts -nonewline $CHECK_OUTPUT "[file tail $file] "
-         flush $CHECK_OUTPUT
-         lappend spool_files $file
-      }
-   }
-   puts $CHECK_OUTPUT ""
+   set ignore_path {}
+   lappend ignore_path "${spool_dir}/tmp/executor"
+   lappend ignore_path "${spool_dir}/tmp/executor/*"
+   analyze_directory_structure $host $startup_user $spool_dir spool_directories spool_files permissions $ignore_path
 
    set expected_dirs {}
    lappend expected_dirs "log"
@@ -185,7 +162,7 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_dirs "tmp"
    lappend expected_dirs "tmp/ca"
 
-   puts $CHECK_OUTPUT "checking directories ..."
+   ts_log_fine "checking directories ..."
    if { [llength $spool_directories] != [llength $expected_dirs] } {
       append error_text "expected dirs length ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
       append error_text "Missing dirs:\n"
@@ -334,7 +311,7 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "spool/cs/global.xml"
    lappend expected_files "spool/cs/security.xml"
 
-   puts $CHECK_OUTPUT "checking files ..."
+   ts_log_fine "checking files ..."
    if { [llength $spool_files] != [llength $expected_files] } {
       append error_text "\nExpected files length ([llength $expected_files]) != found files length ([llength $spool_files])\n"
       append error_text "Missing files:\n"
@@ -395,7 +372,7 @@ proc hedeby_check_master_host_file_permissions {} {
       set ignore 0
       foreach igmatch $user_rw_ignore_match {
          if {[string match $igmatch $expect_file]} {
- #           puts $CHECK_OUTPUT "expect $default_perms permissions for file: $expect_file"
+            ts_log_finer "expect $default_perms permissions for file: $expect_file"
             set ignore 1 
             break
          }
@@ -404,7 +381,7 @@ proc hedeby_check_master_host_file_permissions {} {
          foreach match $user_rw_match {
             if {[string match $match $tailed_file]} {
                set expected_perms($expect_file) $user_rw_perms
-               puts $CHECK_OUTPUT "expect $user_rw_perms permissions for file: $expect_file"
+               ts_log_fine "expect $user_rw_perms permissions for file: $expect_file"
             }
          }
       }
@@ -412,9 +389,9 @@ proc hedeby_check_master_host_file_permissions {} {
       foreach match $startup_user_match {
          if {[string match $match $expect_file]} {
             set expected_owner($expect_file) $startup_user_owner
-            puts $CHECK_OUTPUT "expect owner $startup_user_owner for file: $expect_file"
+            ts_log_fine "expect owner $startup_user_owner for file: $expect_file"
          } else {
-#            puts $CHECK_OUTPUT "expect owner $default_owner for file: $expect_file"
+            ts_log_finer "expect owner $default_owner for file: $expect_file"
          }
       }
    }
@@ -422,25 +399,41 @@ proc hedeby_check_master_host_file_permissions {} {
    set owner_errors ""
    foreach expect_file $expected_files {
       set file "$spool_dir/$expect_file"
-      # get permissions and ownership via ls -la
-      set ls_line [start_remote_prog $host $startup_user "ls" "-la $file" prg_exit_state 60 0 "" "" 1 0 0 1 1]
-      if { $prg_exit_state != 0 } {
-         append error_text "\nls -la \"$file\" reported error:\n$ls_line"
-         continue
+
+      if {[info exists permissions($file,perm)]} {
+         set perm  $permissions($file,perm)
+         set owner $permissions($file,owner)
+         set group $permissions($file,group)
+      } else {
+         # here we have to find the file with string matching
+         set perm "n.a."
+         set owner "n.a."
+         set group "n.a."
+         set match 0
+         set match_file ""
+         foreach sp_file $spool_files {
+            if {[string match $file $sp_file]} {
+               incr match 1
+               set match_file $sp_file
+            }
+         }
+         if { $match != 1 }  {
+            append error_text "   $file matches \"$match\" times!\n"
+         } else {
+            set perm  $permissions($match_file,perm)
+            set owner $permissions($match_file,owner)
+            set group $permissions($match_file,group)
+         }
       }
-      set permissions [lindex $ls_line 0]
-      set owner [lindex $ls_line 2]
-      set group [lindex $ls_line 3]
-      puts -nonewline $CHECK_OUTPUT "."
-      flush $CHECK_OUTPUT
-      if { $permissions != $expected_perms($expect_file) } {
-         append permission_errors "$expect_file: wrong permissions: \"$permissions\" (expected: \"$expected_perms($expect_file)\")\n"
+
+      ts_log_finer "permissions of file $expect_file: $perm, $owner, $group"
+      if { $perm != $expected_perms($expect_file) } {
+         append permission_errors "$expect_file: wrong permissions: \"$perm\" (expected: \"$expected_perms($expect_file)\")\n"
       }
       if { $owner != $expected_owner($expect_file) } {
          append owner_errors "$expect_file: wrong owner: \"$owner\" (expected: \"$expected_owner($expect_file)\")\n"
       }
    }
-   puts $CHECK_OUTPUT ""
    if { $owner_errors != "" } {
       append error_text "\nOwnership errors:\n$owner_errors\n"
    }
@@ -451,19 +444,17 @@ proc hedeby_check_master_host_file_permissions {} {
    if { $error_text != "" } {
       add_proc_error "hedeby_check_master_host_file_permissions" -1 $error_text
    }
-
 }
 
 
 proc hedeby_check_managed_host_file_permissions {} {
-   global CHECK_OUTPUT
    global hedeby_config
 
    set ge_master_hosts [get_hedeby_default_services service_names]
    set error_text ""
    foreach managed_host [get_all_hedeby_managed_hosts] {
 
-      puts $CHECK_OUTPUT "checking file permissions on managed host \"$managed_host\" ..."
+      ts_log_fine "checking file permissions on managed host \"$managed_host\" ..."
       if { [lsearch -exact $ge_master_hosts $managed_host] >= 0 } {
          ts_log_fine "host \"$managed_host\" is GE service host"
          set is_ge_service_host 1
@@ -475,28 +466,10 @@ proc hedeby_check_managed_host_file_permissions {} {
       set startup_user [get_hedeby_startup_user]
       set admin_user [get_hedeby_admin_user]
 
-      set files [start_remote_prog $host $startup_user "find" "${spool_dir}/* -name \"*\"" prg_exit_state 60 0 "" "" 1 0 0 1 1]
-      set file_list [split $files "\n"]
-      set spool_directories {}
-      set spool_files {}
-      foreach line $file_list {
-         set file [string trim $line] 
-         if { $file == "" } {
-            continue
-         }
-
-         # check if file is directory or file
-         if {[is_remote_path $host $startup_user $file]} {
-            puts $CHECK_OUTPUT ""
-            puts $CHECK_OUTPUT "dir $file:"
-            lappend spool_directories $file
-         } else {
-            puts -nonewline $CHECK_OUTPUT "[file tail $file] "
-            flush $CHECK_OUTPUT
-            lappend spool_files $file
-         }
-      }
-      puts $CHECK_OUTPUT ""
+      set ignore_path {}
+      lappend ignore_path "${spool_dir}/tmp/executor"
+      lappend ignore_path "${spool_dir}/tmp/executor/*"
+      analyze_directory_structure $host $startup_user $spool_dir spool_directories spool_files permissions $ignore_path
 
       set expected_dirs {}
       lappend expected_dirs "log"
@@ -518,7 +491,7 @@ proc hedeby_check_managed_host_file_permissions {} {
          }
       }
 
-      puts $CHECK_OUTPUT "checking directories ..."
+      ts_log_fine "checking directories ..."
       if { [llength $spool_directories] != [llength $expected_dirs] } {
          append error_text "expected dirs length on host \"$host\" ([llength $expected_dirs]) != found dirs length ([llength $spool_directories])\n"
          append error_text "Missing dirs:\n"
@@ -568,7 +541,7 @@ proc hedeby_check_managed_host_file_permissions {} {
          }
       }
 
-      puts $CHECK_OUTPUT "checking files ..."
+      ts_log_fine "checking files ..."
       if { [llength $spool_files] != [llength $expected_files] } {
          append error_text "\nExpected files length on host \"$host\" ([llength $expected_files]) != found files length ([llength $spool_files])\n"
          append error_text "Missing files:\n"
@@ -628,7 +601,6 @@ proc hedeby_check_managed_host_file_permissions {} {
          set ignore 0
          foreach igmatch $user_rw_ignore_match {
             if {[string match $igmatch $expect_file]} {
-    #           puts $CHECK_OUTPUT "expect $default_perms permissions for file: $expect_file"
                set ignore 1 
                break
             }
@@ -637,7 +609,7 @@ proc hedeby_check_managed_host_file_permissions {} {
             foreach match $user_rw_match {
                if {[string match $match $tailed_file]} {
                   set expected_perms($expect_file) $user_rw_perms
-                  puts $CHECK_OUTPUT "expect $user_rw_perms permissions for file: $expect_file"
+                  ts_log_fine "expect $user_rw_perms permissions for file: $expect_file"
                }
             }
          }
@@ -645,9 +617,9 @@ proc hedeby_check_managed_host_file_permissions {} {
          foreach match $startup_user_match {
             if {[string match $match $expect_file]} {
                set expected_owner($expect_file) $startup_user_owner
-               puts $CHECK_OUTPUT "expect owner $startup_user_owner for file: $expect_file"
+               ts_log_fine "expect owner $startup_user_owner for file: $expect_file"
             } else {
-   #            puts $CHECK_OUTPUT "expect owner $default_owner for file: $expect_file"
+               ts_log_finer "expect owner $default_owner for file: $expect_file"
             }
          }
       }
@@ -655,25 +627,41 @@ proc hedeby_check_managed_host_file_permissions {} {
       set owner_errors ""
       foreach expect_file $expected_files {
          set file "$spool_dir/$expect_file"
-         # get permissions and ownership via ls -la
-         set ls_line [start_remote_prog $host $startup_user "ls" "-la $file" prg_exit_state 60 0 "" "" 1 0 0 1 1]
-         if { $prg_exit_state != 0 } {
-            append error_text "\nls -la \"$file\" on host \"$host\" reported error:\n$ls_line"
-            continue
+
+         if {[info exists permissions($file,perm)]} {
+            set perm  $permissions($file,perm)
+            set owner $permissions($file,owner)
+            set group $permissions($file,group)
+         } else {
+            # here we have to find the file with string matching
+            set perm "n.a."
+            set owner "n.a."
+            set group "n.a."
+            set match 0
+            set match_file ""
+            foreach sp_file $spool_files {
+               if {[string match $file $sp_file]} {
+                  incr match 1
+                  set match_file $sp_file
+               }
+            }
+            if { $match != 1 }  {
+               append error_text "   $file matches \"$match\" times!\n"
+            } else {
+               set perm  $permissions($match_file,perm)
+               set owner $permissions($match_file,owner)
+               set group $permissions($match_file,group)
+            }
          }
-         set permissions [lindex $ls_line 0]
-         set owner [lindex $ls_line 2]
-         set group [lindex $ls_line 3]
-         puts -nonewline $CHECK_OUTPUT "."
-         flush $CHECK_OUTPUT
-         if { $permissions != $expected_perms($expect_file) } {
-            append permission_errors "$expect_file: wrong permissions: \"$permissions\" (expected: \"$expected_perms($expect_file)\")\n"
+         ts_log_finer "permissions of file $expect_file: $perm, $owner, $group"
+
+         if { $perm != $expected_perms($expect_file) } {
+            append permission_errors "$expect_file: wrong permissions: \"$perm\" (expected: \"$expected_perms($expect_file)\")\n"
          }
          if { $owner != $expected_owner($expect_file) } {
             append owner_errors "$expect_file: wrong owner: \"$owner\" (expected: \"$expected_owner($expect_file)\")\n"
          }
       }
-      puts $CHECK_OUTPUT ""
       if { $owner_errors != "" } {
          append error_text "\nOwnership errors on host \"$host\":\n$owner_errors\n"
       }

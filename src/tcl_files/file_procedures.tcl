@@ -173,6 +173,118 @@ proc get_tmp_directory_name { { hostname "" } { type "default" } { dir_ext "tmp"
    return $file_name
 }
 
+
+#****** file_procedures/analyze_directory_structure() **************************
+#  NAME
+#     analyze_directory_structure() -- analyse files dirs and permissions of dir
+#
+#  SYNOPSIS
+#     analyze_directory_structure { host user path dirs files permissions 
+#     ignore } 
+#
+#  FUNCTION
+#     This procedure is analysing the specified directory and returns
+#     informations in specified arrays and lists
+#
+#  INPUTS
+#     host        - host of directory
+#     user        - user who should analyze
+#     path        - directory path
+#     dirs        - name of array where to store directory names
+#     files       - name of array where to store file names
+#     permissions - name of array for permissions of file names
+#     ignore      - list directories to ignore
+#
+#  RESULT
+#     undefined
+#     specified arrays are updated with information
+#     
+#             dirs  -> list of all sub directories
+#            files  -> list of all files (also from subdirectories)
+#      permissions  -> the permission array has following structure:
+#
+#                      permissions($FILE,perm) row 0 from "ls -la" output
+#                      permissions($FILE,owner) row 2 from "ls -la" output
+#                      permissions($FILE,group) row 3 from "ls -la" output
+#                      where $FILE is a entry from files array
+#
+#*******************************************************************************
+proc analyze_directory_structure { host user path dirs files permissions ignore} {
+   global ts_config 
+   upvar $dirs spool_directories
+   upvar $files spool_files
+   upvar $permissions spool_files_permissions
+
+   if {[info exists spool_files_permissions]} {
+      unset spool_files_permissions
+   }
+
+   ts_log_fine "analayse directory: \"$path\" as user \"$user\" on host \"$host\""
+   set script "$ts_config(testsuite_root_dir)/scripts/analyze_dir.sh"
+   set tmp [start_remote_prog $host $user $script "$path dirs" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+   set tmp2 [split $tmp "\n"]
+   set spool_directories {}
+   foreach line $tmp2 {
+      set file [string trim $line] 
+      if { $file == "" } {
+         continue
+      }
+      set matched 0
+      foreach dir $ignore {
+         if {[string match $dir $file]} {
+            ts_log_fine "ignoring path $file"
+            set matched 1
+            break
+         }
+      }
+      if {$matched == 1} {
+         continue
+      }
+      ts_log_finer "adding dir \"$file\""
+      lappend spool_directories $file
+   }
+
+   set tmp [start_remote_prog $host $user $script "$path files" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+   set tmp2 [split $tmp "\n"]
+   set spool_files {}
+   foreach line $tmp2 {
+      set file [string trim $line] 
+      if { $file == "" } {
+         continue
+      }
+      set matched 0
+      foreach dir $ignore {
+         if {[string match $dir $file]} {
+            ts_log_fine "ignoring path $file"
+            set matched 1
+            break
+         }
+      }
+      if {$matched == 1} {
+         continue
+      }
+      ts_log_finer "adding file \"$file\""
+      lappend spool_files $file
+   }
+
+   set tmp [start_remote_prog $host $user $script "$path fileperm" prg_exit_state 60 0 "" "" 1 0 0 1 1]
+   set tmp2 [split $tmp "\n"]
+   foreach file $spool_files {
+      # find entry in tmp2
+      foreach line $tmp2 {
+         set length [llength $line]
+         incr length -1
+         set dir [lindex $line $length]
+         if {$dir == $file} {
+            set spool_files_permissions($file,perm)   [lindex $line 0]
+            set spool_files_permissions($file,owner)  [lindex $line 2]
+            set spool_files_permissions($file,group)  [lindex $line 3]
+         }
+      }
+   }
+}
+
+
 #****** file_procedures/get_tmp_file_name() ************************************
 #  NAME
 #     get_tmp_file_name() -- generate temporary filename 

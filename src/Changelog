@@ -1,3 +1,12 @@
+CR-2008-02-26-0: Enhancem:  o added new procedure to file_procedures.tcl:
+                              analyze_directory_structure()
+                            o added new script: analyze_dir.sh
+                            o enabled submit host setting for GE adapters
+                              in hedeby installation
+                            o speed up and clean up of hedeby 
+                              file_permission check
+                 Review:    AA
+
 RD-2008-02-26-0: Bugfix:    - fixed file issues with NFS4 spooling
                             - added shadowd installation message
                  Review:    EB

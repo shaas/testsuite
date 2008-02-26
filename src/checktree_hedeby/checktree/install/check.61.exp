@@ -444,7 +444,7 @@ proc hedeby_add_ge_services {} {
       foreach spd $spool_dirs {
       #   puts $CHECK_OUTPUT "spool dir \"$spd\" used for hosts \"$spool($spd)\""
          lappend sequence "<ge_adapter:execd adminUsername=\"root\" defaultDomain=\"\" ignoreFQDN=\"true\" rcScript=\"false\" adminHost=\"true\"\n"
-         lappend sequence "submitHost=\"false\" cleanupDefault=\"false\">\n"
+         lappend sequence "submitHost=\"true\" cleanupDefault=\"false\">\n"
          lappend sequence "<ge_adapter:filter>\n"
          set isFirst 1
          foreach host $spool($spd) {
