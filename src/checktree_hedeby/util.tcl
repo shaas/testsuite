@@ -2733,6 +2733,8 @@ proc get_service_info { {host ""} {user ""} {si service_info} } {
 #*******************************************************************************
 proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } {raise_error 1} {table_output ""} } {
    upvar $exit_var back_exit_state
+   global hedeby_config
+
    if { $interactive_tasks != "" } {
       upvar $interactive_tasks tasks
    }
@@ -2745,7 +2747,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
 #   set arg_line "-d $arg_line"
 
    set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
-   set my_env(JAVA_HOME) [get_java_home_for_host $host "1.5"]
+   set my_env(JAVA_HOME) [get_java_home_for_host $host $hedeby_config(hedeby_java_version)]
    set my_env(EDITOR) [get_binary_path $host "vim"]
 
    if { $interactive_tasks == "" } {

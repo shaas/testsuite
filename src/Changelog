@@ -1,3 +1,7 @@
+RH-2008-02-26-0: Enhancem:  new configuration parameter hedeby_java_version for
+                            hedeby checktree
+                 Review:    CR
+
 HP-2008-02-25-0: Enhancem:  added automatic entering of automounter prefixes
                             to sge_aliases file. This can also handle variable
                             automounter prefixes (e.g. on Windows)
