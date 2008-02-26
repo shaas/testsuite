@@ -1,3 +1,7 @@
+CR-2008-02-26-1: Cleanup:   removed ts_log_fine cat output of 
+                            wait_for_remote_file
+                 Review:    EB
+
 CR-2008-02-26-0: Enhancem:  o added new procedure to file_procedures.tcl:
                               analyze_directory_structure()
                             o added new script: analyze_dir.sh
