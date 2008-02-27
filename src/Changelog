@@ -1,3 +1,6 @@
+CR-2008-02-27-1: Bugfix:    fixed cache init for execd_nodes
+                 Review:    RD
+
 CR-2008-02-27-0: Bugfix:    using exed_nodes instead of exed_hosts for
                             hedeby and additional cluster procedures
                  Review:    RD

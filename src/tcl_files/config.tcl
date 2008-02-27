@@ -2184,7 +2184,7 @@ proc config_execd_hosts { only_check name config_array } {
 
    # set host lists
    # we need a mapping from node to physical hosts
-   foreach host $value {
+   foreach host $ts_host_config(hostlist) {
       node_set_host $host $host
       set nodes [host_conf_get_nodes $host]
       foreach node $nodes {
