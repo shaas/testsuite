@@ -1317,13 +1317,13 @@ proc get_hedeby_default_services { service_names } {
       } else {
          set ret(service,$ts_config(master_host)) "$ts_config(cluster_name)"
       }
-      set ret(execd_hosts,$ts_config(cluster_name)) $ts_config(execd_hosts)
+      set ret(execd_hosts,$ts_config(cluster_name)) $ts_config(execd_nodes)
       set ret(master_host,$ts_config(cluster_name)) $ts_config(master_host)
       set ret(ts_cluster_nr,$ts_config(master_host)) $cluster
       lappend ret(services) $ts_config(cluster_name)
 
       set ret(moveable_execds,$ts_config(cluster_name)) {}
-      foreach exh $ts_config(execd_hosts) {
+      foreach exh $ts_config(execd_nodes) {
          set ret(default_service,$exh) $ts_config(cluster_name)
          if {$exh != $ts_config(master_host)} {
             lappend ret(moveable_execds,$ts_config(cluster_name)) $exh

@@ -94,7 +94,7 @@ proc dummy_test_check {} {
       get_current_cluster_config_array ts_config
       puts $CHECK_OUTPUT "cluster #$cluster runs in cell \"$ts_config(cell)\" on master host \"$ts_config(master_host)\" (SGE_ROOT=$ts_config(product_root))!"
       puts $CHECK_OUTPUT "   This cluster should have the following execd hosts:"
-      foreach host $ts_config(execd_hosts) {
+      foreach host $ts_config(execd_nodes) {
          puts $CHECK_OUTPUT "   o \"$host\""
          if { [get_qconf_se_info $host] } {
             puts $CHECK_OUTPUT "        processors:  $qconf_se_info(processors)"

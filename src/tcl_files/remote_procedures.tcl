@@ -993,7 +993,7 @@ proc show_proc_error {result new_error} {
          append mail_body "product version : [get_version_info]\n"
          append mail_body "SGE_ROOT        : $ts_config(product_root)\n"
          append mail_body "master host     : $ts_config(master_host)\n"
-         append mail_body "execution hosts : $ts_config(execd_hosts)\n\n"
+         append mail_body "execution nodes : $ts_config(execd_nodes)\n\n"
 
          append mail_body "$error_output"
          set catch_return [catch {

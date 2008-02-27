@@ -171,8 +171,8 @@ proc get_all_execd_hosts { } {
    global ts_config
 
    set host_list {}
-   # 1) ts_config(execd_hosts)
-   foreach execd $ts_config(execd_hosts) {
+   # 1) ts_config(execd_nodes)
+   foreach execd $ts_config(execd_nodes) {
       lappend host_list $execd
    }
 
@@ -180,8 +180,8 @@ proc get_all_execd_hosts { } {
    if {$ts_config(additional_config) != "none"} {
       foreach filename $ts_config(additional_config) {
          get_additional_config $filename add_config
-         # check add_config(execd_hosts) (no duplicate entries)
-         foreach execd $add_config(execd_hosts) {
+         # check add_config(execd_nodes) (no duplicate entries)
+         foreach execd $add_config(execd_nodes) {
             if { [lsearch $host_list $execd] < 0 } {
                lappend host_list $execd
             }
