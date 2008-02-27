@@ -2269,7 +2269,7 @@ proc resolve_host {name {long 0}} {
 
    if {$prg_exit_state != 0} {
       ts_log_fine "proc resolve_host - gethostbyname failed: \n$result"
-      return "unknown"
+      return $name
    }
 
    set newname [string trim $result]

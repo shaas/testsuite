@@ -1,3 +1,7 @@
+CR-2008-02-27-2: Bugfix:    resolve_host returned hostname "unkown" when
+                            gethostbyname binary was not available
+                 Review:    JG
+
 CR-2008-02-27-1: Bugfix:    fixed cache init for execd_nodes
                  Review:    RD
 
