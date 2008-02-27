@@ -34,9 +34,10 @@
 
 global generic_module_tests
 
-# remove test_ff_cl test it doesn't exist any longer in 6.2 and higher
+# remove test_ff_cl test it doesn't exist any longer in 6.2 and higher,
+# instead we have test_flatfile_spool
 set pos [lsearch -exact $generic_module_tests "test_ff_cl"]
 if {$pos >= 0} {
-   set generic_module_tests [lreplace $generic_module_tests $pos $pos]
+   set generic_module_tests [lreplace $generic_module_tests $pos $pos "test_flatfile_spool"]
 }
 

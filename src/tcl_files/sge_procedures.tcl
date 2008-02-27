@@ -7825,3 +7825,10 @@ proc add_message_to_container {msg_cont msg_code msg {msg_desc ""}} {
 
    return 0
 }
+
+if {[info procs lassign] == ""} {
+    proc lassign {values args} {
+        uplevel 1 [list foreach $args [linsert $values end {}] break]
+        lrange $values [llength $args] end
+    }
+}

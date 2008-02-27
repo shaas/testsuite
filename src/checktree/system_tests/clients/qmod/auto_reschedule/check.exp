@@ -51,9 +51,11 @@ set check_init_level_procedure "qmod_auto_reschedule_init_level"
 # define test's name and run level descriptions
 set check_name            "qmod_auto_reschedule"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   1 
-set check_description(0)  "checking auto_reschedule with global reschedule_unknown 00:03:00"
+set check_highest_level   3 
+set check_description(0)  "checking auto_reschedule with global reschedule_unknown 00:01:00"
 set check_description(1)  "checking auto_reschedule with global reschedule_unknown 00:00:00"
+set check_description(2)  "checking auto_reschedule with global reschedule_unknown 00:01:00 and ENABLE_RESCHEDULE_KILL"
+set check_description(3)  "checking auto_reschedule with global reschedule_unknown 00:01:00, ENABLE_RESCHEDULE_KILL and ENABLE_RESCHEDULE_SLAVE"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -80,7 +82,7 @@ lappend check_functions "auto_reschedule_unknown_check_master"
 #  global:
 #  load_report_time           00:00:06
 #  max_unheard                00:00:30
-#  reschedule_value           00:03:00
+#  reschedule_value           00:01:00
 #
 #  auto_reschedule_host1:
 #  reschedule_unknown         00:01:00
@@ -103,15 +105,13 @@ lappend check_functions "auto_reschedule_unknown_check_master"
 #  load_thresholds            np_load_avg=8.00
 #  slots                      100
 #
-#  1) submit a job to each hosts ...
-#     qsub -o /dev/null -e /dev/null -q auto_reschedule_host1.q -r y sleeper 10000
-#     qsub -o /dev/null -e /dev/null -q auto_reschedule_host2.q -r y sleeper 10000
-#
+#  1) submit different jobs to each hosts ...
 #     wait till jobs are in "r" state
 #
 #  2) kill execd on auto_reschedule_host1 and auto_reschedule_host2 
 #
-#  3) wait 80 sec for job on auto_reschedule_host1.q to get into pending state
+#  3) wait 80 sec for first job on auto_reschedule_host1.q to get into pending state,
+#     second stay running in runlevel 0 and 1 and gets killed in runlevel 2 and 3
 #
 #  4) job on auto_reschedule_host2.q should still run until 3 minutes are over
 #
@@ -131,6 +131,14 @@ proc qmod_auto_reschedule_init_level {} {
       1 {
          return 0
       }
+      2 -
+      3 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         } else {
+           return -1
+         }
+      }
    }
 
    return -1  ;# no other level else
@@ -141,7 +149,7 @@ proc auto_reschedule_setup {} {
    global CHECK_USER
    global queue1 queue2 auto_reschedule_host1 auto_reschedule_host2
    global stored_configuration
-   global stored_auto_reschedule_host1_config global_resch
+   global stored_auto_reschedule_host1_config global_resch reschedule_kill reschedule_slave
   
    # This test only works if auto_reschedule_host2 is not the testsuite host
    set hosts [host_conf_get_suited_hosts 2]
@@ -156,16 +164,39 @@ proc auto_reschedule_setup {} {
    switch -- $CHECK_ACT_LEVEL {
       0 {
          set global_resch 1
+         set reschedule_kill 0
+         set reschedule_slave 0
       }
       1 {
          set global_resch 0
+         set reschedule_kill 0
+         set reschedule_slave 0
+      }
+      2 {
+         set global_resch 1
+         set reschedule_kill 1
+         set reschedule_slave 0
+      }
+      3 {
+         set global_resch 1
+         set reschedule_kill 1
+         set reschedule_slave 1
       }
    }
 
-   set new_queue(rerun)    "TRUE"
+   # create parallel environment
+   set pe(slots)              1000
+   set pe(allocation_rule)    "\$round_robin"
+   set pe(control_slaves)     TRUE
+   set pe(job_is_first_task)  FALSE
+   add_pe "tight" pe
+
+   # set new_queue(rerun)    "TRUE"
    set new_queue(qtype)    "BATCH INTERACTIVE"
    set new_queue(load_thresholds) "np_load_avg=8.00"
    set new_queue(slots)    "100"
+   set new_queue(pe_list) "tight"
+
    add_queue "queue1" $auto_reschedule_host1 new_queue
    set queue1 [get_queue_instance "queue1" $auto_reschedule_host1]
  
@@ -188,17 +219,24 @@ proc auto_reschedule_setup {} {
    ts_log_fine "waiting for change on host $auto_reschedule_host2 ..."
    set messages_name "$tmp_config(execd_spool_dir)/$auto_reschedule_host2/messages"
    set tail_id [open_remote_spawn_process $auto_reschedule_host2 $CHECK_USER "/usr/bin/tail" "-f $messages_name"]
-   set sp_id [ lindex $tail_id 1 ] 
+   set sp_id [lindex $tail_id 1] 
 
-   set myconfig(load_report_time)   "00:00:06"
-   set myconfig(max_unheard)        "00:00:15"
+   set myconfig(load_report_time)   "00:00:05"
+   set myconfig(max_unheard)        "00:00:10"
 
    if {$global_resch != 0} {
-      set global_reschedule_value "00:03:00" 
-      set myconfig(reschedule_unknown) "00:03:00"
+      set global_reschedule_value "00:01:00" 
+      set myconfig(reschedule_unknown) "00:01:00"
    } else {
       set global_reschedule_value "00:00:00" 
       set myconfig(reschedule_unknown) "00:00:00"
+   }
+   if {$reschedule_kill != 0} {
+      if {$reschedule_slave != 0} {
+         set myconfig(qmaster_params) "ENABLE_RESCHEDULE_KILL=true,ENABLE_RESCHEDULE_SLAVE=true"
+      } else {
+         set myconfig(qmaster_params) "ENABLE_RESCHEDULE_KILL=true"
+      }
    }
    set_config myconfig
    ts_log_fine "changed global config"
@@ -207,7 +245,7 @@ proc auto_reschedule_setup {} {
    if {[info exists stored_auto_reschedule_host1_config(reschedule_unknown)] != 1} {
       set stored_auto_reschedule_host1_config(reschedule_unknown) ""
    }
-   set myhostconfig(reschedule_unknown) "00:01:00"
+   set myhostconfig(reschedule_unknown) "00:00:30"
    set_config myhostconfig $auto_reschedule_host1
 
    ts_log_fine "changed config for host $auto_reschedule_host1"
@@ -234,22 +272,6 @@ proc auto_reschedule_setup {} {
    }
 
    close_spawn_process $tail_id
-
-   ts_log_fine "submitting job to queue $queue1 ..."
-   set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 30"
-   set job_id1 [submit_job $arguments]
-
-   ts_log_fine "submitting job to queue $queue2 ..."
-   set my_outputs "-o /dev/null -e /dev/null"
-   set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 60"
-   set job_id2 [submit_job $arguments]
-
-   wait_for_jobstart $job_id1 "Sleeper" 100
-   wait_for_jobstart $job_id2 "Sleeper" 100
-
-   wait_for_jobend $job_id1 "Sleeper" 60 0
-   wait_for_jobend $job_id2 "Sleeper" 60 0
 }
 
 proc auto_reschedule_cleanup {} {
@@ -280,6 +302,9 @@ proc auto_reschedule_cleanup {} {
    del_queue queue1 $auto_reschedule_host1 0 1
    del_queue queue2 $auto_reschedule_host2 0 1
 
+   ts_log_fine "removing pe ..."
+   del_pe "tight"
+
    ts_log_fine "enabling queues ..."
    foreach host $ts_config(execd_nodes) {
       ts_log_fine $host
@@ -307,23 +332,41 @@ proc auto_reschedule_cleanup {} {
 proc auto_reschedule_unknown_check_master {} {
    global ts_config
    global queue1 queue2 auto_reschedule_host1 auto_reschedule_host2
-   global global_resch
+   global global_resch reschedule_kill reschedule_slave
+
+   set my_outputs "-o /dev/null -e /dev/null"
 
    ts_log_fine "submitting job to queue $queue1 ..."
-   set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue1 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id1 [submit_job $arguments]
 
    ts_log_fine "submitting job to queue $queue2 ..."
-   set my_outputs "-o /dev/null -e /dev/null"
    set arguments "$my_outputs -q $queue2 -r y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
    set job_id2 [submit_job $arguments]
+
+   ts_log_fine "submitting job to queue $queue2 ..."
+   set arguments "$my_outputs -q $queue2 $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+   set job_id3 [submit_job $arguments]
+
+   ts_log_fine "submitting pe job with master queue $queue2 ..."
+   set arguments "$my_outputs -pe tight 4 -masterq $queue2 $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+   set job_id4 [submit_job $arguments]
+
+   ts_log_fine "submitting pe job with master queue $queue1 ..."
+   set arguments "$my_outputs -pe tight 4 -masterq $queue1 $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
+   set job_id5 [submit_job $arguments]
    
    wait_for_jobstart $job_id1 "Sleeper" 100
    wait_for_jobstart $job_id2 "Sleeper" 100
+   wait_for_jobstart $job_id3 "Sleeper" 100
+   wait_for_jobstart $job_id4 "Sleeper" 100
+   wait_for_jobstart $job_id5 "Sleeper" 100
 
    wait_for_end_of_transfer $job_id1 100
    wait_for_end_of_transfer $job_id2 100
+   wait_for_end_of_transfer $job_id3 100
+   wait_for_end_of_transfer $job_id4 100
+   wait_for_end_of_transfer $job_id5 100
 
    shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
 
@@ -339,20 +382,59 @@ proc auto_reschedule_unknown_check_master {} {
    if {$global_resch != 0} {
       # here we have global reschedule_unkown enabled
       ts_log_fine "global reschedule_unkown enabled"
-      wait_for_jobpending $job_id2 "Sleeper" 360
+      wait_for_jobpending $job_id2 "Sleeper" 100 
+      if {$reschedule_kill == 0} {
+         if {[is_job_running $job_id3 "Sleeper"] != 1} {
+            ts_log_severe "job $job_id3 should still run"
+         }
+         if {[is_job_running $job_id4 "Sleeper"] != 1} {
+            ts_log_severe "pe (master) job $job_id4 should still run"
+         }
+         if {[is_job_running $job_id5 "Sleeper"] != 1} {
+            ts_log_severe "pe (slave) job $job_id5 should still run"
+         }
+      } else {
+         if {[is_job_running $job_id3 "Sleeper"] != -1} {
+            ts_log_severe "job $job_id3 should be reaped"
+         }
+         if {[is_job_running $job_id4 "Sleeper"] != -1} {
+            ts_log_severe "pe (master) job $job_id4 should be reaped"
+         }
+         if {$reschedule_slave == 0} {
+            if {[is_job_running $job_id5 "Sleeper"] != 1} {
+               ts_log_severe "pe (slave) job $job_id5 should still run"
+            }
+         } else {
+            if {[is_job_running $job_id5 "Sleeper"] != -1} {
+               ts_log_severe "pe (slave) job $job_id5 should be reaped"
+            }
+         }
+      }
    } else {
       # here we have global reschedule_unkown set to 00:00:00
       ts_log_fine "global reschedule_unkown set to 00:00:00"
-      set my_timeout [expr [timestamp] + 260]
+      set my_timeout [expr [timestamp] + 100]
       while {[timestamp] <= $my_timeout}  {
-         set j_state [is_job_running $job_id2 "Sleeper"]
-         if {$j_state != 1} {
+
+         if {[is_job_running $job_id2 "Sleeper"] != 1} {
             ts_log_severe "job $job_id2 should still run"
             break
-         } else {
-            set to_go [expr $my_timeout - [timestamp]]
-            ts_log_fine "job $job_id2 still running, continue in $to_go seconds ... "
          }
+         if {[is_job_running $job_id3 "Sleeper"] != 1} {
+            ts_log_severe "job $job_id3 should still run"
+            break
+         }
+         if {[is_job_running $job_id4 "Sleeper"] != 1} {
+            ts_log_severe "job $job_id4 should still run"
+            break
+         }
+         if {[is_job_running $job_id5 "Sleeper"] != 1} {
+            ts_log_severe "job $job_id5 should still run"
+            break
+         }
+
+         set to_go [expr $my_timeout - [timestamp]]
+         ts_log_fine "job $job_id2 and $job_id3 still running, continue in $to_go seconds ... "
          sleep 10
       }
    }
@@ -368,15 +450,32 @@ proc auto_reschedule_unknown_check_master {} {
 
    delete_job $job_id1
    delete_job $job_id2
-   
+   if {$reschedule_kill == 0} {
+      delete_job $job_id3
+      delete_job $job_id4
+      delete_job $job_id5
+   } else {
+      if {$reschedule_slave == 0} {
+         delete_job $job_id5
+      }
+   }
+
    wait_for_jobend $job_id1 "Sleeper" 200 0
    wait_for_jobend $job_id2 "Sleeper" 200 0
+   wait_for_jobend $job_id3 "Sleeper" 200 0
+   wait_for_jobend $job_id4 "Sleeper" 200 0
+   wait_for_jobend $job_id5 "Sleeper" 200 0
 }
 
 proc auto_reschedule_unknown_check {} {
    global ts_config
    global queue1 queue2 auto_reschedule_host1 auto_reschedule_host2
-   global global_resch 
+   global global_resch CHECK_ACT_LEVEL
+
+   if {$CHECK_ACT_LEVEL != 0 && $CHECK_ACT_LEVEL != 1} {
+      ts_log_fine "skipping test for runlevel $CHECK_ACT_LEVEL ..."
+      return
+   }
 
    ts_log_fine "submitting job to queue $queue1 ..."
    set my_outputs "-o /dev/null -e /dev/null"

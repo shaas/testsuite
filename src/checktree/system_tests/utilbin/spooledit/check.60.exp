@@ -112,6 +112,14 @@ proc spooledit_list {} {
       set num_objs [llength $spooled_objects]
       ts_log_fine "spooledit list reported $num_objs spooled objects"
 
+      
+      foreach object $spooled_objects {      
+         if {[string match "JOBSCRIPT*" $object] != 0} {
+            ts_log_severe "found remaining job script in bdb database"
+            break
+         }
+      }
+
       # TODO: we could do extended checks here, e.g. existance of certain objects
       if {$num_objs < 10} {
          ts_log_severe "spooledit list didn't find any spooled objects, output was\n$output"
