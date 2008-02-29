@@ -181,6 +181,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_SMF_IMPORT_SERVICE" {set value "NOTE: If you select \"n\" SMF will be not used at all" }
       "DISTINST_DETECT_BDB_KEEP_CELL" {set value "Do you want to keep * or delete * the directory? (y/n) *" }
       "DISTINST_DO_YOU_WANT_TO_CONTINUE" {set value "Do you want to continue (y/n) ('n' will abort) \[y\] >> " }
+      "DISTINST_REMOVE_OLD_RC_SCRIPT" {set value "Do you want to remove the startup script \nfor * at this machine? (y/n) \[y\] >> " }
    }
 
    # if it was no install macro, try to find it from messages files

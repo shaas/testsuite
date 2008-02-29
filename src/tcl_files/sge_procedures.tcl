@@ -6670,7 +6670,7 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
 proc check_if_smf_is_active { host } {
    global ts_config CHECK_USER
    # ts_config(cluster_name) is svcs name
-   set output [start_remote_prog $host $CHECK_USER "svcs" ""]
+   set output [start_remote_prog $host $CHECK_USER "svcs" "\"*sge*:$ts_config(cluster_name)\""]
    if { $prg_exit_state == 0 } {
       ts_log_fine "svcs is available on host $host:"
       ts_log_fine "looking for system \"$ts_config(cluster_name)\" ..."

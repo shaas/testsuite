@@ -137,7 +137,7 @@ proc install_shadowd {} {
       set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER] ]
       set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
       set DO_YOU_WANT_TO_CONTINUE      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DO_YOU_WANT_TO_CONTINUE] ]
-
+      set REMOVE_OLD_RC_SCRIPT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_REMOVE_OLD_RC_SCRIPT] ]
 
       puts $CHECK_OUTPUT "inst_sge -sm"
 
@@ -221,7 +221,6 @@ proc install_shadowd {} {
             }
 
             #Delete detected services for chosen cluster_name
-            #We don't need answers for RC uninstall as TS does not use RC yet
             -i $sp_id -- $DETECT_REMOVE_OLD_CLUSTER {
                puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_NO<"
                if {$do_log_output == 1} {
@@ -229,6 +228,19 @@ proc install_shadowd {} {
                   set anykey [wait_for_enter 1]
                }
                ts_send $sp_id "$ANSWER_NO\n"
+               continue
+            }
+
+            #Remove conflicting RC files/SMF service
+            -i $sp_id -- $REMOVE_OLD_RC_SCRIPT  {
+               flush $CHECK_OUTPUT
+               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<"
+               if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+               }
+
+               ts_send $sp_id "$ANSWER_YES\n"
                continue
             }
 

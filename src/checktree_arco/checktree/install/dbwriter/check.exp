@@ -99,6 +99,7 @@ proc arco_dbwriter_install {} {
    set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
    set DETECT_CHOOSE_NEW_NAME       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_CHOOSE_NEW_NAME] ]
    set DETECT_REMOVE_OLD_CLUSTER    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DETECT_REMOVE_OLD_CLUSTER] ]
+   set REMOVE_OLD_RC_SCRIPT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_REMOVE_OLD_RC_SCRIPT] ]
    
    ts_log_fine "inst_dbwriter"
    set id [open_remote_spawn_process "$arco_config(dbwriter_host)" "root"  "./inst_dbwriter" "" 0 "$ts_config(product_root)/dbwriter"]
@@ -158,9 +159,14 @@ proc arco_dbwriter_install {} {
           }
 
           #Delete detected dbwriter service for chosen cluster_name
-          #We don't need answers for RC uninstall as TS does not use RC yet
           -i $sp_id -- $DETECT_REMOVE_OLD_CLUSTER {
              send_to_spawn_id $sp_id "n"
+             continue
+          }
+
+          #Remove conflicting RC files/SMF service
+          -i $sp_id -- $REMOVE_OLD_RC_SCRIPT  {
+             send_to_spawn_id $sp_id "y"
              continue
           }
 

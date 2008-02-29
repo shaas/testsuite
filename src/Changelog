@@ -1,3 +1,7 @@
+LP-2008-02-29-0: Enhacem:   install - old RC script is removed by default
+                 Enhacem:   Only conflicting SMF service is detected as error
+                 Review:    PJ
+
 CR-2008-02-27-2: Bugfix:    resolve_host returned hostname "unkown" when
                             gethostbyname binary was not available
                  Review:    JG
