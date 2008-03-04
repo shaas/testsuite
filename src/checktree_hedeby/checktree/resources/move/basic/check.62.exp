@@ -42,10 +42,10 @@ global check_use_installed_system check_init_level_procedure
 set check_root_access_needs    "no"
 set check_name                 "basic_resource_assignment"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_description(0)       "dummy testsuite integration test"
-set check_needs                ""                  
+set check_description(0)       "basic resource movement test"
+set check_needs                "hedeby_install"                  
 set check_init_level_procedure "basic_resource_assignment_init_level"
-set check_functions            ""   
+set check_functions            {}   
 set check_highest_level        0
 
 set check_setup_function "basic_resource_assignment_setup"
@@ -116,7 +116,7 @@ proc basic_resource_assignment_check {} {
       set task_info($res,expected_output) ""
       set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name mvr -r $res -s spare_pool"
    }
-   set par_error [start_parallel_sdmadm_command mvr_list [get_hedeby_admin_user] task_info 0]
+   set par_error [start_parallel_sdmadm_command mvr_list [get_hedeby_admin_user] task_info]
    if {$par_error != ""} {
       append error_text $par_error
    }

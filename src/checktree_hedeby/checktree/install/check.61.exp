@@ -236,6 +236,28 @@ proc hedeby_check_resources {} {
 
    set ge_hosts [get_hedeby_default_services service_names]
 
+   # figure out expected resources
+   set error_text ""
+   set expected_resource_list [get_all_default_hedeby_resources]
+   foreach res $res_list {
+      ts_log_finer "examing reported resource \"$res\""
+      ts_log_finest "resources to find: $expected_resource_list"
+      set pos [lsearch -exact $expected_resource_list $res]
+      if { $pos >= 0} {
+         ts_log_finer "found resource \"$res\" in expected resource list"
+         set expected_resource_list [lreplace $expected_resource_list $pos $pos]
+      } else {
+         append error_text "Unexpected resource \"$res\" reported by hedeby!\n"
+      }
+   }
+   foreach res $expected_resource_list {
+      append error_text "Expected resource \"$res\" NOT reported by hedeby!\n"
+   }
+   if { $error_text != "" } {
+      ts_log_severe $error_text
+      return
+   }
+
    set error_text ""
    foreach res $res_list {
       ts_log_fine "checking resource \"$res\" ..."
@@ -297,21 +319,8 @@ proc hedeby_check_resources {} {
    if { $error_text != "" } {
       ts_log_severe $error_text
    }
-
-
-   # test resource properties 
-   # hardwareCpuArchitecture=x86
-   # hardwareCpuCount=2
-   # operatingSystemName=Linux
-   # operatingSystemRelease=24
-   # resourceHostname=sowa.germany.sun.com
-   # resourceIPAddress=129.157.141.63
-
 }
 
-
-
-# TODO: startup rp_vm on the ge adapter hosts!
 proc hedeby_startup_ge_services {} {
    global CHECK_OUTPUT
    global hedeby_config

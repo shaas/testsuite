@@ -1273,6 +1273,44 @@ proc get_all_hedeby_managed_hosts {} {
    return $host_list
 }
 
+#****** util/get_all_default_hedeby_resources() ****************************************
+#  NAME
+#     get_all_default_hedeby_resources() -- return list with all configured resources
+#
+#  SYNOPSIS
+#     get_all_default_hedeby_resources { } 
+#
+#  FUNCTION
+#     This procedure returns a list of all expected resources which should
+#     be reported by hedeby. This are all execd hosts and all hedeby resources.
+#     This list includes static and not static resources.
+#
+#  INPUTS
+#
+#  RESULT
+#     List with testsuite resource names
+#
+#  SEE ALSO
+#     util/get_hedeby_default_services()
+#     util/get_all_hedeby_managed_hosts()
+#*******************************************************************************
+proc get_all_default_hedeby_resources {} {
+
+   global hedeby_config
+   # figure out expected resources
+   
+   get_hedeby_default_services service_names
+   set expected_resource_list {}
+   foreach service $service_names(services) {
+      foreach execd $service_names(execd_hosts,$service) {
+         lappend expected_resource_list $execd
+      }
+   }
+   foreach hres $hedeby_config(hedeby_host_resources) {
+      lappend expected_resource_list $hres
+   }
+   return $expected_resource_list
+}
 #****** util/get_hedeby_default_services() *************************************
 #  NAME
 #     get_hedeby_default_services() -- get information about ge services
@@ -1293,13 +1331,13 @@ proc get_all_hedeby_managed_hosts {} {
 #
 #         array name                             | value
 #         ================================================================
-#         service_names(service,$host)           | list of all services on $host
+#         service_names(services)                | list of all services
 #         service_names(execd_hosts,$service)    | list of all execds of $service
 #         service_names(master_host,$service)    | name of master of $service
-#         service_names(services)                | list of all services
 #         service_names(moveable_execds,$service)| list of all not static resources of $service
 #         service_names(ts_cluster_nr,$host)     | testsuite cluster nr of service
 #         service_names(default_service,$host)   | default service of $host
+#         service_names(service,$host)           | list of all services on $host
 #
 #*******************************************************************************
 proc get_hedeby_default_services { service_names } {
@@ -1893,30 +1931,31 @@ proc startup_hedeby_hosts { type host_list user } {
             set exit_state $taskArray($host_tmp,exit_status)
             set output $taskArray($host_tmp,output)
             #make the check for the output
+            set match_count 0
             if { $exit_state != 0 } {
                append error_text "cannot startup managed host $host_tmp:\n$output\n"
-            }
-            set jvm_count [parse_jvm_start_stop_output output]
-            set match_count 0
-            for {set i 0} {$i < $jvm_count} {incr i} {
-                set host $ss_out($i,host)
-                set jvm  $ss_out($i,jvm)
-                set res $ss_out($i,result)
-                set mes $ss_out($i,message)
-                debug_puts "Found jvm $jvm on host $host, with result $res"
-                
-                foreach match_jvm $expected_jvms($host_tmp) {
-                    if { $match_jvm == $jvm } {
-                        incr match_count
-                        if { $res == $success } {
-                            ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
-                        } else {
-                           append error_text "startup hedeby host ${host} failed:\n"
-                           append error_text "\"$output\"\n"
-                           append error_text "Jvm: $jvm on host: $host exited with result: $res with message: $mes\n"
-                        }
-                    }
-                }               
+            } else {
+               set jvm_count [parse_jvm_start_stop_output output]
+               for {set i 0} {$i < $jvm_count} {incr i} {
+                   set host $ss_out($i,host)
+                   set jvm  $ss_out($i,jvm)
+                   set res $ss_out($i,result)
+                   set mes $ss_out($i,message)
+                   debug_puts "Found jvm $jvm on host $host, with result $res"
+                   
+                   foreach match_jvm $expected_jvms($host_tmp) {
+                       if { $match_jvm == $jvm } {
+                           incr match_count
+                           if { $res == $success } {
+                               ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
+                           } else {
+                              append error_text "startup hedeby host ${host} failed:\n"
+                              append error_text "\"$output\"\n"
+                              append error_text "Jvm: $jvm on host: $host exited with result: $res with message: $mes\n"
+                           }
+                       }
+                   }               
+               }
             }
             set expected_count 0
             foreach expect_c $expected_jvms($host_tmp) {
@@ -1925,7 +1964,7 @@ proc startup_hedeby_hosts { type host_list user } {
             if { $match_count == $expected_count } {
                ts_log_fine "output matched expected number of jvms: $match_count"
             } else {
-               append error_text "startup hedeby host ${host} failed:\n"
+               append error_text "startup hedeby host ${host_tmp} failed:\n"
                append error_text "\"$output\"\n"
                append error_text "The expected output doesn't match expected number of jvms: $match_count .\n"               
             } 
@@ -1943,31 +1982,32 @@ proc startup_hedeby_hosts { type host_list user } {
          } else {
             set host_tmp [lindex $host_list 0]
             set output [sdmadm_command $host_tmp $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj"]
+            set match_count 0
             if { $prg_exit_state != 0 } {
                append error_text "cannot startup master host $host_tmp:\n$output\n"
-            }
-            set jvm_count [parse_jvm_start_stop_output output]
-            set match_count 0
-            for {set i 0} {$i < $jvm_count} {incr i} {
-                set host $ss_out($i,host)
-                set jvm  $ss_out($i,jvm)
-                set res $ss_out($i,result)
-                set mes $ss_out($i,message)
-                debug_puts "Found jvm $jvm on host $host, with result $res"
-                
-                foreach match_jvm $expected_jvms($host_tmp) {
-                    if { $match_jvm == $jvm } {
-                        incr match_count
-                        if { $res == $success } {
-                            ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
+            } else {
+               set jvm_count [parse_jvm_start_stop_output output]
+               for {set i 0} {$i < $jvm_count} {incr i} {
+                   set host $ss_out($i,host)
+                   set jvm  $ss_out($i,jvm)
+                   set res $ss_out($i,result)
+                   set mes $ss_out($i,message)
+                   debug_puts "Found jvm $jvm on host $host, with result $res"
+                   
+                   foreach match_jvm $expected_jvms($host_tmp) {
+                       if { $match_jvm == $jvm } {
+                           incr match_count
+                           if { $res == $success } {
+                               ts_log_fine "output match for jvm: $jvm, host: $host, result: $res"
 
-                        } else {
-                           append error_text "startup hedeby host ${host} failed:\n"
-                           append error_text "\"$output\"\n"
-                           append error_text "Jvm: $jvm on host: $host exited with result: $res with message: $mes\n"
-                        }
-                    }
-                }               
+                           } else {
+                              append error_text "startup hedeby host ${host} failed:\n"
+                              append error_text "\"$output\"\n"
+                              append error_text "Jvm: $jvm on host: $host exited with result: $res with message: $mes\n"
+                           }
+                       }
+                   }               
+               }
             }
             set expected_count 0
             foreach expect_c $expected_jvms($host_tmp) {
@@ -1976,7 +2016,7 @@ proc startup_hedeby_hosts { type host_list user } {
             if { $match_count == $expected_count } {
                ts_log_fine "output matched expected number of jvms: $match_count"
             } else {
-               append error_text "startup hedeby host ${host} failed:\n"
+               append error_text "startup hedeby host ${host_tmp} failed:\n"
                append error_text "\"$output\"\n"
                append error_text "The expected output doesn't match expected number of jvms: $match_count .\n"
                
@@ -2506,8 +2546,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 #     util/get_resource_info()
 #     util/wait_for_resource_info()
 #*******************************************************************************
-proc wait_for_resource_info { exp_resinfo  {atimeout 60} {report_error 1} {ev error_var } \
-     {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} } {
+proc wait_for_resource_info { exp_resinfo  {atimeout 60} {report_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} } {
    global hedeby_config
    # setup arguments
    upvar $exp_resinfo exp_res_info

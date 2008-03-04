@@ -1,3 +1,11 @@
+CR-2008-03-04-0: Bugfix:    o hedeby installation should also check GE resources
+                 Issue:     hedeby #366
+                 Bugfix:    o run startup hooks for already started hedeby system
+                              results in testsuite tcl crash
+                 Cleanup:   o basic resource movement test did not move resources
+                              parallel
+                 Review:    RH
+
 LP-2008-02-29-0: Enhacem:   install - old RC script is removed by default
                  Enhacem:   Only conflicting SMF service is detected as error
                  Review:    PJ
