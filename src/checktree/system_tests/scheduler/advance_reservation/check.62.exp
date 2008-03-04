@@ -312,7 +312,7 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-pe mytestpe 2 $job_args"]
+   set job_id [submit_job "-pe ar_pe 2 $job_args"]
    if {$job_id <= 0} {
       ts_log_severe "job submit was wrongly rejected (2)"
       return
@@ -320,7 +320,7 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-pe mytestpe 2 -l $host_consumable=2 $job_args"]
+   set job_id [submit_job "-pe ar_pe 2 -l $host_consumable=2 $job_args"]
    if {$job_id <= 0} {
       ts_log_severe "job submit was wrongly rejected (3)"
       return
@@ -328,7 +328,7 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=2 $job_args"]
+   set job_id [submit_job "-pe ar_pe 2 -l $global_consumable=2 $job_args"]
    if {$job_id <= 0} {
       ts_log_severe "job submit was wrongly rejected (4)"
       return
@@ -336,7 +336,7 @@ proc scheduler_ar_parallel_consuamble {} {
       delete_job $job_id
    }
 
-   set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=2,$host_consumable=2,h_vmem=1M $job_args"]
+   set job_id [submit_job "-pe ar_pe 2 -l $global_consumable=2,$host_consumable=2,h_vmem=1M $job_args"]
    if {$job_id <= 0} {
       ts_log_severe "job submit was wrongly rejected (5)"
       return
@@ -367,7 +367,7 @@ proc scheduler_ar_parallel_consuamble {} {
       return
    } 
 
-   set job_id [submit_job "-pe mytestpe 2 -l $global_consumable=3 $job_args" 0]
+   set job_id [submit_job "-pe ar_pe 2 -l $global_consumable=3 $job_args" 0]
    if {$job_id > 0} {
       delete_job $job_id
       ts_log_severe "job submit was not rejected (3)"

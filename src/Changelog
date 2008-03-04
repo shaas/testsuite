@@ -1,3 +1,6 @@
+RD-2008-03-04-0: Bugfix:    jobs in scheduler/advance_reservation requested wrong pe
+                 Review:    AH
+
 CR-2008-03-04-0: Bugfix:    o hedeby installation should also check GE resources
                  Issue:     hedeby #366
                  Bugfix:    o run startup hooks for already started hedeby system
