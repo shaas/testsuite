@@ -1,3 +1,7 @@
+RH-2008-03-05-0: Enhancem:  Hedeby: new test for reloading executor config
+                 Issue:     hedeby #234 (Part 1)
+                 Review:    CR
+
 RD-2008-03-04-0: Bugfix:    jobs in scheduler/advance_reservation requested wrong pe
                  Review:    AH
 

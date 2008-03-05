@@ -1,0 +1,251 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+# ---START OF TEST INFO SECTION-------------------------------------------------------------------------------
+# "no" - we don't need root acess / "yes" - we need root access:
+set check_root_access_needs    "no"
+
+# name of the test (best practice: use the name of the test directory)
+set check_name                 "executor_reload"
+
+# specifiy the test categories
+# (VERIFIED if the test is QA inspected)
+# other possible categories: COMPATIBILITY CSP INSTALL L10N MODULE PERFORMANCE SYSTEM VERIFIED
+set check_category             "SYSTEM VERIFIED"
+
+# define the highest check level
+set check_highest_level        0
+
+# a sort check description for each runlevel:
+# (runlevel 0 is mandatory)
+set check_description(0)       "Tests the reloading if the executor component" ;# runlevel 0
+# set check_description(1)       "SOME OTHER DESCRIPTION"  ;# runlevel 1
+
+# specify check dependencies
+# (name all tests which have to run sucessfull before this test can run)
+set check_needs                "hedeby_install"
+
+# The name of the init level procedure for this test. The procedure is defined
+# in the test file.
+set check_init_level_procedure "executor_reload_init_level"
+
+# define tests setup and cleanup function. The functions are called for each
+# runlevel. Before testsuite is starting with calling all check_functions
+# the setup function is called. After finishing all check_functions the
+# cleanup function is called.
+#
+# The aim of the setup/cleanup functions is that the test should restore
+# all modifications, even when the test failes completely.
+set check_setup_function "executor_reload_setup"
+set check_cleanup_function "executor_reload_cleanup"
+
+
+# The check_functions array tells the testsuite which check functions should
+# be called (and in which order)
+# All check_functions should be defined at least in a file (*.tcl) in the
+# check directory.
+set check_functions            ""
+lappend check_functions "executor_reload_check"
+
+
+# ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
+
+# name of the host where the executor runs
+global executor_reload_host
+
+set executor_reload_host ""
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+# (the init level procedure defines which runlevels are supported)
+# short  (0 min - 15 min / run level   0 -  99)"
+# medium (16 min -  1 h   / run level 100 - 199)"
+# long   (1 h   -  4 h   / run level 200 - 299)"
+# day    (> 4 h   - 24 h   / run level 300 - 399)"
+# week   (>24 h            / run level 400 - 499)"
+proc executor_reload_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  # this test currently supports only runlevel "0"
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+#****** check/executor_reload_setup() ******************************************
+#  NAME
+#    executor_reload_setup() -- setup the exeuctor_reload test
+#
+#  SYNOPSIS
+#    executor_reload_setup { } 
+#
+#  FUNCTION
+#     Searchs the first running executor of the hedeby system
+#     and store the host of the executor in the global 
+#     variable executor_reload_host
+#
+#*******************************************************************************
+proc executor_reload_setup {} {
+   global hedeby_config
+   global executor_reload_host
+
+   ts_log_fine "doing setup"
+   set executor_reload_host [lindex $hedeby_config(hedeby_host_resources) 0]
+}
+
+
+#****** check/executor_reload_cleanup() ****************************************
+#  NAME
+#    executor_reload_cleanup() -- cleanup the executor_reload test
+#
+#  SYNOPSIS
+#    executor_reload_cleanup { } 
+#
+#  FUNCTION
+#    Reset the keepFiles flag in the executor
+#
+#*******************************************************************************
+proc executor_reload_cleanup {} {
+   global executor_reload_host
+   
+   ts_log_fine "doing cleanup ..."
+   hedeby_executor_set_keep_files $executor_reload_host false
+}
+
+
+ 
+#****** check/executor_reload_check() ******************************************
+#  NAME
+#    executor_reload_check() -- perform the executor_reload check
+#
+#  SYNOPSIS
+#    executor_reload_check { } 
+#
+#  FUNCTION
+#
+#  This test checks reconfiguring the executor component. It detail
+#  it performs the following steps:
+#
+#  - Choose any running executor and set the keep files flag in the configuration
+#  - reload the executor
+#  - execute a shell script over the executor
+#  - check thate the files are available in the spool dir of the executor
+#  - reset the keep files flag
+#  - reload the executor
+#  - execute the script again
+#  - check the the scripts has disappeared 
+#
+#*******************************************************************************
+proc executor_reload_check {} {
+   global CHECK_USER hedeby_config
+   global executor_reload_host
+   
+   set host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
+   
+   ts_log_fine "Peform executor_reload test on executor@$executor_reload_host"
+   
+   # set the keep files flag of the executor to true
+   if { [hedeby_executor_set_keep_files $executor_reload_host true] != 0 } {
+      # error message has already been reported
+      return 1
+   }
+   
+   # Cleanup the executors spool directory
+   if { [hedeby_executor_cleanup $executor_reload_host] != 0 } {
+      # error message has already been reported
+      return 1
+   }
+   
+   # Execute a dummy cmmand 
+   set output [sdmadm_command $host $admin_user "exe -h $executor_reload_host -e \"pwd\""]
+   if { $prg_exit_state != 0 } {
+      return 1
+   }
+   set local_spool_dir [get_hedeby_local_spool_dir $executor_reload_host]
+   set output [start_remote_prog $executor_reload_host $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Can not execute a command on executor on host $executor_reload_host\nOutput is \n$output"
+   } else { 
+      set output [string trim $output]
+      if { $output == "0" } {
+         set error_text "It seems that settings keepFiles flag to true for executor on host $executor_reload_host has no effect\n"
+         append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
+         ts_log_severe $error_test
+      }
+   }
+   
+   # set the keep files flag of the executor to false
+   if { [hedeby_executor_set_keep_files $executor_reload_host false] != 0 } {
+      # error message has already been reported
+      return 1
+   }
+   
+   # Cleanup the executors spool directory
+   if { [hedeby_executor_cleanup $executor_reload_host] != 0 } {
+      # error message has already been reported
+      return 1
+   }
+   
+   # Execute a dummy cmmand 
+   set output [sdmadm_command $host $admin_user "exe -h $executor_reload_host -e \"pwd\""]
+   if { $prg_exit_state != 0 } {
+      return 1
+   }
+   
+   set local_spool_dir [get_hedeby_local_spool_dir $executor_reload_host]
+   set output [start_remote_prog $executor_reload_host $CHECK_USER "ls" "$local_spool_dir/tmp/executor | wc -l"]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Can not execute a command on executor on host $executor_reload_host\nOutput is \n$output"
+   } else { 
+      set output [string trim $output]
+      if { $output != "0" } {
+         set error_text "It seems that settings keepFiles flag to false for executor on host $executor_reload_host has no effect\n"
+         append error_text "'ls -l $local_spool_dir | wc -l' returned $output\n"
+         ts_log_severe $error_test
+      }
+   }
+   
+}
+
+
+

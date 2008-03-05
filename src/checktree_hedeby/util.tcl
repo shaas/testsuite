@@ -3840,3 +3840,92 @@ proc set_hedeby_slos { host exec_user service slos } {
    # TODO: check correct slo settings with sdmadm
    # TODO: should service be restarted or only updated
 }
+
+
+#****** check/hedeby_executor_set_keep_files() **************************************************
+#  NAME
+#    hedeby_executor_set_keep_files() -- set the keep files flag of an executor
+#
+#  SYNOPSIS
+#    hedeby_executor_set_keep_files { executor_host keep_files { executor_name "executor" } } 
+#
+#  FUNCTION
+#     This method sets the keepFiles flag in the configuration of an executor component
+#     and notifies the executor on the executor host that it's configuration 
+#     has been changed (sdmadm uc)
+#
+#  INPUTS
+#    executor_host --  hostname were the executor runs
+#    keep_files    --  the value of the keep_files flag
+#    executor_name --  Optional, name of the executor (default is executor)
+#
+#  RESULT
+#     0    if the keep files flag has been set 
+#     else error, error message has been written with ts_log_severe
+#  EXAMPLE
+#
+#   if { [hedeby_executor_set_keep_files "foo.bar" false] != 0 } {
+#      # error message has already been reported
+#      return 0
+#   }
+#
+#*******************************************************************************
+proc hedeby_executor_set_keep_files { executor_host keep_files { executor_name "executor" } } {
+   global hedeby_config
+   set system_name [get_hedeby_system_name]
+   set host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
+   
+   set error_text ""
+   set arguments "-s $system_name mc -c $executor_name"
+   set ispid [hedeby_mod_setup $host $admin_user $arguments error_text]
+   
+   set sequence {}
+   lappend sequence "[format "%c" 27]" ;# ESC
+   lappend sequence ":%s/keepFiles=\".*\"//\n"
+   lappend sequence ":%s/executor:executor/executor:executor keepFiles=\"$keep_files\"/\n"
+   
+   hedeby_mod_sequence $ispid $sequence error_text
+   set output [hedeby_mod_cleanup $ispid error_text]
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+   
+   set output [sdmadm_command $host $admin_user "uc -c $executor_name -h $executor_host"]
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+   return 0
+}
+
+
+#****** check/hedeby_executor_cleanup() **************************************************
+#  NAME
+#    hedeby_executor_cleanup() -- cleanup the temp directory of an executor
+#
+#  SYNOPSIS
+#    hedeby_executor_cleanup { executor_host { executor_name "executor" } } 
+#
+#  FUNCTION
+#     This method calls "sdmadm exe cleanup" to clean up the temp directory of an executor.
+#
+#  INPUTS
+#    executor_host --  the host where the executor runs
+#    executor_name --  name of the executor (optional, default is "executor")
+#
+#  RESULT
+#     0  exit code of the "sdmadm exe cleanup" command 
+#
+#*******************************************************************************
+proc hedeby_executor_cleanup { executor_host { executor_name "executor" } } {
+   global hedeby_config
+   set host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
+      
+   set output [sdmadm_command $host $admin_user "exe -h $executor_host -e cleanup"]
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+   return 0
+}
+
