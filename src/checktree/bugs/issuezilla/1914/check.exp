@@ -408,7 +408,7 @@ proc issue_1914_test {} {
       #here starts the real test conditions
       #error = 1 means that wrong configuration is tested - host in error expected 
       set error 1
-      if {$ts_config(gridengine_version) < 62} {
+      if {$ts_config(gridengine_version) < 61} {
          #testing daemon set to "none" value
          set path "none"
          set test($daemon) $path
@@ -436,7 +436,7 @@ proc issue_1914_test {} {
       #clean up file after test
       start_remote_prog $test_host $CHECK_USER "rm" "-f $path"
          
-      if {$ts_config(gridengine_version) < 62} {
+      if {$ts_config(gridengine_version) < 61} {
          #testing daemon set to relative path value (not absolute path)
          set path "tmp/daemon_$act_time"
          set test($daemon) $path
