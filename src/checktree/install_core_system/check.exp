@@ -152,12 +152,14 @@ proc write_install_list {} {
 
 proc install_wait_for_settings_file {} {
    global ts_config CHECK_USER
-
-   set test_users "$CHECK_USER root"
-   foreach user $test_users {
-      foreach host [get_all_hosts] {
-         ts_log_fine "wait for settings file on host \"$host\" as user \"$user\" ..."
-         wait_for_remote_file $host $user "$ts_config(product_root)/$ts_config(cell)/common/settings.sh"
+   global check_use_installed_system
+   if {!$check_use_installed_system} {
+      set test_users $CHECK_USER
+      foreach user $test_users {
+         foreach host [get_all_hosts] {
+            ts_log_fine "wait for settings file on host \"$host\" as user \"$user\" ..."
+            wait_for_remote_file $host $user "$ts_config(product_root)/$ts_config(cell)/common/settings.sh"
+         }
       }
    }
 }

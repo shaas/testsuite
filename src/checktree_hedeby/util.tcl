@@ -1146,7 +1146,7 @@ proc get_hedeby_cs_url { } {
 #  FUNCTION
 #     This procedure returns the path to the local spool directory for the
 #     specified host. This path depends on the testsuite host configuration and
-#     adds the subdirectory "hedeby_spool" to the path.
+#     adds the subdirectory "hedeby_$host" to the path.
 #
 #  INPUTS
 #     host - name of the host for which the local spooldir should be returned
@@ -1166,7 +1166,7 @@ proc get_hedeby_cs_url { } {
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_local_spool_dir { host } {
-   set spool_dir [get_local_spool_dir $host "hedeby_spool" 0 ]
+   set spool_dir [get_local_spool_dir $host "hedeby_$host" 0 ]
    # hedeby needs a local spool dir
    if {$spool_dir == ""} {
       ts_log_severe "Host \"$host\" has no local testsuite spool directory defined.\nHedeby needs a local spool directory for this host!"
@@ -1233,7 +1233,8 @@ proc cleanup_hedeby_local_spool_dir { host } {
          }
       }
    }
-   set spool_dir [get_local_spool_dir $host "hedeby_spool" 1 ]
+   # now we can cleanup the spool dir (set last option to 1)
+   set spool_dir [get_local_spool_dir $host "hedeby_$host" 1 ]
    remote_delete_directory $host $spool_dir
    return $spool_dir
 }
@@ -1347,6 +1348,7 @@ proc get_all_default_hedeby_resources {} {
 #
 #*******************************************************************************
 proc get_hedeby_default_services { service_names } {
+   global hedeby_config
    upvar $service_names ret
    set current_cluster_config [get_current_cluster_config_nr]
    set cluster 0
@@ -1380,6 +1382,11 @@ proc get_hedeby_default_services { service_names } {
       incr cluster 1
    }
    set_current_cluster_config_nr $current_cluster_config
+
+   foreach hres $hedeby_config(hedeby_host_resources) {
+      set ret(default_service,$hres) "spare_pool"
+   }
+
    ts_log_fine "current ge master hosts: $ge_master_hosts"
    return $ge_master_hosts
 }
@@ -2082,8 +2089,8 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     reset_hedeby { } 
 #
 #  FUNCTION
-#     Used to reset the hedeby configuration without shutting down hededby
-#     components.
+#     Used to reset the hedeby configuration to the state after first
+#     installation. 
 #
 #  INPUTS
 #
@@ -2091,27 +2098,413 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     0 - on success
 #     1 - on error
 #
-#  NOTES
-#     This procedure is currently not implemented
-#
 #  SEE ALSO
 #     util/startup_hedeby()
 #     util/shutdown_hedeby()
 #     util/reset_hedeby()
 #*******************************************************************************
-global is_reset_hedeby_logged
-set is_reset_hedeby_logged 0
 proc reset_hedeby {} {
-   global is_reset_hedeby_logged
-   if {$is_reset_hedeby_logged == 0} {
-      ts_log_config "reset_hedeby must be implemented in that way to recreate the default testsuite installation scenario"
-      set is_reset_hedeby_logged 1
+   global check_use_installed_system
+ 
+   if {!$check_use_installed_system} {
+      ts_log_fine "This is a fresh installation, skip reset_hedeby!"
+      return 0
+   } else {
+      ts_log_fine "reset hedeby installation ..."
    }
-   # TODO: reset all resources to install state = OK
-   # TODO: all resources which are added by install test should be in the spare
-   #       pool after reset_hedeby()
+   set ret_val 0
+
+
+   
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   # 1) shutdown_hedeby
+   set ret_val [hedeby_shutdown]
+   if { $ret_val != 0} {
+      return 1
+   }
+
+   # 2) startup hedeby
+   set ret_val [hedeby_startup] 
+   if { $ret_val != 0} {
+      return 1
+   }
+
+   # 3) wait for resources to get "assigned" state
+   set ret_val [wait_resources_to_become_state "ASSIGNED"]
+   if { $ret_val != 0} {
+      return 1
+   }
+
+   # 4) move resources to correct services
+   set ret_val [move_resources_to_default_services]
+   if { $ret_val != 0} {
+      return 1
+   }
+
+   # 5) check correct startup of resources
+   set ret_val [hedeby_check_default_resources]
+   if { $ret_val != 0} {
+      return 1
+   }
+
+   # 6) check correct startup of services
+   set ret_val [hedeby_check_default_services]
+   if { $ret_val != 0} {
+      return 1
+   }
+
    return 0
 }
+
+#****** util/hedeby_check_default_services() ***********************************
+#  NAME
+#     hedeby_check_default_services() -- check default hedeby services
+#
+#  SYNOPSIS
+#     hedeby_check_default_services { } 
+#
+#  FUNCTION
+#     Check whether all default services are up and running
+#
+#  INPUTS
+#
+#  RESULT
+#     0 on success
+#     1 on error
+#
+#  SEE ALSO
+#     util/hedeby_check_default_services()
+#     util/hedeby_check_default_resources()
+#*******************************************************************************
+proc hedeby_check_default_services {} {
+   global hedeby_config
+   set ret_val 0
+
+   # set timeout for this check
+   set mytimeout [timestamp]
+   incr mytimeout 60  ;# 60 seconds
+
+   set ge_hosts [get_hedeby_default_services service_names]
+   set s_names {}
+   foreach geh $ge_hosts {
+      lappend s_names $service_names(service,$geh)
+   }
+   set error_text ""
+   # now set expected service states
+   set expected_service_states "RUNNING"
+   set expected_component_states "STARTED"
+   lappend s_names "spare_pool"
+   set service_names(master_host,spare_pool) $hedeby_config(hedeby_master_host)
+
+   while { [timestamp] < $mytimeout } {
+      ts_log_fine "obtaining service information ..."
+      set ret [get_service_info]
+      if {$ret != 0} {
+         append error_text "get_service_info() returned $ret\n"
+         break
+      }
+
+      # now check the service states
+      set error_text ""
+      foreach service $s_names {
+
+         # check service availability
+         ts_log_fine "checking service \"$service\" ..."
+         if {[lsearch $service_info(service_list) $service] < 0} {
+            append error_text "Service \"$service\" not found!\n"
+            ts_log_fine "   service not found!"
+         } else {
+            ts_log_fine "   service found!"
+         }
+         # ceck component state
+         if {[info exists service_info($service,cstate)]} {
+            if {$service_info($service,cstate) != $expected_component_states} {
+               append error_text "Service \"$service\" component state is \"$service_info($service,cstate)\""
+               append error_text ", should be \"$expected_component_states\"\n"
+               ts_log_fine "   component state \"$service_info($service,cstate)\" - error"
+            } else {
+               ts_log_fine "   component state \"$service_info($service,cstate)\" - ok"
+            }
+         } else {
+            append error_text "cannot get component state for service \"$service\"\n"
+            ts_log_fine "cannot get component state for service \"$service\""
+         }
+
+         # check service host
+         if {[info exists service_info($service,host)]} {
+            set service_info_host [resolve_host $service_info($service,host)]
+            set expected_host $service_names(master_host,$service)
+            if {$service_info_host != $expected_host} {
+               append error_text "Service \"$service\" is running on host \"$service_info_host\""
+               append error_text ", should be \"$expected_host\"\n"
+               ts_log_fine "   is running on host \"$service_info_host\" - error"
+            } else {
+               ts_log_fine "   is running on host \"$service_info_host\" - ok"
+            }
+         } else {
+            append error_text "cannot get host for service \"$service\"\n"
+            ts_log_fine "cannot get host for service \"$service\""
+         }
+
+         # check service state
+         if {[info exists service_info($service,sstate)]} {
+            if {$service_info($service,sstate) != $expected_service_states} {
+               append error_text "Service \"$service\" service state is \"$service_info($service,sstate)\""
+               append error_text ", should be \"$expected_service_states\"\n"
+               ts_log_fine "   service state \"$service_info($service,sstate)\" - error"
+            } else {
+               ts_log_fine "   service state \"$service_info($service,sstate)\" - ok"
+            }
+         } else {
+            append error_text "cannot get service state for service \"$service\"\n"
+            ts_log_fine "cannot get service state for service \"$service\""
+         }
+
+
+      }
+      if {$error_text == ""} {
+         break  ;# fine no errors skip timeout loop
+      }
+      after 1000
+      ts_log_fine "retry"
+   }
+   if {$error_text != ""} {
+      append error_text "timeout waiting for correct service information!\n"
+      ts_log_severe $error_text
+      set ret_val 1
+   }
+   return $ret_val
+}
+
+
+#****** util/move_resources_to_default_services() ******************************
+#  NAME
+#     move_resources_to_default_services() -- move resources back to orig. services
+#
+#  SYNOPSIS
+#     move_resources_to_default_services { } 
+#
+#  FUNCTION
+#     move resources back to orig. services from testsuite installation
+#
+#  INPUTS
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc move_resources_to_default_services {} {
+   global hedeby_config
+   set ge_hosts [get_hedeby_default_services service_names]
+   set expected_resource_list [get_all_default_hedeby_resources]
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+   set ret [get_resource_info "" "" resource_info resource_properties resource_list resource_ambiguous]
+   if { $ret != 0 } {
+      return 1
+   }
+
+   foreach res $resource_ambiguous {
+      set aerror "resource \"$res\" is in ambiguous state!\n"
+      append aerror "\"$res\" is assigned to the following services: \"$resource_info($res,service)\"\n"
+      append aerror "expected service for \"$res\" is \"$service_names(default_service,$res)\"\n"
+      set remove_resource_service_list $resource_info($res,service)
+      set pos [lsearch -exact $remove_resource_service_list $service_names(default_service,$res)]
+      if {$pos >= 0} {
+          set remove_resource_service_list [lreplace $remove_resource_service_list $pos $pos]
+      }
+      append aerror "testsuite will remove resource \"$res\" from the following services: \"$remove_resource_service_list\"\n"
+      foreach service $remove_resource_service_list {
+         set sdmadm_command "-p $pref_type -s $sys_name rr -r $res -s $service"
+         set output [sdmadm_command $exec_host $admin_user $sdmadm_command]
+         append aerror "${exec_host}($admin_user)> sdmadm $sdmadm_command\n$output\n"
+      }
+      ts_log_info $aerror      
+   }
+
+   wait_resources_to_become_state "ASSIGNED"
+
+   set ret [get_resource_info "" "" resource_info resource_properties resource_list resource_ambiguous]
+   if { $ret != 0 } {
+      return 1
+   }
+   set error_text ""
+   set mvr_list {}
+   foreach res $expected_resource_list {
+      set move_the_resource 1
+      if {[info exists resource_info($res,service)]} {
+         if { $resource_info($res,service) == $service_names(default_service,$res)} {
+            set move_the_resource 0
+            ts_log_fine "resource \"$res\" is already assigned to service \"$service_names(default_service,$res)\""
+         }
+      }
+      if {$move_the_resource == 1} {
+         set task_info($res,expected_output) ""
+         set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name mvr -r $res -s $service_names(default_service,$res)"
+         lappend mvr_list $res
+      }
+   }
+   if { [llength $mvr_list] > 0 } {
+      set par_error [start_parallel_sdmadm_command mvr_list [get_hedeby_admin_user] task_info 0]
+      if {$par_error != ""} {
+         append error_text $par_error
+      }
+   }
+
+   foreach res $expected_resource_list {
+      set service_name $service_names(default_service,$res)
+      set exp_resource_info($res,service) $service_name
+      if {$service_name == "spare_pool"} {
+         set exp_resource_info($res,flags) "{}"
+      } else {
+         if {$service_names(master_host,$service_name) == $res } {
+            set exp_resource_info($res,flags) "S"
+         } else {
+            set exp_resource_info($res,flags) "{}"
+         }
+      }
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+   set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
+   if { $retval != 0} {
+      append error_text $mvr_error
+   }
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+      return 1
+   }
+   return 0
+}
+
+#****** util/hedeby_check_default_resources() **********************************
+#  NAME
+#     hedeby_check_default_resources() -- check default resources
+#
+#  SYNOPSIS
+#     hedeby_check_default_resources { } 
+#
+#  FUNCTION
+#     check that all configured default resources are reported by hedeby
+#
+#  INPUTS
+#
+#  RESULT
+#     0 on success
+#     1 on error
+#
+#  SEE ALSO
+#     util/hedeby_check_default_services()
+#     util/hedeby_check_default_resources()
+#*******************************************************************************
+proc hedeby_check_default_resources {} {
+   global hedeby_config
+   global CHECK_OUTPUT 
+   global CHECK_USER
+ 
+   set ret [get_resource_info]
+   if {$ret != 0} {
+      ts_log_severe "get_resource_info() returned $ret"
+      return 1
+   }
+
+   if {[llength $res_list_not_uniq] > 0} {
+      ts_log_severe "got not ambiguous resources"
+      return 1
+   }
+
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   # figure out expected resources
+   set error_text ""
+   set expected_resource_list [get_all_default_hedeby_resources]
+   foreach res $res_list {
+      ts_log_finer "examing reported resource \"$res\""
+      ts_log_finest "resources to find: $expected_resource_list"
+      set pos [lsearch -exact $expected_resource_list $res]
+      if { $pos >= 0} {
+         ts_log_finer "found resource \"$res\" in expected resource list"
+         set expected_resource_list [lreplace $expected_resource_list $pos $pos]
+      } else {
+         append error_text "Unexpected resource \"$res\" reported by hedeby!\n"
+      }
+   }
+   foreach res $expected_resource_list {
+      append error_text "Expected resource \"$res\" NOT reported by hedeby!\n"
+   }
+   if { $error_text != "" } {
+      ts_log_severe $error_text
+      return 1
+   }
+
+   set error_text ""
+   foreach res $res_list {
+      ts_log_fine "checking resource \"$res\" ..."
+     
+      # check if we have more than one entry in lists
+      if {[llength $res_info($res,type)] != 1} {
+         append error_text "resource \"$res\" flag list should contain 1 elem, but it has [llength $res_info($res,type)] (\"$res_info($res,type)\")\n"
+      }
+
+      
+      # service
+      set service [lindex $res_info($res,service) 0]
+      ts_log_fine "   resource assigned to service \"$res_info($res,service)\""
+      if {[info exists service_names(service,$res)]} {
+         if { $service != $service_names(service,$res) } {
+            append error_text "resource \"$res\" should be assigned to \"$service_names(service,$res)\" but is assigned to \"$service\"\n"
+         }
+      } else {
+         # it might be an execd or spare_pool
+         if {[info exists service_names(execd_hosts,$service)]} {
+            # must be execd
+            set execd_list $service_names(execd_hosts,$service)
+            if {[lsearch -exact $execd_list $res] < 0} {
+               append error_text "wrong assignment of resource \"$res\" to service \"$service\"\n"
+            } else {
+               ts_log_fine "   found resource \"$res\" in execd list of service \"$service\": $execd_list"
+            }
+         } else {
+            # must be spare_pool
+            if { $service != "spare_pool" } {
+               append error_text "resource \"$res\" should be assigned to \"spare_pool\" but is assigned to \"$service\"\n"
+            }
+         }
+      }
+
+      # state ASSIGNED
+      set state [lindex $res_info($res,state) 0]
+      ts_log_fine "   resource has state \"$state\""
+      if {$state != "ASSIGNED"} {
+         append error_text "resource \"$res\" should have state \"ASSIGNED\" but it's state is \"$res_info($res,state)\"\n"
+      }
+
+      # flags "" or "S" (static) for services
+      set flags [lindex $res_info($res,flags) 0]
+      ts_log_fine "   resource has flags \"$flags\""
+      if {[lsearch -exact $ge_hosts $res] >= 0} {
+         # this is ge master host assume "S" for static flag
+         if {$flags != "S"} {
+            append error_text "resource \"$res\" should have flags \"S\", but it's flags are \"$res_info($res,flags)\"\n"
+         }
+      } else {
+         # this is regular resource expect no flag
+         if {$flags != ""} {
+            append error_text "resource \"$res\" should have emty flags, but it's flags are \"$res_info($res,flags)\"\n"
+         }
+      }
+
+   }
+   if { $error_text != "" } {
+      ts_log_severe $error_text
+      return 1
+   }
+   return 0
+}
+
+
+
 
 #****** util/parse_table_output() **********************************************
 #  NAME
@@ -2596,8 +2989,29 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {report_error 1} {ev er
       set not_matching ""
       foreach val $exp_values {
          if {[info exists resource_info($val)]} {
-            if {$resource_info($val) == $exp_res_info($val)} {
-               ts_log_finer "resource info \"$val\" matches expected info \"$exp_res_info($val)\""
+            set all_matching 0
+            if {[llength $resource_info($val)] == [llength $exp_res_info($val)]} {
+               ts_log_finer "compare \"$resource_info($val)\" with \"$exp_res_info($val)\""
+               # here we can directly compare the expected resource info
+               if { $resource_info($val) == $exp_res_info($val) } {
+                  set all_matching 1
+               }
+            } else {
+               # duplicate assigned resources may produce more than one entry
+               # in resource_info() array. We expect that all states have to be
+               # equal
+               set all_matching 1
+               foreach res_info_tmp $resource_info($val) {
+                  ts_log_finer "lcompare \"$res_info_tmp\" with \"$exp_res_info($val)\""
+                  if {$res_info_tmp != $exp_res_info($val)} {
+                     ts_log_finer "lcompare not matching"
+                     set all_matching 0
+                     break
+                  }
+               }
+            }
+            if {$all_matching} {
+               ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
             } else {
                append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
             }
@@ -2630,6 +3044,55 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {report_error 1} {ev er
    return 0
 }
 
+#****** util/wait_resources_to_become_state() **********************************
+#  NAME
+#     wait_resources_to_become_state() -- wait that all resources have the state
+#
+#  SYNOPSIS
+#     wait_resources_to_become_state { state } 
+#
+#  FUNCTION
+#     wait that all resources have the state specified. Possible states are:
+#     ASSIGNED ERROR ASSIGNING UNASSIGNED UNASSIGNING INPROCESS
+#
+#
+#  INPUTS
+#     state - ??? 
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc wait_resources_to_become_state { state } {
+   set supported_states "ASSIGNED ERROR ASSIGNING UNASSIGNED UNASSIGNING INPROCESS"
+   set supported 0
+   foreach sups $supported_states {
+      if {$sups == $state} {
+         set supported 1
+         break
+      }
+   }
+   if { $supported == 0 } {
+      ts_log_severe "resource state \"$state\" is not supported"
+      return 1
+   }
+   set resource_list [get_all_default_hedeby_resources]
+   foreach res $resource_list {
+      set exp_resource_info($res,state) "$state"
+   }
+   return [wait_for_resource_info exp_resource_info 60]
+}
 
 #****** util/get_service_info() ************************************************
 #  NAME
@@ -3881,9 +4344,10 @@ proc hedeby_executor_set_keep_files { executor_host keep_files { executor_name "
    set system_name [get_hedeby_system_name]
    set host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]
-   
+   set pref_type [get_hedeby_pref_type]
+
    set error_text ""
-   set arguments "-s $system_name mc -c $executor_name"
+   set arguments "-p $pref_type -s $system_name mc -c $executor_name"
    set ispid [hedeby_mod_setup $host $admin_user $arguments error_text]
    
    set sequence {}
@@ -3897,7 +4361,7 @@ proc hedeby_executor_set_keep_files { executor_host keep_files { executor_name "
       return $prg_exit_state
    }
    
-   set output [sdmadm_command $host $admin_user "uc -c $executor_name -h $executor_host"]
+   set output [sdmadm_command $host $admin_user "-s $system_name -p $pref_type uc -c $executor_name -h $executor_host"]
    if { $prg_exit_state != 0 } {
       return $prg_exit_state
    }
@@ -3927,8 +4391,11 @@ proc hedeby_executor_cleanup { executor_host { executor_name "executor" } } {
    global hedeby_config
    set host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+
       
-   set output [sdmadm_command $host $admin_user "exe -h $executor_host -e cleanup"]
+   set output [sdmadm_command $host $admin_user "-p $pref_type -s $sys_name exe -h $executor_host -e cleanup"]
    if { $prg_exit_state != 0 } {
       return $prg_exit_state
    }

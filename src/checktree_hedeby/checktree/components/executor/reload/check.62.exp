@@ -181,6 +181,10 @@ proc executor_reload_check {} {
    
    set host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set sdmadm_command_line "-p $pref_type -s $sys_name exe -h $executor_reload_host -e \"pwd\""
+
    
    ts_log_fine "Peform executor_reload test on executor@$executor_reload_host"
    
@@ -197,7 +201,7 @@ proc executor_reload_check {} {
    }
    
    # Execute a dummy cmmand 
-   set output [sdmadm_command $host $admin_user "exe -h $executor_reload_host -e \"pwd\""]
+   set output [sdmadm_command $host $admin_user $sdmadm_command_line]
    if { $prg_exit_state != 0 } {
       return 1
    }
@@ -227,7 +231,7 @@ proc executor_reload_check {} {
    }
    
    # Execute a dummy cmmand 
-   set output [sdmadm_command $host $admin_user "exe -h $executor_reload_host -e \"pwd\""]
+   set output [sdmadm_command $host $admin_user $sdmadm_command_line]
    if { $prg_exit_state != 0 } {
       return 1
    }

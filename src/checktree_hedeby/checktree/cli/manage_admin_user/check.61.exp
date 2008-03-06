@@ -213,10 +213,8 @@ proc wait_for_role_cache_timeout {} {
 
    puts $CHECK_OUTPUT "startup hedeby master host ..."
    sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suj"
-   
-   # wait for remote components to reconnect
-   # otherwise the state might be unknown
-   after 5000
+ 
+   wait_resources_to_become_state "ASSIGNED"
 }
 
 

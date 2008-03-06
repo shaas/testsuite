@@ -3534,6 +3534,7 @@ proc run_tests {path runcompleted} {
    global ts_config
    global CHECK_TESTS_RUNNING
    global CHECK_INTERRUPT
+   global CHECK_ENABLED_CATEGORIES
 
    set CHECK_TESTS_RUNNING 1
 
@@ -3655,20 +3656,44 @@ proc run_tests {path runcompleted} {
                lappend check_error_pass  $pass_no
  
                if {$check_reinit_on_tcl_error == 1} {
-                  # reinit system
+                  ts_log_fine "there was an error performing the test \"$check\", reinit system ..."
+
+                  # reset testsuite sessions
+                  close_open_rlogin_sessions 1  ;# session reset (if defect)
+
+                  # first cleanup all jobs
                   delete_all_jobs
                   wait_for_end_of_all_jobs 15
-
+            
+                  # now re_init all additional clusters
                   set save_installed_value $check_use_installed_system
+                  set check_use_installed_system 1
+                  ts_log_fine "performing additional cluster install re_init ..."
+                  set add_clusters_ret [operate_additional_clusters install]
+                  if {$add_clusters_ret != 0} {
+                     ts_log_info "installing additional clusters with re_use system failed with \"$add_clusters_ret\", starting fresh installation ..."
+                     set check_use_installed_system 0
+                     ts_log_fine "performing additional cluster install ..."
+                     set add_clusters_ret2 [operate_additional_clusters install]
+                     ts_log_info "installing additional clusters returned \"$add_clusters_ret\"!"
+                  }
+
+                  # now re_init main testsuite cluster
                   set save_CHECK_ACT_PATH $CHECK_ACT_PATH
                   set check_use_installed_system 1
                   set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
-                  close_open_rlogin_sessions 1  ;# session reset (if defect)
+                  ts_log_fine "starting install_core_system with check_use_installed_system=$check_use_installed_system ..."
                   set init_ret [run_test $CHECK_ACT_PATH 1]
                   if {$init_ret != 0 && $init_ret != -3} {
+                     ts_log_info "installing with re_use system failed, starting fresh installation ..."
+                     ts_log_fine "starting install_core_system with check_use_installed_system=$check_use_installed_system ..."
                      set check_use_installed_system 0
-                     set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system" 
-                     run_test $CHECK_ACT_PATH 1
+                     # we start all checks with INSTALL category
+                     set org_categories $CHECK_ENABLED_CATEGORIES
+                     set CHECK_ENABLED_CATEGORIES "INSTALL"
+                     set init_ret2 [run_tests "root" 1]
+                     set CHECK_ENABLED_CATEGORIES $org_categories
+                     ts_log_fine "installing cluster returned \"$init_ret2\"!"
                   }
                   set CHECK_ACT_PATH $save_CHECK_ACT_PATH
                   set check_use_installed_system $save_installed_value
@@ -7497,13 +7522,18 @@ proc operate_additional_clusters {operation} {
    global check_use_installed_system
    global ts_config
 
+   set ret_val 0
+
    if {$ts_config(additional_config) != "none"} {
       foreach filename $ts_config(additional_config) {
-         operate_add_cluster $filename $operation
+         if {[operate_add_cluster $filename $operation] != 0} {
+            set ret_val 1
+         }
       }
    } else {
       ts_log_fine "no additional clusters defined"
    }
+   return $ret_val
 }
 
 #****** check/operate_add_cluster() ********************************************
@@ -8417,10 +8447,10 @@ if { $do_install } {
    }
 
    puts "installing core system on host [gethostname] ..."
-   set CHECK_ACT_PATH "$ts_config(checktree_root_dir)/install_core_system"  
-   run_test $CHECK_ACT_PATH 1
+   set CHECK_ENABLED_CATEGORIES "INSTALL"
+   set CHECK_ACT_PATH "root"
+   run_tests $CHECK_ACT_PATH 1
    operate_additional_clusters install
-
    set exit_value [print_errors]
    testsuite_shutdown $exit_value
 }

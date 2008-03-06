@@ -1,3 +1,17 @@
+CR-2008-03-06-0: Bugfix:    o added missing -p and -s command line arguments for
+                              sdmadm command in executor reload test
+                 Bugfix:    o current testsuite parameter re_init not working for
+                              hedeby testsuite 
+                              (and additional clusters and checktrees)
+                 Issue:     hedeby #367
+                 Bugfix:    o testsuite "install" command line parameter did
+                              not install all categories "INSTALL"
+                 Cleanup:   o added new procedures in hedeby util.tcl:
+                              hedeby_check_default_services()
+                              move_resources_to_default_services()
+                              wait_resources_to_become_state()
+                 Review:    RH
+
 MD-2008-03-06-0: Bugfix:    Issue 1914 failed due to wrong GE version check
                  Review:    JG
 

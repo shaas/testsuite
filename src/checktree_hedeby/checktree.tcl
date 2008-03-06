@@ -1438,12 +1438,20 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
    global ts_checktree hedeby_checktree_nr CHECK_OUTPUT hedeby_enhanced_config
    global CHECK_DEFAULTS_FILE
    global ts_config
+   global hedeby_required_host_cache
+
    upvar $config_array config
    upvar $parameter_error_list param_error_list
 
    hedeby_config_upgrade_1_1 config
    hedeby_config_upgrade_1_2 config
    hedeby_config_upgrade_1_3 config
+
+   # unset required host cache when verify config is called
+   if {[info exists hedeby_required_host_cache]} {
+      unset hedeby_required_host_cache
+   }
+
 
    
    set retval [verify_config2 config $only_check param_error_list $ts_checktree($hedeby_checktree_nr,setup_hooks_0_version)]
@@ -1826,10 +1834,23 @@ proc hedeby_get_all_hosts {} {
 #     checktree_hedeby/hedeby_get_required_hosts()
 #     checktree_hedeby/hedeby_get_required_passwords()
 #*******************************************************************************
+
+# this is to delete required host cache if file is re-sourced
+global hedeby_required_host_cache
+if {[info exists hedeby_required_host_cache]} {
+   unset hedeby_required_host_cache
+}
 proc hedeby_get_required_hosts {} {
    global hedeby_config CHECK_OUTPUT
    global hedeby_enhanced_config
+   global hedeby_required_host_cache
    set enhanced_res {}
+
+   if {[info exists hedeby_required_host_cache]} {
+      ts_log_fine "returning required hosts from cache!"
+      ts_log_fine "required hosts are: $hedeby_required_host_cache"
+      return $hedeby_required_host_cache
+   }
 
    set res [hedeby_get_all_hosts]
    
@@ -1866,6 +1887,7 @@ proc hedeby_get_required_hosts {} {
          foreach required_arch $required_additional_archs {
             if { [lsearch -exact $remote_archs $required_arch] < 0 } {
                add_proc_error "hedeby_get_required_hosts" -1 "cluster configuration file \"$hedeby_enhanced_config(cluster,file,$i)\" must have additional compile archs for compile arch $required_arch"
+               unset hedeby_required_host_cache
                return -1
             }
          }
@@ -1873,6 +1895,7 @@ proc hedeby_get_required_hosts {} {
       }
    }   
    puts $CHECK_OUTPUT "Required hosts for hedeby: $res"
+   set hedeby_required_host_cache $res
    return $res
 }
 
