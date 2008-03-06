@@ -1225,6 +1225,12 @@ proc cleanup_hedeby_local_spool_dir { host } {
          if { $prg_exit_state != 0 } {
             add_proc_error "cleanup_hedeby_local_spool_dir" -1 "doing chown $comargs returned exit code: $prg_exit_state\n$output"
          }
+         set chmodnargs "-R 700 $local_spool_dir"
+         set output [start_remote_prog $host  $CHECK_USER "chmod" $chmodnargs]
+         ts_log_fine $output
+         if { $prg_exit_state != 0 } {
+            add_proc_error "cleanup_hedeby_local_spool_dir" -1 "doing chmod $chmodnargs returned exit code: $prg_exit_state\n$output"
+         }
       }
    }
    set spool_dir [get_local_spool_dir $host "hedeby_spool" 1 ]

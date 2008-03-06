@@ -1,3 +1,7 @@
+RH-2008-03-06-0: Bugfix:    cleanup_hedeby_local_spool_dir could not delete private keys
+                            from local spool dirs
+                 Review:    CR
+
 RH-2008-03-05-0: Enhancem:  Hedeby: new test for reloading executor config
                  Issue:     hedeby #234 (Part 1)
                  Review:    CR
