@@ -1,0 +1,231 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+# ---START OF TEST INFO SECTION-------------------------------------------------------------------------------
+# "no" - we don't need root acess / "yes" - we need root access:
+set check_root_access_needs    "no"
+
+# name of the test (best practice: use the name of the test directory)
+set check_name                 "ca_reload"
+
+# specifiy the test categories
+# (VERIFIED if the test is QA inspected)
+# other possible categories: COMPATIBILITY CSP INSTALL L10N MODULE PERFORMANCE SYSTEM VERIFIED
+set check_category             "SYSTEM VERIFIED"
+
+# define the highest check level
+set check_highest_level        0
+
+# a sort check description for each runlevel:
+# (runlevel 0 is mandatory)
+set check_description(0)       "Tests the reloading of the ca component" ;# runlevel 0
+# set check_description(1)       "SOME OTHER DESCRIPTION"  ;# runlevel 1
+
+# specify check dependencies
+# (name all tests which have to run sucessfull before this test can run)
+set check_needs                "hedeby_install"
+
+# The name of the init level procedure for this test. The procedure is defined
+# in the test file.
+set check_init_level_procedure "ca_reload_init_level"
+
+# define tests setup and cleanup function. The functions are called for each
+# runlevel. Before testsuite is starting with calling all check_functions
+# the setup function is called. After finishing all check_functions the
+# cleanup function is called.
+#
+# The aim of the setup/cleanup functions is that the test should restore
+# all modifications, even when the test failes completely.
+set check_setup_function "ca_reload_setup"
+set check_cleanup_function "ca_reload_cleanup"
+
+
+# The check_functions array tells the testsuite which check functions should
+# be called (and in which order)
+# All check_functions should be defined at least in a file (*.tcl) in the
+# check directory.
+set check_functions            ""
+lappend check_functions "ca_reload_check"
+
+
+# ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+# (the init level procedure defines which runlevels are supported)
+# short  (0 min - 15 min / run level   0 -  99)"
+# medium (16 min -  1 h   / run level 100 - 199)"
+# long   (1 h   -  4 h   / run level 200 - 299)"
+# day    (> 4 h   - 24 h   / run level 300 - 399)"
+# week   (>24 h            / run level 400 - 499)"
+proc ca_reload_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  # this test currently supports only runlevel "0"
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+#****** check/ca_reload_setup() ******************************************
+#  NAME
+#    ca_reload_setup() -- setup the ca_reload test
+#
+#  SYNOPSIS
+#    ca_reload_setup { } 
+#
+#  FUNCTION
+#
+#*******************************************************************************
+proc ca_reload_setup {} {
+}
+
+
+#****** check/ca_reload_cleanup() ****************************************
+#  NAME
+#    ca_reload_cleanup() -- cleanup the ca_reload test
+#
+#  SYNOPSIS
+#    ca_reload_cleanup { } 
+#
+#  FUNCTION
+#    Reset the keepFiles flag in the executor
+#
+#*******************************************************************************
+proc ca_reload_cleanup {} {
+   global ca_reload_host
+   
+   ts_log_fine "doing cleanup ..."
+   get_current_cluster_config_array ts_config
+
+   set sge_root $ts_config(product_root)
+   
+   if { [ca_reload_set_ca_script $sge_root/util/sgeCA/sge_ca] != 0 } {
+      return 1
+   }
+}
+
+
+ 
+#****** check/ca_reload_check() ******************************************
+#  NAME
+#    ca_reload_check() -- perform the ca_reload check
+#
+#  SYNOPSIS
+#    ca_reload_check { } 
+#
+#  FUNCTION
+#
+#  This test checks reconfiguring the ca component. It detail
+#  it performs the following steps:
+#
+#   - make path to ca script invalid
+#   - reload ca
+#   - check that renew of certificate does not work
+#   - cleanup
+#
+#
+#*******************************************************************************
+proc ca_reload_check {} {
+   global CHECK_USER hedeby_config
+   global ca_reload_host
+   
+   set host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
+   set system_name [get_hedeby_system_name]
+   set pref_type [get_hedeby_pref_type]
+   
+   get_current_cluster_config_array ts_config
+   set sge_root $ts_config(product_root)
+   
+   ts_log_fine "Peform ca_reload test"
+   
+   # set the path to the sge_ca script to /bin/false
+   # Any call of the script will return 1 and the CA component will
+   # report an error
+   if { [ca_reload_set_ca_script /bin/false] != 0 } {
+      # error message has already been reported
+      return 1
+   }
+   
+   # renew of the certificate of the admin user must fail
+   set output [sdmadm_command $host $admin_user "-s $system_name -p $pref_type renew_cert -days 100 -t user -n $admin_user" prg_exit_state "" 0]
+   if { $prg_exit_state == 0 } {
+      set em "It seems that the modification of the CA configuration did not take effect\n"
+      append em "Renewing certificate with /bin/false worked\n"
+      append em "Output of 'sdmadm renew_cert -days 100 -t user -n $admin_user' was :\n"
+      append em $output
+      ts_log_severe  $em
+      return 1
+   }
+}
+
+
+proc ca_reload_set_ca_script { ca_script } {
+   global hedeby_config
+   set system_name [get_hedeby_system_name]
+   set host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
+   set pref_type [get_hedeby_pref_type]
+   
+   set error_text ""
+   set arguments "-s $system_name -p $pref_type mc -c ca"
+   set ispid [hedeby_mod_setup $host $admin_user $arguments error_text]
+   
+   set sequence {}
+   lappend sequence "[format "%c" 27]" ;# ESC
+   lappend sequence ":%s#<security:sgeCaScript>.*</security:sgeCaScript>#<security:sgeCaScript>$ca_script</security:sgeCaScript>#\n"
+   
+   hedeby_mod_sequence $ispid $sequence error_text
+   set output [hedeby_mod_cleanup $ispid error_text]
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+   
+   set output [sdmadm_command $host $admin_user "-s $system_name -p $pref_type uc -c ca -h $host"]
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+   return 0
+}
+

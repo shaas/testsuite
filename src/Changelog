@@ -1,3 +1,7 @@
+RH-2008-03-07-0: Enhancem:  Hedeby: new test for reloading ca config
+                 Issue:     hedeby #234 (Part 2)
+                 Review:    CR
+
 CR-2008-03-06-0: Bugfix:    o added missing -p and -s command line arguments for
                               sdmadm command in executor reload test
                  Bugfix:    o current testsuite parameter re_init not working for
