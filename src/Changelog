@@ -1,3 +1,6 @@
+JG-2008-03-07-0: Bugfix:    Fixed qsub_pe test.
+                 Review:    RD
+
 RH-2008-03-07-0: Enhancem:  Hedeby: new test for reloading ca config
                  Issue:     hedeby #234 (Part 2)
                  Review:    CR

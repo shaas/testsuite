@@ -1864,7 +1864,7 @@ proc check_option_pe {} {
 
    set option "-pe mytestpe 1-3"
    set jobargs "$option $default_args"
-   set job_id [qsub_submit_check $jobargs 0 "" "" 4]
+   set job_id [qsub_submit_check $jobargs 0]
 
    if {$job_id > 0} {
       get_qacct $job_id
