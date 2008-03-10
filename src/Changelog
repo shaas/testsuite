@@ -1,3 +1,24 @@
+CR-2008-03-10-0: Enhancem.: o testsuite framework: After failed test do
+                              cleanup hooks before re_init of cluster
+                            o New Menu Item: (53) run reset hooks
+                            o Menu Item (52) run startup hooks: Ask for
+                              root pw before running startup hooks
+                            o New procedure in cluster_procedures.tcl:
+                              get_all_execd_nodes()
+                            o reset_hedeby()
+                              (=cleanup hook for hedeby checktree):
+                              Enhanced cleanup functionality
+                            o checktree_hedeby/util.tcl:
+                              - enhanced error handling
+                              - wait_resources_to_become_state(): Allow
+                                one or more expected states for matching,
+                                return information arrays
+                              - wait_for_resource_info(): Allow
+                                one or more expected states for matching
+                                State matches if one of the given
+                                expected resource information is matching
+                 Review:    RH
+
 MP-2008-03-10-0: Bugfix:    Fixed failed qconf test.
                  Review:    JG
 

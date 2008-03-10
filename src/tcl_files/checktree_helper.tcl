@@ -175,6 +175,7 @@ proc exec_checktree_clean_hooks { } {
             ts_log_warning "Can not execute clean_proc hook ${ii} of checktree $ts_checktree($i,dir_name), clean proc not found"
             return -1
          } else {
+            ts_log_fine "running cleanup hook: $clean_proc"
             set res [$clean_proc]
             if { $res != 0 } {
                ts_log_warning "checktree_clean hook ${ii}  of checktree  $ts_checktree($i,dir_name) failed, $clean_proc returned $res\n"

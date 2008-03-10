@@ -167,7 +167,69 @@ proc get_additional_config { filename aConfig } {
    }
 }
 
+#****** cluster_procedures/get_all_execd_hosts() *******************************
+#  NAME
+#     get_all_execd_hosts() -- get list of all configured execd hosts
+#
+#  SYNOPSIS
+#     get_all_execd_hosts { } 
+#
+#  FUNCTION
+#     This procedure returns all configured execd hosts for the specified
+#     additional clusters and main cluster.
+#
+#  INPUTS
+#
+#  RESULT
+#     list of execd hosts
+#
+#  SEE ALSO
+#     cluster_procedures/get_all_execd_nodes()
+#*******************************************************************************
 proc get_all_execd_hosts { } {
+   global ts_config
+
+   set host_list {}
+   # 1) ts_config(execd_nodes)
+   foreach execd $ts_config(execd_hosts) {
+      lappend host_list $execd
+   }
+
+   # 2) all additional cluster configurations
+   if {$ts_config(additional_config) != "none"} {
+      foreach filename $ts_config(additional_config) {
+         get_additional_config $filename add_config
+         # check add_config(execd_nodes) (no duplicate entries)
+         foreach execd $add_config(execd_hosts) {
+            if { [lsearch $host_list $execd] < 0 } {
+               lappend host_list $execd
+            }
+         }
+      }
+   }
+   return $host_list
+}
+
+#****** cluster_procedures/get_all_execd_nodes() *******************************
+#  NAME
+#     get_all_execd_nodes() -- get list of all configured execd nodes
+#
+#  SYNOPSIS
+#     get_all_execd_nodes { } 
+#
+#  FUNCTION
+#     This procedure returns all configured execd nodes for the specified
+#     additional clusters and main cluster.
+#
+#  INPUTS
+#
+#  RESULT
+#     List of host nodes
+#
+#  SEE ALSO
+#     cluster_procedures/get_all_execd_hosts()
+#*******************************************************************************
+proc get_all_execd_nodes { } {
    global ts_config
 
    set host_list {}
@@ -176,7 +238,7 @@ proc get_all_execd_hosts { } {
       lappend host_list $execd
    }
 
-   # 2) all additional checktrees
+   # 2) all additional cluster configurations 
    if {$ts_config(additional_config) != "none"} {
       foreach filename $ts_config(additional_config) {
          get_additional_config $filename add_config
