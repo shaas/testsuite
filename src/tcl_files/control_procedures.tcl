@@ -319,7 +319,7 @@ proc build_rqs_vi_array { change_array } {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result {additional_expected_result "___ABCDEFG___"} {additional_expected_result2 "___ABCDEFG___"} {additional_expected_result3 "___ABCDEFG___"} {additional_expected_result4 "___ABCDEFG___"} {additional_expected_result5 "___ABCDEFG___"} {qconf_error_msg "___ABCDEFG___"} {raise_error 1}} {
+proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result {additional_expected_result "___ABCDEFG___"} {additional_expected_result2 "___ABCDEFG___"} {additional_expected_result3 "___ABCDEFG___"} {additional_expected_result4 "___ABCDEFG___"} {additional_expected_result5 "___ABCDEFG___"} {qconf_error_msg "___ABCDEFG___"} {raise_error 1} {additional_expected_result6 "___ABCDEFG___"}} {
    global env CHECK_DEBUG_LEVEL CHECK_USER ts_config
 
    set expected_result              [string trimright $expected_result "*"]
@@ -328,6 +328,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
    set additional_expected_result3  [string trimright $additional_expected_result3 "*"]
    set additional_expected_result4  [string trimright $additional_expected_result4 "*"]
    set additional_expected_result5  [string trimright $additional_expected_result5 "*"]
+   set additional_expected_result6  [string trimright $additional_expected_result6 "*"]
    set qconf_error_msg  [string trimright $qconf_error_msg "*"]
 
    # we want to start a certain configured vi, and have no backslash continued lines
@@ -608,6 +609,10 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
                set result -6
                exp_continue
             }
+            -i $sp_id -- "$additional_expected_result6" {
+               set result -7
+               exp_continue
+            }
             
             -i $sp_id "_exit_status_" {
                ts_log_finest "vi terminated! (3)  (rt=$run_time)"
@@ -629,6 +634,7 @@ proc handle_vi_edit { prog_binary prog_args vi_command_sequence expected_result 
                   append message_txt "   \"$additional_expected_result2\"\n"
                   append message_txt "   \"$additional_expected_result3\"\n"
                   append message_txt "   \"$additional_expected_result4\"\n"
+                  append message_txt "   \"$additional_expected_result6\"\n"
                   ts_log_severe $message_txt
                }
             }

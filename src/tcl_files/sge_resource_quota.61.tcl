@@ -262,7 +262,7 @@ proc mod_rqs {change_array {name ""} {fast_add 1} {on_host ""} {as_user ""} {rai
          set ret [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-mrqs $name" $vi_commands $ADDED $MODIFIED $NOT_MODIFIED]
       }
       if { $ret != 0 } {
-         ts_log_severe "could not modify resource quota set (error: $result)" $raise_error
+         ts_log_severe "could not modify resource quota set (error: $ret)" $raise_error
       }
    }
    return $ret

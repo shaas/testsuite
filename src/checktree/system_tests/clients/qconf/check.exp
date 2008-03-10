@@ -2456,10 +2456,18 @@ proc qconf_modify_userlist {} {
    ts_log_fine "3) Modify attribute $attribute wrong slow ...\n"
    set result4 [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
 
-   if { ( $result4 == -4 ) } {
-      ts_log_fine "qconf -mu failed successfully"
+   if {$ts_config(gridengine_version) < 61} {
+      if { ( $result4 == -4 ) } {
+         ts_log_fine "qconf -mu failed successfully"
+      } else {
+         ts_log_fine "result is $result4"
+      }
    } else {
-      ts_log_fine "result is $result4"
+      if { ( $result4 == -7 ) } {
+         ts_log_fine "qconf -mu failed successfully"
+      } else {
+         ts_log_fine "result is $result4"
+      }
    }
 
    # Now modify fast with wrong value

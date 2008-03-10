@@ -308,8 +308,14 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
       set UNKNOWN_SPECIFIER [translate_macro MSG_GDI_READCONFIGFILEUNKNOWNSPEC_SS "*" "*"]
       set EMPTY_SPECIFIER [ translate_macro MSG_GDI_READCONFIGFILEEMPTYSPEC_S "*" ]
       set NOTULONG [ translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
+      if {$ts_config(gridengine_version) >= 61} {
+         set ADDNOTULONG [translate_macro MSG_MUST_BE_POSITIVE_VALUE_S "*"]
+      } else {
+         set ADDNOTULONG "unsupported version < 61"
+      }
       set master_arch [resolve_arch $ts_config(master_host)]
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG $UNKNOWN_SPECIFIER $EMPTY_SPECIFIER]
+      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG $UNKNOWN_SPECIFIER $EMPTY_SPECIFIER "___ABCDEFG___" 1 $ADDNOTULONG]
+      
       if { $result == -1 } { 
          ts_log_severe "timeout error" $raise_error
       } elseif { $result == -2 } { 
@@ -322,6 +328,8 @@ proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise
          ts_log_severe "invalid specifier" $raise_error
       } elseif { $result == -6 } { 
          ts_log_severe "empty specifier" $raise_error
+      } elseif { $result == -7 } { 
+         ts_log_severe "must be positive" $raise_error
       } elseif { $result != 0  } { 
          ts_log_severe "could not modify userlist " $raise_error
       }

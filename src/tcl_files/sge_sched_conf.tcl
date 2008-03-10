@@ -214,14 +214,20 @@ proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
          set NOTULONG "blah blah 53 does not have MSG_OBJECT_VALUENOTULONG_S"
       } else {
          set NOTULONG [translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
+         if {$ts_config(gridengine_version) >= 61} {
+            set ADDNOTULONG [translate_macro MSG_MUST_BE_POSITIVE_VALUE_S "*"]
+         } else {
+            set ADDNOTULONG "unsupported version < 61"
+         }         
       }
       set master_arch [resolve_arch $ts_config(master_host)]
-      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-msconf" $vi_commands $CHANGED_SCHEDD_CONFIG $NOTULONG]  
-
+      set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-msconf" $vi_commands $CHANGED_SCHEDD_CONFIG $NOTULONG $ADDNOTULONG]
       if { $result == -1 } { 
          ts_log_severe "timeout error" $raise_error 
       } elseif { $result == -2 } { 
          ts_log_severe "not a u_long32 value" $raise_error
+      } elseif { $result == -3 } { 
+         ts_log_severe "must be positive" $raise_error
       } elseif { $result != 0 } { 
          ts_log_severe "error changing scheduler configuration" $raise_error
       }
