@@ -4979,7 +4979,8 @@ proc get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_er
    # accept getting errors for some seconds
    set repeat 1
    if {$ts_config(gridengine_version) >= 60} {
-      set repeat 10
+      set repeat 20
+      ts_log_finer "will repeat getting accounting info up to $repeat times!"
    }
    while {$repeat > 0} {
       set ret 0
@@ -4990,9 +4991,13 @@ proc get_qacct {job_id {variable qacct_info} {on_host ""} {as_user ""} {raise_er
          parse_qacct result qacctinfo $job_id
          set repeat 0
       } else {
-         set ret [get_qacct_error $result $job_id $raise_error]
+         if {$repeat > 1} {
+            ts_log_fine "waiting for job \"$job_id\" to appear in accounting file ..."
+         } else {
+            set ret [get_qacct_error $result $job_id $raise_error]
+         }
          incr repeat -1
-         sleep 1
+         after 1500
       }
    }
 

@@ -69,11 +69,9 @@ proc set_current_cluster_config_nr { nr } {
    }
    set ts_current_cluster_config $nr
    get_current_cluster_config_array new_config
-   ts_log_frame
-   ts_log_fine "  switched cluster config to nr = $nr"
-   ts_log_fine "  SGE_ROOT=$new_config(product_root)"
-   ts_log_fine "  SGE_CELL=$new_config(cell)"
-   ts_log_frame
+   ts_log_frame FINER
+   ts_log_finer "set active cluster config #$nr (SGE_ROOT=$new_config(product_root), SGE_CELL=$new_config(cell))"
+   ts_log_frame FINER
    return 0
 }
 

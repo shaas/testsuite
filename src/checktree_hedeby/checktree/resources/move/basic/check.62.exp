@@ -58,6 +58,24 @@ lappend check_functions "basic_resource_assignment_check"
 global basic_resource_assignment_current_cluster_config
 
 
+#****** basic/basic_resource_assignment_init_level() ************************
+#  NAME
+#     basic_resource_assignment_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     basic_resource_assignment_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
 proc basic_resource_assignment_init_level {} {
   global CHECK_ACT_LEVEL
 
@@ -67,33 +85,123 @@ proc basic_resource_assignment_init_level {} {
   return -1
 }
 
+#****** basic/basic_resource_assignment_setup() *****************************
+#  NAME
+#     basic_resource_assignment_setup() -- prepare test setup
+#
+#  SYNOPSIS
+#     basic_resource_assignment_setup { } 
+#
+#  FUNCTION
+#     This test will work with additional clusters. Therefore the current
+#     cluster nr is stored in a global variable. The cleanup procedure 
+#     basic_resource_assignment_cleanup() will reset the current active
+#     cluster again.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_assignment_cleanup()
+#*******************************************************************************
 proc basic_resource_assignment_setup {} {
-   global CHECK_OUTPUT
    global basic_resource_assignment_current_cluster_config
-   
-   puts $CHECK_OUTPUT "doing setup ..."
    set basic_resource_assignment_current_cluster_config [get_current_cluster_config_nr]
 }
 
+#****** basic/basic_resource_assignment_cleanup() ***************************
+#  NAME
+#     basic_resource_assignment_cleanup() -- ??? 
+#
+#  SYNOPSIS
+#     basic_resource_assignment_cleanup { } 
+#
+#  FUNCTION
+#     Restore the current active cluster value stored by 
+#     basic_resource_assignment_setup() procedure and perform hedeby reset.
+#     The hedeby reset is don by reset_hedeby() which will move all resources
+#     back to their original configured service.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_assignment_setup()
+#*******************************************************************************
 proc basic_resource_assignment_cleanup {} {
-   global CHECK_OUTPUT
    global basic_resource_assignment_current_cluster_config
 
-   puts $CHECK_OUTPUT "doing cleanup ..."
-
+   # reset saved active cluster configuration nr
    set_current_cluster_config_nr $basic_resource_assignment_current_cluster_config
+
+   # perform hedeby reset
+   reset_hedeby 1
+
 }
 
+#****** basic/basic_resource_assignment_check() *****************************
+#  NAME
+#     basic_resource_assignment_check() -- basic resource movement test
+#
+#  SYNOPSIS
+#     basic_resource_assignment_check { } 
+#
+#  FUNCTION
+#     This test will perform some basic resource movement actions and
+#     also check that resources are installed correctly after moving them.
+#
+#     actions:
+#        1) Move all non static resources to spare pool
+#        2) Check that:
+#           a) Static resources have the "S" flag and are reported from
+#              their default service in state "ASSIGNED"
+#           b) All other resources are reported from "spare_pool" service
+#              with empty flags in state "ASSIGNED"
+#        3) Every ge cluster should only report the static execd resources.
+#           This is checked by getting the exec host list from the qmaster
+#           of each service via qconf -sel (tcl procedure get_exechost_list())
+#        4) Check that moved resources are correctly installed at their
+#           service after movement.
+#           a) Assign all moveable resources to every service
+#           b) Check that all flags are empty, state is ASSIGNED and that
+#              the correct service is reporting them
+#           c) Check correct resource installations by submitting jobs
+#              to the new assigned resources at each service.
+#           d) Wait that the jobs are reported in the accounting file of
+#              each service.
+#           e) Check job "exit_status" and job "hostname" in the
+#              accounting files of the services.
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_assignment_setup()
+#     basic/basic_resource_assignment_cleanup()
+#*******************************************************************************
 proc basic_resource_assignment_check {} {
-   global CHECK_OUTPUT
+   global hedeby_config
 
+   # get some global settings
    set pref_type [get_hedeby_pref_type]
    set sys_name [get_hedeby_system_name]
    set admin_user [get_hedeby_admin_user]
    set ge_hosts [get_hedeby_default_services service_names]
 
+   # init text array for reporting errors
+   # (errors are logged at the end of the test)
    set error_text ""
 
+   # obtain information which resources are static and what must be moved
    ts_log_fine "move all not static resources from GE services to spare_pool"
    set mvr_list {}
    set static_list {}
@@ -122,7 +230,6 @@ proc basic_resource_assignment_check {} {
    }
 
    # now wait and check that all moved resources are gone to spare_pool ...
-   # ======================================================================
    # step 1: set expected resource information values
    foreach res $mvr_list {
       set exp_resource_info($res,service) "spare_pool"
@@ -149,57 +256,141 @@ proc basic_resource_assignment_check {} {
       # append missing resources info to error output
       append error_text $mvr_error
    }
-   # step 4: cleanup exp_resource_info array (we use it later again)
-   unset exp_resource_info
-
 
 
    # now check that all ge clusters only have master host execd ...
-   # ==============================================================
-   # TODO: use qhost or qstat info and do it in different test procedure
+   # get execd lists from each service via qconf call
+   set static_ge_execds {}
+   set cluster 0
+   while { [set_current_cluster_config_nr $cluster] == 0 } {
+      # get configuration for the active cluster to find out the
+      # master host who is used to start the qconf command
+      get_current_cluster_config_array ts_tmp_config
+      if { [get_exechost_list execds $ts_tmp_config(master_host) ] != 0 } {
+         append error_text "cannot get execd list from cluster #$cluster\n"
+      } else {
+         foreach host $execds {
+            # we have to resolve the hosts since GE may report long host names
+            lappend static_ge_execds [resolve_host $host]
+         }
+      }
+      incr cluster 1
+   }
+   set_current_cluster_config_nr 0
 
-   # now assign each host from spare pool to each service and back to spare_pool ...
-   # TODO: here we should check the correct resource installation by submitting job
-
-
-
-   # finally cleanup test and reset resource assignement to initial state ...
-   # TODO: make util procedure out of it and do it in test cleanup
-   unset task_info
-   set mvr_list {}
-   foreach service $service_names(services) {
-      foreach res $service_names(moveable_execds,$service) {
-         set task_info($res,expected_output) ""
-         set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name mvr -r $res -s $service"
-         lappend mvr_list $res
+   # now find out if all reported execd hosts are static resources and
+   # no other host is remaining in the execd lists of the ge service
+   ts_log_fine "reported execds at ge masters: $static_ge_execds"
+   foreach res $static_list {
+      set pos [lsearch -exact $static_ge_execds $res]
+      if { $pos >= 0 } {
+         set static_ge_execds [lreplace $static_ge_execds $pos $pos]
       }
    }
-   set par_error [start_parallel_sdmadm_command mvr_list [get_hedeby_admin_user] task_info 0]
-   if {$par_error != ""} {
-      append error_text $par_error
-   }
-   foreach res $mvr_list {
-      set exp_resource_info($res,service) "$service_names(default_service,$res)"
-      set exp_resource_info($res,flags) "{}"
-      set exp_resource_info($res,state) "ASSIGNED"
-   }
-   foreach res $static_list {
-      set exp_resource_info($res,service) "$service_names(default_service,$res)" 
-      set exp_resource_info($res,flags) "S"
-      set exp_resource_info($res,state) "ASSIGNED"
-   }
-   set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
-   if { $retval != 0} {
-      append error_text $mvr_error
-   }
-   unset exp_resource_info
 
+   if { [llength $static_ge_execds] > 0 } {
+      append error_text "Still reported not static execds on GE masters: $static_ge_execds\n"
+   } else {
+      ts_log_fine "Only expected static resources are available on GE masters side - ok"
+   }
+
+   # now assign each host from spare pool to each service ...
+   # here check the correct resource installation by submitting job
+
+   # get all assignable resources and store it in spare_pool_list
+   set spare_pool_list {}
+   foreach host $mvr_list {
+      lappend spare_pool_list $host
+   }
+   foreach host $hedeby_config(hedeby_host_resources) {
+      lappend spare_pool_list $host
+   }
+
+   # for all services ...
+   foreach service $service_names(services) {
+
+      # ... move all resources to the service and wait for its complete
+      #     installation
+      ts_log_fine "moving all spare_pool resources to service \"$service\""
+      unset task_info
+      unset exp_resource_info
+      foreach res $spare_pool_list {
+         set task_info($res,expected_output) ""
+         #TODO: use mvr -r resourceA,resourceB,... if implemented
+         set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name mvr -r $res -s $service"
+      }
+      set par_error [start_parallel_sdmadm_command spare_pool_list [get_hedeby_admin_user] task_info]
+      if {$par_error != ""} {
+         append error_text $par_error
+      }
+      foreach res $spare_pool_list {
+         set exp_resource_info($res,service) "$service"
+         set exp_resource_info($res,flags) "{}"
+         set exp_resource_info($res,state) "ASSIGNED"
+      }
+      set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
+      if { $retval != 0} {
+         # if there were no error till now, print output of previous actions
+         if {$error_text == ""} {
+            append error_text "Following action(s) was/were started:\n"
+            foreach res $spare_pool_list {
+               append error_text $task_info($res,output)
+            }
+         }
+         # append missing resources info to error output
+         append error_text $mvr_error
+      } else {
+         # ... if installation was ok, check that a job can be submitted to the resources
+         ts_log_fine "All resource moved to service \"$service\", now starting jobs for the new resources ..."
+
+         # switch the actual cluster and get configuration
+         set job_list {}
+         set_current_cluster_config_nr $service_names(ts_cluster_nr,$service)
+         get_current_cluster_config_array ts_tmp_config
+
+         # submit job to every new installed execd and store the job ids
+         foreach host $spare_pool_list {
+            set job_arguments "-o /dev/null -e /dev/null -l h=$host $ts_tmp_config(product_root)/examples/jobs/sleeper.sh 5"
+            set job_id [submit_job $job_arguments 1 60 $service_names(master_host,$service)]
+            set job_host($job_id) $host
+            lappend job_list $job_id
+         }
+
+         # wait for last submitted job to start ...
+         wait_for_jobstart $job_id "leeper" 60 1 1
+         # wait for last submitted job to finish ...
+         wait_for_jobend $job_id "leeper" 60 0 1
+
+         # now check job accounting information ...
+         foreach job $job_list {
+            # get accouting for job and store reported exit_status and hostname
+            get_qacct $job qacct_info $service_names(master_host,$service)
+            set job_exit_state $qacct_info(exit_status)
+            set job_hostname $qacct_info(hostname)
+            ts_log_fine "job \"$job\" at service \"$service\" on host \"$service_names(master_host,$service)\" reported:"
+            ts_log_fine "Exit state: $job_exit_state"
+            ts_log_fine "Hostname:   $job_hostname"
+
+            # check exit status (should be 0)
+            if {$job_exit_state != 0} {
+               append error_text "Job \"$job\" at service \"$service\" on host \"$service_names(master_host,$service)\" has\n"
+               append error_text "exit state \"$job_exit_state\"\n"
+            }
+            # check hostname where the job was executed (should be the name of the resource)
+            if {[resolve_host $job_hostname] != $job_host($job)} {
+               append error_text "Job \"$job\" at service \"$service\" on host \"$service_names(master_host,$service)\" was\n"
+               append error_text "not running on host \"$job_host($job)\", reported host was \"$job_hostname\"\n"
+            }
+         }
+      }
+   }
+
+   # got to active cluster 0
+   set_current_cluster_config_nr 0
 
    # finally report one big error mail
    if {$error_text != ""} {
       ts_log_severe $error_text
    }
 }
-
-
 

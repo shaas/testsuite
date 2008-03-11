@@ -1342,7 +1342,8 @@ proc get_all_default_hedeby_resources {} {
 #         service_names(execd_hosts,$service)    | list of all execds of $service
 #         service_names(master_host,$service)    | name of master of $service
 #         service_names(moveable_execds,$service)| list of all not static resources of $service
-#         service_names(ts_cluster_nr,$host)     | testsuite cluster nr of service
+#         service_names(ts_cluster_nr,$service)  | testsuite cluster nr of service
+#         service_names(ts_cluster_nr,$host)     | testsuite cluster nr of host
 #         service_names(default_service,$host)   | default service of $host
 #         service_names(service,$host)           | list of all services on $host
 #
@@ -1366,6 +1367,7 @@ proc get_hedeby_default_services { service_names } {
       set ret(execd_hosts,$ts_config(cluster_name)) $ts_config(execd_nodes)
       set ret(master_host,$ts_config(cluster_name)) $ts_config(master_host)
       set ret(ts_cluster_nr,$ts_config(master_host)) $cluster
+      set ret(ts_cluster_nr,$ts_config(cluster_name)) $cluster
       lappend ret(services) $ts_config(cluster_name)
 
       set ret(moveable_execds,$ts_config(cluster_name)) {}
@@ -1377,8 +1379,8 @@ proc get_hedeby_default_services { service_names } {
          }
       }
 
-      ts_log_fine "execds for service \"$ts_config(cluster_name)\": $ret(execd_hosts,$ts_config(cluster_name))"
-      ts_log_fine "service names for hedeby on host \"$ts_config(master_host)\": $ret(service,$ts_config(master_host))"
+      ts_log_finer "execds for service \"$ts_config(cluster_name)\": $ret(execd_hosts,$ts_config(cluster_name))"
+      ts_log_finer "service names for hedeby on host \"$ts_config(master_host)\": $ret(service,$ts_config(master_host))"
       incr cluster 1
    }
    set_current_cluster_config_nr $current_cluster_config
@@ -2103,10 +2105,10 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     util/shutdown_hedeby()
 #     util/reset_hedeby()
 #*******************************************************************************
-proc reset_hedeby {} {
+proc reset_hedeby { { force 0 } } {
    global check_use_installed_system
    global hedeby_config
-   if {!$check_use_installed_system} {
+   if {!$check_use_installed_system && $force == 0} {
       ts_log_fine "This is a fresh installation, skip reset_hedeby!"
       return 0
    } else {
@@ -2957,7 +2959,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
             ts_log_warning "resource \"$ts_resource_name\" seems not to have any resource properties"
          }
       } else {
-         ts_log_fine "SKIPPING RESOURCE \"$resource_id\"!"
+         ts_log_finer "SKIPPING RESOURCE \"$resource_id\"!"
       }
    }
 
@@ -2976,11 +2978,13 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
             append error_text "         $property=$resource_properties($resource,$property)\n"
          }
       }
-      ts_log_fine $error_text
+      ts_log_finer $error_text
    }
 
-   ts_log_fine "double assigned resources: $double_assigned_resource_list"
-   ts_log_fine "resource list: $resource_list"
+   if { [llength $double_assigned_resource_list] > 0 } {
+      ts_log_fine "double assigned resources: $double_assigned_resource_list"
+   }
+   ts_log_finer "resource list: $resource_list"
    set resource_ambiguous $double_assigned_resource_list
    return 0
 }
@@ -3076,7 +3080,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    foreach val $exp_values {
       append expected_resource_info "$val=\"$exp_res_info($val)\"\n"
    }
-   ts_log_fine "expected resource infos:\n$expected_resource_info"
+   ts_log_finer "expected resource infos:\n$expected_resource_info"
 
    while {1} {
       set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error]
@@ -3104,7 +3108,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
                foreach res_info_tmp $resource_info($val) {
                   set one_is_matching 0
                   foreach exp_res_info_entry $exp_res_info($val) {
-                     ts_log_fine "lcompare \"$res_info_tmp\" with \"$exp_res_info_entry\""
+                     ts_log_finer "lcompare \"$res_info_tmp\" with \"$exp_res_info_entry\""
                      if {$res_info_tmp == $exp_res_info_entry} {
                         ts_log_finer "lcompare matching"
                          set one_is_matching 1
@@ -3129,10 +3133,11 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
       }
 
       if {$not_matching == ""} {
-         ts_log_fine "all specified resouce info are matching"
+         ts_log_fine "all specified resource info are matching"
          break
       } else {
-         ts_log_fine "not matching resource info:\n$not_matching"
+         ts_log_fine "still waiting for specified resource information ..."
+         ts_log_finer "still not matching resource info:\n$not_matching"
       }
 
       if {[timestamp] >= $my_timeout} {
@@ -3342,7 +3347,7 @@ proc get_service_info { {host ""} {user ""} {si service_info} } {
          ts_log_severe "cannot find expected column name \"$col\""
          return 1
       }
-      ts_log_fine "found expected col \"$col\" on position $pos"
+      ts_log_finer "found expected col \"$col\" on position $pos"
       if {[lsearch -exact $used_col_names $col] < 0} {
          ts_log_severe "used column name \"$col\" not expected - please check table column names!"
          return 1
