@@ -1,3 +1,6 @@
+RM-2008-03-11-0: Bugfix:    fixed hedeby installation for user preferences
+                 Review:    CR
+
 CR-2008-03-11-0: Task:      basic resource assignement test
                  Issue:     #365 (Hedeby)
                  Cleanup:   o testsuite logging

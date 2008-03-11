@@ -439,12 +439,6 @@ proc hedeby_install_managed_hosts {} {
 
    # TODO: switch between interactive and copy cert mode when installing managed hosts
 
-   # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
-   if {[get_hedeby_pref_type] == "user"} {
-      set check_dirs 1
-   } else {
-      set check_dirs 0
-   }
 
    # first get tmp keystore and cacert files
    # the tmp files are deleted with the next test!
@@ -471,24 +465,6 @@ proc hedeby_install_managed_hosts {} {
 
    set managed_host_list [get_all_hedeby_managed_hosts]
 
-   if { $check_dirs } {
-      puts $CHECK_OUTPUT "checking for unique local spool dir for user pref install mode ..."
-      set my_spool_text ""
-      foreach managed_host $managed_host_list {
-         # TODO: remove check spooldir uniq code if hedeby supports different spool dirs in user pref mode!
-         set mHostSpoolDir [get_hedeby_local_spool_dir $managed_host]
-         if { $master_spool_dir != $mHostSpoolDir } {
-            append my_spool_text "local spool dir not unique for user pref mode!\n"
-            append my_spool_text "Host \"$managed_host\" is using spool dir:\n\"$mHostSpoolDir\"\n"
-            append my_spool_text "master spool dir is:\n\"$master_spool_dir\"\n\n"
-         }
-      }
-      if { $my_spool_text != "" } {
-         add_proc_error "hedeby_install_managed_hosts" -2 $my_spool_text
-         return
-      }
-      puts $CHECK_OUTPUT ""
-   }
 
    foreach managed_host $managed_host_list {
       # create and/or delete local spool directory for hedeby master host ...
