@@ -336,23 +336,23 @@ proc add_host_resources { host_resources { service "" } { on_host "" } { as_user
 
    # write resource property file on the execution host
    set file_name [get_tmp_file_name $exec_host]
-   set cur_line 1
+   set cur_line 0
    foreach host_resource $host_resources {
-      if { $cur_line > 1 } {
+      if { $cur_line > 0 } {
          # write a delimiter
-         set data($cur_line) "==="
          incr cur_line
+         set data($cur_line) "==="
       }
       
-      set data($cur_line) "resourceHostname=$host_resource"
       incr cur_line
+      set data($cur_line) "resourceHostname=$host_resource"
       
       set osArch [resolve_arch $host_resource]
       get_hedeby_ge_complex_mapping $osArch
       set found_mapping 0
       foreach prop [array names res_prop] {
-         set data($cur_line) $prop=$res_prop($prop)
          incr cur_line 1
+         set data($cur_line) $prop=$res_prop($prop)
          set found_mapping 1
       }
    
@@ -360,13 +360,13 @@ proc add_host_resources { host_resources { service "" } { on_host "" } { as_user
       if {$found_mapping == 0 } {
          # ... we simply use uname info
          set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
-         set data($cur_line) "operatingSystemName=$osName"
          incr cur_line 1
+         set data($cur_line) "operatingSystemName=$osName"
          set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
+         incr cur_line 1
          set data($cur_line) "operatingSystemRelease=$osRel"
          incr cur_line 1
          set data($cur_line) "hardwareCpuArchitecture=$osArch"
-         incr cur_line 1
       }
    }
    set data(0) $cur_line

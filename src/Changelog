@@ -1,3 +1,6 @@
+RH-2008-03-12-1: Bugfix:    Hedeby: Wrong index in add_host_resources function
+                 Review:    AA
+
 RH-2008-03-12-0: Enhancem.: Hedeby: add_host_resource renamed to add_host_resources
                             it can no add more then one resource with one call
                  Review:    CR
