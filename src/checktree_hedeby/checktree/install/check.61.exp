@@ -112,13 +112,9 @@ proc hedeby_install_cleanup {} {
 
 proc hedeby_add_spare_pool_resources {} {
    global hedeby_config
-   global CHECK_OUTPUT 
-   global CHECK_USER
 
-   foreach host $hedeby_config(hedeby_host_resources) {
-      set exit_state [add_host_resource $host "spare_pool"]
-      ts_log_fine "exit_state: $exit_state"
-   }
+   set exit_state [add_host_resources $hedeby_config(hedeby_host_resources) "spare_pool"]
+   ts_log_fine "exit_state: $exit_state"
 }
 
 proc hedeby_check_services {} {

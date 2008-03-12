@@ -294,19 +294,19 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
    return $path
 }
 
-#****** util/add_host_resource() ***********************************************
+#****** util/add_host_resources() ***********************************************
 #  NAME
-#     add_host_resource() -- add a host resource to hedeby
+#     add_host_resources() -- add a host resource to hedeby
 #
 #  SYNOPSIS
-#     add_host_resource { host_resource { service "" } { on_host "" } { as_user ""} 
+#     add_host_resource { host_resources { service "" } { on_host "" } { as_user ""} 
 #     {raise_error 1} } 
 #
 #  FUNCTION
 #     This procedure is used to add host resources to the hedeby system. 
 #
 #  INPUTS
-#     host_resource   - hostname of the host resource 
+#     host_resources   - list of hostnames for  the host resources
 #     { on_host "" }  - optional: host where sdmadm should be started 
 #                       if not set the hedeby master host is used
 #     { as_user ""}   - optional: user name which starts sdmadm command 
@@ -319,7 +319,7 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 #     the prg_exit_state of the sdmadm command
 #
 #*******************************************************************************
-proc add_host_resource { host_resource { service "" } { on_host "" } { as_user ""} {raise_error 1} } {
+proc add_host_resources { host_resources { service "" } { on_host "" } { as_user ""} {raise_error 1} } {
    global hedeby_config
    global CHECK_USER
 
@@ -336,29 +336,39 @@ proc add_host_resource { host_resource { service "" } { on_host "" } { as_user "
 
    # write resource property file on the execution host
    set file_name [get_tmp_file_name $exec_host]
-   set osArch [resolve_arch $host_resource]
-   
-   get_hedeby_ge_complex_mapping $osArch
    set cur_line 1
-   foreach prop [array names res_prop] {
-      set data($cur_line) $prop=$res_prop($prop)
-      incr cur_line 1
+   foreach host_resource $host_resources {
+      if { $cur_line > 1 } {
+         # write a delimiter
+         set data($cur_line) "==="
+         incr cur_line
+      }
+      
+      set data($cur_line) "resourceHostname=$host_resource"
+      incr cur_line
+      
+      set osArch [resolve_arch $host_resource]
+      get_hedeby_ge_complex_mapping $osArch
+      set found_mapping 0
+      foreach prop [array names res_prop] {
+         set data($cur_line) $prop=$res_prop($prop)
+         incr cur_line 1
+         set found_mapping 1
+      }
+   
+      # in case we have no mapping ...
+      if {$found_mapping == 0 } {
+         # ... we simply use uname info
+         set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
+         set data($cur_line) "operatingSystemName=$osName"
+         incr cur_line 1
+         set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
+         set data($cur_line) "operatingSystemRelease=$osRel"
+         incr cur_line 1
+         set data($cur_line) "hardwareCpuArchitecture=$osArch"
+         incr cur_line 1
+      }
    }
-
-   # in case we have no mapping ...
-   if {$cur_line == 1 } {
-      # ... we simply use uname info
-      set osName [string trim [start_remote_prog $host_resource $exec_user uname -s]]
-      set data($cur_line) "operatingSystemName=$osName"
-      incr cur_line 1
-      set osRel  [string trim [start_remote_prog $host_resource $exec_user uname -r]]
-      set data($cur_line) "operatingSystemRelease=$osRel"
-      incr cur_line 1
-      set data($cur_line) "hardwareCpuArchitecture=$osArch"
-      incr cur_line 1
-   }
-
-   set data($cur_line) "resourceHostname=$host_resource"
    set data(0) $cur_line
 
    write_remote_file $host_resource $exec_user $file_name data
@@ -367,10 +377,10 @@ proc add_host_resource { host_resource { service "" } { on_host "" } { as_user "
    set file_content [start_remote_prog $exec_host $exec_user cat $file_name]
    if {$service != "" } {
       set add_args "-s $service"
-      ts_log_fine "adding host resource \"$host_resource\" to service $service of hedeby system ..."
+      ts_log_fine "adding host resources \"$host_resources\" to service $service of hedeby system ..."
    } else {
       set add_args ""
-      ts_log_fine "adding host resource \"$host_resource\" to hedeby system ..."
+      ts_log_fine "adding host resources \"$host_resources\" to hedeby system ..."
    }
    ts_log_fine "properties file:"
    ts_log_fine $file_content

@@ -226,6 +226,8 @@ proc ca_reload_set_ca_script { ca_script } {
    if { $prg_exit_state != 0 } {
       return $prg_exit_state
    }
+   
+   # TODO check that the ca component is in STARTED state
    return 0
 }
 

@@ -1,3 +1,7 @@
+RH-2008-03-12-0: Enhancem.: Hedeby: add_host_resource renamed to add_host_resources
+                            it can no add more then one resource with one call
+                 Review:    CR
+
 RM-2008-03-11-0: Bugfix:    fixed hedeby installation for user preferences
                  Review:    CR
 
