@@ -112,6 +112,7 @@ proc install_qmaster {} {
          return                                       
       }
       set env_list(JAVA_HOME) $java_home
+      append feature_install_options " -jmx"
    }
 
    set my_timeout 500
@@ -204,7 +205,6 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1}} {
    
       if {$ts_config(jmx_port) > 0} {
          set jvm_lib_path [get_jvm_lib_path_for_host $ts_config(master_host)]
-         puts $fdo "SGE_ENABLE_JMX=\"true\""
          puts $fdo "SGE_JVM_LIB_PATH=\"$jvm_lib_path\""
          puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
          puts $fdo "SGE_JMX_PORT=\"$ts_config(jmx_port)\""
@@ -213,7 +213,6 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1}} {
          puts $fdo "SGE_JMX_SSL_KEYSTORE=\"/var/sgeCA/port${ts_config(commd_port)}/$ts_config(cell)/private/keystore\""
          puts $fdo "SGE_JMX_SSL_KEYSTORE_PW=\"$ts_config(jmx_ssl_keystore_pw)\""
       } else {
-         puts $fdo "SGE_ENABLE_JMX=\"false\""
          puts $fdo "SGE_JVM_LIB_PATH=\"\""
          puts $fdo "SGE_ADDITIONAL_JVM_ARGS=\"\""
          puts $fdo "SGE_JMX_PORT=\"0\""

@@ -182,7 +182,6 @@ proc install_qmaster {} {
  set WINDOWS_MANAGER              [translate_macro DISTINST_QMASTER_WINDOWS_MANAGER]
 
  # java
- set ENABLE_JMX                   [translate_macro DISTINST_ENABLE_JMX]
  set JMX_JAVA_HOME                [translate_macro DISTINST_JAVA_HOME "*" ]
  set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS]
  set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
@@ -204,6 +203,9 @@ proc install_qmaster {} {
  set feature_install_options ""
  if { $ts_config(product_feature) == "csp" } {
     append feature_install_options "-csp"
+ }
+ if { $ts_config(jmx_port) > 0 } {
+    append feature_install_options " -jmx"
  }
 
  puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options"
@@ -389,21 +391,6 @@ proc install_qmaster {} {
              set anykey [wait_for_enter 1]
           }
           ts_send $sp_id "y\n"
-          continue
-       }
-       
-       -i $sp_id $ENABLE_JMX {
-          if { $ts_config(jmx_port) > 0 } {
-             set enable_jmx "$ANSWER_YES"
-          } else {
-             set enable_jmx "$ANSWER_NO"
-          }
-          puts $CHECK_OUTPUT "\n -->testsuite: sending enable_jmx >${enable_jmx}<"
-          if {$do_log_output == 1} {
-             puts "press RETURN"
-             set anykey [wait_for_enter 1]
-          }
-          ts_send $sp_id "${enable_jmx}\n"
           continue
        }
        

@@ -1,3 +1,6 @@
+AA-2008-03-13-0: Bugfix:    install_qmaster -jmx adaptions
+                 Review:    AA
+
 RH-2008-03-12-1: Bugfix:    Hedeby: Wrong index in add_host_resources function
                  Review:    AA
 
