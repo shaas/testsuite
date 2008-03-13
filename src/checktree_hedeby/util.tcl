@@ -2158,7 +2158,9 @@ proc reset_hedeby { { force 0 } } {
          foreach res $res_state_info(missing) {
             if {[lsearch -exact $hedeby_config(hedeby_host_resources) $res] >= 0} {
                ts_log_fine "adding missing hedeby resource \"$res\" ..."
-               if {[add_host_resource $res "spare_pool"] == 0} { 
+	       set resources {}
+	       lappend resources $res
+               if {[add_host_resources $resources "spare_pool"] == 0} { 
                   incr added_missing_resources 1
                }
             }

@@ -1,3 +1,6 @@
+RM-2008-03-13-0: Bugfix:    fixed reset_hedeby function
+                 Review:    RH
+
 AA-2008-03-13-0: Bugfix:    install_qmaster -jmx adaptions
                  Review:    AA
 
