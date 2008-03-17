@@ -2340,34 +2340,6 @@ proc resolve_queue { queue } {
    return $new_queue_name 
 }
 
-proc get_pid_from_file { pid_file } {
-   set pid ""
-   for {set x 0} {$x < 10} {incr x} {
-      if [file exists $pid_file] {
-         if {[file size $pid_file] > 0 } {
-            set f [open $pid_file r]
-            gets $f pid
-            close $f
-
-            if { $pid != "" } { 
-               break
-            }
-         }
-      }   
-      after 500
-   }
-
-   return $pid
-}
-
-proc get_qmaster_pid {} {
-   set qmaster_spool_dir [ get_qmaster_spool_dir ]
-
-   set pid_file "$qmaster_spool_dir/qmaster.pid"
-
-   return [get_pid_from_file $pid_file]
-}
-
 proc get_schedd_pid {} {
    set qmaster_spool_dir [ get_qmaster_spool_dir ]
 

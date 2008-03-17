@@ -863,3 +863,87 @@ proc get_current_drmaa_lib_extension { host } {
    }
 }
 
+
+# get_daemon_pid -- retrieves running daemon pid on remote host
+proc get_daemon_pid { host service } {
+   global CHECK_USER
+   
+   switch -exact $service {
+      "master" -
+      "qmaster" {
+	 return [get_qmaster_pid $host [get_qmaster_spool_dir]]
+      }
+      "shadow" -
+      "shadowd" {
+	 return [get_shadowd_pid $host [get_qmaster_spool_dir]]
+      }
+      "execd" {
+         return [get_execd_pid $host]
+      }
+      "bdb" {
+	 ts_log_severe "NOT IMPLEMENTED"
+      }
+      "dbwriter" {
+	 ts_log_severe "NOT IMPLEMENTED"
+      }
+      default {
+	 ts_log_severe "Invalid service $service passed to get_daemon_pid{}"
+      }
+   }
+}
+
+
+proc call_startup_script { host service {script_file ""} {args ""} { timeout 30 } } {
+   global ts_config CHECK_USER CHECK_ADMIN_USER_SYSTEM
+   
+   set ret 0
+   
+   if {[string compare $args "start"] == 0} {
+      set msg "Starting"
+   } elseif {[string compare $args "stop"] == 0} {
+      set msg "Stopping"
+   }
+   
+   if {[string length $script_file] == 0} {
+      switch -exact $service {
+         "master" -
+         "qmaster" {
+	    set service "qmaster"
+	    set script_file "$ts_config(product_root)/$ts_config(cell)/common/sgemaster"
+	    set args "-$service $args"
+         }
+         "shadow" - 
+         "shadowd" {
+	    set service "shadowd"
+	    set script_file "$ts_config(product_root)/$ts_config(cell)/common/sgemaster"
+	    set args "-$service $args"
+         }
+         "execd" -
+         "bdb" -
+         "dbwriter" {
+	    set script_file "$ts_config(product_root)/$ts_config(cell)/common/sge$service"
+         }
+         default {
+	    ts_log_severe "Invalid service $service in smf_call_stop_script_and_restart{}"
+	 }
+      }
+   }
+   
+   if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
+      if { [have_root_passwd] != 0  } {
+         ts_log_warning "no root password set or ssh not available"
+         return -1
+      }
+      set user "root"
+   } else {
+      set user $CHECK_USER
+   }
+   ts_log_fine "$msg $service: '$script_file $args' on host $host as user $user ..."
+   set output [start_remote_prog $host $user "$script_file" "$args"]
+   ts_log_fine "$output"
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "Operation failed for $service service!"
+      return -1
+   }
+   return 0
+}

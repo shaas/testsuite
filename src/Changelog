@@ -1,3 +1,10 @@
+LP-2008-03-17-0: Enhancem.: SMF tests for SGE
+                 Enhancem.: Removed checking for SMF, testsuite already removes
+                            conflicting services automatically by default
+                 Enhancem.: Improved shutdown procedures
+                 Bugfix:    Fixed wait_for_unknown_load()
+                 Review:    MD
+
 RM-2008-03-13-0: Bugfix:    fixed reset_hedeby function
                  Review:    RH
 

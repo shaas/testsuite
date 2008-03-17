@@ -7452,6 +7452,7 @@ proc source_tcl_files {} {
    ts_source $libdir/sge_event_client	
    ts_source $libdir/sge_resource_quota
    ts_source $libdir/sge_ar
+   ts_source $libdir/smf_procedures
     
    ts_source $libdir/checktree_helper
    ts_source $libdir/report_procedures

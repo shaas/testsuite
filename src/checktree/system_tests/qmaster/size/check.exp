@@ -288,13 +288,13 @@ proc init_ps {} {
    }
 
 
-   if { $qmaster_pid == "" } {
+   if { $qmaster_pid == -1 } {
       ts_log_severe "could not evaluate pid of qmaster"
       return
    }
 
    if {$ts_config(gridengine_version) < 62} {
-      if { $schedd_pid == "" } {
+      if { $schedd_pid == -1 } {
          ts_log_severe "could not evaluate pid of schedd"
          return
       }

@@ -114,18 +114,25 @@ set module_name "sge_procedures.tcl"
 # startup_qmaster() -- startup qmaster (and scheduler) daemon
 # startup_scheduler() -- ??? 
 # startup_execd_raw() -- startup execd without using startup script
+# startup_daemon - starts the SGE daemon specified by the argument
 # are_master_and_scheduler_running -- ??? 
 # shutdown_master_and_scheduler -- ??? 
-# shutdown_scheduler() -- ??? 
+# shutdown_scheduler() -- ???
 # is_scheduler_alive() -- ??? 
 # is_qmaster_alive() -- check if qmaster process is running
-# get_scheduler_pid() -- ??? 
+# get_qmaster_pid() -- ???
+# get_scheduler_pid() -- ???
+# get_shadowd_pid() -- ???
+# get_execd_pid() -- ???
+# get_pid_from_file() -- ???
 # shutdown_qmaster() -- ??? 
 # shutdown_all_shadowd -- ??? 
-# shutdown_bdb_rpc -- ??? 
+# shutdown_bdb_rpc -- ???
 # is_pid_with_name_existing -- search for process on remote host 
 # shutdown_system_daemon -- kill running sge daemon 
 # shutdown_core_system -- shutdown complete cluster
+# shutdown_shadowd -- shutdown single shadowd
+# shutdown_daemon -- shutdown one sge daemon
 # startup_core_system() -- startup complete cluster
 # add_operator
 # delete_operator
@@ -2857,23 +2864,43 @@ proc wait_for_queue_state {queue state wait_timeout} {
 #  SEE ALSO
 #     sge_procedures/shutdown_system_daemon()
 #*******************************************************************************
-proc soft_execd_shutdown {host} {
+proc soft_execd_shutdown {host {timeout 60}} {
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
-   ts_log_fine "shutdown execd on host \"$host\""
+   set execd_pid [get_execd_pid $host]
+   
+   ts_log_fine "shutdown execd pid=$execd_pid on host \"$host\""
    set tries 0
    while {$tries <= 8} {
       incr tries 1
+      ts_log_finest "[start_remote_prog $host $CHECK_USER "date" ""]"
       set result [start_sge_bin "qconf" "-ke $host" $ts_config(master_host) $CHECK_USER]
       if {$prg_exit_state != 0} {
-         ts_log_finer "qconf -ke $host returned $prg_exit_state, hard killing execd"
+         ts_log_fine "qconf -ke $host returned $prg_exit_state, hard killing execd"
          shutdown_system_daemon $host execd
       }
-      set load [wait_for_unknown_load 15 "${host}.q" 0]
+      if {$ts_config(gridengine_version) >= 60 } {
+	 set queue "*@$host"
+      } else {
+	 set queue "${host}.q"
+      }
+      set load [wait_for_unknown_load 15 $queue 0]
       if {$load == 0} {
          ts_log_finer "execd on host $host reports 99.99 load value"
-         return 0
+	 #execd might not be down yet, let's check!
+	 set counter 0
+	 while {$counter < $timeout} {
+	    incr counter 1
+	    after 1000
+	    #Check if execd pid is gone
+	    if {[is_pid_with_name_existing $host $execd_pid "sge_execd" ] != 0} {
+	       ts_log_finer "Waited $counter secs for execd to disappear"
+	       return 0
+	    }
+	 }
+	 ts_log_severe "Timeout $counter secs: Could not shutdown execd (pid=$execd_pid) on host $host"
+         return -1
       }
    }
    ts_log_severe "could not shutdown execd on host $host"
@@ -2946,11 +2973,21 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
             set load_value [lindex $linedata 3]
             set load_values($queue_name) $load_value
          }
-      
+
          # check if load of an host is set > 99 (no exed report)
          set failed 0
+	 
+	 if {$ts_config(gridengine_version) < 60} {
+            set q_r $queue_array
+         } else {
+            set q_r ""
+            foreach queue $queue_array {
+               lappend q_r [array names load_values "$queue"]
+	    }
+         }
+	 ts_log_finest "queue_list=$q_r"
          
-         foreach queue $queue_array {
+	 foreach queue $q_r {
             if {[info exists load_values($queue)] == 1} {
                if {$load_values($queue) < 99} {
                    incr failed 1
@@ -5896,6 +5933,77 @@ proc startup_execd_raw { hostname {envlist ""}} {
    return 0
 }
 
+
+#********* sge_procedures/startup_daemon() *************************************
+#  NAME
+#     startup_daemon() -- startup SGE daemon
+#
+#  SYNOPSIS
+#     startup_daemon { hostname service } 
+#
+#  FUNCTION
+#     Startup daemon on remote host
+#
+#  INPUTS
+#     host - host to start up execd
+#     service - daemon/service to start 
+#
+#  RESULT
+#     0 -> ok   -1 -> error
+#
+#  SEE ALSO
+#     smf_procedures/startup_smf_service()
+#*******************************************************************************
+proc startup_daemon { host service } {
+   global ts_config
+   
+   switch -exact $service {
+      "master" -
+      "qmaster" {
+	 if { [string compare $host $ts_config(master_host)] != 0 } {
+	    ts_severe "Can't startup $service on host $host. Qmaster host is only $ts_config(master_host)"
+	    return -1
+	 }
+	 startup_qmaster
+      }
+      "shadow" -
+      "shadowd" {
+	 if { [lsearch -exact $ts_config(shadowd_hosts) $host] == -1 } {
+	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 startup_shadowd $host
+      }
+      "execd" {
+	 if { [lsearch -exact $ts_config(execd_nodes) $host] == -1 } {
+	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 startup_execd $host
+      }
+      "bdb" {
+         if { [string compare $host $ts_config(bdb_server)] != 0 } {
+	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 startup_bdb_rpc $host
+      }
+      "dbwriter" { 
+         if { [string compare $host $arco_config(dbwriter_host)] != 0 } {
+	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 startup_dbwriter $host
+      }
+      #TODO: Add other Hedeby services HERE
+      default {
+	 ts_severe "Invalid argument $service passed to shutdown_daemon{}"
+	 return -1
+      }
+   }
+}
+
+
 # return values: 
 # 3 - master and scheduler are running
 # 2 - master is running, scheduler is not running
@@ -6165,6 +6273,52 @@ proc is_qmaster_alive { hostname qmaster_spool_dir } {
    return $alive
 }
 
+
+#****** sge_procedures/get_qmaster_pid() ***************************************
+#  NAME
+#     get_qmaster_pid() -- ??? 
+#
+#  SYNOPSIS
+#     get_qmaster_pid { hostname qmaster_spool_dir } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     hostname          - ??? 
+#     qmaster_spool_dir - ??? 
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc get_qmaster_pid { {hostname ""} {qmaster_spool_dir ""}} {
+   global CHECK_USER 
+   get_current_cluster_config_array ts_config
+   
+   if {[string length $hostname] == 0} {
+      set hostname $ts_config(master_host)
+   }
+   
+   if {[string length $qmaster_spool_dir] == 0} {
+      set qmaster_spool_dir [get_qmaster_spool_dir]
+   }
+   
+   set pid_file "$qmaster_spool_dir/qmaster.pid"
+   return [get_pid_from_file $hostname $pid_file]
+}
+
 #****** sge_procedures/get_scheduler_pid() *************************************
 #  NAME
 #     get_scheduler_pid() -- ??? 
@@ -6195,16 +6349,149 @@ proc is_qmaster_alive { hostname qmaster_spool_dir } {
 #     ???/???
 #*******************************************************************************
 proc get_scheduler_pid { hostname qmaster_spool_dir } {
+   return [get_pid_from_file $hostname "$qmaster_spool_dir/schedd/schedd.pid"]
+}
+
+#****** sge_procedures/get_shadowd_pid() ***************************************
+#  NAME
+#     get_shadowd_pid() -- ??? 
+#
+#  SYNOPSIS
+#     get_shadowd_pid { hostname qmaster_spool_dir } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     hostname          - ??? 
+#     qmaster_spool_dir - ??? 
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc get_shadowd_pid { hostname {qmaster_spool_dir ""}} {
    global CHECK_USER 
    get_current_cluster_config_array ts_config
 
-   set scheduler_pid -1
-   set scheduler_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid"]
-   set scheduler_pid [ string trim $scheduler_pid ]
-   if { $prg_exit_state != 0 } {
-      set scheduler_pid -1
+   if {[string length $qmaster_spool_dir] == 0} {
+      set qmaster_spool_dir [get_qmaster_spool_dir]
    }
-   return $scheduler_pid
+   set arch [resolve_arch $hostname]
+   set HOST [string trim [start_remote_prog $hostname $CHECK_USER "$ts_config(product_root)/utilbin/$arch/gethostname" "-aname"]]
+   set UQHOST [lindex [split $HOST "."] 0]
+   set pid_file "$qmaster_spool_dir/shadowd_$UQHOST.pid"
+   start_remote_prog $hostname $CHECK_USER "test" "-f $pid_file"
+   if {$prg_exit_state != 0} {
+      set pid_file "$qmaster_spool_dir/shadowd_$HOST.pid"
+      start_remote_prog $hostname $CHECK_USER "test" "-f $pid_file"
+      if {$prg_exit_state != 0} {
+	 ts_log_fine "No pid file. Shadowd is not running on host $hostname"
+         return -1
+      }
+   }
+   
+   return [get_pid_from_file $hostname $pid_file]
+}
+
+#****** sge_procedures/get_execd_pid() *****************************************
+#  NAME
+#     get_execd_pid() -- ??? 
+#
+#  SYNOPSIS
+#     get_execd_pid { hostname execd_spool_dir } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     hostname          - ??? 
+#     execd_spool_dir - ??? 
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc get_execd_pid { hostname {execd_spool_dir ""}} {
+   global CHECK_USER 
+   get_current_cluster_config_array ts_config
+
+   if {[string length $execd_spool_dir] == 0} {
+      set execd_spool_dir [get_execd_spool_dir $hostname]
+   }
+   
+   set pid_file "$execd_spool_dir/$hostname/execd.pid"
+   return [get_pid_from_file $hostname $pid_file]
+}
+
+#****** sge_procedures/get_pid_from_file() *************************************
+#  NAME
+#     get_pid_from_file() -- ??? 
+#
+#  SYNOPSIS
+#     get_pid_from_file {host pid_file}
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     host        - ??? 
+#     pid_file    - ??? 
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc get_pid_from_file {host pid_file} {
+   global CHECK_USER
+   
+   start_remote_prog "$host" $CHECK_USER "test" "-f $pid_file"
+   if {$prg_exit_state != 0} {
+      ts_log_fine "No pid file. Process is not running on host $host"
+      return -1
+   }
+   
+   set dpid -1
+   set dpid [start_remote_prog "$host" "$CHECK_USER" "cat" "$pid_file"]
+   set dpid [ string trim $dpid ]
+   if { $prg_exit_state != 0 } {
+      ts_log_fine "Could not read pid file $pid_file on host $host"
+      set dpid -1
+   }
+   return $dpid
 }
 
 #****** sge_procedures/shutdown_qmaster() **************************************
@@ -6245,13 +6532,7 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
    ts_log_finer "killing qmaster on host $hostname ..."
    ts_log_finest "retrieving data from spool dir $qmaster_spool_dir"
 
-   set qmaster_pid -1
-
-   set qmaster_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/qmaster.pid"]
-   set qmaster_pid [ string trim $qmaster_pid ]
-   if { $prg_exit_state != 0 } {
-      set qmaster_pid -1
-   }
+   set qmaster_pid [get_qmaster_pid $hostname $qmaster_spool_dir]
  
    get_ps_info $qmaster_pid $hostname
    if { ($ps_info($qmaster_pid,error) == 0) } {
@@ -6264,13 +6545,85 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
          shutdown_system_daemon $hostname qmaster
       } else {
          ts_log_severe "qmaster pid $qmaster_pid not found"
+	 return -1
       }
    } else {
       ts_log_severe "ps_info failed (2), pid=$qmaster_pid"
+      return -1
    }
 
    ts_log_finest "done."
+   return 0
 }  
+
+#*********** sge_procedures/shutdown_shadowd() **********
+# 
+#  NAME
+#     shutdown_adowd -- ??? 
+#
+#  SYNOPSIS
+#     shutdown_shadowd { hostname } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     hostname - ??? 
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     sge_procedures/shutdown_core_system()
+#     sge_procedures/shutdown_master_and_scheduler()
+#     sge_procedures/shutdown_all_shadowd()
+#     sge_procedures/shutdown_system_daemon()
+#     sge_procedures/startup_qmaster()
+#     sge_procedures/startup_execd()
+#     sge_procedures/startup_shadowd()
+#*******************************
+proc shutdown_shadowd { hostname } {
+   global CHECK_ADMIN_USER_SYSTEM
+   global CHECK_USER 
+   get_current_cluster_config_array ts_config
+
+   set shadowd_pid [get_shadowd_pid $hostname]
+
+   ts_log_fine "shutdown shadowd pid=$shadowd_pid on host \"$hostname\""
+
+   if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
+      start_remote_prog "$hostname" "root" "kill" "$shadowd_pid"
+   } else {
+      start_remote_prog "$hostname" "$CHECK_USER" "kill" "$shadowd_pid"
+   }
+
+   if { [ is_pid_with_name_existing $hostname $shadowd_pid "sge_shadowd" ] == 0 } {
+         ts_log_info "could not shutdown shadowd at host $hostname with term signal"
+         ts_log_finest "Killing process $shadowd_pid with kill signal ..."
+         if { [ have_root_passwd ] == -1 } {
+            set_root_passwd 
+         }
+         if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
+             start_remote_prog "$hostname" "root" "kill" "-9 $shadowd_pid"
+         } else {
+             start_remote_prog "$hostname" "$CHECK_USER" "kill" "-9 $shadowd_pid"
+         }
+   }
+   if { [is_pid_with_name_existing $hostname $shadowd_pid "sge_shadowd" ] != 0 } {
+      return 0
+   }
+   ts_log_severe "could not shutdown shadowd at host $hostname with kill signal"
+   return -1
+}
 
 #                                                             max. column:     |
 #****** sge_procedures/shutdown_all_shadowd() ******
@@ -6458,6 +6811,7 @@ proc shutdown_bdb_rpc { hostname } {
       ts_log_finest $ps_info(string,$elem)
       if { [ is_pid_with_name_existing $hostname $ps_info(pid,$elem) "berkeley_db_svc" ] == 0 } {
          ts_log_severe "could not shutdown berkeley_db_svc at host $elem with kill signal"
+	 return -1
       }
    }
 
@@ -6585,8 +6939,6 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
       return -1
    }
 
-   check_if_smf_is_active $host
-
    set found_p [ ps_grep "$ts_config(product_root)/" $host ]
    set nr_of_found_qmaster_processes_or_threads 0
 
@@ -6657,40 +7009,91 @@ proc shutdown_system_daemon { host typelist { do_term_signal_kill_first 1 } } {
 }
 
 
-#****** sge_procedures/check_if_smf_is_active() ********************************
+#********************* sge_procedures/shutdown__daemon() ***********************
 #  NAME
-#     check_if_smf_is_active() -- check if host supports SMF and has entries
+#     shutdown_daemon -- kill running sge daemon 
 #
 #  SYNOPSIS
-#     check_if_smf_is_active { host } 
+#     shutdown_daemon { host service } 
 #
 #  FUNCTION
-#     If the specified host supports SMF it is checked that there is no
-#     configured service for the current testsuite system. If there
-#     is a service an error is thrown.
+#     This procedure will kill the sge process on the given host. 
+#     It does not matter weather the system is sgeee or sge (sge or sgeee). 
 #
 #  INPUTS
-#     host - host where to check SMF availability
+#     host     - remote host 
+#     service  - daemon name (qmaster, shadowd, execd, bdb, dbwriter)
+#
+#  RESULT
+#     none 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     sge_procedures/shutdown_core_system()
+#     sge_procedures/shutdown_master_and_scheduler()
+#     sge_procedures/shutdown_all_shadowd()
+#     sge_procedures/shutdown_system_daemon()
+#     sge_procedures/startup_qmaster()
+#     sge_procedures/startup_execd()
+#     sge_procedures/startup_shadowd()
+#     smf_procedure/start_smf_service()
 #*******************************************************************************
-proc check_if_smf_is_active { host } {
-   global ts_config CHECK_USER
-   # ts_config(cluster_name) is svcs name
-   set output [start_remote_prog $host $CHECK_USER "svcs" "\"*sge*:$ts_config(cluster_name)\""]
-   if { $prg_exit_state == 0 } {
-      ts_log_fine "svcs is available on host $host:"
-      ts_log_fine "looking for system \"$ts_config(cluster_name)\" ..."
-      foreach help [split $output "\n"] {
-         set line [string trim $help]
-         if { [string match "*sge*" $line] } {
-            # get all from last ":" till end
-            set mark [string last ":" $line]
-            incr mark 1
-            set svcs_system_name [string range $line $mark end]
-            ts_log_fine "found sge svcs system name: \"$svcs_system_name\""
-            if { [string compare $ts_config(cluster_name) $svcs_system_name] == 0 } {
-               ts_log_severe "found SMF service entry for system $ts_config(cluster_name)\nremove SMF service for testsuite!"
-            }
-         }
+proc shutdown_daemon { host service } {
+   global ts_config
+   
+   switch -exact $service {
+      "master" -
+      "qmaster" {
+	 if { [string compare $host $ts_config(master_host)] != 0 } {
+	    ts_severe "Can't stop $service on host $host. Qmaster host is only $ts_config(master_host)"
+	    return -1
+	 }
+	 return [shutdown_qmaster $host [get_qmaster_spool_dir]]
+      }
+      "shadow" -
+      "shadowd" {
+	 if { [lsearch -exact $ts_config(shadowd_hosts) $host] == -1 } {
+	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 return [shutdown_shadowd $host]
+      }
+      "execd" {
+	 if { [lsearch -exact $ts_config(execd_nodes) $host] == -1 } {
+	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 return [soft_execd_shutdown $host]
+      }
+      "bdb" {
+         if { [string compare $host $ts_config(bdb_server)] != 0 } {
+	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 if { [shutdown_bdb_rpc $host] == -1 } {
+	    return -1
+	 } else {
+	    return 0
+	 }
+      }
+      "dbwriter" { 
+         if { [string compare $host $arco_config(dbwriter_host)] != 0 } {
+	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    return -1
+	 }
+	 return [shutdown_dbwriter $host]
+      }
+      default {
+	 ts_severe "Invalid argument $service passed to shutdown_daemon{}"
+	 return -1
       }
    }
 }
@@ -6857,18 +7260,6 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       foreach rpc_host $ts_config(bdb_server) {
          shutdown_bdb_rpc $rpc_host
       }
-   }
-
-
-   # check that SMF is not active
-   set check_smf_hosts $ts_config(master_host)
-   foreach elem $ts_config(execd_nodes) {
-      if { [ string first $elem $check_smf_hosts ] < 0 } {
-         lappend check_smf_hosts $elem
-      }
-   }
-   foreach smf_host $check_smf_hosts { 
-      check_if_smf_is_active $smf_host
    }
 
    # check for core files
