@@ -214,7 +214,7 @@ proc get_xterm_path { host } {
       return $xterm_path_cache($host)
    }
 
-   set xterm_path [start_remote_prog $host $CHECK_USER "which" "xterm" ]
+   set xterm_path [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "xterm" ]
    if { [is_remote_file $host $CHECK_USER $xterm_path 1] } {
       set xterm_path_cache($host) $xterm_path
       return $xterm_path

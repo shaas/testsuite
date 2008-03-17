@@ -1,3 +1,7 @@
+AA-2008-03-17-0: Bugfix:    added mywhich.sh script
+                            /usr/bin/which on solaris can lead to unexpected results
+                 Review:    CR
+
 LP-2008-03-17-0: Enhancem.: SMF tests for SGE
                  Enhancem.: Removed checking for SMF, testsuite already removes
                             conflicting services automatically by default

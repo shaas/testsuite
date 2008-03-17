@@ -1697,7 +1697,7 @@ proc config_source_cvs_hostname { only_check name config_array } {
          puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
          return -1
       }
-      set result [start_remote_prog $host $CHECK_USER "which" "cvs" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $host $CHECK_USER "$config(testsuite_root_dir)/scripts/mywhich.sh" "cvs" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
          puts $CHECK_OUTPUT $result
          puts $CHECK_OUTPUT "cvs not found on host $host. Please enhance your PATH envirnoment"
@@ -3586,7 +3586,7 @@ proc config_mailx_host { only_check name config_array } {
             puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
             return -1
          }
-         set result [start_remote_prog $host $CHECK_USER "which" $config(mail_application) prg_exit_state 60 0 "" "" 1 0]
+         set result [start_remote_prog $host $CHECK_USER "$config(testsuite_root_dir)/scripts/mywhich.sh" $config(mail_application) prg_exit_state 60 0 "" "" 1 0]
          if { $prg_exit_state != 0 } {
             puts $CHECK_OUTPUT $result
             puts $CHECK_OUTPUT "$config(mail_application) not found on host $host. Please enhance your PATH envirnoment"

@@ -539,23 +539,23 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
    lappend config(hostlist) $new_host
 
    
-   set expect_bin [start_remote_prog $new_host $CHECK_USER "which" "expect" prg_exit_state 12 0 "" "" 1 0]
+   set expect_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "expect" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set expect_bin "" 
    } 
-   set vim_bin [start_remote_prog $new_host $CHECK_USER "which" "vim" prg_exit_state 12 0 "" "" 1 0]
+   set vim_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "vim" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set vim_bin  "" 
    }
-   set tar_bin [start_remote_prog $new_host $CHECK_USER "which" "tar" prg_exit_state 12 0 "" "" 1 0]
+   set tar_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "tar" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set tar_bin "" 
    }
-   set gzip_bin [start_remote_prog $new_host $CHECK_USER "which" "gzip" prg_exit_state 12 0 "" "" 1 0]
+   set gzip_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "gzip" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set gzip_bin "" 
    }
-   set ssh_bin [start_remote_prog $new_host $CHECK_USER "which" "ssh" prg_exit_state 12 0 "" "" 1 0]
+   set ssh_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "ssh" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       set ssh_bin "" 
    }
@@ -1424,7 +1424,7 @@ wait_for_enter
          # convert the java home string to a version dependent one
          puts -nonewline " ... "
          set myenv(EN_QUIET) "1"
-         set java15_bin [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; which java\"" prg_exit_state 12 0 "" myenv 1 0]
+         set java15_bin [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk15 ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
          if { $prg_exit_state != 0 } {
             set java15_bin "" 
          }
@@ -1617,7 +1617,7 @@ proc check_ant_version { host ant_bin } {
 #*******************************************************************************
 proc autodetect_ant { host } {
    global CHECK_USER CHECK_OUTPUT ts_host_config
-   set ant_bin [start_remote_prog $host $CHECK_USER "which" "ant" prg_exit_state 12 0 "" myenv 1 0]
+   set ant_bin [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "ant" prg_exit_state 12 0 "" myenv 1 0]
    set ant_bin [string trim $ant_bin]
    if { $prg_exit_state != 0 } {
       puts $CHECK_OUTPUT "Unable to autodetect ant for host $host. Set it manually in host configuration! Ant should have junit.jar copied to it's lib directory"
@@ -1686,7 +1686,7 @@ proc check_java_version { host java_bin version } {
 proc autodetect_java { host {version "1.4"} } {
    global CHECK_OUTPUT CHECK_USER ts_host_config
    set ver [get_testsuite_java_version $version]
-   set output [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk$ver ; which java\"" prg_exit_state 12 0 "" myenv 1 0]
+   set output [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk$ver ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
    if  { [string match "* NOT SUPPORTED *" $output] == 1 } {
       puts $CHECK_OUTPUT "Error: [lindex [split $output "\n"] 0]"
       set bin ""
