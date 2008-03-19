@@ -1,3 +1,26 @@
+CR-2008-03-18-0: Task:      basic resource assignement test  
+                 Issue:     #365 (new test: /resources/move/ambiguous/check.62.exp)
+                 Cleanup:   o Renamed "wait_resources_to_become_state()"
+                              into    "wait_for_resource_state()"
+                 Enhancem.: o reset_hedeby():
+                              remove unknown resources
+                            o wait_for_resource_info():
+                              support "missing resource" state
+                            o wait_for_resource_state():
+                              also return "unknown" resource list
+                            o get_service_info():
+                              new parameter: raise_error
+                            o new procedure: wait_for_service_info()
+                            o new procedure: get_free_service()
+                            o new procedure: reset_produced_ambiguous_resource()
+                            o new procedure: produce_ambiguous_resource()
+                 Bugfix:    o reset_hedeby(): 
+                              Did not correctly add missing resources.
+                            o parse_table_output():
+                              Wrapped table output text was not correctly appended
+                              to column/row content
+                 Review:    RM
+
 AA-2008-03-17-0: Bugfix:    added mywhich.sh script
                             /usr/bin/which on solaris can lead to unexpected results
                  Review:    CR

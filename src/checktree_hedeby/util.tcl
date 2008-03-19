@@ -299,7 +299,7 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 #     add_host_resources() -- add a host resource to hedeby
 #
 #  SYNOPSIS
-#     add_host_resource { host_resources { service "" } { on_host "" } { as_user ""} 
+#     add_host_resources { host_resources { service "" } { on_host "" } { as_user ""} 
 #     {raise_error 1} } 
 #
 #  FUNCTION
@@ -2115,7 +2115,7 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     util/shutdown_hedeby()
 #     util/reset_hedeby()
 #*******************************************************************************
-proc reset_hedeby { { force 0 } } {
+proc reset_hedeby {{force 0}} {
    global check_use_installed_system
    global hedeby_config
    if {!$check_use_installed_system && $force == 0} {
@@ -2132,7 +2132,7 @@ proc reset_hedeby { { force 0 } } {
    set error_text ""
 
    # first find out resource states
-   set ret_val [wait_resources_to_become_state "ASSIGNED ERROR" 0 15 res_state_info]
+   set ret_val [wait_for_resource_state "ASSIGNED ERROR" 0 15 res_state_info]
 
    # if we have missing resources we want to restart hedeby first
    # and hope that only a component is not up
@@ -2151,26 +2151,22 @@ proc reset_hedeby { { force 0 } } {
          return 1
       }
 
-      set ret_val [wait_resources_to_become_state "ASSIGNED ERROR" 0 15 res_state_info]
+      set ret_val [wait_for_resource_state "ASSIGNED ERROR" 0 15 res_state_info]
       # if the missing resources are hedeby resources we can add them
       if { [llength $res_state_info(missing)] > 0 } {
-         set added_missing_resources 0
+         set resources_to_add {}
          foreach res $res_state_info(missing) {
             if {[lsearch -exact $hedeby_config(hedeby_host_resources) $res] >= 0} {
                ts_log_fine "adding missing hedeby resource \"$res\" ..."
-	       set resources {}
-	       lappend resources $res
-               if {[add_host_resources $resources "spare_pool"] == 0} { 
-                  incr added_missing_resources 1
-               }
+	            lappend resources_to_add $res
             }
          }
-         if {$added_missing_resources != 0} {
-            set ret_val [wait_resources_to_become_state "ASSIGNED ERROR" 0 15 res_state_info]
+         if {[llength $resources_to_add] > 0} {
+            add_host_resources $resources_to_add "spare_pool"
          }
       }
 
-      set ret_val [wait_resources_to_become_state "ASSIGNED ERROR" 0 30 res_state_info]
+      set ret_val [wait_for_resource_state "ASSIGNED ERROR" 0 30 res_state_info]
 
       # if we still have missing resources we can stop here
       if { [llength $res_state_info(missing)] > 0 } {
@@ -2233,12 +2229,21 @@ proc reset_hedeby { { force 0 } } {
       } 
    }
 
+   # remove still unknown resources
+   foreach res $res_state_info(unknown) {
+      append error_text "removing unexpected resource \"$res\" ...\n"
+      ts_log_fine "remove resource \"$res\""
+      set sdmadm_command_line "-p $pref_type -s $sys_name rr -r $res"
+      set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
+      append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+   }
+
    if {$error_text != ""} {
       ts_log_info $error_text
    }
 
    # wait for resources to get "assigned" state
-   set ret_val [wait_resources_to_become_state "ASSIGNED"]
+   set ret_val [wait_for_resource_state "ASSIGNED"]
    if { $ret_val != 0} {
       return 1
    }
@@ -2397,7 +2402,7 @@ proc hedeby_check_default_services {} {
 #  INPUTS
 #
 #  SEE ALSO
-#     ???/???
+#     util/reset_hedeby()
 #*******************************************************************************
 proc move_resources_to_default_services {} {
    global hedeby_config
@@ -2430,7 +2435,7 @@ proc move_resources_to_default_services {} {
       ts_log_info $aerror      
    }
 
-   wait_resources_to_become_state "ASSIGNED ERROR"
+   wait_for_resource_state "ASSIGNED ERROR"
 
    set ret [get_resource_info "" "" resource_info resource_properties resource_list resource_ambiguous]
    if { $ret != 0 } {
@@ -2650,7 +2655,7 @@ proc hedeby_check_default_resources {} {
 #        set output [sdmadm_command $execute_host $execute_user \
 #                    "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all" \
 #                     prg_exit_state ""  1 table]
-#        for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+#        for {set line 0} {$line <= $table(table_lines)} {incr line 1} {
 #           puts "-------"
 #           foreach col $table(table_columns) {
 #              puts "line $line => $col: \"$table($col,$line)\""
@@ -2755,10 +2760,10 @@ proc parse_table_output { output array_name delemitter } {
                for {set b 0} {$b<=$column_nr} {incr b 1} {
                   set value [string trim [string range $line $column_start($b) $column_end($b)]]
                   if { $value != ""} {
-                     lappend data($column_names($b),$act_table_line) $value
-#                     set old_value $data($column_names($b),$act_table_line)
-#                     set new_value "$old_value $value"
-#                     set data($column_names($b),$act_table_line) $new_value
+                     set old_value [lindex $data($column_names($b),$act_table_line) 0]
+                     set new_value "$old_value $value"
+                     set data($column_names($b),$act_table_line) {}
+                     lappend data($column_names($b),$act_table_line) $new_value
                   }
                }
             }
@@ -3021,12 +3026,16 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 #                              one expected resource info. The resource
 #                              will match when one of the specified entries
 #                              matches.
+#                              If there are resource infos expected which
+#                              are not reported the resource info is set
+#                              to the value "missing"
 #     {atimeout 60}          - optional timeout specification in seconds 
-#     {raise_error 1}       - report testsuite errors if != 0
+#     {raise_error 1}        - report testsuite errors if != 0
 #     {ev error_var }        - report error text into this tcl var
 #     {host ""}              - see get_resource_info() 
 #     {user ""}              - see get_resource_info() 
-#     {ri res_info}          - see get_resource_info() 
+#     {ri res_info}          - see get_resource_info() (except the added
+#                              resource info for "missing" values)
 #     {rp res_prop}          - see get_resource_info() 
 #     {rl res_list}          - see get_resource_info() 
 #     {da res_list_not_uniq} - see get_resource_info() 
@@ -3060,6 +3069,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 #  SEE ALSO
 #     util/get_resource_info()
 #     util/wait_for_resource_info()
+#     util/wait_for_service_info()
 #*******************************************************************************
 proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} } {
    global hedeby_config
@@ -3104,7 +3114,9 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
 
       set not_matching ""
       foreach val $exp_values {
-         if {[info exists resource_info($val)]} {
+         if {![info exists resource_info($val)]} {
+            set resource_info($val) "missing"
+         }
             set all_matching 0
             if {[llength $resource_info($val)] == [llength $exp_res_info($val)]} {
                ts_log_finer "compare \"$resource_info($val)\" with \"$exp_res_info($val)\""
@@ -3134,13 +3146,10 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
                   }
                }
             }
-            if {$all_matching} {
-               ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
-            } else {
-               append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
-            }
+         if {$all_matching} {
+            ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
          } else {
-            append not_matching "resource info \"$val\" not available\n"
+            append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
          }
       }
 
@@ -3169,12 +3178,416 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    return 0
 }
 
-#****** util/wait_resources_to_become_state() **********************************
+#****** util/wait_for_service_info() *******************************************
 #  NAME
-#     wait_resources_to_become_state() -- await resource state(s)
+#     wait_for_service_info() -- wait for expected service state information
 #
 #  SYNOPSIS
-#     wait_resources_to_become_state { state {raise_error 1} {atimeout 60} 
+#     wait_for_service_info { exp_serv_info {atimeout 60} {raise_error 1} 
+#     {ev error_var } {host ""} {user ""} {si service_info} } 
+#
+#  FUNCTION
+#     This procedure calls get_service_info() until the specified service
+#     information or a timeout occurs.
+#
+#  INPUTS
+#     exp_serv_info     - expected service info (same structure like
+#                         get_service_info() is returning).
+#     {atimeout 60}     - optional timeout specification in seconds
+#     {raise_error 1}   - report testsuite errors if != 0
+#     {ev error_var }   - report error text into this tcl var 
+#     {host ""}         - see get_service_info()
+#     {user ""}         - see get_service_info() 
+#     {si service_info} - see get_service_info() 
+#
+#  RESULT
+#     0 on success, 1 on error
+#     setting of tcl arrays like known from get_service_info()
+#
+#  EXAMPLE
+#     set exp_service_info("spare_pool",cstate) "STARTED"
+#     set exp_service_info($aservice,sstate) "STOPPED"
+#     wait_for_service_info exp_service_info
+#
+#
+#  SEE ALSO
+#     util/get_service_info()
+#     util/wait_for_resource_info()
+#*******************************************************************************
+proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {si service_info} } {
+   global hedeby_config
+   # setup arguments
+   upvar $exp_serv_info exp_srv_info
+   upvar $ev error_text
+   upvar $si service_info
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # init error and timeout
+   set error_text ""
+   set my_timeout [timestamp]
+   incr my_timeout $atimeout
+
+   # set expected results info
+   set expected_service_info ""
+   set exp_values [array names exp_srv_info]
+   foreach val $exp_values {
+      append expected_service_info "$val=\"$exp_srv_info($val)\"\n"
+   }
+   ts_log_fine "expected service infos:\n$expected_service_info"
+
+   while {1} {
+      set retval [get_service_info $host $user service_info $raise_error]
+      if {$retval != 0} {
+         append error_text "break because of get_service_info() returned \"$retval\"!\n"
+         append error_text "expected service info was:\n$expected_service_info"
+         break
+      }
+
+      set not_matching ""
+      foreach val $exp_values {
+         if {[info exists service_info($val)]} {
+            if { $service_info($val) == $exp_srv_info($val)} {
+               ts_log_fine "service info \"$val\" matches expected info \"$exp_srv_info($val)\""
+            } else {
+               append not_matching "service info \"$val\" is set to \"$service_info($val)\", should be \"$exp_srv_info($val)\"\n"
+            }
+         } else {
+            append not_matching "service info \"$val\" not available\n"
+         }
+      }
+
+      if {$not_matching == ""} {
+         ts_log_fine "all specified service info is matching"
+         break
+      } else {
+         ts_log_fine "still waiting for specified service settings ..."
+         ts_log_fine "still not matching service info:\n$not_matching"
+      }
+
+      if {[timestamp] >= $my_timeout} {
+         append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected service states!\n"
+         append error_text "==> NOT matching values:\n$not_matching"
+         break
+      }
+      after 1000
+   }
+
+   if {$error_text != "" } {
+      if {$raise_error != 0} {
+         ts_log_severe $error_text
+      }
+      return 1
+   }
+   return 0
+}
+
+#****** util/get_free_service() ************************************************
+#  NAME
+#     get_free_service() -- get a service name which is free to use
+#
+#  SYNOPSIS
+#     get_free_service { exclude_service_list {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure returns the next free service name with is not in the
+#     specified exclude service name list
+#
+#  INPUTS
+#     exclude_service_list - list of service names which should be returned
+#     {raise_error 1}      - if set to 1 raise error if no service is found
+#
+#  RESULT
+#     name of a free (not excluded) service
+#
+#  SEE ALSO
+#     util/get_hedeby_default_services()
+#*******************************************************************************
+proc get_free_service { exclude_service_list {raise_error 1} } {
+   set free_service_name ""
+   set ge_hosts [get_hedeby_default_services service_names]
+   foreach pos_service $service_names(services) {
+      if {[lsearch -exact $exclude_service_list $pos_service] >= 0} {
+         continue
+      }
+      set free_service_name $pos_service
+      break
+   }
+   if { $free_service_name == "" } {
+      ts_log_error "no matching service found!\nAvailable services: \"$service_names(services)\",\nexcluded services:  \"$exclude_service_list\"" $raise_error
+   }
+   return $free_service_name
+}
+
+
+
+#****** util/reset_produced_ambiguous_resource() *******************************
+#  NAME
+#     reset_produced_ambiguous_resource() -- reset previous produced ambiguos resource
+#
+#  SYNOPSIS
+#     reset_produced_ambiguous_resource { } 
+#
+#  FUNCTION
+#     This procedure is used to reset the resource which was set into ambiguous
+#     state with produce_ambiguous_resource(). On errors the procedure is
+#     calling hedeby_reset().
+#
+#  INPUTS
+#     none
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/produce_ambiguous_resource()
+#*******************************************************************************
+global last_produce_ambiguos_resource_state
+set last_produce_ambiguos_resource_state "undefined"
+proc reset_produced_ambiguous_resource { } {
+   global last_produce_ambiguos_resource_state
+   global hedeby_config
+
+   if {$last_produce_ambiguos_resource_state == "undefined"} {
+      ts_log_severe "There was no previous call of produce_ambiguous_resource()!"
+      return 1
+   }
+   if {$last_produce_ambiguos_resource_state == "error"} {
+      ts_log_info "Last call to produce_ambiguous_resource() produced error - reset hedeby now ..."
+      return [reset_hedeby 1]
+   }
+  
+   if { [llength $last_produce_ambiguos_resource_state] != 2 } {
+      ts_log_info "There should be 2 entries in global variable last_produce_ambiguos_resource_state - reset hedeby now ..."
+      return [reset_hedeby 1]
+   }
+
+   # last call was ok, reset resource ...
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+   set resource [lindex $last_produce_ambiguos_resource_state 0]
+   set service  [lindex $last_produce_ambiguos_resource_state 1]
+   set error_text ""
+   ts_log_fine "Removing resource \"$resource\" from service \"spare_pool\" ..."
+   set sdmadm_command_line "-p $pref_type -s $sys_name rr -r $resource -s spare_pool" 
+   set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
+   if { $prg_exit_state != 0} {
+      append error_text "Error removing resource \"$resource\" from service \"spare_pool\":\n"
+      append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+   }
+   
+   # wait for ambiguos flag to disappear ...
+   set exp_res_info($resource,flags) "{}"
+   set exp_res_info($resource,state) "ASSIGNED"
+   set exp_res_info($resource,service) "$service"
+   wait_for_resource_info exp_res_info 60 0 error_text
+
+   ts_log_fine "Moving resource \"$resource\" from service \"$service\" back to service \"spare_pool\" ..."
+   set sdmadm_command_line "-p $pref_type -s $sys_name mvr -r $resource -s spare_pool" 
+   set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
+   if { $prg_exit_state != 0} {
+      append error_text "Error moving resource \"$resource\" from service \"$service\" back to service \"spare_pool\":\n"
+      append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+   }
+
+   # wait for resource to appear at spare_pool ...
+   unset exp_res_info
+   set exp_res_info($resource,state) "ASSIGNED"
+   set exp_res_info($resource,service) "spare_pool"
+   wait_for_resource_info exp_res_info 60 0 error_text
+
+   if { $error_text != "" } {
+      append error_text "\nreset hedeby now ..."
+      ts_log_info $error_text
+      return [reset_hedeby 1]
+   }
+
+   ts_log_fine "reset resource \"$resource\" from ambiguos state was successfull!"
+   set last_produce_ambiguos_resource_state "undefined"
+
+   return 0
+}
+
+#****** util/produce_ambiguous_resource() **************************************
+#  NAME
+#     produce_ambiguous_resource() -- ??? 
+#
+#  SYNOPSIS
+#     produce_ambiguous_resource { ares asrv } 
+#
+#  FUNCTION
+#     This procedure takes the first resource of the TS hedeby resource list and 
+#     moves it to the first service in the TS default service list. This means
+#     that a resource from the spare pool is assigned to a service. After that
+#     the service is shutdown and the resource is added again to spare pool.
+#
+#     This is possible, because shutdown service will not report any resources
+#     and resource provider does not see the former assigned resource anymore.
+#
+#     After that the shutdown service is started up again and will report its
+#     resources again. Since the resource is now also available at the spare
+#     pool the resource is marked "ambiguous" and gets the state "A".
+#
+#     The procedure reset_produced_ambiguous_resource() is used to reset the
+#     resource again and should be used in the cleanup() procedures of tests
+#     which needs an ambiguous resource. The reset procedure will also work
+#     when produce_ambiguous_resource() failed (By doing forced hedeby_reset()). 
+#
+#  INPUTS
+#     ares - variable name to store the used resource name
+#     asrv - variable name to store the used service name
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/reset_produced_ambiguous_resource()
+#*******************************************************************************
+proc produce_ambiguous_resource { ares asrv } {
+   global hedeby_config
+   global last_produce_ambiguos_resource_state
+   upvar $ares aresource
+   upvar $asrv aservice
+   set aresource ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   if {$last_produce_ambiguos_resource_state != "undefined"} {
+      ts_log_severe "There was already a call of produce_ambiguous_resource() - calling reset_produced_ambiguous_resource() first ..."
+      reset_produced_ambiguous_resource
+   }
+
+   # use first resource from hedeby_resource_list
+   set aresource [lindex $hedeby_config(hedeby_host_resources) 0]
+
+   # we need a service to assign the resource ...
+   set aservice [lindex $service_names(services) 0]
+
+   ts_log_fine "try to make resource \"$aresource\" ambiguous ..."
+
+   set command "-p $pref_type -s $sys_name mvr -r $aresource -s $aservice"
+   sdmadm_command $exec_host $admin_user $command
+   if { $prg_exit_state != 0 } {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # wait for resource movement
+   set exp_res_info($aresource,service) $aservice
+   set exp_res_info($aresource,state) "ASSIGNED"
+   set retval [wait_for_resource_info exp_res_info 60]
+   if {$retval != 0} {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # shutdown service
+   set command "-p $pref_type -s $sys_name sds -s $aservice"
+   sdmadm_command $exec_host $admin_user $command
+   if { $prg_exit_state != 0 } {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # wait for shutdown of service (resource must be missing)
+   set exp_service_info($aservice,cstate) "STARTED"
+   set exp_service_info($aservice,sstate) "STOPPED"
+   if { [wait_for_service_info exp_service_info] != 0 } {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # wait that resource dissapears at resource provider
+   unset exp_res_info
+   set exp_res_info($aresource,state) "missing"
+   if { [wait_for_resource_info exp_res_info] != 0 } {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # add resource again to spare pool
+   if {[add_host_resources $aresource "spare_pool"] != 0} {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # startup service
+   set command "-p $pref_type -s $sys_name sus -s $aservice"
+   sdmadm_command $exec_host $admin_user $command
+   if { $prg_exit_state != 0 } {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # wait for service up and running 
+   set exp_service_info($aservice,cstate) "STARTED"
+   set exp_service_info($aservice,sstate) "RUNNING"
+   if { [wait_for_service_info exp_service_info] != 0 } {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   # wait for resource reported by service, now the resource is 
+   # at spare_pool AND service
+   set ret_val [wait_for_resource_state "ASSIGNED" 0 30 res_state_info]
+   if {[lsearch -exact $res_state_info(ambiguous) $aresource] < 0} {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+   set services $res_info($aresource,service)
+   if {[llength $services] != 2} {
+      ts_log_error "Resource \"$aresource\" is not assigned to 2 services"
+   }
+   if {[lsearch -exact $services $aservice] < 0} {
+      ts_log_error "Resource \"$aresource\" is not assigned to service \"$aservice\""
+   }
+   if {[lsearch -exact $services "spare_pool"] < 0} {
+      ts_log_error "Resource \"$aresource\" is not assigned to service \"spare_pool\""
+   }
+
+   # check ambiguous flags of resource !!!
+   unset exp_res_info
+   set exp_res_info($aresource,flags) "A"
+   if { [wait_for_resource_info exp_res_info] != 0 } {
+      set aresource ""
+      set last_produce_ambiguos_resource_state "error"
+      return 1
+   }
+
+   ts_log_fine "resource \"$aresource\" is ambiguous now for service \"$aservice\" and \"spare_pool\""
+   set last_produce_ambiguos_resource_state "$aresource $aservice"
+   return 0
+}
+
+
+#****** util/wait_for_resource_state() **********************************
+#  NAME
+#     wait_for_resource_state() -- await resource state(s)
+#
+#  SYNOPSIS
+#     wait_for_resource_state { state {raise_error 1} {atimeout 60} 
 #     {ares res_state_info} {ri res_info} } 
 #
 #  FUNCTION
@@ -3198,13 +3611,14 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
 #        res_state_info(missing)    => list of missing resource names
 #        res_state_info(unexpected) => list of unexpected resource names
 #        res_state_info(ambiguous)  => list of double assigned resource names
+#        res_state_info(unkown)     0> list of not configured resources
 #        res_state_info(ASTATE)     => list of resource names in the state ASTATE
 #
 #        (ASTATE is a place holder for each state specified with the
 #        state parameter)
 #
 #  EXAMPLE
-#     wait_resources_to_become_state "ASSIGNED ERROR"
+#     wait_for_resource_state "ASSIGNED ERROR"
 #     set index [array names res_state_info]
 #     foreach ind $index {
 #        ts_log_fine "res_state_info($ind) = $res_state_info($ind)"
@@ -3213,7 +3627,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
 #  SEE ALSO
 #     util/wait_for_resource_info()
 #*******************************************************************************
-proc wait_resources_to_become_state { state {raise_error 1} {atimeout 60} {ares res_state_info} {ri res_info}} {
+proc wait_for_resource_state { state {raise_error 1} {atimeout 60} {ares res_state_info} {ri res_info}} {
    upvar $ares result
    upvar $ri res_info
    if {[info exists result]} {
@@ -3244,6 +3658,7 @@ proc wait_resources_to_become_state { state {raise_error 1} {atimeout 60} {ares 
    set result(missing) {}
    set result(unexpected) {}
    set result(ambiguous) {}
+   set result(unknown) {}
    foreach res $res_list_not_uniq {
       lappend result(ambiguous) $res
    }
@@ -3255,7 +3670,9 @@ proc wait_resources_to_become_state { state {raise_error 1} {atimeout 60} {ares 
          ts_log_fine "skipp ambiguous resource \"$res\""
          continue
       }
-      if {[info exists res_info($res,state)]} {
+      if {$res_info($res,state) == "missing" } {
+         lappend result(missing) $res
+      } else {
          set resource_state $res_info($res,state)
          if {[lsearch -exact $state $resource_state] >= 0} {
             lappend result($resource_state) $res
@@ -3263,8 +3680,13 @@ proc wait_resources_to_become_state { state {raise_error 1} {atimeout 60} {ares 
             ts_log_fine "resource \"$res\" is in not specified state \"$resource_state\""
             lappend result(unexpected) $res
          }
-      } else {
-         lappend result(missing) $res
+      }
+   }
+
+   # set "unknown" resource list information
+   foreach res $res_list {
+      if {[lsearch -exact $resource_list $res] < 0} {
+         lappend result(unknown) $res
       }
    }
 
@@ -3292,6 +3714,7 @@ proc wait_resources_to_become_state { state {raise_error 1} {atimeout 60} {ares 
 #                                 (default: hedeby admin user)
 #     {si service_info}      - name of array for service informations
 #                                 (default: service_info) 
+#     {raise_error 1}        - if 1 report errors
 #
 #  RESULT
 #     Return value: "0" on success, "1" on error 
@@ -3303,7 +3726,7 @@ proc wait_resources_to_become_state { state {raise_error 1} {atimeout 60} {ares 
 #             service_info(SERVICE_NAME,service_list) - list of all services
 #
 #  EXAMPLE
-#     get_resource_info sinfo
+#     get_service_info sinfo
 #     foreach service $sinfo(service_list) {
 #        ts_log_fine "service \"$service\": host=\"$sinfo($service,host)\""
 #     }
@@ -3314,7 +3737,7 @@ proc wait_resources_to_become_state { state {raise_error 1} {atimeout 60} {ares 
 #     util/get_resource_info()
 #     util/get_service_info()
 #*******************************************************************************
-proc get_service_info { {host ""} {user ""} {si service_info} } {
+proc get_service_info { {host ""} {user ""} {si service_info} {raise_error 1} } {
    global hedeby_config
 
    # setup arguments
@@ -3338,9 +3761,9 @@ proc get_service_info { {host ""} {user ""} {si service_info} } {
 
    # now we start sdmadm sr command ...
    set sdmadm_command "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ss"
-   set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" 1 table]
+   set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" $raise_error table]
    if { $prg_exit_state != 0 } {
-      ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting"
+      ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting" $raise_error
       return 1
    }
 
@@ -3356,12 +3779,12 @@ proc get_service_info { {host ""} {user ""} {si service_info} } {
    foreach col $exp_columns {
       set pos [lsearch -exact $table(table_columns) $col]
       if {$pos < 0} {
-         ts_log_severe "cannot find expected column name \"$col\""
+         ts_log_severe "cannot find expected column name \"$col\"" $raise_error
          return 1
       }
       ts_log_finer "found expected col \"$col\" on position $pos"
       if {[lsearch -exact $used_col_names $col] < 0} {
-         ts_log_severe "used column name \"$col\" not expected - please check table column names!"
+         ts_log_severe "used column name \"$col\" not expected - please check table column names!" $raise_error
          return 1
       }
    }

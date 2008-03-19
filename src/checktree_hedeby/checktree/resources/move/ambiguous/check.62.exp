@@ -1,0 +1,130 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "no"
+set check_name                 "ambiguous_resource_assignment"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "basic resource movement test"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "ambiguous_resource_assignment_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_function "ambiguous_resource_assignment_setup"
+set check_cleanup_function "ambiguous_resource_assignment_cleanup"
+
+lappend check_functions "ambiguous_resource_assignment_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global ambiguous_resource_assignment_current_cluster_config
+
+proc ambiguous_resource_assignment_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+proc ambiguous_resource_assignment_setup {} {
+   global ambiguous_resource_assignment_current_cluster_config
+   set ambiguous_resource_assignment_current_cluster_config [get_current_cluster_config_nr]
+}
+
+proc ambiguous_resource_assignment_cleanup {} {
+   global ambiguous_resource_assignment_current_cluster_config
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $ambiguous_resource_assignment_current_cluster_config
+
+   # perform ambiguos resource reset
+   reset_produced_ambiguous_resource
+}
+
+
+
+proc ambiguous_resource_assignment_check {} {
+   global hedeby_config
+   set error_text ""
+
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set ge_hosts [get_hedeby_default_services service_names]
+   set exec_host $hedeby_config(hedeby_master_host)
+
+   # produce ambiguous resource
+   set ret_val [produce_ambiguous_resource res asrv]
+   if { $ret_val == 0} {
+      ts_log_fine "resource \"$res\" should be ambiguous now!" 
+      set mvr_to_service [get_free_service $asrv]
+      ts_log_fine "move ambiguous resource \"$res\" to service \"$mvr_to_service\" ..."
+      set sdmadm_command_line "-p $pref_type -s $sys_name mvr -r $res -s $mvr_to_service"
+      set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
+      ts_log_fine "exit state: $prg_exit_state"
+      if { $prg_exit_state != 2 } {
+         append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"2\"\n"
+      }
+      set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
+      ts_log_fine "output message is: \"$output_message\""
+      set xyz(0) "*"
+      set expected_output [create_bundle_string "rm.error.non_unique_res" xyz]
+      ts_log_fine "expected output: \"$expected_output\""
+      if {[string match "$expected_output" $output_message]} {
+         ts_log_fine "output is matching!"
+      } else {
+         append error_text "The output message doesn't match expected output\n"
+         append error_text "Expected output: \"$expected_output\"\n"
+         append error_text "Received output: \"$output_message\"\n"
+      }
+   } else {
+      append error_text "Skip ambiguous resource movement test - cannot produce ambiguous resource!"
+   }
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+

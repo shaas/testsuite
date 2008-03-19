@@ -1066,11 +1066,56 @@ proc ts_private_log_do_output {level message raise_error function} {
          } else {
             puts "----------------------------------------------------------------"
             puts "!!   The following message is an *expected* error condition   !!"
+            puts "procedure   : $function"
             puts $message  
             puts "----------------------------------------------------------------"
          }
       } else {
-         puts $message
+         set max_col 120
+         set cur_line ""
+         set cur_index 0
+         set cur_line_nr 0
+
+         # first remove spaces
+         set new_message [split $message "\n\r"]
+         set message ""
+         foreach line $new_message {
+            set new_line [string trimright $line]
+            if { $new_line != "" } {
+               append message "$new_line\n"
+            }
+         }
+         set message [string trimright $message]
+         for {set i 0} {$i<[string length $message]} {incr i 1} {
+            set cur_char [string index $message $i]
+            set do_wrap 0
+            set do_append 1
+            if { $cur_char == "\n" || $cur_char == "\r" } {
+               set do_wrap 1
+               set do_append 0
+            }
+
+            if { $cur_index >= $max_col } {
+               set do_wrap 1
+            }
+
+            if { $do_wrap } {
+               set lines($cur_line_nr) "$cur_line\n"
+               incr cur_line_nr 1
+               set cur_line ""
+               set cur_index 0
+            }
+            if {$do_append == 1} {
+               append cur_line $cur_char
+               incr cur_index 1
+            }
+         }
+         set lines($cur_line_nr) "$cur_line\n"
+
+         puts -nonewline [format "%-30.30s|%s" "${function}()" $lines(0)]
+         for {set i 1} {$i<=$cur_line_nr} {incr i 1} {
+            puts -nonewline [format "%-30.30s|%s" "" $lines($i)]
+         }
       }
    } else {
       ts_log_washing_machine
