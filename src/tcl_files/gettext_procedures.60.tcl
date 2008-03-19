@@ -177,7 +177,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_JMX_USE_DATA"   { set value "Do you want to use these data (y/n) \[y\] >> " }
       "DISTINST_UNIQUE_CLUSTER_NAME" {set value "Unique cluster name" }
       "DISTINST_DETECT_CHOOSE_NEW_NAME" {set value "NOTE: Choose 'n' to select new SGE_CLUSTER_NAME  (y/n) *" }
-      "DISTINST_DETECT_REMOVE_OLD_CLUSTER" {set value "Stop the installation (YES) or remove detected cluster (NO)? (y/n) *" }
+      "DISTINST_DETECT_REMOVE_OLD_CLUSTER" {set value "*Stop the installation (WARNING: selecting 'n' *" }
       "DISTINST_SMF_IMPORT_SERVICE" {set value "NOTE: If you select \"n\" SMF will be not used at all" }
       "DISTINST_DETECT_BDB_KEEP_CELL" {set value "Do you want to keep * or delete * the directory? (y/n) *" }
       "DISTINST_DO_YOU_WANT_TO_CONTINUE" {set value "Do you want to continue (y/n) ('n' will abort) \[y\] >> " }
