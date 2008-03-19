@@ -1,3 +1,6 @@
+HP-2008-03-19-0: Bugfix:    certtool.sh script was not called for certs on win32-x86
+                 Review:    MD
+
 CR-2008-03-18-0: Task:      basic resource assignement test  
                  Issue:     #365 (new test: /resources/move/ambiguous/check.62.exp)
                  Cleanup:   o Renamed "wait_resources_to_become_state()"

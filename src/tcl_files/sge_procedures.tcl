@@ -7581,13 +7581,18 @@ proc copy_certificates { host } {
       set result [start_remote_prog "$ts_config(master_host)" "root" "rm" "$TAR_FILE"]
       ts_log_finest $result
 
-      # on windows, we have to correct the file permissions
+      # on windows, we have to correct the file permissions and create certs for
+      # <$HOST>+Administrator and <$HOST>+$SGE_ADMIN_USER
       if {$remote_arch == "win32-x86"} {
+         # correct file permissions
          ts_log_finer "correcting certificate file permissions on windows host"
          set users "$CHECK_USER $ts_user_config(first_foreign_user) $ts_user_config(second_foreign_user)"
          foreach user $users {
             start_remote_prog $host "root" "chown" "-R $user /var/sgeCA/port${ts_config(commd_port)}/default/userkeys/$user"
          }
+         # create certs for <$HOST>+Administrator and <$HOST>+$SGE_ADMIN_USER
+         set result [start_remote_prog $host "root" "$ts_config(product_root)/util/certtool.sh" "$ts_config(product_root) $ts_config(cell)"]
+         ts_log_finest $result
       }
 
       # check for syncron clock times
