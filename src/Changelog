@@ -1,3 +1,6 @@
+CR-2008-03-19-0: Cleanup:   removed not wanted checked-in changes by CR-2008-03-18-0
+                            from logging.tcl
+
 LP-2008-03-19-0: Bugfix:    Updated detected message changed in JO-2008-03-18-0
                  Review:    PJ
 
