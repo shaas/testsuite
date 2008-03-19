@@ -32,45 +32,6 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-# Functions
-###########
-#     system specific:
-#     ================
-#     util/get_hedeby_system_name()
-#     util/get_hedeby_pref_type()
-#     util/get_hedeby_admin_user()
-#     util/get_hedeby_startup_user()
-#     util/get_hedeby_cs_url()
-#     util/get_hedeby_local_spool_dir()
-#     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
-#     util/is_hedeby_process_running()
-#     util/kill_hedeby_process()
-#     util/shutdown_hedeby_hosts()
-#     util/startup_hedeby_hosts()
-#     util/remove_hedeby_preferences()
-#     util/remove_prefs_on_hedeby_host()
-#     util/shutdown_hedeby()
-#     util/startup_hedeby()
-#
-#     output parsing specific:
-#     ========================
-#     util/parse_show_component_output()
-#
-#     file specific:
-#     ==============
-#     util/get_hedeby_binary_path()
-# 
-#     L10N - messages specific:
-#     =========================
-#     util/read_bundle_properties_cache()
-#     util/parse_bundle_properties_files()
-#     util/get_properties_messages_file_name()
-#     util/get_bundle_string()
-#     util/create_bundle_string()
-#     util/parse_bundle_string_params()
-#
-
 #****** util/remove_hedeby_preferences() ***************************************
 #  NAME
 #     remove_hedeby_preferences() -- remove all preferences entries
@@ -391,10 +352,8 @@ proc add_host_resources { host_resources { service "" } { on_host "" } { as_user
    return $prg_exit_state
 }
 
-global ge_arch_mapping_table
-if {[info exists ge_arch_mapping_table]} {
-   unset ge_arch_mapping_table
-}
+
+
 #****** util/get_hedeby_ge_complex_mapping() ***********************************
 #  NAME
 #     get_hedeby_ge_complex_mapping() -- parse ge complex mapping values
@@ -425,6 +384,10 @@ if {[info exists ge_arch_mapping_table]} {
 #     }
 #
 #*******************************************************************************
+global ge_arch_mapping_table
+if {[info exists ge_arch_mapping_table]} {
+   unset ge_arch_mapping_table
+}
 proc get_hedeby_ge_complex_mapping { arch {rp res_prop} } {
    global hedeby_config
    global ge_arch_mapping_table
@@ -1250,7 +1213,6 @@ proc cleanup_hedeby_local_spool_dir { host } {
 }
 
 
-# this procedure returns all possible managed hosts!!!
 #****** util/get_all_hedeby_managed_hosts() ************************************
 #  NAME
 #     get_all_hedeby_managed_hosts() -- get all possible managed host names
@@ -1328,6 +1290,8 @@ proc get_all_default_hedeby_resources {} {
    }
    return $expected_resource_list
 }
+
+
 #****** util/get_hedeby_default_services() *************************************
 #  NAME
 #     get_hedeby_default_services() -- get information about ge services
@@ -3092,7 +3056,9 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    }
 
    # init error and timeout
-   set error_text ""
+   if {[info exists error_text] == 0} {
+      set error_text ""
+   }
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -3232,7 +3198,9 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
    }
 
    # init error and timeout
-   set error_text ""
+   if {![info exists error_text]} {
+      set error_text ""
+   }
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -3322,7 +3290,7 @@ proc get_free_service { exclude_service_list {raise_error 1} } {
       break
    }
    if { $free_service_name == "" } {
-      ts_log_error "no matching service found!\nAvailable services: \"$service_names(services)\",\nexcluded services:  \"$exclude_service_list\"" $raise_error
+      ts_log_severe "no matching service found!\nAvailable services: \"$service_names(services)\",\nexcluded services:  \"$exclude_service_list\"" $raise_error
    }
    return $free_service_name
 }
@@ -3331,7 +3299,7 @@ proc get_free_service { exclude_service_list {raise_error 1} } {
 
 #****** util/reset_produced_ambiguous_resource() *******************************
 #  NAME
-#     reset_produced_ambiguous_resource() -- reset previous produced ambiguos resource
+#     reset_produced_ambiguous_resource() -- reset previous produced ambiguous resource
 #
 #  SYNOPSIS
 #     reset_produced_ambiguous_resource { } 
@@ -3350,23 +3318,24 @@ proc get_free_service { exclude_service_list {raise_error 1} } {
 #  SEE ALSO
 #     util/produce_ambiguous_resource()
 #*******************************************************************************
-global last_produce_ambiguos_resource_state
-set last_produce_ambiguos_resource_state "undefined"
+global last_produce_ambiguous_resource_state
+set last_produce_ambiguous_resource_state "undefined"
 proc reset_produced_ambiguous_resource { } {
-   global last_produce_ambiguos_resource_state
+   global last_produce_ambiguous_resource_state
    global hedeby_config
 
-   if {$last_produce_ambiguos_resource_state == "undefined"} {
+   if {$last_produce_ambiguous_resource_state == "undefined"} {
       ts_log_severe "There was no previous call of produce_ambiguous_resource()!"
       return 1
    }
-   if {$last_produce_ambiguos_resource_state == "error"} {
+   if {$last_produce_ambiguous_resource_state == "error"} {
+      set last_produce_ambiguous_resource_state "undefined"
       ts_log_info "Last call to produce_ambiguous_resource() produced error - reset hedeby now ..."
       return [reset_hedeby 1]
    }
   
-   if { [llength $last_produce_ambiguos_resource_state] != 2 } {
-      ts_log_info "There should be 2 entries in global variable last_produce_ambiguos_resource_state - reset hedeby now ..."
+   if { [llength $last_produce_ambiguous_resource_state] != 2 } {
+      ts_log_info "There should be 2 entries in global variable last_produce_ambiguous_resource_state - reset hedeby now ..."
       return [reset_hedeby 1]
    }
 
@@ -3375,8 +3344,8 @@ proc reset_produced_ambiguous_resource { } {
    set sys_name [get_hedeby_system_name]
    set admin_user [get_hedeby_admin_user]
    set exec_host $hedeby_config(hedeby_master_host)
-   set resource [lindex $last_produce_ambiguos_resource_state 0]
-   set service  [lindex $last_produce_ambiguos_resource_state 1]
+   set resource [lindex $last_produce_ambiguous_resource_state 0]
+   set service  [lindex $last_produce_ambiguous_resource_state 1]
    set error_text ""
    ts_log_fine "Removing resource \"$resource\" from service \"spare_pool\" ..."
    set sdmadm_command_line "-p $pref_type -s $sys_name rr -r $resource -s spare_pool" 
@@ -3386,7 +3355,7 @@ proc reset_produced_ambiguous_resource { } {
       append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
    }
    
-   # wait for ambiguos flag to disappear ...
+   # wait for ambiguous flag to disappear ...
    set exp_res_info($resource,flags) "{}"
    set exp_res_info($resource,state) "ASSIGNED"
    set exp_res_info($resource,service) "$service"
@@ -3412,8 +3381,8 @@ proc reset_produced_ambiguous_resource { } {
       return [reset_hedeby 1]
    }
 
-   ts_log_fine "reset resource \"$resource\" from ambiguos state was successfull!"
-   set last_produce_ambiguos_resource_state "undefined"
+   ts_log_fine "reset resource \"$resource\" from ambiguous state was successfull!"
+   set last_produce_ambiguous_resource_state "undefined"
 
    return 0
 }
@@ -3455,7 +3424,7 @@ proc reset_produced_ambiguous_resource { } {
 #*******************************************************************************
 proc produce_ambiguous_resource { ares asrv } {
    global hedeby_config
-   global last_produce_ambiguos_resource_state
+   global last_produce_ambiguous_resource_state
    upvar $ares aresource
    upvar $asrv aservice
    set aresource ""
@@ -3465,7 +3434,7 @@ proc produce_ambiguous_resource { ares asrv } {
    set exec_host $hedeby_config(hedeby_master_host)
    set ge_hosts [get_hedeby_default_services service_names]
 
-   if {$last_produce_ambiguos_resource_state != "undefined"} {
+   if {$last_produce_ambiguous_resource_state != "undefined"} {
       ts_log_severe "There was already a call of produce_ambiguous_resource() - calling reset_produced_ambiguous_resource() first ..."
       reset_produced_ambiguous_resource
    }
@@ -3482,7 +3451,8 @@ proc produce_ambiguous_resource { ares asrv } {
    sdmadm_command $exec_host $admin_user $command
    if { $prg_exit_state != 0 } {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
@@ -3492,7 +3462,8 @@ proc produce_ambiguous_resource { ares asrv } {
    set retval [wait_for_resource_info exp_res_info 60]
    if {$retval != 0} {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
@@ -3501,7 +3472,8 @@ proc produce_ambiguous_resource { ares asrv } {
    sdmadm_command $exec_host $admin_user $command
    if { $prg_exit_state != 0 } {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
@@ -3510,7 +3482,8 @@ proc produce_ambiguous_resource { ares asrv } {
    set exp_service_info($aservice,sstate) "STOPPED"
    if { [wait_for_service_info exp_service_info] != 0 } {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
@@ -3519,14 +3492,16 @@ proc produce_ambiguous_resource { ares asrv } {
    set exp_res_info($aresource,state) "missing"
    if { [wait_for_resource_info exp_res_info] != 0 } {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
    # add resource again to spare pool
    if {[add_host_resources $aresource "spare_pool"] != 0} {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
@@ -3535,7 +3510,8 @@ proc produce_ambiguous_resource { ares asrv } {
    sdmadm_command $exec_host $admin_user $command
    if { $prg_exit_state != 0 } {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
@@ -3544,7 +3520,8 @@ proc produce_ambiguous_resource { ares asrv } {
    set exp_service_info($aservice,sstate) "RUNNING"
    if { [wait_for_service_info exp_service_info] != 0 } {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
@@ -3553,18 +3530,19 @@ proc produce_ambiguous_resource { ares asrv } {
    set ret_val [wait_for_resource_state "ASSIGNED" 0 30 res_state_info]
    if {[lsearch -exact $res_state_info(ambiguous) $aresource] < 0} {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
    set services $res_info($aresource,service)
    if {[llength $services] != 2} {
-      ts_log_error "Resource \"$aresource\" is not assigned to 2 services"
+      ts_log_severe "Resource \"$aresource\" is not assigned to 2 services"
    }
    if {[lsearch -exact $services $aservice] < 0} {
-      ts_log_error "Resource \"$aresource\" is not assigned to service \"$aservice\""
+      ts_log_severe "Resource \"$aresource\" is not assigned to service \"$aservice\""
    }
    if {[lsearch -exact $services "spare_pool"] < 0} {
-      ts_log_error "Resource \"$aresource\" is not assigned to service \"spare_pool\""
+      ts_log_severe "Resource \"$aresource\" is not assigned to service \"spare_pool\""
    }
 
    # check ambiguous flags of resource !!!
@@ -3572,14 +3550,223 @@ proc produce_ambiguous_resource { ares asrv } {
    set exp_res_info($aresource,flags) "A"
    if { [wait_for_resource_info exp_res_info] != 0 } {
       set aresource ""
-      set last_produce_ambiguos_resource_state "error"
+      set aservice ""
+      set last_produce_ambiguous_resource_state "error"
       return 1
    }
 
    ts_log_fine "resource \"$aresource\" is ambiguous now for service \"$aservice\" and \"spare_pool\""
-   set last_produce_ambiguos_resource_state "$aresource $aservice"
+   set last_produce_ambiguous_resource_state "$aresource $aservice"
    return 0
 }
+
+
+#****** util/produce_inprocess_resource() *************************************
+#  NAME
+#     produce_inprocess_resource() -- produce resource which is in progress
+#
+#  SYNOPSIS
+#     produce_inprocess_resource { ares asrv } 
+#
+#  FUNCTION
+#     This procedure submits a long runnig job to a resource and moves it
+#     away to another service. As long the job is running the resource is in
+#     progress state. The procedure reset_produced_inprocess_resource()
+#     is used to cleanup this state again.
+#
+#  INPUTS
+#     ares - name of variable to store the selected resource name
+#     asrv - name of variable to store the selected service name
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/reset_produced_inprocess_resource()
+#*******************************************************************************
+proc produce_inprocess_resource { ares asrv } {
+   global hedeby_config
+   global last_produce_inprocess_resource_state
+   upvar $ares aresource
+   upvar $asrv aservice
+   set aresource ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   if {$last_produce_inprocess_resource_state != "undefined"} {
+      ts_log_severe "There was already a call of produce_inprocess_resource() - calling reset_produced_inprocess_resource() first ..."
+      reset_produced_inprocess_resource
+   }
+
+   # we need a service to assign the resource ...
+   set aservice [lindex $service_names(services) 0]
+
+   # use first moveable resource from the service ...
+   set aresource [lindex $service_names(moveable_execds,$aservice) 0]
+
+   # get cluster of resource
+   set sCluster $service_names(ts_cluster_nr,$aresource)
+
+   ts_log_fine "try to make resource \"$aresource\" inprocess ..."
+
+   # switch cluster and get config ...
+   set curCluster [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $sCluster
+   get_current_cluster_config_array ts_tmp_config
+
+   # now submit a long running job to the service
+   set master_host $service_names(master_host,$aservice)
+   ts_log_fine "submitting long running job to host \"$aresource\", command executed on host \"$master_host\""
+   set job_arguments "-o /dev/null -e /dev/null -l h=$aresource $ts_tmp_config(product_root)/examples/jobs/sleeper.sh 6000"
+   set job_id [submit_job $job_arguments 1 60 $master_host]
+   if { $job_id <= 0 } {
+      set_current_cluster_config_nr $curCluster
+      set last_produce_inprocess_resource_state "error"
+      set aservice ""
+      set aresource ""
+      return 1
+   }
+
+   # wait for last submitted job to start ...
+   if {[wait_for_jobstart $job_id "leeper" 60 1 1] != 0} {
+      # error starting job delete job, return error
+      delete_job $job_id
+      set_current_cluster_config_nr $curCluster
+      set last_produce_inprocess_resource_state "error"
+      set aservice ""
+      set aresource ""
+      return 1
+   }
+
+   # now move the resource to another service ...
+   set mvr_service_name [get_free_service $aservice]
+   set command "-p $pref_type -s $sys_name mvr -r $aresource -s $mvr_service_name"
+   sdmadm_command $exec_host $admin_user $command
+   if { $prg_exit_state != 0 } {
+      delete_job $job_id
+      set_current_cluster_config_nr $curCluster
+      set last_produce_inprocess_resource_state "error"
+      set aservice ""
+      set aresource ""
+      return 1
+   }
+
+   # wait that resource goes into UNASSINGING state ...
+   ts_log_fine "resource \"$aresource\" should go into \"UNASSINGING\" state now ..."
+   set exp_res_info($aresource,state) "UNASSIGNING"
+   if {[wait_for_resource_info exp_res_info 60] != 0} {
+      delete_job $job_id
+      set_current_cluster_config_nr $curCluster
+      set last_produce_inprocess_resource_state "error"
+      set aservice ""
+      set aresource ""
+      return 1
+   }
+
+   # switch back to orig. cluster
+   set_current_cluster_config_nr $curCluster
+
+   ts_log_fine "resource \"$aresource\" is inprocess now for service \"$aservice\" and \"resource_provider\""
+   set last_produce_inprocess_resource_state "$aresource $aservice $job_id"
+   return 0
+}
+
+
+#****** util/reset_produced_inprocess_resource() ******************************
+#  NAME
+#     reset_produced_inprocess_resource() -- cleanup in progress resource
+#
+#  SYNOPSIS
+#     reset_produced_inprocess_resource { } 
+#
+#  FUNCTION
+#     This procedure is used to clean up the resource "in progress" state after
+#     calling the produce_inprocess_resource() procedure.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/produce_inprocess_resource()
+#*******************************************************************************
+global last_produce_inprocess_resource_state
+set last_produce_inprocess_resource_state "undefined"
+proc reset_produced_inprocess_resource { } {
+   global last_produce_inprocess_resource_state
+   global hedeby_config
+
+   set error_text ""
+   if {$last_produce_inprocess_resource_state == "undefined"} {
+      ts_log_severe "There was no previous call of produce_inprocess_resource()!"
+      return 1
+   }
+   if {$last_produce_inprocess_resource_state == "error"} {
+      ts_log_info "Last call to produce_inprocess_resource() produced error - reset hedeby now ..."
+      set last_produce_inprocess_resource_state "undefined"
+      return [reset_hedeby 1]
+   }
+  
+   # get resource infos
+   set resource [lindex $last_produce_inprocess_resource_state 0]
+   set service  [lindex $last_produce_inprocess_resource_state 1]
+   set job_id   [lindex $last_produce_inprocess_resource_state 2]
+
+   # last call was ok, reset resource ...
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   # get cluster of resource and switch
+   set sCluster $service_names(ts_cluster_nr,$resource)
+   set curCluster [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $sCluster
+
+   # delete the job
+   delete_job $job_id
+
+   # switch back to orig. cluster
+   set_current_cluster_config_nr $curCluster
+
+
+   # Move resource back to orig. service
+
+   # wait for UNASSIGNING state to disappear ...
+   set exp_res_info($resource,state) "ASSIGNED"
+   wait_for_resource_info exp_res_info 90 0 error_text
+
+   # Move resource back to orig. service
+   ts_log_fine "Moving resource \"$resource\" back to service \"$service\" ..."
+   set sdmadm_command_line "-p $pref_type -s $sys_name mvr -r $resource -s $service" 
+   set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
+   if { $prg_exit_state != 0} {
+      append error_text "Error moving resource \"$resource\" back to service \"$service\":\n"
+      append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+   }
+
+   # wait for resource to appear at service 
+   unset exp_res_info
+   set exp_res_info($resource,state) "ASSIGNED"
+   set exp_res_info($resource,service) "$service"
+   wait_for_resource_info exp_res_info 60 0 error_text
+
+   if { $error_text != "" } {
+      append error_text "\nreset hedeby now ..."
+      ts_log_info $error_text
+      return [reset_hedeby 1]
+   }
+
+   ts_log_fine "reset resource \"$resource\" from inprocess state was successfull!"
+   set last_produce_inprocess_resource_state "undefined"
+   return 0
+}
+
 
 
 #****** util/wait_for_resource_state() **********************************
@@ -4267,6 +4454,129 @@ proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1
    return $retval;
 }
 
+#****** util/produce_error_resource() ******************************************
+#  NAME
+#     produce_error_resource() -- produce resource ERROR state
+#
+#  SYNOPSIS
+#     produce_error_resource { resource { method "soft" } } 
+#
+#  FUNCTION
+#     This procedure will produce resource ERROR state by shutting down
+#     the execd of the resource. The "soft" method will do this by
+#     qconf -ke, the "hard" method does it by killing the execd on the resource.
+#     After that the procedure also checks that the resource is in
+#     ERROR state.
+#   
+#     The ERROR state reset is done by reset_produced_error_resource().
+#
+#  INPUTS
+#     resource          - name of the resource to set into error state
+#     { method "soft" } - method used for shutting down execd on resource
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/reset_produced_error_resource()
+#*******************************************************************************
+proc produce_error_resource { resource { method "soft" } } {
+
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   if { $method != "soft" && $method != "hard" } {
+      ts_log_severe "method \"$method\" not supported!"
+      return 1
+   }
+
+   if { ![info exists service_names(ts_cluster_nr,$resource)] } {
+      ts_log_severe "resource $resource not found!"
+      return 1
+   }
+
+   set sCluster $service_names(ts_cluster_nr,$resource)
+   set service $service_names(default_service,$resource)
+ 
+   set curCluster [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $sCluster
+   set error_text ""
+   if { $method == "soft" } {
+      ts_log_fine "doing soft execd shutdown by \"qconf -ke $resource\" ..."
+      set ret [soft_execd_shutdown $resource]
+      if {$ret != 0} {
+         append error_text "\"soft_execd_shutdown $resource\" returned: $ret\n"
+      }
+   } else {
+      ts_log_fine "doing hard execd shutdown by killing execd pid on host \"$resource\" ..."
+      set ret [shutdown_system_daemon $resource "execd"]
+      if {$ret != 0} {
+         append error_text "\"shutdown_system_daemon $resource \"execd\"\" returned: $ret\n"
+      }
+   }
+   set_current_cluster_config_nr $curCluster
+
+   # wait for resource go to error state
+   ts_log_fine "resource \"$resource\" should go into error state now ..."
+   set exp_res_info($resource,state) "ERROR"
+   wait_for_resource_info exp_res_info 60 0 error_text
+
+   if { $error_text != "" } {
+      ts_log_severe $error_text
+      return 1
+   }
+   return 0
+}
+
+#****** util/reset_produced_error_resource() ***********************************
+#  NAME
+#     reset_produced_error_resource() -- reset produced ERROR state
+#
+#  SYNOPSIS
+#     reset_produced_error_resource { resource } 
+#
+#  FUNCTION
+#     This procedure is used to cleanup the ERROR state of a resource which
+#     was produced by produce_error_resource(). It will restart the execd
+#     on the specified resource and wait for the resource "ASSIGNED" state.
+#
+#  INPUTS
+#     resource - resource to startup the execd
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/produce_error_resource()
+#*******************************************************************************
+proc reset_produced_error_resource { resource } {
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   set error_text ""
+   if { ![info exists service_names(ts_cluster_nr,$resource)] } {
+      ts_log_severe "resource $resource not found!"
+      return 1
+   }
+   set sCluster $service_names(ts_cluster_nr,$resource)
+
+   set curCluster [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $sCluster
+   set ret [startup_execd $resource]
+   if {$ret != 0} {
+      append error_text "\"startup_execd $resource\" returned: $ret\n"
+   }
+   set_current_cluster_config_nr $curCluster
+
+   # wait for resource error state to disappear
+   ts_log_fine "resource \"$resource\" should go into assigned state now ..."
+   set exp_res_info($resource,state) "ASSIGNED"
+   wait_for_resource_info exp_res_info 60 0 error_text
+
+   if { $error_text != "" } {
+      ts_log_severe $error_text
+      return 1
+   }
+   return 0
+}
 
 #****** util/get_admin_user_list() *********************************************
 #  NAME
@@ -4424,7 +4734,7 @@ proc parse_jvm_start_stop_output { output_var {status_array "ss_out" } } {
 #    read_hedeby_jvm_pid_info { a_pid_info host user jvm_name }
 #
 #  FUNCTION
-#     ??? 
+#     Read and parse the pid file of a hedeby jvm 
 #
 #  INPUTS
 #    a_pid_info -- The info from the pid file is stored in this array 
@@ -4447,14 +4757,9 @@ proc parse_jvm_start_stop_output { output_var {status_array "ss_out" } } {
 #      ts_log_fine "url is $pid_info(url)"
 #   }
 #
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
 #     util/read_hedeby_jvm_pid_file
+#     util/get_pid_file_for_jvm()
 #*******************************************************************************
 proc read_hedeby_jvm_pid_info { a_pid_info host user jvm_name } {
    global hedeby_config
@@ -4474,7 +4779,7 @@ proc read_hedeby_jvm_pid_info { a_pid_info host user jvm_name } {
 #    get_pid_file_for_jvm { } 
 #
 #  FUNCTION
-#     ??? 
+#     Get path of jvm pid file 
 #
 #  INPUTS
 #    host     -- the host where the jvm is running
@@ -4485,17 +4790,11 @@ proc read_hedeby_jvm_pid_info { a_pid_info host user jvm_name } {
 #    path to the pid file
 #
 #  EXAMPLE
-
+#
 #     set pid_file [get_pid_file_for_jvm "foo.bar" "executor_vm"]
 #
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
-#     ???/???
+#     util/read_hedeby_jvm_pid_info()
 #*******************************************************************************
 proc get_pid_file_for_jvm { host jvm_name } {
    set spool_dir [get_hedeby_local_spool_dir $host]
@@ -4510,7 +4809,7 @@ proc get_pid_file_for_jvm { host jvm_name } {
 #    read_hedeby_jvm_pid_file { a_pid_info host user pid_file } 
 #
 #  FUNCTION
-#     ??? 
+#     Read pid file of hedeby jvm
 #
 #  INPUTS
 #    a_pid_info --  The info from the pid file is stored in this array
@@ -4522,17 +4821,8 @@ proc get_pid_file_for_jvm { host jvm_name } {
 #     0   if pid file has been read
 #     else error
 #
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
-#     ???/???
+#     util/read_hedeby_jvm_pid_info()
 #*******************************************************************************
 proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
    

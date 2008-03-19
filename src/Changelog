@@ -1,3 +1,24 @@
+CR-2008-03-19-1: Task:      basic resource assignement test
+                            (last part of check-in)
+                 Issue:     #365 (hedeby)(added missing tests) 
+                               /resources/move/error/check.62.exp
+                               /resources/move/inprogress/check.62.exp
+                               /resources/move/static/check.62.exp
+                 Cleanup:   o removed not needed comments
+                 Bugfix:    o wait_for_resource_info() and 
+                              wait_for_service_info deleted upvared
+                              error_text variable
+                            o Removed usages of NOT existing procedure
+                              ts_log_error()
+                            o Fixed error case cleanup handling in 
+                              reset_produced_ambiguous_resource() and
+                              produce_ambiguous_resource()
+                 Enhancem.: o new procedure: produce_error_resource()
+                            o new procedure: produce_inprogress_resource()
+                            o new procedure: reset_produced_error_resource()
+                            o new procedure: reset_produced_inprogress_resource()
+                 Review:    RH
+
 CR-2008-03-19-0: Cleanup:   removed not wanted checked-in changes by CR-2008-03-18-0
                             from logging.tcl
 

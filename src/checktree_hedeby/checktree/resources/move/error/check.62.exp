@@ -1,0 +1,224 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "yes"
+set check_name                 "error_resource_assignment"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "resource movement test of ERROR resource (soft execd shutdown)"
+set check_description(1)       "resource movement test of ERROR resource (local execd shutdown)"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "error_resource_assignment_init_level"
+set check_functions            {}   
+set check_highest_level        1
+
+set check_setup_level_function "error_resource_assignment_level_setup"
+set check_cleanup_level_function "error_resource_assignment_level_cleanup"
+lappend check_functions "error_resource_assignment_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global error_resource_assignment_current_cluster_config
+global error_resource_assignment_used_resource
+
+proc error_resource_assignment_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  if { $CHECK_ACT_LEVEL == 1 } {
+     return 0
+  }
+
+  return -1
+}
+
+#****** error_resource_assignment/error_resource_assignment_level_setup() ******
+#  NAME
+#     error_resource_assignment_level_setup() -- setup test level
+#
+#  SYNOPSIS
+#     error_resource_assignment_level_setup { } 
+#
+#  FUNCTION
+#     This procedure is called for each run level. It will setup global
+#     variables which are used in error_resource_assignment_level_cleanup()
+#
+#  INPUTS
+#     none
+#
+#  RESULT
+#     none
+#
+#  SEE ALSO
+#     error_resource_assignment/error_resource_assignment_level_cleanup()
+#*******************************************************************************
+proc error_resource_assignment_level_setup {} {
+   global error_resource_assignment_current_cluster_config
+   global error_resource_assignment_used_resource
+ 
+   set error_resource_assignment_current_cluster_config [get_current_cluster_config_nr]
+   set error_resource_assignment_used_resource ""
+}
+
+#****** error_resource_assignment/error_resource_assignment_level_cleanup() ****
+#  NAME
+#     error_resource_assignment_level_cleanup() -- reset modifications of test
+#
+#  SYNOPSIS
+#     error_resource_assignment_level_cleanup { } 
+#
+#  FUNCTION
+#     Reset error state of modified resource. The resource modified is specified
+#     in global variable error_resource_assignment_used_resource.
+#
+#  INPUTS
+#     uses test specific global variables
+#
+#  RESULT
+#     none
+#
+#  SEE ALSO
+#     error_resource_assignment/error_resource_assignment_level_setup()
+#*******************************************************************************
+proc error_resource_assignment_level_cleanup {} {
+   global error_resource_assignment_current_cluster_config
+   global error_resource_assignment_used_resource
+
+   if {$error_resource_assignment_used_resource != ""} {
+      # restart execd 
+      ts_log_fine "cleanup error state of resource \"$error_resource_assignment_used_resource\""
+      reset_produced_error_resource $error_resource_assignment_used_resource
+   }
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $error_resource_assignment_current_cluster_config
+}
+
+
+#****** error_resource_assignment/error_resource_assignment_check() ************
+#  NAME
+#     error_resource_assignment_check() -- try to move a resource in ERROR state
+#
+#  SYNOPSIS
+#     error_resource_assignment_check { } 
+#
+#  FUNCTION
+#     This test will set a resource in ERROR state and tries to do move it to
+#     another service. Movement should fail, because resource is in ERROR state.
+#*******************************************************************************
+proc error_resource_assignment_check {} {
+   global hedeby_config
+   global CHECK_ACT_LEVEL
+   global error_resource_assignment_used_resource
+
+   set error_text ""
+
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set ge_hosts [get_hedeby_default_services service_names]
+   set exec_host $hedeby_config(hedeby_master_host)
+
+   # select a resource for test and store the name for cleanup level procedure
+   set service [get_free_service ""]
+   set resource [lindex $service_names(moveable_execds,$service) 0]
+   set error_resource_assignment_used_resource $resource
+
+   # produce error resource ...
+   if {$CHECK_ACT_LEVEL == 1} {
+      # runlevel 1 (hard execd shutdown)
+      set ret [produce_error_resource $resource "hard"]
+   } else {
+      # runlevel 2 (soft execd shutdown)
+      set ret [produce_error_resource $resource "soft"]
+   }
+   
+   # check that resource is really in error state ...
+   if { $ret == 0 } {
+      # test resource movement if resource is in ERROR state
+
+      # find another service where we want more the resource to
+      set mvr_to_service [get_free_service $service]
+      ts_log_fine "move error resource \"$resource\" to service \"$mvr_to_service\" ..."
+
+      # prepare sdmadm command and start it ...
+      set sdmadm_command_line "-p $pref_type -s $sys_name mvr -r $resource -s $mvr_to_service"
+      set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
+
+      # check that exit state == 2 
+      ts_log_fine "exit state: $prg_exit_state"
+      if { $prg_exit_state != 2 } {
+         append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"2\"\n"
+      }
+
+      # parse output and compare it to the expected output ...
+
+      # build expected output message from bundle properties file ... 
+      set xyz(0) "*"
+      set xyz(1) "ERROR"
+      set expected_output [create_bundle_string "rm.mr.res_bad_state" xyz]
+      ts_log_fine "expected output: \"$expected_output\""
+
+      # get sdmadm output message string ...
+      set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
+      ts_log_fine "output message is: \"$output_message\""
+
+      # compare the output with the expected output ...
+      if {[string match "$expected_output" $output_message]} {
+         ts_log_fine "output is matching!"
+      } else {
+         append error_text "The output message doesn't match expected output\n"
+         append error_text "Expected output: \"$expected_output\"\n"
+         append error_text "Received output: \"$output_message\"\n"
+      }
+   } else {
+      # if resource did not go into ERROR state report that test cannot be done
+      append error_text "Cannot test move of resource in ERROR state, because setting resource \"$resource\" to error failed!"
+   }
+   
+   # check errors and report ...
+   if { $error_text != "" } {
+      ts_log_severe $error_text
+   }
+}
+
