@@ -44,19 +44,17 @@ global env
 
 # set check_root_access_needs "yes"
 
-
 # define a level initialization procedure:
 set check_init_level_procedure "issue_360_init_level"
 
 # define test's name and run level descriptions
 set check_name            "issue_360"
-set check_category        "COMPATIBILITY SYSTEM L10N"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_highest_level   0
 set check_description(0)  "Check error handling concerning acls and departments"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
-
 
 # setup and cleanup functions
 set check_setup_function "issue_360_setup"
@@ -67,9 +65,7 @@ set check_functions ""
 lappend check_functions "issue_360_check"
 
 proc issue_360_init_level {} {
-   global CHECK_ACT_LEVEL
-   global CHECK_PRODUCT_TYPE
-   global test_array_jobs 
+  global CHECK_ACT_LEVEL
 
   switch -- $CHECK_ACT_LEVEL {
      "0" { 
@@ -81,14 +77,150 @@ proc issue_360_init_level {} {
 
 # -------- local test procedures -----------------------------------------------
 
-proc issue_360_setup  {} {
-}
-
-
-proc issue_360_check {} {
+proc issue_360_setup { } {
    global CHECK_USER
+
+   global test_department_1
+   global test_department_2
+   global test_acl_1
+   global test_acl_2
+   global userset 
+   global testdepartment1 
+   global change_departmentset_1
+   global change_departmentset_2   
+
+   set test_department_1 "testdepartment1"
+   set test_department_2 "testdepartment2" 
+
+   set test_acl_1 "acl1"
+   set test_acl_2 "acl2"
+
+   set change_departmentset_1(type) "ACL"
+   set change_departmentset_2(type) "DEPT"
+
+   set userset "defaultdepartment"  
+ 
+   # make a clean env 
+   # create grid users  
+   del_user $CHECK_USER "" "" 0 
+   add_user $CHECK_USER "" 0 "" "" 0
+
+   # create test department 
+   del_userset $test_department_1 "" "" 0
+   del_userset $test_department_2 "" "" 0 
+   del_userset $test_acl_1 "" "" 0
+   del_userset $test_acl_2 "" "" 0
+
+   add_userset $test_department_1 change_departmentset_2 1 "" "" 0
+   add_userset $test_department_2 change_departmentset_2 1 "" "" 0
+   add_userset $test_acl_1 change_departmentset_1 1 "" "" 0
+   add_userset $test_acl_2 change_departmentset_1 1 "" "" 0
 }
 
-proc issue_360_cleanup  {} {
+
+proc issue_360_check { } {
+   global CHECK_USER
+   
+   global test_department_1
+   global test_department_2
+   global test_acl_1
+   global test_acl_2
+   global userset 
+   global change_departmentset_1
+   global change_departmentset_2   
+   
+   ts_log_fine "check if it is forbidden to add users/groups to the defaultdepartment"
+   # -------------------------------------------------------------------------------
+   # test case 1: check if it is forbidden to add users/groups to the "defaultdepartment"
+   # -------------------------------------------------------------------------------
+   set change_array_case_1(entries) $CHECK_USER 
+
+   if {[mod_userset $userset change_array_case_1 0 "" "" 0] == 0} {
+      # test failed because no error message returned 
+      ts_log_severe "Tried to add user to defaultdepartment! No error message returned!"
+   } 
+   
+   # -------------------------------------------------------------------------------
+   # test case 2: check if it is forbidden to remove the DEPT type from "defaultdepartment"
+   # -------------------------------------------------------------------------------
+   if {[mod_userset $userset change_departmentset_1 0 "" "" 0] == 0} {
+      # test failed because no error message returned 
+      ts_log_severe "Tried to remove DEPT type from defaultdepartment! No error message returned!" 
+   } 
+   
+   # -------------------------------------------------------------------------------
+   # test case 3: check if it is forbidden to set tickets and shares for ACL objects
+   #              set type to ACL and with a second call fshare to 1 
+   # -------------------------------------------------------------------------------
+  if {[mod_userset $test_acl_1 change_departmentset_1 0] != 0} {
+        # test failed 
+       ts_log_severe "Tried to change ACL to type ACL! This should be not result in an error message!"
+   } else {
+      # now we are shure to have an ACL object 
+      # now we have to test if it is possible to set otickets to 1 
+      set change_array_case_3(oticket) "1" 
+
+      if {[mod_userset $test_acl_1 change_array_case_3 0 "" "" 0] == 0} {
+         ts_log_severe "Tried to set tickets and shares for a new ACL object! No error message returned!"
+      }
+   }
+   
+   # -------------------------------------------------------------------------------
+   # test case 4: try to add one user into more than one department
+   # -------------------------------------------------------------------------------
+   
+   # create two test departments 
+   #äcreate test user 
+
+   # add user to department one 
+   # -> expect no error 
+   # add user to department two   
+   # -> expect error 
+   
+   # => this has to result in an error message
+   set change_array_case_5b(entries) $CHECK_USER
+
+   if {[mod_userset $test_department_2 change_array_case_5b 0] != 0} {
+      ts_log_severe "Error while adding test_user_1 to department!" 
+   } 
+
+   # creating a second department and add the same user to it! 
+   if {[mod_userset $userset change_array_case_5b 0 "" "" 0] == 0} {
+      # we expect an error since we have then one user in two departments 
+      ts_log_severe "Error! There is no error while adding one user to two departments!"
+   } 
+
+   # -------------------------------------------------------------------------------
+   # test case 5: try to add one user into more than one acl
+   # -------------------------------------------------------------------------------
+   if {[mod_userset $test_acl_1 add_user 0] != 0} {
+      # adding a user to one ACL should be allowed 
+      ts_log_severe "Error while adding an user to one ACL!" 
+   } else { 
+      # check if we can add this user to another ACL
+      if {[mod_userset $test_acl_2 add_user 0] != 0} {
+         # expecting also no error 
+         ts_log_severe "Error while adding an user to an second ACL!"
+      }
+   }
+}
+
+
+proc issue_360_cleanup {} {
+   global CHECK_USER
+   global test_department_1
+   global test_department_2
+   global test_acl_1
+   global test_acl_2
+ 
+   # delete test users 
+   del_user $CHECK_USER "" "" 0 
+
+   # delete test departments 
+   del_userset $test_department_1 "" "" 0
+   del_userset $test_department_2 "" "" 0 
+
+   del_userset $test_acl_1 "" "" 0 
+   del_userset $test_acl_2 "" "" 0 
 }
 
