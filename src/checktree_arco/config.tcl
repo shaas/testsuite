@@ -731,7 +731,7 @@ proc config_jdbc_driver { only_check name config_array } {
 }
 
 proc config_swc_host {only_check name config_array} {
-   global ts_checktree ts_host_config fast_setup arco_checktree_nr
+   global ts_config ts_checktree ts_host_config fast_setup arco_checktree_nr
    global CHECK_USER
    upvar $config_array config
 
@@ -753,10 +753,17 @@ proc config_swc_host {only_check name config_array} {
          return -1
       }
    
-      set num_version [expr $swc_version(major) * 10000 + $swc_version(minor) * 100 + $swc_version(micro)]  
-      set exp_version [expr 2 * 10000 + 2 * 100 + 1]
+      set num_version [expr $swc_version(major) * 10000 + $swc_version(minor) * 100 + $swc_version(micro)]
+      if { $ts_config(gridengine_version) < 62 } {
+         set exp_version [expr 2 * 10000 + 2 * 100 + 1]
+         set err_msg "Version 2.2.1 or higher is required"
+      } else {
+         set exp_version [expr 3 * 10000]
+         set err_msg "Version 3.0.0 or higher is required"
+      }
+
       if {$num_version < $exp_version} {
-         ts_log_severe "Version 2.2.1 or higher is required"
+         ts_log_severe $err_msg
          return -1
       }
    }
@@ -793,7 +800,7 @@ proc config_tablespace_index { only_check name config_array } {
    set help_text {  "Enter the name of TABLESPACE for indexes"  }
      
    return [ config_generic $only_check $name config $help_text "string" ]
-
+   
 }
 
 proc config_database { only_check name config_array } {

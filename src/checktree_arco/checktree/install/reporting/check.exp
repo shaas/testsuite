@@ -234,7 +234,7 @@ proc arco_reporting_install {} {
              continue
           }
           -i $sp_id "Do you want to repeat database connection setup? (y/n) * >>" {
-             ts_log_severe "inst_dbwriter could not setup the database connection"
+             ts_log_severe "inst_reporting could not setup the database connection"
              incr error_count 1
              break
           }
@@ -262,6 +262,21 @@ proc arco_reporting_install {} {
           -i $sp_id "Directory ${spool_dir} does not exist, create it? (y/n) * >> " {
              send_to_spawn_id $sp_id "y"
              continue
+          }
+          -i $sp_id "*: command not found. Make sure that the * is on your PATH." {
+             ts_log_severe "Java Webconsole - command not found."
+             incr error_count 1
+             break
+          }
+          -i $sp_id "Not supported Java Webconsole Version * for ARCo" {
+             ts_log_severe "Not supported Java Webconsole Version."
+             incr error_count 1
+             break
+          }
+          -i $sp_id "Not supported architecture for ARCo reporting." {
+             ts_log_severe "Not supported architecture for ARCo reporting."
+             incr error_count 1
+             break
           }
           -i $sp_id "ARCo reporting successfully installed" {
              break

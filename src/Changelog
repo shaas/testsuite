@@ -1,3 +1,7 @@
+AP-2008-03-20-0: Enhancem.: o ARCo supports SWC > 3.0 from SGE 6.2 version
+                            o reporting installation - adding expected messages
+                 Review:    JO
+
 CR-2008-03-19-1: Task:      basic resource assignement test
                             (last part of check-in)
                  Issue:     #365 (hedeby)(added missing tests) 
