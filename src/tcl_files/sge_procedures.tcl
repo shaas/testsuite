@@ -7591,8 +7591,10 @@ proc copy_certificates { host } {
             start_remote_prog $host "root" "chown" "-R $user /var/sgeCA/port${ts_config(commd_port)}/default/userkeys/$user"
          }
          # create certs for <$HOST>+Administrator and <$HOST>+$SGE_ADMIN_USER
-         set result [start_remote_prog $host "root" "$ts_config(product_root)/util/certtool.sh" "$ts_config(product_root) $ts_config(cell)"]
-         ts_log_finest $result
+         if {$ts_config(gridengine_version) >= 61} {
+            set result [start_remote_prog $host "root" "$ts_config(product_root)/util/certtool.sh" "$ts_config(product_root) $ts_config(cell)"]
+            ts_log_finest $result
+         }
       }
 
       # check for syncron clock times
