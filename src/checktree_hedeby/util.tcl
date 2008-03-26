@@ -2062,14 +2062,14 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     reset_hedeby() -- reset hedeby system configuration
 #
 #  SYNOPSIS
-#     reset_hedeby { } 
+#     reset_hedeby { {force 0} } 
 #
 #  FUNCTION
 #     Used to reset the hedeby configuration to the state after first
 #     installation. 
 #
 #  INPUTS
-#
+#     force - if 1, reset of the system by force42
 #  RESULT
 #     0 - on success
 #     1 - on error
@@ -3258,6 +3258,119 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
    return 0
 }
 
+#****** util/wait_for_component_info() *******************************************
+#  NAME
+#     wait_for_component_info() -- wait for expected component state information
+#
+#  SYNOPSIS
+#     wait_for_component_info { exp_comp_info {atimeout 60} {raise_error 1} 
+#     {ev error_var } {host ""} {user ""} {ci component_info} } 
+#
+#  FUNCTION
+#     This procedure calls get_component_info() until the specified component
+#     information or a timeout occurs.
+#
+#  INPUTS
+#     exp_comp_info     - expected component info (same structure like
+#                         get_component_info() is returning).
+#     {atimeout 60}     - optional timeout specification in seconds
+#     {raise_error 1}   - report testsuite errors if != 0
+#     {ev error_var }   - report error text into this tcl var 
+#     {host ""}         - see get_component_info()
+#     {user ""}         - see get_component_info() 
+#     {ci component_info} - see get_component_info() 
+#
+#  RESULT
+#     0 on success, 1 on error
+#     setting of tcl arrays like known from get_component_info()
+#
+#  EXAMPLE
+#     set exp_component_info("spare_pool","tuor",state) "STARTED"
+#     set exp_component_info($acomponent,"tuor",type) "Executor"
+#     wait_for_component_info exp_component_info
+#
+#
+#  SEE ALSO
+#     util/get_component_info()
+#*******************************************************************************
+proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ci component_info} } {
+   global hedeby_config
+   # setup arguments
+   upvar $exp_comp_info exp_cmp_info
+   upvar $ev error_text
+   upvar $ci component_info
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # init error and timeout
+   if {![info exists error_text]} {
+      set error_text ""
+   }
+   set my_timeout [timestamp]
+   incr my_timeout $atimeout
+
+   # set expected results info
+   set expected_component_info ""
+   set exp_values [array names exp_cmp_info]
+   foreach val $exp_values {
+      append expected_component_info "$val=\"$exp_cmp_info($val)\"\n"
+   }
+   ts_log_fine "expected component infos:\n$expected_component_info"
+
+   while {1} {
+      set retval [get_component_info $host $user component_info $raise_error]
+      if {$retval != 0} {
+         append error_text "break because of get_component_info() returned \"$retval\"!\n"
+         append error_text "expected component info was:\n$expected_component_info"
+         break
+      }
+
+      set not_matching ""
+      foreach val $exp_values {
+         if {[info exists component_info($val)]} {
+            if { $component_info($val) == $exp_cmp_info($val)} {
+               ts_log_fine "component info \"$val\" matches expected info \"$exp_cmp_info($val)\""
+            } else {
+               append not_matching "component info \"$val\" is set to \"$component_info($val)\", should be \"$exp_cmp_info($val)\"\n"
+            }
+         } else {
+            append not_matching "component info \"$val\" not available\n"
+         }
+      }
+
+      if {$not_matching == ""} {
+         ts_log_fine "all specified component info is matching"
+         break
+      } else {
+         ts_log_fine "still waiting for specified component settings ..."
+         ts_log_fine "still not matching component info:\n$not_matching"
+      }
+
+      if {[timestamp] >= $my_timeout} {
+         append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected component states!\n"
+         append error_text "==> NOT matching values:\n$not_matching"
+         break
+      }
+      after 1000
+   }
+
+   if {$error_text != "" } {
+      if {$raise_error != 0} {
+         ts_log_severe $error_text
+      }
+      return 1
+   }
+   return 0
+}
+
 #****** util/get_free_service() ************************************************
 #  NAME
 #     get_free_service() -- get a service name which is free to use
@@ -3998,6 +4111,144 @@ proc get_service_info { {host ""} {user ""} {si service_info} {raise_error 1} } 
    return 0
 }
 
+#****** util/get_component_info() ************************************************
+#  NAME
+#     get_component_info() -- get component information (via sdmadm sc)
+#
+#  SYNOPSIS
+#     get_component_info { {host ""} {user ""} {ci component_info} } 
+#
+#  FUNCTION
+#     This procedure starts an sdmadm sc command and parses the output.
+#
+#  INPUTS
+#     {host ""}              - host where to start command
+#                                 (default: hedeby master host)
+#     {user ""}              - user who starts command
+#                                 (default: hedeby admin user)
+#     {ci component_info}    - name of array for component informations
+#                                 (default: component_info) 
+#     {raise_error 1}        - if 1 report errors
+#
+#  RESULT
+#     Return value: "0" on success, "1" on error 
+#
+#     Arrays:
+#             component_info(component_NAME,host)       - list of hosts on which component runs
+#             component_info(component_NAME,host,jvm)  - component jvm
+#             component_info(component_NAME,host,type) - component type
+#             component_info(component_NAME,host,state)- component component state
+#             component_info(component_list)            - list of all components
+#
+#  EXAMPLE
+#     get_component_info cinfo
+#     foreach component $cinfo(component_list) {
+#       foreach host $cinfo($component,host) {
+#           set jvm $cinfo($component,$host,jvm)
+#           set type $cinfo($component,$host,type)
+#           set state $cinfo($component,$host,state)
+#           ts_log_fine "component \"$component\": host=\"$host\": jvm=\"$jvm\": type=\"$type\": state=\"$state\""
+#       }
+#     }
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/parse_table_output()
+#     util/get_resource_info()
+#     util/get_service_info()
+#*******************************************************************************
+proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1} } {
+   global hedeby_config
+
+   # setup arguments
+   upvar $ci cinfo
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # first we delete possible existing info arrays
+   if { [info exists cinfo] } {
+      unset cinfo
+   }
+
+   # now we start sdmadm sc command ...
+   set sdmadm_command "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sc"
+   set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" $raise_error table]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting" $raise_error
+      return 1
+   }
+
+   # we expect the following table columns for ShowComponentStatusCliCommand ...
+   set exp_columns {}
+   lappend exp_columns [create_bundle_string "ShowComponentStatusCliCommand.HostCol"]
+   lappend exp_columns [create_bundle_string "ShowComponentStatusCliCommand.JvmCol"]
+   lappend exp_columns [create_bundle_string "ShowComponentStatusCliCommand.NameCol"]
+   lappend exp_columns [create_bundle_string "ShowComponentStatusCliCommand.TypeCol"]
+   lappend exp_columns [create_bundle_string "ShowComponentStatusCliCommand.StateCol"]
+   set used_col_names "host jvm component type state"
+
+   set xyz(0) "*"
+   lappend res_ignore_list [create_bundle_string "ShowComponentStatusCliCommand.err" xyz]
+   foreach col $exp_columns {
+      set pos [lsearch -exact $table(table_columns) $col]
+      if {$pos < 0} {
+         ts_log_severe "cannot find expected column name \"$col\"" $raise_error
+         return 1
+      }
+      ts_log_finer "found expected col \"$col\" on position $pos"
+      if {[lsearch -exact $used_col_names $col] < 0} {
+         ts_log_severe "used column name \"$col\" not expected - please check table column names!" $raise_error
+         return 1
+      }
+   }
+   
+   set component_col    [lindex $exp_columns 2]
+   set state_col        [lindex $exp_columns 4]
+   set jvm_col          [lindex $exp_columns 1]
+   set type_col         [lindex $exp_columns 3]
+   set host_col         [lindex $exp_columns 0]
+
+   # now we fill up the arrays ... 
+   set cinfo(component_list) {}
+   # set cinfo($component_id,host) {}
+
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      set component_id $table($component_col,$line)
+      set host $table($host_col,$line)
+      
+      set ci_on_list [lsearch -exact $cinfo(component_list) $component_id]
+      if { $ci_on_list < 0} {
+        lappend cinfo(component_list) $component_id
+      } else {
+        ts_log_finer "Component $component_id is already on the list"
+      }
+
+      lappend cinfo($component_id,host) $host
+      # ts_log_fine "cinfo $component_id, host: $cinfo($component_id,host)"
+      set cinfo($component_id,$host,state)    $table($state_col,$line)
+      set cinfo($component_id,$host,jvm)      $table($jvm_col,$line)
+      set cinfo($component_id,$host,type)     $table($type_col,$line)
+      
+   }
+
+   ts_log_fine "component list: $cinfo(component_list)"
+   foreach component $cinfo(component_list) {
+    foreach host $cinfo($component,host) {
+      ts_log_finer "component \"$component\": host=\"$host\" state=\"$cinfo($component,$host,state)\" jvm=\"$cinfo($component,$host,jvm)\" type=\"$cinfo($component,$host,type)\""
+    }
+   }
+   return 0
+}
+
 #****** util/sdmadm_command() **************************************************
 #  NAME
 #     sdmadm_command() -- start sdmadm command
@@ -4452,6 +4703,54 @@ proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1
       set retval 1
    }
    return $retval;
+}
+
+#****** util/produce_unknown_resource() ******************************************
+#  NAME
+#     produce_unknown_resource() -- produce name for unknwon resource
+#
+#  SYNOPSIS
+#     produce_unknown_resource { } 
+#
+#  FUNCTION
+#     This procedure will produce a name for a resource that is not managed by
+#     hedeby (is unknown).
+#
+#  INPUTS
+#     none
+#
+#  RESULT
+#     resource name
+#
+#  SEE ALSO
+#     
+#*******************************************************************************
+proc produce_unknown_resource { } {
+    global hedeby_config
+    set exec_host $hedeby_config(hedeby_master_host)
+
+    # '@' sign is valid in resource name, so use it for constructing the name
+    set unknown_name "unknown@"
+    # initialize output to empty string
+    set output ""
+
+    # build expected output message from bundle properties file ... 
+    set expected_output [string trim [create_bundle_string "ShowResourceStateCliCommand.res.notfound"]]
+    ts_log_fine "expected output: $expected_output"
+    
+    while { 1 } {
+        # prepare sdmadm command ...
+        set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -r $unknown_name"
+        set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
+        ts_log_fine "output is: $output"
+        if {[string match "$expected_output" "$output"]} {
+            break
+        } else {        
+            append unknown_name "@" 
+        }
+    }
+        
+    return $unknown_name
 }
 
 #****** util/produce_error_resource() ******************************************
@@ -5296,3 +5595,147 @@ proc hedeby_executor_cleanup { executor_host { executor_name "executor" } } {
    return 0
 }
 
+#****** util/compare_resource_infos() ******************************************
+#  NAME
+#     compare_resource_infos() -- compare two resource infos
+#
+#  SYNOPSIS
+#     compare_resource_infos { res_info1 res_prop1 res_list1 res_list_not_uniq1 res_info2 res_prop2 res_list2 res_list_not_uniq2 { et error_text} } 
+#
+#  FUNCTION
+#     This procedure will produce a name for a resource that is not managed by
+#     hedeby (is unknown).
+#
+#  INPUTS
+#    res_info1          --  resource info as returned by get_resource_info
+#    res_prop1          --  resource property array as returned by get_resource_info
+#    res_list1          --  resource list as returned by get_resource_info
+#    res_list_not_uniq1 --  ambiguous resource list as returned by get_resource_info
+#    res_info2          --  resource info as returned by get_resource_info
+#    res_prop2          --  resource property array as returned by get_resource_info
+#    res_list2          --  resource list as returned by get_resource_info
+#    res_list_not_uniq2 --  ambiguous resource list as returned by get_resource_info
+#    et                 --  error text (if comparison returns -1)
+#
+#  OUTPUTS
+#    et                  --  detailed message if result is -1
+#   
+#  RESULT
+#     0                 --  if all "*1" and related "*2" attributes are equal
+#    -1                 --  if not all "*1" and related "*2" attributes are equal
+#
+#  SEE ALSO
+#     util/get_proc_info()
+#     
+#*******************************************************************************
+proc compare_resource_infos { resource_info1 rp1 res_list1 res_list_not_uniq1 resource_info2 rp2 res_list2 res_list_not_uniq2 {et error_text} } {
+    
+    upvar $et result_et
+    if {[info exists result_et]} {
+      unset result_et
+    }
+
+    array set res_info1 $resource_info1
+    array set res_prop1 $rp1
+    array set res_info2 $resource_info2
+    array set res_prop2 $rp2
+    
+    set result_et ""
+
+    set result 0
+    # 1. check the number of resources
+    # TODO check if res_list1 and res_list2 are set ...
+    if { [llength $res_list1] == [llength $res_list2] } {
+        ts_log_fine "both resource lists contain the same number of resources"
+        foreach elem $res_list1 { 
+            set has [lsearch -exact $res_list2 $elem]
+            if { $has < 0 } {
+                append result_et "resource list 2 does not contain resources $elem"  
+                return -1
+            } else {
+                ts_log_fine "both resource lists contain resource $elem"
+            }
+        }
+    } else {
+        append result_et "resource lists do not contain the same number of resources"
+        return -1
+    }
+    # 2. check the number of ambiguous resources
+    # TODO check if res_list_not_uniq1 and res_list_not_uniq2 are set ...
+    if { [llength $res_list_not_uniq1] == [llength $res_list_not_uniq2] } {
+        ts_log_fine "both ambiguous resource lists contain the same number of resources"
+        foreach elem $res_list_not_uniq1 { 
+            set has [lsearch -exact $res_list_not_uniq2 $elem]
+            if { $has < 0 } {
+                append result_et "ambiguous resource list 2 does not contain resources $elem"                                
+                return -1
+            } else {
+                ts_log_fine "both ambiguous resource lists contains resource $elem"
+            }
+        }
+    } else {
+        append result_et "ambiguous resource lists do not contain the same number of resources"
+        return -1
+    }
+    # 3. check the resource property arrays
+    # TODO check if res_prop1 and res_prop2 are set ...
+    # TODO to make this working, we need to adjust get_resource_info that it
+    #      will return also the list of all available properties for a resource, 
+    #      as right now we do not know how to iterate over rp1 or rp2
+    #                            if { [llength $rp1($rst)] == [llength $rp2($rst)] } {
+    #                                ts_log_fine "original and updated resource property list contain the same number of entries"
+    #                                foreach elem $rp1($rst) { 
+    #                                    set has [lsearch -exact $rp2($rst) $elem]
+    #                                    if { $has < 0 } {
+    #                                        append result_et "updated resource property list does not contain entry $elem"                                
+    #                                    } else {
+    #                                        ts_log_fine "original and updated resource property list contain entry $elem"
+    #                                    }
+    #                                }
+    #                            } else {
+    #                                append result_et "original and updated resource property list do not contain the same number of entries"
+    #                            }
+    
+    # 4. check the resources
+    # TODO res_list1 must be set!!!
+    # TODO check if resource infos are set
+    foreach rst $res_list1 {
+        if {[string match "$res_info1($rst,flags)" "$res_info2($rst,flags)"]} {
+            ts_log_fine "resource $rst has the same flags in both resource infos"                            
+        } else {
+            append result_et "resource infos differ: $res_info1($rst,flags), $res_info2($rst,flags)\n"
+            return -1
+        }
+        if {[string match "$res_info1($rst,state)" "$res_info2($rst,state)"]} {
+            ts_log_fine "resource $rst has the same state in both resource infos"                            
+        } else {
+            append result_et "resource infos differ: $res_info1($rst,state), $res_info2($rst,state)\n"
+            return -1
+        }
+        if {[string match "$res_info1($rst,type)" "$res_info2($rst,type)"]} {
+            ts_log_fine "resource $rst has the same type in both resource infos"                            
+        } else {
+            append result_et "resource infos differ: $res_info1($rst,type), $res_info2($rst,type)\n"
+            return -1
+        }
+        if {[string match "$res_info1($rst,service)" "$res_info2($rst,service)"]} {
+            ts_log_fine "resource $rst has the same service in both resource infos"                            
+        } else {
+            append result_et "resource infos differ: $res_info1($rst,service), $res_info2($rst,service)\n"
+            return -1
+        }
+        if {[string match "$res_info1($rst,annotation)" "$res_info2($rst,annotation)"]} {
+            ts_log_fine "resource $rst has the same annotation in both resource infos"                            
+        } else {
+            append result_et "resource infos differ: $res_info1($rst,annotation), $res_info2($rst,annotation)\n"
+            return -1
+        }
+        if {[string match "$res_info1($rst,usage)" "$res_info2($rst,usage)"]} {
+            ts_log_fine "resource $rst has the same usage in both resource infos"                            
+        } else {
+            append result_et "resource infos differ: $res_info1($rst,usage), $res_info2($rst,usage)\n"
+            return -1
+        }
+    }
+    return 0
+}

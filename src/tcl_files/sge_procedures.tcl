@@ -120,6 +120,7 @@ set module_name "sge_procedures.tcl"
 # shutdown_scheduler() -- ???
 # is_scheduler_alive() -- ??? 
 # is_qmaster_alive() -- check if qmaster process is running
+# is_execd_alive() -- check if execd process is running
 # get_qmaster_pid() -- ???
 # get_scheduler_pid() -- ???
 # get_shadowd_pid() -- ???
@@ -6273,6 +6274,42 @@ proc is_qmaster_alive { hostname qmaster_spool_dir } {
    return $alive
 }
 
+#****** sge_procedures/is_execd_alive() **************************************
+#  NAME
+#     is_execd_alive() -- check if execd process is running
+#
+#  SYNOPSIS
+#     is_execd_alive { hostname execd_spool_dir } 
+#
+#  FUNCTION
+#     This function searches the process table for a running execd process
+#
+#  INPUTS
+#     hostname          - execd hostname
+#     execd_spool_dir   - execd spool dir
+#
+#  RESULT
+#     1 on success
+#     0 on error
+#
+#  SEE ALSO
+#     sge_procedures/is_scheduler_alive()
+#     sge_procedures/is_qmaster_alive()
+#*******************************************************************************
+proc is_execd_alive { hostname {execd_spool_dir ""} } {
+   get_current_cluster_config_array ts_config
+   set execd_pid [get_execd_pid $hostname $execd_spool_dir]
+   get_ps_info $execd_pid $hostname
+   
+   set alive 0
+   if { ($ps_info($execd_pid,error) == 0) } {
+      if { [ is_pid_with_name_existing $hostname $execd_pid "sge_execd" ] == 0 } { 
+         set alive 1
+      }
+   }
+
+   return $alive
+}
 
 #****** sge_procedures/get_qmaster_pid() ***************************************
 #  NAME

@@ -1,0 +1,288 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "basic_resource_reset_sequential"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "sequential resource reset test of ERROR resources (soft execd shutdown)"
+set check_description(1)       "sequential resource reset test of ERROR resources (local execd shutdown)"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "basic_resource_reset_sequential_init_level"
+set check_functions            {}   
+set check_highest_level        1
+
+set check_setup_function "basic_resource_reset_sequential_setup"
+set check_cleanup_function "basic_resource_reset_sequential_cleanup"
+
+lappend check_functions "basic_resource_reset_sequential_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global basic_resource_reset_sequential_current_cluster_config
+global rst_list
+
+
+#****** basic/basic_resource_reset_sequential_init_level() ************************
+#  NAME
+#     basic_resource_reset_sequential_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     basic_resource_reset_sequential_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0 and level 1
+#     are supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for CHECK_ACT_LEVEL 1 // produce_error_resource does not work correctly in this run level
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc basic_resource_reset_sequential_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  if { $CHECK_ACT_LEVEL == 1 } {
+     return -1
+  }
+
+  return -1
+}
+
+#****** basic/basic_resource_reset_sequential_setup() *****************************
+#  NAME
+#     basic_resource_reset_sequential_setup() -- prepare test setup
+#
+#  SYNOPSIS
+#     basic_resource_reset_sequential_setup { } 
+#
+#  FUNCTION
+#     This test will work with additional clusters. Therefore the current
+#     cluster nr is stored in a global variable. The cleanup procedure 
+#     basic_resource_reset_sequential_cleanup() will reset the current active
+#     cluster again.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_reset_sequential_cleanup()
+#*******************************************************************************
+proc basic_resource_reset_sequential_setup {} {
+   global basic_resource_reset_sequential_current_cluster_config
+   set basic_resource_reset_sequential_current_cluster_config [get_current_cluster_config_nr]
+}
+
+#****** basic/basic_resource_reset_sequential_cleanup() ***************************
+#  NAME
+#     basic_resource_reset_sequential_cleanup() -- reset the cluster nr and do hedeby reset 
+#
+#  SYNOPSIS
+#     basic_resource_reset_sequential_cleanup { } 
+#
+#  FUNCTION
+#     Restore the current active cluster value stored by 
+#     basic_resource_reset_sequential_setup() procedure and perform hedeby reset.
+#     The hedeby reset is done by reset_hedeby() which will move all resources
+#     back to their original configured service.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_reset_sequential_setup()
+#*******************************************************************************
+proc basic_resource_reset_sequential_cleanup {} {
+   global basic_resource_reset_sequential_current_cluster_config
+   global rst_list
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $basic_resource_reset_sequential_current_cluster_config
+
+   # reset produced error resources 
+   foreach resource $rst_list {
+        reset_produced_error_resource $resource
+   }
+
+   # perform hedeby reset
+   reset_hedeby 1
+}
+
+#****** basic/basic_resource_reset_sequential_check() *****************************
+#  NAME
+#     basic_resource_reset_sequential_check() -- basic resource reset test
+#
+#  SYNOPSIS
+#     basic_resource_reset_sequential_check { } 
+#
+#  FUNCTION
+#     This test will set each host resource assigned to GE service to ERROR state and
+#     will reset it.
+#
+#     actions:
+#        1) Shutdown EXECD on a host resource assigned to GE service
+#        2) Check that resource state has changed to ERROR
+#        3) Perform "sdmadm reset" on the host resource
+#        4) Check that 
+#           a) EXECD is running on the host resource
+#           b) resource state has changed to ASSIGNED
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_reset_sequential_setup()
+#     basic/basic_resource_reset_sequential_cleanup()
+#*******************************************************************************
+proc basic_resource_reset_sequential_check {} {
+   global hedeby_config
+   global CHECK_ACT_LEVEL
+   global rst_list
+   
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set ge_hosts [get_hedeby_default_services service_names]
+   set exec_host $hedeby_config(hedeby_master_host)
+
+   # init text array for reporting errors
+   # (errors are logged at the end of the test)
+   set error_text ""
+   
+   # shutdown each execd to produce resource(s) in ERROR state
+   foreach service $service_names(services) {
+      foreach resource $service_names(execd_hosts,$service) {
+        ts_log_fine "shutting down execd to set resource \"$resource\" to ERROR state ..."
+        # produce error resource ...
+        if {$CHECK_ACT_LEVEL == 1} {
+            # runlevel 1 (hard execd shutdown)
+            set ret [produce_error_resource $resource "hard"]
+        } else {
+            # runlevel 2 (soft execd shutdown)
+            set ret [produce_error_resource $resource "soft"]
+        }
+        # if resource was succesfully set to ERROR state put try to reset it
+        if { $ret == 0 } {
+            # need to switch cluster according the resource host
+            set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource)
+            if { [is_execd_alive $resource] == 0 } {
+
+                ts_log_fine "reset error resource \"$resource\" ..."
+                # prepare sdmadm command and start it ...
+                set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $resource"
+                set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
+                # check that exit state == 0 
+                ts_log_fine "reset resource \"$resource\" exit state: $prg_exit_state"
+                if { $prg_exit_state != 0 } {
+                   append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\"\n"
+                }
+
+                # parse output and compare it to the expected output ...
+                # build expected output message from bundle properties file ... 
+                set expected_output [create_bundle_string "ResetResourceCommand.resource.reset"]
+                ts_log_fine "expected output: \"$expected_output\""
+
+                # get sdmadm output message string ...
+                set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
+                ts_log_fine "output message is: \"$output_message\""
+
+                # compare the output with the expected output ...
+                if {[string match "$expected_output" $output_message]} {
+                   ts_log_fine "output is matching!"
+                } else {
+                   append error_text "The output message doesn't match expected output\n"
+                   append error_text "Expected output: \"$expected_output\"\n"
+                   append error_text "Received output: \"$output_message\"\n"
+                }
+
+                # now wait and check that reset resource is in assigned state
+                # step 1: set expected resource information values   
+                set exp_resource_info($resource,service) "$service_names(default_service,$resource)" 
+                set exp_resource_info($resource,state) "ASSIGNED"
+                # step 2: wait for expected resource informations
+                set retval [wait_for_resource_info exp_resource_info 60 0 rst_error]
+
+                if { $retval != 0 } {
+                  append error_text "Checking that resource was succesfully reset has failed :\n"
+                  append error_text $rst_error
+                } else {
+                  ts_log_fine "Reset resource has expected state!"
+                }
+                # need to switch cluster according the resource host
+                set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource) 
+                if { [is_execd_alive $resource] == 0 } {
+                    append error_text "Execd is not running on $resource!\n"
+                } else {
+                    ts_log_fine "execd is running again on $resource"
+                }
+                
+             } else {
+                append error_text "execd is still running on $resource\n"
+             }
+
+         } else {
+            # if resource did not go into ERROR state report that test cannot be done
+            append error_text "Cannot test reset of resource in ERROR state, because setting resource \"$resource\" to error failed!\n"
+         }
+      }                
+   }   
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+

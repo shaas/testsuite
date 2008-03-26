@@ -1,0 +1,288 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "basic_resource_reset_parallel"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "parallel resource reset test of ERROR resources (soft execd shutdown)"
+set check_description(1)       "parallel resource reset test of ERROR resources (local execd shutdown)"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "basic_resource_reset_parallel_init_level"
+set check_functions            {}   
+set check_highest_level        1
+
+set check_setup_function "basic_resource_reset_parallel_setup"
+set check_cleanup_function "basic_resource_reset_parallel_cleanup"
+
+lappend check_functions "basic_resource_reset_parallel_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global basic_resource_reset_parallel_current_cluster_config
+global rst_list
+
+
+#****** basic/basic_resource_reset_parallel_init_level() ************************
+#  NAME
+#     basic_resource_reset_parallel_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     basic_resource_reset_parallel_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0 and level 1
+#     are supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for CHECK_ACT_LEVEL 1 // produce_error_resource does not work correctly in this run level
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc basic_resource_reset_parallel_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  if { $CHECK_ACT_LEVEL == 1 } {
+     return -1
+  }
+
+  return -1
+}
+
+#****** basic/basic_resource_reset_parallel_setup() *****************************
+#  NAME
+#     basic_resource_reset_parallel_setup() -- prepare test setup
+#
+#  SYNOPSIS
+#     basic_resource_reset_parallel_setup { } 
+#
+#  FUNCTION
+#     This test will work with additional clusters. Therefore the current
+#     cluster nr is stored in a global variable. The cleanup procedure 
+#     basic_resource_assignment_cleanup() will reset the current active
+#     cluster again.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_assignment_cleanup()
+#*******************************************************************************
+proc basic_resource_reset_parallel_setup {} {
+   global basic_resource_reset_parallel_current_cluster_config
+   set basic_resource_reset_parallel_current_cluster_config [get_current_cluster_config_nr]
+}
+
+#****** basic/basic_resource_reset_parallel_cleanup() ***************************
+#  NAME
+#     basic_resource_reset_parallel_cleanup() -- reset the cluster nr and do hedeby reset 
+#
+#  SYNOPSIS
+#     basic_resource_reset_parallel_cleanup { } 
+#
+#  FUNCTION
+#     Restore the current active cluster value stored by 
+#     basic_resource_reset_parallel_setup() procedure and perform hedeby reset.
+#     The hedeby reset is done by reset_hedeby() which will move all resources
+#     back to their original configured service.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_reset_parallel_setup()
+#*******************************************************************************
+proc basic_resource_reset_parallel_cleanup {} {
+   global basic_resource_reset_parallel_current_cluster_config
+   global rst_list
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $basic_resource_reset_parallel_current_cluster_config
+
+   # reset produced error resources 
+   foreach resource $rst_list {
+        reset_produced_error_resource $resource
+   }
+
+   # perform hedeby reset
+   reset_hedeby 1
+
+}
+
+#****** basic/basic_resource_reset_parallel_check() *****************************
+#  NAME
+#     basic_resource_reset_parallel_check() -- basic resource reset test, reset
+#     of error resources is performed as a parallel command    
+#
+#  SYNOPSIS
+#     basic_resource_reset_parallel_check { } 
+#
+#  FUNCTION
+#     This test will set each host resource assigned to GE service to ERROR state and
+#     will reset it.
+#
+#     actions:
+#        1) Shutdown EXECD on each host resource assigned to GE service
+#        2) Check that resource state has changed to ERROR
+#        3) Perform parallel "sdmadm reset" on all GE resources
+#        4) Check that 
+#           a) EXECD is running on the host resource
+#           b) resource state has changed to ASSIGNED
+#           c) exist status of the command is 0
+#           d) output message of the command is as expected    
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     basic/basic_resource_reset_parallel_setup()
+#     basic/basic_resource_reset_parallel_cleanup()
+#*******************************************************************************
+proc basic_resource_reset_parallel_check {} {
+   global hedeby_config
+   global CHECK_ACT_LEVEL
+   global rst_list
+   
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set ge_hosts [get_hedeby_default_services service_names]
+
+   # init text array for reporting errors
+   # (errors are logged at the end of the test)
+   set error_text ""
+
+   # initialize list or resources to reset
+   set rst_list {}
+
+   # shutdown each execd to produce resource(s) in ERROR state
+   foreach service $service_names(services) {
+      foreach resource $service_names(execd_hosts,$service) {
+        ts_log_fine "shutting down execd to set resource \"$resource\" to ERROR state ..."
+        # produce error resource ...
+        if {$CHECK_ACT_LEVEL == 1} {
+            # runlevel 1 (hard execd shutdown)
+            set ret [produce_error_resource $resource "hard"]
+        } else {
+            # runlevel 2 (soft execd shutdown)
+            set ret [produce_error_resource $resource "soft"]
+        }
+        # if resource was succesfully set to ERROR state put it to list of resources to reset      
+        if { $ret == 0 } {
+            # need to switch cluster according the resource host
+            set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource)
+            if { [is_execd_alive $resource] == 0 } {
+                set is_on_list [lsearch -exact $rst_list $resource]
+            } else {
+                append error_text "Execd is still running on $resource!\n"
+                set is_on_list -1
+            }            
+            if { $is_on_list < 0} {
+                lappend rst_list $resource
+            } else {
+                append error_text "basic test should not work with ambiguous resource \"$resource\" ...\n"
+            }
+        } 
+      }    
+    }
+      if { $rst_list != {} } {
+        # starting parallel resource movement on every resource host ...
+        foreach res $rst_list {
+            set task_info($res,expected_output) [create_bundle_string "ResetResourceCommand.resource.reset"]
+            set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name rsr -r $res"
+        }
+        set par_error [start_parallel_sdmadm_command rst_list [get_hedeby_admin_user] task_info]
+        if {$par_error != ""} {            
+            append error_text $par_error "\n"
+        }                
+
+        # now wait and check that all reset resources are in assigned state
+        # step 1: set expected resource information values   
+        foreach res $rst_list {
+            set exp_resource_info($res,service) "$service_names(default_service,$res)" 
+            set exp_resource_info($res,state) "ASSIGNED"
+        }
+        # step 2: wait for expected resource informations
+        set retval [wait_for_resource_info exp_resource_info 60 0 rst_error]
+
+        foreach res $rst_list {
+           # check that execd is running again
+           # need to switch cluster according the resource host
+           set_current_cluster_config_nr $service_names(ts_cluster_nr,$res)
+           if { [is_execd_alive $res] == 1 } {
+                ts_log_fine "execd IS running on reset resource $res"
+           } else {
+                append error_text "execd IS NOT running on reset resource $res\n"
+           } 
+           # check that exit state == 0 
+           set exit_state $task_info($res,exit_status)
+           ts_log_fine "reset resource $res exit state: $exit_state"
+           if { $exit_state != 0 } {
+              append error_text "The exit state \"$exit_state\" doesn't match the expected exit state \"0\"\n"
+           }
+        }
+
+   } else {
+      # if resource did not go into ERROR state report that test cannot be done
+      append error_text "Cannot test reset of resources in ERROR state, no resource was set to error state!\n"
+   }            
+   
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+

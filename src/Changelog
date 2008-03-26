@@ -1,3 +1,18 @@
+MB-2008-03-27-0: Task:      resource reset test
+                 Issue:     #216 (hedeby)(added missing tests) 
+                               /resources/reset/ambiguous/check.62.exp
+                               /resources/reset/assigned/check.62.exp
+                               /resources/reset/basic/batch/check.62.exp
+                               /resources/reset/basic/parallel/check.62.exp
+                               /resources/reset/basic/sequential/check.62.exp
+                               /resources/reset/basic/unknown/check.62.exp
+                 Enhancem.: o new procedure: get_component_info()
+                            o new procedure: wait_for_component_info()
+                            o new procedure: produce_unknown_resource()
+                            o new procedure: compare_resource_infos()
+                            o new procedure in sge_procedures.tcl: is_execd_alive()
+                 Review:    RM
+
 HP-2008-03-20-0: Bugfix:    Added version checking to HP-2008-03-19-0
 
 AP-2008-03-20-0: Enhancem.: o ARCo supports SWC > 3.0 from SGE 6.2 version
