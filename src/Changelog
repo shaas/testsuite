@@ -1,3 +1,6 @@
+JO-2008-03-27-0: Enhancem.:   changed install messages
+                 Review:      AP
+
 MB-2008-03-27-0: Task:      resource reset test
                  Issue:     #216 (hedeby)(added missing tests) 
                                /resources/reset/ambiguous/check.62.exp

@@ -238,7 +238,8 @@ proc arco_reporting_install {} {
              incr error_count 1
              break
           }
-          -i $sp_id "*nter a login name of a user (Press enter to finish) >> " {
+           #The prompt is "Enter a user login name (Hit <RETURN> to finish)"
+          -i $sp_id "*nter * login name* >> " {
              if { $user_count < [llength $users] } {
                 send_to_spawn_id $sp_id [lindex $users $user_count]
                 incr user_count 1
@@ -246,7 +247,7 @@ proc arco_reporting_install {} {
                 send_to_spawn_id $sp_id ""
              }
           }
-          -i $sp_id "Are this settings correct? (y/n) * >> " {
+          -i $sp_id "Are * settings correct? (y/n) * >> " {
              send_to_spawn_id $sp_id "y"
              continue
           }
@@ -264,12 +265,12 @@ proc arco_reporting_install {} {
              continue
           }
           -i $sp_id "*: command not found. Make sure that the * is on your PATH." {
-             ts_log_severe "Java Webconsole - command not found."
+             ts_log_severe "* Java Web* - command not found."
              incr error_count 1
              break
           }
-          -i $sp_id "Not supported Java Webconsole Version * for ARCo" {
-             ts_log_severe "Not supported Java Webconsole Version."
+          -i $sp_id "Not supported * Java Web* Version * for ARCo" {
+             ts_log_severe "Not supported * Java Web* Version."
              incr error_count 1
              break
           }

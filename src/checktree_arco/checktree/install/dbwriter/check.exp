@@ -255,7 +255,7 @@ proc arco_dbwriter_install {} {
              send_to_spawn_id $sp_id $input
              continue
           }
-          -i $sp_id "Are this settings correct? (y/n) * >> " {
+          -i $sp_id "Are * settings correct? (y/n) * >> " {
              send_to_spawn_id $sp_id "y"
              continue
           }
