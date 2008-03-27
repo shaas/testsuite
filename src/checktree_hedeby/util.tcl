@@ -2789,6 +2789,8 @@ proc parse_table_output { output array_name delemitter } {
 #             res_info(TS_NAME,INFO_TYPE) - resource info value
 #
 #             res_prop(TS_NAME,PROPERTY)  - resource property value  
+#           
+#             res_prop(TS_NAME,prop_list) - resource property list
 #
 #                where TS_NAME is testsuite resource name
 #                where INFO_TYPE is "id", "service", "state", "type",
