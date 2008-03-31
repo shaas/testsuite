@@ -1,0 +1,223 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "scheduler_config_init_level"
+
+# define test's name and run level descriptions
+set check_name            "test_special_scheduler_config_attributes"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_highest_level   0
+set check_description(0)  "Check error handling concerning acls and departments"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function "scheduler_config_setup"
+set check_cleanup_function "scheduler_config_cleanup"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "scheduler_config_check"
+lappend check_functions "test_sched_conf_attributes"
+
+proc scheduler_config_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  switch -- $CHECK_ACT_LEVEL {
+     "0" { 
+           return 0    
+     } 
+  } 
+  return -1  ;# no other level else
+}
+
+# -------- local test procedures -----------------------------------------------
+global queue_name 
+
+proc scheduler_config_setup {} {
+   # make a clean env 
+
+   # change queue 
+   ts_log_fine "Change scheduler config to maxujobs 3!"
+
+   # change scheduler to maxujobs=3 
+   set schedd_change(maxujobs) "3" 
+   set_schedd_config schedd_change 0 
+}
+
+
+proc scheduler_config_check {} {
+   # additional tests ...
+}
+
+
+proc test_sched_conf_attributes {} {
+   global CHECK_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global ts_config
+
+   # -------------------------------------------------------------------------------
+   # test case - maxujobs parameter was broken in 5.3 
+   # -------------------------------------------------------------------------------
+   ts_log_fine "Submit 5 sleeper jobs as user $CHECK_USER !"
+
+   # user1: submit 5 sleeper 3600
+   set job_id_u1_1 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_USER] 
+   set job_id_u1_2 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_USER] 
+   set job_id_u1_3 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_USER] 
+   set job_id_u1_4 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_USER] 
+   set job_id_u1_5 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_USER] 
+
+   ts_log_fine "Submit 5 sleeper jobs as user $CHECK_FIRST_FOREIGN_SYSTEM_USER !"
+
+   # user2: submit 5 sleeper 3600
+   set job_id_u2_1 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER] 
+   set job_id_u2_2 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER] 
+   set job_id_u2_3 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER] 
+   set job_id_u2_4 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER] 
+   set job_id_u2_5 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_FIRST_FOREIGN_SYSTEM_USER] 
+
+   ts_log_fine "Submit 5 sleeper jobs as user $CHECK_SECOND_FOREIGN_SYSTEM_USER !"
+
+   # user3: submit 5 sleeper 3600
+   set job_id_u3_1 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] 
+   set job_id_u3_2 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] 
+   set job_id_u3_3 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] 
+   set job_id_u3_4 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] 
+   set job_id_u3_5 [submit_job "$ts_config(product_root)/examples/jobs/sleeper.sh 3600" 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] 
+   
+   # wait one scheduling interval  
+   ts_log_fine "Trigger scheduling!"
+   trigger_scheduling
+
+   # check if two jobs of each user are in qw state 
+   ts_log_fine "Check the job information!"
+
+   check_running_and_waiting_jobs $CHECK_USER -1 2 
+   check_running_and_waiting_jobs $CHECK_FIRST_FOREIGN_SYSTEM_USER -1 2 
+   check_running_and_waiting_jobs $CHECK_SECOND_FOREIGN_SYSTEM_USER -1 2 
+
+   # every user deletes one running job
+   ts_log_fine "Delete one job of each user!" 
+
+   delete_job $job_id_u1_1 1 
+   delete_job $job_id_u2_1 1 
+   delete_job $job_id_u3_1 1
+
+   # trigger scheduling 
+   trigger_scheduling
+
+   # exactly one job of each user must be in queue wait state 
+   check_running_and_waiting_jobs $CHECK_USER -1 1 
+   check_running_and_waiting_jobs $CHECK_FIRST_FOREIGN_SYSTEM_USER -1 1
+   check_running_and_waiting_jobs $CHECK_SECOND_FOREIGN_SYSTEM_USER -1 1 
+}
+
+
+#****** sge_procedures/is_job_id() *********************************************
+#  NAME
+#     check_running_and_waiting_jobs() -- check the amount of running and waiting 
+#                                         jobs against an expected value
+#
+#  SYNOPSIS
+#     check_running_and_waiting_jobs { user { expected_running_jobs -1 } 
+#            { expected_waiting_jobs -1 } }
+#
+#  FUNCTION
+#     this procedure raises an error if the expect amount of jobs is not in system 
+#
+#  INPUTS
+#     user - user to check the jobs for 
+#     expected_running_jobs - expected amount of jobs currently running
+#     expected_waiting_jobs - expected amount of jobs currently in qw state 
+#
+#  RESULT
+#     side effect only 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc check_running_and_waiting_jobs { user { expected_running_jobs -1 } { expected_waiting_jobs -1 } } {
+   # init couter
+   set running_jobs 0
+   set waiting_jobs 0
+
+   # get job list 
+   set job_list [get_standard_job_info 0 0 1]
+
+   # check job list 
+   foreach job $job_list {
+      if {[lindex $job 3] == $user} {
+         if {[lindex $job 4] == "r"} {
+            incr running_jobs
+         } 
+         if {[lindex $job 4] == "qw"} {
+            incr waiting_jobs 
+         }
+      }
+   }
+   # some jobs of each user must be in running state 
+   if {$expected_running_jobs != $running_jobs && $expected_running_jobs != -1 } {
+      ts_log_severe "Error! User $user should have $expected_running_jobs jobs running instead of $running_jobs !"
+   }
+   # some jobs of each user must be in qw state 
+   if {$expected_waiting_jobs != $waiting_jobs && $expected_waiting_jobs != -1 } {
+      ts_log_severe "Error! User $user should have $expected_waiting_jobs jobs waiting instead of $waiting_jobs !"
+   }
+}
+
+
+proc scheduler_config_cleanup { } {
+   # delete and wait
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # reset scheduler configuration to default
+   reset_schedd_config 
+}
