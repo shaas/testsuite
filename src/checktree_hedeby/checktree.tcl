@@ -1720,32 +1720,6 @@ proc hedeby_verify_config { config_array only_check parameter_error_list } {
       }
    }
 
-   # now check all local spool directories to have the same path for "user" installation
-   # TODO: this can be removed if hedeby supports host specific spool directories in the user preferences installation
-   if { [get_hedeby_pref_type] == "user" } {
-      set main_spool_dir ""
-      set error_text ""
-      set main_spool_dir [get_hedeby_local_spool_dir $config(hedeby_master_host)]
-      puts $CHECK_OUTPUT "hedeby spool dir on master host \"$config(hedeby_master_host)\": $main_spool_dir"
-      foreach host [hedeby_get_all_hosts] {
-         if { $host != $config(hedeby_master_host) } {
-            set spool_dir [get_hedeby_local_spool_dir $host]
-            puts $CHECK_OUTPUT "local spooldir for host \"$host\": $spool_dir"
-            if { $spool_dir != $main_spool_dir } {
-               append error_text "local spool directory on host \"$host\" is not set to\n"
-               append error_text "\"$main_spool_dir\".\n"
-               append error_text "The local spool dir on host \"$host\" is set to\n"
-               append error_text "\"$spool_dir\".\n\n"
-            }
-         }
-      }
-
-      if { $error_text != "" } {
-         append error_text "==> Hedeby currently does require to have the same local spool dir for user preferences mode!\n\n"
-         add_proc_error "hedeby_verify_config" -3 $error_text
-      }
-   }
-
    read_bundle_properties_cache
 
    return $retval

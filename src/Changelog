@@ -1,4 +1,8 @@
-MB-2008-03-31-0: Bugfix: correct support of runlevels in checktree_hedeby tests -
+CR-2008-03-31-0: Bugfix:    Removed same local spool dir checking for user 
+                            preferences mode
+                 Review:    RH
+
+MB-2008-03-31-0: Bugfix:    correct support of runlevels in checktree_hedeby tests -
                                /resources/reset/ambiguous/check.62.exp
                                /resources/reset/assigned/check.62.exp
                                /resources/reset/basic/batch/check.62.exp
@@ -6,8 +10,8 @@ MB-2008-03-31-0: Bugfix: correct support of runlevels in checktree_hedeby tests 
                                /resources/reset/basic/sequential/check.62.exp
                                /resources/reset/unknown/check.62.exp                 
 
-JO-2008-03-27-0: Enhancem.:   changed install messages
-                 Review:      AP
+JO-2008-03-27-0: Enhancem.: changed install messages
+                 Review:    AP
 
 MB-2008-03-27-0: Task:      resource reset test
                  Issue:     #216 (hedeby)(added missing tests) 
