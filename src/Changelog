@@ -1,3 +1,11 @@
+MB-2008-03-31-0: Bugfix: correct support of runlevels in checktree_hedeby tests -
+                               /resources/reset/ambiguous/check.62.exp
+                               /resources/reset/assigned/check.62.exp
+                               /resources/reset/basic/batch/check.62.exp
+                               /resources/reset/basic/parallel/check.62.exp
+                               /resources/reset/basic/sequential/check.62.exp
+                               /resources/reset/unknown/check.62.exp                 
+
 JO-2008-03-27-0: Enhancem.:   changed install messages
                  Review:      AP
 
@@ -8,7 +16,7 @@ MB-2008-03-27-0: Task:      resource reset test
                                /resources/reset/basic/batch/check.62.exp
                                /resources/reset/basic/parallel/check.62.exp
                                /resources/reset/basic/sequential/check.62.exp
-                               /resources/reset/basic/unknown/check.62.exp
+                               /resources/reset/unknown/check.62.exp
                  Enhancem.: o new procedure: get_component_info()
                             o new procedure: wait_for_component_info()
                             o new procedure: produce_unknown_resource()

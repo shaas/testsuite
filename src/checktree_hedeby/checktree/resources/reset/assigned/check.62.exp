@@ -46,7 +46,7 @@ set check_description(0)       "resource reset test of ASSIGNED resource"
 set check_needs                "hedeby_install"                  
 set check_init_level_procedure "assigned_resource_reset_init_level"
 set check_functions            {}   
-set check_highest_level        1
+set check_highest_level        0
 
 set check_setup_function "assigned_resource_reset_setup"
 set check_cleanup_function "assigned_resource_reset_cleanup"

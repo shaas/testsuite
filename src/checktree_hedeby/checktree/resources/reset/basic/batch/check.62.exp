@@ -85,7 +85,7 @@ proc basic_resource_reset_batch_init_level {} {
      return 0
   }
   if { $CHECK_ACT_LEVEL == 1 } {
-     return -1
+     return 0
   }
 
   return -1
