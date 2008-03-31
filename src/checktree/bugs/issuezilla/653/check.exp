@@ -83,8 +83,7 @@ proc issue_653_setup { } {
    # make a clean env 
    # create grid users  
    del_user $CHECK_USER "" "" 0 
-   add_user $CHECK_USER "" 0 "" "" 0
-
+   add_user $CHECK_USER 
 }
 
 
