@@ -1,14 +1,25 @@
-MB-2008-04-01-0: Task:      resource reset test
-                 Issue:     #216 (hedeby)(added missing tests) 
-                               /resources/reset/unassigning/check.62.exp                               
-                 Enhancem.: o new procedure: produce_unassigning_resource()
-                            o new procedure: reset_produced_unassigning_resource()()
-                            o updated procedure: compare_resource_infos()
-                 Review:    CR
-
 CR-2008-04-01-0: Enhancem.: Added string trim for file entries in .testsuite_delete 
                             in procedure delete_temp_script_files()
                  Review:    DG
+
+DG-2008-03-31-2: Task:      Testsuite test added
+                 Issue:     #21 (testsuite) and #519 (gridengine)
+                            /checktree/system_tests/scheduler/config/check.exp
+                 Enhancem.: o Test scheduling (set maxujobs check qw state)  
+                 Review:    JG
+
+DG-2008-03-31-1: Task:      Testsuite test added
+                 Issue:     #1193 (gridengine)
+                            /checktree/bugs/issuezilla/1193/check.exp
+                 Enhancem.: o Test if deletion of non-existing value is done
+                              correctly.
+                 Review:    JG
+
+DG-2008-03-31-0: Task:      Testsuite test added 
+                 Issue:     #653 (gridengine)
+                              /checktree/bugs/issuezilla/653/check.exp
+                 Enhancem.: o Check if altering deadline is done correctly
+                 Review:    JG
 
 CR-2008-03-31-0: Bugfix:    Removed same local spool dir checking for user 
                             preferences mode
@@ -39,6 +50,12 @@ MB-2008-03-27-0: Task:      resource reset test
                             o new procedure: compare_resource_infos()
                             o new procedure in sge_procedures.tcl: is_execd_alive()
                  Review:    RM
+
+DG-2008-03-20-0: Task:      Testsuite test added
+                 Issue:     #360 (gridengine)
+                              /checktree/bugs/issuezilla/360/check.exp
+                 Enhancem.: o five test cases for ACL/departments handling 
+                 Review:    JG 
 
 HP-2008-03-20-0: Bugfix:    Added version checking to HP-2008-03-19-0
 
