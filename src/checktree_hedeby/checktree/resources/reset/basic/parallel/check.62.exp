@@ -49,8 +49,11 @@ set check_init_level_procedure "basic_resource_reset_parallel_init_level"
 set check_functions            {}   
 set check_highest_level        1
 
-set check_setup_function "basic_resource_reset_parallel_setup"
-set check_cleanup_function "basic_resource_reset_parallel_cleanup"
+
+# Since this test has more runlevels where every one needs reset 
+# we need check_setup_level_function() and check_cleanup_level_function()
+set check_setup_level_function "basic_resource_reset_parallel_setup"
+set check_cleanup_level_function "basic_resource_reset_parallel_cleanup"
 
 lappend check_functions "basic_resource_reset_parallel_check"
 
@@ -75,7 +78,7 @@ global rst_list
 #
 #  RESULT
 #     0 for CHECK_ACT_LEVEL 0
-#    -1 for CHECK_ACT_LEVEL 1 // produce_error_resource does not work correctly in this run level
+#     0 for CHECK_ACT_LEVEL 1
 #    -1 for all other levels
 #
 #*******************************************************************************
@@ -145,17 +148,30 @@ proc basic_resource_reset_parallel_cleanup {} {
    global basic_resource_reset_parallel_current_cluster_config
    global rst_list
 
-   # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $basic_resource_reset_parallel_current_cluster_config
+   # get default service setup
+   get_hedeby_default_services service_names
 
    # reset produced error resources 
+   # NOTE: Since reset_produced_error_resource will re-start execds we will kill it first
+   #       so we don't have to wait till startup timeout occors => faster reset
    foreach resource $rst_list {
-        reset_produced_error_resource $resource
+      set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource)
+      shutdown_system_daemon $resource "execd"
    }
 
-   # perform hedeby reset
-   reset_hedeby 1
+   # reset produced error resources 
+   set nr_of_errors 0
+   foreach resource $rst_list {
+      incr nr_of_errors [reset_produced_error_resource $resource]
+   }
 
+   # perform hedeby reset on if reset_produced_error_resource has failed
+   if { $nr_of_errors != 0 } {
+      reset_hedeby 1
+   }
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $basic_resource_reset_parallel_current_cluster_config
 }
 
 #****** basic/basic_resource_reset_parallel_check() *****************************

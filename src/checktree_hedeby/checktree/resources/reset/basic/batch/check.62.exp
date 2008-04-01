@@ -49,8 +49,10 @@ set check_init_level_procedure "basic_resource_reset_batch_init_level"
 set check_functions            {}   
 set check_highest_level        1
 
-set check_setup_function "basic_resource_reset_batch_setup"
-set check_cleanup_function "basic_resource_reset_batch_cleanup"
+# Since this test has more runlevels where every one needs reset 
+# we need check_setup_level_function() and check_cleanup_level_function()
+set check_setup_level_function "basic_resource_reset_batch_setup"
+set check_cleanup_level_function "basic_resource_reset_batch_cleanup"
 
 lappend check_functions "basic_resource_reset_batch_check"
 
@@ -74,7 +76,7 @@ global rst_list
 #
 #  RESULT
 #     0 for CHECK_ACT_LEVEL 0
-#    -1 for CHECK_ACT_LEVEL 1 // produce_error_resource does not work correctly in this run level
+#     0 for CHECK_ACT_LEVEL 1 
 #    -1 for all other levels
 #
 #*******************************************************************************
@@ -144,17 +146,29 @@ proc basic_resource_reset_batch_cleanup {} {
    global basic_resource_reset_batch_current_cluster_config
    global rst_list
 
-   # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $basic_resource_reset_batch_current_cluster_config
+   # get default service setup
+   get_hedeby_default_services service_names
 
    # reset produced error resources 
+   # NOTE: Since reset_produced_error_resource will re-start execds we will kill it first
+   #       so we don't have to wait till startup timeout occors => faster reset
    foreach resource $rst_list {
-        reset_produced_error_resource $resource
+      set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource)
+      shutdown_system_daemon $resource "execd"
    }
 
-   # perform hedeby reset
-   reset_hedeby 1
+   set nr_of_errors 0
+   foreach resource $rst_list {
+      incr nr_of_errors [reset_produced_error_resource $resource]
+   }
 
+   # perform hedeby reset on if reset_produced_error_resource has failed
+   if { $nr_of_errors != 0 } {
+      reset_hedeby 1
+   }
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $basic_resource_reset_batch_current_cluster_config
 }
 
 #****** basic/basic_resource_reset_batch_check() *****************************
@@ -218,7 +232,7 @@ proc basic_resource_reset_batch_check {} {
             # runlevel 1 (hard execd shutdown)
             set ret [produce_error_resource $resource "hard"]
         } else {
-            # runlevel 2 (soft execd shutdown)
+            # runlevel 0 (soft execd shutdown)
             set ret [produce_error_resource $resource "soft"]
         }
         # if resource was succesfully set to ERROR state put it to list of resources to reset      
@@ -240,19 +254,17 @@ proc basic_resource_reset_batch_check {} {
    }
 
    if { $rst_list != {} } {
-        # initialize a comma separated list of resources to reset
-        set batch ""
-        # initialize a counter
-        set counter 0
-
-        foreach res $rst_list {
-            if { $counter != 0} {
-                append batch ","
-            } 
-            append batch $res
-            incr counter 1
-        }
-
+      # initialize a comma separated list of resources to reset
+      set batch ""
+      # initialize a counter
+      set counter 0
+      foreach res $rst_list {
+         if { $counter != 0} {
+            append batch ","
+         } 
+         append batch $res
+         incr counter 1
+      }
       ts_log_fine "reset batch of error resources \"$batch\" ..."
 
       # prepare sdmadm command and start it ...
@@ -266,45 +278,45 @@ proc basic_resource_reset_batch_check {} {
       }
 
       # parse output and compare it to the expected output ...
-
       # build expected output message from bundle properties file ... 
       set expected_output [create_bundle_string "ResetResourceCommand.resource.reset"]
       ts_log_fine "expected output: \"$expected_output\""
-
       for {set i 0} {$i < $counter} {incr i} {
-        # get sdmadm output message string ...
-        set output_message [lindex $table([lindex $table(table_columns) 1],$i) 0]
-        ts_log_fine "output message is: \"$output_message\""
+         # get sdmadm output message string ...
+         set output_message [lindex $table([lindex $table(table_columns) 1],$i) 0]
+         ts_log_fine "output message is: \"$output_message\""
 
-        # compare the output with the expected output ...
-        if {[string match "$expected_output" $output_message]} {
-            ts_log_fine "output is matching!"
-        } else {
-            append error_text "The output message doesn't match expected output\n"
-            append error_text "Expected output: \"$expected_output\"\n"
-            append error_text "Received output: \"$output_message\"\n"
-        }
+         # compare the output with the expected output ...
+         if {[string match "$expected_output" $output_message]} {
+             ts_log_fine "output is matching!"
+         } else {
+             append error_text "The output message doesn't match expected output\n"
+             append error_text "Expected output: \"$expected_output\"\n"
+             append error_text "Received output: \"$output_message\"\n"
+         }
       }
       
       # now wait and check that all reset resources are in assigned state
       # step 1: set expected resource information values   
       foreach res $rst_list {
-        set exp_resource_info($res,service) "$service_names(default_service,$res)" 
-        set exp_resource_info($res,state) "ASSIGNED"
+         set exp_resource_info($res,service) "$service_names(default_service,$res)" 
+         set exp_resource_info($res,state) "ASSIGNED"
       }
-
       # step 2: wait for expected resource informations
       set retval [wait_for_resource_info exp_resource_info 60 0 rst_error]
-
+      if { $retval != 0 } {
+         append error_text "$rst_error\n"
+      }
+ 
       foreach res $rst_list {
-        # check that execd is running again
-        # need to switch cluster according the resource host
-        set_current_cluster_config_nr $service_names(ts_cluster_nr,$res)
-        if { [is_execd_alive $res] == 1 } {
+         # check that execd is running again
+         # need to switch cluster according the resource host
+         set_current_cluster_config_nr $service_names(ts_cluster_nr,$res)
+         if { [is_execd_alive $res] == 1 } {
             ts_log_fine "execd IS running on reset resource $res"
-        } else {
+         } else {
             append error_text "execd IS NOT running on reset resource $res\n"
-        }            
+         }            
       }
    } else {
       # if resource did not go into ERROR state report that test cannot be done

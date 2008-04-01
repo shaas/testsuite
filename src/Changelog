@@ -1,3 +1,6 @@
+CR-2008-04-01-0: Cleanup:   did some cleanup in basic reset tests
+                 Review:    MB
+
 MB-2008-04-01-0: Task:      resource reset test
                  Issue:     #216 (hedeby)(added missing tests)
                                 /resources/reset/unassigning/check.62.exp
