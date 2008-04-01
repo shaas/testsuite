@@ -2069,7 +2069,7 @@ proc remove_prefs_on_hedeby_host { host {raise_error 1}} {
 #     installation. 
 #
 #  INPUTS
-#     force - if 1, reset of the system by force42
+#     force - if 1, reset of the system by force
 #  RESULT
 #     0 - on success
 #     1 - on error
@@ -5609,15 +5609,15 @@ proc hedeby_executor_cleanup { executor_host { executor_name "executor" } } {
 #     hedeby (is unknown).
 #
 #  INPUTS
-#    res_info1          --  resource info as returned by get_resource_info
-#    res_prop1          --  resource property array as returned by get_resource_info
+#    resource_info1     --  resource info as returned by get_resource_info
+#    rp1                --  resource property array as returned by get_resource_info
 #    res_list1          --  resource list as returned by get_resource_info
 #    res_list_not_uniq1 --  ambiguous resource list as returned by get_resource_info
-#    res_info2          --  resource info as returned by get_resource_info
-#    res_prop2          --  resource property array as returned by get_resource_info
+#    resource_info2     --  resource info as returned by get_resource_info
+#    rp2                --  resource property array as returned by get_resource_info
 #    res_list2          --  resource list as returned by get_resource_info
 #    res_list_not_uniq2 --  ambiguous resource list as returned by get_resource_info
-#    et                 --  error text (if comparison returns -1)
+#    et                 --  optional: error text (if comparison returns -1)
 #
 #  OUTPUTS
 #    et                  --  detailed message if result is -1
@@ -5638,7 +5638,7 @@ proc compare_resource_infos { resource_info1 rp1 res_list1 res_list_not_uniq1 re
     }
 
     array set res_info1 $resource_info1
-    array set res_prop1 $rp1
+    array set res_prop1 $rp1    
     array set res_info2 $resource_info2
     array set res_prop2 $rp2
     
@@ -5646,16 +5646,15 @@ proc compare_resource_infos { resource_info1 rp1 res_list1 res_list_not_uniq1 re
 
     set result 0
     # 1. check the number of resources
-    # TODO check if res_list1 and res_list2 are set ...
     if { [llength $res_list1] == [llength $res_list2] } {
-        ts_log_fine "both resource lists contain the same number of resources"
+        ts_log_finer "both resource lists contain the same number of resources"
         foreach elem $res_list1 { 
             set has [lsearch -exact $res_list2 $elem]
             if { $has < 0 } {
                 append result_et "resource list 2 does not contain resources $elem"  
                 return -1
             } else {
-                ts_log_fine "both resource lists contain resource $elem"
+                ts_log_finer "both resource lists contain resource $elem"
             }
         }
     } else {
@@ -5663,81 +5662,282 @@ proc compare_resource_infos { resource_info1 rp1 res_list1 res_list_not_uniq1 re
         return -1
     }
     # 2. check the number of ambiguous resources
-    # TODO check if res_list_not_uniq1 and res_list_not_uniq2 are set ...
     if { [llength $res_list_not_uniq1] == [llength $res_list_not_uniq2] } {
-        ts_log_fine "both ambiguous resource lists contain the same number of resources"
+        ts_log_finer "both ambiguous resource lists contain the same number of resources"
         foreach elem $res_list_not_uniq1 { 
             set has [lsearch -exact $res_list_not_uniq2 $elem]
             if { $has < 0 } {
                 append result_et "ambiguous resource list 2 does not contain resources $elem"                                
                 return -1
             } else {
-                ts_log_fine "both ambiguous resource lists contains resource $elem"
+                ts_log_finer "both ambiguous resource lists contains resource $elem"
             }
         }
     } else {
         append result_et "ambiguous resource lists do not contain the same number of resources"
         return -1
     }
-    # 3. check the resource property arrays
-    # TODO check if res_prop1 and res_prop2 are set ...
-    # TODO to make this working, we need to adjust get_resource_info that it
-    #      will return also the list of all available properties for a resource, 
-    #      as right now we do not know how to iterate over rp1 or rp2
-    #                            if { [llength $rp1($rst)] == [llength $rp2($rst)] } {
-    #                                ts_log_fine "original and updated resource property list contain the same number of entries"
-    #                                foreach elem $rp1($rst) { 
-    #                                    set has [lsearch -exact $rp2($rst) $elem]
-    #                                    if { $has < 0 } {
-    #                                        append result_et "updated resource property list does not contain entry $elem"                                
-    #                                    } else {
-    #                                        ts_log_fine "original and updated resource property list contain entry $elem"
-    #                                    }
-    #                                }
-    #                            } else {
-    #                                append result_et "original and updated resource property list do not contain the same number of entries"
-    #                            }
-    
-    # 4. check the resources
-    # TODO res_list1 must be set!!!
-    # TODO check if resource infos are set
+    # 3. check the resources
     foreach rst $res_list1 {
         if {[string match "$res_info1($rst,flags)" "$res_info2($rst,flags)"]} {
-            ts_log_fine "resource $rst has the same flags in both resource infos"                            
+            ts_log_finer "resource $rst has the same flags in both resource infos"                            
         } else {
             append result_et "resource infos differ: $res_info1($rst,flags), $res_info2($rst,flags)\n"
             return -1
         }
         if {[string match "$res_info1($rst,state)" "$res_info2($rst,state)"]} {
-            ts_log_fine "resource $rst has the same state in both resource infos"                            
+            ts_log_finer "resource $rst has the same state in both resource infos"                            
         } else {
             append result_et "resource infos differ: $res_info1($rst,state), $res_info2($rst,state)\n"
             return -1
         }
         if {[string match "$res_info1($rst,type)" "$res_info2($rst,type)"]} {
-            ts_log_fine "resource $rst has the same type in both resource infos"                            
+            ts_log_finer "resource $rst has the same type in both resource infos"                            
         } else {
             append result_et "resource infos differ: $res_info1($rst,type), $res_info2($rst,type)\n"
             return -1
         }
         if {[string match "$res_info1($rst,service)" "$res_info2($rst,service)"]} {
-            ts_log_fine "resource $rst has the same service in both resource infos"                            
+            ts_log_finer "resource $rst has the same service in both resource infos"                            
         } else {
             append result_et "resource infos differ: $res_info1($rst,service), $res_info2($rst,service)\n"
             return -1
         }
         if {[string match "$res_info1($rst,annotation)" "$res_info2($rst,annotation)"]} {
-            ts_log_fine "resource $rst has the same annotation in both resource infos"                            
+            ts_log_finer "resource $rst has the same annotation in both resource infos"                            
         } else {
             append result_et "resource infos differ: $res_info1($rst,annotation), $res_info2($rst,annotation)\n"
             return -1
         }
         if {[string match "$res_info1($rst,usage)" "$res_info2($rst,usage)"]} {
-            ts_log_fine "resource $rst has the same usage in both resource infos"                            
+            ts_log_finer "resource $rst has the same usage in both resource infos"                            
         } else {
             append result_et "resource infos differ: $res_info1($rst,usage), $res_info2($rst,usage)\n"
+            return -1
+        }      
+        if {[llength $res_prop1($rst,prop_list)] == [llength $res_prop2($rst,prop_list)]} {
+            ts_log_finer "both resource property lists of $rst contain the same number of properties"      
+            foreach prop $res_prop1($rst,prop_list) { 
+                set has [lsearch -exact $res_prop2($rst,prop_list) $prop]
+                if { $has < 0 } {
+                    append result_et "ambiguous resource property list 2 does not contain property $prop"                                
+                    return -1
+                } else {
+                    ts_log_finer "both ambiguous resource property lists contain property $prop"
+                    if {[string match "$res_prop1($rst,$prop)" "$res_prop2($rst,$prop)"]} {
+                        ts_log_finer "resource $rst has the same value of property $prop"                            
+                    } else {
+                        append result_et "resource property $prop of resource $rst differs: $res_prop1($rst,$prop), $res_prop2($rst,$prop)\n"
+                        return -1
+                    }
+                }
+            }
+        } else {
+            append result_et "resource property lists of $rst do not contain the same number of resources"
             return -1
         }
     }
     return 0
+}
+
+#****** util/produce_unassigning_resource() ******************************************
+#  NAME
+#     produce_unassigning_resource() -- produce resource UNASSIGNING state
+#
+#  SYNOPSIS
+#     produce_unassigning_resource { resource {sji sleeper_job_id} } 
+#
+#  FUNCTION
+#     This procedure will produce resource UNASSIGNING state by submitting a long
+#     running sleeper job to a resource assigned to GE and then by triggering a 
+#     remove of the  the resource from system.    
+#     After that the procedure also checks that the resource is in
+#     UNASSIGNING state.
+#   
+#     The UNASSIGNING state reset is done by reset_produced_unassigning_resource().
+#
+#  INPUTS
+#     resource          - name of the resource to set into unassigning state
+#     sji               - optional: job id of a sleeper job, needed for reset
+#     service           - optional: name of the ge service, needed for reset
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/reset_produced_unassigning_resource()
+#*******************************************************************************
+proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_service} } {
+   global hedeby_config
+   set exec_host $hedeby_config(hedeby_master_host)
+   get_current_cluster_config_array ts_config
+
+   set ge_hosts [get_hedeby_default_services service_names]
+   
+   upvar $sji job_id
+   if {[info exists job_id]} {
+      unset job_id
+   }
+
+   upvar $svc service
+   if {[info exists service]} {
+      unset service
+   }
+
+   if { ![info exists service_names(ts_cluster_nr,$resource)] } {
+      ts_log_severe "resource $resource not found!"
+      return 1
+   }
+
+   set sCluster $service_names(ts_cluster_nr,$resource)
+   set service $service_names(default_service,$resource)
+
+   if {[string match "$service" "spare_pool"]} {
+        ts_log_severe "spare_pool's resource can not be used for producing UNASSIGNING resource, aborting ..."
+        return 1
+   }
+ 
+   set curCluster [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $sCluster
+   set error_text ""
+
+   # set sleep timeout to reasonable big value, e.g. one day (in sec) = 24*3600
+   set sleeptimeout 86400
+   set remote_host_arg "-l h=$resource"
+   set output_argument "-o /dev/null -e /dev/null"
+   set job_argument "$ts_config(product_root)/examples/jobs/sleeper.sh $sleeptimeout"
+   set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" [get_hedeby_admin_user]]
+   # wait until job gets out of pending list and will be running
+   wait_for_jobstart $job_id "leeper" 30 1 1           
+   set_current_cluster_config_nr $curCluster
+
+    # trigger move of resource to spare_pool, that should bring resource to UNASSIGNING state
+    set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] mvr -r $resource -s spare_pool"
+    set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
+    ts_log_fine "output is: $output"
+    if { $prg_exit_state != 0 } {
+        ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
+        return 1
+    } else {
+        ts_log_fine "Move of resource $resource was triggered"        
+    }    
+
+   # wait for resource go to unassigning state
+   ts_log_fine "resource \"$resource\" should go into unassigning state now ..."
+   # state has to be "UNASSIGNING UNASSIGNING" because there is "rp temp" resource with the same state ...
+   # CR
+   set exp_res_info($resource,state) "UNASSIGNING"
+   wait_for_resource_info exp_res_info 60 0 error_text
+
+   if { $error_text != "" } {
+      ts_log_severe $error_text
+      return 1
+   }
+   return 0
+}
+
+#****** util/reset_produced_unassigning_resource() ******************************************
+#  NAME
+#     reset_produced_unassigning_resource() -- reset resource in UNASSIGNING state
+#
+#  SYNOPSIS
+#     reset_produced_unassigning_resource { resource sleeper_job_id } 
+#
+#  FUNCTION
+#     This procedure will reset resource in UNASSIGNING state produced by 
+#     produce_unassigning_resource() by deleting a sleeper job (that will
+#     result into a moving of the resource to spare_pool). Following, the 
+#     resource is moved back to its original service.
+#     After that the procedure also checks that the resource is in
+#     ASSIGNED state.
+#   
+#  INPUTS
+#     resource          - name of the resource in unassigning state
+#     sleeper_job_id    - job id of a sleeper job
+#     service           - original service of the resource
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/produce_unassigning_resource()
+#*******************************************************************************
+proc reset_produced_unassigning_resource { resource sleeper_job_id service } {
+   global hedeby_config
+   set exec_host $hedeby_config(hedeby_master_host)
+
+   set ge_hosts [get_hedeby_default_services service_names]
+      
+   if { ![info exists service_names(ts_cluster_nr,$resource)] } {
+      ts_log_severe "resource $resource not found!"
+      return 1
+   }
+
+   set sCluster $service_names(ts_cluster_nr,$resource)
+   set service $service_names(default_service,$resource)
+ 
+   set curCluster [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $sCluster
+   set error_text ""
+
+   # delete sleeper job, do not wait for job end!
+   set result [delete_job $sleeper_job_id]
+   set_current_cluster_config_nr $curCluster
+
+   if { $result != 0} {
+        ts_log_fine "error has occured while deleting sleeper job, resource can not be reset."
+        return 1
+   }     
+
+   # wait for resource to appear in spare_pool
+   set retry 0
+   set is_moved 0
+   while { $retry < 15 } {
+        set retval [get_resource_info $exec_host [get_hedeby_admin_user] resource_info]
+        if { $retval == 0 } {
+            if {[string match "$resource_info($resource,service)" "spare_pool"]} {
+                ts_log_fine "$resource has been moved to spare_pool"
+                set is_moved 1
+                break
+            } else {
+                ts_log_fine "$resource still has not been moved to spare_pool"                
+            }
+        } else {
+            ts_log_fine "failed to get resource info, will try later ..."
+        }
+        incr retry
+        after 1000
+   }
+   
+   if { $is_moved == 0 } {
+        # trigger move of resource to original service
+        set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] mvr -r $resource -s $service"
+        set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
+        ts_log_fine "output is: $output"
+        if { $prg_exit_state != 0 } {
+            ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
+            return 1
+        } else {
+            ts_log_fine "Move of resource $resource was triggered"            
+        }    
+
+       # wait for resource go to unassigning state
+       ts_log_fine "resource \"$resource\" should appear in \"$service\" in assigned state..."
+       set exp_res_info($resource,state) "assigned"
+       set exp_res_info($resource,service) "spare_pool"
+       wait_for_resource_info exp_res_info 60 0 error_text
+
+       if { $error_text != "" } {
+          ts_log_severe $error_text
+          return 1
+       } else {
+          ts_log_fine "Resoruce $resource is back in $service"
+          return 0
+       }
+        
+   } else {
+        ts_log_severe "resource has not been moved to spare_pool within timeout, reset of unassigning resource can not be done, full reset needed"
+        return 1
+   }
+   
 }

@@ -222,13 +222,14 @@ proc basic_resource_reset_parallel_check {} {
         }
         # if resource was succesfully set to ERROR state put it to list of resources to reset      
         if { $ret == 0 } {
+            # initialize flag 
+            set is_on_list -1
             # need to switch cluster according the resource host
             set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource)
             if { [is_execd_alive $resource] == 0 } {
                 set is_on_list [lsearch -exact $rst_list $resource]
             } else {
-                append error_text "Execd is still running on $resource!\n"
-                set is_on_list -1
+                append error_text "Execd is still running on $resource!\n"                
             }            
             if { $is_on_list < 0} {
                 lappend rst_list $resource

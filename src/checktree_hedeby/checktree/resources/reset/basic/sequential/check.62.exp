@@ -201,6 +201,10 @@ proc basic_resource_reset_sequential_check {} {
    # init text array for reporting errors
    # (errors are logged at the end of the test)
    set error_text ""
+
+   # initialize list or resources to reset
+   set rst_list {}
+
    
    # shutdown each execd to produce resource(s) in ERROR state
    foreach service $service_names(services) {
@@ -216,10 +220,17 @@ proc basic_resource_reset_sequential_check {} {
         }
         # if resource was succesfully set to ERROR state put try to reset it
         if { $ret == 0 } {
+            # initialize flag 
+            set is_on_list -1
             # need to switch cluster according the resource host
             set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource)
             if { [is_execd_alive $resource] == 0 } {
-
+                set is_on_list [lsearch -exact $rst_list $resource]
+            } else {
+                append error_text "Execd is still running on $resource!\n"                
+            }
+            if { $is_on_list < 0} {
+                lappend rst_list $resource
                 ts_log_fine "reset error resource \"$resource\" ..."
                 # prepare sdmadm command and start it ...
                 set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $resource"
@@ -268,10 +279,9 @@ proc basic_resource_reset_sequential_check {} {
                 } else {
                     ts_log_fine "execd is running again on $resource"
                 }
-                
-             } else {
-                append error_text "execd is still running on $resource\n"
-             }
+            } else {
+                append error_text "basic test should not work with ambiguous resource \"$resource\" ...\n"
+            }
 
          } else {
             # if resource did not go into ERROR state report that test cannot be done
