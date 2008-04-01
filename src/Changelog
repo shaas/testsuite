@@ -1,3 +1,7 @@
+CR-2008-04-01-0: Enhancem.: Added string trim for file entries in .testsuite_delete 
+                            in procedure delete_temp_script_files()
+                 Review:    DG
+
 CR-2008-03-31-0: Bugfix:    Removed same local spool dir checking for user 
                             preferences mode
                  Review:    RH

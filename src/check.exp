@@ -4221,6 +4221,7 @@ proc delete_temp_script_files { } {
   if { [ file isfile $del_file_name ] == 1 } {
      set del_file [ open $del_file_name "r" ]
      while { [gets $del_file line] >= 0 } {
+        set line [string trim $line]
         if { [ file isfile $line ] == 1 } {
            file delete $line
            ts_log_progress
