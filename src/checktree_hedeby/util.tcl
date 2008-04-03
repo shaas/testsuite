@@ -2376,6 +2376,20 @@ proc move_resources_to_default_services {} {
    set sys_name [get_hedeby_system_name]
    set admin_user [get_hedeby_admin_user]
    set exec_host $hedeby_config(hedeby_master_host)
+
+   # first reset all blacklists
+   set sdmadm_command "-p $pref_type -s $sys_name sb"
+   sdmadm_command $exec_host $admin_user $sdmadm_command prg_exit_state "" 1 table
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      set service $table(service,$line)
+      set resource $table(resource id,$line)
+      set sdmadm_command "-p $pref_type -s $sys_name rrfb -r $resource -s $service"
+      sdmadm_command $exec_host $admin_user $sdmadm_command
+      if {$prg_exit_state != 0} {
+         return 1
+      }
+   }
+
    set ret [get_resource_info "" "" resource_info resource_properties resource_list resource_ambiguous]
    if { $ret != 0 } {
       return 1
@@ -2604,7 +2618,7 @@ proc hedeby_check_default_resources {} {
 #     no return value
 #     array has following data structure:
 #                  
-#          array(table_lines)      - nr of lines in table
+#          array(table_lines)      - number of lines in table
 #          array(table_columns)    - list with names of columns
 #          array(COLUMN_NAME,LINE) - value of table position
 #          array(additional,LINE)  - list with additional lines for  this
@@ -2619,7 +2633,7 @@ proc hedeby_check_default_resources {} {
 #        set output [sdmadm_command $execute_host $execute_user \
 #                    "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all" \
 #                     prg_exit_state ""  1 table]
-#        for {set line 0} {$line <= $table(table_lines)} {incr line 1} {
+#        for {set line 0} {$line < $table(table_lines)} {incr line 1} {
 #           puts "-------"
 #           foreach col $table(table_columns) {
 #              puts "line $line => $col: \"$table($col,$line)\""
@@ -2742,7 +2756,7 @@ proc parse_table_output { output array_name delemitter } {
          }
       }
    }
-   if { $act_table_line > 0 } {
+   if { $act_table_line >= 0 } {
       set data(table_lines) [ expr ( $act_table_line + 1 ) ]
    } else {
       set data(table_lines) 0

@@ -1,3 +1,13 @@
+CR-2008-04-03-0: Enhancem.: o Also check short hostname output of expected 
+                              sdmadm output by using match string "hostname*"
+                              (Part of CR-2008-04-03-0 which I forgot to ci)
+                            o Remove all resources from blacklists of services
+                              in hedeby_reset()
+                            o Check component state "STARTED" after test 
+                              "ca_reload"
+                            o Fixed bug in parse_table_output()
+                 Review:    MB, RH
+
 JG-2008-04-03-0: Enhancem.: use new start_vi_edit in mod_userlist
                  Cleanup:   cleanup of init_log_file_wait and others
                  Review:    CR

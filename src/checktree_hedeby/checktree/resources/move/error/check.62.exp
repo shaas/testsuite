@@ -194,7 +194,7 @@ proc error_resource_assignment_check {} {
       # parse output and compare it to the expected output ...
 
       # build expected output message from bundle properties file ... 
-      set xyz(0) "*"
+      set xyz(0) "$resource*"
       set xyz(1) "ERROR"
       set expected_output [create_bundle_string "rm.mr.res_bad_state" xyz]
       ts_log_fine "expected output: \"$expected_output\""

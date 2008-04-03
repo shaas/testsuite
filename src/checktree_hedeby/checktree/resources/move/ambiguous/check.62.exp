@@ -108,7 +108,7 @@ proc ambiguous_resource_assignment_check {} {
       }
       set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
       ts_log_fine "output message is: \"$output_message\""
-      set xyz(0) "*"
+      set xyz(0) "$res*"
       set expected_output [create_bundle_string "rm.error.non_unique_res" xyz]
       ts_log_fine "expected output: \"$expected_output\""
       if {[string match "$expected_output" $output_message]} {

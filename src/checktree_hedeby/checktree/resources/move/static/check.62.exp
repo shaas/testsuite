@@ -129,7 +129,7 @@ proc static_resource_assignment_check {} {
       }
 
       # build expected output message from bundle properties file ... 
-      set xyz(0) "*"
+      set xyz(0) "$resource*"
       set expected_output [create_bundle_string "rm.mr.static" xyz]
       ts_log_fine "expected output: \"$expected_output\""
 

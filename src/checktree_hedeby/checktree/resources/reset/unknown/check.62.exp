@@ -193,7 +193,7 @@ proc unknown_resource_reset_check {} {
    set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
 
    # build expected output message from bundle properties file ... 
-   set xyz(0) "*"
+   set xyz(0) "$rst*"
    set expected_output [create_bundle_string "rm.error.reset_unknown_res" xyz]
 
    ts_log_fine "expected output: $expected_output"

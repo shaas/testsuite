@@ -162,6 +162,7 @@ proc ca_reload_cleanup {} {
 #   - make path to ca script invalid
 #   - reload ca
 #   - check that renew of certificate does not work
+#   - check ca component state
 #   - cleanup
 #
 #
@@ -226,8 +227,7 @@ proc ca_reload_set_ca_script { ca_script } {
    if { $prg_exit_state != 0 } {
       return $prg_exit_state
    }
-   
-   # TODO check that the ca component is in STARTED state
-   return 0
+   set exp_comp_info(ca,$host,state) "STARTED"
+   return [wait_for_component_info exp_comp_info 30]
 }
 
