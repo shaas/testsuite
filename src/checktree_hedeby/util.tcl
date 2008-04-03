@@ -2848,7 +2848,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 
 
    # now we start sdmadm sr command ...
-   set sdmadm_command "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all"
+   set sdmadm_command "-d -p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all"
    set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" $raise_error table]
    if { $prg_exit_state != 0} {
       ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting" $raise_error
@@ -3005,6 +3005,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 #     {rp res_prop}          - see get_resource_info() 
 #     {rl res_list}          - see get_resource_info() 
 #     {da res_list_not_uniq} - see get_resource_info() 
+#     {expect_no_ambiguous_resources 0} - if set to 1: don't expect ambiguous resources
 #
 #  RESULT
 #     0 on success, 1 on error
@@ -3037,7 +3038,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 #     util/wait_for_resource_info()
 #     util/wait_for_service_info()
 #*******************************************************************************
-proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} } {
+proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {expect_no_ambiguous_resources 0} } {
    global hedeby_config
    # setup arguments
    upvar $exp_resinfo exp_res_info
@@ -3077,58 +3078,62 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
       if {$retval != 0} {
          append error_text "break because of get_resource_info() returned \"$retval\"!\n"
          append error_text "expected resource info was:\n$expected_resource_info"
-         break
-      }
-
-      set not_matching ""
-      foreach val $exp_values {
-         if {![info exists resource_info($val)]} {
-            set resource_info($val) "missing"
-         }
-            set all_matching 0
-            if {[llength $resource_info($val)] == [llength $exp_res_info($val)]} {
-               ts_log_finer "compare \"$resource_info($val)\" with \"$exp_res_info($val)\""
-               # here we can directly compare the expected resource info
-               if { $resource_info($val) == $exp_res_info($val) } {
+         ts_log_fine "ignore this run because get_resource_info() returned: $retval"
+      } else {
+         set not_matching ""
+         foreach val $exp_values {
+            if {![info exists resource_info($val)]} {
+               set resource_info($val) "missing"
+            }
+               set all_matching 0
+               if {[llength $resource_info($val)] == [llength $exp_res_info($val)]} {
+                  ts_log_finer "compare \"$resource_info($val)\" with \"$exp_res_info($val)\""
+                  # here we can directly compare the expected resource info
+                  if { $resource_info($val) == $exp_res_info($val) } {
+                     set all_matching 1
+                  }
+               } else {
+                  # duplicate assigned resources may produce more than one entry
+                  # in resource_info() array. We expect that all states have to be
+                  # equal
                   set all_matching 1
-               }
-            } else {
-               # duplicate assigned resources may produce more than one entry
-               # in resource_info() array. We expect that all states have to be
-               # equal
-               set all_matching 1
-               foreach res_info_tmp $resource_info($val) {
-                  set one_is_matching 0
-                  foreach exp_res_info_entry $exp_res_info($val) {
-                     ts_log_finer "lcompare \"$res_info_tmp\" with \"$exp_res_info_entry\""
-                     if {$res_info_tmp == $exp_res_info_entry} {
-                        ts_log_finer "lcompare matching"
-                         set one_is_matching 1
+                  foreach res_info_tmp $resource_info($val) {
+                     set one_is_matching 0
+                     foreach exp_res_info_entry $exp_res_info($val) {
+                        ts_log_finer "lcompare \"$res_info_tmp\" with \"$exp_res_info_entry\""
+                        if {$res_info_tmp == $exp_res_info_entry} {
+                           ts_log_finer "lcompare matching"
+                           set one_is_matching 1
+                           break
+                        }
+                     }
+                     if {$one_is_matching == 0} {
+                        ts_log_finer "lcompare not matching"
+                        set all_matching 0
                         break
                      }
                   }
-                  if {$one_is_matching == 0} {
-                     ts_log_finer "lcompare not matching"
-                     set all_matching 0
-                     break
-                  }
                }
+            if {$all_matching} {
+               ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
+            } else {
+               append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
             }
-         if {$all_matching} {
-            ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
+         }
+
+         if {$not_matching == ""} {
+            ts_log_fine "all specified resource info are matching"
+            if {[llength $resource_ambiguous] > 0 && $expect_no_ambiguous_resources != 0} {
+               ts_log_fine "but waiting for ambiguous resources to disappear ..."
+               append not_matching "resource ambiguous list is not empty: \"$resource_ambiguous\"\n"
+            } else {
+               break
+            }
          } else {
-            append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
+            ts_log_fine "still waiting for specified resource information ..."
+            ts_log_finer "still not matching resource info:\n$not_matching"
          }
       }
-
-      if {$not_matching == ""} {
-         ts_log_fine "all specified resource info are matching"
-         break
-      } else {
-         ts_log_fine "still waiting for specified resource information ..."
-         ts_log_finer "still not matching resource info:\n$not_matching"
-      }
-
       if {[timestamp] >= $my_timeout} {
          append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected resource states!\n"
          append error_text "==> NOT matching values:\n$not_matching"
@@ -4707,51 +4712,68 @@ proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1
    return $retval;
 }
 
-#****** util/produce_unknown_resource() ******************************************
+#****** util/produce_unknown_resource() ****************************************
 #  NAME
 #     produce_unknown_resource() -- produce name for unknwon resource
 #
 #  SYNOPSIS
-#     produce_unknown_resource { } 
+#     produce_unknown_resource { type } 
 #
 #  FUNCTION
 #     This procedure will produce a name for a resource that is not managed by
 #     hedeby (is unknown).
 #
 #  INPUTS
-#     none
+#     type - type of resource "host" or "any"
 #
 #  RESULT
 #     resource name
 #
-#  SEE ALSO
-#     
 #*******************************************************************************
-proc produce_unknown_resource { } {
+proc produce_unknown_resource { type } {
     global hedeby_config
+    global ts_host_config
     set exec_host $hedeby_config(hedeby_master_host)
 
-    # '@' sign is valid in resource name, so use it for constructing the name
-    set unknown_name "unknown@"
-    # initialize output to empty string
-    set output ""
+    if { $type == "any" } {
+       # '@' sign is valid in resource name, so use it for constructing the name
+       set unknown_name "unknown@"
+       # initialize output to empty string
+       set output ""
 
-    # build expected output message from bundle properties file ... 
-    set expected_output [string trim [create_bundle_string "ShowResourceStateCliCommand.res.notfound"]]
-    ts_log_fine "expected output: $expected_output"
-    
-    while { 1 } {
-        # prepare sdmadm command ...
-        set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -r $unknown_name"
-        set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
-        ts_log_fine "output is: $output"
-        if {[string match "$expected_output" "$output"]} {
-            break
-        } else {        
-            append unknown_name "@" 
-        }
+       # build expected output message from bundle properties file ... 
+       set expected_output [string trim [create_bundle_string "ShowResourceStateCliCommand.res.notfound"]]
+       ts_log_fine "expected output: $expected_output"
+       
+       while { 1 } {
+           # prepare sdmadm command ...
+           set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -r $unknown_name"
+           set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
+           ts_log_fine "output is: $output"
+           if {[string match "$expected_output" "$output"]} {
+               break
+           } else {        
+               append unknown_name "@" 
+           }
+       }
     }
-        
+    
+    if { $type == "host" } {
+       # lookup for an not used testsuite host name
+       set unknown_name ""
+       set used_hosts [get_all_hedeby_managed_hosts]
+       foreach host [host_conf_get_nodes $ts_host_config(hostlist)] {
+          if {[lsearch -exact $used_hosts $host] < 0} {
+             set unknown_name $host
+             break
+          }
+       }
+       if {$unknown_name == ""} {
+          ts_log_info "cannot find unused testsuite hostname, returning hedeby master host \"$hedeby_config(hedeby_master_host)\""
+          set unknown_name $hedeby_config(hedeby_master_host)
+       }
+    }
+    ts_log_fine "produced unknown \"$type\" resource name \"$unknown_name\""       
     return $unknown_name
 }
 
@@ -4819,7 +4841,10 @@ proc produce_error_resource { resource { method "soft" } } {
    # wait for resource go to error state
    ts_log_fine "resource \"$resource\" should go into error state now ..."
    set exp_res_info($resource,state) "ERROR"
-   wait_for_resource_info exp_res_info 60 0 error_text
+   wait_for_resource_info exp_res_info 120 0 error_text
+   # Enanced timeout to 120 seconds because on some architecures (LX24) with
+   # old threading implementation it takes one minute till qmaster realize that
+   # execd was killed:
 
    if { $error_text != "" } {
       ts_log_severe $error_text
@@ -5824,8 +5849,6 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
 
    # wait for resource go to unassigning state
    ts_log_fine "resource \"$resource\" should go into unassigning state now ..."
-   # state has to be "UNASSIGNING UNASSIGNING" because there is "rp temp" resource with the same state ...
-   # CR
    set exp_res_info($resource,state) "UNASSIGNING"
    wait_for_resource_info exp_res_info 60 0 error_text
 
@@ -5841,7 +5864,8 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
 #     reset_produced_unassigning_resource() -- reset resource in UNASSIGNING state
 #
 #  SYNOPSIS
-#     reset_produced_unassigning_resource { resource sleeper_job_id } 
+#     reset_produced_unassigning_resource { resource sleeper_job_id service
+#                                          {move_interrupted} } 
 #
 #  FUNCTION
 #     This procedure will reset resource in UNASSIGNING state produced by 
@@ -5852,9 +5876,12 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
 #     ASSIGNED state.
 #   
 #  INPUTS
-#     resource          - name of the resource in unassigning state
-#     sleeper_job_id    - job id of a sleeper job
-#     service           - original service of the resource
+#     resource           - name of the resource in unassigning state
+#     sleeper_job_id     - job id of a sleeper job
+#     service            - original service of the resource
+#     {move_interrupted} - if set to 0 (default) resource is expected in spare_pool
+#                          if set to != 0 resource is at his original service
+#
 #
 #  RESULT
 #     0 on success, 1 on error
@@ -5862,7 +5889,7 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
 #  SEE ALSO
 #     util/produce_unassigning_resource()
 #*******************************************************************************
-proc reset_produced_unassigning_resource { resource sleeper_job_id service } {
+proc reset_produced_unassigning_resource { resource sleeper_job_id service {move_interrupted 0}} {
    global hedeby_config
    set exec_host $hedeby_config(hedeby_master_host)
 
@@ -5885,59 +5912,74 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service } {
    set_current_cluster_config_nr $curCluster
 
    if { $result != 0} {
-        ts_log_fine "error has occured while deleting sleeper job, resource can not be reset."
-        return 1
+      ts_log_fine "error has occured while deleting sleeper job, resource can not be reset."
+      return 1
    }     
 
-   # wait for resource to appear in spare_pool
-   set retry 0
-   set is_moved 0
-   while { $retry < 15 } {
-        set retval [get_resource_info $exec_host [get_hedeby_admin_user] resource_info]
-        if { $retval == 0 } {
-            if {[string match "$resource_info($resource,service)" "spare_pool"]} {
-                ts_log_fine "$resource has been moved to spare_pool"
-                set is_moved 1
-                break
-            } else {
-                ts_log_fine "$resource still has not been moved to spare_pool"                
-            }
-        } else {
-            ts_log_fine "failed to get resource info, will try later ..."
-        }
-        incr retry
-        after 1000
+   # wait for resource state changes from "UNASSINING" to "ASSIGNED"
+   set exp_resource_info($resource,state) "ASSIGNED"
+   if {[wait_for_resource_info exp_resource_info 120 0 tmp_error "" "" resource_info res_prop res_list res_list_not_uniq 1] != 0} {
+      append error_text "wait_for_resource_info failed:\n$tmp_error\n"
    }
-   
-   if { $is_moved == 0 } {
-        # trigger move of resource to original service
-        set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] mvr -r $resource -s $service"
-        set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
-        ts_log_fine "output is: $output"
-        if { $prg_exit_state != 0 } {
-            ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
-            return 1
-        } else {
-            ts_log_fine "Move of resource $resource was triggered"            
-        }    
 
-       # wait for resource go to unassigning state
-       ts_log_fine "resource \"$resource\" should appear in \"$service\" in assigned state..."
-       set exp_res_info($resource,state) "assigned"
-       set exp_res_info($resource,service) "spare_pool"
-       wait_for_resource_info exp_res_info 60 0 error_text
-
-       if { $error_text != "" } {
-          ts_log_severe $error_text
-          return 1
-       } else {
-          ts_log_fine "Resoruce $resource is back in $service"
-          return 0
-       }
-        
+   if {$move_interrupted != 0} {
+      if { $resource_info($resource,service) != $service } {
+         append error_text "resource $resource is at service \"$resource_info($resource,service)\", should be \"$service\"\n"
+      }
    } else {
-        ts_log_severe "resource has not been moved to spare_pool within timeout, reset of unassigning resource can not be done, full reset needed"
-        return 1
+      if { $resource_info($resource,service) != "spare_pool" } {
+         append error_text "resource $resource is at service \"$resource_info($resource,service)\", should be \"spare_pool\"\n"
+      }
    }
+
+   # check if we have to move the resource back to original service
+   set is_moved 0
+   set is_ok 0
+   if {$resource_info($resource,state) == "ASSIGNED"} {
+      ts_log_fine "$resource is in \"ASSIGNED\" state - good" 
+      if {$resource_info($resource,service) == "spare_pool"} {
+         ts_log_fine "$resource has been moved to spare_pool"
+         set is_moved 1
+         set is_ok 1
+      }
+      if {$resource_info($resource,service) == $service} {
+         ts_log_fine "$resource is at his original service"
+         set is_ok 1
+      } 
+      if { $is_ok == 0 } {
+         append error_text "resource $resource is at service $resource_info($resource,service) which is not expected\n"
+      }
+   } 
    
+   if { $is_moved == 1 } {
+      # yes, resource is now at spare_pool
+      # trigger move of resource to original service
+      set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] mvr -r $resource -s $service"
+      set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
+      ts_log_fine "output is: $output"
+      if { $prg_exit_state != 0 } {
+         ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
+         return 1
+      } else {
+         ts_log_fine "Move of resource $resource was triggered"            
+      }
+        
+      ts_log_fine "resource \"$resource\" should appear in \"$service\" in assigned state ..."
+      set exp_res_info($resource,state) "ASSIGNED"
+      set exp_res_info($resource,service) "$service"
+      set tmp_error ""
+      if {[wait_for_resource_info exp_resource_info 60 0 tmp_error "" "" resource_info res_prop res_list res_list_not_uniq 1] != 0} {
+         append error_text "wait_for_resource_info failed:\n$tmp_error\n"
+      }
+   }
+
+   # check for errors and do reset hedeby if there were ...
+   if { $error_text != "" } {
+      append error_text "\nreset hedeby now ..."
+      ts_log_severe $error_text
+      return [reset_hedeby 1]
+   } else {
+      ts_log_fine "Resource $resource is back in $service"
+      return 0
+   }
 }

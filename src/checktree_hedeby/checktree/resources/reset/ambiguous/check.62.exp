@@ -143,16 +143,13 @@ proc ambiguous_resource_reset_cleanup {} {
    global ambiguous_resource_reset_is_set
    global hedeby_config
    
-   # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $ambiguous_resource_reset_current_cluster_config
-   
    # reset ambiguous resource
    if { $ambiguous_resource_reset_is_set != 0 } {
-        reset_produced_ambiguous_resource
+        reset_produced_ambiguous_resource  ;# this procedore already calls reset if failed
    }
-   # perform hedeby reset
-   reset_hedeby 1
 
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $ambiguous_resource_reset_current_cluster_config
 }
 
 #****** assigned/ambiguous_resource_reset_check() *****************************
@@ -199,17 +196,14 @@ proc ambiguous_resource_reset_check {} {
    # (errors are logged at the end of the test)
    set error_text ""
 
-   # initialize the subject of reset command
-   set rst ""  
-
    # produce ambiguous resource
    set retval [produce_ambiguous_resource rst srv]
-   if { $retval == 0 } {       
-       
+
+   if { $retval == 0 } {
         ts_log_fine "got ambiguous resource $rst, test can continue"
         set ambiguous_resource_reset_is_set 1
-        # check the resource attributes (to be sure it is ambiguous and for 
-        # for later comparison)
+
+        # check the resource attributes (to be sure it is ambiguous and for later comparison)
         set retval_gri [get_resource_info $exec_host $admin_user resource_info1 rp1 rl1 amb1]
         if { $retval_gri == 0 } {
             set rflags $resource_info1($rst,flags)
@@ -219,8 +213,9 @@ proc ambiguous_resource_reset_check {} {
                 # prepare sdmadm command and start it ...
                 set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
                 set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
+
                 # build expected output message from bundle properties file ... 
-                set xyz(0) $rst
+                set xyz(0) "*"  ;# comparing hosts might make problems with long/short hostname string matching
                 set expected_output [create_bundle_string "rm.error.non_unique_res" xyz]
                 ts_log_fine "expected output: $expected_output"
                 # get sdmadm output message string ...
@@ -243,15 +238,19 @@ proc ambiguous_resource_reset_check {} {
 
                     # get resource informations (updated), wait some time (we could use wait_for_resource_info, but it'd be more complicated)
                     ts_log_fine "getting updated resource information"
-                    after 5000
-                    unset retval_gri 
+
+                    # we wait till resource info might be updated 
+                    # TODO: It would be nice to have a possibilty to wait that resource provider or any other service gets an expected event
+                    #       before continue the test, so that we don't have to wait to long and we always assume that updates are done within
+                    #       a specified timeout. Perhaps we should use the monitor component?
+                    after 15000
+
                     set retval_gri [get_resource_info $exec_host $admin_user resource_info2 rp2 rl2 amb2]
                     if { $retval_gri == 0 } {
                         set ri_comparison [compare_resource_infos [array get resource_info1] [array get rp1] $rl1 $amb1 [array get resource_info2] [array get rp2] $rl2 $amb2 etext ]
                         if { $ri_comparison == 0} {
                             ts_log_fine "before/after reset resources information are the same"
                         } else {
-                            ts_log_fine "i am here!"
                             append error_text $etext
                         }
                     } else {
@@ -274,4 +273,3 @@ proc ambiguous_resource_reset_check {} {
       ts_log_severe $error_text
    }
 }
-

@@ -139,10 +139,6 @@ proc unknown_resource_reset_cleanup {} {
 
    # reset saved active cluster configuration nr
    set_current_cluster_config_nr $unknown_resource_reset_current_cluster_config
-
-   # perform hedeby reset
-   reset_hedeby 1
-
 }
 
 #****** unknown/unknown_resource_reset_check() *****************************
@@ -190,33 +186,35 @@ proc unknown_resource_reset_check {} {
    set error_text ""
 
    # initialize the subject of reset command
-   set rst [produce_unknown_resource]
+   set rst [produce_unknown_resource "host"]
         
-    # prepare sdmadm command and start it ...
-    set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
-    set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
-    # build expected output message from bundle properties file ... 
-    set xyz(0) $rst
-    set expected_output [create_bundle_string "rm.error.reset_unknown_res" xyz]
-    ts_log_fine "expected output: $expected_output"
-    # get sdmadm output message string ...
-    set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
-    ts_log_fine "output message is: $output_message"
+   # prepare sdmadm command and start it ...
+   set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
+   set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
 
-    # compare the output with the expected output ...
-    if {[string match "$expected_output" $output_message]} {
-        ts_log_fine "output is matching!"
-    } else {
-        append error_text "The output message doesn't match expected output\n"
-        append error_text "Expected output: \"$expected_output\"\n"
-        append error_text "Received output: \"$output_message\"\n"
-    }
+   # build expected output message from bundle properties file ... 
+   set xyz(0) "*"
+   set expected_output [create_bundle_string "rm.error.reset_unknown_res" xyz]
 
-    if { $prg_exit_state != 2 } {
-        append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"2\"\n"
-    } else {
-        ts_log_fine "exit state is matching!"
-    }
+   ts_log_fine "expected output: $expected_output"
+   # get sdmadm output message string ...
+   set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
+   ts_log_fine "output message is: $output_message"
+
+   # compare the output with the expected output ...
+   if {[string match "$expected_output" $output_message]} {
+       ts_log_fine "output is matching!"
+   } else {
+       append error_text "The output message doesn't match expected output\n"
+       append error_text "Expected output: \"$expected_output\"\n"
+       append error_text "Received output: \"$output_message\"\n"
+   }
+
+   if { $prg_exit_state != 2 } {
+       append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"2\"\n"
+   } else {
+       ts_log_fine "exit state is matching!"
+   }
 
    # finally report one big error mail
    if {$error_text != ""} {

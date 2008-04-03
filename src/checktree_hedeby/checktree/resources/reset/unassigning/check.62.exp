@@ -160,19 +160,17 @@ proc unassigning_resource_reset_cleanup {} {
    set ge_hosts [get_hedeby_default_services service_names]
    set exec_host $hedeby_config(hedeby_master_host)
    
-   # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $unassigning_resource_reset_current_cluster_config
-
    if { $unassigning_resource_reset_sji != -1 } {
-        set retval [reset_produced_unassigning_resource $unassigning_resource_reset_resource $unassigning_resource_reset_sji $unassigning_resource_reset_service]        
+        set retval [reset_produced_unassigning_resource $unassigning_resource_reset_resource $unassigning_resource_reset_sji $unassigning_resource_reset_service 1]
         if { $retval != 0 } {
-            ts_log_fine "Reset of unassigning resource has failed, full reset has to be performed\n"
-            # perform hedeby reset
-            reset_hedeby 1
+            ts_log_fine "Reset of unassigning resource has failed\n"
         } else {
             ts_log_fine "Unassigning resource has been reset\n"
         }
    } 
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $unassigning_resource_reset_current_cluster_config
 }
 
 #****** unassigning/unassigning_resource_reset_check() *****************************
@@ -194,9 +192,9 @@ proc unassigning_resource_reset_cleanup {} {
 #        4) Perform "sdmadm reset" on the resource
 #        5) Check that 
 #           a) EXECD is still running on the host resource
-#           b) resource state is still unassigning
+#           b) resource state is assigned
 #           c) exist status of the command is 0
-#           d) output message of the command is as expected    
+#           d) output message of the command is as expected
 #
 #  INPUTS
 #     no input parameters
@@ -222,120 +220,93 @@ proc unassigning_resource_reset_check {} {
    set ge_hosts [get_hedeby_default_services service_names]
    set exec_host $hedeby_config(hedeby_master_host)
 
-   ts_log_info "TODO test has to be changed once the issue 407&415 are resolved"
-
    # init text array for reporting errors
    # (errors are logged at the end of the test)
    set error_text ""
 
-   # initialize the subject of reset command
-   set rst ""  
-   
-
-   # find a resource that is unassigning to GE service and is in assigned state and 
+   # find a resource that is assigned to GE service and is in ASSIGNED state and 
    # is not STATIC and not AMBIGUOUS
-   # 1. get resource informations
+   set aservice [lindex $service_names(services) 0]
+   set rst [lindex $service_names(moveable_execds,$aservice) 0]
+
+   # check that resource state is correct
    set retval [get_resource_info $exec_host $admin_user resource_info]
-   if { $retval == 0 } {
-      foreach service $service_names(services) {
-          ts_log_fine "searching \"$service\" for a resource in assigned state ..."        
-          foreach resource $service_names(execd_hosts,$service) {                      
-                set rstate $resource_info($resource,state)
-                set rflags $resource_info($resource,flags)
-                ts_log_fine "res: $resource, state: $rstate, flags: $rflags"
-                if {[string match "$rstate" "ASSIGNED"]} {
-                    if {[string match "$rflags" "{}"]} {
-                        ts_log_fine "got a resource in assigned state: $resource"        
-                        set rst $resource
-                        set retval [produce_unassigning_resource $rst sji svc]
-                        if { $retval == 0 } {
-                            set unassigning_resource_reset_resource $rst
-                            set unassigning_resource_reset_sji $sji
-                            set unassigning_resource_reset_service $svc
-                            # resource is in unassigning state, so perform reset of the resource
-                            # prepare sdmadm command and start it ...
-                            set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
-                            set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
-                            # build expected output message from bundle properties file ...
-                            set xyz(0) $rst
-                            set expected_output [create_bundle_string "ResetResourceCommand.resource.reset_failed" xyz]
-                            ts_log_fine "expected output: $expected_output"
-                            # get sdmadm output message string ...
-                            set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
-                            ts_log_fine "output message is: $output_message"
+   set rstate $resource_info($rst,state)
+   set rflags $resource_info($rst,flags)
+   ts_log_fine "res: $rst, state: $rstate, flags: $rflags"
+   if {[string match "$rstate" "ASSIGNED"] && [string match "$rflags" "{}"]} {
+      ts_log_fine "got a resource in ASSIGNED state: $rst"  
+   } else {
+      append error_text "No resource in ASSIGNED state has been found\n"
+      set rst ""
+   }
 
-                            # compare the output with the expected output ...
-                            if {[string match "$expected_output" $output_message]} {
-                                ts_log_fine "output is matching!"
-                            } else {
-                                append error_text "The output message doesn't match expected output\n"
-                                append error_text "Expected output: \"$expected_output\"\n"
-                                append error_text "Received output: \"$output_message\"\n"
-                            }
+   if { $rst != "" } {
+      ts_log_fine "got a resource in assigned state: $rst"        
+      set retval [produce_unassigning_resource $rst sji svc]
+      if { $retval == 0 } {
+         set unassigning_resource_reset_resource $rst
+         set unassigning_resource_reset_sji $sji
+         set unassigning_resource_reset_service $svc
 
-                            if { $prg_exit_state != 2 } {
-                                append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"2\"\n"
-                            } else {
-                                ts_log_finer "The exit state \"$prg_exit_state\" does match the expected exit state \"2\"\n"                    
-                                # step 1: set expected resource information values   
-                                set exp_resource_info($rst,state) "unassigning"
-                                # TODO this comparison does not work properly, do not know why (expect problem???)
-                                # instead, call get_resource_info to find out the flags
-                                # set exp_resource_info($rst,flags) "{}"
-                                # step 2: wait for expected resource informations
-                                set retval [wait_for_resource_info exp_resource_info 60 0 rst_error]
+         # resource is in unassigning state, so perform reset of the resource
+         # prepare sdmadm command and start it ...
+         set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $rst"
+         set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" 0 table]
 
-                                if { $retval == 0 } {
-                                    ts_log_fine "resource $rst is in expected state" 
-                                    # get resource informations (updated), wait some time 
-                                    ts_log_fine "waiting whether resource $rst flags will change"
-                                    after 10000
-                                    unset resource_info
-                                    set retval_gri [get_resource_info $exec_host $admin_user resource_info]
-                                    if { $retval_gri == 0 } {
-                                        set rflags $resource_info($rst,flags)
-                                        if {[string match "$rflags" "{}"]} {
-                                            ts_log_fine "resource $rst has correct flags"        
-                                            # 1. switch to correct cluster
-                                            set_current_cluster_config_nr $service_names(ts_cluster_nr,$rst)
-                                            # 2. check that execd is still running
-                                            if { [is_execd_alive $rst] == 1 } {
-                                                ts_log_fine "execd IS running on reset resource $rst"
-                                            } else {
-                                                append error_text "execd IS NOT running on reset resource $rst\n"
-                                            }
-                                        } else {
-                                            append error_text "resource $rst does not have correct flags: $rflags\n"
-                                        }
-                                    } else {
-                                        append error_text "getting an updated resource info failed, test can not continue\n"
-                                    }
-                                } else {
-                                    append error_text "resource $rst is not in expected state:\n"
-                                    append error_text $rst_error
-                                }
-                            }
-                        } else {
-                            append error_text "Producing unassigning resource out of $rst has failed, test can not continue\n"
-                        }
-                    }
-                }                
-          }
-          if {[string match "$rst" ""]} {
-            # still no resource in ASSIGNED state, continue searching in another service
-            ts_log_fine "still got no resource in assigned state and with no flags, moving to another service"
-            continue
-          } else {
-            # $rst is set, it means that resource was found and test performed 
-            ts_log_fine "done"
-            break
-          }
-      } 
-       
+         # build expected output message from bundle properties file ...
+         set xyz(0) "*"  ;# using hostname for string match might be dangerous
+         set expected_output [create_bundle_string "ResetResourceCommand.resource.reset" xyz]
+         ts_log_fine "expected output: $expected_output"
+         # get sdmadm output message string ...
+         set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
+         ts_log_fine "output message is: $output_message"
+
+         # compare the output with the expected output ...
+         if {[string match "$expected_output" $output_message]} {
+             ts_log_fine "output is matching!"
+         } else {
+             append error_text "The output message doesn't match expected output\n"
+             append error_text "Expected output: \"$expected_output\"\n"
+             append error_text "Received output: \"$output_message\"\n"
+         }
+        
+         if { $prg_exit_state != 0 } {
+            append error_text "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\"\n"
+         } else {
+            ts_log_finer "The exit state \"$prg_exit_state\" does match the expected exit state \"2\"\n"                    
+            # step 1: set expected resource information values   
+            set exp_resource_info($rst,state) "ASSIGNED"
+
+            # step 2: wait some time for resource updated information
+            after 15000  ;# TODO: It would be nice to have a kind of notification here (when reset resource was done by service)
+                          # Then we would not have to wait such a long time (where we also only assume that service has done reset)
+            set retval [wait_for_resource_info exp_resource_info 60 0 rst_error]
+            if { $retval == 0 } {
+               ts_log_fine "resource $rst is in expected state: $res_info($rst,state)" 
+
+               # 1. switch to correct cluster
+               set_current_cluster_config_nr $service_names(ts_cluster_nr,$rst)
+
+               # 2. check that execd is still running
+               if { [is_execd_alive $rst] == 1 } {
+                  ts_log_fine "execd IS running on reset resource $rst"
+               } else {
+                   append error_text "execd IS NOT running on reset resource $rst\n"
+               }
+            } else {
+               append error_text "resource $rst is not in expected state \"$exp_resource_info($rst,state)\":\n"
+               append error_text $rst_error
+               append error_text "This might be issue 407"
+            }
+         }
+      } else {
+         append error_text "Producing unassigning resource out of $rst has failed, test can not continue\n"
+      }
    } else {
       append error_text "getting a resource info failed, test can not continue\n"
    }
-                  
+
    # finally report one big error mail
    if {$error_text != ""} {
       ts_log_severe $error_text
