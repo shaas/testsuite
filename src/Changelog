@@ -1,3 +1,7 @@
+JG-2008-04-03-0: Enhancem.: use new start_vi_edit in mod_userlist
+                 Cleanup:   cleanup of init_log_file_wait and others
+                 Review:    CR
+
 CR-2008-04-03-0: Cleanup:   further hedeby test cleanup
                  Review:    MB
 

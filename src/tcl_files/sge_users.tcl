@@ -274,116 +274,35 @@ proc get_user_list {{output_var result} {on_host ""} {as_user ""} {raise_error 1
 #  RESULT
 #
 #*******************************************************************************
-proc mod_userlist { userlist array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
+proc mod_userlist {userlist array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} {
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
    upvar $array current_ul
 
-# Modify userlist from file
-   if { $fast_add } {
+   get_userset_messages messages "mod" $userlist $on_host $as_user
+
+   # Modify userlist from file
+   if {$fast_add} {
       get_ulist $userlist old_ul
       foreach elem [array names current_ul] {
          set old_ul($elem) "$current_ul($elem)"
       }
 
       set tmpfile [dump_array_to_tmpfile old_ul]
-      set result [start_sge_bin "qconf" "-Mu $tmpfile" $on_host $as_user ]
-
-
-      if {$prg_exit_state == 0} {
-         set ret 0
-      } else {
-         set ret [mod_userlist_error $result $userlist $tmpfile $raise_error]
-      }
-
+      set option "-Mu $tmpfile"
+      set result [start_sge_bin "qconf" $option $on_host $as_user]
    } else {
       # do the work via vi
       set vi_commands [build_vi_command current_ul]
-      set args "-mu $userlist"
-
-      set MODIFIED [translate_macro MSG_SGETEXT_MODIFIEDINLIST_SSSS "*" "*" "$userlist" "userset" ]
-      set NOT_MODIFIED [translate_macro MSG_FILE_NOTCHANGED ]
-      set ALREADY_EXISTS [ translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*"]
-      set UNKNOWN_SPECIFIER [translate_macro MSG_GDI_READCONFIGFILEUNKNOWNSPEC_SS "*" "*"]
-      set EMPTY_SPECIFIER [ translate_macro MSG_GDI_READCONFIGFILEEMPTYSPEC_S "*" ]
-      set NOTULONG [ translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
-      if {$ts_config(gridengine_version) >= 61} {
-         set ADDNOTULONG [translate_macro MSG_MUST_BE_POSITIVE_VALUE_S "*"]
-      } else {
-         set ADDNOTULONG "unsupported version < 61"
-      }
-      set master_arch [resolve_arch $ts_config(master_host)]
-      set result [ handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" $args $vi_commands $MODIFIED $ALREADY_EXISTS $NOT_MODIFIED $NOTULONG $UNKNOWN_SPECIFIER $EMPTY_SPECIFIER "___ABCDEFG___" 1 $ADDNOTULONG]
-      
-      if { $result == -1 } { 
-         ts_log_severe "timeout error" $raise_error
-      } elseif { $result == -2 } { 
-         ts_log_severe "already exists" $raise_error
-      } elseif { $result == -3 } { 
-         ts_log_severe "not modified " $raise_error
-      } elseif { $result == -4 } { 
-         ts_log_severe "not u_long32 value" $raise_error
-      } elseif { $result == -5 } { 
-         ts_log_severe "invalid specifier" $raise_error
-      } elseif { $result == -6 } { 
-         ts_log_severe "empty specifier" $raise_error
-      } elseif { $result == -7 } { 
-         ts_log_severe "must be positive" $raise_error
-      } elseif { $result != 0  } { 
-         ts_log_severe "could not modify userlist " $raise_error
-      }
-      set ret $result
+      set option "-mu $userlist"
+      set result [start_vi_edit "qconf" $option $vi_commands messages $on_host $as_user]
    }
+
+   set ret [handle_sge_errors "mod_userlist" "qconf $option" $result messages $raise_error]
    return $ret
 }
 
-#****** sge_users/mod_userlist_error() ***************************************
-#  NAME
-#     mod_userlist_error() -- error handling for mod_userlist
-#
-#  SYNOPSIS
-#     mod_userlist_error {result userlist tmpfile raise_error }
-#
-#  FUNCTION
-#     Does the error handling for mod_user.
-#     Translates possible error messages of qconf -Mu,
-#     builds the datastructure required for the handle_sge_errors
-#     function call.
-#
-#     The error handling function has been intentionally separated from
-#     mod_userlist. While the qconf call and parsing the result is
-#     version independent, the error messages (macros) usually are version
-#     dependent.
-#
-#  INPUTS
-#     result      - qconf output
-#     userlist    - object qconf is modifying
-#     tmpfile     - temp file for qconf -Mattr
-#     raise_error - raise error condition in case of errors
-#
-#  RESULT
-#     Returncode for mod_userlist function:
-#      -1: "wrong_attr" is not an attribute
-#     -99: other error
-#
-#  SEE ALSO
-#     sge_calendar/get_calendar
-#     sge_procedures/handle_sge_errors
-#*******************************************************************************
-proc mod_userlist_error {result userlist tmpfile raise_error} {
-
-   # recognize certain error messages and return special return code
-   set messages(index) "-1 -2"
-   set messages(-1) [translate_macro MSG_OBJECT_VALUENOTULONG_S "*" ]
-   set messages(-2) [translate_macro MSG_SGETEXT_DOESNOTEXIST_SS "userset" $userlist ]
-
-   set ret 0
-   # now evaluate return code and raise errors
-   set ret [handle_sge_errors "mod_user" "qconf -Mu $tmpfile " $result messages $raise_error]
-
-   return $ret
-}
 
 #****** sge_users/mod_user() ***************************************************
 #  NAME

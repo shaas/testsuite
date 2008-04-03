@@ -149,8 +149,6 @@ proc qconf_setup {} {
    global backup_allhosts
    global queue_names CHECK_JGDI_ENABLED
 
-   ts_log_fine "setup ..."
-
    set queue_names ""
    set MAX 1000
    if {$CHECK_JGDI_ENABLED} {
@@ -2416,69 +2414,43 @@ proc qconf_modify_userlist {} {
   
    set userlist "qconf_userlist"
    set attribute "entries"
-   set value "$CHECK_USER"
+   set value $CHECK_USER
 
-   # Get present config
-   #get_userset $userlist current_ul
-
-   set current_ul(name) "$userlist"
-   set current_ul($attribute) "$value"
+   set current_ul(name) $userlist
+   set current_ul($attribute) $value
 
    # Now modify fast
-   ts_log_fine "1) Modify userlist $userlist fast ...\n"
-   set result1 [mod_userlist $userlist current_ul ]
-
-   if { ( $result1 == 0 ) } {
-      ts_log_fine "qconf -Mu fast succeded"
-   } else {
-      ts_log_fine "result is $result1"
-   }
+   ts_log_fine "1) Modify userlist $userlist fast"
+   set result [mod_userlist $userlist current_ul]
 
    # Next modify slow
    set attribute "entries"
    set value "NONE"
-   set current_ul($attribute) "$value"
-   ts_log_fine "2) Modify userlist $userlist slow ...\n"
-
-   set result2 [mod_userlist $userlist current_ul 0]
-   if { ( $result2 == 0 ) } {
-      ts_log_fine "qconf -mu slow succeded"
-   } else {
-      ts_log_fine "result is $result2"
-   }
-
+   set current_ul($attribute) $value
+   ts_log_fine "2) Modify userlist $userlist slow"
+   set result [mod_userlist $userlist current_ul 0]
 
    # Now modify slow with wrong attribute
-   set userlist "qconf_userlist"
-   set attribute "oticket"
-   set value "-1"
-   set current_ul($attribute) "$value"
-   ts_log_fine "3) Modify attribute $attribute wrong slow ...\n"
-   set result4 [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
+   # this verification is only implemented for 6.1u4 and higher
+   if {$ts_config(gridengine_version) >= 61} {
+      set userlist "qconf_userlist"
+      set attribute "oticket"
+      set value -1
+      set current_ul($attribute) $value
+      ts_log_fine "3) Modify attribute $attribute wrong slow"
+      set result [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
 
-   if {$ts_config(gridengine_version) < 61} {
-      if { ( $result4 == -4 ) } {
-         ts_log_fine "qconf -mu failed successfully"
-      } else {
-         ts_log_fine "result is $result4"
+      if {$result != -12} {
+         ts_log_severe "qconf -mu didn't fail as expected"
       }
-   } else {
-      if { ( $result4 == -7 ) } {
-         ts_log_fine "qconf -mu failed successfully"
-      } else {
-         ts_log_fine "result is $result4"
+
+      # Now modify fast with wrong value
+      ts_log_fine "4) Modify userlist $userlist wrong fast ..."
+      set result [mod_userlist $userlist current_ul 1 $host $CHECK_USER 0]
+
+      if {$result != -12} {
+         ts_log_severe "qconf -Mu didn't fail as expected"
       }
-   }
-
-   # Now modify fast with wrong value
-   ts_log_fine "4) Modify userlist $userlist wrong fast ...\n"
-   set result3 [mod_userlist $userlist current_ul 1 $host $CHECK_USER 0]
-
-   if { ( $result3 == -1 ) } {
-      ts_log_fine "qconf -Mu failed successfully"
-   } else {
-      # See IZ 1983 on why this does not fail as expected
-      ts_log_fine "result is $result3"
    }
 
    #test if setting wrong value in userset type throws error
@@ -2488,27 +2460,22 @@ proc qconf_modify_userlist {} {
    set attribute "type"
    set value "BADTYPE"
    set current_ul($attribute) "$value"
-   ts_log_fine "5) Setting invalid type for userset ...\n"
-   set result5 [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
+   ts_log_fine "5) Setting invalid type for userset ..."
+   set result [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
 
-   if { ( $result5 == -5 ) } {
-      ts_log_fine "qconf -mu for invalid userset type failed successfully"
-   } else {
-      ts_log_fine "result is $result5"
+   if {$result != -7} {
+      ts_log_severe "qconf -mu for invalid userset type didn't fail as expected"
    }
 
    #test if setting blank value in userset type throws error
    set value "    "
    set current_ul($attribute) "$value"
-   ts_log_fine "6) Setting blank type for userset ...\n"
-   set result6 [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
+   ts_log_fine "6) Setting blank type for userset ..."
+   set result [mod_userlist $userlist current_ul 0 $host $CHECK_USER 0]
 
-   if { ( $result6 == -6 ) } {
-      ts_log_fine "qconf -mu for blank userset type failed successfully"
-   } else {
-      ts_log_fine "result is $result6"
+   if {$result != -11} {
+      ts_log_severe "qconf -mu for blank userset type didn't fail as expected"
    }
- 
 }
 
 #****** qconf/qconf_modify_sched_conf() ******

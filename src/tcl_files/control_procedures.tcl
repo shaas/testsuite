@@ -1034,14 +1034,25 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
 
       -i $sp_id "*_exit_status_*" {
          ts_log_finest "vi terminated! (2) (rt=$run_time)"
-         foreach line [split "$expect_out(buffer)" "\n"] {
+         foreach line [split $expect_out(buffer) "\n"] {
             set res_line [string trim $line]
-            foreach errno $messages(index) {
-               if {[string match "*$messages($errno)*" $res_line] == 1} {
-                  set result $messages($errno)
-                  break
+            # skip empty lines
+            if {$res_line != ""} {
+               set found 0
+               foreach errno $messages(index) {
+                  if {[string match "*$messages($errno)*" $res_line] == 1} {
+                     set result $messages($errno)
+                     set found 1
+                     break
+                  }
                }
-            }          
+               # with multi line output, take the first matching line
+               if {$found} {
+                  break
+               } else {
+                  ts_log_finer "unexpected output: $res_line"
+               }
+            }
          }
       }
     }
@@ -1117,7 +1128,7 @@ proc start_vi_edit {prog_binary prog_args vi_command_sequence msg_var {host ""} 
 #     get_uid() -- get user id for user on host
 #
 #  SYNOPSIS
-#     get_uid { user host } 
+#     get_uid {user host}
 #
 #  FUNCTION
 #     The function returns the user id of user $user on host $host

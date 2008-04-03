@@ -3054,7 +3054,7 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
    while {1} {
       set result [start_sge_bin "qstat" "-s pr"]
       if {$prg_exit_state == 0} {
-         if {[string compare $result ""] == 0} {
+         if {[string trim $result] == ""} {
             return 0
          }
 

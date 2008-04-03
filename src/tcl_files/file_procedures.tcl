@@ -3133,39 +3133,34 @@ proc delete_directory {path} {
 #     file_procedures/close_logfile_wait()
 #*******************************************************************************
 proc init_logfile_wait { hostname logfile  } {
-   global file_procedure_logfile_wait_sp_id CHECK_USER
+   global file_procedure_logfile_wait_sp_id CHECK_USER CHECK_DEBUG_LEVEL
 
    set sid [open_remote_spawn_process $hostname $CHECK_USER "tail" "-f $logfile"]
    set sp_id [lindex $sid 1]
-   set timeout 5
    ts_log_finest "spawn id: $sp_id"
 
-   log_user 0
-   while { 1 } {
-      expect {
-         -i $sp_id -- full_buffer {
-            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-            break
-         }
-
-         -i $sp_id eof {
-            break
-         }
-         -i $sp_id -- "_exit_status_" {
-            break
-         }
-         -i $sp_id timeout {
-            break
-         }
-         -i $sp_id -- "\n" {
-            ts_log_finest $expect_out(buffer)
-         }
-         -i $sp_id default {
-            break
-         }
+   if {$CHECK_DEBUG_LEVEL > 0} {
+      log_user 1
+   }
+   set timeout 2
+   expect {
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id eof {
+         ts_log_severe "eof while waiting for output from tail -f $logfile"
+      }
+      -i $sp_id "_exit_status_" {
+         ts_log_severe "tail -f $logfile exited"
+      }
+      -i $sp_id timeout {
+      }
+      -i $sp_id "\n" {
+         ts_log_finest $expect_out(buffer)
+         exp_continue
       }
    }
-   log_user 1 
+   log_user 0
    ts_log_finest "init_logfile_wait done"
    set file_procedure_logfile_wait_sp_id $sid
 

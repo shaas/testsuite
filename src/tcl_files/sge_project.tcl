@@ -102,7 +102,7 @@ proc add_project {project {change_array ""} {fast_add 1} {on_host ""} {as_user "
    upvar $change_array chgar
    set chgar(name) "$project"
 
-   get_project_messages messages "add" "$project" $on_host $as_user
+   get_project_messages messages "add" $project $on_host $as_user
    
    if {$fast_add} {
       ts_log_fine "Add project $project from file ..."
@@ -111,13 +111,11 @@ proc add_project {project {change_array ""} {fast_add 1} {on_host ""} {as_user "
       update_change_array old_config chgar
       set tmpfile [dump_array_to_tmpfile old_config]
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]
-
     } else {
       ts_log_fine "Add project $project slow ..."
       set option "-aprj"
       set vi_commands [build_vi_command chgar]
       set result [start_vi_edit "qconf" "$option" $vi_commands messages $on_host $as_user]
-
    }
 
    return [handle_sge_errors "add_project" "qconf $option" $result messages $raise_error]
