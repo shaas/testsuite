@@ -263,7 +263,7 @@ proc show_status_check {} {
    set expected_component_status "STARTED"
 
    # setup managed host expectations ...
-   foreach host [get_all_hedeby_managed_hosts] {
+   foreach host [get_all_hedeby_managed_nodes] {
       lappend test_hosts $host
       if { [lsearch -exact $ge_qmaster_hosts $host] >= 0 } {
          ts_log_fine "expecting ge adapter on host \"$host\" in vm \"rp_vm\""
@@ -291,7 +291,7 @@ proc show_status_check {} {
    set component_count [parse_show_component_output output]
    
    for {set i 0} {$i < $component_count} {incr i} {
-      set host $ss_out($i,host)
+      set host [resolve_host $ss_out($i,host)]
       set jvm  $ss_out($i,jvm)
       set comp $ss_out($i,component)
       set state $ss_out($i,state)

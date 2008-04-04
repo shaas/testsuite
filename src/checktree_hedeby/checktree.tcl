@@ -993,8 +993,8 @@ proc config_hedeby_host_resources { only_check name config_array } {
                    "      service." }
    set value [config_generic $only_check $name config $help_text "hosts"]
    if {!$fast_setup} {
-      # now check that the selected host is not a qmaster in any cluster setup
-      set execd_list [get_all_execd_hosts]
+      # now check that the selected host is not a resource in any cluster setup
+      set execd_list [get_all_execd_nodes]
       foreach execd $execd_list {
          foreach hostResource $value {
             if { $hostResource == $execd } {

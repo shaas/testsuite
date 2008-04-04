@@ -1,3 +1,19 @@
+CR-2008-04-04-0: Cleanup:   o hedeby support for TS zones
+                            o enhanced start_parallel_sdmadm_command() to do
+                              only 15 sdmadm commands parallel and only one
+                              sdmadm command per physical host if nodes
+                              are used.
+                              (added privated_start_parallel_sdmadm_command()
+                               and using start_parallel_sdmadm_command() as
+                               wrapper procedure) 
+                            o Fixed problem in wait_for_resource_info() when
+                               hedeby system is down. (produced TCL error
+                               in hedeby_reset() which don't allow to install
+                               a system from scratch.
+                            o Fixed get_jave_home_for_host() which did not
+                              support node hosts.
+                 Review:    MB
+
 CR-2008-04-03-0: Enhancem.: o Also check short hostname output of expected 
                               sdmadm output by using match string "hostname*"
                               (Part of CR-2008-04-03-0 which I forgot to ci)

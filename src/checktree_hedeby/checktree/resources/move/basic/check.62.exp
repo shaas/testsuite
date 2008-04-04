@@ -302,7 +302,7 @@ proc basic_resource_assignment_check {} {
    foreach host $mvr_list {
       lappend spare_pool_list $host
    }
-   foreach host $hedeby_config(hedeby_host_resources) {
+   foreach host [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] {
       lappend spare_pool_list $host
    }
 

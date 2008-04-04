@@ -66,7 +66,7 @@ proc remove_hedeby_preferences {{raise_error 1}} {
    if { $pref_type == "system" } {
       # the user installation is shared in home directory, don't remove them on the remote
       # host, because they will disapear when master host preferences are deleted
-      set host_list [get_all_hedeby_managed_hosts]
+      set host_list [get_all_hedeby_managed_nodes]
       foreach host $host_list {
          set task_info($host,expected_output) ""
          set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name rbc"      
@@ -132,7 +132,7 @@ proc shutdown_hedeby { { only_raise_cannot_kill_error 0 } } {
    set shutdown_user [get_hedeby_startup_user]
 
    # first step: shutdown all managed hosts
-   set managed_hosts [get_all_hedeby_managed_hosts]
+   set managed_hosts [get_all_hedeby_managed_nodes]
    set val [shutdown_hedeby_hosts "managed" $managed_hosts $shutdown_user $only_raise_cannot_kill_error]
    if { $val != 0 } {
       set ret_val 1
@@ -190,7 +190,7 @@ proc startup_hedeby {} {
    }
 
    # second step: startup all managed hosts
-   set val [startup_hedeby_hosts "managed" [get_all_hedeby_managed_hosts] $startup_user]
+   set val [startup_hedeby_hosts "managed" [get_all_hedeby_managed_nodes] $startup_user]
    if { $val != 0 } {
       set ret_val 1
    }
@@ -455,7 +455,7 @@ proc get_hedeby_ge_complex_mapping { arch {rp res_prop} } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_system_name { } {
@@ -498,7 +498,7 @@ proc get_hedeby_system_name { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_pref_type { } {
@@ -542,7 +542,7 @@ proc get_hedeby_pref_type { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_admin_user { } {
@@ -1062,7 +1062,7 @@ proc parse_bundle_string_params { output id {params_array params}  } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_startup_user { } {
@@ -1100,7 +1100,7 @@ proc get_hedeby_startup_user { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_cs_url { } {
@@ -1135,7 +1135,7 @@ proc get_hedeby_cs_url { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_local_spool_dir { host } {
@@ -1176,7 +1176,7 @@ proc get_hedeby_local_spool_dir { host } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc cleanup_hedeby_local_spool_dir { host } {
@@ -1213,12 +1213,12 @@ proc cleanup_hedeby_local_spool_dir { host } {
 }
 
 
-#****** util/get_all_hedeby_managed_hosts() ************************************
+#****** util/get_all_hedeby_managed_nodes() ************************************
 #  NAME
-#     get_all_hedeby_managed_hosts() -- get all possible managed host names
+#     get_all_hedeby_managed_nodes() -- get all possible managed host names
 #
 #  SYNOPSIS
-#     get_all_hedeby_managed_hosts { } 
+#     get_all_hedeby_managed_nodes { } 
 #
 #  FUNCTION
 #     The procedure returns a list of all possible managed host candidates of
@@ -1237,14 +1237,14 @@ proc cleanup_hedeby_local_spool_dir { host } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
-proc get_all_hedeby_managed_hosts {} {
+proc get_all_hedeby_managed_nodes {} {
    global hedeby_config
-   set host_list $hedeby_config(hedeby_host_resources) 
+   set host_list [host_conf_get_nodes $hedeby_config(hedeby_host_resources)]
    
-   foreach host [get_all_execd_hosts] {
+   foreach host [get_all_execd_nodes] {
       if {[lsearch $host_list $host] < 0 && $host != $hedeby_config(hedeby_master_host) } {
          lappend host_list $host
       }
@@ -1271,7 +1271,7 @@ proc get_all_hedeby_managed_hosts {} {
 #
 #  SEE ALSO
 #     util/get_hedeby_default_services()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #*******************************************************************************
 proc get_all_default_hedeby_resources {} {
 
@@ -1285,7 +1285,7 @@ proc get_all_default_hedeby_resources {} {
          lappend expected_resource_list $execd
       }
    }
-   foreach hres $hedeby_config(hedeby_host_resources) {
+   foreach hres [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] {
       lappend expected_resource_list $hres
    }
    return $expected_resource_list
@@ -1359,7 +1359,7 @@ proc get_hedeby_default_services { service_names } {
    }
    set_current_cluster_config_nr $current_cluster_config
 
-   foreach hres $hedeby_config(hedeby_host_resources) {
+   foreach hres [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] {
       set ret(default_service,$hres) "spare_pool"
    }
 
@@ -1395,7 +1395,7 @@ proc get_hedeby_default_services { service_names } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_hosts()
+#     util/get_all_hedeby_managed_nodes()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc is_hedeby_process_running { host pid } {
@@ -1640,53 +1640,31 @@ proc shutdown_hedeby_hosts { type host_list user { only_raise_cannot_kill_error 
 }
 
 
-#****** util/start_parallel_sdmadm_command() ***********************************
+#****** util/private_start_parallel_sdmadm_command() ***************************
 #  NAME
-#     start_parallel_sdmadm_command() -- start sdmadm_command parallel
+#     private_start_parallel_sdmadm_command() -- private impl of parallel sdmadm
 #
 #  SYNOPSIS
-#     start_parallel_sdmadm_command { host_list exec_user info {raise_error 1} 
-#     {parallel 1} } 
+#     private_start_parallel_sdmadm_command { host_list exec_user info 
+#     {raise_error 1} {parallel 1} } 
 #
 #  FUNCTION
-#     This procedure is used to start parallel sdmadm tasks
+#     Used TS internal. Only use start_parallel_sdmadm_command() in tests.
 #
 #  INPUTS
-#     host_list       - hosts where to start sdmadm command
-#     exec_user       - user which will execute the commands
-#     info            - name of array to store task information
-#     {raise_error 1} - optional: if 1 report errros
-#     {parallel 1}    - optional: if 0 run commands in a sequence
-#                                 (for debuging only)
+#     host_list       - see start_parallel_sdmadm_command()
+#     exec_user       - see start_parallel_sdmadm_command() 
+#     info            - see start_parallel_sdmadm_command() 
+#     {raise_error 1} - see start_parallel_sdmadm_command() 
+#     {parallel 1}    - see start_parallel_sdmadm_command() 
 #
 #  RESULT
-#     string "" on success, string with error text on error
+#     see start_parallel_sdmadm_command() 
 #
-#  EXAMPLE
-#     Initialize the task info array:
-#     ===============================
-#        foreach host $host_list {
-#           set task_info($host,expected_output) ""
-#           set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name rs"      
-#        }
-#     Execute the sdmadm command parallel:
-#     ====================================
-#        set error_text [start_parallel_sdmadm_command host_list $remove_user task_info $raise_error]
-#     Examine the results:
-#     ====================
-#        foreach host $host_list {
-#           set exit_state $task_info($host,exit_status)
-#           set output $task_info($host,output)
-#           debug_puts "host: $host"
-#           debug_puts "exit status: $exit_state"
-#           debug_puts "output:\n$output"
-#        }
-#        if { $error_text != "" } {
-#           add_proc_error "remove_hedeby_preferences" -1 $error_text $raise_error
-#        }
-#
+#  SEE ALSO
+#     util/start_parallel_sdmadm_command()
 #*******************************************************************************
-proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {parallel 1}} {
+proc private_start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {parallel 1}} {
    set spawn_list {}
    set error_text ""
 
@@ -1706,11 +1684,11 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
             set tasks(RETURN_ISPID) 0
             set ispid [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
             set ispid_list($host) $ispid
-            ts_log_fine "got ispid: $ispid"
+            ts_log_finer "got ispid: $ispid"
             set spawn_id [lindex $ispid 1]
             set ispid_list($host,sp_id) $spawn_id
             set ispid_list($spawn_id) $host
-            ts_log_fine "sp_id on host $host is $ispid_list($host,sp_id)"
+            ts_log_finer "sp_id on host $host is $ispid_list($host,sp_id)"
             lappend spawn_list $ispid_list($host,sp_id)
          } else {
             set task_info($host,output) [sdmadm_command $host $exec_user $task_info($host,sdmadm_command) prg_exit_state tasks $raise_error]
@@ -1720,7 +1698,7 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
 
       set last_running ""
       if { $parallel == 1 }  {
-         set timeout 60
+         set timeout 120
          set expect_runs 0
          expect {
             -i $spawn_list full_buffer {
@@ -1822,6 +1800,118 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
    return $error_text
 }
 
+#****** util/start_parallel_sdmadm_command() ***********************************
+#  NAME
+#     start_parallel_sdmadm_command() -- start sdmadm_command parallel
+#
+#  SYNOPSIS
+#     start_parallel_sdmadm_command { host_list exec_user info {raise_error 1} 
+#     {parallel 1} } 
+#
+#  FUNCTION
+#     This procedure is used to start parallel sdmadm tasks. But will only
+#     start max. 15 commands parallel and only 1 command per node on a
+#     node of a physical hosts at once. All additional necessary runs
+#     are done in further steps.
+#
+#  INPUTS
+#     host_list       - hosts where to start sdmadm command
+#     exec_user       - user which will execute the commands
+#     info            - name of array to store task information
+#     {raise_error 1} - optional: if 1 report errros
+#     {parallel 1}    - optional: if 0 run commands in a sequence
+#                                 (for debuging only)
+#
+#  RESULT
+#     string "" on success, string with error text on error
+#
+#  EXAMPLE
+#     Initialize the task info array:
+#     ===============================
+#        foreach host $host_list {
+#           set task_info($host,expected_output) ""
+#           set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name rs"      
+#        }
+#     Execute the sdmadm command parallel:
+#     ====================================
+#        set error_text [start_parallel_sdmadm_command host_list $remove_user task_info $raise_error]
+#     Examine the results:
+#     ====================
+#        foreach host $host_list {
+#           set exit_state $task_info($host,exit_status)
+#           set output $task_info($host,output)
+#           debug_puts "host: $host"
+#           debug_puts "exit status: $exit_state"
+#           debug_puts "output:\n$output"
+#        }
+#        if { $error_text != "" } {
+#           add_proc_error "remove_hedeby_preferences" -1 $error_text $raise_error
+#        }
+#
+#  SEE ALSO
+#     util/private_start_parallel_sdmadm_command()
+#
+#*******************************************************************************
+proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {parallel 1}} {
+   upvar $info task_info
+   upvar $host_list hostlist
+
+   if { $parallel != 1 } {
+      # for NOT parallel execution it does not matter how much processes are done parallel
+      ts_log_fine "running private_start_parallel_sdmadm_command() for hosts \"$hostlist\" ..."
+      return [private_start_parallel_sdmadm_command hostlist $exec_user task_info $raise_error $parallel]
+   } 
+
+   # We have to start parallel tasks, we minimize the nr. of parallel tasks to max. 15
+   set max_hosts 15
+
+   set hosts_todo {}
+   foreach host $hostlist {
+      lappend hosts_todo $host
+      set physical_host($host) [node_get_host $host]
+
+   }
+   set error_text ""
+
+   while {[llength $hosts_todo] > 0} {
+      ts_log_fine "outstanding hosts to start parallel commands: $hosts_todo"
+
+      # build a host start list
+      set start_list {}
+
+      # set list of used physical hosts
+      set used_physical {}
+      foreach host $hosts_todo {
+         # only run 1 sdmadm command per physical host (on one node of a physical host)
+         if {[lsearch -exact $used_physical $physical_host($host)] < 0} {
+            lappend used_physical $physical_host($host)
+         } else {
+            ts_log_fine "skipping node $host for this run (already added a node of its the physical host \"$physical_host($host)\"!"
+            continue
+         }
+         lappend start_list $host
+         # stop if we have enough hosts for this run
+         if {[llength $start_list] >= $max_hosts} {
+            ts_log_fine "found enough host for this run ([llength $start_list])!"
+            break
+         }
+      }
+
+      # execute parallel on start_list hosts     
+      ts_log_fine "running private_start_parallel_sdmadm_command() for hosts \"$start_list\" ..."
+      append error_text [private_start_parallel_sdmadm_command start_list $exec_user task_info $raise_error $parallel]
+
+      # remove started hosts fro hosts_todo list
+      foreach host $start_list {
+         set pos [lsearch -exact $hosts_todo $host]
+         if {$pos >= 0} {
+            set hosts_todo [lreplace $hosts_todo $pos $pos]
+         }
+      }
+   }
+   return $error_text
+}
+
 
 #****** util/startup_hedeby_hosts() *********************************************
 #  NAME
@@ -1859,7 +1949,7 @@ proc startup_hedeby_hosts { type host_list user } {
    global hedeby_config
    set expected_jvms($hedeby_config(hedeby_master_host)) "cs_vm executor_vm rp_vm"
    # setup managed host expectations ...
-   foreach host_temp [get_all_hedeby_managed_hosts] {
+   foreach host_temp [get_all_hedeby_managed_nodes] {
       set expected_jvms($host_temp) "executor_vm"
    }
 
@@ -2118,9 +2208,10 @@ proc reset_hedeby {{force 0}} {
       set ret_val [wait_for_resource_state "ASSIGNED ERROR" 0 15 res_state_info]
       # if the missing resources are hedeby resources we can add them
       if { [llength $res_state_info(missing)] > 0 } {
+         set hedeby_nodes [host_conf_get_nodes $hedeby_config(hedeby_host_resources)]
          set resources_to_add {}
          foreach res $res_state_info(missing) {
-            if {[lsearch -exact $hedeby_config(hedeby_host_resources) $res] >= 0} {
+            if {[lsearch -exact $hedeby_nodes $res] >= 0} {
                ts_log_fine "adding missing hedeby resource \"$res\" ..."
 	            lappend resources_to_add $res
             }
@@ -3093,6 +3184,12 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
          append error_text "break because of get_resource_info() returned \"$retval\"!\n"
          append error_text "expected resource info was:\n$expected_resource_info"
          ts_log_fine "ignore this run because get_resource_info() returned: $retval"
+         set not_matching "not available!"
+         foreach val $exp_values {
+            if {![info exists resource_info($val)]} {
+               set resource_info($val) "missing"
+            }
+         }
       } else {
          set not_matching ""
          foreach val $exp_values {
@@ -3954,6 +4051,7 @@ proc wait_for_resource_state { state {raise_error 1} {atimeout 60} {ares res_sta
    if {[info exists result]} {
       unset result
    }
+   ts_log_fine "entering wait_for_resource_state() ..."
    set supported_states "ASSIGNED ERROR ASSIGNING UNASSIGNED UNASSIGNING INPROCESS"
    set supported 1
    
@@ -4320,9 +4418,9 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
    set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
    set my_env(JAVA_HOME) [get_java_home_for_host $host $hedeby_config(hedeby_java_version)]
    set my_env(EDITOR) [get_binary_path $host "vim"]
-
+   ts_log_finer "${host}($user): using JAVA_HOME=$my_env(JAVA_HOME)"
    if { $interactive_tasks == "" } {
-      ts_log_fine "${host}($user): starting binary not interactive \"sdmadm $arg_line\" ..."
+      ts_log_fine "starting binary not interactive \"sdmadm $arg_line\" (${host}($user)) ..."
       set output [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0 $raise_error]
       if { $back_exit_state != 0 } {
          ts_log_severe "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
@@ -4332,10 +4430,10 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       return $output
    } else {
       set back_exit_state -1
-      ts_log_fine "${host}($user): starting binary INTERACTIVE \"sdmadm $arg_line\" ..."
+      ts_log_fine "starting binary INTERACTIVE \"sdmadm $arg_line\" (${host}($user)) ..."
       set pr_id [open_remote_spawn_process $host $user $sdmadm_path $arg_line 0 "" my_env 0]
       if { [info exists tasks(RETURN_ISPID)] } {
-         ts_log_fine "returning internal spawn id \"$pr_id\" to caller!"
+         ts_log_finer "returning internal spawn id \"$pr_id\" to caller!"
          return $pr_id
       }
 
@@ -4775,7 +4873,7 @@ proc produce_unknown_resource { type } {
     if { $type == "host" } {
        # lookup for an not used testsuite host name
        set unknown_name ""
-       set used_hosts [get_all_hedeby_managed_hosts]
+       set used_hosts [get_all_hedeby_managed_nodes]
        foreach host [host_conf_get_nodes $ts_host_config(hostlist)] {
           if {[lsearch -exact $used_hosts $host] < 0} {
              set unknown_name $host
