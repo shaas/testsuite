@@ -50,7 +50,7 @@ global CHECK_SHELL_PROMPT CHECK_LOGIN_LINE
 # initialize prompt handling, see expect manpage
 
 # NOTE: CHECK_SHELL_PROMPT is regular expression matching !!!
-set CHECK_SHELL_PROMPT ".*\[#>$%\]+"
+set CHECK_SHELL_PROMPT ".*\[#@~>$%\]+"
 
 # NOTE: CHECK_LOGIN_LINE is glob matching !!!
 set CHECK_LOGIN_LINE "\[A-Za-z\]*\n"   

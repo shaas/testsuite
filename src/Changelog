@@ -1,3 +1,6 @@
+LP-2008-04-07-0: Enhacem.:  CHECK_SHELL_PROMPT can now contain @,~
+                 Review:    AP
+
 CR-2008-04-04-0: Cleanup:   o hedeby support for TS zones
                             o enhanced start_parallel_sdmadm_command() to do
                               only 15 sdmadm commands parallel and only one
