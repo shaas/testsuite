@@ -328,7 +328,7 @@ proc reporting_immediate_accounting_test {} {
    }
 }
 
-proc reporting_wait_for_queue_state {state {timeout 10}} {
+proc reporting_wait_for_queue_state {state {timeout 10} {qi_error 0} {only_qstat 0} } {
    global ts_config reporting_test_host
 
    # make sure the queue actually is in the requested state
@@ -338,33 +338,49 @@ proc reporting_wait_for_queue_state {state {timeout 10}} {
       ts_log_severe "queue is not in expected state \"$state\", but in state \"$queue_state\""
    }
 
-   # now read from reporting file and check for queue records and the expected state
-   ts_log_fine "waiting for queue state \"$state\" in reporting file"
+   set queue_state [get_queue_state [get_queue_instance "all.q" $reporting_test_host]]
+   ts_log_fine "all.q@$reporting_test_host queue is in state \"$queue_state\""
+   if {$qi_error == 0} {
+      # it's a queue instance error. all.q on test host should not be affected
+      if {"" != $queue_state} {
+         ts_log_severe "all.q queue is not in expected state \"\", but in state \"$queue_state\""
+      }
+   } else {
+      # it's a queue error. all.q on test host must be in the same state
+      if {[string match $queue_state "*$state*"] == 1} {
+         ts_log_severe "all.q queue is not in expected state \"$state\", but in state \"$queue_state\""
+      }
+   }
 
-   set pattern ":queue:reporting:"
-   set output [logfile_wait $pattern $timeout 0]
-   if {$logfile_wait_error == 0} {
-      set queue_state_found 0
-      foreach line $output {
-         if {[string first $pattern $line] >= 0} {
-            set queue_state_found 1
-            set split_line [split $line ":"]
-            set reported_state [lindex $split_line 5]
-            if {$state != $reported_state} {
-               ts_log_severe "reporting: expected queue state \"$state\" but got \"$reported_state\""
+   if {$only_qstat == 0} {
+      # now read from reporting file and check for queue records and the expected state
+      ts_log_fine "waiting for queue state \"$state\" in reporting file"
+
+      set pattern ":queue:reporting:"
+      set output [logfile_wait $pattern $timeout 0]
+      if {$logfile_wait_error == 0} {
+         set queue_state_found 0
+         foreach line $output {
+            if {[string first $pattern $line] >= 0} {
+               set queue_state_found 1
+               set split_line [split $line ":"]
+               set reported_state [lindex $split_line 5]
+               if {$state != $reported_state} {
+                  ts_log_severe "reporting: expected queue state \"$state\" but got \"$reported_state\""
+               }
             }
          }
-      }
 
-      # There was no queue record at all? That's bad ...
-      if {!$queue_state_found} {
-         ts_log_severe "there were no queue records in the reporting file, got only\n$output"
+         # There was no queue record at all? That's bad ...
+         if {!$queue_state_found} {
+            ts_log_severe "there were no queue records in the reporting file, got only\n$output"
+         }
       }
    }
 }
 
 proc reporting_queue_state_test {} {
-   global ts_config
+   global ts_config reporting_old_config CHECK_USER
    global reporting_file reporting_test_host
 
    # activate reporting and set short reporting flush time
@@ -373,23 +389,23 @@ proc reporting_queue_state_test {} {
 
    # tail -f reporting file
    init_logfile_wait $ts_config(master_host) $reporting_file
+
    ########################
    # test queue alarm state
    ########################
-# queue alarms are not delivered by qmaster
-# would require architectural changes
-if {0} {
    replace_attr "queue" "load_thresholds" "np_load_avg=-1" "reporting"
-   reporting_wait_for_queue_state "a"
+   # queue alarms are not in reporting file, but qstat must show the state
+   reporting_wait_for_queue_state "a" 10 0 1
    replace_attr "queue" "load_thresholds" "NONE" "reporting"
 
    ################################
    # test queue suspend alarm state
    ################################
    replace_attr "queue" "suspend_thresholds" "np_load_avg=-1" "reporting"
-   reporting_wait_for_queue_state "A"
+   # queue alarms are not in reporting file, but qstat must show the state
+   reporting_wait_for_queue_state "A" 10 0 1
    replace_attr "queue" "suspend_thresholds" "NONE" "reporting"
-}
+
    ###########################
    # test queue disabled state
    ###########################
@@ -410,7 +426,7 @@ if {0} {
    # test queue unknown state
    ##########################
    start_sge_bin "qconf" "-ke $reporting_test_host"
-   reporting_wait_for_queue_state "u"
+   reporting_wait_for_queue_state "u" 10 1
    startup_execd $reporting_test_host
    wait_for_load_from_all_queues 60
    reporting_wait_for_queue_state ""
@@ -418,6 +434,7 @@ if {0} {
    ########################
    # test queue error state
    ########################
+   # wrong prolog
    replace_attr "queue" "prolog" "non_existing_prolog" "reporting"
    set job_id [submit_job "-o /dev/null -j y -q reporting -b y echo test"]
    trigger_scheduling
@@ -425,6 +442,41 @@ if {0} {
    reporting_wait_for_queue_state "E"
    delete_job $job_id
    replace_attr "queue" "prolog" "NONE" "reporting"
+   start_sge_bin "qmod" "-c reporting"
+   reporting_wait_for_queue_state ""
+
+   # wrong epilog
+   replace_attr "queue" "epilog" "non_existing_epilog" "reporting"
+   set job_id [submit_job "-o /dev/null -j y -q reporting -b y echo test"]
+   trigger_scheduling
+   wait_for_queue_state [get_queue_instance "reporting" $reporting_test_host] "E" 60
+   reporting_wait_for_queue_state "E"
+   delete_job $job_id
+   replace_attr "queue" "epilog" "NONE" "reporting"
+   start_sge_bin "qmod" "-c reporting"
+   reporting_wait_for_queue_state ""
+
+   # wrong mailer (no error state)
+   set new_config(mailer) "/bin/bla"
+   set_config_and_propagate new_config $reporting_test_host
+   set job_id [submit_job "-m b -o /dev/null -j y -q reporting -b y echo test"]
+   trigger_scheduling
+   wait_for_job_end $job_id
+   reporting_wait_for_queue_state "" 10 1 1
+   set new_config(mailer) "$reporting_old_config(mailer)"
+   set_config_and_propagate new_config $reporting_test_host
+   unset new_config
+   start_sge_bin "qmod" "-c \*"
+
+   # wrong execd spool directory permissions
+   set execd_spool_dir [get_execd_spool_dir $reporting_test_host]
+   start_remote_prog $reporting_test_host $CHECK_USER chmod "000 $execd_spool_dir/$reporting_test_host"
+   set job_id [submit_job "-o /dev/null -j y -q reporting -b y echo test"]
+   trigger_scheduling
+   wait_for_queue_state [get_queue_instance "reporting" $reporting_test_host] "E" 60
+   reporting_wait_for_queue_state "E"
+   delete_job $job_id
+   start_remote_prog $reporting_test_host $CHECK_USER chmod "755 $execd_spool_dir/$reporting_test_host"
    start_sge_bin "qmod" "-c reporting"
    reporting_wait_for_queue_state ""
 

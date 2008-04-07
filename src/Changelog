@@ -1,3 +1,7 @@
+RD-2008-04-07-0: Enhancem.: enhanced reporting test to cover more possible
+                            error state reasons
+                 Review:    JG
+
 CR-2008-04-07-0: Bugfix:    o Failed test may be stated as successful when
                               checktree contains tests which have an 
                               init_level_procedure.

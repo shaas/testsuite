@@ -160,6 +160,7 @@ proc issue_2136_test {} {
       {1 "shepherd_cmd" "none"}
 
       {1 "mailer" "/bin/true"}
+      {1 "mailer" "/bin/foo"}
       {0 "mailer" "blah"}
       {0 "mailer" "none"}
 
