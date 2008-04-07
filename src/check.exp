@@ -2625,7 +2625,7 @@ proc read_checktree_nodes { path } {
    global ts_checktree CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT
    global check_highest_level check_init_level_procedure check_name
    global check_category 
-   global CHECK_ACT_LEVEL DISABLE_ADD_PROC_ERROR
+   global CHECK_ACT_LEVEL
 
    # remember last check name - we'll reset to it on function exit
    set old_check_name $check_name
@@ -3072,6 +3072,7 @@ proc get_check_levels { path } {
             set CHECK_ACT_LEVEL $i
             set DISABLE_ADD_PROC_ERROR 1
             if {[$ts_checktree($nr,check_init_level_procedure)] != 0} { 
+               set DISABLE_ADD_PROC_ERROR 0
                continue 
             }
             set DISABLE_ADD_PROC_ERROR 0

@@ -207,7 +207,6 @@ proc get_pe {pe_name {output_var result} {on_host ""} {as_user ""} {raise_error 
 #     sge_pe/get_pe_messages()
 #*******************************************************************************
 proc mod_pe {pe_name change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global DISABLE_ADD_PROC_ERROR
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar

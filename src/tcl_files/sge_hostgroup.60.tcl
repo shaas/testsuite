@@ -248,7 +248,6 @@ proc get_hostgroup_list {{output_var result} {on_host ""} {as_user ""} {raise_er
 #     sge_hostgroup/get_hostgroup_messages()
 #*******************************************************************************
 proc mod_hostgroup { group change_array {fast_add 1} {on_host ""} {as_user ""}  {raise_error 1} } {
-   global DISABLE_ADD_PROC_ERROR
    get_current_cluster_config_array ts_config
 
    upvar $change_array chgar
@@ -259,9 +258,7 @@ proc mod_hostgroup { group change_array {fast_add 1} {on_host ""} {as_user ""}  
    if { $fast_add } {
       ts_log_fine "Modify hostgroup $group from file ..."
       set option "-Mhgrp"
-      set DISABLE_ADD_PROC_ERROR 1
-      get_hostgroup $group curr_grp $on_host $as_user
-      set DISABLE_ADD_PROC_ERROR 0
+      get_hostgroup $group curr_grp $on_host $as_user 0
       update_change_array curr_grp chgar
       set tmpfile [dump_array_to_tmpfile curr_grp]
       set result [start_sge_bin "qconf" "$option $tmpfile" $on_host $as_user]

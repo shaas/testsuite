@@ -308,7 +308,6 @@ proc get_project_list {{output_var result} {on_host ""} {as_user ""} {raise_erro
 #     sge_project/get_project_messages()
 #*******************************************************************************
 proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1} } {
-   global DISABLE_ADD_PROC_ERROR
    get_current_cluster_config_array ts_config
      
    # project doesn't exist for sge systems
@@ -325,9 +324,7 @@ proc mod_project {project change_array {fast_add 1} {on_host ""} {as_user ""} {r
    if { $fast_add } {
       ts_log_fine "Modify project $project from file ..."
       set option "-Mprj"
-      set DISABLE_ADD_PROC_ERROR 1
-      get_project $project curr_prj $on_host $as_user
-      set DISABLE_ADD_PROC_ERROR 0
+      get_project $project curr_prj $on_host $as_user 0
       if {![info exists curr_prj]} {
          set_project_defaults curr_prj
       }
