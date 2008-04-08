@@ -421,6 +421,8 @@ set CHECK_OUTPUT stdout
 global CHECK_TESTSUITE_TRASH
 set CHECK_TESTSUITE_TRASH 0
 
+global CHECK_INTERACTIVE_TRANSPORT
+set CHECK_INTERACTIVE_TRANSPORT "default"
 #
 #                                                             max. column:     |
 #****** check/debug_puts() ******
@@ -7922,6 +7924,10 @@ for {set i 0} {$i < $argc} {incr i} {
       puts ""
       puts "no_local_spool        ignore local spool directories from host configuration file"
       puts ""
+      puts "interactive <type>    use <type> as transport for interactive jobs, type = "
+      puts "                      rtools (use rsh/rlogin/telnet, default for < 6.2)"
+      puts "                      ssh (use ssh as transport)"
+      puts ""
       puts "compile_clean         force aimk clean when no_update option is set at compile time"
       puts ""
       puts "mfile FILE            write all mails into file FILE (when mail is enabled)"
@@ -7999,9 +8005,24 @@ for {set i 0} {$i < $argc} {incr i} {
    }
 
    
-   if { ( [string compare [lindex $argv $i] "--no_local_spool"] == 0 ) || ([string compare [lindex $argv $i] "no_local_spool"] == 0) } {
+   if {[string compare [lindex $argv $i] "--no_local_spool"] == 0 || [string compare [lindex $argv $i] "no_local_spool"] == 0} {
       set check_do_not_use_spool_config_entries 1
       continue
+   }
+
+   if {[string compare [lindex $argv $i] "--interactive"] == 0 || [string compare [lindex $argv $i] "interactive"] == 0} {
+      incr i
+      set interactive_args [lindex $argv $i]
+      switch -exact $interactive_args {
+         "rtools" -
+         "ssh" {
+            set CHECK_INTERACTIVE_TRANSPORT $interactive_args
+         }
+         default {
+            puts "invalid argument to option interactive, must be \"rtools\", or \"ssh\""
+            testsuite_shutdown 1
+         }
+      }
    }
 
    if { ( [string compare [lindex $argv $i] "--compile_clean"] == 0 ) || ([string compare [lindex $argv $i] "compile_clean"] == 0) } {

@@ -590,117 +590,207 @@ proc setup_conf {} {
 #     ???/???
 #*******************************************************************************
 proc setup_execd_conf {} {
-  global CHECK_DEFAULT_DOMAIN
-  global CHECK_OUTPUT
-  global ts_config
+   global CHECK_DEFAULT_DOMAIN
+   global CHECK_INTERACTIVE_TRANSPORT check_use_installed_system
+   global ts_config
 
-  foreach host $ts_config(execd_nodes) {
-     puts $CHECK_OUTPUT "get configuration for host $host ..."
-     if [info exists tmp_config] {
-        unset tmp_config
-     }
-     get_config tmp_config $host
-     if { [info exists elements] } {
-        unset elements
-     }
+   foreach host $ts_config(execd_nodes) {
+      ts_log_fine "get configuration for host $host ..."
+      if [info exists tmp_config] {
+         unset tmp_config
+      }
+      get_config tmp_config $host
+      if {[info exists elements]} {
+         unset elements
+      }
 
-     if {! [info exists tmp_config]} {
-        add_proc_error "setup_execd_conf" -1 "couldn't get conf - skipping $host"
-        continue
-     }
-     
-     set elements [array names tmp_config]
-     set counter 0
-     set output ""
-     set removed ""
-     set have_exec_spool_dir [get_local_spool_dir $host execd 0] 
-     set spool_dir 0
-     if {$ts_config(gridengine_version) < 62} {
-        set expected_entries 4
-     } else {
-        set expected_entries 2
-     }
-     if {$have_exec_spool_dir != ""} {
-        puts $CHECK_OUTPUT "host $host has spooldir in \"$have_exec_spool_dir\""
-        set spool_dir 1
-        incr expected_entries 1
-     }
+      if {![info exists tmp_config]} {
+         ts_log_severe "couldn't get conf - skipping $host"
+         continue
+      }
 
-     set spool_dir_found 0
-     set win_execd_params_found 0
-     foreach elem $elements {
-        append output "$elem is set to $tmp_config($elem)\n" 
-        incr counter 1
-        switch $elem {
-           "mailer" { continue }
-           "qlogin_daemon" { continue }
-           "rlogin_daemon" { continue }
-           "xterm" { continue }
-           "load_sensor" {
-              # on windows, we have a load sensor, on other platforms not
-              if {[host_conf_get_arch $host] == "win32-x86"} {
-                 incr expected_entries 1
-              } else {
-                 lappend removed $elem
-              }
-           }
-           "execd_params" {
-              # on windows, we need a special execd param for use of domain users
-              if {[host_conf_get_arch $host] == "win32-x86"} {
-                 incr expected_entries 1
-                 if {$tmp_config(execd_params) == "enable_windomacc=true"} {
-                    set win_execd_params_found 1
-                 }
-              } else {
-                 lappend removed $elem
-              }
-           }
-           "execd_spool_dir" {
-              if { [string compare $have_exec_spool_dir $tmp_config(execd_spool_dir)] == 0 } {
+      set elements [array names tmp_config]
+      set counter 0
+      set output ""
+      set removed ""
+      set have_exec_spool_dir [get_local_spool_dir $host execd 0]
+      set spool_dir 0
+      if {$CHECK_INTERACTIVE_TRANSPORT == "default" ||
+          ($CHECK_INTERACTIVE_TRANSPORT == "rtools" && $ts_config(gridengine_version) < 62)} {
+         if {$ts_config(gridengine_version) < 62} {
+            set expected_entries 4
+         } else {
+            set expected_entries 2
+         }
+      } else {
+         set expected_entries 8
+      }
+
+      if {$have_exec_spool_dir != ""} {
+         ts_log_fine "host $host has spooldir in \"$have_exec_spool_dir\""
+         set spool_dir 1
+         incr expected_entries 1
+      }
+
+      set spool_dir_found 0
+      set win_execd_params_found 0
+      foreach elem $elements {
+         append output "$elem is set to $tmp_config($elem)\n"
+         incr counter 1
+         switch $elem {
+            "mailer" { continue }
+            "qlogin_command" -
+            "qlogin_daemon" -
+            "rlogin_command" -
+            "rlogin_daemon" -
+            "rsh_command" -
+            "rsh_daemon" {
+               if {$CHECK_INTERACTIVE_TRANSPORT == "default"} {
+                  # in 6.2, we don't have these entries in local config
+                  # in earlier releases, we only have qlogin_daemon and rlogin_daemon
+                  if {$ts_config(gridengine_version) >= 62} {
+                     lappend removed $elem
+                  } elseif {$elem != "qlogin_daemon" && $elem != "rlogin_daemon"} {
+                     lappend removed $elem
+                  }
+               } elseif {$CHECK_INTERACTIVE_TRANSPORT == "rtools"} {
+                  # in SGE < 6.2, this is default, in >= 6.2, we need all entries
+                  if {$ts_config(gridengine_version) < 62 && $elem != "qlogin_daemon" && $elem != "rlogin_daemon"} {
+                     lappend removed $elem
+                  }
+               }
+            }
+            "xterm" { continue }
+            "load_sensor" {
+               # on windows, we have a load sensor, on other platforms not
+               if {[host_conf_get_arch $host] == "win32-x86"} {
+                  incr expected_entries 1
+               } else {
+                  lappend removed $elem
+               }
+            }
+            "execd_params" {
+               # on windows, we need a special execd param for use of domain users
+               if {[host_conf_get_arch $host] == "win32-x86"} {
+                  incr expected_entries 1
+                  if {$tmp_config(execd_params) == "enable_windomacc=true"} {
+                     set win_execd_params_found 1
+                  }
+               } else {
+                  lappend removed $elem
+               }
+            }
+            "execd_spool_dir" {
+               if {[string compare $have_exec_spool_dir $tmp_config(execd_spool_dir)] == 0} {
                   set spool_dir_found 1
-              }
-              if { $spool_dir == 0 } {
-                 lappend removed $elem
-              }
-           }
-           default {
-              lappend removed $elem
-           }
-        }
-     }
+               }
+               if {$spool_dir == 0} {
+                  lappend removed $elem
+               }
+            }
+            default {
+               lappend removed $elem
+            }
+         }
+      }
 
-     # execd_spool_dir has to be set correctly (depending on testsuite configuration)
-     if { $spool_dir == 1 && $spool_dir_found == 0 } {
-        add_proc_error "setup_execd_conf" -3 "host $host should have spool dir entry \"$have_exec_spool_dir\"\nADDING: execd_spool_dir $have_exec_spool_dir"
-        if {[info exists tmp_config(execd_spool_dir)]} {
-           puts $CHECK_OUTPUT "spooldir (old): $tmp_config(execd_spool_dir)"
-        } else {
-           puts $CHECK_OUTPUT "spooldir (old): <not set>"
-        }
-        set tmp_config(execd_spool_dir) $have_exec_spool_dir
-        puts $CHECK_OUTPUT "spooldir (new): $tmp_config(execd_spool_dir)"
-     }
-     puts $CHECK_OUTPUT $output
-     if { $counter != $expected_entries } {
-        add_proc_error "setup_execd_conf" -1 "host $host has $counter from $expected_entries expected entries:\n$output"
-     }
+      # execd_spool_dir has to be set correctly (depending on testsuite configuration)
+      if {$spool_dir == 1 && $spool_dir_found == 0} {
+         ts_log_config "host $host should have spool dir entry \"$have_exec_spool_dir\"\nADDING: execd_spool_dir $have_exec_spool_dir"
+         if {[info exists tmp_config(execd_spool_dir)]} {
+            ts_log_fine "spooldir (old): $tmp_config(execd_spool_dir)"
+         } else {
+            ts_log_fine "spooldir (old): <not set>"
+         }
+         set tmp_config(execd_spool_dir) $have_exec_spool_dir
+         ts_log_fine "spooldir (new): $tmp_config(execd_spool_dir)"
+      }
+      ts_log_finer $output
 
-     # we need execd params for windows hosts
-     if {[host_conf_get_arch $host] == "win32-x86" && !$win_execd_params_found} {
-        set tmp_config(execd_params) "enable_windomacc=true"
-     }
-    
-     # remove unexpected options
-     foreach elem $removed {
-        set tmp_config($elem) ""
-     }
+      if {$CHECK_INTERACTIVE_TRANSPORT == "default" || $check_use_installed_system} {
+         if {$counter != $expected_entries} {
+            ts_log_severe "host $host has $counter from $expected_entries expected entries:\n$output"
+         }
+      }
 
-     # now set the new config
-     set_config tmp_config $host
-  }
+      # we need execd params for windows hosts
+      if {[host_conf_get_arch $host] == "win32-x86" && !$win_execd_params_found} {
+         set tmp_config(execd_params) "enable_windomacc=true"
+      }
+
+      # handle interactive job transport
+      if {$CHECK_INTERACTIVE_TRANSPORT == "rtools"} {
+         # for SGE < 62, this is default
+         if {$ts_config(gridengine_version) >= 62} {
+            setup_execd_conf_rtools tmp_config $host
+         }
+      } elseif {$CHECK_INTERACTIVE_TRANSPORT == "ssh"} {
+         # this needs to be configured for all SGE versions
+         setup_execd_conf_ssh tmp_config $host
+      }
+
+      # remove unexpected options
+      foreach elem $removed {
+         set tmp_config($elem) ""
+      }
+
+      # now set the new config
+      set_config tmp_config $host
+   }
 }
 
+proc setup_execd_conf_rtools {conf_name node} {
+   global ts_config CHECK_USER
 
+   upvar $conf_name conf
+
+   # get the daemon config for the node via arch_variables
+   set output [start_remote_prog $node $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/print_interactive_transport.sh" $ts_config(product_root)]
+   parse_simple_record output rtools_conf
+
+   # use SGE provided rsh/rlogin/rshd
+   set arch [resolve_arch $node]
+   set utilbin "$ts_config(product_root)/utilbin/$arch"
+   set rtools_conf(rlogin_command)  "$utilbin/rlogin"
+   set rtools_conf(rsh_command)     "$utilbin/rsh"
+   set rtools_conf(rsh_daemon)      "$utilbin/rshd -l"
+
+   foreach name [array names rtools_conf] {
+      set conf($name) $rtools_conf($name)
+   }
+}
+
+proc setup_execd_conf_ssh {conf_name node} {
+   global ts_config CHECK_PROTOCOL_DIR
+
+   upvar $conf_name conf
+
+   # get the configured ssh,
+   # assume it is in <path>/bin, and the sshd is in <path>/sbin
+   set ssh [node_get_ssh $node]
+   set arch [resolve_arch $node]
+
+   if {[string match "sol-*" $arch] && $ssh == "/usr/bin/ssh"} {
+      set sshd "/usr/lib/ssh/sshd"
+   } else {
+      set ssh_dir [file dirname $ssh]
+      set base_dir [file dirname $ssh_dir]
+      set sshd "$base_dir/sbin/sshd"
+   }
+
+   set qlogin_ssh_wrapper "$CHECK_PROTOCOL_DIR/qlogin_ssh_wrapper.sh"
+   set f [open $qlogin_ssh_wrapper w]
+   puts $f "#!/bin/sh"
+   puts $f "exec $ssh -p \$2 \$1"
+   close $f
+
+   set conf(qlogin_command)   $qlogin_ssh_wrapper
+   set conf(qlogin_daemon)    "$sshd -i"
+   set conf(rlogin_command)   "$ssh"
+   set conf(rlogin_daemon)    "$sshd -i"
+   set conf(rsh_command)      "$ssh"
+   set conf(rsh_daemon)       "$sshd -i"
+}
 
 
 #                                                             max. column:     |

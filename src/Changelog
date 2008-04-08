@@ -1,3 +1,10 @@
+JG-2008-04-08-0: Enhancem.: Added commandline option to use different transport
+                            for the interactive jobs (qrsh and qlogin):
+                            - "rtools": use rlogin/rsh/telnet (for 6.2 systems,
+                              where the default is "builtin")
+                            - "ssh": use ssh as transport
+                 Review:    RD
+
 RH-2008-04-08-0: Bugfix:    Missing global for ts_config in autodetect_java
                  Review:     RD
 

@@ -1948,6 +1948,14 @@ proc node_get_processors {nodename} {
    return $ts_host_config($host,processors)
 }
 
+proc node_get_ssh {nodename} {
+   global ts_host_config
+
+   set host [node_get_host $nodename]
+
+   return $ts_host_config($host,ssh)
+}
+
 #****** config_host/host_conf_get_archs() **************************************
 #  NAME
 #     host_conf_get_archs() -- get all archs covered by a list of hosts
