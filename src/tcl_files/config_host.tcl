@@ -1684,7 +1684,7 @@ proc check_java_version { host java_bin version } {
 #
 #*******************************************************************************
 proc autodetect_java { host {version "1.4"} } {
-   global CHECK_OUTPUT CHECK_USER ts_host_config
+   global CHECK_OUTPUT CHECK_USER ts_host_config ts_config
    set ver [get_testsuite_java_version $version]
    set output [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk$ver ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
    if  { [string match "* NOT SUPPORTED *" $output] == 1 } {

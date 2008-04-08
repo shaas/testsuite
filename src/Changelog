@@ -1,3 +1,6 @@
+RH-2008-04-08-0: Bugfix:    Missing global for ts_config in autodetect_java
+                 Review:     RD
+
 RD-2008-04-07-0: Enhancem.: enhanced reporting test to cover more possible
                             error state reasons
                  Review:    JG
