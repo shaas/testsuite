@@ -141,7 +141,9 @@ set module_name "sge_procedures.tcl"
 # copy_certificates() -- copy csp (ssl) certificates to the specified host
 # is_daemon_running 
 # restore_qtask_file() -- restore qtask file from template
+# restore_sge_request_file() -- restore sge_request file from template 
 # append_to_qtask_file() -- append line(s) to qtask file
+# append_to_sge_request_file() -- append line(s) to sge_request file 
 # get_shared_lib_var() -- get the env var used for the shared lib path
 # get_qconf_list() -- return a list from qconf -s* command
 # get_scheduler_status () -- get the scheduler status 
@@ -7748,6 +7750,44 @@ proc restore_qtask_file {} {
    return $ret
 }
 
+#****** sge_procedures/restore_sge_request_file() ************************************
+#  NAME
+#     restore_sge_request_file() -- restore sge_request file from template
+#
+#  SYNOPSIS
+#     restore_sge_request_file { } 
+#
+#  FUNCTION
+#     Copies $SGE_ROOT/util/sge_request to $SGE_ROOT/$SGE_CELL/common/sge_request
+#
+#  RESULT
+#     1 on success, else 0
+#
+#  SEE ALSO
+#     sge_procedures/append_to_sge_request_file()
+#*******************************************************************************
+proc restore_sge_request_file {} {
+   global CHECK_USER
+   get_current_cluster_config_array ts_config
+
+   set ret 1
+
+   # restore the sge_request file from util/sge_request
+   ts_log_fine "restoring sge_request file from template util/sge_request"
+   set sge_request_file "$ts_config(product_root)/$ts_config(cell)/common/sge_request"
+   set sge_request_template "$ts_config(product_root)/util/sge_request"
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "$sge_request_template $sge_request_file"]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "error restoring sge_request file:\n$output"
+      set ret 0
+   }
+   foreach node $ts_config(execd_nodes) {
+      wait_for_remote_file $node $CHECK_USER $sge_request_file
+   }
+
+   return $ret
+}
+
 #****** sge_procedures/append_to_qtask_file() **********************************
 #  NAME
 #     append_to_qtask_file() -- append line(s) to qtask file
@@ -7797,6 +7837,59 @@ proc append_to_qtask_file {content} {
 
    return $ret
 }
+
+
+#****** sge_procedures/append_to_sge_request_file() **********************************
+#  NAME
+#     append_to_sge_request_file() -- append line(s) to sge_request file
+#
+#  SYNOPSIS
+#     append_to_sge_request_file { content } 
+#
+#  FUNCTION
+#     Appends lines given as argument to the global sge_request file.
+#
+#  INPUTS
+#     content - lines to be appended
+#
+#  RESULT
+#     1 on success, else 0
+#
+#  EXAMPLE
+#     append_to_sge_request_file "-m a"
+#
+#  SEE ALSO
+#     sge_procedures/restore_sge_request_file()
+#*******************************************************************************
+proc append_to_sge_request_file {content} {
+   get_current_cluster_config_array ts_config
+
+   set ret 1
+
+   set sge_request_file "$ts_config(product_root)/$ts_config(cell)/common/sge_request"
+
+   # make sure we have a sge_request file
+   if {[file isfile $sge_request_file] == 0} {
+      set ret [restore_sge_request_file]
+   }
+
+   if {$ret} {
+      set error [catch {
+         set f [open $sge_request_file "a"]
+         puts $f $content
+         close $f
+      } output]   
+
+      if {$error != 0} {
+         ts_log_severe "error appending to sge_request file:\n$output"
+         set ret 0
+      }
+   }
+
+   return $ret
+}
+
+
 
 #****** sge_procedures/get_shared_lib_var() ************************************
 #  NAME
