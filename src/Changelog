@@ -1,3 +1,6 @@
+RD-2008-04-08-0: Bugfix:    fixed drmaa-j test for 6.2
+                 Review:    JG
+
 DG-2008-04-08-0: Enhancem.: Added two procedures in order to change the 
                             sge_request file 
                             - sge_procedures/restore_sge_request_file

@@ -89,7 +89,7 @@ proc drmaaj_init_level {} {
            }
      } 
      "202" {
-           if {$ts_config(gridengine_version) == 61} {
+           if {$ts_config(gridengine_version) >= 61} {
               return 0
            } else {
               return -1
@@ -152,6 +152,7 @@ proc drmaaj_check {} {
          "sol-sparc" -
          "sol-sparc64" -
          "sol-x86" -
+         "sol-amd64" -
          "lx24-x86" -
          "lx24-amd64" -
          "ulx24-x86" -
@@ -203,7 +204,7 @@ proc drmaaj_check {} {
 
       set options [build_java_env_list]
 
-      if { $binary_arch == "sol-sparc64" } {
+      if { $binary_arch == "sol-sparc64"} {
          ts_log_fine "using 64-bit VM"
          set options "-d64 $options"
       }
