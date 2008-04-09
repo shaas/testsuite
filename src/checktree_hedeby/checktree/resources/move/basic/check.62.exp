@@ -137,12 +137,11 @@ proc basic_resource_assignment_setup {} {
 proc basic_resource_assignment_cleanup {} {
    global basic_resource_assignment_current_cluster_config
 
-   # reset saved active cluster configuration nr
-   set_current_cluster_config_nr $basic_resource_assignment_current_cluster_config
-
    # perform hedeby reset
    reset_hedeby 1
 
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $basic_resource_assignment_current_cluster_config
 }
 
 #****** basic/basic_resource_assignment_check() *****************************

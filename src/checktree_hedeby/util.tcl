@@ -1363,7 +1363,7 @@ proc get_hedeby_default_services { service_names } {
       set ret(default_service,$hres) "spare_pool"
    }
 
-   ts_log_fine "current ge master hosts: $ge_master_hosts"
+   ts_log_finer "current ge master hosts: $ge_master_hosts"
    return $ge_master_hosts
 }
 
@@ -1467,12 +1467,13 @@ proc kill_hedeby_process { host user component pid {atimeout 60}} {
    incr wait_time $atimeout
    set terminated 0
    while { [timestamp] < $wait_time } {
-      after 2000
+      after 500
       set is_pid_running [is_hedeby_process_running $host $pid]
       if { $is_pid_running == 0 } {
          set terminated 1
          break
       }
+      after 1000
    }
    if { $terminated == 0 } {
       ts_log_fine "***********************************************************************"
@@ -2299,6 +2300,12 @@ proc reset_hedeby {{force 0}} {
 
    # wait for resources to get "assigned" state
    set ret_val [wait_for_resource_state "ASSIGNED"]
+   if { $ret_val != 0} {
+      return 1
+   }
+
+   # reset slos
+   set ret_val [reset_default_slos "mod_config"]
    if { $ret_val != 0} {
       return 1
    }
@@ -3241,7 +3248,9 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
                break
             }
          } else {
-            ts_log_fine "still waiting for specified resource information ..."
+            set cur_time [timestamp]
+            set cur_time_left [expr ($my_timeout - $cur_time)]
+            ts_log_fine "still waiting for specified resource information ... (timeout in $cur_time_left seconds)"
             ts_log_finer "still not matching resource info:\n$not_matching"
          }
       }
@@ -3289,7 +3298,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
 #     setting of tcl arrays like known from get_service_info()
 #
 #  EXAMPLE
-#     set exp_service_info("spare_pool",cstate) "STARTED"
+#     set exp_service_info(spare_pool,cstate) "STARTED"
 #     set exp_service_info($aservice,sstate) "STOPPED"
 #     wait_for_service_info exp_service_info
 #
@@ -4223,9 +4232,9 @@ proc get_service_info { {host ""} {user ""} {si service_info} {raise_error 1} } 
       lappend sinfo(service_list) $service_id
    }
 
-   ts_log_fine "service list: $sinfo(service_list)"
+   ts_log_finer "service list: $sinfo(service_list)"
    foreach service $sinfo(service_list) {
-      ts_log_fine "service \"$service\": host=\"$sinfo($service,host)\" cstate=\"$sinfo($service,cstate)\" sstate=\"$sinfo($service,sstate)\""
+      ts_log_finer "service \"$service\": host=\"$sinfo($service,host)\" cstate=\"$sinfo($service,cstate)\" sstate=\"$sinfo($service,sstate)\""
    }
    return 0
 }
@@ -4413,7 +4422,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
    }
 
    # this is only for getting debug output
-#   set arg_line "-d $arg_line"
+   # set arg_line "-d $arg_line"
 
    set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
    set my_env(JAVA_HOME) [get_java_home_for_host $host $hedeby_config(hedeby_java_version)]
@@ -4421,7 +4430,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
    ts_log_finer "${host}($user): using JAVA_HOME=$my_env(JAVA_HOME)"
    if { $interactive_tasks == "" } {
       ts_log_fine "starting binary not interactive \"sdmadm $arg_line\" (${host}($user)) ..."
-      set output [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 60 0 "" my_env 1 0 0 $raise_error]
+      set output [start_remote_prog $host $user $sdmadm_path $arg_line back_exit_state 90 0 "" my_env 1 0 0 $raise_error]
       if { $back_exit_state != 0 } {
          ts_log_severe "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
       }
@@ -4438,7 +4447,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       }
 
       set sp_id [lindex $pr_id 1]
-      set timeout 60
+      set timeout 90
       set error_text ""
       set output ""
       set found_start 0
@@ -5300,7 +5309,7 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
 #  SEE ALSO
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
-#     util/set_hedeby_slos()
+#     util/set_hedeby_slos_config()
 #*******************************************************************************
 proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
    set slo {}
@@ -5330,7 +5339,7 @@ proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
 #  SEE ALSO
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
-#     util/set_hedeby_slos()
+#     util/set_hedeby_slos_config()
 #*******************************************************************************
 proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 }} {
    set slo {}
@@ -5338,6 +5347,39 @@ proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 }} {
    return $slo
 }
 
+#****** util/create_permanent_request_slo() ************************************
+#  NAME
+#     create_permanent_request_slo() -- create perm. request slo xml string
+#
+#  SYNOPSIS
+#     create_permanent_request_slo { {urgency 1 } 
+#     { name "PermanentRequestSLO" } { type "host" } } 
+#
+#  FUNCTION
+#     creates xml string with specified values
+#
+#  INPUTS
+#     {urgency 1 }                   - urceny value
+#     { name "PermanentRequestSLO" } - name value
+#     { type "host" }                - typ value currently only "host" supported
+#
+#  RESULT
+#     xml string
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/set_hedeby_slos_config()
+#*******************************************************************************
+proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } { type "host" }} {
+   set slo {}
+   set slo_txt ""
+   append slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\">"
+   append slo_txt    "<common:request>type = \"$type\"</common:request>"
+   append slo_txt "</common:slo>"
+   lappend slo $slo_txt
+   return $slo
+}
 
 #****** util/hedeby_mod_setup() ************************************************
 #  NAME
@@ -5558,49 +5600,55 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
       append errors "output of command:\n"
       append errors $output
    }
-   if { $raise_error } {
-      if { $exit_value != 0 || $errors != "" } {
-         if { $errors == "" } {
-            append errors "output of command:\n"
-            append errors $output
-         }
-
-         ts_log_severe "error calling \"sdmadm $current_hedeby_mod_arguments\":\n$errors\nexit_value: $exit_value" 
+   if { $exit_value != 0 || $errors != "" } {
+      if { $errors == "" } {
+         append errors "exit value of command: $exit_value\n"
+         append errors "output of command:\n$output\n"
+      }
+      if { $errors != ""} {
+         ts_log_severe "error calling \"sdmadm $current_hedeby_mod_arguments\":\n$errors\nexit_value: $exit_value" $raise_error 
       }
    }
    return $output
 }
 
 
-#****** util/set_hedeby_slos() *************************************************
+#****** util/set_hedeby_slos_config() ******************************************
 #  NAME
-#     set_hedeby_slos() -- used to set slo configuration for a hedeby service
+#     set_hedeby_slos_config() -- used to set slo config for a hedeby service
 #
 #  SYNOPSIS
-#     set_hedeby_slos { host exec_user service slos } 
+#     set_hedeby_slos_config { host exec_user service slos {raise_error 1} 
+#     {update_interval_unit "minutes"} {update_interval_value "5"} } 
 #
 #  FUNCTION
 #     This procedure is used to set the slo configuration for a hedeby ge service.
+#     This procedure ONLY modifies the configuration with sdmadm mc -c service.
+#     It will NOT update components and will NOT check for correctness of
+#     modification action (test with sdmadm sslo -u). 
+#     It also supports setting of "spare_pool" service.
 #
 #  INPUTS
-#     host      - host where to start command
-#     exec_user - user who start command
-#     service   - service which should be modified
-#     slos      - list with slos to set (created with create_???_slo() and put
-#                 into list)
+#     host                             - host where to start command
+#     exec_user                        - user who starts command
+#     service                          - service which should be modified
+#     slos                             - list with slos to set
+#                                        (created with create_???_slo() and put
+#                                         into list)
+#     {raise_error 1}                  - if 1 report errors
+#     {update_interval_unit "minutes"} - slo update interval unit of service
+#     {update_interval_value "5"}      - slo update interval value of service
 #
 #  RESULT
-#     ??? 
-#
-#  NOTES
-#     TODO: This procedure is not finished
+#     0 on success, 1 on error
 #
 #  SEE ALSO
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
-#     util/set_hedeby_slos()
+#     util/create_permanent_request_slo()
+#     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc set_hedeby_slos { host exec_user service slos } {
+proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {update_interval_unit "minutes"} {update_interval_value "5"} } {
    global CHECK_DEBUG_LEVEL
    ts_log_fine "setting slos for service \"$service\" ..."
    foreach new_slo $slos {
@@ -5630,16 +5678,31 @@ proc set_hedeby_slos { host exec_user service slos } {
    lappend sequence "</common:slos>\n"
    lappend sequence "[format "%c" 27]" ;# ESC
 
+ 
+   if { $service != "spare_pool" } {
+      # search and replace sloUpdateInterval if service is not spare_pool
+      lappend sequence "/sloUpdateInterval\n"
+      lappend sequence "ma/>\n"
+      lappend sequence ":'a,.s/unit=\".*\"/unit=\"$update_interval_unit\"/\n"
+      lappend sequence "[format "%c" 27]" ;# ESC
+      lappend sequence "/sloUpdateInterval\n"
+      lappend sequence "ma/>\n"
+      lappend sequence ":'a,.s/value=\".*\"/value=\"$update_interval_value\"/\n"
+      lappend sequence "[format "%c" 27]" ;# ESC
+   }
+
    hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text]
+   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
 
    ts_log_fine "exit_status: $prg_exit_state"
    if { $prg_exit_state == 0 } {
-      ts_log_fine "output: \n$output"
+      ts_log_finer "output: \n$output"
    }
 
-   # TODO: check correct slo settings with sdmadm
-   # TODO: should service be restarted or only updated
+   if {$error_text != ""} {
+      return 1
+   }
+   return 0
 }
 
 
@@ -6095,3 +6158,397 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
       return 0
    }
 }
+
+#****** util/reset_default_slos() **********************************************
+#  NAME
+#     reset_default_slos() -- reset default slo settings for default config
+#
+#  SYNOPSIS
+#     reset_default_slos { method {services "all"} {raise_error 1} } 
+#
+#  FUNCTION
+#     First the procedure checks that all involved components are started, after
+#     that it resets the default slo configuration settings for the
+#     specified service list. It supports the service "spare_pool" and ge
+#     services. The method "mod_config" modifies the component configuration
+#     and will reload (update) the compoent after modification. The method
+#     "mod_slos" is using the cli interface for setting slos.
+#
+#     ATTENTION: After performing the command the defaults settings for ALL
+#                services are checked with sdmadm sslo -u command.
+#
+#  INPUTS
+#     method           - Method specification "mod_config" or "mod_slos"
+#     {services "all"} - optional: If "all" (default) all default services
+#                                  will get its default slo settings.
+#                                  Or a list of service names.
+#     {raise_error 1}  - optional: If "1" errors are reported.
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  NOTES
+#     "mod_slos" method is not yet implemented and will use "mod_config" 
+#     currently.
+#     
+#     ATTENTION: components must be started
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/create_permanent_request_slo()
+#     util/set_hedeby_slos_config()
+#*******************************************************************************
+proc reset_default_slos { method {services "all"} {raise_error 1} } {
+   global hedeby_config
+
+   if { $method != "mod_config" && $method != "mod_slos" } {
+      ts_log_severe "Method \"$method\" not supported. Use \"mod_config\" or \"mod_slos\""
+      return 1
+   }
+
+   set error_text ""
+   get_hedeby_default_services service_names
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+
+   # Setup expected service infos (used twice in this procedure)
+   set exp_serv_info(spare_pool,cstate) "STARTED"
+   if {$services == "all"} {
+      foreach service $service_names(services) {
+         set exp_serv_info($service,cstate) "STARTED"
+      }
+   } else {
+      foreach service $services {
+         set exp_serv_info($service,cstate) "STARTED"
+      }
+   }
+
+   # Wait for components to be STARTED
+   if {[wait_for_service_info exp_serv_info 60 $raise_error] != 0} {
+      ts_log_fine "wait_for_service_info failed - skip further actions!"
+      return 1
+   }
+
+   # TODO: Implement "mod_slos" if cli available
+   if {$method == "mod_slos"} {
+      ts_log_info "Method \"mod_slos\" currently not supported, using method \"mod_config\""
+      set method "mod_config"
+   }
+
+   # Change slos by modify the component configurations and update the components after that
+   if {$method == "mod_config"} {
+      # reset services
+      set host_list {}
+      set default_slo [create_fixed_usage_slo 50 "fixed_usage"]
+      foreach service $service_names(services) {
+         if {[lsearch -exact $services "all"] < 0 &&
+             [lsearch -exact $services $service] < 0} {
+            ts_log_fine "skip not requested service \"$service\""
+            continue
+         }
+         if {[set_hedeby_slos_config $exec_host $admin_user $service $default_slo $raise_error] != 0} {
+            append error_text "setting slos for service \"$service\" failed!"
+         }
+         # setup update component command
+         set host $service_names(master_host,$service)
+         lappend host_list $host
+         set task_info($host,expected_output) ""
+         set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name uc -c $service"
+      }
+
+      # now update the components (services)
+      if {[llength $host_list] > 0} {
+         ts_log_fine "updating services ..."
+         append error_text [start_parallel_sdmadm_command host_list $admin_user task_info $raise_error]
+      } else {
+         ts_log_fine "no default services to update"
+      }
+      
+      # reset spare_pool
+      if {[lsearch -exact $services "all"] >= 0 ||
+          [lsearch -exact $services "spare_pool"] >= 0} {
+         ts_log_fine "reset \"spare_pool\" ..."
+         set default_spare_pool_slo [create_permanent_request_slo 1 "PermanentRequestSLO" "host"]
+         if {[set_hedeby_slos_config $exec_host $admin_user "spare_pool" $default_spare_pool_slo $raise_error] != 0} {
+            append error_text "setting slos for service \"spare_pool\" failed!"
+         }
+         ts_log_fine "update \"spare_pool\" ..."
+         set arguments "-p $pref_type -s $sys_name uc -c spare_pool"
+         set output [sdmadm_command $exec_host $admin_user $arguments prg_exit_state "" $raise_error]
+         if {$prg_exit_state != 0} {
+            append error_text "error starting sdmadm $arguments as user $admin_user on host $exec_host:\n$output"
+         }
+      } else {
+         ts_log_fine "no reset of \"spare_pool\" requested!"
+      }
+   }
+
+   # Wait for all components in STARTED state
+   wait_for_service_info exp_serv_info 60 $raise_error
+
+
+   set tservice   [create_bundle_string "ShowSLOCliCommand.col.service"]
+   set tslo       [create_bundle_string "ShowSLOCliCommand.col.slo"]
+   set tresource  [create_bundle_string "ShowSLOCliCommand.col.resource"]
+   set tusage     [create_bundle_string "ShowSLOCliCommand.col.usage" ]
+   set tnot_avail [create_bundle_string "ShowSLOCliCommand.na"]
+
+   # Check that show slos report the correct values
+   set sdmadm_command_line "-p $pref_type -s $sys_name sslo -u"
+   set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line prg_exit_state "" $raise_error table]
+   if { $prg_exit_state == 0 } {
+      ts_log_fine "checking slo settings ..."
+      for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+         if {$table($tservice,$line) == "spare_pool"} {
+            set expected_slo_name "PermanentRequestSLO"
+            set expected_usage    1
+         } else {
+            set expected_slo_name "fixed_usage"
+            set expected_usage    50
+         }
+         set out_ser $table($tservice,$line)
+         set out_slo $table($tslo,$line)
+         set out_res $table($tresource,$line)
+         set out_usa $table($tusage,$line)
+         if { $out_res == $tnot_avail } {
+            ts_log_fine "skip resource name \"$tnot_avail\""
+            continue
+         }
+         ts_log_fine "service \"$out_ser\" has slo \"$out_slo\" defined for resource \"$out_res\" with a usage of \"$out_usa\" - fine"
+         if {$out_usa != $expected_usage} {
+            append error_text "Defined usage of service \"$out_ser\" resource \"$out_res\" is set to \"$out_usa\", should be \"$expected_usage\"\n"
+         }
+         if {$out_slo != $expected_slo_name} {
+            append error_text "Defined slo of service \"$out_ser\" resource \"$out_res\" is set to \"$out_slo\", should be \"$expected_slo_name\"\n"
+         }
+      }
+   } else {
+      append error_text "sdmadm $sdmadm_command_line exited with status=$prg_exit_state:\n$output\n"
+   }
+   if {$error_text != ""} {
+      ts_log_severe "$error_text" $raise_error
+      return 1
+   }
+
+   return 0
+}
+
+#****** util/set_service_slos() ************************************************
+#  NAME
+#     set_service_slos() -- used to set slos for a service
+#
+#  SYNOPSIS
+#     set_service_slos { method service slos {raise_error 1} 
+#     {update_interval_unit "minutes"} {update_interval_value "5"} } 
+#
+#  FUNCTION
+#     If the method "mod_config" is used the procedure is using 
+#     set_hedeby_slos_config() to modify the service component configurations 
+#     and and will also update the component after modification. 
+#
+#     If the method "mod_slos" is used the procedure will also use method
+#     "mod_config" until mod slos cli commands are available.
+#
+#  INPUTS
+#     method                           - "mod_config" or "mod_slos"
+#     service                          - name of service to modify
+#     slos                             - list of slos
+#                                        (created with create_???_slo() 
+#                                         procedures and added to a list)
+#     {raise_error 1}                  - if 1 report errors
+#     {update_interval_unit "minutes"} - slo update unit of service
+#     {update_interval_value "5"}      - slo update value of service
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  NOTES
+#     "mod_slos" method is not implemented
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/create_permanent_request_slo()
+#     util/set_hedeby_slos_config()
+#*******************************************************************************
+proc set_service_slos { method service slos {raise_error 1} {update_interval_unit "minutes"} {update_interval_value "5"}} {
+   global hedeby_config
+
+   if { $method != "mod_config" && $method != "mod_slos" } {
+      ts_log_severe "Method \"$method\" not supported. Use \"mod_config\" or \"mod_slos\""
+      return 1
+   }
+
+   set error_text ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set exec_host $hedeby_config(hedeby_master_host)
+
+   # Setup expected service infos (used twice in this procedure)
+   set exp_serv_info($service,cstate) "STARTED"
+
+   # Wait for service component to be STARTED
+   if {[wait_for_service_info exp_serv_info 60 $raise_error] != 0} {
+      ts_log_fine "wait_for_service_info failed - skip further actions!"
+      return 1
+   }
+
+
+   # TODO: Implement "mod_slos" if cli available
+   if {$method == "mod_slos"} {
+      ts_log_info "Method \"mod_slos\" currently not supported, using method \"mod_config\""
+      set method "mod_config"
+   }
+
+   # Change slos by modify the component configurations and update the components after that
+   if {$method == "mod_config"} {
+      # set slo config
+      if {[set_hedeby_slos_config $exec_host $admin_user $service $slos $raise_error $update_interval_unit $update_interval_value] != 0} {
+         append error_text "setting slos for service \"$service\" failed!"
+      }
+
+      # update service component
+      ts_log_fine "update \"$service\" ..."
+      set arguments "-p $pref_type -s $sys_name uc -c $service"
+      set output [sdmadm_command $exec_host $admin_user $arguments prg_exit_state "" $raise_error]
+      if {$prg_exit_state != 0} {
+         append error_text "error starting sdmadm $arguments as user $admin_user on host $exec_host:\n$output"
+      }
+   }
+
+   # Wait for all components in STARTED state
+   wait_for_service_info exp_serv_info 60 $raise_error
+
+   if {$error_text != ""} {
+      ts_log_severe "$error_text" $raise_error
+      return 1
+   }
+
+   return 0
+}
+
+#****** util/get_resource_slo_info() *******************************************
+#  NAME
+#     get_resource_slo_info() -- get slo information
+#
+#  SYNOPSIS
+#     get_resource_slo_info { {host ""} {user ""} {rsi res_slo_info} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is doing sdmadm sslo -u and parsing the output
+#
+#  INPUTS
+#     {host ""}          - host where to start command
+#     {user ""}          - user who starts command
+#     {rsi res_slo_info} - name of array to store the information
+#     {raise_error 1}    - if 1 report errors
+#
+#  RESULT
+#     0 on success, 1 on error
+#     The res_slo_info has following entries:
+#        resource_slo_info(resource_list) - list of all resources (uniq)
+#        resource_slo_info(slo_list)      - list of all slo names (uniq)
+#        NOTE: All listed slos and resources are set in the array and have
+#              the value "n.a." if not set!
+# 
+#        resource_slo_info(RESOURCE,SLO,service) - name of service
+#        resource_slo_info(RESOURCE,SLO,usage)   - usage of slo for resource
+#
+#        where RESOURCE is a resource name
+#        where SLO is a slo name
+#
+#  SEE ALSO
+#     util/get_resource_info()
+#*******************************************************************************
+proc get_resource_slo_info {{host ""} {user ""} {rsi res_slo_info} {raise_error 1}} {
+   global hedeby_config
+   upvar $rsi resource_slo_info
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+
+   # delete existing info array
+   if {[info exists resource_slo_info]} {
+      unset resource_slo_info
+   }
+
+   # fill up array with default "not available" string
+   set resource_slo_info(resource_list) {}
+   set resource_slo_info(slo_list) {}
+
+   # get some default settings
+   set error_text ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   
+   # get correct table names
+   set tservice   [create_bundle_string "ShowSLOCliCommand.col.service"]
+   set tslo       [create_bundle_string "ShowSLOCliCommand.col.slo"]
+   set tresource  [create_bundle_string "ShowSLOCliCommand.col.resource"]
+   set tusage     [create_bundle_string "ShowSLOCliCommand.col.usage" ]
+   set tnot_avail [create_bundle_string "ShowSLOCliCommand.na"]
+
+
+   # start sslo -u command
+   set sdmadm_command_line "-p $pref_type -s $sys_name sslo -u"
+   set output [sdmadm_command $execute_host $execute_user $sdmadm_command_line prg_exit_state "" $raise_error table]
+   if { $prg_exit_state == 0 } {
+      ts_log_fine "checking slo settings ..."
+      for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+         set out_ser $table($tservice,$line)
+         set out_slo $table($tslo,$line)
+         set out_res $table($tresource,$line)
+         set out_usa $table($tusage,$line)
+         if { $out_res == $tnot_avail } {
+            ts_log_fine "skip resource name \"$tnot_avail\""
+            continue
+         }
+         if {[lsearch -exact $resource_slo_info(resource_list) $out_res] < 0} {
+            lappend resource_slo_info(resource_list) $out_res
+         }
+         if {[lsearch -exact $resource_slo_info(slo_list) $out_slo] < 0} {
+            lappend resource_slo_info(slo_list) $out_slo
+         }
+         set resource_slo_info($out_res,$out_slo,service) $out_ser
+         set resource_slo_info($out_res,$out_slo,usage) $out_usa
+      }
+   } else {
+      append error_text "sdmadm $sdmadm_command_line exited with status=$prg_exit_state:\n$output\n"
+   }
+
+   # set not available values in the returned array
+   foreach res $resource_slo_info(resource_list) {
+      foreach slo $resource_slo_info(slo_list) {
+         if {[info exists resource_slo_info($res,$slo,service)] == 0} {
+            set resource_slo_info($res,$slo,service) "n.a."
+         }
+         if {[info exists resource_slo_info($res,$slo,usage)] == 0} {
+            set resource_slo_info($res,$slo,usage) "n.a."
+         } else {
+            ts_log_finer "resource \"$res\" at service \"$resource_slo_info($res,$slo,service)\" has slo \"$slo\" with urgceny \"$resource_slo_info($res,$slo,usage)\""
+         }
+      }
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe "$error_text" $raise_error
+      return 1
+   }
+   return 0
+}
+
+

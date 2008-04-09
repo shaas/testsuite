@@ -60,6 +60,7 @@ lappend check_functions "hedeby_startup_managed_hosts"
 lappend check_functions "hedeby_add_ge_services"
 lappend check_functions "hedeby_startup_ge_services"
 lappend check_functions "hedeby_add_spare_pool_resources"
+lappend check_functions "hedeby_setup_slos"
 lappend check_functions "hedeby_check_resources"
 lappend check_functions "hedeby_check_services"
 
@@ -122,6 +123,10 @@ proc hedeby_check_services {} {
 
 proc hedeby_check_resources {} {
    hedeby_check_default_resources
+}
+
+proc hedeby_setup_slos {} {
+   reset_default_slos "mod_config"
 }
 
 proc hedeby_startup_ge_services {} {
@@ -244,7 +249,9 @@ proc hedeby_add_ge_services {} {
       lappend sequence "ma/<\\/common:slos>\n:'a,.d\n"
       lappend sequence "i"
       lappend sequence "<common:slos>\n"
-      lappend sequence "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"50\" name=\"fixed_usage\"/>\n"
+      set default_slo [create_fixed_usage_slo 50 "fixed_usage"] 
+      lappend sequence [lindex $default_slo 0]
+      lappend sequence "\n"
       lappend sequence "</common:slos>\n"
       lappend sequence "[format "%c" 27]" ;# ESC
 
@@ -277,7 +284,7 @@ proc hedeby_add_ge_services {} {
       set output [hedeby_mod_cleanup $ispid error_text]
       ts_log_fine "exit_status: $prg_exit_state"
       if { $prg_exit_state == 0 } {
-         ts_log_fine "output: \n$output"
+         ts_log_finer "output: \n$output"
       }
       incr cluster 1
    }

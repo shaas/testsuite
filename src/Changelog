@@ -1,3 +1,19 @@
+CR-2008-04-09-0: Enhancem.: o cleanup of logging and time out values
+                            o reset_hedeby(): add slo reset
+                            o new procedure: create_permanent_request_slo()
+                            o renamed set_hedeby_slos() to set_hedeby_slos_config()
+                              and finished implementation TODO's
+                            o new procedure: reset_default_slos()
+                            o Install test now also do setup slos (by calling
+                              reset_default_slos() after adding ge services and 
+                              spare_pool resources)
+                            o Fixed order of cleanup commands in basic move test
+                            o Added new test: "slo/fixedUsage/check.62.exp"
+                              (Part 1/3 of hedeby issue #385)
+                              (Need SLO test)
+                 Issue:     #385 (hedeby part 1/3)
+                 Review:    RH 
+
 RD-2008-04-08-0: Bugfix:    fixed drmaa-j test for 6.2
                  Review:    JG
 

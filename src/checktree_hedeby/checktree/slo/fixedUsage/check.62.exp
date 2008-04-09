@@ -1,0 +1,352 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "no"
+set check_name                 "fixed_usage"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "fixed usage slo test with modify component commands"
+set check_description(1)       "fixed usage slo test with modify slo commands"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "fixed_usage_init_level"
+set check_functions            {}   
+set check_highest_level        1
+
+set check_setup_level_function "fixed_usage_setup"
+set check_cleanup_level_function "fixed_usage_cleanup"
+
+lappend check_functions "fixed_usage_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global fixed_usage_current_cluster_config
+global fixed_usage_reset_necessary
+
+#****** slo/fixedUsage/fixed_usage_init_level() ************************
+#  NAME
+#     fixed_usage_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     fixed_usage_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0 (fixed usage slo test with modify component commands)
+#     0 for CHECK_ACT_LEVEL 1 (fixed usage slo test with modify slo commands)
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc fixed_usage_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  # This is runlevel 0 (fixed usage slo test with modify component commands)
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+
+  # This is runlevel 1 (fixed usage slo test with modify slo commands)
+  if { $CHECK_ACT_LEVEL == 1 } {
+     # TODO: enable this runlevel if mod/add/del/set slo commands are implemented
+     return -1
+  }
+
+  return -1
+}
+
+#****** slo/fixedUsage/fixed_usage_setup() *************************************
+#  NAME
+#     fixed_usage_setup() -- level setup procedure
+#
+#  SYNOPSIS
+#     fixed_usage_setup { } 
+#
+#  FUNCTION
+#     1) save current cluster config nr
+#     2) set init variable that specifies if reset has to be done cleanup proc
+#
+#  INPUTS
+#
+#  SEE ALSO
+#     slo/fixedUsage/fixed_usage_cleanup()
+#*******************************************************************************
+proc fixed_usage_setup {} {
+   global fixed_usage_current_cluster_config
+   global fixed_usage_reset_necessary
+
+   set fixed_usage_reset_necessary 1
+   set fixed_usage_current_cluster_config [get_current_cluster_config_nr]
+}
+
+#****** slo/fixedUsage/fixed_usage_cleanup() ***********************************
+#  NAME
+#     fixed_usage_cleanup() -- level cleanup procedure
+#
+#  SYNOPSIS
+#     fixed_usage_cleanup { } 
+#
+#  FUNCTION
+#     1) if global variable "fixed_usage_reset_necessary" is still set to "1"
+#        reset slos and move resources back to original service
+#     2) restore original cluster config nr
+#
+#  SEE ALSO
+#     slo/fixedUsage/fixed_usage_setup()
+#*******************************************************************************
+proc fixed_usage_cleanup {} {
+   global fixed_usage_current_cluster_config
+   global fixed_usage_reset_necessary
+
+   # reset if not done yet
+   if {$fixed_usage_reset_necessary != 0} {
+      reset_default_slos "mod_config"
+      move_resources_to_default_services
+   }
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $fixed_usage_current_cluster_config
+}
+
+#****** slo/fixedUsage/fixed_usage_check() *************************************
+#  NAME
+#     fixed_usage_check() -- check fixed slo usage
+#
+#  SYNOPSIS
+#     fixed_usage_check { } 
+#
+#  FUNCTION
+#     Test has two runlevels which use different way in setting up the slos
+#     for a service. Currently only runlevel 0 is supported which is using
+#     modify component command and resource update command after modifing 
+#     slos for a service.
+#
+#     The test is using slo update interval of 30 seconds
+#
+#     1) Setup a new single fixed usage slo for all default ge services with 
+#        a urcency higher than spare_pool's permanent request slo:
+#          GE services: urgency 72
+#          spare_pool:  urgency 11
+#     2) This values are tested with a call to get_resource_slo_info() which
+#        provides information by calling sdmadm sslo -u
+#     3) Lower urgency of ge services below spare_pool (to urgency 8)
+#     4) Test that all not static resources should go to spare_pool
+#        (This is checked by getting resource informations with sdmadm sr)
+#        (timeout 90 seconds)
+#     5) Raise again urgency of GE services to 72
+#     6) Wait for static resources at services to get new urgency (72) 
+#        (timeout 90 seconds)
+#     7) The movable resources should not go back to original services
+#        because fixed usage slo will NOT generate need requests.
+#        (This is checked by waiting 120 seconds for resources appear
+#         at their original services)
+#        
+#
+#  SEE ALSO
+#     slo/minResource/min_resource_check()
+#     slo/maxPendingJobs/max_pending_jobs_check()
+#*******************************************************************************
+proc fixed_usage_check {} {
+   global hedeby_config
+   global check_description
+   global CHECK_ACT_LEVEL
+   global fixed_usage_reset_necessary
+
+   # print out information about test
+   ts_log_fine "==> starting \"$check_description($CHECK_ACT_LEVEL)\" ..."
+
+   # setup modify slo method depending on runlevel
+   if {$CHECK_ACT_LEVEL == 0} {
+      set mod_method "mod_config"
+   }
+   if {$CHECK_ACT_LEVEL == 1} {
+      set mod_method "mod_slos"
+   }
+
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   get_hedeby_default_services service_names
+
+   # init text array for reporting errors
+   # (errors are logged at the end of the test)
+   set error_text ""
+
+
+   # setup SLO values 
+   set SLO_urgency 72
+   set SLO_spare_pool_urgency 11
+   set SLO_below_spare_pool 8
+
+   set SLO_name "fixedUsageTestSLO"
+   set SLO_spare_pool_name "permanentRequestTestSLO"
+
+   set SLO_update_interval 30
+   set SLO_update_unit "seconds"
+
+
+   # create one single fixed usage slo for each GE service (72 urgency)
+   set slo [create_fixed_usage_slo $SLO_urgency $SLO_name]
+   foreach service $service_names(services) {
+      set_service_slos $mod_method $service $slo 1 $SLO_update_unit $SLO_update_interval
+   }
+   # create one single permanent request slo for spare_pool (11 urgency)
+   set slo [create_permanent_request_slo $SLO_spare_pool_urgency $SLO_spare_pool_name]
+   set_service_slos $mod_method "spare_pool" $slo
+
+   # check reported usage of services and spare_pool
+   if {[get_resource_slo_info] != 0} {
+      append error_text "get_resource_slo_info returned error, skip further test!\n"
+      ts_log_fine "get_resource_slo_info returned error, skip further test!"
+   } else {
+      foreach service $service_names(services) {
+         foreach resource $service_names(execd_hosts,$service) {
+            ts_log_fine "service \"$service \" resource \"$resource\" has usage \"$res_slo_info($resource,$SLO_name,usage)\" for its slo named \"$SLO_name\""
+            if {$res_slo_info($resource,$SLO_name,usage) != $SLO_urgency} {
+               set help_text "service \"$service \" resource \"$resource\" has usage \"$res_slo_info($resource,$SLO_name,usage)\", but expected usage is \"$SLO_urgency\""
+               ts_log_fine $help_text
+               append error_text "$help_text\n"
+            }
+         }
+      }
+      set service "spare_pool"
+      foreach resource $hedeby_config(hedeby_host_resources) {
+         ts_log_fine "service \"$service \" resource \"$resource\" has usage \"$res_slo_info($resource,$SLO_spare_pool_name,usage)\" for its slo named \"$SLO_spare_pool_name\""
+         if {$res_slo_info($resource,$SLO_spare_pool_name,usage) != $SLO_spare_pool_urgency} {
+            set help_text "service \"$service \" resource \"$resource\" has usage \"$res_slo_info($resource,$SLO_spare_pool_name,usage)\", but expected usage is \"$SLO_spare_pool_urgency\""
+            ts_log_fine $help_text
+            append error_text "$help_text\n"
+         }
+      }
+   }
+
+   # lower urgency of ge services below spare_pool
+   set slo [create_fixed_usage_slo $SLO_below_spare_pool $SLO_name]
+   foreach service $service_names(services) {
+      set_service_slos $mod_method $service $slo 1 $SLO_update_unit $SLO_update_interval
+   }
+
+   # now wait for resources go to spare_pool ...
+   foreach service $service_names(services) {
+      # non static resources are expected at spare_pool
+      foreach resource $service_names(moveable_execds,$service) {
+         set exp_resinfo($resource,service) "spare_pool"
+         set exp_resinfo($resource,state) "ASSIGNED"
+         set exp_resinfo($resource,flags) "{}"
+         set exp_resinfo($resource,usage) $SLO_spare_pool_urgency
+      }
+      # static resources stay at service
+      foreach resource $service_names(master_host,$service) {
+         set exp_resinfo($resource,service) $service
+         set exp_resinfo($resource,state) "ASSIGNED"
+         set exp_resinfo($resource,flags) "S"
+         set exp_resinfo($resource,usage) $SLO_below_spare_pool
+      }
+   }
+   if {[wait_for_resource_info exp_resinfo 90 0 tmp_error] != 0} {
+      ts_log_fine $tmp_error
+      append error_text "$tmp_error\n"
+   }
+ 
+
+   # now raise urgency of services. Resources must stay in spare_pool because
+   # fixed usage slo doesn't produce a need ...
+
+   # step 1 raise urgency of GE services back to 72 
+   set slo [create_fixed_usage_slo $SLO_urgency $SLO_name]
+   foreach service $service_names(services) {
+      set_service_slos $mod_method $service $slo 1 $SLO_update_unit $SLO_update_interval
+   }
+
+   # step 2 wait for static resources to report new usage (72)
+   unset exp_resinfo
+   foreach service $service_names(services) {
+      foreach resource $service_names(master_host,$service) {
+         set exp_resinfo($resource,service) $service
+         set exp_resinfo($resource,state) "ASSIGNED"
+         set exp_resinfo($resource,flags) "S"
+         set exp_resinfo($resource,usage) $SLO_urgency
+      }
+   }
+   if {[wait_for_resource_info exp_resinfo 90 0 tmp_error] != 0} {
+      ts_log_fine $tmp_error
+      append error_text "$tmp_error\n"
+   }
+
+   # step 3 now wait for moveable resources NOT to go back to their
+   #        services. 
+   unset exp_resinfo
+   foreach service $service_names(services) {
+      foreach resource $service_names(moveable_execds,$service) {
+         set exp_resinfo($resource,service) $service
+      }
+   }
+   if {[wait_for_resource_info exp_resinfo 120 0 tmp_error] != 0} {
+      # if wait_for_resource_info() returns error the resources
+      # did not move back
+      ts_log_fine "resources stay at spare_pool - fine\noutput: $tmp_error\n"
+   } else {
+      # if resources went back we have found an issue:
+      set help_text "Resources should NOT go back to services!"
+      ts_log_fine $help_text
+      append error_text "$help_text\n"
+   }
+
+   # Do cleanup so that level test procedure don't have to do any cleanup!
+   # The cleanup procedures will not set test to error, but it is useful
+   # also to check the correct behaviour of the reset procedures ...
+   reset_default_slos $mod_method 
+   move_resources_to_default_services
+
+   # since we run the reset procedures it is not necessary to run them
+   # again in cleanup procedure. Therefore "fixed_usage_reset_necessary"
+   # is set to 0 
+   set fixed_usage_reset_necessary 0
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
