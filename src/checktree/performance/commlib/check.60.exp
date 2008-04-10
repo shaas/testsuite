@@ -85,7 +85,7 @@ proc cl_throughput_setup_level {} {
    set cl_throughput_ge_version [get_version_info] 
    set cl_throughput_prot_output_dir "$CHECK_PROTOCOL_DIR/commlib/level_$CHECK_ACT_LEVEL"
 
-   set vqmaster_interval 10 
+   set vqmaster_interval 90 
 
    set commlib_host_list $ts_config(execd_nodes)
    set nr_of_remote_hosts [llength $commlib_host_list]
