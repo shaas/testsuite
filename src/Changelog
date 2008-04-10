@@ -1,3 +1,7 @@
+CR-2008-04-10-0: Bugfix:    fixed complicate execd spool directory setup for
+                            ge service installations (hedeby)
+                 Review:    RH
+
 CR-2008-04-09-0: Enhancem.: o cleanup of logging and time out values
                             o reset_hedeby(): add slo reset
                             o new procedure: create_permanent_request_slo()

@@ -179,35 +179,30 @@ proc hedeby_add_ge_services {} {
    # first calculate spooldirs
    set ge_hosts [get_hedeby_default_services service_names]
    set managed_host_list [get_all_hedeby_managed_nodes]
-   foreach host $managed_host_list {
-      if {[info exists service_names(ts_cluster_nr,$host)]} {
-         # use spool dir for execds
-         set ts_cluster_nr $service_names(ts_cluster_nr,$host)
-         set_current_cluster_config_nr $ts_cluster_nr  
-         set spool_dir [get_local_spool_dir $host "execd" 0]
-         set_current_cluster_config_nr $install_current_cluster_config
-      } else {
-        # use spool dir for hedeby resources
-         set spool_dir [get_local_spool_dir $host "execd" 0]
-      }
-      if { [info exists spool($spool_dir)] == 0 } {
-         set spool($spool_dir) $host 
-      } else {
-         set spool($spool_dir) "$spool($spool_dir) $host"
-      }
-   }
-
-   set spool_dirs [array names spool]
-   foreach spd $spool_dirs {
-      puts $CHECK_OUTPUT "spool dir \"$spd\" used for hosts \"$spool($spd)\""
-   }
-   
 
    # TODO: use -start option to startup ge services if possible
    set cluster 0
    set execute_user [get_hedeby_admin_user]
    while { [set_current_cluster_config_nr $cluster] == 0 } {
       get_current_cluster_config_array ts_config
+
+      if {[info exists spool]} {
+         unset spool
+      }
+      foreach host $managed_host_list {
+         # use spool dir for execds
+         set spool_dir [get_local_spool_dir $host "execd" 0]
+         if { [info exists spool($spool_dir)] == 0 } {
+            set spool($spool_dir) $host 
+         } else {
+            set spool($spool_dir) "$spool($spool_dir) $host"
+         }
+      }
+      set spool_dirs [array names spool]
+      foreach spd $spool_dirs {
+         ts_log_fine "spool dir \"$spd\" used for hosts \"$spool($spd)\""
+      }
+
       set host $ts_config(master_host)
       puts $CHECK_OUTPUT "adding GE service \"$ts_config(cluster_name)\" for cluster #$cluster on qmaster host \"$host\" ..."
       set arguments "-s [get_hedeby_system_name] ags -h $host -j rp_vm -s $ts_config(cluster_name)"
