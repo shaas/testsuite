@@ -251,7 +251,7 @@ proc fixed_usage_check {} {
          }
       }
       set service "spare_pool"
-      foreach resource $hedeby_config(hedeby_host_resources) {
+      foreach resource [get_all_spare_pool_resources] {
          ts_log_fine "service \"$service \" resource \"$resource\" has usage \"$res_slo_info($resource,$SLO_spare_pool_name,usage)\" for its slo named \"$SLO_spare_pool_name\""
          if {$res_slo_info($resource,$SLO_spare_pool_name,usage) != $SLO_spare_pool_urgency} {
             set help_text "service \"$service \" resource \"$resource\" has usage \"$res_slo_info($resource,$SLO_spare_pool_name,usage)\", but expected usage is \"$SLO_spare_pool_urgency\""

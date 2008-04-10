@@ -263,7 +263,7 @@ proc show_status_check {} {
    set expected_component_status "STARTED"
 
    # setup managed host expectations ...
-   foreach host [get_all_hedeby_managed_nodes] {
+   foreach host [get_all_movable_resources] {
       lappend test_hosts $host
       if { [lsearch -exact $ge_qmaster_hosts $host] >= 0 } {
          ts_log_fine "expecting ge adapter on host \"$host\" in vm \"rp_vm\""

@@ -275,7 +275,7 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "spool/reporter/report-0.log.lck"
    lappend expected_files "spool/reporter/report-0.log"
 
-   foreach managed_host [get_all_hedeby_managed_nodes] {
+   foreach managed_host [get_all_movable_resources] {
       lappend expected_files "spool/cs/active_component/executor@$managed_host*.xml"
       lappend expected_files "spool/cs/active_component/executor_vm@$managed_host*.xml"
    }
@@ -296,7 +296,7 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "spool/cs/active_jvm/cs_vm@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_jvm/rp_vm@$hedeby_config(hedeby_master_host)*.xml"
    lappend expected_files "spool/cs/active_jvm/executor_vm@$hedeby_config(hedeby_master_host)*.xml"
-   foreach managed_host [get_all_hedeby_managed_nodes] {
+   foreach managed_host [get_all_movable_resources] {
       lappend expected_files "spool/cs/active_jvm/executor_vm@$managed_host*.xml"
    }
 
@@ -304,7 +304,7 @@ proc hedeby_check_master_host_file_permissions {} {
       ts_log_fine "expecting active jvm \"rp_vm\" on host \"$jvm_host\""
       lappend expected_files "spool/cs/active_jvm/rp_vm@$jvm_host*.xml"
    }
-   foreach resource_host [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] {
+   foreach resource_host [get_all_spare_pool_resources] {
       lappend expected_files "spool/spare_pool/$resource_host*"
    }
 
@@ -452,7 +452,7 @@ proc hedeby_check_managed_host_file_permissions {} {
 
    set ge_master_hosts [get_hedeby_default_services service_names]
    set error_text ""
-   foreach managed_host [get_all_hedeby_managed_nodes] {
+   foreach managed_host [get_all_movable_resources] {
 
       ts_log_fine "checking file permissions on managed host \"$managed_host\" ..."
       if { [lsearch -exact $ge_master_hosts $managed_host] >= 0 } {

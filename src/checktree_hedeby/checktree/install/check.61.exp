@@ -113,7 +113,7 @@ proc hedeby_install_cleanup {} {
 
 proc hedeby_add_spare_pool_resources {} {
    global hedeby_config
-   set exit_state [add_host_resources [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] "spare_pool"]
+   set exit_state [add_host_resources [get_all_spare_pool_resources] "spare_pool"]
    ts_log_fine "exit_state: $exit_state"
 }
 
@@ -178,7 +178,7 @@ proc hedeby_add_ge_services {} {
 
    # first calculate spooldirs
    set ge_hosts [get_hedeby_default_services service_names]
-   set managed_host_list [get_all_hedeby_managed_nodes]
+   set managed_host_list [get_all_movable_resources]
 
    # TODO: use -start option to startup ge services if possible
    set cluster 0
@@ -405,7 +405,7 @@ proc hedeby_startup_managed_hosts {} {
    global hedeby_config
    global install_user
 
-   startup_hedeby_hosts "managed" [get_all_hedeby_managed_nodes] $install_user
+   startup_hedeby_hosts "managed" [get_all_movable_resources] $install_user
 }
 
 
@@ -460,7 +460,7 @@ proc hedeby_install_managed_hosts {} {
    puts $CHECK_OUTPUT "========================================"
 
 
-   set managed_host_list [get_all_hedeby_managed_nodes]
+   set managed_host_list [get_all_movable_resources]
 
 
    foreach managed_host $managed_host_list {

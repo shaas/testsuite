@@ -66,7 +66,7 @@ proc remove_hedeby_preferences {{raise_error 1}} {
    if { $pref_type == "system" } {
       # the user installation is shared in home directory, don't remove them on the remote
       # host, because they will disapear when master host preferences are deleted
-      set host_list [get_all_hedeby_managed_nodes]
+      set host_list [get_all_movable_resources]
       foreach host $host_list {
          set task_info($host,expected_output) ""
          set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name rbc"      
@@ -132,7 +132,7 @@ proc shutdown_hedeby { { only_raise_cannot_kill_error 0 } } {
    set shutdown_user [get_hedeby_startup_user]
 
    # first step: shutdown all managed hosts
-   set managed_hosts [get_all_hedeby_managed_nodes]
+   set managed_hosts [get_all_movable_resources]
    set val [shutdown_hedeby_hosts "managed" $managed_hosts $shutdown_user $only_raise_cannot_kill_error]
    if { $val != 0 } {
       set ret_val 1
@@ -190,7 +190,7 @@ proc startup_hedeby {} {
    }
 
    # second step: startup all managed hosts
-   set val [startup_hedeby_hosts "managed" [get_all_hedeby_managed_nodes] $startup_user]
+   set val [startup_hedeby_hosts "managed" [get_all_movable_resources] $startup_user]
    if { $val != 0 } {
       set ret_val 1
    }
@@ -455,7 +455,7 @@ proc get_hedeby_ge_complex_mapping { arch {rp res_prop} } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_system_name { } {
@@ -498,7 +498,7 @@ proc get_hedeby_system_name { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_pref_type { } {
@@ -542,7 +542,7 @@ proc get_hedeby_pref_type { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_admin_user { } {
@@ -1062,7 +1062,7 @@ proc parse_bundle_string_params { output id {params_array params}  } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_startup_user { } {
@@ -1100,7 +1100,7 @@ proc get_hedeby_startup_user { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_cs_url { } {
@@ -1135,7 +1135,7 @@ proc get_hedeby_cs_url { } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc get_hedeby_local_spool_dir { host } {
@@ -1176,7 +1176,7 @@ proc get_hedeby_local_spool_dir { host } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc cleanup_hedeby_local_spool_dir { host } {
@@ -1213,16 +1213,18 @@ proc cleanup_hedeby_local_spool_dir { host } {
 }
 
 
-#****** util/get_all_hedeby_managed_nodes() ************************************
+#****** util/get_all_movable_resources() ************************************
 #  NAME
-#     get_all_hedeby_managed_nodes() -- get all possible managed host names
+#     get_all_movable_resources() -- get all possible managed host names
 #
 #  SYNOPSIS
-#     get_all_hedeby_managed_nodes { } 
+#     get_all_movable_resources { } 
 #
 #  FUNCTION
 #     The procedure returns a list of all possible managed host candidates of
 #     the specified Grid Engine clusters including all hedeby (host) resources.
+#     ATTENTION: This list does not contain static resources.
+#     This are movable execd resources.
 #
 #  INPUTS
 #
@@ -1237,12 +1239,13 @@ proc cleanup_hedeby_local_spool_dir { host } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
+#     util/get_all_spare_pool_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
-proc get_all_hedeby_managed_nodes {} {
+proc get_all_movable_resources {} {
    global hedeby_config
-   set host_list [host_conf_get_nodes $hedeby_config(hedeby_host_resources)]
+   set host_list [get_all_spare_pool_resources]
    
    foreach host [get_all_execd_nodes] {
       if {[lsearch $host_list $host] < 0 && $host != $hedeby_config(hedeby_master_host) } {
@@ -1250,6 +1253,31 @@ proc get_all_hedeby_managed_nodes {} {
       }
    }
    return $host_list
+}
+
+#****** util/get_all_spare_pool_resources() ***********************************
+#  NAME
+#     get_all_spare_pool_resources() -- get configured hedeby resources
+#
+#  SYNOPSIS
+#     get_all_spare_pool_resources { } 
+#
+#  FUNCTION
+#     This procedure returns the list of all hosts (or nodes) which are 
+#     configured to be in the hedeby spare_pool. (Free resources)
+#
+#  INPUTS
+#
+#  RESULT
+#     list of resources
+#
+#  SEE ALSO
+#     util/get_all_movable_resources()
+#     util/get_all_default_hedeby_resources()
+#*******************************************************************************
+proc get_all_spare_pool_resources {} {
+   global hedeby_config
+   return [host_conf_get_nodes $hedeby_config(hedeby_host_resources)]
 }
 
 #****** util/get_all_default_hedeby_resources() ****************************************
@@ -1271,13 +1299,14 @@ proc get_all_hedeby_managed_nodes {} {
 #
 #  SEE ALSO
 #     util/get_hedeby_default_services()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #*******************************************************************************
 proc get_all_default_hedeby_resources {} {
 
    global hedeby_config
    # figure out expected resources
    
+   # get all resources from the default services
    get_hedeby_default_services service_names
    set expected_resource_list {}
    foreach service $service_names(services) {
@@ -1285,7 +1314,8 @@ proc get_all_default_hedeby_resources {} {
          lappend expected_resource_list $execd
       }
    }
-   foreach hres [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] {
+   # get all resources which are defined for the hedeby spare_pool
+   foreach hres [get_all_spare_pool_resources] {
       lappend expected_resource_list $hres
    }
    return $expected_resource_list
@@ -1359,7 +1389,7 @@ proc get_hedeby_default_services { service_names } {
    }
    set_current_cluster_config_nr $current_cluster_config
 
-   foreach hres [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] {
+   foreach hres [get_all_spare_pool_resources] {
       set ret(default_service,$hres) "spare_pool"
    }
 
@@ -1395,7 +1425,7 @@ proc get_hedeby_default_services { service_names } {
 #     util/get_hedeby_cs_url()
 #     util/get_hedeby_local_spool_dir()
 #     util/cleanup_hedeby_local_spool_dir()
-#     util/get_all_hedeby_managed_nodes()
+#     util/get_all_movable_resources()
 #     util/is_hedeby_process_running()
 #*******************************************************************************
 proc is_hedeby_process_running { host pid } {
@@ -1950,7 +1980,7 @@ proc startup_hedeby_hosts { type host_list user } {
    global hedeby_config
    set expected_jvms($hedeby_config(hedeby_master_host)) "cs_vm executor_vm rp_vm"
    # setup managed host expectations ...
-   foreach host_temp [get_all_hedeby_managed_nodes] {
+   foreach host_temp [get_all_movable_resources] {
       set expected_jvms($host_temp) "executor_vm"
    }
 
@@ -2209,7 +2239,7 @@ proc reset_hedeby {{force 0}} {
       set ret_val [wait_for_resource_state "ASSIGNED ERROR" 0 15 res_state_info]
       # if the missing resources are hedeby resources we can add them
       if { [llength $res_state_info(missing)] > 0 } {
-         set hedeby_nodes [host_conf_get_nodes $hedeby_config(hedeby_host_resources)]
+         set hedeby_nodes [get_all_spare_pool_resources]
          set resources_to_add {}
          foreach res $res_state_info(missing) {
             if {[lsearch -exact $hedeby_nodes $res] >= 0} {
@@ -2963,7 +2993,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    set sdmadm_command "-d -p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all"
    set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" $raise_error table]
    if { $prg_exit_state != 0} {
-      ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting" $raise_error
+      ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting\noutput:\n$output" $raise_error
       return 1
    }
 
@@ -3263,9 +3293,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    }
 
    if {$error_text != "" } {
-      if {$raise_error != 0} {
-         ts_log_severe $error_text
-      }
+      ts_log_severe $error_text $raise_error
       return 1
    }
    return 0
@@ -3680,7 +3708,8 @@ proc produce_ambiguous_resource { ares asrv } {
    }
 
    # use first resource from hedeby_resource_list
-   set aresource [lindex $hedeby_config(hedeby_host_resources) 0]
+   set aresource [lindex [get_all_spare_pool_resources] 0]
+   
 
    # we need a service to assign the resource ...
    set aservice [lindex $service_names(services) 0]
@@ -4226,7 +4255,7 @@ proc get_service_info { {host ""} {user ""} {si service_info} {raise_error 1} } 
    set sinfo(service_list) {}
    for {set line 0} {$line < $table(table_lines)} {incr line 1} {
       set service_id $table($service_col,$line)
-      set sinfo($service_id,host)   $table($host_col,$line)
+      set sinfo($service_id,host)   [resolve_host $table($host_col,$line)]
       set sinfo($service_id,cstate) $table($cstate_col,$line)
       set sinfo($service_id,sstate) $table($sstate_col,$line)
       lappend sinfo(service_list) $service_id
@@ -4351,7 +4380,7 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
 
    for {set line 0} {$line < $table(table_lines)} {incr line 1} {
       set component_id $table($component_col,$line)
-      set host $table($host_col,$line)
+      set host [resolve_host $table($host_col,$line)]
       
       set ci_on_list [lsearch -exact $cinfo(component_list) $component_id]
       if { $ci_on_list < 0} {
@@ -4365,14 +4394,13 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
       set cinfo($component_id,$host,state)    $table($state_col,$line)
       set cinfo($component_id,$host,jvm)      $table($jvm_col,$line)
       set cinfo($component_id,$host,type)     $table($type_col,$line)
-      
    }
 
    ts_log_fine "component list: $cinfo(component_list)"
    foreach component $cinfo(component_list) {
-    foreach host $cinfo($component,host) {
-      ts_log_finer "component \"$component\": host=\"$host\" state=\"$cinfo($component,$host,state)\" jvm=\"$cinfo($component,$host,jvm)\" type=\"$cinfo($component,$host,type)\""
-    }
+      foreach host $cinfo($component,host) {
+         ts_log_finer "component \"$component\": host=\"$host\" state=\"$cinfo($component,$host,state)\" jvm=\"$cinfo($component,$host,jvm)\" type=\"$cinfo($component,$host,type)\""
+      }
    }
    return 0
 }
@@ -4882,7 +4910,7 @@ proc produce_unknown_resource { type } {
     if { $type == "host" } {
        # lookup for an not used testsuite host name
        set unknown_name ""
-       set used_hosts [get_all_hedeby_managed_nodes]
+       set used_hosts [get_all_movable_resources]
        foreach host [host_conf_get_nodes $ts_host_config(hostlist)] {
           if {[lsearch -exact $used_hosts $host] < 0} {
              set unknown_name $host

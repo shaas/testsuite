@@ -129,7 +129,7 @@ proc executor_reload_setup {} {
    global executor_reload_host
 
    ts_log_fine "doing setup"
-   set executor_reload_host [lindex [host_conf_get_nodes $hedeby_config(hedeby_host_resources)] 0]
+   set executor_reload_host [lindex [get_all_spare_pool_resources] 0]
 }
 
 
