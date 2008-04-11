@@ -1,3 +1,8 @@
+LP-2008-04-11-0: Bugfix:    Fixed smf_test_host_supported
+                 Bugfix:    Added compile host to admin/submit hosts for JGDI
+                            tests
+                 Review:    AP
+
 RH-2008-04-11-0: Enhancem:  Hedeby: install test adds now execd installation params for
                             for simulated hosts to the configuration of each GE service
                  Review:    RH
@@ -46,7 +51,7 @@ DG-2008-04-08-0: Enhancem.: Added two procedures in order to change the
                             sge_request file 
                             - sge_procedures/restore_sge_request_file
                             - sge_procedures/append_to_sge_request_file
-                 Review:    CRß
+                 Review:    CR
 
 JG-2008-04-08-0: Enhancem.: Added commandline option to use different transport
                             for the interactive jobs (qrsh and qlogin):

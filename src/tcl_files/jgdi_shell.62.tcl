@@ -38,7 +38,6 @@ proc jgdi_shell_setup { {host ""} } {
    array unset jgdi_config
 
    if { [string compare $host ""] == 0 } {
-      # Compile host needs to be a submit host
       set host [host_conf_get_java_compile_host]
    }
    
@@ -48,6 +47,9 @@ proc jgdi_shell_setup { {host ""} } {
 proc setup_jgdi_config_for_host { host } {
    global CHECK_USER ts_config jgdi_config
   
+   # Host needs to be submit/admin host
+   start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-ah $host"
+   start_remote_prog $ts_config(master_host) $CHECK_USER "qconf" "-as $host"
    set jgdi_config(target_host) $host
    set jgdi_config(java15) [get_java_home_for_host $jgdi_config(target_host) "1.5" 0]
    set jgdi_config(java16) [get_java_home_for_host $jgdi_config(target_host) "1.6" 0]

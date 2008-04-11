@@ -103,17 +103,17 @@ proc smf_test_host_supported {} {
 
    set hosts [get_all_hosts]
    foreach host $hosts {
-      start_remote_prog $host $CHECK_USER "/bin/sh" "-c [get_sge_smf_cmd] supported" prg_exit_state
+      start_remote_prog $host $CHECK_USER "/bin/sh" "-c [get_sge_smf_cmd] supported" supported_exit_state
       set arch_str [resolve_arch $host]
       if { [string match "sol-*" $arch_str] == 1 } {
          set result [string trim [start_remote_prog $host $CHECK_USER "/usr/bin/uname" "-r"]]
          set min [lindex [split $result .] end]
-         if { $min < 10 && $prg_exit_state == 0 } {
+         if { $min < 10 && $supported_exit_state == 0 } {
             ts_log_severe "ERROR: Unexpected SMF support on host=$host with arch=$arch_str OS_release=$result!"
          } elseif { $min >= 10 && $prg_exit_state != 0 } {
             ts_log_severe "ERROR: Expected to find SMF support on host=$host with arch=$arch_str OS_release=$result!"
          }
-      } elseif { $prg_exit_state == 0 } {
+      } elseif { $supported_exit_state == 0 } {
          ts_log_severe "ERROR: Unexpected SMF support on host=$host with arch=$arch_str OS_release=$result!"
       }
    }
@@ -160,7 +160,7 @@ proc smf_test_shadowd {} {
 proc smf_test_execd {} {
    global ts_config
 
-   if { [llength $ts_config(execd_nodes)] == 0 } {
+   if {[llength $ts_config(execd_nodes)] == 0} {
       ts_log_config "No execd hosts in your configuration"
       return 
    }
@@ -175,7 +175,7 @@ proc smf_test_execd {} {
       }
    }
    
-   if {$counter == 0 } {
+   if {$counter == 0} {
       ts_log_config "No smf capable execd hosts in your configuration"
       return 
    }

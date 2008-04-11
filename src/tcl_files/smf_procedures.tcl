@@ -211,7 +211,8 @@ proc smf_kill_and_restart { host service {signal 15} {timeout 30} {kill_restarts
    set elapsed 0
    while { $elapsed < $timeout } {
       ts_log_fine "Killing ..."
-      start_remote_prog $host $user "kill" "-$signal $daemon_pid"
+      set output [start_remote_prog $host $user "kill" "-$signal $daemon_pid"]
+      ts_log_fine $output
       if {[is_pid_with_name_existing $host $daemon_pid [smf_get_process_name $service]] == 0} {
 	 after 1000
 	 incr elapsed 1
@@ -485,7 +486,7 @@ proc smf_stop_over_qconf {host service {timeout 30}} {
    return [smf_check_service_state $host $service "disabled" 60]
 }
 
-proc smf_start_svcadm {host service action {flags ""} {wait_for_new_process 0} {timeout 30}} {
+proc smf_start_svcadm {host service action {flags ""} {wait_for_new_process 0} {timeout 15}} {
    global ts_config
    
    set fmri [get_sge_fmri $host $service]
