@@ -1,3 +1,6 @@
+CR-2008-04-11-0: Cleanup:   moved *.61.exp to *.62.exp check file names
+                            in checktree_hedeby (hedeby only supports 62)
+
 CR-2008-04-10-1: Cleanup:   o refactory of procedures:
                               old: get_all_hedeby_managed_nodes()
                               new: get_all_movable_resources()
