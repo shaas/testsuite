@@ -273,6 +273,20 @@ proc hedeby_add_ge_services {} {
          lappend sequence "</ge_adapter:execd>\n"
          lappend sequence "\n"
       }
+      # add an execd install settings for simulated hosts
+      lappend sequence "<ge_adapter:execd adminUsername=\"root\" defaultDomain=\"\" ignoreFQDN=\"true\" rcScript=\"false\" adminHost=\"false\"\n"
+      lappend sequence "submitHost=\"false\" cleanupDefault=\"false\">\n"
+      lappend sequence "<ge_adapter:filter>simhost=\"true\"\n"
+      lappend sequence "</ge_adapter:filter>\n"
+      lappend sequence "  <ge_adapter:installTemplate executeOn=\"qmaster_host\">"
+      lappend sequence "     <ge_adapter:script>$hedeby_config(hedeby_product_root)/util/templates/ge-adapter/install_execd_sim.sh</ge_adapter:script>"
+      lappend sequence "  </ge_adapter:installTemplate>"
+      lappend sequence "  <ge_adapter:uninstallTemplate executeOn=\"qmaster_host\">"
+      lappend sequence "     <ge_adapter:script>$hedeby_config(hedeby_product_root)/util/templates/ge-adapter/uninstall_execd_sim.sh</ge_adapter:script>"
+      lappend sequence "  </ge_adapter:uninstallTemplate>"
+      lappend sequence "</ge_adapter:execd>\n"
+      lappend sequence "\n"
+
       lappend sequence "[format "%c" 27]" ;# ESC
 
       hedeby_mod_sequence $ispid $sequence error_text

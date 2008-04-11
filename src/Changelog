@@ -1,3 +1,7 @@
+RH-2008-04-11-0: Enhancem:  Hedeby: install test adds now execd installation params for
+                            for simulated hosts to the configuration of each GE service
+                 Review:    RH
+
 CR-2008-04-11-0: Cleanup:   moved *.61.exp to *.62.exp check file names
                             in checktree_hedeby (hedeby only supports 62)
 
