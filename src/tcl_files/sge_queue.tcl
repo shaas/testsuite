@@ -584,64 +584,8 @@ proc unsuspend_queue { queue } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc disable_queue { queuelist } {
-  global CHECK_USER
-  get_current_cluster_config_array ts_config
-  
-  set return_value ""
-  # spawn process
-
-  set nr_of_queues 0
-  set nr_disabled 0
-
-  foreach elem $queuelist {
-     set queue_name($nr_of_queues) $elem
-     incr nr_of_queues 1
-  }
-
-  set queue_nr 0
-  while { $queue_nr != $nr_of_queues } {
-     log_user 0
-     set queues ""
-     set i 100  ;# maximum 100 queues at one time (= 2000 byte commandline with avg(len(qname)) = 20
-     while { $i > 0 } {
-        if { $queue_nr < $nr_of_queues } {
-           append queues " $queue_name($queue_nr)"
-           incr queue_nr 1
-        }
-        incr i -1
-     }   
-     
-     set result [start_sge_bin "qmod" "-d $queues"]
-     ts_log_fine "disable queue(s) $queues"
-     set res_split [ split $result "\n" ]   
-     foreach elem $res_split {
-        ts_log_fine "line: $elem"
-        if { [ string first "has been disabled" $elem ] >= 0 } {
-           incr nr_disabled 1 
-        } else {
-           # try to find localized output
-           foreach q_name $queues {
-              if { $ts_config(gridengine_version) == 53 } {
-                set HAS_DISABLED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_DISABLEQ_SSS] $q_name $CHECK_USER "*" ]
-              } else {
-                set HAS_DISABLED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QINSTANCE_DISABLED]]
-              }
-
-              if { [ string match "*${HAS_DISABLED}*" $elem ] } {
-                 incr nr_disabled 1
-                 break
-              } 
-           }
-        }
-     }
-  }    
-
-  if { $nr_of_queues != $nr_disabled } {
-     ts_log_severe "could not disable all queues"
-     return -1
-  }
- 
-  return 0
+  set ret [mod_queue_state $queuelist "disable"]
+  return $ret
 }
 
 
@@ -676,58 +620,65 @@ proc disable_queue { queuelist } {
 #     sge_procedures/enable_queue()
 #*******************************
 proc enable_queue { queuelist } {
-  global CHECK_USER
-  get_current_cluster_config_array ts_config
+   set ret [mod_queue_state $queuelist "enable"]
+   return $ret
+}
+
+proc mod_queue_state { queuelist state } {
+  global ts_config
+
+  set max_args 100 ;# maximum 100 queues at one time (= 2000 byte commandline with avg(len(qname)) = 20
+
+  if {$state == "enable"} {
+     set STATE [translate_macro MSG_QINSTANCE_NDISABLED]
+     set command "-e"
+  } elseif {$state == "disable"} {
+     set STATE [translate_macro MSG_QINSTANCE_DISABLED]
+     set command "-d"
+  } else {
+     ts_log_severe "unknown state"
+     return -1
+  }
   
-  set return_value ""
-  # spawn process
-
-  set nr_of_queues 0
-  set nr_enabled 0
-
+  set failed 0
+  set queues ""
+  set queue_nr 0
   foreach elem $queuelist {
-     set queue_name($nr_of_queues) $elem
-     incr nr_of_queues 1
+     append queues " $elem"
+     incr queue_nr 1
+
+     if {$queue_nr == $max_args} {
+        set result [start_sge_bin "qmod" "$command $queues"]
+        ts_log_fine "$state queue(s) $queues"
+        set result [string trim $result]
+        set res_split [split $result "\n"]   
+        foreach elem $res_split {
+           ts_log_fine "line: $elem"
+           if {[string match "*${STATE}*" $elem] == 0} {
+              incr failed 1
+           } 
+        }
+
+        set queues ""
+        set queue_nr 0
+     }
   }
 
-  set queue_nr 0
-  while { $queue_nr != $nr_of_queues } {
-     log_user 0
-     set queues ""
-     set i 100  ;# maximum 100 queues at one time (= 2000 byte commandline with avg(len(qname)) = 20
-     while { $i > 0 } {
-        if { $queue_nr < $nr_of_queues } {
-           append queues " $queue_name($queue_nr)"
-           incr queue_nr 1
-        }
-        incr i -1
-     }   
-     set result [start_sge_bin "qmod" "-e $queues"]
-     ts_log_fine "enable queue(s) $queues"
-     set res_split [ split $result "\n" ]   
+  if {$queue_nr != 0} {
+     set result [start_sge_bin "qmod" "$command $queues"]
+     ts_log_fine "$state queue(s) $queues"
+     set result [string trim $result]
+     set res_split [split $result "\n"]   
      foreach elem $res_split {
         ts_log_fine "line: $elem"
-        if { [ string first "has been enabled" $elem ] >= 0 } {
-           incr nr_enabled 1 
-        } else {
-           # try to find localized output
-           foreach q_name $queues {
-              if { $ts_config(gridengine_version) == 53 } {
-                 set BEEN_ENABLED  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QUEUE_ENABLEQ_SSS] $q_name $CHECK_USER "*" ]
-              } else {
-                 set BEEN_ENABLED  [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QINSTANCE_NDISABLED]]
-              }
-              if { [ string match "*${BEEN_ENABLED}*" $elem ] } {
-                 incr nr_enabled 1
-                 break
-              } 
-           }
-        }
+        if {[string match "*${STATE}*" $elem] == 0} {
+           incr failed 1
+        } 
      }
-  }    
+  }
 
-  if { $nr_of_queues != $nr_enabled } {
-     ts_log_severe "could not enable all queues nr. queues: $nr_of_queues, nr_enabled: $nr_enabled"
+  if {$failed != 0} {
+     ts_log_severe "could not $state all queues: $failed failed"
      return -1
   }
   return 0

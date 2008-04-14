@@ -218,6 +218,9 @@ proc cl_throughput_parse_result {nr_hosts dresult darray} {
          set next [cl_throughput_parse_next line]
          set next [cl_throughput_parse_next line]
          set data($nr_hosts,$ai,snd_buf) $next
+         set next [cl_throughput_parse_next line]
+         set next [cl_throughput_parse_next line]
+         set data($nr_hosts,$ai,con_no) $next
          incr ai 1
       }
    }
@@ -237,6 +240,7 @@ proc cl_throughput_parse_result {nr_hosts dresult darray} {
 # data($nr_hosts,$ai,ev_snd_sec)      sent events 1/s
 # data($nr_hosts,$ai,rcv_buf)         messages in rcv buffer
 # data($nr_hosts,$ai,snd_buf)         messages in snd buffer
+# data($nr_hosts,$ai,con_no)          nr of connections
 # data(test_host)           vmaster host name
 # data(test_hostlist)       host_list of remote hosts
 # data(date)                date of text
@@ -598,6 +602,20 @@ proc cl_throughput_run {} {
       set data(test_hostlist) "$used_hosts"
       set data(test_host) "$vqmaster_host"
       set data(step_list) "$step_list"
+
+      set last_row [expr $data(lines) - 2]
+      if {$nr_rgdi_clients != 0} {
+         if {$data($runs,$last_row,con_no) < [expr $host_count + $nr_event_clients]} {
+            ts_log_severe "only $data($runs,$last_row,con_no) of $host_count gdi clients connected during run!"
+         }
+      } else {
+         if {$data($runs,$last_row,con_no) != [expr $host_count + $nr_event_clients]} {
+            ts_log_severe "only $data($runs,$last_row,con_no) of $host_count gdi clients connected during run!"
+         }
+      }
+      if {$data($runs,$last_row,evc_no) != $nr_event_clients} {
+         ts_log_severe "only $data($runs,$last_row,evc_no) of $nr_event_clients event clients connected during run!"
+      }
    }
 
    ts_log_fine "saving report in directory:"

@@ -647,11 +647,7 @@ proc throughput_setup {} {
    set_config myconfig
  
    # disable all default queues and create queue_list:
-   set queue_list {}
-   foreach host $ts_config(execd_nodes) {
-      lappend queue_list [get_queue_instance "all.q" $host]
-   }
-   disable_queue $queue_list
+   disable_queue "all.q"
 
    set max_u_jobs_parameter [expr ( [llength $host_list] * $nr_queues  * $nr_slots )]
    set my_schedd_config(schedule_interval)    "$run_throughput_test_SCHEDULE_INTERVAL"
@@ -683,10 +679,8 @@ proc throughput_setup {} {
          assign_queues_with_pe_object "$qname" $host_list "perfpe"
       }
 
-      # build queue_list containing a list of all queue instances
-      foreach host $host_list {
-         lappend queue_list [get_queue_instance $qname $host]
-      }
+      # build queue_list containing a list of all cluster queues
+      lappend queue_list $qname
    }
 
    # Create an additional interactive only queue.
@@ -745,11 +739,7 @@ proc throughput_cleanup {} {
    }
 
    puts $CHECK_OUTPUT "enabling default queues"
-   set queue_list {}
-   foreach host $ts_config(execd_nodes) {
-      lappend queue_list [get_queue_instance "all.q" $host]
-   }
-   enable_queue $queue_list
+   enable_queue "all.q"
 
    del_queue interactive "@allhosts" 1 1
 }
@@ -3905,7 +3895,7 @@ proc show_current_system_status { start_time array_name job_array_name schedd_ar
 proc clean_current_system_status { results_array array_name job_array_name schedd_array_name monitoring_name qstat_name qping_name event_name} {
    global ts_config
    global queue_list global_job_run_time nr_slots
-   global result_names
+   global result_names host_list
 
    upvar $results_array results
    upvar $array_name data
@@ -3924,7 +3914,7 @@ proc clean_current_system_status { results_array array_name job_array_name sched
    set data(jobs_pending) 0
    set data(jobs_running) 0
    set data(jobs_submitted) 0
-   set data(total_slots) [ expr ( [llength $queue_list] * $nr_slots ) ]
+   set data(total_slots) [expr [llength $queue_list] * [llength $host_list] * $nr_slots]
    set data(free_slots)  $data(total_slots)
    set data(job_run_time) $global_job_run_time
    set data(test_run_time) 0

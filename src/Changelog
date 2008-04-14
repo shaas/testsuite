@@ -1,3 +1,7 @@
+RD-2008-04-14-0: Enhancem.: - Added error detection for performance/commlib test
+                 Bugfix:    - throughput test enable queues now in one operation
+                 Review:    CR
+
 LP-2008-04-11-0: Bugfix:    Fixed smf_test_host_supported
                  Bugfix:    Added compile host to admin/submit hosts for JGDI
                             tests
