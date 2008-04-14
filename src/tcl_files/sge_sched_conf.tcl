@@ -61,7 +61,7 @@
 #     job_load_adjustments        "np_load_avg=0.50"
 #     load_adjustment_decay_time  "0:7:30"
 #     load_formula                "np_load_avg"
-#     schedd_job_info             "true"
+#     schedd_job_info             "true", "false" since 62
 #     
 #     
 #     SGEEE differences:
@@ -85,13 +85,18 @@
 #*******************************
 proc reset_schedd_config {} {
    get_current_cluster_config_array ts_config
+
    set default_array(algorithm)                  "default"
    set default_array(schedule_interval)          "0:0:10"
    set default_array(maxujobs)                   "0"
    set default_array(job_load_adjustments)       "np_load_avg=0.15"
    set default_array(load_adjustment_decay_time) "0:7:30"
    set default_array(load_formula)               "np_load_avg"
-   set default_array(schedd_job_info)            "true"
+   if {$ts_config(gridengine_version) >= 62} {
+      set default_array(schedd_job_info)            "false"
+   } else {
+      set default_array(schedd_job_info)            "true"
+   }
 
 # this is sgeee
    if { [string compare $ts_config(product_type) "sgeee"] == 0 } {
