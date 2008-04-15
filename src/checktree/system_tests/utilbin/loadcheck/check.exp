@@ -54,7 +54,7 @@ proc loadcheck_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 {
          return 0
       }
    }
@@ -92,28 +92,31 @@ proc loadcheck_init_level {} {
 #  SEE ALSO
 #     ???/???
 #*******************************
-proc get_numb_proc { hostname } {
-  global ts_config CHECK_USER
+proc get_numb_proc {hostname} {
+   global ts_config CHECK_USER
 
-  set result ""
-  set remote_arch [ resolve_arch $hostname ]
+   set result ""
+   set remote_arch [resolve_arch $hostname]
 
-  set result [start_remote_prog $hostname $CHECK_USER "$ts_config(product_root)/utilbin/$remote_arch/loadcheck" ""]
-   
-  # split each line as listelement
-  set help [split $result "\n"]
+   set result [start_remote_prog $hostname $CHECK_USER "$ts_config(product_root)/utilbin/$remote_arch/loadcheck" ""]
 
-  foreach elem $help {
-     if {[string compare [lindex $elem 0] "num_proc"] == 0} {
-        set numproc [lindex $elem 1]
-     }
-  }
+   # split each line as listelement
+   set help [split $result "\n"]
 
-  return  $numproc    
+   foreach elem $help {
+      if {[string compare [lindex $elem 0] "num_proc"] == 0} {
+         set numproc [lindex $elem 1]
+      }
+      # check for IZ 2555
+      if {[string match "kstat finds too many cpus*" $elem]} {
+         ts_log_severe "found IZ 2555 - loadcheck reported:\n$elem"
+      }
+   }
+
+   return $numproc    
 }
 
 
-# here starts the test
 #                                                             max. column:     |
 #****** loadcheck/check_numb_proc() ******
 # 
@@ -152,8 +155,8 @@ proc check_numb_proc {} {
 
       ts_log_fine "$host: Expected processors: $num_expected"
       ts_log_fine "$host: read processors:     $num_proc"
-  
-      if { $num_proc != $num_expected } {
+
+      if {$num_proc != $num_expected} {
          ts_log_severe "num_proc=$num_proc doesn't match $num_expected expected processors on host $host"
       }
    }

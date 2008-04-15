@@ -1,5 +1,8 @@
-RD-2008-04-15-0: Bugfix:    fixed broken throughput test with 61
+JG-2008-04-15-0: Enhancem.: check for IZ 2555 in loadcheck test.
                  Review:    RD
+
+RD-2008-04-15-0: Bugfix:    fixed broken throughput test with 61
+                 Review:    JG
 
 RD-2008-04-14-1: Bugfix:    default value for schedd_job_info changed for 62
                  Review:    CR
