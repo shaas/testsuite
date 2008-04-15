@@ -190,6 +190,7 @@ proc complex_setup {} {
 
    # enable immediate scheduling to speed up test
    set schedd_conf(flush_submit_sec) 1
+   set schedd_config(schedd_job_info)      "true"
    set_schedd_config schedd_conf
 }
 

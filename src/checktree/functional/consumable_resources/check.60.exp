@@ -201,6 +201,10 @@ proc consumable_resources_setup {} {
    set qname "res.q"
    add_queue $qname $consumable_resources_test_hosts queue_settings
    ts_log_fine "added queue $qname for hosts $consumable_resources_test_hosts"
+
+   # modify scheduler config
+   set my_schedd_config(schedd_job_info)      "true"
+   set_schedd_config my_schedd_config
 }
 
 proc consumable_resources_cleanup {} {
@@ -229,6 +233,9 @@ proc consumable_resources_cleanup {} {
 
    # restore complex
    set_complex consumable_complex_backup
+
+   # we changed the schedd config - reset to defaults
+   reset_schedd_config
 }
 
 # Issue: 1306, Bugster: 6287862 - qhost -l for complexes broken

@@ -127,6 +127,10 @@ proc subordinate_setup {} {
    set queue_settings(subordinate_list) "res1.q=1"
    set_queue $qname "" queue_settings
    ts_log_fine "mod queue $qname for hosts $subordinate_test_hosts"
+
+   # modify scheduler config
+   set my_schedd_config(schedd_job_info)      "true"
+   set_schedd_config my_schedd_config
 }
 
 proc subordinate_cleanup {} {
@@ -157,6 +161,9 @@ proc subordinate_cleanup {} {
 
    # restore complex
    set_complex consumable_complex_backup
+
+   # we changed the schedd config - reset to defaults
+   reset_schedd_config
 }
 
 proc subordinate_submit_jobs_and_wait {job_arguments job_count run_job_count job_arguments2 case {schedd_info ""} {queue_state ""} {schedd_info_err ""}} {
