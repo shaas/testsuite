@@ -2352,11 +2352,13 @@ proc resolve_queue { queue } {
 }
 
 proc get_schedd_pid {} {
+   global ts_config
+
    set qmaster_spool_dir [ get_qmaster_spool_dir ]
 
    set pid_file "$qmaster_spool_dir/schedd/schedd.pid"
 
-   return [get_pid_from_file $pid_file]
+   return [get_pid_from_file $ts_config(master_host) $pid_file]
 }
 
 proc parse_cpu_time {s_cpu} {
