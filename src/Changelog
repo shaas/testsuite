@@ -1,3 +1,7 @@
+DG-2008-04-16-0: Cleanup:   Changed test in order to use new standard 
+                            procedure (append_to_sge_request_file).
+                 Review:    AA
+
 RD-2008-04-15-1: Bugfix:    fixed consumable_resources, complex and subordinate
                             test
                  Review:    JG
