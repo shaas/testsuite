@@ -44,7 +44,6 @@ global env
 
 # set check_root_access_needs "yes"
 
-
 # define a level initialization procedure:
 set check_init_level_procedure "issue_511_init_level"
 
@@ -80,12 +79,10 @@ proc issue_511_init_level {} {
 # -------- local test procedures -----------------------------------------------
 
 proc issue_511_setup  {} {
-   global stored_schedd_conf
 
    # set maxujobs limit in schedd config
-   get_schedd_config stored_schedd_conf
-
    set my_schedd_conf(maxujobs) "4"
+   set my_schedd_conf(schedd_job_info) "true"
    set_schedd_config my_schedd_conf 
 }
 
@@ -164,13 +161,11 @@ proc issue_511_check {} {
 }
 
 proc issue_511_cleanup {} {
-   global stored_schedd_conf
-
    # Terminate all jobs
    delete_all_jobs
    wait_for_end_of_all_jobs
 
    # Restore schedd config
-   set_schedd_config stored_schedd_conf
+   reset_schedd_config
 }
 
