@@ -1,3 +1,6 @@
+JG-2008-04-21-0: Bugfix:    test access_lists needs schedd_job_info
+                 Review:    RD
+
 RD-2008-04-18-0: Bugfix:    test 511 requires schedd_job_info
                  Review:    JG
 

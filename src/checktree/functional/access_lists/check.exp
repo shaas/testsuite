@@ -92,8 +92,6 @@ proc access_lists_setup  {} {
    global access_lists_queue
    global access_lists_host
 
-   global access_lists_schedd_conf
-
    global CHECK_FIRST_FOREIGN_SYSTEM_GROUP CHECK_SECOND_FOREIGN_SYSTEM_GROUP
    global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
 
@@ -113,14 +111,15 @@ proc access_lists_setup  {} {
    ts_log_fine "using queue $access_lists_queue"
    ts_log_fine "using host $access_lists_host"
 
-   #saving original configurations
-   get_schedd_config access_lists_schedd_conf
-
    set my_schedd_config(schedule_interval)       "0:0:01"
    if {[string compare $ts_config(product_type) sgeee] == 0} {
       if {$ts_config(gridengine_version) == 53} {
          set my_schedd_config(sgeee_schedule_interval) "0:0:02"
       }
+   }
+   # in SGE >= 62, schedd_info is turned off by default
+   if {$ts_config(gridengine_version) >= 62} {
+      set my_schedd_config(schedd_job_info) "true"
    }
   
    set_schedd_config my_schedd_config
@@ -933,12 +932,12 @@ proc access_lists_pe {} {
 
 proc access_lists_cleanup {} {
    global ts_config
-   global access_lists_schedd_conf access_lists_queue
+   global access_lists_queue
 
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   set_schedd_config access_lists_schedd_conf
+   reset_schedd_config
 
    # delete the test queue
    del_queue $access_lists_queue "" 0 1
