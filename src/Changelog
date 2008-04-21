@@ -1,3 +1,23 @@
+CR-2008-04-18-0: Enhancem.: o Added new test: "slo/minResource/check.62.exp"
+                              (Part 2/3 of hedeby issue #385)
+                              (Need SLO test)
+                            o hedeby_check_default_resources() now also checks
+                              resource properties settings (install test)
+                            o cleanup of slo helper procedures and timeouts
+                              create_fixed_usage_slo()
+                              create_min_resource_slo()
+                              create_permanent_request_slo()
+                            o new procedures:
+                              create_resource_and_filter()  
+                              get_service_slo_info()
+                              wait_for_service_slo_info()
+                              get_show_resource_request_info()
+                            o slo update interval for TS is now one minute
+                            o fixed host name resolving problems (TS always
+                              using short hostnames)
+                 Issue:     #385 (hedeby part 2/3)
+                 Review:    AA
+
 JG-2008-04-21-0: Bugfix:    test access_lists needs schedd_job_info
                  Review:    RD
 

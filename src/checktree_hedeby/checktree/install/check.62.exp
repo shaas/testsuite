@@ -244,8 +244,7 @@ proc hedeby_add_ge_services {} {
       lappend sequence "ma/<\\/common:slos>\n:'a,.d\n"
       lappend sequence "i"
       lappend sequence "<common:slos>\n"
-      set default_slo [create_fixed_usage_slo 50 "fixed_usage"] 
-      lappend sequence [lindex $default_slo 0]
+      lappend sequence [create_fixed_usage_slo 50 "fixed_usage"] 
       lappend sequence "\n"
       lappend sequence "</common:slos>\n"
       lappend sequence "[format "%c" 27]" ;# ESC

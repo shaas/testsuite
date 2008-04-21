@@ -241,7 +241,7 @@ proc basic_resource_assignment_check {} {
       set exp_resource_info($res,state) "ASSIGNED"
    }
    # step 2: wait for expected resource informations
-   set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
+   set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
 
    # step 3: error handling
    if { $retval != 0} {
@@ -327,7 +327,7 @@ proc basic_resource_assignment_check {} {
          set exp_resource_info($res,flags) "{}"
          set exp_resource_info($res,state) "ASSIGNED"
       }
-      set retval [wait_for_resource_info exp_resource_info 60 0 mvr_error]
+      set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
       if { $retval != 0} {
          # if there were no error till now, print output of previous actions
          if {$error_text == ""} {

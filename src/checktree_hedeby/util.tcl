@@ -2603,7 +2603,8 @@ proc move_resources_to_default_services {} {
 #     hedeby_check_default_resources { } 
 #
 #  FUNCTION
-#     check that all configured default resources are reported by hedeby
+#     1) check that all configured default resources are reported by hedeby 
+#     2) check reported resource properties settings of the resources
 #
 #  INPUTS
 #
@@ -2620,7 +2621,7 @@ proc hedeby_check_default_resources {} {
    global CHECK_OUTPUT 
    global CHECK_USER
  
-   set ret [get_resource_info]
+   set ret [get_resource_info "" "" res_info reported_props]
    if {$ret != 0} {
       ts_log_severe "get_resource_info() returned $ret"
       return 1
@@ -2711,8 +2712,25 @@ proc hedeby_check_default_resources {} {
             append error_text "resource \"$res\" should have emty flags, but it's flags are \"$res_info($res,flags)\"\n"
          }
       }
-
    }
+
+   # now check resource properties
+   foreach res [get_all_default_hedeby_resources] {
+      ts_log_fine "checking resource properties of resource $res:"
+      set osArch [resolve_arch $res]
+      get_hedeby_ge_complex_mapping $osArch res_prop
+      ts_log_finer "GE arch \"$osArch\" is mapped to props:"
+      foreach name [array names res_prop] {
+         ts_log_finer "   $name=$res_prop($name)"
+         if { $reported_props($res,$name) != $res_prop($name) } {
+            append error_text "resource \"$res\" reported property \"$name\" with\n"
+            append error_text "value \"$reported_props($res,$name)\", should be \"$res_prop($name)\"\n"
+         } else {
+            ts_log_fine "resource \"$res\" has property \"$name\" set to \"$res_prop($name)\" - fine!"
+         }
+      }
+   }
+
    if { $error_text != "" } {
       ts_log_severe $error_text
       return 1
@@ -3281,7 +3299,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
             set cur_time [timestamp]
             set cur_time_left [expr ($my_timeout - $cur_time)]
             ts_log_fine "still waiting for specified resource information ... (timeout in $cur_time_left seconds)"
-            ts_log_finer "still not matching resource info:\n$not_matching"
+            ts_log_fine "still not matching resource info:\n$not_matching"
          }
       }
       if {[timestamp] >= $my_timeout} {
@@ -5340,8 +5358,7 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
 proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
-   set slo {}
-   lappend slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\"/>"
+   set slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\"></common:slo>"
    return $slo
 }
 
@@ -5360,6 +5377,8 @@ proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
 #     {urgency 50 }      - urcency value 
 #     { name "min_res" } - name value
 #     { min 2 }          - min value
+#     { resourceFilter ""} - optional: resource filter created with 
+#                            procedure create_resource_and_filter()
 #
 #  RESULT
 #     xml string
@@ -5367,12 +5386,73 @@ proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
 #  SEE ALSO
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
+#     util/create_resource_and_filter()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 }} {
-   set slo {}
-   lappend slo "<common:slo xsi:type=\"common:MinResourceSLOConfig\" min=\"$min\" urgency=\"$urgency\" name=\"$name\"/>"
-   return $slo
+proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resourceFilter ""}} {
+   set slo_text ""
+   append slo_text "<common:slo xsi:type=\"common:MinResourceSLOConfig\" min=\"$min\" urgency=\"$urgency\" name=\"$name\">"
+   if {$resourceFilter != ""} {
+      append slo_text $resourceFilter
+   }
+   append slo_text "</common:slo>"
+   return $slo_text
+}
+
+
+#****** util/create_resource_and_filter() **************************************
+#  NAME
+#     create_resource_and_filter() -- create resource filter for slo definitions
+#
+#  SYNOPSIS
+#     create_resource_and_filter { resProp } 
+#
+#  FUNCTION
+#     This procedure is used to create xml string for a resource filter
+#     definition. The specified resource properties are combined with AND.
+#
+#  INPUTS
+#     resProp - array which contains filter specification
+#           
+#               The array must have following settings:
+#               resProp(PROP_NAME) {OPERATOR} {VALUE}
+#             
+#               PROP_NAME: name of property: e.g. operatingSystemName, state
+#               OPERATOR:  used property operator: e.g. "=", "!="
+#               VALUE:     match value: e.g. "Linux", "ASSIGNED", "ERROR"
+#
+#  RESULT
+#     string in xml format
+#
+#  EXAMPLE
+#     set propA(operatingSystemName) "{=} {Linux}"
+#     set propA(state)               "{!=} {ERROR}"
+#     set filterA [create_resource_and_filter propA]
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#*******************************************************************************
+proc create_resource_and_filter { resProp } {
+   upvar $resProp resProps
+   set filter ""
+   set pnames [array names resProps]
+   if {[llength $pnames] > 0} {
+      append filter "<common:resourceFilter>"
+      set is_first 1
+      foreach pname $pnames {
+         if {$is_first == 1} {
+            set is_first 0
+         } else {
+            append filter " &amp; "
+         }
+         append filter "$pname"
+         append filter "[lindex $resProps($pname) 0]"    
+         append filter "\"[lindex $resProps($pname) 1]\""
+      }
+      append filter "</common:resourceFilter>"
+   }
+   ts_log_fine "created filter:\n$filter\n"
+   return $filter
 }
 
 #****** util/create_permanent_request_slo() ************************************
@@ -5400,13 +5480,11 @@ proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 }} {
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
 proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } { type "host" }} {
-   set slo {}
    set slo_txt ""
    append slo_txt "<common:slo xsi:type=\"common:PermanentRequestSLOConfig\" urgency=\"$urgency\" name=\"$name\">"
-   append slo_txt    "<common:request>type = \"$type\"</common:request>"
+   append slo_txt    "<common:request>type=\"$type\"</common:request>"
    append slo_txt "</common:slo>"
-   lappend slo $slo_txt
-   return $slo
+   return $slo_txt
 }
 
 #****** util/hedeby_mod_setup() ************************************************
@@ -5676,7 +5754,7 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
 #     util/create_permanent_request_slo()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {update_interval_unit "minutes"} {update_interval_value "5"} } {
+proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {update_interval_unit "minutes"} {update_interval_value "1"} } {
    global CHECK_DEBUG_LEVEL
    ts_log_fine "setting slos for service \"$service\" ..."
    foreach new_slo $slos {
@@ -6345,6 +6423,7 @@ proc reset_default_slos { method {services "all"} {raise_error 1} } {
             ts_log_fine "skip resource name \"$tnot_avail\""
             continue
          }
+         set out_res [resolve_host $out_res]
          ts_log_fine "service \"$out_ser\" has slo \"$out_slo\" defined for resource \"$out_res\" with a usage of \"$out_usa\" - fine"
          if {$out_usa != $expected_usage} {
             append error_text "Defined usage of service \"$out_ser\" resource \"$out_res\" is set to \"$out_usa\", should be \"$expected_usage\"\n"
@@ -6545,6 +6624,7 @@ proc get_resource_slo_info {{host ""} {user ""} {rsi res_slo_info} {raise_error 
             ts_log_fine "skip resource name \"$tnot_avail\""
             continue
          }
+         set out_res [resolve_host $out_res]
          if {[lsearch -exact $resource_slo_info(resource_list) $out_res] < 0} {
             lappend resource_slo_info(resource_list) $out_res
          }
@@ -6568,6 +6648,347 @@ proc get_resource_slo_info {{host ""} {user ""} {rsi res_slo_info} {raise_error 
             set resource_slo_info($res,$slo,usage) "n.a."
          } else {
             ts_log_finer "resource \"$res\" at service \"$resource_slo_info($res,$slo,service)\" has slo \"$slo\" with urgceny \"$resource_slo_info($res,$slo,usage)\""
+         }
+      }
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe "$error_text" $raise_error
+      return 1
+   }
+   return 0
+}
+
+#****** util/get_service_slo_info() ********************************************
+#  NAME
+#     get_service_slo_info() -- get sdmadm sslo information
+#
+#  SYNOPSIS
+#     get_service_slo_info { {host ""} {user ""} {ssi ser_slo_info} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure returns the output of sdmadm sslo in a tcl array
+#
+#  INPUTS
+#     {host ""}          - host where sdmadm should be started
+#     {user ""}          - user who should start sdmadm command
+#     {ssi ser_slo_info} - array to store the output information
+#     {raise_error 1}    - if 1 raise TS errors
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#     The output array has the following format:
+#
+#          ser_slo_info(service_list) - list of all service names
+#          ser_slo_info(slo_list)     - list of all slo names
+#
+#          ser_slo_info(SERVICE,SLO,quantity) - quantity value
+#          ser_slo_info(SERVICE,SLO,urgency)  - urgency value
+#          ser_slo_info(SERVICE,SLO,request)  - request value
+# 
+#          where SERVICE is a service name
+#          where SLO is a slo name
+#          
+#
+#  SEE ALSO
+#     util/wait_for_service_slo_info()
+#*******************************************************************************
+proc get_service_slo_info {{host ""} {user ""} {ssi ser_slo_info} {raise_error 1}} {
+   global hedeby_config
+   upvar $ssi service_slo_info
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+
+   # delete existing info array
+   if {[info exists service_slo_info]} {
+      unset service_slo_info
+   }
+
+   # fill up array with default "not available" string
+   set service_slo_info(service_list) {}
+   set service_slo_info(slo_list) {}
+
+   # get some default settings
+   set error_text ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   
+   # get correct table names
+   set tservice   [create_bundle_string "ShowSLOCliCommand.col.service"]
+   set tslo       [create_bundle_string "ShowSLOCliCommand.col.slo"]
+   set tquantity  [create_bundle_string "ShowSLOCliCommand.col.quantity"]
+   set turgency   [create_bundle_string "ShowSLOCliCommand.col.urgency" ]
+   set trequest   [create_bundle_string "ShowSLOCliCommand.col.request"]
+
+   # start sslo command
+   set sdmadm_command_line "-p $pref_type -s $sys_name sslo"
+   set output [sdmadm_command $execute_host $execute_user $sdmadm_command_line prg_exit_state "" $raise_error table]
+   if { $prg_exit_state == 0 } {
+      ts_log_fine "checking service slo settings ..."
+      for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+         set out_ser $table($tservice,$line)
+         set out_slo $table($tslo,$line)
+         set out_qua $table($tquantity,$line)
+         set out_urg $table($turgency,$line)
+         set out_req $table($trequest,$line)
+         if {[lsearch -exact $service_slo_info(service_list) $out_ser] < 0} {
+            lappend service_slo_info(service_list) $out_ser
+         }
+         if {[lsearch -exact $service_slo_info(slo_list) $out_slo] < 0} {
+            lappend service_slo_info(slo_list) $out_slo
+         }
+         set service_slo_info($out_ser,$out_slo,quantity) $out_qua
+         set service_slo_info($out_ser,$out_slo,urgency) $out_urg
+         set service_slo_info($out_ser,$out_slo,request) $out_req
+      }
+   } else {
+      append error_text "sdmadm $sdmadm_command_line exited with status=$prg_exit_state:\n$output\n"
+   }
+
+   # set not available values in the returned array
+   foreach ser $service_slo_info(service_list) {
+      foreach slo $service_slo_info(slo_list) {
+         foreach elem "quantity urgency request" {
+            if {[info exists service_slo_info($ser,$slo,$elem)] == 0} {
+               set service_slo_info($ser,$slo,$elem) "n.a."
+            }
+            ts_log_finer "service_slo_info($ser,$slo,$elem)=$service_slo_info($ser,$slo,$elem)"
+         }
+      }
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe "$error_text" $raise_error
+      return 1
+   }
+   return 0
+}
+
+#****** util/wait_for_service_slo_info() ***************************************
+#  NAME
+#     wait_for_service_slo_info() -- wait for specified sdmadm sslo output
+#
+#  SYNOPSIS
+#     wait_for_service_slo_info { exp_sloinfo {atimeout 60} {raise_error 1} 
+#     {ev error_var } {host ""} {user ""} {ssi ser_slo_info} } 
+#
+#  FUNCTION
+#     This procedure is calling get_service_slo_info() until output matches or
+#     timeout occurs.
+#
+#  INPUTS
+#     exp_sloinfo        - expected sslo info output
+#     {atimeout 60}      - timeout in seconds
+#     {raise_error 1}    - if 1 TS reports errors
+#     {ev error_var }    - variable to store error text
+#     {host ""}          - parameter for get_service_slo_info()
+#     {user ""}          - parameter for get_service_slo_info()
+#     {ssi ser_slo_info} - parameter for get_service_slo_info()
+#
+#  RESULT
+#     0 on success, 1 on error
+#     result array ser_slo_info is described in get_service_slo_info()
+#
+#  SEE ALSO
+#     util/get_service_slo_info()
+#*******************************************************************************
+proc wait_for_service_slo_info { exp_sloinfo  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} {ssi ser_slo_info} } {
+   global hedeby_config
+   # setup arguments
+   upvar $exp_sloinfo exp_slo_info
+   upvar $ev error_text
+   upvar $ssi service_slo_info
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # init error and timeout
+   if {[info exists error_text] == 0} {
+      set error_text ""
+   }
+   set my_timeout [timestamp]
+   incr my_timeout $atimeout
+
+   # set expected results info
+   set expected_slo_info ""
+   set exp_values [array names exp_slo_info]
+   foreach val $exp_values {
+      append expected_slo_info "$val=\"$exp_slo_info($val)\"\n"
+   }
+   ts_log_fine "expected slo infos:\n$expected_slo_info"
+   while {1} {
+      set retval [get_service_slo_info $host $user service_slo_info $raise_error]
+      if {$retval != 0} {
+         append error_text "break because of get_service_slo_info() returned \"$retval\"!\n"
+         append error_text "expected slo info was:\n$expected_slo_info"
+         ts_log_fine "ignore this run because get_service_slo_info() returned: $retval"
+         set not_matching "not available!"
+         foreach val $exp_values {
+            if {![info exists service_slo_info($val)]} {
+               set service_slo_info($val) "missing"
+            }
+         }
+      } else {
+         set not_matching ""
+         foreach val $exp_values {
+            if {![info exists service_slo_info($val)]} {
+               set service_slo_info($val) "missing"
+            }
+            if { $service_slo_info($val) == $exp_slo_info($val) } {
+               ts_log_fine "slo info(s) \"$val\" matches expected info \"$exp_slo_info($val)\""
+            } else {
+               append not_matching "slo info \"$val\" is set to \"$service_slo_info($val)\", should be \"$exp_slo_info($val)\"\n"
+            } 
+         }
+         if {$not_matching == ""} {
+            ts_log_fine "all specified resource info are matching"
+            break
+         } else {
+            set cur_time [timestamp]
+            set cur_time_left [expr ($my_timeout - $cur_time)]
+            ts_log_fine "still waiting for specified slo information ... (timeout in $cur_time_left seconds)"
+            ts_log_finer "still not matching slo info:\n$not_matching"
+         }
+      }
+      if {[timestamp] >= $my_timeout} {
+         append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected slo states!\n"
+         append error_text "==> NOT matching values:\n$not_matching"
+         break
+      }
+      after 1000
+   }
+
+   if {$error_text != "" } {
+      ts_log_severe $error_text $raise_error
+      return 1
+   }
+   return 0
+}
+
+#****** util/get_show_resource_request_info() **********************************
+#  NAME
+#     get_show_resource_request_info() -- get sdmadm srr -all output
+#
+#  SYNOPSIS
+#     get_show_resource_request_info { {host ""} {user ""} {rri res_req_info} 
+#     {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure is starting sdmadm srr -all and returns the output info
+#     in a tcl array.
+#
+#  INPUTS
+#     {host ""}          - host where sdmadm should be started
+#     {user ""}          - user who starts the command
+#     {rri res_req_info} - name of array to parse the output info into
+#     {raise_error 1}    - if 1 TS reports errors
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#       res_req_info(service_list) - list of all service names
+#       res_req_info(slo_list)     - list of all slo names
+#
+#       res_req_info(SERVICE,SLO,type)     - type value
+#       res_req_info(SERVICE,SLO,urgency)  - urgency value
+#       res_req_info(SERVICE,SLO,quantity) - quantity value
+#       res_req_info(SERVICE,SLO,requests) - requests value
+#
+#  SEE ALSO
+#     util/get_service_slo_info()
+#*******************************************************************************
+proc get_show_resource_request_info {{host ""} {user ""} {rri res_req_info} {raise_error 1}} {
+   global hedeby_config
+   upvar $rri resource_request_info
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   # delete existing info array
+   if {[info exists resource_request_info]} {
+      unset resource_request_info
+   }
+
+   # fill up array with default "not available" string
+   set resource_request_info(service_list) {}
+   set resource_request_info(slo_list) {}
+
+   # get some default settings
+   set error_text ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   
+   # get correct table names
+   set ttype     [create_bundle_string "ShowRequestCliCommand.col.type"]
+   set tservice  [create_bundle_string "ShowRequestCliCommand.col.service"]
+   set tslo      [create_bundle_string "ShowRequestCliCommand.col.slo"]
+   set turgency  [create_bundle_string "ShowRequestCliCommand.col.urgency"]
+   set tquantity [create_bundle_string "ShowRequestCliCommand.col.quantity"]
+   set trequests [create_bundle_string "ShowRequestCliCommand.col.request"]
+
+   # start srr -all command
+   set sdmadm_command_line "-p $pref_type -s $sys_name srr -all"
+   set output [sdmadm_command $execute_host $execute_user $sdmadm_command_line prg_exit_state "" $raise_error table]
+   if { $prg_exit_state == 0 } {
+      ts_log_fine "checking resource provider slo requests ..."
+      for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+         set out_typ $table($ttype,$line)
+         set out_ser $table($tservice,$line)
+         set out_slo $table($tslo,$line)
+         set out_urg $table($turgency,$line)
+         set out_qua $table($tquantity,$line)
+         set out_req $table($trequests,$line)
+         if {[lsearch -exact $resource_request_info(service_list) $out_ser] < 0} {
+            lappend resource_request_info(service_list) $out_ser
+         }
+         if {[lsearch -exact $resource_request_info(slo_list) $out_slo] < 0} {
+            lappend resource_request_info(slo_list) $out_slo
+         }
+         set resource_request_info($out_ser,$out_slo,type)     $out_typ
+         set resource_request_info($out_ser,$out_slo,urgency)  $out_urg
+         set resource_request_info($out_ser,$out_slo,quantity) $out_qua
+         set resource_request_info($out_ser,$out_slo,requests) $out_req
+      }
+   } else {
+      append error_text "sdmadm $sdmadm_command_line exited with status=$prg_exit_state:\n$output\n"
+   }
+
+   # set not available values in the returned array
+   foreach ser $resource_request_info(service_list) {
+      foreach slo $resource_request_info(slo_list) {
+         foreach elem "type urgency quantity requests" {
+            if {[info exists resource_request_info($ser,$slo,$elem)] == 0} {
+               set resource_request_info($ser,$slo,$elem) "n.a."
+            } 
+            ts_log_finer "resource_request_info($ser,$slo,$elem)=$resource_request_info($ser,$slo,$elem)"
          }
       }
    }

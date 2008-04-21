@@ -303,7 +303,7 @@ proc basic_resource_reset_batch_check {} {
          set exp_resource_info($res,state) "ASSIGNED"
       }
       # step 2: wait for expected resource informations
-      set retval [wait_for_resource_info exp_resource_info 60 0 rst_error]
+      set retval [wait_for_resource_info exp_resource_info 120 0 rst_error]
       if { $retval != 0 } {
          append error_text "$rst_error\n"
       }
