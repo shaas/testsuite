@@ -1,3 +1,6 @@
+CR-2008-04-18-1: Enhancem.: Fixed security/filepermission test to reflect new
+                            spooling behaviour of resource provider
+
 CR-2008-04-18-0: Enhancem.: o Added new test: "slo/minResource/check.62.exp"
                               (Part 2/3 of hedeby issue #385)
                               (Need SLO test)

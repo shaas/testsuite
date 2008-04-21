@@ -157,6 +157,11 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_dirs "spool/cs/module/ge-service-adapter"
    lappend expected_dirs "spool/cs/module/ge-service-adapter/complex_mapping"
    lappend expected_dirs "spool/resource_provider"
+   lappend expected_dirs "spool/resource_provider/resource_provider"
+   lappend expected_dirs "spool/resource_provider/spare_pool"
+   foreach service $service_names(services) {
+      lappend expected_dirs "spool/resource_provider/$service"
+   }
    lappend expected_dirs "spool/spare_pool"
    lappend expected_dirs "spool/reporter"
    lappend expected_dirs "tmp"
@@ -252,6 +257,14 @@ proc hedeby_check_master_host_file_permissions {} {
    lappend expected_files "security/daemons/rp_vm.keystore"
    lappend expected_files "security/java.policy"
    lappend expected_files "security/jaas.config"
+   foreach service $service_names(services) {
+      foreach res $service_names(execd_hosts,$service) {
+         lappend expected_files "spool/resource_provider/$service/$res*.srf"
+      }
+   }
+   foreach res [get_all_spare_pool_resources] {
+      lappend expected_files "spool/resource_provider/spare_pool/$res*.srf"
+   }
    lappend expected_files "spool/cs/component/executor.xml"
    lappend expected_files "spool/cs/component/ca.xml"
    lappend expected_files "spool/cs/component/resource_provider.xml"
