@@ -2934,8 +2934,9 @@ proc parse_table_output { output array_name delemitter } {
 #                                 (default: res_list)
 #     {da res_list_not_uniq} - name of array list with not unique resoures
 #                                 (default: res_list_not_uniq)
-#     {raise_error 1}       - report errors
+#     {raise_error 1}        - report errors
 #                                 (default: 1)
+#     {sdmout sdmadm_output} - variable to store sdmadm output 
 #
 #  RESULT
 #     Return value: "0" on success, "1" on error 
@@ -2975,7 +2976,7 @@ proc parse_table_output { output array_name delemitter } {
 #     util/wait_for_resource_info()
 #     util/get_service_info()
 #*******************************************************************************
-proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1}} {
+proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output}} {
    global hedeby_config
 
    # setup arguments
@@ -2983,6 +2984,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    upvar $rp resource_properties
    upvar $da resource_ambiguous
    upvar $rl resource_list
+   upvar $sdmout output
    if {$host == ""} {
       set execute_host $hedeby_config(hedeby_master_host)
    } else {
@@ -3234,9 +3236,9 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    ts_log_finer "expected resource infos:\n$expected_resource_info"
 
    while {1} {
-      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error]
+      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error sdmadm_output]
       if {$retval != 0} {
-         append error_text "break because of get_resource_info() returned \"$retval\"!\n"
+         append error_text "break because of get_resource_info() returned \"$retval\"!\n$sdmadm_output\n"
          append error_text "expected resource info was:\n$expected_resource_info"
          ts_log_fine "ignore this run because get_resource_info() returned: $retval"
          set not_matching "not available!"

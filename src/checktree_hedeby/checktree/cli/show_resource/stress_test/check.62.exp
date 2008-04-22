@@ -1,0 +1,123 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "no"
+set check_name                 "show_resource_stress_test"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "3 minute show resource stress test"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "show_resource_stress_test_init_level"
+set check_functions            ""   
+set check_highest_level        0
+
+set check_setup_level_function "show_resource_stress_test_setup"
+set check_cleanup_level_function "show_resource_stress_test_cleanup"
+
+lappend check_functions "show_resource_stress_test_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global show_resource_stress_test_current_cluster_config
+
+
+proc show_resource_stress_test_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  } 
+  return -1
+}
+
+proc show_resource_stress_test_setup {} {
+   ts_log_fine "doing show_resource_stress_test setup ..."
+}
+
+proc show_resource_stress_test_cleanup {} {
+   ts_log_fine "doing show_resource_stress_test cleanup ..."
+}
+
+#****** check.62/show_resource_stress_test_check() *****************************
+#  NAME
+#     show_resource_stress_test_check() -- 3 min parallel sdmadm sr test
+#
+#  SYNOPSIS
+#     show_resource_stress_test_check { } 
+#
+#  FUNCTION
+#     This test will start sdmadm sr commands parallel on all resources. If
+#     any sdmadm command returns exit status != 0 the test fails and reports
+#     the exception.
+#
+#*******************************************************************************
+proc show_resource_stress_test_check {} {
+   global hedeby_config CHECK_ACT_LEVEL
+   global check_use_installed_system
+   ts_log_fine "doing show_resource_stress_test in level $CHECK_ACT_LEVEL ..."
+
+   get_hedeby_default_services service_names
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set ge_hosts [get_hedeby_default_services service_names]
+   set exec_host $hedeby_config(hedeby_master_host)
+   set pref_type [get_hedeby_pref_type]
+   set host_list [get_all_default_hedeby_resources]
+   lappend host_list $hedeby_config(hedeby_master_host)
+   foreach host $host_list {
+      set task_info($host,expected_output) ""
+      set task_info($host,sdmadm_command) "-d -p $pref_type -s $sys_name sr -dupval -rf 'state=\"ASSIGNED\" & type=\"host\"'"
+   }
+
+   set cur_time [timestamp]
+   set my_timeout [expr ( $cur_time + 3 * 60 )]
+   set failed 0
+   while { [timestamp] < $my_timeout && $failed == 0} {
+      set cur_time [timestamp]
+      ts_log_fine "performing show resource stress test ... (timeout in [expr ( $my_timeout - $cur_time  )] seconds)"
+      start_parallel_sdmadm_command host_list $admin_user task_info
+      foreach host $host_list {
+         if { $task_info($host,exit_status) != 0 } {
+            ts_log_fine "output $host:\n$task_info($host,sdmadm_command)\n$task_info($host,output)\nskip - test failed!"
+            set failed 1 
+         }
+      }
+   }
+}

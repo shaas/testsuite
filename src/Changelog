@@ -1,3 +1,11 @@
+CR-2008-04-22-0: Enhancem.: o get_resource_info():
+                              added new parameter: sdmadm_output
+                              Used to get output of sdmadm command
+                            o wait_for_resource_info():
+                              Report output of sdmadm command if exit state != 0
+                            o new test: "cli/show_resource/stress_test"
+                 Review:    AA
+
 RM-2008-04-22-0: Bugfix:    New switch for installation "-al", accept automatically
                             license, hedeby issue #427
                  Review:    CR
