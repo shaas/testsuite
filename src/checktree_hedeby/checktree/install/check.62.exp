@@ -385,7 +385,8 @@ proc hedeby_install_master_host {} {
                   -d $dist_path\
                   -cs_port $cs_port\
                   -l $spool_dir\
-                  -sge_root $sge_root"
+                  -sge_root $sge_root\
+		  -al"
 
    if { $ssl_disabled == "true" } {
       append arguments " -nossl"
@@ -512,7 +513,8 @@ proc hedeby_install_managed_hosts {} {
                      -au [get_hedeby_admin_user]\
                      -d $dist_path\
                      -l $managed_host_sdmadm_arguments($managed_host,spool_dir)\
-                     -cs_url $cs_url"
+                     -cs_url $cs_url\
+		     -al"
 
       if { $ssl_disabled == "true" } {
          append arguments " -nossl"

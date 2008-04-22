@@ -1,3 +1,7 @@
+RM-2008-04-22-0: Bugfix:    New switch for installation "-al", accept automatically
+                            license, hedeby issue #427
+                 Review:    CR
+
 CR-2008-04-18-1: Enhancem.: Fixed security/filepermission test to reflect new
                             spooling behaviour of resource provider
 
