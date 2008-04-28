@@ -1,3 +1,6 @@
+LP-2008-04-28-0: Bugfix:    o Fixed smf tests
+                 Enhancem.: o jgdi_only tests now run on any cluster host
+
 MD-2008-04-28-0: Enhamcem.: o added new gettext marcos for installation changes
 
 CR-2008-04-22-0: Enhancem.: o get_resource_info():

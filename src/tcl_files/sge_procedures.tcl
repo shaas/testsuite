@@ -2872,6 +2872,9 @@ proc soft_execd_shutdown {host {timeout 60}} {
    get_current_cluster_config_array ts_config
 
    set execd_pid [get_execd_pid $host]
+   if {$execd_pid == 0} {
+      return -1
+   }
    
    ts_log_fine "shutdown execd pid=$execd_pid on host \"$host\""
    set tries 0
@@ -5964,7 +5967,7 @@ proc startup_daemon { host service } {
       "master" -
       "qmaster" {
 	 if { [string compare $host $ts_config(master_host)] != 0 } {
-	    ts_severe "Can't startup $service on host $host. Qmaster host is only $ts_config(master_host)"
+	    ts_log_severe "Can't startup $service on host $host. Qmaster host is only $ts_config(master_host)"
 	    return -1
 	 }
 	 startup_qmaster
@@ -5972,35 +5975,35 @@ proc startup_daemon { host service } {
       "shadow" -
       "shadowd" {
 	 if { [lsearch -exact $ts_config(shadowd_hosts) $host] == -1 } {
-	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    ts_log_severe "Can't start $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 startup_shadowd $host
       }
       "execd" {
 	 if { [lsearch -exact $ts_config(execd_nodes) $host] == -1 } {
-	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    ts_log_severe "Can't start $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 startup_execd $host
       }
       "bdb" {
          if { [string compare $host $ts_config(bdb_server)] != 0 } {
-	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    ts_log_severe "Can't start $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 startup_bdb_rpc $host
       }
       "dbwriter" { 
          if { [string compare $host $arco_config(dbwriter_host)] != 0 } {
-	    ts_severe "Can't start $service. Host $host is not a $service host"
+	    ts_log_severe "Can't start $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 startup_dbwriter $host
       }
       #TODO: Add other Hedeby services HERE
       default {
-	 ts_severe "Invalid argument $service passed to shutdown_daemon{}"
+	 ts_log_severe "Invalid argument $service passed to shutdown_daemon{}"
 	 return -1
       }
    }
@@ -6437,7 +6440,7 @@ proc get_shadowd_pid { hostname {qmaster_spool_dir ""}} {
       start_remote_prog $hostname $CHECK_USER "test" "-f $pid_file"
       if {$prg_exit_state != 0} {
 	 ts_log_fine "No pid file. Shadowd is not running on host $hostname"
-         return -1
+         return 0
       }
    }
    
@@ -6520,15 +6523,15 @@ proc get_pid_from_file {host pid_file} {
    start_remote_prog "$host" $CHECK_USER "test" "-f $pid_file"
    if {$prg_exit_state != 0} {
       ts_log_fine "No pid file. Process is not running on host $host"
-      return -1
+      return 0
    }
    
-   set dpid -1
+   set dpid 0
    set dpid [start_remote_prog "$host" "$CHECK_USER" "cat" "$pid_file"]
    set dpid [ string trim $dpid ]
    if { $prg_exit_state != 0 } {
       ts_log_fine "Could not read pid file $pid_file on host $host"
-      set dpid -1
+      set dpid 0
    }
    return $dpid
 }
@@ -6572,6 +6575,9 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
    ts_log_finest "retrieving data from spool dir $qmaster_spool_dir"
 
    set qmaster_pid [get_qmaster_pid $hostname $qmaster_spool_dir]
+   if {$qmaster_pid == 0} {
+      return -1
+   }
  
    get_ps_info $qmaster_pid $hostname
    if { ($ps_info($qmaster_pid,error) == 0) } {
@@ -6636,6 +6642,9 @@ proc shutdown_shadowd { hostname } {
    get_current_cluster_config_array ts_config
 
    set shadowd_pid [get_shadowd_pid $hostname]
+   if {$shadowd_pid == 0} {
+      return -1
+   }
 
    ts_log_fine "shutdown shadowd pid=$shadowd_pid on host \"$hostname\""
 
@@ -7092,7 +7101,7 @@ proc shutdown_daemon { host service } {
       "master" -
       "qmaster" {
 	 if { [string compare $host $ts_config(master_host)] != 0 } {
-	    ts_severe "Can't stop $service on host $host. Qmaster host is only $ts_config(master_host)"
+	    ts_log_severe "Can't stop $service on host $host. Qmaster host is only $ts_config(master_host)"
 	    return -1
 	 }
 	 return [shutdown_qmaster $host [get_qmaster_spool_dir]]
@@ -7100,21 +7109,21 @@ proc shutdown_daemon { host service } {
       "shadow" -
       "shadowd" {
 	 if { [lsearch -exact $ts_config(shadowd_hosts) $host] == -1 } {
-	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    ts_log_severe "Can't stop $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 return [shutdown_shadowd $host]
       }
       "execd" {
 	 if { [lsearch -exact $ts_config(execd_nodes) $host] == -1 } {
-	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    ts_log_severe "Can't stop $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 return [soft_execd_shutdown $host]
       }
       "bdb" {
          if { [string compare $host $ts_config(bdb_server)] != 0 } {
-	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    ts_log_severe "Can't stop $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 if { [shutdown_bdb_rpc $host] == -1 } {
@@ -7125,13 +7134,13 @@ proc shutdown_daemon { host service } {
       }
       "dbwriter" { 
          if { [string compare $host $arco_config(dbwriter_host)] != 0 } {
-	    ts_severe "Can't stop $service. Host $host is not a $service host"
+	    ts_log_severe "Can't stop $service. Host $host is not a $service host"
 	    return -1
 	 }
 	 return [shutdown_dbwriter $host]
       }
       default {
-	 ts_severe "Invalid argument $service passed to shutdown_daemon{}"
+	 ts_log_severe "Invalid argument $service passed to shutdown_daemon{}"
 	 return -1
       }
    }

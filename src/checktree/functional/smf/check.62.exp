@@ -55,16 +55,16 @@ lappend check_functions "smf_test_shadowd"
 lappend check_functions "smf_test_execd"
 global ts_config
 #Add BDB test only if BDB server used
-if { ![info exists ts_config(bdb_server)] } {
+if {[info exists ts_config(bdb_server)] == 1} {
    lappend check_functions "smf_test_bdb"
 }
 #Add Dbwriter test only if arco checktree setuped
-if { [info exists ts_config(additional_checktree_dirs)] && [lsearch -glob $ts_config(additional_checktree_dirs) "*checktree_arco"] != -1 } {
+if {[info exists ts_config(additional_checktree_dirs)] == 1 && [lsearch -glob $ts_config(additional_checktree_dirs) "*checktree_arco"] != -1} {
    lappend check_functions "smf_test_dbwriter"
 }
 
-set check_setup_function "smf_setup_cleanup"
-set check_cleanup_function "smf_setup_cleanup"
+set check_setup_function "smf_setup"
+set check_cleanup_function "smf_cleanup"
 set check_highest_level       0
 
 proc smf_init_level {} {
@@ -79,21 +79,16 @@ proc smf_init_level {} {
    return -1
 }
 
-proc smf_setup_cleanup {} {
-   global ts_config CHECK_USER
-   
-   #Remove all SGE SMF services with this cluster_name on all cluster hosts
-   set hosts [get_all_hosts]
-   foreach host $hosts {
-      if { [is_smf_host $host] == 1 } {
-         set output [start_remote_prog $host "root" "/usr/bin/svcs" "-H -o fmri svc:/application/sge/*:$ts_config(cluster_name)" prg_exit_state]
-         if { $prg_exit_state == 0 } {
-            foreach found_service $output {
-               start_remote_prog $host "root" "/usr/sbin/svccfg" "delete $found_service"
-	    }
-         }
-      }
-   }
+proc smf_setup {} {
+   remove_smf_from_cluster
+}
+
+proc smf_cleanup {} {
+   remove_smf_from_cluster
+   shutdown_whole_cluster
+   #enable_smf_in_cluster
+   #smf_startup_cluster
+   startup_cluster
 }
 
 #Go over all hosts in configraion any non-solaris host must return NOT supported
@@ -125,7 +120,7 @@ proc smf_test_qmaster {} {
    global ts_config
 
    set host $ts_config(master_host)
-   if { [is_smf_host $host] == 1 } {
+   if {[is_smf_host $host] == 1} {
       smf_generic_test $host "qmaster" 60 0
    } else {
       ts_log_config "Qmaster host $host does not support SMF" 
@@ -135,7 +130,7 @@ proc smf_test_qmaster {} {
 proc smf_test_shadowd {} {
    global ts_config
 
-   if { [llength $ts_config(shadowd_hosts)] == 0 } {
+   if {[llength $ts_config(shadowd_hosts)] == 0} {
       ts_log_config "No shadowd hosts in your configuration"
       return 
    }
@@ -143,7 +138,7 @@ proc smf_test_shadowd {} {
    set counter 0
    set smf_hosts ""
    foreach host $ts_config(shadowd_hosts) {
-      if { [is_smf_host $host] == 1 } {
+      if {[is_smf_host $host] == 1} {
 	 lappend smf_hosts $host
          smf_generic_test $host "shadowd" 30 0
 	 incr counter 1
@@ -168,7 +163,7 @@ proc smf_test_execd {} {
    set counter 0
    set smf_hosts ""
    foreach host $ts_config(execd_nodes) {
-      if { [is_smf_host $host] == 1 } {
+      if {[is_smf_host $host] == 1} {
 	 lappend smf_hosts $host
          smf_generic_test $host "execd" 30 0
 	 incr counter 1
@@ -184,13 +179,13 @@ proc smf_test_execd {} {
 proc smf_test_bdb {} {
    global ts_config
 
-   if { [llength $ts_config(bdb_server)] == 0 } {
+   if {[llength $ts_config(bdb_server)] == 0} {
       ts_log_config "No bdb server host in your configuration"
       return
    }
    
    set host $ts_config(bdb_server)
-   if { [is_smf_host $host] == 1 } {
+   if {[is_smf_host $host] == 1} {
       smf_generic_test  $host "bdb"
    } else {
       ts_log_config "BDB server host $host does not support SMF"  
@@ -200,13 +195,13 @@ proc smf_test_bdb {} {
 proc smf_test_dbwriter {} {
    global ts_config arco_config
    
-   if { ![info exists $arco_config(dbwriter_host)] } {
+   if {![info exists arco_config(dbwriter_host)]} {
       ts_log_config "No dbwriter host in your configuration"
       return
    }
    
    set host $arco_config(dbwriter_host)
-   if { [is_smf_host $host] == 1 } {
+   if {[is_smf_host $host] == 1} {
       smf_generic_test $host "dbwriter"
    } else {
       ts_log_config "Dbwriter host $host does not support SMF"

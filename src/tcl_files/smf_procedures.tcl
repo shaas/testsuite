@@ -202,8 +202,8 @@ proc smf_kill_and_restart { host service {signal 15} {timeout 30} {kill_restarts
       return -1
    }
    set daemon_pid [smf_get_pid $host $service]
-   if {$daemon_pid == -1} {
-      ts_log_severe "Got pid=-1 for $service - cannot do kill"
+   if {$daemon_pid == 0} {
+      ts_log_severe "Got pid=0 for $service - cannot do kill"
       return -1
    }
    
@@ -331,7 +331,7 @@ proc smf_get_pid {host service} {
 	 }
       }
    }
-   return -1
+   return 0
 }
 
 proc smf_stop_over_qconf {host service {timeout 30}} {
@@ -577,7 +577,7 @@ proc smf_generic_test {host service {timeout 30} {kill_restarts 1}} {
    ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
    set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
    if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
-      ts_log_severe "ERROR: Register did not succeed!"
+      ts_log_severe "ERROR: Registering $service service did not succeed!"
       return -1
    }
    #Start over SMF
@@ -598,7 +598,7 @@ proc smf_generic_test {host service {timeout 30} {kill_restarts 1}} {
    ts_log_fine "Unregistering $service:$ts_config(cluster_name) service ..."
    set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] unregister $service $ts_config(cluster_name)" prg_exit_state]
    if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
-      ts_log_severe "ERROR: Unregister did NOT succeed!"
+      ts_log_severe "ERROR: Unregistering $service service did NOT succeed!"
       return -1
    }
    #Check service is gone
@@ -677,3 +677,180 @@ proc smf_advanced_restart_test {host service {timeout 30} {kill_restarts 1}} {
    }
    return 0
 }
+
+proc enable_smf_in_cluster {} {
+   global ts_config CHECK_USER
+   
+   set host $ts_config(bdb_server)
+   set service "bdb"
+   if {[llength $ts_config(bdb_server)] != 0 && [is_smf_host $host] == 1} {
+      ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
+      set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+      if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
+         ts_log_severe "ERROR: Registering $service did not succeed!"
+         return -1
+      }
+   }
+   set host $ts_config(master_host)
+   set service "qmaster"
+   if {[is_smf_host $host] == 1} {
+      ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
+      set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+      if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
+         ts_log_severe "ERROR: Registering $service did not succeed!"
+         return -1
+      }
+   }
+   set service "shadowd"
+   foreach host $ts_config(shadowd_hosts) {
+      if {[is_smf_host $host] == 1} {
+         ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
+         set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+         if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
+           ts_log_severe "ERROR: Registering $service did not succeed!"
+           return -1
+	 }
+      }
+   }
+   if {[info exists arco_config(dbwriter_host)] == 1 && [is_smf_host $host] == 1} {
+      set host $arco_config(dbwriter_host)
+      set service "dbwriter"
+      if {[info exists arco_config(dbwriter_host)] == 1} {
+         ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
+         set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+         if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
+            ts_log_severe "ERROR: Registering $service did not succeed!"
+            return -1
+         }
+      }
+   } 
+   set service "execd"
+   foreach host $ts_config(execd_nodes) {
+      if {[is_smf_host $host] == 1} {
+         ts_log_fine "Registering $service:$ts_config(cluster_name) service ..."
+         set output [start_remote_prog $host "root" "/bin/sh" "-c [get_sge_smf_cmd] register $service $ts_config(cluster_name)" prg_exit_state]
+         if { [string length [string trim $output]] != 0 || $prg_exit_state != 0 } {
+            ts_log_severe "ERROR: Registering $service did not succeed!"
+            return -1
+         }
+      }
+   }
+}
+
+proc remove_smf_from_cluster {} {
+   global ts_config CHECK_USER
+   #Remove all SGE SMF services with this cluster_name on all cluster hosts
+   set hosts [get_all_hosts]
+   foreach host $hosts {
+      if { [is_smf_host $host] == 1 } {
+         set output [start_remote_prog $host "root" "/usr/bin/svcs" "-H -o fmri svc:/application/sge/*:$ts_config(cluster_name)" prg_exit_state]
+         if { $prg_exit_state == 0 } {
+            foreach found_service $output {
+               start_remote_prog $host "root" "/usr/sbin/svccfg" "delete -f $found_service"
+	    }
+         }
+      }
+   }
+}
+
+proc smf_startup_cluster {} {
+   global ts_config
+   #bdb
+   set host "$ts_config(bdb_server)"
+   if {[llength $host] != 0} {
+      if {[is_smf_host $host] == 1} {
+         start_smf_service $host "bdb"
+      } else {
+	 startup_daemon $host "bdb"
+      }
+   }
+   #qmaster
+   set host $ts_config(master_host)
+   if {[is_smf_host $host] == 1} {
+      start_smf_service $host "qmaster"
+   } else {
+      startup_daemon $host "qmaster"
+   }
+   
+   #shadowds
+   foreach host $ts_config(shadowd_hosts) {
+      if {[is_smf_host $host] == 1} {
+         start_smf_service $host "shadowd"
+      } else {
+	 startup_daemon $host "shadowd"
+      }
+   }
+   #dbwriter
+   if {[info exists arco_config(dbwriter_host)] == 1} {
+      set host $arco_config(dbwriter_host)
+      if {[is_smf_host $host] == 1} {
+         start_smf_service $host "dbwriter"
+      } else {
+	 startup_daemon $host "dbwriter"
+      }
+   }
+   #execds
+   foreach host $ts_config(execd_nodes) {
+      if {[is_smf_host $host] == 1} {
+         start_smf_service $host "execd"
+      } else {
+	 startup_daemon $host "execd"
+      }
+   }
+}
+
+proc startup_cluster {} {
+   global ts_config
+   #bdb
+   set host "$ts_config(bdb_server)"
+   if {[llength $host] != 0} {
+      startup_daemon $host "bdb"
+   }
+   #qmaster
+   set host $ts_config(master_host)
+   startup_daemon $host "qmaster"
+   
+   #shadowds
+   foreach host $ts_config(shadowd_hosts) {
+      startup_daemon $host "shadowd"
+   }
+   #dbwriter
+   if {[info exists arco_config(dbwriter_host)] == 1} {
+      set host $arco_config(dbwriter_host)
+      startup_daemon $host "dbwriter"
+   }
+   #execds
+   foreach host $ts_config(execd_nodes) {
+      startup_daemon $host "execd"
+   }
+}
+
+proc shutdown_whole_cluster {} {
+   global ts_config
+   
+   set host ""
+   #shadowds
+   foreach host $ts_config(shadowd_hosts) {
+      shutdown_daemon $host "shadowd"
+   }
+   
+   #execds
+   foreach host $ts_config(execd_nodes) {
+      shutdown_daemon $host "execd"
+   }
+   #dbwriter
+   if {[info exists arco_config(dbwriter_host)] == 1} {
+      set host $arco_config(dbwriter_host)
+      shutdown_daemon $host "dbwriter"
+   }
+   #qmaster
+   set host $ts_config(master_host)
+   shutdown_daemon $host "qmaster"
+   
+   #bdb
+   if {[llength $ts_config(bdb_server)] != 0} {
+      set host $ts_config(bdb_server)
+      shutdown_daemon $host "bdb"
+   }
+}
+
