@@ -161,6 +161,8 @@ proc install_execd {} {
       set PREVIOUS_SCREEN              [translate $exec_host 0 1 0 [sge_macro DISTINST_PREVIOUS_SCREEN] ]
       set CELL_NAME_FOR_EXECD          [translate $exec_host 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_EXECD] "*"]
       set CELL_NAME_FOR_EXECD_2        [translate $exec_host 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_EXECD_2]]
+      set GET_COMM_SETTINGS            [translate $exec_host 0 1 0 [sge_macro DISTINST_GET_COMM_SETTINGS] "*"]
+      set CHANGE_PORT_QUESTION         [translate $exec_host 0 1 0 [sge_macro DISTINST_CHANGE_PORT_QUESTION] ]
       set ANSWER_YES                   [translate $exec_host 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
       set ANSWER_NO                    [translate $exec_host 0 1 0 [sge_macro DISTINST_ANSWER_NO] ]
       set ADD_DEFAULT_QUEUE_INSTANCE   [translate $exec_host 0 1 0 [sge_macro DISTINST_ADD_DEFAULT_QUEUE_INSTANCE] ]
@@ -352,6 +354,26 @@ proc install_execd {} {
                ts_send $sp_id $input
                continue
             }
+
+             -i $sp_id $GET_COMM_SETTINGS {
+                puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(19a)"
+                if {$do_log_output == 1} {
+                     puts "-->testsuite: press RETURN (GET_COMM_SETTINGS)"
+                     set anykey [wait_for_enter 1]
+                }
+                ts_send $sp_id "\n"
+                continue
+             }
+
+            -i $sp_id $CHANGE_PORT_QUESTION {
+                puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(19b)"
+                if {$do_log_output == 1} {
+                     puts "-->testsuite: press RETURN (CHANGE_PORT_QUESTION)"
+                     set anykey [wait_for_enter 1]
+                }
+                ts_send $sp_id "\n"
+                continue
+             }
 
             -i $sp_id -- $DETECT_CHOOSE_NEW_NAME {
                puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_YES<"

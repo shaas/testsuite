@@ -108,6 +108,8 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_CELL_NAME_FOR_EXECD_2" { set value "\nPlease enter cell name which you used for the qmaster\ninstallation or press <RETURN> to use default cell >default< >> " }
       "DISTINST_CELL_NAME_EXISTS" { set value "Do you want to select another cell name? (y/n) \[y\] >> " }
       "DISTINST_CELL_NAME_OVERWRITE" { set value "Do you want to overwrite \[y\] or delete \[n\] the directory? (y/n) \[y\] >> " }
+      "DISTINST_GET_COMM_SETTINGS" { set value "Using a network service like >/etc/service<, >NIS/NIS+<: \[2\]\n\n(default: %s) >> " }
+      "DISTINST_CHANGE_PORT_QUESTION" { set value "Do you want to change the port number? (y/n) \[n\] >> " }
       "DISTINST_ADD_DEFAULT_QUEUE" { set value "Do you want to add a default queue for this host (y/n) \[y\] >> " }
       "DISTINST_ALL_QUEUE_HOSTGROUP" { set value "Creating the default <all.q> queue and <allhosts> hostgroup" }
       "DISTINST_ADD_DEFAULT_QUEUE_INSTANCE" { set value "Do you want to add a default queue instance for this host (y/n) \[y\] >> " }

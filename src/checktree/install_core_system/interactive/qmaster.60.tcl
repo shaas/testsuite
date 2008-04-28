@@ -111,6 +111,8 @@ proc install_qmaster {} {
  set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
  set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
  set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
+ set GET_COMM_SETTINGS            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_GET_COMM_SETTINGS] "*"]
+ set CHANGE_PORT_QUESTION         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHANGE_PORT_QUESTION] ]
  set VERIFY_FILE_PERMISSIONS1      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS1] ]
  set VERIFY_FILE_PERMISSIONS2      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS2] ]
  set WILL_NOT_VERIFY_FILE_PERMISSIONS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_WILL_NOT_VERIFY_FILE_PERMISSIONS] ]
@@ -1287,6 +1289,26 @@ proc install_qmaster {} {
                set anykey [wait_for_enter 1]
           }
           ts_send $sp_id $input
+          continue
+       }
+
+       -i $sp_id $GET_COMM_SETTINGS {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(19a)"
+          if {$do_log_output == 1} {
+               puts "-->testsuite: press RETURN (GET_COMM_SETTINGS)"
+               set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "\n"
+          continue
+       }
+
+       -i $sp_id $CHANGE_PORT_QUESTION {
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(19b)"
+          if {$do_log_output == 1} {
+               puts "-->testsuite: press RETURN (CHANGE_PORT_QUESTION)"
+               set anykey [wait_for_enter 1]
+          }
+          ts_send $sp_id "\n"
           continue
        }
 
