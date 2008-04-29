@@ -5220,7 +5220,7 @@ proc config_build_ts_config_1_16 {} {
    set parameter "jmx_ssl"
    set ts_config($parameter)            ""
    set ts_config($parameter,desc)       "JMX SSL server authentication"
-   set ts_config($parameter,default)    "false"
+   set ts_config($parameter,default)    "true"
    set ts_config($parameter,setup_func) "config_$parameter"
    set ts_config($parameter,onchange)   "stop"
    set ts_config($parameter,pos)        $insert_pos
@@ -5230,7 +5230,7 @@ proc config_build_ts_config_1_16 {} {
    set parameter "jmx_ssl_client"
    set ts_config($parameter)            ""
    set ts_config($parameter,desc)       "JMX SSL client authentication"
-   set ts_config($parameter,default)    "false"
+   set ts_config($parameter,default)    "true"
    set ts_config($parameter,setup_func) "config_$parameter"
    set ts_config($parameter,onchange)   "stop"
    set ts_config($parameter,pos)        $insert_pos

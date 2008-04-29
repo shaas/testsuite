@@ -169,11 +169,11 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_QMASTER_WINDOWS_MANAGER" { set value "Please, enter the Windows Administrator name \[Default: Administrator\] >> " }
       "DISTINST_EXECD_WINDOWS_HELPER_SERVICE" { set value "Do you want to install the Windows Helper Service? (y/n) \[n\] >> " }
       "DISTINST_JAVA_HOME"  { set value "Please enter JAVA_HOME or press enter \[%s\] >> " }
-      "DISTINST_ADD_JVM_ARGS"  { set value "Please enter additional JVM arguments (optional) >> " }
+      "DISTINST_ADD_JVM_ARGS"  { set value "Please enter additional JVM arguments (optional, default is \[%s\]) >> " }
       "DISTINST_ENABLE_JMX" { set value "Enable the JMX MBean server in qmaster (y/n) \[n\] >> " }
       "DISTINST_JMX_PORT"   { set value "Please enter an unused port number for the JMX MBean server >> " }
       "DISTINST_JMX_SSL"   { set value "Enable JMX SSL server authentication (y/n) \[y\] >> " }
-      "DISTINST_JMX_SSL_CLIENT"   { set value "Enable JMX SSL client authentication (y/n) \[n\] >> " }
+      "DISTINST_JMX_SSL_CLIENT"   { set value "Enable JMX SSL client authentication (y/n) \[y\] >> " }
       "DISTINST_JMX_SSL_KEYSTORE"   { set value "Enter JMX SSL server keystore path \[%s\] >> " }
       "DISTINST_JMX_SSL_KEYSTORE_PW"   { set value "Enter JMX SSL server keystore pw >> " }
       "DISTINST_JMX_USE_DATA"   { set value "Do you want to use these data (y/n) \[y\] >> " }

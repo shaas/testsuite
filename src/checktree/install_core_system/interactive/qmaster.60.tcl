@@ -185,7 +185,7 @@ proc install_qmaster {} {
 
  # java
  set JMX_JAVA_HOME                [translate_macro DISTINST_JAVA_HOME "*" ]
- set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS]
+ set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS "*"]
  set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
  set JMX_SSL_QUESTION             [translate_macro DISTINST_JMX_SSL]
  set JMX_SSL_CLIENT_QUESTION      [translate_macro DISTINST_JMX_SSL_CLIENT]
