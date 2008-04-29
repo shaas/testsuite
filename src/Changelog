@@ -1,5 +1,6 @@
 LP-2008-04-28-0: Bugfix:    o Fixed smf tests
                  Enhancem.: o jgdi_only tests now run on any cluster host
+                 Review:    JG
 
 MD-2008-04-28-0: Enhamcem.: o added new gettext marcos for installation changes
 
