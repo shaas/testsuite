@@ -1825,8 +1825,8 @@ proc private_start_parallel_sdmadm_command {host_list exec_user info {raise_erro
          }
       }
    }
-   if { $raise_error != 0 && $error_text != ""} {
-      ts_log_severe "error starting parallel sdmadm command:\n$error_text"
+   if { $error_text != ""} {
+      ts_log_severe "error starting parallel sdmadm command:\n$error_text" $raise_error
    }
    return $error_text
 }
@@ -4823,7 +4823,7 @@ proc check_hedeby_process_shutdown { host user run_dir pid_list run_list {raise_
 proc remove_user_from_admin_list { execute_host execute_user user_name {raise_error 1} } {
    set retval 0
    
-   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] rau $user_name" prg_exit_state "" $raise_error]
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] rau -au $user_name" prg_exit_state "" $raise_error]
    set exit_state $prg_exit_state
 
    set params(0) $user_name
@@ -4864,7 +4864,7 @@ proc remove_user_from_admin_list { execute_host execute_user user_name {raise_er
 proc add_user_to_admin_list { execute_host execute_user user_name {raise_error 1} } {
    set retval 0
    
-   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] aau $user_name" prg_exit_state "" $raise_error ]
+   set output [sdmadm_command $execute_host $execute_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] aau -au $user_name" prg_exit_state "" $raise_error ]
    set exit_state $prg_exit_state
 
    set params(0) $user_name

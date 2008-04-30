@@ -1,3 +1,11 @@
+CR-2008-04-30-0: Bugfix:    o fixed hedeby util procedures:
+                               remove_user_from_admin_list() and
+                               add_user_to_admin_list() did not use -au
+                               command line switch.
+                               => fixed manage_admin_user test
+                            o code cleanup (hedeby)
+                              in private_start_parallel_sdmadm_command()
+
 AA-2008-04-29-0: Cleanup:   - JMX ssl set as default
                  Review:    RH
 
