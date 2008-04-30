@@ -1,0 +1,153 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "no"
+set check_name                 "jvms_stress_test"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "jvms start and stop stress test"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "jvms_stress_test_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_function "jvms_stress_test_setup"
+set check_cleanup_function "jvms_stress_test_cleanup"
+
+lappend check_functions "jvms_stress_test_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global jvms_stress_test_current_cluster_config
+
+proc jvms_stress_test_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+proc jvms_stress_test_setup {} {
+   global jvms_stress_test_current_cluster_config
+   set jvms_stress_test_current_cluster_config [get_current_cluster_config_nr]
+}
+
+proc jvms_stress_test_cleanup {} {
+   global jvms_stress_test_current_cluster_config
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $jvms_stress_test_current_cluster_config
+}
+
+#****** jvms/jvms_stress_test_check() *****************************
+#  NAME
+#     jvms_stress_test_check() -- jvms startup/stop stress test
+#
+#  SYNOPSIS
+#     jvms_stress_test_check { } 
+#
+#  FUNCTION
+#     This test is doing following in a loop:
+#     (Number of repeats is equal to variable tries).
+#     1. Stop whole SDM(shutdown all jvms)
+#     2. Start up the SDM system. Check if all expected components are 
+#            running and if they have component state set to STARTED.             
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     util/shutdown_hedeby()
+#     util/startup_hedeby()
+#*******************************************************************************
+proc jvms_stress_test_check {} {
+   global hedeby_config
+   set error_text ""
+   set tries 4
+
+   set ge_qmaster_hosts [get_hedeby_default_services service_names]
+
+   # setup master host expectations ...
+   set master_host $hedeby_config(hedeby_master_host)
+
+   set expected_components(ca,$master_host,state) "STARTED"
+   set expected_components(executor,$master_host,state) "STARTED"
+   set expected_components(resource_provider,$master_host,state) "STARTED"
+   set expected_components(reporter,$master_host,state) "STARTED"
+   set expected_components(spare_pool,$master_host,state) "STARTED"
+
+   # setup managed host expectations ...
+   foreach host [get_all_movable_resources] {
+      if { [lsearch -exact $ge_qmaster_hosts $host] >= 0 } {
+         set expected_components($service_names(service,$host),$host,state) "STARTED"
+      }
+      set expected_components(executor,$host,state) "STARTED"
+   }
+
+   #shutdown and startup of the hedeby 
+   for {set i 0} {$i < $tries} {incr i} {
+      set ret [shutdown_hedeby]
+      if {$ret != 0} {
+        append error_text "There was an error while shutdown the Hedeby system.\n"
+      }
+      set ret [startup_hedeby]
+      if {$ret != 0} {
+        append error_text "There was an error while startup the Hedeby system.\n"
+      }   
+
+      # check if all components are running
+      set ret [wait_for_component_info expected_components]
+      if {$ret != 0} {
+        append error_text "The running components state is different than expected.\n"
+      }
+   }
+
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+

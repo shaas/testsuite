@@ -1965,7 +1965,7 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
 #     1 - on error
 #
 #  NOTES
-#     Currently this proceder doesn't check if the processes are runing after
+#     Currently this procedure doesn't check if the processes are runing after
 #     startup and if the pid files were written! (see TODOs)
 #
 #  SEE ALSO
@@ -1992,10 +1992,6 @@ proc startup_hedeby_hosts { type host_list user } {
    }
 
    ts_log_fine "starting up hedeby host(s): $host_list"
-
-   # TODO: add more checking for "managed" and "master"
-   # TODO: test with get_ps_info if the processes have started
-   # TODO: check that all pid are written and no one is missing
 
    # turn off security if enabled
    if { $hedeby_config(security_disable) == "true" } {
@@ -2066,7 +2062,24 @@ proc startup_hedeby_hosts { type host_list user } {
                        }
                    }               
                }
+               # get run directory
+               set run_dir [get_hedeby_local_spool_dir $host_tmp]
+               append run_dir "/run"
+               set pid_list {}
+               
+               get_jvm_pidlist $host_tmp $user $run_dir pid_list run_list
+
+               # check if processes exists for the given pid numbers.
+               foreach pid $pid_list {
+                    set is_pid_running [is_hedeby_process_running $host_tmp $pid]
+                    if {$is_pid_running != 1} {
+                        append error_text "The process is not running for $pid pid number\n"
+                    } else {
+                        ts_log_fine "Process for pid $pid is running"
+                    }
+               }
             }
+
             set expected_count 0
             foreach expect_c $expected_jvms($host_tmp) {
                 incr expected_count
@@ -2117,8 +2130,24 @@ proc startup_hedeby_hosts { type host_list user } {
                            }
                        }
                    }               
-               }
+                }
+                set run_dir [get_hedeby_local_spool_dir $host_tmp]
+                append run_dir "/run"
+                set pid_list {}
+                
+                get_jvm_pidlist $host_tmp $user $run_dir pid_list run_list
+
+                # check if processes exists for the given pid numbers.
+                foreach pid $pid_list {
+                    set is_pid_running [is_hedeby_process_running $host_tmp $pid]
+                    if {$is_pid_running != 1} {
+                        append error_text "The process is not running for $pid pid number\n"
+                    } else {
+                        ts_log_fine "Process for pid $pid is running"
+                    }
+                }
             }
+
             set expected_count 0
             foreach expect_c $expected_jvms($host_tmp) {
                 incr expected_count
@@ -2130,11 +2159,11 @@ proc startup_hedeby_hosts { type host_list user } {
                append error_text "\"$output\"\n"
                append error_text "The expected output doesn't match expected number of jvms: $match_count .\n"
                
-            }        
+            }
          }
       }
    }
-
+   
    if { $error_text != "" } {
       add_proc_error "startup_hedeby_hosts" -1 $error_text
       return 1
@@ -4393,7 +4422,7 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
    set jvm_col          [lindex $exp_columns 1]
    set type_col         [lindex $exp_columns 3]
    set host_col         [lindex $exp_columns 0]
-
+   
    # now we fill up the arrays ... 
    set cinfo(component_list) {}
    # set cinfo($component_id,host) {}
