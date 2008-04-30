@@ -216,7 +216,7 @@ proc ambiguous_resource_reset_check {} {
 
                 # build expected output message from bundle properties file ... 
                 set xyz(0) "$rst*"
-                set expected_output [create_bundle_string "rm.error.non_unique_res" xyz]
+                set expected_output [create_bundle_string "rm.resr.non_unique_res" xyz]
                 ts_log_fine "expected output: $expected_output"
                 # get sdmadm output message string ...
                 set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
