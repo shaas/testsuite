@@ -1,3 +1,6 @@
+AP-2008-05-05-0: Enhancem.: adding messages for license agreement to ARCo
+                            installation checks
+
 MG-2008-04-30-0: Enhancem.: o Added new test: "cli/comp_lifecycle/jvms/check.62.exp"
                               (Part 1/8 of hedeby issue #233)
                               (Need test for restarts of the components)

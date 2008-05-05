@@ -93,7 +93,9 @@ proc arco_dbwriter_install {} {
          return -1
       }
    }
-   
+
+   set LICENSE_AGREEMENT            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_LICENSE_AGREEMENT] ]
+   set ANSWER_YES                   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
    set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
    set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
    set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
@@ -124,7 +126,15 @@ proc arco_dbwriter_install {} {
              ts_log_severe "install_dbwriter - buffer overflow, increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
              incr error_count 1
              break
-          }   
+          }
+          -i $sp_id "More" {
+             ts_send $sp_id " "
+             continue
+          }
+          -i $sp_id $LICENSE_AGREEMENT { 
+             ts_send $sp_id "$ANSWER_YES\n"
+             continue
+          }
           -i $sp_id eof { 
              ts_log_severe "install_dbwriter - unexpected eof"
              incr error_count 1
@@ -211,6 +221,10 @@ proc arco_dbwriter_install {} {
           }
           -i $sp_id "Should the connection to the database be tested? (y/n) * >> " {
              send_to_spawn_id $sp_id "y"
+             continue
+          }
+          -i $sp_id "Do you want to use the existing dbwriter configuration file? (y/n) * >> " {
+             send_to_spawn_id $sp_id "n"
              continue
           }
           -i $sp_id "Do you want to repeat database connection setup*>> " {
