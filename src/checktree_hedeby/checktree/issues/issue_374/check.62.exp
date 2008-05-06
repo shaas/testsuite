@@ -1,0 +1,171 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "no"
+set check_name                 "RP_add_resource_stress_test"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "jvms start and stop stress test"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "RP_add_resource_stress_test_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_function "RP_add_resource_stress_test_setup"
+set check_cleanup_function "RP_add_resource_stress_test_cleanup"
+
+lappend check_functions "RP_add_resource_stress_test_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global RP_add_resource_stress_test_current_cluster_config
+
+proc RP_add_resource_stress_test_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+proc RP_add_resource_stress_test_setup {} {
+   global RP_add_resource_stress_test_current_cluster_config
+   set RP_add_resource_stress_test_current_cluster_config [get_current_cluster_config_nr]
+}
+
+#****** issue_374/RP_add_resource_stress_test_cleanup() *************************
+#  NAME
+#     RP_add_resource_stress_test_cleanup() -- ??? 
+#
+#  SYNOPSIS
+#     RP_add_resource_stress_test_cleanup { } 
+#
+#  FUNCTION
+#     Remove used spare_pool resource again and add it with correct properties
+#     by using add_host_resources() procedure
+#*******************************************************************************
+proc RP_add_resource_stress_test_cleanup {} {
+   global RP_add_resource_stress_test_current_cluster_config
+   global hedeby_config
+
+   set host $hedeby_config(hedeby_master_host)
+   set user [get_hedeby_admin_user]
+   set sysType [get_hedeby_pref_type]
+   set sysName [get_hedeby_system_name]
+   set spare_pool_resource [lindex [get_all_spare_pool_resources] 0]
+
+   ts_log_fine "Removing spare_pool resource \"$spare_pool_resource\" ..."
+   sdmadm_command $host $user "-p $sysType -s $sysName rr -r $spare_pool_resource"
+
+   ts_log_fine "Re-add spare_pool resource \"$spare_pool_resource\" ..."
+   if {[add_host_resources $spare_pool_resource] != 0} {
+      reset_hedeby 1
+   }
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $RP_add_resource_stress_test_current_cluster_config
+}
+
+#****** issue_374/RP_add_resource_stress_test_check() *****************************
+#  NAME
+#     RP_add_resource_stress_test_check() -- jvms startup/stop stress test
+#
+#  SYNOPSIS
+#     RP_add_resource_stress_test_check { } 
+#
+#  FUNCTION
+#     This test is doing following in a loop:
+#     1. remove first spare_pool resource
+#     2. Stop rp_vm on resouce_provider host
+#     3. Startup rp_vm and re-add spare_pool_resource
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     util/shutdown_hedeby()
+#     util/startup_hedeby()
+#*******************************************************************************
+proc RP_add_resource_stress_test_check {} {
+   global hedeby_config
+   set tries 5
+
+   set spare_pool_resource [lindex [get_all_spare_pool_resources] 0]
+   set host $hedeby_config(hedeby_master_host)
+   set user [get_hedeby_admin_user]
+   set sysType [get_hedeby_pref_type]
+   set sysName [get_hedeby_system_name]
+   for {set i 0} {$i < $tries} {incr i} {
+
+      ts_log_fine "Removing spare_pool resource \"$spare_pool_resource\" ..."
+      sdmadm_command $host $user "-p $sysType -s $sysName rr -r $spare_pool_resource"
+
+      ts_log_fine "Shutting down rp_vm on host \"$host\" ..."
+      sdmadm_command $host $user "-p $sysType -s $sysName sdj -j rp_vm -h $host"
+
+      read_hedeby_jvm_pid_info pid_info $host $user "rp_vm"
+      set pid $pid_info(pid)
+      set my_timeout [timestamp]
+      incr my_timeout 60
+      while { 1 } {
+         ts_log_fine "Waiting for shutdown of process \"$pid\" ..."
+         if { [is_hedeby_process_running $host $pid] == 0 } {
+            ts_log_fine "Process not found - fine!"
+            break
+         }
+         if { [timestamp] > $my_timeout} {
+            ts_log_severe "Timeout while waiting for shutdown of rp_vm on host $host!"
+            break
+         }
+         after 1000
+      }
+      
+      ts_log_fine "Startup rp_vm on host \"$host\" ..."
+      sdmadm_command $host $user "-p $sysType -s $sysName suj -j rp_vm"
+
+      ts_log_fine "Re-Add resource \"$spare_pool_resource\" to spare_pool ..."
+      sdmadm_command $host $user "-p $sysType -s $sysName ar -r $spare_pool_resource"
+   }
+}
+

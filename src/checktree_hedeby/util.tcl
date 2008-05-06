@@ -2751,11 +2751,15 @@ proc hedeby_check_default_resources {} {
       ts_log_finer "GE arch \"$osArch\" is mapped to props:"
       foreach name [array names res_prop] {
          ts_log_finer "   $name=$res_prop($name)"
-         if { $reported_props($res,$name) != $res_prop($name) } {
-            append error_text "resource \"$res\" reported property \"$name\" with\n"
-            append error_text "value \"$reported_props($res,$name)\", should be \"$res_prop($name)\"\n"
+         if {[info exists reported_props($res,$name)]} {
+            if { $reported_props($res,$name) != $res_prop($name) } {
+               append error_text "resource \"$res\" reported property \"$name\" with\n"
+               append error_text "value \"$reported_props($res,$name)\", should be \"$res_prop($name)\"\n"
+            } else {
+               ts_log_fine "resource \"$res\" has property \"$name\" set to \"$res_prop($name)\" - fine!"
+            }
          } else {
-            ts_log_fine "resource \"$res\" has property \"$name\" set to \"$res_prop($name)\" - fine!"
+            append error_text "resource \"$res\" property \"$name\" is missing!\n"
          }
       }
    }

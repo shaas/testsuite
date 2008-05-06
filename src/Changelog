@@ -1,3 +1,8 @@
+CR-2008-05-06-0: Enhancem.: o Added hedeby test for issue 374:
+                              issues/issue_374/check.62.exp
+                 Bugfix:    o Fixed possible tcl error in reset_hedeby()
+                 Review:    AA
+
 DG-2008-05-06-0: Enhancem.: JDRMAA test: Added additional tests for different 
                             Java versions on different hosts with different 
                             libraries depending on the current runlevel. 
