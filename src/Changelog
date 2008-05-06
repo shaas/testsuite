@@ -1,3 +1,8 @@
+DG-2008-05-06-0: Enhancem.: JDRMAA test: Added additional tests for different 
+                            Java versions on different hosts with different 
+                            libraries depending on the current runlevel. 
+                 Review:    JG 
+
 AP-2008-05-05-0: Enhancem.: adding messages for license agreement to ARCo
                             installation checks
 
