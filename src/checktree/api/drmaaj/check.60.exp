@@ -142,7 +142,7 @@ proc drmaaj_init_level {} {
                # long runlevel: check DRMAA-J 1.0 library with DRMAA-C 1.0 library
                # - check lowest Java version (starting: 1.4)
                # - check only one host  
-               return -1
+               return 0
             } else {
                return -1
             }
@@ -152,11 +152,11 @@ proc drmaaj_init_level {} {
                # long runlevel: check DRMAA-J 0.5 library with DRMAA-C 0.95 library 
                # - check all Java versions available 
                # - check only one host  
-               return 0/
+               return 0
          } else {
                return -1
          }
-     } 
+     }
      "201" {
            if {$ts_config(gridengine_version) < 62} {
                # long runlevel: check DRMAA-J 0.5 library with DRMAA-C 1.0 library
@@ -180,7 +180,7 @@ proc drmaaj_init_level {} {
      "203" {
            if {$ts_config(gridengine_version) >= 61} {
                # long runlevel: check DRMAA-J 1.0 library with DRMAA-C 1.0 library
-               #ä- check all Java versions available 
+               # - check all Java versions available 
                # - check only one host  
                return 0
             } else {
@@ -221,7 +221,7 @@ proc drmaaj_init_level {} {
            if {$ts_config(gridengine_version) >= 61} {
                # long runlevel: check DRMAA-J 1.0 library with DRMAA-C 1.0 library
                # - check all available Java versions
-               #ä- check all Java versions available 
+               # - check all Java versions available 
                # - check one host of each architecture
               return 0
             } else {
@@ -271,25 +271,25 @@ proc set_hosts_for_runlevel {} {
           set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "101"   {
-          lappend hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
+          set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "102"   {
-          lappend hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
+          set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "103"   {
-          lappend hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
+          set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "200"   {
-          lappend hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
+          set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "201"   {
-          lappend hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
+          set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "202"   {
-          lappend hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
+          set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "203"   {
-          lappend hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
+          set hosts_in_runlevel_local [host_conf_get_suited_hosts 1 {} {} "win32-x86"]
       }
      "300" {
          foreach host $ts_config(unique_arch_nodes) {
