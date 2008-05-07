@@ -1616,7 +1616,7 @@ proc check_ant_version { host ant_bin } {
 #
 #*******************************************************************************
 proc autodetect_ant { host } {
-   global CHECK_USER CHECK_OUTPUT ts_host_config
+   global CHECK_USER CHECK_OUTPUT ts_host_config ts_config
    set ant_bin [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "ant" prg_exit_state 12 0 "" myenv 1 0]
    set ant_bin [string trim $ant_bin]
    if { $prg_exit_state != 0 } {
