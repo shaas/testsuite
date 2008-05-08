@@ -235,6 +235,7 @@ proc install_qmaster {} {
  }
 
  set do_stop 0
+ set found_darwin_more 0
  while {! $do_stop} {
     log_user 1
     flush $CHECK_OUTPUT
@@ -1220,6 +1221,34 @@ proc install_qmaster {} {
           ts_send $sp_id " "
           continue
        }
+
+
+       #  This is for More license output on darwin
+       -i $sp_id "LICENSE ??%" {
+          set found_darwin_more 1
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >space< (darwin)"
+          if {$do_log_output == 1} {
+               puts "press RETURN"
+               gets stdin anykey
+          }
+
+          ts_send $sp_id " "
+          continue
+       }
+
+       # Also for darwin: First "more" will print file name, second only percentage of file
+       -i $sp_id "\[0-9\]%" {
+          if { $found_darwin_more } {
+             puts $CHECK_OUTPUT "\n -->testsuite: sending >space< (darwin)"
+             if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  gets stdin anykey
+             }
+             ts_send $sp_id " "
+          }
+          continue
+       }
+
 
        -i $sp_id "Error:" {
           add_proc_error "install_qmaster" "-1" "$expect_out(0,string)"
