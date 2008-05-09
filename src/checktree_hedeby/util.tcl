@@ -4566,6 +4566,8 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
                        ts_log_fine ".....found \"$name\", sending \"$tasks($name)\" ..."
                        ts_send $sp_id "$tasks($name)\n"
                     } else {
+                       ts_log_fine "waiting for a view seconds before sending root password ..."
+                       after 5000
                        log_user 0  ;# in any case before sending password
                        ts_send $sp_id "[get_root_passwd]\n" "" 1
                        log_user 1

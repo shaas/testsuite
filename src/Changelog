@@ -1,3 +1,15 @@
+CR-2008-05-08-1: Bugfix:    o Fix in hedeby_checktree proc sdmadm_command():
+                              wait 5 seconds before sending root password
+                              (sometimes the first character of password goes
+                               to stdout)
+                            o Fix in hedeby_checktree test:
+                              cli/manage_admin_user
+                              - using util procedures for shutdown/startup of
+                                master host jvms
+                              - using command sc -h MASTERHOST, not general
+                                sc command
+                 Review:    ??
+
 DG-2008-05-09-0: Cleanup:   Additional runlevels for DRMAA C test wrapper
                             added. 
                  Review:    JG
