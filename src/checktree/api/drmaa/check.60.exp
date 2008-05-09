@@ -44,7 +44,6 @@ global env
 
 set check_root_access_needs "yes"
 
-
 # define a level initialization procedure:
 set check_init_level_procedure "drmaa_init_level"
 
@@ -52,8 +51,11 @@ set check_init_level_procedure "drmaa_init_level"
 set check_name            "drmaa"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   201
-set check_description(200)  "tests to verify DRMAA 0.95 library"
-set check_description(201)  "tests to verify DRMAA 1.0 library"
+set check_description(0)    "tests available DMRAA lib on one arbitrary host" 
+set check_description(100)  "SGE < 6.2: tests to verify DRMAA 0.95 library on one host"
+set check_description(101)  "tests to verify DRMAA 1.0 library on one host"
+set check_description(200)  "SGE < 6.2: tests to verify DRMAA 0.95 library on one host of each architecture available"
+set check_description(201)  "tests to verify DRMAA 1.0 library on one host of each architecture available"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
@@ -82,27 +84,39 @@ proc drmaa_init_level {} {
   # returning -1 causes disabling a certain runlevel
   # here per run level settings can be prepared
   switch -- $CHECK_ACT_LEVEL {
-     "200" {
+     "0" {
+         return 0 
+      }
+      "100" {
         if {$ts_config(gridengine_version) < 62} {
-           return 0;
+           return 0
         } else {
-           return -1;
+           return -1
         }
-     }
-     "201" {
+      }
+      "101" {
+         return 0
+      }
+      "200" {
+        if {$ts_config(gridengine_version) < 62} {
+           return 0
+        } else {
+           return -1
+        }
+      }
+      "201" {
         return 0
-     }
+      }
   } 
   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
-
 global drmaa_test_scenario_settings
 global drmaa_binary_name
 
 proc drmaa_setup {} {
-   global drmaa_config current_drmaa_mode ts_config
+   global drmaa_config current_drmaa_mode ts_config host_list
 
    # must forbit reschedule on job exiting with 99 
    # must forbit job error upon job exiting with 100
@@ -116,10 +130,6 @@ proc drmaa_setup {} {
    set new_config(delegated_file_staging) "true"
    set_config new_config
 
-   # setup file staging scripts
-   foreach host $ts_config(unique_arch_nodes) {
-      set current_drmaa_mode($host) [get_current_drmaa_mode $host]
-   }
 }
 
 # undo what we've done in drmaa_setup
@@ -131,45 +141,219 @@ proc drmaa_cleanup  {} {
 
    # undo configuration changes that were made for this test
    set_config drmaa_config
-
-   # restore DRMAA library version
-   foreach host $ts_config(unique_arch_nodes) {
-      drmaa_redirect_lib $current_drmaa_mode($host) $host
-   }
 }
 
+   
 
+#****** check.60/drmaa_setup_level() *******************************************
+#  NAME
+#     drmaa_setup_level() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_setup_level { } 
+#
+#  FUNCTION
+#     Setup runlevel. 
+#
+#  INPUTS
+#
+#  RESULT
+#      
+#  NOTES
+#     Setup of the level host list and store current drmaa mode for backup. 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
 proc drmaa_setup_level {} {
    global drmaa_test_scenario_settings drmaa_binary_name
    global CHECK_ACT_LEVEL check_description ts_config
+   # global list with all hosts to test in this runlevel
+   global level_host_list
+   # save the current drmaa lib mode 
+   global current_drmaa_mode 
 
    ts_log_fine "setup level $CHECK_ACT_LEVEL: $check_description($CHECK_ACT_LEVEL)"
 
    set drmaa_test_scenario_settings(level) $CHECK_ACT_LEVEL
    set drmaa_test_scenario_settings(level_name) $check_description($CHECK_ACT_LEVEL)
-   foreach host $ts_config(unique_arch_nodes) {
-      if {$CHECK_ACT_LEVEL == 200} {
-         drmaa_redirect_lib "0.95" $host
-         set drmaa_binary_name "test_drmaa.0.95"
-      } else {
-         drmaa_redirect_lib "1.0" $host
-         set drmaa_binary_name "test_drmaa.1.0"
+
+   # generate host list according to level 
+   set level_host_list [set_hosts_for_runlevel]
+   
+   # store drmaa mode of the hosts use in this level 
+   foreach host $level_host_list {
+      set current_drmaa_mode($host) [get_current_drmaa_mode $host]
+   }
+
+   # redirect DRMAA mode 
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         if {$ts_config(gridengine_version) < 62} {
+            drmaa_redirect_lib "0.95" $host
+            set drmaa_binary_name "test_drmaa.0.95"
+         } else {
+            drmaa_redirect_lib "1.0" $host 
+            set drmaa_binary_name "test_drmaa.1.0"     
+         }
+      }
+      "100" {
+         foreach host $level_host_list {
+            drmaa_redirect_lib "0.95" $host
+            set drmaa_binary_name "test_drmaa.0.95"
+         }
+      }
+      "101" {
+         foreach host $level_host_list {
+            drmaa_redirect_lib "1.0" $host 
+            set drmaa_binary_name "test_drmaa.1.0"        
+         } 
+      }
+      "200" {
+         foreach host $level_host_list {
+            drmaa_redirect_lib "0.95" $host
+            set drmaa_binary_name "test_drmaa.0.95"
+         }
+      }
+      "201" {
+         foreach host $level_host_list {
+            drmaa_redirect_lib "1.0" $host 
+            set drmaa_binary_name "test_drmaa.1.0"        
+         } 
       }
    }
+
 }
 
 
+#****** check.60/drmaa_cleanup_level() *****************************************
+#  NAME
+#     drmaa_cleanup_level() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_cleanup_level { } 
+#
+#  FUNCTION
+#     Do cleanup for current runlevel. Unset links to the library.
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
 proc drmaa_cleanup_level {} {
-   global CHECK_ACT_LEVEL check_description
+   global CHECK_ACT_LEVEL check_description 
+   # list with all hosts used in this runlevel
+   global level_host_list
+   # list with drmaa versions stored at the beginning of the test
+   global current_drmaa_mode
+
    ts_log_fine "cleanup level $CHECK_ACT_LEVEL: $check_description($CHECK_ACT_LEVEL)"
+
+   # go through level host list and restore test_drmaa again 
+   foreach host $level_host_list {
+      drmaa_redirect_lib $current_drmaa_mode($host) $host
+   }
+
+   # clear level host list to avoid redirection of old hosts 
+   unset level_host_list
 }
 
 
-proc drmaa_check_single_threaded_part_01 {} {
-   global ts_config CHECK_ACT_LEVEL
-   global CHECK_USER drmaa_binary_name
 
-   foreach host $ts_config(unique_arch_nodes) {
+
+#****** check.60/set_hosts_for_runlevel() **************************************
+#  NAME
+#     set_hosts_for_runlevel() -- ??? 
+#
+#  SYNOPSIS
+#     set_hosts_for_runlevel { } 
+#
+#  FUNCTION
+#     Sets a list of hosts to perform tests on depending from the current runlevel. 
+#
+#  INPUTS
+#
+#  RESULT
+#     List of hosts which can used in the current runlevel. 
+#
+#  NOTES
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc set_hosts_for_runlevel {} {
+   global CHECK_ACT_LEVEL ts_config 
+
+   set hosts_in_runlevel {}
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+        lappend hosts_in_runlevel [host_conf_get_suited_hosts]
+      }
+      "100" {
+        lappend hosts_in_runlevel [host_conf_get_suited_hosts] 
+      }
+      "101" {
+        lappend hosts_in_runlevel [host_conf_get_suited_hosts]
+      }
+      "200" {
+        foreach host $ts_config(unique_arch_nodes) {
+            lappend hosts_in_runlevel $host 
+        } 
+      }
+      "201" {
+        foreach host $ts_config(unique_arch_nodes) {
+            lappend hosts_in_runlevel $host 
+        } 
+      }
+   }
+
+   return $hosts_in_runlevel
+}
+
+#****** check.60/drmaa_check_single_threaded_part_01() *************************
+#  NAME
+#     drmaa_check_single_threaded_part_01() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_check_single_threaded_part_01 { hostlist } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc drmaa_check_single_threaded_part_01 { } {
+   global ts_config CHECK_ACT_LEVEL
+   global CHECK_USER drmaa_binary_name level_host_list 
+
+   foreach host $level_host_list {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
       set drmaa_preamble [drmaa_resolve_preamble $host]
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
@@ -192,11 +376,34 @@ proc drmaa_check_single_threaded_part_01 {} {
 }
 
 
-proc drmaa_check_single_threaded_part_02 {} {
-   global ts_config
-   global CHECK_USER
+#****** check.60/drmaa_check_single_threaded_part_02() *************************
+#  NAME
+#     drmaa_check_single_threaded_part_02() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_check_single_threaded_part_02 { hostlist } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc drmaa_check_single_threaded_part_02 { } {
+   global ts_config CHECK_USER level_host_list
 
-   foreach host $ts_config(unique_arch_nodes) {
+   foreach host $level_host_list {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
 
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
@@ -224,7 +431,6 @@ proc drmaa_check_single_threaded_part_02 {} {
          drmaa_test $host $binary_path $st_test ""
       }
     
-
       # -- tests to ensure control operations on session without jobs result in DRMAA_ERRNO_SUCCESS 
       set test_scenario {}
       lappend test_scenario "DRMAA_CONTROL_SUSPEND"
@@ -240,11 +446,31 @@ proc drmaa_check_single_threaded_part_02 {} {
 }
 
 
-proc drmaa_check_single_threaded_part_03 {} {
-   global ts_config
-   global CHECK_USER
+#****** check.60/drmaa_check_single_threaded_part_03() *************************
+#  NAME
+#     drmaa_check_single_threaded_part_03() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_check_single_threaded_part_03 { hostlist } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc drmaa_check_single_threaded_part_03 { } {
+   global ts_config CHECK_USER level_host_list
 
-   foreach host $ts_config(unique_arch_nodes) {
+   foreach host $level_host_list {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
 
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
@@ -296,17 +522,35 @@ proc drmaa_check_single_threaded_part_03 {} {
    }
 }
 
+#****** check.60/drmaa_check_single_threaded_part_04() *************************
+#  NAME
+#     drmaa_check_single_threaded_part_04() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_check_single_threaded_part_04 { hostlist } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc drmaa_check_single_threaded_part_04 { } {
+   global ts_config CHECK_USER level_host_list
 
-proc drmaa_check_single_threaded_part_04 {} {
-   global ts_config
-   global CHECK_USER
-
-   foreach host $ts_config(unique_arch_nodes) {
+   foreach host $level_host_list {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
 
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
       ts_log_fine "host is $host has arch $compile_arch_mt mt bin path $binary_path"
-
 
       # -- tests with a <exit_arg_job> argument
       set test_scenario {}
@@ -316,7 +560,6 @@ proc drmaa_check_single_threaded_part_04 {} {
          ts_log_fine "starting single threaded test $ste_test"
          drmaa_test $host $binary_path $ste_test $ts_config(testsuite_root_dir)/scripts/exit.sh
       }
-
 
       # -- tests with <exit_arg_job> and <email_addr> arguments
       # need to add the entry "test.cat -N ExitTest -h" to qtask file
@@ -330,12 +573,31 @@ proc drmaa_check_single_threaded_part_04 {} {
    }
 }
 
+#****** check.60/drmaa_check_multi_threaded() **********************************
+#  NAME
+#     drmaa_check_multi_threaded() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_check_multi_threaded { hostlist } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc drmaa_check_multi_threaded { } {
+   global ts_config CHECK_USER level_host_list
 
-proc drmaa_check_multi_threaded {} {
-   global ts_config
-   global CHECK_USER
-
-   foreach host $ts_config(unique_arch_nodes) {
+   foreach host $level_host_list {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
 
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
@@ -357,14 +619,35 @@ proc drmaa_check_multi_threaded {} {
 }
 
 
-proc drmaa_check_additional_interfaces {} {
+#****** check.60/drmaa_check_additional_interfaces() ***************************
+#  NAME
+#     drmaa_check_additional_interfaces() -- ??? 
+#
+#  SYNOPSIS
+#     drmaa_check_additional_interfaces { hostlist } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc drmaa_check_additional_interfaces { } {
    global ts_config CHECK_ACT_LEVEL
-   global CHECK_USER drmaa_binary_name
+   global CHECK_USER drmaa_binary_name level_host_list
 
    # shutdown qmaster
    shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir] 
 
-   foreach host $ts_config(unique_arch_nodes) {
+   foreach host $level_host_list {
       set compile_arch_mt [resolve_build_arch_installed_libs $host]
       set binary_path "$ts_config(source_dir)/$compile_arch_mt"
       set drmaa_preamble [drmaa_resolve_preamble $host]
@@ -619,7 +902,7 @@ proc drmaa_test_failing_control_operations { host binary_path } {
 #     drmaa_resolve_preamble { host }
 #
 #  FUNCTION
-#     This function returns a string which contains the oprtations which should
+#     This function returns a string which contains the operations which should
 #     be done before running test_drmaa on the given host.
 #
 #  INPUTS
@@ -635,7 +918,7 @@ proc drmaa_resolve_preamble { host } {
 
    set compile_arch_mt [resolve_build_arch_installed_libs $host]
 
-   if {$CHECK_ACT_LEVEL == 200} {
+   if {$CHECK_ACT_LEVEL == 200 || $CHECK_ACT_LEVEL == 100} {
       # On architectures that don't support SONAME, the test_drmaa.0.95
       # binary will store a reference to libdrmaa95.so instead of
       # libdrmaa.so.0.95.  Because libdrmaa95 only exists in the source
