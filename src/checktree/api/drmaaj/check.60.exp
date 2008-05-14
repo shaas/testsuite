@@ -736,6 +736,7 @@ proc drmaaj_check { } {
          ts_log_fine "Java binary to check is: $java"
          
          # check if the current JVM has 32 bit and 64 bit capabilities  
+         # -----------------------------------------------------------
          if {"yes" == [has_JVM_d32_d64_flag $host $java]} { 
 
             # check if we have to check 32 bit libs in case of 64 JVM
@@ -745,12 +746,13 @@ proc drmaaj_check { } {
                # set the 32 bit library path explicitly 
                set java_lib_path_to_32_bit [get_java_library_path $host $binary_arch]
                if {$java_lib_path_to_32_bit == ""} {
-                  §ts_log_fine "Aborting 32 bit library test it seems that there is no library installed or there is no valid mapping in test.tcl."
+                  ts_log_fine "Aborting 32 bit library test it seems that there is no library installed or there is no valid mapping in test.tcl"
                } else {
                   # check the 32 bit lib 
                   set options_for_32_bit_test_on_64_bit "-d32 $java_lib_path_to_32_bit $options" 
             
                   # do an additional test -> 32 bit lib on 64 bit jvm 
+                  ts_log_fine "Perform: $host $java $options_for_32_bit_test_on_64_bit junit.textui.TestRunner DrmaaSuite"
                   set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test_on_64_bit junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
                   if {$prg_exit_state != 0} {
@@ -765,8 +767,36 @@ proc drmaaj_check { } {
             set java_options " $options $java_lib_path " 
          } 
 
+         # special case: 64 bit OS --> 32 bit JVM --> it is loading 64 bit native lib!
+         # try to use 32 bit lib
+         # ---------------------------------------------------------------------------
+         if {[is_64_bit_OS $binary_arch] == "true" && [is_32_bit_jvm $host $java] == "true"} {
+            ts_log_fine "SPECIAL TEST BECAUSE 64 BIT OS AND 32 BIT JVM"
+
+            # try to find the path to the 32 bit lib 
+            # set the 32 bit library path explicitly 
+            set java_lib_path [get_java_library_path $host $binary_arch]
+
+            if {$java_lib_path == "" } { 
+                ts_log_fine "Aborting the test: no native 32 bit lib found for the 32 bit JVM on a 64 bit arch" 
+            } else {
+                # check the 32 bit lib 
+                set options_for_32_bit_test "$java_lib_path $options" 
+            
+                # do an additional test -> 32 bit lib on 32 bit jvm 
+                ts_log_fine "Perform: $host $java $options_for_32_bit_test junit.textui.TestRunner DrmaaSuite" 
+                set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
+
+                if {$prg_exit_state != 0} { 
+                   ts_log_severe "DRMAA-J jUnit test for 32 bit lib on 32 bit JVM and 64 bit host failed at host $host:\n$test_output"
+                }
+             }
+            continue 
+         }
+
          # start JUnit DRMAA test
-         ts_log_fine "Starting VM: $java $java_options junit.textui.TestRunner DrmaaSuite"
+         # ----------------------
+         ts_log_fine "Perform: $host $java $java_options junit.textui.TestRunner DrmaaSuite"
          
          set test_output [start_remote_prog $host $CHECK_USER $java "$java_options junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
@@ -778,6 +808,102 @@ proc drmaaj_check { } {
    } 
    # repeat: check all hosts from hostlist 
 }
+
+
+#****** check.60/is_32_bit_jvm() ***********************************************
+#  NAME
+#     is_32_bit_jvm() -- ??? 
+#
+#  SYNOPSIS
+#     is_32_bit_jvm { host jvm } 
+#
+#  FUNCTION
+#     Checks if the given JVM is a 64 bit JVM or not. 
+#
+#  INPUTS
+#     host - Name of host with the JVM  
+#     jvm  - Path to the JVM on the host. 
+#
+#  RESULT
+#     "true" if the JVM is a 64 bit JVM; "false" if not 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc is_32_bit_jvm {host jvm} {
+
+   if {[has_JVM_d32_d64_flag $host $jvm] == "true"} {
+      # it is likely a 64 bit JVM 
+      return "false"
+   } else {
+      # it seems to be a 32 bit JVM 
+      return "true"
+   }
+}
+
+
+#****** check.60/is_64_bit_OS() ************************************************
+#  NAME
+#     is_64_bit_OS() -- ??? 
+#
+#  SYNOPSIS
+#     is_64_bit_OS { binary_arch } 
+#
+#  FUNCTION
+#     Checks an arch string if it represents a 64 bit architecture or not.  
+#
+#  INPUTS
+#     binary_arch - Arch string to check. 
+#
+#  RESULT
+#     "true" if the given arch string represents a 64 bit os otherwise false. 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc is_64_bit_OS {binary_arch} {
+   
+   # check if it is a 64 bit OS
+   switch -- $binary_arch {
+      "sol-amd64" {
+         return "true" 
+      }
+      "lx26-amd64" {
+         return "true" 
+      }
+      "sol-sparc64" {
+         return "true" 
+      } 
+      "lx24-amd64" {
+         return "true" 
+      }
+      "lx24-ia64" {
+         return "true" 
+      }
+      "hp11-64" {
+         return "true" 
+      }
+   }
+      
+   # is not a 64 bit OS
+   return "false"
+}
+
 
 
 #****** check.60.exp/get_java_library_path() ************************************************
@@ -802,6 +928,7 @@ proc drmaaj_check { } {
 #     ???/???
 #*******************************
 proc get_java_library_path {host binary_arch} {
+   global ts_config env
    # figure out where the 32 bit library resides 
    set arch_dir ""
 
@@ -809,7 +936,7 @@ proc get_java_library_path {host binary_arch} {
    switch -- $binary_arch {
       "sol-amd64" {
          set arch_dir "sol-x86"
-       }
+      }
       "lx26-amd64" {
          set arch_dir "lx26-x86"
       }
@@ -868,6 +995,12 @@ proc has_JVM_d32_d64_flag {host java_bin_path} {
       # output doesn't contain d32 
       return "no" 
   }  
+  set java_switch "d64"
+  if {[string first $java_switch $test_output] == -1} {
+      # output doesn't contain d64 
+      return "no" 
+  }  
+
    # contains a -d32 switch 
    # some new Java versions 1.5 or JDK 6 
    # may have a -d32 -d64 flag but -d64 is not supported 

@@ -1,3 +1,7 @@
+DG-2008-05-14-0: Cleanup:   Fix for special cases in jdrmaa tests on 64 bit 
+                            platforms with 32 bit JVM. 
+                 Review:    JG 
+
 CR-2008-05-08-1: Bugfix:    o Fix in hedeby_checktree proc sdmadm_command():
                               wait 5 seconds before sending root password
                               (sometimes the first character of password goes
