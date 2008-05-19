@@ -1,3 +1,9 @@
+DG-2008-05-19-0: Cleanup:   Because aimk now supports building 32 bit binaries
+                            on 64 bit HP the testsuite was updated so that the
+                            compile architecture for 32 bit HP is now set to 
+                            64 bit HP.
+                 Review:    RD 
+
 DG-2008-05-14-0: Cleanup:   Fix for special cases in jdrmaa tests on 64 bit 
                             platforms with 32 bit JVM. 
                  Review:    JG 

@@ -280,6 +280,11 @@ proc compile_unify_host_list {host_list} {
 #*******************************************************************************
 proc compile_search_compile_host {arch} {
    global ts_host_config
+   
+   # special case for HP11-64: it is now compile host for HP11
+   if { $arch == "hp11"} {
+      set arch "hp11-64"
+   }
 
    foreach host $ts_host_config(hostlist) {
       if {[host_conf_get_arch $host] == $arch && \
