@@ -1,0 +1,162 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "no"
+set check_name                 "ca_restart_test"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "cs restart test"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "ca_restart_test_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_function "ca_restart_test_setup"
+set check_cleanup_function "ca_restart_test_cleanup"
+
+lappend check_functions "ca_restart_test_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global ca_restart_test_current_cluster_config
+
+proc ca_restart_test_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+proc ca_restart_test_setup {} {
+   global ca_restart_test_current_cluster_config
+   set ca_restart_test_current_cluster_config [get_current_cluster_config_nr]
+}
+
+proc ca_restart_test_cleanup {} {
+   global ca_restart_test_current_cluster_config
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $ca_restart_test_current_cluster_config
+}
+
+#****** ca_restart/ca_restart_test_check() *****************************
+#  NAME
+#     ca_restart_test_check() -- ca startup/stop test
+#
+#  SYNOPSIS
+#     ca_restart_test_check { } 
+#
+#  FUNCTION
+#     This test is doing following in a loop:
+#     (Number of repeats is equal to variable tries).
+#     1. Stop the ca component and check if component is in stopped state
+#     2. Start up ca component and check if component is in started state
+#     3. Check if it is possible to get user certificate
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return value
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#*******************************************************************************
+proc ca_restart_test_check {} {
+   global hedeby_config
+   set error_text ""
+   set tries 4
+
+   set ge_qmaster_hosts [get_hedeby_default_services service_names]
+
+   # setup expectations and get data...
+   set master_host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
+   set ca_started_expect(ca,$master_host,state) "STARTED"
+   set ca_stopped_expect(ca,$master_host,state) "STOPPED"
+   #shutdown and startup of the hedeby 
+   for {set i 0} {$i < $tries} {incr i} {
+      
+      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdc -c ca -h $master_host" prg_exit_state "" 
+      set ret $prg_exit_state
+      if {$ret != 0} {
+        append error_text "The ca component shutdown was not successful.\n"
+      }
+
+      # check if ca component is shutdown
+      set ret [wait_for_component_info ca_stopped_expect]
+      if {$ret != 0} {
+        append error_text "The shutdown ca component state is different than expected.\n"
+      }
+      
+      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suc -c ca -h $master_host" prg_exit_state "" 
+      set ret $prg_exit_state
+      if {$ret != 0} {
+        append error_text "The ca component start up was not successful.\n"
+      }
+      
+      # check if ca component is running
+      set ret [wait_for_component_info ca_started_expect]
+      if {$ret != 0} {
+        append error_text "The running ca component state is different than expected.\n"
+      }
+
+      set user_cert [sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] scrt -n $admin_user -t user" prg_exit_state ""  ]
+      set ret $prg_exit_state
+      if {$ret != 0} {
+        append error_text "Getting user certificate was not successful.\n"
+      }
+            
+      set daemon_cert [sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] scrt -n cs_vm -t daemon" prg_exit_state ""  ]
+      set ret $prg_exit_state
+      if {$ret != 0} {
+        append error_text "Getting daemon certificate was not successful.\n"
+      }
+         
+   }
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
