@@ -1,0 +1,201 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "no"
+set check_name                 "ge_adapter_restart_test"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "ge_adapter restart test"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "ge_adapter_restart_test_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_function "ge_adapter_restart_test_setup"
+set check_cleanup_function "ge_adapter_restart_test_cleanup"
+
+lappend check_functions "ge_adapter_restart_test_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global ge_adapter_restart_test_current_cluster_config
+
+proc ge_adapter_restart_test_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+proc ge_adapter_restart_test_setup {} {
+   global ge_adapter_restart_test_current_cluster_config
+   set ge_adapter_restart_test_current_cluster_config [get_current_cluster_config_nr]
+}
+
+proc ge_adapter_restart_test_cleanup {} {
+   global ge_adapter_restart_test_current_cluster_config
+
+   # reset saved active cluster configuration nr
+   set_current_cluster_config_nr $ge_adapter_restart_test_current_cluster_config
+}
+
+#****** ge_adapter/ge_adapter_restart_test_check() *****************************
+#  NAME
+#     ge_adapter_restart_test_check() -- ge_adapter startup/stop test
+#
+#  SYNOPSIS
+#     ge_adapter_restart_test_check { } 
+#
+#  FUNCTION
+#     This test is doing following in a loop:
+#     (Number of repeats is equal to variable tries).
+#     1. Check resources of ge_adapter    
+#     2. Stop the ge_adapter components and check if components is in stopped state
+#     3. Start up ge_adapter components and check if components is in started state
+#     4. Check whether all resources are still available
+#     5. Check history from Reporter
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return value
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#*******************************************************************************
+proc ge_adapter_restart_test_check {} {
+   global hedeby_config
+   set error_text ""
+   set tries 4
+
+   set ge_qmaster_hosts [get_hedeby_default_services service_names]
+
+   # setup expectations and get data...
+   set master_host $hedeby_config(hedeby_master_host)
+   set admin_user [get_hedeby_admin_user]
+   foreach host $ge_qmaster_hosts {      
+      set ge_adapters_started_expect($service_names(service,$host),$host,state) "STARTED"
+      set ge_adapters_stopped_expect($service_names(service,$host),$host,state) "STOPPED"
+      set notsd_time_stamp($service_names(service,$host)) 0
+      set notsu_time_stamp($service_names(service,$host)) 0
+   }
+
+   set resources [sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr" prg_exit_state ""  ]
+   
+   
+
+   #shutdown and startup of the ge_adapters 
+   for {set i 0} {$i < $tries} {incr i} {
+      set time [clock format [clock seconds] -format {%H:%M}]
+      foreach host $ge_qmaster_hosts {
+         sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdc -c $service_names(service,$host) -h $host" prg_exit_state "" 
+         set ret $prg_exit_state
+         if {$ret != 0} {
+             append error_text "The ge_adapter components shutdown was not successful.\n"
+         }
+      }
+      
+      # check if ge_adapter components are shutdown
+      set ret [wait_for_component_info ge_adapters_stopped_expect]
+      if {$ret != 0} {
+        append error_text "The shutdown ge_adapter components state is different than expected.\n"
+      }
+      
+      # check the notifications in Reporter component history
+      foreach host $ge_qmaster_hosts {
+          sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_SHUTDOWN" prg_exit_state "" 1 table
+          if {$table(table_lines) == 0} {
+            append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
+          } else {
+            if {$table(time_stamp,[expr $table(table_lines) - 1]) == $notsd_time_stamp($service_names(service,$host)) } {
+                append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
+            } else {
+                set notsd_time_stamp($service_names(service,$host)) $table(time_stamp,[expr $table(table_lines) - 1])
+            }
+          }
+          
+      }
+
+      foreach host $ge_qmaster_hosts {
+          sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suc -c $service_names(service,$host) -h $host" prg_exit_state "" 
+          set ret $prg_exit_state
+          if {$ret != 0} {
+            append error_text "The ge_adapter components start up was not successful.\n"
+          }
+      }
+
+      # check if ge_adapter components are running
+      set ret [wait_for_component_info ge_adapter_started_expect]
+      if {$ret != 0} {
+        append error_text "The running ge_adapter components state is different than expected.\n"
+      }
+
+      #check if we have the the same resources on board
+      set new_resources [sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr" prg_exit_state ""  ]
+      if {$resources != $new_resources} {
+        append error_text "The resource list for ge_adapters is different than expected.\n"
+      }
+
+      # check the notifications in Reporter component history
+      foreach host $ge_qmaster_hosts {
+          sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_RUNNING" prg_exit_state "" 1 table
+          if {$table(table_lines) == 0} {
+            append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
+          } else {
+            if {$table(time_stamp,[expr $table(table_lines) - 1]) == $notsu_time_stamp($service_names(service,$host)) } {
+                append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
+            } else {
+                set notsu_time_stamp($service_names(service,$host)) $table(time_stamp,[expr $table(table_lines) - 1])
+            }
+          }
+      }
+     
+   }
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+   
+}
+

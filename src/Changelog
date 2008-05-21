@@ -1,3 +1,8 @@
+MG-2008-05-21-1: Enhancem.: o Added new test: "cli/comp_lifecycle/ge_adapter/check.62.exp"
+                              (Part 3/8 of hedeby issue #233)
+                              (Need test for restarts of the components)
+                 Review:    RM
+
 MG-2008-05-21-0: Enhancem.: o Added new test: "cli/comp_lifecycle/ca_restart/check.62.exp"
                               (Part 2/8 of hedeby issue #233)
                               (Need test for restarts of the components)
