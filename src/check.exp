@@ -1503,6 +1503,7 @@ proc check_executable_files {  } {
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/terminate.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/trap.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/ulimit.sh"
+   lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qrsh/signalhandler.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qsub/starter.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qsub/sleeper.sh"
    lappend filelist "$ts_config(checktree_root_dir)/system_tests/clients/qtcsh/qtask_global.sh"

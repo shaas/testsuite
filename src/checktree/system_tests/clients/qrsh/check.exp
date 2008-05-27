@@ -77,6 +77,7 @@ lappend check_functions "qrsh_env"                   ;# test the -v VAR=val and 
 lappend check_functions "qrsh_reservation"           ;# test the -R y option
 lappend check_functions "qrsh_sigterm_running_job"   ;# test CTRL-C for running job
 lappend check_functions "qrsh_sigterm_pending_job"   ;# test CTRL-C for pending job
+lappend check_functions "qrsh_notify"                ;# check signal handling
 
 proc qrsh_init_level {} {
    global CHECK_ACT_LEVEL
@@ -192,6 +193,143 @@ proc qrsh_function {} {
       close_spawn_process $qrsh_id
    }
 
+   wait_for_end_of_all_jobs
+}
+
+#                                                             max. column:     |
+#****** qrsh/qrsh_notify() ******
+# 
+#  NAME
+#     qrsh_notify -- Checks if started with -notify the signal forwarding is 
+#                    is correct. 
+#
+#  SYNOPSIS
+#     qrsh_notify { } 
+#
+#  FUNCTION
+#     Starts a shell scripts which are waiting for SIGUSR(1|2) signal. 
+#     Sends a SIGKILL and SIGSTOP signal to the scripts. Because of 
+#     the -notify option these signals can be caught as SIGUSR1 and  
+#     SIGUSR2 signals. 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************
+proc qrsh_notify {} {
+   global CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_USER
+   global qrsh_submithost 
+
+   set arch [resolve_arch $qrsh_submithost]
+
+   # first test: signal forwarding
+   # send SIGKILL -> qrsh job will get an SIGUSR2 before SIGKILL
+   ts_log_fine "starting $ts_config(product_root)/bin/$arch/qrsh -notify $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR2"
+
+   # start qrsh with bash script which is waiting for a SIGSTOP signal
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER \
+        $ts_config(product_root)/bin/$arch/qrsh \
+        "-notify -nostdin $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR2"]
+
+   # figure out the job id  
+   set sp_channel [lindex $qrsh_id 1]
+   set output [start_remote_prog $qrsh_submithost $CHECK_USER \
+        $ts_config(product_root)/bin/$arch/qstat "-u $CHECK_USER | grep \'signal\' "]
+   set output [string trim $output]
+   
+   scan $output "%d " job_id
+   ts_log_fine "Job id is: $job_id "
+
+   # wait for first output of the remote script
+   set timeout 20 
+   expect {
+      -i $sp_channel "running"  {
+         ts_log_fine "job started "
+      }      
+      -i $sp_channel timeout {
+         ts_log_severe "Got no output from job! Job seems not to be in running state" 
+      }
+   } 
+ 
+   # send signal SIGKILL
+   delete_job $job_id
+   ts_log_fine "Job $job_id will be deleted!"
+
+   set timeout 30 
+   expect {
+      -i $sp_channel full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_channel "Signal" {
+         ts_log_fine "Successful transfer of the signal SIGKILL -> SIGUSR2."
+      }
+      -i $sp_channel timeout {
+         ts_log_severe "Job did't cought signal!"
+      }
+   }
+
+   close_spawn_process $qrsh_id
+   wait_for_end_of_all_jobs
+
+   # second test: signal forwarding
+   # send SIGSTOP -> qrsh job will get an SIGUSR1 before SIGSTOP
+   ts_log_fine "starting $ts_config(product_root)/bin/$arch/qrsh -notify $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR1"
+
+   # start qrsh with bash script which is waiting for a SIGSTOP signal
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER \
+        $ts_config(product_root)/bin/$arch/qrsh \
+        "-notify -nostdin $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR1"]
+
+   # figure out the job id  
+   set sp_channel [lindex $qrsh_id 1]
+   set output [start_remote_prog $qrsh_submithost $CHECK_USER \
+        $ts_config(product_root)/bin/$arch/qstat "-u $CHECK_USER | grep \'signal\' "]
+   set output [string trim $output]
+   scan $output "%d " job_id
+   
+   ts_log_fine "Job id is: $job_id "   
+   sleep 1
+   # wait for first output of the remote script
+   set timeout 10
+   expect {
+      -i $sp_channel "running"  {
+         ts_log_fine "job started "
+      }
+      -i $sp_channel timeout {
+         ts_log_severe "Got no output from job! Job seems not to be in running state" 
+      }
+   } 
+   # send signal SIGSTOP
+   suspend_job $job_id
+
+   set timeout 30 
+   expect {
+      -i $sp_channel full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_channel "Signal" {
+         ts_log_fine "Successful transfer of the signal SIGSTOP -> SIGUSR1."
+      }
+      -i $sp_channel timeout {
+         ts_log_severe "Job did't cought signal!"
+      }
+   }
+
+   close_spawn_process $qrsh_id
    wait_for_end_of_all_jobs
 }
 
@@ -1360,6 +1498,9 @@ proc qrsh_reservation {} {
    if {$prg_exit_state != 0 || [string trim $output] != "blahblah"} {
       ts_log_severe "qrsh -R y failed - see Issue: 1306:\n$output"
    }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 proc qrsh_env {} {
@@ -1389,6 +1530,9 @@ proc qrsh_env {} {
       append error_text "Bug 1255: qrsh does not properly pass along environment variables"
       ts_log_severe $error_text
    }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 #****** qrsh/qrsh_limits() ******
