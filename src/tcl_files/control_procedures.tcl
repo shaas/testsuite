@@ -1882,9 +1882,14 @@ proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
          if { $prg_exit_state == 0 } {
             set result [split $result "."]
             set newname [lindex $result 0]
-            # only use cache for GE gethostname binary!
-            set local_hostname_cache $newname
-            return $newname
+            if { $newname == "" } {
+               ts_log_warning "proc gethostname - gethostname binary returned empty hostname"
+               ts_log_warning "trying local hostname call ..."
+            } else {
+               # only use cache for GE gethostname binary!
+               set local_hostname_cache $newname
+               return $newname
+            }
          } else {
             if { $do_debug_puts } {
                ts_log_finest "proc gethostname - gethostname error or binary not found"

@@ -2770,7 +2770,7 @@ proc wait_for_remote_file { hostname user path { mytimeout 60 } {raise_error 1} 
    if {$is_ok == 1} {
       if {$to_go_away == 0} {
          ts_log_finer "ok - file exists on host $hostname"
-         set output [start_remote_prog $hostname $user "cat" "$path" prg_exit_state 60 0 "" "" 0 0]
+         set output [start_remote_prog $hostname $user "cat" "$path > /dev/null" prg_exit_state 60 0 "" "" 0 0]
          if {$prg_exit_state != 0} {
             ts_log_finest "output of cat $path:\n$output"
             ts_log_fine "test says file exists, but cat does not work correctly! Touching file ..."

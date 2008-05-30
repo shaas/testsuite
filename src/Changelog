@@ -1,3 +1,10 @@
+RH-2008-05-30-0: Bugfix:    wait_from_remote_file did not work with binary files
+                 Enhancem.: checktree_hedeby
+                            o new test: components/ge/stop/stop_and_free_resources
+                            o new test: components/spare_pool/stop/stop_and_free_resources
+                            o new method mod_hedeby_resource in util.tcl
+                 Review:    CR
+
 DG-2008-05-27-0: Enhancem.: Test for qrsh -notify added. 
                  Issue:     11
                  Review:    JG

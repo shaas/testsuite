@@ -7037,4 +7037,68 @@ proc get_show_resource_request_info {{host ""} {user ""} {rri res_req_info} {rai
    return 0
 }
 
+#****** util/mod_hedeby_resource() ******************************************
+#  NAME
+#     mod_hedeby_resource() -- modify a resource
+#
+#  SYNOPSIS
+#
+#
+#  FUNCTION
+#     This resource modifies the properties of a resource. This method can only
+#     does not delete the existing resource properties. It can only add or update
+#     resource properties
+#     TODO enable delete  resource properties
+#
+#  INPUTS
+#     host                             - host where to start command
+#     exec_user                        - user who starts command
+#     resource                         - id of the resource
+#     my_properties                    - array with the resource properties
+#     {raise_error 1}                  - if 1 report errors
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#*******************************************************************************
+proc mod_hedeby_resource { host exec_user resource my_properties {raise_error 1} } {
+   global CHECK_DEBUG_LEVEL
+   ts_log_fine "modify resource \"$resource\" ..."
+   
+   upvar $my_properties properties
+   
+   set sequence {}
+   
+   lappend sequence "GA\n"
+   
+   foreach prop [array names properties] {
+      ts_log_fine "new property: $prop = $properties($prop)"
+      lappend sequence "$prop = $properties($prop)\n"
+   }
+   lappend sequence "[format "%c" 27]" ;# ESC
+   
+   set arguments "-s [get_hedeby_system_name] mr -r $resource"
+
+   set ispid [hedeby_mod_setup $host $exec_user $arguments error_text]
+
+   set sp_id [ lindex $ispid 1 ]
+   
+   set timeout 30
+    
+   hedeby_mod_sequence $ispid $sequence error_text
+   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
+
+   ts_log_fine "exit_status: $prg_exit_state"
+   if { $prg_exit_state == 0 } {
+      ts_log_finer "output: \n$output"
+   }
+
+   if {$error_text != ""} {
+      return 1
+   }
+   return 0
+}
+
+
 

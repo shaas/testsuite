@@ -1,0 +1,347 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "no"
+set check_name                 "spare_pool_stop_and_free_resources"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "tests free_resources flag of the stop service method"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "spare_pool_stop_and_free_resources_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_function "spare_pool_stop_and_free_resources_setup"
+set check_cleanup_function "spare_pool_stop_and_free_resources_cleanup"
+
+lappend check_functions "spare_pool_stop_and_free_resources_ge_service_check"
+
+# this context stores the setup of the test
+global spare_pool_stop_and_free_resources_ctx
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_init_level() ************************
+#  NAME
+#     spare_pool_stop_and_free_resources_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_resources_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_setup() *****************************
+#  NAME
+#     spare_pool_stop_and_free_resources_setup() -- prepare test setup
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_setup { } 
+#
+#  FUNCTION
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     stop_and_free_resources/spare_pool_stop_and_free_resources_cleanup()
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_setup {} {
+   
+   global hedeby_config
+   global spare_pool_stop_and_free_resources_ctx
+   
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   
+   get_hedeby_default_services service_names
+   
+
+   set spare_pool_stop_and_free_resources_ctx(inactive_ge_services) {}
+   set spare_pool_stop_and_free_resources_ctx(static_resource)     ""
+   set spare_pool_stop_and_free_resources_ctx(mvr_list) {}
+   set spare_pool_stop_and_free_resources_ctx(ge_service) ""
+
+   ts_log_fine "setup step 1"
+   foreach res [get_all_spare_pool_resources] {
+      if { $spare_pool_stop_and_free_resources_ctx(static_resource) == "" } {
+         set spare_pool_stop_and_free_resources_ctx(static_resource) $res
+      } else {
+         lappend spare_pool_stop_and_free_resources_ctx(mvr_list) $res
+      }
+   }
+   ts_log_fine "setup step 2"
+   foreach service $service_names(services) {
+      if { $spare_pool_stop_and_free_resources_ctx(ge_service) == "" } {
+         set spare_pool_stop_and_free_resources_ctx(ge_service) $service
+      } else {
+         lappend spare_pool_stop_and_free_resources_ctx(inactive_ge_services) $service
+      }
+   }
+   ts_log_fine "setup step 3"
+   # ---------------------------------------------------------------------------
+   # Make first resource of spare_pool static
+   # ---------------------------------------------------------------------------
+   set static_resource_props(static) "true"
+   mod_hedeby_resource $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] \
+                       $spare_pool_stop_and_free_resources_ctx(static_resource) static_resource_props
+   unset  static_resource_props
+
+   # ---------------------------------------------------------------------------
+   # Stop the bothersome ge services
+   # ---------------------------------------------------------------------------
+   ts_log_fine "setup step 4"
+   set host_list {}
+   foreach service $spare_pool_stop_and_free_resources_ctx(inactive_ge_services) {
+      set host $service_names(master_host,$service)
+      set task_info($host,expected_output) ""
+      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sds -s $service"
+      lappend host_list $host
+   }
+   ts_log_fine "setup step 5"
+   set par_error [start_parallel_sdmadm_command host_list [get_hedeby_admin_user] task_info]
+   unset task_info
+   ts_log_fine "setup finished"
+}
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_cleanup() ***************************
+#  NAME
+#     spare_pool_stop_and_free_resources_cleanup() -- ??? 
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_cleanup { } 
+#
+#  FUNCTION
+#     The hedeby reset is don by reset_hedeby() which will move all resources
+#     back to their original configured service.
+#
+#  INPUTS
+#     no input values
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     stop_and_free_resources/spare_pool_stop_and_free_resources_setup()
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_cleanup {} {
+   
+   global hedeby_config
+   global spare_pool_stop_and_free_resources_ctx
+   
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   
+   get_hedeby_default_services service_names
+   
+   # ---------------------------------------------------------------------------
+   # Start the bothersome ge services
+   # ---------------------------------------------------------------------------
+   set host_list {}
+   foreach service $spare_pool_stop_and_free_resources_ctx(inactive_ge_services) {
+      set host $service_names(master_host,$service)
+      set task_info($host,expected_output) ""
+      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sus -s $service"
+      lappend host_list $host
+   }
+   set par_error [start_parallel_sdmadm_command host_list [get_hedeby_admin_user] task_info]
+   unset task_info
+   
+   # ---------------------------------------------------------------------------
+   # Delete the static flag of the static_resource
+   # ---------------------------------------------------------------------------
+   set static_resource_props(static) "false"
+   mod_hedeby_resource $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $spare_pool_stop_and_free_resources_ctx(static_resource) static_resource_props
+   unset  static_resource_props
+   
+   # perform hedeby reset
+   reset_hedeby 1
+}
+
+#****** stop_and_free_resources/spare_pool_stop_and_free_resources_ge_service_check() *****************************
+#  NAME
+#     spare_pool_stop_and_free_resources_ge_service_check() -- test the stop service with free resources flag
+#                                         for GE services
+#
+#  SYNOPSIS
+#     spare_pool_stop_and_free_resources_ge_service_check { } 
+#
+#  FUNCTION
+#     This test checks whether the stop action with -fr option of the spare_pool 
+#     is working
+#
+#     actions:
+#        Step 1: Stop the spare_pool service with the freeResource flag
+#        Step 2: Check that all nonstatic resource are moved to spare_pool
+#        Step 3: Start the spare_pool service
+#        Step 4: Check that the static resource is assigned to spare_pool
+#        Step 5: Move all nonstatic resource back to spare_pool
+#        Step 6: Check that the nonstatic resource are back at spare_pool
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#  SEE ALSO
+#     stop_and_free_resources/spare_pool_stop_and_free_resources_setup()
+#     stop_and_free_resources/spare_pool_stop_and_free_resources_cleanup()
+#*******************************************************************************
+proc spare_pool_stop_and_free_resources_ge_service_check {} {
+   global hedeby_config
+   global spare_pool_stop_and_free_resources_ctx
+
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   get_hedeby_default_services service_names
+   
+   # init text array for reporting errors
+   # (errors are logged at the end of the test)
+   set error_text ""
+
+   # ---------------------------------------------------------------------------
+   # Step 1: Stop the spare_pool service with the freeResource flag
+   # ---------------------------------------------------------------------------
+   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "sds -s spare_pool -fr"
+   if { $prg_exit_state != 0 } {
+      append error_text "Stopping spare_poll with free resources flag failed\n"
+      ts_log_severe $error_text
+      return
+   }
+   
+   # ---------------------------------------------------------------------------
+   # Step 2: Check that all nonstatic resource are moved to ge service
+   # ---------------------------------------------------------------------------
+   foreach res $spare_pool_stop_and_free_resources_ctx(mvr_list) {
+      set exp_resource_info($res,service) "$spare_pool_stop_and_free_resources_ctx(ge_service)"
+      set exp_resource_info($res,flags) "{}"
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+   set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
+   if { $retval != 0} {
+      append error_text $mvr_error
+   }
+   unset exp_resource_info
+   
+   # ---------------------------------------------------------------------------
+   # Step 3: Start the spare_pool service
+   # ---------------------------------------------------------------------------
+   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "sus -s spare_pool"
+   if { $prg_exit_state != 0 } {
+      append error_text "Startup of service spare_pool failed\n"
+      ts_log_severe $error_text
+      return
+   }
+   
+   # ---------------------------------------------------------------------------
+   # Step 4: Check that the static resource is assigned to spare_pool
+   # ---------------------------------------------------------------------------
+   set exp_resource_info($spare_pool_stop_and_free_resources_ctx(static_resource),service) "spare_pool"
+   set exp_resource_info($spare_pool_stop_and_free_resources_ctx(static_resource),flags) "S"
+   set exp_resource_info($spare_pool_stop_and_free_resources_ctx(static_resource),state) "ASSIGNED"
+   
+   set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
+   if { $retval != 0} {
+      append error_text $mvr_error
+   }
+   unset exp_resource_info
+   
+   # ---------------------------------------------------------------------------
+   # Step 5: Move all nonstatic resources back to spare_pool
+   # ---------------------------------------------------------------------------
+   set res_ids ""
+   foreach res $spare_pool_stop_and_free_resources_ctx(mvr_list) {
+      if { $res_ids == "" } {
+         set res_ids $res
+      } else {
+         append res_ids ",$res"
+      }
+   }
+   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "-p $pref_type -s $sys_name mvr -r $res_ids -s spare_pool"
+   if { $prg_exit_state != 0 } {
+      append error_text "Error while moving freed resource back to spare_pool"
+      ts_log_severe $error_text
+      return
+   }
+   
+   # ---------------------------------------------------------------------------
+   # Step 6: Check that the nonstatic resource are back at spare_pool
+   # ---------------------------------------------------------------------------
+   foreach res $spare_pool_stop_and_free_resources_ctx(mvr_list) {
+      set exp_resource_info($res,service) spare_pool
+      set exp_resource_info($res,flags) "{}"
+      set exp_resource_info($res,state) "ASSIGNED"
+   }
+   set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
+   if { $retval != 0} {
+      append error_text $mvr_error
+   }
+   unset exp_resource_info
+   
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
