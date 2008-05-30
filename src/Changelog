@@ -19,7 +19,6 @@ MG-2008-05-21-0: Enhancem.: o Added new test: "cli/comp_lifecycle/ca_restart/che
                               (Need test for restarts of the components)
                  Review:    RM
 
->>>>>>> 1.544
 DG-2008-05-19-0: Cleanup:   Because aimk now supports building 32 bit binaries
                             on 64 bit HP the testsuite was updated so that the
                             compile architecture for 32 bit HP is now set to 
