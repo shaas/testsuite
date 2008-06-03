@@ -1,3 +1,7 @@
+RM-2008-06-03-0: Cleanup:   hedeby, installation of managed host no longer prints
+                            license -al switch removed
+                 Review:    MG
+
 RH-2008-05-30-0: Bugfix:    wait_from_remote_file did not work with binary files
                  Enhancem.: checktree_hedeby
                             o new test: components/ge/stop/stop_and_free_resources

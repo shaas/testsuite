@@ -513,8 +513,7 @@ proc hedeby_install_managed_hosts {} {
                      -au [get_hedeby_admin_user]\
                      -d $dist_path\
                      -l $managed_host_sdmadm_arguments($managed_host,spool_dir)\
-                     -cs_url $cs_url\
-		     -al"
+                     -cs_url $cs_url"
 
       if { $ssl_disabled == "true" } {
          append arguments " -nossl"
