@@ -1,3 +1,8 @@
+DG-2008-06-04-0: Cleanup:   Install didn't install HP11 32 bit binaries when 
+                            compiling on HP11 64 bit host. This failure was 
+                            introduced with gridengine checkin DG-2008-05-15-0.
+                 Review:    JG
+
 RM-2008-06-03-0: Cleanup:   hedeby, installation of managed host no longer prints
                             license -al switch removed
                  Review:    MG

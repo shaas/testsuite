@@ -759,6 +759,12 @@ proc compile_source { { do_only_hooks 0} } {
                # $SGE_ROOT/util/arch. Clear the cache and resolve 
                # architecture names using dist/util/arch script.
                set compiled_mail_architectures [compile_rebuild_arch_cache $compile_hosts arch_list]
+               
+               # DG: if arch_list contains hp11-64 then we have 
+               # an additional 32 bit architecture compiled on this host  
+               # which  we have to install 
+               set arch_list [add_32_bit_architecture_for_HP_64 $arch_list]               
+ 
                if { [ install_binaries $arch_list report] != 0 } {
                   report_add_message report "install_binaries failed\n"
                   incr error_count 1
@@ -796,6 +802,9 @@ proc compile_source { { do_only_hooks 0} } {
          # architecture names using dist/util/arch script.
          set compiled_mail_architectures [compile_rebuild_arch_cache $compile_hosts arch_list]
 
+         # HP 64 compiles 32 bit binaries: so add 32 bit architecture if not inside
+         set arch_list [add_32_bit_architecture_for_HP_64 $arch_list]              
+ 
          # new all registered compile_hooks of the checktree
          set res [exec_install_binaries_hooks $arch_list report]
          if { $res < 0 } {
@@ -843,9 +852,68 @@ proc compile_source { { do_only_hooks 0} } {
    #}
 
    # if required, build distribution
+
+   # HP 64 compiles 32 bit binaries: so add 32 bit architecture if not inside
+   set arch_list [add_32_bit_architecture_for_HP_64 $arch_list]             
+
    build_distribution $arch_list
    
    return 0
+}
+
+#****** check/add_32_bit_architecture_for_HP_64() **************************************************
+#  NAME
+#    add_32_bit_architecture_for_HP_64() -- adds the hp11 host to the arch list 
+#
+#  SYNOPSIS
+#    add_32_bit_architecture_for_HP_64 { arch_list } 
+#
+#  FUNCTION
+#    HP11-64 hosts are building 32 bit binaries. These binaries must be 
+#    installed. Therefore we need to add the HP11 arch into the list. 
+#    This function adds the 32 bit HP11 arch to the list if and only if 
+#    we have an HP11-64 arch and not an HP11 arch inside. 
+#
+#  INPUTS
+#    arch_list --  list of architectures 
+#
+#  RESULT
+#    modified arch list which contains the HP11 32 bit arch 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc add_32_bit_architecture_for_HP_64 { arch_list } {
+   
+   set contains_hp11_64 0
+   set contains_hp11 0
+
+   # if $arch_list contains hp11-64 add hp11 because we have the 
+   # 32 bit binaries too
+
+   foreach arch $arch_list {
+      if { $arch == "hp11-64" } {
+         set contains_hp11_64 1   
+      }
+      if { $arch == "hp11" } {
+         set contains_hp11 1 
+      }
+   }
+
+   if { $contains_hp11_64 == 1 && $contains_hp11 == 0 } {
+      lappend arch_list "hp11"
+   }
+
+  return $arch_list  
 }
 
 #****** check/compile_with_aimk() **************************************************
