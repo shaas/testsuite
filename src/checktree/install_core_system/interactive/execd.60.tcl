@@ -70,7 +70,9 @@ proc install_execd {} {
 
    set CORE_INSTALLED ""
    set INST_VERSION 0 
-   set LOCAL_ALREADY_CHECKED 0 
+   set LOCAL_ALREADY_CHECKED 0
+
+   set execd_port [expr $CHECK_COMMD_PORT + 1]
  
    read_install_list
 
@@ -616,7 +618,16 @@ proc install_execd {} {
 
       # close the connection to inst_sge
       close_spawn_process $id
+
+      # CR: 6609754
+      ts_log_fine "Check execd deamon startup on host $exec_host and port $execd_port ..."
+
+      set result [ping_daemon $exec_host $execd_port "execd"]
+
+      if {$result == 0} {
+         ts_log_fine "Startup of execd was successful!"
+      } else {
+         ts_log_severe "Error starting execd!"
+      }
    }
 }
-
-

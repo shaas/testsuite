@@ -1,3 +1,7 @@
+ZG-2008-06-04-0: Enhancem.: o Added ping_daemon procedure. 
+                            o Execd start up test for CR 6609754
+                 Review:    AP
+
 LP-2008-06-04-0: Enhancem.: Modified install message
                  Review:    MP
 

@@ -3212,3 +3212,82 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
    return $wait_code ;# return exit state
 }
 
+#                                                             max. column:     |
+#****** remote_procedures/ping_daemon() ******
+# 
+#  NAME
+#     ping_execd -- pings a daemon host
+#
+#  SYNOPSIS
+#     ping_daemon {host port name {max_tries 10}} 
+#
+#  FUNCTION
+#     This procedure tries to reach the given daemon host. Uses architecture 
+#     dependent qping binary on the master host. If the execution is not 
+#     successful after a certain number of tries or an error has risen the 
+#     procedure returns the error code of the reason of the failure. 
+#     Otherwise returns 0.
+#
+#     bin/<remote_arch>/qping -info <host> <port> <name>
+#
+#  INPUTS
+#     host      - name of the daemon host
+#     port      - the port used by the daemon 
+#                 (e.g.: comm_port in case of qmaster or comm_port + 1 in case of execd)
+#     name      - name of the daemon: "qmaster" or "execd"
+#     max_tries - the number of tries (default is 10)
+#
+#  RESULT
+#                0 - in case of success.
+#     other than 0 - in case of failure. Returns the id of the error.
+#
+#  EXAMPLE
+#     set result [ping_execd $host $port "execd"]
+#
+#  NOTES
+#
+#  BUGS
+#
+#  SEE ALSO
+#     remote_procedures/start_remote_prog
+#     config_host/host_conf_get_arch
+#*******************************
+proc ping_daemon {host port name {max_tries 10}} {
+   global ts_config CHECK_USER
+
+   ts_log_finest "ping_daemon: $name on host $host with port $port"
+
+   # Check the inputs
+   if {$name != "qmaster" && $name != "execd"} {
+      ts_log_warning "Unknown daemon name: $name. Only 'qmaster' and 'execd' are supported!"
+      return -1 
+   }
+
+   # Get the architecture of the host
+   set remote_arch [host_conf_get_arch $host]
+   if {$remote_arch == "unsupported" || $remote_arch == ""} {
+      ts_log_warning "Unsupported architecture on host $host!"
+      return -1
+   }
+
+   # Get the location of the architecture dependent qping binary
+   set qping_binary $ts_config(product_root)/bin/${remote_arch}/qping
+   ts_log_finest "qping binary: $qping_binary"
+
+   # Try to reach the given host
+   set tries 0
+   while {1} {
+      set output [start_remote_prog $ts_config(master_host) $CHECK_USER \
+              $qping_binary "-info $host $port $name 1"]
+
+      incr tries 1
+      if {$prg_exit_state == 0 || $tries >= $max_tries} {
+         break
+      } else {
+         sleep 1
+      }      
+   }
+
+   ts_log_finest "ping_daemon: result is $prg_exit_state with $tries try(s)"
+   return $prg_exit_state
+}
