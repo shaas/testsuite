@@ -615,7 +615,12 @@ proc min_resource_check {} {
             if { $ret == 0 } {
                foreach res [get_all_default_hedeby_resources] {
                   # no resource should go into error state
-                  set rstate $res_info($res,state)
+
+                  if {[info exists res_info($res,state)]} {
+                     set rstate $res_info($res,state)
+                  } else {
+                     continue;
+                  }
                   foreach st $rstate {
                      if {$st == "ERROR"} {
                         append error_text "resource \"$res\" is gone into ERROR state:\n"
@@ -738,17 +743,25 @@ proc min_resource_check {} {
          set ret [get_resource_slo_info]
          if {$ret == 0} {
             foreach res $expected_resources_A {
-               ts_log_fine "SLO \"$sloNameA\" for resource \"$res\" at service \"$serviceA\" set to $res_slo_info($res,$sloNameA,usage)!"
-               if {$res_slo_info($res,$sloNameA,usage) != $SLO_arch_A_urgency} {
-                  append error_text "SLO \"$sloNameA\" for resource \"$res\" at service \"$serviceA\" "
-                  append error_text "set to $res_slo_info($res,$sloNameA,usage), should be $SLO_arch_A_urgency\n"
+               if {[info exists res_slo_info($res,$sloNameA,usage)]} {
+                  ts_log_fine "SLO \"$sloNameA\" for resource \"$res\" at service \"$serviceA\" set to $res_slo_info($res,$sloNameA,usage)!"
+                  if {$res_slo_info($res,$sloNameA,usage) != $SLO_arch_A_urgency} {
+                     append error_text "SLO \"$sloNameA\" for resource \"$res\" at service \"$serviceA\" "
+                     append error_text "set to $res_slo_info($res,$sloNameA,usage), should be $SLO_arch_A_urgency\n"
+                  }
+               } else {
+                  append error_text "SLO usage info for resource $res (SLO=$sloNameA) is missing\n"
                }
             }
             foreach res $expected_resources_B {
-               ts_log_fine "SLO \"$sloNameB\" for resource \"$res\" at service \"$serviceB\" set to $res_slo_info($res,$sloNameB,usage)!"
-               if {$res_slo_info($res,$sloNameB,usage) != $SLO_arch_B_urgency} {
-                  append error_text "SLO \"$sloNameB\" for resource \"$res\" at service \"$serviceB\" "
-                  append error_text "set to $res_slo_info($res,$sloNameB,usage), should be $SLO_arch_B_urgency\n"
+               if {[info exists res_slo_info($res,$sloNameB,usage)]} {
+                  ts_log_fine "SLO \"$sloNameB\" for resource \"$res\" at service \"$serviceB\" set to $res_slo_info($res,$sloNameB,usage)!"
+                  if {$res_slo_info($res,$sloNameB,usage) != $SLO_arch_B_urgency} {
+                     append error_text "SLO \"$sloNameB\" for resource \"$res\" at service \"$serviceB\" "
+                     append error_text "set to $res_slo_info($res,$sloNameB,usage), should be $SLO_arch_B_urgency\n"
+                  }
+               } else {
+                  append error_text "SLO usage info for resource $res (SLO=$sloNameB) is missing\n"
                }
             }
          } else {

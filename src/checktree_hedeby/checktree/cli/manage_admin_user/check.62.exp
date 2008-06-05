@@ -114,6 +114,12 @@ proc manage_admin_user_init_level {} {
 proc manage_admin_user_setup {} {
    global CHECK_OUTPUT
    global manage_admin_user_current_cluster_config
+
+   set pref_type [get_hedeby_pref_type]
+   if { $pref_type == "user" } {
+      ts_log_fine "skipping this test for \"user\" system!" 
+      return
+   }
    
    puts $CHECK_OUTPUT "doing setup ..."
    set manage_admin_user_current_cluster_config [get_current_cluster_config_nr]
@@ -127,6 +133,11 @@ proc manage_admin_user_cleanup {} {
    global CHECK_OUTPUT hedeby_config
    global manage_admin_user_current_cluster_config
 
+   set pref_type [get_hedeby_pref_type]
+   if { $pref_type == "user" } {
+      ts_log_fine "skipping this test for \"user\" system!" 
+      return
+   }
    set test_host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]
 
@@ -152,6 +163,17 @@ proc manage_admin_user_cleanup {} {
 proc manage_admin_user_check {} {
    global CHECK_OUTPUT
    global hedeby_config
+
+   set pref_type [get_hedeby_pref_type]
+   if { $pref_type == "user" } {
+      ts_log_info "skipping this test for \"user\" system! This test has to be enhanced. See TODO in test!!!" 
+      return
+   }
+
+   # TODO: Add support for "user" preference mode!
+   #       root user must add bootstrap configuration in his home directory before running this test.
+   #       => Cleanup and Setupfunction should add/remove the bootstrap configuration
+   #       => If root password is not available (noroot GE testsuite mode) this test cannot run
 
    # setup master host expectations ...
    set test_host $hedeby_config(hedeby_master_host)

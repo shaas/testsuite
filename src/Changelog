@@ -1,3 +1,9 @@
+CR-2008-06-05-0: Bugfix:    o disabled hedeby manage_admin_user check for user
+                              system
+                            o Fixed possible TCL errors (read of not existing
+                              array entry) in hedeby slo/minResource check
+                 Review:    RH
+
 ZG-2008-06-04-0: Enhancem.: o Added ping_daemon procedure. 
                             o Execd start up test for CR 6609754
                  Review:    AP
