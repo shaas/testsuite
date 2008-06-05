@@ -1,3 +1,6 @@
+LP-2008-06-05-0: Bugfix:    Fixed install message
+                 Review:    AP
+
 CR-2008-06-05-0: Bugfix:    o disabled hedeby manage_admin_user check for user
                               system
                             o Fixed possible TCL errors (read of not existing
