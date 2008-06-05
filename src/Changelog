@@ -1,3 +1,6 @@
+CR-2008-06-05-1: Bugfix:    Fixed problem with ping_daemon procedure
+                 Review:    ZG
+
 LP-2008-06-05-0: Bugfix:    Fixed install message
                  Review:    AP
 

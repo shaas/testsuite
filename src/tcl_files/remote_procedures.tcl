@@ -3216,7 +3216,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
 #****** remote_procedures/ping_daemon() ******
 # 
 #  NAME
-#     ping_execd -- pings a daemon host
+#     ping_daemon  -- pings a daemon host
 #
 #  SYNOPSIS
 #     ping_daemon {host port name {max_tries 10}} 
@@ -3228,10 +3228,10 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
 #     procedure returns the error code of the reason of the failure. 
 #     Otherwise returns 0.
 #
-#     bin/<remote_arch>/qping -info <host> <port> <name>
+#     bin/<master_arch>/qping -info <host> <port> <name>
 #
 #  INPUTS
-#     host      - name of the daemon host
+#     host      - name of the daemon host to ping
 #     port      - the port used by the daemon 
 #                 (e.g.: comm_port in case of qmaster or comm_port + 1 in case of execd)
 #     name      - name of the daemon: "qmaster" or "execd"
@@ -3264,22 +3264,18 @@ proc ping_daemon {host port name {max_tries 10}} {
    }
 
    # Get the architecture of the host
-   set remote_arch [host_conf_get_arch $host]
-   if {$remote_arch == "unsupported" || $remote_arch == ""} {
-      ts_log_warning "Unsupported architecture on host $host!"
-      return -1
-   }
+   set master_arch [resolve_arch $ts_config(master_host)]
 
    # Get the location of the architecture dependent qping binary
-   set qping_binary $ts_config(product_root)/bin/${remote_arch}/qping
-   ts_log_finest "qping binary: $qping_binary"
+   set qping_binary $ts_config(product_root)/bin/${master_arch}/qping
+   ts_log_fine "qping binary: $qping_binary"
 
    # Try to reach the given host
    set tries 0
    while {1} {
       set output [start_remote_prog $ts_config(master_host) $CHECK_USER \
               $qping_binary "-info $host $port $name 1"]
-
+      ts_log_finer $output
       incr tries 1
       if {$prg_exit_state == 0 || $tries >= $max_tries} {
          break
@@ -3288,6 +3284,6 @@ proc ping_daemon {host port name {max_tries 10}} {
       }      
    }
 
-   ts_log_finest "ping_daemon: result is $prg_exit_state with $tries try(s)"
+   ts_log_fine "ping_daemon: result is $prg_exit_state with $tries try(s)"
    return $prg_exit_state
 }
