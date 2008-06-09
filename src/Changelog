@@ -1,3 +1,8 @@
+DG-2008-06-09-0: Cleanup:   Several issues in Java DRMAA test:
+                            - incorrect return value of a procedure
+                            - filetype of library was hardcoded 
+                 Review:    JG
+
 JG-2008-06-09-0: Bugfix:    - qdel test only ran qdel_force check_function
                             - fixed timeout handling when installing csp
                               certificates

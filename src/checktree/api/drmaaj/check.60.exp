@@ -737,7 +737,7 @@ proc drmaaj_check { } {
          
          # check if the current JVM has 32 bit and 64 bit capabilities  
          # -----------------------------------------------------------
-         if {"yes" == [has_JVM_d32_d64_flag $host $java]} { 
+         if {"true" == [has_JVM_d32_d64_flag $host $java]} { 
 
             # check if we have to check 32 bit libs in case of 64 JVM
             if {$do_an_additional_32_bit_test == "yes"} {
@@ -840,12 +840,28 @@ proc drmaaj_check { } {
 #     ???/???
 #*******************************************************************************
 proc is_32_bit_jvm {host jvm} {
+   global CHECK_USER
 
+   # pre process the special case: java 1.4 on 64bit host
+   set test_output [start_remote_prog $host $CHECK_USER $jvm "-version" prg_exit_state 60 0 "" "" 1 0 1]  
+
+   ts_log_fine $test_output
+
+   if {[string first "1.4" $test_output] != -1} {
+      # java -version output contains 1.4
+      if {[string first "64" $test_output] != -1} {
+         return "false"
+      }
+   }
+
+   # procduces errors on gally2 with jdk14
    if {[has_JVM_d32_d64_flag $host $jvm] == "true"} {
-      # it is likely a 64 bit JVM 
+      # it is likely a 64 bit JVM
+      ts_log_fine "contains d32 d64 flag" 
       return "false"
    } else {
       # it seems to be a 32 bit JVM 
+      ts_log_fine "doesn't containt d32 d64 flag"
       return "true"
    }
 }
@@ -932,6 +948,9 @@ proc get_java_library_path {host binary_arch} {
    # figure out where the 32 bit library resides 
    set arch_dir ""
 
+   # get lib extension
+   set lib_ext [get_current_drmaa_lib_extension $host]
+
    # set architecture string 
    switch -- $binary_arch {
       "sol-amd64" {
@@ -952,6 +971,9 @@ proc get_java_library_path {host binary_arch} {
       "hp11-64" {
          set arch_dir "hp11"
       }
+      default {
+         set arch_dir ""
+      }
    }   
    # check if an valid directory was set
    if {$arch_dir == ""} {
@@ -962,7 +984,7 @@ proc get_java_library_path {host binary_arch} {
    set path "$ts_config(product_root)/lib/$arch_dir" 
    
    # create the path to the library if the library exists 
-   if {[file exists "$path/libdrmaa.so"]} {
+   if {[file exists "$path/libdrmaa.$lib_ext"]} {
       return "-Djava.library.path=$path"
    } else {
       return ""
@@ -987,18 +1009,21 @@ proc get_java_library_path {host binary_arch} {
 proc has_JVM_d32_d64_flag {host java_bin_path} {
   global CHECK_USER
 
-  set test_output [start_remote_prog $host $CHECK_USER $java_bin_path "" prg_exit_state 600 0 "" "" 1 0 1]  
-  
+  set test_output [start_remote_prog $host $CHECK_USER $java_bin_path "-help" prg_exit_state 600 0 "" "" 1 0 1]  
+
   # search if standard output from Java has a "-d32" switch inside 
   set java_switch "d32"
   if {[string first $java_switch $test_output] == -1} {
-      # output doesn't contain d32 
-      return "no" 
+      # output doesn't contain d32
+      ts_log_finer "no d32 found!" 
+      return "false" 
   }  
-  set java_switch "d64"
-  if {[string first $java_switch $test_output] == -1} {
+
+  set java_switch_2 "d64"
+  if {[string first $java_switch_2 $test_output] == -1} {
       # output doesn't contain d64 
-      return "no" 
+      ts_log_finer "no d64 found!" 
+      return "false" 
   }  
 
    # contains a -d32 switch 
@@ -1013,9 +1038,11 @@ proc has_JVM_d32_d64_flag {host java_bin_path} {
   
    if {[string first $is_not_supported_string $test_output] == -1} {
       # this Java version has a flag -d64 and it seems to be supported
-      return "yes"
+      ts_log_finer "jvm does support -d64"
+      return "true"
    } else {   
-      return "no"
+      ts_log_finer "jvm does not support -d64"
+      return "false"
    }
 }
 
