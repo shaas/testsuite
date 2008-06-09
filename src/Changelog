@@ -1,3 +1,7 @@
+DG-2008-06-09-1: Cleanup:   Installation for 6.1 didn't work correctly since 
+                            a text change when asking for gid range. 
+                 Review:    RD
+
 DG-2008-06-09-0: Cleanup:   Several issues in Java DRMAA test:
                             - incorrect return value of a procedure
                             - filetype of library was hardcoded 
