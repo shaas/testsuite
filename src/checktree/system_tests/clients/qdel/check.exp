@@ -138,8 +138,6 @@ proc qdel_setup {} {
    set q_param(slots)                 "50"
 
    add_queue $qdel_queue $qdel_host q_param
-global check_functions
-set check_functions "qdel_force"
 }
 
 proc qdel_translate_message {msg {p1 ""} {p2 ""} {p3 ""}} {

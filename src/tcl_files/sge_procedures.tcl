@@ -7568,7 +7568,7 @@ proc copy_certificates { host } {
    ts_log_finest "source:       \"/var/sgeCA/port${ts_config(commd_port)}/\" on host $ts_config(master_host)"
    ts_log_finest "target:       \"/var/sgeCA/port${ts_config(commd_port)}/\" on host $host"
   
-   if { $CHECK_ADMIN_USER_SYSTEM == 0 } {
+   if {$CHECK_ADMIN_USER_SYSTEM == 0} {
       ts_log_finest "we have root access, fine !"
       set CA_ROOT_DIR "/var/sgeCA"
       set TAR_FILE "${CA_ROOT_DIR}/port${ts_config(commd_port)}.tar"
@@ -7588,7 +7588,7 @@ proc copy_certificates { host } {
       set result [start_remote_prog "$ts_config(master_host)" "root" "cd" "$remote_command_param"]
       ts_log_finest $result
 
-      if { $prg_exit_state != 0 } {
+      if {$prg_exit_state != 0} {
          ts_log_warning "could not tar Certificate Authority (CA) directory into \"$TAR_FILE\""
       } else {
          ts_log_finest "copy tar file \"$TAR_FILE\"\nto \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
@@ -7606,13 +7606,13 @@ proc copy_certificates { host } {
 
          ts_log_finest "untaring Certificate Authority (CA) directory in \"$CA_ROOT_DIR\""
          start_remote_prog "$host" "root" "cd" "$CA_ROOT_DIR" 
-         if { $prg_exit_state != 0 } { 
+         if {$prg_exit_state != 0} { 
             set result [start_remote_prog "$host" "root" "mkdir" "-p $CA_ROOT_DIR"]
          }   
 
          set result [start_remote_prog "$host" "root" $tar_bin "$UNTAR_OPTS $TAR_FILE" prg_exit_state 300 0 $CA_ROOT_DIR]
          ts_log_finest $result
-         if { $prg_exit_state != 0 } {
+         if {$prg_exit_state != 0} {
             ts_log_warning "could not untar \"$TAR_FILE\" on host $host;\ntar-bin:$tar_bin"
          } 
 
@@ -7649,16 +7649,17 @@ proc copy_certificates { host } {
       set my_timeout [timestamp]
       incr my_timeout 600
       ts_log_fine "waiting for qstat -f to work ..."
-      while { 1 } {
+      while {1} {
          set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f" prg_exit_state 60 0 "" "" 1 0 1]
          ts_log_finest $result
-         if { $prg_exit_state == 0 } {
+         if {$prg_exit_state == 0} {
             ts_log_finer "qstat -f works, fine!"
             break
          }
          sleep 2
-         if { [timestamp] > $my_timeout } {
+         if {[timestamp] > $my_timeout} {
             ts_log_warning "$host: timeout while waiting for qstat to work (please check hosts for synchron clock times)"
+            break
          }
       }
    } else {
