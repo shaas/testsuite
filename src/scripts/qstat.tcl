@@ -44,11 +44,11 @@ proc get_arch {} {
 }
 
 proc do_qstat {} {
-   global active interval sge_root arch
+   global active interval qstat_command
 
    set start_time [clock clicks -milliseconds]
    if {$active} {
-      set result [catch {exec "/bin/sh" "-c" "$sge_root/bin/$arch/qstat -f >/dev/null 2>&1"} output]
+      set result [catch {exec "/bin/sh" "-c" "$qstat_command >/dev/null 2>&1"} output]
       # puts $output
       set end_time [clock clicks -milliseconds]
       set end_clock [clock seconds]
@@ -79,13 +79,19 @@ proc do_qstat {} {
 }
 
 # MAIN
-if { $argc != 1 } {
-   puts "usage: $argv0 <SGE_ROOT>"
+if {$argc != 2} {
+   puts "usage: $argv0 <SGE_ROOT> <gridengine_version>"
    exit 1
 }
 
 set sge_root [lindex $argv 0]
+set gridengine_version [lindex $argv 1]
 set arch     [get_arch]
+
+set qstat_command "$sge_root/bin/$arch/qstat -f"
+if {$gridengine_version >= 61} {
+   append qstat_command " -u '*'"
+}
 
 set active 0            ;# do measurements
 set interval 1000       ;# default info interval: 1000 milliseconds

@@ -183,7 +183,7 @@ proc install_execd {} {
    }
    # create all autoinstall config files
    foreach exec_host $ts_config(execd_nodes) {
-      write_autoinst_config $autoconfig_files($exec_host) $exec_host 0 0
+      write_autoinst_config $autoconfig_files($exec_host) $exec_host 0 0 1
    }
    # wait for all autoinstall config files to appear
    foreach exec_host $ts_config(execd_nodes) {

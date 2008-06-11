@@ -162,7 +162,7 @@ proc install_qmaster {} {
 #     {file_delete_wait 1} - delete the file before writing it, and wait for it
 #                            to vanish / reappear?
 #*******************************************************************************
-proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1}} {
+proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {exechost 0}} {
    global CHECK_USER CHECK_OUTPUT local_execd_spool_set
    global ts_config
 
@@ -236,13 +236,22 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1}} {
    puts $fdo "SPOOLING_METHOD=\"$ts_config(spooling_method)\""
    puts $fdo "DB_SPOOLING_SERVER=\"$bdb_server\""
    puts $fdo "DB_SPOOLING_DIR=\"$db_dir\""
-   puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
-   if {$ts_config(submit_only_hosts) != "none"} {
-      puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
+   # exec host install: only use the given host in the host lists
+   if {$exechost} {
+      puts $fdo "ADMIN_HOST_LIST=\"$host\""
+      puts $fdo "SUBMIT_HOST_LIST=\"\""
+      puts $fdo "EXEC_HOST_LIST=\"$host\""
+      puts $fdo "EXEC_HOST_LIST_RM=\"$host\""
    } else {
-      puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes)\""
+      puts $fdo "ADMIN_HOST_LIST=\"$ts_config(all_nodes)\""
+      if {$ts_config(submit_only_hosts) != "none"} {
+         puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes) $ts_config(submit_only_hosts)\""
+      } else {
+         puts $fdo "SUBMIT_HOST_LIST=\"$ts_config(all_nodes)\""
+      }
+      puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
+      puts $fdo "EXEC_HOST_LIST_RM=\"$ts_config(execd_nodes)\""
    }
-   puts $fdo "EXEC_HOST_LIST=\"$ts_config(execd_nodes)\""
    set spooldir [get_local_spool_dir $host "execd" 0]
    if {$spooldir != ""} {
       puts $fdo "EXECD_SPOOL_DIR_LOCAL=\"$spooldir\""
@@ -259,7 +268,6 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1}} {
    puts $fdo "RESCHEDULE_JOBS=\"wait\""
    puts $fdo "SCHEDD_CONF=\"1\""
    puts $fdo "SHADOW_HOST=\"$ts_config(shadowd_hosts)\""
-   puts $fdo "EXEC_HOST_LIST_RM=\"$ts_config(execd_nodes)\""
    puts $fdo "REMOVE_RC=\"false\""
    puts $fdo "WINDOWS_SUPPORT=\"false\""
    puts $fdo "WIN_ADMIN_NAME=\"Administrator\""
