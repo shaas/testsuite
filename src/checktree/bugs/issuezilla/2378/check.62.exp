@@ -98,8 +98,8 @@ proc issue_2378_setup {} {
    set first [lindex $ts_config(execd_nodes) 0]
    set second [lindex $ts_config(execd_nodes) 1]
 
-   # setup queues A and B each with one slot on a single host
-   set queue_conf(slots)            "1"
+   # setup queues A and B each with two slots on a single host
+   set queue_conf(slots)            "2"
    set queue_conf(pe_list)          "round_robin fill_up"
    set queue_conf(load_thresholds)  "NONE"
    add_queue "A" "$first $second" queue_conf 1
@@ -157,20 +157,32 @@ proc issue_2378_check { } {
    set first [lindex $ts_config(execd_nodes) 0]
    set second [lindex $ts_config(execd_nodes) 1]
 
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "-soft" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "-soft" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "-soft" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "-soft" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "-soft" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "-soft" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "-soft" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "-soft" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "" ] != 0 } { return }
 }
 
-proc issue_2378_single_check { pe_name master slave } {
+proc issue_2378_single_check { pe_name master slave soft } {
    global ts_config
 
    set SGE_ROOT $ts_config(product_root)
@@ -180,7 +192,7 @@ proc issue_2378_single_check { pe_name master slave } {
    # tail -f scheduling file
    init_logfile_wait $ts_config(master_host) $schedule
 
-   set jobid [submit_job "-pe $pe_name 2 -masterq $master -soft -q $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+   set jobid [submit_job "-pe $pe_name 2 -masterq $master $soft -q $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
    set ret [ issue_2378_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:1.0*" ]
 
    if { $ret == 0 } {
