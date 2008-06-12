@@ -46,6 +46,8 @@ PATH=/bin:/usr/bin
 ARCH=`$SGE_ROOT/util/arch`
 HOST=`$SGE_ROOT/utilbin/$ARCH/gethostname -name`
 
+ADD_HOSTS=`$SGE_ROOT/bin/$ARCH/qconf -sel | grep -v $HOST`
+
 end=false
 while [ $end = false ]; do
 
@@ -67,14 +69,26 @@ while [ $end = false ]; do
    echo "begin"
 
    echo "$HOST:test_string:TEST_ARCH"
+   for h in $ADD_HOSTS; do
+      echo "$h:test_string:ADD_ARCH"
+   done
 
    echo "$HOST:test_hostname:$HOST.$TEST_HOSTNAME"
 
    echo "$HOST:test_double:55.55"
+   for h in $ADD_HOSTS; do
+      echo "$h:test_double:0.0"
+   done
 
    echo "$HOST:test_integer:123456"
+   for h in $ADD_HOSTS; do
+      echo "$h:test_integer:0"
+   done
   
    echo "$HOST:test_memory:123456789"
+   for h in $ADD_HOSTS; do
+      echo "$h:test_memory:1"
+   done
 
    echo "end"
 done

@@ -267,7 +267,21 @@ proc complex_loadsensor_test {} {
       set_config new_config $complex_host
 
       # wait for loadsensor to have effect
-      sleep 50
+      set time 0
+      get_qconf_se_info $complex_host
+      while {[string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0} {
+         if {$time >= 120} {
+            ts_log_severe "load_sensor values didn't appear"
+
+            # reset host complex, stop loadsensor
+            ts_log_fine "resetting configuration for host $complex_host"
+            set_config complex_old_config $complex_host
+            return
+         }
+         incr time 1
+         sleep 1
+         get_qconf_se_info $complex_host
+      }
 
       get_qconf_se_info $complex_host
       if { [string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0 } {
@@ -283,6 +297,20 @@ proc complex_loadsensor_test {} {
          ts_log_severe "no test_memory load value reported"
       }
       if { [string first "test_integer=123456" $qconf_se_info(load_values) ] < 0 } {
+         ts_log_severe "no test_integer load value reported"
+      }
+
+      get_qconf_se_info [lindex $ts_config(execd_nodes) 1]
+      if { [string first "test_string=ADD_ARCH" $qconf_se_info(load_values) ] < 0 } {
+         ts_log_severe "no test_string load value reported"
+      }
+      if { [string first "test_double=0.0" $qconf_se_info(load_values) ] < 0 } {
+         ts_log_severe "no test_double load value reported"
+      }
+      if { [string first "test_memory=1" $qconf_se_info(load_values) ] < 0 } {
+         ts_log_severe "no test_memory load value reported"
+      }
+      if { [string first "test_integer=0" $qconf_se_info(load_values) ] < 0 } {
          ts_log_severe "no test_integer load value reported"
       }
 
@@ -313,7 +341,17 @@ proc complex_loadsensor_test {} {
       set_config complex_old_config $complex_host
 
       # wait for loadsensor to be down
-      sleep 120
+      set time 0
+      get_qconf_se_info $complex_host
+      while {[string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] >= 0} {
+         if {$time >= 120} {
+            ts_log_severe "load_sensor values didn't dispappear"
+            break
+         }
+         incr time 1
+         sleep 1
+         get_qconf_se_info $complex_host
+      }
    
       # delete a file the loadsensor script was using
       delete_file "$ts_config(product_root)/testsuite_dns_domain"
