@@ -1,3 +1,16 @@
+CR-2008-06-16-0: Bugfix:    - added checktree hook for test runlevel check
+                              (checks that system setup is correct before
+                               starting level test run) 
+                            - fixed possible TCL error in hedeby_mod_cleanup
+                              (init exit_value)
+                            - new hedeby util procedures for saving log files:
+                              (get_log_files(), get_all_log_files())
+                            - added hedeby support for start_sge_bin()
+                              (use master host of current cluster as exec host
+                               if hedeby checktree is enabled)
+                            - new sge procedure: is_hedeby_active()
+                 Review:    RH
+
 AA-2008-06-16-0: Bugfix:    - install on windows in csp mode
                             - @allhosts problem
                  Review:    JG

@@ -4048,6 +4048,34 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    set CHECK_ACT_LEVEL $level
    ts_log_fine "starting test functions (runlevel is $CHECK_ACT_LEVEL)..."
  
+
+
+   
+
+   # call all check functions 
+   clear_all_check_errors $check_name
+   set start_time [clock seconds]
+   set catch_return 0
+
+   # unless we are in install - check if system is running
+   set do_start 1
+   set do_run_hook 0
+
+   if {[string compare $check_name "init_core_system"] != 0 &&
+       [string compare $check_needs "" ] != 0} {
+      if {$ts_config(gridengine_version) < 62} {
+         if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
+            ts_log_severe "scheduler is not alive"
+         }
+      }
+      wait_for_load_from_all_queues 60
+      
+      set do_run_hook 1
+      if {[exec_start_runlevel_hooks] != 0} {
+         set do_start 0
+      }
+   }
+
    # call init_check_level procedure!
    # JG:       init_check_level is run twice (already in run_test.
    #           do we really have to call it twice?
@@ -4060,25 +4088,12 @@ proc run_test_level {path runcompleted level {do_save 1}} {
          $check_init_level_procedure
       }
    }
- 
-   # call all check functions 
-   clear_all_check_errors $check_name
-   set start_time [clock seconds]
-   set catch_return 0
 
-   # unless we are in install - check if system is running
-   if {[string compare $check_name "init_core_system"] != 0 &&
-       [string compare $check_needs "" ] != 0} {
-      if {$ts_config(gridengine_version) < 62} {
-         if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
-            ts_log_severe "scheduler is not alive"
-         }
-      }
-      wait_for_load_from_all_queues 60
-   }
 
    # only continue, if we have check_functions at all
-   if {![info exists check_functions] || [llength $check_functions] == 0} {
+   if {$do_start == 0} {
+      ts_log_severe "check \"$check_name\" cannot start because start test run hook returned an error"
+   } elseif {![info exists check_functions] || [llength $check_functions] == 0} {
       ts_log_severe "check $check_name doesn't have any check_functions"
    } else {
       # If we have a level specific setup function: execute it
@@ -4118,6 +4133,10 @@ proc run_test_level {path runcompleted level {do_save 1}} {
       # if we have a level specific cleanup function: execute it
       if { [info exists check_cleanup_level_function] }  {
          execute_setup_cleanup_function $check_cleanup_level_function "cleanup_level"
+      }
+   
+      if {$do_run_hook == 1 && [exec_start_runlevel_hooks] != 0} {
+         ts_log_severe "check \"$check_name\" did not cleanup the system correctly! Start test run hook returned an error!"
       }
    }
 

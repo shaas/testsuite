@@ -418,7 +418,7 @@ proc get_hedeby_ge_complex_mapping { arch {rp res_prop} } {
          }
       }
    } else {
-      ts_log_fine "using chached ge_arch_mapping_table ..."
+      ts_log_finer "using chached ge_arch_mapping_table ..."
    }
    
    if {[info exists ge_arch_mapping_table($arch,properties)]} {
@@ -2430,7 +2430,7 @@ proc hedeby_check_default_services {} {
    set service_names(master_host,spare_pool) $hedeby_config(hedeby_master_host)
 
    while { [timestamp] < $mytimeout } {
-      ts_log_fine "obtaining service information ..."
+      ts_log_finer "obtaining service information ..."
       set ret [get_service_info]
       if {$ret != 0} {
          append error_text "get_service_info() returned $ret\n"
@@ -2447,7 +2447,7 @@ proc hedeby_check_default_services {} {
             append error_text "Service \"$service\" not found!\n"
             ts_log_fine "   service not found!"
          } else {
-            ts_log_fine "   service found!"
+            ts_log_finer "   service found!"
          }
          # ceck component state
          if {[info exists service_info($service,cstate)]} {
@@ -2456,7 +2456,7 @@ proc hedeby_check_default_services {} {
                append error_text ", should be \"$expected_component_states\"\n"
                ts_log_fine "   component state \"$service_info($service,cstate)\" - error"
             } else {
-               ts_log_fine "   component state \"$service_info($service,cstate)\" - ok"
+               ts_log_finer "   component state \"$service_info($service,cstate)\" - ok"
             }
          } else {
             append error_text "cannot get component state for service \"$service\"\n"
@@ -2472,7 +2472,7 @@ proc hedeby_check_default_services {} {
                append error_text ", should be \"$expected_host\"\n"
                ts_log_fine "   is running on host \"$service_info_host\" - error"
             } else {
-               ts_log_fine "   is running on host \"$service_info_host\" - ok"
+               ts_log_finer "   is running on host \"$service_info_host\" - ok"
             }
          } else {
             append error_text "cannot get host for service \"$service\"\n"
@@ -2486,7 +2486,7 @@ proc hedeby_check_default_services {} {
                append error_text ", should be \"$expected_service_states\"\n"
                ts_log_fine "   service state \"$service_info($service,sstate)\" - error"
             } else {
-               ts_log_fine "   service state \"$service_info($service,sstate)\" - ok"
+               ts_log_finer "   service state \"$service_info($service,sstate)\" - ok"
             }
          } else {
             append error_text "cannot get service state for service \"$service\"\n"
@@ -2697,7 +2697,7 @@ proc hedeby_check_default_resources {} {
       
       # service
       set service [lindex $res_info($res,service) 0]
-      ts_log_fine "   resource assigned to service \"$res_info($res,service)\""
+      ts_log_finer "   resource assigned to service \"$res_info($res,service)\""
       if {[info exists service_names(service,$res)]} {
          if { $service != $service_names(service,$res) } {
             append error_text "resource \"$res\" should be assigned to \"$service_names(service,$res)\" but is assigned to \"$service\"\n"
@@ -2710,7 +2710,7 @@ proc hedeby_check_default_resources {} {
             if {[lsearch -exact $execd_list $res] < 0} {
                append error_text "wrong assignment of resource \"$res\" to service \"$service\"\n"
             } else {
-               ts_log_fine "   found resource \"$res\" in execd list of service \"$service\": $execd_list"
+               ts_log_finer "   found resource \"$res\" in execd list of service \"$service\": $execd_list"
             }
          } else {
             # must be spare_pool
@@ -2722,14 +2722,14 @@ proc hedeby_check_default_resources {} {
 
       # state ASSIGNED
       set state [lindex $res_info($res,state) 0]
-      ts_log_fine "   resource has state \"$state\""
+      ts_log_finer "   resource has state \"$state\""
       if {$state != "ASSIGNED"} {
          append error_text "resource \"$res\" should have state \"ASSIGNED\" but it's state is \"$res_info($res,state)\"\n"
       }
 
       # flags "" or "S" (static) for services
       set flags [lindex $res_info($res,flags) 0]
-      ts_log_fine "   resource has flags \"$flags\""
+      ts_log_finer "   resource has flags \"$flags\""
       if {[lsearch -exact $ge_hosts $res] >= 0} {
          # this is ge master host assume "S" for static flag
          if {$flags != "S"} {
@@ -2745,7 +2745,7 @@ proc hedeby_check_default_resources {} {
 
    # now check resource properties
    foreach res [get_all_default_hedeby_resources] {
-      ts_log_fine "checking resource properties of resource $res:"
+      ts_log_finer "checking resource properties of resource $res:"
       set osArch [resolve_arch $res]
       get_hedeby_ge_complex_mapping $osArch res_prop
       ts_log_finer "GE arch \"$osArch\" is mapped to props:"
@@ -2756,7 +2756,7 @@ proc hedeby_check_default_resources {} {
                append error_text "resource \"$res\" reported property \"$name\" with\n"
                append error_text "value \"$reported_props($res,$name)\", should be \"$res_prop($name)\"\n"
             } else {
-               ts_log_fine "resource \"$res\" has property \"$name\" set to \"$res_prop($name)\" - fine!"
+               ts_log_finer "resource \"$res\" has property \"$name\" set to \"$res_prop($name)\" - fine!"
             }
          } else {
             append error_text "resource \"$res\" property \"$name\" is missing!\n"
@@ -5685,6 +5685,8 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
    upvar $exit_var exit_value
    upvar $error_log errors
 
+
+   set exit_value 111
    if { $ispid == "" } {
       ts_log_fine "no ispid value - returning"
       return
@@ -7099,6 +7101,109 @@ proc mod_hedeby_resource { host exec_user resource my_properties {raise_error 1}
    }
    return 0
 }
+
+#****** util/get_log_files() ***************************************************
+#  NAME
+#     get_log_files() -- get all log files on the hedeby host
+#
+#  SYNOPSIS
+#     get_log_files { host user } 
+#
+#  FUNCTION
+#     Retruns a file list with full path names of hedeb log files on specified
+#     host
+#
+#  INPUTS
+#     host - hostname where the log files should be returned
+#     user - user who should start the execution of find command
+#
+#  RESULT
+#     File list
+#
+#  SEE ALSO
+#     util/get_all_log_files()
+#     util/get_log_files()
+#*******************************************************************************
+proc get_log_files { host user } {
+   set spool_dir_path [get_hedeby_local_spool_dir $host]
+   set output [start_remote_prog $host $user "find" "$spool_dir_path -type f -name \"*.log\""]
+   set file_list {}
+   foreach f [split $output "\n\r"] {
+      if {$f != ""} {
+         if {[is_remote_file $host $user $f]} {
+            lappend file_list $f
+         }
+      }
+   }
+   set output [start_remote_prog $host $user "find" "$spool_dir_path -type f -name \"*.std*\""]
+   foreach f [split $output "\n\r"] {
+      if {$f != ""} {
+#         if {[is_remote_file $host $user $f]} {
+            lappend file_list $f
+#         }
+      }
+   }
+
+   return $file_list
+}
+
+#****** util/get_all_log_files() ***********************************************
+#  NAME
+#     get_all_log_files() -- ??? 
+#
+#  SYNOPSIS
+#     get_all_log_files { user tar_file_path } 
+#
+#  FUNCTION
+#     Creates a log.tar.gz file and returns the path to the file. The file
+#     contains the log files of every hedeby installation of the TS system.
+#
+#  INPUTS
+#     user          - user who start commands
+#     tar_file_path - path to a directory where the log.tar.gz file should be
+#                     created
+#
+#  RESULT
+#     Full path to log.tar.gz file
+#
+#  SEE ALSO
+#     util/get_all_log_files()
+#     util/get_log_files()
+#*******************************************************************************
+proc get_all_log_files { user tar_file_path} {
+   global hedeby_config CHECK_USER
+   set host_list [get_all_movable_resources]
+   lappend host_list $hedeby_config(hedeby_master_host)
+   set local_host [gethostname]
+   ts_log_fine "local host is $local_host"
+   set directory [get_tmp_directory_name]
+   file mkdir $directory
+   ts_log_fine "copy all log files to directory:\n$directory"
+   foreach host $host_list {
+      set files [get_log_files $host "root"]
+      ts_log_fine "creating subdir for host $host ..."
+      set act_dir $directory/$host
+      start_remote_prog $local_host $CHECK_USER "mkdir" $act_dir
+      foreach f $files {
+         start_remote_prog $host "root" "cp" "$f $act_dir"
+      }
+   }
+   set tar_bin [get_binary_path $local_host "tar"]
+   set gzip_bin [get_binary_path $local_host "gzip"]
+
+   if {[file isfile $tar_file_path/log.tar.gz]} {
+      ts_log_fine "deleting existing log file: $tar_file_path/log.tar.gz"
+      delete_file $tar_file_path/log.tar.gz 
+   }
+
+   start_remote_prog $local_host root "chown" "-R $CHECK_USER $directory"
+
+   ts_log_fine [start_remote_prog $local_host $CHECK_USER "cd" "$directory ; $tar_bin -cvf - ./* | $gzip_bin -c > $tar_file_path/log.tar.gz"]
+   wait_for_enter
+   delete_directory $directory
+   return "$tar_file_path/log.tar.gz"
+}
+
 
 
 

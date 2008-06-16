@@ -48,8 +48,8 @@ set check_init_level_procedure "RP_add_resource_stress_test_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
-set check_setup_function "RP_add_resource_stress_test_setup"
-set check_cleanup_function "RP_add_resource_stress_test_cleanup"
+set check_setup_level_function "RP_add_resource_stress_test_setup"
+set check_cleanup_level_function "RP_add_resource_stress_test_cleanup"
 
 lappend check_functions "RP_add_resource_stress_test_check"
 

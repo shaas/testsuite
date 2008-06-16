@@ -48,8 +48,8 @@ set check_init_level_procedure "ge_stop_and_free_resources_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
-set check_setup_function "ge_stop_and_free_resources_setup"
-set check_cleanup_function "ge_stop_and_free_resources_cleanup"
+set check_setup_level_function "ge_stop_and_free_resources_setup"
+set check_cleanup_level_function "ge_stop_and_free_resources_cleanup"
 
 lappend check_functions "ge_stop_and_free_resources_ge_service_check"
 

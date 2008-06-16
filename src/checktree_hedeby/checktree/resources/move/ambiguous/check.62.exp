@@ -48,8 +48,8 @@ set check_init_level_procedure "ambiguous_resource_assignment_init_level"
 set check_functions            {}   
 set check_highest_level        0
 
-set check_setup_function "ambiguous_resource_assignment_setup"
-set check_cleanup_function "ambiguous_resource_assignment_cleanup"
+set check_setup_level_function "ambiguous_resource_assignment_setup"
+set check_cleanup_level_function "ambiguous_resource_assignment_cleanup"
 
 lappend check_functions "ambiguous_resource_assignment_check"
 

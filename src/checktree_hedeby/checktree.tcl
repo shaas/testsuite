@@ -63,6 +63,7 @@ set ts_checktree($hedeby_checktree_nr,passwd_hook)              "hedeby_get_requ
 
 set ts_checktree($hedeby_checktree_nr,startup_hooks_0)          "hedeby_startup"                   
 set ts_checktree($hedeby_checktree_nr,shutdown_hooks_0)         "hedeby_shutdown"          
+set ts_checktree($hedeby_checktree_nr,start_runlevel_hooks_0)   "hedeby_test_run_level_check"
 
 
 
@@ -135,6 +136,51 @@ proc hedeby_startup { } {
 proc hedeby_shutdown { }  {
    return [shutdown_hedeby 1]
 }
+
+#****** checktree/hedeby_test_run_level_check() ********************************
+#  NAME
+#     hedeby_test_run_level_check() -- start_runlevel_hooks_0 for hedeby
+#
+#  SYNOPSIS
+#     hedeby_test_run_level_check { } 
+#
+#  FUNCTION
+#     This procedure is the callback for the runlevel start hook of TS.
+#     It checks if all resources and services are available. It will not do
+#     any checking if the current test name is "hedeby_install" since this
+#     check needs a running hedeby system.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#*******************************************************************************
+proc hedeby_test_run_level_check {} {
+   global check_name
+   if {$check_name == "hedeby_install"} {
+      ts_log_fine "skip hedeby_install runlevel checking"
+      return 0
+   }
+   ts_log_fine "performing run level check ..."
+
+   # check correct startup of resources
+   ts_log_fine "checking resources ..."
+   set ret_val [hedeby_check_default_resources]
+   if { $ret_val != 0} {
+      return 1
+   }
+ 
+   ts_log_fine "checking resources ..."
+   # check correct startup of services
+   set ret_val [hedeby_check_default_services]
+   if { $ret_val != 0} {
+      return 1
+   }
+   return 0
+}
+
+
 
 # This should reset the hedeby system (testsuite install re_init)
 #****** checktree_hedeby/hedeby_checktree_clean() *************************************

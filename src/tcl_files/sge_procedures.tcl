@@ -675,13 +675,21 @@ proc check_execd_messages { hostname { show_mode 0 } } {
 #*******************************************************************************
 proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {timeout 60} {cd_dir ""} {sub_path "bin"} {line_array output_lines} } {
    global CHECK_USER CHECK_JGDI_ENABLED jgdi_config check_category
-   get_current_cluster_config_array ts_config
-
    upvar $exit_var exit_state
    upvar $line_array line_buf
-  
+
+   get_current_cluster_config_array ts_config
+
    if {$host == ""} {
-      set host [host_conf_get_suited_hosts]
+      # The hedeby tests may move resources between clusters, so it is no longer guaranteed that all hosts from
+      # the configured execd host lists are really admin hosts!!!
+      # For active hedeby checktree we are using the master hosts of the cluster.
+      if {[is_hedeby_active] != 0} {
+         ts_log_finer "Hedeby checktree active - Using qmaster host \"$ts_config(master_host)\" of cluster \"[get_current_cluster_config_nr]\" for starting sge binaries!"
+         set host $ts_config(master_host)
+      } else {
+         set host [host_conf_get_suited_hosts]
+      }
    }
 
    if {$user == ""} {
@@ -740,6 +748,46 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
    incr index -1
    set line_buf(0) $index
    return $result
+}
+
+#****** sge_procedures/is_hedeby_active() **************************************
+#  NAME
+#     is_hedeby_active() -- check if hedeby checktree is configured
+#
+#  SYNOPSIS
+#     is_hedeby_active { } 
+#
+#  FUNCTION
+#     This procedure returns 1 if the actual checktree contains the
+#     "hedeby_install" test.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 - no hedeby checktree active,
+#     1 - testsuite is configured with hedeby checktree
+#
+#  NOTES
+#     The value is cached. Cache is deleted when re-sourcing the file
+#     (TS menu 30)
+#
+#*******************************************************************************
+global hedeby_active_cache
+set hedeby_active_cache ""
+proc is_hedeby_active {} {
+   global hedeby_active_cache ts_checktree 
+   if {$hedeby_active_cache == ""} {
+      ts_log_fine "checking if hedeby is configured in the checktree ..."
+      set hedeby_active_cache 0
+      for {set i 0} {$i< $ts_checktree(act_nr)} {incr i 1} {
+         if {[info exists ts_checktree($i,check_name)] && $ts_checktree($i,check_name) == "hedeby_install"} {
+            ts_log_fine "Found active hedeby checktree."
+            set hedeby_active_cache 1
+            break
+         }
+      }
+   }
+   return $hedeby_active_cache
 }
 
 #****** sge_procedures/start_sge_utilbin() *************************************

@@ -292,6 +292,45 @@ proc exec_shutdown_hooks {} {
    return $error_count
 }
 
+#****** checktree_helper/exec_start_runlevel_hooks() ***************************
+#  NAME
+#     exec_start_runlevel_hooks() -- execute runlevel hooks
+#
+#  SYNOPSIS
+#     exec_start_runlevel_hooks { } 
+#
+#  FUNCTION
+#     execute registered start runlevel hooks procedures
+#
+#  INPUTS
+#
+#  RESULT
+#     0 on success
+#
+#  SEE ALSO
+#*******************************************************************************
+proc exec_start_runlevel_hooks {} {
+   global ts_checktree
+   set error_count 0
+   for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
+      for {set ii 0} {[info exists ts_checktree($i,start_runlevel_hooks_${ii})]} {incr ii 1} {
+         
+         set start_test_hook $ts_checktree($i,start_runlevel_hooks_${ii})
+         # TODO: Only run this hook(s) when the test comes from the checktree which defined the hook
+         if { [info procs $start_test_hook] != $start_test_hook } {
+            ts_log_fine "Can not execute start_runlevel_hooks ${ii} of checktree $ts_checktree($i,dir_name), proc \"$start_test_hook\" not found"
+            return -1
+         } else {
+            set res [$start_test_hook]
+            if { $res != 0 } {
+               ts_log_fine "start_runlevel_hooks hook ${ii} of checktree  $ts_checktree($i,dir_name) failed, proc \"$start_test_hook\" returned $res\n"
+               incr error_count
+            }
+         }
+      }
+   }
+   return $error_count
+}
 
 #****** checktree_helper/exec_startup_hooks() **************************************************
 #  NAME
