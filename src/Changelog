@@ -5,7 +5,7 @@ JG-2008-06-16-0: Enhancem.: Added test for IZ 2615 in check
 AP-2008-06-16-2: Bugfix:    Fixed AP-2008-06-16-1 commit.
 
 CR-2008-06-16-1: Hotfix:    Fixed hedeby config_generic calls
-                 Review:    ??
+                 Review:    AP
 
 AP-2008-06-16-1: Enhancem.: o tst configuration procedures should use config_generic
                             o config_generic should add ports into user configuration
