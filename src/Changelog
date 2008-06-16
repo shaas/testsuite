@@ -1,3 +1,6 @@
+AP-2008-06-16-0: CVS        Created TS_PRIOR_CONFIG_TAG
+--------------------------------------------------------
+
 CR-2008-06-16-0: Bugfix:    - added checktree hook for test runlevel check
                               (checks that system setup is correct before
                                starting level test run) 
