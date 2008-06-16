@@ -317,5 +317,37 @@ proc get_all_hosts { } {
    return $host_list
 }
 
+#****** cluster_procedures/get_all_reserved_ports() ****************************
+#  NAME
+#     get_all_reserved_ports() -- get all reserver ports in configuration
+#
+#  SYNOPSIS
+#     get_all_reserved_ports { } 
+#
+#  FUNCTION
+#     This procedure returns the list of ports which are used in the testsuite
+#     cluster configuration and all additional configurations.
+#
+#*******************************************************************************
+proc get_all_reserved_ports { } {
+   global ts_config
 
+   set portlist ""
+   lappend portlist $ts_config(commd_port)
+   lappend portlist $ts_config(reserved_port)
+   set execd_port $ts_config(commd_port)
+   incr execd_port 1
+   lappend portlist $execd_port
 
+   if {$ts_config(additional_config) != "none"} {
+      foreach filename $ts_config(additional_config) {
+         get_additional_config $filename add_config
+         lappend portlist $add_config(commd_port)
+         lappend portlist $add_config(reserved_port)
+         set execd_port $add_config(commd_port)
+         incr execd_port 1
+         lappend portlist $execd_port
+      }
+   }
+   return $portlist
+}

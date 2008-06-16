@@ -77,7 +77,7 @@ if {![info exists ts_db_config]} {
 #     only_check   - 0: expect user input
 #                    1: just verify user input
 #     name         - option name (in ts_user_config array)
-#     config_array - config array name (ts_config)
+#     config_array - config array name (ts_db_config)
 #
 #  SEE ALSO
 #     check/setup_db_config()
@@ -85,6 +85,7 @@ if {![info exists ts_db_config]} {
 #
 #*******************************************************************************
 proc db_config_dbtypelist { only_check name config_array } {
+
    upvar $config_array config
 
    set description   $config($name,desc)
@@ -106,34 +107,24 @@ proc db_config_dbtypelist { only_check name config_array } {
          switch -- $input {
              1 {
                 set result [db_config_dbtypelist_add_dbtype config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
-             }
              2 {
                 set result [db_config_dbtypelist_edit_dbtype config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
-             }
              3 {
                set result [db_config_dbtypelist_delete_dbtype config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
+             10 { set not_ready 0 }
              }
-             10 {
-                set not_ready 0
              }
          }
-      }
-   }
 
    # check database type configuration
    ts_log_finest "db_config_dbtypelist:"
-   foreach dbtype $config(dbtypelist) {
-      ts_log_finest "checking database type \"$dbtype\" ... "
-   }
+   foreach dbtype $config(dbtypelist) { ts_log_finest "checking database type \"$dbtype\" ... " }
 
    return $config(dbtypelist)
 }
@@ -152,6 +143,9 @@ proc db_config_dbtypelist { only_check name config_array } {
 #  INPUTS
 #     array_name - ts_db_config
 #
+#  RESULT
+#     the list of configured database types
+#
 #  SEE ALSO
 #     check/setup_db_config()
 #     check/verify_db_config()
@@ -163,15 +157,76 @@ proc db_config_dbtypelist_show_dbtypes { array_name } {
    puts "\nDatabase type list:\n"
    if { [llength $config(dbtypelist)] == 0 } {
       puts "no database types defined"
+      return ""
    }
    set index 0
    foreach dbtype $config(dbtypelist) {
       incr index 1 
       puts "($index) $dbtype"
    }
+   return $config(dbtypelist)
 }
 
-#****** config_database/db_config_databaselist_add_database() ******************
+#****** config_database/db_config_get_dbtype_parameters() **********************
+#  NAME
+#     db_config_get_dbtype_parameters() -- get the list of database type parameters
+#
+#  SYNOPSIS
+#     db_config_get_dbtype_parameters { } 
+#
+#  FUNCTION
+#     get the list of all parameters needed to configure a database type
+#
+#  RESULT
+#     the list of database type parameters
+#
+#*******************************************************************************
+proc db_config_get_dbtype_parameters { } {
+
+   set params ""
+   lappend params port
+   lappend params driver
+   lappend params url
+
+   return $params
+}
+
+#****** config_database/db_config_dislpay_params() *****************************
+#  NAME
+#     db_config_dislpay_params() -- display the database configuration
+#
+#  SYNOPSIS
+#     db_config_dislpay_params { name type config_array }
+#
+#  FUNCTION
+#     display the list of parameters and it's values
+#
+#  INPUTS
+#     name         - the name of database/dbtype from database configuration
+#     type         - database or dbtype
+#     config_array - ts_db_config
+#
+#*******************************************************************************
+proc db_config_dislpay_params { name type config_array } {
+
+   upvar $config_array config
+
+   set max_length 0
+
+   puts "\n"
+   foreach param "[db_config_get_${type}_parameters] $type" {
+      if { [string length $param] > $max_length } { set max_length [string length $param] }
+   }
+
+   puts "   $type      [get_spaces [expr ( $max_length - [ string length $type ] ) ]] : $name"
+   foreach param [db_config_get_${type}_parameters] {
+      set space "     [get_spaces [expr ( $max_length - [ string length $param ] ) ]]"
+      puts "   $param $space : $config($name,$param)"
+   }
+   puts "\n"
+}
+
+#****** config_database/db_config_dbtypelist_add_dbtype() **********************
 #  NAME
 #     db_config_dbtypelist_add_dbtype() -- add database type to database type 
 #                                          configuration
@@ -198,15 +253,11 @@ proc db_config_dbtypelist_add_dbtype { array_name { have_dbtype "" } } {
       clear_screen
       puts "\nAdd database type to global database type configuration"
       puts "======================================================="
-
       db_config_dbtypelist_show_dbtypes config
-
       puts "\n"
-      puts -nonewline "Please enter new database type: "
+      puts -nonewline "Enter new database type: "
       set new_dbtype [wait_for_enter 1]
-   } else {
-      set new_dbtype $have_dbtype
-   }
+   } else { set new_dbtype $have_dbtype }
 
    if { [ string length $new_dbtype ] == 0 } {
       puts "no database type entered"
@@ -224,12 +275,10 @@ proc db_config_dbtypelist_add_dbtype { array_name { have_dbtype "" } } {
    }
 
    lappend config(dbtypelist) $new_dbtype
-   set config($new_dbtype,port)   ""
-   set config($new_dbtype,driver) ""
-   set config($new_dbtype,url)    ""
-   if { $have_dbtype == "" } {
-      db_config_dbtypelist_edit_dbtype config $new_dbtype
+   foreach param [db_config_get_dbtype_parameters] {
+      set config($new_dbtype,$param)   ""
    }
+   if { $have_dbtype == "" } { db_config_dbtypelist_edit_dbtype config $new_dbtype }
    return 0   
 }
 
@@ -257,20 +306,15 @@ proc db_config_dbtypelist_edit_dbtype { array_name { have_dbtype "" } } {
 
    set goto 0
 
-   if { $have_dbtype != "" } {
-      set goto $have_dbtype
-   } 
+   if { $have_dbtype != "" } { set goto $have_dbtype } 
 
    while { 1 } {
-
       clear_screen
       puts "\nEdit database type in global database type configuration"
       puts "========================================================"
-   
       db_config_dbtypelist_show_dbtypes config
-
       puts "\n"
-      puts -nonewline "Please enter database type/number or return to exit: "
+      puts -nonewline "Enter database type/number or return to exit: "
       if { $goto == 0 } {
          set dbtype [wait_for_enter 1]
          set goto $dbtype
@@ -279,9 +323,7 @@ proc db_config_dbtypelist_edit_dbtype { array_name { have_dbtype "" } } {
          ts_log_fine $dbtype
       }
  
-      if { [ string length $dbtype ] == 0 } {
-         break
-      }
+      if { [ string length $dbtype ] == 0 } { break }
      
       if { [string is integer $dbtype] } {
          incr dbtype -1
@@ -294,14 +336,10 @@ proc db_config_dbtypelist_edit_dbtype { array_name { have_dbtype "" } } {
          set goto 0
          continue
       }
-      puts ""
-      puts "   dbtype      : $dbtype"
-      puts "   port        : $config($dbtype,port)"
-      puts "   driver      : $config($dbtype,driver)"
-      puts "   url         : $config($dbtype,url)"
    
-      puts "\n"
-      puts -nonewline "Please enter category to edit or hit return to exit > "
+      db_config_dislpay_params $dbtype dbtype config
+
+      puts -nonewline "Enter category to edit or hit return to exit > "
       set input [ wait_for_enter 1]
       if { [ string length $input ] == 0 } {
          set goto 0
@@ -328,50 +366,46 @@ proc db_config_dbtypelist_edit_dbtype { array_name { have_dbtype "" } } {
       }      
 
       if { $extra == 0 } {
-         puts "\nPlease enter new $input value: "
+         puts "\nEnter new $input value: "
          set value [ wait_for_enter 1 ]
       }
       
       if { $extra == 1 } {
-         set help_text {  "Please enter the default port number:" }
-         set value [ config_generic 0 "$dbtype,$input" config $help_text "string" ]
-         if { [string is integer $value] && [ string length $value ] > 3 } {
+         set help_text {  "Enter the default port number:" }
+         array set add_param { patterns "\[0-9\]*" }
+         set value [config_generic 0 "$dbtype,$input" config $help_text "string" 0 1 "" add_param]
+         if { $value == -1 } {
+            wait_for_enter
+         } else {
+            if { [string is integer $value] } { 
             set config($dbtype,$input) $value
          } else {
             puts "$value is not a valid port number"
             wait_for_enter
          }
+         } 
          continue
       }
 
       if { $extra == 2 } {
-         set help_text {  "Please enter jdbc driver for $dbtype:" }
-         set value [ config_generic 0 "$dbtype,$input" config $help_text "string" ]
-         if { [string match "*.*.*" $value] } {
-            set config($dbtype,$input) $value
-         } else {
-            puts "$value is not a valid jdbc driver"
-            wait_for_enter
-         }
+         set help_text {  "Enter jdbc driver for $dbtype:" }
+         array set add_param { patterns "*.*.*" }
+         set value [config_generic 0 "$dbtype,$input" config $help_text "string"  0 1 "" add_param]
+         if { $value != -1 } { set config($dbtype,$input) $value } else { wait_for_enter }
          continue
       }
 
       if { $extra == 3 } {
-         set help_text {  "Please enter url macro using for connection to the database:"
+         set help_text {  "Enter url macro using for connection to the database:"
                           "use macros:  \$db_host for database host"
                           "             \$port    for port number"
                           "             \$db_name for database name\n" }
-         set value [ config_generic 0 "$dbtype,$input" config $help_text "string" ]
-         if { [string match "jdbc:*\$db_host*\$port*\$db_name" $value] } {
-            set config($dbtype,$input) $value
-         } else {
-            puts "$value is not a valid url macro"
-            wait_for_enter
-         }
+         array set add_param { patterns "jdbc:*\$db_host*\$port*\$db_name" }
+         set value [config_generic 0 "$dbtype,$input" config $help_text "string" 0 1 "" add_param]
+         if { $value != -1 } { set config($dbtype,$input) $value } else { wait_for_enter }
          continue
       }
 
-      set config($dbtype,$input) $value
    }
    return 0
 }
@@ -400,21 +434,15 @@ proc db_config_dbtypelist_delete_dbtype { array_name { have_dbtype "" } } {
    upvar $array_name config
 
    while { 1 } {
-
       clear_screen
       puts "\nDelete database type from global database type configuration"
       puts "============================================================"
-
-   
       db_config_dbtypelist_show_dbtypes config
-
       puts "\n"
-      puts -nonewline "Please enter database type/number or return to exit: "
+      puts -nonewline "Enter database type/number or return to exit: "
       set dbtype [wait_for_enter 1]
  
-      if { [ string length $dbtype ] == 0 } {
-         break
-      }
+      if { [ string length $dbtype ] == 0 } { break }
      
       if { [string is integer $dbtype] } {
          incr dbtype -1
@@ -427,16 +455,8 @@ proc db_config_dbtypelist_delete_dbtype { array_name { have_dbtype "" } } {
          continue
       }
 
-      puts ""
-      puts "   database type         : $dbtype"
-      puts "   port                  : $config($dbtype,port)"
-      puts "   driver                : $config($dbtype,driver)"
-      puts "   url                   : $config($dbtype,url)"
-      puts ""
+      db_config_dislpay_params $dbtype dbtype config
 
-      puts ""
-   
-      puts "\n"
       set index [lsearch $config(dbtypelist) $dbtype]
       foreach database $config(databaselist) {
          if { [string compare $config($database,dbtype) $dbtype] == 0 } {
@@ -447,15 +467,13 @@ proc db_config_dbtypelist_delete_dbtype { array_name { have_dbtype "" } } {
       }
       puts -nonewline "Delete this database type? (y/n): "
       set input [ wait_for_enter 1]
-      if { [ string length $input ] == 0 } {
-         continue
-      }
+      if { [ string length $input ] == 0 } { continue }
 
       if { [ string compare $input "y"] == 0 } {
          set config(dbtypelist) [ lreplace $config(dbtypelist) $index $index ]
-         unset config($dbtype,port)
-         unset config($dbtype,driver)
-         unset config($dbtype,url)
+         foreach param [db_config_get_dbtype_parameters] {
+            unset config($dbtype,$param)
+         }
          wait_for_enter
          continue
       }
@@ -477,7 +495,7 @@ proc db_config_dbtypelist_delete_dbtype { array_name { have_dbtype "" } } {
 #     only_check   - 0: expect user input
 #                    1: just verify user input
 #     name         - option name (in ts_user_config array)
-#     config_array - config array name (ts_config)
+#     config_array - config array name (ts_db_config)
 #
 #  SEE ALSO
 #     check/setup_db_config()
@@ -485,6 +503,7 @@ proc db_config_dbtypelist_delete_dbtype { array_name { have_dbtype "" } } {
 #
 #*******************************************************************************
 proc db_config_databaselist { only_check name config_array } {
+
    upvar $config_array config
 
    set description   $config($name,desc)
@@ -511,37 +530,26 @@ proc db_config_databaselist { only_check name config_array } {
          switch -- $input {
              1 {
                 set result [db_config_databaselist_add_database config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
-             }
              2 {
                 set result [db_config_databaselist_edit_database config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
-             }
              3 {
                set result [db_config_databaselist_delete_database config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
+             10 { set not_ready 0 }
              }
-             10 {
-                set not_ready 0
              }
          }
-      }
-   }
 
    # check database configuration
    ts_log_finest "db_config_databaselist:"
-   foreach database $config(databaselist) {
-      ts_log_finest "checking database \"$database\" ... "
-   }
+   foreach database $config(databaselist) { ts_log_finest "checking database \"$database\" ... " }
 
    return $config(databaselist)
-
 }
 
 #****** config_database/db_config_databaselist_show_databases() ****************
@@ -558,10 +566,11 @@ proc db_config_databaselist { only_check name config_array } {
 #  INPUTS
 #     array_name - ts_db_config
 #
+#  RESULT
+#     the list of configured databases
 #  SEE ALSO
 #     check/setup_db_config()
 #     check/verify_db_config()
-#
 #*******************************************************************************
 proc db_config_databaselist_show_databases { array_name } {
    upvar $array_name config
@@ -569,12 +578,43 @@ proc db_config_databaselist_show_databases { array_name } {
    puts "\nDatabase list:\n"
    if { [llength $config(databaselist)] == 0 } {
       puts "no databases defined"
+      return ""
    }
+
    set index 0
    foreach database $config(databaselist) {
       incr index 1 
       puts "($index) $database     ($config($database,dbtype)/$config($database,dbhost))"
    }
+   return $config(databaselist)
+}
+
+#****** config_database/db_config_get_database_parameters() ********************
+#  NAME
+#     db_config_get_database_parameters() -- get the list of database parameters
+#
+#  SYNOPSIS
+#     db_config_get_database_parameters { } 
+#
+#  FUNCTION
+#     get the list of all parameters needed to configure a database
+#
+#  RESULT
+#     the list of database parameters
+#
+#*******************************************************************************
+proc db_config_get_database_parameters { } {
+
+   set params ""
+   lappend params dbtype
+   lappend params dbhost
+   lappend params dbport
+   lappend params dbname
+   lappend params username
+   lappend params password
+   lappend params driverpath
+
+   return $params
 }
 
 #****** config_database/db_config_databaselist_add_database() ******************
@@ -598,6 +638,7 @@ proc db_config_databaselist_show_databases { array_name } {
 #
 #*******************************************************************************
 proc db_config_databaselist_add_database { array_name { have_database "" } } {
+
    upvar $array_name config
   
    if { $have_database == "" } {
@@ -606,11 +647,9 @@ proc db_config_databaselist_add_database { array_name { have_database "" } } {
       puts "============================================="
       db_config_databaselist_show_databases config
       puts "\n"
-      puts -nonewline "Please enter new database name: "
+      puts -nonewline "Enter new database name: "
       set new_database [wait_for_enter 1]
-   } else {
-      set new_database $have_database
-   }
+   } else { set new_database $have_database }
 
    if { [ string length $new_database ] == 0 } {
       puts "no database entered"
@@ -628,17 +667,11 @@ proc db_config_databaselist_add_database { array_name { have_database "" } } {
    }
 
    lappend config(databaselist) $new_database
-   set config($new_database,dbtype)      ""
-   set config($new_database,dbhost)      ""
-   set config($new_database,dbport)      ""
-   set config($new_database,dbname)      ""
-   set config($new_database,username)    ""
-   set config($new_database,password)    ""
-   set config($new_database,driverpath)  ""
-
-   if { $have_database == "" } {
-      db_config_databaselist_edit_database config $new_database
+   foreach param [db_config_get_database_parameters] {
+      set config($new_database,$param)      ""
    }
+
+   if { $have_database == "" } { db_config_databaselist_edit_database config $new_database }
    return 0   
 }
 
@@ -662,23 +695,21 @@ proc db_config_databaselist_add_database { array_name { have_database "" } } {
 #
 #*******************************************************************************
 proc db_config_databaselist_edit_database { array_name { have_database "" } } {
-   global CHECK_USER
+   global CHECK_USER ts_db_config
+# aja: TODO: do we need ts_db_config here?????
    upvar $array_name config
 
    set goto 0
 
-   if { $have_database != "" } {
-      set goto $have_database
-   } 
+   if { $have_database != "" } { set goto $have_database } 
 
    while { 1 } {
-
       clear_screen
       puts "\nEdit database in global database configuration"
       puts "=============================================="
       db_config_databaselist_show_databases config
       puts "\n"
-      puts -nonewline "Please enter database/number or return to exit: "
+      puts -nonewline "Enter database/number or return to exit: "
       if { $goto == 0 } {
          set database [wait_for_enter 1]
          set goto $database
@@ -687,9 +718,7 @@ proc db_config_databaselist_edit_database { array_name { have_database "" } } {
          ts_log_fine $database
       }
  
-      if { [ string length $database ] == 0 } {
-         break
-      }
+      if { [ string length $database ] == 0 } { break }
      
       if { [string is integer $database] } {
          incr database -1
@@ -702,17 +731,10 @@ proc db_config_databaselist_edit_database { array_name { have_database "" } } {
          set goto 0
          continue
       }
-      puts ""
-      puts "   database     : $database"
-      puts "   dbtype       : $config($database,dbtype)"
-      puts "   dbhost       : $config($database,dbhost)"
-      puts "   dbport       : $config($database,dbport)"
-      puts "   dbname       : $config($database,dbname)"
-      puts "   username     : $config($database,username)"
-      puts "   password     : $config($database,password)"
-      puts "   driverpath   : $config($database,driverpath)"
-      puts "\n"
-      puts -nonewline "Please enter category to edit or hit return to exit > "
+
+      db_config_dislpay_params $database database config
+
+      puts -nonewline "Enter category to edit or hit return to exit > "
       set input [ wait_for_enter 1]
       if { [ string length $input ] == 0 } {
          set goto 0
@@ -732,6 +754,7 @@ proc db_config_databaselist_edit_database { array_name { have_database "" } } {
       }
 
       set extra 0
+      if { [info exists add_param] } { array unset add_param }
       switch -- $input {
          "dbtype"       { set extra 1 }
          "dbhost"       { set extra 2 }
@@ -743,37 +766,41 @@ proc db_config_databaselist_edit_database { array_name { have_database "" } } {
       }
 
       if { $extra == 0 } {
-         puts "\nPlease enter new $input value: "
+         puts "\nEnter new $input value: "
          set value [ wait_for_enter 1 ]
       }
 
       if { $extra == 1 } {
-         set help_text "\nDatabase type list:"
-         set value [ config_generic 0 "$database,$input" config $help_text "choice" config(dbtypelist) ]
-         if { [ lsearch $config(dbtypelist) $value ] >= 0 } {
-            set config($database,$input) $value
-            set config($database,dbport) $config($value,port)
-         } else {
-           wait_for_enter
+         set help_text { "Database type list:" }
+         array set dbtypes {}
+         foreach dbtype $config(dbtypelist) {
+            set dbtypes($dbtype) ""
          }
+         set value [config_generic 0 "$database,$input" config $help_text "choice" 0 1 dbtypes]
+         if { $value != -1 } {
+            set config($database,$input) $value
+            if { [info exists config($value,port)] } {
+            set config($database,dbport) $config($value,port)
+            } elseif { [info exists ts_db_config($value,port)] } {
+               set config($database,dbport) $ts_db_config($value,port)
+         }
+         } else { wait_for_enter }
          continue
       }
 
       if { $extra == 2} {
-         set help_text {  "Please enter the name of database host:" }
-         set value [ config_generic 0 "$database,$input" config $help_text "string" ]
-         if { [string compare $value "none" ] != 0 } {
-            set config($database,$input) $value
-         } else {
-            wait_for_enter
-         }
+         set help_text {  "Enter the name of database host:" }
+         set value [config_generic 0 "$database,$input" config $help_text "string" 0]
+         if { $value != -1 } { set config($database,$input) $value } else { wait_for_enter }
          continue
       }
 
       if { $extra == 3 } {
-         set help_text {  "Please enter the database port:" }
-         set value [ config_generic 0 "$database,$input" config $help_text "string" ]
-         if { [string is integer $value] && [ string length $value ] > 3 } {
+         set help_text {  "Enter the database port:" }
+         array set add_param {}
+         set add_param(patterns) "\[1-9\]\[0-9\]\[0-9\]\[0-9\]*"
+         set value [config_generic 0 "$database,$input" config $help_text "string" 0 1 "" add_param]
+         if { $value != -1 && [string is integer $value] } {
             set config($database,$input) $value
          } else {
             puts "$value is not a valid port number"
@@ -783,51 +810,42 @@ proc db_config_databaselist_edit_database { array_name { have_database "" } } {
       }
 
       if { $extra == 4 } {
-         set help_text {  "Please enter the name of database:" }
-         set value [ config_generic 0 "$database,$input" config $help_text "string" ]
-         if { [string compare $value "none" ] != 0 } {
+         set help_text {  "Enter the name of database:" }
+         set value [config_generic 0 "$database,$input" config $help_text "string" 0]
+         if { $value != -1 } {
             set config($database,$input) $value
-         } else {
-            wait_for_enter
-         }
+         } else { wait_for_enter }
          continue
       }
 
       if { $extra == 5 } {
-         set help_text {  "Please enter the name of database user with write access:" }
-         set value [ config_generic 0 "$database,$input" config $help_text "string" ]
-         if { [string compare $value "none" ] != 0 } {
+         set help_text {  "Enter the name of database user with write access:" }
+         set value [config_generic 0 "$database,$input" config $help_text "string" 0]
+         if { $value != -1 } {
             set config($database,$input) $value
-         } else {
-            wait_for_enter
-         }
+         } else { wait_for_enter }
          continue
       }
  
       if { $extra == 6 } {
-         set help_text {  "Please enter the password for the database user with write access:" }
-         set value [ config_generic 0 "$database,$input" config $help_text "string" ]
-         if { [string compare $value "none" ] != 0 } {
+         set help_text {  "Enter the password for the database user with write access:" }
+         set value [config_generic 0 "$database,$input" config $help_text "string" 0]
+         if { $value != -1 } {
             set config($database,$input) $value
-         } else {
-            wait_for_enter
-         }
+         } else { wait_for_enter }
          continue
       }
 
       if { $extra == 7 } {
-         set help_text {  "Please enter the path to jdbc driver:" }
-         set value [ config_generic 0 "$database,$input" config $help_text "filename" ]
-         if { [string compare $value "-1" ] != 0 } {
+         set help_text {  "Enter the path to jdbc driver:" }
+         set value [config_generic 0 "$database,$input" config $help_text "filename" 0]
+         if { $value != -1 } {
             set config($database,$input) $value
-         } else {
-            wait_for_enter
-         }
+         } else { wait_for_enter }
          continue
       }
    }
    return 0   
-
 }
 
 #****** config_database/db_config_databaselist_delete_database() ***************
@@ -860,12 +878,10 @@ proc db_config_databaselist_delete_database { array_name } {
       puts "=================================================="
       db_config_databaselist_show_databases config
       puts "\n"
-      puts -nonewline "Please enter database/number or return to exit: "
+      puts -nonewline "Enter database/number or return to exit: "
       set database [wait_for_enter 1]
  
-      if { [ string length $database ] == 0 } {
-         break
-      }
+      if { [ string length $database ] == 0 } { break }
      
       if { [string is integer $database] } {
          incr database -1
@@ -878,20 +894,8 @@ proc db_config_databaselist_delete_database { array_name } {
          continue
       }
 
-      puts ""
-      puts "   database          : $database"
-      puts "   dbtype            : $config($database,dbtype)"
-      puts "   dbhost            : $config($database,dbhost)"
-      puts "   dbport            : $config($database,dbport)"
-      puts "   dbname            : $config($database,dbname)"
-      puts "   username          : $config($database,username)"
-      puts "   password          : $config($database,password)"
-      puts "   driverpath        : $config($database,driverpath)"
-      puts ""
+      db_config_dislpay_params $database database config
 
-      puts ""
-   
-      puts "\n"
       puts -nonewline "Delete this database? (y/n): "
       set input [ wait_for_enter 1]
       if { [ string length $input ] == 0 } {
@@ -901,18 +905,56 @@ proc db_config_databaselist_delete_database { array_name } {
       if { [ string compare $input "y"] == 0 } {
          set index [lsearch $config(databaselist) $database]
          set config(databaselist) [ lreplace $config(databaselist) $index $index ]
-         unset config($database,dbtype)
-         unset config($database,dbhost)
-         unset config($database,dbport)
-         unset config($database,dbname)
-         unset config($database,username)
-         unset config($database,password)
-         unset config($database,driverpath)
+         foreach param [db_config_get_database_parameters] {
+            unset config($database,$param)
+         }
          wait_for_enter
          continue
       }
    }
    return 0   
+}
+
+#****** config_database/db_config_add_newdatabase() ****************************
+#  NAME
+#     db_config_add_newdatabase() -- add database to database configuration
+#
+#  SYNOPSIS
+#     db_config_add_newdatabase { dbname } 
+#
+#  FUNCTION
+#     This procedure is used to add a database to the testsuite global database
+#     configuration 
+#
+#  INPUTS
+#     db_name - database name
+#
+#  SEE ALSO
+#     config_database/db_config_databaselist_add_database()
+#     config_database/db_config_databaselist_edit_database()
+#     config_database/db_config_get_database_parameters()
+#     check/save_db_configuration()
+#*******************************************************************************
+proc db_config_add_newdatabase { dbname } {
+   global ts_config ts_db_config
+
+   incr errors [db_config_databaselist_add_database ts_db_config $dbname]
+   if { $errors == 0 } {
+      incr errors [db_config_databaselist_edit_database ts_db_config $dbname]
+      incr errors [verify_db_config ts_db_config 1 err_list]
+
+      if { $errors == 0 } {
+         incr errors [save_db_configuration $ts_config(db_config_file)]
+      } else {
+         set index [lsearch $ts_db_config(databaselist) $dbname]
+         set ts_db_config(databaselist) [ lreplace $ts_db_config(databaselist) $index $index ]
+         foreach param [db_config_get_database_parameters] {
+            unset ts_db_config($dbname,$param)
+         }
+      }
+   }
+   wait_for_enter
+   return
 }
 
 #****** config_database/verify_db_config() *************************************
@@ -930,7 +972,9 @@ proc db_config_databaselist_delete_database { array_name } {
 #     config_array         - array name with configuration (ts_db_config)
 #     only_check           - if 1: don't ask user, just check
 #     parameter_error_list - returned list with error information
-#     { force 0 }          - force ask user
+#     { force_params "" }  - the list of parameters to edit
+#                            for allowed values see the configured parameters
+#                            in database configuration
 #
 #  RESULT
 #     number of errors
@@ -941,7 +985,7 @@ proc db_config_databaselist_delete_database { array_name } {
 #     check/verify_config()
 #     
 #*******************************************************************************
-proc verify_db_config { config_array only_check parameter_error_list { force 0 } } {
+proc verify_db_config { config_array only_check parameter_error_list { force_params "" } } {
    global actual_ts_db_config_version be_quiet
    upvar $config_array config
    upvar $parameter_error_list error_list
@@ -962,67 +1006,33 @@ proc verify_db_config { config_array only_check parameter_error_list { force 0 }
       lappend error_list "unexpected version"
       incr errors 1
       return -1
-   } else {
-      ts_log_finest "Database Configuration Version: $config(version)"
-   }
+   } else { ts_log_finest "Database Configuration Version: $config(version)" }
 
-
-   foreach dbtype $config(dbtypelist) {
+   foreach elem "dbtype database" {
       set not_init ""
-      if { [string compare $config($dbtype,port) ""] == 0 } {
-         lappend not_init "default port number"
+      foreach name $config(${elem}list) {
+         foreach parami [db_config_get_${elem}_parameters] {
+            if { [string compare $config($name,$parami) ""] == 0 } {
+               lappend not_init "$parami"
       }
-      if { [string compare $config($dbtype,driver) ""] == 0 } {
-         lappend not_init " jdbc driver "
-      }
-      if { [string compare $config($dbtype,url) ""] == 0 } {
-         lappend not_init "url macro"
       }
       if { [string length $not_init] != 0 } {
-         ts_log_warning "no value for $dbtype value(s): $not_init"
+            ts_log_warning "no value for $name value(s): $not_init"
+            incr errors 1
       }
    }
-   
-   foreach database $config(databaselist) {
-      set not_init ""
-      if { [string compare $config($database,dbtype) ""] == 0 } {
-         lappend not_init "database type"
       }
-      if { [string compare $config($database,dbhost) ""] == 0 } {
-         lappend not_init "database host"
-      }
-      if { [string compare $config($database,dbport) ""] == 0 } {
-         lappend not_init "database port"
-      }
-      if { [string compare $config($database,dbname) ""] == 0 } {
-         lappend not_init "database name"
-      }
-      if { [string compare $config($database,username) ""] == 0 } {
-         lappend not_init "write user name"
-      }
-      if { [string compare $config($database,password) ""] == 0 } {
-         lappend not_init "write user password"
-      }
-      if { [string compare $config($database,driverpath) ""] == 0 } {
-         lappend not_init "database driver path"
-      }
-      if { [string length $not_init] != 0 } {
-         ts_log_warning "no value for $dbtype value(s): $not_init"
-      }
-   }
 
    set max_pos [get_configuration_element_count config]
    set uninitalized ""
-   if { $be_quiet == 0 } { 
-      puts ""
-   }
+   if { $be_quiet == 0 } { puts "" }
 
    for { set param 1 } { $param <= $max_pos } { incr param 1 } {
       set par [ get_configuration_element_name_on_pos config $param ]
       if { $be_quiet == 0 } { 
          puts -nonewline "      $config($par,desc) ..."
       }
-      if { $config($par) == "" || $force != 0 } {
+      if { $config($par) == "" || [lsearch -exact $force_params $par] >= 0 } {
          ts_log_finest "not initialized or forced!"
          lappend uninitalized $param
          if { $only_check != 0 } {
@@ -1039,9 +1049,7 @@ proc verify_db_config { config_array only_check parameter_error_list { force 0 }
             if { [info procs $procedure_name ] != $procedure_name } {
                ts_log_warning "unkown procedure name: \"$procedure_name\" !!!"
                lappend uninitalized $param
-               if { $only_check == 0 } { 
-                  wait_for_enter 
-               }
+               if { $only_check == 0 } { wait_for_enter }
             } else {
                # call procedure only_check == 1
                ts_log_finest "starting >$procedure_name< (verify mode) ..."
@@ -1055,28 +1063,23 @@ proc verify_db_config { config_array only_check parameter_error_list { force 0 }
             }
          }
       }
-      if { $be_quiet == 0 } { 
-         puts "\r      $config($par,desc) ... ok"   
+      if { $be_quiet == 0 } { puts "\r      $config($par,desc) ... ok" }
       }
-   }
    if { [set count [llength $uninitalized]] != 0 && $only_check == 0 } {
       ts_log_warning "$count parameters are not initialized!"
       puts "Entering setup procedures ..."
+      wait_for_enter
       
       foreach pos $uninitalized {
          set p_name [get_configuration_element_name_on_pos config $pos]
          set procedure_name  $config($p_name,setup_func)
          set default_value   $config($p_name,default)
-         set description     $config($p_name,desc)
        
-         ts_log_frame
-         ts_log_fine  $description
-         ts_log_frame
          ts_log_finest "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
          set use_default 0
          if { [string length $procedure_name] == 0 } {
             ts_log_fine "no procedure defined"
-            set use_default 1
+            continue
          } else {
             if { [info procs $procedure_name ] != $procedure_name } {
                ts_log_warning "unkown procedure name: \"$procedure_name\" !!!"
@@ -1095,7 +1098,7 @@ proc verify_db_config { config_array only_check parameter_error_list { force 0 }
                } else {
                   puts "No setup procedure and no default value found!!!"
                   if { $only_check == 0 } {
-                     puts -nonewline "Please enter value for parameter \"$p_name\": "
+                     puts -nonewline "Enter value for parameter \"$p_name\": "
                      set value [wait_for_enter 1]
                      puts "using value: \"$value\"" 
                      set config($p_name) $value
@@ -1116,6 +1119,7 @@ proc verify_db_config { config_array only_check parameter_error_list { force 0 }
             incr errors 1
             lappend error_list $p_name
          }
+         wait_for_enter
       } 
    }
    return $errors
@@ -1133,12 +1137,14 @@ proc verify_db_config { config_array only_check parameter_error_list { force 0 }
 #
 #  INPUTS
 #     file        - database configuration file
-#     { force 0 } - if 1: edit configuration setup
+#     { force_params "" }  - the list of parameters to edit
+#                            for allowed values see the configured parameters
+#                            in database configuration
 #
 #  SEE ALSO
 #
 #*******************************************************************************
-proc setup_db_config { file { force 0 }} {
+proc setup_db_config { file { force_params "" }} {
    global ts_db_config actual_ts_db_config_version do_nomain
    global fast_setup
 
@@ -1150,14 +1156,12 @@ proc setup_db_config { file { force 0 }} {
 
       # got config
       if { $do_nomain == 0 } {
-         if { [verify_db_config ts_db_config 1 err_list $force ] != 0 } {
+         if { [verify_db_config ts_db_config 1 err_list $force_params ] != 0 } {
             # configuration problems
-            foreach elem $err_list {
-               ts_log_fine "$elem"
-            } 
+            foreach elem $err_list { ts_log_fine "$elem" } 
             set not_ok 1
             while { $not_ok } {
-               if { [verify_db_config ts_db_config 0 err_list $force ] != 0 } {
+               if { [verify_db_config ts_db_config 0 err_list $force_params ] != 0 } {
                   set not_ok 1
                   ts_log_fine "Database configuration error. Stop."
                   foreach elem $err_list {
@@ -1175,13 +1179,9 @@ proc setup_db_config { file { force 0 }} {
                         }
                      }
                      return
-                  } else {
-                    continue
+                  } else { continue }
+               } else { set not_ok 0 }
                   }
-               } else {
-                 set not_ok 0
-               }
-            }
             if { [ save_db_configuration $file] != 0} {
                ts_log_fine "Could not save database configuration"
                wait_for_enter
@@ -1189,7 +1189,7 @@ proc setup_db_config { file { force 0 }} {
             }
 
          }
-         if { $force == 1 } {
+         if { [string compare $force_params ""] != 0 } {
             if { [ save_db_configuration $file] != 0} {
                ts_log_fine "Could not save database configuration"
                wait_for_enter
@@ -1203,8 +1203,41 @@ proc setup_db_config { file { force 0 }} {
       ts_log_fine "press return to create new database configuration file"
       wait_for_enter 1
       if { [ save_db_configuration $file] != 0} {
-         exit -1
+         return -1
       }
       setup_db_config $file
    }
+}
+
+#****** config_database/db_config_get_databaselist() ***************************
+#  NAME
+#     db_config_get_databaselist() -- get the database list
+#
+#  SYNOPSIS
+#     db_config_get_databaselist { config_array result_array {port_type ""} } 
+#
+#  FUNCTION
+#     Gets the array of databases configured in database configuration
+#
+#  INPUTS
+#     config_array - ts_db_config
+#     result_array - result array
+#
+#  RESULT
+#     the list of databases
+#
+#  SEE ALSO
+#     config/config_generic()
+#*******************************************************************************
+proc db_config_get_databaselist { config_array result_array } {
+
+   upvar $config_array config
+   upvar $result_array db_list
+
+   if { ![array exists db_list] } { array set db_list {} }
+
+   foreach db $config(databaselist) {
+      set db_list($db) "($config($db,dbtype) at $config($db,dbhost))"
+   }
+   return [array names db_list]
 }

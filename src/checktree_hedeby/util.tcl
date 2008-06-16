@@ -2738,7 +2738,7 @@ proc hedeby_check_default_resources {} {
       } else {
          # this is regular resource expect no flag
          if {$flags != ""} {
-            append error_text "resource \"$res\" should have emty flags, but it's flags are \"$res_info($res,flags)\"\n"
+            append error_text "resource \"$res\" should have empty flags, but it's flags are \"$res_info($res,flags)\"\n"
          }
       }
    }

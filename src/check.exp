@@ -366,6 +366,10 @@ global CHECK_DO_SETUP              ;# flag: do setup option called ?
 global CHECK_CUR_PROC_NAME         ;# name of current running test procedure
 set    CHECK_CUR_PROC_NAME "initializing"
 
+# testsuite allows modification of additional configurations, therefore we store
+# the path to the current configuration file to this variable
+global CHECK_CUR_CONFIG_FILE
+
 global CHECK_ENABLED_RUNLEVELS     ;# enabled runlevels
 global CHECK_ENABLED_CATEGORIES    ;# enabled categories
 global CHECK_ACT_PATH              ;# actual checkpath (while switching in menu mode)
@@ -469,35 +473,21 @@ proc debug_puts {args} {
    ts_log_finest $output
 }
 
-#                                                             max. column:     |
-#****** check/get_current_working_dir() ******
+#****** check/get_current_working_dir() ****************************************
 # 
 #  NAME
-#     get_current_working_dir -- ??? 
+#     get_current_working_dir -- get the current working directory
 #
 #  SYNOPSIS
 #     get_current_working_dir { } 
 #
 #  FUNCTION
-#     ??? 
-#
-#  INPUTS
+#     This function gets the current working directory
 #
 #  RESULT
-#     ??? 
+#     pwd
 #
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
-#*******************************
+#*******************************************************************************
 proc get_current_working_dir { } {
   set work_dir [pwd]
   ts_log_fine "working dir is $work_dir"
@@ -1872,36 +1862,49 @@ proc save_db_configuration { file } {
 
 #****** check/save_configuration() *********************************************
 #  NAME
-#     save_configuration() -- save testsuite configuration (ts_config array)
+#     save_configuration() -- save testsuite configuration
 #
 #  SYNOPSIS
-#     save_configuration { } 
+#     save_configuration { {filename ""} {config_array ""} }
+#
+#  INPUTS
+#     {filename ""}     - testsuite configuration file name
+#                         $CHECK_DEFAULTS_FILE by default
+#     {config_array ""} - testsuite configuration array
+#                         ts_config by default
 #
 #  FUNCTION
-#     This procedure will save the actual ts_config array settings to the
+#     This procedure will save the actual configuration array settings to the
 #     testsuite setup file.
 #
 #  SEE ALSO
 #     check/restore_configuration()
 #*******************************************************************************
-proc save_configuration {} {
+proc save_configuration { {filename ""} {config_array ""} } {
    global ts_config
    global CHECK_DEFAULTS_FILE
    global pe_for_version_check_result
 
    set conf_name "testsuite configuration"
 
-   if { [ info exists ts_config(version) ] == 0 } {
+   upvar $config_array config
+   if { ![array exists config] } { upvar 0 ts_config config }
+
+   if { [ info exists config(version) ] == 0 } {
       puts "no version"
       wait_for_enter
       return -1
    }
 
+   if { [string compare $filename ""] == 0 } {
+      set filename $CHECK_DEFAULTS_FILE
+   }
+
    # first get old configuration
-   read_array_from_file  $CHECK_DEFAULTS_FILE $conf_name old_config
+   read_array_from_file  $filename $conf_name old_config
    # save old configuration 
-   spool_array_to_file $CHECK_DEFAULTS_FILE "$conf_name.old" old_config
-   spool_array_to_file $CHECK_DEFAULTS_FILE $conf_name ts_config  
+   spool_array_to_file $filename "$conf_name.old" old_config
+   spool_array_to_file $filename $conf_name config
    puts "new testsuite configuration saved"
 
    set pe_for_version_check_result "undefined"
@@ -1916,30 +1919,42 @@ proc save_configuration {} {
 #     restore_configuration() -- restore old testsuite configuration
 #
 #  SYNOPSIS
-#     restore_configuration { } 
+#     restore_configuration { {filename ""} {config_array ""} }
 #
 #  FUNCTION
 #     This procedure can be used to get the previous testsuite configuration
 #
+#  INPUTS
+#     {filename ""}     - testsuite configuration file name
+#                         $CHECK_DEFAULTS_FILE by default
+#     {config_array ""} - testsuite configuration array
+#                         ts_config by default
 #  SEE ALSO
 #     check/save_configuration()
 #*******************************************************************************
-proc restore_configuration { } {
+proc restore_configuration { {filename ""} {config_array ""} } {
    global ts_config
    global CHECK_DEFAULTS_FILE
 
    set conf_name "testsuite configuration"
 
+   upvar $config_array config
+   if { ![array exists config] } { upvar 0 ts_config config }
+
+   if { [string compare $filename ""] == 0 } {
+      set filename $CHECK_DEFAULTS_FILE
+   }
+
    # first get old configuration
-   read_array_from_file  $CHECK_DEFAULTS_FILE "$conf_name.old" old_config
+   read_array_from_file  $filename "$conf_name.old" old_config
    if { [ info exists old_config(version) ] } {
       ts_log_fine "spooling previous configuration (Version: $old_config(version)"
-      spool_array_to_file $CHECK_DEFAULTS_FILE $conf_name old_config
+      spool_array_to_file $filename $conf_name old_config
    } else {
       ts_log_fine "no previous configuration available!"
    }
    ts_log_fine "reading latest configuration ..."
-   read_array_from_file  $CHECK_DEFAULTS_FILE "$conf_name" ts_config
+   read_array_from_file  $filename "$conf_name" config
 
    return 0
 }
@@ -1986,8 +2001,6 @@ proc get_configuration_element_name_on_pos { config_array config_pos } {
    return ""
 }
 
-
-
 #****** check/get_configuration_element_count() ********************************
 #  NAME
 #     get_configuration_element_count() -- returns number of conig elements
@@ -2027,7 +2040,6 @@ proc get_configuration_element_count { config_array } {
    }
    return $max_pos
 }
-
 
 #****** check/update_ts_config_version() ***************************************
 #  NAME
@@ -2164,6 +2176,13 @@ proc update_ts_config_version {} {
       config_build_ts_config_1_16
       show_config ts_config
       wait_for_enter
+   }
+
+   if {[string compare $ts_config(version) "1.16"] == 0} {
+      puts "\ntestsuite configuration update from 1.16 to 1.17 ..."
+      config_build_ts_config_1_17
+      show_config ts_config
+      wait_for_enter
       return 0
    }
 
@@ -2197,7 +2216,6 @@ proc get_spaces { nr } {
    }
    return $spaces
 }
-
 
 #****** check/setup2() *********************************************************
 #  NAME
@@ -2465,7 +2483,7 @@ proc enhanced_setup {} {
 
 proc build_checktree {} {
    global ts_checktree
-   global ACT_CHECKTREE
+   global ACT_CHECKTREE CHECK_CUR_CONFIG_FILE
    global ts_config
    
    if { [info exists ts_checktree] } {
@@ -2555,6 +2573,7 @@ proc build_checktree {} {
          }
          
          set filename $ts_checktree($i,setup_hooks_${ii}_filename)
+         set CHECK_CUR_CONFIG_FILE $filename
          
          set config_array $ts_checktree($i,setup_hooks_${ii}_config_array)
          
@@ -7133,7 +7152,7 @@ proc menu {} {
     "20" { restart_debug_daemons } 
     "21" { restart_debug_daemons 1 }
     "22" { set output [check_messages_files]
-           TPUT $output
+           puts $output
            wait_for_enter
          }
     "23" { 
@@ -8408,6 +8427,9 @@ source_tcl_files
 if { $do_only_diff_macros == 1 } {
    testsuite_shutdown [diff_macro_files $global_macro_file1 $global_macro_file2 $global_macro_ignore_flag]
 }
+
+# set the current configuration file to the default one
+set CHECK_CUR_CONFIG_FILE $CHECK_DEFAULTS_FILE
 
 setup2
 

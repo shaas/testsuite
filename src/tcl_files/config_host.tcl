@@ -8,7 +8,6 @@
 #
 #
 #  Sun Industry Standards Source License Version 1.2
-#  =================================================
 #  The contents of this file are subject to the Sun Industry Standards
 #  Source License Version 1.2 (the "License"); You may not use this file
 #  except in compliance with the License. You may obtain a copy of the
@@ -70,7 +69,7 @@ if {![info exists ts_host_config]} {
    set ts_host_config($parameter,pos)        3
 }
 
-#****** config/host/host_config_hostlist() *******************************************
+#****** config_host/host_config_hostlist() *************************************
 #  NAME
 #     host_config_hostlist() -- host configuration setup
 #
@@ -84,14 +83,14 @@ if {![info exists ts_host_config]} {
 #     only_check   - 0: expect user input
 #                    1: just verify user input
 #     name         - option name (in ts_host_config array)
-#     config_array - config array name (ts_config)
+#     config_array - config array name (ts_host_config)
 #
 #  SEE ALSO
 #     check/setup_host_config()
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_hostlist { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    upvar $config_array config
 
@@ -103,40 +102,32 @@ proc host_config_hostlist { only_check name config_array } {
       set not_ready 1
       while {$not_ready} {
          clear_screen
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         puts $CHECK_OUTPUT "Global host configuration setup"
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         puts $CHECK_OUTPUT "\n    hosts configured: [llength $config(hostlist)]"
+         puts "----------------------------------------------------------"
+         puts "Global host configuration setup"
+         puts "----------------------------------------------------------"
+         puts "\n    hosts configured: [llength $config(hostlist)]"
          host_config_hostlist_show_hosts config
-         puts $CHECK_OUTPUT "\n\n(1)  add host"
-         puts $CHECK_OUTPUT "(2)  edit host"
-         puts $CHECK_OUTPUT "(3)  delete host"
-         puts $CHECK_OUTPUT "(4)  try nslookup scan"
-         puts $CHECK_OUTPUT "(10) exit setup"
-         puts -nonewline $CHECK_OUTPUT "> "
+         puts "\n\n(1)  add host"
+         puts "(2)  edit host"
+         puts "(3)  delete host"
+         puts "(4)  try nslookup scan"
+         puts "(10) exit setup"
+         puts -nonewline "> "
          set input [ wait_for_enter 1]
          switch -- $input {
             1 {
                set result [host_config_hostlist_add_host config]
-               if { $result != 0 } {
-                  wait_for_enter
+               if { $result != 0 } { wait_for_enter }
                }
-            }
             2 {
                set result [host_config_hostlist_edit_host config]
-               if { $result != 0 } {
-                  wait_for_enter
+               if { $result != 0 } { wait_for_enter }
                }
-            }
             3 {
                set result [host_config_hostlist_delete_host config]
-               if { $result != 0 } {
-                  wait_for_enter
+               if { $result != 0 } { wait_for_enter }
                }
-            }
-            10 {
-               set not_ready 0
-            }
+            10 { set not_ready 0 }
             4 {
                set result [start_remote_prog $local_host $CHECK_USER "nslookup" $local_host prg_exit_state 60 0 "" "" 1 0]
                if {$prg_exit_state == 0} {
@@ -149,11 +140,11 @@ proc host_config_hostlist { only_check name config_array } {
                   incr pos1 -1
                   set ip [string range $ip 0 $pos1]
                   set ip [string trim $ip]
-                  puts $CHECK_OUTPUT "ip: $ip"
+                  ts_log_fine "ip: $ip"
 
                   for {set i 1} {$i <= 254} {incr i 1} {
                      set ip_run "$ip.$i"
-                     puts -nonewline $CHECK_OUTPUT "\r$ip_run"
+                     puts -nonewline "\r$ip_run"
                      set result [start_remote_prog $local_host $CHECK_USER "nslookup" $ip_run prg_exit_state 25 0 "" "" 1 0]
                      set pos1 [string first "Name:" $result]   
                      if {$pos1 >= 0} {
@@ -163,12 +154,11 @@ proc host_config_hostlist { only_check name config_array } {
                         incr pos1 -1
                         set name [string range $name 0 $pos1]
                         set name [string trim $name]
-                        puts $CHECK_OUTPUT "\nHost: $name"
+                        ts_log_fine "\nHost: $name"
                         set result [host_config_hostlist_add_host config $name]
                      }
                   }
                }
-
                wait_for_enter
             }
          } 
@@ -176,14 +166,11 @@ proc host_config_hostlist { only_check name config_array } {
    }
 
    # check host configuration
-   debug_puts "host_config_hostlist:"
-   foreach host $config(hostlist) {
-      debug_puts "      host: $host"
-   }
+   ts_log_finest "host_config_hostlist:"
+   foreach host $config(hostlist) { ts_log_finest "      host: $host" }
 
    return $config(hostlist)
 }
-
 
 #****** config_host/host_config_NFS-ROOT2NOBODY() ******************************
 #  NAME
@@ -207,45 +194,15 @@ proc host_config_hostlist { only_check name config_array } {
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_NFS-ROOT2NOBODY { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
-   global fast_setup
 
    upvar $config_array config
 
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
+   set help_text {  "Specify a NFS shared directory where the root"
+                    "user is mapped to user nobody, or press >RETURN< to"
+                    "use the default value." }
 
-   if {$actual_value == ""} {
-      set value $default_value
+   return [config_generic $only_check $name config $help_text "directory" 0]
    }
-
-   if {$only_check == 0} {
-       puts $CHECK_OUTPUT "" 
-       puts $CHECK_OUTPUT "Please specify a NFS shared directory where the root"
-       puts $CHECK_OUTPUT "user is mapped to user nobody or press >RETURN< to"
-       puts $CHECK_OUTPUT "use the default value."
-       puts $CHECK_OUTPUT "(default: $value)"
-       puts -nonewline $CHECK_OUTPUT "> "
-       set input [ wait_for_enter 1]
-      if {[string length $input] > 0} {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   if {!$fast_setup} {
-      if {![file isdirectory $value]} {
-         puts $CHECK_OUTPUT " Directory \"$value\" not found"
-         return -1
-      }
-   }
-
-   return $value
-}
-
 
 #****** config_host/host_config_NFS-ROOT2ROOT() ********************************
 #  NAME
@@ -269,49 +226,17 @@ proc host_config_NFS-ROOT2NOBODY { only_check name config_array } {
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_NFS-ROOT2ROOT { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
-   global fast_setup
 
    upvar $config_array config
 
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
+   set help_text {  "Specify a NFS shared directory where the root"
+                    "user is NOT mapped to user nobody and has r/w access,"
+                    "or press >RETURN< to use the default value." }
 
-   if {$actual_value == ""} {
-      set value $default_value
+   return [config_generic $only_check $name config $help_text "directory" 0]
    }
 
-   if {$only_check == 0} {
-       puts $CHECK_OUTPUT "" 
-       puts $CHECK_OUTPUT "Please specify a NFS shared directory where the root"
-       puts $CHECK_OUTPUT "user is NOT mapped to user nobody and has r/w access"
-       puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-       puts $CHECK_OUTPUT "(default: $value)"
-       puts -nonewline $CHECK_OUTPUT "> "
-       set input [ wait_for_enter 1]
-      if {[string length $input] > 0} {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   if {!$fast_setup} {
-      if {![file isdirectory $value]} {
-         puts $CHECK_OUTPUT " Directory \"$value\" not found"
-         return -1
-      }
-   }
-
-   return $value
-}
-
-
-
-
-#****** config/host/host_config_hostlist_show_hosts() ********************************
+#****** config_host/host_config_hostlist_show_hosts() **************************
 #  NAME
 #     host_config_hostlist_show_hosts() -- show host in host configuration
 #
@@ -324,144 +249,377 @@ proc host_config_NFS-ROOT2ROOT { only_check name config_array } {
 #  INPUTS
 #     array_name - ts_host_config
 #
+#  RESULT
+#     the list of configured hosts
+#
 #  SEE ALSO
 #     check/setup_host_config()
 #     check/verify_host_config()
 #     check/host_config_hostlist_show_compile_hosts()
+#     config_host/config_display_hosts()
 #*******************************************************************************
 proc host_config_hostlist_show_hosts {array_name} {
-   global CHECK_OUTPUT
 
    upvar $array_name config
 
-   set hostlist [lsort -dictionary $config(hostlist)]
+   array set hostlist { }
+   host_config_get_hostlist config hostlist
 
-   puts $CHECK_OUTPUT "\nHost list:\n"
-   if {[llength $hostlist] == 0} {
-      puts $CHECK_OUTPUT "no hosts defined"
+   puts "\nHost list:\n"
+   if {[array size hostlist] == 0} {
+      puts "no hosts configured"
+      return ""
    }
 
-   set max_length 0
-   foreach host $hostlist {
-      if {[string length $host] > $max_length} {
-         set max_length [string length $host]
+   set result [config_assign_indexes hostlist indexes]
+   if { $result == -1 } { return "" }
+
+   config_display_hosts hostlist indexes
+
+   set hosts ""
+   foreach ind [lsort -integer [array names indexes]] {
+      lappend hosts $indexes($ind)
       }
+
+   return $hosts
    }  
 
-
-   set index 0
-   foreach host $hostlist {
-      incr index 1 
-
-      set space ""
-      for {set i 0} {$i < [expr ($max_length - [string length $host])]} {incr i 1} {  
-         append space " "
-      }
-      set c_comp 0
-      set j_comp 0
-      set all_comp {}
-      if {[host_conf_is_compile_host $host config]} {
-         set c_comp 1
-         lappend all_comp "c"
-      }
-      if {[host_conf_is_java_compile_host $host config]} {
-         set j_comp 1
-         lappend all_comp "java"
-      }
-
-      if {$c_comp || $j_comp} {
-         set comp_host "(compile host: $all_comp)"
-      } else {
-         set comp_host "                      "
-      }
-
-      set conf_arch [host_conf_get_arch $host config]
-
-      if {$index <= 9} {
-         puts $CHECK_OUTPUT "    $index) $host $space ($conf_arch) $comp_host"
-      } else {
-         puts $CHECK_OUTPUT "   $index) $host $space ($conf_arch) $comp_host"
-      }
-   }
-
-   return $hostlist
-}
-
-#****** config/host/host_config_hostlist_show_compile_hosts() ************************
+#****** config_host/host_config_get_host_parameters() **************************
 #  NAME
-#     host_config_hostlist_show_compile_hosts() -- show compile hosts
+#     host_config_get_host_parameters() -- get the list of host parameters
 #
 #  SYNOPSIS
-#     host_config_hostlist_show_compile_hosts { array_name save_array } 
+#     host_config_get_host_parameters { } 
 #
 #  FUNCTION
-#     This procedure shows the list of compile hosts
-#
-#  INPUTS
-#     array_name - ts_host_config array
-#     save_array - array to store compile host informations
+#     get the list of all parameters needed to configure a host
 #
 #  RESULT
-#     save_array(count)     -> number of compile hosts (starting from 1)
-#     save_array($num,arch) -> compile architecture
-#     save-array($num,host) -> compile host name
+#     the list of host parameters
+#
+#*******************************************************************************
+proc host_config_get_host_parameters { } {
+   global ts_config
+
+   set params ""
+   lappend params expect
+   lappend params vim
+   lappend params tar
+   lappend params gzip
+   lappend params ssh
+   lappend params java14
+   lappend params java15
+   lappend params java16
+   lappend params ant
+   lappend params loadsensor
+   lappend params processors
+   lappend params spooldir
+   lappend params arch,53
+   lappend params arch,60
+   lappend params arch,61
+   lappend params arch,62
+   lappend params compile,53
+   lappend params compile,60
+   lappend params compile,61
+   lappend params compile,62
+   lappend params java_compile,53
+   lappend params java_compile,60
+   lappend params java_compile,61
+   lappend params java_compile,62
+   lappend params compile_time
+   lappend params response_time
+   lappend params fr_locale
+   lappend params ja_locale
+   lappend params zh_locale
+   lappend params zones
+   lappend params send_speed
+
+   return $params
+      }
+
+#****** config_host/host_config_dislpay_host_params() **************************
+#  NAME
+#     host_config_dislpay_host_params() -- display the host configuration
+#
+#  SYNOPSIS
+#     host_config_dislpay_host_params { host config_array } 
+#
+#  FUNCTION
+#     display the list of host parameters and it's values
+#
+#  INPUTS
+#     host         - the host from host configuration
+#     config_array - ts_host_config
+#
+#*******************************************************************************
+proc host_config_dislpay_host_params { host config_array } {
+   global ts_config
+
+   upvar $config_array config
+
+   set max_length 0
+
+   puts "\n"
+   foreach param "[host_config_get_host_parameters] host" {
+      if { [string length $param] > $max_length } { set max_length [string length $param] }
+      }
+
+   puts "   host      [get_spaces [expr ( $max_length - [ string length host ] ) ]] : $host"
+
+   set arch [host_conf_get_arch $host config]
+   puts "   arch      [get_spaces [expr ( $max_length - [ string length arch ] ) ]] : $arch"
+
+   if {[host_conf_is_compile_host $host config]} {
+      set value "compile host for \"$arch\" binaries ($ts_config(gridengine_version))"
+   } else { set value "not a compile host" }
+   puts "   compile      [get_spaces [expr ( $max_length - [ string length compile ] ) ]] : $value"
+
+      if {[host_conf_is_java_compile_host $host config]} {
+      set value "compile host for java ($ts_config(gridengine_version))"
+   } else { set value "not a java compile host" }
+   puts "   java_compile      [get_spaces [expr ( $max_length - [ string length java_compile ] ) ]] : $value"
+
+   foreach param [host_config_get_host_parameters] {
+      set space "     [get_spaces [expr ( $max_length - [ string length $param ] ) ]]"
+      set value ""
+      set disp_param $param
+      switch -glob $param {
+         arch* { continue }
+         *compile* { continue }
+         default { set value $config($host,$param) }
+      }
+      puts "   $disp_param $space : $value"
+   }
+   puts "\n"
+}
+
+#****** config_host/config_display_hosts() *************************************
+#  NAME
+#     config_display_hosts() -- Display the list of hosts
+#
+#  SYNOPSIS
+#     config_display_hosts { host_list choice_index {selected ""} }
+#
+#  FUNCTION
+#     This function is used to display configured hosts in lab. The order
+#     is given by indexes in host_index.
+#
+#  INPUTS
+#     host_list         - The array of configured hosts to display
+#     {host_index ""}   - the array of indexes and it's assigned hosts
+#                         see config_assign_indexes() for more information
+#     {selected ""}     - the list of selected values
+#                         use this variable to mark it in the list
+#     {null_value "none"} - see config_choose_value() for more information
+#     {disp_usage 0}    - 1 to display detail of host usages in configurations
+#                         0 to hide it
 #
 #  SEE ALSO
-#     check/host_config_hostlist_show_hosts()
+#      config/config_choose_value()
+#      config/config_display_list()
+#      config_host/host_config_get_hostlist()
 #*******************************************************************************
-proc host_config_hostlist_show_compile_hosts {array_name save_array} {
-   global CHECK_OUTPUT
-   upvar $array_name config
-   upvar $save_array back
+proc config_display_hosts { host_list host_index {selected ""} {null_value "none"} {disp_usage 0} } {
 
-   if {[info exists back]} {
-      unset back
+   upvar $host_list hosts
+   upvar $host_index indexes
+
+   if { [array size hosts] == 1 && [lsearch [array names hosts] "new"] < 0 } {
+      config_display_list hosts indexes $selected $null_value
+      return
+      }
+
+   array set archs { }
+   set comp_c ""
+   set comp_java ""
+   set max_length 0
+   foreach host [lsort [array names hosts]] {
+      if { [string compare $host "new"] == 0 } { continue }
+      if { [string compare $host "usage"] == 0 } { continue }
+      if { [string compare $host $null_value] == 0 } { continue }
+      if {[string length $host] > $max_length} { set max_length [string length $host] }
+      set host_info [split $hosts($host) "|"]
+      set is_arch_name 1
+      set usage ""
+      set max_arch_length 0
+      # format: arch|[c]|[java]|[(usage1)|(usage2)|...]
+      foreach elem $host_info {
+         if { $is_arch_name == 1 } {
+            set arch $elem
+            set is_arch_name 0
+            if {[string length $arch] > $max_arch_length} { set max_arch_length [string length $arch] }
+         } elseif { [string compare $elem java] == 0 } {
+            lappend comp_java $host
+         } elseif { [string compare $elem c] == 0 } {
+            lappend comp_c "$arch|$host"
+         } else { append usage "($elem)" }
+      }
+      if { [info exists archs($arch)] } {
+         lappend archs($arch) $host
+      } else { set archs($arch) $host }
+      if { [string compare $usage ""] != 0 } {
+         if { [info exists archs($arch,$host)] } {
+            lappend archs($arch,$host) $usage
+         } else { set archs($arch,$host) $usage }
+      }
    }
 
-   puts $CHECK_OUTPUT "\nCompile architecture list:\n"
-   if {[llength $config(hostlist)] == 0} {
-      puts $CHECK_OUTPUT "no hosts defined"
+   puts "java compile host: $comp_java\n"
+   set gap 0
+   foreach arch [lsort [array names archs]] {
+ 
+      if { [set ind [string first "," $arch]] >= 0 } {
+         if { $disp_usage == 1 } {
+            # display host usages in configuration
+            incr ind 1
+            puts "   ---> [string range $arch $ind end]: $archs($arch)"
+            set gap 1
+         }
+      } else {
+         if { $gap == 1 } { puts "" } else { set gap 0 }
+         # display compile hosts and host lists
+         set comp_host "none"
+         foreach comp $comp_c {
+            if { [string match "$arch|*" $comp] == 1 } {
+               set ind [string first "|" $comp]
+               incr ind 1
+               set comp_host [string range $comp $ind end]
+               break
+      }
    }
 
-   set index 0
+         set count 0
+         set index 1
+         # display host list
+         set host_disp "$arch:[get_spaces [expr ( $max_arch_length - [string length $arch] ) ]]"
+         set arch_space "[get_spaces [string length $host_disp]]"
+         foreach host $archs($arch) {
+            if { $count == 4 } {
+               puts $host_disp
+               set host_disp $arch_space
+               set count 0
+}
+            set space "[get_spaces [expr ( $max_length - [string length $host] ) ]]"
+            foreach indx [array names indexes] {
+               if { [string compare $indexes($indx) $host] == 0 } {
+                  set index $indx
+                  break
+               }
+            }
+            if { [string compare $host $comp_host] == 0 } {
+               set comph "(cc)"
+            } else { set comph "    " }
+            if { [info exists archs($arch,$host)] } {
+               # the host is used, mark it
+               if { $index <= 9 } { set ind " \[$index\]" } else { set ind "\[$index\]" }
+            } else {
+               if { $index <= 9 } { set ind "  $index)" } else { set ind " $index)" }
+            }
+            if { [info exists selected] && [ lsearch $selected $host ] >= 0 } {
+               set sel "*"                             ;# mark the selected host
+            } else { set sel " " }
+            append host_disp " $sel$ind $host $comph$space"
+            incr index 1
+            incr count 1
+         }
+         puts "$host_disp"
+      }
+   }
+
+   set count [array size indexes]
+   if { [lsearch -exact [array names hosts] "new"] >= 0 } { incr index -1 }
+   if { [lsearch -exact [array names hosts] "usage"] >= 0 } { incr index -1 }
+   if { [string compare $indexes($count) $null_value] == 0 } {
+      if { [info exists selected] && [ lsearch $selected $null_value ] >= 0 } {
+         set sel "*"                                         ;# mark if selected
+      } else { set sel " " }
+      puts "\n$arch_space $sel $count) $null_value"
+   }
+
+}
+
+#****** config_host/host_config_get_hostlist() *********************************
+#  NAME
+#     host_config_get_hostlist() -- get the list of host in host configuration
+#
+#  SYNOPSIS
+#     host_config_get_hostlist { array_name result_array {all 1} } 
+#
+#  FUNCTION
+#     Gets the array of hosts with the information if it is compile host
+#
+#  INPUTS
+#     config_array - ts_host_config
+#     result_array - result array
+#     { all 1 }    - 1 all hosts
+#                  - 0 only supported hosts with the configured SGE version
+#
+#  RESULT
+#     the list of hosts
+#
+#  SEE ALSO
+#     config_host/host_conf_get_arch()
+#     config_host/host_conf_is_compile_host()
+#*******************************************************************************
+proc host_config_get_hostlist { config_array result_array { all 1 } } {
+
+   upvar $config_array config
+   upvar $result_array host_list
+
+   if {[llength $config(hostlist)] == 0} { return "" }
+
+   foreach host $config(hostlist) {
+      set arch [host_conf_get_arch $host config]
+      if { $all == 0 && [string compare "$arch" "unsupported"] == 0 } {
+         continue 
+   }
+      if {[host_conf_is_compile_host $host config]} { append arch "|c" }
+      if {[host_conf_is_java_compile_host $host config]} { append arch "|java" }
+      set host_list($host) $arch
+   }
+
+   return [array names host_list]
+   }
+
+#****** config_host/host_config_hostlist_get_architectures() *******************
+#  NAME
+#     host_config_hostlist_get_architectures() -- get architectures
+#
+#  SYNOPSIS
+#     host_config_hostlist_get_architectures { array_name } 
+#
+#  FUNCTION
+#     This procedure gets the list of architectures and compile host for each
+#     architecture
+#
+#  INPUTS
+#     config_array - ts_host_config array
+#     result_array - the result array
+#
+#  SEE ALSO
+#     config_host/host_conf_is_compile_host()
+#     config_host/host_conf_get_arch()
+#*******************************************************************************
+proc host_config_hostlist_get_architectures { config_array result_array } {
   
-   set max_arch_length 0
+   upvar $config_array config
+   upvar $result_array arch_list
+
+   if {[llength $config(hostlist)] == 0} { return }
+
    foreach host $config(hostlist) {
       if {[host_conf_is_compile_host $host config]} {
          set arch [host_conf_get_arch $host config]
-         if {$arch != "unsupported"} {
-            lappend arch_list $arch
-            set host_list($arch) $host
-            set arch_length [string length $arch]
-            if {$max_arch_length < $arch_length} {
-               set max_arch_length $arch_length
+         if { [string compare $arch "unsupported"] != 0 } {
+            set arch_list($arch) "$host"
             }
          }
       }
-   }
 
-   set arch_list [lsort $arch_list]
-   foreach arch $arch_list {
-      set host $host_list($arch)
-      if {[host_conf_is_compile_host $host config]} {
-         incr index 1 
-         set back(count) $index
-         set back($index,arch) [host_conf_get_arch $host config]
-         set back($index,host) $host 
-
-         set arch_length [string length $arch]
-         if {$index <= 9} {
-            puts $CHECK_OUTPUT "    $index) $arch [get_spaces [expr ( $max_arch_length - $arch_length ) ]] ($host)"
-         } else {
-            puts $CHECK_OUTPUT "   $index) $arch [get_spaces [expr ( $max_arch_length - $arch_length ) ]] ($host)" 
+   return
          }
-      } 
-   }
-}
 
-
-
-#****** config/host/host_config_hostlist_add_host() **********************************
+#****** config_host/host_config_hostlist_add_host() ****************************
 #  NAME
 #     host_config_hostlist_add_host() -- add host to host configuration
 #
@@ -469,7 +627,7 @@ proc host_config_hostlist_show_compile_hosts {array_name save_array} {
 #     host_config_hostlist_add_host { array_name { have_host "" } } 
 #
 #  FUNCTION
-#     This procedure is used to add an host to the testsuite host configuration 
+#     This procedure is used to add a host to the testsuite host configuration 
 #
 #  INPUTS
 #     array_name       - ts_host_config
@@ -480,33 +638,27 @@ proc host_config_hostlist_show_compile_hosts {array_name save_array} {
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_hostlist_add_host {array_name {have_host ""}} {
-   global ts_config CHECK_OUTPUT
+   global ts_config
    global CHECK_USER
 
    upvar $array_name config
   
    if {$have_host == ""} {
       clear_screen
-      puts $CHECK_OUTPUT "\nAdd host to global host configuration"
-      puts $CHECK_OUTPUT "====================================="
-
-   
+      puts "\nAdd host to global host configuration"
+      puts "====================================="
       host_config_hostlist_show_hosts config
-
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter new hostname: "
+      puts -nonewline "\nEnter new hostname: "
       set new_host [wait_for_enter 1]
-   } else {
-      set new_host $have_host
-   }
+   } else { set new_host $have_host }
 
    if {[string length $new_host] == 0} {
-      puts $CHECK_OUTPUT "no hostname entered"
+      puts "no hostname entered"
       return -1
    }
      
    if {[lsearch $config(hostlist) $new_host] >= 0} {
-      puts $CHECK_OUTPUT "host \"$new_host\" is already in list"
+      puts "host \"$new_host\" is already in list"
       return -1
    }
 
@@ -514,11 +666,10 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
    set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state 12 0 "" "" 1 0]
    if {$prg_exit_state != 0} {
       if {$have_host == ""} {
-
-         puts $CHECK_OUTPUT "connect timeout error\nPlease enter a timeout value > 12 or press return to abort"
+         puts "connect timeout error\nEnter a timeout value > 12 or press return to abort"
          set result [ wait_for_enter 1 ]
          if {[string length $result] == 0  || $result < 12} {
-            puts $CHECK_OUTPUT "aborting ..."
+            puts "aborting ..."
             return -1
          }
          set result [start_remote_prog $new_host $CHECK_USER "echo" "\"hello $new_host\"" prg_exit_state $result 0 "" "" 1 0]
@@ -526,87 +677,59 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
    }
 
    if {$prg_exit_state != 0} {
-      puts $CHECK_OUTPUT "rlogin to host $new_host doesn't work correctly"
+      puts "rlogin to host $new_host doesn't work correctly"
       return -1
    }
    if {[string first "hello $new_host" $result] < 0} {
-      puts $CHECK_OUTPUT "$result"
-      puts $CHECK_OUTPUT "echo \"hello $new_host\" doesn't work"
+      puts "$result"
+      puts "echo \"hello $new_host\" doesn't work"
       return -1
    }
 
    set arch [resolve_arch $new_host]
+
    lappend config(hostlist) $new_host
 
+   array set vars {}
+   foreach prg "expect vim tar gzip ssh" {
+      set prg_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "$prg" prg_exit_state 12 0 "" "" 1 0]
+      if {$prg_exit_state != 0} { set prg_bin "" }
+      set vars(${prg}_bin) $prg_bin
+   }
    
-   set expect_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "expect" prg_exit_state 12 0 "" "" 1 0]
-   if {$prg_exit_state != 0} {
-      set expect_bin "" 
+   set vars(java14_bin) [autodetect_java $new_host "1.4"]
+   set vars(java15_bin) [autodetect_java $new_host "1.5"]
+   set vars(java16_bin) [autodetect_java $new_host "1.6"]
+   set vars(ant_bin) [autodetect_ant $new_host]
+
+   foreach param [host_config_get_host_parameters] {
+      switch -glob $param {
+         arch* {
+            set config($new_host,$param) "unsupported"
+            if { [string compare $param "arch,$ts_config(gridengine_version)"] == 0 } {
+               set config($new_host,$param) $arch
    } 
-   set vim_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "vim" prg_exit_state 12 0 "" "" 1 0]
-   if {$prg_exit_state != 0} {
-      set vim_bin  "" 
    }
-   set tar_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "tar" prg_exit_state 12 0 "" "" 1 0]
-   if {$prg_exit_state != 0} {
-      set tar_bin "" 
+         *compile* { set config($new_host,$param) 0 }
+         response_time { set config($new_host,$param) [ expr ( [timestamp] - $time ) ] }
+         send_speed { set config($new_host,$param) 0.0 }
+         processors { set config($new_host,$param) 1 }
+         default {
+            if { [info exists vars(${param}_bin)] } {
+               set config($new_host,$param) [string trim $vars(${param}_bin)]
+            } else { set config($new_host,$param) "" }
    }
-   set gzip_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "gzip" prg_exit_state 12 0 "" "" 1 0]
-   if {$prg_exit_state != 0} {
-      set gzip_bin "" 
    }
-   set ssh_bin [start_remote_prog $new_host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "ssh" prg_exit_state 12 0 "" "" 1 0]
-   if {$prg_exit_state != 0} {
-      set ssh_bin "" 
    }
 
-   set java14_bin [autodetect_java $new_host "1.4"]
-   set java15_bin [autodetect_java $new_host "1.5"]
-   set java16_bin [autodetect_java $new_host "1.6"]
-   set ant_bin [autodetect_ant $new_host]
+   wait_for_enter
 
-   set config($new_host,expect)        [string trim $expect_bin]
-   set config($new_host,vim)           [string trim $vim_bin]
-   set config($new_host,tar)           [string trim $tar_bin]
-   set config($new_host,gzip)          [string trim $gzip_bin]
-   set config($new_host,ssh)           [string trim $ssh_bin]
-   set config($new_host,java14)        [string trim $java14_bin]
-   set config($new_host,java15)        [string trim $java15_bin]
-   set config($new_host,java16)        [string trim $java16_bin]
-   set config($new_host,ant)           [string trim $ant_bin]
-   set config($new_host,loadsensor)    ""
-   set config($new_host,processors)    1
-   set config($new_host,spooldir)      ""
-   set config($new_host,arch,53)       "unsupported"
-   set config($new_host,arch,60)       "unsupported"
-   set config($new_host,arch,61)       "unsupported"
-   set config($new_host,arch,62)       "unsupported"
-   set config($new_host,arch,$ts_config(gridengine_version))          $arch
-   set config($new_host,compile,53)    0
-   set config($new_host,compile,60)    0
-   set config($new_host,compile,61)    0
-   set config($new_host,compile,62)    0
-   set config($new_host,java_compile,53)    0
-   set config($new_host,java_compile,60)    0
-   set config($new_host,java_compile,61)    0
-   set config($new_host,java_compile,62)    0
-   set config($new_host,compile_time)  0
-   set config($new_host,response_time) [ expr ( [timestamp] - $time ) ]
-   set config($new_host,fr_locale)     ""
-   set config($new_host,ja_locale)     ""
-   set config($new_host,zh_locale)     ""
-   set config($new_host,zones)         ""
-   set config($new_host,send_speed)    0.0
+   if {$have_host == ""} { host_config_hostlist_edit_host config $new_host }
 
-   if {$have_host == ""} {
-      host_config_hostlist_edit_host config $new_host
-   }
-      
    return 0   
 }
 
-
-#****** config/host/host_config_hostlist_edit_host() *********************************
+#****** config_host/host_config_hostlist_edit_host() ***************************
 #  NAME
 #     host_config_hostlist_edit_host() -- edit host in host configuration
 #
@@ -621,41 +744,33 @@ proc host_config_hostlist_add_host {array_name {have_host ""}} {
 #     { has_host "" } - if not "": just edit this host
 #
 #  SEE ALSO
+#     config_host/host_config_hostlist_show_hosts()
 #     check/setup_host_config()
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_hostlist_edit_host {array_name {has_host ""}} {
-   global ts_config ts_host_config CHECK_OUTPUT
-   global CHECK_USER 
+   global ts_config ts_host_config CHECK_USER
 
    upvar $array_name config
 
    set goto 0
-
-   if {$has_host != ""} {
-      set goto $has_host
-   } 
+   if {$has_host != ""} { set goto $has_host } 
 
    while {1} {
       clear_screen
-      puts $CHECK_OUTPUT "\nEdit host in global host configuration"
-      puts $CHECK_OUTPUT "======================================"
-
+      puts "\nEdit host in global host configuration"
+      puts "======================================"
       set hostlist [host_config_hostlist_show_hosts config]
-
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter hostname/number or return to exit: "
+      puts -nonewline "\nEnter hostname/number or return to exit: "
       if {$goto == 0} {
          set host [wait_for_enter 1]
          set goto $host
       } else {
          set host $goto
-         puts $CHECK_OUTPUT $host
+         ts_log_fine $host
       }
  
-      if {[string length $host] == 0} {
-         break
-      }
+      if {[string length $host] == 0} { break }
      
       if {[string is integer $host]} {
          incr host -1
@@ -663,65 +778,33 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
       }
 
       if {[lsearch $hostlist $host] < 0} {
-         puts $CHECK_OUTPUT "host \"$host\" not found in list"
+         puts "host \"$host\" not found in list"
          wait_for_enter
          set goto 0
          continue
       }
 
-      set arch [host_conf_get_arch $host config]
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "   host          : $host"
-      puts $CHECK_OUTPUT "   arch          : $arch"
-      puts $CHECK_OUTPUT "   expect        : $config($host,expect)"
-      puts $CHECK_OUTPUT "   vim           : $config($host,vim)"
-      puts $CHECK_OUTPUT "   tar           : $config($host,tar)"
-      puts $CHECK_OUTPUT "   gzip          : $config($host,gzip)"
-      puts $CHECK_OUTPUT "   ssh           : $config($host,ssh)"
-      puts $CHECK_OUTPUT "   java14        : $config($host,java14)"
-      puts $CHECK_OUTPUT "   java15        : $config($host,java15)"
-      puts $CHECK_OUTPUT "   java16        : $config($host,java16)"
-      puts $CHECK_OUTPUT "   ant           : $config($host,ant)"
-      puts $CHECK_OUTPUT "   loadsensor    : $config($host,loadsensor)"
-      puts $CHECK_OUTPUT "   processors    : $config($host,processors)"
-      puts $CHECK_OUTPUT "   spooldir      : $config($host,spooldir)"
-      puts $CHECK_OUTPUT "   fr_locale     : $config($host,fr_locale)"
-      puts $CHECK_OUTPUT "   ja_locale     : $config($host,ja_locale)"
-      puts $CHECK_OUTPUT "   zh_locale     : $config($host,zh_locale)"
-      puts $CHECK_OUTPUT "   zones         : $config($host,zones)"
+      host_config_dislpay_host_params $host config
 
-      if {[host_conf_is_compile_host $host config]} {
-         puts $CHECK_OUTPUT "   compile       : compile host for \"$arch\" binaries ($ts_config(gridengine_version))"
-      } else {
-         puts $CHECK_OUTPUT "   compile       : not a compile host"
-      }
-      if {[host_conf_is_java_compile_host $host config]} {
-         puts $CHECK_OUTPUT "   java_compile  : compile host for java ($ts_config(gridengine_version))"
-      } else {
-         puts $CHECK_OUTPUT "   java_compile  : not a java compile host"
-      }
-      puts $CHECK_OUTPUT "   send_speed    : $config($host,send_speed)"
-      puts $CHECK_OUTPUT "   compile_time  : $config($host,compile_time)"
-      puts $CHECK_OUTPUT "   response_time : $config($host,response_time)"
-
-
-      puts $CHECK_OUTPUT ""
-   
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter category to edit or hit return to exit > "
+      puts -nonewline "\n\nEnter category to edit or hit return to exit > "
       set input [wait_for_enter 1]
       if {[string length $input] == 0 } {
          set goto 0
          continue
       }
 
- 
+      set help_text ""
+      lappend help_text "Enter new $input value:"
+      set check_type "string"
+      set allow_null 1
+      set count 1
       set isfile 0
       set isdir 0
       set check_valid_java ""
       set check_ant 0
       set islocale 0
-      set input_type "forbidden"
+      set check_zones 0
+      array set add_params { }
       switch -- $input {
          "expect" -
          "vim" -
@@ -729,136 +812,82 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
          "gzip" -
          "ssh" -
          "loadsensor" { 
-            set input_type "simple"
             set isfile 1
          }
-         "java14" {
-	    set input_type "simple"
-	    set isfile 1
-            set check_valid_java "1.4"
-         }
-         "java15" {
-	    set input_type "simple"
-	    set isfile 1
-            set check_valid_java "1.5"
-         }
+         "java14" -
+         "java15" - 
          "java16" {
-	    set input_type "simple"
 	    set isfile 1
-            set check_valid_java "1.6"
+            set check_valid_java "[ string range $input 4 4 ].[ string range $input 5 5 ]"
          }
          "ant" {
-	    set input_type "simple"
             set isfile 1
 	    set check_ant 1
          }
-
          "spooldir" {
-            set input_type "simple"
             set isdir 1 
          }
-
          "compile" -
          "java_compile" { 
-            set input_type "compile"
+            set help_text ""
+            lappend help_text "Use this host for $input of $ts_config(gridengine_version) version?"
+            set input "$input,$ts_config(gridengine_version)"
+            set check_type "choice"
+            set allow_null 0
+            set add_params(screen_clear) 0
+            set choices(1) "yes"
+            set choices(0) "no"
          }
-
          "zones" { 
-            set input_type "zones"
+            set help_text { "Enter a space separated list of zones: " }
+            set check_zones 1
+            set count 0
          }
-
          "fr_locale" -
          "ja_locale" -
          "zh_locale" { 
-            set input_type "locale"
+            set help_text { "INFO:"
+                            "Enter an environment list to get localized output on that host!"
+                            "e.g.: LANG=fr_FR.ISO8859-1 LC_MESSAGES=fr"
+                            "Enter new locale: " }
             set islocale 1
          }
-
          "processors" -
          "send_speed" {
-            set input_type "simple"
          }
-   
          "arch" {
-            set input_type "arch"
+            set input "arch,$ts_config(gridengine_version)"
+            set help_text { "Enter a valid architecture name"
+                            "or \"unsupported\", if the hosts architecture" }
+            lappend help_text "is not supported on Gridengine $ts_config(gridengine_version) systems:"
          }
-
          "host" -
          "compile_time" -
          "response_time" {
-            puts $CHECK_OUTPUT "Setting \"$input\" is not allowed"
+            puts "Setting \"$input\" is not allowed"
             wait_for_enter
             continue
          }
          default {
-            puts $CHECK_OUTPUT "Not a valid category"
+            puts "Not a valid category"
             wait_for_enter
             continue
          }
       }
 
-      switch -exact $input_type {
-         "simple" {
-            puts -nonewline $CHECK_OUTPUT "\nPlease enter new $input value: "
-            set value [wait_for_enter 1]
-         }
+      set value [config_generic 0 "$host,$input" config $help_text $check_type $allow_null $count choices add_params]
 
-         "arch" {
-            set input "arch,$ts_config(gridengine_version)"
-            puts $CHECK_OUTPUT "Please enter a valid architecture name"
-            puts $CHECK_OUTPUT "or \"unsupported\", if the hosts architecture is not"
-            puts $CHECK_OUTPUT "supported on Gridengine $ts_config(gridengine_version) systems"
-            puts -nonewline $CHECK_OUTPUT "\nNew architecture: "
-            set value [wait_for_enter 1]
-         }
-
-         "compile" {
-            puts -nonewline $CHECK_OUTPUT "\nShould testsuite use this host for $input of $ts_config(gridengine_version) version (y/n) :"
-            set input "$input,$ts_config(gridengine_version)"
-            set value [wait_for_enter 1]
-            if {[string compare "y" $value] == 0} {
-               set value 1
-            } else {
-               set value 0
-            }
-         }
-         "locale" {
-            puts $CHECK_OUTPUT "INFO:"
-            puts $CHECK_OUTPUT "Please enter an environment list to get localized output on that host!"
-            puts $CHECK_OUTPUT ""
-            puts $CHECK_OUTPUT "e.g.: LANG=fr_FR.ISO8859-1 LC_MESSAGES=fr"
-            puts -nonewline $CHECK_OUTPUT "\nPlease enter new locale: "
-            set value [wait_for_enter 1]
-         }
-         "zones" {
-            puts $CHECK_OUTPUT "Please enter a space separated list of zones: "
-            set value [wait_for_enter 1]
-
-            if { [llength $value] != 0 } {
-               set host_error 0
-               foreach zone $value {
-                  set result [start_remote_prog $zone $CHECK_USER "id" "" prg_exit_state 12 0 "" "" 1 0]
-                  if { $prg_exit_state != 0 } {
-                     puts $CHECK_OUTPUT $result
-                     puts $CHECK_OUTPUT "can't connect to zone $zone"
+      if { $allow_null && $value == "none" } {
+         set value ""
                      wait_for_enter
-                     set host_error 1
-                     break
-                  }
-               }
-               if {$host_error} {
                   continue
                }
-            }
-         }
-      }
-
       # check for valid file name
       if {$isfile} {
          set result [start_remote_prog $host $CHECK_USER "ls" "$value" prg_exit_state 12 0 "" "" 1 0]
          if {$prg_exit_state != 0} {
-            puts $CHECK_OUTPUT $result
-            puts $CHECK_OUTPUT "file $value not found on host $host"
+            puts $result
+            puts "file $value not found on host $host"
             wait_for_enter
             continue
          }
@@ -868,8 +897,8 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
       if {$isdir} {
          set result [start_remote_prog $host $CHECK_USER "cd" "$value" prg_exit_state 12 0 "" "" 1 0]
          if {$prg_exit_state != 0} {
-            puts $CHECK_OUTPUT $result
-            puts $CHECK_OUTPUT "can't cd to directory $value on host $host"
+            puts $result
+            puts "can't cd to directory $value on host $host"
             wait_for_enter
             continue
          }
@@ -878,8 +907,9 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
       # check java
       if { $check_valid_java != "" && [string trim $value] != "" } {
          set result [check_java_version $host $value $check_valid_java]
+
          if {$result != 0} {
-            puts $CHECK_OUTPUT "Not a java $check_valid_java"
+            puts "Not a java $check_valid_java"
             wait_for_enter
             continue
          }
@@ -889,7 +919,7 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
       if { $check_ant && [string trim $value] != "" } {
          set result [check_ant_version $host $value]
          if {$result != 0} {
-            puts $CHECK_OUTPUT "Not a valid ant for the testsuite"
+            puts "Not a valid ant for the testsuite"
             wait_for_enter
             continue
          }
@@ -909,22 +939,41 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
          set ts_config(l10n_test_locale) mem_l10n
 
          if {$test_result != 0} {
-            puts $CHECK_OUTPUT "l10n errors" 
+            puts "l10n errors" 
             wait_for_enter
             continue
          }
-         puts $CHECK_OUTPUT "you have to enable l10n in testsuite setup too!"
+         puts "you have to enable l10n in testsuite setup too!"
          wait_for_enter
       }
 
+      # check if zones exist
+      if {$check_zones == 1} {
+         if {[llength $value] != 0 } {
+            set host_error 0
+            foreach zone $value {
+               set result [start_remote_prog $zone $CHECK_USER "id" "" prg_exit_state 12 0 "" "" 1 0]
+               if { $prg_exit_state != 0 } {
+                  puts $result
+                  puts "can't connect to zone $zone"
+                  wait_for_enter
+                  set host_error 1
+                  break
+               }
+            }
+            if {$host_error} { continue }
+         }
+      }
+
       set config($host,$input) $value
+      wait_for_enter
+      continue
    }
    
    return 0   
 }
 
-
-#****** config/host/host_config_hostlist_delete_host() *******************************
+#****** config_host/host_config_hostlist_delete_host() *************************
 #  NAME
 #     host_config_hostlist_delete_host() -- delete host from host configuration
 #
@@ -938,31 +987,24 @@ proc host_config_hostlist_edit_host {array_name {has_host ""}} {
 #     array_name - ts_host_config
 #
 #  SEE ALSO
+#     config_host/host_config_hostlist_show_hosts()
 #     check/setup_host_config()
 #     check/verify_host_config()
 #*******************************************************************************
 proc host_config_hostlist_delete_host { array_name } {
-   global ts_config CHECK_OUTPUT
-   global CHECK_USER
+   global ts_config CHECK_USER
 
    upvar $array_name config
 
    while {1} {
-
       clear_screen
-      puts $CHECK_OUTPUT "\nDelete host from global host configuration"
-      puts $CHECK_OUTPUT "=========================================="
-
-   
+      puts "\nDelete host from global host configuration"
+      puts "=========================================="
       set hostlist [host_config_hostlist_show_hosts config]
-
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter hostname/number or return to exit: "
+      puts -nonewline "\nEnter hostname/number or return to exit: "
       set host [wait_for_enter 1]
  
-      if {[string length $host] == 0} {
-         break
-      }
+      if {[string length $host] == 0} { break }
      
       if {[string is integer $host]} {
          incr host -1
@@ -970,90 +1012,23 @@ proc host_config_hostlist_delete_host { array_name } {
       }
 
       if {[lsearch $hostlist $host] < 0} {
-         puts $CHECK_OUTPUT "host \"$host\" not found in list"
+         puts "host \"$host\" not found in list"
          wait_for_enter
          continue
       }
 
-      set arch [host_conf_get_arch $host config]
+      host_config_dislpay_host_params $host config
       
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "   host          : $host"
-      puts $CHECK_OUTPUT "   arch          : $arch"
-      puts $CHECK_OUTPUT "   expect        : $config($host,expect)"
-      puts $CHECK_OUTPUT "   vim           : $config($host,vim)"
-      puts $CHECK_OUTPUT "   tar           : $config($host,tar)"
-      puts $CHECK_OUTPUT "   gzip          : $config($host,gzip)"
-      puts $CHECK_OUTPUT "   ssh           : $config($host,ssh)"
-      puts $CHECK_OUTPUT "   java14        : $config($host,java14)"
-      puts $CHECK_OUTPUT "   java15        : $config($host,java15)"
-      puts $CHECK_OUTPUT "   java16        : $config($host,java16)"
-      puts $CHECK_OUTPUT "   ant           : $config($host,ant)"
-      puts $CHECK_OUTPUT "   loadsensor    : $config($host,loadsensor)"
-      puts $CHECK_OUTPUT "   processors    : $config($host,processors)"
-      puts $CHECK_OUTPUT "   spooldir      : $config($host,spooldir)"
-      puts $CHECK_OUTPUT "   fr_locale     : $config($host,fr_locale)"
-      puts $CHECK_OUTPUT "   ja_locale     : $config($host,ja_locale)"
-      puts $CHECK_OUTPUT "   zh_locale     : $config($host,zh_locale)"
-
-      if {[host_conf_is_compile_host $host config]} {
-         puts $CHECK_OUTPUT "   compile       : compile host for \"$arch\" binaries ($ts_config(gridengine_version))"
-      } else {
-         puts $CHECK_OUTPUT "   compile       : not a compile host"
-      }
-      if {[host_conf_is_java_compile_host $host config]} {
-         puts $CHECK_OUTPUT "   compile_java  : compile host for java ($ts_config(gridengine_version))"
-      } else {
-         puts $CHECK_OUTPUT "   compile_java  : not a java compile host"
-      }
-      puts $CHECK_OUTPUT "   send_speed    : $config($host,send_speed)"
-      puts $CHECK_OUTPUT "   compile_time  : $config($host,compile_time)"
-      puts $CHECK_OUTPUT "   response_time : $config($host,response_time)"
-
-      puts $CHECK_OUTPUT ""
-   
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Delete this host? (y/n): "
+      puts -nonewline "Delete this host? (y/n): "
       set input [wait_for_enter 1]
-      if {[string length $input] == 0} {
-         continue
-      }
+      if {[string length $input] == 0} { continue }
 
- 
       if {[string compare $input "y"] == 0} {
          set index [lsearch $config(hostlist) $host]
          set config(hostlist) [lreplace $config(hostlist) $index $index]
-         unset config($host,arch,53)
-         unset config($host,arch,60)
-         unset config($host,arch,61)
-         unset config($host,arch,62)
-         unset config($host,expect)
-         unset config($host,vim)
-         unset config($host,tar)
-         unset config($host,gzip)
-         unset config($host,ssh)
-         unset config($host,java14)
-         unset config($host,java15)
-         unset config($host,java16)
-         unset config($host,ant)
-         unset config($host,loadsensor)
-         unset config($host,processors)
-         unset config($host,spooldir)
-         unset config($host,fr_locale)
-         unset config($host,ja_locale)
-         unset config($host,zh_locale)
-         unset config($host,compile,53)
-         unset config($host,compile,60)
-         unset config($host,compile,61)
-         unset config($host,compile,62)
-         unset config($host,java_compile,53)
-         unset config($host,java_compile,60)
-         unset config($host,java_compile,61)
-         unset config($host,java_compile,62)
-         unset config($host,send_speed)
-         unset config($host,compile_time)
-         unset config($host,response_time)
-         unset config($host,zones)
+         foreach param [host_config_get_host_parameters] {
+            unset config($host,$param)
+         }
          continue
       }
    }
@@ -1061,15 +1036,64 @@ proc host_config_hostlist_delete_host { array_name } {
    return 0   
 }
 
+#****** config_host/host_config_add_newhost() **********************************
+#  NAME
+#     host_config_add_newhost() -- add host to host configuration
+#
+#  SYNOPSIS
+#     host_config_add_newhost { hostname } 
+#
+#  FUNCTION
+#     This procedure is used to add a host to the testsuite global host configuration 
+#
+#  INPUTS
+#     hostname - host name
+#
+#  SEE ALSO
+#     config_host/host_config_hostlist_add_host()
+#     config_host/host_config_hostlist_edit_host()
+#     config_host/host_config_get_host_parameters()
+#     check/save_host_configuration()
+#*******************************************************************************
+proc host_config_add_newhost { hostname } {
+   global ts_config ts_host_config
 
+   set errors 0
 
-#****** config/host/verify_host_config() *********************************************
+   incr errors [host_config_hostlist_add_host ts_host_config $hostname]
+
+   if { $errors == 0 } {
+
+      incr errors [host_config_hostlist_edit_host ts_host_config $hostname]
+      incr errors [verify_host_config ts_host_config 1 err_list]
+
+      if { $errors == 0 } {
+         incr errors [save_host_configuration $ts_config(host_config_file)]
+      } 
+      if { $errors != 0 } {
+         set index [lsearch $ts_host_config(hostlist) $hostname]
+         if { $index >= 0 } {
+            set ts_host_config(hostlist) [ lreplace $ts_host_config(hostlist) $index $index ]
+         }
+         foreach param [host_config_get_host_parameters] {
+            if { [info exists ts_host_config($hostname,$param)] } {
+               unset ts_host_config($hostname,$param)
+            }
+         }
+      }
+   }
+
+   wait_for_enter
+   return
+}
+
+#****** config_host/verify_host_config() ***************************************
 #  NAME
 #     verify_host_config() -- verify testsuite host configuration setup
 #
 #  SYNOPSIS
 #     verify_host_config { config_array only_check parameter_error_list 
-#     { force 0 } } 
+#     { force_params "" } } 
 #
 #  FUNCTION
 #     This procedure will verify or enter host setup configuration
@@ -1078,7 +1102,9 @@ proc host_config_hostlist_delete_host { array_name } {
 #     config_array         - array name with configuration (ts_host_config)
 #     only_check           - if 1: don't ask user, just check
 #     parameter_error_list - returned list with error information
-#     { force 0 }          - force ask user 
+#     { force_params "" }  - the list of parameters to edit
+#                            for allowed values see the configured parameters
+#                            in host configuration
 #
 #  RESULT
 #     number of errors
@@ -1088,8 +1114,8 @@ proc host_config_hostlist_delete_host { array_name } {
 #     check/verify_user_config()
 #     check/verify_config()
 #*******************************************************************************
-proc verify_host_config {config_array only_check parameter_error_list {force 0}} {
-   global CHECK_OUTPUT actual_ts_host_config_version be_quiet
+proc verify_host_config {config_array only_check parameter_error_list {force_params ""}} {
+   global actual_ts_host_config_version be_quiet
    upvar $config_array config
    upvar $parameter_error_list error_list
 
@@ -1097,37 +1123,44 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
    set error_list ""
 
    if {[info exists config(version)] != 1} {
-      puts $CHECK_OUTPUT "Could not find version info in host configuration file"
+      puts "Could not find version info in host configuration file"
       lappend error_list "no version info"
       incr errors 1
       return -1
    }
 
    if {$config(version) != $actual_ts_host_config_version} {
-      puts $CHECK_OUTPUT "Host configuration file version \"$config(version)\" not supported."
-      puts $CHECK_OUTPUT "Expected version is \"$actual_ts_host_config_version\""
+      puts "Host configuration file version \"$config(version)\" not supported."
+      puts "Expected version is \"$actual_ts_host_config_version\""
       lappend error_list "unexpected host config file version $config(version)"
       incr errors 1
       return -1
-   } else {
-      debug_puts "Host Configuration Version: $config(version)"
+   } else { ts_log_finest "Host Configuration Version: $config(version)" }
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts "Could not get local host name" 
+      return -1
+   }
+
+   if { [lsearch -exact $config(hostlist) $local_host] < 0 } {
+      ts_log_warning "Host $local_host doesn't exist in host configuration!"
+      if { [lsearch -exact $force_params "hostlist"] < 0 } { lappend force_params "hostlist" }
    }
 
    set max_pos [get_configuration_element_count config]
 
    set uninitalized ""
-   if {$be_quiet == 0} { 
-      puts $CHECK_OUTPUT ""
-   }
+   if {$be_quiet == 0} { puts "" }
 
    for {set param 1} {$param <= $max_pos} {incr param 1} {
       set par [get_configuration_element_name_on_pos config $param]
       if {$be_quiet == 0} { 
-         puts -nonewline $CHECK_OUTPUT "      $config($par,desc) ..."
-         flush $CHECK_OUTPUT
+         puts -nonewline "      $config($par,desc) ..."
+         ts_log_progress
       }
-      if {$config($par) == "" || $force != 0} {
-         debug_puts "not initialized or forced!"
+      if {$config($par) == "" || [lsearch -exact $force_params $par] >= 0 } {
+         ts_log_finest "not initialized or forced!"
          lappend uninitalized $param
          if { $only_check != 0 } {
             lappend error_list ">$par< configuration not initialized"
@@ -1138,61 +1171,48 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
          set default_value   $config($par,default)
          set description     $config($par,desc)
          if {[string length $procedure_name] == 0} {
-             debug_puts "no procedure defined"
+             ts_log_finest "no procedure defined"
          } else {
             if {[info procs $procedure_name] != $procedure_name} {
-               puts $CHECK_OUTPUT "error\n"
-               puts $CHECK_OUTPUT "-->WARNING: unknown procedure name: \"$procedure_name\" !!!"
-               puts $CHECK_OUTPUT "   ======="
+               ts_log_warning "unknown procedure name: \"$procedure_name\" !!!"
                lappend uninitalized $param
 
-               if {$only_check == 0} { 
-                  wait_for_enter 
-               }
+               if {$only_check == 0} { wait_for_enter }
             } else {
                # call procedure only_check == 1
-               debug_puts "starting >$procedure_name< (verify mode) ..."
+               ts_log_finest "starting >$procedure_name< (verify mode) ..."
                set value [$procedure_name 1 $par config]
                if {$value == -1} {
                   incr errors 1
                   lappend error_list $par 
                   lappend uninitalized $param
-
-                  puts $CHECK_OUTPUT "error\n"
-                  puts $CHECK_OUTPUT "-->WARNING: verify error in procedure \"$procedure_name\" !!!"
-                  puts $CHECK_OUTPUT "   ======="
-
+                  ts_log_warning "verify error in procedure \"$procedure_name\" !!!"
                } 
             }
          }
       }
-      if {$be_quiet == 0} { 
-         puts $CHECK_OUTPUT "\r      $config($par,desc) ... ok"   
+      if {$be_quiet == 0} { ts_log_fine "\r      $config($par,desc) ... ok" }
       }
-   }
+
    if {[set count [llength $uninitalized]] != 0 && $only_check == 0} {
-      puts $CHECK_OUTPUT "$count parameters are not initialized!"
-      puts $CHECK_OUTPUT "Entering setup procedures ..."
+      puts "$count parameters are not initialized!"
+      puts "Entering setup procedures ..."
+      wait_for_enter
       
       foreach pos $uninitalized {
+         clear_screen
          set p_name [get_configuration_element_name_on_pos config $pos]
          set procedure_name  $config($p_name,setup_func)
          set default_value   $config($p_name,default)
-         set description     $config($p_name,desc)
        
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         puts $CHECK_OUTPUT $description
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         debug_puts "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
+         ts_log_finest "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
          set use_default 0
          if {[string length $procedure_name] == 0} {
-            puts $CHECK_OUTPUT "no procedure defined"
-            set use_default 1
+            ts_log_finest "no procedure defined"
+            continue
          } else {
             if {[info procs $procedure_name] != $procedure_name} {
-               puts $CHECK_OUTPUT ""
-               puts $CHECK_OUTPUT "-->WARNING: unknown procedure name: \"$procedure_name\" !!!"
-               puts $CHECK_OUTPUT "   ======="
+               ts_log_warning "unknown procedure name: \"$procedure_name\" !!!"
                if {$only_check == 0} {wait_for_enter}
                set use_default 1
             }
@@ -1203,41 +1223,39 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
             if {$config($p_name) == ""} {
                # we have no setup procedure
                if {$default_value != ""} {
-                  puts $CHECK_OUTPUT "using default value: \"$default_value\"" 
+                  puts "using default value: \"$default_value\"" 
                   set config($p_name) $default_value 
                } else {
-                  puts $CHECK_OUTPUT "No setup procedure and no default value found!!!"
+                  puts "No setup procedure and no default value found!!!"
                   if {$only_check == 0} {
-                     puts -nonewline $CHECK_OUTPUT "Please enter value for parameter \"$p_name\": "
+                     puts -nonewline "Enter value for parameter \"$p_name\": "
                      set value [wait_for_enter 1]
-                     puts $CHECK_OUTPUT "using value: \"$value\"" 
+                     puts "using value: \"$value\"" 
                      set config($p_name) $value
                   }
                }
             }
          } else {
             # call setup procedure ...
-            debug_puts "starting >$procedure_name< (setup mode) ..."
+            ts_log_finest "starting >$procedure_name< (setup mode) ..."
             set value [$procedure_name 0 $p_name config]
             if {$value != -1} {
-               puts $CHECK_OUTPUT "using value: \"$value\"" 
+               puts "using value: \"$value\"" 
                set config($p_name) $value
             }
          }
          if {$config($p_name) == ""} {
-            puts $CHECK_OUTPUT "" 
-            puts $CHECK_OUTPUT "-->WARNING: no value for \"$p_name\" !!!"
-            puts $CHECK_OUTPUT "   ======="
+            ts_log_warning "no value for \"$p_name\" !!!"
             incr errors 1
             lappend error_list $p_name
          }
+         wait_for_enter
       } 
    }
    return $errors
 }
 
-
-#****** config/update_ts_host_config_version() **********************************
+#****** config_host/update_ts_host_config_version() ****************************
 #  NAME
 #     update_ts_host_config_version() -- used for version update of ts_host_config
 #
@@ -1257,10 +1275,10 @@ proc verify_host_config {config_array only_check parameter_error_list {force 0}}
 proc update_ts_host_config_version { filename } {
    global actual_ts_host_config_version
    global ts_host_config
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
 
    if { [string compare $ts_host_config(version)  "1.0"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.0 to 1.1 ..."
+      puts "\ntestsuite host configuration update from 1.0 to 1.1 ..."
 
       foreach host $ts_host_config(hostlist) {
          set ts_host_config($host,fr_locale) ""
@@ -1272,14 +1290,14 @@ proc update_ts_host_config_version { filename } {
       show_config ts_host_config
       wait_for_enter
       if { [ save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.1"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.1 to 1.2 ..."
+      puts "\ntestsuite host configuration update from 1.1 to 1.2 ..."
 wait_for_enter
          return
 	
@@ -1291,14 +1309,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if { [ save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.2"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.2 to 1.3 ..."
+      puts "\ntestsuite host configuration update from 1.2 to 1.3 ..."
 
       foreach host $ts_host_config(hostlist) {
          set ts_host_config($host,java) ""
@@ -1308,14 +1326,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if { [ save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.3"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.3 to 1.4 ..."
+      puts "\ntestsuite host configuration update from 1.3 to 1.4 ..."
 
       foreach host $ts_host_config(hostlist) {
          set ts_host_config($host,zones) ""
@@ -1325,14 +1343,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if { [ save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.4"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.4 to 1.5 ..."
+      puts "\ntestsuite host configuration update from 1.4 to 1.5 ..."
 
       # insert new parameter after version parameter
       set insert_pos $ts_host_config(version,pos)
@@ -1376,14 +1394,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if { [ save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.5"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.5 to 1.6 ..."
+      puts "\ntestsuite host configuration update from 1.5 to 1.6 ..."
 
       foreach host $ts_host_config(hostlist) {
          # convert the one architecture string to a version dependent one
@@ -1411,14 +1429,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if { [ save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.6"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.6 to 1.7 ..."
+      puts "\ntestsuite host configuration update from 1.6 to 1.7 ..."
 
       foreach host $ts_host_config(hostlist) {
          # convert the java home string to a version dependent one
@@ -1430,10 +1448,10 @@ wait_for_enter
          }
          set java15_bin [string trim $java15_bin]
          if { ![file isfile $java15_bin] } {
-            puts $CHECK_OUTPUT "file not found"
+            puts "file not found"
             set java15_bin ""
          }
-         puts $CHECK_OUTPUT "setting java15 for host $host to \"$java15_bin\""
+         puts "setting java15 for host $host to \"$java15_bin\""
          set ts_host_config($host,java15) $java15_bin
       }
       set ts_host_config(version) "1.7"
@@ -1441,14 +1459,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if {[save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.7"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.7 to 1.8 ..."
+      puts "\ntestsuite host configuration update from 1.7 to 1.8 ..."
 
       foreach host $ts_host_config(hostlist) {
          # we now store java compile host property depending on gridengine version
@@ -1461,14 +1479,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if {[save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.8"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.8 to 1.9 ..."
+      puts "\ntestsuite host configuration update from 1.8 to 1.9 ..."
 
       foreach host $ts_host_config(hostlist) {
          # we now expect send speed property - disable send speed
@@ -1479,14 +1497,14 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if {[save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.9"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.9 to 1.10 ..."
+      puts "\ntestsuite host configuration update from 1.9 to 1.10 ..."
 
       # we have to update all version dependent settings from 65 to 61
       foreach host $ts_host_config(hostlist) {
@@ -1508,20 +1526,20 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if {[save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
    }
 
    if { [string compare $ts_host_config(version)  "1.10"] == 0 } {
-      puts $CHECK_OUTPUT "\ntestsuite host configuration update from 1.10 to 1.11 ..."
+      puts "\ntestsuite host configuration update from 1.10 to 1.11 ..."
 
       # we have to update all version dependent settings from 65 to 61
       foreach host $ts_host_config(hostlist) {
-         puts $CHECK_OUTPUT "$host"
+         puts "$host"
          #Remove java from host_config
-         puts $CHECK_OUTPUT "---removing java for host $host"
+         puts "---removing java for host $host"
          unset ts_host_config($host,java)
 	 #Add java 1.4
          set ts_host_config($host,java14) [autodetect_java $host "1.4"]
@@ -1534,7 +1552,7 @@ wait_for_enter
          set ts_host_config($host,java16) [autodetect_java $host "1.6"]
          #Add ant
          set ts_host_config($host,ant) [autodetect_ant $host]
-         puts $CHECK_OUTPUT "================="
+         puts "================="
       }
 
       set ts_host_config(version) "1.11"
@@ -1542,19 +1560,18 @@ wait_for_enter
       show_config ts_host_config
       wait_for_enter
       if {[save_host_configuration $filename] != 0} {
-         puts $CHECK_OUTPUT "Could not save host configuration"
+         puts "Could not save host configuration"
          wait_for_enter
          return
       }
       return 0
    }
 
-   puts $CHECK_OUTPUT "\nunexpected version"
+   puts "\nunexpected version"
    return -1
 }
 
-
-#****** config/check_ant_version() *********************************************
+#****** config_host/check_ant_version() ****************************************
 #  NAME
 #     check_ant_version() -- checks if ant is at least of version 1.6 and has 
 #                            junit.jar in it's lib directory
@@ -1575,11 +1592,11 @@ wait_for_enter
 #
 #*******************************************************************************
 proc check_ant_version { host ant_bin } {
-   global CHECK_USER CHECK_OUTPUT
+   global CHECK_USER
    set output [start_remote_prog $host $CHECK_USER "$ant_bin" "-version" prg_exit_state 12 0 "" "" 1 0]
    set act_version [string trim [string range [get_string_value_between " version " " compiled" $output] 0 2]]
    if { [string length $act_version] != 3 } {
-      puts $CHECK_OUTPUT "Error: 'ant -version' returned: \"$output\""
+      ts_log_severe "Error: 'ant -version' returned: \"$output\""
       return -1
    }
    if { $act_version >= 1.6 } {
@@ -1592,14 +1609,13 @@ proc check_ant_version { host ant_bin } {
       if {$prg_exit_state == 0} {
          return 0
       }
-      puts $CHECK_OUTPUT "Warning: This ant version seems to have missing $res/lib/ant/junit.jar. Copy it there or update the ant version in host configuration manually!"
+      ts_log_warning "This ant version seems to have missing $res/lib/ant/junit.jar. Copy it there or update the ant version in host configuration manually!"
       return 0
    }
    return -1
 }
 
-
-#****** config/autodetect_ant() ********************************************
+#****** config_host/autodetect_ant() *******************************************
 #  NAME
 #     autodetect_ant() -- tries to find ant_bin
 #
@@ -1616,22 +1632,21 @@ proc check_ant_version { host ant_bin } {
 #
 #*******************************************************************************
 proc autodetect_ant { host } {
-   global CHECK_USER CHECK_OUTPUT ts_host_config ts_config
+   global CHECK_USER ts_config ts_host_config
    set ant_bin [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/mywhich.sh" "ant" prg_exit_state 12 0 "" myenv 1 0]
    set ant_bin [string trim $ant_bin]
    if { $prg_exit_state != 0 } {
-      puts $CHECK_OUTPUT "Unable to autodetect ant for host $host. Set it manually in host configuration! Ant should have junit.jar copied to it's lib directory"
+      ts_log_fine "Unable to autodetect ant for host $host. Set it manually in host configuration! Ant should have junit.jar copied to it's lib directory"
       set ant_bin ""
    } elseif  { [check_ant_version $host $ant_bin] != 0 } {
-      puts $CHECK_OUTPUT "Invalid ant: \"$ant_bin\""
+      ts_log_fine "Invalid ant: \"$ant_bin\""
       set ant_bin ""
    }
-   puts $CHECK_OUTPUT "---setting ant for host $host to \"$ant_bin\""
+   ts_log_fine "---setting ant for host $host to \"$ant_bin\""
    return $ant_bin
 }
 
-
-#****** config/check_java_version() ********************************************
+#****** config_host/check_java_version() ***************************************
 #  NAME
 #     check_java_version() -- java_bin is of a version specified
 #
@@ -1659,14 +1674,13 @@ proc check_java_version { host java_bin version } {
       return -1
    }
    set output [start_remote_prog $host $CHECK_USER "$java_bin" "-version" prg_exit_state 12 0 "" "" 1 0]
-   if { [string match "*java version \"$version.*" $output] == 1 } {
+   if { [string match "*java version \"$version.*\"*" $output] == 1 } {
       return 0
    }
    return -1
 }
 
-
-#****** config/autodetect_java() ********************************************
+#****** config_host/autodetect_java() ******************************************
 #  NAME
 #     autodetect_java() -- tries to find java_bin
 #
@@ -1684,29 +1698,28 @@ proc check_java_version { host java_bin version } {
 #
 #*******************************************************************************
 proc autodetect_java { host {version "1.4"} } {
-   global CHECK_OUTPUT CHECK_USER ts_host_config ts_config
+   global CHECK_USER ts_config
    set ver [get_testsuite_java_version $version]
    set output [start_remote_prog $host $CHECK_USER "/bin/csh" "-c \"source /vol2/resources/en_jdk$ver ; $ts_config(testsuite_root_dir)/scripts/mywhich.sh java\"" prg_exit_state 12 0 "" myenv 1 0]
    if  { [string match "* NOT SUPPORTED *" $output] == 1 } {
-      puts $CHECK_OUTPUT "Error: [lindex [split $output "\n"] 0]"
+      ts_log_fine "Error: [lindex [split $output "\n"] 0]"
       set bin ""
    } else {
       set output [split $output "\n"]
       set bin [string trim [lindex $output [expr [llength $output] - 2]]]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "Error: Unable to autodetect java$ver  for host $host. Set it manually in host configuration!"
+         ts_log_fine "Error: Unable to autodetect java$ver  for host $host. Set it manually in host configuration!"
          set bin "" 
       } elseif { [check_java_version $host $bin $version] != 0 } {
-         puts $CHECK_OUTPUT "Error: $bin does not point to valid java$ver"
+         ts_log_fine "Error: $bin does not point to valid java$ver"
          set bin ""
       }
    }
-   puts $CHECK_OUTPUT "---setting java$ver for host $host to \"$bin\""
+   ts_log_fine "---setting java$ver for host $host to \"$bin\""
    return $bin
 }
 
-
-#****** config/host/setup_host_config() **********************************************
+#****** config_host/setup_host_config() ****************************************
 #  NAME
 #     setup_host_config() -- testsuite host configuration initalization
 #
@@ -1718,82 +1731,73 @@ proc autodetect_java { host {version "1.4"} } {
 #
 #  INPUTS
 #     file        - host configuration file
-#     { force 0 } - if 1: edit configuration setup
+#     { force_params "" }  - the list of parameters to edit
+#                            for allowed values see the configured parameters
+#                            in host configuration
 #
 #  SEE ALSO
 #     check/setup_user_config()
 #*******************************************************************************
-proc setup_host_config {file {force 0}} {
-   global CHECK_OUTPUT
+proc setup_host_config {file {force_params "" } } {
    global ts_host_config actual_ts_host_config_version
 
    if { [read_array_from_file $file "testsuite host configuration" ts_host_config ] == 0 } {
       if { $ts_host_config(version) != $actual_ts_host_config_version } {
-         puts $CHECK_OUTPUT "unknown host configuration file version: $ts_host_config(version) actual version: $actual_ts_host_config_version"
+         puts "unknown host configuration file version: $ts_host_config(version) actual version: $actual_ts_host_config_version"
          while { [update_ts_host_config_version $file] != 0 } {
             wait_for_enter
          }
       }
       # got config
-      if { [verify_host_config ts_host_config 1 err_list $force ] != 0 } {
+      if { [verify_host_config ts_host_config 1 err_list $force_params ] != 0 } {
          # configuration problems
-         foreach elem $err_list {
-            puts $CHECK_OUTPUT "$elem"
-         } 
-         puts $CHECK_OUTPUT "Press enter to edit host setup configurations"
+         foreach elem $err_list { puts "$elem" } 
+         puts "Press enter to edit host setup configurations"
          set answer [wait_for_enter 1]
 
          set not_ok 1
          while { $not_ok } {
-            if { [verify_host_config ts_host_config 0 err_list $force ] != 0 } {
+            if { [verify_host_config ts_host_config 0 err_list $force_params ] != 0 } {
                set not_ok 1
-               foreach elem $err_list {
-                  puts $CHECK_OUTPUT "error in: $elem"
-               } 
-               puts $CHECK_OUTPUT "try again? (y/n)"
+               foreach elem $err_list { puts "error in: $elem" } 
+               puts "try again? (y/n)"
                set answer [wait_for_enter 1]
                if { $answer == "n" } {
-                  puts $CHECK_OUTPUT "Do you want to save your changes? (y/n)"
+                  puts "Do you want to save your changes? (y/n)"
                   set answer [wait_for_enter 1]
                   if { $answer == "y" } {
                      if { [ save_host_configuration $file] != 0} {
-                        puts $CHECK_OUTPUT "Could not save host configuration"
+                        puts "Could not save host configuration"
                         wait_for_enter
                      }
                   }
                   return
-               } else {
-                  continue
+               } else { continue }
+            } else { set not_ok 0 }
                }
-            } else {
-              set not_ok 0
-            }
-         }
          if { [ save_host_configuration $file] != 0} {
-            puts $CHECK_OUTPUT "Could not save host configuration"
+            puts "Could not save host configuration"
             wait_for_enter
             return
          }
       }
-      if { $force == 1 } {
+      if { [string compare $force_params ""] != 0 } {
          if { [ save_host_configuration $file] != 0} {
-            puts $CHECK_OUTPUT "Could not save host configuration"
+            puts "Could not save host configuration"
             wait_for_enter
          }
       }
       return
    } else {
-      puts $CHECK_OUTPUT "could not open host config file \"$file\""
-      puts $CHECK_OUTPUT "press return to create new host configuration file"
+      puts "could not open host config file \"$file\""
+      puts "press return to create new host configuration file"
       wait_for_enter 1
-      if { [ save_host_configuration $file] != 0} {
-         exit -1
-      }
+      if { [ save_host_configuration $file] != 0} { return -1 }
       setup_host_config $file
    }
 }
 
-#****** config/host/host_conf_get_nodes() **************************************
+#****** config_host/host_conf_get_nodes() **************************************
 #  NAME
 #     host_conf_get_nodes() -- return a list of exechosts and zones
 #
@@ -1815,7 +1819,7 @@ proc setup_host_config {file {force 0}} {
 #     node list
 #
 #  SEE ALSO
-#     config/host/host_conf_get_unique_nodes()
+#     config_host/host_conf_get_unique_nodes()
 #*******************************************************************************
 proc host_conf_get_nodes {host_list} {
    global ts_host_config
@@ -1838,7 +1842,7 @@ proc host_conf_get_nodes {host_list} {
    return [lsort -dictionary $node_list]
 }
 
-#****** config/host/host_conf_get_unique_nodes() *******************************
+#****** config_host/host_conf_get_unique_nodes() *******************************
 #  NAME
 #     host_conf_get_unique_nodes() -- return a unique list of exechosts and zones
 #
@@ -1860,7 +1864,7 @@ proc host_conf_get_nodes {host_list} {
 #     node list
 #
 #  SEE ALSO
-#     config/host/host_conf_get_nodes()
+#     config_host/host_conf_get_nodes()
 #*******************************************************************************
 proc host_conf_get_unique_nodes {host_list} {
    global ts_host_config
@@ -2067,7 +2071,7 @@ proc host_conf_get_unused_host {{raise_error 1}} {
    return $ret
 }
 
-#****** config_host/get_java_home_for_host() **************************************************
+#****** config_host/get_java_home_for_host() ***********************************
 #  NAME
 #    get_java_home_for_host() -- Get the java home directory for a host. If no/unknown java 
 #                                version specified returns java home for java 1.4.
@@ -2102,8 +2106,7 @@ proc host_conf_get_unused_host {{raise_error 1}} {
 #  SEE ALSO
 #*******************************************************************************
 proc get_java_home_for_host { hosti {java_version "1.4"} {raise_error 1}} {
-    global ts_host_config CHECK_OUTPUT
-
+    global ts_host_config
     set version [get_testsuite_java_version $java_version]
     set host [node_get_host $hosti]
     set input $ts_host_config($host,java$version)
@@ -2125,7 +2128,7 @@ proc get_java_home_for_host { hosti {java_version "1.4"} {raise_error 1}} {
     return $res
 }
 
-#****** config_host/get_jvm_lib_path_for_host() **************************************************
+#****** config_host/get_jvm_lib_path_for_host() ********************************
 #  NAME
 #    get_jvm_lib_path_for_host() -- Get the absolute libjvm.so path for a host.
 #
@@ -2204,7 +2207,6 @@ proc get_testsuite_java_version {{version "1.4"}} {
    return "14"
 }
 
-
 #****** config_host/host_conf_get_cluster_hosts() ******************************
 #  NAME
 #     host_conf_get_cluster_hosts() -- get a list of cluster hosts
@@ -2278,7 +2280,7 @@ proc host_conf_is_compile_host {host {config_var ""}} {
    return $ret
 }
 
-#****** config_host/host_conf_is_java_compile_host() ********************************
+#****** config_host/host_conf_is_java_compile_host() ***************************
 #  NAME
 #     host_conf_is_java_compile_host() -- is a given host compile host for java?
 #

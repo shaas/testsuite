@@ -31,8 +31,8 @@
 #___INFO__MARK_END__
 
 
-global ts_user_config               ;# new testsuite user configuration array
-global actual_ts_user_config_version      ;# actual user config version number
+global ts_user_config                  ;# new testsuite user configuration array
+global actual_ts_user_config_version        ;# actual user config version number
 set    actual_ts_user_config_version "1.0"
 
 if {![info exists ts_user_config]} {
@@ -71,7 +71,7 @@ if {![info exists ts_user_config]} {
     
    set parameter "first_foreign_group"
    set ts_user_config($parameter)            ""
-   set ts_user_config($parameter,desc)       "First testsuite cluster user's group name"
+   set ts_user_config($parameter,desc)       "First testsuite cluster user's group names"
    set ts_user_config($parameter,default)    ""
    set ts_user_config($parameter,setup_func) "user_config_$parameter"
    set ts_user_config($parameter,onchange)   ""
@@ -86,7 +86,7 @@ if {![info exists ts_user_config]} {
    set ts_user_config($parameter,pos)        6
 }
 
-#****** config/user/user_config_first_foreign_user() *********************************
+#****** config_user/user_config_first_foreign_user() ***************************
 #  NAME
 #     user_config_first_foreign_user() -- edit first foreign user
 #
@@ -100,7 +100,7 @@ if {![info exists ts_user_config]} {
 #     only_check   - 0: expect user input
 #                    1: just verify user input
 #     name         - option name (in ts_user_config array)
-#     config_array - config array name (ts_config)
+#     config_array - config array name (ts_user_config)
 #
 #  SEE ALSO
 #     check/setup_user_config()
@@ -108,70 +108,32 @@ if {![info exists ts_user_config]} {
 #
 #*******************************************************************************
 proc user_config_first_foreign_user { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_USER
-   global fast_setup
+
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the name of the first testsuite user. This user must"
+                   "have access to the testsuite directory and must exist on all"
+                   "cluster hosts."
+                   "This user must differ from the actual check user and from"
+                   "the second testsuite user."
+                   "Press >RETURN< to use the default value." }
 
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
-
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
-      return -1
-   }
-
-   if { $only_check == 0 } {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter name of the first testsuite user. This user must have access to the"
-      puts $CHECK_OUTPUT "testsuite directory and must exist on all cluster hosts."
-      puts $CHECK_OUTPUT "Press >RETURN< to accept the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   # now verify
-   if { ! $fast_setup } {
-      if { [string compare $CHECK_USER $value] == 0 } {
-         puts $CHECK_OUTPUT "first testsuite user \"$value\" and actual check user are identical!"
-         return -1
-      }
+   array set params {}
+   set params(exclude_list) "$CHECK_USER"
       if { [ info exists CHECK_SECOND_FOREIGN_SYSTEM_USER ] } {
-         if { $CHECK_SECOND_FOREIGN_SYSTEM_USER == $value } {
-            puts $CHECK_OUTPUT "first testsuite user should not be identical with second testsuite user"
-            return -1
+      lappend params(exclude_list) "$CHECK_SECOND_FOREIGN_SYSTEM_USER"
          }
-      }
+   set value [config_generic $only_check $name config $help_text "user" 0 1 "" params]
       
-      set result [start_remote_prog $local_host $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
-      if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "id $value returns error. User $value not existing?"
-         return -1
-      }
-   }
-
-   # set global variables to value
-   set CHECK_FIRST_FOREIGN_SYSTEM_USER $value
+   if { $value != -1 } { set CHECK_FIRST_FOREIGN_SYSTEM_USER $value }
 
    return $value
 }
 
-#****** config/user/user_config_second_foreign_user() ********************************
+#****** config_user/user_config_second_foreign_user() **************************
 #  NAME
 #     user_config_second_foreign_user() -- setup second foreign user
 #
@@ -193,68 +155,33 @@ proc user_config_first_foreign_user { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_second_foreign_user { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
    global fast_setup
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the name of the second testsuite user. This user must"
+                   "have access to the testsuite directory and must exist on all"
+                   "cluster hosts."
+                   "This user must differ from the actual check user and from"
+                   "the first testsuite user."
+                   "Press >RETURN< to use the default value." }
 
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
-
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
-      return -1
-   }
-
-   if { $only_check == 0 } {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter name of the second testsuite user. This user must have access to the"
-      puts $CHECK_OUTPUT "testsuite directory and must exist on all cluster hosts."
-      puts $CHECK_OUTPUT "Press >RETURN< to accept the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
-
-   # now verify
-   if { ! $fast_setup } {
-      if { [string compare $CHECK_USER $value] == 0 } {
-         puts $CHECK_OUTPUT "second testsuite user \"$value\" and actual check user are identical!"
-         return -1
-      }
+   array set params {}
+   set params(exclude_list) "$CHECK_USER"
       if { [ info exists CHECK_FIRST_FOREIGN_SYSTEM_USER ] } {
-         if { $value == $CHECK_FIRST_FOREIGN_SYSTEM_USER } {
-            puts $CHECK_OUTPUT "second testsuite user should not be identical with first testsuite user"
-            return -1
+      lappend params(exclude_list) "$CHECK_FIRST_FOREIGN_SYSTEM_USER"
          }
-      }
-      set result [start_remote_prog $local_host $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
-      if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "id $value returns error. User $value not existing?"
-         return -1
-      }
-   }
 
-   # set global variables to value
-   set CHECK_SECOND_FOREIGN_SYSTEM_USER $value
+   set value [config_generic $only_check $name config $help_text "user" 0 1 "" params]
+
+   if { $value != -1 } { set CHECK_SECOND_FOREIGN_SYSTEM_USER $value }
 
    return $value
 }
-#****** config/user/user_config_first_foreign_group() ********************************
+
+#****** config_user/user_config_first_foreign_group() **************************
 #  NAME
 #     user_config_first_foreign_group() -- first foreign user configuration setup
 #
@@ -276,112 +203,65 @@ proc user_config_second_foreign_user { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_first_foreign_group { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_GROUP CHECK_FIRST_FOREIGN_SYSTEM_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP
    global fast_setup
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the name of main group, and additional group where user"
+                   "$CHECK_FIRST_FOREIGN_SYSTEM_USER is a member."
+                   "First testsuite user's group must differ from the second"
+                   "testsuite user's group."
+                   "Seperate the names by space."
+                   "Press >RETURN< to use the default value." }
 
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
+   array set params {}
+   if { [info exists CHECK_SECOND_FOREIGN_SYSTEM_GROUP ] } {
+      lappend params(exclude_list) "$CHECK_SECOND_FOREIGN_SYSTEM_GROUP"
    }
 
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
-      return -1
-   }
+   set value [config_generic $only_check $name config $help_text "string" 0 "!2" "" params]
 
+   if { $value == -1 } { return -1 }
    
-
-   if { $only_check == 0 } {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the name of main group where user $CHECK_FIRST_FOREIGN_SYSTEM_USER is member."
-      puts $CHECK_OUTPUT "Press >RETURN< to accept the default value."
-      puts $CHECK_OUTPUT "(default: [ lindex $value 0 ])"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set group1 $input 
-      } else {
-         set group1 [ lindex $value 0 ]
-         puts $CHECK_OUTPUT "using default value"
-      }
- 
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the name of additional group where user $CHECK_FIRST_FOREIGN_SYSTEM_USER is member."
-      puts $CHECK_OUTPUT "Press >RETURN< to accept the default value."
-      puts $CHECK_OUTPUT "(default: [ lindex $value 1 ])"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set group2 $input 
-      } else {
-         set group2 [ lindex $value 1 ]
-         puts $CHECK_OUTPUT "using default value"
-      }
-
-      set value "$group1 $group2" 
-   }
-
    # now verify
-   if { ! $fast_setup } {
-      if { [llength $value] != 2 } {
-           puts $CHECK_OUTPUT "first testsuite user should belong to 2 groups"
+   if { !$fast_setup } {
+      set local_host [gethostname]
+      if {$local_host == "unknown"} {
+         puts "Could not get local host name" 
            return -1
-      }
-
-      if { [info exists CHECK_SECOND_FOREIGN_SYSTEM_GROUP ] } {
-         foreach gname $value {
-            if { [ string compare $gname $CHECK_SECOND_FOREIGN_SYSTEM_GROUP] == 0 } {
-                puts $CHECK_OUTPUT "first testsuite user should not have the same group as second testsuite user"
-                return -1
-            } 
-         }
       }
 
       set group1 [lindex $value 0]
       set group2 [lindex $value 1]
       
       set result [start_remote_prog $local_host $CHECK_USER "id" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
-      debug_puts $result
+      ts_log_finest $result
       if { [string first $group1 $result ] < 0 } {
-         puts $CHECK_OUTPUT "first testsuite user ($CHECK_FIRST_FOREIGN_SYSTEM_USER) has not \"$group1\" as main group"
+         puts "first testsuite user ($CHECK_FIRST_FOREIGN_SYSTEM_USER) has not \"$group1\" as main group"
          return -1
       }
 
       set result [start_remote_prog $local_host $CHECK_USER "groups" "$CHECK_FIRST_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
-      debug_puts $result
+      ts_log_finest $result
       if { $prg_exit_state == 0 } {
          if { [string first $group2 $result] < 0 } { 
-            puts $CHECK_OUTPUT "first testsuite user ($CHECK_FIRST_FOREIGN_SYSTEM_USER) has not \"$group2\" as secondary group"
+            puts "first testsuite user ($CHECK_FIRST_FOREIGN_SYSTEM_USER) has not \"$group2\" as secondary group"
             return -1
          }
       }
 
-      if { [llength $value] != 2 } {
-           puts $CHECK_OUTPUT "first foreign system group must have 2 group entries"
-           return -1
       }
-   }
-
 
    # set global variables to value
    set CHECK_FIRST_FOREIGN_SYSTEM_GROUP $value
 
    return $value
-
 }
 
-
-#****** config/user/user_config_second_foreign_group() *******************************
+#****** config_user/user_config_second_foreign_group() *************************
 #  NAME
 #     user_config_second_foreign_group() -- setup second foreign group
 #
@@ -403,83 +283,50 @@ proc user_config_first_foreign_group { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_second_foreign_group { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_FIRST_FOREIGN_SYSTEM_GROUP CHECK_SECOND_FOREIGN_SYSTEM_USER
    global CHECK_SECOND_FOREIGN_SYSTEM_GROUP do_nomain
    global fast_setup
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the name of main group where user"
+                   "$CHECK_SECOND_FOREIGN_SYSTEM_USER is a member."
+                   "Second testsuite user's group must differ from the first"
+                   "testsuite user's groups."
+                   "Press >RETURN< to use the default value." }
 
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
+  array set params {}
+   if { [info exists CHECK_FIRST_FOREIGN_SYSTEM_GROUP ] } {
+      lappend params(exclude_list) "$CHECK_FIRST_FOREIGN_SYSTEM_GROUP"
    }
 
+   set value [config_generic $only_check $name config $help_text "string" 0 1 "" params]
+
+   if { $value == -1 } { return -1 }
+
+   if { !$fast_setup } {
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+         puts "Could not get local host name" 
       return -1
    }
 
-
-   if { $only_check == 0 } {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the name of main group where user $CHECK_SECOND_FOREIGN_SYSTEM_USER is member."
-      puts $CHECK_OUTPUT "Press >RETURN< to accept the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
-
-   # now verify
-   if { ! $fast_setup } {
-      if { [llength $value] != 1 } {
-           puts $CHECK_OUTPUT "second testsuite user should belong only to one group"
-           return -1
-      }
-
-      if { [info exists CHECK_FIRST_FOREIGN_SYSTEM_GROUP ] } {
-         foreach gname $CHECK_FIRST_FOREIGN_SYSTEM_GROUP {
-            if { [ string compare $gname $value] == 0 } {
-                puts $CHECK_OUTPUT "first testsuite user should not have the same group as second testsuite user"
-                return -1
-            } 
-         }
-      }
-
       set result [start_remote_prog $local_host $CHECK_USER "id" "$CHECK_SECOND_FOREIGN_SYSTEM_USER" prg_exit_state 60 0 "" "" 1 0]
-      debug_puts $result
+      ts_log_finest $result
       if { [string first $value $result ] < 0 && $do_nomain == 0 } {
-         puts $CHECK_OUTPUT "second testsuite user ($CHECK_SECOND_FOREIGN_SYSTEM_USER) has not \"$value\" as main group"
+         puts "second testsuite user ($CHECK_SECOND_FOREIGN_SYSTEM_USER) has not \"$value\" as main group"
          return -1
       }
-
-      if { [llength $value] != 1 } {
-           puts $CHECK_OUTPUT "second foreign system group must have 1 group entries"
-           return -1
       }
-   }
 
    # set global variables to value
    set CHECK_SECOND_FOREIGN_SYSTEM_GROUP $value
 
    return $value
-
-
 }
 
-
-#****** config/user/user_config_userlist() *******************************************
+#****** config_user/user_config_userlist() *************************************
 #  NAME
 #     user_config_userlist() -- user list setup
 #
@@ -501,7 +348,7 @@ proc user_config_second_foreign_group { only_check name config_array } {
 #
 #*******************************************************************************
 proc user_config_userlist { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
+   global CHECK_USER
    global CHECK_REMOTE_ENVIRONMENT
    
    upvar $config_array config
@@ -512,59 +359,46 @@ proc user_config_userlist { only_check name config_array } {
        set not_ready 1
        while { $not_ready } {
           clear_screen
-          puts $CHECK_OUTPUT "\nGlobal user configuration setup"
-          puts $CHECK_OUTPUT "==============================="
-          puts $CHECK_OUTPUT "\n\n    users configured: [llength $config(userlist)]"
+          puts "\nGlobal user configuration setup"
+          puts "==============================="
+          puts "\n\n    users configured: [llength $config(userlist)]"
           user_config_userlist_show_users config
-          puts $CHECK_OUTPUT "\n\n(1)  add user"
-          puts $CHECK_OUTPUT "(2)  edit user"
-          puts $CHECK_OUTPUT "(3)  delete user"
-          puts $CHECK_OUTPUT "(10) exit setup"
-          puts -nonewline $CHECK_OUTPUT "> "
+          puts "\n\n(1)  add user"
+          puts "(2)  edit user"
+          puts "(3)  delete user"
+          puts "(10) exit setup"
+          puts -nonewline "> "
           set input [ wait_for_enter 1]
           switch -- $input {
              1 {
                 set result [user_config_userlist_add_user config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
-             }
              2 {
                 set result [user_config_userlist_edit_user config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
-             }
              3 {
                set result [user_config_userlist_delete_user config]
-                if { $result != 0 } {
-                   wait_for_enter
+                if { $result != 0 } { wait_for_enter }
                 }
+             10 { set not_ready 0 }
              }
-             10 {
-                set not_ready 0
              }
           } 
-       }
-   } 
 
    # check user configuration
-   debug_puts "user_config_userlist:"
-   foreach user $config(userlist) {
-      debug_puts "checking user \"$user\" ... "
-   }
+   ts_log_finest "user_config_userlist:"
+   foreach user $config(userlist) { ts_log_finest "checking user \"$user\" ... " }
 
    if { [ info exists config($CHECK_USER,envlist) ] } {
       set CHECK_REMOTE_ENVIRONMENT $config($CHECK_USER,envlist)
-   } else {
-      set CHECK_REMOTE_ENVIRONMENT ""
-   }
+   } else { set CHECK_REMOTE_ENVIRONMENT "" }
 
    return $config(userlist)
 }
 
-
-#****** config/user/user_config_userlist_show_users() ********************************
+#****** config_user/user_config_userlist_show_users() **************************
 #  NAME
 #     user_config_userlist_show_users() -- show testsuite user configuration
 #
@@ -577,27 +411,31 @@ proc user_config_userlist { only_check name config_array } {
 #  INPUTS
 #     array_name - ts_user_config
 #
+#  RESULT
+#     the list of configured hosts
+#
 #  SEE ALSO
 #     check/setup_user_config()
 #     check/verify_user_config()
 #*******************************************************************************
 proc user_config_userlist_show_users { array_name } {
-   global CHECK_OUTPUT
    upvar $array_name config
 
-   puts $CHECK_OUTPUT "\nUser list:\n"
+   puts "\nUser list:\n"
    if { [llength $config(userlist)] == 0 } {
-      puts $CHECK_OUTPUT "no users defined"
+      puts "no users defined"
+      return ""
    }
+
    set index 0
    foreach user $config(userlist) {
       incr index 1 
-      puts $CHECK_OUTPUT "($index) $user (ports: $config($user,portlist))"
+      puts "($index) $user (ports: $config($user,portlist))"
    }
+   return $config(userlist)
 }
 
-
-#****** config/user/user_config_userlist_add_user() **********************************
+#****** config_user/user_config_userlist_add_user() ****************************
 #  NAME
 #     user_config_userlist_add_user() -- add user to user configuration
 #
@@ -611,49 +449,46 @@ proc user_config_userlist_show_users { array_name } {
 #     array_name       - ts_user_config
 #     { have_user "" } - if not "": add this user
 #
+#  RESULT
+#     -1 error
+#      0 ok
+#
 #  SEE ALSO
 #     check/setup_user_config()
 #     check/verify_user_config()
 #*******************************************************************************
 proc user_config_userlist_add_user { array_name { have_user "" } } {
-   global CHECK_OUTPUT
-   upvar $array_name config
    global CHECK_USER
+  
+   upvar $array_name config
   
    if { $have_user == "" } {
       clear_screen
-      puts $CHECK_OUTPUT "\nAdd user to global user configuration"
-      puts $CHECK_OUTPUT "====================================="
-
+      puts "\nAdd user to global user configuration"
+      puts "====================================="
       user_config_userlist_show_users config
-
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter new username: "
+      puts -nonewline "\nEnter new username: "
       set new_user [wait_for_enter 1]
-   } else {
-      set new_user $have_user
-   }
+   } else { set new_user $have_user }
 
    if { [ string length $new_user ] == 0 } {
-      puts $CHECK_OUTPUT "no username entered"
+      puts "no username entered"
       return -1
    }
      
    if { [ lsearch $config(userlist) $new_user ] >= 0 } {
-      puts $CHECK_OUTPUT "user \"$new_user\" is already in list"
+      puts "user \"$new_user\" is already in list"
       return -1
    }
 
    lappend config(userlist) $new_user
    set config($new_user,portlist) ""
    set config($new_user,envlist)  ""
-   if { $have_user == "" } {
-      user_config_userlist_edit_user config $new_user
-   }
+   if { $have_user == "" } { user_config_userlist_edit_user config $new_user }
    return 0   
 }
 
-#****** config/user/user_config_userlist_edit_user() *********************************
+#****** config_user/user_config_userlist_edit_user() ***************************
 #  NAME
 #     user_config_userlist_edit_user() -- edit user configuration
 #
@@ -672,41 +507,31 @@ proc user_config_userlist_add_user { array_name { have_user "" } } {
 #     check/verify_user_config()
 #*******************************************************************************
 proc user_config_userlist_edit_user { array_name { has_user "" } } {
-   global CHECK_OUTPUT
    upvar $array_name config
    global CHECK_USER
    global CHECK_REMOTE_ENVIRONMENT
 
    set goto 0
 
-   if { $has_user != "" } {
-      set goto $has_user
-   } 
+   if { $has_user != "" } { set goto $has_user } 
 
    set local_host [gethostname]
 
    while { 1 } {
-
       clear_screen
-      puts $CHECK_OUTPUT "\nEdit user in global user configuration"
-      puts $CHECK_OUTPUT "======================================"
-
-   
+      puts "\nEdit user in global user configuration"
+      puts "======================================"   
       user_config_userlist_show_users config
-
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter username/number or return to exit: "
+      puts -nonewline "\nEnter username/number or return to exit: "
       if { $goto == 0 } {
          set user [wait_for_enter 1]
          set goto $user
       } else {
          set user $goto
-         puts $CHECK_OUTPUT $user
+         puts $user
       }
  
-      if { [ string length $user ] == 0 } {
-         break
-      }
+      if { [ string length $user ] == 0 } { break }
      
       if { [string is integer $user] } {
          incr user -1
@@ -714,33 +539,31 @@ proc user_config_userlist_edit_user { array_name { has_user "" } } {
       }
 
       if { [ lsearch $config(userlist) $user ] < 0 } {
-         puts $CHECK_OUTPUT "user \"$user\" not found in list"
+         puts "user \"$user\" not found in list"
          wait_for_enter
          set goto 0
          continue
       }
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "   user     : $user"
-      puts $CHECK_OUTPUT "   portlist : $config($user,portlist)"
-      puts $CHECK_OUTPUT "   envlist  : $config($user,envlist)"
+      puts ""
+      puts "   user     : $user"
+      puts "   portlist : $config($user,portlist)"
+      puts "   envlist  : $config($user,envlist)"
    
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter category to edit or hit return to exit > "
+      puts -nonewline "\nEnter category to edit or hit return to exit > "
       set input [ wait_for_enter 1]
       if { [ string length $input ] == 0 } {
          set goto 0
          continue
       }
 
- 
       if { [ string compare $input "user"] == 0 } {
-         puts $CHECK_OUTPUT "Setting \"$input\" is not allowed"
+         puts "Setting \"$input\" is not allowed"
          wait_for_enter
          continue
       }
 
       if { [ info exists config($user,$input) ] != 1 } {
-         puts $CHECK_OUTPUT "Not a valid category"
+         puts "Not a valid category"
          wait_for_enter
          continue
       }
@@ -752,12 +575,12 @@ proc user_config_userlist_edit_user { array_name { has_user "" } } {
       }      
 
       if { $extra == 0 } {
-         puts -nonewline $CHECK_OUTPUT "\nPlease enter new $input value: "
+         puts -nonewline "\nEnter new $input value: "
          set value [ wait_for_enter 1 ]
       }
       
       if { $extra == 1 } {
-         puts -nonewline $CHECK_OUTPUT "\nPlease enter new $input value: "
+         puts -nonewline "\nEnter new $input value: "
          set value [ wait_for_enter 1 ]
          set errors [user_config_userlist_set_portlist config $user $value]
          if { $errors != 0 } {
@@ -767,9 +590,9 @@ proc user_config_userlist_edit_user { array_name { has_user "" } } {
       }
 
       if { $extra == 2 } {
-         puts $CHECK_OUTPUT "The envlist has following syntax:"
-         puts $CHECK_OUTPUT "variable=value \[...\] or local environment name to export e.g. DISPLAY"
-         puts -nonewline $CHECK_OUTPUT "\nPlease enter new $input value: "
+         puts "The envlist has following syntax:"
+         puts "variable=value \[...\] or local environment name to export e.g. DISPLAY"
+         puts -nonewline "\nEnter new $input value: "
          set value [ wait_for_enter 1 ]
          set CHECK_REMOTE_ENVIRONMENT $value
          set back [ set_users_environment $local_host]
@@ -780,13 +603,12 @@ proc user_config_userlist_edit_user { array_name { has_user "" } } {
          continue
       }
 
-
       set config($user,$input) $value
    }
    return 0   
 }
 
-#****** config/user/user_config_userlist_set_portlist() ******************************
+#****** config_user/user_config_userlist_set_portlist() ************************
 #  NAME
 #     user_config_userlist_set_portlist() -- set protlist for testsuite user
 #
@@ -808,7 +630,6 @@ proc user_config_userlist_edit_user { array_name { has_user "" } } {
 #*******************************************************************************
 proc user_config_userlist_set_portlist { array_name user value } {
    global ts_user_config
-   global CHECK_OUTPUT
 
    upvar $array_name config
 
@@ -820,27 +641,26 @@ proc user_config_userlist_set_portlist { array_name user value } {
    foreach port $value { 
       set had_error 0 
       if { [string is integer $port ] != 1 } {
-         puts $CHECK_OUTPUT "$port is not a valid port number"
+         puts "$port is not a valid port number"
          set had_error 1
       } 
       if { [info exists config($port)] } {
          if { [ string compare $config($port) $user ] != 0 } {
-            puts $CHECK_OUTPUT "user \"$config($port)\" has already reserved port $port"
+            puts "user \"$config($port)\" has already reserved port $port"
             set had_error 1
          }
       } 
       if { [ lsearch -exact $ok_value $port ] >= 0 } {
-          puts $CHECK_OUTPUT "ignoring double entry of port $port"
+          puts "ignoring double entry of port $port"
           set had_error 1
       }
 
-      if { $had_error == 0 } {
-         lappend ok_value $port
+      if { $had_error == 0 } { lappend ok_value $port } 
       } 
-   }
+
    foreach port $config($user,portlist) {
       if { [lsearch -exact $ok_value $port] < 0 } {
-         puts $CHECK_OUTPUT "removing port $port"
+         puts "removing port $port"
          unset config($port)
          unset config($port,$user) 
       }
@@ -856,7 +676,7 @@ proc user_config_userlist_set_portlist { array_name user value } {
    return $had_error
 }
 
-#****** config/user/user_config_userlist_create_gid_port() ***************************
+#****** config_user/user_config_userlist_create_gid_port() *********************
 #  NAME
 #     user_config_userlist_create_gid_port() -- create gid-range for user/port
 #
@@ -876,16 +696,13 @@ proc user_config_userlist_set_portlist { array_name user value } {
 #     check/verify_user_config()
 #*******************************************************************************
 proc user_config_userlist_create_gid_port { array_name port user } {
-   global CHECK_OUTPUT
    upvar $array_name config
 
    if { [ info exists config($port,$user) ] } {
-      puts $CHECK_OUTPUT "user $user ($port) gid_range: $config($port,$user)"
+      puts "user $user ($port) gid_range: $config($port,$user)"
       return $config($port,$user)
    }
    
-   
-
    set highest_gid_start 12800
    if { [info exist config(userlist)] } {
       set userlist $config(userlist)
@@ -907,11 +724,11 @@ proc user_config_userlist_create_gid_port { array_name port user } {
    set gid_end $gid_start
    incr gid_end 199
    set gid_range "$gid_start-$gid_end"
-   puts $CHECK_OUTPUT "user $user ($port) gid_range: $gid_range"
+   puts "user $user ($port) gid_range: $gid_range"
    return $gid_range
 }
 
-#****** config/user/user_config_userlist_delete_user() *******************************
+#****** config_user/user_config_userlist_delete_user() *************************
 #  NAME
 #     user_config_userlist_delete_user() -- delete user from user configuration
 #
@@ -931,26 +748,18 @@ proc user_config_userlist_create_gid_port { array_name port user } {
 #
 #*******************************************************************************
 proc user_config_userlist_delete_user { array_name } {
-   global CHECK_OUTPUT
    upvar $array_name config
    global CHECK_USER
 
    while { 1 } {
-
       clear_screen
-      puts $CHECK_OUTPUT "\nDelete user from global user configuration"
-      puts $CHECK_OUTPUT "=========================================="
-
-   
+      puts "\nDelete user from global user configuration"
+      puts "=========================================="
       user_config_userlist_show_users config
-
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Please enter username/number or return to exit: "
+      puts -nonewline "\nEnter username/number or return to exit: "
       set user [wait_for_enter 1]
  
-      if { [ string length $user ] == 0 } {
-         break
-      }
+      if { [ string length $user ] == 0 } { break }
      
       if { [string is integer $user] } {
          incr user -1
@@ -958,34 +767,30 @@ proc user_config_userlist_delete_user { array_name } {
       }
 
       if { [ lsearch $config(userlist) $user ] < 0 } {
-         puts $CHECK_OUTPUT "user \"$user\" not found in list"
+         puts "user \"$user\" not found in list"
          wait_for_enter
          continue
       }
 
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "   user          : $user"
-      puts $CHECK_OUTPUT "   portlist     : $config($user,portlist)"
+      puts ""
+      puts "   user          : $user"
+      puts "   portlist     : $config($user,portlist)"
 
-      puts $CHECK_OUTPUT ""
+      puts ""
 
+      puts ""
 
-      puts $CHECK_OUTPUT ""
-   
-      puts $CHECK_OUTPUT "\n"
-      puts -nonewline $CHECK_OUTPUT "Delete this user? (y/n): "
+      puts "\n"
+      puts -nonewline "Delete this user? (y/n): "
       set input [ wait_for_enter 1]
-      if { [ string length $input ] == 0 } {
-         continue
-      }
+      if { [ string length $input ] == 0 } { continue }
 
- 
       if { [ string compare $input "y"] == 0 } {
          set index [lsearch $config(userlist) $user]
          set config(userlist) [ lreplace $config(userlist) $index $index ]
 
          foreach port $config($user,portlist) {
-            puts $CHECK_OUTPUT "removing port $port"
+            puts "removing port $port"
             unset config($port)
          }
          unset config($user,portlist)
@@ -996,12 +801,7 @@ proc user_config_userlist_delete_user { array_name } {
    return 0   
 }
 
-
-
-
-
-
-#****** config/user/verify_user_config() *********************************************
+#****** config_user/verify_user_config() ***************************************
 #  NAME
 #     verify_user_config() -- verify testsuite user configuration setup
 #
@@ -1016,7 +816,9 @@ proc user_config_userlist_delete_user { array_name } {
 #     config_array         - array name with configuration (ts_user_config)
 #     only_check           - if 1: don't ask user, just check
 #     parameter_error_list - returned list with error information
-#     { force 0 }          - force ask user 
+#     { force_params "" }  - the list of parameters to edit
+#                            for allowed values see the configured parameters
+#                            in user configuration
 #
 #  RESULT
 #     number of errors
@@ -1027,8 +829,8 @@ proc user_config_userlist_delete_user { array_name } {
 #     check/verify_config()
 #     
 #*******************************************************************************
-proc verify_user_config { config_array only_check parameter_error_list { force 0 }} {
-   global CHECK_OUTPUT actual_ts_user_config_version be_quiet
+proc verify_user_config { config_array only_check parameter_error_list { force_params "" }} {
+   global actual_ts_user_config_version be_quiet CHECK_USER
    upvar $config_array config
    upvar $parameter_error_list error_list
 
@@ -1036,37 +838,38 @@ proc verify_user_config { config_array only_check parameter_error_list { force 0
    set error_list ""
 
    if { [ info exists config(version) ] != 1 } {
-      puts $CHECK_OUTPUT "Could not find version info in user configuration file"
+      puts "Could not find version info in user configuration file"
       lappend error_list "no version info"
       incr errors 1
       return -1
    }
 
    if { $config(version) != $actual_ts_user_config_version } {
-      puts $CHECK_OUTPUT "User configuration file version \"$config(version)\" not supported."
-      puts $CHECK_OUTPUT "Expected version is \"$actual_ts_user_config_version\""
+      puts "User configuration file version \"$config(version)\" not supported."
+      puts "Expected version is \"$actual_ts_user_config_version\""
       lappend error_list "unexpected version"
       incr errors 1
       return -1
-   } else {
-      debug_puts "User Configuration Version: $config(version)"
+   } else { ts_log_finest "User Configuration Version: $config(version)" }
+
+   if { [lsearch -exact $config(userlist) $CHECK_USER] < 0 } {
+      ts_log_warning "User $CHECK_USER doesn't exist in user configuration!"
+      if { [lsearch -exact $force_params "userlist"] < 0 } { lappend force_params "userlist" }
    }
 
    set max_pos [get_configuration_element_count config]
 
    set uninitalized ""
-   if { $be_quiet == 0 } { 
-      puts $CHECK_OUTPUT ""
-   }
+   if { $be_quiet == 0 } { ts_log_fine "" }
 
    for { set param 1 } { $param <= $max_pos } { incr param 1 } {
       set par [ get_configuration_element_name_on_pos config $param ]
       if { $be_quiet == 0 } { 
-         puts -nonewline $CHECK_OUTPUT "      $config($par,desc) ..."
-         flush $CHECK_OUTPUT
+         puts -nonewline "      $config($par,desc) ..."
+         ts_log_progress
       }
-      if { $config($par) == "" || $force != 0 } {
-         debug_puts "not initialized or forced!"
+      if { $config($par) == "" || [lsearch -exact $force_params $par] >= 0 } {
+         ts_log_finest "not initialized or forced!"
          lappend uninitalized $param
          if { $only_check != 0 } {
             lappend error_list ">$par< configuration not initalized"
@@ -1077,60 +880,48 @@ proc verify_user_config { config_array only_check parameter_error_list { force 0
          set default_value   $config($par,default)
          set description     $config($par,desc)
          if { [string length $procedure_name] == 0 } {
-             debug_puts "no procedure defined"
+             ts_log_finest "no procedure defined"
          } else {
             if { [info procs $procedure_name ] != $procedure_name } {
-               puts $CHECK_OUTPUT "error\n"
-               puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
-               puts $CHECK_OUTPUT "   ======="
+               ts_log_warning "unkown procedure name: \"$procedure_name\" !!!"
                lappend uninitalized $param
 
-               if { $only_check == 0 } { 
-                  wait_for_enter 
-               }
+               if { $only_check == 0 } { wait_for_enter }
             } else {
                # call procedure only_check == 1
-               debug_puts "starting >$procedure_name< (verify mode) ..."
+               ts_log_finest "starting >$procedure_name< (verify mode) ..."
                set value [ $procedure_name 1 $par config ]
                if { $value == -1 } {
                   incr errors 1
                   lappend error_list $par
-                  puts $CHECK_OUTPUT "error\n"
-                  puts $CHECK_OUTPUT "-->WARNING: verify error in procedure \"$procedure_name\" !!!"
-                  puts $CHECK_OUTPUT "   ======="
+                  ts_log_warning "verify error in procedure \"$procedure_name\" !!!"
                   lappend uninitalized $param
-
                }
             }
          }
       }
-      if { $be_quiet == 0 } { 
-         puts $CHECK_OUTPUT "\r      $config($par,desc) ... ok"   
+      if { $be_quiet == 0 } { ts_log_fine "\r      $config($par,desc) ... ok" }
       }
-   }
+
    if { [set count [llength $uninitalized]] != 0 && $only_check == 0 } {
-      puts $CHECK_OUTPUT "$count parameters are not initialized!"
-      puts $CHECK_OUTPUT "Entering setup procedures ..."
+      puts "$count parameters are not initialized!"
+      puts "Entering setup procedures ..."
+      wait_for_enter
       
       foreach pos $uninitalized {
+         clear_screen
          set p_name [get_configuration_element_name_on_pos config $pos]
          set procedure_name  $config($p_name,setup_func)
          set default_value   $config($p_name,default)
-         set description     $config($p_name,desc)
        
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         puts $CHECK_OUTPUT $description
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         debug_puts "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
+         ts_log_finest "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
          set use_default 0
          if { [string length $procedure_name] == 0 } {
-            puts $CHECK_OUTPUT "no procedure defined"
-            set use_default 1
+            puts "no procedure defined"
+            continue
          } else {
             if { [info procs $procedure_name ] != $procedure_name } {
-               puts $CHECK_OUTPUT ""
-               puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
-               puts $CHECK_OUTPUT "   ======="
+               ts_log_warning "unkown procedure name: \"$procedure_name\" !!!"
                if { $only_check == 0 } { wait_for_enter }
                set use_default 1
             }
@@ -1141,41 +932,39 @@ proc verify_user_config { config_array only_check parameter_error_list { force 0
             if { $config($p_name) == "" } {
                # we have no setup procedure
                if { $default_value != "" } {
-                  puts $CHECK_OUTPUT "using default value: \"$default_value\"" 
+                  puts "using default value: \"$default_value\"" 
                   set config($p_name) $default_value 
                } else {
-                  puts $CHECK_OUTPUT "No setup procedure and no default value found!!!"
+                  puts "No setup procedure and no default value found!!!"
                   if { $only_check == 0 } {
-                     puts -nonewline $CHECK_OUTPUT "Please enter value for parameter \"$p_name\": "
+                     puts -nonewline "Enter value for parameter \"$p_name\": "
                      set value [wait_for_enter 1]
-                     puts $CHECK_OUTPUT "using value: \"$value\"" 
+                     puts "using value: \"$value\"" 
                      set config($p_name) $value
                   } 
                }
             }
          } else {
             # call setup procedure ...
-            debug_puts "starting >$procedure_name< (setup mode) ..."
+            ts_log_finest "starting >$procedure_name< (setup mode) ..."
             set value [ $procedure_name 0 $p_name config ]
             if { $value != -1 } {
-               puts $CHECK_OUTPUT "using value: \"$value\"" 
+               puts "using value: \"$value\"" 
                set config($p_name) $value
             }
          }
          if { $config($p_name) == "" } {
-            puts $CHECK_OUTPUT "" 
-            puts $CHECK_OUTPUT "-->WARNING: no value for \"$p_name\" !!!"
-            puts $CHECK_OUTPUT "   ======="
+            ts_log_warning "no value for \"$p_name\" !!!"
             incr errors 1
             lappend error_list $p_name
          }
+         wait_for_enter
       } 
    }
    return $errors
 }
 
-
-#****** config/user/setup_user_config() **********************************************
+#****** config_user/setup_user_config() ****************************************
 #  NAME
 #     setup_user_config() -- testsuite user configuration initalization
 #
@@ -1187,66 +976,61 @@ proc verify_user_config { config_array only_check parameter_error_list { force 0
 #
 #  INPUTS
 #     file        - user configuration file
-#     { force 0 } - if 1: edit configuration setup
+#     { force_params "" }  - the list of parameters to edit
+#                            for allowed values see the configured parameters
+#                            in host configuration
 #
 #  SEE ALSO
 #     check/setup_host_config()
 #*******************************************************************************
-proc setup_user_config { file { force 0 }} {
-   global CHECK_OUTPUT
+proc setup_user_config { file { force_params "" } } {
    global ts_user_config actual_ts_user_config_version do_nomain
    global fast_setup
 
    if { [read_array_from_file $file "testsuite user configuration" ts_user_config ] == 0 } {
       if { $ts_user_config(version) != $actual_ts_user_config_version } {
-         puts $CHECK_OUTPUT "unkown user configuration file version: $ts_user_config(version)"
-         exit -1
+         puts "unkown user configuration file version: $ts_user_config(version)"
+         return -1
       }
 
       # got config
       if { $do_nomain == 0 } {
-         if { [verify_user_config ts_user_config 1 err_list $force ] != 0 } {
+         if { [verify_user_config ts_user_config 1 err_list $force_params ] != 0 } {
             # configuration problems
-            foreach elem $err_list {
-               puts $CHECK_OUTPUT "$elem"
-            } 
+            foreach elem $err_list { puts "$elem" } 
             set not_ok 1
             while { $not_ok } {
-               if { [verify_user_config ts_user_config 0 err_list $force ] != 0 } {
+               if { [verify_user_config ts_user_config 0 err_list $force_params ] != 0 } {
                   set not_ok 1
-                  puts $CHECK_OUTPUT "User configuration error. Stop."
+                  puts "User configuration error. Stop."
                   foreach elem $err_list {
-                     puts $CHECK_OUTPUT "error in: $elem"
+                     puts "error in: $elem"
                   } 
-                  puts $CHECK_OUTPUT "try again? (y/n)"
+                  puts "try again? (y/n)"
                   set answer [wait_for_enter 1]
                   if { $answer == "n" } {
-                     puts $CHECK_OUTPUT "Do you want to save your changes? (y/n)"
+                     puts "Do you want to save your changes? (y/n)"
                      set answer [wait_for_enter 1]
                      if { $answer == "y" } {
                         if { [ save_user_configuration $file] != 0} {
-                           puts $CHECK_OUTPUT "Could not save user configuration"
+                           puts "Could not save user configuration"
                            wait_for_enter
                         }
                      }
                      return
-                  } else {
-                    continue
+                  } else { continue }
+               } else { set not_ok 0 }
                   }
-               } else {
-                 set not_ok 0
-               }
-            }
             if { [ save_user_configuration $file] != 0} {
-               puts $CHECK_OUTPUT "Could not save user configuration"
+               puts "Could not save user configuration"
                wait_for_enter
                return
             }
 
          }
-         if { $force == 1 } {
+         if { [string compare $force_params ""] != 0 } {
             if { [ save_user_configuration $file] != 0} {
-               puts $CHECK_OUTPUT "Could not save user configuration"
+               puts "Could not save user configuration"
                wait_for_enter
             }
          }
@@ -1254,14 +1038,59 @@ proc setup_user_config { file { force 0 }} {
       }
       return 
    } else {
-      puts $CHECK_OUTPUT "could not open user config file \"$file\""
-      puts $CHECK_OUTPUT "press return to create new user configuration file"
+      puts "could not open user config file \"$file\""
+      puts "press return to create new user configuration file"
       wait_for_enter 1
-      if { [ save_user_configuration $file] != 0} {
-         exit -1
-      }
+      if { [ save_user_configuration $file] != 0} { return -1 }
       setup_user_config $file
    }
+}
+
+#****** config_user/user_config_get_portlist() *********************************
+#  NAME
+#     user_config_get_portlist() -- get the user's portlist in user configuration
+#
+#  SYNOPSIS
+#     user_config_get_portlist { config_array result_array {port_type ""} } 
+#
+#  FUNCTION
+#     Gets the array of ports used by user and it's usages
+#     It uses global variable ts_user_portlist_usage
+#
+#  INPUTS
+#     config_array - ts_user_config
+#     result_array - result array
+#     {port_type "all"} - "all" ... all ports
+#                         "reserved" ... ports < 1024
+#                         "even" ... even ports
+#                         "odd" ... odd ports
+#
+#  RESULT
+#     the list of ports
+#
+#  SEE ALSO
+#     config/config_generic()
+#*******************************************************************************
+proc user_config_get_portlist { config_array result_array {port_type "all"} } {
+   global CHECK_USER ts_user_config
+
+   upvar $config_array config
+   upvar $result_array portlist
+
+   if { ![array exists portlist] } { array set portlist {} }
+
+   if { [ info exists config($CHECK_USER,portlist) ] != 1 } { return -1 }
+
+   foreach port $config($CHECK_USER,portlist) {
+
+      if { $port_type == "reserved" && $port >= 1024 } { continue }
+      if { $port_type == "even" && [ expr ( $port % 2 ) ] != 0 } { continue }
+      if { $port_type == "odd" && [ expr ( $port % 2 ) ] == 0 } { continue }
+
+      set portlist($port) ""
+   }
+
+   return [array names portlist]
 }
 
 #****** config_user/user_conf_get_cluster_users() ******************************
@@ -1290,4 +1119,41 @@ proc user_conf_get_cluster_users {} {
    lappend user_list $ts_user_config(second_foreign_user)
 
    return $user_list
+}
+
+#****** config_user/user_config_add_newport() **********************************
+#  NAME
+#     user_config_add_newport() -- add new port to user's portlist
+#
+#  SYNOPSIS
+#     user_config_add_newport { port { config_array "" } } 
+#
+#  FUNCTION
+#     This procedure is used to add a new port to the user's configuration 
+#
+#  INPUTS
+#     port               - port number
+#     {config_array "" } - ts_config
+#
+#  SEE ALSO
+#     config_user/user_config_userlist_set_portlist()
+#     check/save_user_configuration()
+#*******************************************************************************
+proc user_config_add_newport { port {config_array "" } } {
+   global CHECK_USER ts_user_config ts_config
+
+   set new_value "$ts_user_config($CHECK_USER,portlist) $port"
+   set errors 0
+
+   incr errors [user_config_userlist_set_portlist ts_user_config $CHECK_USER $new_value]
+
+   if { $errors == 0 }  {
+      if { [info exists config(user_config_file)] } {
+         set conf_file $config(user_config_file)
+      } else { set conf_file $ts_config(user_config_file) }
+       incr errors [save_user_configuration $conf_file]
+   }
+
+   wait_for_enter
+   return
 }

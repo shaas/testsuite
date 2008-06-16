@@ -294,7 +294,7 @@ proc compile_search_compile_host {arch} {
    }
 
    # no compile host found for this arch
-   ts_log_fine "no compile host found for architecture $arch"
+   ts_log_warning "no compile host found for architecture $arch"
    return "none"
 }
 
@@ -489,7 +489,7 @@ proc compile_source { { do_only_hooks 0} } {
    set error_count 0
    set cvs_change_log ""
 
-   # for additional configurations, we might want to start remote operation
+   # for additional configurations, we might want to start remote operation, if hedeby is set up
    # (for independed clusters)
    if { $do_only_hooks == 0 } {
       if {$ts_config(additional_config) != "none"} {

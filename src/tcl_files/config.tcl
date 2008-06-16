@@ -30,8 +30,7 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-
-#****** config/verify_config() **************************************************
+#****** config/verify_config() *************************************************
 #  NAME
 #     verify_config() -- verify testsuite configuration setup
 #
@@ -61,11 +60,9 @@ proc verify_config { config_array only_check parameter_error_list } {
    return [verify_config2 config $only_check error_list $actual_ts_config_version]
 }
 
-
-
 proc verify_config2 { config_array only_check parameter_error_list expected_version } {
+   global be_quiet
 
-   global CHECK_OUTPUT be_quiet
    upvar $config_array config
    upvar $parameter_error_list error_list
 
@@ -73,7 +70,7 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
    set error_list ""
    
    if { ! [ info exists config(version) ] } {
-      puts $CHECK_OUTPUT "Could not find version info in configuration file"
+      puts "Could not find version info in configuration file"
       lappend error_list "no version info"
       incr errors 1
       return -1
@@ -88,28 +85,28 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
       #          It seems to be the case that some checktrees (arco) already have
       #          a configuration update procedure. But this is not defined global.
       #          It has to be evaluated if this solution should be used in general!
-      puts $CHECK_OUTPUT "Configuration file version \"$config(version)\" not supported."
-      puts $CHECK_OUTPUT "Expected version is \"$expected_version\""
+      puts "Configuration file version \"$config(version)\" not supported."
+      puts "Expected version is \"$expected_version\""
       lappend error_list "unexpected version"
       incr errors 1
       return -1      
    } else {
-      debug_puts "Configuration Version: $config(version)"
+      ts_log_finest "Configuration Version: $config(version)"
    }
 
    set max_pos [get_configuration_element_count config]
    
    set uninitalized ""
    if { $be_quiet == 0 } { 
-      puts $CHECK_OUTPUT ""
+      ts_log_fine ""
    }
 
    for { set param 1 } { $param <= $max_pos } { incr param 1 } {
       set par [ get_configuration_element_name_on_pos config $param ]
       set status "ok"
       if { $be_quiet == 0 } { 
-         puts -nonewline $CHECK_OUTPUT "   $config($par,desc) ..."
-         flush $CHECK_OUTPUT
+         puts -nonewline "   $config($par,desc) ..."
+         ts_log_progress
       }
       if { $config($par) == "" } {
          set status "not initialized"
@@ -123,64 +120,50 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
          set default_value   $config($par,default)
          set description     $config($par,desc)
          if { [string length $procedure_name] == 0 } {
-             debug_puts "no procedure defined"
+             ts_log_finest "no procedure defined"
              set status "no check"
          } else {
             if { [info procs $procedure_name ] != $procedure_name } {
-               puts $CHECK_OUTPUT "error\n"
-               puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
-               puts $CHECK_OUTPUT "   ======="
+               ts_log_warning "unkown procedure name: \"$procedure_name\" !!!"
                lappend uninitalized $param
                set status "unknown check function"
-
-               if { $only_check == 0 } { 
-                  wait_for_enter 
-               }
+               if { $only_check == 0 } { wait_for_enter }
             } else {
                # call procedure only_check == 1
-               debug_puts "starting >$procedure_name< (verify mode) ..."
+               ts_log_finest "starting >$procedure_name< (verify mode) ..."
                set value [ $procedure_name 1 $par config ]
                if { $value == -1 } {
                   set status "failed"
                   incr errors 1
                   lappend error_list $par
                   lappend uninitalized $param
-                  puts $CHECK_OUTPUT "error\n"
-                  puts $CHECK_OUTPUT "-->WARNING: verify error in procedure \"$procedure_name\" !!!"
-                  puts $CHECK_OUTPUT "   ======="
-
+                  ts_log_warning "verify error in procedure \"$procedure_name\" !!!"
                } 
             }
          }
       }
       if { $be_quiet == 0 } { 
-         puts $CHECK_OUTPUT "\r   $config($par,desc) ... $status"
+         ts_log_fine "\r   $config($par,desc) ... $status"
       }
    } 
    if { [set count [llength $uninitalized]] != 0 && $only_check == 0} {
-      puts $CHECK_OUTPUT "$count parameters are not initialized!"
-      puts $CHECK_OUTPUT "Entering setup procedures ..."
+      puts "$count parameters are not initialized!"
+      ts_log_fine "Entering setup procedures ..."
       foreach pos $uninitalized {
          wait_for_enter
          clear_screen
          set p_name [get_configuration_element_name_on_pos config $pos]
          set procedure_name  $config($p_name,setup_func)
          set default_value   $config($p_name,default)
-         set description     $config($p_name,desc)
        
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         puts $CHECK_OUTPUT $description
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         debug_puts "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
+         ts_log_finest "Starting configuration procedure for parameter \"$p_name\" ($config($p_name,pos)) ..."
          set use_default 0
          if { [string length $procedure_name] == 0 } {
-            puts $CHECK_OUTPUT "no procedure defined"
+            puts "no procedure defined"
             set use_default 1
          } else {
             if { [info procs $procedure_name ] != $procedure_name } {
-               puts $CHECK_OUTPUT ""
-               puts $CHECK_OUTPUT "-->WARNING: unkown procedure name: \"$procedure_name\" !!!"
-               puts $CHECK_OUTPUT "   ======="
+               ts_log_warning "unkown procedure name: \"$procedure_name\" !!!"
                if { $only_check == 0 } { wait_for_enter }
                set use_default 1
             }
@@ -189,30 +172,28 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
          if { $use_default != 0 } {
             # we have no setup procedure
             if { $default_value != "" } {
-               puts $CHECK_OUTPUT "using default value: \"$default_value\"" 
+               puts "using default value: \"$default_value\"" 
                set config($p_name) $default_value 
             } else {
-               puts $CHECK_OUTPUT "No setup procedure and no default value found!!!"
+               puts "No setup procedure and no default value found!!!"
                if { $only_check == 0 } {
-                  puts -nonewline $CHECK_OUTPUT "Please enter value for parameter \"$p_name\": "
+                  puts -nonewline "Enter value for parameter \"$p_name\": "
                   set value [wait_for_enter 1]
-                  puts $CHECK_OUTPUT "using value: \"$value\"" 
+                  puts "using value: \"$value\"" 
                   set config($p_name) $value
                } 
             }
          } else {
             # call setup procedure ...
-            debug_puts "starting >$procedure_name< (setup mode) ..."
+            ts_log_finest "starting >$procedure_name< (setup mode) ..."
             set value [ $procedure_name 0 $p_name config ]
             if { $value != -1 } {
-               puts $CHECK_OUTPUT "using value: \"$value\"" 
+               puts "using value: \"$value\"" 
                set config($p_name) $value
             }
          }
          if { $config($p_name) == "" } {
-            puts $CHECK_OUTPUT "" 
-            puts $CHECK_OUTPUT "-->WARNING: no value for \"$p_name\" !!!"
-            puts $CHECK_OUTPUT "   ======="
+            ts_log_warning "no value for \"$p_name\" !!!"
             incr errors 1
             lappend error_list $p_name
          }
@@ -222,7 +203,7 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
    return $errors
 }
 
-#****** config/edit_setup() *****************************************************
+#****** config/edit_setup() ****************************************************
 #  NAME
 #     edit_setup() -- edit testsuite/host/user configuration setup
 #
@@ -243,28 +224,23 @@ proc verify_config2 { config_array only_check parameter_error_list expected_vers
 #     check/verify_user_config()
 #*******************************************************************************
 proc edit_setup { array_name verify_func mod_string } {
-   global ts_config
-   global CHECK_OUTPUT
-   global CHECK_DEFAULTS_FILE 
-   global env
 
    upvar $array_name org_config
    upvar $mod_string onchange_values
 
-
    set onchange_values ""
    set org_names [ array names org_config ]
    foreach name $org_names {
-#      puts $CHECK_OUTPUT "config $name = $org_config($name)"
+      ts_log_finest "config $name = $org_config($name)"
       set config($name) $org_config($name)
    }
 
    set no_changes 1
    while { 1 } {
       clear_screen
-      puts $CHECK_OUTPUT "----------------------------------------------------------"
-      puts $CHECK_OUTPUT "$config(version,desc)"
-      puts $CHECK_OUTPUT "----------------------------------------------------------"
+      puts "----------------------------------------------------------"
+      puts "$config(version,desc)"
+      puts "----------------------------------------------------------"
 
       set max_pos [get_configuration_element_count config]
       set index 1
@@ -272,7 +248,7 @@ proc edit_setup { array_name verify_func mod_string } {
          set par [ get_configuration_element_name_on_pos config $param ]
      
          set procedure_name  $config($par,setup_func)
-         if { [ string compare "" $procedure_name ] == 0 } {
+         if { $procedure_name == "" } {
             continue
          }
           
@@ -280,34 +256,33 @@ proc edit_setup { array_name verify_func mod_string } {
             set index_par_list($index) $par
    
             if { $index <= 9 } {
-               puts $CHECK_OUTPUT "    $index) $config($par,desc)"
+               puts "    $index) $config($par,desc)"
             } else {
-               puts $CHECK_OUTPUT "   $index) $config($par,desc)"
+               puts "   $index) $config($par,desc)"
             }
             incr index 1
          }
       }
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "Please enter the number of the configuration parameter"
-      puts -nonewline $CHECK_OUTPUT "you want to change or return to exit: "
+      puts "\nEnter the number of the configuration parameter"
+      puts -nonewline "you want to change or return to exit: "
       set input [ wait_for_enter 1]
    
       if { [ info exists index_par_list($input) ] } {
          set no_changes 0
          set back [$config($index_par_list($input),setup_func) 0 $index_par_list($input) config ]
          if { $back != -1 } {
-            puts $CHECK_OUTPUT "setting $index_par_list($input) to:\n\"$back\"" 
+            puts "setting $index_par_list($input) to:\n\"$back\"" 
             set config($index_par_list($input)) $back
             wait_for_enter
          } else {
-            puts $CHECK_OUTPUT "setup error"
+            puts "setup error"
             wait_for_enter
          }
       } else {
-         if { [string compare $input ""] == 0 } {
+         if { $input == "" } {
             break
          }
-         puts $CHECK_OUTPUT "\"$input\" is not a valid number"
+         puts "\"$input\" is not a valid number"
       }
    }
 
@@ -315,7 +290,7 @@ proc edit_setup { array_name verify_func mod_string } {
       return -1
    }
 
-   puts $CHECK_OUTPUT ""
+   puts ""
    # modified values
    set no_changes 0
    set org_names [ array names org_config ]
@@ -341,7 +316,7 @@ proc edit_setup { array_name verify_func mod_string } {
       return -1
    }
 
-   puts $CHECK_OUTPUT "Verify new settings..."
+   puts "Verify new settings..."
    set verify_state "-1"
    lappend errors "edit_setup(): verify func not found"
    if { [info procs $verify_func ] == $verify_func } {
@@ -349,31 +324,31 @@ proc edit_setup { array_name verify_func mod_string } {
       set verify_state [$verify_func config 1 errors ]
    }
    if { $verify_state == 0 } {
-      puts $CHECK_OUTPUT ""
+      puts ""
       # modified values
       set org_names [ array names org_config ]
       foreach name $org_names {
          if { [ info exists config($name) ] != 1 } {
-            puts $CHECK_OUTPUT "removed $name:"
-            puts $CHECK_OUTPUT "old value: \"$org_config($name)\""
+            puts "removed $name:"
+            puts "old value: \"$org_config($name)\""
             continue
          }
          if { [ string compare $config($name) $org_config($name)] != 0 } {
-            puts $CHECK_OUTPUT "modified $name:"
-            puts $CHECK_OUTPUT "old value: \"$org_config($name)\""
-            puts $CHECK_OUTPUT "new value: \"$config($name)\"\n"
+            puts "modified $name:"
+            puts "old value: \"$org_config($name)\""
+            puts "new value: \"$config($name)\"\n"
          }
       }
       # added values
       set new_names [ array names config ]      
       foreach name $new_names {
          if { [ info exists org_config($name)] != 1 } {
-            puts $CHECK_OUTPUT "added $name:"
-            puts $CHECK_OUTPUT "value: \"$config($name)\"\n"
+            puts "added $name:"
+            puts "value: \"$config($name)\"\n"
          }
       }
 
-      puts -nonewline $CHECK_OUTPUT "Do you want to use your changes? (y/n) > "
+      puts -nonewline "Do you want to use your changes? (y/n) > "
       set input [ wait_for_enter 1 ]
       if { [ string compare $input "y" ] == 0 } {
          # save values (modified, deleted)
@@ -408,20 +383,18 @@ proc edit_setup { array_name verify_func mod_string } {
          return 0
       }
    } else {
-      puts $CHECK_OUTPUT "Verify errros:"
+      puts "Verify errros:"
       foreach elem $errors {
-         puts $CHECK_OUTPUT "error in: $elem"
+         puts "error in: $elem"
       }
       wait_for_enter
    }
-   puts $CHECK_OUTPUT "resetting old values ..."
+   puts "resetting old values ..."
    $verify_func org_config 1 errors 
    return -1
 }
 
-
-
-#****** config/show_config() ****************************************************
+#****** config/show_config() ***************************************************
 #  NAME
 #     show_config() -- show configuration settings
 #
@@ -441,7 +414,6 @@ proc edit_setup { array_name verify_func mod_string } {
 #     ???/???
 #*******************************************************************************
 proc show_config { conf_array {short 1} { output "not_set" } } {
-   global CHECK_OUTPUT
 
    set do_standard_output 1
    upvar $conf_array config
@@ -474,9 +446,9 @@ proc show_config { conf_array {short 1} { output "not_set" } } {
       set value           $config($par)
       if { $do_standard_output == 1 } {
          if { $short == 0 } {
-            puts $CHECK_OUTPUT "$description:[get_spaces [expr ( $max_description_length - [ string length $description ] ) ]] \"$config($par)\""
+            puts "$description:[get_spaces [expr ( $max_description_length - [ string length $description ] ) ]] \"$config($par)\""
          } else {
-            puts $CHECK_OUTPUT "$par:[get_spaces [expr ( $max_par_length - [ string length $par ] ) ]] \"$config($par)\""
+            puts "$par:[get_spaces [expr ( $max_par_length - [ string length $par ] ) ]] \"$config($par)\""
          }
       } else {
          if { $short == 0 } {
@@ -488,7 +460,7 @@ proc show_config { conf_array {short 1} { output "not_set" } } {
    }
 }
 
-#****** config/modify_setup2() **************************************************
+#****** config/modify_setup2() *************************************************
 #  NAME
 #     modify_setup2() -- modify testsuite setup files
 #
@@ -505,8 +477,8 @@ proc show_config { conf_array {short 1} { output "not_set" } } {
 #*******************************************************************************
 proc modify_setup2 {} {
    global ts_checktree ts_config ts_host_config ts_user_config ts_db_config 
-   global CHECK_ACT_LEVEL CHECK_OUTPUT CHECK_PACKAGE_DIRECTORY check_name
-
+   global CHECK_ACT_LEVEL CHECK_PACKAGE_DIRECTORY check_name
+   global CHECK_CUR_CONFIG_FILE CHECK_DEFAULTS_FILE
 
    lock_testsuite
 
@@ -524,7 +496,7 @@ proc modify_setup2 {} {
    set setup_hook(1,config_array) "ts_config"
    set setup_hook(1,verify_func)  "verify_config"
    set setup_hook(1,save_func)    "save_configuration"
-   
+   set setup_hook(1,filename)     "$CHECK_DEFAULTS_FILE"
    
    set setup_hook(2,name) "Host file configuration"
    set setup_hook(2,config_array) "ts_host_config"
@@ -538,6 +510,7 @@ proc modify_setup2 {} {
    set setup_hook(3,save_func)    "save_user_configuration"
    set setup_hook(3,filename)     "$ts_config(user_config_file)"
    
+   if { [info exists ts_config(db_config_file)] && [ string compare $ts_config(db_config_file) "none" ] != 0 } {
    set setup_hook(4,name) "Database file configuration"
    set setup_hook(4,config_array) "ts_db_config"
    set setup_hook(4,verify_func)  "verify_db_config"
@@ -545,12 +518,14 @@ proc modify_setup2 {} {
    set setup_hook(4,filename)     "$ts_config(db_config_file)"
 
    set numSetups 4
-   set numAddConfigs [llength $ts_config(additional_config)]
+   } else {
+      set numSetups 3
+   }
    
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
       for {set ii 0} {[info exists ts_checktree($i,setup_hooks_${ii}_name)]} {incr ii 1} {
          incr numSetups 1
-         puts $CHECK_OUTPUT "found setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
+         ts_log_fine "found setup hook $ts_checktree($i,setup_hooks_${ii}_name)"
          set setup_hook($numSetups,name)         $ts_checktree($i,setup_hooks_${ii}_name)
          set setup_hook($numSetups,config_array) $ts_checktree($i,setup_hooks_${ii}_config_array)
          global $setup_hook($numSetups,config_array)
@@ -568,23 +543,27 @@ proc modify_setup2 {} {
 
     while { 1 } {
       clear_screen
-      puts $CHECK_OUTPUT "--------------------------------------------------------------------"
-      puts $CHECK_OUTPUT "Modify testsuite configuration"
-      puts $CHECK_OUTPUT "--------------------------------------------------------------------"
+      puts "--------------------------------------------------------------------"
+      puts "Modify testsuite configuration"
+      puts "--------------------------------------------------------------------"
       
       for { set i 1 } { $i <= $numSetups } { incr i 1 } {
-         puts $CHECK_OUTPUT [format "    (%d) %-27s (%ds) %s" $i $setup_hook($i,name) $i $setup_hook($i,name)]
+         puts [format "    (%d) %-27s (%ds) %s" $i $setup_hook($i,name) $i $setup_hook($i,name)]
       }   
          
-      puts $CHECK_OUTPUT ""
+      puts ""
+      if { [string compare $ts_config(additional_config) "none" ] != 0 } {
+         set numAddConfigs [llength $ts_config(additional_config)]
+      } else { set numAddConfigs 0 }
+      if { $numAddConfigs > 0 } { puts "    Additional configurations:" }
       for { set a 1 } { $a <= $numAddConfigs } { incr a 1 } {
          set key [expr ($numSetups + $a)]
          set addConfig($key,name) [file tail [lindex $ts_config(additional_config) [expr ($a -1)]]]
          set addConfig($key,fullName) [lindex $ts_config(additional_config) [expr ($a -1)]]
-         puts $CHECK_OUTPUT [format "    (%ds) %s" $key "configuration for $addConfig($key,name)"]
+         puts [format "    (%d) %-27s (%ds) %s" $key $addConfig($key,name) $key $addConfig($key,name)]
       }
-      puts $CHECK_OUTPUT ""
-      puts -nonewline $CHECK_OUTPUT "Please enter a number or press return to exit: "
+      puts ""
+      puts -nonewline "Enter a number or press return to exit: "
       set input [ wait_for_enter 1]
       if { [string compare $input ""] == 0 } {
          break
@@ -596,6 +575,9 @@ proc modify_setup2 {} {
          set input [string range $input 0 $pos]
       }
       if { $input > 0 && $input <= $numSetups && [info exists setup_hook($input,config_array)] } {
+         if { [info exists setup_hook($input,filename)] } {
+            set CHECK_CUR_CONFIG_FILE $setup_hook($input,filename)
+         } else { set CHECK_CUR_CONFIG_FILE "" }
          if { $do_show == 0 } {
             set do_save [edit_setup $setup_hook($input,config_array) $setup_hook($input,verify_func) tmp_string]
             if { $do_save == 0 } {
@@ -607,27 +589,33 @@ proc modify_setup2 {} {
                append change_level $tmp_string
             }
          } else {
-            puts $CHECK_OUTPUT "show_config $setup_hook($input,config_array)"
+            ts_log_fine "show_config $setup_hook($input,config_array)"
             show_config $setup_hook($input,config_array)
          }
       } else {
-         if { $input > $numSetups && $input <= [expr ($numAddConfigs+$numSetups)] && $do_show != 0} {
-            puts $CHECK_OUTPUT "configuration for additional config file:\n$addConfig($input,fullName)"
+         if { $input > $numSetups && $input <= [expr ($numAddConfigs+$numSetups)]} {
             get_additional_config $addConfig($input,fullName) add_configuration
-            show_config add_configuration
+            set CHECK_CUR_CONFIG_FILE $addConfig($input,fullName)
+            if { $do_show == 0 } {
+               set do_save [edit_setup add_configuration $setup_hook(1,verify_func) tmp_string]
+               if { $do_save == 0 } {
+                  $setup_hook(1,save_func) $addConfig($input,fullName) add_configuration
+               }
          } else {
-            puts $CHECK_OUTPUT "no valid number ($input)"
+               puts "configuration for additional config file:\n$addConfig($input,fullName)"
+               show_config add_configuration
          }
+      }
       }
       wait_for_enter
    }
 
 
    # onchange:   "", "compile", "install", "stop"
-   debug_puts "change_level: \"$change_level\""
+   ts_log_finest "change_level: \"$change_level\""
 
    if { [string length $change_level] != 0 } { 
-      puts $CHECK_OUTPUT "modification needs shutdown of old grid engine system"
+      puts "modification needs shutdown of old grid engine system"
       set new_exed $ts_config(execd_hosts)
       set new_master $ts_config(master_host)
       set new_root $ts_config(product_root)
@@ -642,16 +630,16 @@ proc modify_setup2 {} {
    }
 
    if { [ string first "stop" $change_level ] >= 0 } {
-      puts $CHECK_OUTPUT "modification needs restart of testsuite."
+      puts "modification needs restart of testsuite."
       exit 1
    }
 
    if { [ string first "compile" $change_level ] >= 0 } {
       if { $CHECK_PACKAGE_DIRECTORY != "none" } {
-         puts $CHECK_OUTPUT "modification needs reinstallation of packages"
+         puts "modification needs reinstallation of packages"
          prepare_packages ;# reinstall tar binaries
       } else { 
-         puts $CHECK_OUTPUT "modification needs compilation of new grid engine system"
+         puts "modification needs compilation of new grid engine system"
          compile_source
       }
    }
@@ -668,9 +656,9 @@ proc modify_setup2 {} {
 #
 #  FUNCTION
 #     This procedure is used to get standard (generic) testsuite configuration
-#     values for setting up the testsuite. Possible values are e.g. getting
-#     a list of hosts from testsuite host configuration file, a string value,
-#     a filename, ...
+#     values for setting up the testsuite. It uses either user input configuration
+#     mode, or selection from the list of values. The count of entered values can
+#     be specified.
 #
 #  INPUTS
 #     only_check   - If set no parameter is read from stdin (startup check mode)
@@ -678,214 +666,1107 @@ proc modify_setup2 {} {
 #     config_array - The configuration array where the value is stored
 #     help_text    - A description of the configuration value for the user
 #     check_type   - The values data type requested from the user.
-#                    Possible types are:
-#                    "host":      request a host from host config
-#                    "hosts":     request a list of hosts from host config
-#                    "port":      request a valid portnumber
-#                    "directory": request a directory path
+#                    Input types:
 #                    "string":    request a string value
-#                    "boolean":   request "true" or "false" string
+#                    "directory": request a directory path
+#                    "directory+":request a directory path, create if doesn't exist
 #                    "filename":  request a path to existing file
+#                    "filename+": request a path to a file, if file doesn't exist,
+#                                 it will allow the parent procedure to create 
+#                                 a new file
+#                    "user" :     request an existing user on localhost
+#                    Selection types:
 #                    "choice" :   request a value from the list $choice_list
 #                                 the parameter choice_list is mandatory
-#     { choice_list "" } - The list of values from which the value is choosed
+#                    "host":      request a host from host config
+#                    "port":      request a valid port number
+#                    "database":  request a database from database config
+#     { allow_null 1 }   - indicates if the null value is allowed
+#                          1 : allows null values
+#                                none : for string values
+#                                   0 : for numeric values
+#                          0 : doesn't allow null values
+#     { count 1 }        - required number of entered values
+#                        - see config_verify_count() for more information
+#     { choice_list "" } - see config_choose_value() for more information
+#                        - mandatory for "choice" check_type
+#                        - optional for "host", "port", "database" check_types
+#                          if not specified, the possibility to add a new value
+#                          to the configuration is added
+#                          procedures used to get value list by default:
+#                             o "host"     - host_config_get_hostlist()
+#                             o "port"     - user_config_get_portlist()
+#                             o "database" - db_config_get_databaselist()
+#                        - for other check_types no use
+#     { add_params "" }  - array for additional parameters
+#                          reserved parameters:
+#                          - "port_type"    : see user_config_get_portlist()
+#                                             for more information
+#                                             useful for "port" check_type
+#                          - "exclude_list" : the list of values to exclude
+#                          - "patterns"     : list of string patterns which the
+#                                             input values must match
+#                                             useful for "string" check_type
+#                                             (see string match for more information)
+#                          - "verify"       : list of values for verification
+#                                             valid values: compile, spooldir
+#                                             for "host"
+#                                             for other checks - no usage
+#                          - screen_clear   : for multiple selection the screen is
+#                                             automatically cleared
+#                                             set it to 0 if not clear screen
+#                                             (example: compile, java compile 
+#                                              option in host configurtion)
+#                         - selected        : set it to 1 if there is only one
+#                                             possible value in the list
+#                                             (example: master host)
 #
 #  RESULT
 #     The value of the configuration parameter or "-1" on error
+#     If no value entered, null value will be returned
 #
-#  EXAMPLE
-#     proc config_hedeby_product_root { only_check name config_array } {
-#        global CHECK_OUTPUT fast_setup
-#        upvar $config_array config
-#        
-#        set help_text { "Please enter the path where the testsuite should install Hedeby,"
-#                        "or press >RETURN< to use the default value." 
-#                        "WARNING: The compile option will remove the content of this directory" 
-#                        "or store it to \"testsuite_trash\" directory with testsuite_trash commandline option!!!" }
-#      
-#        set value [config_generic $only_check $name config $help_text "directory" ]
-#        if {!$fast_setup} {
-#           # to be able to find processes with ps command, don't allow to long
-#           # directory path:
-#           set add_path "/bin/sol-sparc64/abcdef"
-#           set path_length [ string length $add_path ]
-#           if { [string length "$value/$add_path"] > 60 } {
-#                puts $CHECK_OUTPUT "path for hedeby dist directory is too long (must be <= [expr ( 60 - $path_length )] chars)"
-#                puts $CHECK_OUTPUT "The testsuite tries to find processes via ps output most ps output is truncated"
-#                puts $CHECK_OUTPUT "for longer lines."
-#                return -1
-#           }
-#        }
-#        return $value
-#     }
+#  SEE ALSO
+#     config_host/host_config_get_hostlist()
+#     config_host/host_config_add_newhost()
+#     config_user/user_config_get_portlist()
+#     config_user/user_config_add_newport()
+#     config_database/db_config_get_databaselist()
+#     config_database/db_config_add_newdatabase()
+#     config/config_display_list()
+#     config/config_choose_value()
+#     config/config_verify_*()
 #*******************************************************************************
-proc config_generic { only_check name config_array help_text check_type {choice_list ""} } {
-   global CHECK_OUTPUT CHECK_USER ts_host_config ts_user_config ts_db_config
-   global fast_setup 
+proc config_generic { only_check name config_array help_text check_type 
+                      {allow_null 1} {count 1} {choice_list ""} {add_params ""} } {
+   global CHECK_USER ts_host_config ts_user_config ts_db_config fast_setup
+
+   set allowed_check_types "host port database directory directory+ string filename filename+ choice user"
+   if { [lsearch $allowed_check_types $check_type] < 0 } {
+      puts "unexpected generic config type: $check_type"
+      return -1
+   }
 
    upvar $config_array config
+   upvar $choice_list choices
+   upvar $add_params params
 
-   set actual_value  $config($name)
-   if { [info exists config($name,default)] } {
+   set screen_clear 0     ;# indicates if the screen should be cleared before displaying data (0 no, 1 yes)
+   set null_value "none"  ;# null value
+   set add_proc_name ""   ;# the name of procedure which adds a new value to the list
+   set usage 0            ;# display usage (0 no, 1 yes)
+   set value_type "value" ;# value type
+   set display_method_name "config_display_list" ;# the name of method which display list of values
+
+   switch -- $check_type {
+      "host" {
+         if { ![array exists choices] } {
+            host_config_get_hostlist ts_host_config choices 0  ;# exclude unsupported hosts
+         }
+         set value_type "host"
+         if { $only_check == 0 } {
+            set screen_clear 1
+            if { [info exists params(selected)] && $params(selected) == 1 } {
+               # display value for information
+            } else {
+               set choices(usage) ""
+               set choices(new) ""
+               config_check_all_usages choices config host
+               set add_proc_name host_config_add_newhost
+               set display_method_name "config_display_hosts"
+            }
+         }
+      }
+      "port" {
+         set port_type "all"
+         set value_type "port"
+         if { [info exists params(port_type)] } { set port_type $params(port_type) }
+         if { ![array exists choices] } {
+            user_config_get_portlist ts_user_config choices $port_type
+         }
+         set null_value 0
+         if { $only_check == 0 } {
+            set add_proc_name user_config_add_newport
+            config_check_all_usages choices config port
+            set choices(new) ""
+            set screen_clear 1
+         }
+      }
+      "database" {
+         set value_type "database"
+         if { ![info exists choices] } {
+            db_config_get_databaselist ts_db_config choices
+         }
+         if { $only_check == 0 } {
+            set add_proc_name db_config_add_newdatabase
+            set choices(new) ""
+            set screen_clear 1
+         }
+      }
+      "choice" {
+         if { [info exists params(screen_clear)] } {
+            set screen_clear $params(screen_clear)
+         } else {
+            set screen_clear 1
+         }
+      }
+   }
+
+   if { [array exists choices] } {
+      # add null value if not in list
+      if { $allow_null && [lsearch [array names choices] $null_value] < 0 } {
+         set choices($null_value) ""
+      }
+   }
+
+   set actual_value $config($name)
+   if { [info exists config($name,default)] && $config($name,default) != "" } {
       set default_value $config($name,default)
    } else {
-      set default_value ""
+      set default_value $null_value
    }
-   # this parameter is not used ...
+
    if { [info exists config($name,desc)] } {
       set description $config($name,desc)
    } else {
       set description ""
    }
-   set value $actual_value
-   if { $actual_value == "" && $check_type != "host" && $check_type != "hosts"} {
-      set value $default_value
-      if { $default_value == "" } {
-         set value "none"
+
+   set values $actual_value
+   if { $values == "" } {
+      set values $default_value
       }
-   }
   
+   # request the user input values
    if { $only_check == 0 } {
-      switch -- $check_type {
-         "hosts" {
-            set value [config_select_host_list config $name $value $help_text]
+      while {1} {
+         if { $screen_clear == 1 } { clear_screen }
+         if { $description != "" } {
+            puts "----------------------------------------------------------"
+            puts $description
+            puts "----------------------------------------------------------"
          }
-         "host" {
-            set value [config_select_host_list config $name $value $help_text 1]
-         }
-         "choice" {
-            upvar $choice_list choices
-            set index 0
-            puts $help_text
-            foreach item $choices {
-               incr index 1
-               puts "($index) $item"
+         foreach elem $help_text { puts $elem }
+         if { [array exists choices] } {
+            set old_values $values
+            set output [ config_choose_value choices $null_value $count values $value_type $display_method_name $usage]
+            # add a new value to the list
+            if { $values == "new" } {
+               puts -nonewline "Specify new $value_type which you want to add to the list: "
+               set new_value [wait_for_enter 1]
+               if { [string trim $new_value] != "" } {
+                  $add_proc_name $new_value
+               }
+               # call again config_generic function
+               return [config_generic $only_check $name config $help_text $check_type $allow_null $count "" params]
             }
-            puts "\n"
-            puts -nonewline "Please enter value/number or return to exit: "
-            set value [ wait_for_enter 1 ]
-            if { [string length $value] > 0 } {
-               if { [string is integer $value] } {
-                  incr value -1
-                  set value [ lindex $choices $value ]
-               }   
+            # show/hide usages
+            if { $values == "usage" } {
+               if { $usage == 0 } { set usage 1 } else { set usage 0 }
+               set values $old_values
+               continue
             }
-            if { [ lsearch $choices $value ] < 0 } {
-               puts "value \"$value\" not found in list"
-               return -1
+            # selection finished
+            if { $output == 0 || $screen_clear == 0 } {
+               break
             }
-         }
-         default {
-            # do setup  
-            foreach elem $help_text { puts $CHECK_OUTPUT $elem }
-            puts $CHECK_OUTPUT "(default: $value)"
-            puts -nonewline $CHECK_OUTPUT "> "
-            set input [ wait_for_enter 1]
-            if { [ string length $input] > 0 } {
-               set value $input
+
+         } else {
+            puts "(default: $values)"
+            puts -nonewline "> "
+            set val [ wait_for_enter 1]
+            if { $val == "" } {
+               puts "using default value"
             } else {
-               puts $CHECK_OUTPUT "using default value"
+               set values $val
             }
+            break
          }
       }
    } 
 
-   # now verify
+   # input values verification
    if {!$fast_setup} {
-         switch -- $check_type {
-         "port" {
-            # check that user has a port list
-            if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
-               puts $CHECK_OUTPUT "User $CHECK_USER has not portlist entry in user configuration"
-               return -1
-            }
-            # check that port value is >= 0
-            if { $value < 0  } {
-               puts $CHECK_OUTPUT "Port \"$value\" is not >= 0"
-               return -1;
-            }
-            # check that string is an integer
-            if { [string is integer $value] == 0 } {
-               puts $CHECK_OUTPUT "Port \"$value\" is not a integer"
-               return -1;
-            }
-            # check that value is <= 65535
-            if { $value > 65535 } {
-               puts $CHECK_OUTPUT "Port \"$value\" is > 65535"
-               return -1;
-            }
-            # check that user has the portlist entry
-            if { $value != 0 } {
-               if { [ expr ( $value % 2 ) == 0 ] } {
-                  # an even port - ok
-                  if { [ lsearch $ts_user_config($CHECK_USER,portlist) $value] < 0 } {
-                     puts $CHECK_OUTPUT "Port \"$value\" not in portlist of user $CHECK_USER" 
-                     return -1
-                  }
-               } else {
-                  # NOT an even port - this is a workaround, because user can only add even ports!
-                  set even_port_value $value
-                  incr even_port_value -1
-                  if { [ lsearch $ts_user_config($CHECK_USER,portlist) $even_port_value] < 0 } {
-                     puts $CHECK_OUTPUT "Port \"$value\" not in portlist of user $CHECK_USER" 
-                     return -1
-                  }
-               }
-            }
+      # verify count of values
+      if { [config_verify_count $count [llength $values]] == -1 } { return -1 }
+      # verify null value
+      if { $allow_null } {
+         if { $null_value == $values } {
+            return $values
          }
-         "directory" {
-            # is full path ?
-            if { [ string first "/" $value ] != 0 } {
-               puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
-               return -1
-            }
-       
-            if { [tail_directory_name $value] != $value } {
-               puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-               return -1
-            }
-
-            # is directory ?
-            if { [ file isdirectory $value ] != 1 } {
-               puts $CHECK_OUTPUT "Directory \"$value\" not found"
-               return -1
-            }
-         }
-         "filename" {
-            if {[file isfile $value] != 1} {
-               puts "no such file $value"
-               return -1
-            }
-         }
-         "host" {
-            # this must be a testsuite host
-         }
-         "hosts" {
-            # this must be a testsuite host list
-         }
-         "string" {
-            # do we want to check strings ?
-         }
-         "boolean" {
-            # this must be "true" or "false"
-            if { $value != "true" && $value != "false" } {
-               puts $CHECK_OUTPUT "Boolean must be \"true\" or \"false\""
-               return -1
-            }
-         }
-         "choice" {
-            # already checked
-         }
-         default {
-            add_proc_error "hedeby_conf_generic" -2 "unexpected generic config type: $check_type"
+      } else {
+         if { $null_value == $values } {
+            puts "$values value is not allowed."
             return -1
          }
       }
+      # set the excluded values
+      set exclude ""
+      if { [info exists params(exclude_list)] } {
+         set exclude $params(exclude_list)
+      }
+      # set the verification paramteres
+      set verify_params ""
+      if { [info exists params(verify)] } {
+         set verify_params $params(verify)
+      }
+
+      foreach value $values {
+         # excluded value not allowed
+         if { [lsearch $exclude $value] >= 0 } {
+            puts "Value $value not allowed."
+            return -1
+         }
+         # only values from the list allowed
+         if { [array exists choices] } {
+            set items [array names choices]
+            if { [ lsearch $items $value ] < 0 } {
+               puts "value \"$value\" not found in list"
+               return -1
+            }
+         }
+         # check_type specific verification
+      switch -- $check_type {
+            "port" {
+               if { [config_verify_port $value] == -1 } {
+                  return -1
+         }
+            }
+            "directory+" -
+            "directory" {
+               set create_new 0
+               if { $check_type == "directory+" } {
+                  set create_new 1
+               }
+               if { [config_verify_directory $value $create_new] == -1 } {
+                  return -1
+               }
+            }
+            "filename+" -
+            "filename" {
+               set allow_create_new 0
+               if { $check_type == "filename+" } {
+                  set allow_create_new 1
+               }
+               if { [config_verify_filename $value $allow_create_new] == -1 } {
+                  return -1
+               }
+            }
+         "host" {
+               if { [info exists config(host_config_file)] } {
+                  set host_config_file $config(host_config_file)
+               } else {
+                  set host_config_file ""
+         }
+               if { [config_verify_host $value $verify_params $host_config_file] == -1 } {
+                  return -1
+               }
+            }
+            "user" {
+               if { [config_verify_user $value] == -1 } {
+                  return -1
+               }
+            }
+            "string" {
+               set pattern ""
+               if { [info exists params(patterns)] } {
+                  set pattern $params(patterns)
+               }
+               if { [config_verify_string $value $pattern] == -1 } {
+                  return -1
+               }
+            }
+         }
+      }
    }
-   return $value
+
+   return $values
 }
 
-#****** config/config_testsuite_root_dir() **************************************
+#****** config/config_choose_value() *******************************************
+#  NAME
+#     config_choose_value() -- Choose values from the list
+#
+#  SYNOPSIS
+#     config_choose_value { choice_list {count 1} {sel_values ""} }
+#
+#  FUNCTION
+#     This function is used to choose values from the list
+#
+#  INPUTS
+#     choice_list - the array of values and its descriptions
+#                 - if only one value is in the list, it's choosed automatically
+#                   without user's input
+#                 - \"new\" is reserved for adding a new value to the list
+#                   it's useful for the lists which are generated from the
+#                   testsuite configuration files
+#                   host, port and database lists have this option by default,
+#                   for other lists add it to the choice_list and specify the method
+#                   to add a new choice to the list
+#                 - \"usage\" is reserved for displaying the value usage in detail
+#                   implemented only for hosts
+#                 examples:
+#                 array set choice_list1 {
+#                    ssh   "secure shell without passwords"
+#                    ssh_with_password "secure shell with passwords"
+#                    rlogin  "rlogin"
+#                 }  or
+#                 array set choice_list2 { }
+#                 set choice_list2(ssh) "secure shell without passwords"
+#                 set choice_list2(ssh_with_password) "secure shell with passwords"
+#                 set choice_list2(rlogin)  "rlogin"
+#     null_value  - none for string values
+#                   0 for numeric values
+#     { count 1 }        - see config_verify_count() for more information
+#     {sel_values ""}    - the variable which contains the list of selected values
+#     {display_method_name config_display_list} - the name of the method which
+#                          displays the list of values *
+#  * this method must have the following interface:
+#  { choice_list choice_index {selected ""} {null_value "none"} {disp_usage 0} }
+#  see config_display_list(), config_display_hosts() for method examples
+#
+#  RESULT
+#     -1 error occured while choosing the values
+#      0 selection finished
+#      1 continue
+#
+#  SEE ALSO
+#      config/config_generic()
+#      config/config_verify_count()
+#      config/config_display_list()
+#      config/config_display_hosts()
+#*******************************************************************************
+proc config_choose_value { choice_list null_value {count 1} {sel_values ""} 
+                           {value_type value} {display_method_name config_display_list} {usage 0} } {
+
+            upvar $choice_list choices
+   upvar $sel_values selected
+
+   # is there anything to display?
+   if { [array size choices] == 0 } {
+      puts "\nno value in list.\n"
+      return 0
+            }
+   # display information of requested values
+   if { $count != 1 && $count != 0 && $selected != $null_value } {
+      puts "([config_verify_count $count])\n"
+   } else {
+      puts ""
+               }   
+   # assign the indexes to each value in the list
+   if { [config_assign_indexes choices indexes $null_value] == -1 } {
+      return -1
+            }
+   # display the list of values
+   $display_method_name choices indexes $selected $null_value $usage
+   # there is only one value in list, choose this value automatically
+   if { [array size choices] == 1 && [lsearch [array names choices] "new"] < 0
+        && [lsearch [array names choices] "usage"] < 0 } {
+      set selected [lindex [array names choices] 0]
+      puts ""
+      return 0
+   }
+
+   puts "\nEnter"
+   if { [lsearch [array names choices] "new"] >= 0 } {
+      puts "  - \"new\" to add new $value_type to the list,"
+   }
+   if { [lsearch [array names choices] "usage"] >= 0 } {
+      if { $usage == 1 } {
+         puts "  - \"usage\" to hide detailed usage of ${value_type}s in configurations,"
+      } else {
+         puts "  - \"usage\" to display detailed usage of ${value_type}s in configurations,"
+      }
+   }
+   if { $count != 1} {
+      if { [lsearch [array names choices] "$null_value"] >= 0 } {
+         puts "  - \"all\" to select all ${value_type}s in the list expect from \"$null_value\","
+      } else {
+         puts "  - \"all\" to select all ${value_type}s in the list,"
+      }
+      puts "  - \"$null_value\" to remove all ${value_type}s from the list,"
+      puts "  - >RETURN< to exit, or"
+      puts -nonewline "  - ${value_type}(s)/number(s) to mark/unmark the ${value_type}(s): "
+
+   } else {
+      puts "  - >RETURN< for selected item, or"
+      puts -nonewline "  - ${value_type}/number: "
+   }
+   # request the output value from the user
+   set output [ wait_for_enter 1 ]
+
+   # user pressed enter to return, quit the selection
+   if { $output == "" } {
+      puts ""
+      return 0
+   }
+
+   set output_value ""
+   # convert the number to value, if value index was selected
+   foreach val $output {
+      if { [string is integer $val] && $val > 0 && $val <= [array size choices] } {
+         lappend output_value $indexes($val)
+      } else { lappend output_value $val }
+      if { $count == 1 } { break }                   ;# we expect only one value
+   }
+   # if only one value expected and it's in the list, quit the selection
+   if { $count == 1 } {
+      if { [lsearch -exact [array names choices] $output_value] >= 0 } {
+         set selected $output_value
+      }
+               return -1
+            }
+   # reset all previously set values and set it to null value, if null value choosed
+   if { $output_value == $null_value } {
+      set selected $output_value
+      return 1
+         }
+
+   foreach val $output_value {
+      # mark all values expect from reserved choices, if all selected
+      if { $val == "all" } {
+         set selected [array names choices]
+         if { [set index [lsearch $selected "new"]] >= 0 } {
+            set selected [lreplace $selected $index $index]
+         }
+         if { [set index [lsearch $selected "usage"]] >= 0 } {
+            set selected [lreplace $selected $index $index]
+         }
+         break
+      }
+      # if new selected, quit the selection and add new value to the list
+      if { $val == "new" && [lsearch -exact [array names choices] "new"] >= 0 } {
+         set selected "new"
+         return 0
+      }
+      # if usage selected, quit the selection and display usage
+      if { $val == "usage" && [lsearch -exact [array names choices] "usage"] >= 0 } {
+         set selected "usage"
+         return 0
+      }
+      # set the value, or remove it if it was set
+      if {[lsearch -exact $selected $val] < 0} {
+         if { [lsearch -exact [array names choices] $val] >= 0 } {
+            lappend selected $val
+         }
+            } else {
+         set index [lsearch $selected $val]
+         set selected [lreplace $selected $index $index]
+            }
+         }
+   # remove none value if anything is set
+   if { [llength $selected] > 1 && [lsearch $selected $null_value] >= 0 } {
+      set index [lsearch $selected $null_value]
+      set selected [lreplace $selected $index $index]
+      }
+
+   return 1
+   } 
+
+#****** config/config_assign_indexes() *****************************************
+#  NAME
+#     config_assign_indexes() -- Assign the ordinal numbers to values
+#
+#  SYNOPSIS
+#     config_assign_indexes { choice_list {choice_index ""} {null_value "none"} }
+#
+#  FUNCTION
+#     This function assigns the indexes to the values in the choice_list.
+#     See config_list_order() for more information on list sorting.
+#     $null_value will be displayed as the last one.
+#
+#  INPUTS
+#     choice_list         - The array of values
+#     {choice_index ""}   - the array of indexes and it's assigned values
+#                         - if the array is empty, procedure will generate the
+#                           list of indexes automatically, otherwise it will set
+#                           the indexes only for not assigned values
+#                         - $null_value will be displayed as the last one
+#     {null_value "none"} - see config_choose_value() for more information
+#
+#  RESULT
+#      1 error
+#      0 ok
+#
+#  SEE ALSO
+#      config/config_choose_value()
+#      config/config_list_order()
+#*******************************************************************************
+proc config_assign_indexes { choice_list {choice_index ""} {null_value "none"} } {
+
+   upvar $choice_list choices
+   upvar $choice_index indexes
+
+   if { ![array exists indexes] } {
+      array set indexes {}
+   }
+
+   # list of assigned values
+   set values ""
+   foreach item [array names indexes] {
+      lappend values "$indexes($item)"
+   }
+
+   # assign the ordinal numbers to values
+   set not_assigned ""
+   foreach item [array names choices] {
+      # for case there is one of the ordinal numbers among the choices ...
+      if { [string is integer $item] && $item > 0 && $item <= [array size choices] } {
+         if { [lsearch -exact $values $item] >= 0 } {
+            ts_log_severe "Not a unique list! Value $item must be assigned to index $item."
+            wait_for_enter
+               return -1
+            }
+         set indexes($item) "$item"
+      } else {
+         # skip the value which is already assigned, new and usages
+         if { [lsearch -exact $values $item] >= 0 || $item == "new" || $item == "usage" } {
+            continue
+            }
+         if { $item == $null_value } {
+            # display null_value as the last one (ignore if index is occupied)
+            set index [array size choices]
+            if { [lsearch -exact [array names choices] "new"] >= 0 } { incr index -1 }
+            if { [lsearch -exact [array names choices] "usage"] >= 0 } { incr index -1 }
+            if { ![info exists indexes($index)] } {
+               set indexes($index) "$item"
+            } else {
+               lappend not_assigned $item
+            }
+         } else {
+            # the value is not assigned to any ordinal number
+            lappend not_assigned $item
+            }
+      }
+   }
+   set index 1
+   foreach item [lsort -command config_list_order -unique [array names choices]] {
+      if { [lsearch $not_assigned $item] < 0 } { continue }
+      while {1} {
+         if { [info exists indexes($index)] } { incr index 1 } else { break }
+      }
+      set indexes($index) $item
+   }
+
+   return 0
+}
+
+#****** config/config_list_order() *********************************************
+#  NAME
+#     config_list_order() -- Comparison method
+#
+#  SYNOPSIS
+#     config_list_order { a b }
+#
+#  FUNCTION
+#     This function represents a comparison method for lists.
+#     It sorts the values alphabetically by default, if the null_value is 0,
+#     it uses integer comparison.
+#
+#  INPUTS
+#     a, b - values to compare
+#
+#  SEE ALSO
+#     tcl lsort built-in command
+#*******************************************************************************
+proc config_list_order { a b } {
+   if { [string is integer $a] && [string is integer $b] } {
+      if { $a < $b } { return -1 } else { return 1 }   
+   } elseif {[string is integer $a] && ![string is integer $b]} { 
+      return 1
+   } elseif {![string is integer $a] && [string is integer $b]} {
+                     return -1
+                  }
+   return [string compare $a $b]
+}
+
+#****** config/config_display_list() *******************************************
+#  NAME
+#     config_display_list() -- Display the list of values
+#
+#  SYNOPSIS
+#     config_display_list { choice_list choice_index {selected ""} }
+#
+#  FUNCTION
+#     This function is used to display values of the choice_list. The order
+#     is given by indexes in choice_index.
+#
+#  INPUTS
+#     choice_list         - the array of values to display
+#     {choice_index ""}   - the array of indexes and it's assigned values
+#                           see config_assign_indexes() for more information
+#     {selected ""}       - the list of selected values
+#                           use this variable to mark it in the list
+#     {null_value "none"} - null value *
+#     {disp_usage 0}    - 1 to display detail of host usages in configurations
+#                         0 to hide it *
+#     * these parameters are not used in this function, however it should have the
+#       interface described in config_choose_value()
+#
+#  SEE ALSO
+#      config/config_choose_value()
+#      config_host/config_display_hosts()
+#*******************************************************************************
+proc config_display_list { choice_list choice_index 
+                           {selected ""} {null_value "none"} {disp_usage 0} } {
+
+   upvar $choice_list choices
+   upvar $choice_index indexes
+
+   set indent " "
+   set max_length 0
+   # get the maximum length of displayed values
+   foreach item [array names choices] {
+      if {[string length $item] > $max_length} {
+         set max_length [string length $item]
+      }
+   }
+   # display the list
+   foreach index [lsort -integer [array names indexes]] {
+      set item $indexes($index)
+      if { $index <= 9 } { set ind " $index)" } else { set ind "$index)" }
+      set sel " "
+      if { [info exists selected] && [ lsearch $selected $item ] >= 0 } {
+         set sel "*"                                   ;# mark the selected item
+      }
+      if { "$choices($item)" == "" } {
+         puts "$indent $sel $ind $item"
+               } else {
+         set space "[get_spaces [expr ( $max_length - [string length $item] ) ]]"
+         puts "$indent $sel $ind $item $space $choices($item)"
+      }
+   }
+
+}
+
+#****** config/config_verify_count() *******************************************
+#  NAME
+#     config_verify_count() -- Verify the count of input values
+#
+#  SYNOPSIS
+#     config_verify_count { count_allowed count_values }
+#
+#  FUNCTION
+#     This function verify the count of input values
+#
+#  INPUTS
+#     count_allowed - allowed count of values
+#                     examples: 0  ... unlimited count of values required
+#                              !n  ... exactly n values required
+#                               n  ... number of required values is limited to n
+#                               n+ ... at least n values required
+#                               1  ... one value required
+#     { count_values "" } - count of input values
+#                           if not specified, message with required count printed
+#
+#  RESULT
+#     -1 the count of values doesn't match
+#      0 ok
+#      message with the expected count of values
+#
+#  SEE ALSO
+#      config/config_generic()
+#*******************************************************************************
+proc config_verify_count { count_allowed { count_values "" } } {
+
+   if { "[string range $count_allowed 0 0]" == "!" } {
+      set len [string range $count_allowed 1 end]
+      set msg "expected $len values"
+      if { $count_values == "" } {
+         return $msg
+      }
+      if { [string is integer $len] } {
+         if { $count_values != $len } {
+            puts "wrong number of entered values - $msg."
+                     return -1
+                  }
+               }
+   } elseif { [string last "+" "$count_allowed"] != -1 } {
+      set last [string length $count_allowed]
+      incr last -2
+      set len [string range $count_allowed 0 $last]
+      set msg "expected at least $len values"
+      if { $count_values == "" } {
+         return $msg
+            }
+      if { [string is integer $len] } {
+         if { $count_values < $len } {
+            puts "wrong number of entered values - $msg."
+            return -1
+         }
+      }
+   } else {
+      if { [string is integer $count_allowed] } {
+         set msg "$count_allowed is the maximum of expected values"
+         if { $count_values == "" } {
+            if { $count_allowed == 0 } { return "" } else { return $msg }
+         }
+         if { $count_values > $count_allowed && $count_allowed != 0 } {
+            puts "wrong number of entered values - $msg."
+               return -1
+            }
+      }
+   }
+   return 0
+}
+       
+#****** config/config_verify_*() ***********************************************
+#  NAME
+#     config_verify_directory() -- Verify directory input
+#     config_verify_filename() -- Verify filename input
+#     config_verify_host() -- Verify host input
+#     config_verify_port() -- Verify port input
+#     config_verify_user() -- Verify if user exists on the system
+#     config_verify_string() -- Verify string input
+#
+#  SYNOPSIS
+#     config_verify_directory { value { create_new 0 } }
+#     config_verify_filename { value { allow_create_new 0 } }
+#     config_verify_host { value verify {host_config_file ""} }
+#     config_verify_port { value }
+#     config_verify_user { value }
+#     config_verify_string { value { pattern "" } }
+#
+#  FUNCTION
+#     These functions verify the input value
+#
+#  INPUTS
+#     value - value which will be checked
+#     verify - verification parameters
+#     { create_new 0 } - 0 check only
+#                        1 create directory if doesn't exist
+#     { allow_create_new 0 } - 0 check only
+#                              1 allow create filename if doesn't exist
+#     { pattern "" } - string pattern
+#
+#  RESULT
+#     -1 error
+#      0 ok
+#
+#  SEE ALSO
+#      config/config_generic()
+#*******************************************************************************
+proc config_verify_directory { value { create_new 0 } } {
+
+   if { [ string first "/" $value ] != 0 } {
+      puts "Path \"$value\" doesn't start with \"/\""
+      return -1
+   }
+            if { [tail_directory_name $value] != $value } {
+      puts "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
+               return -1
+            }
+   if { $create_new == 1 && [ file isdirectory $value ] != 1 } { file mkdir $value }
+            if { [ file isdirectory $value ] != 1 } {
+      puts "Directory \"$value\" not found"
+               return -1
+            }
+   return 0
+         }
+
+proc config_verify_filename { value { allow_create_new 0 } } {
+
+            if {[file isfile $value] != 1} {
+      if { $allow_create_new == 1 } {
+         puts -nonewline "File doesn't exist. Create it? (y/n) "
+         if { [ wait_for_enter 1 ] == "y" } {
+            return 0
+         } else { return -1 }
+      }
+               puts "no such file $value"
+               return -1
+            }
+   return 0
+         }
+
+proc config_verify_host { value verify {host_config_file ""} } {
+
+   if { [lsearch $verify "compile"] >= 0 } {
+      if {[compile_check_compile_hosts $value] != 0} {
+         puts "Press enter to edit global host configuration ..."
+         wait_for_enter
+         if { $host_config_file == "" } {
+            global ts_config
+            set host_config_file $ts_config(host_config_file)
+         }
+         setup_host_config $host_config_file hostlist
+         if {[compile_check_compile_hosts $value] != 0} { return -1 }
+         }
+         }
+
+   if { [lsearch $verify "spooldir"] >= 0 } {
+      global ts_host_config
+      if { ![file isfile $ts_host_config($value,spooldir)] } {
+         puts "Spool directory must be specified for this host!"
+               return -1
+            }
+         }
+
+   return 0
+         }
+
+proc config_verify_port { value } {
+
+   if { $value < 0  } {
+      puts "Port \"$value\" is not >= 0"
+            return -1
+         }
+   if { [string is integer $value] == 0 } {
+      puts "Port \"$value\" is not a integer"
+      return -1
+      }
+   if { $value > 65535 } {
+      puts "Port \"$value\" is > 65535"
+      return -1
+   }
+   return 0
+}
+
+proc config_verify_user { value } {
+   global CHECK_USER
+
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts "Could not get local host name" 
+      return -1
+   }
+   set result [start_remote_prog $local_host $CHECK_USER "id" "$value" prg_exit_state 60 0 "" "" 1 0]
+   if { $prg_exit_state != 0 } {
+      puts "id $value returns error. User $value not existing?"
+      return -1
+   }
+   return 0
+}
+
+proc config_verify_string { value { patterns "" } } {
+
+   if { $patterns == "" } {
+      return 0
+   }
+
+   foreach pattern $patterns {
+      if { ![string match $pattern $value] } {
+         puts "Value $value doesn't match the pattern \"$pattern\"."
+         return -1
+      }
+   }
+   return 0
+}
+
+#****** config/config_check_all_usages() ***************************************
+#  NAME
+#     config_check_all_usages() -- get all usages in configuration
+#
+#  SYNOPSIS
+#     config_check_all_usages { check_list config_array type }
+#
+#  FUNCTION
+#     This function gets the usages in all defined configurations with the
+#     current configuration. This include - main, hedeby, additional(s) configurations.
+#     The usage can be either of ports, or hosts
+#
+#  INPUTS
+#     check_list    - the array of all values in configuration
+#     config_array  - current configuration array
+#                     (main, hedeby, arco, additional(s) configurations)
+#     type          - host or port
+#
+#  SEE ALSO
+#      config/config_choose_value()
+#      config/config_display_list()
+#*******************************************************************************
+proc config_check_all_usages { check_list config_array type } {
+   global CHECK_CUR_CONFIG_FILE CHECK_DEFAULTS_FILE
+
+   upvar $check_list checks
+   upvar $config_array config
+   set main_list ""
+   set hedeby_list ""
+   set arco_list ""
+
+   switch -- $type {
+      "host" {
+         set main_list "source_cvs_hostname master_host shadowd_hosts execd_hosts 
+                        submit_only_hosts bdb_server"
+         set hedeby_list "hedeby_master_host hedeby_host_resources"
+         set arco_list "dbwriter_host swc_host"
+      }
+      "port" {
+         set main_list "commd_port jmx_port reserved_port"
+         set hedeby_list "hedeby_cs_port hedeby_user_jvm_port"
+         set arco_list ""
+      }
+      default { return }
+   }
+
+   # find all files
+   set hedeby_config_file [ get_additional_config_file_path "hedeby" ]
+   set arco_config_file [ get_additional_config_file_path "arco" ]
+   array set filenames {
+      testsuite ""
+      arco ""
+      hedeby ""
+   }
+
+   # append main config
+   lappend filenames(testsuite) "$CHECK_DEFAULTS_FILE"
+   # append additional configs
+   read_array_from_file "$CHECK_DEFAULTS_FILE" "testsuite configuration" tmp_config
+   foreach fl $tmp_config(additional_config) {
+      if { $fl == "none" } { continue }
+      if { [lsearch $filenames(testsuite) $fl] == -1 } {
+         lappend filenames(testsuite) $fl
+         # append additional config files of additional config
+         if { [info exists add_tmp_config] } { unset add_tmp_config }
+         read_array_from_file $fl "testsuite configuration" add_tmp_config
+         foreach add_fl $add_tmp_config(additional_config) {
+            if { $add_fl == "none" } { continue }
+            if { [lsearch $filenames(testsuite) $add_fl] == -1 } {
+               lappend filenames(testsuite) $add_fl
+            }
+         }
+      }
+   }
+   # append arco and hedeby confirugations
+   foreach fl $filenames(testsuite) {
+      if { [info exists tmp_config] } { unset tmp_config }
+      read_array_from_file "$fl" "testsuite configuration" tmp_config
+      if { [string match "*hedeby*" $tmp_config(additional_checktree_dirs)] == 1 } {
+         set add_tmp_file [ get_additional_config_file_path "hedeby" $fl]
+         if { [lsearch $filenames(hedeby) $add_tmp_file] == -1 } { 
+            lappend filenames(hedeby) $add_tmp_file
+         }
+      }
+      if { [string match "*arco*" $tmp_config(additional_checktree_dirs)] == 1 } {
+         set add_tmp_file [ get_additional_config_file_path "arco" $fl]
+         if { [lsearch $filenames(arco) $add_tmp_file] == -1 } { 
+            lappend filenames(arco) $add_tmp_file
+         }
+      }
+   }
+
+   # check the usages
+   foreach project [array names filenames] {
+      switch -exact $project {
+         testsuite {
+            set curr_list $main_list
+            set config_name "testsuite configuration"
+         }
+         arco {
+            set curr_list $arco_list
+            set config_name "ARCo configuration"
+         }
+         hedeby {
+            set curr_list $hedeby_list
+            set config_name "Hedeby configuration"
+         }
+         default { continue }
+      }
+      foreach fl $filenames($project) {
+         if { $fl == "$CHECK_CUR_CONFIG_FILE" } {
+            config_check_usage checks $curr_list config $fl $config_name
+         } else {
+            config_check_usage checks $curr_list "" $fl $config_name
+         }
+      }
+   }
+
+}
+
+#****** config/config_check_usage() ********************************************
+#  NAME
+#     config_check_usage() -- check the value usage in configuration
+#
+#  SYNOPSIS
+#     config_check_usage { name check_list config_array {global_config_array ""} }
+#
+#  FUNCTION
+#     This function checks the usage of value in the given configuration. First
+#     it checks config_array, and if the parameter $name is not found, it searches
+#     the corresponding global configuration.
+#     examples of values: port, host
+#     examples of configurations: main, hedeby, arco, additional(s))
+#
+#  INPUTS
+#     check_list   - the searched list of values
+#     check_params - searched configuration parameters
+#     config_array - searched configuration array
+#     config_file  - the file name of corresponding global configuration
+#     config_name  - the name of corresponding global configuration
+#
+#  SEE ALSO
+#      config/config_display_list()
+#      config_host/config_display_hosts()
+#*******************************************************************************
+proc config_check_usage { check_list check_params config_array config_file config_name } {
+
+   upvar $config_array config
+   upvar $check_list checks
+
+   if { [array exists config] == 0 } {
+      read_array_from_file $config_file $config_name check_config
+      if { [array exists check_config] == 0 } {
+         ts_log_finest "Can't get usages from $config_file"
+         return
+      }
+   } else { upvar 0 config check_config }
+
+   set index [string last "/" $config_file]
+   if { $index != -1 } {
+      incr index 1
+      set file_name_short [string range $config_file $index end]
+   }
+
+   foreach name $check_params {
+      set value ""
+      if { [info exists check_config($name)] } { set value $check_config($name) }
+      # can be multiple value
+      foreach val $value {
+         if { [lsearch -exact [array names checks] $val] >= 0 
+              && [string first "$file_name_short: $name" "$checks($val)"] == -1 } {
+            append checks($val) "| $file_name_short: $name "
+         }
+      }
+   }
+
+}
+
+#****** config/config_check_host_in_hostlist() *********************************
+#  NAME
+#     config_check_host_in_hostlist() -- ensure given hostname is first in list
+#
+#  SYNOPSIS
+#     config_check_host_in_hostlist { hostlist {first_host ""}} 
+#
+#  FUNCTION
+#     The function ensures, that $first_host is the first host in a given
+#     host list. If first_host not set, [gethostname] must be at the first position.
+#
+#  INPUTS
+#     hostlist - host list to verify
+#     {first_host ""} - the name of the host which must be the first on the list
+#
+#  RESULT
+#     a new host list, with $first_host as first element
+#*******************************************************************************
+proc config_check_host_in_hostlist {hostlist { first_host ""} } {
+
+   if { $first_host == "" } {
+      # make sure, [gethostname] is the first host in list
+      set first_host [gethostname]
+      if {$first_host == "unknown"} {
+         puts "Could not get local host name" 
+         return -1
+      }
+   }
+
+   set index [lsearch $hostlist $first_host]
+   if {$index >= 0} { set hostlist [lreplace $hostlist $index $index] }
+   set hostlist [linsert $hostlist 0 $first_host]
+
+   return $hostlist
+}
+
+#****** config/config_testsuite_root_dir() *************************************
 #  NAME
 #     config_testsuite_root_dir() -- testsuite root directory setup
 #
@@ -906,7 +1787,6 @@ proc config_generic { only_check name config_array help_text check_type {choice_
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_root_dir { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_TESTSUITE_LOCKFILE
    global CHECK_USER
    global CHECK_GROUP
@@ -914,48 +1794,19 @@ proc config_testsuite_root_dir { only_check name config_array } {
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the full pathname of the testsuite root directory,"
+                   "or press >RETURN< to use the default value."
+                   "If you want to test with root permissions (which is neccessary"
+                   "for a full testing) the root user must have read permissions"
+                   "for this directory." }
 
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set value [config_generic $only_check "$name" config $help_text "directory" 0]
 
-   if { $only_check == 0 } {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of the testsuite root directory, or press >RETURN<"
-      puts $CHECK_OUTPUT "to use the default value. If you want to test with root permissions (which is"
-      puts $CHECK_OUTPUT "neccessary for a full testing) the root user must have read permissions for this"
-      puts $CHECK_OUTPUT "directory."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value [tail_directory_name $input]
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   if { $value == -1 } { return -1 }
 
-   # now verify
    if { ! $fast_setup } {
-      # is full path ?
-      if { [ string first "/" $value ] != 0 } {
-         puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
-         return -1
-      }
-
-      if { [tail_directory_name $value] != $value } {
-         puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-         return -1
-      }
-
-      # is file ?
       if { [ file isfile $value/check.exp ] != 1 } {
-         puts $CHECK_OUTPUT "File \"$value/check.exp\" not found"
+         puts "File \"$value/check.exp\" not found"
          return -1
       }
    }
@@ -965,28 +1816,27 @@ proc config_testsuite_root_dir { only_check name config_array } {
 
    if {[catch {set CHECK_USER [set env(USER)] }] != 0} {
       set CHECK_USER [file attributes $value/check.exp -owner]
-      puts $CHECK_OUTPUT "\nNo USER is set!\n(default: $CHECK_USER)\n"
+      puts "\nNo USER is set!\n(default: $CHECK_USER)\n"
       set env(USER) $CHECK_USER
    } 
 
    # if USER env. variable is empty
    if { $CHECK_USER == "" } {
       set CHECK_USER [file attributes $value/check.exp -owner]
-      puts $CHECK_OUTPUT "\nNo USER is set!\n(default: $CHECK_USER)\n"
+      puts "\nNo USER is set!\n(default: $CHECK_USER)\n"
       set env(USER) $CHECK_USER
    }
 
    if {[catch {set CHECK_GROUP [set env(GROUP)] }] != 0} {
       set CHECK_GROUP [file attributes $value/check.exp -group]
-      puts $CHECK_OUTPUT "\nNo GROUP is set!\n(default: $CHECK_GROUP)\n"
+      puts "\nNo GROUP is set!\n(default: $CHECK_GROUP)\n"
       set env(GROUP) $CHECK_GROUP
    }
 
    return $value
 }
 
-
-#****** config/config_checktree_root_dir() **************************************
+#****** config/config_checktree_root_dir() *************************************
 #  NAME
 #     config_checktree_root_dir() -- checktree root setup
 #
@@ -1007,225 +1857,138 @@ proc config_testsuite_root_dir { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_checktree_root_dir { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_USER
-   global CHECK_GROUP
-   global env fast_setup
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the full pathname of the testsuite checktree directory,"
+                   "or press >RETURN< to use the default value."
+                   "The checktree directory contains all tests in its subdirectory"
+                   "structure." }
 
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } { 
-         set value $config(testsuite_root_dir)/checktree
-      }
-   }
-
-   if { $only_check == 0 } {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of the testsuite checktree directory, or press >RETURN<"
-      puts $CHECK_OUTPUT "to use the default value."
-      puts $CHECK_OUTPUT "The checktree directory contains all tests in its subdirectory structure."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value [tail_directory_name $input]
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
-
-   # now verify
-
-   if {!$fast_setup} {
-      # is full path ?
-      if { [ string first "/" $value ] != 0 } {
-         puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
-         return -1
+   if { $config($name,default) == "" } {
+      set config($name,default) "$config(testsuite_root_dir)/checktree"
       }
 
-      if { [tail_directory_name $value] != $value } {
-         puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-         return -1
+   return [config_generic $only_check "$name" config $help_text "directory" 0]
+
       }
 
-      # is file ?
-      if { [ file isdirectory $value ] != 1 } {
-         puts $CHECK_OUTPUT "Directory \"$value\" not found"
-         return -1
-      }
-   }
-
-   return $value
-}
-
-
-
+#****** config/config_additional_checktree_dirs() ******************************
+#  NAME
+#     config_additional_checktree_dirs() -- additional checktree root setup
+#
+#  SYNOPSIS
+#     config_additional_checktree_dirs { only_check name config_array } 
+#
+#  FUNCTION
+#     Testsuite additional configuration(s) setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#*******************************************************************************
 proc config_additional_checktree_dirs { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_USER
-   global CHECK_GROUP
-   global env fast_setup
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Choose the path to the additional checktree directory."
+                   "The checktree directory contains all tests in its subdirectory"
+                   "structure." }
 
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } { 
-         set value "none"
-      }
-   }
+   set arco "$config(testsuite_root_dir)/checktree_arco"
+   set hedeby "$config(testsuite_root_dir)/checktree_hedeby"
+   array set dirs { }
+   set dirs($arco) ""
+   set dirs($hedeby) ""
 
-   if { $only_check == 0 } {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of an additional checktree directory or press >RETURN<"
-      puts $CHECK_OUTPUT "to use the default value."
-      puts $CHECK_OUTPUT "The checktree directory contains all tests in its subdirectory structure. You can"
-      puts $CHECK_OUTPUT "add more than one directory by using a space as separator."
-      puts $CHECK_OUTPUT "If you enter the keyword \"none\" no additional checktree directory is supported."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input
+   set value [config_generic $only_check "$name" config $help_text "choice" 1 0 dirs]
+
+   if { $value == -1 } { return -1 }
+
+   set dep_par db_config_file
+   if { [lsearch -exact $value $arco] >= 0 && "$config($dep_par)" == "none" } {
+      set ret [ $config($dep_par,setup_func) $only_check $dep_par config ]
+      if { $ret != -1 } {
+         set config($dep_par) $ret
+         ts_log_fine "setting $dep_par to $ret"
+         puts ""
+      } else { return -1 }
+         }
+
+   if { [lsearch -exact $value $hedeby] >= 0 } {
+      if { "$config(additional_config)" == "none" } {
+         set ret [ $config(additional_config,setup_func) $only_check additional_config config ]
+         if { $ret != -1 } {
+            set config(additional_config) $ret
+            ts_log_fine "setting additional_config to $ret"
+            puts ""
+         } else { return -1 }
+         # if hedeby is set, be sure that the cluster will compile on additional config parameter change
+         set config(additional_config,onchange)   "compile"
+         }
+      if { "$config(jmx_ssl)" == "false" } {
+         puts "Need enabled jmx_ssl option for GE installation for Hedeby!"
+         wait_for_enter
+         set config(jmx_ssl) "true"
+         ts_log_fine "setting jmx_ssl to $config(jmx_ssl)"
+         puts ""
+            }
       } else {
-         puts $CHECK_OUTPUT "using default value"
+      # if hedeby is not set, there is no need to compile on additional config parameter change
+      set config(additional_config,onchange)   ""
       }
-   }
-
-   # now verify
-
-   if {!$fast_setup} {
-      set not_set 1 
-      foreach directory $value {
-         if { $directory == "none" } {
-            set not_set 0
-         }
-      }
-
-      if { $not_set == 1 } {
-         set new_value ""
-         foreach directory $value {
-            append new_value " [tail_directory_name $directory]"
-         }
-         set value [string trim $new_value]
-
-         foreach directory $value {
-            # is full path ?
-            if { [ string first "/" $directory ] != 0 } {
-               puts $CHECK_OUTPUT "Path \"$directory\" doesn't start with \"/\""
-               return -1
-            }
-
-            if { [tail_directory_name $directory] != $directory } {
-               puts $CHECK_OUTPUT "\nPath \"$directory\" is not a valid directory name, try \"[tail_directory_name $directory]\""
-               return -1
-            }
-
-            # is file ?
-            if { [ file isdirectory $directory ] != 1 } {
-               puts $CHECK_OUTPUT "Directory \"$directory\" not found"
-               return -1
-            }
-         }
-      } else {
-         set value "none"
-      }
-   }
 
    return $value
 }
-
 
 proc config_additional_config { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_TESTSUITE_LOCKFILE
-   global CHECK_USER
-   global CHECK_GROUP
-   global env fast_setup
+   global fast_setup
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-
-   set value $actual_value
-   if {$actual_value == ""} {
-      set value $default_value
-      if {$default_value == ""} { 
-         set value "none"
+   set allow_null 1
+   set hedeby_is_set 0
+   set config($name,onchange)   ""
+   if { $config(additional_checktree_dirs) != "none" } {
+      foreach dir $config(additional_checktree_dirs) {
+         if { [string match "*checktree_hedeby" $dir] == 1 } {
+            set allow_null 0
+            set hedeby_is_set 1
+            set config($name,onchange)   "compile"
+            break
       }
    }
-
-   if {$only_check == 0} {
-      # do setup
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of an additional testsuite configuration"
-      puts $CHECK_OUTPUT "used for installing a secondary Grid Engine cluster,"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "You can add more than one configuration file by using a space as separator."
-      puts $CHECK_OUTPUT "If you enter the keyword \"none\" no additional configuration will be used."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [wait_for_enter 1]
-      if {[string length $input] > 0} {
-         set value $input
-      } else {
-         puts $CHECK_OUTPUT "using default value"
       }
-   }
+
+   set help_text { "Enter the full pathname(s) of additional testsuite configuration(s)"
+                   "used for installing a secondary Grid Engine cluster(s)."
+                   "Multiple values separate by space."
+                   "All configurations must use the same testsuite root directory,"
+                   "and both global user and host configuration files."
+                   "The result directories of configurations must be different."
+                   "Hedeby requires at least one cell cluster, and one independent cluster"
+                   "configuration." }
+   if { $allow_null } { lappend help_text "Enter \"none\" for no additional configuration." }
+
+   set value [config_generic $only_check "$name" config $help_text "filename" $allow_null 0]
+
+   if { $value == -1 || "$value" == "none" } { return $value }
 
    # now verify
    if {!$fast_setup} {
-      set not_set 1 
-      foreach filename $value {
-         if {$filename == "none"} {
-            set not_set 0
-         }
-      }
-
-      if {$not_set == 1} {
-         # make a proper list out of the input
-         set new_value ""
-         foreach filename $value {
-            append new_value " $filename"
-         }
-         set value [string trim $new_value]
-
-         foreach filename $value {
-            # is full path ?
-            if {[string first "/" $filename] != 0} {
-               puts $CHECK_OUTPUT "File name \"$filename\" doesn't start with \"/\""
-               return -1
-            }
-
-            # is file ?
-            if {[file isfile $filename] != 1} {
-               puts $CHECK_OUTPUT "File \"$filename\" not found"
-               return -1
-            }
-         }
+      # this is a verification for hedeby. Once we use additional configurations
+      # also for another purposes than for hedeby testsuite setup, this should be changed.
 
          foreach filename $value {
 
             if { $only_check == 0 } {
-               puts $CHECK_OUTPUT "checking configuration:\n\"$filename\""
+            ts_log_fine "checking configuration:\n\"$filename\""
             }
 
             # clear previously read config
@@ -1234,10 +1997,22 @@ proc config_additional_config { only_check name config_array } {
             }
             # read additional config file
             if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
-               puts $CHECK_OUTPUT "cannot read configuration file \"$filename\""
+            puts "cannot read configuration file \"$filename\""
                return -1
             }
-
+         # check if the required parameters are same for additional configuration
+         foreach param "host_config_file user_config_file testsuite_root_dir" {
+            if { $add_config($param) != $config($param) } {
+               puts "Parameter $param must be same for additional configuration $filename."
+               return -1
+            }
+         }
+         if { $hedeby_is_set == 1 } {
+            # jmx_ssl must be enabled
+            if { $add_config(jmx_ssl) == "false" } {
+               puts "Additional configuration $filename: SSL server authentication for qmaster JMX mbean server must be enabled."
+               return -1
+            }
 
             #  cell or independed cluster support?
             #  o if cluster have the same cvs source directory AND the same SGE_ROOT the
@@ -1252,11 +2027,11 @@ proc config_additional_config { only_check name config_array } {
             if { $add_config(product_root) == $config(product_root) && 
                  $add_config(source_dir)   == $config(source_dir) } {
                if { $only_check == 0 } {
-                  puts -nonewline $CHECK_OUTPUT "   (cell cluster) ..."
+                  puts -nonewline "   (cell cluster) ..."
                }
                # now make sure that the additional configurations can work together
                # the following parameters have to be the same for all configs
-               set same_params "gridengine_version source_dir source_cvs_release host_config_file user_config_file product_root testsuite_root_dir product_feature aimk_compile_options dist_install_options qmaster_install_options execd_install_options package_directory package_type"
+               set same_params "gridengine_version source_dir source_cvs_release product_root product_feature aimk_compile_options dist_install_options qmaster_install_options execd_install_options package_directory package_type"
                # the following parameters have to differ between all configs
                # TODO (Issue #139): remove master_host and execd_hosts from this list if issue #139 is fixed
                set diff_params "results_dir commd_port cell master_host execd_hosts"
@@ -1267,11 +2042,11 @@ proc config_additional_config { only_check name config_array } {
                set allow_master_as_execd 0
             } else {
                if { $only_check == 0 } {
-                  puts -nonewline $CHECK_OUTPUT "   (independent cluster) ..."
+                  puts -nonewline "   (independent cluster) ..."
                }
                # now make sure that the additional configurations can work together
                # the following parameters have to be the same for all configs
-               set same_params "host_config_file user_config_file testsuite_root_dir"
+               set same_params ""
                # the following parameters have to differ between all configs
                set diff_params "results_dir commd_port product_root"
             }
@@ -1298,22 +2073,22 @@ proc config_additional_config { only_check name config_array } {
             # now we check for equality or difference
             foreach param $same_params {
                if {[llength [lsort -unique $joined_config($param)]] != 1} {
-                  puts $CHECK_OUTPUT "\nThe parameter \"$param\" has to be the same for configuration\n\"$filename\","
-                  puts $CHECK_OUTPUT "but has the following values:\n$joined_config($param)"
+                  puts "\nThe parameter \"$param\" has to be the same for configuration\n\"$filename\","
+                  puts "but has the following values:\n$joined_config($param)"
                   return -1
                }
             }
             foreach param $diff_params {
                if {[llength [lsort -unique $joined_config($param)]] != 2} {
-                  puts $CHECK_OUTPUT "\nThe parameter \"$param\" (=\"$config($param)\") has to be different for configuration\n\"$filename\","
-                  puts $CHECK_OUTPUT "but has the following values:\n$joined_config($param)"
+                  puts "\nThe parameter \"$param\" (=\"$config($param)\") has to be different for configuration\n\"$filename\","
+                  puts "but has the following values:\n$joined_config($param)"
                   return -1
                }
                # now if param is a list check content
                if {[llength $add_config($param)] > 1 || [llength $config($param)] > 1} {
                   foreach val $add_config($param) {
                      if { [string first $val $config($param)] >= 0 } {
-                        puts $CHECK_OUTPUT "\nFound value \"$val\" of configuration\n\"$filename\"\nin configuration for parameter \"$param\" in testsuite config"
+                        puts "\nFound value \"$val\" of configuration\n\"$filename\"\nin configuration for parameter \"$param\" in testsuite config"
                         return -1
                      }
                   }
@@ -1324,27 +2099,23 @@ proc config_additional_config { only_check name config_array } {
                # since testsuite has problems with shutdown different cell clusters (because of same SGE_ROOT directory)
                # we also don't allow the qmaster host be an exed host in an additional cluster
                if { [string first $config(master_host) $add_config(execd_hosts) ] >= 0 } {
-                  puts $CHECK_OUTPUT "\nThe master host ($config(master_host)) of the testsuite configuration"
-                  puts $CHECK_OUTPUT "is not a supported cell execd host for config \"$filename\""
+                  puts "\nThe master host ($config(master_host)) of the testsuite configuration"
+                  puts "is not a supported cell execd host for config \"$filename\""
                   return -1
                }
             }
 
             if { $only_check == 0 } {
-               puts $CHECK_OUTPUT "ok"
+               puts "ok"
             }
          }
-      } else {
-         set value "none"
       }
    }
 
    return $value
 }
 
-
-
-#****** config/config_results_dir() *********************************************
+#****** config/config_results_dir() ********************************************
 #  NAME
 #     config_results_dir() -- results directory setup
 #
@@ -1365,7 +2136,6 @@ proc config_additional_config { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_results_dir { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_MAIN_RESULTS_DIR
    global CHECK_PROTOCOL_DIR
    global CHECK_JOB_OUTPUT_DIR
@@ -1374,65 +2144,26 @@ proc config_results_dir { only_check name config_array } {
    global CHECK_REPORT_FILE 
    global fast_setup
 
-
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } {
-         set value $config(testsuite_root_dir)/results
-      }
+
+   if { $config($name,default) == "" } {
+      set config($name,default) $config(testsuite_root_dir)/results
    }
+
+   set help_text { "Enter the full pathname of the testsuite results directory, or"
+                   "press >RETURN< to use the default value."
+                   "The testsuite will use this directory to save test results and"
+                   "internal data." }
+
+   set value [config_generic $only_check $name config $help_text "directory+" 0]
+
+   if { $value == -1 } { return -1 }
 
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
-      return -1
-   }
-
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of the testsuite results directory, or"
-      puts $CHECK_OUTPUT "press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "The testsuite will use this directory to save test results and internal"
-      puts $CHECK_OUTPUT "data."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value [tail_directory_name $input]
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   # now verify
-   if {!$fast_setup} {
-      # is full path ?
-      if { [ string first "/" $value ] != 0 } {
-         puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
+      puts "Could not get local host name" 
          return -1
       }
-
-      if { [tail_directory_name $value] != $value } {
-         puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-         return -1
-      }
-
-      if { [ file isdirectory $value ] != 1 } {
-         file mkdir $value
-      }
-
-      # is file ?
-      if { [ file isdirectory $value ] != 1 } {
-         puts $CHECK_OUTPUT "Directory \"$value\" not found"
-         return -1
-      }
-   }
 
    # set global values
    set CHECK_MAIN_RESULTS_DIR $value
@@ -1455,7 +2186,7 @@ proc config_results_dir { only_check name config_array } {
    return $value
 }
 
-#****** config/config_connection_type() *************************************************
+#****** config/config_connection_type() ****************************************
 #  NAME
 #     config_connection_type() -- configurate the remote connect starter
 #
@@ -1476,61 +2207,49 @@ proc config_results_dir { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_connection_type {only_check name config_array} {
-   global CHECK_OUTPUT 
    global CHECK_USER
    global fast_setup
    global have_ssh_access_state
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if {$actual_value == ""} {
-      set value $default_value
+
+   array set conn_types {
+      ssh   "secure shell without passwords"
+      ssh_with_password "secure shell with passwords"
+      rlogin  "rlogin"
    }
+
+   set help_text { "Choose the client which you want to use for connecting"
+                   "to the cluster hosts:" }
+   set value [config_generic $only_check $name config $help_text "choice" 0 1 conn_types]
+
+   if { $value == -1 } { return -1 }
 
    if {$only_check == 0} {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter"
-      puts $CHECK_OUTPUT "   - \"ssh\" if testsuite should use secure shell without passwords"
-      puts $CHECK_OUTPUT "   - \"ssh_with_password\" if testsuite should use secure shell with passwords"
-      puts $CHECK_OUTPUT "   - \"rlogin\" if testsuite should use rlogin"
-      puts $CHECK_OUTPUT "to connect to the cluster hosts"
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [wait_for_enter 1]
-      if { [string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-      # reset global variable for have_ssh_access()
-      # procedure !!
+      # reset global variable for have_ssh_access() procedure !!
       set have_ssh_access_state -1 
-   }
-
-   if {$value != "ssh" && $value != "ssh_with_password"
-       && $value != "rlogin"} {
-       return -1
    }
 
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
 
    if {!$fast_setup} {
+      # test the new connection type 
+      set old_value $config($name)
+      set config($name) $value
       set result [start_remote_prog $local_host $CHECK_USER "echo" "\"hello $local_host\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "rlogin/ssh to host $local_host doesn't work correctly"
+         puts "$value to host $local_host doesn't work correctly"
+         set config($name) $old_value
          return -1
       }
       if { [ string first "hello $local_host" $result ] < 0 } {
-         puts $CHECK_OUTPUT "$result"
-         puts $CHECK_OUTPUT "echo \"hello $local_host\" doesn't work"
+         puts "$result"
+         puts "echo \"hello $local_host\" doesn't work"
+         set config($name) $old_value
          return -1
       }
    }
@@ -1539,7 +2258,7 @@ proc config_connection_type {only_check name config_array} {
 }
 
 
-#****** config/config_source_dir() **********************************************
+#****** config/config_source_dir() *********************************************
 #  NAME
 #     config_source_dir() -- source directory setup
 #
@@ -1560,74 +2279,41 @@ proc config_connection_type {only_check name config_array} {
 #     check/verify_config()
 #*******************************************************************************
 proc config_source_dir { only_check name config_array } {
-   global CHECK_OUTPUT 
    global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } {
-         set pos [string first "/testsuite" $config(testsuite_root_dir)]
-         set value [string range $config(testsuite_root_dir) 0 $pos]
-         append value "source"
-      }
-   }
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of the Grid Engine source directory, or"
-      puts $CHECK_OUTPUT "press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "The testsuite needs this directory to call aimk (to compile source code)"
-      puts $CHECK_OUTPUT "and for resolving the host names (util scripts)."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value [tail_directory_name $input]
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
 
-   # now verify
-   if {!$fast_setup} {
-      # is full path ?
-      if { [ string first "/" $value ] != 0 } {
-         puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
-         return -1
-      }
+   set help_text { "Enter the full pathname of the Grid Engine source directory, or"
+                   "press >RETURN< to use the default value."
+                   "The testsuite needs this directory to call aimk (to compile source code)"
+                   "and for resolving the host names (util scripts)." }
  
-      if { [tail_directory_name $value] != $value } {
-         puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-         return -1
+   if { $config($name,default) == "" } {
+      set pos [string first "/testsuite" $config(testsuite_root_dir)]
+      set config($name,default) "[string range $config(testsuite_root_dir) 0 $pos]source"
       }
 
-      # is directory ?
-      if { [ file isdirectory $value ] != 1 } {
-         puts $CHECK_OUTPUT "Directory \"$value\" not found"
-         return -1
-      }
+   set value [config_generic $only_check $name config $help_text "directory" 0]
 
-      # is aimk file present ?
+   if { $value == -1 } { return -1 }
+
+   if {!$fast_setup} {
       if { [ file isfile $value/aimk ] != 1 } {
-         puts $CHECK_OUTPUT "File \"$value/aimk\" not found"
+         puts "File \"$value/aimk\" not found"
          return -1
       }
    }
  
    set local_arch [ resolve_arch "none" 1 $value]
    if { $local_arch == "unknown" } {
-      puts $CHECK_OUTPUT "Could not resolve local system architecture" 
+      puts "Could not resolve local system architecture" 
       return -1
    }
+
    return $value
 }
 
-#****** config/config_source_cvs_hostname() *************************************
+#****** config/config_source_cvs_hostname() ************************************
 #  NAME
 #     config_source_cvs_hostname() -- cvs hostname setup
 #
@@ -1648,69 +2334,39 @@ proc config_source_dir { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_source_cvs_hostname { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_USER 
-   global fast_setup
+   global CHECK_USER fast_setup
 
    upvar $config_array config
 
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
 
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } {
-         set value $local_host
+   if { $config($name,default) == "" } {
+      set config($name,default) $local_host
       }
-   }
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the name of the host used for executing cvs commands"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+
+   set value [config_generic $only_check $name config "" "host" 0]
+
+   if { $value == -1 } { return -1 }
 
    if {!$fast_setup} {
-      set host $value
-      set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
+      set result [start_remote_prog $value $CHECK_USER "$config(testsuite_root_dir)/scripts/mywhich.sh" "cvs" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
-         return -1
-      }
-      if { [ string first "hello $host" $result ] < 0 } {
-         puts $CHECK_OUTPUT "$result"
-         puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
-         return -1
-      }
-      set result [start_remote_prog $host $CHECK_USER "$config(testsuite_root_dir)/scripts/mywhich.sh" "cvs" prg_exit_state 60 0 "" "" 1 0]
-      if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT $result
-         puts $CHECK_OUTPUT "cvs not found on host $host. Please enhance your PATH envirnoment"
+         ts_log_finest $result
+         puts "cvs not found on host $host. Enhance your PATH envirnoment"
          return -1
       } else {
-         debug_puts $result
-         debug_puts "found cvs command"
+         ts_log_finest $result
+         ts_log_finest "found cvs command"
       }
    }
    return $value
 }
 
-#****** config/config_source_cvs_release() **************************************
+#****** config/config_source_cvs_release() *************************************
 #  NAME
 #     config_source_cvs_release() -- cvs release setup
 #
@@ -1731,70 +2387,39 @@ proc config_source_cvs_hostname { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_source_cvs_release {only_check name config_array} {
-   global CHECK_OUTPUT 
    global CHECK_USER 
-   global fast_setup
 
    upvar $config_array config
 
    # fix "maintrunc" typo - it will be written the next time the config is modified
-   if {$config($name) == "maintrunc"} {
-      set config($name) "maintrunk"
-   }
+   if {$config($name) == "maintrunc"} { set config($name) "maintrunk" }
 
-   if {![file isdirectory $config(source_dir)]} {
-      puts $CHECK_OUTPUT "source directory $config(source_dir) doesn't exist"
-      return -1
-   }
+   array set tags {}
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if {$actual_value == ""} {
-      set value $default_value
-      if {$default_value == ""} {
-         set result [start_remote_prog $config(source_cvs_hostname) $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
-         set result [string trim $result]
+   if {[file isdirectory $config(source_dir)]} {
+      set cvs_tag [start_remote_prog $config(source_cvs_hostname) $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
+      set cvs_tag [string trim $cvs_tag]
+      set tag "maintrunk"
          if {$prg_exit_state == 0} {
-            if {[string first "T" $result] == 0} {
-               set value [string range $result 1 end]
+         if {[string first "T" $cvs_tag] == 0} {
+            set tag [string range $cvs_tag 1 end]
             }
-         } else {
-            set value "maintrunk" 
          }
+      set config($name,default) $tag
+      set tags($tag) ""
       }
-   }
-   if {$only_check == 0} {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter cvs release tag (\"maintrunk\" specifies no tag)"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [wait_for_enter 1]
-      if {[string length $input] > 0} {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
 
-   if {!$fast_setup} {
-      set result [start_remote_prog $config(source_cvs_hostname) $CHECK_USER "cat" "$config(source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
-      set result [string trim $result]
-      if {$prg_exit_state == 0} {
-         if {[string compare $result "T$value"] != 0 && [string compare $result "N$value"] != 0} {
-            puts $CHECK_OUTPUT "CVS/Tag entry doesn't match cvs release tag \"$value\" in directory $config(source_cvs_hostname)"
-            return -1
-         }
-      }
-   }
+   set help_text { "Enter cvs release tag (\"maintrunk\" specifies no tag)"
+                   "or press >RETURN< to use the default value." }
+
+   set value [config_generic $only_check $name config $help_text "choice" 0 1 tags]
+
+   if {![file isdirectory $config(source_dir)]} { puts "source directory $config(source_dir) doesn't exist!!!" }
+
    return $value
 }
 
-
-#****** config/config_host_config_file() ****************************************
+#****** config/config_host_config_file() ***************************************
 #  NAME
 #     config_host_config_file() -- host config file setup
 #
@@ -1815,66 +2440,27 @@ proc config_source_cvs_release {only_check name config_array} {
 #     check/verify_config()
 #*******************************************************************************
 proc config_host_config_file { only_check name config_array } {
-   global CHECK_OUTPUT
-   global fast_setup
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the full pathname of the host configuration file,"
+                   "or press >RETURN< to use the default value."
+                   "The host configuration file is used to define the cluster"
+                   "hosts setup configuration needed by the testsuite." }
    
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   while {1} {
+      set value [config_generic $only_check $name config $help_text "filename+" 0]
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of the host configuration file, or press >RETURN<"
-      puts $CHECK_OUTPUT "to use the default value."
-      puts $CHECK_OUTPUT "The host configuration file is used to define the cluster hosts setup"
-      puts $CHECK_OUTPUT "configuration needed by the testsuite."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   # now verify
-   set hconfdone 0
-   if {!$fast_setup} {
-      # is full path ?
-      if { [ string first "/" $value ] != 0 } {
-         puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
-         return -1
-      }
-
-      # is file ?
-      if { [ file isfile $value ] != 1 && $only_check != 0 } {
-         if { $only_check != 0 } {
-            puts $CHECK_OUTPUT "File \"$value\" not found"
-            return -1
-         } else {
+      if { $value != -1 } {
             setup_host_config $value
-            set hconfdone 1 
+         break
+      } elseif { $only_check } { break }
+      clear_screen
          }
-      }
-   }
- 
-   if { $hconfdone == 0} {
-      setup_host_config $value
-   }
-  
    return $value
 }
 
-#****** config/config_user_config_file() ****************************************
+#****** config/config_user_config_file() ***************************************
 #  NAME
 #     config_user_config_file() -- user configuration file setup
 #
@@ -1895,61 +2481,23 @@ proc config_host_config_file { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_user_config_file { only_check name config_array } {
-   global CHECK_OUTPUT
-   global fast_setup
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
+   set help_text { "Enter the full pathname of the user configuration file,"
+                   "or press >RETURN< to use the default value."
+                   "The user configuration file is used to define the cluster"
+                   "user needed by the testsuite." }
    
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the full pathname of the user configuration file, or press >RETURN<"
-      puts $CHECK_OUTPUT "to use the default value."
-      puts $CHECK_OUTPUT "The user configuration file is used to define the cluster user needed by the"
-      puts $CHECK_OUTPUT "testsuite."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   while {1} {
+      set value [config_generic $only_check $name config $help_text "filename+" 0]
 
-   # now verify
-   set userconfdone 0
-   if {!$fast_setup} {
-      # is full path ?
-      if { [ string first "/" $value ] != 0 } {
-         puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
-         return -1
-      }
-
-      # is file ?
-      if { [ file isfile $value ] != 1 && $only_check != 0 } {
-         if { $only_check != 0 } {
-            puts $CHECK_OUTPUT "File \"$value\" not found"
-            return -1
-         } else {
+      if { $value != -1 } {
             setup_user_config $value
-            set userconfdone 1 
+         break
+      } elseif { $only_check } { break }
+      clear_screen
          }
-      }
-   }
- 
-   if { $userconfdone == 0} {
-      setup_user_config $value
-   }
-  
    return $value
 }
 
@@ -1978,79 +2526,33 @@ proc config_db_config_file { only_check name config_array } {
 
    upvar $config_array config
    
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } { 
-         set value "none"
-      }
-   }
-
-   if { $only_check == 0 } {
-      # do setup  
-      puts "" 
-      puts "Please enter the full pathname of the database configuration file, or press >RETURN< "
-      puts "to use the default value."
-      puts "The database configuration file is used to define the cluster database needed "
-      puts "for the ARCo testsuite, therefore this parameter is mandatory for ARCo tests. "
-      puts "(default: $value)"
-      puts -nonewline "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts "using default value"
-      }
-   } 
-
-   # now verify
-   if {!$fast_setup} {
-
-      # must be set if checktree_arco is set
-      if { [string compare $value "none"] == 0 } {
+   set allow_null 1                       ;# path to config database is optional
          if { $config(additional_checktree_dirs) != "none" } {
             foreach dir $config(additional_checktree_dirs) {
                if { [string match "*checktree_arco" $dir] == 1 } {
-                  puts "\nThe path to database configuration file must be set."
-                  return -1
+            set allow_null 0             ;# path to config database is mandatory
                }
             }
          }
 
-      } else {
-         set dbconfdone 0
-         # is full path ?
-         if { [ string first "/" $value ] != 0 } {
-            puts "Path \"$value\" doesn't start with \"/\""
-            return -1
-         }
+   set help_text { "Enter the full pathname of the database configuration file."
+                   "The database configuration file is used to define the cluster"
+                   "database needed for the ARCo testsuite, therefore this parameter"
+                   "is mandatory for ARCo tests." }
+   if { $allow_null == 1 } { lappend help_text "Enter \"none\" for no database configuration file." }
 
-         # is file ?
-         if { [ file isfile $value ] != 1 && $only_check != 0 } {
-            if { $only_check != 0 } {
-               puts "File \"$value\" not found"
-               return -1
-            } else {
-               setup_db_config $value
-               set dbconfdone 1 
-            }
-         }
+   set value [config_generic $only_check $name config $help_text "filename+" $allow_null]
 
-         if { $dbconfdone == 0} {
+   if { !$allow_null && $value == "none" } { return -1 }
+
+   if { $value != "none" && $value != -1 } {
             setup_db_config $value
          }
-
-      }
-   }
 
    return $value
 }
 
-#****** config/config_master_host() *********************************************
+#****** config/config_master_host() ********************************************
 #  NAME
 #     config_master_host() -- master host setup
 #
@@ -2071,65 +2573,45 @@ proc config_db_config_file { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_master_host { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global ts_host_config do_nomain
-   global fast_setup
+   global do_nomain fast_setup
+   global CHECK_CUR_CONFIG_FILE CHECK_DEFAULTS_FILE
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
 
-   if {$actual_value == ""} {
-      set value $default_value
-      if {$default_value == ""} {
-         set value $local_host
+   if { $config($name,default) == "" } {
+      set config($name,default) $local_host
       }
-   }
+   set old_value $config($name)
 
-   # master host must be check_host !!!
-   if {$only_check == 0} {
-      config_select_host $value config
-      puts $CHECK_OUTPUT "Press enter to use host \"$value\" as qmaster host"
-      wait_for_enter
-      set value $local_host
+   array set params { verify compile }
+   # for the main testsuite configuration user must set the master host to localhost,
+   # since some tests would fail
+   # aja: TODO: fix the tests, so that the master host can be any host
+   if { $CHECK_CUR_CONFIG_FILE == $CHECK_DEFAULTS_FILE } {
+      array set master { }
+      set master($local_host) ""
+      # there is only one possible value
+      set params(selected) 1
+      return [config_generic $only_check $name config "" "host" 0 1 master params]
+   } else {
+      set value [config_generic $only_check $name config "" "host" 0 1 "" params]
+      if { $value != $old_value } {
+         # qmaster host must be first in the shadowd and execd hostlist
+         set config(execd_hosts) [config_check_host_in_hostlist $config(execd_hosts) $value]
+         set config(shadowd_hosts) [config_check_host_in_hostlist $config(shadowd_hosts) $value]
    } 
-
-   if {!$fast_setup} {
-      debug_puts "master host: $value"
-      if {[string compare $value $local_host] != 0 && $do_nomain == 0} {
-         puts $CHECK_OUTPUT "Master host must be local host"
-         return -1
+      return $value
       }
 
-      if {[llength $value] != 1} {
-         puts $CHECK_OUTPUT "qmaster_host has more than one hostname entry"
-         return -1
       }
 
-      # Verify that the master host is configured in host config and
-      # supported with the configured Grid Engine version.
-      if {![host_conf_is_supported_host $value]} {
-         return -1
-      }
-
-      if {[compile_check_compile_hosts $value] != 0} {
-         return -1
-      }
-   }
-
-
-   return $value
-}
-
-#****** config/config_execd_hosts() *********************************************
+#****** config/config_execd_hosts() ********************************************
 #  NAME
 #     config_execd_hosts() -- execd daemon host setup
 #
@@ -2150,37 +2632,31 @@ proc config_master_host { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_execd_hosts { only_check name config_array } {
-   global CHECK_OUTPUT do_nomain
    global ts_host_config fast_setup
 
    upvar $config_array config
    
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
-   set value $config($name)
 
-   if {$only_check == 0} {
-      # initialize value from defaults, if not yet set
-      if {$value == ""} {
-         set value $config($name,default)
-         if {$value == ""} {
-            set value $local_host
+   if { $config($name,default) == "" } {
+      set config($name,default) $local_host
          }
-      }
 
-      # edit the execd host list, check_host must be first host
-      set value [config_select_host_list config $name $value]
-      set value [config_check_host_in_hostlist $value]
-   }
+   array set params { verify "compile" }
 
-   if {!$fast_setup} {
-      if {![config_verify_hostlist $value "execd" 1]} {
-         return -1
-      }
-   }
+   set value [config_generic $only_check $name config "" "host" 0 "2+" "" params]
+
+   if { $value == -1 } { return -1 }
+
+   # put the local_host at the first place in the list
+   if { [info exists config(master_host)] } {
+      set check_host $config(master_host)
+   } else { set check_host "" }
+   set value [config_check_host_in_hostlist $value $check_host]
 
    # set host lists
    # we need a mapping from node to physical hosts
@@ -2211,8 +2687,7 @@ proc config_execd_hosts { only_check name config_array } {
    return $value
 }
 
-
-#****** config/config_submit_only_hosts() ***************************************
+#****** config/config_submit_only_hosts() **************************************
 #  NAME
 #     config_submit_only_hosts() -- submit only hosts setup
 #
@@ -2233,206 +2708,18 @@ proc config_execd_hosts { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_submit_only_hosts { only_check name config_array } {
-   global CHECK_OUTPUT 
    global ts_host_config fast_setup
 
    upvar $config_array config
-   set value $config($name)
 
-   if { $only_check == 0 } {
-      # initialize value from defaults, if not yet set
-      if {$value == ""} {
-         set value $config($name,default)
+   array set params {}
+   set params(verify) "compile"
+   set params(exclude_list) [lsort -unique "$config(master_host) $config(shadowd_hosts) $config(execd_hosts)"]
+
+   return [config_generic $only_check $name config "" "host" 1 0 "" params]
       }
 
-      if {$value == "none"} {
-         set value ""
-      }
-
-      # edit the submit only host list
-      set value [config_select_host_list config $name $value]
-
-      if {$value == ""} {
-         set value "none"
-      }
-   } 
-
-   if {$value != "none"} {
-      if {!$fast_setup} {
-         if {![config_verify_hostlist $value "submit only" 0]} {
-            return -1
-         }
-
-         # a submit only host may not be used otherwise in the cluster
-         set exclude "$config(master_host) $config(shadowd_hosts) $config(execd_hosts)"
-         set exclude [lsort -unique $exclude]
-
-         foreach host $value {
-            if {[lsearch $exclude $host] >= 0} {
-               puts $CHECK_OUTPUT "Submit only host $host is used as admin/exec host in the cluster"
-               return -1
-            }
-         }
-      }
-   }
-   return $value
-}
-
-#****** config/config_generic_port() **********************************************
-#  NAME
-#     config_generic_port() -- generic port setip
-#
-#  SYNOPSIS
-#     config_generic_port { only_check name config_array } 
-#  FUNCTION
-#     Testsuite configuration setup - called from verify_config()
-#
-#  INPUTS
-#     only_check   - 0: expect user input
-#                    1: just verify user input
-#     name         - option name (in ts_config array)
-#     config_array - config array name (ts_config)
-#     helptext     - helptext list (one line per enty)
-#     port_type    - list of port type specifiers. The following
-#                    values are allowed 
-#                        only_even       => allow only even ports
-#                        only_reserved   => allows only port < 1024
-#                        allow_null_port => the value 0 is for the port allowed
-#  SEE ALSO
-#     check/setup2()
-#     check/verify_config()
-#
-#*******************************************************************************
-proc config_generic_port { only_check name config_array helptext { port_type {} } } {
-   global CHECK_OUTPUT 
-   global CHECK_COMMD_PORT
-   global CHECK_USER
-   global ts_user_config fast_setup
-
-   upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-
-   if { $actual_value == "" } {
-      set value $default_value
-   }
-
-   if { $only_check == 0 } {
-#     # do setup  
-      puts $CHECK_OUTPUT ""
-      foreach line $helptext {
-         puts $CHECK_OUTPUT $line
-      }
-      puts $CHECK_OUTPUT "(default: $value)"
-      set ok 0
-      while { $ok == 0 } {
-         puts -nonewline $CHECK_OUTPUT "> "
-         set input [ wait_for_enter 1]
-         if {[string length $input] == 0 } {
-            puts $CHECK_OUTPUT "using default value"
-            set ok 1
-         } elseif {[lsearch $port_type "only_even"] >= 0 && [ expr ( $input % 2 ) ] != 0 } {
-            puts $CHECK_OUTPUT "value is not even"
-            set ok 0
-         } elseif {[lsearch $port_type "allow_null_port"] < 0 && $input == 0} {
-            puts $CHECK_OUTPUT "0 is not a valid value for a port"
-            set ok 0
-         } else {
-            set value $input
-            set ok 1
-         }
-      }
-
-      set add_port 0 
-      if { $value > 0 } {
-         if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
-            puts $CHECK_OUTPUT "No portlist defined for user $CHECK_USER in user configuration"
-            puts $CHECK_OUTPUT "Press enter to add user $CHECK_USER"
-            wait_for_enter
-            set errors 0
-            incr errors [user_config_userlist_add_user ts_user_config  $CHECK_USER]
-            incr errors [user_config_userlist_edit_user ts_user_config $CHECK_USER]
-            incr errors [save_user_configuration $config(user_config_file)]
-            if { $errors != 0 } {
-               puts $CHECK_OUTPUT "Errors press enter to edit user configuration"
-               wait_for_enter
-               setup_user_config $config(user_config_file) 1
-            }
-         }
-         # Users reserve allways a port tuple
-         # master_port and execd_port
-         if { [expr $value % 2] != 0 } {
-            set master_port [expr $value - 1]
-            set execd_port $value
-         } else {
-            set master_port $value
-            set execd_port  [expr $value + 1]
-         }
-         
-         if { [ lsearch $ts_user_config($CHECK_USER,portlist) $master_port ] < 0 } {
-            puts $CHECK_OUTPUT "ports ${master_port} - ${execd_port} not defined for user $CHECK_USER"
-            puts $CHECK_OUTPUT "Press enter to add ports ${master_port} - ${execd_port}"
-            wait_for_enter
-            set errors 0
-            set new_value "$ts_user_config($CHECK_USER,portlist) $master_port"
-            incr errors [user_config_userlist_set_portlist ts_user_config $CHECK_USER $new_value]
-            if { $errors == 0 }  {
-               incr errors [save_user_configuration $config(user_config_file)]
-            }
-            if { $errors != 0 } {
-               puts $CHECK_OUTPUT "Errors press enter to edit user configuration"
-               wait_for_enter
-               setup_user_config $config(user_config_file) 1
-            }
-         }
-      }
-   }
-
-   if {!$fast_setup} {
-      if { [lsearch $port_type "allow_null_port"] < 0 && $value < 1  } {
-         puts $CHECK_OUTPUT "Port $value is < 1"
-         return -1;
-      }
-      if {$value > 0} {
-         if { [ info exists ts_user_config($CHECK_USER,portlist) ] != 1 } {
-            puts $CHECK_OUTPUT "User $CHECK_USER has not portlist entry in user configuration"
-            return -1
-         }
-         if { [expr $value % 2] != 0 } {
-            set master_port [expr $value - 1]
-            set execd_port $value
-         } else {
-            set master_port $value
-            set execd_port  [expr $value + 1]
-         }
-         if { [ lsearch $ts_user_config($CHECK_USER,portlist) $master_port] < 0 } {
-            puts $CHECK_OUTPUT "Port $value not in portlist of user $CHECK_USER" 
-            return -1
-         }
-      }
-
-      if { [lsearch $port_type "only_even"] >= 0 && [ expr ( $value % 2 ) ] == 1 } {
-         puts $CHECK_OUTPUT "Port $value is not even"
-         return -1;
-      }
-      
-      if { [lsearch $port_type "only_reserved"] >= 0 && $value >= 1024 } {
-         puts $CHECK_OUTPUT "Port $value is >= 1024"
-         return -1;
-      }
-
-      if { $value > 65000 } {
-         puts $CHECK_OUTPUT "Port $value is > 65000"
-         return -1;
-      }
-   }
-   return $value
-}
-
-
-#****** config/config_commd_port() **********************************************
+#****** config/config_commd_port() *********************************************
 #  NAME
 #     config_commd_port() -- commd port option setup
 #
@@ -2453,31 +2740,30 @@ proc config_generic_port { only_check name config_array helptext { port_type {} 
 #
 #*******************************************************************************
 proc config_commd_port { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_COMMD_PORT
-   global CHECK_USER
-   global ts_user_config fast_setup
 
    upvar $config_array config
    
-   set helptext {
-      "Please enter the port number value the testsuite should use for COMMD_PORT,"
+   set help_text {
+      "Enter the port number value the testsuite should use for COMMD_PORT,"
       "or press >RETURN< to use the default value."
       ""
       "(IMPORTANT NOTE: COMMD_PORT must be a even number, because for"
       "SGE/EE 6.0 sytems or later COMMD_PORT is used for SGE_QMASTER_PORT and"
       "COMMD_PORT + 1 is used for SGE_EXECD_PORT)"
    }   
-   set value [config_generic_port $only_check $name config $helptext {"only_even"}]
 
-   if { $value > 0 } { 
-      set CHECK_COMMD_PORT $value
+   array set params { port_type even }
+   if { [info exists config(jmx_port)] } { 
+      set params(exclude_list) $config(jmx_port)
    }
 
-   return $value
+   set value [config_generic $only_check $name config $help_text "port" 0 1 "" params]
+
+   if { $value != -1 } { set CHECK_COMMD_PORT $value }
 }
 
-#****** config/config_jmx_port() **********************************************
+#****** config/config_jmx_port() ***********************************************
 #  NAME
 #     config_jmx_port() -- jmx port option setup
 #
@@ -2498,25 +2784,25 @@ proc config_commd_port { only_check name config_array } {
 #
 #*******************************************************************************
 proc config_jmx_port { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_COMMD_PORT
-   global CHECK_USER
-   global ts_user_config fast_setup
 
    upvar $config_array config
    
-   set helptext {
-      "Please enter the port number for qmaster JMX mbean server"
+   set help_text {
+      "Enter the port number for qmaster JMX mbean server"
       "or press >RETURN< to use the default value."
-      ""
-      "value 0 means that the mbean server is not started"
+      "Value 0 means that the mbean server is not started."
    }   
-   set value [config_generic_port $only_check $name config $helptext { "allow_null_port" }]
 
-   return $value
+   array set params { }
+   if { [info exists config(commd_port)] } {
+      set params(exclude_list) $config(commd_port)
+      set params(exclude_list) [expr $config(commd_port) + 1]
 }
 
-#****** config/config_jmx_ssl() **********************************************
+   return [config_generic $only_check $name config $help_text "port" 1 1 "" params ]
+}
+
+#****** config/config_jmx_ssl() ************************************************
 #  NAME
 #     config_jmx_ssl() -- jmx ssl server authentication option setup
 #
@@ -2537,23 +2823,19 @@ proc config_jmx_port { only_check name config_array } {
 #
 #*******************************************************************************
 proc config_jmx_ssl { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_COMMD_PORT
-   global CHECK_USER
-   global ts_user_config fast_setup
 
    upvar $config_array config
    
-   set helptext {
-      "Please enter true to enable SSL server authentication for qmaster JMX mbean server"
-      "or press >RETURN< to use the default value."
+   array set jmx {
+      "true" "enable SSL server authentication for qmaster JMX mbean server"
+      "false" "no SSL server authentication for qmaster JMX mbean server"
    }   
-   set value [config_generic $only_check $name config $helptext "boolean" ] 
+   set value [config_generic $only_check $name config "" "choice" 0 1 jmx ] 
 
    return $value
 }
 
-#****** config/config_jmx_ssl_client() **********************************************
+#****** config/config_jmx_ssl_client() *****************************************
 #  NAME
 #     config_jmx_ssl_client() -- jmx ssl client authentication option setup
 #
@@ -2574,23 +2856,19 @@ proc config_jmx_ssl { only_check name config_array } {
 #
 #*******************************************************************************
 proc config_jmx_ssl_client { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_COMMD_PORT
-   global CHECK_USER
-   global ts_user_config fast_setup
 
    upvar $config_array config
    
-   set helptext {
-      "Please enter true to enable SSL client authentication for qmaster JMX mbean server"
-      "or press >RETURN< to use the default value."
+   array set jmx {
+      "true" "enable SSL client authentication for qmaster JMX mbean server"
+      "false" "no SSL client authentication for qmaster JMX mbean server"
    }   
-   set value [config_generic $only_check $name config $helptext "boolean"] 
+   set value [config_generic $only_check $name config "" "choice" 0 1 jmx ] 
 
    return $value
 }
 
-#****** config/config_jmx_ssl_keystore_pw() **********************************************
+#****** config/config_jmx_ssl_keystore_pw() ************************************
 #  NAME
 #     config_jmx_ssl_keystore_pw() -- jmx ssl keystore password
 #
@@ -2611,15 +2889,11 @@ proc config_jmx_ssl_client { only_check name config_array } {
 #
 #*******************************************************************************
 proc config_jmx_ssl_keystore_pw { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_COMMD_PORT
-   global CHECK_USER
-   global ts_user_config fast_setup
 
    upvar $config_array config
    
    set helptext {
-      "Please enter the JMX SSL keystore pw for qmaster JMX mbean server"
+      "Enter the JMX SSL keystore pw for qmaster JMX mbean server"
       "or press >RETURN< to use the default value."
    }   
    set value [config_generic $only_check $name config $helptext "string"] 
@@ -2627,7 +2901,7 @@ proc config_jmx_ssl_keystore_pw { only_check name config_array } {
    return $value
 }
 
-#****** config/config_reserved_port() **********************************************
+#****** config/config_reserved_port() ******************************************
 #  NAME
 #     config_reserved_port() -- reserved option setup
 #
@@ -2648,26 +2922,20 @@ proc config_jmx_ssl_keystore_pw { only_check name config_array } {
 #
 #*******************************************************************************
 proc config_reserved_port { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_COMMD_PORT
-   global CHECK_USER
-   global ts_user_config fast_setup
 
    upvar $config_array config
    
-   set helptext {
-      "Please enter an unused port number < 1024. This port is used to test"
+   set help_text {
+      "Enter an unused port number < 1024. This port is used to test"
       "port binding." 
-      "or press >RETURN< to use the default value."
    }
    
-   set value [config_generic_port $only_check $name config $helptext { "only_reserved" }]
+   array set params { port_type reserved }
 
-   return $value
+   return [config_generic $only_check $name config $help_text "port" 0 1 "" params]
 }
 
-
-#****** config/config_product_root() ********************************************
+#****** config/config_product_root() *******************************************
 #  NAME
 #     config_product_root() -- product root setup
 #
@@ -2688,65 +2956,25 @@ proc config_reserved_port { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_product_root { only_check name config_array } {
-   global CHECK_OUTPUT 
    global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set help_text { "Enter the path where the testsuite should install Grid Engine,"
+                   "or press >RETURN< to use the default value."
+                   "You can also specify a current installed Grid Engine system path."
+                   "WARNING: The compile option will remove the content of this directory"
+                   "or store it to \"testsuite_trash\" directory with testsuite_trash"
+                   "commandline option!!!" }
 
-   if { $only_check == 0 } {
-#     # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the path where the testsuite should install Grid Engine,"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "You can also specify a current installed Grid Engine system path."
-      puts $CHECK_OUTPUT "WARNING: The compile option will remove the content of this directory"
-      puts $CHECK_OUTPUT "or store it to \"testsuite_trash\" directory with testsuite_trash commandline option!!!"
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value [tail_directory_name $input]
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   set value [config_generic $only_check $name config $help_text "directory+" 0]
 
-   if {!$fast_setup} {
-
-      if { [tail_directory_name $value] != $value } {
-         puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-         return -1
-      }
-
-      # is full path ?
-      if { [ string first "/" $value ] != 0 } {
-         puts $CHECK_OUTPUT "Path \"$value\" doesn't start with \"/\""
-         return -1
-      }
-
-      if { [ file isdirectory $value ] != 1 } {
-         puts $CHECK_OUTPUT "Creating directory:\n$value"
-         file mkdir $value
-      }
-
-      if { [ file isdirectory $value ] != 1 } {
-         puts $CHECK_OUTPUT "Directory \"$value\" not found"
-         return -1
-      }
-
+   if {!$fast_setup && $value != -1} {
       set path_length [ string length "/bin/sol-sparc64/sge_qmaster" ]
-      if { [string length "$value/bin/sol-sparc64/sge_qmaster"] > 60 } {
-           puts $CHECK_OUTPUT "path for product_root_directory is too long (must be <= [expr ( 60 - $path_length )] chars)"
-           puts $CHECK_OUTPUT "The testsuite tries to find processes via ps output most ps output is truncated"
-           puts $CHECK_OUTPUT "for longer lines."
+      if { !$fast_setup && $path_length > 60 } {
+         puts "path for product_root_directory is too long (must be <= [expr ( 60 - $path_length )] chars)"
+         puts "The testsuite tries to find processes via ps output most ps output is truncated"
+         puts "for longer lines."
            return -1
       }
    }
@@ -2754,9 +2982,7 @@ proc config_product_root { only_check name config_array } {
    return $value
 }
 
-
-
-#****** config/config_product_type() ********************************************
+#****** config/config_product_type() *******************************************
 #  NAME
 #     config_product_type() -- product type setup
 #
@@ -2777,55 +3003,26 @@ proc config_product_root { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_product_type { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_PRODUCT_TYPE
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
+   array set sge_types {
+      sgeee "Grid Engine Enterprise Edition"
    }
 
-   if { $only_check == 0 } {
-#     # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the product type. Enter \"sge\" for Grid Engine,"
-      puts $CHECK_OUTPUT "\"sgeee\" for Grid Engine Enterprise Edition"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
-
-   if {!$fast_setup} {
-      if {    ([string compare "sgeee" $value ] != 0) &&
-              ([string compare "sge"   $value ] != 0) } {
-           puts $CHECK_OUTPUT "product_type can only be \"sge\" or \"sgeee\""
-           return -1
+   if {$config(gridengine_version) < 60} {
+      set sge_types(sge) "Grid Engine"
       }
 
-      if {$config(gridengine_version) >= 60 && $value == "sge"} {
-           puts $CHECK_OUTPUT "product_type can only be \"sgeee\" for Grid Engine 6.0 or higher"
-           return -1
-      }
-   }
-  
+   set value [config_generic $only_check $name config "" "choice" 0 1 sge_types]
+
    set CHECK_PRODUCT_TYPE $value
 
    return $value
 }
 
-#****** config/config_product_feature() *****************************************
+#****** config/config_product_feature() ****************************************
 #  NAME
 #     config_product_feature() -- product feature setup
 #
@@ -2846,49 +3043,20 @@ proc config_product_type { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_product_feature { only_check name config_array } {
-   global ts_config
-   global CHECK_OUTPUT
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
+   array set sge_features {
+      csp "Certificate Security Protocol"
+      none "no special product features"
    }
 
-   if { $only_check == 0 } {
-#     # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the product feature."
-      puts $CHECK_OUTPUT "Enter \"none\" for no special product features."
-      puts $CHECK_OUTPUT "Enter \"csp\" for Certificate Security Protocol"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   if {!$fast_setup} {
-      if { ([string compare "none"   $value ] != 0) &&
-           ([string compare "csp" $value ] != 0) } {
-           puts $CHECK_OUTPUT "product_feature can only be \"none\" or \"csp\""
-           return -1
-      }
-   }
+   set value [config_generic $only_check $name config "" "choice" 1 1 sge_features]
 
    return $value
 }
 
-#****** config/config_aimk_compile_options() ************************************
+#****** config/config_aimk_compile_options() ***********************************
 #  NAME
 #     config_aimk_compile_options() -- aimk compile option setup
 #
@@ -2909,37 +3077,15 @@ proc config_product_feature { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_aimk_compile_options { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter aimk compile options (use \"none\" for no options)"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
 
-   return $value
+   set help_text { "Enter aimk compile options (use \"none\" for no options)"
+                "or press >RETURN< to use the default value." }
+   return [config_generic $only_check $name config $help_text "string" 1 0]
 }
 
-
-#****** config/config_dist_install_options() ************************************
+#****** config/config_dist_install_options() ***********************************
 #  NAME
 #     config_dist_install_options() -- distrib install options
 #
@@ -2960,35 +3106,13 @@ proc config_aimk_compile_options { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_dist_install_options { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter dist install options (use \"none\" for no options)"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
+   set help_text { "Enter dist install options (use \"none\" for no options)"
+                   "or press >RETURN< to use the default value." }
 
-   # set global values
-   return $value
+   return [config_generic $only_check $name config $help_text "string" 1 0]
 }
 
 #****** config/config_qmaster_install_options() *********************************
@@ -3012,44 +3136,27 @@ proc config_dist_install_options { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_qmaster_install_options { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_QMASTER_INSTALL_OPTIONS
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter Grid Engine qmaster install options (use \"none\" for no options)"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
+   set help_text { "Enter Grid Engine qmaster install options (use \"none\" for no options)"
+                   "or press >RETURN< to use the default value." }
+
+   set value [config_generic $only_check $name config $help_text "string" 1 0]
+
+   if { $value == -1 } { return -1 }
 
    # set global values
    set CHECK_QMASTER_INSTALL_OPTIONS  $value
-   if { [ string compare "none" $value ] == 0  } {
+   if { $value == "none"  } {
       set CHECK_QMASTER_INSTALL_OPTIONS  ""
    }
 
    return $value
 }
 
-#****** config/config_execd_install_options() ***********************************
+#****** config/config_execd_install_options() **********************************
 #  NAME
 #     config_execd_install_options() -- install options setup
 #
@@ -3070,45 +3177,27 @@ proc config_qmaster_install_options { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_execd_install_options { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_EXECD_INSTALL_OPTIONS 
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter Grid Engine execd install options (use \"none\" for no options)"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
+   set help_text { "Enter Grid Engine execd install options (use \"none\" for no options)"
+                   "or press >RETURN< to use the default value." }
+
+   set value [config_generic $only_check $name config $help_text "string" 1 0]
+
+   if { $value == -1 } { return -1 }
 
    # set global values
    set CHECK_EXECD_INSTALL_OPTIONS   $value
-   if { [ string compare "none" $value ] == 0  } {
+   if { $value == "none" } {
       set CHECK_EXECD_INSTALL_OPTIONS  ""
    }
 
    return $value
 }
 
-
-#****** config/config_package_directory() ***************************************
+#****** config/config_package_directory() **************************************
 #  NAME
 #     config_package_directory() -- package optiont setup
 #
@@ -3130,83 +3219,46 @@ proc config_execd_install_options { only_check name config_array } {
 #
 #*******************************************************************************
 proc config_package_directory { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_PACKAGE_DIRECTORY CHECK_PACKAGE_TYPE
+   global CHECK_PACKAGE_DIRECTORY
    global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter directory path to Grid Engine packages (pkgadd or zip),"
-      puts $CHECK_OUTPUT "(use \"none\" if there are no packages available)"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         if { [string compare "none" $input ] != 0 } {
-            # only tail to directory name when != "none"
-            set value [tail_directory_name $input]
-         } else {
-            # we don't have a directory
-            set value $input 
-         }
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   set help_text { "Enter directory path to Grid Engine packages (pkgadd or zip),"
+                   "(use \"none\" if there are no packages available)"
+                   "or press >RETURN< to use the default value." }
+
+   set check_type "directory"
+            if { $config(package_type) == "create_tar" } {
+      set check_type "directory+"                 ;# create dir if doesn't exist
+            }
+   set value [config_generic $only_check $name config $help_text $check_type 1]
+
+   if { $value == -1 || $value == "none" } { return $value }
 
    # package dir configured?
-   if {!$fast_setup} {
-      if { [string compare "none" $value ] != 0 } {
-
-         if { [tail_directory_name $value] != $value } {
-            puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-            return -1
-         }
-
-         # directory doesn't exist? If we shall generate packages, create dir
-         if { ![file isdirectory $value] } {
-            if { $config(package_type) == "create_tar" } {
-               file mkdir $value
-            } else {
-               puts $CHECK_OUTPUT "Directory \"$value\" not found"
-               return -1
-            }
-         }
-         if { [string compare $config(package_type) "tar"] == 0 }    {
+   if {!$fast_setup } {
+      if { $config(package_type) == "tar" }    {
             if { [check_packages_directory $value check_tar] != 0 } {
-               puts $CHECK_OUTPUT "error checking package_directory! are all package file installed?"
+            puts "error checking package_directory! are all package file installed?"
                return -1
             }
          } else {
-            if { [string compare $config(package_type) "tar"] == 0 }    {
+         if { $config(package_type) == "tar" }    {
                if { [check_packages_directory $value check_zip] != 0 } {
-                  puts $CHECK_OUTPUT "error checking package_directory! are all package file installed?"
+               puts "error checking package_directory! are all package file installed?"
                   return -1
                }
             }
          }
       }
-   }
 
-   # set global values
    set CHECK_PACKAGE_DIRECTORY $value
 
    return $value
 }
 
-
-#****** config/config_package_type() ********************************************
+#****** config/config_package_type() *******************************************
 #  NAME
 #     config_package_type() -- package type setup
 #
@@ -3227,55 +3279,25 @@ proc config_package_directory { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_package_type { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_PACKAGE_TYPE
    global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter package type to test:"
-      puts $CHECK_OUTPUT "  \"tar\" to use precompiled tar packages" 
-      puts $CHECK_OUTPUT "  \"zip\" to use precompiled sunpkg packages"
-      puts $CHECK_OUTPUT "  \"create_tar\" to generate tar packages"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
+   array set pkg_types {
+      tar "precompiled tar packages"
+      zip "precompiled sunpkg packages"
+      create_tar "generate tar packages"
       }
-   } 
 
-   if {!$fast_setup} {
-      if { [string compare "tar" $value ] != 0 && 
-           [string compare "zip" $value ] != 0 &&
-           [string compare "create_tar" $value ] != 0 } {
-         puts $CHECK_OUTPUT "unexpected package type: \"$value\"!"
-         return -1
-      }
-   }
+   set value [config_generic $only_check $name config "" "choice" 0 1 pkg_types]
 
-   # set global values
-   set CHECK_PACKAGE_TYPE $value
+   if { $value != -1 } { set CHECK_PACKAGE_TYPE $value }
 
    return $value
 }
 
-
-
-#****** config/config_dns_domain() **********************************************
+#****** config/config_dns_domain() *********************************************
 #  NAME
 #     config_dns_domain() -- dns domain setup
 #
@@ -3296,7 +3318,6 @@ proc config_package_type { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_dns_domain { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_DNS_DOMAINNAME
    global CHECK_USER
    global fast_setup
@@ -3305,58 +3326,42 @@ proc config_dns_domain { only_check name config_array } {
 
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
 
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set help_text { "Enter your DNS domain name or"
+                   "press >RETURN< to use the default value."
+                   "The DNS domain is used in the qmaster complex test." }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter your DNS domain name or"
-      puts $CHECK_OUTPUT "press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "The DNS domain is used in the qmaster complex test."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   set value [config_generic $only_check $name config $help_text "string" 0]
+
+   if { $value == -1 } { return -1 }
 
    if {!$fast_setup} {
       set result [start_remote_prog $local_host $CHECK_USER "echo" "\"hello $local_host\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "rlogin to host $local_host doesn't work correctly"
+         puts "rlogin to host $local_host doesn't work correctly"
          return -1
       }
       if { [ string first "hello $local_host" $result ] < 0 } {
-         puts $CHECK_OUTPUT "$result"
-         puts $CHECK_OUTPUT "echo \"hello $local_host\" doesn't work"
+         puts "$result"
+         puts "echo \"hello $local_host\" doesn't work"
          return -1
       }
 
-      debug_puts "domain check ..."
+      ts_log_finest "domain check ..."
       set host "$local_host.$value"
-      debug_puts "hostname with dns domain: \"$host\""
+      ts_log_finest "hostname with dns domain: \"$host\""
 
       set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
       if { $prg_exit_state != 0 } {
-         puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
+         puts "rlogin to host $host doesn't work correctly"
          return -1
       }
       if { [ string first "hello $host" $result ] < 0 } {
-         puts $CHECK_OUTPUT "$result"
-         puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
+         puts "$result"
+         puts "echo \"hello $host\" doesn't work"
          return -1
       }
    }
@@ -3367,8 +3372,7 @@ proc config_dns_domain { only_check name config_array } {
    return $value
 }
 
-
-#****** config/config_dns_for_install_script() **********************************
+#****** config/config_dns_for_install_script() *********************************
 #  NAME
 #     config_dns_for_install_script() -- domain used for sge installation
 #
@@ -3389,7 +3393,6 @@ proc config_dns_domain { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_dns_for_install_script { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_DEFAULT_DOMAIN
    global CHECK_USER
    global fast_setup
@@ -3398,51 +3401,35 @@ proc config_dns_for_install_script { only_check name config_array } {
 
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
 
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set help_text { "Enter the DNS domain name used for installation script"
+                   "or press >RETURN< to use the default value."
+                   "Set this value to \"none\" if all your cluster hosts are"
+                   "in the same DNS domain." }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the DNS domain name used for installation script"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "Set this value to \"none\" if all your cluster hosts are in the"
-      puts $CHECK_OUTPUT "same DNS domain."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   set value [config_generic $only_check $name config $help_text "string"]
+
+   if { $value == -1 } { return -1 }
 
    if {!$fast_setup} {
       # only check domain if not none
-      if { [string compare "none" $value] != 0 } {
+      if { $value != "none" } {
 
-         debug_puts "domain check ..."
+         ts_log_finest "domain check ..."
          set host "$local_host.$value"
-         debug_puts "hostname with dns domain: \"$host\""
+         ts_log_finest "hostname with dns domain: \"$host\""
       
          set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
          if { $prg_exit_state != 0 } {
-            puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
+            puts "rlogin to host $host doesn't work correctly"
             return -1
          }
          if { [ string first "hello $host" $result ] < 0 } {
-            puts $CHECK_OUTPUT "$result"
-            puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
+            puts "$result"
+            puts "echo \"hello $host\" doesn't work"
             return -1
          }
       }
@@ -3454,7 +3441,6 @@ proc config_dns_for_install_script { only_check name config_array } {
    return $value
 }
 
-
 #****** config/config_mail_application() ***************************************
 #  NAME
 #     config_mail_application() -- ??? 
@@ -3463,55 +3449,33 @@ proc config_dns_for_install_script { only_check name config_array } {
 #     config_mail_application { only_check name config_array } 
 #
 #  FUNCTION
-#     ??? 
+#     Testsuite configuration setup - called from verify_config()
 #
 #  INPUTS
-#     only_check   - ??? 
-#     name         - ??? 
-#     config_array - ??? 
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
 #
 #  SEE ALSO
 #     check/setup2()
 #     check/verify_config()
 #*******************************************************************************
 proc config_mail_application { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_USER 
-   global CHECK_MAILX_HOST
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the name of the mail application used for sending"
-      puts $CHECK_OUTPUT "e-mails to the testsuite starter. The testsuite supports"
-      puts $CHECK_OUTPUT "mailx, sendmail and a path to a mail script. (see mail_application.sh"
-      puts $CHECK_OUTPUT "in testsuite/scripts directory for a mail wrapper script template)\n"
-      puts $CHECK_OUTPUT "Press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
+   set help_text { "Enter the name of the mail application used for sending"
+                   "e-mails to the testsuite starter. The testsuite supports"
+                   "mailx, sendmail and a path to a mail script. (see mail_application.sh"
+                   "in testsuite/scripts directory for a mail wrapper script template)\n"
+                   "Press >RETURN< to use the default value." }
 
-   return $value
+   return [config_generic $only_check $name config $help_text "string" 0]
+
 }
 
-
-#****** config/config_mailx_host() **********************************************
+#****** config/config_mailx_host() *********************************************
 #  NAME
 #     config_mailx_host() -- mailx option setup
 #
@@ -3532,69 +3496,54 @@ proc config_mail_application { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_mailx_host { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_USER 
    global CHECK_MAILX_HOST
    global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
+
+   set help_text { "Enter the name of the host used for sending e-mail reports"
+                   "or press >RETURN< to use the default value."
+                   "Set this value to \"none\" if you don't want get e-mails from the"
+                   "testsuite." }
 
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
 
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $default_value == "" } {
-         set value $local_host
+   if { $config($name,default) == "" } {
+      set config($name,default) $local_host
       }
-   }
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the name of the host used for sending e-mail reports"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "Set this value to \"none\" if you don't want get e-mails from the"
-      puts $CHECK_OUTPUT "testsuite."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+
+   set value [config_generic $only_check $name config $help_text "host"]
+
+   if { $value == -1 } { return -1 }
 
    if {!$fast_setup} {
       # only check domain if not none
-      if { [string compare "none" $value] != 0 } {
+      if { $value != "none" } {
          set host $value
          set result [start_remote_prog $host $CHECK_USER "echo" "\"hello $host\"" prg_exit_state 60 0 "" "" 1 0]
          if { $prg_exit_state != 0 } {
-            puts $CHECK_OUTPUT "rlogin to host $host doesn't work correctly"
+            puts "rlogin to host $host doesn't work correctly"
             return -1
          }
          if { [ string first "hello $host" $result ] < 0 } {
-            puts $CHECK_OUTPUT "$result"
-            puts $CHECK_OUTPUT "echo \"hello $host\" doesn't work"
+            puts "$result"
+            puts "echo \"hello $host\" doesn't work"
             return -1
          }
          set result [start_remote_prog $host $CHECK_USER "$config(testsuite_root_dir)/scripts/mywhich.sh" $config(mail_application) prg_exit_state 60 0 "" "" 1 0]
          if { $prg_exit_state != 0 } {
-            puts $CHECK_OUTPUT $result
-            puts $CHECK_OUTPUT "$config(mail_application) not found on host $host. Please enhance your PATH envirnoment"
-            puts $CHECK_OUTPUT "or setup your mail application correctly."
+            puts $result
+            puts "$config(mail_application) not found on host $host. Enhance your PATH envirnoment"
+            puts "or setup your mail application correctly."
             return -1
          } else {
-            debug_puts $result
-            debug_puts "found $config(mail_application)"
+            ts_log_finest $result
+            ts_log_finest "found $config(mail_application)"
          }
       }
    }
@@ -3605,8 +3554,7 @@ proc config_mailx_host { only_check name config_array } {
    return $value
 }
 
-
-#****** config/config_report_mail_to() ******************************************
+#****** config/config_report_mail_to() *****************************************
 #  NAME
 #     config_report_mail_to() -- mail to setup
 #
@@ -3627,50 +3575,29 @@ proc config_mailx_host { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_report_mail_to { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_USER 
-   global CHECK_MAILX_HOST
    global CHECK_REPORT_EMAIL_TO
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
+
+   set help_text { "Enter e-mail address where the testsuite should send report mails"
+                   "or press >RETURN< to use the default value."
+                   "Set this value to \"none\" if you don't want to get e-mails from the"
+                   "testsuite." }
+
       if { $config(mailx_host) == "none" } {
-         set value "none"
          set only_check 1
       }
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter e-mail address where the testsuite should send report mails"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "Set this value to \"none\" if you don't want get e-mails from the"
-      puts $CHECK_OUTPUT "testsuite."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   array set params { patterns "*@*.*" }
+   set value [config_generic $only_check $name config $help_text "string" 1 1 "" params]
 
    # set global values
-   set CHECK_REPORT_EMAIL_TO $value
+   if { $value != -1 } { set CHECK_REPORT_EMAIL_TO $value }
 
    return $value
 }
 
-
-#****** config/config_report_mail_cc() ******************************************
+#****** config/config_report_mail_cc() *****************************************
 #  NAME
 #     config_report_mail_cc() -- mail cc setup
 #
@@ -3691,49 +3618,29 @@ proc config_report_mail_to { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_report_mail_cc { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_USER 
-   global CHECK_MAILX_HOST
    global CHECK_REPORT_EMAIL_CC
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
+
+   set help_text { "Enter e-mail address where the testsuite should cc report mails"
+                   "or press >RETURN< to use the default value."
+                   "Set this value to \"none\" if you don't want to cc e-mails from the"
+                   "testsuite." }
+
       if { $config(mailx_host) == "none" } {
-         set value "none"
          set only_check 1
       }
-   }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter e-mail address where the testsuite should cc report mails"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "Set this value to \"none\" if you don't want to cc e-mails from the"
-      puts $CHECK_OUTPUT "testsuite."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   array set params { patterns "*@*.*" }
+   set value [config_generic $only_check $name config $help_text "string" 1 1 "" params]
 
    # set global values
-   set CHECK_REPORT_EMAIL_CC $value
+   if { $value != -1 } { set CHECK_REPORT_EMAIL_CC $value }
 
    return $value
 }
 
-#****** config/config_enable_error_mails() **************************************
+#****** config/config_enable_error_mails() *************************************
 #  NAME
 #     config_enable_error_mails() -- error mail setup
 #
@@ -3754,74 +3661,62 @@ proc config_report_mail_cc { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_enable_error_mails { only_check name config_array } {
-   global CHECK_OUTPUT 
    global CHECK_USER 
    global CHECK_MAILX_HOST
    global CHECK_REPORT_EMAIL_TO
    global CHECK_REPORT_EMAIL_CC
    global CHECK_SEND_ERROR_MAILS
    global CHECK_MAX_ERROR_MAILS
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
-   if { $actual_value == "" } {
-      set value $default_value
-      if { $config(mailx_host) == "none" } {
-         set value "none"
+
+   set help_text { "Enter the maximum number of e-mails you want to get from the"
+                "testsuite or press >RETURN< to use the default value."
+                "Set this value to \"none\" if you don't want to get e-mails from the"
+                "testsuite." }
+
+   if { $config(mailx_host) == "none" || $config(report_mail_to) == "none" } {
          set only_check 1
       }
+
+   set value [config_generic $only_check $name config $help_text "string"]
+
+   set enabled 1
+      if { $CHECK_MAILX_HOST == "none" } {
+      puts "mailx host not configured"
+      set enabled 0
+      }
+   if { $CHECK_REPORT_EMAIL_TO == "none" } {
+      puts "E-mail address for sending testsuite reports not set."
+      set enabled 0
+   }
+   if { $value == "none" || $value == 0 } {
+      set enabled 0
    }
 
-   if { $only_check == 0 } {
-      # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please enter the maximum number of e-mails you want to get from the"
-      puts $CHECK_OUTPUT "testsuite or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "Set this value to \"none\" if you don't want to get e-mails from the"
-      puts $CHECK_OUTPUT "testsuite."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
-
-   if { $value != "none" } {
-      if { $CHECK_MAILX_HOST == "none" } {
-         puts $CHECK_OUTPUT "mailx host not configured"
-         return -1
-      }
-      set  CHECK_SEND_ERROR_MAILS 1
-      set  CHECK_MAX_ERROR_MAILS $value
+   if { $enabled == 1 } {
+      set CHECK_SEND_ERROR_MAILS 1
+      set CHECK_MAX_ERROR_MAILS $value
       if { $only_check == 0 } {
          send_mail $CHECK_REPORT_EMAIL_TO $CHECK_REPORT_EMAIL_CC "Welcome!" "Testsuite mail setup test mail"
-         puts $CHECK_OUTPUT "Have you got the e-mail? (y/n) "
+         puts "Have you got the e-mail? (y/n) "
          set input [wait_for_enter 1]
          if { $input != "y" }  {
-            puts $CHECK_OUTPUT "disabling e-mail ..."
+            set enabled 0
+         }
+      }
+   }
+   if { $enabled == 0 } {
+      ts_log_warning "Sending e-mail reports disabled..."
             set CHECK_SEND_ERROR_MAILS 0
             set CHECK_MAX_ERROR_MAILS 0
             set value "none"
          }
-      }
-   } else {
-      set  CHECK_SEND_ERROR_MAILS 0
-      set  CHECK_MAX_ERROR_MAILS 0
-   }
 
    return $value
 }
 
-
-
-#****** config/config_l10n_test_locale() ****************************************
+#****** config/config_l10n_test_locale() ***************************************
 #  NAME
 #     config_l10n_test_locale() -- l10n option setup
 #
@@ -3842,95 +3737,71 @@ proc config_enable_error_mails { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_l10n_test_locale { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global CHECK_L10N ts_host_config ts_config
+   global CHECK_L10N ts_host_config
    global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
+   array set locales {
+      fr "French localization test"
+      ja "Japanese localization test"
+      zh "Chinese localization test"
+      none "no l10n testing"
    }
+   set value [config_generic $only_check $name config "" "choice" 1 1 locales]
 
-   if { $only_check == 0 } {
-#     # do setup  
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the locale for localization (l10n) test."
-      puts $CHECK_OUTPUT "Enter \"none\" for no l10n testing."
-      puts $CHECK_OUTPUT "Enter \"fr\", \"ja\" or \"zh\" to enable french, japanese or chinese"
-      puts $CHECK_OUTPUT "l10n testing or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   }
+   if { $value == -1 } { return -1 }
 
    set CHECK_L10N 0
-   if { ([string compare "none"   $value ] != 0) } {
+   if { $value != "none" } {
         
-        if { [string compare "fr" $value ] == 0 || 
-             [string compare "ja" $value ] == 0 ||
-             [string compare "zh" $value ] == 0 } {
-
            if {!$fast_setup} {
               set was_error 0
 
-              if { [ info exist ts_host_config($ts_config(master_host),${value}_locale)] != 1 } {
-                 puts $CHECK_OUTPUT "can't read ts_host_config($ts_config(master_host),${value}_locale)"
+         if { [ info exist ts_host_config($config(master_host),${value}_locale)] != 1 } {
+            puts "can't read ts_host_config($config(master_host),${value}_locale)"
                  return -1
               }
 
-              if { $ts_host_config($ts_config(master_host),${value}_locale) == "" } {
-                 puts $CHECK_OUTPUT "locale not defined for master host $ts_config(master_host)"
+         if { $ts_host_config($config(master_host),${value}_locale) == "" } {
+            puts "locale not defined for master host $config(master_host)"
                  incr was_error 1
               }
               foreach host $config(execd_hosts) {
                  if { $ts_host_config($host,${value}_locale) == "" } {
-                    puts $CHECK_OUTPUT "locale not defined for execd host $host"
+               puts "locale not defined for execd host $host"
                     incr was_error 1
                  }
               }
-              foreach host $ts_config(submit_only_hosts) {
-                 if { $ts_host_config($host,${value}_locale) == "" } {
-                    puts $CHECK_OUTPUT "locale not defined for submit host $host"
+         foreach host $config(submit_only_hosts) {
+            if { $host != "none" && $ts_host_config($host,${value}_locale) == "" } {
+               puts "locale not defined for submit host $host"
                     incr was_error 1
                  }
               }
               if { $was_error != 0 } {
                  if { $only_check == 0 } {
-                     puts $CHECK_OUTPUT "Press enter to edit global host configuration ..."
+               puts "Press enter to edit global host configuration ..."
                      wait_for_enter
-                     setup_host_config $config(host_config_file) 1
+               setup_host_config $config(host_config_file) hostlist
                  }
                  return -1
               }
            }
            set CHECK_L10N 1
-           set mem_value $ts_config(l10n_test_locale)
-           set ts_config(l10n_test_locale) $value
-           set ts_config(l10n_test_locale) $mem_value
+      set mem_value $config(l10n_test_locale)
+      set config(l10n_test_locale) $value
+      set config(l10n_test_locale) $mem_value
 
            if {!$fast_setup} {
               set test_result [perform_simple_l10n_test]
               if { $test_result != 0 } {
-                 puts $CHECK_OUTPUT "l10n errors" 
+            puts "l10n errors" 
                  set CHECK_L10N 0
                  return -1
               }
            }
-        } else {
-           puts $CHECK_OUTPUT "unexpected locale setting"
-           return -1
         }
-   }
 
    return $value
 }
@@ -3956,53 +3827,20 @@ proc config_l10n_test_locale { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_gridengine_version { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global ts_config fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
+   array set version_list {
+      53 "SGE(EE) 5.3 systems (e.g. V53_beta2_BRANCH)"
+      60 "N1GE 6.0 systems (e.g. V60s2_BRANCH)"
+      61 "N1GE 6.1 systems (e.g. V61_BRANCH)"
+      62 "N1GE 6.2 systems (e.g. maintrunk)"
    }
 
-   # called from setup
-   if { $only_check == 0 } {
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the gridengine version for testsuite"
-      puts $CHECK_OUTPUT "Enter \"53\" for SGE(EE) 5.3 systems (e.g. V53_beta2_BRANCH),"
-      puts $CHECK_OUTPUT "Enter \"60\" for N1GE 6.0 systems (e.g. V60s2_BRANCH)"
-      puts $CHECK_OUTPUT "Enter \"61\" for N1GE 6.1 systems (e.g. V61_BRANCH)"
-      puts $CHECK_OUTPUT "Enter \"62\" for N1GE 6.2 systems (e.g. maintrunk)"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
+   return [config_generic $only_check $name config "" "choice" 0 1 version_list]
       }
-   } 
 
-   # check parameter
-   if {!$fast_setup} {
-      if {[string compare $value "53"] != 0 &&
-          [string compare $value "60"] != 0 &&
-          [string compare $value "61"] != 0 && 
-          [string compare $value "62"] != 0} {
-         puts $CHECK_OUTPUT "invalid testsuite gridengine version"
-         return -1
-      }
-   }
-
-   return $value
-}
-
-#****** config/config_testsuite_spooling_method() ***************************
+#****** config/config_testsuite_spooling_method() ******************************
 #  NAME
 #     config_testsuite_spooling_method() -- spooling method setup
 #
@@ -4023,51 +3861,21 @@ proc config_testsuite_gridengine_version { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_spooling_method { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
-   global ts_config fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set help_text { "Specify the spooling method that will be used in case"
+                   "the binaries were build to support dynamic spooling." }
 
-   # called from setup
-   if { $only_check == 0 } {
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the spooling method that will be used"
-      puts $CHECK_OUTPUT "in case the binaries were build to support"
-      puts $CHECK_OUTPUT "dynamic spooling."
-      puts $CHECK_OUTPUT "Can be either \"berkeleydb\" or \"classic\""
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "Press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
+   array set spool_list {
+      classic ""
+      berkeleydb ""
       }
-   } 
 
-   if {! $fast_setup} {
-      # check parameter
-      if { [string compare $value "berkeleydb"] != 0 && 
-           [string compare $value "classic"] != 0} {
-         puts $CHECK_OUTPUT "invalid spooling method $value"
-         return -1
+   return [config_generic $only_check $name config $help_text "choice" 0 1 spool_list]
       }
-   }
 
-   return $value
-}
-
-#****** config/config_testsuite_bdb_server() ***************************
+#****** config/config_testsuite_bdb_server() ***********************************
 #  NAME
 #     config_testsuite_bdb_server() -- bdb server setup
 #
@@ -4088,61 +3896,21 @@ proc config_testsuite_spooling_method { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_bdb_server { only_check name config_array } {
-   global CHECK_OUTPUT CHECK_USER
-   global ts_config ts_host_config
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set help_text { "Specify the host of a Berkeley DB RPC server\n"
+                   "A Berkeley DB RPC server is used, if you want to run"
+                   "the shadowd tests or if you don't want to configure"
+                   "a database directory on a local filesystem\n"
+                   "Enter \"none\" if you use local spooling,"
+                   "or press >RETURN< to use the default value." }
 
-   # called from setup
-   if { $only_check == 0 } {
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the host of a Berkeley DB RPC server"
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "A Berkeley DB RPC server is used, if you want to run"
-      puts $CHECK_OUTPUT "the shadowd tests or if you don't want to configure"
-      puts $CHECK_OUTPUT "a database directory on a local filesystem"
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "Enter \"none\" if you use local spooling"
-      puts $CHECK_OUTPUT "or press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
+   array set params { verify "compile" }
+   return [config_generic $only_check $name config $help_text "host" 1 1 "" params]
       }
-      if {$value != "none"} {
-         config_select_host $value config
-      }
-   }
 
-   # check parameter
-   if {!$fast_setup} {
-      if {$value != "none"} {
-         if {![host_conf_is_supported_host $value]} {
-            return -1
-         }
-
-         if {[compile_check_compile_hosts $value] != 0} {
-            return -1
-         }
-      }
-   }
-
-   return $value
-}
-
-#****** config/config_testsuite_bdb_dir() ***************************
+#****** config/config_testsuite_bdb_dir() **************************************
 #  NAME
 #     config_testsuite_bdb_dir() -- bdb database directory setup
 #
@@ -4163,66 +3931,32 @@ proc config_testsuite_bdb_server { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_bdb_dir { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global ts_config
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set help_text { "Specify the database directory for spooling"
+                   "with the Berkeley DB spooling framework\n"
+                   "If your testsuite host configuration defines a local"
+                   "spool directory for your master host, specify \"none\"\n"
+                   "If no local spool directory is defined in the host"
+                   "configuration, give the path to a local database"
+                   "directory.\n"
+                   "If you configured a Berkeley DB RPC server, enter"
+                   "the database directory on the RPC server host.\n"
+                   "Press >RETURN< to use the default value."  }
 
-   # called from setup
-   if { $only_check == 0 } {
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the database directory for spooling"
-      puts $CHECK_OUTPUT "with the Berkeley DB spooling framework"
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "If your testsuite host configuration defines a local"
-      puts $CHECK_OUTPUT "spool directory for your master host, specify \"none\""
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "If no local spool directory is defined in the host"
-      puts $CHECK_OUTPUT "configuration, give the path to a local database"
-      puts $CHECK_OUTPUT "directory."
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "If you configured a Berkeley DB RPC server, enter"
-      puts $CHECK_OUTPUT "the database directory on the RPC server host."
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "Press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         if { [string compare "none" $input ] != 0 } {
-            # only tail to directory name when != "none"
-            set value [tail_directory_name $input]
-         } else {
-            # we don't have a directory
-            set value $input 
-         }
-      } else {
-         puts $CHECK_OUTPUT "using default value"
-      }
-   } 
+   set value [config_generic $only_check $name config $help_text "string"]
 
-   if {!$fast_setup} {
-      if { [string compare "none" $value ] != 0 } {
+   if { $value != "none" } {
          if { [tail_directory_name $value] != $value } {
-            puts $CHECK_OUTPUT "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
+         puts "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
             return -1
          }
       }
-   }
- 
    return $value
 }
 
-#****** config/config_testsuite_cell() ***************************
+#****** config/config_testsuite_cell() *****************************************
 #  NAME
 #     config_testsuite_cell() -- cell name
 #
@@ -4243,40 +3977,16 @@ proc config_testsuite_bdb_dir { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_cell { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global ts_config
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   set help_text { "Specify the cell name (SGE_CELL), or press >RETURN<"
+                   "to use the default value." }
 
-   # called from setup
-   if { $only_check == 0 } {
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the cell name (SGE_CELL)"
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "Press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
+   return [config_generic $only_check $name config $help_text "string" 0]
       }
-   } 
 
-   return $value
-}
-
-#****** config/config_testsuite_cluster_name() ***************************
+#****** config/config_testsuite_cluster_name() *********************************
 #  NAME
 #     config_testsuite_cluster_name() -- cluster name
 #
@@ -4297,39 +4007,20 @@ proc config_testsuite_cell { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_cluster_name { only_check name config_array } {
-   global CHECK_OUTPUT 
-   global ts_config
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
+   set help_text { "Specify the cluster name (SGE_CLUSTER_NAME), or press >RETURN<"
+                   "to use the default value." }
+
+   if { $config($name,default) == "p" } {
+      set config($name,default) "p$config(commd_port)"
    }
 
-   # called from setup
-   if { $only_check == 0 } {
-      puts $CHECK_OUTPUT "" 
-      puts $CHECK_OUTPUT "Please specify the cluster name (SGE_CLUSTER_NAME)"
-      puts $CHECK_OUTPUT ""
-      puts $CHECK_OUTPUT "Press >RETURN< to use the default value."
-      puts $CHECK_OUTPUT "(default: $value)"
-      puts -nonewline $CHECK_OUTPUT "> "
-      set input [ wait_for_enter 1]
-      if { [ string length $input] > 0 } {
-         set value $input 
-      } else {
-         puts $CHECK_OUTPUT "using default value"
+   return [config_generic $only_check $name config $help_text "string" 0]
       }
-   } 
-   return $value
-}
 
-#****** config/config_add_compile_archs() ***************************************
+#****** config/config_add_compile_archs() **************************************
 #  NAME
 #     config_add_compile_archs() -- forced compilation setup
 #
@@ -4350,89 +4041,18 @@ proc config_testsuite_cluster_name { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_add_compile_archs { only_check name config_array } {
-   global CHECK_OUTPUT 
    global ts_host_config
-   global fast_setup
 
    upvar $config_array config
-   set actual_value  $config($name)
-   set default_value $config($name,default)
-   set description   $config($name,desc)
-   set value $actual_value
 
-   if { $actual_value == "" } {
-      set value $default_value
-   }
+   array set archs { }
+   host_config_hostlist_get_architectures ts_host_config archs
 
-   if { $only_check == 0 } {
-#      # do setup  
-       if { $value == "none" } {
-          set value ""
-       }
-       puts $CHECK_OUTPUT "" 
-       set selected $value
-       while { 1 } {
-          clear_screen
-          puts $CHECK_OUTPUT "----------------------------------------------------------"
-          puts $CHECK_OUTPUT $description
-          puts $CHECK_OUTPUT "----------------------------------------------------------"
+   return [config_generic $only_check $name config "" "choice" 1 0 archs]
 
-          set selected [lsort $selected]
-          puts $CHECK_OUTPUT "\nSelected additional compile architectures:"
-
-          puts $CHECK_OUTPUT "----------------------------------------------------------"
-          foreach elem $selected { puts $CHECK_OUTPUT $elem }
-          puts $CHECK_OUTPUT "----------------------------------------------------------"
-
-          host_config_hostlist_show_compile_hosts ts_host_config arch_array
-          puts $CHECK_OUTPUT "\n"
-          puts -nonewline $CHECK_OUTPUT "Please enter architecture/number or return to exit: "
-         
-          set new_arch [wait_for_enter 1]
-          if { [ string length $new_arch ] == 0 } {
-             break
-          }
-          if { [string is integer $new_arch] } {
-             if { $new_arch >= 1 && $new_arch <= $arch_array(count) } {
-                set new_arch $arch_array($new_arch,arch)
-             }
           }
 
-          # now we have arch string in new_arch
-          set found_arch 0
-          foreach host $ts_host_config(hostlist) {
-             if {[host_conf_is_compile_host $host]} {
-                set compile_arch [host_conf_get_arch $host]
-                if { [ string compare $compile_arch $new_arch ] == 0 } {
-                   set found_arch 1
-                   break
-                }
-             }
-          }
-          if { $found_arch == 0 } {
-             puts $CHECK_OUTPUT "architecture \"$new_arch\" not found in list"
-             wait_for_enter
-             continue
-          }
-
-          if { [ lsearch -exact $selected $new_arch ] < 0 } {
-             append selected " $new_arch"
-          } else {
-             set index [lsearch $selected $new_arch ]
-             set selected [ lreplace $selected $index $index ]
-          }
-       }
-       
-       set value [string trim $selected]
-       if { $value == "" } {
-          set value "none"
-       }
-   }
-
-   return $value
-}
-
-#****** config/config_shadowd_hosts() *********************************************
+#****** config/config_shadowd_hosts() ******************************************
 #  NAME
 #     config_shadowd_hosts() -- shadowd daemon host setup
 #
@@ -4453,7 +4073,6 @@ proc config_add_compile_archs { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_shadowd_hosts { only_check name config_array } {
-   global CHECK_OUTPUT
    global CHECK_CORE_SHADOWD
    global ts_host_config
    global fast_setup
@@ -4461,40 +4080,62 @@ proc config_shadowd_hosts { only_check name config_array } {
    set CHECK_CORE_SHADOWD ""
 
    upvar $config_array config
-   set value $config($name)
  
    set local_host [gethostname]
    if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
+      puts "Could not get local host name" 
       return -1
    }
 
+   if { $config($name,default) == "" } {
+      set config($name,default) $local_host
+   }
+
+   array set params { verify "compile" }
+   set value [config_generic $only_check $name config "" "host" 0 0 "" params]
+
+   if { $value == -1 } { return -1 }
+
    if {$only_check == 0} {
       # initialize value from defaults, if not yet set
-      if {$value == ""} {
+      if { $value == "" } {
          set value $config($name,default)
-         if {$value == ""} {
+         if { $value == "" } {
             set value $local_host
          }
       }
 
-      # edit the shadow host list, check_host must be first host
-      set value [config_select_host_list config $name $value]
-      set value [config_check_host_in_hostlist $value]
+      # check_host must be first host in the list
+      if { [info exists config(master_host)] } {
+         set check_host $config(master_host)
+      } else { set check_host "" }
+      set value [config_check_host_in_hostlist $value $check_host]
    } 
-
-   if {!$fast_setup} {
-      if {![config_verify_hostlist $value "shadowd" 1]} {
-         return -1
-      }
-   }
 
    set CHECK_CORE_SHADOWD $value
 
    return $value
 }
 
-
+#****** config/config_build_ts_config*() ***************************************
+#  NAME
+#     config_build_ts_config*() -- version dependend menu configuration
+#
+#  SYNOPSIS
+#     config_build_ts_config* { }
+#
+#  FUNCTION
+#     Testsuite menu initialization.
+#     For each parameter specify:
+#     o $name       the name of parameter
+#     o desc        description
+#     o default     default value
+#     o setup_func  the name of the setup function
+#     o onchange    what happens when the parameter is changes
+#                   (i.e. stop, install, compile)
+#     o pos         position in menu
+#
+#*******************************************************************************
 proc config_build_ts_config {} {
    global ts_config
    global CHECK_CURRENT_WORKING_DIR
@@ -4545,7 +4186,6 @@ proc config_build_ts_config {} {
    set ts_config($parameter,onchange)   "stop"
    set ts_config($parameter,pos)        $ts_pos
    incr ts_pos 1
-
 
    set parameter "source_dir"
    set ts_config($parameter)            ""
@@ -4840,7 +4480,7 @@ proc config_build_ts_config_1_3 {} {
    # new parameter gridengine_version
    set parameter "gridengine_version"
    set ts_config($parameter)            ""
-   set ts_config($parameter,desc)       "Gridengine Version, e.g. 53 for SGE(EE) 5.3, or 60 for N1GE 6.0"
+   set ts_config($parameter,desc)       "Gridengine Version"
    set ts_config($parameter,default)    "62"
    set ts_config($parameter,setup_func) "config_testsuite_gridengine_version"
    set ts_config($parameter,onchange)   "stop"
@@ -5044,7 +4684,7 @@ proc config_build_ts_config_1_91 {} {
    set parameter "additional_checktree_dirs"
    set ts_config($parameter)            ""
    set ts_config($parameter,desc)       "Additional Testsuite's checktree directories"
-   set ts_config($parameter,default)    ""   ;# depend on testsuite root dir 
+   set ts_config($parameter,default)    "none"   ;# depend on testsuite root dir 
    set ts_config($parameter,setup_func) "config_additional_checktree_dirs"
    set ts_config($parameter,onchange)   "stop"
    set ts_config($parameter,pos)        $insert_pos
@@ -5249,298 +4889,41 @@ proc config_build_ts_config_1_16 {} {
    set ts_config(version) "1.16"
 }
 
-#****** config/config_select_host() ********************************************
-#  NAME
-#     config_select_host() -- select a host
-#
-#  SYNOPSIS
-#     config_select_host { host config_var } 
-#
-#  FUNCTION
-#     Lets the user select a hostname, e.g. as master host, or as bdb_server
-#     host.
-#
-#     Verifications are done to ensure, that the hostname is valid,
-#     configured in the testsuite host configuration, and that
-#     a compile host is known for the selected hosts architecture.
-#
-#  INPUTS
-#     host       - the currently selected hostname
-#     config_var - configuration array, default ts_host_config
-#
-#  RESULT
-#     The name of the selected host.
-#
-#  SEE ALSO
-#     config/config_select_host_list()
-#*******************************************************************************
-proc config_select_host {host config_var} {
-   global ts_config ts_host_config CHECK_OUTPUT
+proc config_build_ts_config_1_17 {} {
+   global ts_config
 
-   upvar $config_var config
+   # use host list to choose the host for cvs, host configuration must be already
+   # set, change the positions of configuration items
+   set pos $ts_config(source_cvs_hostname,pos)
 
-   # if host is not yet known, try to add it
-   if {![host_conf_is_known_host $host]} {
-      puts $CHECK_OUTPUT "Press enter to add host \"$host\" to global host configuration ..."
-      wait_for_enter
-      set errors 0
-      incr errors [host_config_hostlist_add_host ts_host_config  $host]
-      incr errors [host_config_hostlist_edit_host ts_host_config $host]
-      incr errors [save_host_configuration $config(host_config_file)]
-      if {$errors != 0} {
-         setup_host_config $config(host_config_file) 1
+   set ts_config(host_config_file,pos) $pos
+   set ts_config(user_config_file,pos) [incr pos 1]
+   set ts_config(db_config_file,pos) [incr pos 1]
+   set ts_config(source_cvs_hostname,pos) [incr pos 1]
+   set ts_config(source_cvs_release,pos) [incr pos 1]
+
+   # move additional testsuite configuration after host config
+   set pos $ts_config(additional_config,pos)
+
+   set ts_config(results_dir,pos) $pos
+   set ts_config(connection_type,pos) [incr pos 1]
+   set ts_config(source_dir,pos) [incr pos 1]
+   set ts_config(host_config_file,pos) [incr pos 1]
+   set ts_config(user_config_file,pos) [incr pos 1]
+   set ts_config(db_config_file,pos) [incr pos 1]
+   set ts_config(additional_config,pos) [incr pos 1]
+
+   # now we have a configuration version 1.17
+   set ts_config(version) "1.17"
       }
-   }
-
-   if {[compile_check_compile_hosts $host] != 0} {
-      puts $CHECK_OUTPUT "Press enter to edit global host configuration ..."
-      wait_for_enter
-      setup_host_config $config(host_config_file) 1
-   }
-}
-
-#****** config/config_select_host_list() ***************************************
-#  NAME
-#     config_select_host_list() -- select hosts from a host list
-#
-#  SYNOPSIS
-#     config_select_host_list { config_var name selected } 
-#
-#  FUNCTION
-#     Allows the user to select a number of hosts from the list of
-#     configured and supported hosts.
-#
-#     Verifications are done to ensure, that the hosts are valid,
-#     configured in the testsuite host configuration, and that
-#     compile hosts are known for the selected hosts architectures.
-#
-#  INPUTS
-#     config_var - configuration array, default ts_host_config
-#     name       - name of the testsuite configuration item, e.g.
-#                  "execd_hosts", or "submit_only_hosts"
-#     selected   - list of currently selected hosts
-#
-#  RESULT
-#     list of selected hosts
-#
-#  SEE ALSO
-#     config/config_select_host()
-#*******************************************************************************
-proc config_select_host_list {config_var name selected {help_descr ""} {only_one_host 0} } {
-   global ts_config ts_host_config CHECK_OUTPUT
-
-   upvar $config_var config
-
-   set description   $config($name,desc)
-
-   while {1} {
-      # output description and host lists
-      clear_screen
-      puts $CHECK_OUTPUT "----------------------------------------------------------"
-      puts $CHECK_OUTPUT $description
-      if { $help_descr != "" } {
-         puts $CHECK_OUTPUT "----------------------------------------------------------"
-         foreach elem $help_descr { puts $CHECK_OUTPUT $elem }
-      }
-      puts $CHECK_OUTPUT "----------------------------------------------------------"
         
-      set selected [lsort $selected]
-      puts $CHECK_OUTPUT "\nSelected hosts:"
-      puts $CHECK_OUTPUT "----------------------------------------------------------"
-      foreach elem $selected { puts $CHECK_OUTPUT $elem }
-      puts $CHECK_OUTPUT "----------------------------------------------------------"
-      set hostlist [host_config_hostlist_show_hosts ts_host_config]
-      puts $CHECK_OUTPUT "\n"
-      puts $CHECK_OUTPUT "Please enter"
-      puts $CHECK_OUTPUT "  - \"all\" to select all hosts in list,"
-      puts $CHECK_OUTPUT "  - \"none\" to remove all hosts from list,"
-      puts $CHECK_OUTPUT "  - return to exit, or"
-      puts -nonewline $CHECK_OUTPUT "  - a hostname / host number: "
      
-      # wait for user input
-      set host [wait_for_enter 1]
+################################################################################
+#  MAIN                                                                        #
+################################################################################
 
-      # user pressed return for exit
-      if {[string length $host] == 0} {
-         if { $only_one_host != 0 } {
-            if {[llength $selected] > 1 } {
-               puts $CHECK_OUTPUT "only one host allowed, please select only one host!"
-               wait_for_enter
-               continue
-            } 
-            if {[llength $selected] < 1 } {
-               puts $CHECK_OUTPUT "please select a host!"
-               wait_for_enter
-               continue
-            } 
-         }
-         break
-      }
-
-      # user entered "all"
-      if {[string compare $host "all"] == 0} {
-         set selected $hostlist
-         continue
-      }
-
-      # user entered "none"
-      if {[string compare $host "none"] == 0} {
-         set selected ""
-         continue
-      }
-
-      # user entered a host number
-      if {[string is integer $host]} {
-         if {$host < 1 || $host > [llength $hostlist]} {
-            puts $CHECK_OUTPUT "invalid host number or host name"
-            wait_for_enter
-            continue
-         }
-         incr host -1
-         set host [lindex $hostlist $host]
-      }
-
-      # unknown or unsupported host
-      if {![host_conf_is_supported_host $host]} {
-         # If the host is in selected host, but no longer in host config,
-         # or not supported in the configured Grid Engine version, delete it.
-         set selected_idx [lsearch -exact $selected $host]
-         if {$selected_idx >= 0} {
-            set selected [lreplace $selected $selected_idx $selected_idx]
-            continue
-         } else {
-            wait_for_enter
-            continue
-         }
-      }
-
-      # host is ok: add or remove
-      if {[lsearch -exact $selected $host] < 0} {
-          lappend selected $host
-      } else {
-         set index [lsearch $selected $host]
-         set selected [lreplace $selected $index $index]
-      }
-   }
-
-   # make sure we have compile hosts for all selected hosts
-   if {[compile_check_compile_hosts $selected] != 0} {
-      puts $CHECK_OUTPUT "Press enter to edit global host configuration ..."
-      wait_for_enter
-      setup_host_config $config(host_config_file) 1
-   }
-
-   if { $only_one_host != 0 } {
-      if { [llength $selected] > 1} {
-         add_proc_error "config_select_host_list" -1 "please select only one host"
-         return ""
-      }
-   }
-
-   return $selected
-}
-
-#****** config/config_check_host_in_hostlist() *********************************
-#  NAME
-#     config_check_host_in_hostlist() -- ensure [gethostname] is first in list
-#
-#  SYNOPSIS
-#     config_check_host_in_hostlist { hostlist } 
-#
-#  FUNCTION
-#     The function ensures, that [gethostname] is the first host in a given
-#     host list.
-#
-#  INPUTS
-#     hostlist - host list to verify
-#
-#  RESULT
-#     a new host list, with [gethostname] as first element
-#*******************************************************************************
-proc config_check_host_in_hostlist {hostlist} {
-
-   # make sure, [gethostname] is the first host in list
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
-      return -1
-   }
-   set index [lsearch $hostlist $local_host]
-   if {$index >= 0} {
-      set hostlist [lreplace $hostlist $index $index]
-   }
-   set hostlist [linsert $hostlist 0 $local_host]
-
-   return $hostlist
-}
-
-#****** config/config_verify_hostlist() ****************************************
-#  NAME
-#     config_verify_hostlist() -- verify a list of hosts
-#
-#  SYNOPSIS
-#     config_verify_hostlist { hostlist name {check_host_first 0} } 
-#
-#  FUNCTION
-#     Verifies correctness of a list of host names:
-#     - the hosts must be configured in the testsuite host configuration
-#     - compile hosts must be known for all the hosts architectures
-#     - if requested (argument check_host_first), [gethostname] has to be the
-#       first host in the given host list
-#     
-#  INPUTS
-#     hostlist             - the list to verify
-#     name                 - name of the testsuite configuration item, e.g.
-#                            "execd_hosts", or "submit_only_hosts"
-#     {check_host_first 0} - has [gethostname] to be the first list element?
-#
-#  RESULT
-#     0: host list is invalid, reasons will be output to $CHECK_OUTPUT
-#     1: host list is OK
-#
-#  SEE ALSO
-#     config/config_check_host_in_hostlist()
-#     config_host/host_conf_is_supported_host()
-#     compile/compile_check_compile_hosts()
-#*******************************************************************************
-proc config_verify_hostlist {hostlist name {check_host_first 0}} {
-   global ts_config CHECK_OUTPUT
-
-   set local_host [gethostname]
-   if {$local_host == "unknown"} {
-      puts $CHECK_OUTPUT "Could not get local host name" 
-      return 0
-   }
-
-   if {$check_host_first} {
-      # [gethostname] must be first host
-      if {[lindex $hostlist 0] != $local_host} {
-         puts $CHECK_OUTPUT "First $name host must be local host"
-         return 0
-      }
-   }
-
-   foreach host $hostlist {
-      # Verify that all hosts are configured in host config and
-      # supported with the configured Grid Engine version.
-      if {![host_conf_is_supported_host $host]} {
-         return 0
-      }
-   }
-
-   if {[compile_check_compile_hosts $hostlist] != 0} {
-      return 0
-   }
-
-   return 1
-}
-
-
-
-
-# MAIN
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.16"
+set actual_ts_config_version "1.17"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -5562,5 +4945,5 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_14
    config_build_ts_config_1_15
    config_build_ts_config_1_16
+   config_build_ts_config_1_17
 }
-

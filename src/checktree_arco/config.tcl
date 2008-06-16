@@ -545,40 +545,41 @@ proc arco_config_upgrade_1_5 { config_array } {
 #
 #*******************************************************************************
 proc config_arco_source_dir { only_check name config_array } {
+   global fast_setup
    
    upvar $config_array config
    
-   set help_text {  "Enter the path to ARCo source directory, or press >RETURN<"
-                    "to use the default value." }
+   set help_text {  "Enter the full path to ARCo source directory."
+                    "The testsuite needs this directory to build ARCo." }
    
-   return [ config_generic $only_check $name config $help_text "directory" ]
+   set value [config_generic $only_check $name config $help_text "directory" 0]
+
+   if { $value == -1 } { return -1 }
+
+   if {!$fast_setup} {
+      if { [ file isfile $value/build.sh ] != 1 } {
+         puts "File \"$value/build.sh\" not found"
+         return -1
+}
+   }
+   return $value
 }
 
 proc config_dbwriter_host { only_check name config_array } {
-   global ts_checktree ts_host_config fast_setup arco_checktree_nr
 
    upvar $config_array config
    
-   set help_text {  "Enter hostname where dbwriter should run, or press >RETURN<"
-                    "to use the default value." }
-                    
-   set dbwriter_host [ config_generic $only_check $name config $help_text "host" ]
-   
-   if {$fast_setup == 0} {
-      if {![host_conf_is_known_host $dbwriter_host]} {
-         ts_log_config "Host $dbwriter_host is not defined in the host configuration"
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts "Could not get local host name" 
          return -1
       }
-# AP: commented after removing the java property from host configuration
-# (replaced by java14, java15, java16) 
-# TODO: change the behaviour when java is not set -> now -> can't get to the testsuite setup 
-#      if {[get_binary_path $dbwriter_host "java"] == "java"} { 
-#         ts_log_severe "Java is not configured for host $dbwriter_host"
-#         return -1
-#      }
-   }
 
-   return $dbwriter_host
+   set config($name,default) $local_host
+   array set params { verify "compile" }
+
+   return [config_generic $only_check $name config "" "host" 0 1 "" params]
+
 }
 
 # @deprecated
@@ -607,7 +608,7 @@ proc config_database_host { only_check name config_array } {
    set help_text {  "Enter the name of your database host, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string"]
 }
 
 # @deprecated
@@ -618,7 +619,7 @@ proc config_database_port { only_check name config_array } {
    set help_text {  "Enter the name of your database port, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string"]
 }
 
 # @deprecated
@@ -629,17 +630,28 @@ proc config_database_name { only_check name config_array } {
    set help_text {  "Enter the name of your database, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string"]
 }
 
 proc config_database_schema { only_check name config_array } {
+   global ts_db_config
    
    upvar $config_array config
    
-   set help_text {  "Enter the name of the database schema, or press >RETURN<"
-                    "to use the default value." }
+   set db_type ""
+   if {[info exists ts_db_config($config(database),dbtype)] } { set db_type $ts_db_config($config(database),dbtype) }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   switch -- $db_type {
+      "postgres" {
+         set help_text { "Enter the name of the tablespace used for tables,"
+                         "or press >RETURN< to use the default value." }
+         return [config_generic $only_check $name config $help_text "string" 0]
+}
+      default {
+         array set choices {}
+         return [config_generic $only_check $name config "" "choice" 1 1 choices]
+      }
+   }
 }
 
 # @deprecated
@@ -650,7 +662,7 @@ proc config_database_write_user { only_check name config_array } {
    set help_text {  "Enter the name of the user which has write permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string"]
 }
 
 # @deprecated
@@ -661,7 +673,7 @@ proc config_database_read_user { only_check name config_array } {
    set help_text {  "Enter the name of the user which has read permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string"]
 }
 
 # @deprecated
@@ -672,7 +684,7 @@ proc config_database_write_pw { only_check name config_array } {
    set help_text {  "Enter the password of the user which has write permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string" 0]
 }
 
 # @deprecated
@@ -683,7 +695,7 @@ proc config_database_read_pw { only_check name config_array } {
    set help_text {  "Enter the password of the user which has read permissions on the database, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string"]
 }
 
 # @deprecated
@@ -694,18 +706,19 @@ proc config_arco_spool_dir { only_check name config_array } {
    set help_text {  "Enter path to the ARCo spool directory, or press >RETURN<"
                     "to use the default value." }
 
-   return [ config_generic $only_check $name config $help_text "directory" ]
+   return [config_generic $only_check $name config $help_text "directory"]
 }
 
 proc config_arco_dbwriter_debug_level { only_check name config_array } {
    
    upvar $config_array config
    
-   set help_text {  "Enter debug level for dbwriter, or press >RETURN<"
-                    "to use the default value."
-                    "Valid values are \"WARNING\", \"INFO\", \"FINE\""}
-
-   return [ config_generic $only_check $name config $help_text "string" ]
+   array set levels {
+      WARNING ""
+      INFO ""
+      FINE ""
+}
+   return [config_generic $only_check $name config "" "choice" 0 1 levels]
 }
 
 proc config_arco_dbwriter_interval { only_check name config_array } {
@@ -715,7 +728,7 @@ proc config_arco_dbwriter_interval { only_check name config_array } {
    set help_text {  "Enter the dbwriter interval in seconds, or press >RETURN<"
                     "to use the default value."  }
 
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string" 0]
 }
 
 # @deprecated
@@ -726,25 +739,28 @@ proc config_jdbc_driver { only_check name config_array } {
    set help_text {  "Enter the path to the JDBC driver or press >RETURN<"
                     "to use the default value."  }
      
-   return [ config_generic $only_check $name config $help_text "string" ]
+   return [config_generic $only_check $name config $help_text "string"]
    
 }
 
 proc config_swc_host {only_check name config_array} {
-   global ts_config ts_checktree ts_host_config fast_setup arco_checktree_nr
-   global CHECK_USER
+   global ts_config fast_setup
+
    upvar $config_array config
 
-   set help_text {"Enter the name of your the host where the Java Web Console is installed, or press >RETURN<"
-                  "to use the default value."}
+   set local_host [gethostname]
+   if {$local_host == "unknown"} {
+      puts "Could not get local host name" 
+      return -1
+   }
    
-   set swc_host [config_generic $only_check $name config $help_text "host" ]
+   set config($name,default) $local_host
       
+   set swc_host [config_generic $only_check $name config "" "host" 0 1 ]
+
+   if { $swc_host == -1 } { return -1 }
+
    if {$fast_setup == 0} {
-      if {![host_conf_is_known_host $swc_host]} {
-         ts_log_config "Host $swc_host is not defined in the host configuration"
-         return -1
-      }
       
       array set swc_version {}
       
@@ -779,28 +795,53 @@ proc config_java_home { only_check name config_array } {
    set help_text {  "Enter the JAVA_HOME path or press >RETURN<"
                     "to use the default value."  }
      
-   return [ config_generic $only_check $name config $help_text "directory" ]
+   return [config_generic $only_check $name config $help_text "directory"]
    
 }
 
 proc config_tablespace { only_check name config_array } {
+   global ts_db_config
 
    upvar $config_array config
 
-   set help_text {  "Enter the name of TABLESPACE for tables"  }
-     
-   return [ config_generic $only_check $name config $help_text "string" ]
-
+   set db_type ""
+   if {[info exists ts_db_config($config(database),dbtype)] } { set db_type $ts_db_config($config(database),dbtype) }
+   switch -- $db_type {
+      "mysql" {
+         array set choices {}
+         return [config_generic $only_check $name config "" "choice" 1 1 choices]
+}
+      default {
+         set help_text { "Enter the name of the tablespace used for tables,"
+                         "or press >RETURN< to use the default value." }
+         set allow_null 0
+         if { [string compare $db_type ""] == 0 } { set allow_null 1 }
+         return [config_generic $only_check $name config $help_text "string" $allow_null]
+      }
+   }
 }
 
 proc config_tablespace_index { only_check name config_array } {
+   global ts_db_config
 
    upvar $config_array config
    
-   set help_text {  "Enter the name of TABLESPACE for indexes"  }
+   set db_type ""
+   if {[info exists ts_db_config($config(database),dbtype)] } { set db_type $ts_db_config($config(database),dbtype) }
      
-   return [ config_generic $only_check $name config $help_text "string" ]
-   
+   switch -- $db_type {
+      "mysql" {
+         array set choices {}
+         return [config_generic $only_check $name config "" "choice" 1 1 choices]
+}
+      default {
+         set help_text { "Enter the name of the tablespace used for indexes,"
+                         "or press >RETURN< to use the default value." }
+         set allow_null 0
+         if { [string compare $db_type ""] == 0 } { set allow_null 1 }
+         return [config_generic $only_check $name config $help_text "string" $allow_null]
+      }
+   }   
 }
 
 proc config_database { only_check name config_array } {
@@ -808,17 +849,17 @@ proc config_database { only_check name config_array } {
 
    upvar $config_array config
 
-   set help_text {  "Please choose the database"  }
-
    set old_value $config(database)
 
-   set value [ config_generic $only_check $name config $help_text "choice" ts_db_config(databaselist) ]
+   set value [config_generic $only_check $name config "" "database" 0 1]
+
+   if { $value == -1 } { return -1 }
 
    # set the default values for tablespaces
    if { [info exists ts_db_config($value,dbtype)] } {
       default_config_values $ts_db_config($value,dbtype) config
 
-      if { [string compare $old_value ""] != 0 && [string compare $old_value $value] !=0 } {
+      if { [string compare $old_value $value] != 0 } {
          ts_log_fine "setting tablespace to:"
          ts_log_fine "\"$config(tablespace,default)\""
          set config(tablespace) $config(tablespace,default)

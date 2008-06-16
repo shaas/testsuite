@@ -963,7 +963,7 @@ proc read_file {filename array_name {wait_timeout 0}} {
 
    if {[file isfile $filename] != 1} {
       set data(0) 0
-      ts_log_fine "read_file - returning empty file data structure, no such file"
+      ts_log_finest "read_file - returning empty file data structure, no such file"
       return
    }
    set file [open $filename "r"]
@@ -1282,10 +1282,6 @@ proc read_array_from_file_data { file_data obj_name array_name { enable_washing_
   }
   return 0
 }
-
-
-
-
 
 #****** file_procedures/get_all_subdirectories() *******************************
 #  NAME
@@ -3849,7 +3845,7 @@ proc get_fstype {path {host ""}} {
    # use the SGE utilbin fstype
    set output [start_sge_utilbin "fstype" $path $host]
    if {$prg_exit_state != 0} {
-      ts_log_severe $path failed:\n$output"
+      ts_log_severe "$path failed:\n$output"
    } else {
       set ret [string trim $output]
    }
@@ -3908,21 +3904,25 @@ proc set_jobseqnum {jobseqnum} {
 #     project_name: $config_path/sge.$project_name.conf
 #
 #  INPUTS
-#     project_name - the name of the project, i.e. arco, hedeby
+#     project_name  - the name of the project, i.e. arco, hedeby
+#     {filename ""} - the name of the testsuite configuration file
 #
 #  RESULT
 #     string containing the path to the file
 #
 #*******************************************************************************
-proc get_additional_config_file_path {project_name} {
+proc get_additional_config_file_path {project_name {filename ""}} {
     global CHECK_DEFAULTS_FILE
     set ret ""
 
-    if { [ file isfile $CHECK_DEFAULTS_FILE] != 1 } {
+    if { [string compare $filename ""] == 0 } {
+       set filename $CHECK_DEFAULTS_FILE
+    }
+    if { [ file isfile $filename] != 1 } {
        # this should not happen
        break
     } else {
-       set path_list [ split $CHECK_DEFAULTS_FILE "/" ]
+       set path_list [ split $filename "/" ]
        set last [ llength $path_list ]
        incr last -1
        # the name of the testsuite config file
@@ -3934,6 +3934,6 @@ proc get_additional_config_file_path {project_name} {
        set add_config_file_name [ join [ linsert $var $index "$project_name" ] "." ]  
        set ret [ join [ lreplace $path_list $last $last $add_config_file_name ] "/" ]
     }
-    ts_log_fine "Using configuration file for $project_name: $ret"
+    ts_log_finest "Using configuration file for $project_name: $ret"
     return $ret
 }
