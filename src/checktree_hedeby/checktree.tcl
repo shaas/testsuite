@@ -717,24 +717,27 @@ proc hedeby_save_configuration { filename } {
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_hedeby_product_root { only_check name config_array } {
-   global CHECK_OUTPUT fast_setup
+   global fast_setup
    upvar $config_array config
    
-   set help_text { "Please enter the path where the testsuite should install Hedeby,"
+   set help_text { "Enter the path where the testsuite should install Hedeby,"
                    "or press >RETURN< to use the default value." 
                    "WARNING: The compile option will remove the content of this directory" 
                    "or store it to \"testsuite_trash\" directory with testsuite_trash commandline option!!!" }
  
-   set value [config_generic $only_check $name config $help_text "directory" ]
+   set value [config_generic $only_check $name config $help_text "directory" 0]
+
+   if {$value == -1 } { return -1 }
+
    if {!$fast_setup} {
       # to be able to find processes with ps command, don't allow to long
       # directory path:
       set add_path "/bin/sol-sparc64/abcdef"
       set path_length [ string length $add_path ]
       if { [string length "$value/$add_path"] > 60 } {
-           puts $CHECK_OUTPUT "path for hedeby dist directory is too long (must be <= [expr ( 60 - $path_length )] chars)"
-           puts $CHECK_OUTPUT "The testsuite tries to find processes via ps output most ps output is truncated"
-           puts $CHECK_OUTPUT "for longer lines."
+           puts "path for hedeby dist directory is too long (must be <= [expr ( 60 - $path_length )] chars)"
+           puts "The testsuite tries to find processes via ps output most ps output is truncated"
+           puts "for longer lines."
            return -1
       }
    }
@@ -771,13 +774,12 @@ proc config_hedeby_product_root { only_check name config_array } {
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_hedeby_source_dir { only_check name config_array } {
-   global CHECK_OUTPUT
+
    upvar $config_array config
-   
-   set help_text { "Please enter the path to Hedeby source directory, or press >RETURN<"
-                   "to use the default value." }
- 
-   return [config_generic $only_check $name config $help_text "directory" ]
+
+   set help_text { "Enter the full path to Hedeby source directory." }
+
+   return [config_generic $only_check $name config $help_text "directory" 0]   
 }
 
 #****** checktree_hedeby/config_hedeby_master_host() **********************************
@@ -810,29 +812,23 @@ proc config_hedeby_source_dir { only_check name config_array } {
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_hedeby_master_host { only_check name config_array } {
-   global CHECK_OUTPUT ts_host_config fast_setup
-   global ts_config
+   global ts_host_config
+
    upvar $config_array config
 
-   set help_text { "Please select the host where the testsuite should install"
+   set help_text { "Select the host where the testsuite should install"
                    "the hedeby master host components. The testsuite will"
                    "install the config center, config service, CA component"
                    "and the resource provider on this host."
                    "NOTE: The testsuite is checking that the hedeby master"
                    "      components are not installed on a grid engine"
                    "      qmaster host to enhance test quality!" }
-   set value [config_generic $only_check $name config $help_text "host"]
-   if {!$fast_setup} {
-      # now check that the selected host is not a qmaster in any cluster setup
-      set master_list [get_all_qmaster_hosts]
-      foreach master $master_list {
-         if { $value == $master } {
-            puts $CHECK_OUTPUT "host \"$value\" is a master host"
-            return -1
-         }
-      }
-   }
-   return $value
+
+   array set params {}
+   set params(exclude_list) [get_all_qmaster_hosts]
+   set params(verify) "compile"
+
+   return [config_generic $only_check $name config $help_text "host" 0 1 "" params ]
 }
 
 #****** checktree_hedeby/config_hedeby_cs_port() *********************************
@@ -865,55 +861,20 @@ proc config_hedeby_master_host { only_check name config_array } {
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_hedeby_cs_port { only_check name config_array } {
-   global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
-   global ts_config
-   upvar $config_array config
-  
-   set help_text { "Please enter the port number value the testsuite should use"
-                   "for the Configuraiton Service."
-                   "or press >RETURN< to use the default value." }
-   set value [config_generic $only_check $name config $help_text "port"]
-   if {!$fast_setup} {
-      # now check that the port is not equal to hedeby_user_jvm_port
-      if { $value != 0 } {
-         if { $value == $config(hedeby_user_jvm_port) } {
-            puts $CHECK_OUTPUT "root JVM port must be different to $CHECK_USER JVM port!"
-            return -1
-         }
-      }
-      # now check that the testsuite isn't already using the port
-      set qmaster_port $ts_config(commd_port)
-      set execd_port $qmaster_port
-      incr execd_port 1
-      if { $value == $ts_config(reserved_port) ||
-           $value == $qmaster_port ||
-           $value == $execd_port } {
-         puts $CHECK_OUTPUT "The port \"$value\" is already used in testsuite config!"
-         puts $CHECK_OUTPUT "Please select another port!"
-         return -1
-      }
-      # now check that the selected port is not used for the GE clusters
-      if {$ts_config(additional_config) != "none"} {
-         foreach filename $ts_config(additional_config) {
-            get_additional_config $filename add_config
-            set qmaster_port $add_config(commd_port)
-            set execd_port $qmaster_port
-            incr execd_port 1
-            if { $value != $add_config(reserved_port) &&
-                 $value != $qmaster_port &&
-                 $value != $execd_port } {
-               continue
-            } else {
-               puts $CHECK_OUTPUT "The port \"$value\" is already used for addtional testsuite"
-               puts $CHECK_OUTPUT "config file \"$filename\"! Please select another port!"
-               return -1
-            }
-         }
-      }
-   }
-   return $value
-}
 
+   upvar $config_array config
+
+   set help_text { "Enter the port number value the testsuite should use"
+                   "for the Configuraiton Service." }
+
+   array set params {}
+
+   set exclude [get_all_reserved_ports]
+   lappend exclude $config(hedeby_user_jvm_port)
+   set params(exclude_list) $exclude
+
+   return [config_generic $only_check $name config $help_text "port" 0 1 "" params]
+}
 
 #****** checktree_hedeby/config_hedeby_user_jvm_port() *********************************
 #  NAME
@@ -945,55 +906,20 @@ proc config_hedeby_cs_port { only_check name config_array } {
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_hedeby_user_jvm_port { only_check name config_array } {
-   global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
-   global ts_config
+
    upvar $config_array config
 
-   set help_text { "Please enter the port number value the testsuite should use"
+   set help_text { "Enter the port number value the testsuite should use"
                    "for components which are started in the $CHECK_USER JVM."
                    "or press >RETURN< to use the default value." }
-   set value [config_generic $only_check $name config $help_text "port"]
-   if {!$fast_setup} {
-      # now check that the port is not equal to hedeby_user_jvm_port
-      if { $value != 0 } {
-         if { $value == $config(hedeby_cs_port) } {
-            puts $CHECK_OUTPUT "root JVM port must be different to $CHECK_USER JVM port!"
-            return -1
-         }
-      }
 
-      # now check that the testsuite isn't already using the port
-      set qmaster_port $ts_config(commd_port)
-      set execd_port $qmaster_port
-      incr execd_port 1
-      if { $value == $ts_config(reserved_port) ||
-           $value == $qmaster_port ||
-           $value == $execd_port } {
-         puts $CHECK_OUTPUT "The port \"$value\" is already used in testsuite config!"
-         puts $CHECK_OUTPUT "Please select another port!"
-         return -1
-      }
+   array set params {}
+   set exclude [get_all_reserved_ports]
+   lappend exclude $config(hedeby_cs_port)
+   set params(exclude_list) $exclude
 
-      # now check that the selected port is not used for the GE clusters
-      if {$ts_config(additional_config) != "none"} {
-         foreach filename $ts_config(additional_config) {
-            get_additional_config $filename add_config
-            set qmaster_port $add_config(commd_port)
-            set execd_port $qmaster_port
-            incr execd_port 1
-            if { $value != $add_config(reserved_port) &&
-                 $value != $qmaster_port &&
-                 $value != $execd_port } {
-               continue
-            } else {
-               puts $CHECK_OUTPUT "The port \"$value\" is already used for addtional testsuite"
-               puts $CHECK_OUTPUT "config file \"$filename\"! Please select another port!"
-               return -1
-            }
-         }
-      }
-   }
-   return $value
+   return [config_generic $only_check $name config $help_text "port" 1 1 "" params]
+
 }
 
 #****** checktree_hedeby/config_hedeby_host_resources() *********************************
@@ -1026,36 +952,23 @@ proc config_hedeby_user_jvm_port { only_check name config_array } {
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_hedeby_host_resources { only_check name config_array } {
-   global CHECK_OUTPUT ts_host_config fast_setup
-   global ts_config
+   global ts_host_config
+
    upvar $config_array config
 
-   set help_text { "Please select the host which should be used as free"
-                   "assignable host resources. On host resources the testsuite"
-                   "will install the remote CA and and Executor component."
+   set help_text { "Select the host which should be used as free assignable"
+                   "host resources. On host resources the testsuite will install"
+                   "the remote CA and and Executor component."
                    "NOTE: The testsuite is checking that no free assignable"
                    "      resource is specified as execd host in any gridengine"
                    "      cluster. These resources are statically assigned to their"
                    "      service." }
-   set value [config_generic $only_check $name config $help_text "host" 0 "2+" ]
-   if {!$fast_setup} {
-      # now check that the selected host is not a resource in any cluster setup
-      set execd_list [get_all_execd_nodes]
-      foreach execd $execd_list {
-         foreach hostResource $value {
-            if { $hostResource == $execd } {
-               puts $CHECK_OUTPUT "host \"$hostResource\" is a execd host"
-               return -1
-            }
-         }
-      }
-      # we need at least 2 host resources
-      if { [llength $value] < 2 } {
-         puts $CHECK_OUTPUT "need at least 2 free assignable host resources"
-         return -1
-      }
-   }
-   return $value
+
+   array set params {}
+   set params(exclude_list) [get_all_execd_nodes]
+   set params(verify) "compile"
+
+   return [config_generic $only_check $name config $help_text "host" 0 "2+" "" params]
 }
 
 #****** checktree_hedeby/config_security_disable() ************************************
@@ -1089,28 +1002,19 @@ proc config_hedeby_host_resources { only_check name config_array } {
 #     checktree_hedeby/config_security_disable()
 #*******************************************************************************
 proc config_security_disable { only_check name config_array } {
-global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
-   global ts_config
+   global fast_setup
+
    upvar $config_array config
 
-#   set help_text { "Please enter if hedeby should be installed with or without"
-#                   "security. If hedeby should be installed WITHOUT security"
-#                   "set this value to \"true\""
-#                   "press >RETURN< to use the default value." }
-#   set value [config_generic $only_check $name config $help_text "boolean"]
-#
    array set security_disable {
       "true"  "Install hedeby without security"
       "false" "Install hedeby in secure mode (default)"
    }
    set value [config_generic $only_check $name config "" "choice" 0 1 security_disable]
 
-
    if {!$fast_setup} {
       if { $value == "true" } {
-         puts $CHECK_OUTPUT "\n******************************************************************"
-         puts $CHECK_OUTPUT "* WARNING! Testsuite will install hedeby NOT in security mode!!! *"  
-         puts $CHECK_OUTPUT "******************************************************************"
+         ts_log_warning "Testsuite will install hedeby NOT in security mode!!!"  
       }
    }
    return $value
@@ -1146,30 +1050,24 @@ global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_preferences_mode { only_check name config_array } {
-global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
-   global ts_config
+   global fast_setup
+
    upvar $config_array config
 
-   set help_text { "Please enter whether hedeby system should use the \"system\" or \"user\" preferences"
-                   "to store bootstrap information. The \"system\" preferences mode needs root access."
-                   "press >RETURN< to use the default value." }
-   set value [config_generic $only_check $name config $help_text "string"]
-   if {!$fast_setup} {
-      # now check that the string is "user" or "system"
-      if { $value != "user" && $value != "system" } {
-         puts $CHECK_OUTPUT "only \"user\" or \"system\" allowed!"
-         return -1
-      }
-      if { $value == "user" } {
-         puts $CHECK_OUTPUT "\n******************************************************************"
-         puts $CHECK_OUTPUT "* WARNING! Testsuite will use \"user\" preferences for storing   *"
-         puts $CHECK_OUTPUT "* bootstrap information. The default mode is \"system\"!         *"  
-         puts $CHECK_OUTPUT "******************************************************************"
-      }
+   set help_text { "Choose the preferences which should hedeby use to store"
+                   "bootstrap information." }
+   array set modes {
+      "system" "system preferences (root access required)"
+      "user" "user preferences"
    }
+   set value [config_generic $only_check $name config $help_text "choice" 0 1 modes]
+
+   if { !$fast_setup && [string compare $value "user"] == 0 } {
+      ts_log_warning "Testsuite will use \"user\" preferences for storing"
+   }
+
    return $value
 }
-
 
 #****** checktree_hedeby/config_hedeby_source_cvs_release() *********************************
 #  NAME
@@ -1201,52 +1099,41 @@ global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
 #     checktree_hedeby/config_hedeby_source_cvs_release()
 #*******************************************************************************
 proc config_hedeby_source_cvs_release { only_check name config_array } {
-   global CHECK_OUTPUT fast_setup CHECK_USER ts_config
+   global fast_setup CHECK_USER ts_config
 
    upvar $config_array config
 
-   # we need source dir to check the value
-   if {![file isdirectory $config(hedeby_source_dir)]} {
-      puts $CHECK_OUTPUT "source directory $config(hedeby_source_dir) doesn't exist"
-      return -1
-   }
+   array set tags {}
 
-   # if the default value is set to "" (setup of config) find out default 
-   # by reading the testsuite CVS/Tag file ...
-   if { $config($name,default) == "" } {
-      set result [start_remote_prog $ts_config(source_cvs_hostname) $CHECK_USER "cat" "$config(hedeby_source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
-      set result [string trim $result]
+   if {[file isdirectory $config(hedeby_source_dir)]} {
+      set cvs_tag [start_remote_prog $ts_config(source_cvs_hostname) $CHECK_USER "cat" "$config(hedeby_source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
+      set cvs_tag [string trim $cvs_tag]
+      set tag "maintrunk"
       if {$prg_exit_state == 0} {
-         if {[string first "T" $result] == 0 || [string first "N" $result] == 0  } {
-            set config($name,default) [string range $result 1 end]
+         if {[string first "T" $cvs_tag] == 0} {
+            set tag [string range $cvs_tag 1 end]
          }
-      } else {
-         # there might be no tag file, setting default to "maintrunk"
-         set config($name,default) "maintrunk" 
       }
+      set config($name,default) $tag
+      set tags($tag) ""
    }
 
-   set help_text { "Please enter cvs release tag of Hedeby source." 
-                   "\"maintrunk\" specifies no tag or press "
-                   ">RETURN< to use the default value." }
+   set help_text { "Enter cvs release tag of Hedeby source, or press >RETURN<"
+                   "to use the default value."
+                   "\"maintrunk\" specifies no tag or press " }
  
-   set value [config_generic $only_check $name config $help_text "string" ]
-   if {!$fast_setup} {
-      set result [start_remote_prog $ts_config(source_cvs_hostname) $CHECK_USER "cat" "$config(hedeby_source_dir)/CVS/Tag" prg_exit_state 60 0 "" "" 1 0]
-      set result [string trim $result]
-      if {$prg_exit_state == 0} {
-         if {[string compare $result "T$value"] != 0 && [string compare $result "N$value"] != 0} {
-            puts $CHECK_OUTPUT "CVS/Tag entry doesn't match cvs release tag \"$value\" in directory $config(hedeby_source_dir)/CVS/Tag"
-            return -1
-         }
-      }
-      if { $only_check == 0 } {
-         puts $CHECK_OUTPUT "INFO: Testsuite internal hedeby version id: \"[hedeby_get_version $value]\""
-      }
+   set value [config_generic $only_check $name config $help_text "choice" 0 1 tags ]
+
+   if { $only_check == 0 } {
+      puts "INFO: Testsuite internal hedeby version id: \"[hedeby_get_version $value]\""
    }
+
+   if {![file isdirectory $config(hedeby_source_dir)]} {
+      puts "source directory $config(hedeby_source_dir) doesn't exist!!!"
+   }
+
    return $value
 }
-
 
 #****** checktree_hedeby/config_hedeby_java_version() *********************************
 #  NAME
@@ -1271,23 +1158,15 @@ proc config_hedeby_source_cvs_release { only_check name config_array } {
 #     config/config_generic()
 #*******************************************************************************
 proc config_hedeby_java_version { only_check name config_array } {
-global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
-   global ts_config
+
    upvar $config_array config
 
-   set help_text { "Please enter which java version should be used for hedeby"
-                   "Valid values are \"1.5\" or \"1.6\" (default is \"1.5\")"
-                   "press >RETURN< to use the default value." }
-   set value [config_generic $only_check $name config $help_text "string"]
-   if {!$fast_setup} {
-      if { $value != "1.5" && $value != "1.6" } {
-         puts $CHECK_OUTPUT "only \"1.5\" or \"1.6\" is allowed!"
-         return -1
-      }
+   array set versions {
+      "1.5" "Java SE 5"
+      "1.6" "Java SE 6"
    }
-   return $value
+   return [config_generic $only_check $name config "" "choice" 0 1 versions]
 }
-
 
 #****** checktree_hedeby/hedeby_get_version() *****************************************
 #  NAME
