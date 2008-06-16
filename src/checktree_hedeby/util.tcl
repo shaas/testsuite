@@ -7199,7 +7199,6 @@ proc get_all_log_files { user tar_file_path} {
    start_remote_prog $local_host root "chown" "-R $CHECK_USER $directory"
 
    ts_log_fine [start_remote_prog $local_host $CHECK_USER "cd" "$directory ; $tar_bin -cvf - ./* | $gzip_bin -c > $tar_file_path/log.tar.gz"]
-   wait_for_enter
    delete_directory $directory
    return "$tar_file_path/log.tar.gz"
 }
