@@ -1037,7 +1037,7 @@ proc config_hedeby_host_resources { only_check name config_array } {
                    "      resource is specified as execd host in any gridengine"
                    "      cluster. These resources are statically assigned to their"
                    "      service." }
-   set value [config_generic $only_check $name config $help_text "hosts"]
+   set value [config_generic $only_check $name config $help_text "host" 0 "2+" ]
    if {!$fast_setup} {
       # now check that the selected host is not a resource in any cluster setup
       set execd_list [get_all_execd_nodes]
@@ -1093,11 +1093,19 @@ global CHECK_OUTPUT ts_host_config fast_setup CHECK_USER
    global ts_config
    upvar $config_array config
 
-   set help_text { "Please enter if hedeby should be installed with or without"
-                   "security. If hedeby should be installed WITHOUT security"
-                   "set this value to \"true\""
-                   "press >RETURN< to use the default value." }
-   set value [config_generic $only_check $name config $help_text "boolean"]
+#   set help_text { "Please enter if hedeby should be installed with or without"
+#                   "security. If hedeby should be installed WITHOUT security"
+#                   "set this value to \"true\""
+#                   "press >RETURN< to use the default value." }
+#   set value [config_generic $only_check $name config $help_text "boolean"]
+#
+   array set security_disable {
+      "true"  "Install hedeby without security"
+      "false" "Install hedeby in secure mode (default)"
+   }
+   set value [config_generic $only_check $name config "" "choice" 0 1 security_disable]
+
+
    if {!$fast_setup} {
       if { $value == "true" } {
          puts $CHECK_OUTPUT "\n******************************************************************"
