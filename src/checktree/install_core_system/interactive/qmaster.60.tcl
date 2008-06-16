@@ -534,12 +534,12 @@ proc install_qmaster {} {
        }
 
        -i $sp_id $CELL_NAME_OVERWRITE { 
-          puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(5.2)"
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(5.2)"
           if {$do_log_output == 1} {
              puts "press RETURN"
              set anykey [wait_for_enter 1]
           }
-          ts_send $sp_id "$ANSWER_YES\n"
+          ts_send $sp_id "$ANSWER_NO\n"
           continue
        }
 

@@ -7638,11 +7638,6 @@ proc copy_certificates { host } {
          foreach user $users {
             start_remote_prog $host "root" "chown" "-R $user /var/sgeCA/port${ts_config(commd_port)}/default/userkeys/$user"
          }
-         # create certs for <$HOST>+Administrator and <$HOST>+$SGE_ADMIN_USER
-         if {$ts_config(gridengine_version) >= 61} {
-            set result [start_remote_prog $host "root" "$ts_config(product_root)/util/certtool.sh" "$ts_config(product_root) $ts_config(cell)"]
-            ts_log_finest $result
-         }
       }
 
       # check for syncron clock times
@@ -7650,7 +7645,7 @@ proc copy_certificates { host } {
       incr my_timeout 600
       ts_log_fine "waiting for qstat -f to work ..."
       while {1} {
-         set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f" prg_exit_state 60 0 "" "" 1 0 1]
+         set result [start_remote_prog $host $CHECK_USER "$ts_config(product_root)/bin/$remote_arch/qstat" "-f"]
          ts_log_finest $result
          if {$prg_exit_state == 0} {
             ts_log_finer "qstat -f works, fine!"
