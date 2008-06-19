@@ -4090,7 +4090,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
       wait_for_load_from_all_queues 60
       
       set do_run_hook 1
-      if {[exec_start_runlevel_hooks] != 0} {
+      if {[exec_start_runlevel_hooks 1 0] != 0} {
          set do_start 0
       }
    }
@@ -4154,31 +4154,20 @@ proc run_test_level {path runcompleted level {do_save 1}} {
          execute_setup_cleanup_function $check_cleanup_level_function "cleanup_level"
       }
    
-      if {$do_run_hook == 1 && [exec_start_runlevel_hooks] != 0} {
-         ts_log_severe "check \"$check_name\" did not cleanup the system correctly! Start test run hook returned an error!"
+      if {$do_run_hook == 1} { 
+         set was_error 0
+         set was_unsupported 0
+         private_check_error_run_test_level was_error was_unsupported
+         if {[exec_start_runlevel_hooks 0 $was_error] != 0} {
+            ts_log_severe "check \"$check_name\" did not cleanup the system correctly! Start test run hook returned an error!"
+         }
       }
    }
 
    # examine public procedure error states
    set was_error 0
    set was_unsupported 0
-   if {[info exists check_errno]} {
-      foreach function [array names check_errno] {
-         if {[info exists check_errno($function)]} {
-            foreach error $check_errno($function) {
-               if {$error != 0} {
-                  if {$error == -1} {
-                     incr was_error
-                  } elseif {$error == -2} {
-                     incr was_error
-                  } elseif {$error == -3} {
-                     incr was_unsupported
-                  }
-               }
-            }
-         }
-      }
-   }
+   private_check_error_run_test_level was_error was_unsupported
 
    set end_time [clock seconds]
    set duration [expr $end_time - $start_time]
@@ -4211,6 +4200,31 @@ proc run_test_level {path runcompleted level {do_save 1}} {
 }
 
 
+proc private_check_error_run_test_level { errorvar unsupvar } {
+   global check_errno 
+   upvar $errorvar was_error
+   upvar $unsupvar was_unsupported
+   set was_error 0
+   set was_unsupported 0
+   if {[info exists check_errno]} {
+      foreach function [array names check_errno] {
+         if {[info exists check_errno($function)]} {
+            foreach error $check_errno($function) {
+               if {$error != 0} {
+                  if {$error == -1} {
+                     incr was_error
+                  } elseif {$error == -2} {
+                     incr was_error
+                  } elseif {$error == -3} {
+                     incr was_unsupported
+                  }
+               }
+            }
+         }
+      }
+   }
+   return $was_error
+}   
 #                                                             max. column:     |
 #****** check/check_root_access() ******
 # 

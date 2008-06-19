@@ -7130,17 +7130,13 @@ proc get_log_files { host user } {
    set file_list {}
    foreach f [split $output "\n\r"] {
       if {$f != ""} {
-         if {[is_remote_file $host $user $f]} {
-            lappend file_list $f
-         }
+         lappend file_list $f
       }
    }
    set output [start_remote_prog $host $user "find" "$spool_dir_path -type f -name \"*.std*\""]
    foreach f [split $output "\n\r"] {
       if {$f != ""} {
-#         if {[is_remote_file $host $user $f]} {
-            lappend file_list $f
-#         }
+         lappend file_list $f
       }
    }
 
@@ -7149,58 +7145,246 @@ proc get_log_files { host user } {
 
 #****** util/get_all_log_files() ***********************************************
 #  NAME
-#     get_all_log_files() -- ??? 
+#     get_all_log_files() -- create test specific merged logfile
 #
 #  SYNOPSIS
 #     get_all_log_files { user tar_file_path } 
 #
 #  FUNCTION
-#     Creates a log.tar.gz file and returns the path to the file. The file
-#     contains the log files of every hedeby installation of the TS system.
+#     Creates a hedeby_merged.$test_name.log.gz file and returns the path to the
+#     file. The file contains merged log entries from the local log files of 
+#     every hedeby installation of the TS system.
 #
 #  INPUTS
 #     user          - user who start commands
-#     tar_file_path - path to a directory where the log.tar.gz file should be
+#     tar_file_path - path to a directory where the gzip'ed logfile should be
 #                     created
+#     {test_name}      - optional: name of the test which created the logs.
+#                        If set to "" the test_name is the actual test and
+#                        its runlevel number.
+#     {log_start_time} - optional: specify the time (unix timestamp) of messages
+#                        in log file which should be merged into files.
+#                        Messages older than log_start_time are not merged.
+#                        Default value is 0.
+#     {log_end_time}   - optional: specify the time (unix timestamp) of messages
+#                        in log file which should be merged into files.
+#                        Messages newer than the log_end_time are not merged.
+#                        Default value is 9999999999.
+#                                               
 #
 #  RESULT
-#     Full path to log.tar.gz file
+#     Full path to hedeby_merged.${test_name}.log.gz file
 #
 #  SEE ALSO
 #     util/get_all_log_files()
 #     util/get_log_files()
 #*******************************************************************************
-proc get_all_log_files { user tar_file_path} {
-   global hedeby_config CHECK_USER
-   set host_list [get_all_movable_resources]
+proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {log_end_time 9999999999}} {
+   global hedeby_config CHECK_USER check_name CHECK_ACT_LEVEL
+   if { $test_name == "" } {
+      set test_name "$check_name.$CHECK_ACT_LEVEL"
+   }
+
+   file mkdir $tar_file_path
+
+   if {[file isfile $tar_file_path/hedeby_merged.${test_name}.log.gz]} {
+      ts_log_fine "deleting existing log file: $tar_file_path/hedeby_merged.${test_name}.log.gz"
+      delete_file $tar_file_path/hedeby_merged.${test_name}.log.gz 
+   }
+   if {[file isfile $tar_file_path/hedeby_merged.${test_name}.log]} {
+      ts_log_fine "deleting existing log file: $tar_file_path/hedeby_merged.${test_name}.log"
+      delete_file $tar_file_path/hedeby_merged.${test_name}.log 
+   }
+
+
+   set host_list [get_all_default_hedeby_resources]
    lappend host_list $hedeby_config(hedeby_master_host)
+
    set local_host [gethostname]
    ts_log_fine "local host is $local_host"
-   set directory [get_tmp_directory_name]
-   file mkdir $directory
-   ts_log_fine "copy all log files to directory:\n$directory"
+
+   # First get all files path names for each host make a
+   # temporary local copy ...
    foreach host $host_list {
+      set file_list($host,files) {}
+      ts_log_fine "getting file list for host $host ..."
       set files [get_log_files $host "root"]
-      ts_log_fine "creating subdir for host $host ..."
-      set act_dir $directory/$host
-      start_remote_prog $local_host $CHECK_USER "mkdir" $act_dir
       foreach f $files {
-         start_remote_prog $host "root" "cp" "$f $act_dir"
+         lappend file_list($host,files) $f
       }
    }
-   set tar_bin [get_binary_path $local_host "tar"]
-   set gzip_bin [get_binary_path $local_host "gzip"]
 
-   if {[file isfile $tar_file_path/log.tar.gz]} {
-      ts_log_fine "deleting existing log file: $tar_file_path/log.tar.gz"
-      delete_file $tar_file_path/log.tar.gz 
+   # calculate the max host and max file name length to get the
+   # max column with in the merged log file ...
+   set max_host_length 0
+   set max_file_length 0
+   foreach host $host_list {
+      if { $max_host_length < [string length $host] } {
+         set max_host_length [string length $host]
+      }
+      foreach f $file_list($host,files) {
+         if { $max_file_length < [string length [file tail $f]] } {
+            set max_file_length [string length [file tail $f]]
+         }
+      }
    }
 
-   start_remote_prog $local_host root "chown" "-R $CHECK_USER $directory"
+   # Parse each log file ...
+   # Supported is 
+   #    a) standard hedeby logging 
+   #    b) reporter file format
+   foreach host $host_list {
+      foreach f $file_list($host,files) {
+         ts_log_fine "host $host: $f"
+         set sid [open_remote_spawn_process $host "root" "cat" $f]
+         set sp_id [lindex $sid 1]
+         set current_time 0
+         set timeout 15
+         set start_found 0
+         set do_stop 0
+         expect {
+            -i $sp_id timeout {
+               ts_log_info "got timeout"
+            }
+            -i $sp_id full_buffer {
+               ts_log_info "got full buffer"
+            }
+            -i $sp_id eof { 
+               ts_log_info "got eof"
+            }
+            -i $sp_id -- "*\n" {
+               foreach pos_line [split $expect_out(0,string) "\r\n"] {
+                  set line [string trimright $pos_line]
+                  if { $line == "" } {
+                     continue
+                  }
+                  if { [string first "_exit_status_" $line] >= 0 } {
+                     set do_stop 1
+                     ts_log_finer "ignore(1): $line"
+                     break
+                  } 
+                  
+                  if { $start_found == 0 } {
+                     if { [string first "_start_mark_" $line] >= 0 } {
+                        set start_found 1
+                     }
+                     ts_log_finer "ignore(2): $line"
+                     continue
+                  }
+                  #ts_log_fine "$host [file tail $f]: $line"
+                  # First we have to find out the unix time stamp of the log message line
+                  # If the first column is a timestamp we set current_time to new value
+                  # If there is no timestamp found the last current_time is used
 
-   ts_log_fine [start_remote_prog $local_host $CHECK_USER "cd" "$directory ; $tar_bin -cvf - ./* | $gzip_bin -c > $tar_file_path/log.tar.gz"]
-   delete_directory $directory
-   return "$tar_file_path/log.tar.gz"
+                  # check if it is a line from standard log format ...
+                  set date_time [lindex [split $line "|"] 0]
+                  set type [lindex [split $line "|"] 2]
+                  if { [string length $type] == 1 } {
+                     # if type is exactly one char (W|E|I|D) it is standard hedeby log file ...
+                     set catch_ret [catch {clock scan $date_time} output]
+                     if {$catch_ret == 0} {
+                        set current_time $output
+                     } else {
+                        ts_log_fine "  no date"
+                        # this line belongs to last line
+                     }
+                  } else {
+                     # it might be a reporter log file format ...  
+                     set date_time [lindex [split $line ":"] 0]
+                     if {[string is digit $date_time]} {
+                        # first column is digit ...
+                        if {$date_time > 0} {
+                           # if time is > 0 it is millis format, recalculate seconds
+                           set seconds [expr ( $date_time / 1000 )]
+                           if {$seconds > 1213710000} {
+                              set current_time $seconds
+                           } else {
+                              ts_log_fine "  no date from report file"
+                           }
+                        }
+                     }
+                  }
+
+                  # store this line
+                  set have_time $current_time
+                  if {$current_time == 0} {
+                     # We did not find a time stamp till now. This might happen for stderr, stdin files
+                     # In this case we use the actual time stamp of testsuite and store it also into log array 
+                     ts_log_finer "no logging time information found (file: [file tail $f], host: $host): line= $line"
+                     ts_log_finer "using current time!"
+                     set current_time [timestamp]
+                     if { $current_time > $log_end_time } {
+                        set current_time $log_end_time
+                     }
+                     set line [format "%s|%s" "no time info in logfile - time is from TS!" $line]
+                  } 
+
+                  # Store the line with timestamp information into merged_log array
+                  # Additional messages (with same time) are logged with higher log "nr" (see max_nr)
+                  if {![info exists merged_log($current_time,max_nr)]} {
+                     set max_nr 0
+                  } else {
+                     set max_nr $merged_log($current_time,max_nr)
+                     incr max_nr 1
+                  }
+                  set merged_log($current_time,max_nr) $max_nr
+                  set merged_log($current_time,$max_nr) [format "%${max_host_length}s|%${max_file_length}s|%s" $host [file tail $f] $line]
+
+                  # If we had to fake the timestamp we reset current_time to 0 in order to create 
+                  # additional faked timestamp
+                  if { $have_time == 0} {
+                     set current_time 0
+                  }
+               }
+               if { $do_stop == 0 } {
+                  exp_continue
+               }
+            }
+         }
+         close_spawn_process $sid
+      }
+   }
+
+   # Now all messages are merged into the merged_log array ...
+   # Find out min and max time of entries ...
+   set names [array names merged_log]
+   set min_time 9999999999
+   set max_time 0
+   foreach name $names {
+      set time [lindex [split $name ","] 0]
+      if { $min_time > $time } {
+         set min_time $time
+      }
+      if { $max_time < $time } {
+         set max_time $time
+      }
+   }
+   ts_log_fine "min time: $min_time"
+   ts_log_fine "max time: $max_time"
+
+
+   # Now we can write a new merged log file ...
+   set fp [open "$tar_file_path/hedeby_merged.${test_name}.log" w]
+   for { set time $min_time } { $time <= $max_time } { incr time 1 } {
+      if { $time <= $log_end_time && $time >= $log_start_time } {
+         if { [info exists merged_log($time,max_nr)] } {
+            set max_entry $merged_log($time,max_nr)
+            for { set line 0 } { $line <= $max_entry } { incr line 1 } {
+               set time_string [clock format $time -format "%Y-%m-%d %H:%M:%S"]
+               puts $fp "$time_string|$merged_log($time,$line)"
+            }
+         }
+      }
+   }
+   close $fp
+
+   # here we do a gzip to the log file, delete a old one ...
+   set gzip_bin [get_binary_path $local_host "gzip"]
+
+   ts_log_fine [start_remote_prog $local_host $CHECK_USER "$gzip_bin" "$tar_file_path/hedeby_merged.${test_name}.log"]
+
+   # cleanup the temp directory
+   return "$tar_file_path/hedeby_merged.${test_name}.log.gz"
 }
 
 

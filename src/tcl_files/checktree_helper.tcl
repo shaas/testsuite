@@ -297,19 +297,20 @@ proc exec_shutdown_hooks {} {
 #     exec_start_runlevel_hooks() -- execute runlevel hooks
 #
 #  SYNOPSIS
-#     exec_start_runlevel_hooks { } 
+#     exec_start_runlevel_hooks { is_starting was_error } 
 #
 #  FUNCTION
 #     execute registered start runlevel hooks procedures
 #
 #  INPUTS
+#     is_starting - if 1 test is in setup phase, otherwise it is cleanup phase
+#     was_error   - if != 0 there was an error during running this test
 #
 #  RESULT
 #     0 on success
 #
-#  SEE ALSO
 #*******************************************************************************
-proc exec_start_runlevel_hooks {} {
+proc exec_start_runlevel_hooks { is_starting was_error } {
    global ts_checktree
    set error_count 0
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
@@ -321,7 +322,7 @@ proc exec_start_runlevel_hooks {} {
             ts_log_fine "Can not execute start_runlevel_hooks ${ii} of checktree $ts_checktree($i,dir_name), proc \"$start_test_hook\" not found"
             return -1
          } else {
-            set res [$start_test_hook]
+            set res [$start_test_hook $is_starting $was_error]
             if { $res != 0 } {
                ts_log_fine "start_runlevel_hooks hook ${ii} of checktree  $ts_checktree($i,dir_name) failed, proc \"$start_test_hook\" returned $res\n"
                incr error_count

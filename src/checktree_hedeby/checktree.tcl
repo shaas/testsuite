@@ -136,32 +136,66 @@ proc hedeby_startup { } {
 proc hedeby_shutdown { }  {
    return [shutdown_hedeby 1]
 }
-
 #****** checktree/hedeby_test_run_level_check() ********************************
 #  NAME
-#     hedeby_test_run_level_check() -- start_runlevel_hooks_0 for hedeby
+#     hedeby_test_run_level_check() -- start runlevel check hooks for hedeby
 #
 #  SYNOPSIS
-#     hedeby_test_run_level_check { } 
+#     hedeby_test_run_level_check { is_starting was_error } 
 #
 #  FUNCTION
 #     This procedure is the callback for the runlevel start hook of TS.
 #     It checks if all resources and services are available. It will not do
 #     any checking if the current test name is "hedeby_install" since this
 #     check needs a running hedeby system.
+#     
+#     This procedure will also create log files in the hedeby distinst dir when
+#     a test failes.
 #
 #  INPUTS
+#     is_starting - if != 0 the test is starting, otherwise test is already run
+#                   and it is cleanup check
+#     was_error - if not 0 the test generated an error (set by TS framework)
+#     
 #
 #  RESULT
 #     0 on success, 1 on error
-#
 #*******************************************************************************
-proc hedeby_test_run_level_check {} {
-   global check_name
+global hedeby_test_run_start_time
+global hedeby_test_run_end_time
+set hedeby_test_run_start_time 0
+set hedeby_test_run_end_time 0
+proc hedeby_test_run_level_check { is_starting was_error } {
+   global check_name hedeby_config
+   global hedeby_test_run_last_check_name
+   global hedeby_test_run_start_time
+   global hedeby_test_run_end_time
    if {$check_name == "hedeby_install"} {
       ts_log_fine "skip hedeby_install runlevel checking"
       return 0
    }
+
+   if {$is_starting != 0} {
+      # save test start time
+      set hedeby_test_run_start_time [timestamp]
+      # also report messages 1 minute before test start
+      incr hedeby_test_run_start_time -61   ;# This is a buffer for time difference between hosts TS allows 1 minute
+   } else {
+      # set test end time and check if error occured
+      set hedeby_test_run_end_time [timestamp]
+      # also report messages 1 minute after test start
+      incr hedeby_test_run_end_time 61  ;# This is a buffer for time difference between hosts TS allows 1 minute
+      if {$was_error != 0} {
+         ts_log_fine "--> test \"$check_name\" failed with error: $was_error"
+         set time_start_string [clock format $hedeby_test_run_start_time -format "%Y-%m-%d %H:%M:%S"]
+         set time_end_string [clock format $hedeby_test_run_end_time -format "%Y-%m-%d %H:%M:%S"]
+
+         ts_log_fine "--> creating merged hedeby log file for time range \"$time_start_string\" - \"$time_end_string\"" 
+         set path [get_all_log_files "root" "$hedeby_config(hedeby_product_root)/TS_LOG_FILES/" "" $hedeby_test_run_start_time $hedeby_test_run_end_time]
+         ts_log_info "tared logging files of test \"$check_name\" stored in archive:\n$path\n"
+      }
+   }
+
    ts_log_fine "performing run level check ..."
 
    # check correct startup of resources

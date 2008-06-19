@@ -1,3 +1,13 @@
+CR-2008-06-19-0: Enhancem.: Hedeby: added merged logfile feature
+                            - enhanced get_all_log_files() to create one
+                              merged log file
+                            - enhanced exec_start_runlevel_hooks by parameters
+                              about current test status
+                            - hedeby start runlevel hook now will create
+                              merged log file when test fails and stores it
+                              into hedeby dist subdirectory "TS_LOG_FILES"
+                 Review:    RH
+
 JG-2008-06-16-0: Enhancem.: Added test for IZ 2615 in check 
                             system_tests/qmaster/reporting.
                  Review:    HP
