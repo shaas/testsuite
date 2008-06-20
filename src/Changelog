@@ -1,3 +1,7 @@
+AP-2008-06-20-0: Bugfix:    Removed the possibility to choose the additional
+                            checktrees from the list.
+                 Review:    CR
+
 CR-2008-06-19-0: Enhancem.: Hedeby: added merged logfile feature
                             - enhanced get_all_log_files() to create one
                               merged log file

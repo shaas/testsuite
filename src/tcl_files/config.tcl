@@ -1899,20 +1899,26 @@ proc config_additional_checktree_dirs { only_check name config_array } {
    
    set help_text { "Choose the path to the additional checktree directory."
                    "The checktree directory contains all tests in its subdirectory"
-                   "structure." }
+                   "structure."
+                   "Enter \"none\" for no additional checktree." }
 
-   set arco "$config(testsuite_root_dir)/checktree_arco"
-   set hedeby "$config(testsuite_root_dir)/checktree_hedeby"
-   array set dirs { }
-   set dirs($arco) ""
-   set dirs($hedeby) ""
+   # aja: TODO: add the possibility to add new checktree directory to the list
+   #            for storing these path ~/.testsuite private file could be used
 
-   set value [config_generic $only_check "$name" config $help_text "choice" 1 0 dirs]
+#   set arco "$config(testsuite_root_dir)/checktree_arco"
+#   set hedeby "$config(testsuite_root_dir)/checktree_hedeby"
+#   array set dirs { }
+#   set dirs($arco) ""
+#   set dirs($hedeby) ""
+
+#   set value [config_generic $only_check "$name" config $help_text "choice" 1 0 dirs]
+   set value [config_generic $only_check "$name" config $help_text "directory" 1 0]
 
    if { $value == -1 } { return -1 }
 
    set dep_par db_config_file
-   if { [lsearch -exact $value $arco] >= 0 && "$config($dep_par)" == "none" } {
+   if { [string match "*checktree_arco" $value] == 1 && "$config($dep_par)" == "none" } {
+      puts ""
       set ret [ $config($dep_par,setup_func) $only_check $dep_par config ]
       if { $ret != -1 } {
          set config($dep_par) $ret
@@ -1921,8 +1927,9 @@ proc config_additional_checktree_dirs { only_check name config_array } {
       } else { return -1 }
          }
 
-   if { [lsearch -exact $value $hedeby] >= 0 } {
+   if { [string match "*checktree_hedeby" $value] == 1 } {
       if { "$config(additional_config)" == "none" } {
+         puts ""
          set ret [ $config(additional_config,setup_func) $only_check additional_config config ]
          if { $ret != -1 } {
             set config(additional_config) $ret
