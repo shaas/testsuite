@@ -1,3 +1,8 @@
+CR-2008-06-20-0: Cleanup:   Rework of expect timeout handling for
+                            hedeby_mod_* util procedures. Settings should now
+                            also work for slower systems. On errors the
+                            procedures will also return faster.
+
 AP-2008-06-20-0: Bugfix:    Removed the possibility to choose the additional
                             checktrees from the list.
                  Review:    CR

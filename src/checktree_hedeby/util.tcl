@@ -5560,17 +5560,25 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
    set tasks(RETURN_ISPID) ""
    set ispid [sdmadm_command $host $execute_user $sdmadm_arguments prg_exit_state tasks 1]
    set sp_id [ lindex $ispid 1 ]
-   set timeout 30
+   set timeout 45
    log_user 0  ;# we don't want to see vi output
    set clear_sequence [ format "%c%c%c%c%c%c%c" 0x1b 0x5b 0x48 0x1b 0x5b 0x32 0x4a 0x00 ]
    expect {
+      -i $sp_id timeout {
+         ts_log_fine "got timeout while waiting for vi start command"
+         append errors "got timeout while waiting for vi start command!\n"
+      }
       -i $sp_id  "_start_mark_*\n" {
       }
    }
    ts_log_fine "got start mark"
 
-   set timeout 10
+   set timeout 45
    expect {
+      -i $sp_id timeout {
+         ts_log_fine "got timeout while waiting for vi screen output!"
+         append errors "got timeout while waiting for vi screen output!\n"
+      }
       -i $sp_id -- "$clear_sequence" {
          send -i $sp_id -- "G"
          ts_log_fine "got screen clear sequence"
@@ -5585,7 +5593,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
 
    # now wait for 100% output
    set timeout 1
-   set break_timer 10
+   set break_timer 15
    expect {
       -i $sp_id  "100%" {
          send -i $sp_id -- "1G"
@@ -5694,6 +5702,13 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
 
    if { $errors != "" } {
       ts_log_fine "skip sending vi sequence, there were errors!"
+      ts_log_fine "send \":q!\" command to vi ..."
+      append errors "skip sending vi sequence, send ESC:q! sequence\n"
+      set sequence {}
+      lappend sequence "[format "%c" 27]" ;# ESC
+      lappend sequence ":q!\n"        ;# save and quit
+      hedeby_mod_sequence $ispid $sequence errors
+      set timeout 2
    } else { 
       after 1000 ;# TODO: be sure to wait one second so that file timestamp has changed
                   # This might be done by have start timestamp and endtimestamp and only
@@ -5702,14 +5717,20 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
       lappend sequence "[format "%c" 27]" ;# ESC
       lappend sequence ":wq\n"        ;# save and quit
       hedeby_mod_sequence $ispid $sequence errors
+      set timeout 45
    }
 
+   ts_log_fine "waiting for vi termination ..."
+  
    set sp_id [ lindex $ispid 1 ]
-   set timeout 15
    set do_stop 0
    set output ""
+   set close_keep_open 1
    expect {
       -i $sp_id timeout {
+         ts_log_fine "timeout waiting for vi termination"
+         append errors "timeout waiting for vi termination\n"
+         set close_keep_open 0
       }
       -i $sp_id -- "*\n" {
         foreach line [split $expect_out(0,string) "\n\r"] {
@@ -5740,7 +5761,7 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
       }
    }
    log_user 1
-   close_spawn_process $ispid
+   close_spawn_process $ispid 0 $close_keep_open
    if { $errors != "" } {
       append errors "output of command:\n"
       append errors $output
