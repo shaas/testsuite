@@ -34,6 +34,82 @@
 
 lappend check_functions "qrsh_wd"                    ;# test the -wd <dir>/-cwd options
 
+#                                                             max. column:     |
+#****** qrsh/replace_automount_prefix() ***************************************
+#
+#  NAME
+#     replace_automount_prefix -- Replaces the automount prefix of a path with
+#                                 the replacement defined in 
+#                                 $SGE_ROOT/$SGE_CELL/common/sge_aliases
+#
+#  SYNOPSIS
+#     replace_automount_prefix path
+#
+#  FUNCTION
+#     Checks if the passed path has one of the automount prefixes defined in
+#     the $SGE_ROOT/$SGE_CELL/common/sge_aliases file. If yes, it replaces
+#     the automount prefix with the replacement defined in the sge_aliases file.
+#
+#  INPUTS
+#     path  - The path whose automount prefix is to be replaced
+#
+#  RETURN VALUE
+#     The path with replaced automount prefix
+#
+#  EXAMPLE
+#     sge_aliases:
+#     /tmp_mnt/   *   *  /
+#
+#
+#     set path_in "/tmp_mnt/this/is/my/path"
+#     set path_out [replace_automount_prefix $path_in]
+#     ts_log_fine "path_out = $path_out"
+#
+#     path_out = /this/is/my/path
+#
+#  SEE ALSO
+#
+#***************************************************************************
+#
+proc replace_automount_prefix {path} {
+   global ts_config
+   set do_loop 1
+
+   # Open sge_aliases file
+   set error [catch {
+      set f [open $ts_config(product_root)/$ts_config(cell)/common/sge_aliases "r"]
+      } output]
+
+   if {$error != 0} {
+      ts_log_severe "error opening $ts_config(product_root)/$ts_config(cell)/"
+                    "common/sge_aliases file:\n$output"
+   } else {
+      while {[gets $f line] >= 0 && $do_loop == 1} {
+         # Search first non-blank character, if it is a '#' then skip line,
+         # else read it's contents and compare with the passed path.
+         set tmp_list [split $line] ;# Need to split explicitely, a ");" in the
+                                    ;# sge_aliases would stop the lindex otherwise
+         if {[string index [lindex $tmp_list 0] 0] != "#"} {
+            # Here it's no comment line
+            set prefix [lindex $line 0]
+            set replace [lindex $line 3]
+            if {[string compare -length [string length $prefix] $prefix $path] == 0} {
+               # The passed path has this automounter prefix - strip it!
+               set path [string range $path [string length $prefix] end] 
+               # Add the replacement for the automount prefix to beginning of path
+               set path "$replace$path"
+
+               # The automounter prefix is stripped from the path ->
+               # exit for loop and while loop
+               set do_loop 0
+            }
+         }
+      }
+      close $f
+   }
+   return $path
+}
+
 #****** qrsh/qrsh_wd() ******
 # 
 #  NAME
@@ -55,32 +131,40 @@ proc qrsh_wd {} {
       # Test1 -wd $wdir
       set output [start_sge_bin "qrsh" "-l h=$host -wd $wdir pwd"]
       set output [string trim $output]
+      set output [replace_automount_prefix $output]
       if {[string compare $output $wdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $wdir != $output"
+         ts_log_fine "started qrsh -l h=$host -wd $wdir pwd"
          ts_log_severe $error_text
       }
 
       # Test2 -cwd
       set output [start_sge_bin "qrsh" "-l h=$host -cwd pwd" "" "" exit_state 5 $cwdir]
       set output [string trim $output]
+      set output [replace_automount_prefix $output]
       if {[string compare $output $cwdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $cwdir != $output"
+         ts_log_fine "started qrsh -l h=$host -cwd pwd  in directory $cwdir"
          ts_log_severe $error_text
       }
 
       # Test3 -cwd -wd $wdir
       set output [start_sge_bin "qrsh" "-l h=$host -cwd -wd $wdir pwd" "" "" exit_state 5 $cwdir]
       set output [string trim $output]
+      set output [replace_automount_prefix $output]
       if {[string compare $output $wdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $wdir != $output"
+         ts_log_fine "started qrsh -l h=$host -cwd -wd $wdir pwd  in directory $cwdir"
          ts_log_severe $error_text
       }
 
-      # Test3 -wd $wdir -cwd
+      # Test4 -wd $wdir -cwd
       set output [start_sge_bin "qrsh" "-l h=$host -wd $wdir -cwd pwd" "" "" exit_state 5 $cwdir]
       set output [string trim $output]
+      set output [replace_automount_prefix $output]
       if {[string compare $output $cwdir] != 0} {
          set error_text "qrsh did not set the correct working dir: $cwdir != $output"
+         ts_log_fine "started qrsh -l h=$host -wd $wdir -cwd pwd  in directory $cwdir"
          ts_log_severe $error_text
       }
    }

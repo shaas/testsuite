@@ -1,3 +1,9 @@
+HP-2008-06-23-0: Bugfix:    qrsh -cwd pwd - test compared pathes with and without
+                            automount prefix
+                 Changed:   clients/qrsh/check.61.exp
+                 Issue:     197
+                 Review:    JG
+
 CR-2008-06-20-0: Cleanup:   Rework of expect timeout handling for
                             hedeby_mod_* util procedures. Settings should now
                             also work for slower systems. On errors the

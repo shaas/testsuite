@@ -278,7 +278,7 @@ proc qrsh_notify {} {
          ts_log_fine "Successful transfer of the signal SIGKILL -> SIGUSR2."
       }
       -i $sp_channel timeout {
-         ts_log_severe "Job did't cought signal!"
+         ts_log_severe "Job did't catch signal!"
       }
    }
 
@@ -325,7 +325,7 @@ proc qrsh_notify {} {
          ts_log_fine "Successful transfer of the signal SIGSTOP -> SIGUSR1."
       }
       -i $sp_channel timeout {
-         ts_log_severe "Job did't cought signal!"
+         ts_log_severe "Job did't catch signal!"
       }
    }
 

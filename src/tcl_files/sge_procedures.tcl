@@ -4854,6 +4854,11 @@ proc get_extended_job_info {jobid {variable job_info} {do_replace_NA 1} {do_grou
 
    if {$exit_code == 0} {
       parse_qstat result jobinfo $jobid $ext $do_replace_NA
+      if {$jobid != ""} {
+         if {![info exists jobinfo(id)] || $jobinfo(id) != $jobid} {
+            return 0
+         }
+      }
       return 1
    }
   
