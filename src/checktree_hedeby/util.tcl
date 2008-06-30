@@ -3466,6 +3466,516 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
    return 0
 }
 
+
+#****** util/get_history() **************************************************
+#  NAME
+#    get_history() -- Get the output of the sdmadm show_history command
+#
+#  SYNOPSIS
+#    get_history { } 
+#
+#  FUNCTION
+#     Parses the output of the sdmadm show_history command and stores
+#     the information in an tcl array.
+#
+#  INPUTS
+#    filter_args --  filter arguments like -sd or -ed
+#    raise_error --  if set to true errors will be reported
+#    ev          --  upvar where the error messages can be stored
+#    host        --  The host where the command should be executed
+#    user        --  user who executes the command
+#    hi          --  upvar - the history will be stored in this array
+#                     The 
+#  RESULT
+#    0  -- Success, the history is store in the hi array in the following form:
+#           hi(lines)   - contains the number of lines
+#           hi(<line index>,time)     -  timestamp of the row as string
+#           hi(<line index>,millis)   -  timestamp of the rows in millis
+#                                        if the content of the time column can
+#                                        not be parsed the value is set to -1
+#           hi(<line index>,type)     -  type if the notification
+#           hi(<line index>,service)  -  name of the service
+#           hi(<line index>,resource) -  the resource
+#           hi(<line index>,desc)     -  description (annotation)
+#    else -- error
+#  EXAMPLE
+#
+#  get_history "-sd 09:00 -ed 09:12" hi
+#  for {set i 0}{$i < $hi(lines)}{incr i} {
+#       puts "Got $hi($i,type) notification from $hi($i,service)"
+#  }
+#
+#*******************************************************************************
+proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var } {host ""} {user ""} } {
+   global hedeby_config
+   
+   upvar $hi hist_info
+   upvar $ev error_text
+   
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+
+   if {![info exists error_text]} {
+      set error_text ""
+   }
+   
+   set cmd_args "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist $filter_args"
+   
+   set output [sdmadm_command $execute_host $execute_user $cmd_args prg_exit_state "" $raise_error table]
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "exit state of sdmadm $cmd_args was $prg_exit_state - aborting" $raise_error
+      return 1
+   }
+   
+   # we expect the following table commands for ShowResourceStateCliCommand ...
+   set exp_columns {}
+   
+   lappend exp_columns [create_bundle_string "GetReporterDataCliCommand.col.time"]
+   lappend exp_columns [create_bundle_string "GetReporterDataCliCommand.col.type"]
+   lappend exp_columns [create_bundle_string "GetReporterDataCliCommand.col.service"]
+   lappend exp_columns [create_bundle_string "GetReporterDataCliCommand.col.resid"]
+   lappend exp_columns [create_bundle_string "GetReporterDataCliCommand.col.desc"]
+
+   lappend res_ignore_list [create_bundle_string "ShowResourceStateCliCommand.error"]
+   foreach col $exp_columns {
+      set pos [lsearch -exact $table(table_columns) $col]
+      if {$pos < 0} {
+         ts_log_severe "cannot find expected column name \"$col\"" $raise_error
+         return 1
+      }
+      ts_log_finer "found expected col \"$col\" on position $pos"
+   }
+   
+   set time_col    [lindex $exp_columns 0]
+   set type_col    [lindex $exp_columns 1]
+   set service_col [lindex $exp_columns 2]
+   set res_col     [lindex $exp_columns 3]
+   set desc_col    [lindex $exp_columns 4]
+
+   # now we fill up the arrays ... 
+   set hist_info(lines) $table(table_lines)
+   
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      
+      # parse the time string into millis
+      #           0    5    10   15   20
+      #           +----+----+----+----+--
+      # format is dd/mm/yyyy HH:MM:SS.mmm
+      set time_str $table($time_col,$line)
+      if {[string length $time_str] != 22} {
+         set millis -1
+      } else {
+         set clock_str [string range $time_str 0 18]
+         set ms_str   [string range $time_str 20 22]
+         set seconds 0
+         set catch_ret [catch {clock scan $clock_str} seconds]
+         if {$catch_ret != 0} {
+            set millis -1
+         } elseif {[string is digit $ms_str]} {
+            set millis [expr $seconds * 1000 + $ms_str]
+         } else {
+            set millis -1
+         }
+      }
+      set hist_info($line,time)     $table($time_col,$line)
+      set hist_info($line,millis)   $millis
+      set hist_info($line,type)     $table($type_col,$line)
+      set hist_info($line,service)  $table($service_col,$line)
+      set hist_info($line,resource) $table($res_col,$line)
+      set hist_info($line,desc)     $table($desc_col,$line)
+   }
+   return 0
+}
+
+#****** util/wait_for_notification() *******************************************
+#  NAME
+#     wait_for_notification() -- wait for a sequence of events in the sdm history 
+#
+#  SYNOPSIS
+#     wait_for_notification { start_time exp_history error_history 
+#     {atimeout 60} {raise_error 1} {host ""} {user ""} } 
+#
+#  FUNCTION
+#     This method poll every 3 seconds the history of the sdm system (sdmadm shist)
+#     and search in the result for a sequence of events.
+#     It will stop if 
+#       - events does not occur in the correct order
+#       - the timeout is reached
+#       - an event of the error history has been found 
+#
+#  INPUTS
+#     start_time      - starttime for the search in the history
+#     exp_history     - array with the expected event sequence in the form
+#                        exp_history(count)            -- number of expected events
+#                        exp_history(<index>,type)     -- type of event
+#                        exp_history(<index>,resource) -- resource of the event
+#                        exp_history(<index>,service)  -- service of the event
+#
+#     error_history   - array with the unexpected events (has the same form as the 
+#                       exp_history 
+#     {atimeout 60}   - timeout in seconds 
+#     {raise_error 1} - raise error 
+#     {host ""}       - host where the sdmadm command will be executed 
+#     {user ""}       - user executing the sdmadm command 
+#
+#  RESULT
+#     0    --   all expected events received
+#     else --   error 
+#
+#  EXAMPLE
+#     set hist(0,resource) $ge_unassign_resources_ctx(host_name)
+#     set hist(0,type)     "RESOURCE_REMOVE"
+#     set hist(0,service)  $ge_unassign_resources_ctx(service_name)
+#     
+#     set hist(1,resource) $ge_unassign_resources_ctx(host_name)
+#     set hist(1,type)     "RESOURCE_REMOVED"
+#     set hist(1,service)  $ge_unassign_resources_ctx(service_name)
+#     
+#     set hist(count) 2
+#
+#     set start_time [expr [clock seconds] - 60]
+#     wait_for_notification $start_time  hist err_hist 60
+# 
+#*******************************************************************************
+proc wait_for_notification {start_time exp_history error_history  {atimeout 60} {raise_error 1} {host ""} {user ""} } {
+   
+   global hedeby_config
+   # setup arguments
+   upvar $exp_history     exp_hist
+   upvar $error_history   error_hist
+   
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+   
+   
+   set max(resource) 8
+   set max(type)     8
+   set max(service)  8
+   for {set i 0} {$i < $exp_hist(count)} {incr i} {
+      foreach val { "type" "resource" "service" } {
+         if {[info exists exp_hist($i,$val)]} {
+            set len [string length exp_hist($i,$val)]
+            if {$max($val) < $len } {
+               set max($val) $len
+            }
+         }
+      }
+   }
+   for {set i 0} {$i < $error_hist(count)} {incr i} {
+      foreach val { "type" "resource" "service" } {
+         if {[info exists error_hist($i,$val)]} {
+            set len [string length error_hist($i,$val)]
+            if {$max($val) < $len } {
+               set max($val) $len
+            }
+         }
+      }
+   }
+
+   set header    "Waiting for the following events in history\n"
+   
+   append header [format "%-$max(type)s|%-$max(resource)s|%-$max(service)s\n" "type" "resource" "service"]
+   set len [expr $max(type) + $max(resource) + $max(service) + 2]
+   set delimiter ""
+   for {set i 0} {$i < $len} {incr i} {
+      append delimiter "-"
+   }
+   append delimiter "\n"
+   append header $delimiter
+   for {set i 0} {$i < $exp_hist(count)} {incr i} {
+      set type ""
+      if {[info exists exp_hist($i,type)]} {
+         set type $exp_hist($i,type)
+      }
+      set res ""
+      if {[info exists exp_hist($i,resource)]} {
+         set res $exp_hist($i,resource)
+      }
+      set service ""
+      if {[info exists exp_hist($i,service)]} {
+         set service $exp_hist($i,service)
+      }
+      append header [format "%-$max(type)s|%-$max(resource)s|%-$max(service)s\n" "$type" "$res" "$service"]
+   }
+   append header $delimiter
+   append header "Will terminate on the following events:\n"
+   append header $delimiter
+   for {set i 0} {$i < $error_hist(count)} {incr i} {
+      set type ""
+      if {[info exists error_hist($i,type)]} {
+         set type $error_hist($i,type)
+      }
+      set res ""
+      if {[info exists error_hist($i,resource)]} {
+         set res $error_hist($i,resource)
+      }
+      if {[info exists error_hist($i,service)]} {
+         set service $error_hist($i,service)
+      }
+      append header [format "%-$max(type)s|%-$max(resource)s|%-$max(service)s\n" "$type" "$res" "$service"]
+   }
+   append header $delimiter
+   ts_log_fine "$header"
+   
+   set my_timeout [timestamp]
+   incr my_timeout $atimeout
+
+   # set expected results info
+   set expexted_hist_info ""
+   set exp_values [array names exp_hist]
+   set filter_args ""
+   
+   set resources {}
+   set services {}
+   set types {}
+   
+   for {set i 0} {$i < $exp_hist(count)} {incr i} {
+      if {[info exists exp_hist($i,resource)]} {
+         if {[lsearch $resources $exp_hist($i,resource)] < 0} {
+            lappend resources $exp_hist($i,resource)
+         }
+      }
+      if {[info exists exp_hist($i,service)]} {
+         if {[lsearch $services $exp_hist($i,service)] < 0} {
+            lappend services $exp_hist($i,service)
+         }
+      }
+      if {[info exists exp_hist($i,type)]} {
+         if {[lsearch $types $exp_hist($i,type)] < 0} {
+            lappend types $exp_hist($i,type)
+         }
+      }
+   }
+   for {set i 0} {$i < $error_hist(count)} {incr i} {
+      if {[info exists error_hist($i,resource)]} {
+         if {[lsearch $resources $error_hist($i,resource)] < 0} {
+            lappend resources $error_hist($i,resource)
+         }
+      }
+      if {[info exists error_hist($i,service)]} {
+         if {[lsearch $services $error_hist($i,service)] < 0} {
+            lappend services $error_hist($i,service)
+         }
+      }
+      if {[info exists error_hist($i,type)]} {
+         if {[lsearch $types $error_hist($i,type)] < 0} {
+            lappend types $error_hist($i,type)
+         }
+      }
+   }
+   
+   # Build the filter
+   set filter_args ""
+   
+   if {[llength $resources] > 0} {
+      append filter_args "("
+      set first 1
+      foreach resource $resources {
+         if {$first} {
+            set first 0
+         } else {
+            append filter_args "|"
+         }
+         ts_log_fine "Adding resource '$resource' to filter"
+         append filter_args "resource = \"$resource\""
+      }
+      append filter_args ")"
+   }
+   
+   if {[llength $services] > 0} {
+      if {[string length $filter_args] > 0} {
+         append filter_args " & "
+      }
+      append filter_args "("
+      set first 1
+      foreach service $services {
+         if {$first} {
+            set first 0
+         } else {
+            append filter_args "|"
+         }
+         ts_log_fine "Adding service '$service' to filter"
+         append filter_args " service = \"$service\""
+      }
+      append filter_args ")"
+   }
+   
+   if {[llength $types] > 0} {
+      if {[string length $filter_args] > 0} {
+         append filter_args " & "
+      }
+      append filter_args "("
+      set first 1
+      foreach type $types {
+         if {$first} {
+            set first 0
+         } else {
+            append filter_args "|"
+         }
+         ts_log_fine "Adding notification type '$type' to filter"
+         append filter_args "type = \"$type\""
+      }
+      append filter_args ")"
+   }
+
+   if {[string length $filter_args] > 0} {
+      set filter_args "-f '$filter_args'"
+   } else {
+      ts_log_fine "Have no additional filter arguments"
+   }
+
+   # format of -sd is : yyyy/MM/dd HH:mm:ss"
+   set ts_str [clock format $start_time -format "%Y/%m/%d %H:%M:%S"] 
+   set cmd_args "-sd '$ts_str' $filter_args"
+   ts_log_fine "Searching in history ($cmd_args)"
+   
+   
+   while {1} {
+      
+      set msg "$header\n"
+      if {[info exists hist_info]} {
+         unset hist_info
+      }
+      
+      set retval [get_history $cmd_args hist_info $raise_error error_var $host $user  ]
+      if {$retval != 0} {
+         return -1
+      }
+
+      set exp_index 0
+      set err_index 0
+      for {set line 0} {$line < $hist_info(lines)} {incr line} {
+         
+         for {set tmp_exp_index $exp_index} {$tmp_exp_index < $exp_hist(count)} {incr tmp_exp_index} {
+            set evt_matches 1
+            foreach val { "resource" "service" "type" } {
+               if {[info exists exp_hist($tmp_exp_index,$val)]} {
+                  set exp_value $exp_hist($tmp_exp_index,$val)
+                  if {[info exists hist_info($line,$val)]} {
+                     set hist_value $hist_info($line,$val)
+                  } else {
+                     set hist_value ""
+                  }
+                  if {$exp_value != $hist_value} {
+                     ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $tmp_exp_index ($val must be '$exp_value'"
+                     set evt_matches 0
+                     break
+                  }
+               }
+            }
+            if {$evt_matches} {
+               if {$tmp_exp_index > $exp_index} {
+                  for {set missing_index $exp_index} {$missing_index < $tmp_exp_index} {incr missing_index} {
+                     set prefix [format "Missing %d/%d" [expr $missing_index + 1]  $hist_info(lines)]
+                     set suffix ""
+                     foreach val $values {
+                        if {[info exists exp_hist($missing_index,$val)]} {
+                           if {$first} {
+                              set first 0
+                           } else {
+                              append suffix "|"
+                           }
+                           append suffix "$exp_hist($missing_index,$val)"
+                        }
+                     }
+                     append msg [format "%12s: %s\n" $prefix $suffix]
+                  }
+                  set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $hist_info(lines)]
+                  append msg [format "%-15s: %s\n" $prefix [history_entry_to_str hist_info $line]]
+                  ts_log_severe $msg $raise_error
+                  return -1
+               } else {
+                  set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $hist_info(lines)]
+                  append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
+                  incr exp_index
+                  continue
+               }
+            }
+         }
+         if {$err_index < $error_hist(count)} {
+            set evt_matches 1
+            foreach val { "resource" "service" "type" } {
+               if {[info exists error_hist($err_index,$val)]} {
+                  set exp_value $error_hist($err_index,$val)
+                  if {[info exists hist_info($line,$val)]} {
+                     set hist_value $hist_info($line,$val)
+                  } else {
+                     set hist_value ""
+                  }
+                  if {$exp_value != $hist_value} {
+                     set evt_matches 0
+                     break
+                  }
+               }
+            }
+            if {$evt_matches} {
+               append msg [format "%12s: %s\n" "Error"  [history_entry_to_str hist_info $line]]
+               ts_log_severe "$msg" $raise_error
+               return -1
+            }
+         }
+      }
+      
+      if {$exp_index >= $exp_hist(count) } {
+         append msg "Got all expected notifications\n"
+         ts_log_fine "$msg"
+         return 0
+      } elseif {[timestamp] >= $my_timeout} {
+         append msg "==> TIMEOUT(=$atimeout sec) while waiting for expected history info"
+         ts_log_severe "$msg" $raise_error
+         return -1
+      }
+      after 3000
+   }
+
+}
+
+#****** util/history_entry_to_str() ********************************************
+#  NAME
+#     history_entry_to_str() -- convert an entry of an history row into a string 
+#
+#  SYNOPSIS
+#     history_entry_to_str { history_info line } 
+#
+#  FUNCTION
+#
+#  INPUTS
+#     history_info - the array with the history info 
+#     line         - line index of the row of the history info 
+#
+#  RESULT
+#     the string representation of the history line 
+#
+#*******************************************************************************
+proc history_entry_to_str { history_info line } {
+   
+   upvar $history_info hist_info
+
+   return [format "%s|%s|%s|%s|%s"       \
+           "$hist_info($line,time)"      \
+           "$hist_info($line,type)"      \
+           "$hist_info($line,service)"   \
+           "$hist_info($line,resource)"  \
+           "$hist_info($line,desc)"]
+}
+
 #****** util/wait_for_component_info() *******************************************
 #  NAME
 #     wait_for_component_info() -- wait for expected component state information
@@ -5778,7 +6288,201 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
    return $output
 }
 
+#****** util/reload_hedeby_component() *****************************************
+#  NAME
+#     reload_hedeby_component() -- reload a hedeby component 
+#
+#  SYNOPSIS
+#     reload_hedeby_component { component_name host_name { host "" } 
+#     { user "" } } 
+#
+#  FUNCTION
+#    Triggers an 'sdmadm update_component' 
+#
+#  INPUTS
+#     component_name - name of the component
+#     host_name      - name of the host where the component is running 
+#     { host "" }    - host where the sdmadm is executed (if "" it will be executed
+#                      on the hedeby master host 
+#     { user "" }    - user executing the sdmadm command (if "" it will be executed
+#                      as default admin user 
+#
+#  RESULT
+#     0 -- component reloaded
+#     else -- error
+#
+#*******************************************************************************
+proc reload_hedeby_component { component_name host_name { host "" } { user "" } } {
+   
+   global hedeby_config
+   
+   set uc_cmd "-s [get_hedeby_system_name] -p [get_hedeby_pref_type] uc"
+   append uc_cmd " -c '$component_name'"
+   append uc_cmd " -h '$host_name'"
+   
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+   
+   sdmadm_command $execute_host $execute_user "$uc_cmd" 
+   if {$prg_exit_state != 0} {
+      return $prg_exit_state
+   }
+   set exp_component_info($component_name,$host_name,state) "STARTED"
+   return [wait_for_component_info exp_service_info]
+}
 
+#****** util/set_hedeby_default_job_suspend_policy() ***************************
+#  NAME
+#     set_hedeby_default_job_suspend_policy() -- set the default job suspend policy
+#                                                for a grid engine service 
+#
+#  SYNOPSIS
+#     set_hedeby_default_job_suspend_policy { service {raise_error 1} 
+#     { host "" } { user "" } } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     service         - name of the grid engine service 
+#     {raise_error 1} - raise error 
+#     { host "" }     - host where sdmadm is executed 
+#     { user "" }     - user executing sdmadm 
+#
+#  RESULT
+#     0    -- default jobs suspend policy for the service set
+#     else -- error 
+#
+#*******************************************************************************
+proc set_hedeby_default_job_suspend_policy { service {raise_error 1} { host "" } { user "" } } {
+   set default_suspend_methods { "reschedule_jobs_in_rerun_queue" "reschedule_restartable_jobs" "suspend_jobs_with_checkpoint" }
+   return [set_hedeby_job_suspend_policy $service ${default_suspend_methods} "2" "minutes" $raise_error $host $user] 
+}
+
+#****** util/set_hedeby_job_suspend_policy() ***********************************
+#  NAME
+#     set_hedeby_job_suspend_policy() -- set the job suspend policy for a grid engine service 
+#
+#  SYNOPSIS
+#     set_hedeby_job_suspend_policy { service suspend_methods 
+#     job_finish_timeout_value {job_finish_timeout_unit "seconds"} 
+#     {raise_error 1} { host "" } { user "" } } 
+#
+#  FUNCTION
+#     modifies the jobs suspend policy in the component configuration of a grid engine
+#     service 
+#
+#  INPUTS
+#     service                             - name of the grid engine service 
+#     suspend_methods                     - list of supported job suspend methods 
+#     job_finish_timeout_value            - timeout for waiting for job end 
+#     {job_finish_timeout_unit "seconds"} - unit if the time out 
+#     {raise_error 1}                     - raise error 
+#     { host "" }                         - host where sdmadm is executed 
+#     { user "" }                         -  user executing sdmadm  
+#
+#  RESULT
+#     0    --  job suspend policy of the gridengine service modified 
+#     else -- error
+#*******************************************************************************
+proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_value {job_finish_timeout_unit "seconds"} {raise_error 1} { host "" } { user "" } } {
+   global hedeby_config
+   
+   foreach suspend_method $suspend_methods {
+      switch -- $suspend_method {
+         "reschedule_jobs_in_rerun_queue" -
+         "reschedule_restartable_jobs"    -
+         "suspend_jobs_with_checkpoint"   {
+            ts_log_finest "suspend_method '$suspend_method' is valid" $raise_error
+         }
+         default {
+            ts_log_severe "Unknown suspend_method '$suspend_method'" $raise_error
+         }
+      }
+   }
+   switch -- $job_finish_timeout_unit {
+      "seconds" -
+      "minutes" -
+      "hours"   {
+         ts_log_finest "job_finish_timeout_unit has valid value '$job_finish_timeout_unit'" 
+      }
+      default {
+         ts_log_severe "Unknown job_finish_timeout_unit '$job_finish_timeout_unit'" $raise_error
+         return -1
+      }
+   }
+   
+   if {![string is digit $job_finish_timeout_value] || $job_finish_timeout_value < 0} {
+      ts_log_severe "job_finish_timeout_value must be a possitive number ($job_finish_timeout_value)" $raise_error
+      return -1
+   }
+   
+   set arguments "-s [get_hedeby_system_name] -p [get_hedeby_pref_type]  mc -c $service"
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+   
+   set ispid [hedeby_mod_setup $execute_host $execute_user $arguments error_text]
+
+   set sp_id [ lindex $ispid 1 ]
+   
+   set timeout 30
+    
+   # remove jobSuspendPolicy section
+   set sequence {}
+   lappend sequence "/<ge_adapter:jobSuspendPolicy\n"
+   lappend sequence "ma/<\\/ge_adapter:jobSuspendPolicy>\n"
+   lappend sequence ":'a,.d\n"
+   # insert the new jobSuspendPolicy
+   lappend sequence "i"
+   lappend sequence "<ge_adapter:jobSuspendPolicy suspendMethods=\""
+   foreach suspend_method $suspend_methods {
+      lappend sequence "$suspend_method "
+   }
+   lappend sequence "\">"
+   lappend sequence "<ge_adapter:timeout unit=\""
+   lappend sequence $job_finish_timeout_unit
+   lappend sequence "\" value=\""
+   lappend sequence $job_finish_timeout_value
+   lappend sequence "\"/>"
+   lappend sequence "</ge_adapter:jobSuspendPolicy>"
+   
+   lappend sequence "[format "%c" 27]" ;# ESC
+   
+   set error_text ""
+   hedeby_mod_sequence $ispid $sequence error_text
+   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
+
+   ts_log_fine "exit_status: $prg_exit_state"
+   if { $prg_exit_state == 0 } {
+      ts_log_finer "output: \n$output"
+   }
+
+   if {$error_text != ""} {
+      return 1
+   }
+   return 0
+   
+   
+}
 #****** util/set_hedeby_slos_config() ******************************************
 #  NAME
 #     set_hedeby_slos_config() -- used to set slo config for a hedeby service

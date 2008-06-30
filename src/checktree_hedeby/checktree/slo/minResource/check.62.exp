@@ -859,14 +859,18 @@ proc min_resource_check {} {
                   set_service_slos $mod_method $serviceA $sloA 1 $SLO_update_unit $SLO_update_interval
 
                   ts_log_fine "killing execd of resource \"$stayed_res_at_serv($serviceA)\" at service A ($serviceA) ..."
-                  produce_error_resource $stayed_res_at_serv($serviceA) "soft"
-                 
+                  produce_error_resource $stayed_res_at_serv($serviceA) "hard"
+ 
                   ts_log_fine "wait that service A ($serviceA) gets all its resources again ..."
                   unset exp_resource_info
                   foreach res $static_resource_list {
                      set exp_resource_info($res,service) $service_names(default_service,$res)
                      set exp_resource_info($res,flags) "S"
-                     set exp_resource_info($res,state) "ASSIGNED"
+                     if { $stayed_res_at_serv($serviceA) == $res } {
+                        set exp_resource_info($res,state) "ERROR"
+                     } else {
+                        set exp_resource_info($res,state) "ASSIGNED"
+                     }
                   }
                   foreach res $expected_resources_A {
                      set exp_resource_info($res,service) $serviceA

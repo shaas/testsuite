@@ -214,19 +214,6 @@ proc ge_stop_and_free_resources_ge_service_check {} {
    }
    unset exp_resource_info
    
-   # ---------------------------------------------------------------------------
-   # Step 3: Start all ge services
-   # ---------------------------------------------------------------------------
-   foreach service $service_names(services) {
-      set host $service_names(master_host,$service)
-      set task_info($host,expected_output) ""
-      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sus -s $service"
-   }
-   set par_error [start_parallel_sdmadm_command service_host_list [get_hedeby_admin_user] task_info]
-   if {$par_error != ""} {
-      append error_text $par_error
-   }
-   unset task_info
    
    # ---------------------------------------------------------------------------
    # Step 4: Check that the static resources are assigned to the ge services

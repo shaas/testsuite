@@ -1,0 +1,313 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2006 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "yes"
+set check_name                 "unassign_resources"
+set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)       "the unassigning of resource with running jobs"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "ge_unassign_resources_init_level"
+set check_functions            {}   
+set check_highest_level        6
+
+set check_setup_function   "ge_unassign_resources_setup"
+set check_cleanup_function "ge_unassign_resources_cleanup"
+set check_cleanup_level_function "ge_unassign_resources_level_cleanup"
+
+lappend check_functions "ge_unassign_resources_check"
+#lappend check_functions "ge_unassign_resources_not_restartable_job"
+#lappend check_functions "ge_unassign_resources_restartable_job"
+#lappend check_functions "ge_unassign_resources_job_in_rerun_queue"
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+
+proc ge_unassign_resources_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  switch -- $CHECK_ACT_LEVEL {
+     0 { return 0 }
+     1 { return 0 }
+     2 { return 0 }
+     3 { return 0 }
+     4 { return 0 }
+     5 { return 0 }
+     6 { return 0 }
+     default { return -1 }
+  }
+}
+
+proc ge_unassign_resources_setup {} {
+   global hedeby_config
+   global ge_unassign_resources_ctx
+   
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   get_hedeby_default_services service_names
+   
+   set service_name [lindex $service_names(services) 0]
+   
+   set ge_unassign_resources_ctx(service_name)   $service_name
+   set ge_unassign_resources_ctx(master_host)   $service_names(master_host,$service_name)
+   set ge_unassign_resources_ctx(host_name)      [lindex $service_names(moveable_execds,$service_name) 0]
+   set ge_unassign_resources_ctx(cluster_nr)     $service_names(ts_cluster_nr,$service_name)
+   set ge_unassign_resources_ctx(org_cluster_nr) [get_current_cluster_config_nr]
+   set ge_unassign_resources_ctx(sdmadm_prefix)  "-p $pref_type -s $sys_name"
+   set ge_unassign_resources_ctx(rerun_queue)    "rerun.q"
+   set ge_unassign_resources_ctx(run_once_queue) "run_once_queue.q"
+   set ge_unassign_resources_ctx(job_run_time)   3600
+   set ge_unassign_resources_ctx(job_wait_time)  0
+   
+   set_current_cluster_config_nr $ge_unassign_resources_ctx(cluster_nr) 
+   
+   # add a queue allowing restartable flags
+   get_current_cluster_config_array ts_config
+
+   set change_array(rerun) "TRUE"
+   set change_array(ckpt_list) "testcheckpointobject"
+   if {[add_queue $ge_unassign_resources_ctx(rerun_queue) "@allhosts" change_array] != 0} {
+      return -1;
+   }
+   unset change_array
+   
+   set change_array(rerun) "FALSE"
+   set change_array(ckpt_list) "testcheckpointobject"
+   if {[add_queue $ge_unassign_resources_ctx(run_once_queue) "@allhosts" change_array] != 0} {
+      return -1;
+   }
+   unset change_array
+   
+}
+
+proc ge_unassign_resources_cleanup {} {
+   global ge_unassign_resources_ctx
+   
+   set ignore_hostlist 1
+   set del_cqueue 1
+   set host_list ""
+   del_queue $ge_unassign_resources_ctx(rerun_queue) $ignore_hostlist $del_cqueue
+   del_queue $ge_unassign_resources_ctx(run_once_queue) $ignore_hostlist $del_cqueue
+   
+   set_current_cluster_config_nr $ge_unassign_resources_ctx(org_cluster_nr)
+   
+   set_hedeby_default_job_suspend_policy $ge_unassign_resources_ctx(service_name)
+   reload_hedeby_component $ge_unassign_resources_ctx(service_name) $ge_unassign_resources_ctx(master_host)
+}
+
+proc ge_unassign_resources_level_cleanup {} {
+   global hedeby_config
+   global ge_unassign_resources_ctx
+   
+   delete_all_jobs
+   
+   if {[get_resource_info] == 0} {
+      if {$res_info($ge_unassign_resources_ctx(host_name),service) != $ge_unassign_resources_ctx(service_name)} {
+         set admin_user [get_hedeby_admin_user]
+         # Move the resource back to the original service
+         set cmd_args "$ge_unassign_resources_ctx(sdmadm_prefix)"
+         append cmd_args " move_resource "
+         append cmd_args " -r $ge_unassign_resources_ctx(host_name) -s $ge_unassign_resources_ctx(service_name) "
+         
+         sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "$cmd_args"
+         if {$prg_exit_state == 0} {
+            wait_for_resource_state "ASSIGNED" 0 15
+         }
+      }
+   }
+   
+}
+
+
+proc ge_unassign_resources_check {} {
+   global hedeby_config
+   global ge_unassign_resources_ctx
+   global CHECK_ACT_LEVEL
+   
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         ts_log_fine "---------------------------------------------------------"
+         ts_log_fine "Test moving a resource with a non migratable job"
+         ts_log_fine "-> jobs all suspend methods enabled"
+         ts_log_fine "---------------------------------------------------------"
+         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)'"
+         set suspend_methods { "reschedule_jobs_in_rerun_queue" "reschedule_restartable_jobs" "suspend_jobs_with_checkpoint" }
+         set mode "stay"
+      }
+      
+      1 {
+         ts_log_fine "---------------------------------------------------------"
+         ts_log_fine "Test moving a resource with a restartable job"
+         ts_log_fine "-> jobs suspend method 'reschedule_restartable_jobs' enabled"
+         ts_log_fine "---------------------------------------------------------"
+         # Possitive test of the reschedule_restartable_jobs method
+         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -r y"
+         set suspend_methods { "reschedule_restartable_jobs" }
+         set mode "move"
+      } 
+      2 {
+         # Negative test of the reschedule_restartable_jobs method
+         ts_log_fine "---------------------------------------------------------"
+         ts_log_fine "Test moving a resource with a restartable job"
+         ts_log_fine "-> jobs suspend method 'reschedule_restartable_jobs' disabled"
+         ts_log_fine "---------------------------------------------------------"
+         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -r y"
+         set suspend_methods {}
+         set mode "stay"
+      } 
+      3 {
+         # Possitive test of the reschedule_jobs_in_rerun_queue method
+         ts_log_fine "---------------------------------------------------------"
+         ts_log_fine "Test moving a resource with jobs in a rerun queue"
+         ts_log_fine "-> jobs suspend method 'reschedule_jobs_in_rerun_queue' enabled"
+         ts_log_fine "---------------------------------------------------------"
+         set job_args "-q '$ge_unassign_resources_ctx(rerun_queue)@$ge_unassign_resources_ctx(host_name)'"
+         set suspend_methods { "reschedule_jobs_in_rerun_queue" }
+         set mode "move"
+      }
+      4 {
+         # Negative test of the reschedule_jobs_in_rerun_queue method
+         ts_log_fine "---------------------------------------------------------"
+         ts_log_fine "Test moving a resource with jobs in a rerun queue"
+         ts_log_fine "-> jobs suspend method 'reschedule_jobs_in_rerun_queue' disabled"
+         ts_log_fine "---------------------------------------------------------"
+         set job_args "-q '$ge_unassign_resources_ctx(rerun_queue)@$ge_unassign_resources_ctx(host_name)'"
+         set suspend_methods { }
+         set mode "stay"
+      }
+      5 {
+         # Possitive test of the reschedule_jobs_in_rerun_queue method
+         ts_log_fine "---------------------------------------------------------"
+         ts_log_fine "Test moving a resource with checkpointing jobs"
+         ts_log_fine "-> jobs suspend method 'suspend_jobs_with_checkpoint' enabled"
+         ts_log_fine "---------------------------------------------------------"
+         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -ckpt testcheckpointobject"
+         set suspend_methods { "suspend_jobs_with_checkpoint" }
+         set mode "move"
+      }
+      6 {
+         # Negative test of the reschedule_jobs_in_rerun_queue method
+         ts_log_fine "---------------------------------------------------------"
+         ts_log_fine "Test moving a resource with checkpointing jobs"
+         ts_log_fine "-> jobs suspend method 'suspend_jobs_with_checkpoint' disabled"
+         ts_log_fine "---------------------------------------------------------"
+         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -ckpt testcheckpointobject"
+         set suspend_methods { }
+         set mode "stay"
+      }
+      default {
+         ts_log_severe "Invalid CHECK_ACT_LEVEL ($CHECK_ACT_LEVEL)"
+         return
+      }
+   }
+   
+   get_current_cluster_config_array ts_config
+   set admin_user [get_hedeby_admin_user]
+
+   # Reconfigure the job suspend policy of the ge service
+   set res [set_hedeby_job_suspend_policy $ge_unassign_resources_ctx(service_name) $suspend_methods $ge_unassign_resources_ctx(job_wait_time) "seconds"]
+   if { $res != 0} {
+      return -1
+   }
+   
+   # reload the service config 
+   if {[reload_hedeby_component $ge_unassign_resources_ctx(service_name) $ge_unassign_resources_ctx(master_host)] != 0} {
+      return
+   }
+   
+   set job_id [submit_job "$job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $ge_unassign_resources_ctx(job_run_time)"]
+   if {$job_id < 0 } {
+      return
+   }
+   if {[wait_for_jobstart $job_id "a_job" 60] != 0} {
+      return
+   }
+   
+   set move_time [clock seconds]
+   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "$ge_unassign_resources_ctx(sdmadm_prefix) move_resource -r $ge_unassign_resources_ctx(host_name) -s spare_pool"
+   if {$prg_exit_state == 0} {
+      switch -- $mode {
+         "move" {
+            set hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(0,type)     "RESOURCE_REMOVE"
+            set hist(0,service)  $ge_unassign_resources_ctx(service_name)
+            
+            set hist(1,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(1,type)     "RESOURCE_REMOVED"
+            set hist(1,service)  $ge_unassign_resources_ctx(service_name)
+            set hist(count) 2
+            
+            set err_hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set err_hist(0,type)     "RESOURCE_ADD"
+            set err_hist(0,service)  $ge_unassign_resources_ctx(service_name)
+            set err_hist(1,resource) $ge_unassign_resources_ctx(host_name)
+            set err_hist(1,type)     "RESOURCE_ADDED"
+            set err_hist(1,service)  $ge_unassign_resources_ctx(service_name)
+            set err_hist(count) 2
+         }
+         "stay" {   
+            set hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(0,type)     "RESOURCE_REMOVE"
+            set hist(0,service)  $ge_unassign_resources_ctx(service_name)
+            
+            set hist(1,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(1,type)     "RESOURCE_ADD"
+            set hist(1,service)  $ge_unassign_resources_ctx(service_name)
+            
+            set hist(2,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(2,type)     "RESOURCE_ADDED"
+            set hist(2,service)  $ge_unassign_resources_ctx(service_name)
+            set hist(count) 3
+            
+            set err_hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set err_hist(0,type)     "RESOURCE_REMOVED"
+            set err_hist(count) 1
+         }
+         default {
+            ts_log_severe "Unknown mode $mode"
+            return
+         }
+      }
+      wait_for_notification $move_time hist err_hist 60
+   }
+   
+}
+

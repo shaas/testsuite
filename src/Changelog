@@ -1,3 +1,14 @@
+RH-2008-06-25-0: Enhancem:  Hedeby:
+                            o New test unassign resources for ge-adapter
+                              testing the job suspend policy
+                            o new method wait_for_notification (searches for an event
+                              sequence in the hedeby history)
+                            o new method get_history for reading the hedeby history
+                            o new method reload_hedeby_component (sdmadm uc)
+                            o new method set_hedeby_default_job_suspend_policy
+                            o new method set_hedeby_job_suspend_policy
+                 Review:    RM
+
 JG-2008-06-30-0: Enhancem.: Added test running appcert on the Solaris binaries.
                  Review:    RD
 
