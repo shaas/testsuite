@@ -1,0 +1,197 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "appcert_init_level"
+
+# define test's name and run level descriptions
+set check_name            "appcert"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "run appcert for the Solaris binaries"
+
+# define test's dependencies
+set check_needs           ""
+
+# setup/cleanup methods
+set check_setup_function "appcert_setup"
+set check_cleanup_function "appcert_cleanup"
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "appcert_test"
+
+proc appcert_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc appcert_setup {} {
+   global ts_config
+   global CHECK_PROTOCOL_DIR
+   global appcert_protocol_dir appcert_hosts
+
+   # delete old appcert log directory, if it exists
+   # do this as user root - we run appcert as root
+   set appcert_protocol_dir "$CHECK_PROTOCOL_DIR/appcert"
+   set output [start_remote_prog $ts_config(master_host) "root" "rm" "-rf $appcert_protocol_dir"]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "couldn't delete directory $appcert_protocol_dir:\n$output"
+   }
+
+   # determine the list of hosts
+   # from the installed binaries
+   # we run appcert on the compile hosts
+   set arch_dirs [glob -nocomplain "$ts_config(product_root)/bin/sol-*"]
+   set archs {}
+   foreach arch_dir $arch_dirs {
+      set arch [file tail $arch_dir]
+      lappend archs $arch
+   }
+   set appcert_hosts {}
+   foreach arch $archs {
+      set host [compile_search_compile_host $arch]
+      if {$host != "none"} {
+         lappend appcert_hosts $host
+      }
+   }
+}
+
+proc appcert_cleanup {} {
+}
+
+proc appcert_test {} {
+   global ts_config
+   global appcert_protocol_dir appcert_hosts
+
+   # run appcert in batch mode on each compile host, 
+   # if binaries for the corresponding arch are installed
+   # we need to run appcert as user root, as some binaries
+   # are suid root - appcert won't check these binaries
+   # as ordinary user
+   # -B: batch mode
+   # -L: prevent setting of LD_LIBRARY_PATH to found libs - we use ORIGIN!
+   # -n: do not follow symbolic links - no need to check binaries twice
+   # -S: set LD_LIBRARY_PATH to Solaris standard libs (/usr/openwin/lib:/usr/dt/lib)
+   # -w: specify a working directory for appcert protocols
+   set args "-B -L -n -S"
+   foreach host $appcert_hosts {
+      ts_log_fine "running appcert on host $host"
+
+      # only pass the directories holding binaries of the
+      # architecture to test
+      # otherwise appcert on sol-x86 will try to test linux binaries as well
+      set arch [resolve_arch $host]
+      set host_args $args
+      append host_args " -w $appcert_protocol_dir/$arch"
+      append host_args " $ts_config(product_root)/bin/$arch"
+      append host_args " $ts_config(product_root)/lib/$arch"
+      append host_args " $ts_config(product_root)/utilbin/$arch"
+
+      set id [open_remote_spawn_process $host "root" "/usr/bin/appcert" $host_args]
+      set spawn_id [lindex $id 1]
+      set timeout 60
+      set output ""
+      #log_user 1
+      expect {
+         -i $spawn_id full_buffer {
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         }
+         -i $spawn_id -- "--?ore--" {
+            ts_send $spawn_id " " $host
+            exp_continue
+         }
+         -i $spawn_id "*\n" {
+            set done 0
+            foreach line [split $expect_out(0,string) "\n"] {
+               set line [string trim $line]
+               if {$line != ""} {
+                  ts_log_finest $line
+                  switch -glob -- $line {
+                     "_exit_status_:(*)*" {
+                        set prg_exit_state [lindex [split $line "()"] 1]
+                        ts_log_fine "appcert exited with exit status $prg_exit_state"
+                        set done 1
+                     }
+                     default {
+                        append output "$line\n"
+                     }
+                  }
+               }
+            }
+            if {!$done} {
+               exp_continue
+            }
+         }
+      }
+      close_spawn_process $id
+
+      # parse the appcert exit state
+      switch -exact -- $prg_exit_state {
+         0 {
+            # appcert reported success
+            ts_log_fine "appcert reported OK"
+         }
+         2 {
+            # appcert reported warnings
+            ts_log_severe "appcert reported warnings:\n$output"
+         }
+         default {
+            # the appcert call failed
+            ts_log_severe "appcert failed with exit code $prg_exit_state:\n$output"
+         }
+      }
+   }
+}
+

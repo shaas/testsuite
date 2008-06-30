@@ -1,3 +1,6 @@
+JG-2008-06-30-0: Enhancem.: Added test running appcert on the Solaris binaries.
+                 Review:    RD
+
 HP-2008-06-23-0: Bugfix:    qrsh -cwd pwd - test compared pathes with and without
                             automount prefix
                  Changed:   clients/qrsh/check.61.exp
