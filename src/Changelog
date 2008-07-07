@@ -1,3 +1,9 @@
+RH-2008-07-07-0: Bugfix:    Hedeby: 
+                            o Parsing of hedeby log files did not work if jvm log
+                              contains source class and method.
+                            o Stacktraces in log file collection are not in the correct order
+                 Review:    CR
+
 RH-2008-06-25-0: Enhancem:  Hedeby:
                             o New test unassign resources for ge-adapter
                               testing the job suspend policy

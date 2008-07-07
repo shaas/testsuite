@@ -7933,9 +7933,44 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
    foreach host $host_list {
       set file_list($host,files) {}
       ts_log_fine "getting file list for host $host ..."
+      set local_spool_dir  [get_hedeby_local_spool_dir $host]
       set files [get_log_files $host "root"]
       foreach f $files {
-         lappend file_list($host,files) $f
+         set dirname [file dirname $f]
+         set filename [file tail $f]
+         
+         switch -glob $filename {
+            "*log" {
+               if {$dirname == "$local_spool_dir/log"} {
+                  set current_file_type "jvm_log"
+               } elseif {$dirname == "$local_spool_dir/spool/reporter"} {
+                  set current_file_type "reporter_log"
+               } else {
+                  set current_file_type "misc"
+               }
+            }
+            "*stderr" {
+               if {$dirname == "$local_spool_dir/log"} {
+                  set current_file_type "jvm_stderr"
+               } else {
+                  set current_file_type "misc"
+               }
+            }
+            "*stdout" {
+               if {$dirname == "$local_spool_dir/log"} {
+                  set current_file_type "jvm_stdout"
+               } else {
+                  set current_file_type "misc"
+               }
+            }
+            default {
+               set current_file_type "misc"
+            }
+         }
+         if {$current_file_type != "misc"} {
+            lappend file_list($host,files) $f
+            set file_types($host,$f) $current_file_type
+         }
       }
    }
 
@@ -7960,10 +7995,14 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
    #    b) reporter file format
    foreach host $host_list {
       foreach f $file_list($host,files) {
-         ts_log_fine "host $host: $f"
+         set current_file_type $file_types($host,$f)
+         
+         ts_log_fine "host $host: processing $f (type=$current_file_type)"
+         # TODO: Make only one cat for all files per host  
          set sid [open_remote_spawn_process $host "root" "cat" $f]
          set sp_id [lindex $sid 1]
          set current_time 0
+         set last_time 0
          set timeout 15
          set start_found 0
          set do_stop 0
@@ -8000,49 +8039,53 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
                   # First we have to find out the unix time stamp of the log message line
                   # If the first column is a timestamp we set current_time to new value
                   # If there is no timestamp found the last current_time is used
-
-                  # check if it is a line from standard log format ...
-                  set date_time [lindex [split $line "|"] 0]
-                  set type [lindex [split $line "|"] 2]
-                  if { [string length $type] == 1 } {
-                     # if type is exactly one char (W|E|I|D) it is standard hedeby log file ...
-                     set catch_ret [catch {clock scan $date_time} output]
-                     if {$catch_ret == 0} {
-                        set current_time $output
-                     } else {
-                        ts_log_fine "  no date"
-                        # this line belongs to last line
+                  
+                  switch $current_file_type {
+                     "jvm_log" {
+                        set date_time [lindex [split $line "|"] 0]
+                        set catch_ret [catch {clock scan $date_time} output]
+                        if {$catch_ret == 0} {
+                           set current_time $output
+                        } 
                      }
-                  } else {
-                     # it might be a reporter log file format ...  
-                     set date_time [lindex [split $line ":"] 0]
-                     if {[string is digit $date_time]} {
-                        # first column is digit ...
-                        if {$date_time > 0} {
-                           # if time is > 0 it is millis format, recalculate seconds
-                           set seconds [expr ( $date_time / 1000 )]
-                           if {$seconds > 1213710000} {
-                              set current_time $seconds
-                           } else {
-                              ts_log_fine "  no date from report file"
+                     "reporter_log" {
+                        set date_time [lindex [split $line ":"] 0]
+                        if {[string is digit $date_time]} {
+                           # first column is digit ...
+                           if {$date_time > 0} {
+                              # if time is > 0 it is millis format, recalculate seconds
+                              set seconds [expr ( $date_time / 1000 )]
+                              if {$seconds > 1213710000} {
+                                 set current_time $seconds
+                              }
                            }
                         }
                      }
                   }
-
+                  
                   # store this line
                   set have_time $current_time
                   if {$current_time == 0} {
-                     # We did not find a time stamp till now. This might happen for stderr, stdin files
-                     # In this case we use the actual time stamp of testsuite and store it also into log array 
-                     ts_log_finer "no logging time information found (file: [file tail $f], host: $host): line= $line"
-                     ts_log_finer "using current time!"
-                     set current_time [timestamp]
-                     if { $current_time > $log_end_time } {
-                        set current_time $log_end_time
+                     if {$current_file_type == "jvm_log" && $last_time != 0} {
+                        # Stacktraces of exception do not contain any timestamp
+                        # If we had an valid log entry we assume that it is a stacktrace
+                        set current_time $last_time
+                     } else {
+                        # We did not find a time stamp till now. This might happen for stderr, stdin files
+                        # In this case we use the actual time stamp of testsuite and store it also into log array 
+                        ts_log_finer "no logging time information found (file: [file tail $f], host: $host): line= $line"
+                        ts_log_finer "using current time!"
+                        set current_time [timestamp]
+                        if { $current_time > $log_end_time } {
+                           set current_time $log_end_time
+                        }
+                        set line [format "%s|%s" "no time info in logfile - time is from TS!" $line]
                      }
-                     set line [format "%s|%s" "no time info in logfile - time is from TS!" $line]
-                  } 
+                  } else {
+                     # save the current_time in the last_time variable
+                     # lines with stacktrace will inherit the timestamp
+                     set last_time $current_time
+                  }
 
                   # Store the line with timestamp information into merged_log array
                   # Additional messages (with same time) are logged with higher log "nr" (see max_nr)
