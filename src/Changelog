@@ -1,3 +1,6 @@
+LP-2008-07-09-0: Bugfix:    Fixed BDB install messages for 6.2
+                 Review:    JO
+
 RH-2008-07-07-0: Bugfix:    Hedeby: 
                             o Parsing of hedeby log files did not work if jvm log
                               contains source class and method.

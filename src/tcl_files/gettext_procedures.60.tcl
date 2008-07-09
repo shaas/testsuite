@@ -113,8 +113,8 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_ADD_DEFAULT_QUEUE" { set value "Do you want to add a default queue for this host (y/n) \[y\] >> " }
       "DISTINST_ALL_QUEUE_HOSTGROUP" { set value "Creating the default <all.q> queue and <allhosts> hostgroup" }
       "DISTINST_ADD_DEFAULT_QUEUE_INSTANCE" { set value "Do you want to add a default queue instance for this host (y/n) \[y\] >> " }
-      "DISTINST_ENTER_DATABASE_SERVER" { set value "Please enter the name of your Berkeley DB Spooling Server! >> " }
-      "DISTINST_ENTER_SERVER_DATABASE_DIRECTORY" { set value "Please enter the Database Directory now!\n\nDefault: \[%s\] >> " }
+      "DISTINST_ENTER_DATABASE_SERVER" { set value "*nter the name of your Berkeley DB Spooling Server* >> " }
+      "DISTINST_ENTER_SERVER_DATABASE_DIRECTORY" { set value "*nter the Database Directory * >> " }
       "DISTINST_ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING" { set value "Please enter the Database Directory now, even if you want to spool locally,\nit is necessary to enter this Database Directory. \n\nDefault: \[%s\] >> " }
       "DISTINST_DATABASE_DIR_NOT_ON_LOCAL_FS" { set value "The database directory >%s<\nis not on a local filesystem.\nPlease choose a local filesystem or configure the RPC Client/Server mechanism" }
       "DISTINST_STARTUP_RPC_SERVER" { set value "*is completed, continue with <RETURN>" }
