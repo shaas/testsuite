@@ -1,3 +1,7 @@
+JG-2008-07-10-1: Enhancem.: Added test for IZ 2575 in 
+                            system_tests/clients/qalter.
+                 Review:    MD
+
 ZG-2008-07-10-0: Bugfix:    modifing gettext_procedures.60 file to conform to the
                             changed install message did for CR 6589820
                  Review:    LP

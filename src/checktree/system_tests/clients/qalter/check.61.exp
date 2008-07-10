@@ -32,6 +32,7 @@
 #___INFO__MARK_END__
 
 lappend check_functions "qalter_wd"         ;# test the -wd <dir>/-cwd options
+lappend check_functions "qalter_iz_2575"
 
 #****** qalter/qalter_wd() ******
 # 
@@ -66,4 +67,39 @@ proc qalter_wd {} {
       ts_log_severe $error_text
    }
    delete_job $hold_job1 1
+}
+
+#****** qalter/qalter_iz_2575() ******
+# 
+#  NAME
+#     qalter_iz_2575 -- test if iz 2575 is present
+#
+#  SYNOPSIS
+#     qalter_iz_2575 { } 
+#
+#  FUNCTION
+#     Calls qalter -q "" <job_id>.
+#     Check for correct output, may not contain invalid queue name"
+#*******************************
+proc qalter_iz_2575 {} {
+   global ts_config
+   set job_id [submit_job "-h -q all.q $ts_config(product_root)/examples/jobs/sleeper.sh"]
+   if {$job_id <= 0} {
+      # error has been raised already in submit_job
+      return
+   }
+
+   # this is the message we expect
+   set expected [translate_macro MSG_PARSE_WRONGDESTIDLISTFORMATXSPECTOQOPTION_S "XXXXX"]
+   set pos [string first "XXXXX" $expected]
+   set expected [string trim [string replace $expected $pos [expr $pos + 4]]]
+
+   set output [start_sge_bin "qalter" "-q '' $job_id"]
+   set output [string trim $output]
+
+   if {[string first $expected $output] < 0} {
+      ts_log_severe "qalter -q '' didn't show expected output, expected\n$expected\nbut got\n$output"
+   }
+
+   delete_job $job_id
 }
