@@ -50,15 +50,18 @@ set check_init_level_procedure "issue_2372_init_level"
 # define test's name and run level descriptions
 set check_name            "issue_2372"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level  0 
-set check_description(0)  "Testing commlib enhancement for new parameterlist feature. tested qmaster_params: gdi_retries, gdi_timeout, cl_ping"
+set check_highest_level  3
+set check_description(0)  "Testing commlib enhancement for parameterlist feature with enabled cl_ping, failing gdi request"
+set check_description(1)  "Testing commlib enhancement for parameterlist feature with disabled cl_ping, failing gdi request"
+set check_description(2)  "Testing commlib enhancement for parameterlist feature with enabled cl_ping and request which is successful after 2nd try"
+set check_description(3)  "Testing if scheduler is crashing when no qmaster_params are set"
 
 # define test's dependencies
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_setup_function issue_2372_setup
-set check_cleanup_function issue_2372_cleanup
+set check_setup_level_function issue_2372_setup
+set check_cleanup_level_function issue_2372_cleanup
 
 # define test's procedure order
 set check_functions {}
@@ -75,6 +78,16 @@ proc issue_2372_init_level {} {
       "0" {
          return 0
       }
+      "1" {
+         return 0
+      }
+      "2" {
+         return 0
+      }
+      "3" {
+         return 0
+      }
+
    }
 
    return -1  ;# no other level
@@ -85,26 +98,55 @@ proc issue_2372_init_level {} {
 proc issue_2372_setup {} {
    global ts_config
    global issue_2372_backup
+   global CHECK_ACT_LEVEL
+   global issue_2372_cl_ping
+   global issue_2372_gdi_timeout
+   global issue_2372_gdi_retries
+
 
    # we want to modify the global config - make a backup
    get_config issue_2372_backup
-   shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
-   wait_till_qmaster_is_down $ts_config(master_host)
 
-   set envlist(SGE_TEST_SPOOLING_WAIT_TIME_US) "80000"
-   set master_arch [resolve_arch $ts_config(master_host)]
-   set arguments "$ts_config(product_root)/bin/$master_arch/sge_qmaster"
-
-   ts_log_fine "restarting qmaster with slow spooling options!"
-   set result [start_remote_prog $ts_config(master_host) "root" $arguments "" prg_exit_state 60 0 "" envlist 1 0 0]
-
-   if { $prg_exit_state != 0 } {
-      ts_log_severe "error restarting qmaster with slow spooling"
+   # now modify params
+   if {$CHECK_ACT_LEVEL == 0} {
+      set issue_2372_cl_ping "true"
+      set issue_2372_gdi_timeout 8
+      set issue_2372_gdi_retries 2
+   } 
+   if {$CHECK_ACT_LEVEL == 1} {
+      set issue_2372_cl_ping "false"
+      set issue_2372_gdi_timeout 8
+      set issue_2372_gdi_retries 1
+   }
+   if {$CHECK_ACT_LEVEL == 2} {
+      set issue_2372_cl_ping "true"
+      set issue_2372_gdi_timeout 6
+      set issue_2372_gdi_retries 10
+   }
+   if {$CHECK_ACT_LEVEL == 3} {
+      set issue_2372_cl_ping "false"
+      set issue_2372_gdi_timeout 60
+      set issue_2372_gdi_retries 0
    }
 
-   ts_log_fine "setting qmaster_params"
-   set global_conf(qmaster_params) "gdi_timeout=15;gdi_retries=3;cl_ping=true"
+   
+   if {$issue_2372_gdi_retries != 0} {
+      set global_conf(qmaster_params) "gdi_timeout=$issue_2372_gdi_timeout;gdi_retries=$issue_2372_gdi_retries;cl_ping=$issue_2372_cl_ping"
+   } else {
+      set global_conf(qmaster_params) "none"
+   }
    set_config global_conf
+   
+   # shutdown qmaster & scheduler
+   shutdown_system_daemon $ts_config(master_host) sched
+   shutdown_system_daemon $ts_config(master_host) qmaster
+   
+   
+   # restart qmaster with test environment variable SGE_TEST_SPOOLING_WAIT_TIME
+   ts_log_fine "restarting qmaster (and scheduler) with slow spooling options enabled when qping -dump client is connected!"
+
+   set envlist(SGE_TEST_SPOOLING_WAIT_TIME) "80"
+   startup_qmaster 1 envlist 
 }
 
 
@@ -112,35 +154,22 @@ proc issue_2372_cleanup {} {
    global ts_config
    global issue_2372_backup CHECK_USER
 
-   set master_arch [resolve_arch $ts_config(master_host)]
-   set arguments "$ts_config(product_root)/bin/$master_arch/sge_qmaster"
-
-   set qmaster_spool_dir [get_qmaster_spool_dir]
-   set qmaster_pid -1
-
-   set qmaster_pid [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "cat" "$qmaster_spool_dir/qmaster.pid"]
-   set qmaster_pid [ string trim $qmaster_pid ]
-   if { $prg_exit_state != 0 } {
-      set qmaster_pid -1
+   if { [is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] } {
+      ts_log_fine "scheduler still alive - good"
+      shutdown_system_daemon $ts_config(master_host) sched
+   } else {
+      ts_log_severe "scheduler died!"
    }
- 
-   get_ps_info $qmaster_pid $ts_config(master_host)
-   if { ($ps_info($qmaster_pid,error) == 0) } {
-      if { [ is_pid_with_name_existing $ts_config(master_host) $qmaster_pid "sge_qmaster" ] == 0 } { 
-         ts_log_fine "killing qmaster with pid $qmaster_pid on host $ts_config(master_host)"
-         set result [start_remote_prog "$ts_config(master_host)" "root" "kill" "-9 $qmaster_pid"]
-         ts_log_fine $result
-         wait_till_qmaster_is_down $ts_config(master_host)
-      }
-   }
-   set result [start_remote_prog $ts_config(master_host) "root" $arguments "" prg_exit_state 60 0 "" "" 1 0 0]
-   wait_for_load_from_all_queues 60
-
-   delete_all_jobs
-   wait_for_end_of_all_jobs
+   shutdown_system_daemon $ts_config(master_host) qmaster
 
    # restore config
+   ts_log_fine "restarting qmaster and restore default settings"
+   startup_qmaster 0
    set_config issue_2372_backup
+   shutdown_system_daemon $ts_config(master_host) qmaster
+
+   ts_log_fine "restarting qmaster and scheduler with default settings"
+   startup_qmaster
 
    # unset our test's global variables
    foreach var "issue_2372_backup" {
@@ -148,6 +177,8 @@ proc issue_2372_cleanup {} {
          unset $var
       }
    }
+   wait_for_load_from_all_queues 300
+   wait_for_end_of_all_jobs
 }
 
 
@@ -155,58 +186,200 @@ proc issue_2372 {} {
    global ts_config CHECK_USER
    global issue_2372_hosts
    global CHECK_ACT_LEVEL result
+   global issue_2372_cl_ping
+   global issue_2372_gdi_timeout
+   global issue_2372_gdi_retries
 
-   if {$CHECK_ACT_LEVEL == 0} {
-      ts_log_fine "this is the test for runlevel $CHECK_ACT_LEVEL"
-      ts_log_fine "starting with permanent job submission!"
+   if {$CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 1} {
+      set host [host_conf_get_suited_hosts 1 {lx24-x86 lx24-amd64 lx24-ia64 lx26-amd64 lx26-x86}]
+      set user $CHECK_USER
+      set arch [resolve_arch $host]
+      set binary "$ts_config(product_root)/bin/$arch/qsub"
+      set envlist(SGE_DEBUG_LEVEL) "6 6 6 6 6 6 6 6"
+      set envlist(SGE_COMMLIB_DEBUG) 2
+      set args " -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
 
-      set retry_found 0   
-      set time_checked 0   
-      set max_submit_num 0
-
-      while {$retry_found != 1 && $time_checked != 1} {
-         set host [host_conf_get_suited_hosts]
-         set user $CHECK_USER
-         set arch [resolve_arch $host]
-         set binary "$ts_config(product_root)/bin/$arch/qsub"
-         set envlist(SGE_DEBUG_LEVEL) "6 6 6 6 6 6 6 6"
-         set args " -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
-         set time_before [timestamp]
-         set result [start_remote_prog $host $user $binary $args exit_state "600" 0 "" envlist]
-         set time_after [timestamp]
-
-         ts_log_fine "qsub result: $result"
-
-         set tmp_result [split $result "\n"]
-
-         foreach line $tmp_result {
-            if {[string first "retry: 2" $line] != -1} {
-               set retry_found 1
-               ts_log_fine "found retry entry and setting retry_found to 1"
-               ts_log_fine "Found qsub output: $line"
+      # start qping -dump client for qmaster
+      # when qping -dump debug client is connected qmaster will sleep 80 seconds when doing spooling
+      setup_qping_dump dump_handle
+      # qping output is out of interrest, but we call it (for expect reasons)
+      get_qping_dump_output dump_handle
+        
+      ts_log_fine "doing qsub ..."
+      set result [start_remote_prog $host $user $binary $args prg_exit_state 120 0 "" envlist]
+      ts_log_finer "qsub result:\n$result"
+      set runs 0
+      set gdi_timeout ""
+      set cl_ping ""
+      foreach line [split $result "\r\n"] {
+         if {[string match "*TEST_2372_OUTPUT*" $line]} {
+            ts_log_fine $line
+            if {[string match "*RUNS*" $line]} {
+               incr runs 1
+            }
+            if {[string match "*GDI_TIMEOUT*" $line]} {
+               set tmp_gdi_timeout [lindex [split $line "="] 1]
+               if {$gdi_timeout == ""} {
+                  set gdi_timeout $tmp_gdi_timeout
+               } else {
+                  if {[string compare $gdi_timeout $tmp_gdi_timeout] != 0} {
+                     ts_log_severe "GDI_TIMEOUT value difference: old=\"$gdi_timeout\", new=\"$tmp_gdi_timeout\""
+                  }
+               }
+            }
+            if {[string match "*CL_PING*" $line]} {
+               set tmp_cl_ping [lindex [split $line "="] 1]
+               if {$cl_ping == ""} {
+                  set cl_ping $tmp_cl_ping
+               } else {
+                  if {[string compare $cl_ping $tmp_cl_ping] != 0} {
+                     ts_log_severe "CL_PING value difference: old=\"$cl_ping\", new=\"$tmp_cl_ping\""
+                  }
+               }
             }
          }
+      }
+      # close qping -dump
+      cleanup_qping_dump_output dump_handle
+      ts_log_fine "runs=$runs"
+      ts_log_fine "gdi_timeout=$gdi_timeout"
+      ts_log_fine "cl_ping=$cl_ping"
 
-            if {$retry_found == 1} {
-               set time [expr $time_after - $time_before] 
-               if {$time >= "30.0"} {
-                  set time_checked 1
-                  ts_log_fine "found a time value, time is correct!"
-                  ts_log_fine "found a time value: $time"
-               } else {
-                  ts_log_fine "found a time value, time is wrong!"
-                  ts_log_fine "found a time value: $time after 2 retries. Time must be > 30 sec!"
-                  ts_log_severe "wrong time value!"
-               }
-            } 
+      if {$gdi_timeout != $issue_2372_gdi_timeout} {
+         ts_log_severe "gdi_timeout not set to $issue_2372_gdi_timeout! gdi_timeout=$gdi_timeout"
+      }
 
-         if {$max_submit_num > 100} {
-            ts_log_severe "test failed and exited due to reaching max job submit number!"
-            break;
-         }
-         set max_submit_num [expr $max_submit_num + 1]
+      if {$runs != $issue_2372_gdi_retries} {
+         ts_log_severe "expected $issue_2372_gdi_retries retries, got $runs"
+      }
+
+      if {[string compare -nocase $issue_2372_cl_ping $cl_ping] != 0} {
+         ts_log_severe "cl_ping is set to $cl_ping, should be $issue_2372_cl_ping"
       }
    }
 
+
+   if {$CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 3} {
+      set host [host_conf_get_suited_hosts 1 {lx24-x86 lx24-amd64 lx24-ia64 lx26-amd64 lx26-x86}]
+      set user $CHECK_USER
+      set arch [resolve_arch $host]
+      set binary "$ts_config(product_root)/bin/$arch/qsub"
+      set envlist(SGE_DEBUG_LEVEL) "6 6 6 6 6 6 6 6"
+      set envlist(SGE_COMMLIB_DEBUG) 2
+      set args " -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
+
+      # start qping -dump client for qmaster
+      # when qping -dump debug client is connected qmaster will sleep 80 seconds when doing spooling
+      setup_qping_dump dump_handle
+      # qping output is out of interrest, but we call it (for expect reasons)
+      get_qping_dump_output dump_handle
+        
+      ts_log_fine "doing qsub ..."
+      set qping_closed 0
+      set sp_id [open_remote_spawn_process $host $user $binary $args 0 "" envlist]
+      set qsub_spawn_id [lindex $sp_id 1]
+      set runs 0
+      set gdi_timeout ""
+      set cl_ping ""
+      set timeout 120
+      set error_text ""
+      log_user 0
+      set full_output ""
+      expect {
+            -i $qsub_spawn_id full_buffer {
+               append error_text "got full buffer error\n"
+            }
+            -i $qsub_spawn_id timeout {
+               append error_text "got timeout error\n"
+            }
+            -i $qsub_spawn_id eof {
+               append error_text "got unexpected eof\n"
+            }
+            -i $qsub_spawn_id -- "*\n" {
+               set buffer $expect_out(0,string)
+               set do_continue 1
+               foreach aline [split $buffer "\r\n"] {
+                  set line [string trim $aline]
+                  if {$line == ""} {
+                     continue
+                  }
+                  append full_output "$line\n"
+                  if {[string match "*_exit_status_*" $line]} {
+                     if {$CHECK_ACT_LEVEL == 2} {
+                        if {![string match "*:(0)*" $line]} {
+                           append error_text "qsub was not successfull\noutput:\n$full_output"
+                        }
+                     } 
+                     if {$CHECK_ACT_LEVEL == 3} {
+                        if {[string match "*:(0)*" $line]} {
+                           append error_text "qsub was successfull (not expected)\noutput:\n$full_output"
+                        }
+                     } 
+                     set do_continue 0
+                  }
+                  ts_log_fine $line
+                  if {[string match "*TEST_2372_OUTPUT*" $line]} {
+                     if {[string match "*RUNS*" $line]} {
+                        incr runs 1
+                        if {$runs > 2} {
+                           ts_log_fine "=> TS: ok - no enable qmaster again - qsub should be successfull!"
+                           cleanup_qping_dump_output dump_handle
+                           set qping_closed 1
+                        }
+                     }
+                     if {[string match "*GDI_TIMEOUT*" $line]} {
+                        set tmp_gdi_timeout [lindex [split $line "="] 1]
+                        if {$gdi_timeout == ""} {
+                           set gdi_timeout $tmp_gdi_timeout
+                        } else {
+                           if {[string compare $gdi_timeout $tmp_gdi_timeout] != 0} {
+                              append error_text "GDI_TIMEOUT value difference: old=\"$gdi_timeout\", new=\"$tmp_gdi_timeout\"\n"
+                           }
+                        }
+                     }
+                     if {[string match "*CL_PING*" $line]} {
+                        set tmp_cl_ping [lindex [split $line "="] 1]
+                        if {$cl_ping == ""} {
+                           set cl_ping $tmp_cl_ping
+                        } else {
+                           if {[string compare $cl_ping $tmp_cl_ping] != 0} {
+                              append error_text "CL_PING value difference: old=\"$cl_ping\", new=\"$tmp_cl_ping\"\n"
+                           }
+                        }
+                     }
+                  }
+               }
+               if {$do_continue} {
+                  exp_continue
+               }
+            }
+      }
+      close_spawn_process $sp_id
+
+      # close qping -dump
+      if {$qping_closed == 0} {
+         cleanup_qping_dump_output dump_handle
+      }
+
+      ts_log_fine "gdi_timeout=$gdi_timeout"
+      ts_log_fine "cl_ping=$cl_ping"
+  
+      if {$error_text != ""} {
+         ts_log_severe $error_text
+      }
+
+      if {$gdi_timeout != $issue_2372_gdi_timeout} {
+         ts_log_severe "gdi_timeout not set to $issue_2372_gdi_timeout! gdi_timeout=$gdi_timeout"
+      }
+
+      if {[string compare -nocase $issue_2372_cl_ping $cl_ping] != 0} {
+         ts_log_severe "cl_ping is set to $cl_ping, should be $issue_2372_cl_ping"
+      }
+      if {$CHECK_ACT_LEVEL == 3} {
+         if {$issue_2372_gdi_retries == 0 && $runs != 1} {
+            ts_log_severe "expected no retries, got $runs runs"
+         }
+      }
+   }
 }
 

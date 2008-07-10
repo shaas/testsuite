@@ -1,3 +1,6 @@
+CR-2008-07-10-0: Cleanup:   enhanced issue check 2372
+                 Review:    DG
+
 LP-2008-07-09-0: Bugfix:    Fixed BDB install messages for 6.2
                  Review:    JO
 
