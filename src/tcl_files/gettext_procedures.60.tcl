@@ -131,8 +131,8 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_CHECK_ADMINUSER_ACCOUNT" { set value "\nThe current directory\n\n   %s\n\nis owned by user\n\n   %s\n\nIf user >root< does not have write permissions in this directory on *all*\nof the machines where Grid Engine will be installed (NFS partitions not\nexported for user >root< with read/write permissions) it is recommended to\ninstall Grid Engine that all spool files will be created under the user id\nof user >%s<.\n\nIMPORTANT NOTE: The daemons still have to be started by user >root<. \n" }
       "DISTINST_CHECK_ADMINUSER_ACCOUNT_ANSWER" { set value "Do you want to install Grid Engine as admin user" }
       "DISTINST_ENTER_LOCAL_EXECD_SPOOL_DIR" { set value "During the qmaster installation you've already entered a global\nexecd spool directory. This is used, if no local spool directory is configured.\n\n Now you can enter a local spool directory for this host.\n" }
-      "DISTINST_ENTER_LOCAL_EXECD_SPOOL_DIR_ASK" { set value "Do you want to configure a local spool directory\n for this host (y/n) \[n\] >> " }
-      "DISTINST_ENTER_LOCAL_EXECD_SPOOL_DIR_ENTER" { set value "Please enter the local spool directory now! >> " }
+      "DISTINST_ENTER_LOCAL_EXECD_SPOOL_DIR_ASK" { set value "Do you want to configure a*spool directory\n for this host (y/n) \[n\] >> " }
+      "DISTINST_ENTER_LOCAL_EXECD_SPOOL_DIR_ENTER" { set value "*nter the*spool directory now! >> " }
       "DISTINST_ENTER_SCHEDLUER_SETUP" { set value "Enter the number of your prefer* configuration and hit <RETURN>! \nDefault configuration is \[1\] >> " }
       "DISTINST_DELETE_DB_SPOOL_DIR" { set value "The spooling directory already exists! Do you want to delete it? \[n\] >> " }
       "DISTINST_ADD_SHADOWHOST_HEADLINE" { set value "\nAdding Grid Engine shadow hosts" }
