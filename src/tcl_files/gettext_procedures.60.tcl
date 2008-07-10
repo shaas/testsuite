@@ -36,21 +36,21 @@
 #     sge_macro() -- return sge macro string
 #
 #  SYNOPSIS
-#     sge_macro { macro_name {raise_error 1} } 
+#     sge_macro { macro_name {raise_error 1} }
 #
 #  FUNCTION
-#     This procedure returns the string defined by the macro. 
+#     This procedure returns the string defined by the macro.
 #
 #  INPUTS
 #     macro_name  - sge source code macro
-#     raise_error - if macro is not found, shall an error be raised and 
+#     raise_error - if macro is not found, shall an error be raised and
 #                   reparsing of messages file be triggered?
 #
 #  RESULT
 #     string
 #
 #  EXAMPLE
-#     set string [sge_macro MSG_OBJ_SHARETREE] 
+#     set string [sge_macro MSG_OBJ_SHARETREE]
 #
 #  SEE ALSO
 #     ???/???
@@ -58,20 +58,20 @@
 global warnings_already_logged
 proc sge_macro { macro_name {raise_error 1} } {
    global warnings_already_logged
- 
+
    set value ""
 
    # special handling for install macros
    switch -exact $macro_name {
-      "DISTINST_LICENSE_AGREEMENT" { set value "Do you agree with that license? (y/n) \[n\] >> " } 
-      "DISTINST_HIT_RETURN_TO_CONTINUE" { set value "\nHit <RETURN> to continue >>" } 
+      "DISTINST_LICENSE_AGREEMENT" { set value "Do you agree with that license? (y/n) \[n\] >> " }
+      "DISTINST_HIT_RETURN_TO_CONTINUE" { set value "\nHit <RETURN> to continue >>" }
       "DISTINST_HIT_RETURN_TO_CONTINUE_BDB_RPC" { set value "Hit <RETURN> to continue!" }
       "DISTINST_HOSTNAME_KNOWN_AT_MASTER" { set value "\nThis hostname is known at qmaster as an administrative host.\n\nHit <RETURN> to continue >>" }
       "DISTINST_CHECK_AGAIN" { set value "Check again (y/n) ('n' will abort) \[y\] >> " }
       "DISTINST_NOT_COMPILED_IN_SECURE_MODE" { set value "\n>sge_qmaster< binary is not compiled with >-secure< option!\n" }
       "DISTINST_ENTER_HOSTS" { set value "Host(s): " }
       "DISTINST_VERIFY_FILE_PERMISSIONS1" { set value "\nWe may now verify and set the file permissions of your Grid Engine\ndistribution.\n\nThis may be useful since due to unpacking and copying of your distribution\nyour files may be unaccessible to other users.\n\nWe will set the permissions of directories and binaries to\n\n   755 - that means executable are accessible for the world\n\nand for ordinary files to\n\n   644 - that means readable for the world\n\nDo you want to verify and set your file permissions (y/n) \[y\] >> " }
-      "DISTINST_VERIFY_FILE_PERMISSIONS2" { set value "\nDid you install this version with >pkgadd< or did you already\nverify and set the file permissions of your distribution (enter: y)\n\nIn some cases, eg: the binaries are stored on a NTFS or on any other\nfilesystem, which provides additional file permissions, the UNIX file\npermissions can be wrong. In this case we would advise to ver* and\nto set the file permissions (enter: n) (y/n) \[n\] >> " }
+      "DISTINST_VERIFY_FILE_PERMISSIONS2" { set value "\nDid you install this version with >pkgadd< or did you already\nverify and set the file permissions of your distribution *" }
       "DISTINST_WILL_NOT_VERIFY_FILE_PERMISSIONS" { set value "We will not verify your file permissions. Hit <RETURN> to continue >>" }
       "DISTINST_DO_NOT_VERIFY_FILE_PERMISSIONS" { set value "We do not verify file permissions. Hit <RETURN> to continue >> " }
       "DISTINST_MASTER_INSTALLATION_COMPLETE" { set value "\nYour Grid Engine qmaster installation is now completed" }
@@ -124,7 +124,7 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER" { set value "\nPlease give the basic configuration parameters of your Grid Engine\ninstallation:\n\n   <execd_spool_dir>\n\nThe pathname of the spool directory of the execution hosts. You\nmust have the right to create this directory and to write into it.\n" }
       "DISTINST_EXECD_SPOOLING_DIR_NOROOT" { set value "\nPlease give the basic configuration parameters of your Grid Engine\ninstallation:\n\n   <execd_spool_dir>\n\nThe pathname of the spool directory of the execution hosts. User >%s<\nmust have the right to create this directory and to write into it.\n" }
       "DISTINST_EXECD_SPOOLING_DIR_DEFAULT" { set value "Default: \[%s\] >> " }
-      "DISTINST_ENTER_ADMIN_MAIL" { set value "\n<administrator_mail>\n\nThe email address of the administrator to whom problem reports are sent.\n\nIt's is recommended to configure this parameter. You may use >none<\nif you do not wish to receive administrator mail.\n\nPlease enter an email address in the form >user@foo.com<.\n\nDefault: \[none\] >> " }
+      "DISTINST_ENTER_ADMIN_MAIL" { set value "\n<administrator_mail>\n\nThe email address of the administrator to whom problem reports are sent.\n\nIt's is recommended to configure this parameter. You may use >none<\nif you do not wish to receive administrator mail.\n\nPlease enter an email address in the form >user@foo.com<.\n\nDefault: \[*\] >> " }
       "DISTINST_SHOW_CONFIGURATION" { set value "\nThe following parameters for the cluster configuration were configured:\n\n   execd_spool_dir        %s\n   administrator_mail     %s\n" }
       "DISTINST_ACCEPT_CONFIGURATION" { set value "Do you want to change the configuration parameters (y/n) \[n\] >> " }
       "DISTINST_INSTALL_STARTUP_SCRIPT" { set value "\nWe can install the startup script that\nGrid Engine is started at machine boot (y/n) \[n\] >> " }
@@ -144,23 +144,23 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_SHADOW_INFO" { set value "\nMake sure, that the host, you wish to configure as a shadow host,\n has read/write permissions to the qmaster spool and SGE_ROOT/<cell>/common \ndirectory! For using a shadow master it is recommended to set up a \nBerkeley DB Spooling Server\n\n Hit <RETURN> to continue >> " }
       "DISTINST_SHADOW_ROOT" { set value "Please enter your SGE_ROOT directory or use the default\n\[%s\] >> " }
       "DISTINST_SHADOW_CELL" { set value "Please enter your SGE_CELL directory or use the default \[default\] >> " }
-      "DISTINST_SHADOWD_INSTALL_COMPLETE" { set value "Shadowhost installation completed!" }     
-      "DISTINST_WE_CONFIGURE_WITH_X_SETTINGS" { set value "\nWe're configuring the scheduler with >%s< settings!\n Do you agree? (y/n) \[y\] >> " }     
-      "DISTINST_RPC_WELCOME" { set value "Hit <RETURN> if this is ok or stop the installation with Ctrl-C >> " }     
-      "DISTINST_RPC_INSTALL_AS_ADMIN" { set value "Do you want to install Grid Engine as admin user >%s< (y/n) \[y\] >> " }     
-      "DISTINST_RPC_SGE_ROOT" { set value "If this directory is not correct (e.g. it may contain an automounter\nprefix) enter the correct path to this directory or hit <RETURN>\nto use default \[%s\] >> " }     
-      "DISTINST_RPC_HIT_RETURN_TO_CONTINUE" { set value "Hit <RETURN> to continue >> " }     
-      "DISTINST_RPC_SGE_CELL" { set value "Enter cell name \[%s\] >> " }     
-      "DISTINST_RPC_SERVER" { set value "\nEnter database server name or \nhit <RETURN> to use default \[%s\] >> " }     
-      "DISTINST_RPC_DIRECTORY" { set value "\nEnter the database directory\nor hit <RETURN> to use default \[%s\] >> " }     
-      "DISTINST_RPC_DIRECTORY_EXISTS" { set value "The spooling directory already exists! Do you want to delete it? (y/n) \[n\] >> " }     
-      "DISTINST_RPC_START_SERVER" { set value "Shall the installation script try to start the RPC server? (y/n) \[y\] >>" }     
-      "DISTINST_RPC_SERVER_STARTED" { set value "Please remember these values, during Qmaster installation\n you will be asked for! Hit <RETURN> to continue!" }     
-      "DISTINST_RPC_INSTALL_RC_SCRIPT" { set value "We can install the startup script that\nGrid Engine is started at machine boot (y/n) \[y\] >> " }     
+      "DISTINST_SHADOWD_INSTALL_COMPLETE" { set value "Shadowhost installation completed!" }
+      "DISTINST_WE_CONFIGURE_WITH_X_SETTINGS" { set value "\nWe're configuring the scheduler with >%s< settings!\n Do you agree? (y/n) \[y\] >> " }
+      "DISTINST_RPC_WELCOME" { set value "Hit <RETURN> if this is ok or stop the installation with Ctrl-C >> " }
+      "DISTINST_RPC_INSTALL_AS_ADMIN" { set value "Do you want to install Grid Engine as admin user >%s< (y/n) \[y\] >> " }
+      "DISTINST_RPC_SGE_ROOT" { set value "If this directory is not correct (e.g. it may contain an automounter\nprefix) enter the correct path to this directory or hit <RETURN>\nto use default \[%s\] >> " }
+      "DISTINST_RPC_HIT_RETURN_TO_CONTINUE" { set value "Hit <RETURN> to continue >> " }
+      "DISTINST_RPC_SGE_CELL" { set value "Enter cell name \[%s\] >> " }
+      "DISTINST_RPC_SERVER" { set value "\nEnter database server name or \nhit <RETURN> to use default \[%s\] >> " }
+      "DISTINST_RPC_DIRECTORY" { set value "\nEnter the database directory\nor hit <RETURN> to use default \[%s\] >> " }
+      "DISTINST_RPC_DIRECTORY_EXISTS" { set value "The spooling directory already exists! Do you want to delete it? (y/n) \[n\] >> " }
+      "DISTINST_RPC_START_SERVER" { set value "Shall the installation script try to start the RPC server? (y/n) \[y\] >>" }
+      "DISTINST_RPC_SERVER_STARTED" { set value "Please remember these values, during Qmaster installation\n you will be asked for! Hit <RETURN> to continue!" }
+      "DISTINST_RPC_INSTALL_RC_SCRIPT" { set value "We can install the startup script that\nGrid Engine is started at machine boot (y/n) \[y\] >> " }
       "DISTINST_RPC_SERVER_COMPLETE" { set value "e.g. * * * * * <full path to scripts> <sge-root dir> <sge-cell> <bdb-dir>\n" }
       "DISTINST_CSP_COPY_CMD" { set value "Do you want to use rsh/rcp instead of ssh/scp? (y/n) \[n\] >>" }
-      "DISTINST_CSP_COPY_CERTS" { set value "host? (y/n) \[y\] >>" }     
-      #"DISTINST_CSP_COPY_CERTS" { set value "Should the script try to copy the cert files, for you, to each\n<%s> host? (y/n) \[y\] >>" }     
+      "DISTINST_CSP_COPY_CERTS" { set value "host? (y/n) \[y\] >>" }
+      #"DISTINST_CSP_COPY_CERTS" { set value "Should the script try to copy the cert files, for you, to each\n<%s> host? (y/n) \[y\] >>" }
       "DISTINST_CSP_COPY_FAILED" { set value "The certificate copy failed!" }
       "DISTINST_CSP_COPY_RSH_FAILED" { set value "Certificates couldn't be copied!"}
       "DISTINST_EXECD_UNINST_NO_ADMIN" { set value "This host is not an admin host. Uninstallation is not allowed\nfrom this host!" }
@@ -184,6 +184,24 @@ proc sge_macro { macro_name {raise_error 1} } {
       "DISTINST_DETECT_BDB_KEEP_CELL" {set value "Do you want to keep * or delete * the directory? (y/n) *" }
       "DISTINST_DO_YOU_WANT_TO_CONTINUE" {set value "Do you want to continue (y/n) ('n' will abort) \[y\] >> " }
       "DISTINST_REMOVE_OLD_RC_SCRIPT" {set value "Do you want to remove the startup script \nfor * at this machine? (y/n) \[y\] >> " }
+      "DISTINST_UNUSED_PORT"   { set value "*%s*Please enter an unused port number >> " }
+      "DISTINT_UPGRADE_BCKP_DIR" { set value "Backup directory  >> " }
+      "DISTINT_UPGRADE_USE_BCKP_DIR" { set value "Continue with this backup directory (y/n) \[y\] >> " }
+      "DISTINT_UPGRADE_NEW_BCKP_DIR" { set value "Enter a new backup directory or exit ('n') (y/n) \[y\] >> " }
+      "DISTINT_UPGRADE_COMMD_PORT_SETUP" { set value "*How do you want to configure the Grid Engine communication ports?\n\nUsing the >shell environment<:                           \[1\]\n\nUsing a network service like >/etc/service<, >NIS/NIS+<: \[2\]\n\n(default: 1) >> " }
+      "DISTINT_UPGRADE_IJS_SELECTION" { set value "\nThe backup configuration includes information for running \ninteractive jobs. Do you want to use the IJS information from \nthe backup ('y') or use new default values ('n') (y/n) \[y\] >> " }
+      "DISTINCT_UPGRADE_NEXT_RANK_NUMBER" { set value "\nBackup contains last * ID *. As a suggested value, we added 1000 \nto that number and rounded it up to the nearest 1000.\nIncrease the value, if appropriate.\nChoose the new next * ID \[*\] >> " }
+      "DISTINCT_UPGRADE_USE_EXISTING_JMX" { set value "Found JMX settings in the backup\nUse the JMX settings from the backup ('y') or reconfigure ('n') (y/n) \[y\] >> " }
+      "DISTINCT_UPGRADE_USE_EXISTING_SPOOLING" { set value "\nUse previous * spooling method ('y') or use new spooling method ('n') (y/n) \[y\] >> " }
+      "DISTINT_ENTER_CA_COUNTRY_CODE" { set value "Please enter your two letter country code, e.g. 'US' >> " }
+      "DISTINT_ENTER_CA_STATE" { set value "Please enter your state >> " }
+      "DISTINT_ENTER_CA_LOCATION" { set value "Please enter your location, e.g city or buildingcode >> " }
+      "DISTINT_ENTER_CA_ORGANIZATION" { set value "Please enter the name of your organization >> " }
+      "DISTINT_ENTER_CA_ORGANIZATION_UNIT" { set value "Please enter your organizational unit, e.g. your department >> " }
+      "DISTINT_ENTER_CA_ADMIN_EMAIL" { set value "Please enter the email address of the CA administrator >> " }
+      "DISTINT_CA_RECREATE" { set value "Do you want to recreate your SGE CA infrastructure (y/n) \[y\] >> " }
+      "DISTINT_ENTER_OVERRIDE_PROTECTION" { set value "*override protection 600 (yes/no)? " }
+      "DISTINT_INSTALL_BDB_AND_CONTINUE" { set value "Please, log in to your Berkeley DB spooling host and execute \"inst_sge -db\"\nPlease do not continue, before the Berkeley DB installation with\n\"inst_sge -db\" is completed, continue with <RETURN>" }
    }
 
    # if it was no install macro, try to find it from messages files
@@ -209,13 +227,13 @@ proc sge_macro { macro_name {raise_error 1} } {
       #   set script [ open "./.testsuite_macros_with_dashes" "a" "0755" ]
       #   puts $script $macro_name
       #   close $script
-      #} 
+      #}
       ts_log_finer "---WARNING from translate macro procedure ------------------------------------"
       ts_log_finer "   translated macro \"$macro_name\" contains dashes(-)!"
       ts_log_finer "   Use the \"--\" option on expect pattern line when using it!"
       ts_log_finer "------------------------------------------------------------------------------"
       set warnings_already_logged($macro_name) 1
-   } 
+   }
    return $value
 }
 

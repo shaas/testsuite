@@ -1,0 +1,1464 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# Template for testsuite check
+# 
+# 1) replace the following symbols by your test specific names
+#    o upgrade   name of your test (e.g. consumable_test)
+#      (vi: 21s)
+#
+# 2) set check_root_access_needs to "yes" or "no" (if you need root access)
+#
+# 3) set check_category
+#
+# 4) set check_highest_level ( e.g.: runlevel "short" has reserved values from 0 to 99 ) 
+#
+# 5) set check_needs (e.g.: "init_core_system" this means that this test is not 
+#    started without succesfull run of "init_core_system" test
+# 6) implement the default functions (e.g.: upgrade_init_level)
+#
+# 7) you can add any function name to check_functions (all function (no paramters allowed) are started 
+#    within each runlevel number
+#    PLEASE use ts_log_severe() to submit errors
+#    ts_log_severe() is used in many testsuite standard functions, so not every 
+#    function call must check the return state.
+# 
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "upgrade_test_init_level"
+
+# define test's name and run level descriptions
+set check_name            "upgrade_test"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "Upgrade test"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function upgrade_test_setup
+set check_cleanup_function upgrade_test_cleanup
+
+# define test's procedure order
+set check_functions {}
+# this check must run as the first one!
+lappend check_functions "upgrade_test_backup_initial_config"
+lappend check_functions "upgrade_test_upgrade_additional_cluster"
+# this check must run as the last one!
+lappend check_functions "upgrade_test_init_cluster"
+
+proc upgrade_test_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         if { $ts_config(gridengine_version) >= 62 } {
+            return 0
+         } else {
+            return -1
+         }
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc upgrade_test_setup {} {
+   global ts_config ts_user_config
+   global CHECK_UPGRADE_TEMP_CONFIG_DIR
+   global CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR
+
+   # initiate the global values needed for upgrade tests
+   # directories where the cluster configurations will be saved
+   set CHECK_UPGRADE_TEMP_CONFIG_DIR "$ts_config(results_dir)/upgrade_configs"
+   set CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR "$CHECK_UPGRADE_TEMP_CONFIG_DIR/default"
+
+}
+
+proc upgrade_test_cleanup {} {
+   global ts_config CHECK_UPGRADE_TEMP_CONFIG_DIR
+
+   # delete directory with additional cluster's configurations
+   delete_directory $CHECK_UPGRADE_TEMP_CONFIG_DIR
+}
+
+#************** upgrade_test/upgrade_test_backup_initial_config() **************
+#  NAME
+#     upgrade_test_upgrade_cluster -- test the backing up of cluster configuration
+#
+#  SYNOPSIS
+#     upgrade_test_backup_initial_config { }
+#
+#  FUNCTION
+#     This procedure tests the backing up of the initial cluster configuration.
+#     The configuration is stored to the $CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR
+#     directory and will be used for the final restoring of the cluster
+#     configuration. Therefore this test must run as the first one!
+#
+#  RESULT
+#     0 on success
+#    -1 on error
+#
+#  SEE ALSO
+#     upgrade_test_init_cluster()
+#*******************************************************************************
+proc upgrade_test_backup_initial_config {} {
+   global ts_config CHECK_DEFAULTS_FILE
+   global CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR
+
+   set result [backup_remote_cluster_config $CHECK_DEFAULTS_FILE $CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR]
+
+   ts_log_finest $result
+   if { $result != 0 } {
+      ts_log_severe "Back up of current cluster configuration failed."
+      return -1
+   }
+   return 0
+}
+
+#************** upgrade_test/upgrade_test_init_cluster() ***********************
+#  NAME
+#     upgrade_test_init_cluster -- test the upgrade of the cluster
+#
+#  SYNOPSIS
+#     upgrade_test_init_cluster { }
+#
+#  FUNCTION
+#     This procedure tests the upgrade of the cluster to the initial configuration.
+#     The configuration is stored by the test upgrade_test_backup_initial_config()
+#     to the $CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR directory.
+#     This test must run as the last one!
+#
+#  RESULT
+#     0 on success
+#    -1 on error
+#
+#  SEE ALSO
+#     upgrade_test_backup_initial_config()
+#*******************************************************************************
+proc upgrade_test_init_cluster {} {
+   global ts_config CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR
+
+   # shutdown the core system
+   shutdown_core_system
+   if { $ts_config(bdb_server) != "none" } {
+      # start the bdb server
+      delete_directory $ts_config(bdb_dir)
+      file mkdir $ts_config(bdb_dir)
+      startup_bdb_rpc $ts_config(bdb_server)
+   }
+
+   # upgrade the cluster with the initial configuration
+   set result [upgrade_test_upgrade_run_script $CHECK_UPGRADE_INITIAL_CLUSTER_CONFIG_DIR]
+   if { $result != 0 } {
+      ts_log_severe "Upgrade of current cluster to the initial configuration failed."
+      return -1
+   }
+
+   # start up execution deamons
+   set errors 0
+   foreach host $ts_config(execd_nodes) {
+      if { ![is_execd_alive $host] } {
+         set result [startup_daemon $host "execd"]
+         if { $result != 0 } {
+            incr errors 1
+         }
+      }
+   }
+   if { $errors != 0 } {
+      return -1
+   } else {
+      return 0
+   }
+}
+
+#************** upgrade_test/upgrade_test_upgrade_additional_cluster() *********
+#  NAME
+#     upgrade_test_upgrade_additional_cluster -- test the cluster upgrade procedure
+#
+#  SYNOPSIS
+#     upgrade_test_upgrade_additional_cluster { }
+#
+#  FUNCTION
+#     This procedure tests the cluster upgrade procedure and is available for
+#     SGE version 62 and higher. For this check at least one additional cluster
+#     must be configured.*
+#     The test first backup the initial cluster configuration, which will be used
+#     after the check of upgrades from all configuration directories to return
+#     the cluster to the original configuration.
+#
+#     * Add the cluster in the testsuite menu (26)
+#       - menu item "Additional Testsuite Configurations"
+#
+#  SEE ALSO
+#     upgrade_operate_add_cluster()
+#     upgrade_test_upgrade_run_script()
+#*******************************************************************************
+proc upgrade_test_upgrade_additional_cluster {} {
+   global ts_config CHECK_UPGRADE_TEMP_CONFIG_DIR
+
+   if { $ts_config(additional_config) == "none" } {
+      ts_log_fine "Skipping the upgrade_test_upgrade_additional_cluster - no additional configuration set!!!"
+      return 0
+   }
+
+   set index 1
+   foreach filename $ts_config(additional_config) {
+
+      set config_dir $CHECK_UPGRADE_TEMP_CONFIG_DIR/$index
+
+      shutdown_core_system
+
+      delete_file $ts_config(product_root)/$ts_config(cell)/common/bootstrap
+
+      if { $ts_config(bdb_server) != "none" } {
+         # start the bdb server
+
+         delete_directory $ts_config(bdb_dir)
+         file mkdir $ts_config(bdb_dir)
+         startup_bdb_rpc $ts_config(bdb_server)
+      }
+
+      upgrade_operate_add_cluster $filename "$config_dir" $ts_config(cell)
+      incr index 1
+   }
+
+}
+
+#************** upgrade_test/upgrade_operate_add_cluster() *********************
+#  NAME
+#     upgrade_operate_add_cluster -- test the cluster upgrade procedure
+#
+#  SYNOPSIS
+#     upgrade_test_upgrade_cluster { }
+#
+#  FUNCTION
+#     This procedure tests the upgrade from cluster set by the testsuite
+#     configuration file $filename.
+#     The test conducts the following steps:
+#        1) configure the old cluster
+#        2) back up the old cluster configuration
+#        3) shut downthe qmasterd and schedd deamons of the current cluster
+#        4) upgrade the current cluster running the script (this will start the
+#           qmasterd and schedd)
+#        5) restore the configuration of the current cluster to the default one
+#        6) restore the configuration of the old cluster to the default one
+#
+#  INPUTS
+#     filename   - the path to the testsuite cluster configuration
+#     config_dir - the path to the directory where the cluster configuration
+#                  is stored
+#     cell_name  - the name of the cell which will be used for upgradeded system
+#
+#  RESULT
+#      0 on success
+#     -1 on error
+#
+#  SEE ALSO
+#     upgrade_test_upgrade_additional_cluster()
+#     upgrade_test_configure_cluster()
+#     upgrade_test_restore_default_configuration()
+#*******************************************************************************
+proc upgrade_operate_add_cluster { filename config_dir cell_name } {
+   global ts_config
+
+   # clear previously read config
+   if {[info exists add_config]} {
+      unset add_config
+   }
+
+   # read additional config file
+   if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+      ts_log_severe "can't read additonal configuration file $filename"
+      return -1
+   }
+
+   # configure the old cluster
+   operate_add_cluster $filename execute_func 120 upgrade_test_configure_cluster result
+   if { $result != 0 } {
+      ts_log_severe "can't configure the remote cluster - file $filename"
+      return -1
+   }
+
+   # save the additional cluster configuration to the temporary directory
+   set result [backup_remote_cluster_config $filename $config_dir]
+   if { $result != 0 } {
+      ts_log_severe "Upgrade directory: $config_dir; SGE version $add_config(gridengine_version): configuration backup failed."
+      return -1
+   }
+
+   # run the upgrade script
+   set result [upgrade_test_upgrade_run_script $config_dir]
+   # restore the current cluster configuration to the default one
+   upgrade_test_restore_default_configuration $ts_config(master_host)
+   if { $result != 0 } {
+      ts_log_severe "Upgrade directory: $config_dir; SGE version $add_config(gridengine_version): upgrade failed."
+      return -1
+   }
+
+   # restore the old cluster configuration to the default one
+   operate_add_cluster $filename execute_func 120 upgrade_test_restore_default_configuration result
+   if { $result != 0 } {
+      ts_log_severe "can't restore configuration of the remote cluster - file $filename"
+      return -1
+   }
+
+}
+
+#************** upgrade_test/upgrade_test_configure_cluster() ******************
+#  NAME
+#     upgrade_test_configure_cluster -- configure the cluster for upgrade test
+#
+#  SYNOPSIS
+#     upgrade_test_configure_cluster { }
+#
+#  FUNCTION
+#     This procedure configure the cluster for the upgrade test.
+#     NOTE: must be compatible with upgrade_test_restore_default_configuration()
+#           - all configuration object added by upgrade_test_configure_cluster()
+#             must be removed by upgrade_test_restore_default_configuration()
+#
+#  RESULT
+#
+#  SEE ALSO
+#     upgrade_test_restore_default_configuration()
+#     upgrade_test_configuration_get_projects()
+#     upgrade_test_configuration_get_users()
+#*******************************************************************************
+proc upgrade_test_configure_cluster {} {
+
+   # TODO: configure cluster
+   array set chgar { }
+   set chgar(hostlist) ""
+   foreach host [get_all_execd_nodes] {
+      set chgar(hostlist) "$chgar(hostlist) $host"
+   }
+   set chgar_cal(week) "mon-tue=0-23=suspended"
+   add_calendar "test_cal" chrag_cal
+   unset chgar_cal
+   set chgar_q(calendar) "test_cal"
+   foreach pr [upgrade_test_configuration_get_projects] {
+      add_project $pr
+      add_hostgroup @${pr} chgar
+      add_queue ${pr}.q $chgar(hostlist) chgar_q
+   }
+   unset chgar_q
+   unset chgar
+   foreach user [upgrade_test_configuration_get_users] {
+      foreach pr [upgrade_test_configuration_get_projects] {
+         if { [string first $pr $user] >= 0 } {
+            set chgar(default_project) $pr
+         }
+      }
+      add_user $user chgar
+      unset chgar
+   }
+   set chgar(schedd_job_info) "job_list 1-1000"
+   set chgar(job_load_adjustments) "np_load_avg=5.15"
+   set_schedd_config chgar
+}
+
+#************** upgrade_test/upgrade_test_restore_default_configuration() ******
+#  NAME
+#     upgrade_test_restore_default_configuration -- restore the cluster configuration
+#
+#  SYNOPSIS
+#     upgrade_test_restore_default_configuration { }
+#
+#  FUNCTION
+#     This procedure restore the cluster configuration to the default one.
+#     NOTE: must be compatible with upgrade_test_restore_default_configuration()
+#           - all configuration object added by upgrade_test_configure_cluster()
+#             must be removed by upgrade_test_restore_default_configuration()
+#
+#  RESULT
+#
+#  SEE ALSO
+#     upgrade_test_restore_default_configuration()
+#     upgrade_test_configuration_get_projects()
+#     upgrade_test_configuration_get_users()
+#*******************************************************************************
+proc upgrade_test_restore_default_configuration {{on_host ""}} {
+
+   set errors 0
+
+   foreach user [upgrade_test_configuration_get_users] {
+      incr errors [del_user $user $on_host]
+   }
+
+   set hostlist ""
+   foreach host [get_all_execd_nodes] {
+      set hostlist "$hostlist $host"
+   }
+
+   foreach pr [upgrade_test_configuration_get_projects] {
+      incr errors [del_project $pr $on_host]
+      incr errors [del_hostgroup @${pr} $on_host]
+      incr errors [del_queue "${pr}.q" "$hostlist" 1 1 $on_host]
+   }
+   del_calendar "test_cal" $on_host
+   array set chgar {}
+   set chgar(schedd_job_info) "false"
+   set chgar(job_load_adjustments) "np_load_avg=0.15"
+   set_schedd_config chgar 1 $on_host
+   unset chgar
+
+   return $errors
+}
+
+proc upgrade_test_configuration_get_projects {} {
+   set projects "core sustaining arco hedeby"
+   return $projects
+}
+
+proc upgrade_test_configuration_get_users {} {
+   global ts_user_config
+
+   set users "$ts_user_config(first_foreign_user) $ts_user_config(second_foreign_user) "
+   append users "arco_user1 arco_user2 hedeby_user1 hedeby_user2"
+
+   return $users
+}
+
+#************** upgrade_test/upgrade_test_upgrade_run_script() *****************
+#  NAME
+#     upgrade_test_upgrade_run_script -- run the system upgrade script
+#
+#  SYNOPSIS
+#     upgrade_test_upgrade_run_script { } 
+#
+#  FUNCTION
+#     This procedure runs the SGE upgrade script. It invokes the ./inst_sge -upd
+#     command with the parameters dependend on the cluster configuration.
+#
+#  INPUTS
+#     bckp_dir              - the path to the backed up cluster configuration
+#
+#  SEE ALSO
+#     upgrade_operate_add_cluster()
+#*******************************************************************************
+proc upgrade_test_upgrade_run_script { bckp_dir } {
+   global ts_config CHECK_DEBUG_LEVEL CHECK_USER CHECK_COMMD_PORT
+   global CHECK_REPORT_EMAIL_TO CHECK_USER CHECK_DNS_DOMAINNAME
+
+   if { $ts_config(gridengine_version) < 62 } {
+      ts_log_finest "Upgrade test for $ts_config(gridengine_version) not supported."    
+      return 0
+   }
+
+   set feature_install_options ""
+   if { $ts_config(product_feature) == "csp" } {
+      append feature_install_options "-csp"
+   }
+   if { $ts_config(jmx_port) > 0 } {
+      append feature_install_options " -jmx"
+   }
+
+   set do_log_output 0 ;# _LOG
+   if { $CHECK_DEBUG_LEVEL == 2 } {
+     set do_log_output  1 ;# 1
+   }
+
+   set have_windows_host [host_conf_have_windows]
+
+   set LICENSE_AGREEMENT            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_LICENSE_AGREEMENT] ]
+   set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
+   set ANSWER_YES                   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
+   set ANSWER_NO                    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ANSWER_NO] ]
+
+   set INSTALL_AS_ADMIN_USER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_AS_ADMIN_USER] "$CHECK_USER" ]
+   set UNIQUE_CLUSTER_NAME          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNIQUE_CLUSTER_NAME] ]
+   set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
+   set CELL_NAME_FOR_QMASTER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CELL_NAME_FOR_QMASTER] "*"]
+   set ENTER_SCHEDULER_SETUP        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SCHEDLUER_SETUP] ]
+   set ENTER_A_RANGE                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_A_RANGE] ]
+   set USING_GID_RANGE_HIT_RETURN   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_USING_GID_RANGE_HIT_RETURN] "*"]
+   set CHANGE_PORT_QUESTION         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHANGE_PORT_QUESTION] ]
+   set COMMD_PORT                   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNUSED_PORT] "sge_qmaster"]
+   set EXECD_PORT                   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNUSED_PORT] "sge_execd"]
+   set ENTER_ADMIN_MAIL             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_ADMIN_MAIL] "*"]
+   set SMF_IMPORT_SERVICE           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_SMF_IMPORT_SERVICE] ]
+   set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ] 
+   set ACCEPT_CONFIGURATION         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ACCEPT_CONFIGURATION] ]
+   set ENTER_OVERRIDE_PROTECTION    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_OVERRIDE_PROTECTION] ]
+
+   # spooling
+   set CHOOSE_SPOOLING_METHOD       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD]]
+   set OTHER_SPOOL_DIR              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_OTHER_SPOOL_DIR] ]
+   set ENTER_SPOOL_DIR              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SPOOL_DIR] "*"]
+   set DATABASE_LOCAL_SPOOLING      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DATABASE_LOCAL_SPOOLING]]
+   set DELETE_DB_SPOOL_DIR          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DELETE_DB_SPOOL_DIR] ]
+   set ENTER_DATABASE_SERVER        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_DATABASE_SERVER] "*"]
+   set ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING] "*"]
+   set ENTER_DATABASE_SERVER_DIRECTORY [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SERVER_DATABASE_DIRECTORY] "*"]
+   set DATABASE_DIR_NOT_ON_LOCAL_FS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DATABASE_DIR_NOT_ON_LOCAL_FS] "*"]
+   set STARTUP_RPC_SERVER           [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_STARTUP_RPC_SERVER]]
+   set EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER]]
+   set EXECD_SPOOLING_DIR_NOROOT    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_NOROOT] "*"]
+   set EXECD_SPOOLING_DIR_DEFAULT   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_EXECD_SPOOLING_DIR_DEFAULT] "*"]
+
+   set INSTALL_BDB_AND_CONTINUE     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_INSTALL_BDB_AND_CONTINUE]]
+
+   # verify permissions
+   set VERIFY_FILE_PERMISSIONS1     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS1] ]
+   set VERIFY_FILE_PERMISSIONS2     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_VERIFY_FILE_PERMISSIONS2] ]
+   set WILL_NOT_VERIFY_FILE_PERMISSIONS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_WILL_NOT_VERIFY_FILE_PERMISSIONS] ]
+   set DO_NOT_VERIFY_FILE_PERMISSIONS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DO_NOT_VERIFY_FILE_PERMISSIONS] ]
+   set DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DONT_KNOW_HOW_TO_TEST_FOR_LOCAL_FS]]
+   
+   # Certificate Authority
+   set ENTER_CA_COUNTRY_CODE        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_CA_COUNTRY_CODE]]
+   set ENTER_CA_STATE               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_CA_STATE]]
+   set ENTER_CA_LOCATION            [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_CA_LOCATION]]
+   set ENTER_CA_ORGANIZATION        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_CA_ORGANIZATION]]
+   set ENTER_CA_ORGANIZATION_UNIT   [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_CA_ORGANIZATION_UNIT]]
+   set ENTER_CA_ADMIN_EMAIL         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_CA_ADMIN_EMAIL]]
+   set CA_RECREATE                  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_CA_RECREATE]]
+
+   # windows
+   set WINDOWS_SUPPORT              [translate_macro DISTINST_WINDOWS_SUPPORT]
+   set WINDOWS_DOMAIN_USER          [translate_macro DISTINST_QMASTER_WINDOWS_DOMAIN_USER]
+   set WINDOWS_MANAGER              [translate_macro DISTINST_QMASTER_WINDOWS_MANAGER]
+
+   # csp
+   set CSP_COPY_CERTS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_CERTS]]
+   set CSP_COPY_CMD [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_CMD]]
+   set CSP_COPY_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_FAILED]]
+   set CSP_COPY_RSH_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_RSH_FAILED]]
+
+   # java
+   set JMX_JAVA_HOME                [translate_macro DISTINST_JAVA_HOME "*" ]
+   set JMX_ADD_JVM_ARGS             [translate_macro DISTINST_ADD_JVM_ARGS "*"]
+   set JMX_PORT_QUESTION            [translate_macro DISTINST_JMX_PORT]
+   set JMX_SSL_QUESTION             [translate_macro DISTINST_JMX_SSL]
+   set JMX_SSL_CLIENT_QUESTION      [translate_macro DISTINST_JMX_SSL_CLIENT]
+   set JMX_SSL_KEYSTORE_QUESTION    [translate_macro DISTINST_JMX_SSL_KEYSTORE "*" ]
+   set JMX_SSL_KEYSTORE_PW_QUESTION [translate_macro DISTINST_JMX_SSL_KEYSTORE_PW]
+   set JMX_USE_DATA                 [translate_macro DISTINST_JMX_USE_DATA]
+
+   # upgrade
+   set BCKP_DIR                     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_UPGRADE_BCKP_DIR] ]
+   set USE_BCKP_DIR                 [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_UPGRADE_USE_BCKP_DIR] ]
+   set NEW_BCKP_DIR                 [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_UPGRADE_NEW_BCKP_DIR] ]
+   set COMMD_PORT_SETUP             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_UPGRADE_COMMD_PORT_SETUP] ]
+   set IJS_SELECTION                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_UPGRADE_IJS_SELECTION]]
+   set NEXT_RANK_NUMBER             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINCT_UPGRADE_NEXT_RANK_NUMBER]]
+   set USE_EXISTING_JMX             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINCT_UPGRADE_USE_EXISTING_JMX]]
+   set USE_EXISTING_SPOOLING        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINCT_UPGRADE_USE_EXISTING_SPOOLING]]
+
+   set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./inst_sge" "-upd $feature_install_options" 0 "$ts_config(product_root)"]
+   set sp_id [ lindex $id 1 ]
+
+   while { true } {
+      log_user 1
+      set timeout 60
+      expect {
+         -i $sp_id full_buffer {
+            ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            close_spawn_process $id
+            return -1
+         }
+
+         -i $sp_id eof { 
+            ts_log_severe "unexpected eof" 
+            close_spawn_process $id
+            return -1
+         }
+
+         -i $sp_id "coredump" {
+            ts_log_severe "coredump"
+            close_spawn_process $id
+            return -1
+         }
+
+         -i $sp_id timeout { 
+            ts_log_severe "timeout while waiting for output" 
+            close_spawn_process $id
+            return -1
+         }
+
+         -i $sp_id "orry" { 
+            ts_log_severe "wrong root password"
+            close_spawn_process $id
+            return -1
+         }
+
+         -i $sp_id "issing" { 
+            ts_log_severe "missing binary error"
+            close_spawn_process $id
+            return -1
+         }
+
+         -i $sp_id "xit." {
+            ts_log_severe "installation failed"
+            close_spawn_process $id 
+            return -1
+         }
+
+         -i $sp_id "More" {
+            ts_log_fine "\n -->testsuite: sending >space<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               gets stdin anykey
+            }
+
+            ts_send $sp_id " "
+            continue
+         }
+
+         #  This is for More license output on darwin
+         -i $sp_id "LICENSE ??%" {
+            set found_darwin_more 1
+            ts_log_fine "\n -->testsuite: sending >space< (darwin)"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               gets stdin anykey
+            }
+
+            ts_send $sp_id " "
+            continue
+         }
+
+         -i $sp_id $LICENSE_AGREEMENT { 
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $HIT_RETURN_TO_CONTINUE {
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+               puts "-->testsuite: press RETURN (HIT_RETURN_TO_CONTINUE)"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $BCKP_DIR {
+            ts_log_fine "\n -->testsuite: sending >${bckp_dir}<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "${bckp_dir}\n"
+            continue
+         }
+
+         -i $sp_id $USE_BCKP_DIR {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $NEW_BCKP_DIR {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_NO\n"
+            ts_log_severe "Not a valid backup directory!"
+            close_spawn_process $id
+            return -1
+         }
+
+         -i $sp_id $CURRENT_GRID_ROOT_DIRECTORY {
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $CELL_NAME_FOR_QMASTER {
+            ts_log_fine "\n -->testsuite: sending  $ts_config(cell)"
+            if {$do_log_output == 1} {
+                 puts "-->testsuite: press RETURN (CELL_NAME_FOR_QMASTER)"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ts_config(cell)\n"
+            continue
+         }
+
+         -i $sp_id $COMMD_PORT_SETUP {
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $CHANGE_PORT_QUESTION {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $COMMD_PORT {
+            ts_log_fine "\n -->testsuite: sending  $ts_config(commd_port)"
+            if {$do_log_output == 1} {
+                 puts "-->testsuite: press RETURN (QMASTER_PORT)"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ts_config(commd_port)\n"
+            continue
+         }
+
+         -i $sp_id $EXECD_PORT {
+            set execd_port [expr $ts_config(commd_port) + 1]
+            ts_log_fine "\n -->testsuite: sending  $execd_port"
+            if {$do_log_output == 1} {
+                 puts "-->testsuite: press RETURN (EXECD_PORT)"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$execd_port\n"
+            continue
+         }
+
+         -i $sp_id $INSTALL_AS_ADMIN_USER { 
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $OTHER_SPOOL_DIR {
+            set spooldir [get_local_spool_dir $ts_config(master_host) qmaster]
+            if { $spooldir != "" } {
+              set answer $ANSWER_YES
+            } else {
+              set answer $ANSWER_NO
+            }
+            ts_log_fine "\n -->testsuite: sending >$answer<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$answer\n"
+            continue
+         }
+
+         -i $sp_id $DELETE_DB_SPOOL_DIR {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_OVERRIDE_PROTECTION {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id -- $UNIQUE_CLUSTER_NAME {
+            ts_log_fine "\n -->testsuite: sending cluster_name >$ts_config(cluster_name)<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ts_config(cluster_name)\n"
+            continue
+         }
+
+         -i $sp_id $WINDOWS_SUPPORT {
+            if {$have_windows_host} {
+              set answer $ANSWER_YES
+            } else {
+              set answer $ANSWER_NO
+            }
+            ts_log_fine "\n -->testsuite: sending >$answer<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$answer\n"
+            continue
+         }
+
+         -i $sp_id $WINDOWS_DOMAIN_USER {
+            set answer $ANSWER_YES
+            ts_log_fine "\n -->testsuite: sending >$answer<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$answer\n"
+            continue
+         }
+
+         -i $sp_id $WINDOWS_MANAGER {
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id -- $VERIFY_FILE_PERMISSIONS1 {
+           if { $ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar" } {
+              set input "$ANSWER_YES"
+           } else {
+              set input "$ANSWER_NO"
+           }
+            ts_log_fine "\n -->testsuite: sending >$input<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$input\n"
+            continue
+         }
+
+         -i $sp_id -- $VERIFY_FILE_PERMISSIONS2 { 
+           if { $ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar" } {
+              set input "$ANSWER_NO"
+           } else {
+              set input "$ANSWER_YES"
+           }
+            ts_log_fine "\n -->testsuite: sending >$input<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$input\n"
+            continue
+         }
+
+         -i $sp_id $WILL_NOT_VERIFY_FILE_PERMISSIONS {
+             ts_log_fine "\n -->testsuite: sending >RETURN<"
+             if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+             }
+             ts_send $sp_id "\n"
+             continue
+         }
+
+         -i $sp_id $DO_NOT_VERIFY_FILE_PERMISSIONS {
+             ts_log_fine "\n -->testsuite: sending >RETURN<"
+             if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+             }
+             ts_send $sp_id "\n"
+             continue
+         } 
+
+         -i $sp_id $CHOOSE_SPOOLING_METHOD {
+            set spooling_method $ts_config(spooling_method)
+            ts_log_fine "\n -->testsuite: sending $spooling_method"
+
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$spooling_method\n"
+            continue
+         }
+
+         -i $sp_id $DATABASE_LOCAL_SPOOLING {
+            if { $ts_config(bdb_server) == "none" } {
+              ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+              set input "$ANSWER_NO\n"
+            } else {
+              ts_log_fine "\n -->testsuite: sending >$ANSWER_YES"
+              set input "$ANSWER_YES\n"
+            }
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id $input
+            continue
+         }
+
+         -i $sp_id $ENTER_DATABASE_SERVER {
+            ts_log_fine "\n -->testsuite: sending $ts_config(bdb_server)"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+
+            ts_send $sp_id "$ts_config(bdb_server)\n"
+            continue
+         }
+
+         -i $sp_id $DELETE_DB_SPOOL_DIR {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_SCHEDULER_SETUP {
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $INSTALL_BDB_AND_CONTINUE {
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_DATABASE_SERVER_DIRECTORY {
+            set spooldir [get_bdb_spooldir $ts_config(bdb_server) 1]
+            if { $spooldir == "" } {
+               ts_log_fine "\n -->testsuite: sending >RETURN<"
+            } else {
+               ts_log_fine "\n -->testsuite: sending $spooldir"
+            }
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$spooldir\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_DATABASE_DIRECTORY_LOCAL_SPOOLING {
+            set spooldir [get_bdb_spooldir $ts_config(master_host) 0]
+
+            if { $spooldir == "" } {
+               ts_log_fine "\n -->testsuite: sending >RETURN<"
+               if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+               }
+               ts_send $sp_id "\n"
+            } else {
+               ts_log_fine "\n -->testsuite: sending >$spooldir<"
+               if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+               } 
+               ts_send $sp_id "$spooldir\n"
+            }
+            continue
+         }
+
+         -i $sp_id $DATABASE_DIR_NOT_ON_LOCAL_FS {
+             ts_log_config "configured database directory not on local disk\nPlease run testsuite setup and configure Berkeley DB server and/or directory" 
+             close_spawn_process $id
+             return -1 
+         }
+
+         -i $sp_id $IJS_SELECTION {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_NO\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_A_RANGE {
+            set myrange [ get_gid_range $CHECK_USER $CHECK_COMMD_PORT]
+            ts_log_fine "\n -->testsuite: sending >${myrange}<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+
+            ts_send $sp_id "${myrange}\n"
+            continue
+         }
+
+         -i $sp_id $USING_GID_RANGE_HIT_RETURN {
+            ts_log_fine "\n -->testsuite: sending >RETURN<(17)"
+            if {$do_log_output == 1} {
+                 puts "-->testsuite: press RETURN (USING_GID_RANGE_HIT_RETURN)"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_SPOOL_DIR {
+            ts_log_fine "\n"
+            set spooldir [get_local_spool_dir $ts_config(master_host) qmaster]
+            if { $spooldir != "" } {
+              # use local spool dir
+              ts_log_fine "\n -->testsuite: sending >$spooldir<"
+              if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+              }
+              ts_send $sp_id "$spooldir\n"
+            } else {
+              # use default spool dir
+              ts_log_fine "\n -->testsuite: sending >RETURN<"
+              if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+              }
+              ts_send $sp_id "\n"
+            }
+            continue
+         }
+
+         -i $sp_id $EXECD_SPOOLING_DIR_NOROOT_NOADMINUSER {
+            ts_log_fine "\n"
+            set spooldir [get_local_spool_dir $ts_config(master_host) execd 0]
+            if { $spooldir != "" } {
+              # use local spool dir
+              ts_log_fine "\n -->testsuite: sending >$spooldir<"
+              if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+              }
+              ts_send $sp_id "$spooldir\n"
+              set local_execd_spool_set 1
+            } else {
+              # use default spool dir
+              ts_log_fine "\n -->testsuite: sending >RETURN<"
+              if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+              }
+              ts_send $sp_id "\n"
+            }
+            continue
+          }
+
+         -i $sp_id $EXECD_SPOOLING_DIR_NOROOT {
+            ts_log_fine "\n"
+            set spooldir [get_local_spool_dir $ts_config(master_host) execd 0]
+            if { $spooldir != "" } {
+              # use local spool dir
+              ts_log_fine "\n -->testsuite: sending >$spooldir<"
+              if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+              }
+              ts_send $sp_id "$spooldir\n"
+              set local_execd_spool_set 1
+            } else {
+              # use default spool dir
+              ts_log_fine "\n -->testsuite: sending >RETURN<"
+              if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+              }
+              ts_send $sp_id "\n"
+            }
+            continue
+         }
+
+         -i $sp_id $ENTER_ADMIN_MAIL { 
+            if { $CHECK_REPORT_EMAIL_TO == "none" } {
+               set admin_mail "${CHECK_USER}@${CHECK_DNS_DOMAINNAME}"
+            } else {
+               set admin_mail $CHECK_REPORT_EMAIL_TO
+            }
+            ts_log_fine "\n -->testsuite: sending >$admin_mail<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$admin_mail\n"
+            continue
+         }
+
+         -i $sp_id $ACCEPT_CONFIGURATION {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+
+            ts_send $sp_id "$ANSWER_NO\n"
+            continue
+         }
+
+         -i $sp_id $NEXT_RANK_NUMBER {
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id -- $SMF_IMPORT_SERVICE  {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+
+            ts_send $sp_id "$ANSWER_NO\n"
+            continue
+         }
+
+         -i $sp_id $DNS_DOMAIN_QUESTION { 
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $CSP_COPY_CERTS {
+            # On windows hosts, rcp / scp doesn't work.
+            # So if we have windows hosts in the cluster, testsuite has to copy the certificates itself
+            if {$have_windows_host} {
+              set answer $ANSWER_NO
+            } else {
+              set answer $ANSWER_YES
+            }
+            ts_log_fine "\n -->testsuite: sending >$answer<"
+            if {$do_log_output == 1} {
+              puts "press RETURN"
+              set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$answer\n"
+            continue
+         }
+
+         -i $sp_id $CSP_COPY_CMD {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $CSP_COPY_FAILED {
+            ts_log_fine "\n -->testsuite: received copy failure"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_log_config "We received a failure during copy of certificates. This appears, when the\nrcp/scp command fails!"
+            continue
+         }
+
+         -i $sp_id $CSP_COPY_RSH_FAILED {
+            ts_log_fine "\n -->testsuite: received rsh/ssh failure"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_log_config "We received a rsh/ssh failure. This error happends, if the rsh/ssh connection\nto any execution host was not possible, due to the missing permissions for user\nroot to connect via rsh/ssh without entering a password. This warning shows,\nthat the tested error handling code is working. To prevent this warning make\nsure the you qmaster host allows rsh/ssh connction for root without asking for\na password." 
+            continue
+         }
+
+         -i $sp_id $JMX_JAVA_HOME {
+            # For the JMX MBean Server we need java 1.5
+            set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
+            if {$java_home == ""} {
+               ts_log_severe "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
+            } else {
+               ts_log_fine "\n -->testsuite: sending java_home >$java_home<"
+               if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  set anykey [wait_for_enter 1]
+               }
+               ts_send $sp_id "$java_home\n"
+               continue
+            }
+         }
+
+         -i $sp_id $JMX_ADD_JVM_ARGS {
+            ts_log_fine "\n -->testsuite: sending additional_jvm_args ><"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $JMX_PORT_QUESTION {
+            ts_log_fine "\n -->testsuite: sending jmx port >$ts_config(jmx_port)<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ts_config(jmx_port)\n"
+            continue
+         }
+
+         -i $sp_id $JMX_SSL_QUESTION {
+            if { $ts_config(jmx_ssl) == "true" } {
+               set enable_jmx_ssl "$ANSWER_YES"
+            } else {
+               set enable_jmx_ssl "$ANSWER_NO"
+            }
+            ts_log_fine "\n -->testsuite: sending jmx ssl >${enable_jmx_ssl}<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "${enable_jmx_ssl}\n"
+            continue
+         }
+
+         -i $sp_id $JMX_SSL_CLIENT_QUESTION {
+            if { $ts_config(jmx_ssl_client) == "true" } {
+               set enable_jmx_ssl_client "$ANSWER_YES"
+            } else {
+               set enable_jmx_ssl_client "$ANSWER_NO"
+            }
+            ts_log_fine "\n -->testsuite: sending jmx ssl client >${enable_jmx_ssl_client}<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "${enable_jmx_ssl_client}\n"
+            continue
+         }
+
+         -i $sp_id $JMX_SSL_KEYSTORE_QUESTION {
+            ts_log_fine "\n -->testsuite: sending jmx ssl keystore >RETURN<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $JMX_SSL_KEYSTORE_PW_QUESTION {
+            ts_log_fine "\n -->testsuite: sending jmx ssl keystore pw >$ts_config(jmx_ssl_keystore_pw)<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ts_config(jmx_ssl_keystore_pw)\n"
+            continue
+         }
+
+         -i $sp_id $JMX_USE_DATA {
+            ts_log_fine "\n -->testsuite: sending answer >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $USE_EXISTING_JMX {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_NO\n"
+            continue
+         }
+
+         -i $sp_id $USE_EXISTING_SPOOLING {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_NO\n"
+            continue
+         }
+
+         -i $sp_id "*or use new spooling method*" {
+            # TODO: why the message $USE_EXISTING_SPOOLING doesn't fit??? 
+            # workaround
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_NO\n"
+            continue
+         }
+
+         -i $sp_id $CA_RECREATE { 
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ANSWER_YES\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_CA_COUNTRY_CODE { 
+            ts_log_fine "\n -->testsuite: sending >DE<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "DE\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_CA_STATE { 
+            ts_log_fine "\n -->testsuite: sending >Bavaria<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "Bavaria\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_CA_LOCATION { 
+            ts_log_fine "\n -->testsuite: sending >Regensburg<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "Regensburg\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_CA_ORGANIZATION { 
+            ts_log_fine "\n -->testsuite: sending >Sun Microsystems<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "Sun Microsystems\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_CA_ORGANIZATION_UNIT { 
+            ts_log_fine "\n -->testsuite: sending >Testsystem at port $CHECK_COMMD_PORT<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "Testsystem at port $CHECK_COMMD_PORT\n"
+            continue
+         }
+
+         -i $sp_id $ENTER_CA_ADMIN_EMAIL { 
+            if { $CHECK_REPORT_EMAIL_TO == "none" } {
+               set CA_admin_mail "${CHECK_USER}@${CHECK_DNS_DOMAINNAME}"
+            } else {
+               set CA_admin_mail $CHECK_REPORT_EMAIL_TO
+            }
+            ts_log_fine "\n -->testsuite: sending >$CA_admin_mail<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$CA_admin_mail\n"
+            continue
+         }
+
+         -i $sp_id "Done" {
+            break
+         }
+
+         -i $sp_id default {
+            ts_log_severe "undefined behaviour: $expect_out(buffer)"
+            close_spawn_process $id 
+            return -1
+         }
+      }
+   }
+
+   log_user 0
+   close_spawn_process $id 
+   return 0
+}

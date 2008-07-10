@@ -197,7 +197,7 @@ proc set_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
 
   # Modify sched from file?
    if {$fast_add} {
-      get_schedd_config old_config
+      get_schedd_config old_config $on_host $as_user
       foreach elem [array names chgar] {
          set old_config($elem) "$chgar($elem)"
       }
@@ -334,6 +334,9 @@ proc mod_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
 #  INPUTS
 #     change_array - name of an array variable that will get set by 
 #                    get_schedd_config
+#     {on_host ""}      - execute qconf on this host (default: qmaster host)
+#     {as_user ""}      - execute qconf as this user (default: CHECK_USER)
+#     {raise_error 1}   - raise error condition in case of errors?
 #
 #  EXAMPLE
 #     get_schedd_config test
@@ -378,7 +381,7 @@ proc mod_schedd_config { change_array {fast_add 1} {on_host ""} {as_user ""} {ra
 #  SEE ALSO
 #     sge_procedures/set_schedd_config()
 #*******************************
-proc get_schedd_config { change_array } {
+proc get_schedd_config { change_array {on_host ""} {as_user ""} {raise_error 1} } {
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
@@ -386,7 +389,7 @@ proc get_schedd_config { change_array } {
       unset chgar
    }
 
-  set result [start_sge_bin "qconf" "-ssconf"]
+  set result [start_sge_bin "qconf" "-ssconf" $on_host $as_user]
   if {$prg_exit_state != 0} {
      ts_log_severe "qconf -ssconf failed:\n$result"
      return

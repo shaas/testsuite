@@ -1,4 +1,9 @@
-JG-2008-07-10-1: Enhancem.: Added test for IZ 2575 in 
+AP-2008-07-10-0: Enhancem.: Create the test for upgrade procedure
+                 Bugfix:    cannot modify cvs release tag in testsuite config
+                 Bugfix:    ts_log_frame doesn't create line
+                 Issue:     203, 201, 204
+
+JG-2008-07-10-1: Enhancem.: Added test for IZ 2575 in
                             system_tests/clients/qalter.
                  Review:    MD
 
@@ -16,7 +21,7 @@ CR-2008-07-10-0: Cleanup:   enhanced issue check 2372
 LP-2008-07-09-0: Bugfix:    Fixed BDB install messages for 6.2
                  Review:    JO
 
-RH-2008-07-07-0: Bugfix:    Hedeby: 
+RH-2008-07-07-0: Bugfix:    Hedeby:
                             o Parsing of hedeby log files did not work if jvm log
                               contains source class and method.
                             o Stacktraces in log file collection are not in the correct order
@@ -61,7 +66,7 @@ CR-2008-06-19-0: Enhancem.: Hedeby: added merged logfile feature
                               into hedeby dist subdirectory "TS_LOG_FILES"
                  Review:    RH
 
-JG-2008-06-16-0: Enhancem.: Added test for IZ 2615 in check 
+JG-2008-06-16-0: Enhancem.: Added test for IZ 2615 in check
                             system_tests/qmaster/reporting.
                  Review:    HP
 
@@ -85,7 +90,7 @@ AP-2008-06-16-0: CVS        Created TS_PRIOR_CONFIG_TAG
 
 CR-2008-06-16-0: Bugfix:    - added checktree hook for test runlevel check
                               (checks that system setup is correct before
-                               starting level test run) 
+                               starting level test run)
                             - fixed possible TCL error in hedeby_mod_cleanup
                               (init exit_value)
                             - new hedeby util procedures for saving log files:
@@ -103,7 +108,7 @@ AA-2008-06-16-0: Bugfix:    - install on windows in csp mode
 RD-2008-06-12-0: Enhancem.: added test for IZ: 2611
                  Review:    DG
 
-AH-2008-06-11-0: Enhancem.: Added test to cover fix for #2603 
+AH-2008-06-11-0: Enhancem.: Added test to cover fix for #2603
                             (qsub option -q breaks -masterq)
                  Review:    RD
 
@@ -111,13 +116,13 @@ JG-2008-06-11-0: Enhancem.: - speedup of auto install
                             - improvements in performance/throughput test
                  Review:    RD
 
-DG-2008-06-09-1: Cleanup:   Installation for 6.1 didn't work correctly since 
-                            a text change when asking for gid range. 
+DG-2008-06-09-1: Cleanup:   Installation for 6.1 didn't work correctly since
+                            a text change when asking for gid range.
                  Review:    RD
 
 DG-2008-06-09-0: Cleanup:   Several issues in Java DRMAA test:
                             - incorrect return value of a procedure
-                            - filetype of library was hardcoded 
+                            - filetype of library was hardcoded
                  Review:    JG
 
 JG-2008-06-09-0: Bugfix:    - qdel test only ran qdel_force check_function
@@ -137,19 +142,19 @@ CR-2008-06-05-0: Bugfix:    o disabled hedeby manage_admin_user check for user
                               array entry) in hedeby slo/minResource check
                  Review:    RH
 
-ZG-2008-06-04-0: Enhancem.: o Added ping_daemon procedure. 
+ZG-2008-06-04-0: Enhancem.: o Added ping_daemon procedure.
                             o Execd start up test for CR 6609754
                  Review:    AP
 
 LP-2008-06-04-0: Enhancem.: Modified install message
                  Review:    MP
 
-CR-2008-06-04-0: Bugfix:    Fixed broken hedeby checktree test: 
+CR-2008-06-04-0: Bugfix:    Fixed broken hedeby checktree test:
                             resources/move/inprocess/check.62.exp
                  Review:    RH
 
-DG-2008-06-04-0: Cleanup:   Install didn't install HP11 32 bit binaries when 
-                            compiling on HP11 64 bit host. This failure was 
+DG-2008-06-04-0: Cleanup:   Install didn't install HP11 32 bit binaries when
+                            compiling on HP11 64 bit host. This failure was
                             introduced with gridengine checkin DG-2008-05-15-0.
                  Review:    JG
 
@@ -164,7 +169,7 @@ RH-2008-05-30-0: Bugfix:    wait_from_remote_file did not work with binary files
                             o new method mod_hedeby_resource in util.tcl
                  Review:    CR
 
-DG-2008-05-27-0: Enhancem.: Test for qrsh -notify added. 
+DG-2008-05-27-0: Enhancem.: Test for qrsh -notify added.
                  Issue:     11
                  Review:    JG
 
@@ -180,13 +185,13 @@ MG-2008-05-21-0: Enhancem.: o Added new test: "cli/comp_lifecycle/ca_restart/che
 
 DG-2008-05-19-0: Cleanup:   Because aimk now supports building 32 bit binaries
                             on 64 bit HP the testsuite was updated so that the
-                            compile architecture for 32 bit HP is now set to 
+                            compile architecture for 32 bit HP is now set to
                             64 bit HP.
-                 Review:    RD 
+                 Review:    RD
 
-DG-2008-05-14-0: Cleanup:   Fix for special cases in jdrmaa tests on 64 bit 
-                            platforms with 32 bit JVM. 
-                 Review:    JG 
+DG-2008-05-14-0: Cleanup:   Fix for special cases in jdrmaa tests on 64 bit
+                            platforms with 32 bit JVM.
+                 Review:    JG
 
 CR-2008-05-08-1: Bugfix:    o Fix in hedeby_checktree proc sdmadm_command():
                               wait 5 seconds before sending root password
@@ -201,7 +206,7 @@ CR-2008-05-08-1: Bugfix:    o Fix in hedeby_checktree proc sdmadm_command():
                  Review:    ??
 
 DG-2008-05-09-0: Cleanup:   Additional runlevels for DRMAA C test wrapper
-                            added. 
+                            added.
                  Review:    JG
 
 CR-2008-05-08-0: Bugfix:    Fixed interactive qmaster installation for
@@ -220,10 +225,10 @@ CR-2008-05-06-0: Enhancem.: o Added hedeby test for issue 374:
                  Bugfix:    o Fixed possible tcl error in reset_hedeby()
                  Review:    AA
 
-DG-2008-05-06-0: Enhancem.: JDRMAA test: Added additional tests for different 
-                            Java versions on different hosts with different 
-                            libraries depending on the current runlevel. 
-                 Review:    JG 
+DG-2008-05-06-0: Enhancem.: JDRMAA test: Added additional tests for different
+                            Java versions on different hosts with different
+                            libraries depending on the current runlevel.
+                 Review:    JG
 
 AP-2008-05-05-0: Enhancem.: adding messages for license agreement to ARCo
                             installation checks
@@ -279,7 +284,7 @@ CR-2008-04-18-0: Enhancem.: o Added new test: "slo/minResource/check.62.exp"
                               create_min_resource_slo()
                               create_permanent_request_slo()
                             o new procedures:
-                              create_resource_and_filter()  
+                              create_resource_and_filter()
                               get_service_slo_info()
                               wait_for_service_slo_info()
                               get_show_resource_request_info()
@@ -295,11 +300,11 @@ JG-2008-04-21-0: Bugfix:    test access_lists needs schedd_job_info
 RD-2008-04-18-0: Bugfix:    test 511 requires schedd_job_info
                  Review:    JG
 
-DG-2008-04-16-0: Cleanup:   Changed build_java_env_list in order to use 
-                            a predefined hostname and architecture. 
+DG-2008-04-16-0: Cleanup:   Changed build_java_env_list in order to use
+                            a predefined hostname and architecture.
                  Review:    JG
 
-DG-2008-04-16-0: Cleanup:   Changed test in order to use new standard 
+DG-2008-04-16-0: Cleanup:   Changed test in order to use new standard
                             procedure (append_to_sge_request_file).
                  Review:    AA
 
@@ -357,20 +362,20 @@ CR-2008-04-09-0: Enhancem.: o cleanup of logging and time out values
                               and finished implementation TODO's
                             o new procedure: reset_default_slos()
                             o Install test now also do setup slos (by calling
-                              reset_default_slos() after adding ge services and 
+                              reset_default_slos() after adding ge services and
                               spare_pool resources)
                             o Fixed order of cleanup commands in basic move test
                             o Added new test: "slo/fixedUsage/check.62.exp"
                               (Part 1/3 of hedeby issue #385)
                               (Need SLO test)
                  Issue:     #385 (hedeby part 1/3)
-                 Review:    RH 
+                 Review:    RH
 
 RD-2008-04-08-0: Bugfix:    fixed drmaa-j test for 6.2
                  Review:    JG
 
-DG-2008-04-08-0: Enhancem.: Added two procedures in order to change the 
-                            sge_request file 
+DG-2008-04-08-0: Enhancem.: Added two procedures in order to change the
+                            sge_request file
                             - sge_procedures/restore_sge_request_file
                             - sge_procedures/append_to_sge_request_file
                  Review:    CR
@@ -390,7 +395,7 @@ RD-2008-04-07-0: Enhancem.: enhanced reporting test to cover more possible
                  Review:    JG
 
 CR-2008-04-07-0: Bugfix:    o Failed test may be stated as successful when
-                              checktree contains tests which have an 
+                              checktree contains tests which have an
                               init_level_procedure.
                  Cleanup:   o Fixed wrong usage of DISABLE_ADD_PROC_ERROR
                               in sourced tcl files. This global variable
@@ -407,7 +412,7 @@ CR-2008-04-04-0: Cleanup:   o hedeby support for TS zones
                               are used.
                               (added privated_start_parallel_sdmadm_command()
                                and using start_parallel_sdmadm_command() as
-                               wrapper procedure) 
+                               wrapper procedure)
                             o Fixed problem in wait_for_resource_info() when
                                hedeby system is down. (produced TCL error
                                in hedeby_reset() which don't allow to install
@@ -416,12 +421,12 @@ CR-2008-04-04-0: Cleanup:   o hedeby support for TS zones
                               support node hosts.
                  Review:    MB
 
-CR-2008-04-03-0: Enhancem.: o Also check short hostname output of expected 
+CR-2008-04-03-0: Enhancem.: o Also check short hostname output of expected
                               sdmadm output by using match string "hostname*"
                               (Part of CR-2008-04-03-0 which I forgot to ci)
                             o Remove all resources from blacklists of services
                               in hedeby_reset()
-                            o Check component state "STARTED" after test 
+                            o Check component state "STARTED" after test
                               "ca_reload"
                             o Fixed bug in parse_table_output()
                  Review:    MB, RH
@@ -447,14 +452,14 @@ MB-2008-04-01-0: Task:      resource reset test
                              o updated procedure: compare_resource_infos()
                   Review:    CR
 
-CR-2008-04-01-0: Enhancem.: Added string trim for file entries in .testsuite_delete 
+CR-2008-04-01-0: Enhancem.: Added string trim for file entries in .testsuite_delete
                             in procedure delete_temp_script_files()
                  Review:    DG
 
 DG-2008-03-31-2: Task:      Testsuite test added
                  Issue:     #21 (testsuite) and #519 (gridengine)
                             /checktree/system_tests/scheduler/config/check.exp
-                 Enhancem.: o Test scheduling (set maxujobs check qw state)  
+                 Enhancem.: o Test scheduling (set maxujobs check qw state)
                  Review:    JG
 
 DG-2008-03-31-1: Task:      Testsuite test added
@@ -464,13 +469,13 @@ DG-2008-03-31-1: Task:      Testsuite test added
                               correctly.
                  Review:    JG
 
-DG-2008-03-31-0: Task:      Testsuite test added 
+DG-2008-03-31-0: Task:      Testsuite test added
                  Issue:     #653 (gridengine)
                               /checktree/bugs/issuezilla/653/check.exp
                  Enhancem.: o Check if altering deadline is done correctly
                  Review:    JG
 
-CR-2008-03-31-0: Bugfix:    Removed same local spool dir checking for user 
+CR-2008-03-31-0: Bugfix:    Removed same local spool dir checking for user
                             preferences mode
                  Review:    RH
 
@@ -480,13 +485,13 @@ MB-2008-03-31-0: Bugfix:    correct support of runlevels in checktree_hedeby tes
                                /resources/reset/basic/batch/check.62.exp
                                /resources/reset/basic/parallel/check.62.exp
                                /resources/reset/basic/sequential/check.62.exp
-                               /resources/reset/unknown/check.62.exp                 
+                               /resources/reset/unknown/check.62.exp
 
 JO-2008-03-27-0: Enhancem.: changed install messages
                  Review:    AP
 
 MB-2008-03-27-0: Task:      resource reset test
-                 Issue:     #216 (hedeby)(added missing tests) 
+                 Issue:     #216 (hedeby)(added missing tests)
                                /resources/reset/ambiguous/check.62.exp
                                /resources/reset/assigned/check.62.exp
                                /resources/reset/basic/batch/check.62.exp
@@ -503,8 +508,8 @@ MB-2008-03-27-0: Task:      resource reset test
 DG-2008-03-20-0: Task:      Testsuite test added
                  Issue:     #360 (gridengine)
                               /checktree/bugs/issuezilla/360/check.exp
-                 Enhancem.: o five test cases for ACL/departments handling 
-                 Review:    JG 
+                 Enhancem.: o five test cases for ACL/departments handling
+                 Review:    JG
 
 HP-2008-03-20-0: Bugfix:    Added version checking to HP-2008-03-19-0
 
@@ -514,17 +519,17 @@ AP-2008-03-20-0: Enhancem.: o ARCo supports SWC > 3.0 from SGE 6.2 version
 
 CR-2008-03-19-1: Task:      basic resource assignement test
                             (last part of check-in)
-                 Issue:     #365 (hedeby)(added missing tests) 
+                 Issue:     #365 (hedeby)(added missing tests)
                                /resources/move/error/check.62.exp
                                /resources/move/inprogress/check.62.exp
                                /resources/move/static/check.62.exp
                  Cleanup:   o removed not needed comments
-                 Bugfix:    o wait_for_resource_info() and 
+                 Bugfix:    o wait_for_resource_info() and
                               wait_for_service_info deleted upvared
                               error_text variable
                             o Removed usages of NOT existing procedure
                               ts_log_error()
-                            o Fixed error case cleanup handling in 
+                            o Fixed error case cleanup handling in
                               reset_produced_ambiguous_resource() and
                               produce_ambiguous_resource()
                  Enhancem.: o new procedure: produce_error_resource()
@@ -542,7 +547,7 @@ LP-2008-03-19-0: Bugfix:    Updated detected message changed in JO-2008-03-18-0
 HP-2008-03-19-0: Bugfix:    certtool.sh script was not called for certs on win32-x86
                  Review:    MD
 
-CR-2008-03-18-0: Task:      basic resource assignement test  
+CR-2008-03-18-0: Task:      basic resource assignement test
                  Issue:     #365 (new test: /resources/move/ambiguous/check.62.exp)
                  Cleanup:   o Renamed "wait_resources_to_become_state()"
                               into    "wait_for_resource_state()"
@@ -558,7 +563,7 @@ CR-2008-03-18-0: Task:      basic resource assignement test
                             o new procedure: get_free_service()
                             o new procedure: reset_produced_ambiguous_resource()
                             o new procedure: produce_ambiguous_resource()
-                 Bugfix:    o reset_hedeby(): 
+                 Bugfix:    o reset_hedeby():
                               Did not correctly add missing resources.
                             o parse_table_output():
                               Wrapped table output text was not correctly appended
@@ -632,7 +637,7 @@ RH-2008-03-07-0: Enhancem:  Hedeby: new test for reloading ca config
 CR-2008-03-06-0: Bugfix:    o added missing -p and -s command line arguments for
                               sdmadm command in executor reload test
                  Bugfix:    o current testsuite parameter re_init not working for
-                              hedeby testsuite 
+                              hedeby testsuite
                               (and additional clusters and checktrees)
                  Issue:     hedeby #367
                  Bugfix:    o testsuite "install" command line parameter did
@@ -684,7 +689,7 @@ RD-2008-02-27-0: Enhancem:  added test for ENABLE_RESCHEDULE_KILL
                             and ENABLE_RESCHEDULE_SLAVE
                  Review:    JG
 
-CR-2008-02-26-1: Cleanup:   removed ts_log_fine cat output of 
+CR-2008-02-26-1: Cleanup:   removed ts_log_fine cat output of
                             wait_for_remote_file
                  Review:    EB
 
@@ -693,7 +698,7 @@ CR-2008-02-26-0: Enhancem:  o added new procedure to file_procedures.tcl:
                             o added new script: analyze_dir.sh
                             o enabled submit host setting for GE adapters
                               in hedeby installation
-                            o speed up and clean up of hedeby 
+                            o speed up and clean up of hedeby
                               file_permission check
                  Review:    AA
 
@@ -767,11 +772,11 @@ OJ-2008-02-12-0: Enhancem.: Added test case 1751 at in qsub/check.61.exp
 
 CR-2008-02-12-0: Enhancem.: o added configuration checking for hedeby config
                               (need jmx_ssl set to true)
-                            o added service check procedure in hedeby 
+                            o added service check procedure in hedeby
                               install test
                             o added get_service_info()
                             o fixed ge adapter installation
-                            o create testsuite user keystore files in GE 
+                            o create testsuite user keystore files in GE
                               installation mode for jmx_ssl enabled settings
                  Issues:    hedeby #359, hedeby #360
                  Review:    RH
@@ -785,13 +790,13 @@ JO-2008-02-11-0: Enhancem.: Changed disk quota on Oracle tablespace, was insuffi
 
 MP-2008-02-11-0: Enhancem.: Modified installation script to account for spelling
                             corrections in the install output.
-                 Review:    MD 
-                            
+                 Review:    MD
+
 EB-2008-02-08-0: Bugfix:    Fixed issue tests which failed sometimes (2339, 2378)
                  Review:    TBD
 
 CR-2008-02-07-0: Enhancem.: o operate_add_cluster now also appends enabled
-                              testsuite_trash cli option when starting 
+                              testsuite_trash cli option when starting
                               remote ts calls
                  Review:    AA
 
@@ -809,7 +814,7 @@ CR-2008-02-06-0: Enhancem.: o remove ts_dev_con impl. by sub connections
 MG-2008-02-07-0: Enhancem.: quotas added for string condition
                  Review:    CR
 
-LP-2008-02-05-0: Enhancem.: Testsuite can hadle new 'remove old cluster' 
+LP-2008-02-05-0: Enhancem.: Testsuite can hadle new 'remove old cluster'
                             questions
                  Review:    MD
 
@@ -836,13 +841,13 @@ RD-2008-01-31-0: Enhancem.: Added test for Issue 2476
 RD-2008-01-30-0: Bugfix:    fixed 1914 testsuite test
                  Review:    JG
 
-CR-2008-01-30-0: Bugfix:    first compile clean on java build host as 
+CR-2008-01-30-0: Bugfix:    first compile clean on java build host as
                             workaround for inconsistent ant dependencies
                  Review:    AA
 
 AP-2008-01-30-0: Enhancem.: o Adding the global database configuration
                             o Use the database configuration in checktree_arco
-                            o Use the logging framework (JG-2008-01-16-0) in 
+                            o Use the logging framework (JG-2008-01-16-0) in
                               checktree_arco
                  Issue:     124
                  Review:    JG
@@ -851,11 +856,11 @@ MD-2008-01-30-0: Bugfix:    ts_config was not declared as global in qhost test
 
 JG-2008-01-30-0: Enhancem.: Added new test system_tests/clients/qselect.
                  Review:    RD
-                 Enhancem.: Use the logging framework (JG-2008-01-16-0) for 
+                 Enhancem.: Use the logging framework (JG-2008-01-16-0) for
                             further checks in checktree.
 
-AH-2008-01-30-0: Bugfix:    2nd run of resource_reservation test failed because 
-                            calendar object was added but not removed. 
+AH-2008-01-30-0: Bugfix:    2nd run of resource_reservation test failed because
+                            calendar object was added but not removed.
                  Review:    RD
 
 MD-2008-01-29-0: Ehhancem.: Added IZ 245 issue test, as part of qhost system_test
@@ -971,7 +976,7 @@ MP-2008-01-14-0: Enhancem.: Added shell_path and project fields to the qstat -j
                             output comparison test.
                  Review:    JG
 
-CR-2008-01-10-0: Bugfix:    first compile clean on java build host as 
+CR-2008-01-10-0: Bugfix:    first compile clean on java build host as
                             workaround for inconsistent ant dependencies
                  Review:    AA
 
@@ -987,7 +992,7 @@ OJ-2008-01-07-0: Enhance:   Simplified testcase for IZ 2411
                             at bugs/issuezilla/2411.
                  Review:    RD, JG
 
-JG-2008-01-07-0: Enhancem.: Instead of moving files to the testsuite_trash 
+JG-2008-01-07-0: Enhancem.: Instead of moving files to the testsuite_trash
                             folder, really delete them. Added commandline switch
                             "testsuite_trash" to activate old behavior.
                  Issue:     168
@@ -1004,7 +1009,7 @@ AP-2008-01-04-0: Bugfix:   Fix commit AP-2008-01-03-0
 JO-2008-01-04-0: Enhancem: dbwriter should write checkpoint to database
                  Review:   AP
 
-AA-2008-01-04-0: Bugfix:    sol-x86 has to use special libjvm path 
+AA-2008-01-04-0: Bugfix:    sol-x86 has to use special libjvm path
                  Review:    CR
 
 JG-2008-01-03-0: Enhancem.: Added test for IZ 1689 (correct submission time for
@@ -1021,17 +1026,17 @@ CR-2008-01-03-0: Bugfix:    first compile java build host as workaround for
                             inconsistent ant dependencies
                  Review:    AA
 
-AP-2008-01-02-0: Enhancem.: Added test qmaster_spooling_issue2442 to 
+AP-2008-01-02-0: Enhancem.: Added test qmaster_spooling_issue2442 to
                             system_tests/qmaster/spooling
                  Review:    JG
 
-JG-2007-12-28-0: Enhandem.: Enhanced checks functional/usage and 
-                            functional/tight_integration tests to test 
+JG-2007-12-28-0: Enhandem.: Enhanced checks functional/usage and
+                            functional/tight_integration tests to test
                             "accounting_summary" pe attribute.
                  Review:    HP
 
 RD-2007-12-23-0: Bugfix:    fixed qmaster/advance_reservation test
-                            broken due to interface changes 
+                            broken due to interface changes
 
 HP-2007-12-21-0: Enhancem:  added support for new IJS
                  Changed:   checktree/install_core_system/init_cluster.tcl
@@ -1058,7 +1063,7 @@ CR-2007-12-13-0: Bugfix:    o fixed show_status test (did not check occurance
                               of all expected components and jvms)
                  Bugfix:    o enhanced security/file_permissions test to allow
                               new files for reporter component
-                 Bugfix:    o support for new cli command switches       
+                 Bugfix:    o support for new cli command switches
                  Issue:     hedeby issue #203
                  Review:    RH
 
@@ -1069,7 +1074,7 @@ PJ-2007-12-12-0: RFE:       ARCo should support multi-clusters
 RD-2007-12-12-0: Bugfix:    fixed migration test
                  Review:    JG
 
-LP-2007-12-11-0: Bugfix:    Fixed typo preventing some tests from being executed 
+LP-2007-12-11-0: Bugfix:    Fixed typo preventing some tests from being executed
                             in normal mode
                  Review:    MP
 
@@ -1079,7 +1084,7 @@ JG-2007-12-10-0: Enhancem.: Added test bugs/issuezilla/2136.
 CR-2007-12-07-0: Bugfix:    fixed wrong close behaviour in close_spawn_process()
                  Review:    JG
 
-JG-2007-12-07-0: Enhancem.: Be more fault tolerant when closing rlogin 
+JG-2007-12-07-0: Enhancem.: Be more fault tolerant when closing rlogin
                             connections, some cleanup.
                  Review:    CR
 
@@ -1102,7 +1107,7 @@ JO-2007-12-04-0: Bugfix:    Revoke priviledges on tablespace before dropping use
 
 JG-2007-12-03-0: Enhancem.: Merged changes which were lost due to revert
                             RD-2007-10-12-0.
-                            Improved error messages, output real error output 
+                            Improved error messages, output real error output
                             instead of "error or binary not found".
                  Review:    MD
 
@@ -1142,29 +1147,29 @@ AA-2007-11-28-0: Bugfix:    broken automatic install
 RD-2007-11-26-0: Bugfix:    reduced qmaster shutdown timeout value
                  Review:    CR
 
-CR-2007-11-26-0: Bugfix:    Fixed possible problem with login 
+CR-2007-11-26-0: Bugfix:    Fixed possible problem with login
                  Review:    JG
 
-EB-2007-11-23-0: Cleanup:   o changed monitoring test according to changes in 
+EB-2007-11-23-0: Cleanup:   o changed monitoring test according to changes in
                               gridengine code
-                 Review:    JG 
+                 Review:    JG
 
 JG-2007-11-22-0: Enhancem.: Improved autoinstall of large numbers of exec hosts.
-                 Bugfix:    Fixed install re_init when 
+                 Bugfix:    Fixed install re_init when
                             CHECK_TESTSUITE_INSTALL_MODE is set to "automatic"
                  Review:    MD
 
-AH-2007-11-22-0: Enhancem.: Enabled inactive test bugs/issuezilla/1832 for 
+AH-2007-11-22-0: Enhancem.: Enabled inactive test bugs/issuezilla/1832 for
                             the 6.2 -hold_jid_ad option
                  Review:    CR
 
 CR-2007-11-21-0: Enhancem.: o added menu item for running only startup hooks
                             o connection test now also tests java compile host
-                            o improved shutdown behaviour for blocking lx-24 qmaster 
+                            o improved shutdown behaviour for blocking lx-24 qmaster
                               threads (processes)
                  Bugfix:    o fixed shutdown/restart for hedeby (not all managed
                               hosts was started)
-                            o updated hedeby testsuite for new 
+                            o updated hedeby testsuite for new
                               ShowComponentStatusCliCommand (hedeby issue #204)
                  Review:    RH
 
@@ -1233,7 +1238,7 @@ JG-2007-11-07-0: Enhancem.: Enhanced system_tests/qmaster/reporting to test
                             Some cleanup and minor fixes.
                  Review:    EB
 
-AP-2007-11-05-0: Enhancem.: o checktree_arco: added tablespaces to the ARCo 
+AP-2007-11-05-0: Enhancem.: o checktree_arco: added tablespaces to the ARCo
                               configuration
                             o using java15 instead of java14
                             o root access for getting SWC status/version
@@ -1256,7 +1261,7 @@ RH-2007-10-31-0: Enhance:   Hedeby show_status test adjusted to new output
                  Review:    RM
 
 OJ-2007-10-30-0: Enhance:   Added testcase for IZ 2383
-                 Review:    JG 
+                 Review:    JG
 
 JG-2007-10-30-0: Bugfix:    fixed qmaster installation without jmx enabled
                  Review:    RH
@@ -1266,7 +1271,7 @@ RD-2007-10-29-0: Bugfix:    fixed interactive installation on darwin-x86
 
 OJ-2007-10-26-0: Enhance:   Modified checktree/bugs/issuezilla/1780/check.60.exp
                             to verify that IZ 1780 is gone
-                 Review:    JG 
+                 Review:    JG
 
 MD-2007-10-26-0: Enhance:   o added Issue test for IZ 2406
                             o enhanced backup_restore test
@@ -1281,7 +1286,7 @@ RH-2007-10-26-0: Enhance:   o New configuration parameter for the port
                             o install_core_system supports enabling the
                               JMX MBean Server
                  Review:    MD
- 
+
 OJ-2007-10-18-0: Enhance:   Modified checktree/functional/tight_integration
                             to print warning on failure due to IZ 1681
                  Review:    JG
@@ -1293,7 +1298,7 @@ RD-2007-10-18-0: Bugfix:    fixed qmod/reschedule test
                  Review:    JG
 
 JG-2007-10-18-0: Bugfix:    o reintegrated JG-2007-10-10-0 and JG-2007-10-11-0
-                            o fixed arch resolving on lx26 hosts using lx24 
+                            o fixed arch resolving on lx26 hosts using lx24
                               binaries
                  Review:    RD (MD for JG-2007-10-10-0 and JG-2007-10-11-0)
 
@@ -1332,11 +1337,11 @@ JG-2007-10-10-0: Bugfix:    o fixed bugs/issuezilla/2328
 AP-2007-10-09-0: Enhancem.  o SGE objects interfaces enhancement - Part II.
                             o objects: user, userset, queue, parallel environment
                             o start_sge_bin, start_vi_edit using JGDI shell
-                            o qconf client test - testing messages returned by 
+                            o qconf client test - testing messages returned by
                             o the clients
                  Review:    JG
 
-MP-2007-10-08-0: Bugfix:    fixed break that was introduced from gridengine 
+MP-2007-10-08-0: Bugfix:    fixed break that was introduced from gridengine
                             commit MP-2007-09-25-0.
                  Review:    JG
 
@@ -1363,7 +1368,7 @@ AP-2007-09-25-0: Bugfix:    fix mod_hostgroup parameters in qconf check.60.exp
 OJ-2007-09-24-0: Bugfix:    Added test case for IZ 2345, in bugs/issueszilla/2345
                  Review:    RD
 
-MP-2007-09-24-0: Enhancem.: Added qdel test to check for proper parsing 
+MP-2007-09-24-0: Enhancem.: Added qdel test to check for proper parsing
                             of wc_job_range_list
                  Review:    JG
 
@@ -1386,7 +1391,7 @@ RD-2007-09-21-0: Bugfix:    - fixed tight integration test
                  Review:    JG
 
 RN-2007-09-20-0: Enhancem.: Added new test for authuser binary (in utilbin)
-                 Issue:     2194 
+                 Issue:     2194
                  Review:    JG
 
 RH-2007-09-20-0: Enhancem.: Connections over ssh with password implemented
@@ -1418,7 +1423,7 @@ RD-2007-08-31-2: Bugfix:    fixed qmod_general test
                  Review:    JG
 
 RD-2007-08-31-1: Bugfix:    fixed consumable_resources test
-                 Review:    RH 
+                 Review:    RH
 
 LP-2007-08-31-0: Enhancem.: JGDI junit tests are will be run only with 6.2 and
                             are currently disabled
@@ -1470,7 +1475,7 @@ CR-2007-08-27-0: Cleanup:   o removed not necessary check for additional
                               cluster.
                  Review:    RH
 
-RH-2007-08-24-0: Bugfix:    o open_remote_spawn_process does not handle 
+RH-2007-08-24-0: Bugfix:    o open_remote_spawn_process does not handle
                               "Connection reseted by peer message"
                  Issue:     144
                  Review:    CR
@@ -1482,7 +1487,7 @@ CR-2007-08-22-2: Bugfix:    o hedeby shutdown hook should not report
                               components
                             o only still running components are killed
                               after standard hedeby shutdown
-                            o install hedeby test fails on not time 
+                            o install hedeby test fails on not time
                               syncronized hosts
                  Issue:     93 (hedeby issue)
                  Review:    RH
@@ -1497,7 +1502,7 @@ CR-2007-08-22-1: Enhancem.: o added new cluster procedure:
 CR-2007-08-22-0: Enhancem.: o added new remote procedure:
                               get_remote_time()
                             o using new procedure in:
-                              check_all_system_times() 
+                              check_all_system_times()
                  Review:    AA
 
 RH-2007-08-21-0: Enhancem.: o test for hedeby issue 88 added
@@ -1523,7 +1528,7 @@ CR-2007-08-14-0: Cleanup:   o compile_source(): if only compile hooks are
                                  executed (ts-menu 50) ) the update_source
                                  procedure is skipped for GE source update
                  Bugfix:    o hedeby: tcl error when compile hedeby binaries
-                 Bugfix:    o hedeby: Add check that dist is installed after 
+                 Bugfix:    o hedeby: Add check that dist is installed after
                                       compilation
                  Issue:     81 (hedeby issue)
                  Issue:     76 (hedeby issue)
@@ -1533,7 +1538,7 @@ CR-2007-08-16-0: Cleanup:   qmaster/advance_reservation test:
                             The "check_init_level_procedure" was used to
                             setup test specific environment. This is not the
                             intention of this callback. Test specific
-                            settings should be done in the 
+                            settings should be done in the
                             "check_setup_function".
                  Review:    AA
 
@@ -1541,7 +1546,7 @@ LP-2007-08-16-0: Bugfix:    Testsuite works again with maintrunk
                  Review:    MB
 
 RN-2007-08-16-0: Bugfix:    o Added extra test in qconf -Mattr in
-                              qconf_add_delete_modify_replace_attr 
+                              qconf_add_delete_modify_replace_attr
                  Issue:     2327
                  Bugster:   6578213
                  Review:    JG
@@ -1571,7 +1576,7 @@ CR-2007-08-10-0: Enhancem.: o added boolean type for generic_config()
                               security_disable
                  Review:    AA
 
-JG-2007-08-10-0: Enhancem.: Removed unset -complain - it caused problems with 
+JG-2007-08-10-0: Enhancem.: Removed unset -complain - it caused problems with
                             older TCL versions.
                             Use start_sge_bin where possible, cleanup.
                             Fixed qdel check (qdel_force).
@@ -1594,7 +1599,7 @@ CR-2007-08-09-0: Enhancem.: o The current default value for send_speed in the
                  Review:    AA
 
 CR-2007-08-07-1: Cleanup:   Added ADOC headers for checktree_hedeby/checktree.tcl
-                            and checktree_hedeby/util.tcl 
+                            and checktree_hedeby/util.tcl
 
 CR-2007-08-07-0: Bugfix:    Enhanced check for additional cell cluster
                             configuration. Testsuite currently doesn't support
@@ -1620,7 +1625,7 @@ CR-2007-08-02-0: Bugfix:    Fixed bug in compile_source():
                             directory.
                             Reason: Additional checktrees might need GE
                             distribution directory for building
-                 Review:    JG 
+                 Review:    JG
 
 MP-2007-08-02-0: Bugfix:    If USER environment variable is not set,
                             installation acts in unexpected ways.
@@ -1658,12 +1663,12 @@ CR-2007-07-26-0: Enhancme.: o added hedeby installation support and a test
 
 CR-2007-07-25-0: Enhancem.: o fixed some parsing errors
                             o added "*.sav.*" and "*.sav" to .cvsignore file
-                            o removed setting of shared library path in 
+                            o removed setting of shared library path in
                               enhanced_setup() procedure (global check.exp)
                             o fixed wrong file length in get_file_content()
                  Review:    RD
 
-AP-2007-07-23-0: Bugfix:    testsuite configuration procedures should use 
+AP-2007-07-23-0: Bugfix:    testsuite configuration procedures should use
                             config_generic
                  Issue:     133
 
@@ -1677,7 +1682,7 @@ JO-2007-07-20-0: Bugfix:    Changed order in which views are dropped to reflect
 LP-2007-07-20-0: Enhancem:  Improved jgdi_shell tests
                  Review:    PJ
 
-AP-2007-07-19-0: Bugfix:    Error when modifying additional checktree directory 
+AP-2007-07-19-0: Bugfix:    Error when modifying additional checktree directory
                             items.
                  Issue:     135
 
@@ -1696,9 +1701,9 @@ JG-2007-07-12-0: Bugfix:    Fixes for usage test, modifying checkpoint objects,
 
 PJ-2007-07-11-0: Enhancem.: qsh, qrsh, qlogin -ar tests
                  Review:    JG
-                 
+
 JG-2007-07-10-0: Bugfix:    When testsuite did an install re_init after a test
-                            failed, and the installation raised a warning, 
+                            failed, and the installation raised a warning,
                             testsuite did a full reinstall.
                  Review:    CR
 
@@ -1717,7 +1722,7 @@ RN-2007-07-09-0: Bugfix:    - Creating a userset with NONE as a type results
 CR-2007-07-05-0: Enhancem.: src/checktree_hedeby/checktree.tcl:
                             hedeby_build procedure will report all
                             errors found in build_private.properties
-                            instead returning when found the first 
+                            instead returning when found the first
                             error
 
 JG-2007-07-05-0: Enhancem.: Added test bugs/issuezilla/2325,
@@ -1753,7 +1758,7 @@ CR-2007-06-25-0: Bugfix:    o Fixed procedure restart_debug_daemons() (used by
                               if get_qconf_se_info() fails
                  Review:    AA
 
-JG-2007-06-25-0: Enhancem.: Enhancements / cleanup in 
+JG-2007-06-25-0: Enhancem.: Enhancements / cleanup in
                             bugs/issuezilla/2300 and system_tests/clients/qstat.
                  Review:    RD
 
@@ -1767,11 +1772,11 @@ CR-2007-06-22-0: Enhancem.: support for multipe GE clusters
                               CHECK_SOURCE_CVS_RELEASE, CHECK_SOURCE_HOSTNAME
                               CHECK_DIST_INSTALL_OPTIONS, CHECK_ARCH, CHECK_HOST
                               CHECK_CORE_EXECD, CHECK_SUBMIT_ONLY_HOSTS,
-                              CHECK_CORE_MASTER (use ts_config array instead)  
+                              CHECK_CORE_MASTER (use ts_config array instead)
                             o removed procedures:
                                dump_ts_config() and get_setup_change_state()
                             o updated affected tests
-                            o added test for correct display setting into 
+                            o added test for correct display setting into
                               "testsuite" test
                             o arco checktree:
                               - updated affected arco checktree
@@ -1779,16 +1784,16 @@ CR-2007-06-22-0: Enhancem.: support for multipe GE clusters
                             o hedeby checktree:
                               - completely new integration and configuration
                                 (not finished)
-                              - dummy test for testing multi clustering support 
+                              - dummy test for testing multi clustering support
                                 of testsuite (name: dummy_test)
-                            o added new deprecated names into 
+                            o added new deprecated names into
                               scripts/find_deprecated.exp
                             o tcl_files:
                               - support for additional cluster compile in html
                                 report
                               - new procedure: config_generic()
                                 used to get a generic configuration parameter
-                                like "hosts", "host", "string", "port" or 
+                                like "hosts", "host", "string", "port" or
                                 "directory"
                               - new proceduer: get_xterm_path()
                                 find out path to xterm binary on remote host
@@ -1804,7 +1809,7 @@ RN-2007-06-21-0: Bugfix:    qconf -sq all.q@myhost or all.q@@allhosts produces
                             no value at all for complex_values (not even NONE)
                             modified qconf test for testing o/p of qconf -sq
                             queue@host
-                 Issue :    2307 
+                 Issue :    2307
                  Review:    JG
 
 JG-2007-06-21-0: Enhancem.: New test bugs/issuezilla/2300.
@@ -1839,8 +1844,8 @@ PJ-2007-06-01-0: Enhancem.: Improving the test usage of time limits
                             Adding one test to advance_reservation
                             Making the test outputs more readable
                  Review:    JG
-                 
-JG-2007-06-01-0: Enhancem.: Made shadowd_migrate test more fault tolerant 
+
+JG-2007-06-01-0: Enhancem.: Made shadowd_migrate test more fault tolerant
                             to slow NFS.
                  Review:    CR
 
@@ -1848,14 +1853,14 @@ JG-2007-05-30-0: Bugfix:    Fixed bugs/issuezilla/1104 with Gridengine 6.0u??.
                             Improved error handling for calendar deletion.
                  Review:    CR
 
-JG-2007-05-29-1: Bugfix:    Fixed qsub/override test, fixed AR handling in 
-                            multiple modules, improved error output in 
+JG-2007-05-29-1: Bugfix:    Fixed qsub/override test, fixed AR handling in
+                            multiple modules, improved error output in
                             bugs/issuezilla/440
                  Review:    RD
 
-LP-2007-05-29-0: Enhancem.: Added new check 'jgdi_junit' to run all JGDI junit 
-                            tests. 
-                            Note: Testsuite hosts must have ant specified and it 
+LP-2007-05-29-0: Enhancem.: Added new check 'jgdi_junit' to run all JGDI junit
+                            tests.
+                            Note: Testsuite hosts must have ant specified and it
                                   has to have junit.jar in it's lib directory.
                  Review:    JG
 
@@ -1866,7 +1871,7 @@ PJ-2007-05-25-0: Bugfix:    Added message to submit_job
 
 JG-2007-05-29-0: Bugfix:    Fixed test for qsub with start time.
                             Fixed set_pe.
-                            Fixed handle_vi_edit with dashes in expected 
+                            Fixed handle_vi_edit with dashes in expected
                             patterns.
                  Review:    RD
 
@@ -1924,7 +1929,7 @@ MP-2007-05-11-0: Enhancem.: Added test for CR 6328064. Checks to see if command
                             line parameters override script defaults for qsub.
                  Review:    JG
 
-JG-2007-05-10-0: Enhancem.: New check_function in qmaster/reporting testing 
+JG-2007-05-10-0: Enhancem.: New check_function in qmaster/reporting testing
                             queue state reporting.
                  Review:    RD
 
@@ -1933,7 +1938,7 @@ CR-2007-05-10-0: Enhancem.: o added new command line option "start"
                               with command line options "start, kill and install"
                             o remote testsuites exit status and errors are now
                               reported in controller testsuite
-                            o temp mail filename is now generated with 
+                            o temp mail filename is now generated with
                               get_tmp_file_name() (caused problems for controller
                               testsuite because of same mail file name)
                             o enhanced startup_core_system() to support the same
@@ -1943,7 +1948,7 @@ CR-2007-05-10-0: Enhancem.: o added new command line option "start"
 RD-2007-05-09-0: Bugfix:    fixed qstat test for qstat AR changes
                  Review:    CR
 
-CR-2007-05-09-0: Bugfix:    o fixed problems for additional cluster 
+CR-2007-05-09-0: Bugfix:    o fixed problems for additional cluster
                               installation
                             o enhanced create_shell_script() to write
                               shell script name into script
@@ -1967,7 +1972,7 @@ RD-2007-05-02-0: Enhancem.: changed check for IZ 1860 from warning to
                             error
                  Review:    JG
 
-EB-2007-05-02-0: Enhancem.: Changed parsing code for advance reservation 
+EB-2007-05-02-0: Enhancem.: Changed parsing code for advance reservation
                             enhancements in qstat for v6.2
                  Review:    RD
 
@@ -1997,7 +2002,7 @@ LP-2007-04-05-0: Enhancem.: Added new attributes "java16", "ant" to host config.
                             argument (default "1.4").
                             Removed get_java15_home_for_host.
                             Added check_java_version, check_ant_version
-                            Added autodetect_java, autodetect_ant.                        
+                            Added autodetect_java, autodetect_ant.
                  Review:    JG
 
 RD-2007-04-04-0: Enhancem.: - new test for resource_reservation with calendar
@@ -2012,7 +2017,7 @@ JG-2007-04-05-0: Enhancem.: Added function for selecting hosts following certain
                             certain preferred architectures for testing.
                  Review:    CR
 
-JG-2007-03-28-0: Enhancem.: Added test for issue 2222 (hybrid user/project 
+JG-2007-03-28-0: Enhancem.: Added test for issue 2222 (hybrid user/project
                             sharetree).
                             Cleanup.
                  Review:    AH
@@ -2021,10 +2026,10 @@ AP-2007-03-22-0: Bugfix:    ARCo testsuite update.
                  Changed:   Checktree_arco
                  Review:    JG
 
-JG-2007-03-21-0: Enhancem.: New testsuite configuration parameter 
-                            "additional_config", which allows to specify 
-                            additional testsuite configurations, which can be 
-                            used to install multiple cells with one testsuite 
+JG-2007-03-21-0: Enhancem.: New testsuite configuration parameter
+                            "additional_config", which allows to specify
+                            additional testsuite configurations, which can be
+                            used to install multiple cells with one testsuite
                             installation run.
                  Bugfix:    Fixed csp error message detection.
                  Review:    AA
@@ -2060,7 +2065,7 @@ JG-2007-03-02-0: Enhancem.: New test for issue 2202.
 AP-2007-03-01-0: Enhancem.: Adding more run levels to dbwriter performance test
                  Bugfix:    ARCo test dependencies
                  Review:    JO, AP
-           
+
 GH-2007-02-23-0: Bugfix:    IZ 117: Test qstat_option_s is broken
                  Enhancem.: IZ 121: Need test for CR 6452471
                  Review:    JG
@@ -2129,7 +2134,7 @@ CR-2007-01-19-1: Bugfix:    Enhanced fix CR-2007-01-19-0 (Issue 111) to detect t
                  Review:    JG
 
 RH-2007-01-19-0: Bugfix:    installation of arco checktree did not work in mysql < 5.02
-                  
+
 CR-2007-01-19-0: Bugfix:    path_alias test should support darwin automounter prefix
                  Issue:     111
                  Review:    JG
@@ -2142,11 +2147,11 @@ RH-2007-01-18-0: Enhancm:   o mysql support for arco checktree added
                  Review:    CR
 
 CR-2007-01-18-1: Bugfix:    o fixed bug produced by CR-2007-01-18-0:
-                              testsuite might hang on unexpected script 
+                              testsuite might hang on unexpected script
                               errors
                             o added new method: wait_for_remote_dir
 
-CR-2007-01-18-0: Cleanup:   o start_remote_prog now always reads complete 
+CR-2007-01-18-0: Cleanup:   o start_remote_prog now always reads complete
                               script output
                             o reworked testsuite lock script
                             o reworked output of testsuite script to be more
@@ -2159,7 +2164,7 @@ CR-2007-01-17-2: Cleanup:   o removed puts output from testsuite init procedure
 
 CR-2007-01-17-1: Cleanup:   o drmaa and drmaaj tests:
                               - added drmaa_redirect_lib(), get_current_drmaa_mode()
-                                and get_current_drmaa_lib_extension() to 
+                                and get_current_drmaa_lib_extension() to
                                 sge_procedures.60.tcl
                               - fixed lib link setting
                             o resource_reservation now also started with 1.0 drmaa
@@ -2184,12 +2189,12 @@ CR-2007-01-16-0: Cleanup:   o removed output (pwd test ...) in permission check
                             o join of 2 add_proc_error calls in migrate_test
                             o enhanced output of job_environment test
 
-CR-2007-01-12-0: Bugfix:    fixed possible tcl error in 
+CR-2007-01-12-0: Bugfix:    fixed possible tcl error in
                             checktree/functional/tight_integration/check.exp
 
-CR-2007-01-11-0: Cleanup:   o added support for using add_proc_error in 
+CR-2007-01-11-0: Cleanup:   o added support for using add_proc_error in
                               init level procedure of tests
-                            o create_shell_script() is now writing the 
+                            o create_shell_script() is now writing the
                               script "at once". (performance)
                             o some performance cleanup
                             o sge_macro is now warning when a sge macro
@@ -2226,7 +2231,7 @@ CR-2007-01-09-0: Bugfix:    o checktree/install_core_system/init_cluster.tcl:
                             o new optional parameter for host_list_compare():
                                  resolve host lists before compare
 
-RH-2007-01-09-0: Bugfix:    arco_build does not longer overwrite 
+RH-2007-01-09-0: Bugfix:    arco_build does not longer overwrite
                             build_private.properties
                  Review:    JG
 
@@ -2234,7 +2239,7 @@ JG-2006-01-09-0: Bugfix:    Fixed problems with various ARCo tests.
                  Review:    RH
 
 JG-2006-01-09-0: Bugfix:    o Fixed auto install test with bdb rpc spooling.
-                            o Fixed scheduler/reconnect test with long 
+                            o Fixed scheduler/reconnect test with long
                               hostnames.
                             o Fixed ARCo installation.
 
@@ -2246,7 +2251,7 @@ CR-2006-01-08-1: Bugfix:    o fixed /checktree/system_tests/windows/sgepasswd:
                               for CSP systems and added some TODOs
 
 CR-2006-01-08-0: Cleanup:   o improved drmaa test output
-                            o added wait time (this might fix some 
+                            o added wait time (this might fix some
                               unreproduceable testsuite errors)
 
 CR-2006-01-05-0: Bugfix:    o fixed checktree/system_tests/clients/qconf:
@@ -2264,9 +2269,9 @@ CR-2006-01-04-2: Bugfix:    fixed error report for unexpected user specific
                             envirionment variables in functional/job_environment
 
 JG-2006-01-04-1: Bugfix:    consumable_resources test relied on different
-                            timetamps of load sensor scripts - which was no 
-                            longer the case after cvs import to testsuite 
-                            project. Modify timestamp of loadsensor file in 
+                            timetamps of load sensor scripts - which was no
+                            longer the case after cvs import to testsuite
+                            project. Modify timestamp of loadsensor file in
                             test.
 
 CR-2006-01-04-1: Bugfix:    don't start system_tests/commlib/issues test on
@@ -2292,7 +2297,7 @@ CR-2006-01-03-0: Cleanup:   test if build arch directory exists in procedure
 
 JG-2006-12-28-2: Cleanup:   Verified use of wait_for_jobend function.
 
-JG-2006-12-28-1: Enhancem.: Skip darwin hosts in test bugs/issuezilla/126 - the 
+JG-2006-12-28-1: Enhancem.: Skip darwin hosts in test bugs/issuezilla/126 - the
                             darwin ps command doesn't output suspended state of
                             processes.
                  Bugfix:    Fixed functional/job_environment.
@@ -2300,15 +2305,15 @@ JG-2006-12-28-1: Enhancem.: Skip darwin hosts in test bugs/issuezilla/126 - the
 
 JG-2006-12-28-0: Bugfix:    Avoid errors from complex test on slow machines (or
                             when running in memory debugger).
-                 Cleanup:   Don't use CHECK_ACT_PATH as absolute path of the 
+                 Cleanup:   Don't use CHECK_ACT_PATH as absolute path of the
                             current check - use CHECK_ACTUAL_TEST_PATH instead.
 
-CR-2006-12-27-0: Bugfix:    Fixed problem when a ts config file is newly 
+CR-2006-12-27-0: Bugfix:    Fixed problem when a ts config file is newly
                             generated
 
 JG-2006-12-27-0: Cleanup:   Removed global variables, minor fixes.
 
-OJ-2006-12-22-1: Testsuite: Added test case for TS IZ 72 in 
+OJ-2006-12-22-1: Testsuite: Added test case for TS IZ 72 in
                             system_tests/clients/qsub
                  Review:    DT
 
@@ -2348,11 +2353,11 @@ RD-2006-12-18-0: Cleanup:   Changed resource quota expanded list format
                  Review:    JG
 
 RD-2006-12-15-0: Enhancem:  Added test for resource quota xattr qmaster crash
-                 Review:    JG 
+                 Review:    JG
 
 JG-2006-12-15-1: Bugfix:    system_tests/clients/common/setup failed on SGE 6.0.
 
-JG-2006-12-15-0: Enhancem.: Added check system_tests/clients/common/setup 
+JG-2006-12-15-0: Enhancem.: Added check system_tests/clients/common/setup
                             testing behaviour of clients
                             - when there is no bootstrap file
                             - when there is no act_qmaster file
@@ -2362,7 +2367,7 @@ JG-2006-12-15-0: Enhancem.: Added check system_tests/clients/common/setup
 
 RH-2006-12-14-0: Enhancem.: Initial version of hedeby checktree added
 
-JG-2006-12-13-0: Enhancem.: Added script to find deprecated globals / procedure 
+JG-2006-12-13-0: Enhancem.: Added script to find deprecated globals / procedure
                             calls.
                  Cleanup:   Removed deprecated globals from dtrace test.
                  Review:    RD
@@ -2375,13 +2380,13 @@ RD-2006-12-12-0: Bugfix:    Fixed qquota test
 HP-2006-12-12-0: Enhancem.: Added test for SGE_Helper_Sevice
                  Review:    JG
 
-JG-2006-12-12-0: Cleanup:   Removed globals and set_error from all remaining 
+JG-2006-12-12-0: Cleanup:   Removed globals and set_error from all remaining
                             files.
 
-JG-2006-12-11-0: Cleanup:   Removed globals and set_error from performance 
+JG-2006-12-11-0: Cleanup:   Removed globals and set_error from performance
                             checks and system_tests/clients.
 
-AH-2006-12-11-0: Enhancem.: New test to ensure Dtrace monitor works on 
+AH-2006-12-11-0: Enhancem.: New test to ensure Dtrace monitor works on
                             S10 machines
                  Review:    RD
 
@@ -2406,8 +2411,8 @@ JG-2006-12-06-0: Enhancem.: The set_error call is no longer needed.
                  Issue:     10
                  Review:    RD
 
-JG-2006-12-04-0: Bugfix:    Opening connections to windows hosts as non 
-                            domain CHECK_USER was broken due to 
+JG-2006-12-04-0: Bugfix:    Opening connections to windows hosts as non
+                            domain CHECK_USER was broken due to
                             JG-2006-11-30-0.
                  Review:    HP
 
@@ -2422,7 +2427,7 @@ JG-2006-12-01-1: Enhancem.: Build libdrmaa.jar with SGE 6.0.
 RD-2006-12-01-0: Enhancem:  Added test for qacct -l h=<hostname> dump core
                  Review:    JG
 
-JG-2006-12-01-0: Bugfix:    qconf test failed if no "non_cluster_host" is 
+JG-2006-12-01-0: Bugfix:    qconf test failed if no "non_cluster_host" is
                             available.
                             qrsh test failed on NetBSD and Interix.
                  Review:    RD
@@ -2430,7 +2435,7 @@ JG-2006-12-01-0: Bugfix:    qconf test failed if no "non_cluster_host" is
 JG-2006-11-30-0: Bugfix:    - open_remote_spawn_process failed on some interix
                               version.
                             - commandline switch close_rlogin was broken
-                 Enhancem.: sge.root propterty is no longer needed in 
+                 Enhancem.: sge.root propterty is no longer needed in
                             build_testsuite.properties for java build
                  Review:    RD
 
@@ -2438,7 +2443,7 @@ HP-2006-11-28-0: Enhancem.: Added comment
                  Changed:   system_tests/windows/sgepasswd
 
 HP-2006-11-27-0: Bugfix:    All keys from /var/sgeCA where moved away for this
-                            test, now only the key for this particular test 
+                            test, now only the key for this particular test
                             is moved away.
                  Changed:   sytem_tests/windows/sgepasswd
 
@@ -2453,16 +2458,16 @@ RM-2006-11-27-0: Enhancem.: added test for sgepasswd binary for bugfix 6472859
 CR-2006-11-24-2: Enhancem.: added test for issue 2122/6497217
                  Review:    RD
 
-CR-2006-11-24-1: Cleanup:   added adoc headers and test remotely the 
-                            availability of the testsuite java properties file 
+CR-2006-11-24-1: Cleanup:   added adoc headers and test remotely the
+                            availability of the testsuite java properties file
                             for 65 version testing
 
-CR-2006-11-24-0: Enhancem:  del_pe now supports raise_error 
+CR-2006-11-24-0: Enhancem:  del_pe now supports raise_error
                  Review:    RD
 
-AA-2006-11-23-0: Enhancem:  move of arco testsuite checktree to testsuite 
+AA-2006-11-23-0: Enhancem:  move of arco testsuite checktree to testsuite
                             subproject
-                
+
 CR-2006-11-23-2: Cleanup:   modified migrate test to always to the heartbeat
                             test in runlevel 0 - report exactly one warning
                             if no second shadowd is set for other levels
@@ -2495,7 +2500,7 @@ CR-2006-11-16-0: Bugfix:    - fixed error in thight_integration check when
 RD-2006-11-16-0: Enhancem.: - enhanced clients/qlimit test
                             - fixed scheduler/resource_quota test
                             - disabled warnings in scheduler/tickets test
-                 Review:    JG 
+                 Review:    JG
 
 HP-2006-11-15-0: Bugfix:    Renamed file backslash_space_queue19. to
                             backslash_space_queue19
@@ -2507,7 +2512,7 @@ RD-2006-11-10-0: Enhancem.: Enhanced tests for limitation rule sets
                             - added lirs runlevel in qmaster/complex
 
 JG-2006-11-10-0: Bugfix:    fixed system_tests/scheduler/reconnect for maintrunk
-                            clusters (get_qconf_list now returns empty list in 
+                            clusters (get_qconf_list now returns empty list in
                             case of qconf error).
                  Review:    RD
 
@@ -2519,7 +2524,7 @@ JG-2006-11-08-0: Enhancem.: new check system_tests/scheduler/reconnect.
                  Review:    AH
 
 JG-2006-11-06-0: Bugfix:    issue_1330 check removed spooling database during
-                            execd installation, when local bdb spooling was 
+                            execd installation, when local bdb spooling was
                             configured. This caused subsequent tests to fail.
                  Review:    RD
 
@@ -2528,7 +2533,7 @@ JG-2006-11-03-0: Bugfix:    Fixed negative tests (from non cluster host) with
                  Review:    AA
 
 RD-2006-11-02-0: Enhancem.  - added qlimit test
-                            - enhanced pe_ranges, resource_reservation for 
+                            - enhanced pe_ranges, resource_reservation for
                               limitation rule sets
                             - throughput test reports now correct qmaster host
                  Review:    JG
@@ -2541,7 +2546,7 @@ JG-2006-11-01-0: Enhancem.: Made all calls to open_remote_spawn_process and
                             Cleanup. Added some missing ADOC headers.
                  Review:    RD
 
-AA-2006-10-31-0: Bugfix:    o catch block for aimk -java option, output 
+AA-2006-10-31-0: Bugfix:    o catch block for aimk -java option, output
                               beginning with - are interpreted as options
                  Review:    CR
 
@@ -2569,8 +2574,8 @@ JG-2006-10-24-0: Enhancem.: Clearer output for testsuite compile.
                  Bugfix:    Fixed SGE(EE) 5.3 installation.
                  Review:    RD
 
-JG-2006-10-23-0: Enhancem.: Allow to pass the current working directory to 
-                            functions 
+JG-2006-10-23-0: Enhancem.: Allow to pass the current working directory to
+                            functions
                             - create_shell_script
                             - open_remote_spawn_process
                             - start_remote_prog
@@ -2578,9 +2583,9 @@ JG-2006-10-23-0: Enhancem.: Allow to pass the current working directory to
                             Fixed qconf test (qconf_add_show_delete_stnode).
                  Review:    RD
 
-JG-2006-10-19-0: Enhancem.: Added per host setting of a send speed used by 
+JG-2006-10-19-0: Enhancem.: Added per host setting of a send speed used by
                             testsuite to send text to spawned shells.
-                            On some operation systems, a user's login shell 
+                            On some operation systems, a user's login shell
                             (esp. bash) dumps core, when testsuite sends at full
                             speed.
                  Review:    CR
@@ -2596,7 +2601,7 @@ JG-2006-10-05-0: Bugfix:    Fixed filedescriptor leak when reading the bootstrap
                  Review:    RD
 
 JG-2006-10-04-0: Bugfix:    - Fixed consumable_resources test.
-                            - qacct parsing failed for account strings 
+                            - qacct parsing failed for account strings
                               containing double quotes or semicolons.
                             - delete_file failed for file names containing
                               semicolons or space characters.
@@ -2604,5 +2609,5 @@ JG-2006-10-04-0: Bugfix:    - Fixed consumable_resources test.
                             Cleanup (rewrite) of submit_job.
                  Review:    RD
 
-JG-2006-09-26-0: CVS        moved testsuite repository from gridengine project 
+JG-2006-09-26-0: CVS        moved testsuite repository from gridengine project
                             to testsuite subproject.

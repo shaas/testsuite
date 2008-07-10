@@ -2408,8 +2408,8 @@ proc config_source_cvs_release {only_check name config_array} {
       set cvs_tag [string trim $cvs_tag]
       set tag "maintrunk"
          if {$prg_exit_state == 0} {
-         if {[string first "T" $cvs_tag] == 0} {
-            set tag [string range $cvs_tag 1 end]
+            if {[string first "T" $cvs_tag] == 0 || [string first "N" $cvs_tag] == 0} {
+               set tag [string range $cvs_tag 1 end]
             }
          }
       set config($name,default) $tag

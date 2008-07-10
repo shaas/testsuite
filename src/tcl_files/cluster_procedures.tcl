@@ -351,3 +351,95 @@ proc get_all_reserved_ports { } {
    }
    return $portlist
 }
+
+#****** cluster_procedures/backup_remote_cluster_config() **********************
+#  NAME
+#     backup_remote_cluster_config() -- backup the system configuration
+#
+#  SYNOPSIS
+#     backup_remote_cluster_config { filename dir } 
+#
+#  FUNCTION
+#     This procedure back up the configuration of the product system given by the
+#     testsuite configuration file $filename
+#
+#  INPUTS
+#     filename - testsuite configuration
+#     dir      - directory where to store the product configuration
+#
+#  RESULT
+#        0 ... configuration successfully saved
+#     != 0 ... error occured whil backing up the system configuration
+#
+#  SEE ALSO
+#     cluster_procedures/upgrade_cluster()
+#*******************************************************************************
+proc backup_remote_cluster_config { filename dir } {
+   global ts_config CHECK_USER
+
+   # read the configuration from file
+   if {[read_array_from_file $filename "testsuite configuration" add_config] != 0} {
+      ts_log_severe "can't read additonal configuration file $filename"
+      return -1
+   }
+
+   set cmd "save_cc.sh"
+   set curr_dir "$ts_config(product_root)/util/upgrade_modules"
+
+   set hostname $add_config(master_host)
+
+   set envlist(SGE_ROOT) $add_config(product_root)
+   set envlist(SGE_CELL) $add_config(cell)
+   set envlist(SGE_QMASTER_PORT) $add_config(commd_port)
+   set envlist(SGE_EXECD_PORT) [expr $add_config(commd_port) + 1]
+
+   ts_log_fine "Back up of SGE configuration to $dir directory."
+   set result [start_remote_prog $hostname $CHECK_USER $cmd $dir prg_exit_state 60 0 $curr_dir envlist]
+   if { $prg_exit_state != 0 } {
+      ts_log_warning $result
+   }
+   return $prg_exit_state
+}
+
+#****** cluster_procedures/upgrade_cluster() ***********************************
+#  NAME
+#     upgrade_cluster() -- upgrade the cluster
+#
+#  SYNOPSIS
+#     upgrade_cluster { dir } 
+#
+#  FUNCTION
+#     This procedure update the cluster with the configuration stored in $dir 
+#     directory.
+#
+#  INPUTS
+#     dir - directory with the backed up SGE configuration
+#
+#  RESULT
+#        0 ... configuration successfully loaded
+#     != 0 ... error occured whil loading the system configuration      
+#
+#  SEE ALSO
+#     cluster_procedures/backup_remote_cluster_config()
+#*******************************************************************************
+proc upgrade_cluster { dir } {
+   global ts_config CHECK_USER
+
+   set hostname $ts_config(master_host)
+
+   if { "$dir" == "" } {
+      ts_log_finest "No back up of configuration proceeded."
+      return 0
+   }
+
+   set cmd "load_cc.sh"
+   set curr_dir "$ts_config(product_root)/util/upgrade_modules"
+
+   ts_log_fine "Loading the configuration from $dir directory."
+   set result [start_remote_prog $hostname $CHECK_USER $cmd $dir prg_exit_state 60 0 $curr_dir]
+
+   if { $prg_exit_state != 0 } {
+      ts_log_warning $result
+   }
+   return $prg_exit_state
+}

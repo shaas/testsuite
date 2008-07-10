@@ -607,7 +607,7 @@ proc ts_log {level message {raise_error 1} {function ""} {do_output 1} {do_loggi
 proc ts_log_progress {{level FINE} {message "."}} {
    global ts_log_config
 
-   set level [ts_log_get_level_name $level]
+   set level [ts_log_get_level_number $level]
 
    if {$ts_log_config(output) >= $level} {
       puts -nonewline $message ; flush stdout
@@ -637,7 +637,7 @@ proc ts_log_progress {{level FINE} {message "."}} {
 proc ts_log_frame {{level FINE} {line ""}} {
    global ts_log_config
   
-   set level [ts_log_get_level_name $level]
+   set level [ts_log_get_level_number $level]
    if {$ts_log_config(output) >= $level} {
       if {$line == ""} {
          puts "********************************************************************************"
@@ -668,7 +668,7 @@ proc ts_log_frame {{level FINE} {line ""}} {
 proc ts_log_newline {{level FINE}} {
    global ts_log_config
   
-   set level [ts_log_get_level_name $level]
+   set level [ts_log_get_level_number $level]
    if {$ts_log_config(output) >= $level} {
       puts "\n"
    } else {
