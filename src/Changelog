@@ -2,6 +2,7 @@ AP-2008-07-10-0: Enhancem.: Create the test for upgrade procedure
                  Bugfix:    cannot modify cvs release tag in testsuite config
                  Bugfix:    ts_log_frame doesn't create line
                  Issue:     203, 201, 204
+                 Review:    LP
 
 JG-2008-07-10-1: Enhancem.: Added test for IZ 2575 in
                             system_tests/clients/qalter.
