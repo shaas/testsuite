@@ -142,6 +142,7 @@ proc appcert_test {} {
       set id [open_remote_spawn_process $host "root" "/usr/bin/appcert" $host_args]
       set spawn_id [lindex $id 1]
       set timeout 60
+      set do_output 0
       set output ""
       #log_user 1
       expect {
@@ -159,13 +160,18 @@ proc appcert_test {} {
                if {$line != ""} {
                   ts_log_finest $line
                   switch -glob -- $line {
+                     "_start_mark_:*" {
+                        set do_output 1
+                     }
                      "_exit_status_:(*)*" {
                         set prg_exit_state [lindex [split $line "()"] 1]
                         ts_log_fine "appcert exited with exit status $prg_exit_state"
                         set done 1
                      }
                      default {
-                        append output "$line\n"
+                        if {$do_output} {
+                           append output "$line\n"
+                        }
                      }
                   }
                }

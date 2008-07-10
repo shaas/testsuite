@@ -2849,6 +2849,8 @@ proc wait_for_job_state {jobid state wait_timeout} {
       }
       sleep 1
    }
+
+   return $job_state
 }
 
 #****** sge_procedures/wait_for_queue_state() **********************************
@@ -4286,13 +4288,13 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
 
       if {$ts_config(gridengine_version) < 61} {
          set messages(-29)    "blah blah blah no MSG_JOB_NONADMINPRIO in GE < 6.1"
-         set messages(-36)    "blah blah blah no MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS in GE < 6.1"
+         set messages(-36)    "blah blah blah no MSG_JOB_SAMEPATHSFORINPUTANDOUTPUT_SSS in GE < 6.1"
          set messages(-37)    "blah blah blah no MSG_EVAL_EXPRESSION_LONG_EXPRESSION in GE < 6.1"
       } else {
          # 6.1 and higher
          set messages(-29)    "*[translate_macro MSG_JOB_NONADMINPRIO]*"
          set messages(-37)    "*[translate_macro MSG_EVAL_EXPRESSION_LONG_EXPRESSION "*"]*"
-         set messages(-36)   "*[translate_macro MSG_PARSE_SAMEPATHFORINPUTANDOUTPUT_SS "*" "*"]"
+         set messages(-36)   "*[translate_macro MSG_JOB_SAMEPATHSFORINPUTANDOUTPUT_SSS "*" "*" "*"]"
       }
 
       if {$ts_config(gridengine_version) < 62} {

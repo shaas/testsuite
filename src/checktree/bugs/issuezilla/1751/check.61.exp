@@ -1,0 +1,200 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_1751_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_1751"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "jobs with same paths for stdin and stdout/err have to go into error state"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function "issue_1751_setup"
+set check_cleanup_function "issue_1751_cleanup"
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_1751_test"
+
+proc issue_1751_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_1751_setup {} {
+   global CHECK_PROTOCOL_DIR
+   global issue_1751_dir issue_1751_test_host
+
+   # use an explicit test host - this makes it easier to track 
+   # errors in execd messages file
+   set issue_1751_test_host [host_conf_get_suited_hosts]
+
+   # we need an output directory for job output files
+   set issue_1751_dir "$CHECK_PROTOCOL_DIR/issue_1751"
+
+   # make sure it is clean
+   if {[file exists $issue_1751_dir]} {
+      file delete -force $issue_1751_dir
+   }
+   file mkdir $issue_1751_dir
+}
+
+proc issue_1751_cleanup {} {
+   global issue_1751_dir
+
+   # cleanup possible remaining jobs
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # cleanup output directory
+   if {[file exists $issue_1751_dir]} {
+      file delete -force $issue_1751_dir
+   }
+}
+
+proc issue_1751_test_job {stdin stdout stderr {fail 0} {create_input 0}} {
+   global ts_config
+   global issue_1751_test_host
+
+   # create an input file if required
+   if {$create_input} {
+      set f [open $stdin w]
+      puts $f "line 1"
+      puts $f "line 2"
+      close $f
+   }
+  
+   set job_args "-l h=$issue_1751_test_host"
+
+   # set stdin path if required, else /dev/null is default
+   if {$stdin != ""} {
+      append job_args " -i $stdin"
+   }
+   # set stdout path if given, else /dev/null
+   if {$stdout != ""} {
+      append job_args " -o $stdout"
+   } else {
+      append job_args " -o /dev/null"
+   }
+   # set seterr path if given, else join stdout and stderr
+   if {$stderr != ""} {
+      append job_args " -e $stderr"
+   } else {
+      append job_args " -j y"
+   }
+
+   # if we have created an input file, our job will cat from stdin
+   # else start a sleeper job
+   if {$create_input} {
+      append job_args " -b y cat"
+   } else {
+      append job_args " $ts_config(product_root)/examples/jobs/sleeper.sh 2"
+   }
+
+   set job_id [submit_job $job_args]
+   if {$job_id <= 0} {
+      # error output has been generated in submit_job
+      return
+   }
+
+   # speedup
+   trigger_scheduling
+
+   if {$fail} {
+      # wait for the job to go into error state
+      wait_for_job_state $job_id "E" 60
+      delete_job $job_id 0 0 0
+   } else {
+      wait_for_jobend $job_id "" 60 0
+
+      # short check if job ran through
+      if {[get_qacct $job_id] == 0} {
+         if {$qacct_info(failed) != 0 || $qacct_info(exit_status) != 0} {
+            ts_log_severe "test job $job_id was started, but failed"
+         }
+      }
+   }
+}
+
+proc issue_1751_test {} {
+   global ts_config
+   global issue_1751_dir
+
+   # standard actions:
+   # - directory as output parameters
+   # - no stdin
+   # - joined output
+   issue_1751_test_job "" $issue_1751_dir ""
+   issue_1751_test_job "" "$issue_1751_dir/test.txt" ""
+
+   # /dev/null may be used by both input and output
+   issue_1751_test_job "/dev/null" "/dev/null" ""
+
+   # test with input file, but different stdout/stderr
+   issue_1751_test_job "$issue_1751_dir/input_file" "$issue_1751_dir/output_file" "$issue_1751_dir/err_file" 0 1
+   issue_1751_test_job "$issue_1751_dir/input_file" "$issue_1751_dir/output_file" "" 0 1
+   issue_1751_test_job "$issue_1751_dir/input_file" "" "" 0 1
+
+   # tests that shall fail
+   issue_1751_test_job "$issue_1751_dir/input_file" "$issue_1751_dir/input_file" "" 1 1
+   issue_1751_test_job "$issue_1751_dir/input_file" "$issue_1751_dir/input_file" "/dev/null" 1 1
+   issue_1751_test_job "$issue_1751_dir/input_file" "/dev/null" "$issue_1751_dir/input_file" 1 1
+   issue_1751_test_job "$issue_1751_dir/input_file" "$issue_1751_dir/input_file" "$issue_1751_dir/input_file" 1 1
+}
+
