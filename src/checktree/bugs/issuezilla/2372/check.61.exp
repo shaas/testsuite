@@ -154,11 +154,13 @@ proc issue_2372_cleanup {} {
    global ts_config
    global issue_2372_backup CHECK_USER
 
-   if { [is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] } {
-      ts_log_fine "scheduler still alive - good"
-      shutdown_system_daemon $ts_config(master_host) sched
-   } else {
-      ts_log_severe "scheduler died!"
+   if {$ts_config(gridengine_version) < "62"} {
+      if { [is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] } {
+         ts_log_fine "scheduler still alive - good"
+         shutdown_system_daemon $ts_config(master_host) sched
+      } else {
+         ts_log_severe "scheduler died!"
+      }
    }
    shutdown_system_daemon $ts_config(master_host) qmaster
 
@@ -177,7 +179,7 @@ proc issue_2372_cleanup {} {
          unset $var
       }
    }
-   wait_for_load_from_all_queues 300
+   wait_for_load_from_all_queues 120
    wait_for_end_of_all_jobs
 }
 
@@ -249,8 +251,10 @@ proc issue_2372 {} {
          ts_log_severe "gdi_timeout not set to $issue_2372_gdi_timeout! gdi_timeout=$gdi_timeout"
       }
 
-      if {$runs != $issue_2372_gdi_retries} {
-         ts_log_severe "expected $issue_2372_gdi_retries retries, got $runs"
+      set cal_runs $issue_2372_gdi_retries
+      incr cal_runs 1
+      if {$runs != $cal_runs} {
+         ts_log_severe "expected $cal_runs runs, got $runs"
       }
 
       if {[string compare -nocase $issue_2372_cl_ping $cl_ping] != 0} {
