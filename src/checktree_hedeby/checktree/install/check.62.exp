@@ -386,7 +386,8 @@ proc hedeby_install_master_host {} {
                   -cs_port $cs_port\
                   -l $spool_dir\
                   -sge_root $sge_root\
-		  -al"
+		  -al\
+                  -nost"
 
    if { $ssl_disabled == "true" } {
       append arguments " -nossl"

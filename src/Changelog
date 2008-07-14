@@ -1,3 +1,7 @@
+MG-2008-07-14-0: Enhancem.:  Testsuite wil not try to install Service Tags with SDM
+                 Belongs To: MG-2008-07-14-0
+                 Review:     RM
+
 CR-2008-07-11-0: Bugfix:     correct exp. gdi_retries count in check 2372
                  Belongs To: CR-2008-07-10-0
                  Review:     MD
