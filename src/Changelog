@@ -1,3 +1,7 @@
+CR-2008-07-15-1: Cleanup:    Updated set suppressArchCheck=true in testsuite_build.properties
+                             to set suppress.arch.check=true
+                 Belongs To: CR-2008-07-15-0
+
 CR-2008-07-15-0: Bugfix:     Testsuite test "executor_reload" not working with distribution build
                  Issue:      454 (hedeby)
                  Enhancem.:  set suppressArchCheck=true in testsuite_build.properties

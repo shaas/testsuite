@@ -391,7 +391,7 @@ proc create_testsuite_properties_file { property_path build_host } {
    set data(2) "# testsuite. ($date)"
    set data(3) "sge.root=$ts_config(product_root)" 
    set data(4) "distinst.dir=$hedeby_config(hedeby_product_root)"
-   set data(5) "suppressArchCheck=true"
+   set data(5) "suppress.arch.check=true"
    set data(6) "#nfs.server=<enter name of nfs server host>"
    set data(7) "#remote.starter=rsh"
    save_file $property_path data
