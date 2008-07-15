@@ -386,13 +386,14 @@ proc create_testsuite_properties_file { property_path build_host } {
 
    puts $CHECK_OUTPUT "creating testsuite property_file ..."
    set date [clock format [clock seconds] -format "%d. %b %Y - %H:%M:%S"]
-   set data(0) 6
+   set data(0) 7
    set data(1) "# automatic generated build_testsuite.properties file from"
    set data(2) "# testsuite. ($date)"
    set data(3) "sge.root=$ts_config(product_root)" 
    set data(4) "distinst.dir=$hedeby_config(hedeby_product_root)"
-   set data(5) "#nfs.server=<enter name of nfs server host>"
-   set data(6) "#remote.starter=rsh"
+   set data(5) "suppressArchCheck=true"
+   set data(6) "#nfs.server=<enter name of nfs server host>"
+   set data(7) "#remote.starter=rsh"
    save_file $property_path data
    wait_for_remote_file $build_host $CHECK_USER $property_path
 

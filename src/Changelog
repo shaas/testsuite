@@ -1,3 +1,8 @@
+CR-2008-07-15-0: Bugfix:     Testsuite test "executor_reload" not working with distribution build
+                 Issue:      454 (hedeby)
+                 Enhancem.:  set suppressArchCheck=true in testsuite_build.properties
+                 Review:     AA
+
 MG-2008-07-14-0: Enhancem.:  Testsuite wil not try to install Service Tags with SDM
                  Belongs To: MG-2008-07-14-0
                  Review:     RM

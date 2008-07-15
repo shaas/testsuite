@@ -51,6 +51,7 @@ set check_functions              {}  ;# functions to call (in order)
 set check_setup_function "hedeby_install_setup"
 set check_cleanup_function "hedeby_install_cleanup"
 
+lappend check_functions "hedeby_check_distinst"
 lappend check_functions "hedeby_shutdown_system"
 lappend check_functions "hedeby_remove_preferences"
 lappend check_functions "hedeby_install_master_host"
@@ -297,6 +298,33 @@ proc hedeby_add_ge_services {} {
       incr cluster 1
    }
    set_current_cluster_config_nr $install_current_cluster_config
+}
+
+proc hedeby_check_distinst {} {
+   # check hedeby installation for available $hedeby_config(hedeby_product_root)/lib/sdm-test.jar
+   # to start sdmadm exe command 
+
+   global hedeby_config
+   set java_build_host [host_conf_get_java_compile_host]
+
+   set path "$hedeby_config(hedeby_product_root)/lib/sdm-test.jar"
+   if {[is_remote_file $java_build_host [get_hedeby_admin_user] $path] == 0} {
+      ts_log_fine "No sdm-test.jar file found in $hedeby_config(hedeby_product_root)/lib directory, copy from source ..."
+      set source_path "$hedeby_config(hedeby_source_dir)/dist/hedeby/lib/sdm-test.jar"
+      if {[is_remote_file $java_build_host [get_hedeby_admin_user] $source_path] == 1} {
+         set output [start_remote_prog $java_build_host [get_hedeby_admin_user] "cp" "$source_path $path" prg_exit_state 180 0 "" ""  1 0]
+         ts_log_fine $output
+         if {$prg_exit_state != 0} {
+            ts_log_severe "cp $source_path $path failed with exit state = $prg_exit_state"
+         } else {
+            ts_log_fine "Copied sdm-test.jar from $hedeby_config(hedeby_source_dir)/dist/hedeby/lib/ into distinst directory!"
+         }
+      } else {
+         add_proc_error "hedeby_check_distinst" -2 "File \"$source_path\" not found. Please compile hedeby with testsuite first!"
+      }
+   } else {
+      ts_log_fine "Product root \"$hedeby_config(hedeby_product_root)\" contains sdm-test.jar file in ./lib directory - FINE"
+   }
 }
 
 proc hedeby_shutdown_system {} {
