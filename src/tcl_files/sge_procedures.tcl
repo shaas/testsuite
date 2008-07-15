@@ -4063,6 +4063,8 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
    global CHECK_USER
    get_current_cluster_config_array ts_config
 
+   ts_log_fine "deleting job $jobid"
+
    if {$ts_config(gridengine_version) >= 60} {
       set ALREADYDELETED [translate_macro MSG_JOB_ALREADYDELETED_U "*"]
    } else {

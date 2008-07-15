@@ -2933,6 +2933,8 @@ proc host_get_id_a_command {host} {
       "darwin" -
       "darwin-ppc" -
       "darwin-x86" -
+      "hp11" -
+      "hp11-64" -
       "nbsd-i386" -
       "osf4" -
       "tru64" -

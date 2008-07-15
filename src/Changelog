@@ -1,3 +1,7 @@
+HP-2008-07-15-0: Bugfix:     Timing issues in the qrsh_notify test wrongly produced errors
+                 Changed:    system_tests/clients/qrsh/check.exp
+                 Review:     JG
+
 CR-2008-07-15-1: Cleanup:    Updated set suppressArchCheck=true in testsuite_build.properties
                              to set suppress.arch.check=true
                  Belongs To: CR-2008-07-15-0

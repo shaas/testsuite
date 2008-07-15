@@ -197,6 +197,201 @@ proc qrsh_function {} {
 }
 
 #                                                             max. column:     |
+#****** qrsh/wait_for_has_been_submitted() ******
+# 
+#  NAME
+#     wait_for_has_been_submitted -- Waits for the output "has been submitted"
+#                                    and parses the job ID.
+#
+#  SYNOPSIS
+#     wait_for_has_been_submitted {sp_id}
+#
+#  FUNCTION
+#     Waits on the spawn id (returend by open_remote_spawn_process)
+#     for the output "Your job JOB_ID has been submitted" and parses
+#     the JOB_ID.
+#
+#  INPUTS
+#     sp_id - the spawn id returned by open_remote_spawn_process.
+#
+#  RESULT
+#     The ID of the job
+#*******************************
+proc wait_for_has_been_submitted {sp_id} {
+   global ts_config
+   set job_id 0
+   set remote_host ""
+
+   if {$ts_config(gridengine_version) < 61} {
+      set HAS_BEEN_SUBMITTED  [translate_macro MSG_JOB_SUBMITJOB_USS "*" "*" "*"]
+   } else {
+      set HAS_BEEN_SUBMITTED  [translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]
+   }
+   set ESTABLISHING_SESSION [translate_macro MSG_QSH_ESTABLISHINGREMOTESESSIONTO_SS "*" "*"]
+   set timeout 60
+   expect {
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id timeout {
+         ts_log_severe "timeout waiting for qrsh -notify to be submitted"
+      }
+      -i $sp_id eof {
+         ts_log_severe "eof waiting for qrsh -notify to be submitted"
+      }
+      -i $sp_id $HAS_BEEN_SUBMITTED {
+         set job_id [lindex $expect_out(0,string) 2]
+         exp_continue
+      }
+      -i $sp_id $ESTABLISHING_SESSION {
+         set remote_host [lindex $expect_out(0,string) 5]
+      }
+   }
+   if {$job_id != 0 && $remote_host != ""} {
+      ts_log_fine "qrsh job $job_id correctly submitted to remote host $remote_host"
+   }
+   return $job_id
+}
+
+#                                                             max. column:     |
+#****** qrsh/wait_for_running() ******
+# 
+#  NAME
+#     wait_for_running -- Waits for the output "running"
+#
+#  SYNOPSIS
+#     wait_for_running {sp_id}
+#
+#  FUNCTION
+#     Waits on the spawn id (returend by open_remote_spawn_process)
+#     for the output "running".
+#
+#  INPUTS
+#     sp_id - the spawn id returned by open_remote_spawn_process.
+#*******************************
+proc wait_for_running {sp_id} {
+   set timeout 60
+   expect {
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id timeout {
+         ts_log_severe "Got no output from job! Job seems not to be in running state" 
+      }
+      -i $sp_id eof {
+         ts_log_severe "eof waiting for output from job"
+      }
+      -i $sp_id "running"  {
+         ts_log_fine "job script started "
+      }
+   } 
+}
+
+#                                                             max. column:     |
+#****** qrsh/wait_for_Signal() ******
+# 
+#  NAME
+#     wait_for_Signal -- Waits for the output "Signal"
+#
+#  SYNOPSIS
+#     wait_for_Signal {sp_id signal_name sent_signal}
+#
+#  FUNCTION
+#     Waits on the spawn id (returend by open_remote_spawn_process)
+#     for the output "Signal".
+#
+#  INPUTS
+#     sp_id - The spawn id returned by open_remote_spawn_process.
+#     signal_name - The name of the signal that the execds should send to
+#                   the script according to the "-notify" signal mapping.
+#                   Can be "USR1" or "USR2".
+#     sent_signal - The name of the signal that was sent to the execd.
+#                   Can be "KILL" or "STOP".
+#*******************************
+proc wait_for_Signal {sp_id signal_name sent_signal} {
+   set timeout 30 
+   expect {
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id eof {
+         ts_log_severe "eof waiting for output from job"
+      }
+      -i $sp_id timeout {
+         ts_log_severe "Job did't catch signal!"
+      }
+      -i $sp_id "Signal" {
+         ts_log_fine "Successful transfer of the signal SIG$sent_signal -> SIG$signal_name."
+      }
+   }
+}
+
+#                                                             max. column:     |
+#****** qrsh/do_qrsh_notify_test() ******
+# 
+#  NAME
+#     do_qrsh_notify_test -- The actual qrsh notify test procedure
+#
+#  SYNOPSIS
+#     do_qrsh_notify_test {signal_name}
+#
+#  FUNCTION
+#     Does the actual qrsh notify test. Starts a script per qrsh that
+#     catches signals and prints the signal name. Then deletes or
+#     suspends the job, waits for the job script to print the signal's
+#     name and compares it with the expected signal.
+#
+#  INPUTS
+#     signal_name - The name of the signal that the job script should receive.
+#                   Can be "USR1" or "USR2"
+#*******************************
+proc do_qrsh_notify_test {signal_name} {
+   global CHECK_ACTUAL_TEST_PATH
+   global ts_config CHECK_USER
+   global qrsh_hostlist qrsh_submithost
+
+   set arch [resolve_arch $qrsh_submithost]
+   set qrsh_command "$ts_config(product_root)/bin/$arch/qrsh"
+   set qrsh_job     "$CHECK_ACTUAL_TEST_PATH/signalhandler.sh $signal_name"
+
+   foreach host $qrsh_hostlist {
+      set qrsh_options "-notify -nostdin -verbose -l h=$host"
+      # start qrsh with bash script which is waiting for a signal
+      ts_log_fine "starting $qrsh_command $qrsh_options $qrsh_job   \
+                   on host $qrsh_submithost as user $CHECK_USER"
+
+      set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER \
+                   $qrsh_command "$qrsh_options $qrsh_job"]
+      set sp_id [lindex $qrsh_id 1]
+
+      # scan the verbose output of qrsh for job id
+
+      set job_id [wait_for_has_been_submitted $sp_id]
+      if {$job_id == 0} {
+         close_spawn_process $qrsh_id
+         continue
+      }
+
+      # wait for first output of the remote script
+      wait_for_running $sp_id
+    
+      # send signal SIGKILL or SIGSTOP
+      if {$signal_name == "USR2"} {
+         delete_job $job_id
+         # wait for the output "Signal"
+         wait_for_Signal $sp_id "$signal_name" "KILL"
+      } else {
+         suspend_job $job_id
+         # wait for the output "Signal"
+         wait_for_Signal $sp_id "$signal_name" "STOP"
+      }
+
+      close_spawn_process $qrsh_id
+   }
+   wait_for_end_of_all_jobs
+}
+
+#                                                             max. column:     |
 #****** qrsh/qrsh_notify() ******
 # 
 #  NAME
@@ -211,128 +406,11 @@ proc qrsh_function {} {
 #     Sends a SIGKILL and SIGSTOP signal to the scripts. Because of 
 #     the -notify option these signals can be caught as SIGUSR1 and  
 #     SIGUSR2 signals. 
-#
-#  INPUTS
-#
-#  RESULT
-#     ??? 
-#
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
 #*******************************
 proc qrsh_notify {} {
-   global CHECK_ACTUAL_TEST_PATH
-   global ts_config CHECK_USER
-   global qrsh_submithost 
-
-   set arch [resolve_arch $qrsh_submithost]
-
-   # first test: signal forwarding
-   # send SIGKILL -> qrsh job will get an SIGUSR2 before SIGKILL
-   ts_log_fine "starting $ts_config(product_root)/bin/$arch/qrsh -notify $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR2"
-
-   # start qrsh with bash script which is waiting for a SIGSTOP signal
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER \
-        $ts_config(product_root)/bin/$arch/qrsh \
-        "-notify -nostdin $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR2"]
-
-   # figure out the job id  
-   set sp_channel [lindex $qrsh_id 1]
-   set output [start_remote_prog $qrsh_submithost $CHECK_USER \
-        $ts_config(product_root)/bin/$arch/qstat "-u $CHECK_USER | grep \'signal\' "]
-   set output [string trim $output]
-   
-   scan $output "%d " job_id
-   ts_log_fine "Job id is: $job_id "
-
-   # wait for first output of the remote script
-   set timeout 20 
-   expect {
-      -i $sp_channel "running"  {
-         ts_log_fine "job started "
-      }      
-      -i $sp_channel timeout {
-         ts_log_severe "Got no output from job! Job seems not to be in running state" 
-      }
-   } 
- 
-   # send signal SIGKILL
-   delete_job $job_id
-   ts_log_fine "Job $job_id will be deleted!"
-
-   set timeout 30 
-   expect {
-      -i $sp_channel full_buffer {
-         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-      }
-      -i $sp_channel "Signal" {
-         ts_log_fine "Successful transfer of the signal SIGKILL -> SIGUSR2."
-      }
-      -i $sp_channel timeout {
-         ts_log_severe "Job did't catch signal!"
-      }
-   }
-
-   close_spawn_process $qrsh_id
-   wait_for_end_of_all_jobs
-
-   # second test: signal forwarding
-   # send SIGSTOP -> qrsh job will get an SIGUSR1 before SIGSTOP
-   ts_log_fine "starting $ts_config(product_root)/bin/$arch/qrsh -notify $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR1"
-
-   # start qrsh with bash script which is waiting for a SIGSTOP signal
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER \
-        $ts_config(product_root)/bin/$arch/qrsh \
-        "-notify -nostdin $CHECK_ACTUAL_TEST_PATH/signalhandler.sh USR1"]
-
-   # figure out the job id  
-   set sp_channel [lindex $qrsh_id 1]
-   set output [start_remote_prog $qrsh_submithost $CHECK_USER \
-        $ts_config(product_root)/bin/$arch/qstat "-u $CHECK_USER | grep \'signal\' "]
-   set output [string trim $output]
-   scan $output "%d " job_id
-   
-   ts_log_fine "Job id is: $job_id "   
-   sleep 1
-   # wait for first output of the remote script
-   set timeout 10
-   expect {
-      -i $sp_channel "running"  {
-         ts_log_fine "job started "
-      }
-      -i $sp_channel timeout {
-         ts_log_severe "Got no output from job! Job seems not to be in running state" 
-      }
-   } 
-   # send signal SIGSTOP
-   suspend_job $job_id
-
-   set timeout 30 
-   expect {
-      -i $sp_channel full_buffer {
-         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
-      }
-      -i $sp_channel "Signal" {
-         ts_log_fine "Successful transfer of the signal SIGSTOP -> SIGUSR1."
-      }
-      -i $sp_channel timeout {
-         ts_log_severe "Job did't catch signal!"
-      }
-   }
-
-   close_spawn_process $qrsh_id
-   wait_for_end_of_all_jobs
+   do_qrsh_notify_test "USR2"
+   do_qrsh_notify_test "USR1"
 }
-
 
 proc qrsh_h {} {
    global ts_config CHECK_USER
