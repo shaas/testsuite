@@ -2930,6 +2930,7 @@ proc host_get_id_a_command {host} {
    switch -exact $arch {
       "aix42" -
       "aix43" -
+      "aix51" -
       "darwin" -
       "darwin-ppc" -
       "darwin-x86" -
