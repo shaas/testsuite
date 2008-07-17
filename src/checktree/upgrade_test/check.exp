@@ -530,6 +530,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ] 
    set ACCEPT_CONFIGURATION         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ACCEPT_CONFIGURATION] ]
    set ENTER_OVERRIDE_PROTECTION    [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_ENTER_OVERRIDE_PROTECTION] ]
+   set INSTALL_SCRIPT               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
 
    # spooling
    set CHOOSE_SPOOLING_METHOD       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD]]
@@ -875,7 +876,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
 
          -i $sp_id -- $VERIFY_FILE_PERMISSIONS1 {
            if { $ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar" } {
-              set input "$ANSWER_YES"
+            set input "$ANSWER_YES"
            } else {
               set input "$ANSWER_NO"
            }
@@ -889,11 +890,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
          }
 
          -i $sp_id -- $VERIFY_FILE_PERMISSIONS2 { 
-           if { $ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar" } {
-              set input "$ANSWER_NO"
-           } else {
-              set input "$ANSWER_YES"
-           }
+            set input "$ANSWER_YES"
             ts_log_fine "\n -->testsuite: sending >$input<"
             if {$do_log_output == 1} {
                puts "press RETURN"
@@ -1176,6 +1173,17 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
          }
 
          -i $sp_id -- $SMF_IMPORT_SERVICE  {
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+
+            ts_send $sp_id "$ANSWER_NO\n"
+            continue
+         }
+
+         -i $sp_id -- $INSTALL_SCRIPT  {
             ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
