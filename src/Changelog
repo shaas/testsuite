@@ -1,3 +1,8 @@
+DG-2008-07-16-0: Cleanup:    Java DRMAA test issues with loading 32 bit libraries on 
+                             some architectures.
+                 Belongs to: DG-2008-05-14-0 
+                 Review:     CR
+
 HP-2008-07-16-0: Bugfix:     Added AIX51 to the architectures that use "id", not "id -a"
                  Changed:    system_tests/clients/qrsh/check.exp
                  Review:     CR

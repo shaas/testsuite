@@ -760,9 +760,19 @@ proc drmaaj_check { } {
                   }
                }
             }
-            ts_log_fine "Set for architecture $binary_arch JVM -d64 parameter." 
-            # set 64 bit options: check the 64 bit lib 
-            set java_options " $options -d64 $java_lib_path "
+            # maybe we have a 32bit lib in path now
+            if {[string first "sol-x86" $java_lib_path] != -1 || 
+                [string first "lx24-x86" $java_lib_path] != -1 || 
+                [string first "ulx24-x86" $java_lib_path] != -1 || 
+                [string first "usol-x86" $java_lib_path] != -1 } {
+               # this is a 32 bit architecture! 
+               ts_log_fine "Set for architecture $binary_arch not JVM -d64 parameter."
+               set java_options " $options $java_lib_path " 
+            } else { 
+               # set 64 bit options: check the 64 bit lib 
+               ts_log_fine "Set for architecture $binary_arch JVM -d64 parameter."
+               set java_options " $options -d64 $java_lib_path "
+            }
          } else {
             set java_options " $options $java_lib_path " 
          } 
