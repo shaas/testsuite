@@ -90,7 +90,7 @@ proc qalter_iz_2575 {} {
    }
 
    # this is the message we expect
-   if {$ts_config(gridengine_version <= 61} {
+   if {$ts_config(gridengine_version) <= 61} {
       set expected [translate_macro MSG_PARSE_WRONGDESTIDLISTFORMATXSPECTOQOPTION_S "XXXXX"]
    } else {
       set expected [translate_macro MSG_PARSE_WRONGDESTIDLISTFORMATXSPECTOQOPTION_SS "XXXXX" "-q"]

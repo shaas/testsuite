@@ -1,5 +1,8 @@
-AP-2008-07-17-0: Bugfix:    Added missing messages to upgrade test.
-                 Review:    JO
+JG-2008-07-21-0: Bugfix:     Fixed system_tests/clients/qalter.
+                 Review:     DG
+
+AP-2008-07-17-0: Bugfix:     Added missing messages to upgrade test.
+                 Review:     JO
 
 DG-2008-07-16-0: Cleanup:    Java DRMAA test issues with loading 32 bit libraries on
                              some architectures.
