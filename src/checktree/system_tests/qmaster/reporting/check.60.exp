@@ -626,7 +626,7 @@ proc reporting_complex_change_test {} {
    set output [reporting_read_consumable_records ":host_consumable:"]
    reporting_check_consumable_records $output "host_consumable" {"F002=0.000000=2.000000"}
    reporting_check_consumable_records $output "host_consumable" {"F001="} 0
-   reporting_check_consumable_records $output "queue_consumable:reporting:" {"F003=" "slots="} 0
+   reporting_check_consumable_records $output "queue_consumable:reporting:" {"F003=" "slots="} 0 0
 
    # shutdown tail -f
    close_logfile_wait
@@ -659,7 +659,7 @@ proc reporting_read_consumable_records {pattern {expect_records 1}} {
    return [string trim $output]
 }
 
-proc reporting_check_consumable_records {output pattern consumables {expect_consumable 1}} {
+proc reporting_check_consumable_records {output pattern consumables {expect_consumable 1} {expect_pattern 1}} {
    # if we got the expected data in the reporting file
    if {$output != ""} {
       set found_pattern 0
@@ -674,14 +674,14 @@ proc reporting_check_consumable_records {output pattern consumables {expect_cons
                      ts_log_severe "didn't find $consumable in $pattern:\n$line"
                   }
                } else {
-                  if {! $expect_consumable} {
+                  if {!$expect_consumable} {
                      ts_log_severe "found $consumable in $pattern, which shouldn't be there:\n$line"
                   }
                }
             }
          }
       }
-      if {$found_pattern == 0} {
+      if {$expect_pattern && !$found_pattern} {
          ts_log_severe "didn't find pattern $pattern in reporting output:\n$output"
       }
    }
