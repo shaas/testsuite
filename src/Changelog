@@ -1,4 +1,7 @@
-AH-2008-07-21-0: Enhancem.:  Added -masterq without slave specification to 
+AP-2008-07-21-0: Bugfix:     Changed the names of upgrade sctipts.
+                 Review:     LP
+
+AH-2008-07-21-0: Enhancem.:  Added -masterq without slave specification to
                              bugs/issuezilla/2378
                  Review:     JG
 

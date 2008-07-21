@@ -383,7 +383,7 @@ proc backup_remote_cluster_config { filename dir } {
       return -1
    }
 
-   set cmd "save_cc.sh"
+   set cmd "save_sge_config.sh"
    set curr_dir "$ts_config(product_root)/util/upgrade_modules"
 
    set hostname $add_config(master_host)
@@ -432,7 +432,7 @@ proc upgrade_cluster { dir } {
       return 0
    }
 
-   set cmd "load_cc.sh"
+   set cmd "load_sge_config.sh"
    set curr_dir "$ts_config(product_root)/util/upgrade_modules"
 
    ts_log_fine "Loading the configuration from $dir directory."
