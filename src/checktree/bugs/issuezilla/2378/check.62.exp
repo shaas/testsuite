@@ -157,32 +157,57 @@ proc issue_2378_check { } {
    set first [lindex $ts_config(execd_nodes) 0]
    set second [lindex $ts_config(execd_nodes) 1]
 
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "-soft" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "-soft" ] != 0 } { return }
+   ts_log_fine "testing -masterq with -soft -q"
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "-soft -q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "-soft -q" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "-soft" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "-soft" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "-soft -q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "-soft -q" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "-soft" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "-soft" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "-soft -q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "-soft -q" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "-soft" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "-soft" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "-soft -q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "-soft -q" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "" ] != 0 } { return }
+   ts_log_fine "testing -masterq with -hard -q"
 
-   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "B@$second" "-q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "B@$second" "-q" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "A@$second" "B@$first" "-q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$second" "B@$first" "-q" ] != 0 } { return }
 
-   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "B@$first" "A@$second" "-q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$first" "A@$second" "-q" ] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "-q" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "-q" ] != 0 } { return }
+
+   ts_log_fine "testing -masterq without -q"
+
+   disable_queue "B A@$second"
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "A@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "A@$first" ] != 0 } { return }
+   enable_queue "B A@$second"
+
+   disable_queue "A B@$second"
+   if { [ issue_2378_single_check "fill_up"     "B@$first" "B@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$first" "B@$first" ] != 0 } { return }
+   enable_queue "A B@$second"
+
+   disable_queue "B A@$first"
+   if { [ issue_2378_single_check "fill_up"     "A@$second" "A@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$second" "A@$second" ] != 0 } { return }
+   enable_queue "B A@$first"
+
+   disable_queue "A B@$first"
+   if { [ issue_2378_single_check "fill_up"     "B@$second" "B@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$second" "B@$second" ] != 0 } { return }
+   enable_queue "A B@$first"
 }
 
-proc issue_2378_single_check { pe_name master slave soft } {
+proc issue_2378_single_check { pe_name master slave { slave_request "" } } {
    global ts_config
 
    set SGE_ROOT $ts_config(product_root)
@@ -192,11 +217,16 @@ proc issue_2378_single_check { pe_name master slave soft } {
    # tail -f scheduling file
    init_logfile_wait $ts_config(master_host) $schedule
 
-   set jobid [submit_job "-pe $pe_name 2 -masterq $master $soft -q $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
-   set ret [ issue_2378_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:1.0*" ]
+   if { $slave_request != "" } {
+      set jobid [submit_job "-pe $pe_name 2 -masterq $master $slave_request $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+      set ret [ issue_2378_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:1.0*" ]
 
-   if { $ret == 0 } {
-      set ret [ issue_2378_wait_for_pattern "wait for slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${slave}:slots:1.0*" ]
+      if { $ret == 0 } {
+         set ret [ issue_2378_wait_for_pattern "wait for slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${slave}:slots:1.0*" ]
+      }
+   } else {
+      set jobid [submit_job "-pe $pe_name 2 -masterq $master $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+      set ret [ issue_2378_wait_for_pattern "wait for master and slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:2.0*" ]
    }
 
    ts_log_fine "got master queue (${master}) and slave queue (${slave}) as expected"

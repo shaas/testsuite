@@ -1,3 +1,7 @@
+AH-2008-07-21-0: Enhancem.:  Added -masterq without slave specification to 
+                             bugs/issuezilla/2378
+                 Review:     JG
+
 JG-2008-07-21-1: Bugfix:     Fixed system_tests/qmaster/reporting.
                  Review:     DG
 
