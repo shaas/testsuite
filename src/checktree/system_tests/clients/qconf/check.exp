@@ -238,14 +238,14 @@ proc qconf_cleanup {} {
    wait_for_end_of_all_jobs 60
 
    # Delete stuff I created
-   del_manager "qconf_user"
+   del_manager "qconf_user" "" "" 0
    
    # Get list of new queues. Those created during the
    # tests will be deleted here.
 
    get_queue_list qconf_new_queues
 
-   ts_log_fine "Deleting queues created during qconf... \n"
+   ts_log_fine "Deleting queues created during qconf..."
    foreach elem  $qconf_orig_queues {
       foreach new_elem $qconf_new_queues {
          if { $elem == $new_elem } {
@@ -259,11 +259,11 @@ proc qconf_cleanup {} {
 
    # Re-set it back
    set my_project "qconf_project"
-   ts_log_fine "Delete project $my_project ...\n"
-   set result [del_project $my_project]
+   ts_log_fine "Delete project $my_project ..."
+   set result [del_project $my_project "" "" 0]
 
    # Set sched back to what it was....
-   ts_log_fine "Set scheduler to original config ...\n"
+   ts_log_fine "Set scheduler to original config ..."
    set result [mod_schedd_config qconf_sched_config]
 
    # Re-set resource quota sets
@@ -1326,43 +1326,22 @@ proc qconf_add_delete_manager {} {
    global CHECK_USER
 
    # First add manager "qconf_user"
-   ts_log_fine "Positive test for qconf -am ...\n"
-   set result0 [add_manager "qconf_user"]
-
-   if { ( $result0 == 0 ) } {
-      ts_log_fine "qconf -am qconf_user succeded"
-   } else {
-      ts_log_fine "result is $result0"
-   }
+   ts_log_fine "Positive test for qconf -am ..."
+   add_manager "qconf_user"
 
    # Now show manager list, check that  "qconf_user" is there
-   ts_log_fine "Positive test for qconf -sm ...\n"
-   set result22 [get_manager_list ]
-
-   if { ( $result22 == 0 ) } {
-      ts_log_fine "qconf -sm succeded"
-   } else {
-      ts_log_fine "result is $result22"
-   }
+   ts_log_fine "Positive test for qconf -sm ..."
+   get_manager_list
 
    # Now delete manager "qconf_user"
-   ts_log_fine "Positive test for qconf -dm ...\n"
-   set result2 [del_manager "qconf_user"]
-
-   if { ( $result2 == 0 ) } {
-      ts_log_fine "qconf -dm qconf_user succeded"
-   } else {
-      ts_log_fine "result is $result2"
-   }
+   ts_log_fine "Positive test for qconf -dm ..."
+   del_manager "qconf_user"
 
    # Now delete manager "qconf_user" again
-   ts_log_fine "Negative test for qconf -dm ...\n"
-   set result3 [del_manager "qconf_user"] 
-
-   if { ( $result3 == 0 ) } {
-      ts_log_fine "qconf -dm qconf_user again succeded"
-   } else {
-      ts_log_fine "result is $result3"
+   ts_log_fine "Negative test for qconf -dm ..."
+   set result [del_manager "qconf_user" "" "" 0]
+   if {$result == 0} {
+      ts_log_severe "qconf -dm succeeded, but should have failed"
    }
 }
 

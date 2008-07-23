@@ -1,5 +1,9 @@
-AP-2008-07-23-0: Bugfix:     Host specific values shouldn't be added for hostlist
-                             attribute.
+JG-2008-07-23-1: Bugfix:     Minor fixes and cleanup for 
+                             system_tests/clients/qconf.
+                 Review:     MD
+
+AP-2008-07-23-0: Bugfix:     Host specific values shouldn't be added for 
+                             hostlist attribute.
                  Review:     JG
 
 CR-2008-07-23-0: Bugfix:     Fixed hedeby test cli/comp_lifecycle/ge_adapter

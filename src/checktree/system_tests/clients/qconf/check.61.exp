@@ -51,7 +51,7 @@ global rqs_name_cli
 
 proc qconf_add_rqs {} {
    global ts_config env rqs_name_fast rqs_name_cli
-   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    set rqs_name_fast "qconf_rqs_fast"
    set rqs_name_cli "qconf_rqs_cli"
@@ -113,7 +113,7 @@ proc qconf_add_rqs {} {
 
 proc qconf_modify_rqs {} {
    global ts_config env rqs_name_fast rqs_name_cli
-   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    get_rqs_list old_rqs
    set old_rqs_count [llength $old_rqs]
@@ -207,7 +207,7 @@ proc qconf_modify_rqs {} {
 
 proc qconf_modifyreplace_rqs {} {
    global ts_config env
-   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    get_rqs old_rqs_config
 
@@ -258,7 +258,7 @@ proc qconf_modifyreplace_rqs {} {
 
 proc qconf_remove_rqs {} {
    global ts_config env rqs_name_fast rqs_name_cli
-   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER
 
    # try to delete resource quota set with insufficient permissions
    # - as non admin user
@@ -291,7 +291,6 @@ proc qconf_remove_rqs {} {
 
 proc qconf_dynamic_limit {} {
    global ts_config env
-   global CHECK_USER
 
    set rqs_name "dynamic_rqs"
 
@@ -396,7 +395,6 @@ proc qconf_rqs_Xattr {} {
 
 proc qconf_rqs_rattr_qmaster_dump {} {
    global ts_config env
-   global CHECK_USER
 
    set object_name "resource_quota"
 
@@ -478,29 +476,23 @@ proc qconf_issue_2383 {} {
 #     The install should report message MSG_CQUEUE_UNKNOWNSHELL_S
 #
 #     We also test that a job submitted with -S NONE goes into Eqw state.
-#
 #*******************************************************************************
-
-proc qconf_issue_2445  {} {
-   global ts_config CHECK_USER
+proc qconf_issue_2445 {} {
+   global ts_config
   
-   set arch [resolve_arch $ts_config(master_host)]
-   set host $ts_config(master_host)
-   
    # Try to modify shell setting to "NONE" via "qconf -mq test_queue.q"
    # set shell to "NONE"
    set change_array(shell) "NONE"
-   set result [mod_queue test_queue.q "" change_array  0 $host $CHECK_USER 0]
+   set result [mod_queue test_queue.q "" change_array 1 "" "" 0]
    
    # check that we get the correct error message MSG_CENTRY_NULL_URGENCY
-   if {$result != -2 &&  $result != -999 } {
-      ts_log_config "qconf -mq test for IZ 2445 failed. result was $result \n"
+   if {$result == 0} {
+      ts_log_severe "qconf -mq test for IZ 2445 failed.\nExpected qconf to fail, but got result:\n$result"
    } else {
-      ts_log_fine " qconf -mq test for IZ 2445 passed \n"
+      ts_log_fine "qconf -mq test for IZ 2445 passed"
    }
 
    # Submit now job with -S NONE. Check that it goes in Error state.
-
    set shell_param "-S NONE"
    set t_io_parameter "-o /dev/null -e /dev/null"
    set sleep_t 30
@@ -517,12 +509,8 @@ proc qconf_issue_2445  {} {
    }
 
    if {$E_state_ok != 1} {
-      ts_log_config  \
-      "Job did not switch into E state in qsub -S NONE scenario. \
-       E_state_ok was $E_state_ok, job_state was $job_state. \n "
+      ts_log_config  "Job did not switch into E state in qsub -S NONE scenario. E_state_ok was $E_state_ok, job_state was $job_state."
    } else {
-      ts_log_fine  " qsub -S NONE negative test for IZ 2445 passed \n"
+      ts_log_fine  "qsub -S NONE negative test for IZ 2445 passed"
    }
-
-
 }
