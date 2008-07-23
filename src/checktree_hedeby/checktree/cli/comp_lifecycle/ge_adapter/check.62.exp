@@ -92,7 +92,9 @@ proc ge_adapter_restart_test_cleanup {} {
 #     2. Stop the ge_adapter components and check if components is in stopped state
 #     3. Start up ge_adapter components and check if components is in started state
 #     4. Check whether all resources are still available
-#     5. Check history from Reporter
+#     
+#     After the loop check that the event counts match the number of triggered 
+#     actions in the history from Reporter.
 #   
 #  INPUTS
 #     no input parameters
@@ -110,29 +112,43 @@ proc ge_adapter_restart_test_check {} {
 
    set ge_qmaster_hosts [get_hedeby_default_services service_names]
 
-   # setup expectations and get data...
+   # setup expectations and get data ...
    set master_host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]
    foreach host $ge_qmaster_hosts {      
       set ge_adapters_started_expect($service_names(service,$host),$host,state) "STARTED"
       set ge_adapters_stopped_expect($service_names(service,$host),$host,state) "STOPPED"
-      set notsd_time_stamp($service_names(service,$host)) 0
-      set notsu_time_stamp($service_names(service,$host)) 0
    }
 
    set resources [sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr" prg_exit_state ""  ]
+ 
+   # get start time of test on testsuite host and remove 1 minute to be sure
+   # not to loose an event because of time differences between testsuite host
+   # and the hedeby admin host
    
-   
+   set unix_time_stamp [clock seconds]
+   incr unix_time_stamp -60
+   set time [clock format $unix_time_stamp -format {%H:%M}]
+
+   # Here we check if there are already some old events reported which must be
+   # taken into account
+   foreach host $ge_qmaster_hosts {
+      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_SHUTDOWN" prg_exit_state "" 1 table
+      set start_shutdown_nr($service_names(service,$host)) $table(table_lines)
+      if {$table(table_lines)} {
+         ts_log_fine "found SERVICE_SHUTDOWN event for service $service_names(service,$host): $table(table_lines) times at test start"
+      }
+      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_RUNNING" prg_exit_state "" 1 table
+      set start_running_nr($service_names(service,$host)) $table(table_lines)
+      if {$table(table_lines)} {
+         ts_log_fine "found SERVICE_RUNNING event for service $service_names(service,$host): $table(table_lines) times at test start"
+      }
+   }
 
    #shutdown and startup of the ge_adapters 
    for {set i 0} {$i < $tries} {incr i} {
-      set time [clock format [clock seconds] -format {%H:%M}]
       foreach host $ge_qmaster_hosts {
          sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sdc -c $service_names(service,$host) -h $host" prg_exit_state "" 
-         set ret $prg_exit_state
-         if {$ret != 0} {
-             append error_text "The ge_adapter components shutdown was not successful.\n"
-         }
       }
       
       # check if ge_adapter components are shutdown
@@ -141,21 +157,6 @@ proc ge_adapter_restart_test_check {} {
         append error_text "The shutdown ge_adapter components state is different than expected.\n"
       }
       
-      # check the notifications in Reporter component history
-      foreach host $ge_qmaster_hosts {
-          sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_SHUTDOWN" prg_exit_state "" 1 table
-          if {$table(table_lines) == 0} {
-            append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
-          } else {
-            if {$table(time_stamp,[expr $table(table_lines) - 1]) == $notsd_time_stamp($service_names(service,$host)) } {
-                append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
-            } else {
-                set notsd_time_stamp($service_names(service,$host)) $table(time_stamp,[expr $table(table_lines) - 1])
-            }
-          }
-          
-      }
-
       foreach host $ge_qmaster_hosts {
           sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] suc -c $service_names(service,$host) -h $host" prg_exit_state "" 
           set ret $prg_exit_state
@@ -176,26 +177,31 @@ proc ge_adapter_restart_test_check {} {
         append error_text "The resource list for ge_adapters is different than expected.\n"
       }
 
-      # check the notifications in Reporter component history
-      foreach host $ge_qmaster_hosts {
-          sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_RUNNING" prg_exit_state "" 1 table
-          if {$table(table_lines) == 0} {
-            append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
-          } else {
-            if {$table(time_stamp,[expr $table(table_lines) - 1]) == $notsu_time_stamp($service_names(service,$host)) } {
-                append error_text "The expected notification for ge_adapter $service_names(service,$host) does not exist.\n"
-            } else {
-                set notsu_time_stamp($service_names(service,$host)) $table(time_stamp,[expr $table(table_lines) - 1])
-            }
-          }
+      if {$error_text != ""} {
+         break
       }
-     
+   }
+
+   # Now check the nr of events
+   foreach host $ge_qmaster_hosts {
+      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_SHUTDOWN" prg_exit_state "" 1 table
+      set end_shutdown_nr($service_names(service,$host)) $table(table_lines)
+      sdmadm_command $master_host $admin_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] shist -s $service_names(service,$host) -sd $time -t SERVICE_RUNNING" prg_exit_state "" 1 table
+      set end_running_nr($service_names(service,$host)) $table(table_lines)
+
+      set new_event_logs [expr ( $end_shutdown_nr($service_names(service,$host)) - $start_shutdown_nr($service_names(service,$host)) )]
+      if {$new_event_logs != $tries} {
+         append error_text "Expected $tries SERVICE_SHUTDOWN events for service $service_names(service,$host), but got $new_event_logs"
+      }
+      set new_event_logs [expr ( $end_running_nr($service_names(service,$host)) - $start_running_nr($service_names(service,$host)) )]
+      if {$new_event_logs != $tries} {
+         append error_text "Expected $tries SERVICE_RUNNING events for service $service_names(service,$host), but got $new_event_logs"
+      }
    }
 
    # finally report one big error mail
    if {$error_text != ""} {
       ts_log_severe $error_text
    }
-   
 }
 

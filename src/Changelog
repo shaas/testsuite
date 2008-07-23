@@ -1,3 +1,7 @@
+CR-2008-07-23-0: Bugfix:     Fixed hedeby test cli/comp_lifecycle/ge_adapter
+                             (ge_adapter_restart_test)
+                 Review:     TB
+
 JG-2008-07-23-0: Bugfix:     Workaround for CR 6728379 in check 
                              functional/tight_integration.
                  Review:     DG
