@@ -40,7 +40,7 @@
 #     get_queue_instance {queue host}
 #
 #  FUNCTION
-#     Returns the name of the queue instance which is constructed by given queue 
+#     Returns the name of the queue instance which is constructed by given queue
 #     name and the hostname.
 #
 #  INPUTS
@@ -75,7 +75,7 @@ proc vdep_validate_queue { change_array } {
 
    if {[info exists chgar(qtype)]} {
       if { [string match "*CHECKPOINTING*" $chgar(qtype)] ||
-           [string match "*PARALLEL*" $chgar(qtype)] } { 
+           [string match "*PARALLEL*" $chgar(qtype)] } {
 
          set new_chgar_qtype ""
          foreach elem $chgar(qtype) {
@@ -90,7 +90,7 @@ proc vdep_validate_queue { change_array } {
             }
          }
          set chgar(qtype) [string trim $new_chgar_qtype]
-         ts_log_fine "using qtype=$chgar(qtype)" 
+         ts_log_fine "using qtype=$chgar(qtype)"
       }
    }
 }
@@ -130,7 +130,7 @@ proc set_cqueue_default_values { current_array change_array } {
       set new_value $chgar($attribute)
       ts_log_finest "--> new_value = $new_value"
 
-      # get position of host(group) specific values and append them 
+      # get position of host(group) specific values and append them
       set comma_pos [string first ",\[" $currar($attribute)]
       ts_log_finest "--> comma pos = $comma_pos"
       if {$comma_pos != -1} {
@@ -150,13 +150,13 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 
    # parse each attribute to be changed
    foreach attribute [array names chgar] {
-      if {[string compare $attribute qname] == 0} {
+      if {[string compare $attribute qname] == 0 || [string compare $attribute hostlist] == 0} {
          continue
       }
 
       ts_log_finest "--> setting queue default value for attribute $attribute"
       ts_log_finest "--> old_value = $currar($attribute)"
-     
+
       # split old value and store host specific values in an array
       if {[info exists host_values]} {
          unset host_values
@@ -187,7 +187,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
             ts_log_finest "--> \"$host\" = \"$value\""
             set host_values($host) $value
          }
-      
+
          # change (or set) host specific values from chgar
          foreach unresolved_host $hostlist {
             set host [resolve_host $unresolved_host]
@@ -231,7 +231,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 #     set_queue() -- set queue attributes
 #
 #  SYNOPSIS
-#     set_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}} 
+#     set_queue { qname hostlist change_array {fast_add 1} {on_host ""} {as_user ""} {raise_error 1}}
 #
 #  FUNCTION
 #     Sets the attributes given in change_array in the cluster queue qname.
@@ -241,7 +241,7 @@ proc set_cqueue_specific_values {current_array change_array hostlist} {
 #
 #  INPUTS
 #     qname        - name of the (cluster) queue
-#     hostlist     - list of hosts / host groups. 
+#     hostlist     - list of hosts / host groups.
 #     change_array - array containing the changed attributes.
 #     {fast_add 1} - 0: modify the attribute using qconf -mq,
 #                  - 1: modify the attribute using qconf -Mq, faster
@@ -259,12 +259,12 @@ proc set_queue {qname hostlist change_array {fast_add 1}  {on_host ""} {as_user 
 
 #                                                             max. column:     |
 #****** sge_queue.60/del_queue() ***********************************************
-# 
+#
 #  NAME
 #     del_queue -- Delete a queue
 #
 #  SYNOPSIS
-#     del_queue { qname {on_host ""} {as_user ""} {raise_error 1} } 
+#     del_queue { qname {on_host ""} {as_user ""} {raise_error 1} }
 #
 #  FUNCTION
 #     Deletes a queue using qconf -dq
@@ -304,7 +304,7 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""}
       get_queue_messages messages "del" "$q_name" $on_host $as_user
       set output [start_sge_bin "qconf" "-dq $q_name" $on_host $as_user]
       return [handle_sge_errors "del_queue" "qconf -dq $q_name" $output messages $raise_error]
-      } 
+      }
 
    return 0
 }
@@ -417,7 +417,7 @@ proc purge_queue {queue object {on_host ""} {as_user ""} {raise_error 1}} {
 #     dependent.
 #
 #  INPUTS
-#     queue       - queue intance or queue domain for which qconf -purge 
+#     queue       - queue intance or queue domain for which qconf -purge
 #                   has been called
 #     object      - object  which queue will be purged
 #     raise_error - raise error condition in case of errors
