@@ -115,7 +115,14 @@ proc tight_integration_setup {} {
    global ts_config
    global CHECK_ACT_LEVEL
    global TIGHT_INTEGRATION_FUNCTIONAL_SLOTS
-   global tight_masterq tight_master_node
+   global tight_masterq tight_master_node tight_global_config
+
+   # we have to set a short load report time
+   # to workaround CR 6728379
+   ts_log_info "setting 2 second load_report_time to workaround CR 6728379"
+   get_config tight_global_config
+   set global_config(load_report_time) "0:0:2"
+   set_config_and_propagate global_config
 
    # for the functional test we want to schedule one task to each host
    # we set the allocation rule to round_robin and request as many slots
@@ -181,6 +188,9 @@ proc tight_integration_setup_level {} {
 
 proc tight_integration_cleanup {} {
    global ts_config
+   global tight_global_config
+
+   set_config_and_propagate tight_global_config
 
    delete_all_jobs
    wait_for_end_of_all_jobs 60

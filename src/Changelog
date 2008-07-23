@@ -1,3 +1,7 @@
+JG-2008-07-23-0: Bugfix:     Workaround for CR 6728379 in check 
+                             functional/tight_integration.
+                 Review:     DG
+
 AP-2008-07-21-0: Bugfix:     Changed the names of upgrade sctipts.
                  Review:     LP
 
