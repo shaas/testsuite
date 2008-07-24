@@ -1,3 +1,7 @@
+CR-2008-07-24-1: Bugfix:     o Testsuite will not test if distribution contains
+                               sdm-test.jar file.
+                 Review:     TB
+
 CR-2008-07-24-0: Bugfix:     o Fixed hedeby test components/ge/stop_and_free_resources
                                (ge_stop_and_free_resources)
                              o Increased timeout and enhanced error messages in

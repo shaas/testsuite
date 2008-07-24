@@ -309,21 +309,26 @@ proc hedeby_check_distinst {} {
 
    set path "$hedeby_config(hedeby_product_root)/lib/sdm-test.jar"
    if {[is_remote_file $java_build_host [get_hedeby_admin_user] $path] == 0} {
-      ts_log_fine "No sdm-test.jar file found in $hedeby_config(hedeby_product_root)/lib directory, copy from source ..."
-      set source_path "$hedeby_config(hedeby_source_dir)/dist/hedeby/lib/sdm-test.jar"
-      if {[is_remote_file $java_build_host [get_hedeby_admin_user] $source_path] == 1} {
-         set output [start_remote_prog $java_build_host [get_hedeby_admin_user] "cp" "$source_path $path" prg_exit_state 180 0 "" ""  1 0]
-         ts_log_fine $output
-         if {$prg_exit_state != 0} {
-            ts_log_severe "cp $source_path $path failed with exit state = $prg_exit_state"
-         } else {
-            ts_log_fine "Copied sdm-test.jar from $hedeby_config(hedeby_source_dir)/dist/hedeby/lib/ into distinst directory!"
-         }
-      } else {
-         add_proc_error "hedeby_check_distinst" -2 "File \"$source_path\" not found. Please compile hedeby with testsuite first!"
-      }
+      ts_log_config "Product root \"$hedeby_config(hedeby_product_root)\" doesn't contain sdm-test.jar file in ./lib directory - executor test will fail"
+
+# TODO: This is tmp fix for sdm-test.jar issue. We should in general test without sdm-test.jar, because it is not part of distribution! 
+#       For the executor test the sdm-test.jar might be temporarly copied (manually). We must find a solution here
+
+#      ts_log_fine "No sdm-test.jar file found in $hedeby_config(hedeby_product_root)/lib directory, copy from source ..."
+#      set source_path "$hedeby_config(hedeby_source_dir)/dist/hedeby/lib/sdm-test.jar"
+#      if {[is_remote_file $java_build_host [get_hedeby_admin_user] $source_path] == 1} {
+#         set output [start_remote_prog $java_build_host [get_hedeby_admin_user] "cp" "$source_path $path" prg_exit_state 180 0 "" ""  1 0]
+#         ts_log_fine $output
+#         if {$prg_exit_state != 0} {
+#            ts_log_severe "cp $source_path $path failed with exit state = $prg_exit_state"
+#         } else {
+#            ts_log_fine "Copied sdm-test.jar from $hedeby_config(hedeby_source_dir)/dist/hedeby/lib/ into distinst directory!"
+#         }
+#      } else {
+#         add_proc_error "hedeby_check_distinst" -2 "File \"$source_path\" not found. Please compile hedeby with testsuite first!"
+#      }
    } else {
-      ts_log_fine "Product root \"$hedeby_config(hedeby_product_root)\" contains sdm-test.jar file in ./lib directory - FINE"
+      add_proc_error "hedeby_check_distinst" -2 "Product root \"$hedeby_config(hedeby_product_root)\" contains sdm-test.jar file in ./lib directory - please remove it for testing"
    }
 }
 
