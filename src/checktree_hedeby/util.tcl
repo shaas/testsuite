@@ -4285,13 +4285,14 @@ proc produce_ambiguous_resource { ares asrv } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"
+      ts_log_severe "command $command failed with exit state = $prg_exit_state"
       return 1
    }
 
    # wait for resource movement
    set exp_res_info($aresource,service) $aservice
    set exp_res_info($aresource,state) "ASSIGNED"
-   set retval [wait_for_resource_info exp_res_info 60]
+   set retval [wait_for_resource_info exp_res_info 120]
    if {$retval != 0} {
       set aresource ""
       set aservice ""
@@ -4306,13 +4307,14 @@ proc produce_ambiguous_resource { ares asrv } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"
+      ts_log_severe "command $command failed with exit state = $prg_exit_state"
       return 1
    }
 
    # wait for shutdown of service (resource must be missing)
    set exp_service_info($aservice,cstate) "STARTED"
    set exp_service_info($aservice,sstate) "STOPPED"
-   if { [wait_for_service_info exp_service_info] != 0 } {
+   if { [wait_for_service_info exp_service_info 120] != 0 } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"
@@ -4322,7 +4324,7 @@ proc produce_ambiguous_resource { ares asrv } {
    # wait that resource dissapears at resource provider
    unset exp_res_info
    set exp_res_info($aresource,state) "missing"
-   if { [wait_for_resource_info exp_res_info] != 0 } {
+   if { [wait_for_resource_info exp_res_info 120] != 0 } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"
@@ -4334,6 +4336,7 @@ proc produce_ambiguous_resource { ares asrv } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"
+      ts_log_severe "add_host_resources $aresource \"spare_pool\" failed"
       return 1
    }
 
@@ -4344,13 +4347,14 @@ proc produce_ambiguous_resource { ares asrv } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"
+      ts_log_severe "command $command failed with exit state = $prg_exit_state"
       return 1
    }
 
    # wait for service up and running 
    set exp_service_info($aservice,cstate) "STARTED"
    set exp_service_info($aservice,sstate) "RUNNING"
-   if { [wait_for_service_info exp_service_info] != 0 } {
+   if { [wait_for_service_info exp_service_info 120] != 0 } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"
@@ -4359,7 +4363,7 @@ proc produce_ambiguous_resource { ares asrv } {
 
    # wait for resource reported by service, now the resource is 
    # at spare_pool AND service
-   set ret_val [wait_for_resource_state "ASSIGNED" 0 30 res_state_info]
+   set ret_val [wait_for_resource_state "ASSIGNED" 0 90 res_state_info]
    if {[lsearch -exact $res_state_info(ambiguous) $aresource] < 0} {
       set aresource ""
       set aservice ""
@@ -4380,7 +4384,7 @@ proc produce_ambiguous_resource { ares asrv } {
    # check ambiguous flags of resource !!!
    unset exp_res_info
    set exp_res_info($aresource,flags) "A"
-   if { [wait_for_resource_info exp_res_info] != 0 } {
+   if { [wait_for_resource_info exp_res_info 120] != 0 } {
       set aresource ""
       set aservice ""
       set last_produce_ambiguous_resource_state "error"

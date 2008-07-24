@@ -101,7 +101,10 @@ proc ge_stop_and_free_resources_init_level {} {
 #  SEE ALSO
 #     stop_and_free_resources/ge_stop_and_free_resources_cleanup()
 #*******************************************************************************
+global ge_stop_and_free_resources_init_level_do_reset
 proc ge_stop_and_free_resources_setup {} {
+   global ge_stop_and_free_resources_init_level_do_reset 
+   set ge_stop_and_free_resources_init_level_do_reset 1
 }
 
 #****** stop_and_free_resources/ge_stop_and_free_resources_cleanup() ***************************
@@ -125,8 +128,11 @@ proc ge_stop_and_free_resources_setup {} {
 #     stop_and_free_resources/ge_stop_and_free_resources_setup()
 #*******************************************************************************
 proc ge_stop_and_free_resources_cleanup {} {
-   # perform hedeby reset
-   reset_hedeby 1
+   global ge_stop_and_free_resources_init_level_do_reset 
+   if {$ge_stop_and_free_resources_init_level_do_reset} {
+      # perform hedeby reset
+      reset_hedeby 1
+   }
 }
 
 #****** stop_and_free_resources/ge_stop_and_free_resources_ge_service_check() *****************************
@@ -161,6 +167,7 @@ proc ge_stop_and_free_resources_cleanup {} {
 #*******************************************************************************
 proc ge_stop_and_free_resources_ge_service_check {} {
    global hedeby_config
+   global ge_stop_and_free_resources_init_level_do_reset 
 
    # get some global settings
    set pref_type [get_hedeby_pref_type]
@@ -214,6 +221,20 @@ proc ge_stop_and_free_resources_ge_service_check {} {
    }
    unset exp_resource_info
    
+
+   # ---------------------------------------------------------------------------
+   # Step 3: Start all ge services
+   # ---------------------------------------------------------------------------
+   foreach service $service_names(services) {
+      set host $service_names(master_host,$service)
+      set task_info($host,expected_output) ""
+      set task_info($host,sdmadm_command) "-p $pref_type -s $sys_name sus -s $service"
+   }
+   set par_error [start_parallel_sdmadm_command service_host_list [get_hedeby_admin_user] task_info]
+   if {$par_error != ""} {
+      append error_text $par_error
+   }
+   unset task_info
    
    # ---------------------------------------------------------------------------
    # Step 4: Check that the static resources are assigned to the ge services
@@ -266,6 +287,8 @@ proc ge_stop_and_free_resources_ge_service_check {} {
    # finally report one big error mail
    if {$error_text != ""} {
       ts_log_severe $error_text
+   } else {
+      set ge_stop_and_free_resources_init_level_do_reset 0
    }
 }
 
