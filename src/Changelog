@@ -1,3 +1,6 @@
+EB-2008-07-28-0: Bugfix:     o fixed three tests which failed sometimes in CSP mode
+                 Review:     MD
+
 CR-2008-07-24-1: Bugfix:     o Testsuite will not test if distribution contains
                                sdm-test.jar file.
                  Review:     TB

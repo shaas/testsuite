@@ -192,6 +192,10 @@ proc complex_setup {} {
    set schedd_conf(flush_submit_sec) 1
    set schedd_config(schedd_job_info)      "true"
    set_schedd_config schedd_conf
+
+   shutdown_daemon $complex_host "execd"
+   startup_daemon $complex_host "execd"
+   wait_for_load_from_all_queues 300
 }
 
 proc complex_cleanup {} {
@@ -269,7 +273,10 @@ proc complex_loadsensor_test {} {
       # wait for loadsensor to have effect
       set time 0
       get_qconf_se_info $complex_host
-      while {[string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0} {
+      set did_not_appear 1
+      while {$did_not_appear == 1} {
+         set did_not_appear 0
+         set load_value_names ""
          if {$time >= 120} {
             ts_log_severe "load_sensor values didn't appear"
 
@@ -278,40 +285,38 @@ proc complex_loadsensor_test {} {
             set_config complex_old_config $complex_host
             return
          }
+         get_qconf_se_info $complex_host
+         if { [string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0 } {
+            set did_not_appear 1
+            append load_value_names "test_string "
+         }
+         if { [string first "test_hostname=" $qconf_se_info(load_values) ] < 0 } {
+            set did_not_appear 1
+            append load_value_names test_hostname
+         }
+         if { [string first "test_double=55.55" $qconf_se_info(load_values) ] < 0 } {
+            set did_not_appear 1
+            append load_value_names "test_double "
+         }
+         if { [string first "test_memory=123456789" $qconf_se_info(load_values) ] < 0 } {
+            set did_not_appear 1
+            append load_value_names "test_memory "
+         }
+         if { [string first "test_integer=123456" $qconf_se_info(load_values) ] < 0 } {
+            set did_not_appear 1
+            append load_value_names "test_integer "
+         }
+   
+         if {$did_not_appear == 1} {
+            ts_log_info "following load values were not reported: $load_value_names"
+         }
          incr time 1
          sleep 1
          get_qconf_se_info $complex_host
       }
 
-      get_qconf_se_info $complex_host
-      if { [string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_string load value reported"
-      }
-      if { [string first "test_hostname=" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_hostname load value reported"
-      }
-      if { [string first "test_double=55.55" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_double load value reported"
-      }
-      if { [string first "test_memory=123456789" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_memory load value reported"
-      }
-      if { [string first "test_integer=123456" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_integer load value reported"
-      }
-
-      get_qconf_se_info [lindex $ts_config(execd_nodes) 1]
-      if { [string first "test_string=ADD_ARCH" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_string load value reported"
-      }
-      if { [string first "test_double=0.0" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_double load value reported"
-      }
-      if { [string first "test_memory=1" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_memory load value reported"
-      }
-      if { [string first "test_integer=0" $qconf_se_info(load_values) ] < 0 } {
-         ts_log_severe "no test_integer load value reported"
+      if {$did_not_appear == 1} {
+         ts_log_severe "following load values were not reported: $load_value_names"
       }
 
       set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 

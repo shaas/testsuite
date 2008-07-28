@@ -79,7 +79,7 @@ proc inst_submit_host_setup {} {
    set CSP_COPY_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_FAILED]]
    set CSP_COPY_RSH_FAILED [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CSP_COPY_RSH_FAILED]]
 
-   set remote_host $ts_config(master_host)
+   set remote_host "$ts_config(master_host)"
    set submit_hosts ""
    if {$ts_config(submit_only_hosts) != "none"} {
       set submit_hosts $ts_config(submit_only_hosts)
@@ -157,7 +157,7 @@ proc inst_submit_host_setup {} {
                ts_log_fine "-->testsuite: press RETURN (CSP_COPY_CERTS)"
                set anykey [wait_for_enter 1]
             }
-            ts_send $sp_id "\n"
+            ts_send $sp_id "n\n"
             continue
          }
          -i $sp_id $CSP_COPY_CMD {
@@ -177,7 +177,11 @@ proc inst_submit_host_setup {} {
             continue   
          }
          -i $sp_id "Permission denied" {
-            ts_log_config "rsh is working but copy error happends for host: $submit_host"
+            if {[info exists submit_host]} {
+               ts_log_config "rsh is working but copy error happends for host: $submit_host"
+            } else {
+               ts_log_config "rsh is working but copy error happends"
+            }
             continue   
          }
 
