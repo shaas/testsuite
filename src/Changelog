@@ -1,3 +1,8 @@
+DG-2008-07-30-0: Cleanup:    qmaster_spooling test failed because of new bug in
+                             qsub (CR 6730437). Since this is not an spooling
+                             issue the test was changed. 
+                 Review:     EB
+
 RH-2008-07-30-0: Enhancem.:  test for hedeby issue 527 added
                  Review:     TB, AF
 
