@@ -1,3 +1,6 @@
+RH-2008-07-30-0: Enhancem.:  test for hedeby issue 527 added
+                 Review:     TB, AF
+
 EB-2008-07-28-0: Bugfix:     o fixed three tests which failed sometimes in CSP mode
                  Review:     MD
 

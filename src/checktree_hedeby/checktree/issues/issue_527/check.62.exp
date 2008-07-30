@@ -1,0 +1,227 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "no"
+set check_name                 "hedeby_issue_527"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "stop component after the ge service has been stopped"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue527_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue527_setup_level"
+set check_cleanup_level_function "hedeby_issue527_cleanup_level"
+
+lappend check_functions "hedeby_issue527_check"
+
+
+#****** issue_527/hedeby_issue527_init_level() ************************
+#  NAME
+#     hedeby_issue527_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue527_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue527_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue527/hedeby_issue527_setup_level() *********************************
+#  NAME
+#    hedeby_issue527_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue527_setup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue527_setup_level {} {
+   global hedeby_issue527_ctx
+
+   get_hedeby_default_services service_names
+
+   set service [lindex $service_names(services) 0]
+   set hedeby_issue527_ctx(service) $service
+   set hedeby_issue527_ctx(service_host) $service_names(master_host,$service)
+   set hedeby_issue527_ctx(service_stopped) "false"
+   set hedeby_issue527_ctx(component_stopped) "false"
+}
+
+#****** issue527/hedeby_issue527_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue527_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue527_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue527_cleanup_level {} {
+   global hedeby_issue527_ctx
+   
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+
+   set has_error 0
+   if {$hedeby_issue527_ctx(component_stopped) == "true"} {
+      sdmadm_command $hedeby_issue527_ctx(service_host) $admin_user \
+        "-s $sys_name -p $pref_type suc -c $hedeby_issue527_ctx(service) -h $hedeby_issue527_ctx(service_host)"
+      if {$prg_exit_state != 0} {
+         set has_error 1
+      }
+   } elseif {$hedeby_issue527_ctx(service_stopped) == "true"} {
+      sdmadm_command $hedeby_issue527_ctx(service_host) $admin_user \
+        "-s $sys_name -p $pref_type sus -c $hedeby_issue527_ctx(service)"
+      if {$prg_exit_state != 0} {
+         set has_error 1
+      }
+   }
+
+   if {$has_error != 0} {
+      set exp_service_info($hedeby_issue527_ctx(service),cstate) "STARTED"
+      set exp_service_info($hedeby_issue527_ctx(service),sstate) "RUNNING"
+      if {[wait_for_service_info exp_service_info] != 0} {
+         set has_error 1
+      }
+   }
+   
+   if {$has_error != 0} {
+      reset_hedeby
+   }
+   unset hedeby_issue527_ctx
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** issue_527/hedeby_issue527_check *****************************
+#  NAME
+#     hedeby_issue527_check() -- stop component after the ge service has been stopped
+#
+#  SYNOPSIS
+#     hedeby_issue527_check { } 
+#
+#  FUNCTION
+#     this steps test hedeby issue 527: 
+#       Invalid state transition STOPPED -> SHUTDOWN @ GE-adapter shutdown
+#
+#      Executed steps:
+#        1. run sdmadm sds on a ge service
+#        2. check that the service is in STOPPED and component is in STARTED state
+#        3. run sdmadm sdc on the ge service
+#        4. check that the service is in STOPPED state and component is in STOPPED state
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue527_check {} {
+   global hedeby_issue527_ctx
+   
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   
+   # Step 1: run sdmadm sds on a ge service
+   sdmadm_command $hedeby_issue527_ctx(service_host) $admin_user \
+        "-s $sys_name -p $pref_type sds -s $hedeby_issue527_ctx(service)"
+   if {$prg_exit_state != 0} {
+      return
+   }
+   
+   set hedeby_issue527_ctx(service_stopped) "true"
+
+   # Step 2: check that the service is in STOPPED and component is in STARTED state
+   set exp_service_info($hedeby_issue527_ctx(service),cstate) "STARTED"
+   set exp_service_info($hedeby_issue527_ctx(service),sstate) "STOPPED"
+   if {[wait_for_service_info exp_service_info] != 0} {
+      return
+   }
+   unset exp_service_info
+   
+   # Step 3: run sdmadm sdc on the ge service
+   sdmadm_command $hedeby_issue527_ctx(service_host) $admin_user \
+         "-s $sys_name -p $pref_type sdc -c $hedeby_issue527_ctx(service) -h $hedeby_issue527_ctx(service_host)"
+   if {$prg_exit_state != 0} {
+      return
+   }
+   set hedeby_issue527_ctx(component_stopped) "true"
+   
+   # Step 4: check that the service is in STOPPED state and component is in STOPPED state
+   set exp_service_info($hedeby_issue527_ctx(service),cstate) "STOPPED"
+   set exp_service_info($hedeby_issue527_ctx(service),sstate) "STOPPED"
+   if {[wait_for_service_info exp_service_info] != 0} {
+      return
+   }
+}
+
