@@ -161,15 +161,12 @@ proc issue_2387 {} {
    delete_all_jobs
    wait_for_end_of_all_jobs
    
-   # stop/restart qmaster and scheduler
+   # stop/restart qmaster and scheduler 
+   shutdown_and_restart_qmaster 
    
-   shutdown_and_restart_qmaster
-   
-   # Sleep to give time to the cluster to restart
-   sleep 30
-   
-   # redo the job submission
-   
+   # Wait for all execd to reconnect to qmaster and reporting load
+   wait_for_load_from_all_queues 120 
+
    # submit job again
    set job_id [submit_job "-q A -o /dev/null -j y -b y /bin/sleep 360"]
 

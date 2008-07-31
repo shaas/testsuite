@@ -891,6 +891,35 @@ proc get_daemon_pid { host service } {
       }
    }
 }
+#****** sge_procedures.60/shutdown_and_restart_qmaster() ********************
+#  NAME
+#     shutdown_and_restart_qmaster() -- Shutdown the qmaster and scheduler 
+#     if possible 
+#
+#  SYNOPSIS
+#     shutdown_and_restart_qmaster { host } 
+#
+#  FUNCTION
+#     Shuts the qmaster and scheduler (if version >= 62) proc down and 
+#     restarts it. 
+#
+#  INPUTS
+#
+#  RESULT
+#     A newly restarted qmaster as side effect.
+#
+#  SEE ALSO
+#     sge_procedures/shutdown_master_and_scheduler()
+#     sge_procedures/startup_qmaster()   
+#*******************************************************************************
+
+proc shutdown_and_restart_qmaster { } {
+   global ts_config
+
+   shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
+   # startup qmaster with scheduler (if possible) 
+   startup_qmaster 1       
+}
 
 
 proc call_startup_script { host service {script_file ""} {args ""} { timeout 30 } } {

@@ -102,13 +102,6 @@ proc qmaster_spooling_cleanup {} {
    }
 }
 
-# JG: TODO: move to sge_procedures
-proc shutdown_and_restart_qmaster {} {
-   global ts_config
-   shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
-   startup_qmaster 0
-}
-
 proc cmp_config { conf_a conf_b fields check} {
    upvar $conf_a a
    upvar $conf_b b
