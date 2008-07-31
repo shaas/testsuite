@@ -42,7 +42,13 @@ global check_use_installed_system check_init_level_procedure
 set check_root_access_needs    "yes"
 set check_name                 "unassign_resources"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_description(0)       "the unassigning of resource with running jobs"
+set check_description(0)       "The unassigning of resource with running jobs"
+set check_description(1)       "Positive test of the reschedule_restartable_jobs method"
+set check_description(2)       "Negative test of the reschedule_restartable_jobs method"
+set check_description(3)       "Positive test of the reschedule_jobs_in_rerun_queue method"
+set check_description(4)       "Negative test of the reschedule_jobs_in_rerun_queue method"
+set check_description(5)       "Positive test of the reschedule_jobs_in_rerun_queue method"
+set check_description(6)       "Negative test of the reschedule_jobs_in_rerun_queue method"
 set check_needs                "hedeby_install"                  
 set check_init_level_procedure "ge_unassign_resources_init_level"
 set check_functions            {}   
@@ -53,9 +59,6 @@ set check_cleanup_function "ge_unassign_resources_cleanup"
 set check_cleanup_level_function "ge_unassign_resources_level_cleanup"
 
 lappend check_functions "ge_unassign_resources_check"
-#lappend check_functions "ge_unassign_resources_not_restartable_job"
-#lappend check_functions "ge_unassign_resources_restartable_job"
-#lappend check_functions "ge_unassign_resources_job_in_rerun_queue"
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
 
@@ -178,7 +181,7 @@ proc ge_unassign_resources_check {} {
          ts_log_fine "Test moving a resource with a restartable job"
          ts_log_fine "-> jobs suspend method 'reschedule_restartable_jobs' enabled"
          ts_log_fine "---------------------------------------------------------"
-         # Possitive test of the reschedule_restartable_jobs method
+         # Positive test of the reschedule_restartable_jobs method
          set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -r y"
          set suspend_methods { "reschedule_restartable_jobs" }
          set mode "move"
@@ -194,7 +197,7 @@ proc ge_unassign_resources_check {} {
          set mode "stay"
       } 
       3 {
-         # Possitive test of the reschedule_jobs_in_rerun_queue method
+         # Positive test of the reschedule_jobs_in_rerun_queue method
          ts_log_fine "---------------------------------------------------------"
          ts_log_fine "Test moving a resource with jobs in a rerun queue"
          ts_log_fine "-> jobs suspend method 'reschedule_jobs_in_rerun_queue' enabled"
@@ -214,7 +217,7 @@ proc ge_unassign_resources_check {} {
          set mode "stay"
       }
       5 {
-         # Possitive test of the reschedule_jobs_in_rerun_queue method
+         # Positive test of the reschedule_jobs_in_rerun_queue method
          ts_log_fine "---------------------------------------------------------"
          ts_log_fine "Test moving a resource with checkpointing jobs"
          ts_log_fine "-> jobs suspend method 'suspend_jobs_with_checkpoint' enabled"
@@ -245,19 +248,26 @@ proc ge_unassign_resources_check {} {
    # Reconfigure the job suspend policy of the ge service
    set res [set_hedeby_job_suspend_policy $ge_unassign_resources_ctx(service_name) $suspend_methods $ge_unassign_resources_ctx(job_wait_time) "seconds"]
    if { $res != 0} {
-      return -1
+      ts_log_severe "skipping test, got errors setting suspend policy!"
+      return 
    }
    
    # reload the service config 
    if {[reload_hedeby_component $ge_unassign_resources_ctx(service_name) $ge_unassign_resources_ctx(master_host)] != 0} {
+      ts_log_severe "skipping test, cannot reload hedeby component!"
       return
    }
    
    set job_id [submit_job "$job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $ge_unassign_resources_ctx(job_run_time)"]
    if {$job_id < 0 } {
+      ts_log_severe "Error submitting job: $job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $ge_unassign_resources_ctx(job_run_time)"
       return
    }
    if {[wait_for_jobstart $job_id "a_job" 60] != 0} {
+      ts_log_severe "job $job_id did not start"
+      # delete job and wait for end
+      delete_job $job_id 1 0 0
+      wait_for_end_of_all_jobs
       return
    }
    
@@ -303,11 +313,16 @@ proc ge_unassign_resources_check {} {
          }
          default {
             ts_log_severe "Unknown mode $mode"
+            # delete job and wait for end
+            delete_job $job_id 1 0 0
+            wait_for_end_of_all_jobs
             return
          }
       }
       wait_for_notification $move_time hist err_hist 60
    }
-   
+   # delete job and wait for end
+   delete_job $job_id 1 0 0
+   wait_for_end_of_all_jobs
 }
 

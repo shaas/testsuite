@@ -391,7 +391,7 @@ proc min_resource_check {} {
             }
             set par_error [start_parallel_sdmadm_command services_premove_to_C $admin_user task_info]
             if {$par_error != ""} {
-               append error_text $par_error
+               append error_text "$par_error (step 2)\n"
             }
             foreach res $services_premove_to_C {
                set exp_move_resource_result($res,service) $serviceC
@@ -400,7 +400,7 @@ proc min_resource_check {} {
             }
             set retval [wait_for_resource_info exp_move_resource_result 60 0 mvr_error]
             if { $retval != 0} {
-               append error_text "moving resources to service C($serviceC) failed:\n$mvr_error\n"
+               append error_text "moving resources to service C($serviceC) failed (step 2):\n$mvr_error\n"
             }
          }
 
@@ -499,7 +499,7 @@ proc min_resource_check {} {
                      set doStop 0
                      ts_log_fine "rslo: Service \"$serviceA\" still requests \"$res_req_info($serviceA,$sloNameA,quantity)\" resources ..."
                      if {$res_req_info($serviceA,$sloNameA,urgency) != $SLO_arch_A_urgency} {
-                        append error_text "SLO \"$sloNameA\" of service \"$serviceA\" should have urgency=$SLO_arch_A_urgency, but is set to $res_req_info($serviceA,$sloNameA,urgency)!\n"
+                        append error_text "SLO \"$sloNameA\" of service \"$serviceA\" should have urgency=$SLO_arch_A_urgency, but is set to $res_req_info($serviceA,$sloNameA,urgency)! (main test loop)\n"
                      }
                   }
                } else {
@@ -581,7 +581,7 @@ proc min_resource_check {} {
                   }
                }
                # check service B
-               if { [info exists sloNameB] } {
+               if { [info exists sloNameB] && [info exists ser_slo_info($serviceB,$sloNameB,quantity)]} {
                   if {$ser_slo_info($serviceB,$sloNameB,quantity) != 0} {
                      if {$old_value(GA_B) != $ser_slo_info($serviceB,$sloNameB,quantity)} {
                         set old_value(GA_B) $ser_slo_info($serviceB,$sloNameB,quantity)
@@ -623,7 +623,7 @@ proc min_resource_check {} {
                   }
                   foreach st $rstate {
                      if {$st == "ERROR"} {
-                        append error_text "resource \"$res\" is gone into ERROR state:\n"
+                        append error_text "resource \"$res\" is gone into ERROR state:  (main test loop)\n"
                         ts_log_fine "$res is gone into ERROR state!"
                         foreach info "id service state type annotation flags usage" {
                            append error_text " -> $info: $res_info($res,$info)\n"
@@ -654,7 +654,7 @@ proc min_resource_check {} {
                   }
                }
             } else {
-               append error_text "skip, because of get_resource_info() error!\n"
+               append error_text "skip, because of get_resource_info() error  (main test loop)!\n"
             }
 
             set cur_time [timestamp]
@@ -662,7 +662,7 @@ proc min_resource_check {} {
             set time_diff [expr ( $cur_time - $last_change )]
             ts_log_fine "last change was $time_diff seconds ago."
             if { $time_diff > $my_time_val } {
-               append error_text "=> timeout while waiting for resource changes for slo compliance!!! (timeout was $my_time_val seconds)\n" 
+               append error_text "=> timeout while waiting for resource changes for slo compliance!!! (timeout was $my_time_val seconds) (main test loop)\n" 
                append error_text "  RP pending requests service A ($serviceA): $old_value(RP_A)\n"
                append error_text "  RP pending requests service B ($serviceB): $old_value(RP_B)\n"
                append error_text "  GA service A ($serviceA) requests:         $old_value(GA_A)\n"
@@ -670,7 +670,7 @@ proc min_resource_check {} {
                ts_log_fine "timeout!"
                if {$old_value(GA_A) == 0 && $old_value(GA_B) == 0} {
                   ts_log_fine "still pending requests at resource provider, ts will reset resource provider ..."
-                  append error_text "no service requests resources, but rp has pending request - ts will reset RP:\n"
+                  append error_text "no service requests resources, but rp has pending request - ts will reset RP  (main test loop):\n"
                   set sdmadm_command_line "-p $pref_type -s $sys_name sslo"
                   set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
                   append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
@@ -690,7 +690,7 @@ proc min_resource_check {} {
                ts_log_fine "all slos should be compliant now!"
                break
             }
-            after 5000
+            after 4000
          }
 
          # After main loop the resource information of all resources is checked
@@ -710,9 +710,9 @@ proc min_resource_check {} {
             set exp_resource_info($res,flags) "{}"
             set exp_resource_info($res,state) "ASSIGNED"
          }
-         set retval [wait_for_resource_info exp_resource_info 90 0 mvr_error]
+         set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
          if { $retval != 0} {
-            append error_text "Not all expected resources moved to the correct service:\n"
+            append error_text "Not all expected resources moved to the correct service (after main test loop):\n"
             append error_text "$mvr_error\n"
          }
          
@@ -732,9 +732,9 @@ proc min_resource_check {} {
          set exp_ser_slo_info($serviceC,fixed_usage,request)  "{$no_need}"
          set exp_ser_slo_info(spare_pool,PermanentRequestSLO,quantity)  10
          set exp_ser_slo_info(spare_pool,PermanentRequestSLO,urgency)  1
-         set retval [wait_for_service_slo_info exp_ser_slo_info 90 0 slo_error]
+         set retval [wait_for_service_slo_info exp_ser_slo_info 120 0 slo_error]
          if { $retval != 0} {
-            append error_text "Not all expected slo information is correct:\n"
+            append error_text "Not all expected slo information is correct (after main test loop):\n"
             append error_text "$slo_error\n"
          }
 
@@ -747,10 +747,10 @@ proc min_resource_check {} {
                   ts_log_fine "SLO \"$sloNameA\" for resource \"$res\" at service \"$serviceA\" set to $res_slo_info($res,$sloNameA,usage)!"
                   if {$res_slo_info($res,$sloNameA,usage) != $SLO_arch_A_urgency} {
                      append error_text "SLO \"$sloNameA\" for resource \"$res\" at service \"$serviceA\" "
-                     append error_text "set to $res_slo_info($res,$sloNameA,usage), should be $SLO_arch_A_urgency\n"
+                     append error_text "set to $res_slo_info($res,$sloNameA,usage), should be $SLO_arch_A_urgency (after main test loop)\n"
                   }
                } else {
-                  append error_text "SLO usage info for resource $res (SLO=$sloNameA) is missing\n"
+                  append error_text "SLO usage info for resource $res (SLO=$sloNameA) is missing (after main test loop)\n"
                }
             }
             foreach res $expected_resources_B {
@@ -758,14 +758,14 @@ proc min_resource_check {} {
                   ts_log_fine "SLO \"$sloNameB\" for resource \"$res\" at service \"$serviceB\" set to $res_slo_info($res,$sloNameB,usage)!"
                   if {$res_slo_info($res,$sloNameB,usage) != $SLO_arch_B_urgency} {
                      append error_text "SLO \"$sloNameB\" for resource \"$res\" at service \"$serviceB\" "
-                     append error_text "set to $res_slo_info($res,$sloNameB,usage), should be $SLO_arch_B_urgency\n"
+                     append error_text "set to $res_slo_info($res,$sloNameB,usage), should be $SLO_arch_B_urgency (after main test loop)\n"
                   }
                } else {
-                  append error_text "SLO usage info for resource $res (SLO=$sloNameB) is missing\n"
+                  append error_text "SLO usage info for resource $res (SLO=$sloNameB) is missing (after main test loop)\n"
                }
             }
          } else {
-            append error_text "skip resource usage check, get_resource_slo_info() returned errors!\n"
+            append error_text "skip resource usage check, get_resource_slo_info() returned errors! (after main test loop)\n"
          }
 
          # case 2 reduce min number of resources check that free resource go back to spare_pool (check number)
@@ -809,9 +809,9 @@ proc min_resource_check {} {
                set_service_slos $mod_method $serviceB $sloB 1 $SLO_update_unit $SLO_update_interval
             }
 
-            # step 4: What that spare_pool gets the released resources ...
+            # step 4: Wait that spare_pool gets the released resources ...
             if {$start_spare_pool_nr_of_services == $expected_resources_in_spare_pool} {
-               append error_text "cannot do further tests, cluster has to less resources!\n"
+               append error_text "cannot do further tests, cluster has to less resources! (reduced min number of resources check - case 2)\n"
             } else {
                set my_timeout [timestamp]
                incr my_timeout 60
@@ -819,11 +819,22 @@ proc min_resource_check {} {
                   set nr_res_in_spare_pool 0
                   if {[get_resource_info] == 0} {
                      foreach res $res_list {
+                        # count nr of resources at spare_pool service
                         if {$res_info($res,service) == "spare_pool"} {
                            incr nr_res_in_spare_pool 1
                         }
+
+                        # find out resource candidates for test case 4 
+                        # (resources which can be set in error state)
                         ts_log_fine "resource \"$res\" (id=\"$res_info($res,id)\") is assinged to \"$res_info($res,service)\""
-                        set stayed_res_at_serv($res_info($res,service)) $res
+                        set expected_arch $sSetup($serviceA)
+                        ts_log_fine "expected arch is $expected_arch"
+                        set osName   $res_prop($res,operatingSystemName)
+                        ts_log_fine "resource $res has arch $osName"
+                        if {$osName == $expected_arch} {
+                           set stayed_res_at_serv($res_info($res,service)) $res
+                           ts_log_fine "resource $res ($osName) is a candidate for service \"$res_info($res,service)\" for creating an error resource!"
+                        }
                      }
                   }
 
@@ -837,7 +848,7 @@ proc min_resource_check {} {
                   set cur_time [timestamp]
                   if { $cur_time > $my_timeout } {
                      ts_log_fine "timeout!"
-                     append error_text "Timeout while waiting for spare_pool getting $expected_resources_in_spare_pool resources\n"
+                     append error_text "Timeout while waiting for spare_pool getting $expected_resources_in_spare_pool resources (reduced min number of resources check - case 2)\n"
                      break
                   } else {
                      ts_log_fine "waiting for resources in spare_pool ... (timeout in [expr ( $my_timeout - $cur_time )] seconds)"
@@ -858,7 +869,7 @@ proc min_resource_check {} {
                   ts_log_fine "Service A Slo: $sloA"
                   set_service_slos $mod_method $serviceA $sloA 1 $SLO_update_unit $SLO_update_interval
 
-                  ts_log_fine "killing execd of resource \"$stayed_res_at_serv($serviceA)\" at service A ($serviceA) ..."
+                  ts_log_fine "killing execd of resource \"$stayed_res_at_serv($serviceA)\" at service A ($serviceA) to produce error resource ..."
                   produce_error_resource $stayed_res_at_serv($serviceA) "hard"
  
                   ts_log_fine "wait that service A ($serviceA) gets all its resources again ..."
@@ -874,20 +885,25 @@ proc min_resource_check {} {
                   }
                   foreach res $expected_resources_A {
                      set exp_resource_info($res,service) $serviceA
+                     if { $stayed_res_at_serv($serviceA) == $res } {
+                        set exp_resource_info($res,state) "ERROR"
+                     } else {
+                        set exp_resource_info($res,state) "ASSIGNED"
+                     }
                   }
                   set retval [wait_for_resource_info exp_resource_info 90 0 mvr_error]
                   if { $retval != 0} {
-                     append error_text "Not all expected resources moved to the correct service (ERROR resources ignored):\n"
+                     append error_text "Not all expected resources moved to the correct service (ERROR resources ignored):\n(case 4 - ignore error state test which kills execd hard)\n"
                      append error_text "$mvr_error\n"
                   }  
                   reset_produced_error_resource $stayed_res_at_serv($serviceA)
                }
             }
          } else {
-            append error_text "skip further min number res test, get_resource_info() returned error!\n"
+            append error_text "skip further min number res test, get_resource_info() returned error! (reduced min number of resources check - case 2)\n"
          }
       } else {
-         append error_text "expected to have at least 3 GE services\n"
+         append error_text "expected to have at least 3 GE services(examine OS names and availabe services)\n"
       }
    } else {
       append error_text "skip this test because no operatingSystemName properties are detected!\n"

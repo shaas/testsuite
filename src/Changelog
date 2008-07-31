@@ -1,3 +1,12 @@
+CR-2008-07-31-0: Bugfix:     Fixed hedeby tests:
+                             o minResource test might choose wrong host for producing
+                               resource in error state
+                 Issue:      216
+                             o reset_produced_error_resource procedure cannot startup
+                               execd
+                 Issue:      217
+                 Review:     TB, AF
+
 DG-2008-07-31-0: Cleanup:    Moved test local function to global procedures.
                              Fixed for failed IZ 2387 test.
                  Review:     CR

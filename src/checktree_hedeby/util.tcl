@@ -5600,20 +5600,42 @@ proc reset_produced_error_resource { resource } {
       ts_log_severe "resource $resource not found!"
       return 1
    }
-   set sCluster $service_names(ts_cluster_nr,$resource)
 
+   # find out to which service the resource is currently assigned
+   get_resource_info
+   if {![info exists res_info($resource,service)]} {
+      ts_log_severe "resource $resource is not assigned to a service!"
+      return 1
+   }
+   set current_service $res_info($resource,service)
+   ts_log_fine "resource \"$resource\" is assigned to service \"$current_service\""
+   
+   
+   # find out testsuite cluster nr of resource
+   if {![info exists service_names(ts_cluster_nr,$current_service)]} {
+      ts_log_severe "The internal TS cluster nr of resource $resource cannot be found!"
+      return 1
+   }
+   set sCluster $service_names(ts_cluster_nr,$current_service)
+   ts_log_fine "service \"$current_service\" has TS cluster nr $sCluster"
+
+   # saving current cluster nr and switch to ts cluster
    set curCluster [get_current_cluster_config_nr]
    set_current_cluster_config_nr $sCluster
+
+   # startup the execd
    set ret [startup_execd $resource]
    if {$ret != 0} {
       append error_text "\"startup_execd $resource\" returned: $ret\n"
    }
+   
+   # switch back to stored cluster nr
    set_current_cluster_config_nr $curCluster
 
    # wait for resource error state to disappear
    ts_log_fine "resource \"$resource\" should go into assigned state now ..."
    set exp_res_info($resource,state) "ASSIGNED"
-   wait_for_resource_info exp_res_info 60 0 error_text
+   wait_for_resource_info exp_res_info 90 0 error_text
 
    if { $error_text != "" } {
       ts_log_severe $error_text
@@ -6074,7 +6096,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
    set tasks(RETURN_ISPID) ""
    set ispid [sdmadm_command $host $execute_user $sdmadm_arguments prg_exit_state tasks 1]
    set sp_id [ lindex $ispid 1 ]
-   set timeout 45
+   set timeout 60
    log_user 0  ;# we don't want to see vi output
    set clear_sequence [ format "%c%c%c%c%c%c%c" 0x1b 0x5b 0x48 0x1b 0x5b 0x32 0x4a 0x00 ]
    expect {
@@ -6087,7 +6109,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
    }
    ts_log_fine "got start mark"
 
-   set timeout 45
+   set timeout 60
    expect {
       -i $sp_id timeout {
          ts_log_fine "got timeout while waiting for vi screen output!"
@@ -6107,7 +6129,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
 
    # now wait for 100% output
    set timeout 1
-   set break_timer 15
+   set break_timer 30
    expect {
       -i $sp_id  "100%" {
          send -i $sp_id -- "1G"
@@ -6231,7 +6253,7 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
       lappend sequence "[format "%c" 27]" ;# ESC
       lappend sequence ":wq\n"        ;# save and quit
       hedeby_mod_sequence $ispid $sequence errors
-      set timeout 45
+      set timeout 60
    }
 
    ts_log_fine "waiting for vi termination ..."
@@ -6443,7 +6465,7 @@ proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_
    } else {
       set execute_user $user
    }
-   
+   set error_text ""
    set ispid [hedeby_mod_setup $execute_host $execute_user $arguments error_text]
 
    set sp_id [ lindex $ispid 1 ]
@@ -6471,7 +6493,6 @@ proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_
    
    lappend sequence "[format "%c" 27]" ;# ESC
    
-   set error_text ""
    hedeby_mod_sequence $ispid $sequence error_text
    set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
 
@@ -6481,11 +6502,10 @@ proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_
    }
 
    if {$error_text != ""} {
+      ts_log_severe $error_text
       return 1
    }
    return 0
-   
-   
 }
 #****** util/set_hedeby_slos_config() ******************************************
 #  NAME
@@ -6885,16 +6905,16 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
    wait_for_jobstart $job_id "leeper" 30 1 1           
    set_current_cluster_config_nr $curCluster
 
-    # trigger move of resource to spare_pool, that should bring resource to UNASSIGNING state
-    set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] mvr -r $resource -s spare_pool"
-    set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
-    ts_log_fine "output is: $output"
-    if { $prg_exit_state != 0 } {
-        ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
-        return 1
-    } else {
-        ts_log_fine "Move of resource $resource was triggered"        
-    }    
+   # trigger move of resource to spare_pool, that should bring resource to UNASSIGNING state
+   set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] mvr -r $resource -s spare_pool"
+   set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
+   ts_log_fine "output is: $output"
+   if { $prg_exit_state != 0 } {
+       ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
+       return 1
+   } else {
+       ts_log_fine "Move of resource $resource was triggered"        
+   }    
 
    # wait for resource go to unassigning state
    ts_log_fine "resource \"$resource\" should go into unassigning state now ..."

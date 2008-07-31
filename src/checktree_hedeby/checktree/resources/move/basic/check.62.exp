@@ -381,6 +381,7 @@ proc basic_resource_assignment_check {} {
                append error_text "not running on host \"$job_host($job)\", reported host was \"$job_hostname\"\n"
             }
          }
+         wait_for_end_of_all_jobs
       }
    }
 
