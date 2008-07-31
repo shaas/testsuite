@@ -1,0 +1,125 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# global variables ... (defined in main check routine, but you can use it)
+#
+# gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
+# global CHECK_USER              ;# user who start test
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category check_highest_level      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "no"
+set check_name                 "hedeby_junit"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Executes the Hedeby junit tests"
+set check_needs                ""
+set check_init_level_procedure "hedeby_junit_init_level"
+
+set check_highest_level        0
+
+set check_setup_level_function ""
+set check_cleanup_level_function ""
+
+set check_functions            {}
+lappend check_functions "hedeby_junit_check"
+
+
+#****** check/hedeby_junit_init_level() ************************************************************
+#  NAME
+#    hedeby_junit_init_level() -- init level function
+#
+#  SYNOPSIS
+#    hedeby_junit_init_level { } 
+#
+#***************************************************************************************************
+proc hedeby_junit_init_level {} {
+  global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+      default {
+         return -1
+      }
+   }
+}
+
+#****** check/hedeby_junit_check() *****************************************************************
+#  NAME
+#    hedeby_junit_check() -- executes the hedeby junit tests
+#
+#  SYNOPSIS
+#    hedeby_junit_check { } 
+#
+#  FUNCTION
+#     executes the hedeby junit tests on the java build host
+#
+#  INPUTS
+#
+#  RESULT
+#     no result
+#
+#  SEE ALSO
+#     checktree_hedeby/hedeby_build()
+#***************************************************************************************************
+proc hedeby_junit_check {} {
+   
+   set java_build_host [host_conf_get_java_compile_host]
+   
+   report_create "hedeby_junit_tests" report 1 0
+   report_add_message report "java build host is \"$java_build_host\""
+
+   # The timeout occurs if a junit does not output anything for 180 seconds
+   set timeout 180
+   set ant_options ""
+   
+   set res [hedeby_build $java_build_host "test" report $ant_options $timeout]
+   if { $res != 0 } {
+      report_add_message report "Hedeby junit tests failed"
+      report_finish report -1
+      ts_log_severe "Hedeby junit tests failed"
+      return
+   } else {
+      report_add_message report "Hedeby junit successfully executed"
+      report_finish report 0
+      return
+   }
+}
+

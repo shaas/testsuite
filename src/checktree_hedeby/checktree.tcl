@@ -604,6 +604,36 @@ proc hedeby_build { build_host target a_report { ant_options "" } { hedeby_build
    
    set env(ARCH)      [resolve_arch $build_host]
    
+   # Due to some limitation in ant junit.jar must be available in the
+   # classpath before starting ant
+   set junit_classpath ""
+   
+   # Iterate over all build property files. The order is important
+   foreach prop_file { build_testsuite.properties build_private.properties build.properties } { 
+      set output [start_remote_prog $build_host $CHECK_USER \
+                      "grep" "'libs.junit.classpath=' $hedeby_config(hedeby_source_dir)/$prop_file"]
+      if {$prg_exit_state == 0} {
+         foreach line [split $output "\r\n"] {
+            # this following regular expression matches against all lines containing
+            # libs.junit.classpath
+            # lines starting with a '#' are omitted. Whitespaces around  '=', at the beginning and
+            # at the end of the line are allowed.
+            # The regexp contains a caputure for the value of the property. It is returned in the
+            # variable path
+            if {[regexp "^\\s*libs.junit.classpath\\s*=\\s*(\\S+)\\s*\$" $line res path] == 1} {
+               ts_log_finer "found junit classpath in $prop_file ($path)"
+               set junit_classpath $path
+            }
+         }
+         if { $junit_classpath != "" } {
+            break
+         }
+      }
+   }
+   
+   if { $junit_classpath != "" } {
+      set env(CLASSPATH) "$junit_classpath"
+   }
 
    report_task_add_message report $task_nr "using JAVA_HOME = $env(JAVA_HOME)"
    report_task_add_message report $task_nr "using ARCH = $env(ARCH)"

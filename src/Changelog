@@ -1,3 +1,6 @@
+RH-2008-07-31-0: Enhancem.:  Test for executing hedeby junit tests added
+                 Review:     TB
+
 DG-2008-07-30-0: Cleanup:    qmaster_spooling test failed because of new bug in
                              qsub (CR 6730437). Since this is not an spooling
                              issue the test was changed. 
