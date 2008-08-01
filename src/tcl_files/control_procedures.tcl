@@ -2197,8 +2197,39 @@ proc resolve_lib_path_name { host {use_source_arch 0}} {
    return $libpath_cache($host)
 }
 
+#****** control_procedures/resolve_build_arch_installed_libs() *****************
+#  NAME
+#     resolve_build_arch_installed_libs() -- get build arch for libraries
+#
+#  SYNOPSIS
+#     resolve_build_arch_installed_libs { host {raise_error 1} } 
+#
+#  FUNCTION
+#     Some architectures are using different lib path. This procedure returns
+#     the host specific library search path.
+#
+#  INPUTS
+#     host            - name of host for which the lib path sould be returned
+#     {raise_error 1} - report errors
+#
+#  RESULT
+#     build arch string
+#
+#*******************************************************************************
+global resolve_build_arch_installed_libs_cache
+if {[info exists resolve_build_arch_installed_libs_cache]} {
+   unset resolve_build_arch_installed_libs_cache
+}
 proc resolve_build_arch_installed_libs {host {raise_error 1}} {
    global CHECK_USER
+   global resolve_build_arch_installed_libs_cache
+
+   # if entry already exists in cache return value
+   if {[info exists resolve_build_arch_installed_libs_cache($host)]} {
+      ts_log_finer "returning cached build arch value \"$resolve_build_arch_installed_libs_cache($host)\" for host \"$host\""
+      return $resolve_build_arch_installed_libs_cache($host)
+   }
+
    get_current_cluster_config_array ts_config
 
    set build_arch [resolve_build_arch $host]
@@ -2232,6 +2263,8 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
       ts_log_severe "can't find build directory: $ts_config(source_dir)/$build_arch" $raise_error
    }
 
+   # update cache
+   set resolve_build_arch_installed_libs_cache($host) $build_arch
    return $build_arch
 }
 

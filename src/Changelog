@@ -1,3 +1,7 @@
+CR-2008-08-01-0: Enhancem.:  implemented build arch cache for procedure
+                             resolve_build_arch_installed_libs()
+                 Review:     JG
+
 JG-2008-08-01-0: Bugfix:     Fixed a number of tests failing with 6.0 clusters.
                  Review:     CR
 
