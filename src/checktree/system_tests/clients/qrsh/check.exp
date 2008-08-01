@@ -222,11 +222,7 @@ proc wait_for_has_been_submitted {sp_id} {
    set job_id 0
    set remote_host ""
 
-   if {$ts_config(gridengine_version) < 61} {
-      set HAS_BEEN_SUBMITTED  [translate_macro MSG_JOB_SUBMITJOB_USS "*" "*" "*"]
-   } else {
-      set HAS_BEEN_SUBMITTED  [translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]
-   }
+   set HAS_BEEN_SUBMITTED [translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]
    set ESTABLISHING_SESSION [translate_macro MSG_QSH_ESTABLISHINGREMOTESESSIONTO_SS "*" "*"]
    set timeout 60
    expect {

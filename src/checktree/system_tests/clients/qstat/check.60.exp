@@ -205,7 +205,7 @@ proc qstat_count_jobs {func_name qstat_options expected_jobs} {
    global ts_config 
    
    ts_log_fine "\nrunning qstat $qstat_options"
-   set output [start_sge_bin "qstat" "$qstat_options"]
+   set output [start_sge_bin "qstat" $qstat_options]
    ts_log_fine $output
 
    if {$prg_exit_state == 0} {
@@ -221,7 +221,7 @@ proc qstat_count_jobs {func_name qstat_options expected_jobs} {
          ts_log_severe "$func_name: qstat $qstat_options broken, got $nr_jobs but expected $expected_jobs"
       }
    } else {
-      ts_log_severe "$func_name: qstat $qstat_options exit status not 0"
+      ts_log_severe "$func_name: qstat $qstat_options exit status not 0 ($prg_exit_state), output:\n$output"
    }
 }
 

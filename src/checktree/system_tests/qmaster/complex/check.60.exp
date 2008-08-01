@@ -274,17 +274,18 @@ proc complex_loadsensor_test {} {
       set time 0
       get_qconf_se_info $complex_host
       set did_not_appear 1
+      set load_value_names ""
       while {$did_not_appear == 1} {
          set did_not_appear 0
-         set load_value_names ""
          if {$time >= 120} {
-            ts_log_severe "load_sensor values didn't appear"
+            ts_log_severe "following load values were not reported: $load_value_names"
 
             # reset host complex, stop loadsensor
             ts_log_fine "resetting configuration for host $complex_host"
             set_config complex_old_config $complex_host
             return
          }
+         set load_value_names ""
          get_qconf_se_info $complex_host
          if { [string first "test_string=TEST_ARCH" $qconf_se_info(load_values) ] < 0 } {
             set did_not_appear 1
@@ -308,15 +309,10 @@ proc complex_loadsensor_test {} {
          }
    
          if {$did_not_appear == 1} {
-            ts_log_info "following load values were not reported: $load_value_names"
+            ts_log_fine "following load values were not reported: $load_value_names"
+            after 2000
+            incr time 2
          }
-         incr time 1
-         sleep 1
-         get_qconf_se_info $complex_host
-      }
-
-      if {$did_not_appear == 1} {
-         ts_log_severe "following load values were not reported: $load_value_names"
       }
 
       set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh" 

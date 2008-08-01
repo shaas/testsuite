@@ -140,8 +140,15 @@ proc qselect_l {} {
    if {$prg_exit_state != 1} {
       ts_log_info "expected qselect $option to exit 1"
    }
-   if {[string trim $result] != ""} {
-      ts_log_severe "expected empty list from qselect $option, but got\n$result"
+   if {$ts_config(gridengine_version) < 61} {
+      set expected [translate_macro "MSG_QSTAT_NOQUEUESREMAININGAFTERSELECTION"]
+      if {[string trim $result] != $expected} {
+         ts_log_severe "expected message\n$expected\nbut got\n$result"
+      }
+   } else {
+      if {[string trim $result] != ""} {
+         ts_log_severe "expected empty list from qselect $option, but got\n$result"
+      }
    }
 
    set arch [resolve_arch $qselect_host]

@@ -1,3 +1,6 @@
+JG-2008-08-01-0: Bugfix:     Fixed a number of tests failing with 6.0 clusters.
+                 Review:     CR
+
 CR-2008-07-31-0: Bugfix:     Fixed hedeby tests:
                              o minResource test might choose wrong host for producing
                                resource in error state
