@@ -1,3 +1,6 @@
+DG-2008-08-01-0: Bugfix:     Fixed binary_submission test. 
+                 Review:     CR
+
 CR-2008-08-01-0: Enhancem.:  implemented build arch cache for procedure
                              resolve_build_arch_installed_libs()
                  Review:     JG

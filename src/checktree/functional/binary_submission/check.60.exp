@@ -369,7 +369,7 @@ proc binary_submission_check {} {
             # JG: Job may be done too fast in scenario 4
             if {$scenario != 4} {
                wait_for_jobstart $job_id $job_name 300 
-            }
+            } 
             wait_for_jobend $job_id $job_name 30 0
          } elseif {$e_error == 1} {
             set state_timeout [timestamp] ;# get unix timestamp
@@ -412,13 +412,31 @@ proc binary_submission_check {} {
       #
       # Check whether the job was executed successfully
       #
+      # wait till job accounting appears 
       if {$account == 0} {
-         # wait for accounting to be flushed
-         after 10000
-         was_job_running $job_id
-      }
+         if {$job_id <= 0} {
+            ts_log_severe "Job submission failed ($job_id))!"
+         }
 
-      ts_log_fine "TEST FOR SCENARIO $scenario WAS SUCCESSFULL"
+         set max_wait_time 60
+         set time [expr [timestamp] + $max_wait_time] 
+         set no_accounting_found 1
+
+         while {[timestamp] < $time && $no_accounting_found == 1}  {
+            sleep 1
+            set back [was_job_running $job_id 0]
+            if {$back != -1} {
+               # job accounting appeared 
+               set no_accounting_found 0 
+            }
+         }
+      
+         if {$no_accounting_found == 1} {
+            ts_log_severe "No accounting information for job $job_id found within $max_wait_time seconds!"
+         }
+
+         ts_log_fine "TEST FOR SCENARIO $scenario WAS SUCCESSFUL"
+      }
    }
 }
 
