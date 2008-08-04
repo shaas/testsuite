@@ -90,7 +90,7 @@ proc qacct_setup {} {
       set new_config(reporting_params) "accounting_flush_time=00:00:00"
       set_config new_config
    }
-   delete_file "$ts_config(product_root)/$ts_config(cell)/common/accounting"
+   delete_file "$ts_config(product_root)/$ts_config(cell)/common/accounting" 0
 }
 
 proc qacct_cleanup {} {
