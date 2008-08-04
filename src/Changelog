@@ -1,3 +1,6 @@
+MD-2008-08-04-0: Bugfix:     Fixed broken issue_1661 test.
+                 Review:     MD
+
 DG-2008-08-01-0: Bugfix:     Fixed binary_submission test. 
                  Review:     CR
 

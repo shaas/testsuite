@@ -87,6 +87,9 @@ proc issue_1661_test {} {
          set ip_address [split $ln ":"]
          set ip_address [lindex $ip_address 1]
          set ip_address [string trim $ip_address]
+         set ip_address [split $ip_address " "]
+         set ip_address [lindex $ip_address 0]
+         set ip_address [string trim $ip_address]
          ts_log_fine "host \"$ts_config(master_host)\"'s IP: \"$ip_address\""
       }
    }
