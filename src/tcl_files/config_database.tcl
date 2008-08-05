@@ -938,6 +938,8 @@ proc db_config_databaselist_delete_database { array_name } {
 proc db_config_add_newdatabase { dbname } {
    global ts_config ts_db_config
 
+   set errors 0
+
    incr errors [db_config_databaselist_add_database ts_db_config $dbname]
    if { $errors == 0 } {
       incr errors [db_config_databaselist_edit_database ts_db_config $dbname]

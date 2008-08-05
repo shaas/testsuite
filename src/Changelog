@@ -1,3 +1,7 @@
+ZG-2008-08-05-0: Bugfix:     Adding missin variable declaration in
+                             config_database/db_config_add_newdatabase()
+                 Review:     AP
+
 DG-2008-08-04-0: Cleanup:    Test qacct is sending email (severe) when 
                              accounting file does not exist.
                  Review:     JG 
