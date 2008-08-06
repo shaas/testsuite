@@ -47,7 +47,7 @@
 #     change_array - the resulting array
 #
 #*******************************************************************************
-proc set_pe_defaults { change_array } {
+proc set_pe_defaults {change_array} {
    get_current_cluster_config_array ts_config
    upvar $change_array chgar
 
@@ -70,7 +70,7 @@ proc set_pe_defaults { change_array } {
       set chgar(urgency_slots) "min"
    }
 
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       set chgar(accounting_summary) "FALSE"
    }
 }

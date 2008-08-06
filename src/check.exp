@@ -8474,6 +8474,11 @@ set mail_body "$mail_body check is running on host \"$local_host\" architecture 
 set mail_body "$mail_body product root directory is \"$ts_config(product_root)\"\n-------\n"
 set mail_body "$mail_body SGE CELL is  \"$ts_config(cell)\"\n-------\n"
 
+# in V61AR_BRANCH, we do not have the new interactive job support
+if {$ts_config(gridengine_version) == 62 && [is_61AR]} {
+   ts_log_fine "using rtools for interactive job transport"
+   set CHECK_INTERACTIVE_TRANSPORT "rtools"
+}
 
 if { $no_action == 1 } {
   puts "CHECK_GROUP=$CHECK_GROUP"

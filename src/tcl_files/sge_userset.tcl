@@ -553,7 +553,7 @@ proc get_userset_messages {msg_var action obj_attr {on_host ""} {as_user ""}} {
          add_message_to_container messages -6 [translate_macro MSG_QMASTER_ACLNOSHARE]
          add_message_to_container messages -7 [translate_macro MSG_QMASTER_ACLNOTICKET]
          add_message_to_container messages -11 [translate_macro MSG_GDI_READCONFIGFILEEMPTYSPEC_S "*"]
-         if {$ts_config(gridengine_version) >= 61} {
+         if {$ts_config(gridengine_version) >= 61 && ![is_61AR]} {
             add_message_to_container messages -12 [translate_macro MSG_MUST_BE_POSITIVE_VALUE_S "*"]
          }
       }

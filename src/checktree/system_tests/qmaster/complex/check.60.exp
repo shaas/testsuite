@@ -127,9 +127,6 @@ global complex_old_config
 proc complex_init_level {} {
    global ts_config
    global CHECK_ACT_LEVEL
-   global complex_host
-
-   set complex_host [lindex $ts_config(execd_nodes) 0]
 
    switch -- $CHECK_ACT_LEVEL {
       "0" { 
@@ -154,6 +151,9 @@ proc complex_setup {} {
    global ts_config CHECK_USER CHECK_ACT_LEVEL
    global complex_host
    global complex_global_host_backup complex_host_backup
+
+   set complex_host [host_conf_get_suited_hosts]
+   ts_log_fine "using test host $complex_host"
 
    # create new complex attributes
    #           name            short  type    op.   requ.  cons. default  urgency
@@ -267,7 +267,11 @@ proc complex_loadsensor_test {} {
       wait_for_remote_file $complex_host $CHECK_USER $filename 
 
       # install loadsensor
-      set new_config(load_sensor) "$ts_config(testsuite_root_dir)/scripts/loadsensor.sh"
+      if {$ts_config(gridengine_version) <= 60 || [is_61AR]} {
+         set new_config(load_sensor) "$ts_config(testsuite_root_dir)/scripts/loadsensor.sh"
+      } else {
+         set new_config(load_sensor) "$ts_config(testsuite_root_dir)/scripts/loadsensor_multihost.sh"
+      }
       set_config new_config $complex_host
 
       # wait for loadsensor to have effect

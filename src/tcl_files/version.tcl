@@ -212,4 +212,12 @@ proc get_version_info {} {
    return $CHECK_PRODUCT_VERSION_NUMBER
 }
 
+proc is_61AR {} {
+   get_current_cluster_config_array ts_config
+  
+   if {$ts_config(source_cvs_release) == "V61ARsnapshot3_BRANCH"} {
+      return 1
+   }
 
+   return 0
+}

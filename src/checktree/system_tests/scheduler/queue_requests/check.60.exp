@@ -220,7 +220,7 @@ proc scheduler_queue_requests {scenario {parallel 0} {cq 0} {soft 0}} {
    }
 
    # initialize a tail -f on scheduler messages file
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       set schedd_messages_file "[get_qmaster_spool_dir]/messages"
    } else {
       set schedd_messages_file "[get_qmaster_spool_dir]/schedd/messages"

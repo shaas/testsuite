@@ -253,7 +253,7 @@ proc qmaster_size_setup {} {
       ts_log_fine "waiting for startup of qmaster (and scheduler if version < 62) ..."
       sleep 5
       set running [ are_master_and_scheduler_running $ts_config(master_host) $qmaster_spool_dir]
-      if {$ts_config(gridengine_version) < 62} {
+      if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
          set expected_ret_val 3
       } else {
          set expected_ret_val 2
@@ -281,7 +281,7 @@ proc init_ps {} {
    set qmaster_pid [get_qmaster_pid]
    ts_log_fine "qmaster pid: $qmaster_pid"
 
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       # get schedd pid
       set schedd_pid [get_schedd_pid]
       ts_log_fine "schedd  pid: $schedd_pid "
@@ -293,7 +293,7 @@ proc init_ps {} {
       return
    }
 
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       if { $schedd_pid == -1 } {
          ts_log_severe "could not evaluate pid of schedd"
          return
@@ -325,7 +325,7 @@ proc init_ps {} {
       "tru64" {
          set cmd_ps(master) "ps -p $qmaster_pid -o vsz | tail -1"
          #set cmd_ps(master) "ps -eo 'pid vsz' | awk '{print \$1 \" \" \$2}' | grep '^$qmaster_pid ' | awk '{print \$2}'"
-         if {$ts_config(gridengine_version) < 62} {
+         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
             set cmd_ps(schedd) "ps -p $schedd_pid -o vsz | tail -1"
          }
          #set cmd_ps(schedd) "ps -eo 'pid vsz' | awk '{print \$1 \" \" \$2}' | grep '^$schedd_pid ' | awk '{print \$2}'"
@@ -334,7 +334,7 @@ proc init_ps {} {
       "alinux" -
       "lx24-alpha" {
          set cmd_ps(master) "ps lhp $qmaster_pid | awk '{print \$7}'"
-         if {$ts_config(gridengine_version) < 62} {
+         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
             set cmd_ps(schedd) "ps lhp $schedd_pid  | awk '{print \$7}'"
          }
          set size_unit kB
@@ -348,7 +348,7 @@ proc init_ps {} {
       "ulx24-x86" -
       "ulx24-amd64" {
          set cmd_ps(master) "ps -p $qmaster_pid --no-heading -o vsz"
-         if {$ts_config(gridengine_version) < 62} {
+         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
             set cmd_ps(schedd) "ps -p $schedd_pid --no-heading -o vsz"
          }
          set size_unit kB
@@ -357,7 +357,7 @@ proc init_ps {} {
       "hp11" -
       "hp11-64" {
          set cmd_ps(master) "ps -p $qmaster_pid -l | tail -1 | awk '{print \$10}'"
-         if {$ts_config(gridengine_version) < 62} {
+         if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
             set cmd_ps(schedd) "ps -p $schedd_pid  -l | tail -1 | awk '{print \$10}'"
          }
          set size_unit pages
@@ -378,7 +378,7 @@ proc init_ps {} {
    
    # everything ok
    puts $cmd_ps(master)
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       puts $cmd_ps(schedd)
    }
 }
@@ -439,7 +439,7 @@ proc monitor_size {jobs {when ""}} {
 
    set now  [clock seconds]
    set size(master) [get_size master]
-   if { $ts_config(gridengine_version) < 62 } {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       set size(schedd) [get_size schedd]
    } else {
       set size(schedd) 0 

@@ -575,7 +575,7 @@ proc reporting_complex_change_test {} {
 
    # in 6.2, the default changed to log_consumables=false
    # make sure we start with the correct settings
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       append new_config(reporting_params) " log_consumables=true"
    }
    set_config new_config
@@ -597,7 +597,7 @@ proc reporting_complex_change_test {} {
    reporting_check_consumable_records $output "host_consumable" {"F001=0.000000=2.000000" "F002=0.000000=2.000000"}
 
    # this has not been backported to 6.0
-   if {$ts_config(gridengine_version) >= 61} {
+   if {$ts_config(gridengine_version) >= 61 && ![is_61AR]} {
       # =======================================================================
       ts_log_fine "Scenario 2: New behavior, no variables configured to report"
       # =======================================================================
@@ -707,7 +707,7 @@ proc reporting_consumables_test {} {
    set new_config(reporting_params) "reporting=true flush_time=00:00:1 joblog=true"
    # in 6.2, the default changed to log_consumables=false
    # make sure we start with the correct settings
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       append new_config(reporting_params) " log_consumables=true"
    }
    set_config new_config
@@ -738,7 +738,7 @@ proc reporting_consumables_test {} {
    reporting_check_consumable_records $output "queue_consumable" {"F003=0.000000=2.000000" "slots=0.000000=1.000000"}
 
    # this has not been backported to 6.0
-   if {$ts_config(gridengine_version) >= 61} {
+   if {$ts_config(gridengine_version) >= 61 && ![is_61AR]} {
       # =======================================================================
       ts_log_fine "Scenario 2: New behavior, no variables configured to report"
       # =======================================================================

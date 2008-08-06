@@ -143,7 +143,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
    }
 
    # initialize counters for monitoring messages
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       set prof(SIGNALERT) 0
       set prof(LISTENERT) 0
       set prof(DELIVERERT) 0
@@ -186,7 +186,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                      #ts_log_fine "processing line: $line"
                      set split_line [split $line "|"]
                      set message [lindex $split_line 1]
-                     if {$ts_config(gridengine_version) >= 62} { 
+                     if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
                         switch -glob -- $message {
                            "*signaler*: runs*" {
                               incr prof(SIGNALERT)
@@ -243,7 +243,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
                      set split_line [split $line "|"]
                      set monitoring [lindex $split_line 3]   
                      set message [lindex $split_line 4]
-                     if {$ts_config(gridengine_version) >= 62} {
+                     if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
                         switch -glob -- $monitoring {
                            "P" {
                               switch -glob -- $message {
@@ -314,7 +314,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
    } ;# while
 
    # some informational output
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       ts_log_fine "SIGNALERT:  $prof(SIGNALERT)"
       ts_log_fine "LISTENERT:  $prof(LISTENERT)"
       ts_log_fine "DELIVERERT: $prof(DELIVERERT)"
@@ -333,7 +333,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
          # here we may not have received any monitoring messages
          set error 0
          set message "expected no monitoring message to show up, but got"
-         if {$ts_config(gridengine_version) >= 62} {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
             set thread_name_string "SIGNALERT LISTENERT DELIVERERT TIMERT"
          } else { 
             set thread_name_string "SIGT MT EDT TET"
@@ -357,7 +357,7 @@ proc qmaster_monitoring_monitor {id expected_prof qping {tail_timeout 20}} {
          # 0 messages for the other ones
          set error 0
          set message "expected $expected_prof monitoring messages to show up, but got"
-         if {$ts_config(gridengine_version) >= 62} {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
             set thread_name_string "LISTENERT DELIVERERT TIMERT"
          } else {
             set thread_name_string "MT EDT TET"
@@ -559,7 +559,7 @@ proc qmaster_monitoring_restart {} {
    set_config global_conf
 
    # wait for monitoring messages to show up
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       qmaster_monitoring_monitor $id LISTENERT 0
    } else {
       qmaster_monitoring_monitor $id MT 0
@@ -572,7 +572,7 @@ proc qmaster_monitoring_restart {} {
    startup_qmaster 0
 
    # wait for monitoring messages
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       qmaster_monitoring_monitor $id LISTENERT 0
    } else {
       qmaster_monitoring_monitor $id MT 0
@@ -610,7 +610,7 @@ proc qmaster_monitoring_restart_qping {} {
    set_config global_conf
 
    # wait for monitoring messages to show up
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       qmaster_monitoring_monitor $id LISTENERT 1
    } else {
       qmaster_monitoring_monitor $id MT 1
@@ -623,7 +623,7 @@ proc qmaster_monitoring_restart_qping {} {
    startup_qmaster 0
 
    # wait for monitoring messages
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       qmaster_monitoring_monitor $id LISTENERT 1
    } else {
       qmaster_monitoring_monitor $id MT 1

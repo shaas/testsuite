@@ -77,16 +77,13 @@ lappend check_functions "qrdel_foreign_user"          ;# delete jobs of foreign 
 global queue test_host pe
 
 proc qrdel_init_level {} {
-  global CHECK_ACT_LEVEL hold_state pending_state queue pe
+   global CHECK_ACT_LEVEL
 
-  set queue "qrdel.q"
-  set pe "qrdel_pe"
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { return 0 }
+   }
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { return 0 }
-  }
-
-  return -1  ;# no other level else
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
@@ -94,6 +91,9 @@ proc qrdel_init_level {} {
 proc qrdel_setup {} {
    global queue test_host pe
    global CHECK_FIRST_FOREIGN_SYSTEM_USER
+
+   set queue "qrdel.q"
+   set pe "qrdel_pe"
 
    set pe_param(slots)                "50"
    add_pe "$pe" pe_param

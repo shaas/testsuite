@@ -68,11 +68,14 @@ set check_cleanup_function "smf_cleanup"
 set check_highest_level       0
 
 proc smf_init_level {} {
-   global ts_config
    global CHECK_ACT_LEVEL
 
+   if {[is_61AR]} {
+      return -1
+   }
+
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      0  {
          return 0
       }
    }

@@ -1,3 +1,7 @@
+JG-2008-08-05-0: Enhancem.:  Allow running testsuite with V61AR* branch.
+                 Bugfix:     Fixed system_tests/qmaster/complex.
+                 Review:     EB
+
 ZG-2008-08-05-0: Bugfix:     Adding missin variable declaration in
                              config_database/db_config_add_newdatabase()
                  Review:     AP

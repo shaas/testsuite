@@ -380,14 +380,13 @@ proc seek_and_destroy_sge_processes {} {
 #     string with parsed file output
 #
 #*******************************************************************************
-proc check_messages_files { } {
+proc check_messages_files {} {
    get_current_cluster_config_array ts_config
-
 
    set full_info ""
 
    foreach host $ts_config(execd_nodes) {
-      set status [ check_execd_messages $host 1] 
+      set status [check_execd_messages $host 1] 
       append full_info "\n=========================================\n"
       append full_info "execd: $host\n"
       append full_info "file : [check_execd_messages $host 2]\n"
@@ -395,8 +394,8 @@ proc check_messages_files { } {
       append full_info $status
    }
 
-   if {$ts_config(gridengine_version) < 62} {
-      set status [ check_schedd_messages 1] 
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
+      set status [check_schedd_messages 1] 
       append full_info "\n=========================================\n"
       append full_info "schedd: $ts_config(master_host)\n"
       append full_info "file  : [check_schedd_messages 2]\n"
@@ -404,7 +403,7 @@ proc check_messages_files { } {
       append full_info $status
    }
 
-   set status [ check_qmaster_messages 1] 
+   set status [check_qmaster_messages 1] 
    append full_info "\n=========================================\n"
    append full_info "qmaster: $ts_config(master_host)\n"
    append full_info "file   : [check_qmaster_messages 2]\n"
@@ -432,8 +431,8 @@ proc check_messages_files { } {
 #     sge_procedures/get_schedd_messages_file()
 #
 #*******************************************************************************
-proc get_qmaster_messages_file { } {
-   return [ check_qmaster_messages 2 ]
+proc get_qmaster_messages_file {} {
+   return [check_qmaster_messages 2]
 }
 
 #****** sge_procedures/check_qmaster_messages() ********************************
@@ -502,7 +501,7 @@ proc check_qmaster_messages { { show_mode 0 } } {
 #     sge_procedures/get_qmaster_messages_file()
 #*******************************************************************************
 proc get_schedd_messages_file { } {
-   return [ check_schedd_messages 2 ]
+   return [check_schedd_messages 2]
 }
 
 #****** sge_procedures/check_schedd_messages() *********************************
@@ -532,7 +531,7 @@ proc check_schedd_messages { { show_mode 0 } } {
    get_current_cluster_config_array ts_config
 
    set spool_dir [get_qmaster_spool_dir]
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       set messages_file "$spool_dir/schedd/messages"
    } else {
       # schedd messages are part of the master messages file
@@ -4288,7 +4287,7 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
       set messages(-26)   "*[translate_macro MSG_INVALIDJOB_REQUEST_S "*"]*"
       set messages(-28)   "*[translate_macro MSG_QREF_QUNKNOWN_S "*"]*"
 
-      if {$ts_config(gridengine_version) < 61} {
+      if {$ts_config(gridengine_version) < 61 || [is_61AR]} {
          set messages(-29)    "blah blah blah no MSG_JOB_NONADMINPRIO in GE < 6.1"
          set messages(-36)    "blah blah blah no MSG_JOB_SAMEPATHSFORINPUTANDOUTPUT_SSS in GE < 6.1"
          set messages(-37)    "blah blah blah no MSG_EVAL_EXPRESSION_LONG_EXPRESSION in GE < 6.1"
@@ -5789,7 +5788,7 @@ proc wait_for_jobend { jobid jobname seconds {runcheck 1} { wait_for_end 0 } } {
 #     sge_procedures/startup_execd()
 #     sge_procedures/startup_shadowd()
 #*******************************************************************************
-proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
+proc startup_qmaster {{and_scheduler 1} {env_list ""} {on_host ""}} {
    global CHECK_USER
    global CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL
@@ -5802,12 +5801,12 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
 
    set start_host $ts_config(master_host)
 
-   if { $on_host != "" } {
+   if {$on_host != ""} {
       set start_host $on_host
    }
 
-   if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-      if { [have_root_passwd] != 0  } {
+   if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
+      if {[have_root_passwd] != 0} {
          ts_log_warning "no root password set or ssh not available"
          return -1
       }
@@ -5816,7 +5815,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       set startup_user $CHECK_USER
    } 
 
-   if {$ts_config(gridengine_version) < 62 && $and_scheduler} {
+   if {($ts_config(gridengine_version) < 62 || [is_61AR]) && $and_scheduler} {
       set schedd_message "and scheduler"
    } else {
       set schedd_message ""
@@ -5843,7 +5842,7 @@ proc startup_qmaster { {and_scheduler 1} {env_list ""} {on_host ""} } {
       start_remote_prog "$start_host" "$startup_user" "$ts_config(product_root)/bin/${arch}/sge_qmaster" ";sleep 2" prg_exit_state 60 0 "" envlist
    }
 
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       if {$and_scheduler} {
          set old_schedd_pid [get_scheduler_pid $start_host [get_qmaster_spool_dir]]
          ts_log_finest "old scheduler pid is \"$old_schedd_pid\""
@@ -6120,7 +6119,7 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
       set qmaster_pid -1
    }
 
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       set scheduler_pid [start_remote_prog "$hostname" "$CHECK_USER" "cat" "$qmaster_spool_dir/schedd/schedd.pid"]
       set scheduler_pid [ string trim $scheduler_pid ]
       if { $prg_exit_state != 0 } {
@@ -6134,7 +6133,7 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
       incr running 2
    }
 
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       get_ps_info $scheduler_pid $hostname
 
       if { ($ps_info($scheduler_pid,error) == 0) && ( [ string first "schedd" $ps_info($scheduler_pid,string)] >= 0  ) } {
@@ -6187,7 +6186,7 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
 proc shutdown_master_and_scheduler {hostname qmaster_spool_dir} {
    get_current_cluster_config_array ts_config
 
-   if {$ts_config(gridengine_version) < 62} {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       shutdown_scheduler $hostname $qmaster_spool_dir
    }
    shutdown_qmaster $hostname $qmaster_spool_dir
@@ -6496,7 +6495,7 @@ proc get_shadowd_pid { hostname {qmaster_spool_dir ""}} {
       set pid_file "$qmaster_spool_dir/shadowd_$HOST.pid"
       start_remote_prog $hostname $CHECK_USER "test" "-f $pid_file"
       if {$prg_exit_state != 0} {
-	 ts_log_fine "No pid file. Shadowd is not running on host $hostname"
+	      ts_log_fine "No pid file. Shadowd is not running on host $hostname"
          return 0
       }
    }

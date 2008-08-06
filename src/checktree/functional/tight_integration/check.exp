@@ -102,7 +102,7 @@ proc tight_integration_init_level {} {
          return 0
       }
       2 {
-         if {$ts_config(gridengine_version) >= 62} {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
             return 0
          }
       }
@@ -178,7 +178,7 @@ proc tight_integration_setup_level {} {
    if {$tight_integration_accounting_summary} {
       set pe(accounting_summary) "TRUE"
    } else {
-      if {$ts_config(gridengine_version) >= 62} {
+      if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
          set pe(accounting_summary) "FALSE"
       }
    }
@@ -1052,7 +1052,7 @@ proc tight_integration_acct {job_id num_tasks} {
 
    # in 6.0u13 and higher, the submission time of tasks is specified; in older version it was 0.
    # check that all submission times are in an interval of 5 minutes
-   if {$ts_config(gridengine_version) >= 60} {
+   if {$ts_config(gridengine_version) >= 60 && ![is_61AR]} {
       set min [clock scan "tomorrow"]; set max 0
       foreach time $qacct_info(qsub_time) {
          if {$time < $min} {

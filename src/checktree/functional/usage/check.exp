@@ -124,7 +124,7 @@ proc usage_init_level {} {
       }
       2 -
       102 {
-         if {$ts_config(gridengine_version) >= 62} {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
             return 0
          }
       }
@@ -169,7 +169,7 @@ proc usage_setup_level {} {
    if {$usage_accounting_summary} {
       set pe(accounting_summary) "TRUE"
    } else {
-      if {$ts_config(gridengine_version) >= 62} {
+      if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
          set pe(accounting_summary) "FALSE"
       }
    }

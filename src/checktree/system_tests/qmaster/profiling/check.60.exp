@@ -114,7 +114,7 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
 
    # initialize counters for profiling messages
    set prof(PROF_SIGNAL) 0
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       set prof(PROF_LISTENER) 0
    } else {
       set prof(PROF_MESSAGE) 0
@@ -194,7 +194,7 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
 
    # some informational output
    ts_log_fine "PROF_SIGNAL:  $prof(PROF_SIGNAL)"
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       ts_log_fine "PROF_LISTENER: $prof(PROF_LISTENER)"
    } else {
       ts_log_fine "PROF_MESSAGE: $prof(PROF_MESSAGE)"
@@ -209,7 +209,7 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
          # here we may not have received any profiling messages
          set error 0
          set message "expected no profiling message to show up, but got"
-         if {$ts_config(gridengine_version) >= 62} {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
             set prof_strings "PROF_SIGNAL PROF_LISTENER PROF_DELIVER PROF_TEVENT"
          } else {
             set prof_strings "PROF_SIGNAL PROF_MESSAGE PROF_DELIVER PROF_TEVENT"
@@ -233,7 +233,7 @@ proc qmaster_profiling_monitor {id expected_prof {tail_timeout 70}} {
          # 0 messages for the other ones
          set error 0
          set message "expected $expected_prof profiling messages to show up, but got"
-         if {$ts_config(gridengine_version) >= 62} {
+         if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
             set prof_strings "PROF_SIGNAL PROF_LISTENER PROF_DELIVER PROF_TEVENT"
          } else {
             set prof_strings "PROF_SIGNAL PROF_MESSAGE PROF_DELIVER PROF_TEVENT"
@@ -273,7 +273,7 @@ proc qmaster_profiling_dynamic {} {
 
    # for all threads (PROF_SIGNAL, [PROF_MESSAGE | PROF_LISTENER], PROF_DELIVER, PROF_TEVENT)
    # the signal thread will never output PROF messages - skip PROF_SIGNAL
-   if { $ts_config(gridengine_version) >= 62 } {
+   if { $ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       set prof_strings "PROF_LISTENER PROF_DELIVER PROF_TEVENT"
    } else {
       set prof_strings "PROF_MESSAGE PROF_DELIVER PROF_TEVENT"
@@ -311,7 +311,7 @@ proc qmaster_profiling_restart {} {
    set id [init_logfile_wait $ts_config(master_host) "$spooldir/messages"]
 
    # enable some profiling level
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       set global_conf(qmaster_params) "PROF_LISTENER=true"
    } else {
       set global_conf(qmaster_params) "PROF_MESSAGE=true"
@@ -319,7 +319,7 @@ proc qmaster_profiling_restart {} {
    set_config global_conf
 
    # wait for PROF messages to show up
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       qmaster_profiling_monitor $id PROF_LISTENER
    } else {
       qmaster_profiling_monitor $id PROF_MESSAGE
@@ -332,14 +332,14 @@ proc qmaster_profiling_restart {} {
    startup_qmaster 0
 
    # wait for PROF messages
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       qmaster_profiling_monitor $id PROF_LISTENER
    } else {
       qmaster_profiling_monitor $id PROF_MESSAGE
    }
 
    # switch off profiling
-   if {$ts_config(gridengine_version) >= 62} {
+   if {$ts_config(gridengine_version) >= 62 && ![is_61AR]} {
       set global_conf(qmaster_params) "PROF_LISTENER=false"
    } else {
       set global_conf(qmaster_params) "PROF_MESSAGE=false"
