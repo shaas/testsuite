@@ -2299,6 +2299,7 @@ proc config_source_dir { only_check name config_array } {
       set pos [string first "/testsuite" $config(testsuite_root_dir)]
       set config($name,default) "[string range $config(testsuite_root_dir) 0 $pos]source"
       }
+   set old_value $config($name)
 
    set value [config_generic $only_check $name config $help_text "directory" 0]
 
@@ -2315,6 +2316,11 @@ proc config_source_dir { only_check name config_array } {
    if { $local_arch == "unknown" } {
       puts "Could not resolve local system architecture" 
       return -1
+   }
+
+   if { $old_value != $value } {
+      set config(source_dir) $value
+      set config(source_cvs_release) [$config(source_cvs_release,setup_func) $only_check source_cvs_release config]
    }
 
    return $value

@@ -1,3 +1,7 @@
+AP-2008-08-07-0: Bugfix:     Testsuite configuration - can't change the source dir
+                 Issue:      211
+                 Review:     ZG
+
 JG-2008-08-05-0: Enhancem.:  Allow running testsuite with V61AR* branch.
                  Bugfix:     Fixed system_tests/qmaster/complex.
                  Review:     EB
@@ -6,14 +10,14 @@ ZG-2008-08-05-0: Bugfix:     Adding missin variable declaration in
                              config_database/db_config_add_newdatabase()
                  Review:     AP
 
-DG-2008-08-04-0: Cleanup:    Test qacct is sending email (severe) when 
+DG-2008-08-04-0: Cleanup:    Test qacct is sending email (severe) when
                              accounting file does not exist.
-                 Review:     JG 
+                 Review:     JG
 
 MD-2008-08-04-0: Bugfix:     Fixed broken issue_1661 test.
                  Review:     MD
 
-DG-2008-08-01-0: Bugfix:     Fixed binary_submission test. 
+DG-2008-08-01-0: Bugfix:     Fixed binary_submission test.
                  Review:     CR
 
 CR-2008-08-01-0: Enhancem.:  implemented build arch cache for procedure
@@ -41,7 +45,7 @@ RH-2008-07-31-0: Enhancem.:  Test for executing hedeby junit tests added
 
 DG-2008-07-30-0: Cleanup:    qmaster_spooling test failed because of new bug in
                              qsub (CR 6730437). Since this is not an spooling
-                             issue the test was changed. 
+                             issue the test was changed.
                  Review:     EB
 
 RH-2008-07-30-0: Enhancem.:  test for hedeby issue 527 added
@@ -60,11 +64,11 @@ CR-2008-07-24-0: Bugfix:     o Fixed hedeby test components/ge/stop_and_free_res
                                produce_ambiguous_resource() in checktree_hedeby/util.tcl
                  Review:     TB
 
-JG-2008-07-23-1: Bugfix:     Minor fixes and cleanup for 
+JG-2008-07-23-1: Bugfix:     Minor fixes and cleanup for
                              system_tests/clients/qconf.
                  Review:     MD
 
-AP-2008-07-23-0: Bugfix:     Host specific values shouldn't be added for 
+AP-2008-07-23-0: Bugfix:     Host specific values shouldn't be added for
                              hostlist attribute.
                  Review:     JG
 
