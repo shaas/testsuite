@@ -7541,7 +7541,8 @@ proc submit_with_method {submit_method options script args tail_host {user ""}} 
          ts_log_fine "submitting job using qsub, reading from job output file"
          # create job output file
          set job_output_file "$CHECK_PROTOCOL_DIR/check.out"
-         catch {exec touch $job_output_file} output
+         set output [start_remote_prog  $tail_host $CHECK_USER "touch" $job_output_file]
+         ts_log_fine "touch $job_output_file output:\n$output"
          # initialize tail to logfile
          set sid [init_logfile_wait $tail_host $job_output_file]
          # submit job

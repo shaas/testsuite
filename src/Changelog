@@ -1,3 +1,6 @@
+CR-2008-08-07-0: Bugfix:     Fixed minor testsuite issues
+                 Review:     JG
+
 AP-2008-08-07-0: Bugfix:     Testsuite configuration - can't change the source dir
                  Issue:      211
                  Review:     ZG

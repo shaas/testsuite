@@ -1592,7 +1592,10 @@ proc qrsh_env {} {
    set arch [resolve_arch $qrsh_submithost]
    set qrsh_bin "$ts_config(product_root)/bin/$arch/qrsh"
    set output [start_remote_prog $qrsh_submithost $CHECK_USER $qrsh_bin "-v QRSH_ENV_TEST_DUMMY 'echo \$QRSH_ENV_TEST_DUMMY'" prg_exit_state 60 0 "" my_env]
-   if {[string compare [string trim $output] $inherited_value] != 0} {
+   set output [string trim $output]
+   ts_log_finer "output (length):   \"$output\" ([string length $output])"
+   ts_log_finer "expected: (length) \"$inherited_value\" ([string length $inherited_value])"
+   if {[string compare $output $inherited_value] != 0} {
       set error_text "qrsh did not inherit test environment variable: $inherited_value != $output\n"
       append error_text "Bug 1255: qrsh does not properly pass along environment variables"
       ts_log_severe $error_text

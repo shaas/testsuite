@@ -137,7 +137,7 @@ proc job_environment_amount_uninherited {} {
    set_config_and_propagate new_config $job_environment_exec_host
 
    set errors ""
-
+   set warnings ""
    job_environment_var_test missing extra
    set error_type "-3"
    if {[llength $missing] != 0} {
@@ -153,11 +153,14 @@ proc job_environment_amount_uninherited {} {
       foreach extra_var $extra {
          append extra_vars " $extra_var"
       }
-      append errors "\nThe following unrecognized environment variables were set: [string trim $extra_vars]"
+      append warnings "\nThe following unrecognized environment variables were set: [string trim $extra_vars]"
    }
 
    if {$errors != ""} {
       ts_log_severe [string trim $errors]
+   }
+   if {$warnings != ""} {
+      ts_log_config [string trim $warnings]
    }
 }
 
