@@ -6060,6 +6060,40 @@ proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {
    return $slo_txt
 }
 
+#****** util/create_max_pending_jobs_slo() ************************************
+#  NAME
+#     create_max_pending_jobs_slo() -- create max pending jobs slo xml string
+#
+#  SYNOPSIS
+#     create_max_pending_jobs_slo { {urgency 1 } 
+#     { name "MaxPendingJobsSLO" } { max 1 } } 
+#
+#  FUNCTION
+#     creates xml string with specified values
+#
+#  INPUTS
+#     { urgency 1 }                  - urgency value
+#     { name "MaxPendingJobsSLO" }   - name value
+#     { max 1 }                      - maximun number of pending jobs for this host.
+#
+#  RESULT
+#     xml string
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#     util/create_fixed_usage_slo()
+#     util/set_hedeby_slos_config()
+#*******************************************************************************
+proc create_max_pending_jobs_slo {{urgency 1 } { name "MaxPendingJobsSLO" } { max 1 }} {
+   set slo_txt ""
+   append slo_txt "<common:slo xsi:type=\"ge_adapter:MaxPendingJobsSLOConfig\" "
+   append slo_txt                   "urgency=\"$urgency\" "
+   append slo_txt                   "name=\"$name\" "
+   append slo_txt                   "max=\"$max\">"
+   append slo_txt "</common:slo>"
+   return $slo_txt
+}
+
 #****** util/hedeby_mod_setup() ************************************************
 #  NAME
 #     hedeby_mod_setup() -- startup hedeby (vi) modification sdmadm command
@@ -6561,7 +6595,7 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    lappend sequence "/<common:slos>\n"
    lappend sequence "ma/<\\/common:slos>\n"
    lappend sequence ":'a,.d\n"
-
+   
    # add new slo section
    lappend sequence "i"
    lappend sequence "<common:slos>\n"
@@ -6572,7 +6606,7 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    lappend sequence "</common:slos>\n"
    lappend sequence "[format "%c" 27]" ;# ESC
 
- 
+
    if { $service != "spare_pool" } {
       # search and replace sloUpdateInterval if service is not spare_pool
       lappend sequence "/sloUpdateInterval\n"

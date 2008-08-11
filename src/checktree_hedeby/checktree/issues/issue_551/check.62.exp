@@ -1,0 +1,229 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_551"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Max pending jobs SLO test issue 551"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue551_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue551_setup_level"
+set check_cleanup_level_function "hedeby_issue551_cleanup_level"
+
+lappend check_functions "hedeby_issue551_check"
+
+
+#****** issue_551/hedeby_issue551_init_level() ************************
+#  NAME
+#     hedeby_issue551_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue551_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue551_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue551/hedeby_issue551_setup_level() *********************************
+#  NAME
+#    hedeby_issue551_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue551_setup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue551_setup_level {} {
+    global max_pending_jobs_current_cluster_config
+    set max_pending_jobs_current_cluster_config [get_current_cluster_config_nr]
+}
+
+#****** issue551/hedeby_issue551_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue551_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue551_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue551_cleanup_level {} {
+    global max_pending_jobs_current_cluster_config
+    global ge_adapter
+    global service_names
+
+    reset_default_slos "mod_config" $ge_adapter
+    if {[move_resources_to_default_services] != 0} {
+         reset_hedeby 1
+    }
+    #enable queues of ge adapater service and delete all jobs in queues 
+    foreach host $service_names(execd_hosts,$ge_adapter) {
+      ts_log_fine "enabling queue on resource $host"
+      enable_queue [get_queue_instance all.q $host]
+    }
+    delete_all_jobs
+    wait_for_end_of_all_jobs 60
+    
+    #reset saved active cluster configuration nr
+    set_current_cluster_config_nr $max_pending_jobs_current_cluster_config
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** issue_5551/hedeby_issue551_check *****************************
+#  NAME
+#     hedeby_issue551_check() -- check if MaxPendingJobsSLO is working
+#
+#  SYNOPSIS
+#     hedeby_issue551_check { } 
+#
+#  FUNCTION
+#     this steps test hedeby issue 551: 
+#       MaxPendingJobsSLO is not working
+#
+#      Executed steps:
+#        1. modify configuration of one of the GE Adapters by adding there 
+#           MaxPendingJobsSLO slo with smdadm mc -c <component> command.
+#        2. update configuration of the component where slo was added with 
+#           sdmadm uc -c <component>
+#        3. disable all queue instances of the cluster qmod -d "*" on ge adapter host
+#        4. submit couple of sleeper jobs to the cluster
+#        5. Check if the jobs finish thanks to sent slo.
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue551_check {} {
+   global hedeby_config
+   global ge_adapter
+   global admin_user
+   global service_names 
+
+   set error_text ""
+   get_hedeby_default_services service_names
+   set ge_adapter ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set master_host $hedeby_config(hedeby_master_host)
+   get_current_cluster_config_array ts_config
+   set sge_root $ts_config(product_root)
+
+   #get the first found ge adapter
+   foreach service $service_names(services) {
+      set ge_adapter $service
+      break
+   }
+   if {$ge_adapter == ""} {
+      append error_text "There is no GE Adapters components in the system."
+   }
+   set host $service_names(master_host,$ge_adapter)
+   
+   #add MaxPendingJobs slo to the configuration of the ge adapter
+   set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" 1]
+   set fixed_usage_slo [create_fixed_usage_slo 50 "fixed_usage"]
+   set slos {}
+   lappend slos $max_pending_jobs_slo
+   lappend slos $fixed_usage_slo
+   if {[set_service_slos "mod_config" $service $slos 1 "minutes" 1] != 0} {
+      append error_text "Setting slos for service \"$service\" failed!"
+   }
+
+   #lets disable all queues of our ge_adapter service 
+   foreach host $service_names(execd_hosts,$ge_adapter) {
+      ts_log_fine "disabling queue on resource $host"
+      if {[disable_queue [get_queue_instance all.q $host]] != 0} {
+          append error_text "Disabling of queues of service $ge_adapter on resource $host failed!"
+      }
+    }
+
+   #lets submit sleeper jobs, job should wait cause all queues are disabled
+   set tries 3
+   for {set i 0} {$i < $tries} {incr i} {
+      set my_outputs "-o /dev/null -e /dev/null"
+      set arguments "$my_outputs $sge_root/examples/jobs/sleeper.sh 10"
+      submit_job $arguments
+   }
+   
+   #now we are waiting for need to be send and for additional resource on which job could be executed
+   set time [expr "150 + $tries * 100"]
+   if {[wait_for_end_of_all_jobs $time] != 0} {
+      append error_text "Service $ge_adapter did not get additional resources to finish submitted jobs"
+   }
+   
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
