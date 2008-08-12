@@ -456,6 +456,8 @@ proc check_shadowd_settings { shadowd_host } {
       ts_log_fine "master:  $master_host"
       if { $master_host == $shadowd_host } {
          return ""
+      } else {
+         return "shadowd_host is not master_host! Please alter your testsuite configuration!"
       }
    }
 

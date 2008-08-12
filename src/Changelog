@@ -1,3 +1,8 @@
+DG-2008-08-12-0: Cleanup:    Fixed arch cache for resolve_arch(). 
+                             Missing output when shadow daemon is not 
+                             configured properly. 
+                 Review:     CR
+
 MG-2008-08-11-0: Bugfix:     Testsuite test for SDM issue 551
                  Review:     CR
 

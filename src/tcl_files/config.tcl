@@ -4124,6 +4124,13 @@ proc config_shadowd_hosts { only_check name config_array } {
       } else { set check_host "" }
       set value [config_check_host_in_hostlist $value $check_host]
    } 
+   
+   # at least one shadowd must run on qmaster host
+   if {[lsearch -exact $value $config(master_host)] < 0 } {
+      puts "master host $config(master_host) is not in shadowd list: $value"
+      return -1
+   }
+    
 
    set CHECK_CORE_SHADOWD $value
 

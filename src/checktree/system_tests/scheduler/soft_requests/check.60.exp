@@ -404,6 +404,10 @@ proc soft_requests_test {} {
       #     load values as soft requests uses arch 
       ts_log_fine "\ncase b)"
 
+      if {[info exists map]} {
+         unset map
+      }
+
       foreach host $ts_config(execd_nodes) {
          set arch [resolve_arch $host]
          lappend map($arch) $host

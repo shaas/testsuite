@@ -1977,8 +1977,8 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
 
    set host [node_get_host $node]
    set nr [get_current_cluster_config_nr]
-   if {[info exists arch_cache($nr,$host)]} {
-      return $arch_cache($nr,$host)
+   if {[info exists arch_cache($nr,$host,$use_source_arch,$source_dir_value)]} {
+      return $arch_cache($nr,$host,$use_source_arch,$source_dir_value)
    }
 
    if { [ info exists CHECK_USER ] == 0 } {
@@ -1994,10 +1994,16 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
    }
 
    set util_arch_dir ""
+   set store_in_cache 1
    if {[file exists "$ts_config(product_root)/util/arch"] && ! $use_source_arch} {
+      # use distinst arch script (product_root)
       set util_arch_dir $ts_config(product_root)
    } else {
-      if { $source_dir_value == "" } {
+      # use source arch script (use_source_arch != 0 || product root/util/arch not found)
+      if {$use_source_arch == 0} {
+         set store_in_cache 0
+      }
+      if {$source_dir_value == ""} {
          set util_arch_dir $ts_config(source_dir)/dist
       } else {
          set util_arch_dir $source_dir_value/dist
@@ -2015,10 +2021,12 @@ proc resolve_arch {{node "none"} {use_source_arch 0} {source_dir_value ""}} {
       return "unknown"
    }
    set result [parse_arch_output $result]
-   if { $result != "unknown" } {
-      set arch_cache($nr,$host) [lindex $result 0]
+   if { $result != "unknown" && $store_in_cache == 1 } {
+      set arch_cache($nr,$host,$use_source_arch,$source_dir_value) [lindex $result 0]
+      return $arch_cache($nr,$host,$use_source_arch,$source_dir_value)
+   } else { 
+      return [lindex $result 0]
    }
-   return $arch_cache($nr,$host)
 }
 
 
