@@ -1,3 +1,7 @@
+DG-2008-08-12-0: Cleanup:    Fixed qmaster installation for RPC BDB. 
+                             Does not delete cell dir anymore.
+                 Review:     CR 
+
 DG-2008-08-12-0: Cleanup:    Fixed arch cache for resolve_arch(). 
                              Missing output when shadow daemon is not 
                              configured properly. 

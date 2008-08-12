@@ -534,13 +534,23 @@ proc install_qmaster {} {
        }
 
        -i $sp_id $CELL_NAME_OVERWRITE { 
-          puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(5.2)"
-          if {$do_log_output == 1} {
-             puts "press RETURN"
-             set anykey [wait_for_enter 1]
+          if {$ts_config(bdb_server) == "none"} {
+             puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(5.2.1)"
+             if {$do_log_output == 1} {
+                puts "press RETURN"
+                set anykey [wait_for_enter 1]
+             }
+             ts_send $sp_id "$ANSWER_NO\n"
+             continue
+          } else {
+            puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(5.2.2)"
+             if {$do_log_output == 1} {
+                puts "press RETURN"
+                set anykey [wait_for_enter 1]
+             }
+             ts_send $sp_id "$ANSWER_YES\n"
+             continue
           }
-          ts_send $sp_id "$ANSWER_NO\n"
-          continue
        }
 
        #BDB was installed first, we have a new question
