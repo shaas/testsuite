@@ -1,4 +1,5 @@
-MG-2008-08-11-0: Bugfix:     Unsecured hedeby system installation fails
+MB-2008-08-13-1: Cleanup:    Fixed changelog entry
+MB-2008-08-13-0: Bugfix:     Unsecured hedeby system installation fails
                  Issue :     235
                  Review:     MG
 
