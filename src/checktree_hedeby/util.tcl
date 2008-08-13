@@ -2000,7 +2000,7 @@ proc startup_hedeby_hosts { type host_list user } {
          foreach host $host_list {
             ts_log_fine "WARNING! Setting security disable property on host $host!"
             set propArray($host,expected_output) ""
-            set propArray($host,sdmadm_command) "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p ssl_disable -v true"
+            set propArray($host,sdmadm_command) "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p no_ssl -v true"
          }
          append error_text [start_parallel_sdmadm_command host_list $user propArray]
          foreach host $host_list {
@@ -2017,7 +2017,7 @@ proc startup_hedeby_hosts { type host_list user } {
          # to set system properties on master host
          ts_log_fine "WARNING! Setting security disable property!"
          set host $hedeby_config(hedeby_master_host)
-         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p ssl_disable -v true"]
+         set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sebcp -p no_ssl -v true"]
          if { $prg_exit_state != 0 } {
             append error_text "cannot set security disable property on host $host:\n$output\n"
          }

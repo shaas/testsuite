@@ -1,3 +1,7 @@
+MG-2008-08-11-0: Bugfix:     Unsecured hedeby system installation fails
+                 Issue :     235
+                 Review:     MG
+
 DG-2008-08-12-0: Cleanup:    Fixed qmaster installation for RPC BDB. 
                              Does not delete cell dir anymore.
                  Review:     CR 
