@@ -1,3 +1,7 @@
+CR-2008-08-13-0: Enhancem.:  Added ts_log_fine output to commlib test
+                             checktree/performance/commlib/check.60.exp
+                 Review:     DG
+
 MB-2008-08-13-1: Cleanup:    Fixed changelog entry
 MB-2008-08-13-0: Bugfix:     Unsecured hedeby system installation fails
                  Issue :     235

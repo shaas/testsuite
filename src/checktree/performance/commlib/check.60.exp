@@ -597,7 +597,9 @@ proc cl_throughput_run {} {
          cl_throughput_start_clients $vqmaster_host $nr_event_clients $CHECK_USER $vevc_binary vevc_args
       }
 
+      ts_log_fine "starting $vqmaster_binary $vqmaster_args"
       set result [start_remote_prog $vqmaster_host $user $vqmaster_binary $vqmaster_args prg_exit_state $vqmaster_timeout]
+      ts_log_fine "output:\n$result"
       cl_throughput_parse_result $host_count result data
       set data(test_hostlist) "$used_hosts"
       set data(test_host) "$vqmaster_host"
