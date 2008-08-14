@@ -309,7 +309,7 @@ proc job_environment_INHERIT_ENV {} {
 #
 #*******************************************************************************
 proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
-   global job_environment_exec_host job_environment_libvar
+   global job_environment_exec_host job_environment_libvar ts_config
    upvar $error_var errors
 
    set args "-l h=$job_environment_exec_host -o /dev/null -j yes"
@@ -349,12 +349,29 @@ proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
       }
    }
 
-   if {$job_env($job_environment_libvar) != $expected_lib_path} {
-      # problem
-      append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with $new_config(execd_params)"
-      append errors "\n   Should be set to \"$expected_lib_path\""
-      return
+   if {$ts_config(gridengine_version) > 60} {
+      if {$expected_lib_path != $job_env($job_environment_libvar)} {
+         # problem
+         append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with $new_config(execd_params)"
+         append errors "\n   Should be set to \"$expected_lib_path\""
+      }
+   } else {
+      if {[string first $expected_lib_path $job_env($job_environment_libvar)] == -1} {
+         # problem: since the sgeexecd script is not updated and an existing shared lib path is set
+         # we have to check if the exepected path is contained in the lib path 
+         append errors "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with $new_config(execd_params)"
+         append errors "\n   Should be set to \"$expected_lib_path\""
+         return
+      } else {
+         if {$expected_lib_path != $job_env($job_environment_libvar)} {
+            set warning ""
+            append warning "\nShared library path is incorrectly set to \"$job_env($job_environment_libvar)\", with $new_config(execd_params)"
+            append warning "\n   Should be set to \"$expected_lib_path\""
+            ts_log_config $warning 
+         }
+      }
    }
+
    ts_log_frame
    ts_log_fine "libpath correctly set set to"
    ts_log_fine "\"$expected_lib_path\""
@@ -380,6 +397,7 @@ proc test_job_environment_lib_path {error_var execd_params expected_lib_path} {
 #     0 -> ok   1 -> error
 #*******************************************************************************
 proc job_environment_SET_LIB_PATH {} {
+
    global ts_config
    global job_environment_exec_host job_environment_libvar
    global job_environment_libpath
