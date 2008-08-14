@@ -2242,25 +2242,27 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
 
    set build_arch [resolve_build_arch $host]
 
+   
+
    # we need special handling for some architectures, e.g. HP11 64bit
    switch $build_arch {
       "HP1164" {
          set arch [resolve_arch $host]
-         if {$arch == "hp11"} {
+         if {$arch == "hp11" && [is_remote_path $host $CHECK_USER $ts_config(source_dir)/HP11]} {
             ts_log_config "We are on hp11 64bit platform (build platform HP1164) with 32bit binaries installed.\nUsing hp11 (build platform HP11) test binaries" $raise_error
             set build_arch "HP11"
          }
       }
       "LINUXAMD64_26" {
          set arch [resolve_arch $host]
-         if {$arch == "lx24-amd64"} {
+         if {$arch == "lx24-amd64" && [is_remote_path $host $CHECK_USER $ts_config(source_dir)/LINUXAMD64_24]} {
             ts_log_config "We are on lx26-amd64 platform (build platform LINUXAMD64_26) with lx24-amd64 binaries installed.\nUsing lx24-amd64 (build platform LINUXAMD64_24) test binaries" $raise_error
             set build_arch "LINUXAMD64_24"
          }
       }
       "LINUX86_26" {
          set arch [resolve_arch $host]
-         if {$arch == "lx24-x86"} {
+         if {$arch == "lx24-x86" && [is_remote_path $host $CHECK_USER $ts_config(source_dir)/LINUX86_24]} {
             ts_log_config "We are on lx26-x86 platform (build platform LINUX86_26) with lx24-x86 binaries installed.\nUsing lx24-x86 (build platform LINUX86_24) test binaries" $raise_error
             set build_arch "LINUX86_24"
          }
@@ -2269,7 +2271,7 @@ proc resolve_build_arch_installed_libs {host {raise_error 1}} {
 
    if { [is_remote_path $host $CHECK_USER $ts_config(source_dir)/$build_arch] == 0 } {
       ts_log_severe "can't find build directory: $ts_config(source_dir)/$build_arch" $raise_error
-   }
+   } 
 
    # update cache
    set resolve_build_arch_installed_libs_cache($host) $build_arch

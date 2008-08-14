@@ -1,3 +1,7 @@
+CR-2008-08-14-0: Cleanup:    Fixed architecture resolving for product testing  
+                             in procedure resolve_build_arch_installed_libs(). 
+                 Review:     DG
+
 CR-2008-08-13-0: Enhancem.:  Added ts_log_fine output to commlib test
                              checktree/performance/commlib/check.60.exp
                  Review:     DG
