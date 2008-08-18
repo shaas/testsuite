@@ -112,7 +112,8 @@ proc issue_2418_test {} {
    # as we want to kill the qrsh by pid later on
    set qrsh_submithost [host_conf_get_suited_hosts]
    set arch [resolve_arch $qrsh_submithost]
-   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/print_pid_and_exec.sh" "$ts_config(product_root)/bin/$arch/qrsh -verbose -now no $ts_config(product_root)/examples/jobs/sleeper.sh"]
+   set host [lindex $ts_config(execd_nodes) 0]
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/print_pid_and_exec.sh" "$ts_config(product_root)/bin/$arch/qrsh -verbose -now no -q all.q@$host $ts_config(product_root)/examples/jobs/sleeper.sh"]
    set sp_id [lindex $qrsh_id 1]
 
    # wait for the job to be submitted, parse qrsh pid and job id
@@ -160,8 +161,7 @@ proc issue_2418_test {} {
    }
 
    # enable test queue, trigger scheduling
-   set queue_name [get_queue_instance "all.q" $qrsh_submithost]
-   enable_queue $queue_name
+   enable_queue "all.q@$host"
    trigger_scheduling
 
    # wait for the job to fail and to be deleted
@@ -173,9 +173,9 @@ proc issue_2418_test {} {
    }
 
    # check state of all queues - they may not be in error state
-   set queue_state [get_queue_state $queue_name]
+   set queue_state [get_queue_state "all.q@$host"]
    if {[string first "E" $queue_state] >= 0} {
-      ts_log_severe "queue $queue_name is in error state: $queue_state"
+      ts_log_severe "queue all.q@$host is in error state: $queue_state"
    }
 }
 
