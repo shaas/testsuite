@@ -1,3 +1,9 @@
+CR-2008-08-19-0: Cleanup:    o compile_source(): create dependencies when
+                               compile_clean CLI option is used
+                             o framework: get scheduler status before
+                               running test
+                 Review:     DG
+
 MP-2008-08-18-0: Cleanup:    Fixed broken test for IZ 2418
                  Review:     DG
 

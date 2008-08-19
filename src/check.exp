@@ -4085,12 +4085,35 @@ proc run_test_level {path runcompleted level {do_save 1}} {
       if {$ts_config(gridengine_version) < 62} {
          if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] != 1} {
             ts_log_severe "scheduler is not alive"
+            set do_start 0
          }
       }
-      wait_for_load_from_all_queues 60
+      set mytimeout [timestamp]
+      incr mytimeout 90
+      while {1} {
+         if {[timestamp] > $mytimeout && $do_start == 1} {
+            ts_log_severe "timeout waiting for scheduler status"
+            set do_start 0
+            break
+         }
+         set ret [get_scheduler_status result1 "" "" 0]
+         if { [llength $result1] == 1 && $ret == 0 } {
+            if { [host_list_compare $ts_config(master_host) $result1 0 1] == 0 } {
+               break
+            }
+         }
+         ts_log_fine "waiting for connected scheduler ..."
+         after 5000
+      }
+      
+      set ret [get_scheduler_status result1 "" "" 0]
+      
+      if {$do_start == 1 && [wait_for_load_from_all_queues 60] == -1} {
+         set do_start 0
+      }
       
       set do_run_hook 1
-      if {[exec_start_runlevel_hooks 1 0] != 0} {
+      if {$do_start == 1 && [exec_start_runlevel_hooks 1 0] != 0} {
          set do_start 0
       }
    }

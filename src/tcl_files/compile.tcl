@@ -623,7 +623,7 @@ proc compile_source { { do_only_hooks 0} } {
    } else {
       set do_aimk_depend_clean 0
    }
-   if {$res == 1} {
+   if {$res == 1 || $check_do_clean_compile } {
       # make dependencies before compile clean
       if {$do_only_hooks == 0} {
          if {[compile_depend $compile_hosts report 1] != 0} {
