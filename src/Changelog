@@ -1,3 +1,8 @@
+CR-2008-08-20-0: Bugfix:     ge_stop_and_free_resources does not wait for stopped
+                             service
+                 Issue:      236
+                 Review:     TB
+
 CR-2008-08-19-0: Cleanup:    o compile_source(): create dependencies when
                                compile_clean CLI option is used
                              o framework: get scheduler status before

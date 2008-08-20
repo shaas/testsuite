@@ -149,11 +149,12 @@ proc ge_stop_and_free_resources_cleanup {} {
 #
 #     actions:
 #        Step 1: Stop all ge services with the freeResource flag
-#        Step 2: Check that all nonstatic resource are moved to spare_pool
-#        Step 3: Start all ge services
-#        Step 4: Check that the static resources are assigned to the ge services
-#        Step 5: Move all nonstatic resource back to the ge services
-#        Step 6: Check that the nonstatic resource are back at the ge services
+#        Step 2: Wait for all ge services that state is STOPPED
+#        Step 3: Check that all nonstatic resource are moved to spare_pool
+#        Step 4: Start all ge services
+#        Step 5: Check that the static resources are assigned to the ge services
+#        Step 6: Move all nonstatic resource back to the ge services
+#        Step 7: Check that the nonstatic resource are back at the ge services
 #
 #  INPUTS
 #     no input parameters
@@ -205,9 +206,25 @@ proc ge_stop_and_free_resources_ge_service_check {} {
       append error_text $par_error
    }
    unset task_info
-   
+
+
    # ---------------------------------------------------------------------------
-   # Step 2: Check that all nonstatic resource are moved to spare_pool
+   # Step 2: Wait that all services have service state STOPPED
+   # ---------------------------------------------------------------------------
+   foreach service $service_names(services) {
+      ts_log_fine "Expecting service $service cstate=STARTED, sstate=STOPPED"
+      set exp_service_info($service,cstate) "STARTED"
+      set exp_service_info($service,sstate) "STOPPED"
+   }
+   set retval [wait_for_service_info exp_service_info 120 0 service_state_error]
+   if { $retval != 0} {
+      # append wrong service state info to error output
+      append error_text $service_state_error
+   }
+   unset exp_service_info
+
+   # ---------------------------------------------------------------------------
+   # Step 3: Check that all nonstatic resource are moved to spare_pool
    # ---------------------------------------------------------------------------
    foreach res $mvr_list {
       set exp_resource_info($res,service) "spare_pool"
@@ -223,7 +240,7 @@ proc ge_stop_and_free_resources_ge_service_check {} {
    
 
    # ---------------------------------------------------------------------------
-   # Step 3: Start all ge services
+   # Step 4: Start all ge services
    # ---------------------------------------------------------------------------
    foreach service $service_names(services) {
       set host $service_names(master_host,$service)
@@ -237,7 +254,7 @@ proc ge_stop_and_free_resources_ge_service_check {} {
    unset task_info
    
    # ---------------------------------------------------------------------------
-   # Step 4: Check that the static resources are assigned to the ge services
+   # Step 5: Check that the static resources are assigned to the ge services
    # ---------------------------------------------------------------------------
    foreach service $service_names(services) {
       set exp_resource_info($service_names(master_host,$service),service) "$service" 
@@ -252,7 +269,7 @@ proc ge_stop_and_free_resources_ge_service_check {} {
    unset exp_resource_info
    
    # ---------------------------------------------------------------------------
-   # Step 5: Move all nonstatic resource back to the ge services
+   # Step 6: Move all nonstatic resource back to the ge services
    # ---------------------------------------------------------------------------
    foreach service $service_names(services) {
       set res_ids ""
@@ -276,7 +293,7 @@ proc ge_stop_and_free_resources_ge_service_check {} {
    unset task_info
    
    # ---------------------------------------------------------------------------
-   # Step 6: Check that the nonstatic resource are back at the ge services
+   # Step 7: Check that the nonstatic resource are back at the ge services
    # ---------------------------------------------------------------------------
    set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
    if { $retval != 0} {
