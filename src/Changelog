@@ -1,5 +1,5 @@
-TB-2008-08-25-0: Cleanup:    Fixed broken test for
-                             spare_pool_stop_and_free_resources 
+TB-2008-08-25-0: Bugfix:     Fixed broken Hedeby test for
+                             spare_pool_stop_and_free_resources
                  Review:     CR
 
 CR-2008-08-20-0: Bugfix:     ge_stop_and_free_resources does not wait for stopped
