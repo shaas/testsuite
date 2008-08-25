@@ -263,9 +263,9 @@ proc spare_pool_stop_and_free_resources_ge_service_check {} {
    # ---------------------------------------------------------------------------
    # Step 1: Stop the spare_pool service with the freeResource flag
    # ---------------------------------------------------------------------------
-   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "sds -s spare_pool -fr"
+   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "-p $pref_type -s $sys_name sds -s spare_pool -fr"
    if { $prg_exit_state != 0 } {
-      append error_text "Stopping spare_poll with free resources flag failed\n"
+      append error_text "Stopping spare_pool with free resources flag failed\n"
       ts_log_severe $error_text
       return
    }
@@ -287,7 +287,7 @@ proc spare_pool_stop_and_free_resources_ge_service_check {} {
    # ---------------------------------------------------------------------------
    # Step 3: Start the spare_pool service
    # ---------------------------------------------------------------------------
-   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "sus -s spare_pool"
+   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "-p $pref_type -s $sys_name sus -s spare_pool"
    if { $prg_exit_state != 0 } {
       append error_text "Startup of service spare_pool failed\n"
       ts_log_severe $error_text
