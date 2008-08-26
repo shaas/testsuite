@@ -60,7 +60,8 @@ set check_description(0)  "shutdown and restart qmaster, verify that schedd reco
 set check_needs           "init_core_system" 
 
 # setup and cleanup functions
-set check_cleanup_function schedd_reconnect_cleanup
+set check_setup_function   "schedd_reconnect_setup"
+set check_cleanup_function "schedd_reconnect_cleanup"
 
 # define test's procedure order
 set check_functions ""
@@ -82,53 +83,43 @@ proc schedd_reconnect_init_level {} {
 
 
 # -------- local test procedures: initialization------------------------------
-
+proc schedd_reconnect_setup  {} {
+   global ts_config
+}
 
 proc schedd_reconnect_cleanup  {} {
    global ts_config
-
-   # wait for load reports to proceed with next test
-   wait_for_load_from_all_queues 120
 }
 
 
 proc schedd_reconnect_test {} {
    global ts_config
 
-   set expected_reconnect_time 30
-   set test_runs 10
-   set failures 0
-   set failures_output ""
-   
-   for {set i 0} {$i < $test_runs} {incr i} {
-      shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
-      startup_qmaster 0
+   set error_text ""
 
-      # expect scheduler to be registered at qmaster within 2 * schedd interval (10s)
-      set success 0
-      set mytimeout [timestamp]
-      incr mytimeout $expected_reconnect_time
+   # shutdown and restart qmaster
+   shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
+   startup_qmaster 0  
 
-      while {[timestamp] < $mytimeout } {
-         set ret [get_scheduler_status result1 "" "" 0]
-         ts_log_fine "qconf -sss returned $ret: $result1"
-         set result [lindex $result1 0]
-         if { [llength $result] == 1 && $ret == 0 } {
-            if { [host_list_compare $ts_config(master_host) $result 0 1] == 0 } {
-               ts_log_fine "scheduler reconnected!"
-               set success 1
-               break
-            }
+   set mytimeout [timestamp]
+   incr mytimeout 120
+
+   while {1} {
+      if {[timestamp] > $mytimeout} {
+         append error_text "timeout (120 seconds) waiting for connected scheduler!\n"
+         break
+      }
+      if {[get_scheduler_status result1 "" "" 0] == 0} {
+         ts_log_fine "result1=$result1"
+         if { [host_list_compare $ts_config(master_host) $result1 0 1] == 0 } {
+            ts_log_fine "scheduler reconnected from host \"$result1\"!"
+            break
          }
-         after 1000
       }
-      if { $success != 1 } {
-         incr failures 1
-         append failures_output "qconf -sss returned $ret: $result\n"
-      }
+      after 5000
    }
 
-   if { $failures_output != "" } {
-      ts_log_severe "reconnect failed in $failures from $test_runs test runs:\n$failures_output"
+   if {$error_text != ""} {
+      ts_log_severe $error_text
    }
 }

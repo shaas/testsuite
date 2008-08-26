@@ -56,8 +56,8 @@ set check_description(0)  "run appcert for the Solaris binaries"
 set check_needs           ""
 
 # setup/cleanup methods
-set check_setup_function "appcert_setup"
-set check_cleanup_function "appcert_cleanup"
+set check_setup_level_function "appcert_setup"
+set check_cleanup_level_function "appcert_cleanup"
 
 # define test's procedure order
 set check_functions {}
@@ -81,13 +81,15 @@ proc appcert_setup {} {
    global ts_config
    global CHECK_PROTOCOL_DIR
    global appcert_protocol_dir appcert_hosts
+   global CHECK_USER
+
+   set local_host [gethostname]
+   set appcert_protocol_dir "$CHECK_PROTOCOL_DIR/appcert"
 
    # delete old appcert log directory, if it exists
    # do this as user root - we run appcert as root
-   set appcert_protocol_dir "$CHECK_PROTOCOL_DIR/appcert"
-   set output [start_remote_prog $ts_config(master_host) "root" "rm" "-rf $appcert_protocol_dir"]
-   if {$prg_exit_state != 0} {
-      ts_log_severe "couldn't delete directory $appcert_protocol_dir:\n$output"
+   if {[is_remote_path $local_host $CHECK_USER $appcert_protocol_dir]} {
+      delete_directory $appcert_protocol_dir
    }
 
    # determine the list of hosts
@@ -191,7 +193,33 @@ proc appcert_test {} {
          }
          2 {
             # appcert reported warnings
-            ts_log_severe "appcert reported warnings:\n$output"
+            set error_text "Failed appcerts:\n"
+            set is_error 0
+            foreach line [split $output "\r\n"] {
+               if {[string match "*FAIL*" $line] > 0} {
+                  append error_text "$line\n"
+                  if {[string match "*qmon*" $line] > 0} {
+                     append error_text "found qmon error -> 3rd party code\n"
+                     continue
+                  }
+                  if {[string match "*libXltree*" $line] > 0} {
+                     append error_text "found libXltree error -> 3rd party code\n"
+                     continue
+                  }
+                  if {[string match "*qmake*" $line] > 0} {
+                     append error_text "found qmake error -> 3rd party code\n"
+                     continue
+                  }
+                  append error_text "found unexpected appcert error\n"
+                  set is_error 1
+               }
+            }
+            if {$is_error} {
+               ts_log_severe "appcert reported errors:\n$error_text\n\nappcert output:$output"
+            } else {
+               ts_log_config "appcert reported warnings:\n$error_text\n\nappcert output:$output"
+            }
+            
          }
          default {
             # the appcert call failed
@@ -199,5 +227,10 @@ proc appcert_test {} {
          }
       }
    }
+
+   if {[llength $appcert_hosts] <= 0} {
+      ts_log_config "appcert needs solaris compile architecture - no solaris architecture used in testsuite config!"
+   }
+
 }
 

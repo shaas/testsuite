@@ -1,3 +1,7 @@
+CR-2008-08-26-3: Bugfix:     o fixed appcert test
+                             o fixed scheduler reconnect test
+                 Review:     DG
+
 CR-2008-08-26-2: Bugfix:     fixed problem with port list join in
                  Belongs to: CR-2008-08-26-0
                  Review:     TB
