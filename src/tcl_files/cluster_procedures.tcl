@@ -341,7 +341,7 @@ proc get_all_hosts { } {
 proc get_all_reserved_ports { } {
    global ts_config
 
-   set portlist ""
+   set portlist {}
    lappend portlist $ts_config(commd_port)
    lappend portlist $ts_config(reserved_port)
    lappend portlist $ts_config(jmx_port)

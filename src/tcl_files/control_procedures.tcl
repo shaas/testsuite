@@ -196,7 +196,9 @@ proc check_correct_testsuite_setup_user { error_text } {
    }
 
    set check_ports [get_all_reserved_ports] 
-   lappend check_ports [checktree_get_required_ports]
+   foreach port [checktree_get_required_ports] {
+      lappend check_ports $port
+   }
 
    # remove 0 ports and double entries
    set test_port_list {}
