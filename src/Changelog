@@ -1,3 +1,7 @@
+CR-2008-08-26-1: Bugfix:     fixed broken hedeby checktree
+                 Belongs to: CR-2008-08-26-0
+                 Review:     TB
+
 CR-2008-08-26-0: Bugfix:     o get_all_reserved_ports()
                                - jmx_port wasn't reported
                  Enhancem.:  o rework of run_test_level() framework function:

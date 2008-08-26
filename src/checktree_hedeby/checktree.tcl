@@ -1898,13 +1898,14 @@ proc hedeby_get_required_hosts {} {
 #*******************************************************************************
 proc hedeby_get_required_ports {} {
    global hedeby_config
+   global CHECK_OUTPUT
 
    set portlist {}
    lappend portlist $hedeby_config(hedeby_cs_port)
    lappend portlist $hedeby_config(hedeby_user_jvm_port)
 
-   puts $CHECK_OUTPUT "Required ports for hedeby: $res"
-   return $res
+   puts $CHECK_OUTPUT "Required ports for hedeby: $portlist"
+   return $portlist
 }
 
 #****** checktree_hedeby/hedeby_get_required_passwords() ******************************
