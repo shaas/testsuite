@@ -59,6 +59,7 @@ set ts_checktree($hedeby_checktree_nr,compile_clean_hooks_0)    "hedeby_compile_
 set ts_checktree($hedeby_checktree_nr,install_binary_hooks_0)   "hedeby_install_binaries"          
 
 set ts_checktree($hedeby_checktree_nr,required_hosts_hook)      "hedeby_get_required_hosts"        
+set ts_checktree($hedeby_checktree_nr,required_ports_hook)      "hedeby_get_required_ports"
 set ts_checktree($hedeby_checktree_nr,passwd_hook)              "hedeby_get_required_passwords"     
 
 set ts_checktree($hedeby_checktree_nr,startup_hooks_0)          "hedeby_startup"                   
@@ -1868,6 +1869,41 @@ proc hedeby_get_required_hosts {} {
    }   
    puts $CHECK_OUTPUT "Required hosts for hedeby: $res"
    set hedeby_required_host_cache $res
+   return $res
+}
+
+#****** checktree/hedeby_get_required_ports() **********************************
+#  NAME
+#     hedeby_get_required_ports() -- get configured ports for hedeby
+#
+#  SYNOPSIS
+#     hedeby_get_required_ports { } 
+#
+#  FUNCTION
+#     This procedure returns a list of ports which are used by the current
+#     hedeby configuration: CS port, ports for the Jvms. 
+#
+#  INPUTS
+#
+#  RESULT
+#     TCL list with port numbers
+#
+#  NOTES
+#     The hedeby configuration must be enhanced to support individual ports
+#     for executor_vm and rp_vm.
+#
+#  BUGS
+#     Currently only CS Port and the (not used) hedeby_user_jvm_port from the
+#     hedeby configuration is returned.
+#*******************************************************************************
+proc hedeby_get_required_ports {} {
+   global hedeby_config
+
+   set portlist {}
+   lappend portlist $hedeby_config(hedeby_cs_port)
+   lappend portlist $hedeby_config(hedeby_user_jvm_port)
+
+   puts $CHECK_OUTPUT "Required ports for hedeby: $res"
    return $res
 }
 

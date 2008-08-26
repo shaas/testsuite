@@ -85,7 +85,7 @@ set check_description(102) "test shepherd trace file write on normal user system
 
 
 # define test's dependencies
-set check_needs           "init_core_system" 
+set check_needs           "init_core_system display_test" 
 
 # setup and cleanup functions
 set check_setup_function job_start_setup

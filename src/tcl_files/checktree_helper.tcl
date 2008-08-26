@@ -429,6 +429,51 @@ proc checktree_get_required_hosts {} {
    return $required_hosts
 }
 
+#****** checktree_helper/checktree_get_required_ports() ************************
+#  NAME
+#     checktree_get_required_ports() -- get required ports from hook functions
+#
+#  SYNOPSIS
+#     checktree_get_required_ports { } 
+#
+#  FUNCTION
+#     Call all required_ports_hook functions and return the port list of
+#     additional checktree configurations.
+#
+#  INPUTS
+#
+#  RESULT
+#     TCL list of ports
+#
+#  SEE ALSO
+#     cluster_procedures/get_all_reserved_ports()
+#*******************************************************************************
+proc checktree_get_required_ports {} {
+   global ts_checktree
+
+   set required_ports {}
+   for {set i 0} {$i < $ts_checktree(act_nr)} {incr i 1 } {
+      if { [info exists ts_checktree($i,required_ports_hook) ] } {
+         set required_ports_hook $ts_checktree($i,required_ports_hook)
+         if { [info procs $required_ports_hook ] != $required_ports_hook } {
+            ts_log_severe "Can not execute required_ports_hook of checktree $ts_checktree($i,dir_name), proc not found"
+         } else {
+            set required_port_list [$required_ports_hook]
+            if { $required_port_list == -1 } {
+               ts_log_severe "required_ports_hook of checktree  $ts_checktree($i,dir_name) failed"
+            } else {
+               foreach port $required_port_list {
+                  if { [lsearch -exact $required_ports $port] < 0 } {
+                     lappend required_ports $port
+                  }
+               }
+            }
+         }
+      }
+   }
+   return $required_ports
+}
+
 #****** checktree_helper/append_check_only_in_jgdi() ***************************
 #  NAME
 #    append_check_only_in_jgdi() -- adds check_name to check_functions only in 

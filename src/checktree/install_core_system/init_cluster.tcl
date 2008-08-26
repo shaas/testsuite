@@ -952,7 +952,7 @@ proc setup_schedconf {} {
   puts $CHECK_OUTPUT "result: $result"
 
   if { [string first "Usage" $result] >= 0 } {
-     puts $CHECK_OUTPUT "WARNING: ignore complex setup !!!"
+     puts $CHECK_OUTPUT "No complex setup to do for this version !!!"
   } else {
      if { [string first "global" $result] >= 0 } {
         puts $CHECK_OUTPUT "complex list global already exists"

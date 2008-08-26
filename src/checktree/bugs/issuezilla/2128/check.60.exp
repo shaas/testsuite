@@ -58,7 +58,7 @@ set check_description(1)  "do qsh on each host"
 
 
 # define test's dependencies
-set check_needs           "init_core_system" 
+set check_needs           "init_core_system display_test" 
 
 # setup and cleanup functions
 set check_setup_function xauthority_issue_setup

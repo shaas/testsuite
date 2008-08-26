@@ -326,7 +326,16 @@ proc get_all_hosts { } {
 #
 #  FUNCTION
 #     This procedure returns the list of ports which are used in the testsuite
-#     cluster configuration and all additional configurations.
+#     cluster configuration and all additional configurations. 
+#
+#  NOTES
+#     Currently the procedure does NOT call checktree_get_required_ports()
+#     for additional checktrees!
+#     TODO: add checktree_get_required_ports() and test create a configuration
+#           from scratch!!!
+#
+#  SEE ALSO
+#     checktree_helper/checktree_get_required_ports()   
 #
 #*******************************************************************************
 proc get_all_reserved_ports { } {
@@ -335,6 +344,7 @@ proc get_all_reserved_ports { } {
    set portlist ""
    lappend portlist $ts_config(commd_port)
    lappend portlist $ts_config(reserved_port)
+   lappend portlist $ts_config(jmx_port)
    set execd_port $ts_config(commd_port)
    incr execd_port 1
    lappend portlist $execd_port
@@ -343,6 +353,7 @@ proc get_all_reserved_ports { } {
       foreach filename $ts_config(additional_config) {
          get_additional_config $filename add_config
          lappend portlist $add_config(commd_port)
+         lappend portlist $add_config(jmx_port)
          lappend portlist $add_config(reserved_port)
          set execd_port $add_config(commd_port)
          incr execd_port 1

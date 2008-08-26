@@ -55,7 +55,7 @@ set check_highest_level   0
 set check_description(0)  "checking reschedule option of qmod"
 
 # define test's dependencies
-set check_needs           "init_core_system"
+set check_needs           "init_core_system display_test"
 
 # setup and cleanup functions
 set check_setup_level_function "reschedule_setup"

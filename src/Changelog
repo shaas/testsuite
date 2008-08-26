@@ -1,3 +1,24 @@
+CR-2008-08-26-0: Bugfix:     o get_all_reserved_ports()
+                               - jmx_port wasn't reported
+                 Enhancem.:  o rework of run_test_level() framework function:
+                               - check for running qmaster
+                               - join errors into one error message
+                             o new menu item: 
+                               - (54) analyze used testsuite ports
+                               - new procedure: 
+                                    check_correct_testsuite_setup_user()
+                             o changed some ts_log_fine to finer/finest
+                             o added test dependencies (needs) for checks
+                               submitting qsh job. The test have now a
+                               dependency to "display_test"
+                             o new checktree hook:
+                               - checktree_get_required_ports()
+                             o implemented ports hook for hedeby checktree:
+                               - hedeby_get_required_ports()
+                             o fixed not clear testsuite output in 
+                               init_cluster.tcl
+                 Review:     TB
+
 TB-2008-08-25-0: Bugfix:     Fixed broken Hedeby test for
                              spare_pool_stop_and_free_resources
                  Review:     CR

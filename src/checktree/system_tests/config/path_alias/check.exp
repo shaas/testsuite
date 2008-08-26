@@ -57,7 +57,7 @@ set check_description(0)  "checking global path alias file"
 set check_description(1)  "checking user path alias file"
 
 # define test's dependencies
-set check_needs           "init_core_system" 
+set check_needs           "init_core_system display_test" 
 
 
 # setup and cleanup functions

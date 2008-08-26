@@ -3268,7 +3268,7 @@ proc ping_daemon {host port name {max_tries 10}} {
 
    # Get the location of the architecture dependent qping binary
    set qping_binary $ts_config(product_root)/bin/${master_arch}/qping
-   ts_log_fine "qping binary: $qping_binary"
+   ts_log_finest "qping binary: $qping_binary"
 
    # Try to reach the given host
    set tries 0

@@ -156,6 +156,83 @@ proc get_string_value_between { start end line } {
    }
 }
 
+#****** control_procedures/check_correct_testsuite_setup_user() ****************
+#  NAME
+#     check_correct_testsuite_setup_user() -- check port setup of user
+#
+#  SYNOPSIS
+#     check_correct_testsuite_setup_user { error_text } 
+#
+#  FUNCTION
+#     Check all used ports for this testsuite configuration. This is done by
+#     starting the binary "test_cl_commlib". This binary is binding the port
+#     which is set in the environment variable CL_PORT and starting up a server
+#     process. If the startup was successful it will only run CL_RUNS seconds.
+#
+#     This test is done on all configured hosts for all ports. This procedure
+#     only makes sense when the testsuite system is NOT running, otherwise the
+#     ports are bound and the procedure will return with errors.
+#
+#     This procedure needs root access.
+#
+#  INPUTS
+#     error_text - name of variable to store error messages
+#
+#  RESULT
+#     0 on success, 1 on error
+#*******************************************************************************
+proc check_correct_testsuite_setup_user { error_text } {
+   global CHECK_DISPLAY_OUTPUT 
+   global CHECK_USER
+   global ts_user_config
+   upvar $error_text errors
+   
+   get_current_cluster_config_array ts_config
+   set errors ""
+
+   if {[have_root_passwd] == -1} {
+      append errors "Need root rights! No root password specified in testsuite!\n"
+      return 1
+   }
+
+   set check_ports [get_all_reserved_ports] 
+   lappend check_ports [checktree_get_required_ports]
+
+   # remove 0 ports and double entries
+   set test_port_list {}
+   foreach port $check_ports {
+      if {$port > 0 && [lsearch -exact $test_port_list $port] < 0} {
+         lappend test_port_list $port
+      }
+   }
+
+   ts_log_fine "This testsuite configuration is using the following ports: $test_port_list"
+
+   # do the checks ...
+   foreach host [get_all_hosts] {
+      foreach port $test_port_list {
+         ts_log_fine "testing port $port on host \"$host\" ..."
+         set up_arch [resolve_build_arch $host]
+         set client_binary $ts_config(source_dir)/$up_arch/test_cl_commlib
+         set my_env_list(CL_RUNS) 0
+         set my_env_list(CL_PORT) $port
+         set output [start_remote_prog $host root $client_binary "0 TCP" prg_exit_state 60 0 "" my_env_list]
+         if { $prg_exit_state != 0} {
+            append errors "Cannot bind port $port on host \"$host\" as user root!\n"
+            ts_log_fine $output
+         }
+      }
+   }
+
+   # prepare return value
+   if {$errors != ""} {
+      return 1
+   }
+   return 0
+}
+
+
+
 # take a name/value array and build a vi command to set new values
 proc build_vi_command { change_array {current_array no_current_array_has_been_passed}} {
    upvar $change_array  chgar
@@ -2145,7 +2222,7 @@ proc resolve_build_arch { host } {
      return ""
   }
   set build_arch_cache($nr,$host) $result
-  ts_log_fine "build arch is \"$result\""
+  ts_log_finer "build arch is \"$result\""
 
   return $build_arch_cache($nr,$host)
 }
