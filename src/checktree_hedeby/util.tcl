@@ -266,21 +266,23 @@ proc get_hedeby_binary_path { binary_name {user_name ""} {hostname ""}} {
 #  FUNCTION
 #     This procedure is used to add host resources to the hedeby system. 
 #
+#     The function waits until the resources are ASSIGNED to the correct service.
+#
 #  INPUTS
-#     host_resources   - list of hostnames for  the host resources
+#     host_resources  - list of hostnames to add
+#     { service "spare_pool"}   - optional: name of the service which will be
+#                       the owner of the resource
 #     { on_host "" }  - optional: host where sdmadm should be started 
 #                       if not set the hedeby master host is used
 #     { as_user ""}   - optional: user name which starts sdmadm command 
 #                       if not set the hedeby admin user is used
-#     { service ""}   - optional: name of the service which will be the owner
-#                       of the resource
 #     {raise_error 1} - if set to 1 testsuite reports errors on failure 
 #
 #  RESULT
 #     the prg_exit_state of the sdmadm command
 #
 #*******************************************************************************
-proc add_host_resources { host_resources { service "" } { on_host "" } { as_user ""} {raise_error 1} } {
+proc add_host_resources { host_resources { service "spare_pool" } { on_host "" } { as_user ""} {raise_error 1} } {
    global hedeby_config
    global CHECK_USER
 
@@ -336,20 +338,22 @@ proc add_host_resources { host_resources { service "" } { on_host "" } { as_user
 
    # print out created file
    set file_content [start_remote_prog $exec_host $exec_user cat $file_name]
-   if {$service != "" } {
-      set add_args "-s $service"
-      ts_log_fine "adding host resources \"$host_resources\" to service $service of hedeby system ..."
-   } else {
-      set add_args ""
-      ts_log_fine "adding host resources \"$host_resources\" to hedeby system ..."
-   }
    ts_log_fine "properties file:"
    ts_log_fine $file_content
 
+   ts_log_fine "adding host resources \"$host_resources\" to service $service of hedeby system ..."
 
    # now use sdmadm command ...
-   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name $add_args" prg_exit_state "" $raise_error
-   return $prg_exit_state
+   sdmadm_command $exec_host $exec_user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] ar -f $file_name -s $service" ar_exit_state "" $raise_error
+
+   foreach res $host_resources {
+      set exp_res_info($res,state) "ASSIGNED"
+      set exp_res_info($res,service) "$service"
+   }
+   wait_for_resource_info exp_res_info 60 $raise_error
+   unset exp_res_info
+
+   return $ar_exit_state
 }
 
 
@@ -2833,7 +2837,7 @@ proc hedeby_check_default_resources {} {
 proc parse_table_output { output array_name delemitter } {
    upvar $array_name data
 
-   ts_log_fine "parsing table output ..."
+   ts_log_finer "parsing table output ..."
    set columns {}
    set lines [split $output "\n\r"]
    set header_line ""
@@ -3274,68 +3278,67 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
          append error_text "break because of get_resource_info() returned \"$retval\"!\n$sdmadm_output\n"
          append error_text "expected resource info was:\n$expected_resource_info"
          ts_log_fine "ignore this run because get_resource_info() returned: $retval"
-         set not_matching "not available!"
          foreach val $exp_values {
             if {![info exists resource_info($val)]} {
                set resource_info($val) "missing"
             }
          }
-      } else {
-         set not_matching ""
-         foreach val $exp_values {
-            if {![info exists resource_info($val)]} {
-               set resource_info($val) "missing"
-            }
-               set all_matching 0
-               if {[llength $resource_info($val)] == [llength $exp_res_info($val)]} {
-                  ts_log_finer "compare \"$resource_info($val)\" with \"$exp_res_info($val)\""
-                  # here we can directly compare the expected resource info
-                  if { $resource_info($val) == $exp_res_info($val) } {
-                     set all_matching 1
-                  }
-               } else {
-                  # duplicate assigned resources may produce more than one entry
-                  # in resource_info() array. We expect that all states have to be
-                  # equal
+         break
+      }
+      set not_matching ""
+      foreach val $exp_values {
+         if {![info exists resource_info($val)]} {
+            set resource_info($val) "missing"
+         }
+            set all_matching 0
+            if {[llength $resource_info($val)] == [llength $exp_res_info($val)]} {
+               ts_log_finer "compare \"$resource_info($val)\" with \"$exp_res_info($val)\""
+               # here we can directly compare the expected resource info
+               if { $resource_info($val) == $exp_res_info($val) } {
                   set all_matching 1
-                  foreach res_info_tmp $resource_info($val) {
-                     set one_is_matching 0
-                     foreach exp_res_info_entry $exp_res_info($val) {
-                        ts_log_finer "lcompare \"$res_info_tmp\" with \"$exp_res_info_entry\""
-                        if {$res_info_tmp == $exp_res_info_entry} {
-                           ts_log_finer "lcompare matching"
-                           set one_is_matching 1
-                           break
-                        }
-                     }
-                     if {$one_is_matching == 0} {
-                        ts_log_finer "lcompare not matching"
-                        set all_matching 0
+               }
+            } else {
+               # duplicate assigned resources may produce more than one entry
+               # in resource_info() array. We expect that all states have to be
+               # equal
+               set all_matching 1
+               foreach res_info_tmp $resource_info($val) {
+                  set one_is_matching 0
+                  foreach exp_res_info_entry $exp_res_info($val) {
+                     ts_log_finer "lcompare \"$res_info_tmp\" with \"$exp_res_info_entry\""
+                     if {$res_info_tmp == $exp_res_info_entry} {
+                        ts_log_finer "lcompare matching"
+                        set one_is_matching 1
                         break
                      }
                   }
+                  if {$one_is_matching == 0} {
+                     ts_log_finer "lcompare not matching"
+                     set all_matching 0
+                     break
+                  }
                }
-            if {$all_matching} {
-               ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
-            } else {
-               append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
             }
-         }
-
-         if {$not_matching == ""} {
-            ts_log_fine "all specified resource info are matching"
-            if {[llength $resource_ambiguous] > 0 && $expect_no_ambiguous_resources != 0} {
-               ts_log_fine "but waiting for ambiguous resources to disappear ..."
-               append not_matching "resource ambiguous list is not empty: \"$resource_ambiguous\"\n"
-            } else {
-               break
-            }
+         if {$all_matching} {
+            ts_log_finer "resource info(s) \"$val\" matches expected info \"$exp_res_info($val)\""
          } else {
-            set cur_time [timestamp]
-            set cur_time_left [expr ($my_timeout - $cur_time)]
-            ts_log_fine "still waiting for specified resource information ... (timeout in $cur_time_left seconds)"
-            ts_log_fine "still not matching resource info:\n$not_matching"
+            append not_matching "resource info \"$val\" is set to \"$resource_info($val)\", should be \"$exp_res_info($val)\"\n"
          }
+      }
+
+      if {$not_matching == ""} {
+         ts_log_fine "all specified resource info are matching"
+         if {[llength $resource_ambiguous] > 0 && $expect_no_ambiguous_resources != 0} {
+            ts_log_fine "but waiting for ambiguous resources to disappear ..."
+            append not_matching "resource ambiguous list is not empty: \"$resource_ambiguous\"\n"
+         } else {
+            break
+         }
+      } else {
+         set cur_time [timestamp]
+         set cur_time_left [expr ($my_timeout - $cur_time)]
+         ts_log_fine "still waiting for specified resource information ... (timeout in $cur_time_left seconds)"
+         ts_log_fine "still not matching resource info:\n$not_matching"
       }
       if {[timestamp] >= $my_timeout} {
          append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected resource states!\n"
@@ -4081,9 +4084,7 @@ proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev 
    }
 
    if {$error_text != "" } {
-      if {$raise_error != 0} {
-         ts_log_severe $error_text
-      }
+      ts_log_severe $error_text $raise_error
       return 1
    }
    return 0
@@ -5022,6 +5023,8 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
    set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
    set my_env(JAVA_HOME) [get_java_home_for_host $host $hedeby_config(hedeby_java_version)]
    set my_env(EDITOR) [get_binary_path $host "vim"]
+   # reset environment variable SDM_SYSTEM to illegal value to avoid user environment side effects
+   set my_env(SDM_SYSTEM) "" 
    ts_log_finer "${host}($user): using JAVA_HOME=$my_env(JAVA_HOME)"
    if { $interactive_tasks == "" } {
       ts_log_fine "starting binary not interactive \"sdmadm $arg_line\" (${host}($user)) ..."
@@ -7071,7 +7074,7 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
       set exp_res_info($resource,state) "ASSIGNED"
       set exp_res_info($resource,service) "$service"
       set tmp_error ""
-      if {[wait_for_resource_info exp_resource_info 60 0 tmp_error "" "" resource_info res_prop res_list res_list_not_uniq 1] != 0} {
+      if {[wait_for_resource_info exp_res_info 60 0 tmp_error "" "" resource_info res_prop res_list res_list_not_uniq 1] != 0} {
          append error_text "wait_for_resource_info failed:\n$tmp_error\n"
       }
    }
@@ -7664,33 +7667,32 @@ proc wait_for_service_slo_info { exp_sloinfo  {atimeout 60} {raise_error 1} {ev 
          append error_text "break because of get_service_slo_info() returned \"$retval\"!\n"
          append error_text "expected slo info was:\n$expected_slo_info"
          ts_log_fine "ignore this run because get_service_slo_info() returned: $retval"
-         set not_matching "not available!"
          foreach val $exp_values {
             if {![info exists service_slo_info($val)]} {
                set service_slo_info($val) "missing"
             }
          }
-      } else {
-         set not_matching ""
-         foreach val $exp_values {
-            if {![info exists service_slo_info($val)]} {
-               set service_slo_info($val) "missing"
-            }
-            if { $service_slo_info($val) == $exp_slo_info($val) } {
-               ts_log_fine "slo info(s) \"$val\" matches expected info \"$exp_slo_info($val)\""
-            } else {
-               append not_matching "slo info \"$val\" is set to \"$service_slo_info($val)\", should be \"$exp_slo_info($val)\"\n"
-            } 
+         break
+      }
+      set not_matching ""
+      foreach val $exp_values {
+         if {![info exists service_slo_info($val)]} {
+            set service_slo_info($val) "missing"
          }
-         if {$not_matching == ""} {
-            ts_log_fine "all specified resource info are matching"
-            break
+         if { $service_slo_info($val) == $exp_slo_info($val) } {
+            ts_log_fine "slo info(s) \"$val\" matches expected info \"$exp_slo_info($val)\""
          } else {
-            set cur_time [timestamp]
-            set cur_time_left [expr ($my_timeout - $cur_time)]
-            ts_log_fine "still waiting for specified slo information ... (timeout in $cur_time_left seconds)"
-            ts_log_finer "still not matching slo info:\n$not_matching"
-         }
+            append not_matching "slo info \"$val\" is set to \"$service_slo_info($val)\", should be \"$exp_slo_info($val)\"\n"
+         } 
+      }
+      if {$not_matching == ""} {
+         ts_log_fine "all specified resource info are matching"
+         break
+      } else {
+         set cur_time [timestamp]
+         set cur_time_left [expr ($my_timeout - $cur_time)]
+         ts_log_fine "still waiting for specified slo information ... (timeout in $cur_time_left seconds)"
+         ts_log_finer "still not matching slo info:\n$not_matching"
       }
       if {[timestamp] >= $my_timeout} {
          append error_text "==> TIMEOUT(=$atimeout sec) while waiting for expected slo states!\n"
@@ -8214,5 +8216,104 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
 }
 
 
+#****** util/wait_for_resource_removal() ******************************************
+#  NAME
+#     wait_for_resource_removal() -- wait for removal of resource
+#
+#  SYNOPSIS
+#     wait_for_resource_removal { res_remove_list {atimeout 60} {raise_error 1} 
+#     {ev error_var} {host ""} {user ""} } 
+#
+#  FUNCTION
+#     This procedure calls get_resource_info() until the specified
+#     resource(s) is/are removed from the system, a timeout or error occurs.
+#
+#  INPUTS
+#     res_remove_list        - list of resources to be removed
+#     {atimeout 60}          - optional timeout specification in seconds 
+#     {raise_error 1}        - report testsuite errors if != 0
+#     {ev error_var }        - report error text into this tcl var
+#     {host ""}              - see get_resource_info() 
+#     {user ""}              - see get_resource_info() 
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  EXAMPLE
+#     # step 1: set up resources to remove
+#     set resources { res1 res2 }
+#     sdmadm_command $host $user "-p $sysType -s $sysName rr -r $resources"
+#
+#     # step 2: wait for expected resource informations
+#     set retval [wait_for_resource_removal $resources 60 0 remove_error]
+#     
+#     # step 3: error handling
+#     if { $retval != 0} {
+#        # append removal error to error output
+#        append error_text $remove_error
+#     }
+#
+#  SEE ALSO
+#     util/get_resource_info()
+#     util/wait_for_resource_info()
+#*******************************************************************************
+proc wait_for_resource_removal { res_remove_list  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} } {
+   global hedeby_config
+   # setup arguments
+   upvar $ev error_text
+
+   if {$host == ""} {
+      set execute_host $hedeby_config(hedeby_master_host)
+   } else {
+      set execute_host $host
+   }
+   if {$user == ""} {
+      set execute_user [get_hedeby_admin_user]
+   } else {
+      set execute_user $user
+   }
+   if {[info exists error_text] == 0} {
+      set error_text ""
+   }
+   set my_endtime [timestamp]
+   incr my_endtime $atimeout
+
+   while {1} {
+      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error sdmadm_output]
+      if {$retval != 0} {
+         append error_text "break because of get_resource_info() returned \"$retval\"!\n$sdmadm_output\n"
+         append error_text "expected resource info was:\n$expected_resource_info"
+         break
+      }
+      set not_removed ""
+      foreach res $res_remove_list {
+         if {[lsearch -exact resource_list $res] != -1} {
+            append not_removed "\"$res\" "
+         }
+      }
+
+      if {$not_removed == ""} {
+         ts_log_fine "All specified resources are removed from the system."
+         break
+      } else {
+         set cur_time [timestamp]
+         set cur_time_left [expr ($my_endtime - $cur_time)]
+         ts_log_fine "Still waiting for specified resources to be removed ... (timeout in $cur_time_left seconds)"
+         ts_log_fine "The following resources are not yet removed: $not_removed\n"
+      }
+      if {[timestamp] >= $my_endtime} {
+         append error_text "==> TIMEOUT(=$atimeout sec) while waiting for resources to be removed!\n"
+         append error_text "==> The following resources were NOT removed:\n$not_removed\n"
+         break
+      }
+      after 1000
+   }
+
+   if {$error_text != "" } {
+      ts_log_severe $error_text $raise_error
+      return 1
+   }
+   return 0
+}
 
 

@@ -1,3 +1,9 @@
+TB-2008-08-27-1: Bugfix:     o fixed hedeby test issue_374
+                             o added hedeby util function
+                               wait_for_resource_removal
+                             o cleanup of wait_for_* hedeby util functions
+                 Review:     CR
+
 TB-2008-08-27-0: Bugfix:     all hedeby tests need potentially root access in
                              order to gather all log files from all machines in
                              case of a test error.

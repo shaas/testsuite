@@ -73,14 +73,16 @@ proc RP_add_resource_stress_test_setup {} {
 
 #****** issue_374/RP_add_resource_stress_test_cleanup() *************************
 #  NAME
-#     RP_add_resource_stress_test_cleanup() -- ??? 
+#     RP_add_resource_stress_test_cleanup() -- clean the test up
 #
 #  SYNOPSIS
 #     RP_add_resource_stress_test_cleanup { } 
 #
 #  FUNCTION
 #     Remove used spare_pool resource again and add it with correct properties
-#     by using add_host_resources() procedure
+#     by using add_host_resources() procedure. The remove and
+#     add_host_resources() MUST be done, otherwise the resource properties
+#     might not be set correctly.
 #*******************************************************************************
 proc RP_add_resource_stress_test_cleanup {} {
    global RP_add_resource_stress_test_current_cluster_config
@@ -90,13 +92,22 @@ proc RP_add_resource_stress_test_cleanup {} {
    set user [get_hedeby_admin_user]
    set sysType [get_hedeby_pref_type]
    set sysName [get_hedeby_system_name]
-   set spare_pool_resource [lindex [get_all_spare_pool_resources] 0]
+   set free_resource [lindex [get_all_spare_pool_resources] 0]
 
-   ts_log_fine "Removing spare_pool resource \"$spare_pool_resource\" ..."
-   sdmadm_command $host $user "-p $sysType -s $sysName rr -r $spare_pool_resource"
 
-   ts_log_fine "Re-add spare_pool resource \"$spare_pool_resource\" ..."
-   if {[add_host_resources $spare_pool_resource] != 0} {
+   # remove $free_resource
+   ts_log_fine "Removing spare_pool resource \"$free_resource\" ..."
+   sdmadm_command $host $user "-p $sysType -s $sysName rr -r $free_resource -force"
+
+   # wait for removal of $free_resource
+   if {[wait_for_resource_removal $free_resource] == 0} {
+      # resource is removed, so re-add with correct properties
+      ts_log_fine "Re-add spare_pool resource \"$free_resource\" ..."
+      if {[add_host_resources $free_resource] != 0} {
+         # Re-add failed: as last resort do a reset_hedeby
+         reset_hedeby 1
+      }
+   } else {
       reset_hedeby 1
    }
 
@@ -112,34 +123,36 @@ proc RP_add_resource_stress_test_cleanup {} {
 #     RP_add_resource_stress_test_check { } 
 #
 #  FUNCTION
-#     This test is doing following in a loop:
-#     1. remove first spare_pool resource
+#     This test is doing following in a loop for all services with the first
+#     spare_pool resource:
+#     1. remove resource
 #     2. Stop rp_vm on resouce_provider host
-#     3. Startup rp_vm and re-add spare_pool_resource
+#     3. Startup rp_vm and add resource to current service
 #   
+#     This is supposed to test the correct spooling of rp_vm state during
+#     shutdown and startup.
 #  INPUTS
 #     no input parameters
 #
 #  RESULT
 #     no return values
-#
-#  SEE ALSO
-#     util/shutdown_hedeby()
-#     util/startup_hedeby()
 #*******************************************************************************
 proc RP_add_resource_stress_test_check {} {
    global hedeby_config
-   set tries 5
 
-   set spare_pool_resource [lindex [get_all_spare_pool_resources] 0]
+   set free_resource [lindex [get_all_spare_pool_resources] 0]
    set host $hedeby_config(hedeby_master_host)
    set user [get_hedeby_admin_user]
    set sysType [get_hedeby_pref_type]
    set sysName [get_hedeby_system_name]
-   for {set i 0} {$i < $tries} {incr i} {
 
-      ts_log_fine "Removing spare_pool resource \"$spare_pool_resource\" ..."
-      sdmadm_command $host $user "-p $sysType -s $sysName rr -r $spare_pool_resource"
+   # for all ge-adapter-services and the spare_pool
+   get_hedeby_default_services service_names
+   set services $service_names(services)
+   lappend services "spare_pool"
+   foreach service $services {
+      ts_log_fine "Removing spare_pool resource \"$free_resource\" ..."
+      sdmadm_command $host $user "-p $sysType -s $sysName rr -r $free_resource"
 
       ts_log_fine "Shutting down rp_vm on host \"$host\" ..."
       sdmadm_command $host $user "-p $sysType -s $sysName sdj -j rp_vm -h $host"
@@ -164,8 +177,16 @@ proc RP_add_resource_stress_test_check {} {
       ts_log_fine "Startup rp_vm on host \"$host\" ..."
       sdmadm_command $host $user "-p $sysType -s $sysName suj -j rp_vm"
 
-      ts_log_fine "Re-Add resource \"$spare_pool_resource\" to spare_pool ..."
-      sdmadm_command $host $user "-p $sysType -s $sysName ar -r $spare_pool_resource"
+      wait_for_resource_removal $free_resource
+     
+      ts_log_fine "Adding resource \"$free_resource\" to service $service ..."
+      sdmadm_command $host $user "-p $sysType -s $sysName ar -r $free_resource -s $service"
+
+      # Wait for resource ($free_resource) to be added
+      set exp_res_info($free_resource,service) $service 
+      set exp_res_info($free_resource,flags) "{}"
+      set exp_res_info($free_resource,state) "ASSIGNED"
+      wait_for_resource_info exp_res_info
    }
 }
 
