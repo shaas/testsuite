@@ -39,7 +39,7 @@ global check_root_access_needs check_category
 global check_use_installed_system check_init_level_procedure
 
 # This file shows some check spezific things
-set check_root_access_needs    "no"
+set check_root_access_needs    "yes"
 set check_name                 "basic_resource_assignment"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_description(0)       "basic resource movement test"

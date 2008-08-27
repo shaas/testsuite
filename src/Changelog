@@ -1,3 +1,8 @@
+TB-2008-08-27-0: Bugfix:     all hedeby tests need potentially root access in
+                             order to gather all log files from all machines in
+                             case of a test error.
+                 Review:     CR
+
 CR-2008-08-26-3: Bugfix:     o fixed appcert test
                              o fixed scheduler reconnect test
                  Review:     DG

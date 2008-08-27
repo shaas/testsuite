@@ -41,7 +41,7 @@ global check_use_installed_system check_init_level_procedure
 # This file shows some check spezific things
 # ---START OF TEST INFO SECTION-------------------------------------------------------------------------------
 # "no" - we don't need root acess / "yes" - we need root access:
-set check_root_access_needs    "no"
+set check_root_access_needs    "yes"
 
 # name of the test (best practice: use the name of the test directory)
 set check_name                 "ca_reload"
