@@ -101,17 +101,24 @@ proc execd_reconnect_init_level {} {
 #
 #  FUNCTION
 #     This cleanup level function is doing a qconf call to get the global
-#     configuration from qmaster. If qmaster is not reachable qmaster and
-#     scheduler are restarted.
+#     configuration from qmaster. If qmaster is not reachable shutdown and
+#     restart complete cell cluster
 #
 #*******************************************************************************
 proc execd_reconnect_cleanup_level {} {
    global ts_config
+   global execd_reconnect_cleanup_level_do_cleanup
    ts_log_fine "cleanup level function ..."
    
-   if {[get_config dummy global 10]!= 0} {
-      shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
-      startup_qmaster
+   if {[get_config dummy global 10] != 0 || $execd_reconnect_cleanup_level_do_cleanup == 1} {
+      # shutdown complete system (execd will never re-connect on error)
+      shutdown_core_system
+
+      # restart system
+      startup_core_system
+  
+      # wait for loads from execds
+      wait_for_load_from_all_queues 60
    } else {
       ts_log_fine "qconf is working, fine!"
    }
@@ -142,6 +149,9 @@ proc execd_reconnect_test {} {
    global ts_config 
    global CHECK_ACT_LEVEL
    global CHECK_USER
+   global execd_reconnect_cleanup_level_do_cleanup
+
+   set execd_reconnect_cleanup_level_do_cleanup 1
 
    ts_log_fine "TEST: \"$check_description($CHECK_ACT_LEVEL)\""
 
@@ -200,7 +210,9 @@ proc execd_reconnect_test {} {
    }
 
    # 5) Wait that all execds reconnect to the new started qmaster
-   wait_for_load_from_all_queues 300
+   if {[wait_for_load_from_all_queues 120] == 0} {
+      set execd_reconnect_cleanup_level_do_cleanup 0
+   }
 
    if {$error_text != ""} {
       ts_log_severe $error_text

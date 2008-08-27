@@ -1,3 +1,10 @@
+CR-2008-08-27-1: Enhancem.:  o new menu item:
+                               (55) shutdown cluster
+                 Bugfix:     o fixed cleanup of test:
+                               src/checktree/system_tests/execd/reconnect
+                 Belongs To: CR-2008-08-27-0
+                 Review:     AA                             
+
 CR-2008-08-27-0: Enhancem.:  o new test:
                                src/checktree/system_tests/execd/reconnect
                              o new sge_procedure:

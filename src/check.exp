@@ -7173,6 +7173,7 @@ proc menu {} {
     puts " (52) run startup hooks"
     puts " (53) run reset hooks"
     puts " (54) analyze used testsuite ports (will shutdown cluster)"
+    puts " (55) shutdown cluster"
 
    puts "\nYou can select a menu number,"
    puts "enter a relative/absolute path or \"..\" to switch the directory."
@@ -7366,6 +7367,14 @@ proc menu {} {
             ts_log_fine "catch output: $catch_output"
          }
 
+         wait_for_enter
+    }
+    "55" {
+         if { [have_root_passwd] == -1 } {
+            puts "need root access ..."
+            set_root_passwd
+         }
+         shutdown_core_system 0 1
          wait_for_enter
     }
 
