@@ -1,0 +1,208 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "execd_reconnect_init_level"
+
+# define test's name and run level descriptions
+set check_name            "execd_reconnect"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "test execd re-connect after changed act_qmaster host file"
+
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# define level setup/cleanup
+set check_cleanup_level_function "execd_reconnect_cleanup_level"
+
+
+# define test's procedure order
+set check_functions "execd_reconnect_test"
+
+
+#****** check/execd_reconnect_init_level() *************************************
+#  NAME
+#     execd_reconnect_init_level() -- report supported runlevels
+#
+#  SYNOPSIS
+#     execd_reconnect_init_level { } 
+#
+#  FUNCTION
+#     This test supports only runlevle 0
+#
+#  RESULT
+#     0 for runlevel 0, otherwise -1
+#
+#*******************************************************************************
+proc execd_reconnect_init_level {} {
+   global CHECK_ACT_LEVEL
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      } 
+   } 
+   return -1  ;# no other level 
+}
+
+
+#****** check/execd_reconnect_cleanup_level() **********************************
+#  NAME
+#     execd_reconnect_cleanup_level() -- cleanup test procedure
+#
+#  SYNOPSIS
+#     execd_reconnect_cleanup_level { } 
+#
+#  FUNCTION
+#     This cleanup level function is doing a qconf call to get the global
+#     configuration from qmaster. If qmaster is not reachable qmaster and
+#     scheduler are restarted.
+#
+#*******************************************************************************
+proc execd_reconnect_cleanup_level {} {
+   global ts_config
+   ts_log_fine "cleanup level function ..."
+   
+   if {[get_config dummy global 10]!= 0} {
+      shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
+      startup_qmaster
+   } else {
+      ts_log_fine "qconf is working, fine!"
+   }
+}
+
+
+#****** check/execd_reconnect_test() *******************************************
+#  NAME
+#     execd_reconnect_test() -- test execd reconnect on qmaster take-over
+#
+#  SYNOPSIS
+#     execd_reconnect_test { } 
+#
+#  FUNCTION
+#     Test steps:
+#        1) Shutdown sge_qmaster (and scheduler)
+#        2) Write unresolvable hostname into act_qmaster file
+#        3) Wait for at least 3 Minutes (+1 Extra minute to be save)
+#           => Execds tries to reconnect to new act_qmaster which is not
+#              reachable
+#        4) Restart original qmaster
+#           => act_qmaster file now contains the correct qmaster name again
+#        5) Wait that all execds reconnect to the new started qmaster
+#
+#*******************************************************************************
+proc execd_reconnect_test {} {
+   global check_description
+   global ts_config 
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+
+   ts_log_fine "TEST: \"$check_description($CHECK_ACT_LEVEL)\""
+
+   set error_text ""
+   # 1) Shutdown sge_qmaster (and scheduler)
+
+   # read act_qmaster file
+   set cur_qmaster_name [get_act_qaster act_qmaster_file_path]
+   
+   # check that current qmaster is written in the act_qmaster file
+   set res_file [resolve_host $cur_qmaster_name]
+   set res_master [resolve_host $ts_config(master_host)]
+   if {$res_file != $res_master} {
+      append error_text "act_qmaster file doesn't contain correct hostname (1). Expected \"$res_master\", but got \"$res_file\"\n"
+   }
+
+   # now shutdown qmaster and scheduler
+   shutdown_master_and_scheduler $ts_config(master_host) [get_qmaster_spool_dir]
+
+ 
+   # 2) write unresolvable host name into the file
+   set data(0) 1
+   set data(1) "not_resolve_able_host"
+   write_remote_file $ts_config(master_host) $CHECK_USER $act_qmaster_file_path data
+
+   # re-read modified act_qmaster_file
+   set cur_qmaster_name [get_act_qaster]
+   if {$cur_qmaster_name != $data(1)} {
+      append error_text "file $act_qmaster_file_path doesn't contain qmaster name \"$data(1)\", but \"$cur_qmaster_name\"\n"
+   }
+
+   # 3) Here we have to wait the hard coded "check qmaster alive" timeout of 3 minutes
+   # (+1 Minute to be sure)
+   # execds should then try to connect to the unresolvable master host
+   set my_timeout [timestamp]
+   incr my_timeout 240
+   while { 1 } {
+      set cur_time [timestamp] 
+      set time_diff [expr $my_timeout - $cur_time]
+      if {$time_diff <= 0} {
+         break
+      }
+      ts_log_fine "Waiting for hard coded \"check qmaster alive\" timeout. Continue in $time_diff seconds ..."
+      after 10000
+   }
+   
+   # 4) now restart qmaster and scheduler
+   startup_qmaster
+
+   # read act_qmaster file
+   set cur_qmaster_name [get_act_qaster]
+   set res_file [resolve_host $cur_qmaster_name]
+   set res_master [resolve_host $ts_config(master_host)]
+   if {$res_file != $res_master} {
+      append error_text "act_qmaster file doesn't contain correct hostname (2). Expected \"$res_master\", but got \"$res_file\"\n"
+   }
+
+   # 5) Wait that all execds reconnect to the new started qmaster
+   wait_for_load_from_all_queues 300
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}

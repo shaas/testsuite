@@ -948,6 +948,67 @@ proc get_sge_error_generic {messages_var} {
    get_sge_error_generic_vdep messages
 }
 
+
+
+#****** sge_procedures/get_act_qaster() ****************************************
+#  NAME
+#     get_act_qaster() -- Get content of act_qmaster file
+#
+#  SYNOPSIS
+#     get_act_qaster { {used_file_path ""} {raise_error 1} } 
+#
+#  FUNCTION
+#     This procedure checks and reads the act_qmaster file and returns the
+#     current qmaster host which is stored in the act_qmaster file. The
+#     act_qmaster file path is returned if the optional parameter used_file_path
+#     is set to a tcl variable name where the path should be stored.
+#     Standard path of act_qmaster file is $SGE_ROOT/$SGE_CELL/common/act_qmaster
+#
+#  INPUTS
+#     {used_file_path ""} - Name of a TCL variable where the used path should
+#                           be saved
+#     {raise_error 1}     - if 1 report errors, else ingnore errors
+#
+#  RESULT
+#     The name of the actual qmaster from the act_qmaster file
+#*******************************************************************************
+proc get_act_qaster { {used_file_path ""} {raise_error 1} } {
+   global CHECK_USER
+   global ts_config 
+   if {$used_file_path != ""} {
+      upvar $used_file_path act_qmaster_file_path
+   }
+   set error_text ""
+   # get path to act_qmaster file
+   set act_qmaster_file_path $ts_config(product_root)/$ts_config(cell)/common/act_qmaster
+
+   # check if act_qmaster file is available
+   if {[is_remote_file $ts_config(master_host) $CHECK_USER $act_qmaster_file_path] != 1} {
+      append error_text "file $act_qmaster_file_path not found!\n"
+   }
+
+   
+
+   # read act_qmaster file
+   get_file_content $ts_config(master_host) $CHECK_USER $act_qmaster_file_path act_qmaster_file
+   set act_qmaster_file_content "n.a."
+   # check if content is exactly one line
+   if {$act_qmaster_file(0) != 1} {
+      append error_text "file $act_qmaster_file_path has $act_qmaster_file(0) lines!\n"
+   } else {
+      set act_qmaster_file_content [string trim $act_qmaster_file(1)]
+      ts_log_fine "act_qmaster file content: \"$act_qmaster_file_content\""
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text $raise_error
+   }
+   
+
+   return $act_qmaster_file_content
+}
+
+
 #****** sge_procedures/get_sge_error() *****************************************
 #  NAME
 #     get_sge_error() -- return error code for sge command
@@ -2066,7 +2127,7 @@ proc move_qmaster_spool_dir { new_spool_dir } {
 #  SEE ALSO
 #     sge_procedures/set_config()
 #*******************************
-proc get_config { change_array {host global}} {
+proc get_config { change_array {host global} {atimeout 60}} {
   get_current_cluster_config_array ts_config
   upvar $change_array chgar
 
@@ -2074,7 +2135,7 @@ proc get_config { change_array {host global}} {
      unset chgar
   }
 
-  set result [start_sge_bin "qconf" "-sconf $host"] 
+  set result [start_sge_bin "qconf" "-sconf $host" "" "" prg_exit_state $atimeout] 
   if {$prg_exit_state != 0} {
      ts_log_severe "qconf -sconf $host failed:\n$result"
      return -1
