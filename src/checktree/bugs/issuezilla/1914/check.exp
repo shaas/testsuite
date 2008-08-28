@@ -466,7 +466,8 @@ proc issue_1914_test {} {
       start_remote_prog $test_host $CHECK_USER "touch" "$path"
       start_remote_prog $test_host $CHECK_USER "chmod" "+x $path"
       if {[issue_1914_test_submit $job $test_host $path $error] == 0} {
-         ts_log_config "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
+         # IZ 2174 has been set to WILL NOT FIX
+         ts_log_fine "Testing job $job with $daemon = \"$path\" failed - empty file with execution permission,
          issue 2174 fix didn't work for $daemon configuration - wrong binary issue"
       } else {
          ts_log_fine "Test 5 for \"$job\" passed"

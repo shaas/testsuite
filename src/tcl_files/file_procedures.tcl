@@ -3512,9 +3512,17 @@ proc get_local_spool_dir {host subdir {do_cleanup 1}} {
    set spooldir ""
 
    # special case: suppress local spooldirectories
+   # and even more special: In SGE 6.2, shared spooldirs are no longer possible
+   # on Windows - here we really need a local spooldir.
+   # And as shared spooldirs are causing problems on Windows,
+   # we do not support them at all!
    if {$check_do_not_use_spool_config_entries == 1} {
-      ts_log_fine "\"no_local_spool\" option is set - returning empty spool dir" 
-      return $spooldir
+      if {[resolve_arch $host] == "win32-x86"} {
+         ts_log_fine "\"no_local_spool\" option is set, but we are on Windows - allowing local spool dir"
+      } else {
+         ts_log_fine "\"no_local_spool\" option is set - returning empty spool dir" 
+         return $spooldir
+      }
    }
 
    # host might be a virtual host - to query local spooldir we need the real host

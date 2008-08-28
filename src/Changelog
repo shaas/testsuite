@@ -1,3 +1,7 @@
+JG-2008-08-28-0: Enhancem.:  Always use local spool directory on Windows, even
+                             with commandline option no_local_spool.
+                 Review:     CR
+
 CR-2008-08-27-1: Enhancem.:  o new menu item:
                                (55) shutdown cluster
                  Bugfix:     o fixed cleanup of test:
