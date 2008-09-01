@@ -1,3 +1,8 @@
+RM-2008-09-01-0: Bugfix:     When hedeby cluster has archs lx24-amd64 and lx26-amd64
+                             the compilation should be done just on lx24-amd64 for hedeby
+                             otherwise native code can be unusable for lx24-amd64 resource
+                 Review:     MB
+
 JG-2008-08-28-0: Enhancem.:  Always use local spool directory on Windows, even
                              with commandline option no_local_spool.
                  Review:     CR

@@ -469,19 +469,37 @@ proc hedeby_compile { compile_hosts a_report } {
    } else {
       puts $CHECK_OUTPUT "done."
    }
-   
+
+   set hosts(lx26_amd64) 1
+   set hosts(lx26_x86) 1
+   #here we need to check if lx24 and lx26 are for given platform lx26 should not be compiled
+   foreach build_host $compile_hosts {
+	   if { "[host_conf_get_arch $build_host]" == "lx24-amd64" } {
+              set hosts(lx26_amd64) 0
+	   }
+	   if { "[host_conf_get_arch $build_host]" == "lx24-x86" } {
+              set hosts(lx26_x86) 0
+	   }
+	      
+   }
    # here we do the native build things (all hosts without java build host) ...
    foreach build_host $compile_hosts {
       if { $build_host != $java_build_host } {
-         puts $CHECK_OUTPUT "starting build on \"$build_host\" ..."
-         set ret [hedeby_build $build_host "native.build" report]
-         if { $ret != 0 } {
-            add_proc_error "hedeby_compile" -1 "Native build on $build_host failed"
-            return -1
-         } else {
-            puts $CHECK_OUTPUT "done."
-         }
-      }
+	 if { "[host_conf_get_arch $build_host]" == "lx26-amd64" && $hosts(lx26_amd64) == 0 } {
+	    puts $CHECK_OUTPUT "Skipping build on \"$build_host\" ..."
+	       } elseif { "[host_conf_get_arch $build_host]" == "lx26-x86" && $hosts(lx26_x86) == 0 } {
+		   puts $CHECK_OUTPUT "Skipping build on \"$build_host\" ..."
+	       } else {
+                   puts $CHECK_OUTPUT "starting build on \"$build_host\" ..."
+                   set ret [hedeby_build $build_host "native.build" report]
+                   if { $ret != 0 } {
+                      add_proc_error "hedeby_compile" -1 "Native build on $build_host failed"
+                      return -1
+                   } else {
+                      puts $CHECK_OUTPUT "done."
+                   }
+               }
+          }
    }
 
    # here we do create the dist on the java build host
