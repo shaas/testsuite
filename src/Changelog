@@ -1,3 +1,10 @@
+DG-2008-09-01-0: Bugfix:     When testing java drmaa in 6.0 branch we don't 
+                             build the drmaa-0.5.jar but we need to check it. 
+                             Therefore if the library is missing we are 
+                             using the newly added library out of the 
+                             testsuite lib directory.   
+                 Review:     AP
+
 RM-2008-09-01-0: Bugfix:     When hedeby cluster has archs lx24-amd64 and lx26-amd64
                              the compilation should be done just on lx24-amd64 for hedeby
                              otherwise native code can be unusable for lx24-amd64 resource

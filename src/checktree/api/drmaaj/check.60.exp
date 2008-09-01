@@ -334,7 +334,6 @@ proc set_hosts_for_runlevel {} {
     return $hosts_in_runlevel_local
 }
 
-
 #****** check.60.exp/get_lowest_java_version() *************************************
 #  NAME
 #     get_lowest_java_version() -- ??? 
@@ -608,16 +607,26 @@ proc set_java_classpath_according_to_runlevel {} {
    global ts_config 
 
    # add to Java classpath the Java DRMAA library
-   set classpath "$ts_config(product_root)/lib/drmaa"
+   set classpath ""
    if {  $CHECK_ACT_LEVEL == "100" || 
          $CHECK_ACT_LEVEL == "101" || 
          $CHECK_ACT_LEVEL == "200" || 
          $CHECK_ACT_LEVEL == "201" || 
          $CHECK_ACT_LEVEL == "300" || 
          $CHECK_ACT_LEVEL == "301" } {
-      set classpath "${classpath}-0.5"
+      # use the old drmaa library out of the testsuite lib directory 
+      # (test backward compatibility)
+      if {[file exists "$ts_config(product_root)/lib/drmaa-0.5.jar"]} {
+         set classpath "$ts_config(product_root)/lib/drmaa-0.5.jar"
+      } else {
+         set classpath "$ts_config(testsuite_root_dir)/lib/drmaa-0.5.jar"
+      }
+
+      
+   } else {
+      # use the current drmaa library from the product
+      set classpath "$ts_config(product_root)/lib/drmaa.jar"
    }
-   set classpath "${classpath}.jar"
 
    # add the drmaa-test.jar 
    if {  $CHECK_ACT_LEVEL == "100" || 
@@ -756,7 +765,7 @@ proc drmaaj_check { } {
                   set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test_on_64_bit junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
                   if {$prg_exit_state != 0} {
-                     ts_log_severe "DRMAA-J jUnit test for 32 bit lib on 64 bit host failed at host $host:\n$test_output"
+                     ts_log_severe "DRMAA-J jUnit test for 32 bit lib on 64 bit host failed at host $host: $test_output Java version: $java Run level: $CHECK_ACT_LEVEL"
                   }
                }
             }
@@ -798,7 +807,7 @@ proc drmaaj_check { } {
                 set test_output [start_remote_prog $host $CHECK_USER $java "$options_for_32_bit_test junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
                 if {$prg_exit_state != 0} { 
-                   ts_log_severe "DRMAA-J jUnit test for 32 bit lib on 32 bit JVM and 64 bit host failed at host $host:\n$test_output"
+                   ts_log_severe "DRMAA-J jUnit test for 32 bit lib on 32 bit JVM and 64 bit host failed at host $host: $test_output Java version: $java Run level: $CHECK_ACT_LEVEL"
                 }
              }
             continue 
@@ -811,7 +820,7 @@ proc drmaaj_check { } {
          set test_output [start_remote_prog $host $CHECK_USER $java "$java_options junit.textui.TestRunner DrmaaSuite" prg_exit_state 600 0 "" "" 1 0 1]
 
          if {$prg_exit_state != 0} {
-            ts_log_severe "DRMAA-J jUnit test suite failed at host $host:\n$test_output"
+            ts_log_severe "DRMAA-J jUnit test suite failed at host $host:\n$test_output \n Java version: $java Run level: $CHECK_ACT_LEVEL"
          }
       }
       # go through all Java versions
