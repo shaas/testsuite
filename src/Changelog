@@ -1,3 +1,9 @@
+DG-2008-09-01-1: Bugfix:     Fix of testsuite issue 202. Before installing 
+                             with menu item (19) the runlevel is set to 0 
+                             and afterwards back again. Hence it is possible 
+                             to install when other runlevels are in selection. 
+                 Review:     TB 
+
 DG-2008-09-01-0: Bugfix:     When testing java drmaa in 6.0 branch we don't 
                              build the drmaa-0.5.jar but we need to check it. 
                              Therefore if the library is missing we are 

@@ -7192,6 +7192,14 @@ proc menu {} {
               puts "need root access ..."
               set_root_passwd
            }
+           # store the enabled runlevels and clear them 
+           # (because we can only install in runlevel 0) 
+           set CHECK_ENABLED_RUNLEVELS_BACKUP $CHECK_ENABLED_RUNLEVELS
+           ts_log_fine "old runlevels: $CHECK_ENABLED_RUNLEVELS bzw $CHECK_ENABLED_RUNLEVELS_BACKUP"
+           set CHECK_ENABLED_RUNLEVELS ""
+
+           lappend CHECK_ENABLED_RUNLEVELS 0 
+           ts_log_fine "set runlevel to short"
 
            # first install additional clusters
            operate_additional_clusters install
@@ -7202,6 +7210,13 @@ proc menu {} {
            set runcompleted 1
            run_tests "root" $runcompleted
            set CHECK_ENABLED_CATEGORIES $org_categories
+
+           # reset enabled runlevels
+           set CHECK_ENABLED_RUNLEVELS ""
+           set CHECK_ENABLED_RUNLEVELS $CHECK_ENABLED_RUNLEVELS_BACKUP
+           unset CHECK_ENABLED_RUNLEVELS_BACKUP
+           ts_log_fine "restore old runlevels: $CHECK_ENABLED_RUNLEVELS"
+
            wait_for_enter
          }
     "20" { restart_debug_daemons } 
