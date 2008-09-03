@@ -1,3 +1,9 @@
+JF-2008-09-03-0: Enhancem.:  o new test:
+                               src/checktree/bugs/issuezilla/1081
+                             o new test:
+                               src/checktree/bugs/issuezilla/1156
+                 Review:     AP
+
 DG-2008-09-01-1: Bugfix:     Fix of testsuite issue 202. Before installing 
                              with menu item (19) the runlevel is set to 0 
                              and afterwards back again. Hence it is possible 
