@@ -255,6 +255,14 @@ global CHECK_DNS_DOMAINNAME
 set CHECK_DNS_DOMAINNAME ""
 global CHECK_REMOTE_ENVIRONMENT
 set CHECK_REMOTE_ENVIRONMENT ""
+# display variable CHECK_DISPLAY_OUTPUT
+# there are three possibilities how to set DISPLAY variable:
+#    1. from user's environment
+#    2. running testsuite with option --display
+#    3. setting up envlist in user configuration
+# CHECK_SET_USER_ENV_DISPLAY indicates if the variable should be set from envlist (1 yes, 0 no)
+global CHECK_SET_USER_ENV_DISPLAY
+set CHECK_SET_USER_ENV_DISPLAY 1
 global CHECK_DISPLAY_OUTPUT 
 if { [info exists env(DISPLAY)] } {
 set CHECK_DISPLAY_OUTPUT [set env(DISPLAY)]
@@ -8204,6 +8212,7 @@ for {set i 0} {$i < $argc} {incr i} {
    if { ( [string compare [lindex $argv $i] "--display"] == 0 ) || ([string compare [lindex $argv $i] "display"] == 0) } {
       incr i
       set CHECK_DISPLAY_OUTPUT [lindex $argv $i]
+      set CHECK_SET_USER_ENV_DISPLAY 0
       continue
    }
 
@@ -8531,6 +8540,11 @@ if { $do_only_diff_macros == 1 } {
 set CHECK_CUR_CONFIG_FILE $CHECK_DEFAULTS_FILE
 
 setup2
+
+# set the DISPLAY environment variable
+if { $CHECK_SET_USER_ENV_DISPLAY == 1 } {
+   user_config_set_env "DISPLAY" "CHECK_DISPLAY_OUTPUT"
+}
 
 # clear the arch cache, only after the setup2 we have the path to SGE_ROOT,
 # and can call the correct arch script

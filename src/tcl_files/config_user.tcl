@@ -1015,7 +1015,12 @@ proc setup_user_config { file { force_params "" } } {
                         if { [ save_user_configuration $file] != 0} {
                            puts "Could not save user configuration"
                            wait_for_enter
+                        } else {
+                           # set the DISPLAY environment variable
+                           if { $CHECK_SET_USER_ENV_DISPLAY == 1 } {
+                              user_config_set_env "DISPLAY" "CHECK_DISPLAY_OUTPUT"
                         }
+                     }
                      }
                      return
                   } else { continue }
@@ -1155,5 +1160,41 @@ proc user_config_add_newport { port {config_array "" } } {
    }
 
    wait_for_enter
+   return
+}
+
+#****** config_user/user_config_get_env() **************************************
+#  NAME
+#     user_config_set_env() -- set user's environment variable from his envlist
+#
+#  SYNOPSIS
+#     user_config_set_env { envname check_var_name}
+#
+#  FUNCTION
+#     This procedure is used to set user's environment variable from his envlist
+#
+#  INPUTS
+#     envname        - the name of variable, i. e. DISPLAY
+#     check_var_name - corresponding global variable name
+#
+#*******************************************************************************
+proc user_config_set_env { envname check_var_name } {
+   global ts_user_config $check_var_name CHECK_USER
+
+   if { [info exists ts_user_config($CHECK_USER,envlist)] } {
+      set env_array [split $ts_user_config($CHECK_USER,envlist) " "]
+      ts_log_finest "envlist = $env_array"
+
+      foreach var $env_array {
+         set rec [split $var "="]
+         lassign $rec disVar disVal
+         if {[string compare $disVar ""] != 0} {
+            if {[string compare $disVar "$envname"] == 0} {
+               ts_log_finest "set $check_var_name $disVal"
+               set $check_var_name $disVal
+            }
+         }
+      }
+   }
    return
 }

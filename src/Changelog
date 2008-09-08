@@ -1,3 +1,9 @@
+MP-2008-09-08-0: Bugfix:     Fix of testsuite issue 158. display_test does
+                             not use the DISPLAY value set in the user's
+                             envlist.
+                 Issue:      158
+                 Review:     AP
+
 JF-2008-09-03-0: Enhancem.:  o new test:
                                src/checktree/bugs/issuezilla/1081
                              o new test:
