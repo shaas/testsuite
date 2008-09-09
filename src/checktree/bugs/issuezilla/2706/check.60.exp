@@ -1,0 +1,178 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2706_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2706"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "test if sge_shepherd crashes when job TMPDIR of a qrsh job is deleted"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function issue_2706_setup
+set check_cleanup_function issue_2706_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2706_test"
+
+proc issue_2706_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2706_setup {} {
+   global ts_config
+   global issue_2706_host
+
+   # we need a test host, preferred is Linux - here we could
+   # consistently reproduce the issue
+   set issue_2706_host [host_conf_get_suited_hosts 1 "lx24-amd64 lx24-ia64 lx24-x86 lx26-amd64 lx26-ia64 lx26-x86"]
+}
+
+proc issue_2706_cleanup {} {
+   global ts_config
+   global issue_2706_host
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # unset our test's global variables
+   foreach var "issue_2706_host" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+#****** check/issue_2706_test() *********************************************
+#  NAME
+#     issue_2706_test() -- look for issue 2706
+#
+#  SYNOPSIS
+#     issue_2706_test { } 
+#
+#  FUNCTION
+#     Starts a qrsh job (sleeper.sh).
+#     When the job is running, deletes the jobs TMPDIR.
+#     The jobs TMPDIR contains a pid file containing the jobs pid,
+#     when the pid file is missing, sge_shepherd < 6.1u5 is dumping core.
+#     The shepherd core dump is logged in the execd messages file,
+#     the test function is looking for the corresponding message.
+#*******************************************************************************
+proc issue_2706_test {} {
+   global ts_config CHECK_USER
+   global issue_2706_host
+
+   # tail -f to execd messages file
+   set spooldir [get_spool_dir $issue_2706_host "execd"]
+   set logfile [init_logfile_wait $issue_2706_host "$spooldir/messages"]
+
+   # we need the queue tmpdir in order to delete the jobs TMPDIR
+   get_queue [get_queue_instance "all.q" $issue_2706_host] queue_conf
+   set queue_tmpdir $queue_conf(tmpdir)
+
+   # start a qrsh job
+   set arch [resolve_arch $ts_config(master_host)]
+   set qrsh "$ts_config(product_root)/bin/$arch/qrsh"
+   set script "$ts_config(product_root)/examples/jobs/sleeper.sh"
+   set qrsh_id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $qrsh "-verbose -l h=$issue_2706_host $script 30"]
+   set sp_id [lindex $qrsh_id 1]
+   
+   # when it is running, delete the job TMPDIR
+   # and wait for the job to finish
+   set SUBMITTED [translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]
+   set timeout 60
+   expect {
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id eof {
+         ts_log_severe "eof while waiting for job start"
+      }
+      -i $sp_id timeout {
+         ts_log_severe "timeout while waiting for job start"
+      }
+      -i $sp_id $SUBMITTED {
+         set job_id [lindex $expect_out(0,string) 2]
+         ts_log_fine "qrsh job $job_id submitted"
+         exp_continue
+      }
+      -i $sp_id "Here I am." {
+         ts_log_fine "qrsh started up"
+         set job_tmpdir "$queue_tmpdir/$job_id.1.all.q"
+         ts_log_fine "deleting directory $job_tmpdir"
+         start_remote_prog $issue_2706_host "root" "rm" "-rf $job_tmpdir"
+         exp_continue
+      }
+      -i $sp_id "Now it is:" {
+         ts_log_fine "qrsh finished"
+      }
+   }
+   close_spawn_process $qrsh_id
+
+   # look for core dump message in execd messages file
+   set DUMPED [translate_macro MSG_SHEPHERD_VSHEPHERDOFJOBWXDIEDTHROUGHSIGNALYZ_SUUSI "*" $job_id 1 "*" 11]
+   set output [logfile_wait $DUMPED 10 1 0]
+   # if the error message appeared in the messages file, we have the error
+   if {$logfile_wait_error == 0} {
+      ts_log_severe "issue 2706 is present:\n$output"
+   }
+}
+
