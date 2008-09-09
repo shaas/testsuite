@@ -1,0 +1,291 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name
+global check_category
+global check_description
+global check_needs
+global check_functions
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global FLUSH_TIME
+
+#set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "accounting_init_level"
+
+# define test's name and run level descriptions
+set check_name            "accounting"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "Comparing the output of qacct with the content of the ARCo database"
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system arco_database_install arco_dbwriter_install"
+
+# setup and cleanup functions
+set check_setup_function accounting_setup
+set check_cleanup_function accounting_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_113_test"
+
+proc accounting_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc accounting_setup {} {
+   global ts_config
+   global accounting_backup
+   global FLUSH_TIME
+
+   # we want to modify the global config - make a backup
+   get_config accounting_backup
+
+   # set flush time to suitable value
+   ts_log_fine "setting configuration (flush time)"
+   set FLUSH_TIME "05"
+   set new_conf(reporting_params) "accounting=true reporting=true flush_time=00:00:$FLUSH_TIME joblog=true sharelog=00:00:00"
+   set_config new_conf
+}
+
+proc accounting_cleanup {} {
+   global ts_config
+   global accounting_backup
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # restore config
+   set_config accounting_backup
+
+   # unset our test's global variables
+   if {[info exists "accounting_backup"]} {
+      unset "accounting_backup"
+   }
+}
+
+#****** accounting/abs_value() ******
+#
+#  NAME
+#     abs_value -- absolute value
+#
+#  SYNOPSIS
+#     abs_value { x }
+#
+#  FUNCTION
+#     This procedure returns absolute value of parameter x.
+#
+#  INPUTS
+#     x   - the numeric variable
+#
+#  RESULT
+#     -absolute value
+#
+#  SEE ALSO
+#*******************************
+proc abs_value { x } {
+   if { $x >= 0 } {
+      return $x
+   } else {
+      return [expr -1 * $x]
+   }
+}
+
+#****** accounting/is_nearly_equal() ******
+#
+#  NAME
+#     is_nearly_equal -- is nearly equal
+#
+#  SYNOPSIS
+#     is_nearly_equal { x y max_divergence }
+#
+#  FUNCTION
+#     This procedure checks whether variables x y have nearly same values.
+#     "Nearly" is defined by parameter max_divergence.
+#
+#  INPUTS
+#     x   - the first variable to compare
+#     y   - second variable to compare
+#     max_divergence   - max divergence of two compared variables (default 1)
+#
+#  RESULT
+#     -1 error
+#      0 ok
+#
+#  SEE ALSO
+#*******************************
+proc is_nearly_equal { x y {max_divergence "0.5"} } {
+   if { [abs_value [expr $x - $y ]] > $max_divergence } {
+      return -1
+   } else {
+      return 0
+   }
+}
+
+proc issue_113_test {} {
+   global ts_config CHECK_USER
+   global accounting_hosts
+   global CHECK_ACT_LEVEL
+   global FLUSH_TIME
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      ts_log_fine "this is the test for runlevel $CHECK_ACT_LEVEL"
+
+      # execution "qsub $SGE_ROOT/examples/jobs/worker.sh" and get number of job
+      ts_log_fine "executing qsub \$SGE_ROOT/examples/jobs/worker.sh"
+      set qsub_arguments "-sync y $ts_config(product_root)/examples/jobs/worker.sh 10"
+      set job_id [submit_job $qsub_arguments]
+      ts_log_fine "job $job_id submitted"
+
+      # wait until job ran through
+      ts_log_fine "waiting until job $job_id ran through"
+      if {[wait_for_jobend $job_id "Worker" 60 0]} {
+         ts_log_severe "job was not running"
+         return -1
+      }
+
+      # get accounting record
+      ts_log_fine "getting accounting record"
+      set result [get_qacct $job_id]
+      if { $result != 0 } {
+         ts_log_severe "job was not found"
+         return -1
+      }
+
+      # print accounting
+      ts_log_fine "qacct report: name = $qacct_info(jobname), number = $qacct_info(jobnumber), cpu = $qacct_info(cpu), mem = $qacct_info(mem), ru_stime = $qacct_info(ru_stime), ru_utime = $qacct_info(ru_utime)"
+
+      # create sql util
+      ts_log_fine "creating sql util"
+      set id [sqlutil_create]
+      if { $id == "-1" } {
+         ts_log_severe "Can not create sqlutil"
+         return -2
+      }
+      set sp_id [ lindex $id 1 ]
+
+      # connect to database
+      ts_log_fine "connecting to database"
+      if { [ sqlutil_connect $sp_id] != 0 } {
+         ts_log_severe "Can not connect to database"
+         close_spawn_process $id;
+         set $id ""
+         return -2
+      }
+
+      # create SQL query
+      set sql "SELECT j.j_job_number, ju.ju_cpu , ju.ju_mem, ju.ju_ru_utime, ju.ju_ru_stime "
+      append sql "FROM sge_job j, sge_job_usage ju "
+      append sql "WHERE j.j_id = ju.ju_parent AND j.j_job_number = $job_id"
+
+      # execute query
+      ts_log_fine "waiting for executing query $sql"
+      set column_names {}
+      array set result_array {}
+      set next_loop "20"
+      while { $next_loop > 0 } {
+         set res [sqlutil_query $sp_id "$sql" result_array column_names]
+         if {$res < 0} {
+            ts_log_severe "can not execute not query $sql"
+            close_spawn_process $id
+            return -2
+         } elseif {$res > 0} {
+            # write query result
+            ts_log_fine "writing query result"
+            set line ""
+            foreach col_name $column_names {
+               append line "| $col_name "
+            }
+            ts_log_fine "$line"
+            for {set i 0} {$i < $res} {incr i} {
+               set col 0
+               set line ""
+               foreach col_name $column_names {
+                  append line "| $result_array($i,$col) "
+                  set sql_result($col_name) $result_array($i,$col)
+                  incr col
+               }
+               ts_log_fine "$line"
+            }
+            set next_loop "-1"
+         } else {
+            set next_loop [expr $next_loop - 1]
+            ts_log_progress
+            sleep $FLUSH_TIME
+         }
+      }
+      close_spawn_process $id;
+      if { $next_loop != -1 } {
+         ts_log_severe "database job record not found probably system overloaded or dbwriter switched off"
+         return -2
+      }
+
+      # compare the output of qacct with the content of the ARCo database
+      ts_log_fine "comparing the output of qacct with the content of the ARCo database"
+      if {[is_nearly_equal $qacct_info(cpu) $sql_result(ju_cpu)]} {
+         ts_log_severe "cpu ouputs not equal"
+         return -3
+      }
+      if {[is_nearly_equal $qacct_info(mem) $sql_result(ju_mem)]} {
+         ts_log_severe "mem ouputs not equal"
+         return -3
+      }
+      if {[is_nearly_equal $qacct_info(ru_stime) $sql_result(ju_ru_stime)]} {
+         ts_log_severe "ru_stime ouputs not equal"
+         return -3
+      }
+      if {[is_nearly_equal $qacct_info(ru_utime) $sql_result(ju_ru_utime)]} {
+         ts_log_severe "ru_utime ouputs not equal"
+         return -3
+      }
+
+      # return OK test successful
+      return 0
+   }
+}
