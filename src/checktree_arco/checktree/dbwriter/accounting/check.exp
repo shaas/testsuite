@@ -91,12 +91,29 @@ proc accounting_setup {} {
    ts_log_fine "setting configuration (flush time)"
    set FLUSH_TIME "05"
    set new_conf(reporting_params) "accounting=true reporting=true flush_time=00:00:$FLUSH_TIME joblog=true sharelog=00:00:00"
-   set_config new_conf
+   if { [set_config new_conf] != 0 } {
+      ts_log_severe "can not set reporting_params"
+      return -1
+   }
+
+   # start dbwriter
+   ts_log_fine "starting dbwriter"
+   set res [startup_dbwriter]
+   if { $res != 0 } {
+      return -1
+   }
 }
 
 proc accounting_cleanup {} {
    global ts_config
    global accounting_backup
+
+   # shutdown dbwriter
+   ts_log_fine "shutdowning dbwriter"
+   if { [shutdown_dbwriter] != 0 } {
+      ts_log_severe "can not stop dbwriter"
+      return -1
+   }
 
    delete_all_jobs
    wait_for_end_of_all_jobs
