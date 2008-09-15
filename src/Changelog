@@ -1,3 +1,7 @@
+DG-2008-09-15-0: Enhancem.:  Initial test for qresub client added. Test 
+                             for issue 2726. 
+                 Review:     JG
+
 JF-2008-09-10-0: Fix.:       Fix for Arco test of testsuite issue 113.
                  Review:     AP
 

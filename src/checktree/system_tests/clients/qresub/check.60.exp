@@ -1,0 +1,121 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# global variables ... (defined in main check routine, but you can use it)
+#
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions
+global check_category
+global check_root_access_needs
+set check_root_access_needs "yes"
+
+set check_name         "qresub"
+set check_category     "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_description(0)  "check every qresub option"
+set check_needs        "init_core_system"       ;# dependencies of this check (name of other check)
+
+# define a level initialization procedure:
+set check_init_level_procedure "qresub_init_level"
+
+# setup and cleanup functions
+set check_setup_function "qresub_setup"
+set check_cleanup_function "qresub_cleanup"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "qresub_issue_2726"   ;# functions to call (in order)
+
+proc qresub_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level else
+}
+
+proc qresub_setup {} {
+   global qresub_host qresub_queue
+
+   set qresub_host  [host_conf_get_suited_hosts]
+   set qresub_queue [get_queue_instance "all.q" $qresub_host]
+}
+
+proc qresub_cleanup {} {
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
+#                                                             max. column:     |
+#****** qresub/qresub_issue_2726 ******
+# 
+#  NAME
+#     qresub_issue_2726 -- ??? 
+#
+#  SYNOPSIS
+#     qresub_issue_2726 { } 
+#
+#  FUNCTION
+#     Checks if the issue 2726 is present. 
+#
+#*******************************
+proc qresub_issue_2726 { } {
+   global ts_config
+   global qresub_queue
+
+   # This jobs has to be long enough to survive the starting of the next jobs
+   set job_id [submit_job "-o /dev/null -e /dev/null -q $qresub_queue -b y sleep 2"]
+   if {$job_id < 0 } {
+      ts_log_warning "Couldn't submit a binary sleeper job!"
+      return
+   }
+   
+   # Do a qresub 
+   set output [start_sge_bin "qresub" "$job_id"]
+   
+   if {[string first "DB_NOTFOUND" $output] != -1} {
+      # this is bug "qresub on -b y jobs raises wrong error condition"
+      # a script is searched in berkeley db bot nothing is found 
+      ts_log_severe "It is bug 2726: qresub on -b y jobs raises wrong error condition"
+      return
+   } else {
+      ts_log_fine "Everything is fine: Bug 2726 does NOT occur!"
+   }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
