@@ -1,3 +1,9 @@
+CR-2008-09-16-0: Enhancem.:  system_tests/execd/reconnect now also checks
+                             if a restarted execd will connect to qmaster when
+                             act_master file contains wrong host and qmaster is not
+                             running.
+                 Review:     DG
+
 DG-2008-09-15-0: Enhancem.:  Initial test for qresub client added. Test 
                              for issue 2726. 
                  Review:     JG

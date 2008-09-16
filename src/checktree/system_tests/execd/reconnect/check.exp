@@ -136,11 +136,13 @@ proc execd_reconnect_cleanup_level {} {
 #     Test steps:
 #        1) Shutdown sge_qmaster (and scheduler)
 #        2) Write unresolvable hostname into act_qmaster file
+#      2.5) Shutdown and restart and execd
 #        3) Wait for at least 3 Minutes (+1 Extra minute to be save)
 #           => Execds tries to reconnect to new act_qmaster which is not
 #              reachable
 #        4) Restart original qmaster
 #           => act_qmaster file now contains the correct qmaster name again
+#      4.5) Check that execd from 2.5 has also reconnected
 #        5) Wait that all execds reconnect to the new started qmaster
 #
 #*******************************************************************************
@@ -154,6 +156,8 @@ proc execd_reconnect_test {} {
    set execd_reconnect_cleanup_level_do_cleanup 1
 
    ts_log_fine "TEST: \"$check_description($CHECK_ACT_LEVEL)\""
+   set execd_name [host_conf_get_suited_hosts]
+   ts_log_fine "choosen execd \"$execd_name\" for execd shutdown test!"
 
    set error_text ""
    # 1) Shutdown sge_qmaster (and scheduler)
@@ -182,6 +186,10 @@ proc execd_reconnect_test {} {
    if {$cur_qmaster_name != $data(1)} {
       append error_text "file $act_qmaster_file_path doesn't contain qmaster name \"$data(1)\", but \"$cur_qmaster_name\"\n"
    }
+
+   # 2.5) Now shutdown and restart execd host
+   shutdown_system_daemon $execd_name "execd"
+   startup_execd $execd_name
 
    # 3) Here we have to wait the hard coded "check qmaster alive" timeout of 3 minutes
    # (+1 Minute to be sure)
@@ -212,6 +220,20 @@ proc execd_reconnect_test {} {
    # 5) Wait that all execds reconnect to the new started qmaster
    if {[wait_for_load_from_all_queues 120] == 0} {
       set execd_reconnect_cleanup_level_do_cleanup 0
+   }
+   
+   qhost_parse output jobs "-l h=$execd_name"
+   set host_load "-"
+   if {[info exists output(host0,load_avg)]} {
+      set host_load $output(host0,load_avg)
+   }
+
+   ts_log_fine "load of host $execd_name is \"$host_load\""
+   if {$host_load >= 0.0} {
+      ts_log_fine "load is ok!"
+   } else {
+      append error_text "Load of host $execd_name is not available. The selected (restarted) execd did not connect to qmaster!\n"
+      set execd_reconnect_cleanup_level_do_cleanup 1
    }
 
    if {$error_text != ""} {
