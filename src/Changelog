@@ -1,3 +1,9 @@
+CR-2008-09-18-0: Enhancem.:  o new module test for issue 2728 integrated into
+                               module_tests/generic check
+                             o The module_tests/generic check now only reports
+                               one result for all started module tests
+                 Review:     RD
+
 CR-2008-09-16-0: Enhancem.:  system_tests/execd/reconnect now also checks
                              if a restarted execd will connect to qmaster when
                              act_master file contains wrong host and qmaster is not

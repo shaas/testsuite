@@ -98,17 +98,29 @@ proc generic_module_tests_init_level {} {
    return -1  ;# no other level
 }
 
+#****** module_tests/generic_module_tests_run() ************************************
+#  NAME
+#     generic_module_tests_run() -- run module tests
+#
+#  SYNOPSIS
+#     generic_module_tests_run { } 
+#
+#  FUNCTION
+#     This test runs all supported module tests.
+#*******************************************************************************
 proc generic_module_tests_run {} {
    global ts_config CHECK_USER
    global generic_module_tests generic_module_tests_test_hosts
 
+   set error_text ""
+   set config_text ""
    foreach host $generic_module_tests_test_hosts {
       set compile_arch [resolve_build_arch $host]
       foreach module_test $generic_module_tests {
          set command "$ts_config(source_dir)/$compile_arch/$module_test"
          ts_log_fine "$module_test:"
          if {[wait_for_remote_file $host $CHECK_USER $command 1 0] != 0} {
-            ts_log_config "module test binary $command doesn't exist on host $host"
+            append config_text "module test binary $command doesn't exist on host $host\n"
             continue
          } else {
             ts_log_fine "starting $module_test ..."
@@ -118,9 +130,17 @@ proc generic_module_tests_run {} {
             ts_log_fine "   => $module_test ok"
          } else {
             ts_log_fine "   => $module_test failed"
-            ts_log_severe "module test $module_test failed:\n$output"
+            append error_text "module test $module_test failed:\n$output\n\n"
          }
       }
+   }
+
+   if {$config_text != ""} {
+      ts_log_config $config_text
+   }
+
+   if {$error_text != ""} {
+      ts_log_severe $error_text
    }
 }
 

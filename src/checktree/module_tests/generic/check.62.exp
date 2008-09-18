@@ -40,4 +40,5 @@ set pos [lsearch -exact $generic_module_tests "test_ff_cl"]
 if {$pos >= 0} {
    set generic_module_tests [lreplace $generic_module_tests $pos $pos "test_flatfile_spool"]
 }
+lappend generic_module_tests "test_commlib_issue"
 
