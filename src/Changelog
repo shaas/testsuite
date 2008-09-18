@@ -1,3 +1,6 @@
+RD-2008-09-18-0: Enhancem.:  added test for qalter -w v scheduler messages
+                 Review:     CR
+
 CR-2008-09-18-0: Enhancem.:  o new module test for issue 2728 integrated into
                                module_tests/generic check
                              o The module_tests/generic check now only reports
