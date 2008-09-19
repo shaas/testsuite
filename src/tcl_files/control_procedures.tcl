@@ -2393,6 +2393,7 @@ proc resolve_host {name {long 0}} {
 
    get_current_cluster_config_array ts_config
 
+   set name [string trim $name]
    # we cannot resolve hostgroups.
    if {[string range $name 0 0] == "@"} {
       ts_log_fine "hostgroups ($name) cannot be resolved"

@@ -52,8 +52,8 @@ lappend check_functions       "issue_1422_setup"
 lappend check_functions       "issue_1422_run"
 lappend check_functions       "issue_1422_cleanup"
 set check_highest_level       0
-set session_directory         "~/.sge"
 
+global session_directory
 proc issue_1422_init_level {} {
    global CHECK_ACT_LEVEL ts_config
 
@@ -67,16 +67,25 @@ proc issue_1422_init_level {} {
 }
 
 proc issue_1422_setup {} {
-   delete_session_directory
+   global session_directory
+   set session_directory         "~/.sge"
+   if {[remote_file_isdirectory [gethostname] $session_directory]} {
+      delete_directory $session_directory
+   }
 }
 
 proc issue_1422_cleanup {} {
-   delete_session_directory
+   global session_directory
+   if {[remote_file_isdirectory [gethostname] $session_directory]} {
+      delete_directory $session_directory
+   }
 }
 
 proc issue_1422_run {} {
    global ts_config
+   global session_directory
 
+   ts_log_fine "session directory: $session_directory"
    foreach host $ts_config(unique_arch_nodes) {
       catch {eval exec "/bin/ls -lR $session_directory | wc -l"} result1
 
@@ -91,6 +100,3 @@ proc issue_1422_run {} {
    }
 }
 
-proc delete_session_directory {} {
-   catch {eval exec "rm" "-Rf" $session_directory} result
-}

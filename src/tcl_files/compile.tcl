@@ -842,15 +842,6 @@ proc compile_source { { do_only_hooks 0} } {
    
    report_finish report 0
 
-   # try to resolve hostnames in settings file
-   # TODO (CR): not sure for what reason the file is copied - uncommented the following lines 17-08-2007
-   #       if not used - remove code completely
-   #set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
-   #if { $catch_return != 0 } { 
-   #     puts "could not copy defaults file"
-   #     return -1
-   #}
-
    # if required, build distribution
 
    # HP 64 compiles 32 bit binaries: so add 32 bit architecture if not inside
@@ -960,12 +951,6 @@ proc compile_with_aimk {host_list a_report task_name { aimk_options "" }} {
    set num 0
    array set host_array {}
    
-   set cvs_tag "maintrunk"
-   if {[file isfile "${ts_config(source_dir)}/CVS/Tag"]} {
-      set cvs_tag "no_tag_dir" 
-      set tag_state [catch {eval exec "cat ${ts_config(source_dir)}/CVS/Tag"} cvs_tag]
-   }
-
    # we'll pass a build number into aimk to distinguish our binaries
    # from official builds.
    set build_number [get_build_number]

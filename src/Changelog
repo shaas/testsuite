@@ -1,3 +1,16 @@
+CR-2008-09-19-0: Cleanup:    o remote_delete_directory():
+                                do chown -R to check user if possible before
+                                deleting the directory
+                             o delete_directory() now is wrapper for
+                               remote_delete_directory()
+                             o resolve_host() now doing string trim to hostname
+                               argument
+                             o compile_with_aimk():
+                               removed old comments and useless code
+                             o test for issue 1422:
+                               rework deletion of session directory "~/.sge"
+                 Review:     RD
+
 RD-2008-09-19-0: Bugfix:     fixed qalter test
                  Review:     JG
 

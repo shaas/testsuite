@@ -987,8 +987,6 @@ proc get_act_qaster { {used_file_path ""} {raise_error 1} } {
       append error_text "file $act_qmaster_file_path not found!\n"
    }
 
-   
-
    # read act_qmaster file
    get_file_content $ts_config(master_host) $CHECK_USER $act_qmaster_file_path act_qmaster_file
    set act_qmaster_file_content "n.a."

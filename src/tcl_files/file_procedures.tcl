@@ -2424,8 +2424,35 @@ proc check_for_core_files {hostname path} {
    }
 }
 
+#****** file_procedures/remote_delete_directory() ******************************
+#  NAME
+#     remote_delete_directory() -- delete directory on host
+#
+#  SYNOPSIS
+#     remote_delete_directory { hostname path {win_local_user 0} } 
+#
+#  FUNCTION
+#     This procedure is deleting the specified path on the specified host. 
+#     All actions are started as CHECK_USER. If TS has the root
+#     password a chwon -R $CHECK_USER $path is done as root user. 
+#     If the testsuite_trash parameter was specified at TS startup
+#     the directory content is moved to testsuite_trash folder.
+#
+#  INPUTS
+#     hostname           - host where commands should be started
+#     path               - full path of directory to delete
+#     {win_local_user 0} - used for windows arch only and used for
+#                          start_remote_prog call 
+#
+#  RESULT
+#     0 on success, -1 on error
+#
+#  SEE ALSO
+#     file_procedures/delete_directory
+#*******************************************************************************
 proc remote_delete_directory {hostname path {win_local_user 0}} {
-   global CHECK_USER CHECK_TESTSUITE_TRASH
+   global CHECK_USER
+   global CHECK_TESTSUITE_TRASH
    get_current_cluster_config_array ts_config
 
    set return_value -1
@@ -2448,6 +2475,12 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
    # we want to be carefull not to delete system directories
    # therefore we only accept pathes longer than 10 bytes
    if {[string length $path] > 10} {
+
+      if {[have_root_passwd] == 0} {
+         # make sure we actually can delete the directory with all its contents.
+         start_remote_prog $hostname "root" chown "-R $CHECK_USER $path" prg_exit_state 60 0 "" "" 1 0 0
+      }
+
       # we move the directory as CHECK_USER (admin user)
       if {$CHECK_TESTSUITE_TRASH} {
          ts_log_finer "delete_directory - moving \"$path\" to trash folder ..."
@@ -2992,7 +3025,7 @@ proc delete_remote_file {hostname user path {win_local_user 0}} {
 #     -1 on error, 0 ok 
 #
 #  SEE ALSO
-#     file_procedures/delete_directory
+#     file_procedures/delete_directory()
 #*******************************
 proc delete_directory {path} { 
    global CHECK_USER CHECK_TESTSUITE_TRASH
@@ -3001,107 +3034,7 @@ proc delete_directory {path} {
    ts_log_fine "delete directory \"$path\""
 
    set local_host [gethostname]
-
-   if {[file isdirectory "$path"] != 1} {
-      ts_log_severe "$local_host: no such directory: \"$path\""
-      return -1     
-   }
-
-   if {$CHECK_TESTSUITE_TRASH} {
-      if {[file isdirectory "$ts_config(testsuite_root_dir)/testsuite_trash"] != 1} {
-         file mkdir "$ts_config(testsuite_root_dir)/testsuite_trash"
-      }
-   }
-
-   set return_value -1
- 
-   if {[string length $path ] > 10} {
-      # make sure we actually can delete the directory with all its contents.
-      ts_log_finer "delete_directory - testing file owner ..."
-      set del_files ""
-      set dirs [get_all_subdirectories $path]
-      foreach dir $dirs {
-         set file_attributes [file attributes $path/$dir]
-         if {[string match "*owner $CHECK_USER*" $file_attributes] != 1} {
-            ts_log_finer "directory $path/$dir not owned by user $CHECK_USER"
-            start_remote_prog $local_host "root" chown "-R $CHECK_USER $path/$dir" prg_exit_state 60 0 "" "" 1 0 0
-            if { $prg_exit_state == 0 } {
-               ts_log_finer "set directory owner to $CHECK_USER"
-            } else {
-               ts_log_finer "error setting directory permissions!"
-            }
-         }
-         set files [get_file_names $path/$dir "*"]
-         foreach file $files { 
-            lappend del_files $path/$dir/$file
-         }
-      }
-      
-      foreach file $del_files {
-         set file_attributes [file attributes $file]
-         if { [string match "*owner $CHECK_USER*" $file_attributes] != 1 } {
-            ts_log_finer "$file not owned by user $CHECK_USER"
-            start_remote_prog $local_host "root" chown "$CHECK_USER $file" prg_exit_state 60 0 "" "" 1 0 0
-            if {$prg_exit_state == 0} {
-               ts_log_finer "set file owner to $CHECK_USER"
-            } else {
-               ts_log_finer "error setting file permissions!"
-            }
-         }
-      }
-
-      # now delete it, or move it to testsuite_trash
-      if {$CHECK_TESTSUITE_TRASH} {
-         ts_log_finer "delete_directory - moving \"$path\" to trash folder ..."
-         set new_name [file tail $path] 
-         set catch_return [catch { 
-            eval exec "mv $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
-         } result] 
-         if {$catch_return != 0} {
-            ts_log_finer "delete_directory - mv error:\n$result"
-            ts_log_finer "delete_directory - try to copy the directory"
-            
-            set catch_return [catch {
-               eval exec "cp -r $path $ts_config(testsuite_root_dir)/testsuite_trash/$new_name.[timestamp]" 
-            } result] 
-            if {$catch_return != 0} {
-               ts_log_severe "$local_host: could not mv/cp directory \"$path\" to trash folder:\n$result"
-               set return_value -1
-            } else { 
-               ts_log_finer "copy ok - removing directory"
-               set catch_return [catch {
-                  eval exec "rm -rf $path" 
-               } result] 
-               if {$catch_return != 0} {
-                  ts_log_severe "$local_host: could not remove directory \"$path\":\n$result"
-                  set return_value -1
-               } else {
-                  ts_log_finer "done"
-                  set return_value 0
-               }
-            }
-         } else {
-            set return_value 0
-         }
-      } else {
-         ts_log_finer "delete_directory - removing directory"
-         set catch_return [catch {
-            eval exec "rm -rf $path" 
-         } result] 
-         if {$catch_return != 0} {
-            ts_log_severe "$local_host: could not remove directory \"$path\":\n$result"
-            set return_value -1
-         } else {
-            ts_log_finer "done"
-            set return_value 0
-         }
-      }
-   } else {
-      ts_log_severe "$local_host: path is to short. Will not delete\n\"$path\""
-      set return_value -1
-   }
-   ts_log_finer "delete_directory - done"
-   return $return_value
+   return [remote_delete_directory $local_host $path]
 }
 
 #****** file_procedures/init_logfile_wait() ************************************

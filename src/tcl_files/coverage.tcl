@@ -431,7 +431,7 @@ proc tcov_initialize {{clean 0}} {
    ts_log_fine " done"
 
    # setup the environment to use the profile directory
-   # for processes started directly by expect (eval exec)
+   # for processes started directly by expect
    tcov_per_process_setup $local_host $CHECK_USER env
 }
 
