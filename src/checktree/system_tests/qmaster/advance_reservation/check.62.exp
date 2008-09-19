@@ -685,10 +685,15 @@ proc test_changing_ar_id {} {
       ts_log_severe "job is not running"
    }
 
+   set CANT_MOD [translate_macro MSG_SGETEXT_CANT_MOD_RUNNING_JOBS_U "$job_id"]
+
 	ts_log_fine "change the ar of running job\nrun qalter -ar $ar_id2 $job_id\n"
    set result1 [start_sge_bin "qalter" "-ar $ar_id2 $job_id"]
    if {$prg_exit_state==0} {
-      ts_log_severe "error qalter -ar on running job should fail:\n$result1"
+      ts_log_severe "error qalter -ar on running job should return exit_state 1"
+   }
+   if {[string match "*$CANT_MOD*" $result1] == 0} {
+      ts_log_severe "error qalter -ar don't show correct error message, got $result1"
    }
 
    # Test setup

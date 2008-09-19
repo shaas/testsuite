@@ -242,7 +242,7 @@ proc consumable_resources_cleanup {} {
 proc check_qhost_broken {complex count} {
    global ts_config
 
-   # this bug has only be fixed in maintrunk for SGE 6.1
+   # this bug has only be fixed for SGE 6.1
    if {$ts_config(gridengine_version) >= 61} {
       set output [start_sge_bin "qhost" "-l $complex -F | grep arch | wc -l"]
       if {$output != $count} {
@@ -417,9 +417,18 @@ proc consumable_resources_submit_jobs_and_wait {job_arguments job_count run_job_
                   get_qstat_j_info $job_id($i)
                   if {$schedd_info_err != ""} {
                      if {[string match "*$schedd_info_err*" $qstat_j_info(scheduling info)]} {
-                        ts_log_warning "found issue 1894 (scheduling info contains: $schedd_info_err) - stop"
+                        ts_log_severe "found issue 1894 (scheduling info contains: $schedd_info_err)"
                         set error 1
                         set ok 1
+                     }
+                     # this bug has been fixed for SGE 6.2u1
+                     if {$ts_config(gridengine_version) >= 62} {
+                        set result [start_sge_bin "qalter" "-w v $job_id($i)"]
+                        if {[string match "*$schedd_info_err*" $result]} {
+                           ts_log_severe "found issue 2680 (qalter -w v contains: $result)"
+                           set error 1
+                           set ok 1
+                        }
                      }
                   }
                   if {[string match "*$schedd_info*" $qstat_j_info(scheduling info)]} {

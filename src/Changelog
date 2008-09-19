@@ -1,3 +1,7 @@
+RD-2008-09-19-1: Enhancem.   enhanced qmaster/advance_reservation and
+                             consumable_resources test
+                 Review:     JG
+
 CR-2008-09-19-0: Cleanup:    o remote_delete_directory():
                                 do chown -R to check user if possible before
                                 deleting the directory
