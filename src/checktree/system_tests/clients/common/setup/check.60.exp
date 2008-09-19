@@ -120,7 +120,7 @@ proc client_setup_do_test {scenario expected_error} {
    set commands(qselect,args) ""
    set commands(qsh,args) ""
    set commands(qstat,args) ""
-   set commands(qsub,args)  "$ts_config(product_root)/examples/jobs/sleeper.sh"
+   set commands(qsub,args)  "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh"
 
    if {$ts_config(gridengine_version) >= 61} {
       lappend commands(index) qquota

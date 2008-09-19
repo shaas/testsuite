@@ -919,7 +919,7 @@ proc run_throughput_test {} {
    set qstat_ok 0
 
    set my_timeout [ expr ( [timestamp] + 300 ) ]
-   set submit_options "-cwd -o /dev/null -j y"
+   set submit_options "-cwd -o /dev/null -e /dev/null -j y"
    #set submit_options "-cwd -o /dev/null -j y -b y"
    if {$array_size > 1} {
       append submit_options " -t 1-$array_size"

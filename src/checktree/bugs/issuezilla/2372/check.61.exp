@@ -199,7 +199,7 @@ proc issue_2372 {} {
       set binary "$ts_config(product_root)/bin/$arch/qsub"
       set envlist(SGE_DEBUG_LEVEL) "6 6 6 6 6 6 6 6"
       set envlist(SGE_COMMLIB_DEBUG) 2
-      set args " -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
+      set args " -o /dev/null -e /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
 
       # start qping -dump client for qmaster
       # when qping -dump debug client is connected qmaster will sleep 80 seconds when doing spooling
@@ -270,7 +270,7 @@ proc issue_2372 {} {
       set binary "$ts_config(product_root)/bin/$arch/qsub"
       set envlist(SGE_DEBUG_LEVEL) "6 6 6 6 6 6 6 6"
       set envlist(SGE_COMMLIB_DEBUG) 2
-      set args " -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
+      set args " -o /dev/null -j -e /dev/null y $ts_config(product_root)/examples/jobs/sleeper.sh 10"
 
       # start qping -dump client for qmaster
       # when qping -dump debug client is connected qmaster will sleep 80 seconds when doing spooling

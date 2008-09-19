@@ -505,7 +505,7 @@ proc error_states_job_output {} {
    } else {
       # error queue
       set error_run_queue "[lindex $ts_config(execd_hosts) 1].q"
-      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "-cwd -q $error_run_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "-o /dev/null -e /dev/null -cwd -q $error_run_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
       ts_log_fine $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1
@@ -513,7 +513,7 @@ proc error_states_job_output {} {
       delete_job $job_id
 
       #no error queue
-      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "-cwd -q $error_states_check_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
+      set result [start_remote_prog $ts_config(master_host) $CHECK_USER "qsub" "-o /dev/null -e /dev/null -cwd -q $error_states_check_queue $ts_config(testsuite_root_dir)/scripts/error.sh" prg_exit_state 60 0 $test_local_dir]
       ts_log_fine $result
       set job_id [lindex $result 2]
       wait_for_jobpending $job_id "leeper" 60 1

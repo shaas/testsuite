@@ -62,17 +62,17 @@ lappend check_functions "check_idle"                   ;# wait for execd's to co
 lappend check_functions "check_qstat"                  ;# do qstats
 lappend check_functions "check_idle"                   ;# wait for system to stabilize
 lappend check_functions "check_miniworm"               ;# run miniworms
-lappend check_functions "check_idle"                   ;# wait for system to stabilize 
+lappend check_functions "check_idle"                   ;# wait for system to stabilize
 lappend check_functions "check_flood"                  ;# flood of qsub's (sleeper)
-lappend check_functions "check_idle"                   ;# wait for system to stabilize 
+lappend check_functions "check_idle"                   ;# wait for system to stabilize
 lappend check_functions "check_size_config_zombies"    ;# activate finished jobs
-lappend check_functions "check_idle"                   ;# wait for system to stabilize 
+lappend check_functions "check_idle"                   ;# wait for system to stabilize
 lappend check_functions "check_miniworm"               ;# run miniworms
 lappend check_functions "check_idle"                   ;# wait for system to stabilize
 lappend check_functions "check_flood"                  ;# flood of qsub's (sleeper)
-lappend check_functions "check_idle"                   ;# wait for system to stabilize 
+lappend check_functions "check_idle"                   ;# wait for system to stabilize
 lappend check_functions "check_miniworm"               ;# run miniworms
-lappend check_functions "check_idle"                   ;# wait for system to stabilize 
+lappend check_functions "check_idle"                   ;# wait for system to stabilize
 
 # constants / global variables for monitor_size
 global MONITOR_SIZE_FILENAME MONITOR_SIZE_INTERVAL MONITOR_SIZE_ERROR
@@ -101,9 +101,9 @@ proc qmaster_size_init_level {} {
    upvar CHECK_QSTAT_DELAY        check_qstat_delay
    upvar CHECK_QSTAT_DURATION     check_qstat_duration
    upvar CHECK_QSTAT_INTERVAL     check_qstat_interval
-   upvar CHECK_MINIWORM_TYPES     check_miniworm_types 
-   upvar CHECK_MINIWORM_DELAY     check_miniworm_delay 
-   upvar CHECK_MINIWORM_DURATION  check_miniworm_duration 
+   upvar CHECK_MINIWORM_TYPES     check_miniworm_types
+   upvar CHECK_MINIWORM_DELAY     check_miniworm_delay
+   upvar CHECK_MINIWORM_DURATION  check_miniworm_duration
    upvar CHECK_MINIWORM_INTERVAL  check_miniworm_interval
    upvar CHECK_FLOOD_AMOUNTS      check_flood_amounts
    upvar CHECK_FLOOD_TYPES        check_flood_types
@@ -184,35 +184,35 @@ proc qmaster_size_init_level {} {
          return 0
       }
    }
-  
+
    return -1
 }
 
 #                                                             max. column:     |
 #****** size/qmaster_size_setup() ******
-# 
+#
 #  NAME
-#     qmaster_size_setup -- ??? 
+#     qmaster_size_setup -- ???
 #
 #  SYNOPSIS
-#     qmaster_size_setup { } 
+#     qmaster_size_setup { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -246,7 +246,7 @@ proc qmaster_size_setup {} {
 
    shutdown_master_and_scheduler $ts_config(master_host) $qmaster_spool_dir
 
-   startup_qmaster 
+   startup_qmaster
 
    set time [timestamp]
    while { 1 } {
@@ -259,15 +259,15 @@ proc qmaster_size_setup {} {
          set expected_ret_val 2
       }
       if { $running == $expected_ret_val } {
-         break; 
+         break;
       }
       set runtime [expr ( [timestamp] - $time) ]
       if { $runtime >= 300 } {
           ts_log_severe "timeout while waiting for startup of qmaster and scheduler"
           break;
       }
-   } 
-   
+   }
+
    wait_for_load_from_all_queues 300
    set time_start [clock seconds]
 }
@@ -299,7 +299,7 @@ proc init_ps {} {
          return
       }
    }
-  
+
    set local_arch [resolve_arch [gethostname]]
    # create ps command
    switch -exact $local_arch {
@@ -344,7 +344,7 @@ proc init_ps {} {
       "lx24-ia64" -
       "lx26-ia64" -
       "lx24-amd64" -
-      "lx26-amd64" - 
+      "lx26-amd64" -
       "ulx24-x86" -
       "ulx24-amd64" {
          set cmd_ps(master) "ps -p $qmaster_pid --no-heading -o vsz"
@@ -353,7 +353,7 @@ proc init_ps {} {
          }
          set size_unit kB
       }
-      "hp10" - 
+      "hp10" -
       "hp11" -
       "hp11-64" {
          set cmd_ps(master) "ps -p $qmaster_pid -l | tail -1 | awk '{print \$10}'"
@@ -375,7 +375,7 @@ proc init_ps {} {
       ts_log_info "executing ps command\n$cmd_ps(master)\nfailed\n$output"
       return
    }
-   
+
    # everything ok
    puts $cmd_ps(master)
    if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
@@ -410,7 +410,7 @@ proc get_size {who} {
          }
       }
    }
-   
+
    if { $result != 0 } {
       ts_log_fine $output
       return 0
@@ -420,7 +420,7 @@ proc get_size {who} {
       return 0
    } else {
       return $size
-   }   
+   }
 }
 
 proc monitor_header {} {
@@ -432,8 +432,8 @@ proc monitor_header {} {
 }
 
 proc monitor_size {jobs {when ""}} {
-   global time_start 
-   global next_report last_size 
+   global time_start
+   global next_report last_size
    global MONITOR_SIZE_FILENAME MONITOR_SIZE_INTERVAL CHECK_ACT_LEVEL
    global ts_config
 
@@ -442,12 +442,12 @@ proc monitor_size {jobs {when ""}} {
    if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
       set size(schedd) [get_size schedd]
    } else {
-      set size(schedd) 0 
+      set size(schedd) 0
    }
 
    if { $last_size(master) != $size(master) ||
         $last_size(schedd) != $size(schedd) ||
-        $now >= $next_report                || 
+        $now >= $next_report                ||
         $when != ""} {
       set f [open $MONITOR_SIZE_FILENAME "a"]
       #puts $f [format "%ld\t%ld\t%ld\t%ld\t%s" [expr $now - $time_start] $size(master) $size(schedd) $jobs $when]
@@ -475,7 +475,7 @@ proc stabilize {text delay interval commands} {
          monitor_size [get_job_count]
          sleep $interval
          set now [clock seconds]
-      }   
+      }
    }
 }
 
@@ -543,7 +543,7 @@ proc check_qstat {} {
    upvar CHECK_QSTAT_DURATION duration
    upvar CHECK_QSTAT_INTERVAL interval
 
-   monitor_size [get_job_count] "check_qstat" 
+   monitor_size [get_job_count] "check_qstat"
    stabilize "doing qstat's" $delay $interval {qstat_test}
    monitor "doing qstat's" $duration $interval {qstat_test}
 
@@ -564,14 +564,14 @@ proc check_miniworm {} {
    monitor_size [get_job_count] "check_miniworm"
 
    set last_job [get_last_jobid]
-   
+
    ts_log_fine "submitting miniworms with delays $types \[s\]"
 
    foreach host $ts_config(execd_nodes) {
       foreach i $types {
          catch {
             exec $CHECK_ACTUAL_TEST_PATH/redir_stderr.sh $CHECK_ACTUAL_TEST_PATH/pminiworm.sh "$CHECK_ACTUAL_TEST_PATH" "$i" "0" "$i"
-         } output   
+         }
       }
    }
 
@@ -585,11 +585,11 @@ proc check_miniworm {} {
    ts_log_fine "disabling queues $queue_list"
    disable_queue $queue_list
    ts_log_fine "deleting miniworms"
-   
+
    while {[get_job_count] > 0} {
       exec "$CHECK_ACTUAL_TEST_PATH/sge_start.sh" "qdel" "-u" "$CHECK_USER"
       sleep 5
-   }   
+   }
    ts_log_fine "enabling queues $queue_list"
    enable_queue $queue_list
 
@@ -666,7 +666,7 @@ proc check_flood {} {
       }
 
       set jobs_total [expr $num_hosts * $jobs_per_host * [llength $types]]
-   
+
       ts_log_fine "disabling queues $queue_list"
       disable_queue $queue_list
 
@@ -726,7 +726,7 @@ proc check_flood {} {
                close_spawn_process $flood_ids($spawn_id)
                set index [lsearch -exact $spawn_list $spawn_id]
                set spawn_list [lreplace $spawn_list $index $index]
-            } 
+            }
          }
          monitor_size [get_job_count]
       }
@@ -735,7 +735,7 @@ proc check_flood {} {
 
       ts_log_fine "enabling queues $queue_list"
       enable_queue $queue_list
-     
+
       stabilize "after enabling queues" $flood_stab_delay $flood_stab_interval {}
 
       ts_log_fine "monitoring size until no jobs remain"
@@ -782,29 +782,29 @@ proc check_size_config {} {
 
 #                                                             max. column:     |
 #****** size/check_size_config_zombies() ******
-# 
+#
 #  NAME
-#     check_size_config_zombies -- ??? 
+#     check_size_config_zombies -- ???
 #
 #  SYNOPSIS
-#     check_size_config_zombies { } 
+#     check_size_config_zombies { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -820,29 +820,29 @@ proc check_size_config_zombies {} {
 
 #                                                             max. column:     |
 #****** size/qmaster_size_cleanup() ******
-# 
+#
 #  NAME
-#     qmaster_size_cleanup -- ??? 
+#     qmaster_size_cleanup -- ???
 #
 #  SYNOPSIS
-#     qmaster_size_cleanup { } 
+#     qmaster_size_cleanup { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???

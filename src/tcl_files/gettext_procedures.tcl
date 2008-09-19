@@ -1,5 +1,5 @@
 #!/vol2/TCL_TK/glinux/bin/tclsh
-# expect script 
+# expect script
 #___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -36,37 +36,37 @@ global macro_messages_list
 
 #                                                             max. column:     |
 #****** gettext_procedures/test_file() ******
-# 
+#
 #  NAME
-#     test_file -- test procedure 
+#     test_file -- test procedure
 #
 #  SYNOPSIS
-#     test_file { me two } 
+#     test_file { me two }
 #
 #  FUNCTION
-#     this function is just for test the correct function call 
+#     this function is just for test the correct function call
 #
 #  INPUTS
-#     me  - first output parameter 
-#     two - second output parameter 
+#     me  - first output parameter
+#     two - second output parameter
 #
 #  RESULT
-#     output to stdout: 
+#     output to stdout:
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
 #*******************************
 proc test_file { me two} {
-  ts_log_fine "printing \"$me\" \"$two\". host is [exec hostname]" 
+  ts_log_fine "printing \"$me\" \"$two\". host is [exec hostname]"
   return "test ok"
 }
 
@@ -75,7 +75,7 @@ proc test_file { me two} {
 #     diff_macro_files() -- diff 2 testsuite message macro dump files
 #
 #  SYNOPSIS
-#     diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } 
+#     diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } }
 #
 #  FUNCTION
 #     This function will check if all message macros from file_a are contained
@@ -89,24 +89,24 @@ proc test_file { me two} {
 #     { ignore_backslash_at_end 1 } - if 1 (default) backslashes at end of a
 #                                     macro are ignored
 #
-#  RESULT 
+#  RESULT
 #     0 - success without errors or warnings
 #     1 - there where compare errors
 #     2 - there where no compare errors, but some macros wasn't found in
 #         file_b (new macros).
-#     
+#
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
 proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
    ts_log_fine "reading $file_a ..."
-   read_array_from_file $file_a "macro_messages_list" macros_1 1 
+   read_array_from_file $file_a "macro_messages_list" macros_1 1
    ts_log_fine "ok                               "
    ts_log_fine "messages are from $macros_1(source_code_directory)"
 
 
    ts_log_fine "reading $file_b ..."
-   read_array_from_file $file_b "macro_messages_list" macros_2 1 
+   read_array_from_file $file_b "macro_messages_list" macros_2 1
    ts_log_fine "ok                               "
    ts_log_fine "messages are from $macros_2(source_code_directory)"
 
@@ -129,7 +129,7 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
       lappend macros_2_macro_names $macros_2($i,macro)
    }
 
-   
+
 
    ts_log_fine "$file_a has [llength $macros_1_macro_names] macro entries!"
    ts_log_fine "$file_b has [llength $macros_2_macro_names] macro entries!"
@@ -145,12 +145,12 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
             for {set i 1} {$i <= $macros_1(0) } {incr i 1} {
                if { $macros_1($i,macro) == $macro } {
                   set macro_1_string $macros_1($i,string)
-               } 
+               }
             }
             for {set i 1} {$i <= $macros_2(0) } {incr i 1} {
                if { $macros_2($i,macro) == $macro } {
                   set macro_2_string $macros_2($i,string)
-               } 
+               }
             }
 
             if { $ignore_backslash_at_end != 0 } {
@@ -166,7 +166,7 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
             } else {
                set new_string [string range $macro_2_string 0 end]
             }
-            
+
             if { $new_string != $macro_1_string } {
                lappend compare_error $macro
                ts_log_newline
@@ -176,7 +176,7 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
                ts_log_fine "$file_b:"
                ts_log_fine "\"$new_string\""
             } else {
-             
+
             }
          }
       }
@@ -189,14 +189,14 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
    }
 
    set had_errors 0
-   set new_macros 0   
+   set new_macros 0
 
    ts_log_fine "\n\nfollowing macros from \n\"$file_a\"\n are not in \n\"$file_b\""
    foreach not_found_macro $not_found {
       incr new_macros 1
       ts_log_fine $not_found_macro
    }
-   
+
    ts_log_fine "\nfollowing macros from \n\"$file_a\"\n had compare errors \n\"$file_b\""
    foreach error $compare_error {
       incr had_errors 1
@@ -219,7 +219,7 @@ proc diff_macro_files { file_a file_b { ignore_backslash_at_end 1 } } {
 
 proc get_macro_messages_file_name { } {
   global CHECK_PROTOCOL_DIR ts_config
-  
+
   ts_log_fine "checking messages file ..."
   if { [ file isdirectory $CHECK_PROTOCOL_DIR] != 1 } {
      file mkdir $CHECK_PROTOCOL_DIR
@@ -244,7 +244,7 @@ proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
       ts_log_finer "file: $file"
       ts_log_finer "macros in list: [llength $search_list]"
       set file_p [ open $file r ]
- 
+
       set file_content ""
       while { [gets $file_p line] >= 0 } {
          append file_content $line
@@ -263,7 +263,7 @@ proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
          }
       }
    }
-   return $search_list 
+   return $search_list
 }
 
 #****** gettext_procedures/check_c_source_code_files_for_macros() **************
@@ -271,7 +271,7 @@ proc search_for_macros_in_c_source_code_files { file_list search_macro_list} {
 #     check_c_source_code_files_for_macros() -- check if macros are used in code
 #
 #  SYNOPSIS
-#     check_c_source_code_files_for_macros { } 
+#     check_c_source_code_files_for_macros { }
 #
 #  FUNCTION
 #     This procedure tries to find all sge macros in the source code *.c files.
@@ -300,7 +300,7 @@ proc check_c_source_code_files_for_macros {} {
    set dirs [get_all_subdirectories $ts_config(source_dir) ]
    foreach dir $dirs {
       set files [get_file_names $ts_config(source_dir)/$dir "*.c"]
-      foreach file $files { 
+      foreach file $files {
          if { [string first "qmon" $file] >= 0 } {
             lappend second_run_files $ts_config(source_dir)/$dir/$file
             continue
@@ -312,7 +312,7 @@ proc check_c_source_code_files_for_macros {} {
          lappend c_files $ts_config(source_dir)/$dir/$file
       }
       set files [get_file_names $ts_config(source_dir)/$dir "*.h"]
-      foreach file $files { 
+      foreach file $files {
          if { [string match -nocase msg_*.h $file] } {
             continue
          }
@@ -328,7 +328,7 @@ proc check_c_source_code_files_for_macros {} {
    set search_list [search_for_macros_in_c_source_code_files $c_files $search_list ]
    set search_list [search_for_macros_in_c_source_code_files $second_run_files $search_list ]
 
-   
+
    # remove SGE_INFOTEXT_TESTSTRING_S_L10N from searchlist
    set index [lsearch -exact $search_list "SGE_INFOTEXT_TESTSTRING_S_L10N"]
    if { $index >= 0 } {
@@ -339,7 +339,7 @@ proc check_c_source_code_files_for_macros {} {
    foreach macro $search_list {
       append answer "   $macro\n"
    }
- 
+
    if { [llength $search_list ] > 0 } {
       set full_answer ""
       append full_answer "following macros seems not to be used in source code:\n"
@@ -352,12 +352,12 @@ proc check_c_source_code_files_for_macros {} {
    }
 #
 # uncomment the following lines, if the unused macros should be removed from source code
-# ======================================================================================  
-# 
+# ======================================================================================
+#
 # --   foreach macro $search_list {
 # --      set id [get_macro_id_from_name $macro]
 # --      set index [get_internal_message_number_from_id $id]
-# --   
+# --
 # --      set file $macro_messages_list($index,file)
 # --      set file_ext 1
 # --      ts_log_fine $macro_messages_list($index,macro)
@@ -366,7 +366,7 @@ proc check_c_source_code_files_for_macros {} {
 # --      set lines $file_dat(0)
 # --      set changed 0
 # --      for { set i 1 } { $i <= $lines } { incr i 1 } {
-# --         if { [ string first $macro $file_dat($i) ] >= 1 && 
+# --         if { [ string first $macro $file_dat($i) ] >= 1 &&
 # --              [ string first "_MESSAGE" $file_dat($i) ] >= 1 } {
 # --            ts_log_fine $file_dat($i)
 # --            set message_pos [ string first "_MESSAGE" $file_dat($i) ]
@@ -384,8 +384,8 @@ proc check_c_source_code_files_for_macros {} {
 # --      }
 # --      if { $changed == 1 } {
 # --         while { 1 } {
-# --         set catch_return [ catch { 
-# --               file rename $file "$file.tmp${file_ext}" 
+# --         set catch_return [ catch {
+# --               file rename $file "$file.tmp${file_ext}"
 # --         } ]
 # --            incr file_ext 1
 # --            ts_log_fine "catch: $catch_return"
@@ -419,7 +419,7 @@ proc get_source_msg_files {} {
 #     update_macro_messages_list() -- parse sge source code for sge macros
 #
 #  SYNOPSIS
-#     update_macro_messages_list { } 
+#     update_macro_messages_list { }
 #
 #  FUNCTION
 #     This procedure reads all sge source code messages files (msg_*.h) in order
@@ -501,14 +501,14 @@ proc update_macro_messages_list {} {
    foreach file $msg_files {
       ts_log_fine $file
    }
-  
+
   set count 1
   ts_log_fine "\nparsing source code for message macros ..."
   foreach file $msg_files {
      ts_log_finer "file: $file"
      set file_p [ open $file r ]
      while { [gets $file_p line] >= 0 } {
-        if { [string first "_MESSAGE" $line] >= 0 } {
+        if { [string first "_MESSAGE(" $line] >= 0 } {
            set org_line $line
            set line [replace_string $line "SFQ" "\"\\\"%-.100s\\\"\""]
            set line [replace_string $line "SFN2" "\"%-.200s\""]
@@ -544,7 +544,7 @@ proc update_macro_messages_list {} {
                  ts_log_fine "error in update_macro_messages_list"
                  wait_for_enter
               }
-              if { [string length $cut] > 0 } { 
+              if { [string length $cut] > 0 } {
                  set unexpected_specifier $cut
                  set got_error 1
               }
@@ -552,7 +552,7 @@ proc update_macro_messages_list {} {
            }
            set line [replace_string $line "___01815DUMMY___" "\\\"" ]
 
-           set message_id_start [string first "_MESSAGE" $line]
+           set message_id_start [string first "_MESSAGE(" $line]
            set message_macro [ string range $line 0 [ expr ( $message_id_start - 1 ) ]]
            set help [ string range $line $message_id_start end]
            set message_id_start [string first "(" $help]
@@ -560,7 +560,7 @@ proc update_macro_messages_list {} {
            incr message_id_end -1
            incr message_id_start 1
            set message_id [ string range $help $message_id_start $message_id_end ]
-           
+
            set message_string_start [string first "_(" $help]
            incr message_string_start 3
            set message_string [ string range $help $message_string_start end ]
@@ -568,7 +568,7 @@ proc update_macro_messages_list {} {
            set message_string [replace_string $message_string "\"" "___01816DUMMY___" ]
            set message_string_end [ string first "___01816DUMMY___" $message_string ]
            incr message_string_end -1
-           set message_string [ string range $message_string 0 $message_string_end] 
+           set message_string [ string range $message_string 0 $message_string_end]
            set message_string [ replace_string $message_string "___01815DUMMY___" "\\\""]
 
            set index [ string first "#define" $message_macro]
@@ -577,7 +577,7 @@ proc update_macro_messages_list {} {
 
            set macro_messages_list($count)        $line
            set macro_messages_list($count,id)     $message_id
-           set macro_messages_list($count,macro)  $message_macro 
+           set macro_messages_list($count,macro)  $message_macro
            set macro_messages_list($count,string) $message_string
            set macro_messages_list($count,file)   $file
            if { [ info exists macro_messages_list(0,$message_id)] != 0 } {
@@ -626,9 +626,9 @@ proc update_macro_messages_list {} {
   ts_log_fine "parsed $count messages."
 
   ts_log_fine "saving macro file ..."
-  
+
   set macro_messages_list(source_code_directory) $ts_config(source_dir)
-  
+
   spool_array_to_file $filename "macro_messages_list" macro_messages_list
   check_c_source_code_files_for_macros
 }
@@ -638,7 +638,7 @@ proc update_macro_messages_list {} {
 #     get_macro_string_from_name() -- get sge source code macro string from name
 #
 #  SYNOPSIS
-#     get_macro_string_from_name { macro_name } 
+#     get_macro_string_from_name { macro_name }
 #
 #  FUNCTION
 #     This procedure returns the string defined by the given macro
@@ -725,9 +725,9 @@ proc translate_all_macros {} {
   set not_localized ""
   set max_mess $macro_messages_list(0)
 
-  
+
 #  set max_mess [get_internal_message_number_from_id 43262]
-  set max_mess 2270 
+  set max_mess 2270
   file delete /tmp/unused_macros.txt
   for {set i 2269} {$i <= $max_mess} {incr i 1} {
      ts_log_fine "-------$i---------------"
@@ -741,9 +741,9 @@ proc translate_all_macros {} {
      set localized [ replace_string $localized "\"" "__REP_5_DUMMY_"]
      set localized [ replace_string $localized "\\\'" "__REP_6_DUMMY_"]
      set localized [ replace_string $localized "\\" "__REP_7_DUMMY_"]
-     
 
-     
+
+
      set localized [ replace_string $localized "__REP_1_DUMMY_" ""]
      set localized [ replace_string $localized "__REP_2_DUMMY_" "\\t"]
      set localized [ replace_string $localized "__REP_3_DUMMY_" "\\n"]
@@ -752,13 +752,13 @@ proc translate_all_macros {} {
      set localized [ replace_string $localized "__REP_6_DUMMY_" "\\\'"]
      set localized [ replace_string $localized "__REP_7_DUMMY_" "\\\\"]
 
- 
-     
+
+
      set localized [ string trim $localized]
      set format_string [ string trim $format_string ]
      ts_log_fine ">$format_string<"
      ts_log_fine ">$localized<"
-     
+
      if { [string compare $format_string $localized] == 0 } {
 
         ts_log_fine "not localized"
@@ -767,14 +767,14 @@ proc translate_all_macros {} {
         lappend not_localized $i
         # JG: TODO: This depends on environment variables C and H being set!
         #           There should be better solutions, e.g. using find.
-        set back [start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $ts_config(source_dir) ; grep $macro_messages_list($i,macro) \$C \$H\""] 
+        set back [start_remote_prog "es-ergb01-01" $CHECK_USER "tcsh" " -c \"cd $ts_config(source_dir) ; grep $macro_messages_list($i,macro) \$C \$H\""]
         puts $back
         if { [ string first "\.c:" $back ] >= 0 } {
            ts_log_fine "used in C file !!!"
         } else {
            set f_d [open "/tmp/unused_macros.txt" "a"]
            puts $f_d "\nnot used in C-File !!!"
-           puts $f_d "macro: $macro_messages_list($i,macro)"    
+           puts $f_d "macro: $macro_messages_list($i,macro)"
            puts $f_d "file : $macro_messages_list($i,file)"
            close $f_d
         }
@@ -835,8 +835,8 @@ proc replace_string { input_str what with {only_count 0}} {
 #     translate_macro() -- translate content of a certain sge messages macro
 #
 #  SYNOPSIS
-#     translate_macro { macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""} 
-#     {par6 ""} } 
+#     translate_macro { macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""}
+#     {par6 ""} }
 #
 #  FUNCTION
 #     Looks up the contents of a certain sge messages macro (call to sge_macro),
@@ -876,8 +876,8 @@ proc translate_macro {macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""} {p
 #     translate_macro_if_possible() -- translate content of a certain sge messages macro
 #
 #  SYNOPSIS
-#     translate_macro_if_possible { macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""} 
-#     {par6 ""} } 
+#     translate_macro_if_possible { macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} {par5 ""}
+#     {par6 ""} }
 #
 #  FUNCTION
 #     Looks up the contents of a certain sge messages macro (call to sge_macro),
@@ -922,8 +922,8 @@ proc translate_macro_if_possible {macro {par1 ""} {par2 ""} {par3 ""} {par4 ""} 
 #     translate() -- get l10ned string
 #
 #  SYNOPSIS
-#     translate { host remove_control_signs is_script no_input_parsing msg_txt 
-#     { par1 "" } { par2 ""} { par3 "" } { par4 ""} { par5 ""} { par6 ""} } 
+#     translate { host remove_control_signs is_script no_input_parsing msg_txt
+#     { par1 "" } { par2 ""} { par3 "" } { par4 ""} { par5 ""} { par6 ""} }
 #
 #  FUNCTION
 #     This procedure returns the given string localized to the used language
@@ -979,7 +979,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
           ts_log_finest "translating message ..."
           set back [start_remote_prog $host $CHECK_USER $ts_config(product_root)/utilbin/$arch_string/infotext "-raw -__eoc__ \"$msg_text\""]
           set l10n_raw_cache($msg_text) $back
-          ts_log_finest "adding message to l10n raw cache ..." 
+          ts_log_finest "adding message to l10n raw cache ..."
       }
    } else {
       set num_params [ replace_string $msg_text "%s" "" 1]
@@ -999,10 +999,10 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
          ts_log_finest "translating message ..."
          set back [start_remote_prog $host $CHECK_USER $ts_config(product_root)/utilbin/$arch_string/infotext "-n -__eoc__ \"$msg_text\" $parameter_list"]
          set l10n_install_cache($msg_text) $back
-         ts_log_finest "adding message to l10n install cache ..." 
+         ts_log_finest "adding message to l10n install cache ..."
       }
    }
-   if { $prg_exit_state == 0} { 
+   if { $prg_exit_state == 0} {
       set trans_mes "$back"
       if { $remove_control_signs != 0 } {
          set trans_mes [replace_string $trans_mes "\r" ""]
@@ -1040,20 +1040,20 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
          } else {
             if { $spec_end__string >= 0 } {
                set spec_end $spec_end__string
-            } 
+            }
             if { $spec_end__decimal >= 0 } {
                set spec_end $spec_end__decimal
             }
          }
-         set spec_string [ string range $spec_start_string 0 $spec_end] 
-         incr spec_end 1 
+         set spec_string [ string range $spec_start_string 0 $spec_end]
+         incr spec_end 1
 
          if { [string first "\$" $spec_string] >= 0 } {
             set p_numb [string range $spec_string 1 1]
          }
          incr s_specifier -1
          set new_msg_text [string range $msg_text 0 $s_specifier ]
-         incr s_specifier 1 
+         incr s_specifier 1
          append new_msg_text "PAR_$p_numb"
          incr spec_end $s_specifier
          append new_msg_text [string range $msg_text $spec_end end ]
@@ -1085,7 +1085,7 @@ proc translate { host remove_control_signs is_script no_input_parsing msg_txt { 
 #     perform_simple_l10n_test() -- check minimal l10n settings
 #
 #  SYNOPSIS
-#     perform_simple_l10n_test { } 
+#     perform_simple_l10n_test { }
 #
 #  FUNCTION
 #     This will try to get the translated version of an message string
@@ -1119,7 +1119,7 @@ proc perform_simple_l10n_test { } {
    if { [ string compare $no_l10n $with_l10n ] == 0 } {
       ts_log_severe "localization (l10n) error:\nIs the locale directory available?"
       return -1
-   } 
+   }
    return 0
 }
 

@@ -85,7 +85,7 @@ else
 fi
 
 # first try
-cmd="$QSUB -v COMMD_PORT=$COMMD_PORT -o /dev/null -j y -N $NAME $DIRECTORY/pminiworm.sh $DIRECTORY $prefix $num $SLEEP"
+cmd="$QSUB -v COMMD_PORT=$COMMD_PORT -o /dev/null -e /dev/null -j y -N $NAME $DIRECTORY/pminiworm.sh $DIRECTORY $prefix $num $SLEEP"
 $cmd
 
 # repeat until success 

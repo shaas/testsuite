@@ -64,10 +64,13 @@ proc issue_1270_init_level {} {
 }
 
 proc issue_1270_cleanup {} {
+   global env
    delete_all_jobs
    wait_for_end_of_all_jobs
 
-   # TODO: delete the output file $HOME/DRMAA_JOB
+   if { [file isfile "$env(HOME)/DRMAA_JOB"] } {
+      delete_file "$env(HOME)/DRMAA_JOB"
+   }
 }
 
 proc issue_1270_run  {} {

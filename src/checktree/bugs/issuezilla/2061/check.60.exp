@@ -72,7 +72,7 @@ proc issue_2061_init_level {} {
 proc issue_2061_run {} {
    global check_name ts_config
 
-   set job_args "-N $check_name -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 5" 
+   set job_args "-N $check_name -o /dev/null -e /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 5"
    ts_log_fine "submitting job qsub $job_args ..."
 
    set output [start_sge_bin "qsub" $job_args]

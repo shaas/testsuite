@@ -60,7 +60,7 @@ i=0
 error=0
 while [ $i -lt $loops ]; do
    for j in $job_types; do
-      $QSUB -N S_${submitter_id}_${x} -o /dev/null -j y $SGE_ROOT/examples/jobs/sleeper.sh $j >/dev/null 2>&1
+      $QSUB -N S_${submitter_id}_${x} -o /dev/null -e /dev/null -j y $SGE_ROOT/examples/jobs/sleeper.sh $j >/dev/null 2>&1
       if [ $? != 0 ]; then
          error=1
       fi   

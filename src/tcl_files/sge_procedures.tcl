@@ -4272,7 +4272,11 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
 #     {user ""}           - user who shall submit job (default $CHECK_USER)
 #     {cd_dir ""}         - optional: do cd to given directory first
 #     {show_args 1 }      - optional: show job arguments
-#     {qcmd "qsub"}       - optional: to allow different command as f.e. qsh, qrsh  
+#     {qcmd "qsub"}       - optional: to allow different command as f.e. qsh, qrsh
+#     {dev_null 1}        - optional: indicate if the job standard/error output will
+#                           be redirected to /dev/null, true by default
+#                           if the qsub options -o/-e are specified, this parameter
+#                           will be ignored
 #
 #  RESULT
 #     This procedure returns:
@@ -4306,7 +4310,7 @@ proc delete_job {jobid {wait_for_end 0} {all_users 0} {raise_error 1}} {
 #     sge_procedures/delete_job()
 #     sge_procedures/submit_job_parse_job_id()
 #*******************************
-proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1} {qcmd "qsub"}} {
+proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {cd_dir ""} {show_args 1} {qcmd "qsub"} {dev_null 1}} {
    get_current_cluster_config_array ts_config
 
    # we first want to parse errors first, then the positive messages, 
@@ -4388,6 +4392,16 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    set messages(-32)    "*[translate_macro MSG_JOB_PRJNOSUBMITPERMS_S "*"]*"
    set messages(-33)    "*[translate_macro MSG_STREE_USERTNOACCESS2PRJ_SS "*" "*"]*"
    set messages(-34)    "*[translate_macro MSG_JOB_NOSUITABLEQ_S "*"]*"
+
+   # add the standard/error output options if necessary
+   if { [string first "-o " $args] == -1 && $dev_null == 1} {
+      set args "-o /dev/null $args"
+      ts_log_finest "added submit argument: -o /dev/null"
+   }
+   if { [string first "-e " $args] == -1 && $dev_null == 1} {
+      set args "-e /dev/null $args"
+      ts_log_finest "added submit argument: -e /dev/null"
+   }
 
    if {$show_args == 1} {
       ts_log_fine "job submit args:\n$args"
@@ -4622,13 +4636,13 @@ proc get_suspend_state_of_job { jobid {host ""} { pidlist pid_list } {do_error_c
    while { [timestamp] < $time_out } {
       # get current process list (ps)
       get_ps_info $real_pid $host ps_list
-      
-   
+
+
       # copy pid_list from ps_list
       set pscount $ps_list(proc_count)
       set pidl ""
       for {set i 0} { $i < $pscount } {incr i 1} {
-         if { $ps_list(pgid,$i) == $real_pid } { 
+         if { $ps_list(pgid,$i) == $real_pid } {
             lappend pidl $ps_list(pid,$i)
          }
       } 

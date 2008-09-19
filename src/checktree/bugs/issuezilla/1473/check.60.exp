@@ -161,7 +161,7 @@ proc modify_complex_from_file {filename {time_var dummy}} {
                } else {
                   if {[string match $MSG_INVALID_CENTRY_DEL_S $line]} {
                   } else {
-                     ts_log_severe complex failed: $line"
+                     ts_log_severe "complex failed: $line"
                   }
                }   
             }   

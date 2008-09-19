@@ -277,7 +277,7 @@ proc check_option_sync {} {
    setup_output_directory
 
    set option "-sync y"
-   set jobargs "$option -o /dev/null -j y $ts_config(testsuite_root_dir)/scripts/qsub_exit.sh 5" 
+   set jobargs "$option -o /dev/null -e /dev/null -j y $ts_config(testsuite_root_dir)/scripts/qsub_exit.sh 5" 
    set result [start_sge_bin "qsub" $jobargs]
    ts_log_fine "\njob has args: \"$jobargs\""
    ts_log_fine "exit code: $prg_exit_state"
@@ -323,7 +323,7 @@ proc check_option_sync_t {} {
    setup_output_directory
 
    set option "-sync y -t 1-2"
-   set jobargs "$option -o /dev/null -j y $ts_config(testsuite_root_dir)/scripts/qsub_exit.sh 5"
+   set jobargs "$option -o /dev/null -e /dev/null -j y $ts_config(testsuite_root_dir)/scripts/qsub_exit.sh 5"
    set result [start_sge_bin "qsub" "$jobargs"]
    ts_log_fine "\njob $result has args: \"$jobargs\""
    ts_log_fine "exit state: $prg_exit_state"
@@ -484,7 +484,7 @@ proc check_option_terse {} {
    global default_args
 
    ts_log_fine "Testing qsub -terse option"
-   set job_args "-terse $default_args"
+   set job_args "-o /dev/null -e /dev/null -terse $default_args"
    set output ""
    set not_expected [translate_macro MSG_QSUB_YOURJOBHASBEENSUBMITTED_SS "*" "*"]
    ts_log_fine "Running qsub -terse option: $job_args"
