@@ -1,3 +1,6 @@
+RD-2008-09-19-0: Bugfix:     fixed qalter test
+                 Review:     JG
+
 RD-2008-09-18-0: Enhancem.:  added test for qalter -w v scheduler messages
                  Review:     CR
 

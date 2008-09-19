@@ -93,7 +93,7 @@ proc qalter_iz_2575 {} {
    if {$ts_config(gridengine_version) <= 61} {
       set expected [translate_macro MSG_PARSE_WRONGDESTIDLISTFORMATXSPECTOQOPTION_S "XXXXX"]
    } else {
-      set expected [translate_macro MSG_PARSE_WRONGDESTIDLISTFORMATXSPECTOQOPTION_SS "XXXXX" "-q"]
+      set expected [translate_macro MSG_PARSE_WRONGDESTIDLISTFORMATXSPECTOXOPTION_SS "XXXXX" "-q"]
    }
    set pos [string first "XXXXX" $expected]
    set expected [string trim [string replace $expected $pos [expr $pos + 4]]]
