@@ -1,3 +1,20 @@
+CR-2008-09-19-1: Cleanup:    o generic module test:
+                                - added level cleanup func to delete created 
+                                  files from module tests
+                             o startup execd test:
+                                - choose randomly a execd for this test
+                                - check that execd can execute jobs after
+                                  restart
+                             o control_procedures.tcl:
+                                - added ADOC header for gethostname()
+                                - removed use of do_debug_puts parameter
+                                  (ts_log_finest is used so this parameter
+                                   is not useful anymore)
+                             o remote_procedures.tcl:
+                                - new procedure: get_home_dir_path()
+                 Review:     RD
+                             
+
 AP-2008-09-19-0: Task:       Some tests produce output files in home directory
                  Issue:      180
                  Review:     CR

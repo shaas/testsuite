@@ -549,7 +549,41 @@ proc start_remote_tcl_prog { host user tcl_file tcl_procedure tcl_procargs} {
 }
 
 
-
+#****** remote_procedures/get_home_dir_path() **********************************
+#  NAME
+#     get_home_dir_path() -- get home directory for specified user
+#
+#  SYNOPSIS
+#     get_home_dir_path { user {host ""} } 
+#
+#  FUNCTION
+#     The procedure is doing a cd, followed by a pwd as the specified user
+#     to determine the home directory of the user on the specified host. 
+#
+#  INPUTS
+#     user      - user which home directory is asked
+#     {host ""} - host used to perform the commands (default is localhost)
+#
+#  RESULT
+#     full path of user's home or "cannot_determine_home_directory"
+#
+#*******************************************************************************
+proc get_home_dir_path {user {host ""}} {
+   if {$host == ""} {
+      set exec_host [gethostname]
+   } else {
+      set exec_host $host
+   }
+   ts_log_finest "getting home dir for user $user on host $exec_host ..."
+   set home_dir [start_remote_prog $exec_host $user "cd" " ; pwd" prg_exit_state 60 0 "" "" 1 0]
+   set home_dir [string trim $home_dir]
+   ts_log_finest "home dir is \"$home_dir\""
+   if {[is_remote_path $exec_host $user $home_dir]} {
+      return $home_dir
+   }
+   ts_log_severe "cannot determine home directory of user \"$user\" on host \"$exec_host\""
+   return "cannot_determine_home_directory"
+}
 
 #                                                             max. column:     |
 #

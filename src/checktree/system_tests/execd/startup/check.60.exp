@@ -105,6 +105,9 @@ proc startup_execd_setup  {} {
 
 proc startup_execd_cleanup  {} {
    global ts_config
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
 }
 
 
@@ -115,8 +118,7 @@ proc startup_execd_test1 {} {
    set execd_port $ts_config(commd_port)
    incr execd_port 1
    
-   set hostname [lindex $ts_config(execd_nodes) 0]
-
+   set hostname [host_conf_get_suited_hosts]
    ts_log_frame
    ts_log_fine $check_description($CHECK_ACT_LEVEL)
    ts_log_frame
@@ -324,6 +326,11 @@ proc startup_execd_test1 {} {
       }
       after 3000
    }
+
+   # also check that a short job is starting and finishing on the execd !!!
+   set job_id [submit_job "-l h=$hostname $ts_config(product_root)/examples/jobs/sleeper.sh 300"]
+   wait_for_jobstart $job_id "leeper" 120 1 1
+   delete_job $job_id 1
 
    if { $execd_count != 1 } {
       ts_log_severe "There are $execd_count execds running on host $hostname"

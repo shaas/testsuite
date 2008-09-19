@@ -60,6 +60,7 @@ set check_description(100) "run all generic module tests on all architectures"
 set check_needs           "" 
 
 # setup and cleanup functions
+set check_cleanup_level_function "generic_module_tests_cleanup"
 
 # define test's procedure order
 set check_functions ""
@@ -96,6 +97,27 @@ proc generic_module_tests_init_level {} {
    }
 
    return -1  ;# no other level
+}
+
+#****** check.60/generic_module_tests_cleanup() ********************************
+#  NAME
+#     generic_module_tests_cleanup() -- cleanup for module tests
+#
+#  SYNOPSIS
+#     generic_module_tests_cleanup { } 
+#
+#  FUNCTION
+#     Used to delete files created by module tests
+#*******************************************************************************
+proc generic_module_tests_cleanup {} {
+   global CHECK_USER
+   set exec_host [gethostname]
+   set home_dir_path [get_home_dir_path $CHECK_USER $exec_host]
+   set cull_pack_file_path "$home_dir_path/test_cull_pack.txt"
+   ts_log_fine "checking if file \"$cull_pack_file_path\" exists ..."
+   if {[is_remote_file $exec_host $CHECK_USER $cull_pack_file_path]} {
+      delete_remote_file $exec_host $CHECK_USER $cull_pack_file_path
+   }
 }
 
 #****** module_tests/generic_module_tests_run() ************************************

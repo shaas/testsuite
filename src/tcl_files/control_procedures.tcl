@@ -1929,6 +1929,27 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
    }
 }
 
+#****** control_procedures/gethostname() ***************************************
+#  NAME
+#     gethostname() -- returns the name of the local host
+#
+#  SYNOPSIS
+#     gethostname { { do_debug_puts 1} {source_dir_path ""} } 
+#
+#  FUNCTION
+#     returns the name of the local machine (but not "localhost") and uses
+#     the SGE gethostbyname binary call if possible. If $SGE_ROOT is not availabe
+#     the hostname is catched via call to hostname or via environment variable
+#     HOST.
+#
+#  INPUTS
+#     { do_debug_puts 1}   - unused parameter
+#     {source_dir_path ""} - used source dir path
+#                            (if empty it is $ts_config(source_dir))
+#
+#  RESULT
+#     local hostname ("unknown" if host is not resolvable)
+#*******************************************************************************
 proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
    global env local_hostname_cache ts_config
    if { $local_hostname_cache != "" } {
@@ -1970,12 +1991,10 @@ proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
                return $newname
             }
          } else {
-            if { $do_debug_puts } {
-               ts_log_finest "proc gethostname - gethostname error or binary not found"
-               ts_log_finest "error: $result"
-               ts_log_finest "error: $prg_exit_state"
-               ts_log_finest "trying local hostname call ..."
-            }
+            ts_log_finest "proc gethostname - gethostname error or binary not found"
+            ts_log_finest "error: $result"
+            ts_log_finest "error: $prg_exit_state"
+            ts_log_finest "trying local hostname call ..."
          }
       }
    }
@@ -1989,25 +2008,19 @@ proc gethostname { { do_debug_puts 1} {source_dir_path ""} } {
    if { $prg_exit_state == 0 } {
       set result [split $result "."]
       set newname [lindex $result 0]
-      if { $do_debug_puts } {
-         ts_log_finest "got hostname: \"$newname\""
-      }
+      ts_log_finest "got hostname: \"$newname\""
       return $newname
    } else {
-      if { $do_debug_puts } {
-         ts_log_finest "local hostname error or binary not found"
-         ts_log_finest "error: $result"
-         ts_log_finest "error: $prg_exit_state"
-         ts_log_finest "trying local HOST environment variable ..."
-      }
+      ts_log_finest "local hostname error or binary not found"
+      ts_log_finest "error: $result"
+      ts_log_finest "error: $prg_exit_state"
+      ts_log_finest "trying local HOST environment variable ..."
       if { [ info exists env(HOST) ] } {
          set result [split $env(HOST) "."]
          set newname [lindex $result 0]
          if { [ string length $newname ] > 0 } {
-            if { $do_debug_puts } {
-               ts_log_finest "got hostname_ \"$newname\""
-               return $newname
-            }
+            ts_log_finest "got hostname_ \"$newname\""
+            return $newname
          } 
       }
    }
