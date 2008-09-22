@@ -68,26 +68,15 @@ set check_functions {}
 lappend check_functions "issue_2372"
 
 proc issue_2372_init_level {} {
-   global CHECK_ACT_LEVEL ts_config
-
-   if {$ts_config(gridengine_version) < "61"} {
-      return -1
-   }
+   global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 -
+      1 -
+      2 -
+      3 {
          return 0
       }
-      "1" {
-         return 0
-      }
-      "2" {
-         return 0
-      }
-      "3" {
-         return 0
-      }
-
    }
 
    return -1  ;# no other level
@@ -112,23 +101,19 @@ proc issue_2372_setup {} {
       set issue_2372_cl_ping "true"
       set issue_2372_gdi_timeout 8
       set issue_2372_gdi_retries 2
-   } 
-   if {$CHECK_ACT_LEVEL == 1} {
+   } elseif {$CHECK_ACT_LEVEL == 1} {
       set issue_2372_cl_ping "false"
       set issue_2372_gdi_timeout 8
       set issue_2372_gdi_retries 1
-   }
-   if {$CHECK_ACT_LEVEL == 2} {
+   } elseif {$CHECK_ACT_LEVEL == 2} {
       set issue_2372_cl_ping "true"
       set issue_2372_gdi_timeout 6
       set issue_2372_gdi_retries 10
-   }
-   if {$CHECK_ACT_LEVEL == 3} {
+   } elseif {$CHECK_ACT_LEVEL == 3} {
       set issue_2372_cl_ping "false"
       set issue_2372_gdi_timeout 60
       set issue_2372_gdi_retries 0
    }
-
    
    if {$issue_2372_gdi_retries != 0} {
       set global_conf(qmaster_params) "gdi_timeout=$issue_2372_gdi_timeout;gdi_retries=$issue_2372_gdi_retries;cl_ping=$issue_2372_cl_ping"
@@ -149,13 +134,12 @@ proc issue_2372_setup {} {
    startup_qmaster 1 envlist 
 }
 
-
 proc issue_2372_cleanup {} {
    global ts_config
-   global issue_2372_backup CHECK_USER
+   global issue_2372_backup
 
-   if {$ts_config(gridengine_version) < "62"} {
-      if { [is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]] } {
+   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
+      if {[is_scheduler_alive $ts_config(master_host) [get_qmaster_spool_dir]]} {
          ts_log_fine "scheduler still alive - good"
          shutdown_system_daemon $ts_config(master_host) sched
       } else {
@@ -179,6 +163,7 @@ proc issue_2372_cleanup {} {
          unset $var
       }
    }
+
    wait_for_load_from_all_queues 120
    wait_for_end_of_all_jobs
 }
