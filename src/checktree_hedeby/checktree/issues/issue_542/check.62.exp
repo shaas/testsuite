@@ -1,0 +1,220 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_542"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "double install of hedeby on same host should fail"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue542_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue542_setup_level"
+set check_cleanup_level_function "hedeby_issue542_cleanup_level"
+
+lappend check_functions "hedeby_issue542_check"
+
+
+#****** issue_542/hedeby_issue542_init_level() ************************
+#  NAME
+#     hedeby_issue542_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue542_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue542_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      return 0
+   }
+   return -1
+}
+
+#****** issue_542/hedeby_issue542_setup_level() *********************************
+#  NAME
+#     hedeby_issue542_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_issue542_setup_level { } 
+#
+#  FUNCTION
+#     sets up the hedeby_issue542_ctx
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue542_setup_level {} {
+   global hedeby_issue542_ctx
+   global ts_config
+   global hedeby_config
+
+   ts_log_fine "Setup tests for issue 542"
+
+   set hedeby_issue542_ctx(sys)  [get_hedeby_system_name]
+   set hedeby_issue542_ctx(pref) [get_hedeby_pref_type]
+   set hedeby_issue542_ctx(install_user) [get_hedeby_startup_user]
+   set hedeby_issue542_ctx(admin_user) [get_hedeby_admin_user]
+   set hedeby_issue542_ctx(cs_port) $hedeby_config(hedeby_cs_port)
+   set hedeby_issue542_ctx(master_host) $hedeby_config(hedeby_master_host)
+   # just use the first free resource in the spare_pool as managed host
+   set hedeby_issue542_ctx(managed_host) [lindex [get_all_spare_pool_resources] 0]
+}
+
+#****** issue_542/hedeby_issue542_cleanup_level() *******************************
+#  NAME
+#     hedeby_issue542_cleanup_level() -- cleanup level function
+#
+#  SYNOPSIS
+#     hedeby_issue542_cleanup_level { } 
+#
+#  FUNCTION
+#     just unset hedeby_issue542_ctx
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue542_cleanup_level {} {
+   global hedeby_issue542_ctx
+
+   ts_log_fine "Cleaning up tests for issue 542"
+
+   unset hedeby_issue542_ctx
+}
+
+
+#****** issue_542/hedeby_issue542_check *****************************
+#  NAME
+#     hedeby_issue542_check() -- double install of hedeby on same host should fail
+#
+#  SYNOPSIS
+#     hedeby_issue542_check { } 
+#
+#  FUNCTION
+#     This function tests hedeby issue 542: 
+#        Two scenarios are tested for expected error messages:
+#        1) Install of managed host on master host
+#        2) Install of managed host on managed host
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue542_check {} {
+   # alias the global variables hedeby_issue542_ctx to ctx
+   upvar #0 hedeby_issue542_ctx ctx
+
+   ts_log_fine "Starting test for issue 542"
+
+   # arguments for new managed host install ...
+   set arguments "-s $ctx(sys)\
+                  -p $ctx(pref)\
+                  install_managed_host\
+                  -cs_url $ctx(master_host):$ctx(cs_port)\
+                  -au $ctx(admin_user)"
+   
+   ##########################################################################
+   # 1) Install of managed host on master host
+   ts_log_fine "Step 1: Install of managed host on master host"
+
+   set install_host $ctx(master_host)
+
+   set params(0) $ctx(sys)
+   set params(1) [string toupper $ctx(pref)]
+   set params(2) $install_host
+   set err_msg [create_bundle_string "AddSystemCommand.cannot_inst_managed_on_master" params]
+   ts_log_finer "Expected error message: $err_msg"
+   unset params
+
+   set output [sdmadm_command $install_host $ctx(install_user) $arguments prg_exit_state "" 0]
+   if { ( [string first $err_msg $output] == -1 ) || ( $prg_exit_state != 2 ) } {
+      ts_log_severe "Step 1: did not get expected error during managed on master host install\
+                     \ngot: exit_code=$prg_exit_state, output=$output \
+                     \nexpected: exit_code=2, error message=$err_msg"
+   } else {
+      ts_log_fine "Step 1: ok"
+   }
+
+
+   ##########################################################################
+   # 2) Install of managed host on managed host
+   ts_log_fine "Step 2: Install of managed host on managed host"
+
+   set install_host $ctx(managed_host)
+
+   set params(0) $ctx(sys)
+   set err_msg [create_bundle_string "AddSystemCommand.system_already_exists" params]
+   ts_log_finer "Expected error message: $err_msg"
+   unset params
+
+   set output [sdmadm_command $install_host $ctx(install_user) $arguments prg_exit_state "" 0]
+   if { ( [string first $err_msg $output] == -1 ) || ( $prg_exit_state != 2 ) } {
+      ts_log_severe "Step 2: did not get expected error during managed on managed host install\
+                     \ngot: exit_code=$prg_exit_state, output=$output \
+                     \nexpected: exit_code=2, error message=$err_msg"
+   } else {
+      ts_log_fine "Step 2: ok"
+   }
+
+   return
+}
+
