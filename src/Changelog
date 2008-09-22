@@ -1,3 +1,10 @@
+TB-2008-09-22-0: Enhancem.:  o added new tcl_files/tcl_utils.tcl file with
+                               functions list_grep and format_array
+                             o added new (unlisted) menu entry "-eval" to
+                               be able to execute TCL commands in the TS
+                               environment
+                 Review:     CR
+
 JG-2008-09-22-1: Cleanup:    bugs/issuezilla/2372
                  Review:     CR
 

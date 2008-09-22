@@ -7477,6 +7477,29 @@ proc menu {} {
                set CHECK_INTERRUPT 0
             }
          }
+     "-eval" {
+        # This is a undisplayed menu option to execute TCL commands
+        # interactivley in the TS environment. When you know what you are
+        # doing, this can be very helpful - also for exploring and debugging
+        # the TS framework.
+        while { 1 } {
+           puts -nonewline "Enter expression to evaluate (exit to quit): "
+           set expr [wait_for_enter 1]
+
+           if { $expr == "exit" || $expr == "quit" } {
+              break;
+           } elseif { $expr != "" } {
+              # user entered a non-empty expression => eval
+              set catch_return [catch {
+                 eval $expr
+              } catch_output ]
+
+              if {$catch_return != 0} {
+                 ts_log_fine "Eval error: $catch_output"
+              }
+           }
+        }
+     }
      default {
         if { $input != "" } {
            change_dir $input
@@ -7584,6 +7607,7 @@ proc source_tcl_files {} {
    ts_source $libdir/coverage
    ts_source $libdir/parser
    ts_source $libdir/parser_xml
+   ts_source $libdir/tcl_utils
    ts_source $libdir/sge_config
    ts_source $libdir/sge_procedures
    ts_source $libdir/sge_job
