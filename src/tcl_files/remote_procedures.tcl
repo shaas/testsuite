@@ -1251,7 +1251,18 @@ proc map_special_users {hostname user win_local_user} {
 #                                      background process
 #     {cd_dir ""}                -  directory in which to execute the command
 #     {envlist ""}               -  array with environment settings to export
-#                                   before starting program
+#                                   Be aware that the specified environment is "added"
+#                                   ontop of the default environment of the user. 
+#                                   Variables of the users env can be redefined but not 
+#                                   directly unset! (the ""-string is a value!)
+#                                   
+#                                   The users env variables can be unset wirh the meta entry 
+#                                   UNSET_VARS in the envlist array. Lappend any env variable name
+#                                   that should be unsetted before execution of the command.
+#
+#                                   Example:
+#                                   lappend envlist (UNSET_VARS) SDM_SYSTEM     
+#
 #     { source_settings_file 1 } -  if 1 (default):
 #                                      source $SGE_ROOT/$SGE_CELL/settings.csh
 #                                   if not 1:

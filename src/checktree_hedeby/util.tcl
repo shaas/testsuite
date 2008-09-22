@@ -4978,7 +4978,9 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
 #     sdmadm_command() -- start sdmadm command
 #
 #  SYNOPSIS
-#     sdmadm_command { host user arg_line {exit_var prg_exit_state} } 
+#     sdmadm_command { host user arg_line {exit_var prg_exit_state} 
+#         { interactive_tasks "" } {raise_error 1} {table_output ""}
+#         {own_env_array "my_env"}}
 #
 #  FUNCTION
 #     This procedure is used to start a "raw" sdmadm command on the specified
@@ -4998,6 +5000,22 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
 #                                 command is started interactive.
 #     {raise_error 1}           - optional if set to 1 errors are reported
 #     {table_output ""}         - table output parsed with parse_table_output()
+#     {own_env_array ""}        - an upvar array that contains a set of environment 
+#                                 variable definitions to be used for the call. If
+#                                 the variable is not defined in the upvar context
+#                                 the default Hedeby environment is used. 
+#                                 
+#                                 Be aware that the specified environment is "added"
+#                                 ontop of the default environment of the user. 
+#                                 Variables of the users env can be redefined but not 
+#                                 directly unset! (the ""-string is a value!)
+#                                 
+#                                 The users env variables can be unset meta entry 
+#                                 UNSET_VARS in the my_env array. Lappend any env variable name
+#                                 that should be unset before execution of the command.
+#                                 
+#                                 Example:
+#                                 lappend myarray(UNSET_VARS) SDM_SYSTEM                                 
 #
 #  RESULT
 #     The output of the sdmadm command
@@ -5005,10 +5023,16 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
 #  SEE ALSO
 #     util/sdmadm_command()
 #*******************************************************************************
-proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } {raise_error 1} {table_output ""} } {
-   upvar $exit_var back_exit_state
-   global hedeby_config
-
+proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } {raise_error 1} {table_output ""} {own_env_array ""}} {
+      upvar $exit_var back_exit_state
+   
+   # if no own_env_array is provided, the default hedeby environment will be loaded
+   if { $own_env_array == "" } {
+      hedeby_get_default_env $host my_env
+   } else {
+      upvar $own_env_array my_env
+   }
+   
    if { $interactive_tasks != "" } {
       upvar $interactive_tasks tasks
    }
@@ -5019,12 +5043,8 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
 
    # this is only for getting debug output
    # set arg_line "-d $arg_line"
-
+   
    set sdmadm_path [get_hedeby_binary_path "sdmadm" $user]
-   set my_env(JAVA_HOME) [get_java_home_for_host $host $hedeby_config(hedeby_java_version)]
-   set my_env(EDITOR) [get_binary_path $host "vim"]
-   # reset environment variable SDM_SYSTEM to illegal value to avoid user environment side effects
-   set my_env(SDM_SYSTEM) "" 
    ts_log_finer "${host}($user): using JAVA_HOME=$my_env(JAVA_HOME)"
    if { $interactive_tasks == "" } {
       ts_log_fine "starting binary not interactive \"sdmadm $arg_line\" (${host}($user)) ..."
@@ -5112,6 +5132,45 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       return $output
    }
 }
+
+#****** util/hedeby_get_default_env() **************************************************
+#  NAME
+#     hedeby_get_default_env() -- creates default values for environment variables
+#
+#  SYNOPSIS
+#     hedeby_get_default_env { host own_env_array }  
+#
+#  FUNCTION
+#     The function expects a host for which the enviroment variables are generated
+#     Additionally it expects an upvar array where the variable names and values are
+#     stored in. It generated three variables and their values:
+#         JAVA_HOME     the java home directory of the host
+#         EDITOR        The default editor of the host
+#         SDM_SYSTEM    "" #empty string to filter side effects if the system name 
+#                       is allready defined in the machines enviroment
+#
+#  INPUTS
+#     host                      - host where sdmadm should be started
+#     {own_env_array "my_env"}  - upvar name to match an array where the values 
+#                                 should be stored
+#
+#  RESULT
+#     no return value
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#*******************************************************************************
+proc hedeby_get_default_env { host own_env_array } {
+   global hedeby_config
+   upvar $own_env_array my_env
+
+   set my_env(JAVA_HOME) [get_java_home_for_host $host $hedeby_config(hedeby_java_version)]
+   set my_env(EDITOR) [get_binary_path $host "vim"]
+	# reset environment variable SDM_SYSTEM to illegal value to avoid user environment side effects
+   set my_env(SDM_SYSTEM) "" 
+}
+
+
 
 #****** util/get_jvm_from_run_list() *************************************
 #  NAME

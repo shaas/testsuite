@@ -1723,6 +1723,18 @@ proc del_job_files {jobid job_output_directory expected_file_count} {
 #     exec_arguments             - command parameters
 #     {cd_dir ""}                - change into this directory before executing command
 #     {envlist ""}               - array with environment settings to export
+#                                  Be aware that the specified environment is "added"
+#                                  ontop of the default environment of the user. 
+#                                  Variables of the users env can be redefined but not 
+#                                  directly unset! (the ""-string is a value!)
+#                                  
+#                                  The users env variables can be unset wirh the meta entry 
+#                                  UNSET_VARS in the envlist array. Lappend any env variable name
+#                                  that should be unsetted before execution of the command.
+#
+#                                  Example:
+#                                  lappend envlist (UNSET_VARS) SDM_SYSTEM     
+#
 #     { script_path "/bin/sh" }  - path to script binary (default "/bin/sh")
 #     { no_setup 0 }             - if 0 (default): full testsuite framework script
 #                                                  initialization
@@ -1870,16 +1882,40 @@ proc create_shell_script { scriptfile
          append script_content "\n"
       }
 
+      
       set user_env_names [array names users_env]
+      # save script parts in these two buffers to append them to the script in a defined order
+      set set_env_skript ""
+      set un_set_env_skript ""
+      
       if { [llength $user_env_names] > 0 } {
-         append script_content "# setting users environment variables\n"
+         append set_env_skript "# setup users environment variables\n"
          foreach u_env $user_env_names {
-            set u_val $users_env($u_env)
-            ts_log_finest "setting $u_env to $u_val"
-            append script_content "${u_env}=\"${u_val}\"\n"
-            append script_content "export ${u_env}\n"
+            if { $u_env == "UNSET_VARS"} {
+                #the "meta key" UNSET_VARS was found that defines variables to be unset
+                set vars_to_unset [split $users_env($u_env)] ;# the delimiter is a space (list delimiter)
+                append un_set_env_skript "# unsetting users default environment variables\n"
+                foreach unset_var $vars_to_unset {
+                    append un_set_env_skript "unset $unset_var\n"
+                }
+            } else { 
+               set u_val $users_env($u_env)
+               ts_log_finest "setting $u_env to $u_val"
+               append set_env_skript "${u_env}=\"${u_val}\"\n"
+               append set_env_skript "export ${u_env}\n"
+            }
          }
       }
+      
+      
+      # add $un_set_env_skript only if some variables are defined to be unset
+      if { $un_set_env_skript != "" } {
+         append script_content $un_set_env_skript
+      }
+
+      # add the set of defined env variables
+      append script_content $set_env_skript
+      
 
       if { $without_start_output == 0 } {
          append script_content "echo \"_start_mark_:(\$?)\"\n"
@@ -1900,7 +1936,7 @@ proc create_shell_script { scriptfile
          append script_content "echo \"script done. (_END_OF_FILE_)\"\n"
       }
    }
-
+  
    puts -nonewline $script $script_content
    flush $script
    close $script

@@ -1,0 +1,205 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check spezific things
+set check_root_access_needs    "yes";
+set check_name                 "issue_512"
+set check_category             "SYSTEM VERIFIED"
+set check_description(0)       "wrong exit code if already running system is started"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue_512_init_level"
+set check_functions            ""   
+set check_highest_level        0
+
+
+lappend check_functions "hedeby_issue_512_check"
+
+# ---------------------------------------------------------------------------------
+# here the tests begin ....
+global hedeby_issue_512_current_cluster_config
+
+
+proc hedeby_issue_512_init_level {} {
+  global CHECK_ACT_LEVEL
+  if { $CHECK_ACT_LEVEL == 0 } {
+     return 0
+  }
+  return -1
+}
+
+
+#****** check/hedeby_issue_512_check() *****************************************************
+#  NAME
+#     _check() -- tests output of the sdmadm command with insufficient params
+#
+#  SYNOPSIS
+#    _check {} 
+#
+#  FUNCTION
+#     There are three different ways to call sdmadm without a command
+#     - sdmadm with system name and preference type as parameters 
+#     - sdmadm without parameters and SDM_SYSTEM environment var
+#     - sdmadm without parameters but with SDM_SYSTEM environment var
+#     All possibilities should return the same output
+#
+#  INPUTS
+#     none
+#
+#*******************************************************************************
+proc hedeby_issue_512_check {} {
+   global hedeby_config
+   set error_text ""
+   set host $hedeby_config(hedeby_master_host)
+   set user [get_hedeby_admin_user]
+   
+   set sdm_system "-p [get_hedeby_pref_type] -s [get_hedeby_system_name]" 
+   
+   # call sdmadm with -help 
+   set reference_output [sdmadm_command $host $user " $sdm_system -help " prg_exit_state "" 0 ]
+   if { $prg_exit_state != 0 } {
+       append error_text "sdmadm $sdm_system -help returned an unexpected exit code $prg_exit_state"
+   } 
+
+   # test if the first output contains a key phrase from the usage (exact matching is too expensive due to formatting)
+   set match_str_admcommands  [create_bundle_string "client.admcommands"]
+   if { [string first $match_str_admcommands $reference_output] != -1 } {
+      ts_log_finer "Key phrase $match_str_admcommands found!"
+   } else {
+      append error_text "called sdmadm -p [get_hedeby_pref_type] -s [get_hedeby_system_name] -help\n"
+      append error_text "The reference output message doesn't contain the expected phrase.\n"
+      append error_text "phrase: \"$match_str_admcommands\"\n"
+      append error_text "Received output: \"$reference_output\"\n"
+   }
+
+   # Test three cases where the output equals the reference output 
+   if { $error_text == "" } { 
+      # call sdmadm with system name and pref type but without command 
+      set output [sdmadm_command $host $user "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] " prg_exit_state "" 0 ]
+      set prefix "Executed \"sdmadm\". The system name and preference type was defined as parameter."
+       # compare exit code
+      if { $prg_exit_state != 0 } {
+         append error_text "Error: $prefix: Unexpected Exit code: $prg_exit_state" 
+      }  
+      # compare reference with output
+      hedeby_issue_512_compareStrings $reference_output $output error_text prefix 
+     
+      # now call the plain sdmadm. To avoid problems with the SDM_SYSTEM env variable a specific env is defined where this variable is unset
+      # for this call the root user is used. He should not have a SDM_SYSTEM variable set in his user environment!
+      array set my_env {}
+      hedeby_get_default_env $host my_env
+      unset my_env(SDM_SYSTEM); # removes the SDM_VARIABLE from the hedeby default environment,
+      lappend my_env(UNSET_VARS) "SDM_SYSTEM"; #removes the SDM_SYSTEM variable from the set of the users environment variables
+  
+      set output [sdmadm_command $host $user " " prg_exit_state "" 0 "" my_env]
+      # compare exit code
+      set prefix "Executed \"sdmadm\". No system name defined as environment variable."
+      if { $prg_exit_state != 0 } {
+         append error_text "Error: $prefix: Unexpected Exit code: $prg_exit_state" 
+      } 
+      # compare reference with output
+      hedeby_issue_512_compareStrings $reference_output $output error_text prefix 
+     
+      # now call the plain sdmadm again, but here the system name specified in the corresponding enviroment variable
+      set my_env(SDM_SYSTEM) [get_hedeby_system_name] 
+      set output [sdmadm_command $host $user " " prg_exit_state "" 0 "" my_env]
+      set prefix "Executed \"sdmadm\". System name was defined as environment variable."
+      # compare exit code
+      if { $prg_exit_state != 0 } {
+         append error_text "Error: $prefix: Unexpected Exit code: $prg_exit_state" 
+      } 
+      # compare reference with output
+      hedeby_issue_512_compareStrings $reference_output $output error_text prefix 
+    
+   }
+
+         
+   # the default error message if no command is specified but options are provided! 
+   set match_str_a  [create_bundle_string "client.error.unknown_option" xyz "*"]
+   set match_str_b  [create_bundle_string "client.useGlobalHelpOption"]
+   set match_str "Error: $match_str_a\r\n$match_str_b\r\n"
+ 
+   set output [sdmadm_command $host $user " -c some_option_value" prg_exit_state "" 0 "" my_env]
+   set prefix "Executed \"sdmadm\". A system name was defined as environment variable. No command but a command option was additionally provided."
+
+   # compare exit code
+   if { $prg_exit_state != 1} {
+      append error_text "Error: $prefix: Unexpected Exit code: $prg_exit_state" 
+   } 
+   # check if the output is as expected
+   hedeby_issue_512_compareStrings $match_str $output error_text prefix
+
+   if { $error_text != "" } {   
+      ts_log_severe "Error: $error_text"
+   } else {
+      ts_log_fine "Test passed!"
+   }
+
+}
+
+#****** check/hedeby_issue_512_compareStrings() *****************************************************
+#  NAME
+#     compareStrings() -- compares two strings and reports mismatches
+#
+#  SYNOPSIS
+#     compareStrings { match_str output { error_text_var "error_text" }
+#        { error_text_prefix "" }}
+#
+#  FUNCTION
+#     compares two strings and reports an error in the case of mismatch in the
+#     variable error_text (upvar)
+#
+#  INPUTS
+#     match_str                        - reference string
+#     output                           - string to be compared with match_str
+#     { error_text_var "error_text" }  - upvar error message variable
+#     { error_text_prefix "" }         - a message prefix for the error case
+#
+#*******************************************************************************
+proc hedeby_issue_512_compareStrings { match_str output { error_text_var "error_text" } { error_text_prefix "" }} {
+   upvar $error_text_var error_text
+   if { [string match $match_str $output] } {
+      ts_log_finer "output is matching!"
+   } else {
+      append error_text "$error_text_prefix\n"
+      append error_text "The output message doesn't match expected output\n"
+      append error_text "Expected output: \"$match_str\"\n"
+      append error_text "Received output: \"$output\"\n"
+   }  
+}

@@ -1,3 +1,13 @@
+AF-2008-09-22-0: Enhancem.:  o Added test for issue 512.
+                             o Added parameter my_env to sdmadm_command.
+                             o Introduced proc hedeby_get_default_env to get a default
+                               SDM env.
+                             o Introduced a meta variable UNSET_VAR for the
+                               user_enviroment array in proc create_shell_script.
+                               With UNSET_VAR a set of variables defined in the 
+                               users environment can be unset.
+                 Review:     RH
+
 TB-2008-09-22-1: Enhancem.:  o Added test for hedeby issue 542:
                                checktree_hedeby/checktree/issues/issue_542/check.62.exp
                  Review:     RH
