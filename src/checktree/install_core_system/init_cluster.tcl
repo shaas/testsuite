@@ -352,13 +352,19 @@ proc setup_queues {} {
          set index [lsearch $ts_config(execd_nodes) $hostname] 
          set slots_tmp [node_get_processors $hostname]
 
-         if { $slots_tmp <= 0 } {
+         if {$slots_tmp <= 0} {
             add_proc_error "setup_queues" -2 "no slots for execd $hostname"
             return
          }
 
-         set slots [ expr ( $slots_tmp * 10) ]
-         set new_values(slots) "$slots"
+         set slots [expr $slots_tmp * 10]
+         # We setup a gid_range of size 100 for the cluster,
+         # so we can start a maximum of 100 jobs or tasks per host.
+         # Set a maximum of 100 slots
+         if {$slots > 100} {
+            set slots 100
+         }
+         set new_values(slots) $slots
 
          set result [mod_queue "all.q" $hostname new_values]
          switch -- $result { 

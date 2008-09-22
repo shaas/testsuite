@@ -1,3 +1,7 @@
+JG-2008-09-22-0: Bugfix:     limit the number of queue slots to 100 - this is
+                             the size of gid_range configured by testsuite.
+                 Review:     DG
+
 CR-2008-09-19-1: Cleanup:    o generic module test:
                                 - added level cleanup func to delete created 
                                   files from module tests
