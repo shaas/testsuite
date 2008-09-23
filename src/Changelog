@@ -1,3 +1,8 @@
+CR-2008-09-23-0: Cleanup:    o Testsuite created log file (*.ts.log) not in TS
+                               working dir if absolut path to settings file was
+                               specified.
+                 Review:     TB
+
 AF-2008-09-22-0: Enhancem.:  o Added test for issue 512.
                              o Added parameter my_env to sdmadm_command.
                              o Introduced proc hedeby_get_default_env to get a default

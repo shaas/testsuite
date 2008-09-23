@@ -8014,7 +8014,7 @@ set CHECK_TESTSUITE_LOCKFILE "$CHECK_CURRENT_WORKING_DIR/testsuite_lockfile"
 
 # commandline parsing
 set log_to_file 0
-set ts_logging_file_name "testsuite.log"
+set ts_logging_file_name "$CHECK_CURRENT_WORKING_DIR/defaults.ts.log"
 for {set i 0} {$i < $argc} {incr i} {
    if {([string compare [lindex $argv $i] "--setup"] == 0) || ([string compare [lindex $argv $i] "setup"] == 0) } {
       set catch_return [ catch { eval exec "cp ${CHECK_DEFAULTS_FILE} ${CHECK_DEFAULTS_FILE}.[timestamp]" } ]
@@ -8291,9 +8291,10 @@ for {set i 0} {$i < $argc} {incr i} {
       
       puts "using configuration file \"$CHECK_DEFAULTS_FILE\""
      
-      set ts_logging_file_name [file rootname $CHECK_DEFAULTS_FILE]
-      set ts_logging_file_name "$ts_logging_file_name.ts.log"
-
+      set ts_logging_file_name [file tail $CHECK_DEFAULTS_FILE]
+      set ts_logging_file_name [file rootname $ts_logging_file_name]
+      set ts_logging_file_name "$CHECK_CURRENT_WORKING_DIR/$ts_logging_file_name.ts.log"
+      ts_log_fine "using log file \"$ts_logging_file_name\""
       continue
    }
 
