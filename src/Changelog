@@ -1,3 +1,7 @@
+DG-2008-09-24-1: Enhancem.:  qconf [-help] test of exit codes and if help 
+                             output is showed in case of no option.
+                 Review:     CR
+
 DG-2008-09-24-0: Enhancem.:  qrsub/qalter/qhold/qrls [-help] test of exit 
                              codes and if help output is showed in case of 
                              no option.  

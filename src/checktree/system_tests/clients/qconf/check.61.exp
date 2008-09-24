@@ -45,6 +45,7 @@ append_check_and_exclude_in_jgdi "qconf_rqs_Xattr" "RQS file format not complete
 append_check_and_exclude_in_jgdi "qconf_rqs_rattr_qmaster_dump" "RQS file format not completetly handled yet"; # verify error handling
 append_check_and_exclude_in_jgdi "qconf_issue_2383" "-mc fails for maintrunk" ;# TS case for IZ 2383
 append_check_and_exclude_in_jgdi "qconf_issue_2445" "Test for IZ 2445" ; # TS case for IZ 2445
+append_check_and_exclude_in_jgdi "qconf_help" ; # TS case for qconf [-help] return values 
 
 global rqs_name_fast
 global rqs_name_cli
@@ -423,6 +424,47 @@ proc qconf_rqs_rattr_qmaster_dump {} {
    delete_job $job_id
 
    del_rqs $rqs_name
+}
+
+#****** clients/qconf/qconf_help() **************************************************
+#  NAME
+#     qconf_help() -- Checks return value of qconf -help and qconf with no option 
+#
+#  SYNOPSIS
+#     qconf_help { } 
+#
+#  FUNCTION
+#      Performs a qconf -help and checks if the return value is 0. 
+#      Saves the help text and checks if the help text is contained 
+#      in "qconf with no option" output. This can additionally contain 
+#      An error message and it is written on stderr (but this is not 
+#      checked). 
+#
+#*******************************************************************************
+proc qconf_help {} {
+   
+   # check return code of qconf -help
+   set output_help [start_sge_bin "qconf" "-help" "" "" prg_exit_state]
+   
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "The return code of qconf -help was not 0 (it was $prg_exit_state)!"
+   }  
+   
+   # check if qconf is mapped to qconf -help but with error code and 
+   # return code 1
+   set output [start_sge_bin "qalter" "" "" "" prg_exit_state]
+   
+   if { $prg_exit_state != 1 } {
+      ts_log_severe "The return code of qconf with no option was not 1 (it was $prg_exit_state)!"
+   }  
+
+   # compare output: output_help must be a subset of output 
+   # because output has to contain additionally an error message
+
+   if { [string first $output_help $output] == -1 } {
+      ts_log_severe "qconf with no option does not return the text showed by -help"
+   } 
+   
 }
 
 
