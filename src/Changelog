@@ -1,3 +1,8 @@
+DG-2008-09-24-0: Enhancem.:  qrsub/qalter/qhold/qrls [-help] test of exit 
+                             codes and if help output is showed in case of 
+                             no option.  
+                 Review:     CR
+
 TB-2008-09-23-0: Enhancem.:  o Automatically search for check_names in TS menu
                              o Enhanced features for interrupt handler
                  Review:     CR

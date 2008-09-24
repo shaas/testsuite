@@ -66,7 +66,6 @@ set check_cleanup_function "qrsub_cleanup"
 # define test's procedure order
 set check_functions {}
 lappend check_functions "check_submit_ar"
-lappend check_functions "check_submit_ar_noargs"
 lappend check_functions "check_submit_ar_invalid_arg"
 lappend check_functions "check_submit_ar_invalid_option_arg"
 lappend check_functions "check_option_a"
@@ -86,7 +85,6 @@ lappend check_functions "check_option_q"
 lappend check_functions "check_option_w"
 lappend check_functions "check_option_u"
 lappend check_functions "check_option_masterq"
-
 
 # test specific globals:
 
@@ -142,21 +140,6 @@ proc check_submit_ar {} {
    }
 
    ts_log_fine "test check_submit_ar OK"
-}
-
-proc check_submit_ar_noargs {} {
-   global ts_config
-  
-   # positive tests
-   set args ""
- 
-   set ar_id [submit_ar $args "" "" 0]
-
-   if {$ar_id != -36} {
-      ts_log_severe "error 'no options argument' was not shown"
-      return
-   }
-   ts_log_fine "test check_submit_ar_noargs OK"
 }
 
 proc check_submit_ar_invalid_arg {} {
@@ -400,6 +383,35 @@ proc check_option_help {} {
       ts_log_severe "error in help $ar_id"
       return
    }
+   
+   set args ""
+   set ar_id [submit_ar $args "" "" 0]
+
+   if {$ar_id != -3} {
+      ts_log_severe "qrsub with no option doesn't show help ($ar_id)"
+   }
+   
+   # check return codes 
+   set output_help [start_sge_bin "qrsub" "-help" "" "" prg_exit_state]
+   
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "The return code of qrsub -help was not 0 (it was $prg_exit_state)!"
+   }  
+   
+   # check if qrsub is mapped to qrsub -help but with error code and 
+   # return code 1
+   set output [start_sge_bin "qrsub" "" "" "" prg_exit_state]
+   
+   if { $prg_exit_state != 1 } {
+      ts_log_severe "The return code of qrsub with no option was not 1 (it was $prg_exit_state)!"
+   }  
+
+   # compare output: output_help must be a subset of output 
+   # because output has to contain an error message
+   if { [string first $output_help $output] == -1 } {
+      ts_log_severe "qrsub with no option does not return the text showed by -help"
+   } 
+   
    delete_all_ars
    ts_log_fine "test check_option_help OK"
 }

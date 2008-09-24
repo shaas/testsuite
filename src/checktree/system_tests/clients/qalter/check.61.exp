@@ -33,6 +33,10 @@
 
 lappend check_functions "qalter_wd"         ;# test the -wd <dir>/-cwd options
 lappend check_functions "qalter_iz_2575"
+lappend check_functions "qalter_help"
+lappend check_functions "qhold_help"
+lappend check_functions "qrls_help"
+
 
 #****** qalter/qalter_wd() ******
 # 
@@ -107,3 +111,141 @@ proc qalter_iz_2575 {} {
 
    delete_job $job_id
 }
+
+#                                                             max. column:     |
+#****** qalter/qalter_help() ******
+# 
+#  NAME
+#     qalter_help -- test -help option for qalter
+#
+#  SYNOPSIS
+#     qalter_help { } 
+#
+#  FUNCTION
+#     Checks if the help text is presented if no option is given.
+#     Checks the return codes of qalter -help and qalter with no option. 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************
+proc qalter_help {} {
+   test_help "qalter" 
+}
+
+#                                                             max. column:     |
+#****** qalter/qhold_help() ******
+# 
+#  NAME
+#     qhold_help -- test -help option for qhold
+#
+#  SYNOPSIS
+#     qhold_help { } 
+#
+#  FUNCTION
+#     Checks if the help text is presented if no option is given.
+#     Checks the return codes of qhold -help and qhold with no option. 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************
+
+proc qhold_help {} {
+   test_help "qhold" 
+}
+
+#                                                             max. column:     |
+#****** qalter/qrls_help() ******
+# 
+#  NAME
+#     qrls_help -- test -help option for qrls
+#
+#  SYNOPSIS
+#     qrls_help { } 
+#
+#  FUNCTION
+#     Checks if the help text is presented if no option is given.
+#     Checks the return codes of qrls -help and qrls with no option. 
+#
+#  INPUTS
+#
+#  RESULT
+#     ??? 
+#
+#  EXAMPLE
+#     ??? 
+#
+#  NOTES
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************
+proc qrls_help {} {
+   test_help "qrls"
+}
+
+
+#                                                             max. column:     |
+#****** qalter/test_help() ******
+# 
+#  NAME
+#     test_help -- Tests the -help option and no option for a given command. 
+#
+#  SYNOPSIS
+#     test_help { } 
+#
+#  FUNCTION
+#     Checks if the help text is presented if no option is given.
+#     Checks the return codes of cmd -help and cmd with no option. 
+#
+#  INPUTS
+#     cmd -- name of command 
+#
+#*******************************
+proc test_help { cmd } {
+   
+   # check return code of qalter -help
+   set output_help [start_sge_bin "$cmd" "-help" "" "" prg_exit_state]
+   
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "The return code of $cmd -help was not 0 (it was $prg_exit_state)!"
+   }  
+   
+   # check if cmd is mapped to cmd -help but with error code and 
+   # return code 1
+   set output [start_sge_bin "$cmd" "" "" "" prg_exit_state]
+   
+   if { $prg_exit_state != 1 } {
+      ts_log_severe "The return code of $cmd with no option was not 1 (it was $prg_exit_state)!"
+   }  
+
+   # compare output: output_help must be a subset of output 
+   # because output has to contain an error message
+   if { [string first $output_help $output] == -1 } {
+      ts_log_severe "$cmd with no option does not return the text showed by -help"
+   } 
+   
+}
+
