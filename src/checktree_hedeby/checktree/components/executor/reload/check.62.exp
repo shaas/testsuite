@@ -102,13 +102,13 @@ set executor_reload_host ""
 # day    (> 4 h   - 24 h   / run level 300 - 399)"
 # week   (>24 h            / run level 400 - 499)"
 proc executor_reload_init_level {} {
-  global CHECK_ACT_LEVEL
+   global CHECK_ACT_LEVEL
 
-  # this test currently supports only runlevel "0"
-  if { $CHECK_ACT_LEVEL == 0 } {
+   # this test currently supports only runlevel "0"
+   if { $CHECK_ACT_LEVEL == 0 } {
      return 0
-  }
-  return -1
+   }
+   return -1
 }
 
 #****** check/executor_reload_setup() ******************************************
@@ -178,6 +178,16 @@ proc executor_reload_cleanup {} {
 proc executor_reload_check {} {
    global CHECK_USER hedeby_config
    global executor_reload_host
+
+   # skip test if sdm-test.jar is not there
+   global check_name
+   set java_build_host [host_conf_get_java_compile_host]
+   set path "$hedeby_config(hedeby_product_root)/lib/sdm-test.jar"
+   if {[is_remote_file $java_build_host [get_hedeby_admin_user] $path] == 0} {
+      ts_log_config "Skipping test $check_name: Product root \"$hedeby_config(hedeby_product_root)\"\
+            doesn't contain sdm-test.jar file in ./lib directory"
+      return 0
+   }
    
    set host $hedeby_config(hedeby_master_host)
    set admin_user [get_hedeby_admin_user]

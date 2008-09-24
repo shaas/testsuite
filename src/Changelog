@@ -1,3 +1,13 @@
+TB-2008-09-24-0: Enhancem.:  o Hedeby executor reload test with missing
+                               sdm-test.jar reports as unsupported and not as
+                               failure.
+                             o Hedeby install test reports sdm-test.jar
+                               problems with info mail, not unsupported mail.
+                             o Summary email about test status (completed,
+                               failed, etc.) now reports test failures before
+                               succeeding tests.
+                 Review:     RH, CR
+
 JG-2008-09-24-0: Bugfix:     Fixed job output redirection of check
                              bugs/issuezilla/2372.
                  Review:     CR
