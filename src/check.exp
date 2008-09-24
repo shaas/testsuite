@@ -3767,28 +3767,7 @@ proc run_tests {path runcompleted} {
    ts_log_info "Number of unsupported tests   : [llength $check_warning_name]" 0 "" 1 1 0
    ts_log_info "Number of dependencies errors : [llength $check_missing_dep]" 0 "" 1 1 0
 
-   set mail_body "Testsuite run on host $local_host complete\n\n"
-
-   # dependencies errors
-   if {[llength $check_missing_dep] > 0} {
-      append mail_body "missing dependencies:\n"
-      append mail_body "=====================\n\n"
-      foreach elem $check_missing_dep {
-         append mail_body "check [get_check_name $elem] in directory\n$elem\n"
-      }
-      append mail_body "\n"
-   }
-
-   # tests ok
-   append mail_body "completed tests:\n"
-   append mail_body "================\n\n"
-   for {set index 0} {$index < [llength $check_ok_name]} {incr index 1} {
-      append mail_body "Date: [lindex $check_ok_date $index]\n"
-      append mail_body "Test: [lindex $check_ok_name $index]\n"
-      append mail_body "Info: Pass[lindex $check_ok_pass $index], State: [lindex $check_ok_state $index]\n\n"
-   }
-   set nr_complete [llength $check_ok_name]
-   append mail_body "Number of completed tests: $nr_complete"
+   set mail_body "Testsuite run on host $local_host complete"
 
    # tests failed
    append mail_body "\n\nfailed tests:\n"
@@ -3801,6 +3780,15 @@ proc run_tests {path runcompleted} {
    set nr_failed [llength $check_error_name]
    append mail_body "Number of failed tests: $nr_failed"
 
+   # dependencies errors
+   if {[llength $check_missing_dep] > 0} {
+      append mail_body "\n\nmissing dependencies:\n"
+      append mail_body "=====================\n\n"
+      foreach elem $check_missing_dep {
+         append mail_body "check [get_check_name $elem] in directory\n$elem\n"
+      }
+   }
+
    # test run not usefull (warning)
    append mail_body "\n\nunsupported tests:\n"
    append mail_body "==================\n"
@@ -3811,6 +3799,17 @@ proc run_tests {path runcompleted} {
    }
    set nr_unsupported [llength $check_warning_name]
    append mail_body "Number of unsupported tests: $nr_unsupported"
+
+   # tests ok
+   append mail_body "\n\ncompleted tests:\n"
+   append mail_body "================\n\n"
+   for {set index 0} {$index < [llength $check_ok_name]} {incr index 1} {
+      append mail_body "Date: [lindex $check_ok_date $index]\n"
+      append mail_body "Test: [lindex $check_ok_name $index]\n"
+      append mail_body "Info: Pass[lindex $check_ok_pass $index], State: [lindex $check_ok_state $index]\n\n"
+   }
+   set nr_complete [llength $check_ok_name]
+   append mail_body "Number of completed tests: $nr_complete"
 
    # mail subject
    if {[llength $check_missing_dep ] > 0} {
