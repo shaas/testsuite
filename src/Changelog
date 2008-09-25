@@ -1,3 +1,19 @@
+CR-2008-09-25-0: Bugfix:     o Fixed qmod/reschedule test
+                 Enhancem.:  o Added new test for issue 2735
+                             o New procedures in sge_procedures.tcl:
+                                  ge_has_feature()
+                                  - get feature info for tested release
+                                  get_shepherd_pid_list()
+                                  - list of all running sge_shepherds pids
+                             o new parameter for wait_for_end_of_all_jobs():
+                                  {raise_error 1} 
+                                     - optional: report errors
+                             o new parameter for delete_all_jobs():
+                                  {do_force 0}
+                                     - optional: do a forced qdel
+                               (added ADOC header)
+                 Review:     DG
+
 RD-2008-09-25-0: Enhancem.:  added test for issue 2736
                  Review:     DG
 

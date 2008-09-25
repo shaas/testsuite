@@ -1,0 +1,192 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2735_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2735"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "qlogin produces undeleteable job/non killable shepherd"
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_level_function issue_2735_setup
+set check_cleanup_level_function issue_2735_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2735_test"
+
+proc issue_2735_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2735_setup {} {
+   global ts_config
+}
+
+proc issue_2735_cleanup {} {
+   global ts_config
+
+   delete_all_jobs
+   # do a forced delete of all jobs
+   if {[wait_for_end_of_all_jobs] != 0} {
+      delete_all_jobs 1 1
+      wait_for_end_of_all_jobs
+   }
+}
+
+
+#****** bugs/issuezilla/issue_2735_test() **************************************
+#  NAME
+#     issue_2735_test() -- test case for issue 2735
+#
+#  SYNOPSIS
+#     issue_2735_test { } 
+#
+#  FUNCTION
+#     This procedure submits a qlogin job and redirects the output. This results
+#     in a not killable sheperd daemon at execd. The only way to remove the
+#     job is a qdel -f. The sheperd will not be terminated and has to be killed
+#     manually. The qmaster messages file contains logging entries about a
+#     job which should not run anymore.
+#     Test is deleting shepherd process if failing.
+#
+#*******************************************************************************
+proc issue_2735_test {} {
+   global ts_config 
+   global CHECK_USER
+
+   set hosts [host_conf_get_suited_hosts 2]
+   set host [lindex $hosts 0]
+   set shepherd_host [lindex $hosts 1]
+   set host_arch [resolve_arch $host]
+
+   ts_log_fine "starting qlogin on host $host"
+   ts_log_fine "requested execd: -l h=$shepherd_host"
+
+   set args "-l h=$shepherd_host > /dev/null"
+   ts_log_fine "starting qlogin $args ..."
+   set qlogin_id [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$host_arch/qlogin" $args]
+
+   set qlogin_spawn_id [lindex $qlogin_id 1]
+   set timeout 3
+   set retries 10
+   expect {
+      -i $qlogin_spawn_id eof {
+         ts_log_fine "got eof"
+         ts_log_severe "qlogin unexpected eof"
+      }
+      -i $qlogin_spawn_id timeout {
+         ts_log_fine "got timeout"
+         set job_id_list {}
+         set output [get_job_info -1]
+         foreach line $output {
+            ts_log_finer $line
+            set job_id_str [lindex $line 0]
+            set state [lindex $line 7] 
+            ts_log_fine "job state: \"$state\""
+            if {[string first "r" $state] >= 0} {
+               if {[string is integer $job_id_str]} {
+                  if {$job_id_str > 0} {
+                     lappend job_id_list [lindex $line 0]
+                  }
+               }
+            }
+         }
+         if {[llength $job_id_list] == 0 && $retries > 0} {
+            incr retries -1
+            ts_log_fine "retries: $retries"
+            exp_continue
+         }
+         ts_log_fine "job_id_list: $job_id_list"
+      }
+   }
+
+   if {[llength $job_id_list] == 0} {
+      ts_log_severe "qlogin job did not start!"
+      set possible_sheperd_pid_list {}
+   } else {
+      set possible_sheperd_pid_list [get_shepherd_pid_list "$CHECK_USER root" $shepherd_host $job_id_list]
+   }
+
+   set shepherd_pid ""
+   if {[llength $possible_sheperd_pid_list] == 1} {
+      set shepherd_pid [lindex $possible_sheperd_pid_list 0]
+      ts_log_fine "Shepherd of qlogin job has pid $shepherd_pid"
+   } else {
+      ts_log_fine "found more than one possible shepherd: $possible_sheperd_pid_list"
+   }
+   close_spawn_process $qlogin_id 1
+
+   delete_all_jobs
+
+   if {[wait_for_end_of_all_jobs 30 0] != 0} {
+      if {$shepherd_pid != ""} {
+         start_remote_prog $shepherd_host root "kill" $shepherd_pid
+         wait_for_end_of_all_jobs
+         ts_log_severe "Issue 2735 found! Complete cleanup successful!!!"
+      } else {
+         ts_log_severe "Issue 2735 found! Cannot kill shepherd pid on host $host"
+         delete_all_jobs 1 1
+      }
+   }
+}
+

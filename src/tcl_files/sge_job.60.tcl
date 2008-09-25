@@ -30,11 +30,33 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-proc delete_all_jobs {{clear_queues 1}} {
+#****** sge_job.60/delete_all_jobs() *******************************************
+#  NAME
+#     delete_all_jobs() -- delete all jobs
+#
+#  SYNOPSIS
+#     delete_all_jobs { {clear_queues 1} {do_force 0} } 
+#
+#  FUNCTION
+#     This procedure is deleting all jobs in the GE system.
+#
+#  INPUTS
+#     {clear_queues 1} - optional: clear all queues
+#     {do_force 0}     - optional: do a forced qdel instead of standard qdel
+#
+#  RESULT
+#     1 on success, 0 on error !!!
+#*******************************************************************************
+proc delete_all_jobs {{clear_queues 1} {do_force 0}} {
    get_current_cluster_config_array ts_config
 
    ts_log_fine "deleting all jobs"
-   set output [start_sge_bin "qdel" "-u '*' '*'"]
+
+   if {$do_force == 0} {
+      start_sge_bin "qdel" "-u '*' '*'"
+   } else {
+      start_sge_bin "qdel" "-f -u '*' '*'"
+   }
 
    if {$prg_exit_state == 0} {
       set ret 1
@@ -44,7 +66,7 @@ proc delete_all_jobs {{clear_queues 1}} {
 
    if {$clear_queues} {
       ts_log_fine "do a qmod -c \"*\" ..."
-      set output [start_sge_bin "qmod" "-c \"*\""]
+      start_sge_bin "qmod" "-c \"*\""
    }
 
    return $ret

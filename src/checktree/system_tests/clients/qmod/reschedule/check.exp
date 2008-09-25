@@ -635,11 +635,12 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    global ts_config
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER
    global rerun_queue no_rerun_queue rerun_host no_rerun_host
-   
+ 
    set host $ts_config(master_host)
-
-   # TODO: use open_remote_spawn_process
+   set no_jobs 4
+   set result ""
    set local_arch [resolve_arch [gethostname]]
+
    set args "-now no -q [get_queue_instance $rerun_queue $rerun_host]"
    set qrsh_id  [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qrsh" "$args"]
 
@@ -649,28 +650,29 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    set args "-now no -q [get_queue_instance $rerun_queue $rerun_host]"
    set qsh_id  [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qsh" "$args"]
 
-   set qlogin_out_file [get_tmp_file_name "" "qlogin" "txt"]
-   ts_log_fine "try to run scripts/qlogin.sh $qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
+   if {[ge_has_feature "new-interactive-job-support"] == true} {
+      # new interactive job support
+      set args "-now no -q [get_queue_instance $rerun_queue $rerun_host]"
+      set qlogin_id [open_remote_spawn_process $host $CHECK_USER "$ts_config(product_root)/bin/$local_arch/qlogin" "$args"]
+      set qlogin_spawn_id [lindex $qlogin_id 1]
+   } else {
+      # old interactive job support
+      set qlogin_out_file [get_tmp_file_name "" "qlogin" "txt"]
+      ts_log_fine "try to run scripts/qlogin.sh $qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -q [get_queue_instance $rerun_queue $rerun_host]"
+      set args "$qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"
+      set qlogin_id [open_remote_spawn_process $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/qlogin.sh" "$args"]
+      set qlogin_spawn_id [lindex $qlogin_id 1]
 
-   set args "$qlogin_out_file $ts_config(product_root)/bin/$local_arch/qlogin -now no -q [get_queue_instance $rerun_queue $rerun_host]"
-   set qlogin_id [open_remote_spawn_process $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/qlogin.sh" "$args"]
-   
-   set qlogin_spawn_id [lindex $qlogin_id 1]
-   set no_jobs 4
-   set result ""
-
-   # wait for qlogin login and password prompt only in case telnet is configured
-   # as qlogin command - this is by default the case for SGE versions < 6.2
-   if {$ts_config(gridengine_version) < 62} {
+      # wait for qlogin login and password prompt only in case telnet is configured
       set my_timeout [timestamp]
       incr my_timeout 30
       while {[string first "login" $result] < 0 && [string first "assword" $result] < 0} {
-         sleep 1
-         catch {eval exec "cat $qlogin_out_file"} result
-         ts_log_fine "qlogin output:\n$result"
+         set result [start_remote_prog $host $CHECK_USER "cat" $qlogin_out_file]
+         ts_log_fine "qlogin output (1):\n$result"
          if {$my_timeout < [timestamp]} {
             break
          }
+         after 1500
       }
 
       # on some systems (Solaris 10), telnet doesn't present a login, but tries 
@@ -698,19 +700,19 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
       incr my_timeout 120
       set timeout 0
       while {[string first "assword:" $result] < 0} {
-         sleep 2
-         catch {eval exec "cat $qlogin_out_file"} result
-         ts_log_fine $result
+         set result [start_remote_prog $host $CHECK_USER "cat" $qlogin_out_file]
+         ts_log_fine "qlogin output (2):\n$result"
          if {$my_timeout < [timestamp]} {
             ts_log_severe "timeout waiting for qlogin password question"
             break
          }
+         after 1500
       }
 
       if {[string first "closed" $result] >= 0} {
           ts_log_severe "qlogin error, connection closed"
       }
-   } 
+   }
 
    set end_time [expr [timestamp] + 60]
    set ru_jobs 0
@@ -723,11 +725,12 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
       foreach elem $running_jobs {
          set jobid [string trim $elem]
          if {$jobid >= 0} {
-            ts_log_fine $job_info($jobid,queue)
-            lappend jobs $jobid
-            append jobs_string "$jobid "
-            lappend job_names "$job_info($jobid,name)"
-            ts_log_fine "job: $jobid, name: $job_info($jobid,name), $job_info($jobid,queue)"
+            ts_log_fine "job $jobid running in queue \"$job_info($jobid,queue)\" and has state \"$job_info($jobid,state)\""
+            if {[string first "r" $job_info($jobid,state)] >= 0} {
+               lappend jobs $jobid
+               append jobs_string "$jobid "
+               lappend job_names "$job_info($jobid,name)"
+            }
          }
       }
       set ru_jobs [llength $jobs]
@@ -758,7 +761,7 @@ proc reschedule_qsh_qlogin_qrsh_qrlogin {} {
    }
 
    enable_queue [get_queue_instance $rerun_queue $rerun_host]
-
+ 
    foreach elem $jobs_string {
       delete_job $elem
    }

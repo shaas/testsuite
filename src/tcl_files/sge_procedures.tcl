@@ -223,6 +223,75 @@ proc get_complex_version {} {
    return $version
 }
 
+
+#****** sge_procedures/get_shepherd_pid_list() *********************************
+#  NAME
+#     get_shepherd_pid_list() -- return list of all running sge_shepherds 
+#
+#  SYNOPSIS
+#     get_shepherd_pid_list { user host } 
+#
+#  FUNCTION
+#     This procedure is doing a ps on the specified host. After that all pids
+#     belonging to the specified user with the command name "sge_shepherd"
+#     are returned.
+#
+#  INPUTS
+#     users            - list of users which uid is obtained
+#     host             - name of the host where get_ps_info() is called
+#     {job_id_list {}} - optional: If the job id of shepherd is known the
+#                        returned list will only contain shepherds with
+#                        specified job ids.
+#
+#  RESULT
+#     TCL list with pids
+#
+#  SEE ALSO
+#     control_procedures/get_ps_info()
+#*******************************************************************************
+proc get_shepherd_pid_list { users host {job_id_list {}} } {
+
+   set uid_list {}
+   foreach user $users {
+      set my_uid [get_uid $user $host]
+      ts_log_fine "uid of user \"$user\" on host \"$host\" is \"$my_uid\""
+      lappend uid_list $my_uid
+   }
+   set pid_list {}
+   get_ps_info 0 $host ps_info
+   for {set i 0} {$i < $ps_info(proc_count) } {incr i 1} {
+      if {[string first "sge_shepherd" $ps_info(command,$i)] >= 0} { 
+         if {[lsearch -exact $uid_list $ps_info(uid,$i)] >= 0} {
+            ts_log_finer "ps_info(uid,$i)     = $ps_info(uid,$i)"
+            ts_log_finer "ps_info(pid,$i)     = $ps_info(pid,$i)"
+            ts_log_finer "ps_info(command,$i) = $ps_info(command,$i)"
+            ts_log_fine  "ps_info(string,$i)  = $ps_info(string,$i)"
+            if {[llength $job_id_list] > 0} {
+               foreach str [split $ps_info(command,$i) "- " ] {
+                  if {[string is integer $str]} {
+                     set job_id $str
+                     if {$job_id > 0} {
+                        if {[lsearch -exact $job_id_list $job_id] >= 0} {
+                           lappend pid_list $ps_info(pid,$i)
+                           ts_log_fine "Found sge_shepherd for job id: \"$job_id\""
+                        } else {
+                           ts_log_fine "job id \"$job_id\" not in job id list!"
+                        }
+                        break
+                     }
+                  }
+               }
+            } else {
+               lappend pid_list $ps_info(pid,$i)
+            }
+         }
+      }
+   }
+   ts_log_fine "sge_shepherd processes for users \"$users\" on host \"$host\": \"$pid_list\""
+   return $pid_list
+}
+
+
 #                                                             max. column:     |
 #****** sge_procedures/get_qmaster_spool_dir() ******
 # 
@@ -282,6 +351,72 @@ proc set_qmaster_spool_dir {spool_dir} {
 
   set sge_config(qmaster_spool_dir) $spool_dir
 }
+
+#****** sge_procedures/ge_has_feature() ****************************************
+#  NAME
+#     ge_has_feature() -- get feature information for tested release
+#
+#  SYNOPSIS
+#     ge_has_feature { feature } 
+#
+#  FUNCTION
+#     This helper procedure is used to find out if the tested product supports
+#     the specified feature or not.
+#     
+#     The procedure reports an error if an unexpected feature string is used!
+#
+#  INPUTS
+#     feature - name of the feature.
+# 
+#     Supported feature strings are:
+#
+#     "new-interactive-job-support": Examines if the current GE release has the
+#                                    new interactive job support enabled.
+#                      
+#
+#  RESULT
+#     true or false if feature string is valid, "unsupported" on error
+#      
+#
+#  EXAMPLE
+#     if {[ge_has_feature "new-interactive-job-support"]} {
+#        # test new interactive qlogin
+#        ...
+#     }
+#
+#  SEE ALSO
+#     sge_procedures/ge_has_feature()
+#*******************************************************************************
+proc ge_has_feature { feature } {
+   global CHECK_INTERACTIVE_TRANSPORT
+   get_current_cluster_config_array ts_config
+   switch -exact $feature {
+      "new-interactive-job-support" {
+         if {$ts_config(gridengine_version) < 62 ||
+             [is_61AR]                           ||
+             $CHECK_INTERACTIVE_TRANSPORT == "rtools" } {
+            set result false
+         } else {
+            set result true
+         }
+      }
+      default {
+         ts_log_severe "unsupported feature string \"$feature\""
+         return "unsupported"
+      }
+   }
+
+   ts_log_fine "**********************************************************************"
+   ts_log_fine "* Test depends on availability of a feature!"   
+   if {$result == false} {
+      ts_log_fine "* Feature \"$feature\" is NOT supported!"
+   } else {
+      ts_log_fine "* Feature \"$feature\" is supported!"
+   }
+   ts_log_fine "**********************************************************************"
+   return $result
+}
+
 
 #                                                             max. column:     |
 #****** sge_procedures/get_execd_spool_dir() ******
@@ -3149,7 +3284,8 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #     This procedure will wait until no further jobs are remaining in the cluster.
 #
 #  INPUTS
-#     seconds - timeout value (if < 1 no timeout is set)
+#     {seconds 60}    - optional: timeout value (if < 1 no timeout is set)
+#     {raise_error 1} - optional: report errors
 #
 #  RESULT
 #     0 - ok
@@ -3159,7 +3295,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
 #     sge_procedures/wait_for_jobend()
 #*******************************
 #
-proc wait_for_end_of_all_jobs {{seconds 60}} {
+proc wait_for_end_of_all_jobs {{seconds 60} {raise_error 1}} {
    get_current_cluster_config_array ts_config
 
    set time [timestamp]
@@ -3181,7 +3317,7 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
             ts_log_finest $elem
          }
       } else {
-        ts_log_severe "qstat -s pr failed:\n$result"
+        ts_log_severe "qstat -s pr failed:\n$result" $raise_error
         return -1
       }
       ts_log_progress
@@ -3191,7 +3327,7 @@ proc wait_for_end_of_all_jobs {{seconds 60}} {
       if {$seconds > 0} {
          set runtime [expr [timestamp] - $time]
          if {$runtime >= $seconds} {
-             ts_log_severe "timeout waiting for end of all jobs:\n\"$result\""
+             ts_log_severe "timeout waiting for end of all jobs:\n\"$result\"" $raise_error
              return -1
          }
       }
@@ -4850,7 +4986,7 @@ proc get_standard_job_info {jobid {add_empty 0} {get_all 0}} {
 #     the output of the qstat in array form.
 #
 #  INPUTS
-#     jobid               - job identifaction number
+#     jobid               - job identifaction number, if "" all jobs are reported
 #     {variable job_info} - name of variable array to store the output
 #     {do_replace_NA}     - 1 : if not set, don't replace NA settings
 #
