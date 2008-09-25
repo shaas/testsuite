@@ -1,3 +1,6 @@
+AP-2008-09-25-0: Bugfix:     get_ps_info - fixed PGID for hp archs.
+                 Review:     JG
+
 TB-2008-09-24-0: Enhancem.:  o Hedeby executor reload test with missing
                                sdm-test.jar reports as unsupported and not as
                                failure.
@@ -12,13 +15,13 @@ JG-2008-09-24-0: Bugfix:     Fixed job output redirection of check
                              bugs/issuezilla/2372.
                  Review:     CR
 
-DG-2008-09-24-1: Enhancem.:  qconf [-help] test of exit codes and if help 
+DG-2008-09-24-1: Enhancem.:  qconf [-help] test of exit codes and if help
                              output is showed in case of no option.
                  Review:     CR
 
-DG-2008-09-24-0: Enhancem.:  qrsub/qalter/qhold/qrls [-help] test of exit 
-                             codes and if help output is showed in case of 
-                             no option.  
+DG-2008-09-24-0: Enhancem.:  qrsub/qalter/qhold/qrls [-help] test of exit
+                             codes and if help output is showed in case of
+                             no option.
                  Review:     CR
 
 TB-2008-09-23-0: Enhancem.:  o Automatically search for check_names in TS menu
@@ -36,7 +39,7 @@ AF-2008-09-22-0: Enhancem.:  o Added test for issue 512.
                                SDM env.
                              o Introduced a meta variable UNSET_VAR for the
                                user_enviroment array in proc create_shell_script.
-                               With UNSET_VAR a set of variables defined in the 
+                               With UNSET_VAR a set of variables defined in the
                                users environment can be unset.
                  Review:     RH
 
@@ -59,7 +62,7 @@ JG-2008-09-22-0: Bugfix:     limit the number of queue slots to 100 - this is
                  Review:     DG
 
 CR-2008-09-19-1: Cleanup:    o generic module test:
-                                - added level cleanup func to delete created 
+                                - added level cleanup func to delete created
                                   files from module tests
                              o startup execd test:
                                 - choose randomly a execd for this test
@@ -73,7 +76,7 @@ CR-2008-09-19-1: Cleanup:    o generic module test:
                              o remote_procedures.tcl:
                                 - new procedure: get_home_dir_path()
                  Review:     RD
-                             
+
 
 AP-2008-09-19-0: Task:       Some tests produce output files in home directory
                  Issue:      180
@@ -114,8 +117,8 @@ CR-2008-09-16-0: Enhancem.:  system_tests/execd/reconnect now also checks
                              running.
                  Review:     DG
 
-DG-2008-09-15-0: Enhancem.:  Initial test for qresub client added. Test 
-                             for issue 2726. 
+DG-2008-09-15-0: Enhancem.:  Initial test for qresub client added. Test
+                             for issue 2726.
                  Review:     JG
 
 JF-2008-09-10-0: Fix.:       Fix for Arco test of testsuite issue 113.
@@ -142,17 +145,17 @@ JF-2008-09-03-0: Enhancem.:  o new test:
                                src/checktree/bugs/issuezilla/1156
                  Review:     AP
 
-DG-2008-09-01-1: Bugfix:     Fix of testsuite issue 202. Before installing 
-                             with menu item (19) the runlevel is set to 0 
-                             and afterwards back again. Hence it is possible 
-                             to install when other runlevels are in selection. 
-                 Review:     TB 
+DG-2008-09-01-1: Bugfix:     Fix of testsuite issue 202. Before installing
+                             with menu item (19) the runlevel is set to 0
+                             and afterwards back again. Hence it is possible
+                             to install when other runlevels are in selection.
+                 Review:     TB
 
-DG-2008-09-01-0: Bugfix:     When testing java drmaa in 6.0 branch we don't 
-                             build the drmaa-0.5.jar but we need to check it. 
-                             Therefore if the library is missing we are 
-                             using the newly added library out of the 
-                             testsuite lib directory.   
+DG-2008-09-01-0: Bugfix:     When testing java drmaa in 6.0 branch we don't
+                             build the drmaa-0.5.jar but we need to check it.
+                             Therefore if the library is missing we are
+                             using the newly added library out of the
+                             testsuite lib directory.
                  Review:     AP
 
 RM-2008-09-01-0: Bugfix:     When hedeby cluster has archs lx24-amd64 and lx26-amd64
@@ -169,14 +172,14 @@ CR-2008-08-27-1: Enhancem.:  o new menu item:
                  Bugfix:     o fixed cleanup of test:
                                src/checktree/system_tests/execd/reconnect
                  Belongs To: CR-2008-08-27-0
-                 Review:     AA                             
+                 Review:     AA
 
 CR-2008-08-27-0: Enhancem.:  o new test:
                                src/checktree/system_tests/execd/reconnect
                              o new sge_procedure:
                                get_act_qaster()
                              o new parameter for get_config():
-                               atimeout - timeout 
+                               atimeout - timeout
                  Review:     JG
 
 TB-2008-08-27-1: Bugfix:     o fixed hedeby test issue_374
@@ -207,9 +210,9 @@ CR-2008-08-26-0: Bugfix:     o get_all_reserved_ports()
                  Enhancem.:  o rework of run_test_level() framework function:
                                - check for running qmaster
                                - join errors into one error message
-                             o new menu item: 
+                             o new menu item:
                                - (54) analyze used testsuite ports
-                               - new procedure: 
+                               - new procedure:
                                     check_correct_testsuite_setup_user()
                              o changed some ts_log_fine to finer/finest
                              o added test dependencies (needs) for checks
@@ -219,7 +222,7 @@ CR-2008-08-26-0: Bugfix:     o get_all_reserved_ports()
                                - checktree_get_required_ports()
                              o implemented ports hook for hedeby checktree:
                                - hedeby_get_required_ports()
-                             o fixed not clear testsuite output in 
+                             o fixed not clear testsuite output in
                                init_cluster.tcl
                  Review:     TB
 
@@ -242,12 +245,12 @@ MP-2008-08-18-0: Cleanup:    Fixed broken test for IZ 2418
                  Review:     DG
 
 DG-2008-08-14-0: Cleanup:    On Solaris a shared lib path is set from sgeexecd
-                             script (is different to current branch). Therefore 
+                             script (is different to current branch). Therefore
                              the job_environment test for 6.0 was adapted.
                  Review:     CR
- 
-CR-2008-08-14-0: Cleanup:    Fixed architecture resolving for product testing  
-                             in procedure resolve_build_arch_installed_libs(). 
+
+CR-2008-08-14-0: Cleanup:    Fixed architecture resolving for product testing
+                             in procedure resolve_build_arch_installed_libs().
                  Review:     DG
 
 CR-2008-08-13-0: Enhancem.:  Added ts_log_fine output to commlib test
@@ -259,13 +262,13 @@ MB-2008-08-13-0: Bugfix:     Unsecured hedeby system installation fails
                  Issue :     235
                  Review:     MG
 
-DG-2008-08-12-0: Cleanup:    Fixed qmaster installation for RPC BDB. 
+DG-2008-08-12-0: Cleanup:    Fixed qmaster installation for RPC BDB.
                              Does not delete cell dir anymore.
-                 Review:     CR 
+                 Review:     CR
 
-DG-2008-08-12-0: Cleanup:    Fixed arch cache for resolve_arch(). 
-                             Missing output when shadow daemon is not 
-                             configured properly. 
+DG-2008-08-12-0: Cleanup:    Fixed arch cache for resolve_arch().
+                             Missing output when shadow daemon is not
+                             configured properly.
                  Review:     CR
 
 MG-2008-08-11-0: Bugfix:     Testsuite test for SDM issue 551

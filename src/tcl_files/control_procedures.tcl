@@ -1571,8 +1571,7 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
       
       }
 
-      "hp10" -
-      "hp11" {
+      "hp10" {
          set myenvironment(COLUMNS) "500"
          set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-efl" prg_exit_state 60 0 "" myenvironment]
          set index_names "  F S      UID   PID  PPID  C PRI NI     ADDR   SZ    WCHAN    STIME {TTY   }    TIME COMD"
@@ -1587,10 +1586,11 @@ proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_ru
          set command_pos 14
       }
 
+      "hp11" -
       "hp11-64" {
          set myenvironment(COLUMNS) "500"
          set myenvironment(UNIX95)  ""
-         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid gid ppid uid state stime vsz time args\"" prg_exit_state 60 0 "" myenvironment]
+         set result [start_remote_prog "$host" "$CHECK_USER" "ps" "-eo \"pid pgid ppid uid state stime vsz time args\"" prg_exit_state 60 0 "" myenvironment]
          set index_names "  PID        GID  PPID        UID S    STIME     VSZ     TIME COMMAND"
          set pid_pos     0
          set gid_pos     1
