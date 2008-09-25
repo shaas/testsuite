@@ -99,6 +99,7 @@ proc issue_2378_setup {} {
    set second [lindex $ts_config(execd_nodes) 1]
 
    # setup queues A and B each with two slots on a single host
+   set queue_conf(seq_no)           "10,\[$first=1\]"
    set queue_conf(slots)            "2"
    set queue_conf(pe_list)          "round_robin fill_up"
    set queue_conf(load_thresholds)  "NONE"
@@ -116,7 +117,7 @@ proc issue_2378_setup {} {
    set schedconf(job_load_adjustments)       "NONE"
    set schedconf(load_adjustment_decay_time) "0:0:00"
    set schedconf(params)                     "MONITOR=true"
-   set result [ set_schedd_config schedconf ]
+   set result [set_schedd_config schedconf]
 
    # ensure schedule file exists
    trigger_scheduling
@@ -184,30 +185,38 @@ proc issue_2378_check { } {
    if { [ issue_2378_single_check "fill_up"     "B@$second" "A@$first" "-q" ] != 0 } { return }
    if { [ issue_2378_single_check "round_robin" "B@$second" "A@$first" "-q" ] != 0 } { return }
 
+   ts_log_fine "testing -masterq and overlapping -q (IZ: 2736)"
+
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "A@$first" "-q" 1] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "A@$first" "-q" 1] != 0 } { return }
+
+   if { [ issue_2378_single_check "fill_up"     "A@$first" "A" "-q" 1 ] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first" "A" "-q" ] != 0 } { return }
+
    ts_log_fine "testing -masterq without -q"
 
    disable_queue "B A@$second"
-   if { [ issue_2378_single_check "fill_up"     "A@$first" "A@$first" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$first" "A@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "A@$first"] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$first"] != 0 } { return }
    enable_queue "B A@$second"
 
    disable_queue "A B@$second"
-   if { [ issue_2378_single_check "fill_up"     "B@$first" "B@$first" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$first" "B@$first" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "B@$first"] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$first"] != 0 } { return }
    enable_queue "A B@$second"
 
    disable_queue "B A@$first"
-   if { [ issue_2378_single_check "fill_up"     "A@$second" "A@$second" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "A@$second" "A@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "A@$second"] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "A@$second"] != 0 } { return }
    enable_queue "B A@$first"
 
    disable_queue "A B@$first"
-   if { [ issue_2378_single_check "fill_up"     "B@$second" "B@$second" ] != 0 } { return }
-   if { [ issue_2378_single_check "round_robin" "B@$second" "B@$second" ] != 0 } { return }
+   if { [ issue_2378_single_check "fill_up"     "B@$second"] != 0 } { return }
+   if { [ issue_2378_single_check "round_robin" "B@$second"] != 0 } { return }
    enable_queue "A B@$first"
 }
 
-proc issue_2378_single_check { pe_name master slave { slave_request "" } } {
+proc issue_2378_single_check { pe_name master {slave ""} {slave_request ""} {handled_as_fillup 0} } {
    global ts_config
 
    set SGE_ROOT $ts_config(product_root)
@@ -217,16 +226,15 @@ proc issue_2378_single_check { pe_name master slave { slave_request "" } } {
    # tail -f scheduling file
    init_logfile_wait $ts_config(master_host) $schedule
 
-   if { $slave_request != "" } {
-      set jobid [submit_job "-pe $pe_name 2 -masterq $master $slave_request $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
-      set ret [ issue_2378_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:1.0*" ]
+   set jobid [submit_job "-pe $pe_name 2 -masterq $master $slave_request $slave $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
+   if {$slave_request != "" && $handled_as_fillup == 0} {
+      set ret [issue_2378_wait_for_pattern "wait for master: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:1.0*"]
 
-      if { $ret == 0 } {
-         set ret [ issue_2378_wait_for_pattern "wait for slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${slave}:slots:1.0*" ]
+      if {$ret == 0} {
+         set ret [issue_2378_wait_for_pattern "wait for slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${slave}*:slots:1.0*"]
       }
    } else {
-      set jobid [submit_job "-pe $pe_name 2 -masterq $master $ts_config(product_root)/examples/jobs/sleeper.sh 180"]
-      set ret [ issue_2378_wait_for_pattern "wait for master and slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:2.0*" ]
+      set ret [issue_2378_wait_for_pattern "wait for master and slave: $pe_name $master $slave" "${jobid}:1:STARTING:*:*:Q:${master}:slots:2.0*"]
    }
 
    ts_log_fine "got master queue (${master}) and slave queue (${slave}) as expected"
