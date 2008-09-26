@@ -1,0 +1,427 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category
+global check_description 
+global check_needs
+global check_functions 
+global check_errno 
+global check_errstr 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2564_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2564"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_highest_level   0
+set check_description(0)  "scheduler failure when job-id's roll over to 1"
+
+# define test's dependencies
+set check_needs "init_core_system" 
+
+
+# setup and cleanup functions
+set check_setup_function "issue_2564_setup"
+set check_cleanup_function "issue_2564_cleanup"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2564_check"
+
+proc issue_2564_init_level {} {
+   global CHECK_ACT_LEVEL 
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0    
+      } 
+   }
+
+   return -1  ;# no other level else
+}
+
+proc issue_2564_setup {} {
+   global ts_config
+   global seqfile
+   global project_1
+   global project_2
+   global project_3
+   global queue_name
+   global grace_period
+   global old_schedd_config
+   #
+   # Establish exit handler.
+   #
+   exp_exit -onexit my_exit_handler
+   #
+   # Make up JobID sequence file.
+   #
+   set qmaster_spool_dir [ get_qmaster_spool_dir ]
+   set seqfile $qmaster_spool_dir/jobseqnum
+   #
+   #
+   #
+   delete_all_jobs
+   wait_for_end_of_all_jobs 10
+   infrastructure_file_cleanup
+
+   set project_1 "micky"
+   set project_2 "maus"
+   set project_3 "daisy"
+
+   set queue_name "test.q"
+
+   set grace_period 15 
+   #
+   # Imporant note: we need to configure schedd FIFO mode
+   # with projects defined by disabling functional shares.
+   # This is important to stress test the code that makes
+   # assumptions about JobID ordering. This is what the
+   # customer is running.
+   #
+   get_schedd_config old_schedd_config
+   set config_list [ array get old_schedd_config ]
+   array set this_schedd_config $config_list
+   set this_schedd_config(weight_tickets_functional) 0
+   set_schedd_config this_schedd_config
+   #
+   # Create projects.
+   #
+   set this_project(name) $project_1
+   set this_project(fshare) 1000 
+   add_project $project_1 this_project
+
+   set this_project(name) $project_2
+   set this_project(fshare) 1000 
+   add_project $project_2 this_project
+
+   set this_project(name) $project_3
+   set this_project(fshare) 1000 
+   add_project $project_3 this_project
+   #
+   # Create test queue with projects assigned. It is really
+   # important that we have projects with fshares attribute
+   # otherwise we won't exercise the hot spots in schedd for
+   # this problem.
+   #
+   set this_q(qname) $queue_name
+   set this_q(slots) 7
+   set this_q(projects) $project_1,$project_2,$project_3
+   add_queue $queue_name $ts_config(execd_hosts) this_q
+
+
+   return 0
+}
+# -------- local test procedures -----------------------------------------------
+
+#
+# This is the test plan: 
+#
+# o first clean up any leftovers from previous (possibly failed tests)
+# o save original job sequence number file and create a copy
+# o bump up sequence number in JobID sequence file in the region close
+#   to wrap-around
+# o create a mix of dummy jobs (array and sequential) using two projects
+#   with fshares attribute. This should execercise the areas in the 
+#   scheduler which make assumptions about steadily increasing JobID's.
+# o Monitor job processing: test failure scenario is JobID 1 running with
+#   more senior jobs (i.e. higher numbered) pending.
+#
+proc issue_2564_check {} {
+   global CHECK_USER
+   global ts_config
+   global seqfile
+   global project_1
+   global project_2
+   global project_3
+   global jid_list
+   global grace_period
+   #
+   # Shutdown qmaster to make change in sequence file effective.
+   #
+   shutdown_system_daemon $ts_config(master_host) qmaster
+   #
+   # Next, push job sequence number to provoke JobID wraparound.
+   # Save original sequence number file.
+   # 
+   file rename -force $seqfile $seqfile.original
+   #
+   # Create new sequence file and store new sequence number.
+   #
+   set start_jid 9999990
+   set max_jid   9999999
+   start_remote_prog $ts_config(master_host) $CHECK_USER "echo" "$start_jid > $seqfile"  
+   #
+   # Restart qmaster and schedd.
+   #
+   startup_qmaster 0
+   #
+   # Prepare dummy jobs.
+   #
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 45"
+   set number_of_jobs 3
+   for {set i 0} { $i < 2 } {incr i} {
+      set jid [ submit_dummy_jobs $job_script $project_1 1 ]
+      if { $jid > 0 } {
+         lappend jid_list $jid
+      } else {
+         return -1
+      }
+   }
+   for {set i 0} { $i < 2 } {incr i} {
+      set jid [ submit_dummy_jobs $job_script $project_2 1 ]
+      if { $jid > 0 } {
+         lappend jid_list $jid
+      } else {
+         return -1
+      }
+   }
+   for {set i 0} { $i < 2 } {incr i} {
+      set jid [ submit_dummy_jobs $job_script $project_3 1 ]
+      if { $jid > 0 } {
+         lappend jid_list $jid
+      } else {
+         return -1
+      }
+   }
+   for {set i 0} { $i < $number_of_jobs } {incr i} {
+      set jid [ submit_dummy_jobs $job_script $project_1 0 ]
+      if { $jid > 0 } {
+         lappend jid_list $jid
+      } else {
+         return -1
+      }
+   }
+   for {set i 0} { $i < $number_of_jobs } {incr i} {
+      set jid [ submit_dummy_jobs $job_script  $project_2 0 ]
+      if { $jid > 0 } {
+         lappend jid_list $jid
+      } else {
+         return -1
+      }
+   }
+   #
+   # Start monitoring the system. Wait for Job ID and see if
+   # more senior jobs are pending. This is the test failure
+   # scenario. We also monitor the general progress of this
+   # test to avoid a global test suite screw-up.
+   #
+   set iterations 0
+   set jobs_active 1
+   while { $jobs_active == 1 } {
+      ts_log_fine "Starting iteration $iterations"
+      ts_log_fine "======================"
+      #
+      # Extract jobs in running state.
+      #
+      set result [start_sge_bin "qstat" "-s rp" ]
+      set pr_list [split $result "\n"]
+      set lines 0
+      set job_1_is_running 0
+      set error_exit 0
+      #
+      # Scan job execution states
+      #
+      foreach line $pr_list {
+         incr lines 1
+         if { $lines > 2 } {
+            #
+            # Skip header (two lines)
+            #
+            set job_id [lindex $line 0]
+            set job_name [lindex $line 2]
+            set job_state [lindex $line 4]
+            set job_time [lindex $line 6]
+            if { $job_state == "r" } {
+               set task_id [lindex $line 9]
+               ts_log_fine "Jobs running: $job_id $job_name $job_state $job_time $task_id"
+               if { $job_id == 1 } {
+                  set job_1_is_running 1
+               }
+            } elseif { $job_state == "qw" } {
+               set task_id [lindex $line 8]
+               ts_log_fine "Jobs pending: $job_id $job_name $job_state $job_time $task_id"
+               #
+               # Ensure we are making progress: the lowest JobID should be running by
+               # by now. Fatal if it's still sitting on the pending list. The current
+               # settings of grace_period and sleep_time combined give us a timeout 
+               # of 15 seconds.
+               # 
+               if {  $iterations == $grace_period  &&  $job_id == [ expr { $start_jid  +1 } ] } {
+                  ts_log_severe "issue_2564_check: no progress observed; aborting. $job_id still pending state"
+                  return
+               }
+               #
+               # If we have a job with wrapped around ID (i.e. JobID 1) in running 
+               # state AND more senior (i.e. higher numbered) jobs sitting on the pending list, 
+               # then indicate test failure.
+               #
+               if { $job_1_is_running } {
+                  if { $job_id > $start_jid && $job_id <= $max_jid  } {
+                     ts_log_severe "JobID 1 is running with JobID $job_id still pending"
+                     set error_exit 1
+                  }
+               }
+            } elseif { $job_state == "t" } {
+               ts_log_fine "Jobs transfering: $job_id $job_name $job_state $job_time"
+            }
+         }
+      }
+      if { $lines <= 2 } {
+         #
+         # No jobs active. Consider this as fatal.
+         #
+         break
+      }
+      if { $job_1_is_running } {
+         #
+         # Having JobID 1 running should tickle the bug.
+         #
+         if { $error_exit } {
+            #
+            # Yes, it did.
+            #
+            ts_log_severe "issue_2564_check: wrap around problem still exists: => found  IZ2564"
+            return
+         } else { 
+            #
+            # No problem encountered; indicate success.
+            #
+            ts_log_finest "issue_2564_check: test executed successfully"
+            return
+         }
+      }
+      #
+      # Yet no JobID 1 running, wait one second 
+      #
+      after 1000
+      incr iterations 1
+   }
+   #
+   # Come here in case JobID 1 never started. This must be considered
+   # as test failure. Generate error report and then exit.
+   #
+   ts_log_severe "issue_2564_check: timeout: JobID 1 never started, aborting"
+   return 
+}
+
+proc issue_2564_cleanup  {} {
+   global CHECK_USER
+   global seqfile
+   global ts_config
+   global project_1
+   global project_2
+   global project_3
+   global queue_name
+   global jid_list
+   global old_schedd_config
+
+   set_schedd_config old_schedd_config
+
+   delete_all_jobs
+
+   wait_for_end_of_all_jobs 100
+
+   del_queue $queue_name $ts_config(master_host) 1
+
+   del_project $project_1
+   del_project $project_2
+   del_project $project_3
+   #
+   # Restore original JobID file
+   #
+   #file rename -force $seqfile.original $seqfile
+   start_remote_prog $ts_config(master_host) $CHECK_USER "/bin/mv" "$seqfile.original $seqfile"
+   infrastructure_file_cleanup
+
+}
+proc infrastructure_file_cleanup {} {
+
+   global CHECK_USER
+   global ts_config
+
+   set qmaster_host $ts_config(master_host)
+   set qmaster_spool_dir [ get_qmaster_spool_dir ]
+   #
+   # Clean up infrastructure files possibly left over from previous (failed) tests.
+   # This is really important since we are starting the test always with the same
+   # job sequence number. This in turn will confuse the daemons by faking non-existing
+   # jobs.
+   #
+   # qmaster:
+   #
+   ts_log_finest "File Cleanup $CHECK_USER $qmaster_spool_dir \n"
+   start_remote_prog $qmaster_host $CHECK_USER "/bin/rm" "-rf $qmaster_spool_dir/jobs/*"
+   start_remote_prog $qmaster_host $CHECK_USER "/bin/rm" "-rf $qmaster_spool_dir/job_scripts/*"
+   #
+   # execd:
+   #
+   foreach execd_host $ts_config(execd_hosts) {
+      set execd_spool_dir [ get_execd_spool_dir $execd_host ]
+      set execd_spool_dir $execd_spool_dir/$execd_host
+      ts_log_finest "File Cleanup $CHECK_USER $execd_spool_dir \n"
+      start_remote_prog $execd_host $CHECK_USER "/bin/rm" "-rf $execd_spool_dir/jobs/*"
+      start_remote_prog $execd_host $CHECK_USER "/bin/rm" "-rf $execd_spool_dir/job_scripts/*"
+      start_remote_prog $execd_host $CHECK_USER "/bin/rm" "-rf $execd_spool_dir/active_jobs/*"
+   }
+}
+
+proc my_exit_handler {} {
+   global seqfile
+
+   if { [ file exists $seqfile.original ] } { 
+      ts_log_finest "Trying to restore $seqfile from $seqfile.orininal"
+      file rename -force $seqfile.original $seqfile
+   }
+}
+proc submit_dummy_jobs { job_script project_name is_array { task_range 1-5 } } {
+
+   if { $is_array == 1 } {
+      set job_args "-P $project_name -t $task_range $job_script" 
+   } else {
+      set job_args "-P $project_name $job_script"
+   }
+   set job_id [ submit_job $job_args ]
+   return $job_id
+}
+

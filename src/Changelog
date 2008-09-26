@@ -1,3 +1,6 @@
+GH-2008-09-26-0: Enhancem.:  added test for issue 2564
+                 Review:     AP
+
 CR-2008-09-25-0: Bugfix:     o Fixed qmod/reschedule test
                  Enhancem.:  o Added new test for issue 2735
                              o New procedures in sge_procedures.tcl:
