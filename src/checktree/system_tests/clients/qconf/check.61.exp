@@ -452,7 +452,7 @@ proc qconf_help {} {
    
    # check if qconf is mapped to qconf -help but with error code and 
    # return code 1
-   set output [start_sge_bin "qalter" "" "" "" prg_exit_state]
+   set output [start_sge_bin "qconf" "" "" "" prg_exit_state]
    
    if { $prg_exit_state != 1 } {
       ts_log_severe "The return code of qconf with no option was not 1 (it was $prg_exit_state)!"
