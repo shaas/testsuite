@@ -567,6 +567,9 @@ proc process_named_record {input output delimiter {index ""} {id ""}
                # if multiple entries exist for one index: apply rule
                if {[info exists out($ridx)] && [info exists rul($k)]} {
                   set out($ridx) [eval $rul($k) \"$out($ridx)\" \"$record($k)\"]
+               } elseif {[info exists rul($k)] && $rul($k) == "rule_list"} {
+                  set out($ridx) {}
+                  lappend out($ridx) $record($k)
                } else {
                   set out($ridx) $record($k)
                }
@@ -1049,7 +1052,7 @@ proc rule_list { a b } {
    } else {
       lappend a $b
       return $a
-   }   
+   }
 }
 
 #                                                             max. column:     |
