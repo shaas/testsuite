@@ -1,0 +1,331 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "with_request_filter"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Max pending jobs SLO test with request filter"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "with_request_filter_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "with_request_filter_setup_level"
+set check_cleanup_level_function "with_request_filter_cleanup_level"
+
+lappend check_functions "with_request_filter_check"
+
+
+#****** slo/maxPendingJobs/withRequestFilter/with_request_filter_init_level() ************************
+#  NAME
+#     with_request_filter_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     with_request_filter_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc with_request_filter_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** slo/maxPendingJobs/withRequestFilter/with_request_filter_setup_level() *********************************
+#  NAME
+#    with_request_filter_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    with_request_filter_setup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc with_request_filter_setup_level {} {
+    global with_request_filter_current_cluster_config
+    set with_request_filter_current_cluster_config [get_current_cluster_config_nr]
+}
+
+#****** slo/maxPendingJobs/withRequestFilter/with_request_filter_cleanup_level() *******************************
+#  NAME
+#    with_request_filter_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    with_request_filter_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc with_request_filter_cleanup_level {} {
+    global mov_resource
+    global with_request_filter_current_cluster_config
+    global ge_adapter
+    global service_names
+    global timesuffix
+    
+    #clean up resource property
+    set value "dummy_prop$timesuffix"
+    set list {$value}
+    remove_resource_property $service_names(master_host,$ge_adapter) [get_hedeby_admin_user] $mov_resource $list 
+
+    reset_default_slos "mod_config" $ge_adapter
+    if {[move_resources_to_default_services] != 0} {
+         reset_hedeby 1
+    }
+    #enable queues of ge adapater service and delete all jobs in queues 
+    foreach host $service_names(execd_hosts,$ge_adapter) {
+      ts_log_fine "enabling queue on resource $host"
+      enable_queue [get_queue_instance all.q $host]
+    }
+    delete_all_jobs
+    wait_for_end_of_all_jobs 60
+    #reset saved active cluster configuration nr
+    set_current_cluster_config_nr $with_request_filter_current_cluster_config
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** slo/maxPendingJobs/withRequestFilter/with_request_filter_check *****************************
+#  NAME
+#     with_request_filter_check() -- check if MaxPendingJobsSLO is working
+#
+#  SYNOPSIS
+#     with_request_filter_check { } 
+#
+#  FUNCTION
+#     this steps test testsuite hedeby issue 231: 
+#       MaxPendingJobsSLO with request filter
+#
+#      Executed steps:
+#        1. We will disable all queues on static resource of service   
+#        2. We will add some dummy property to movable resource of the service and move them all to spare_pool
+#        3. We will setup a MaxPendingJob slo with specific request filter(we will ask for the resource with dummy property)
+#        4. Submit a job
+#        5. Proper resource must be assigned to a service
+#        6. Check if the jobs finish thanks to proper resource that was assigned to service.
+#        7. After jobs were successfuly finished, check if this slo has no more needs. 
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc with_request_filter_check {} {
+   global hedeby_config
+   global ge_adapter
+   global admin_user
+   global service_names
+   global mov_resource
+   global timesuffix
+
+   set error_text ""
+   get_hedeby_default_services service_names
+   set ge_adapter ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set master_host $hedeby_config(hedeby_master_host)
+   get_current_cluster_config_array ts_config
+   set sge_root $ts_config(product_root)
+   set mov_resource ""
+   set timesuffix [timestamp]
+
+   #get the first found ge adapter
+   foreach service $service_names(services) {
+      set ge_adapter $service
+      break
+   }
+   
+   #get the first found moveable resource for this service
+   foreach mov_exec_host $service_names(moveable_execds,$ge_adapter) {
+       set mov_resource $mov_exec_host
+       break
+   }
+   set value "dummy_value$timesuffix"
+   #add some dummy property to the resource 
+   set dummy_res_prop(dummy_prop$timesuffix) $value
+   mod_hedeby_resource $master_host $admin_user $mov_resource dummy_res_prop
+
+   #move resource with dummy property to the spare_pool
+   set arguments "-p $pref_type -s $sys_name mvr -r $mov_resource -s spare_pool"
+   sdmadm_command $master_host $admin_user $arguments
+   if {$prg_exit_state != 0} {
+       append error_text "Executing command resource move failed while moving resource $mov_resource to spare_pool"
+   }
+
+   #check if resource was moved to spare pool
+   set exp_resource_info($mov_exec_host,service) "spare_pool"
+   set exp_resource_info($mov_exec_host,flags) "{}"
+   set exp_resource_info($mov_exec_host,state) "ASSIGNED"
+   set retval [wait_for_resource_info exp_resource_info 120 0 mvr_error]
+   if {$retval != 0} {
+       append error_text "Moving resource $mov_exec_host to spare_pool service failed with following error message: $mvr_error"
+    }
+
+   #prepare a request filter which will ask for a resource with dummy property
+   set prop(dummy_prop$timesuffix) "{=} {dummy_value$timesuffix}"
+   set requestFilter [create_request_and_filter prop]
+
+   #add MaxPendingJobs slo to the configuration of the ge adapter with the request filter for dummy property
+   set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" $requestFilter "" 1]
+   set slos {}
+   lappend slos $max_pending_jobs_slo
+   if {[set_service_slos "mod_config" $service $slos 1 "minutes" 1] != 0} {
+      append error_text "Setting slos for service \"$service\" failed!"
+   }
+
+   #lets disable all queues of our static ge_adapter service execd 
+   set host $service_names(master_host,$ge_adapter)
+   if {[disable_queue [get_queue_instance all.q $host]] != 0} {
+      append error_text "Disabling of queues of service $ge_adapter on resource $host failed!"
+   }
+
+   #lets submit sleeper jobs, job should wait cause all queues are disabled
+   set tries 3
+   for {set i 0} {$i < $tries} {incr i} {
+      set my_outputs "-o /dev/null -e /dev/null"
+      set arguments "$my_outputs $sge_root/examples/jobs/sleeper.sh 10"
+      submit_job $arguments
+   }
+
+   #now we are waiting for need to be send and for additional resource that match slo job filter on which job could be executed
+   set my_timeout [timestamp]
+   incr my_timeout 300
+   set match 0
+   while {1} {
+      set arguments "-p $pref_type -s $sys_name sr -s $ge_adapter"
+      sdmadm_command $master_host $admin_user $arguments prg_exit_state "" 1 result_table
+      if {$prg_exit_state != 0} {
+           append error_text "Executing command show resource failed for service $ge_adapter"
+      }
+      for {set i 0} {$i < $result_table(table_lines)} {incr i} {
+            set ts_resolvedhost [resolve_host $result_table(id,$i)]
+            if {$ts_resolvedhost == $service_names(master_host,$ge_adapter)} {
+                continue
+            }
+            if {[get_resource_info] == 0} {
+                if {$res_prop($ts_resolvedhost,dummy_prop$timesuffix) != $value} {
+                    append error_text "Service got resource $ts_resolvedhost that doesnt match SLO requirements\n"
+                    break
+                } else {
+                    set match 1
+                }
+            }
+      }
+      if {$match != 1} {
+         set cur_time [timestamp]
+         set cur_time_left [expr ($my_timeout - $cur_time)]
+         ts_log_fine "still waiting for specified resource information ... (timeout in $cur_time_left seconds)"
+         ts_log_fine "still not get resource with matching resource properties\n"
+      } else {
+         ts_log_fine "service got resource with requested properties" 
+         break
+      }
+      if {[timestamp] >= $my_timeout} {
+         append error_text "==> TIMEOUT(=300 sec) while waiting for expected resource properties!\n"
+         break
+      }
+      after 1000
+   }
+   
+   #now we are waiting for need to be send and for additional resource that match slo request filter on which job could be executed
+   set time [expr "250 + $tries * 100"]
+   if {[wait_for_end_of_all_jobs $time] != 0} {
+      append error_text "Service $ge_adapter did not get additional resources to finish submitted jobs"
+   }
+
+   #now we will check that slo has no more needs
+   set my_timeout [timestamp]
+   incr my_timeout 300
+   set match 0
+   while {1} {
+      set arguments "-p $pref_type -s $sys_name sslo -s $ge_adapter"
+      sdmadm_command $master_host $admin_user $arguments prg_exit_state "" 1 result_table2
+      if {$prg_exit_state != 0} {
+           append error_text "Executing command show slo failed while showing slo of service $ge_adapter"
+      }
+      if {$result_table2(request,0) == "{SLO has no needs}"} {
+           set match 1
+      }
+      
+      if {$match != 1} {
+         set cur_time [timestamp]
+         set cur_time_left [expr ($my_timeout - $cur_time)]
+         ts_log_fine "still waiting for specified slo information ... (timeout in $cur_time_left seconds)"
+         ts_log_fine "still not get slo with matching request property\n"
+      } else {
+         ts_log_fine "service has slo with matching request property: SLO has no needs" 
+         break
+      }
+      if {[timestamp] >= $my_timeout} {
+         append error_text "==> TIMEOUT(=300 sec) while waiting for expected slo request property!\n"
+         break
+      }
+      after 1000
+   }
+
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}

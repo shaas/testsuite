@@ -6090,6 +6090,116 @@ proc create_resource_and_filter { resProp } {
    return $filter
 }
 
+#****** util/create_request_and_filter() **************************************
+#  NAME
+#     create_request_and_filter() -- create request filter for slo definitions
+#
+#  SYNOPSIS
+#     create_request_and_filter { resProp } 
+#
+#  FUNCTION
+#     This procedure is used to create xml string for a request filter
+#     definition. The specified resource properties are combined with AND.
+#
+#  INPUTS
+#     resProp - array which contains filter specification
+#           
+#               The array must have following settings:
+#               resProp(PROP_NAME) {OPERATOR} {VALUE}
+#             
+#               PROP_NAME: name of property: e.g. operatingSystemName, state
+#               OPERATOR:  used property operator: e.g. "=", "!="
+#               VALUE:     match value: e.g. "Linux", "ASSIGNED", "ERROR"
+#
+#  RESULT
+#     string in xml format
+#
+#  EXAMPLE
+#     set propA(operatingSystemName) "{=} {Linux}"
+#     set propA(state)               "{!=} {ERROR}"
+#     set filterA [create_request_and_filter propA]
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#*******************************************************************************
+proc create_request_and_filter { resProp } {
+   upvar $resProp resProps
+   set filter ""
+   set pnames [array names resProps]
+   if {[llength $pnames] > 0} {
+      append filter "<common:request>"
+      set is_first 1
+      foreach pname $pnames {
+         if {$is_first == 1} {
+            set is_first 0
+         } else {
+            append filter " &amp; "
+         }
+         append filter "$pname"
+         append filter "[lindex $resProps($pname) 0]"    
+         append filter "\"[lindex $resProps($pname) 1]\""
+      }
+      append filter "</common:request>"
+   }
+   ts_log_fine "created filter:\n$filter\n"
+   return $filter
+}
+
+#****** util/create_job_and_filter() **************************************
+#  NAME
+#     create_job_and_filter() -- create job filter for slo definitions
+#
+#  SYNOPSIS
+#     create_job_and_filter { resProp } 
+#
+#  FUNCTION
+#     This procedure is used to create xml string for a job filter
+#     definition. The specified resource properties are combined with AND.
+#
+#  INPUTS
+#     resProp - array which contains filter specification
+#           
+#               The array must have following settings:
+#               resProp(PROP_NAME) {OPERATOR} {VALUE}
+#             
+#               PROP_NAME: name of property: e.g. arch
+#               OPERATOR:  used property operator: e.g. "=", "!="
+#               VALUE:     match value: e.g. "sol-sparc64"
+#
+#  RESULT
+#     string in xml format
+#
+#  EXAMPLE
+#     set propA(operatingSystemName) "{=} {Linux}"
+#     set propA(state)               "{!=} {ERROR}"
+#     set filterA [create_job_and_filter propA]
+#
+#  SEE ALSO
+#     util/create_min_resource_slo()
+#*******************************************************************************
+proc create_job_and_filter { resProp } {
+   upvar $resProp resProps
+   set filter ""
+   set pnames [array names resProps]
+   if {[llength $pnames] > 0} {
+      append filter "<ge_adapter:jobFilter>"
+      set is_first 1
+      foreach pname $pnames {
+         if {$is_first == 1} {
+            set is_first 0
+         } else {
+            append filter " &amp; "
+         }
+         append filter "$pname"
+         append filter "[lindex $resProps($pname) 0]"    
+         append filter "\"[lindex $resProps($pname) 1]\""
+      }
+      append filter "</ge_adapter:jobFilter>"
+   }
+   ts_log_fine "created filter:\n$filter\n"
+   return $filter
+}
+
 #****** util/create_permanent_request_slo() ************************************
 #  NAME
 #     create_permanent_request_slo() -- create perm. request slo xml string
@@ -6127,8 +6237,8 @@ proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {
 #     create_max_pending_jobs_slo() -- create max pending jobs slo xml string
 #
 #  SYNOPSIS
-#     create_max_pending_jobs_slo { {urgency 1 } 
-#     { name "MaxPendingJobsSLO" } { max 1 } } 
+#     create_max_pending_jobs_slo { {urgency 1 } {name "MaxPendingJobsSLO" } {resourceFilter ""}
+#     {requestFilter ""} { jobFilter ""} { max 1 } {averagesph 10} {maxWaitTimeForJobs 2} 
 #
 #  FUNCTION
 #     creates xml string with specified values
@@ -6137,6 +6247,15 @@ proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {
 #     { urgency 1 }                  - urgency value
 #     { name "MaxPendingJobsSLO" }   - name value
 #     { max 1 }                      - maximun number of pending jobs for this host.
+#     {resourceFilter ""}            - optional: resource filter created with 
+#                                      procedure create_resource_and_filter()
+#     {requestFilter ""}             - optional: request filter created with 
+#                                      procedure create_request_and_filter()
+#     {jobFilter ""}                 - optional: job filter created with 
+#                                      procedure create_job_and_filter()
+#     {averagesph 10}                - optional: average slots per host value.
+#
+#     {maxWaitTimeForJobs 2}         - optional: wait time for job to start
 #
 #  RESULT
 #     xml string
@@ -6146,12 +6265,28 @@ proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {
 #     util/create_fixed_usage_slo()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc create_max_pending_jobs_slo {{urgency 1 } { name "MaxPendingJobsSLO" } { max 1 }} {
+proc create_max_pending_jobs_slo {{ urgency 1 } { name "MaxPendingJobsSLO" } { resourceFilter "" } 
+                                 { requestFilter "" } { jobFilter "" } { max 1 } {averagesph 10} 
+                                 {maxWaitTimeForJobs 2}} {
    set slo_txt ""
-   append slo_txt "<common:slo xsi:type=\"ge_adapter:MaxPendingJobsSLOConfig\" "
-   append slo_txt                   "urgency=\"$urgency\" "
-   append slo_txt                   "name=\"$name\" "
-   append slo_txt                   "max=\"$max\">"
+   append slo_txt "<common:slo xsi:type=\"ge_adapter:MaxPendingJobsSLOConfig\" urgency=\"$urgency\" name=\"$name\" max=\"$max\" averageSlotsPerHost=\"$averagesph\">"
+   
+   if { $requestFilter != "" } {
+      append slo_txt $requestFilter
+   }
+   
+   if { $maxWaitTimeForJobs != 2 } {
+      append slo_txt         "<ge_adapter:maxWaitTimeForJobs unit=\"minutes\" value=\"$maxWaitTimeForJobs\"/>"
+   }
+   
+   if { $resourceFilter != "" } {
+      append slo_txt $resourceFilter
+   }
+
+   if { $jobFilter != "" } {
+      append slo_txt $jobFilter
+   }
+   
    append slo_txt "</common:slo>"
    return $slo_txt
 }
@@ -6695,6 +6830,30 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    return 0
 }
 
+proc remove_resource_property { host exec_user resource properties {raise_error 1} } {
+   set arguments "-s [get_hedeby_system_name] mr -r $resource"
+    
+   set ispid [hedeby_mod_setup $host $exec_user $arguments error_text]
+   # remove properties from resource
+   set sequence {}
+   foreach prop $properties {
+       lappend sequence "/${prop} =\n"
+       lappend sequence "dd"
+   }
+     
+   hedeby_mod_sequence $ispid $sequence error_text
+   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
+
+   ts_log_fine "exit_status: $prg_exit_state"
+   if { $prg_exit_state == 0 } {
+      ts_log_finer "output: \n$output"
+   }
+
+   if {$error_text != ""} {
+      return 1
+   }
+   return 0
+}
 
 #****** check/hedeby_executor_set_keep_files() **************************************************
 #  NAME

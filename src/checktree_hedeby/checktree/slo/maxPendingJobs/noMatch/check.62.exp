@@ -1,0 +1,264 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "no_match_filter"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Max pending jobs SLO test with no match job filter"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "no_match_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "no_match_setup_level"
+set check_cleanup_level_function "no_match_cleanup_level"
+
+lappend check_functions "no_match_check"
+
+
+#****** slo/maxPendingJobs/noMatch/no_match_init_level() ************************
+#  NAME
+#     no_match_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     no_match_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc no_match_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** slo/maxPendingJobs/noMatch/no_match_setup_level() *********************************
+#  NAME
+#    no_match_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    no_match_setup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc no_match_setup_level {} {
+    global no_match_current_cluster_config
+    set no_match_current_cluster_config [get_current_cluster_config_nr]
+}
+
+#****** slo/maxPendingJobs/noMatch/no_match_cleanup_level() *******************************
+#  NAME
+#    no_match_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    with_job_filter_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc no_match_cleanup_level {} {
+    global no_match_current_cluster_config
+    global ge_adapter
+    global service_names
+
+    reset_default_slos "mod_config" $ge_adapter
+    if {[move_resources_to_default_services] != 0} {
+         reset_hedeby 1
+    }
+    #enable queues of ge adapater service and delete all jobs in queues 
+    foreach host $service_names(execd_hosts,$ge_adapter) {
+      ts_log_fine "enabling queue on resource $host"
+      enable_queue [get_queue_instance all.q $host]
+    }
+    delete_all_jobs
+    wait_for_end_of_all_jobs 60
+    #reset saved active cluster configuration nr
+    set_current_cluster_config_nr $no_match_current_cluster_config
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** slo/maxPendingJobs/noMatch/no_match_check *****************************
+#  NAME
+#     no_match_check() -- check if MaxPendingJobsSLO is working
+#
+#  SYNOPSIS
+#     no_match_check { } 
+#
+#  FUNCTION
+#     this steps test testsuite hedeby issue 231: 
+#       MaxPendingJobsSLO with filter
+#
+#      Executed steps:
+#        1. We will disable all queues on static resource of service   
+#        2. We will setup a MaxPendingJob slo with specific job filter(we will ask for the resource with specific architecture)
+#        3. We will submit a non matching jobs (eg. num_proc=9)
+#        4. Test successful run conditions: pass - no resource was assigned,
+#           fail - a resource was assigned, job did not finish, fail - a resource was assigned, job was finished
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc no_match_check {} {
+   global hedeby_config
+   global ge_adapter
+   global admin_user
+   global service_names 
+
+   set error_text ""
+   get_hedeby_default_services service_names
+   set ge_adapter ""
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set master_host $hedeby_config(hedeby_master_host)
+   get_current_cluster_config_array ts_config
+   set sge_root $ts_config(product_root)
+   set mov_resource ""
+
+   #get the first found ge adapter
+   foreach service $service_names(services) {
+      set ge_adapter $service
+      break
+   }
+   
+   #get the first found moveable resource for this service
+   foreach mov_exec_host $service_names(moveable_execds,$ge_adapter) {
+       set mov_resource $mov_exec_host
+   }
+   
+   #we will get the architecture of the moveable resource
+   set job_arch [host_conf_get_arch $mov_exec_host] 
+
+   #move resources to the spare_pool
+   foreach mov_exec_host $service_names(moveable_execds,$ge_adapter) {
+      set arguments "-p $pref_type -s $sys_name mvr -r $mov_exec_host -s spare_pool"
+      sdmadm_command $master_host $admin_user $arguments
+      if {$prg_exit_state != 0} {
+       append error_text "Executing command resource move failed while moving resource $moc_exec_host to spare_pool"
+      }
+   }
+
+   #check if resource was moved to spare pool
+   set exp_resource_info($mov_exec_host,service) "spare_pool"
+   set exp_resource_info($mov_exec_host,flags) "{}"
+   set exp_resource_info($mov_exec_host,state) "ASSIGNED"
+   set retval [wait_for_resource_info exp_resource_info 300 1 mvr_error]
+   if {$retval != 0} {
+       append error_text "Moving resource $mov_exec_host to spare_pool service failed with following error message: $mvr_error"
+    }
+
+   #prepare a job filter which will ask for a resource with given architecture
+   set prop(arch) "{=} {$job_arch}"
+   set jobFilter [create_job_and_filter prop]
+
+   #add MaxPendingJobs slo to the configuration of the ge adapter with the job filter for specific architecture
+   set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" "" $jobFilter 1]
+   set fixed_usage_slo [create_fixed_usage_slo 50 "fixed_usage"]
+   set slos {}
+   lappend slos $max_pending_jobs_slo
+   lappend slos $fixed_usage_slo
+   if {[set_service_slos "mod_config" $service $slos 1 "minutes" 1] != 0} {
+      append error_text "Setting slos for service \"$service\" failed!"
+   }
+
+   #lets disable all queues of our static ge_adapter service execd 
+   set host $service_names(master_host,$ge_adapter)
+   if {[disable_queue [get_queue_instance all.q $host]] != 0} {
+      append error_text "Disabling of queues of service $ge_adapter on resource $host failed!"
+   }
+
+   #lets submit a no matching job and we will wait for some time to see that no resource was assigned and job was not executed
+   set tries 1
+   set jobs_id {}
+   for {set i 0} {$i < $tries} {incr i} {
+      set my_outputs "-o /dev/null -e /dev/null"
+      set arguments "$my_outputs -l num_proc=9 $sge_root/examples/jobs/sleeper.sh 10"
+      lappend jobs_id [submit_job $arguments]
+   }
+
+   #now we will check that jobs are still pending in job queue
+   set time [expr "150 + $tries * 100"]
+   foreach job_id $jobs_id {      
+      if {[wait_for_jobstart $job_id "Sleeper" $time 0] != -1} {
+         append error_text "Jobs finished. It should not happened." 
+      }
+   }
+
+   #now we will check that no new resources were added to that service
+   set arguments "-p $pref_type -s $sys_name sr -s $ge_adapter -noheader | wc -l | sed -e \"s# *##g\""
+   set res_count [sdmadm_command $master_host $admin_user $arguments]
+   if {$prg_exit_state != 0} {
+       append error_text "Executing command show resources failed"
+   }
+   if {$res_count != 1} {
+       append error_text "Service got unexpected resource(s). Test failed"
+   }
+   
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
