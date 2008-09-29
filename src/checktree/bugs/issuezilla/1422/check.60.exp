@@ -67,8 +67,8 @@ proc issue_1422_init_level {} {
 }
 
 proc issue_1422_setup {} {
-   global session_directory
-   set session_directory         "~/.sge"
+   global session_directory CHECK_USER
+   set session_directory         "[get_home_dir_path $CHECK_USER]/.sge"
    if {[remote_file_isdirectory [gethostname] $session_directory]} {
       delete_directory $session_directory
    }
