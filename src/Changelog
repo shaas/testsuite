@@ -1,3 +1,7 @@
+AP-2008-09-29-0: Bugfix:     o qrsh test environment related fix
+                             o path_alias test - fix of AP-2008-09-19-0
+                 Review:     TB
+
 MG-2008-09-29-1: Enhancem.:  Hedeby tests for MaxpendingJob slo
                  Review:     MB
 

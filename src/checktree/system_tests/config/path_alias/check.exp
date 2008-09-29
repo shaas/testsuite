@@ -233,7 +233,7 @@ proc path_alias_main {} {
       ts_log_fine "submitting job(s) for host $elem"
 
       ts_log_fine "qsub $elem ..."
-      set args     "-o /dev/null -e /dev/null -cwd -l h=${elem} $job_script"
+      set args     "-cwd -l h=${elem} $job_script"
       ts_log_fine "qsub $args"
       start_remote_prog $elem $CHECK_USER "qsub" $args prg_exit_state 60 0 $PATH_ALIAS_OUTPUT1
 

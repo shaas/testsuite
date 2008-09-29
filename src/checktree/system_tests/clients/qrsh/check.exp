@@ -134,31 +134,67 @@ proc qrsh_cleanup {} {
 
 # -------- check functions -----------------------------------------------------
 
-#                                                             max. column:     |
-#****** qrsh/qrsh_function() ******
-# 
+#******* qrsh/qrsh_output_contains *********************************************
+#
 #  NAME
-#     qrsh_function -- ??? 
+#     qrsh_output_contains -- checks if the qrsh output contains expected output
 #
 #  SYNOPSIS
-#     qrsh_function { } 
+#     qrsh_output_contains { output expected_output }
 #
 #  FUNCTION
-#     ??? 
+#     Sometimes qrsh returns some additional error messages in addition to the
+#     expected output. This procedure checks if the expected output line can be
+#     found in the qrsh output. All lines are "trimmed" before comparison.
+#
+#  INPUTS
+#     output          - qrsh output
+#     expected_output - the expected output line
+#
+#  RESULT
+#     1 if output contains expected_output
+#     0 otherwise
+#
+#*******************************************************************************
+proc qrsh_output_contains { output expected_output } {
+   set expected_output [string trim $expected_output]
+
+   foreach line [split $output "\n"] {
+      set line [string trim $line]
+
+      if {[string compare $line $expected_output] == 0} {
+         return 1
+      }
+   }
+
+   return 0
+}
+
+#                                                             max. column:     |
+#****** qrsh/qrsh_function() ******
+#
+#  NAME
+#     qrsh_function -- ???
+#
+#  SYNOPSIS
+#     qrsh_function { }
+#
+#  FUNCTION
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -172,7 +208,7 @@ proc qrsh_function {} {
    foreach host $qrsh_hostlist {
       set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
       set sp_id [lindex $qrsh_id 1]
-  
+
       set timeout 60
       expect {
          -i $sp_id full_buffer {
@@ -198,7 +234,7 @@ proc qrsh_function {} {
 
 #                                                             max. column:     |
 #****** qrsh/wait_for_has_been_submitted() ******
-# 
+#
 #  NAME
 #     wait_for_has_been_submitted -- Waits for the output "has been submitted"
 #                                    and parses the job ID.
@@ -251,7 +287,7 @@ proc wait_for_has_been_submitted {sp_id} {
 
 #                                                             max. column:     |
 #****** qrsh/wait_for_running() ******
-# 
+#
 #  NAME
 #     wait_for_running -- Waits for the output "running"
 #
@@ -272,7 +308,7 @@ proc wait_for_running {sp_id} {
          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
       }
       -i $sp_id timeout {
-         ts_log_severe "Got no output from job! Job seems not to be in running state" 
+         ts_log_severe "Got no output from job! Job seems not to be in running state"
       }
       -i $sp_id eof {
          ts_log_severe "eof waiting for output from job"
@@ -280,12 +316,12 @@ proc wait_for_running {sp_id} {
       -i $sp_id "running"  {
          ts_log_fine "job script started "
       }
-   } 
+   }
 }
 
 #                                                             max. column:     |
 #****** qrsh/wait_for_Signal() ******
-# 
+#
 #  NAME
 #     wait_for_Signal -- Waits for the output "Signal"
 #
@@ -305,7 +341,7 @@ proc wait_for_running {sp_id} {
 #                   Can be "KILL" or "STOP".
 #*******************************
 proc wait_for_Signal {sp_id signal_name sent_signal} {
-   set timeout 30 
+   set timeout 30
    expect {
       -i $sp_id full_buffer {
          ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
@@ -324,7 +360,7 @@ proc wait_for_Signal {sp_id signal_name sent_signal} {
 
 #                                                             max. column:     |
 #****** qrsh/do_qrsh_notify_test() ******
-# 
+#
 #  NAME
 #     do_qrsh_notify_test -- The actual qrsh notify test procedure
 #
@@ -370,7 +406,7 @@ proc do_qrsh_notify_test {signal_name} {
 
       # wait for first output of the remote script
       wait_for_running $sp_id
-    
+
       # send signal SIGKILL or SIGSTOP
       if {$signal_name == "USR2"} {
          delete_job $job_id
@@ -389,19 +425,19 @@ proc do_qrsh_notify_test {signal_name} {
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_notify() ******
-# 
+#
 #  NAME
-#     qrsh_notify -- Checks if started with -notify the signal forwarding is 
-#                    is correct. 
+#     qrsh_notify -- Checks if started with -notify the signal forwarding is
+#                    is correct.
 #
 #  SYNOPSIS
-#     qrsh_notify { } 
+#     qrsh_notify { }
 #
 #  FUNCTION
-#     Starts a shell scripts which are waiting for SIGUSR(1|2) signal. 
-#     Sends a SIGKILL and SIGSTOP signal to the scripts. Because of 
-#     the -notify option these signals can be caught as SIGUSR1 and  
-#     SIGUSR2 signals. 
+#     Starts a shell scripts which are waiting for SIGUSR(1|2) signal.
+#     Sends a SIGKILL and SIGSTOP signal to the scripts. Because of
+#     the -notify option these signals can be caught as SIGUSR1 and
+#     SIGUSR2 signals.
 #*******************************
 proc qrsh_notify {} {
    do_qrsh_notify_test "USR2"
@@ -496,7 +532,7 @@ proc qrsh_hold_jid {} {
    set arch [resolve_arch $qrsh_submithost]
    set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-hold_jid $hold_job_id echo qrsh sucessfully started"]
    set sp_id [lindex $qrsh_id 1]
-  
+
    trigger_scheduling
    wait_for_jobpending $job_id "echo" 60
 
@@ -561,29 +597,29 @@ proc qrsh_hold_jid {} {
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_alltoall() ******
-# 
+#
 #  NAME
-#     qrsh_alltoall -- ??? 
+#     qrsh_alltoall -- ???
 #
 #  SYNOPSIS
-#     qrsh_alltoall { } 
+#     qrsh_alltoall { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -637,8 +673,8 @@ proc qrsh_starter_method {} {
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
       set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host echo qrsh sucessfully started"]
-      set sp_id [lindex $qrsh_id 1] 
-  
+      set sp_id [lindex $qrsh_id 1]
+
       set timeout 60
       set starter_method 0
       expect {
@@ -677,29 +713,29 @@ proc qrsh_starter_method {} {
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_accounting() ******
-# 
+#
 #  NAME
-#     qrsh_accounting -- ??? 
+#     qrsh_accounting -- ???
 #
 #  SYNOPSIS
-#     qrsh_accounting { } 
+#     qrsh_accounting { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -721,10 +757,10 @@ proc qrsh_accounting {} {
    set arch [resolve_arch $qrsh_submithost]
    foreach host $qrsh_hostlist {
       set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-verbose -nostdin -l hostname=$host $ts_config(product_root)/examples/jobs/worker.sh 120"]
-      
+
       set state startup
       set job_id ""
-      set sp_id [lindex $qrsh_id 1] 
+      set sp_id [lindex $qrsh_id 1]
 
       while {[string compare $state exit] != 0} {
          set timeout 80
@@ -812,29 +848,29 @@ proc qrsh_accounting {} {
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_suspend() ******
-# 
+#
 #  NAME
-#     qrsh_suspend -- ??? 
+#     qrsh_suspend -- ???
 #
 #  SYNOPSIS
-#     qrsh_suspend { } 
+#     qrsh_suspend { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -851,9 +887,9 @@ proc qrsh_suspend {} {
 
       # start qrsh job (shell script that outputs its pid)
       set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $ts_config(testsuite_root_dir)/scripts/work_pid.sh 60"]
-      
+
       # evaluate pid and JOB_ID
-      set sp_id [ lindex $qrsh_id 1 ] 
+      set sp_id [ lindex $qrsh_id 1 ]
 
       set timeout 60
       expect {
@@ -883,15 +919,15 @@ proc qrsh_suspend {} {
       # continue only, if job is running correctly
       if {[info exists job_pid] && [info exists job_id]} {
          # check process status (should be sleeping or running)
-         get_ps_info $job_pid $host 
-         
+         get_ps_info $job_pid $host
+
          if {$ps_info($job_pid,error) != 0} {
             close_spawn_process $qrsh_id
             ts_log_severe "cannot get info about process $job_pid on host $host"
             continue
          }
          ts_log_fine "job should be running"
-         ts_log_fine $ps_info($job_pid,index_names) 
+         ts_log_fine $ps_info($job_pid,index_names)
          ts_log_fine $ps_info($job_pid,string)
          if {[string first $ps_info($job_pid,state) $running_states] == -1} {
             close_spawn_process $qrsh_id
@@ -910,7 +946,7 @@ proc qrsh_suspend {} {
             continue
          }
          ts_log_fine "job should be suspended"
-         ts_log_fine $ps_info($job_pid,index_names) 
+         ts_log_fine $ps_info($job_pid,index_names)
          ts_log_fine $ps_info($job_pid,string)
          if {[string first $ps_info($job_pid,state) $suspended_states] == -1} {
             ts_log_severe "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)"
@@ -929,7 +965,7 @@ proc qrsh_suspend {} {
             continue
          }
          ts_log_fine "job should be running"
-         ts_log_fine $ps_info($job_pid,index_names) 
+         ts_log_fine $ps_info($job_pid,index_names)
          ts_log_fine $ps_info($job_pid,string)
          if {[string first $ps_info($job_pid,state) $running_states] == -1} {
             ts_log_severe "process $job_pid on host $host is in unexpected state $ps_info($job_pid,state)"
@@ -961,29 +997,29 @@ proc qrsh_suspend {} {
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_delete() ******
-# 
+#
 #  NAME
-#     qrsh_delete -- ??? 
+#     qrsh_delete -- ???
 #
 #  SYNOPSIS
-#     qrsh_delete { } 
+#     qrsh_delete { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -997,8 +1033,8 @@ proc qrsh_delete {} {
    foreach host $qrsh_hostlist {
       # start qrsh job (shell script that outputs its pid)
       set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $CHECK_ACTUAL_TEST_PATH/sleep_pid.sh 120"]
-      set sp_id [ lindex $qrsh_id 1 ] 
- 
+      set sp_id [ lindex $qrsh_id 1 ]
+
       # evaluate pid and JOB_ID
       set timeout 60
       set error 0
@@ -1023,12 +1059,12 @@ proc qrsh_delete {} {
             ts_log_severe "qrsh to host $host failed - eof"
             set error 1
          }
-         
+
       }
 
       if {$error == 0} {
          if {[info exists job_pid] && [info exists job_id]} {
-            # qdel 
+            # qdel
             ts_log_fine "now deleting job $job_id ..."
             delete_job $job_id 1
 
@@ -1050,35 +1086,35 @@ proc qrsh_delete {} {
          delete_all_jobs ;# this will remove the E state
       }
    }
- 
+
    wait_for_end_of_all_jobs
 }
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_terminate() ******
-# 
+#
 #  NAME
-#     qrsh_terminate -- ??? 
+#     qrsh_terminate -- ???
 #
 #  SYNOPSIS
-#     qrsh_terminate { } 
+#     qrsh_terminate { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -1097,9 +1133,9 @@ proc qrsh_terminate {} {
    foreach host $qrsh_hostlist {
       # start qrsh job (shell script that outputs its pid)
       set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-l hostname=$host $CHECK_ACTUAL_TEST_PATH/sleep_pid.sh 120"]
-      
+
       # evaluate pid and JOB_ID
-      set sp_id [lindex $qrsh_id 1] 
+      set sp_id [lindex $qrsh_id 1]
       set error 0
       set timeout 60
       expect {
@@ -1128,7 +1164,7 @@ proc qrsh_terminate {} {
 
       if {[info exists job_pid] && [info exists job_id]} {
          get_ps_info $job_pid $host
-         # qdel 
+         # qdel
          delete_job $job_id
 
          for {set i 0} {$i < 60} {incr i} {
@@ -1140,7 +1176,7 @@ proc qrsh_terminate {} {
             } else {
                ts_log_fine "waiting for terminate method"
             }
-         }   
+         }
 
          # wait for terminate method to finish
          sleep 2
@@ -1196,31 +1232,31 @@ proc qrsh_terminate {} {
 
 #                                                             max. column:     |
 #****** qrsh/check_qsub_gid_output() ******
-# 
+#
 #  NAME
-#     check_qsub_gid_output -- ??? 
+#     check_qsub_gid_output -- ???
 #
 #  SYNOPSIS
-#     check_qsub_gid_output { output check_group } 
+#     check_qsub_gid_output { output check_group }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
-#     output      - ??? 
-#     check_group - ??? 
+#     output      - ???
+#     check_group - ???
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -1290,7 +1326,7 @@ proc qrsh_qsub_gid {} {
          set config(execd_params) "$execd_params,USE_QSUB_GID=true"
       }
       set_config_and_propagate config $host
-      
+
       # call qsub_gid.sh, gid must be secondary gid
       set output [start_remote_prog $qrsh_submithost $QSUB_GID_USER "$CHECK_ACTUAL_TEST_PATH/qsub_gid.sh" "[lindex $QSUB_GID_GROUPS 1] $CHECK_PROTOCOL_DIR/qrsh.sh"]
       set group [lindex $QSUB_GID_GROUPS 1]
@@ -1298,7 +1334,7 @@ proc qrsh_qsub_gid {} {
          ts_log_severe "qrsh job on host $host was executed with wrong gid, should be $group, output of qrsh job was $output"
       }
 
-      # unset USE_QSUB_GID 
+      # unset USE_QSUB_GID
       unset config
       set config(execd_params) $execd_params
       set_config_and_propagate config $host
@@ -1309,29 +1345,29 @@ proc qrsh_qsub_gid {} {
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_batch() ******
-# 
+#
 #  NAME
-#     qrsh_batch -- ??? 
+#     qrsh_batch -- ???
 #
 #  SYNOPSIS
-#     qrsh_batch { } 
+#     qrsh_batch { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -1372,7 +1408,7 @@ proc qrsh_batch {} {
          -i $sp_id $COULD_NOT_BE_SCHEDULED {
             ts_log_fine "qrsh aborted correctly"
             set error 0
-         } 
+         }
          -i $sp_id timeout {
             ts_log_severe "timeout waiting for qrsh -now yes on host $host to fail due to lack of resources"
          }
@@ -1381,7 +1417,7 @@ proc qrsh_batch {} {
          }
       }
       close_spawn_process $qrsh_id
- 
+
       if {$error} {
          ts_log_severe "skipping test on host $host"
          enable_queue [get_queue_instance "all.q" $host]
@@ -1391,7 +1427,7 @@ proc qrsh_batch {} {
       # start qrsh -now no
       set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-verbose -q $queue -now no -N batch echo blahblah"]
       # must be in pending jobs
-      set sp_id [lindex $qrsh_id 1] 
+      set sp_id [lindex $qrsh_id 1]
 
       set timeout 60
       log_user 1
@@ -1451,7 +1487,7 @@ proc qrsh_batch {} {
          -i $sp_id "blahblah" {
             ts_log_fine "got qrsh job output as expected (blahblah)!"
          }
-         -i $sp_id $COULD_NOT_BE_SCHEDULED { 
+         -i $sp_id $COULD_NOT_BE_SCHEDULED {
             ts_log_severe "message \"could not be scheduled\" should not occur with batch jobs"
          }
          -i $sp_id timeout {
@@ -1485,29 +1521,29 @@ proc qrsh_batch {} {
 
 #                                                             max. column:     |
 #****** qrsh/qrsh_limits() ******
-# 
+#
 #  NAME
-#     qrsh_limits -- ??? 
+#     qrsh_limits -- ???
 #
 #  SYNOPSIS
-#     qrsh_limits { } 
+#     qrsh_limits { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
 #  RESULT
-#     ??? 
+#     ???
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -1561,15 +1597,16 @@ proc qrsh_limits {} {
       close_spawn_process $qrsh_id
    }
 
-   wait_for_end_of_all_jobs 30 
+   wait_for_end_of_all_jobs 30
 }
 
 proc qrsh_reservation {} {
    global ts_config
    global qrsh_submithost
 
-   set output [start_sge_bin "qrsh" "-R y echo blahblah" $qrsh_submithost]
-   if {$prg_exit_state != 0 || [string trim $output] != "blahblah"} {
+   set msg "blahblah"
+   set output [start_sge_bin "qrsh" "-R y echo $msg" $qrsh_submithost]
+   if {$prg_exit_state != 0 || ![qrsh_output_contains $output $msg]} {
       ts_log_severe "qrsh -R y failed - see Issue: 1306:\n$output"
    }
 
@@ -1592,17 +1629,14 @@ proc qrsh_env {} {
    set arch [resolve_arch $qrsh_submithost]
    set qrsh_bin "$ts_config(product_root)/bin/$arch/qrsh"
    set output [start_remote_prog $qrsh_submithost $CHECK_USER $qrsh_bin "-v QRSH_ENV_TEST_DUMMY 'echo \$QRSH_ENV_TEST_DUMMY'" prg_exit_state 60 0 "" my_env]
-   set output [string trim $output]
-   ts_log_finer "output (length):   \"$output\" ([string length $output])"
-   ts_log_finer "expected: (length) \"$inherited_value\" ([string length $inherited_value])"
-   if {[string compare $output $inherited_value] != 0} {
+   if {![qrsh_output_contains $output $inherited_value]} {
       set error_text "qrsh did not inherit test environment variable: $inherited_value != $output\n"
       append error_text "Bug 1255: qrsh does not properly pass along environment variables"
       ts_log_severe $error_text
    }
 
    set output [start_remote_prog $qrsh_submithost $CHECK_USER $qrsh_bin "-v QRSH_ENV_TEST_DUMMY=$explicit_value 'echo \$QRSH_ENV_TEST_DUMMY'" prg_exit_state 60 0 "" my_env]
-   if {[string compare [string trim $output] $explicit_value] != 0} {
+   if {![qrsh_output_contains $output $explicit_value]} {
       set error_text "qrsh did not inherit test environment variable: $explicit_value != $output\n"
       append error_text "Bug 1255: qrsh does not properly pass along environment variables"
       ts_log_severe $error_text
@@ -1613,18 +1647,18 @@ proc qrsh_env {} {
 }
 
 #****** qrsh/qrsh_limits() ******
-# 
+#
 #  NAME
-#     qrsh_limits -- send CTRL-C to running job 
+#     qrsh_limits -- send CTRL-C to running job
 #
 #  SYNOPSIS
-#     qrsh_limits { } 
+#     qrsh_limits { }
 #
 #  FUNCTION
 #     Test if Issue 1639 exists
 #
 #  SEE ALSO
-#     qrsh_sigterm_pending_job  
+#     qrsh_sigterm_pending_job
 #*******************************
 
 proc qrsh_sigterm_running_job {} {
@@ -1632,7 +1666,7 @@ proc qrsh_sigterm_running_job {} {
    global CHECK_USER
    global qrsh_submithost
 
-   # start qrsh 
+   # start qrsh
    set arch [resolve_arch $qrsh_submithost]
    set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(product_root)/bin/$arch/qrsh" "\"echo started; sleep 3600\""]
    set sp_id [lindex $qrsh_id 1]
@@ -1671,18 +1705,18 @@ proc qrsh_sigterm_running_job {} {
 }
 
 #****** qrsh/qrsh_limits() ******
-# 
+#
 #  NAME
-#     qrsh_limits -- send CTRL-C to pending job 
+#     qrsh_limits -- send CTRL-C to pending job
 #
 #  SYNOPSIS
-#     qrsh_limits { } 
+#     qrsh_limits { }
 #
 #  FUNCTION
 #     Test if Issue 1639 exists
 #
 #  SEE ALSO
-#     qrsh_sigterm_running_job  
+#     qrsh_sigterm_running_job
 #*******************************
 proc qrsh_sigterm_pending_job {} {
    global ts_config
@@ -1690,7 +1724,7 @@ proc qrsh_sigterm_pending_job {} {
    global qrsh_submithost
 
    set arch [resolve_arch $qrsh_submithost]
-   # start qrsh 
+   # start qrsh
    set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER "$ts_config(product_root)/bin/$arch/qrsh" "-now n -l arch=bla sleep 3600"]
    set sp_id [lindex $qrsh_id 1]
 
@@ -1703,7 +1737,7 @@ proc qrsh_sigterm_pending_job {} {
       sleep 1
       incr timer -1
    }
-  
+
    # now terminate the connection - this will send a CTRL-C to the qrsh
    close_spawn_process $qrsh_id
    wait_for_end_of_all_jobs 15

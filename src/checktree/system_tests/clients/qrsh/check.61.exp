@@ -130,9 +130,8 @@ proc qrsh_wd {} {
    foreach host $qrsh_hostlist {
       # Test1 -wd $wdir
       set output [start_sge_bin "qrsh" "-l h=$host -wd $wdir pwd"]
-      set output [string trim $output]
       set output [replace_automount_prefix $output]
-      if {[string compare $output $wdir] != 0} {
+      if {![qrsh_output_contains $output $wdir]} {
          set error_text "qrsh did not set the correct working dir: $wdir != $output"
          ts_log_fine "started qrsh -l h=$host -wd $wdir pwd"
          ts_log_severe $error_text
@@ -140,9 +139,8 @@ proc qrsh_wd {} {
 
       # Test2 -cwd
       set output [start_sge_bin "qrsh" "-l h=$host -cwd pwd" "" "" exit_state 5 $cwdir]
-      set output [string trim $output]
       set output [replace_automount_prefix $output]
-      if {[string compare $output $cwdir] != 0} {
+      if {![qrsh_output_contains $output $cwdir]} {
          set error_text "qrsh did not set the correct working dir: $cwdir != $output"
          ts_log_fine "started qrsh -l h=$host -cwd pwd  in directory $cwdir"
          ts_log_severe $error_text
@@ -150,9 +148,8 @@ proc qrsh_wd {} {
 
       # Test3 -cwd -wd $wdir
       set output [start_sge_bin "qrsh" "-l h=$host -cwd -wd $wdir pwd" "" "" exit_state 5 $cwdir]
-      set output [string trim $output]
       set output [replace_automount_prefix $output]
-      if {[string compare $output $wdir] != 0} {
+      if {![qrsh_output_contains $output $wdir]} {
          set error_text "qrsh did not set the correct working dir: $wdir != $output"
          ts_log_fine "started qrsh -l h=$host -cwd -wd $wdir pwd  in directory $cwdir"
          ts_log_severe $error_text
@@ -160,9 +157,8 @@ proc qrsh_wd {} {
 
       # Test4 -wd $wdir -cwd
       set output [start_sge_bin "qrsh" "-l h=$host -wd $wdir -cwd pwd" "" "" exit_state 5 $cwdir]
-      set output [string trim $output]
       set output [replace_automount_prefix $output]
-      if {[string compare $output $cwdir] != 0} {
+      if {![qrsh_output_contains $output $cwdir]} {
          set error_text "qrsh did not set the correct working dir: $cwdir != $output"
          ts_log_fine "started qrsh -l h=$host -wd $wdir -cwd pwd  in directory $cwdir"
          ts_log_severe $error_text
