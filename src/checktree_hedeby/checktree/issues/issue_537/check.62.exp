@@ -1,0 +1,364 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_537"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "check that hostname is resolvable before adding service configuration"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue537_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue537_setup_level"
+set check_cleanup_level_function "hedeby_issue537_cleanup_level"
+
+lappend check_functions "hedeby_issue537_check"
+
+
+#****** issue_537/hedeby_issue537_init_level() ************************
+#  NAME
+#     hedeby_issue537_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue537_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue537_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue537/hedeby_issue537_setup_level() *********************************
+#  NAME
+#    hedeby_issue537_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue537_setup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue537_setup_level {} {
+
+}
+
+#****** issue537/hedeby_issue537_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue537_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#    hedeby_issue537_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue537_cleanup_level {} {
+    global geadapter537
+    global spare_pool537
+    global hedeby_config
+    set arguments "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] rs -s $spare_pool537"
+    sdmadm_command $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $arguments prg_exit_state "" 0
+    set arguments "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] rs -s $geadapter537"
+    sdmadm_command $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $arguments prg_exit_state "" 0
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** issue_537/hedeby_issue537_check *****************************
+#  NAME
+#     hedeby_issue537_check() -- check if the proper hostname resolving is done before
+#                                adding the service to global cnfiguration
+#
+#  SYNOPSIS
+#     hedeby_issue537_check { } 
+#
+#  FUNCTION
+#     this steps test hedeby issue 537:
+#     1. We will add a spare pool service with not resolvable host
+#        and we will check that spare pool wasnt added to global configuration 
+#        and proper error message was shown
+#     2. We will add a ge adapter service with not resolvable host
+#        and we will check that ge adapter wasnt added to global configuration 
+#        and proper error message was shown
+#     3. We will add a spare pool service on localhost host
+#        and we will check that spare pool was added to global configuration with resolved localhost 
+#        and proper error message was shown
+#     4. We will add a ge adapter service on localhost host
+#        and we will check that ge adapter was added to global configuration with resolved localhost 
+#        and proper error message was shown
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue537_check {} {   
+   # get some global settings
+   global hedeby_config
+   global geadapter537
+   global spare_pool537
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   set master_host $hedeby_config(hedeby_master_host)
+   set spare_pool537 "fakesp[timestamp]"
+   set geadapter537 "fakege[timestamp]"
+   set fakehost "fakeh[timestamp]"
+   set error_text ""
+   get_current_cluster_config_array ts_config
+   set sge_root $ts_config(product_root)
+
+   #Step1
+   set arguments "-p $pref_type -s $sys_name asps -j rp_vm -s $spare_pool537 -h $fakehost"
+   set out_put [sdmadm_command $master_host $admin_user $arguments prg_exit_state "" 0]
+   if {$prg_exit_state != 2} {
+       append error_text "Executing command add spare pool service didnt fail while adding service $spare_pool537 on host $fakehost\n"
+   }
+   set expected ""
+   set params(0) $spare_pool537
+   set params(1) $fakehost
+   set params2(0) $fakehost
+   append expected "WARNING: [create_bundle_string "Hostname.ex.nr" params2]\n"
+   append expected "Error: [create_bundle_string "AddSparePoolCliCommand.failed.host" params]\n"
+   set parsed_output ""
+   set help [split $out_put "\n"]
+   foreach line $help {
+        set line [string trim $line]
+        if {[string length $line] != 0} { 
+            append parsed_output "$line\n"
+        }
+   }
+   if {$parsed_output != $expected} {
+        append error_text "There was not expected error message after adding service $spare_pool537 to fake host\n"
+   }
+   
+   set arguments "-s $sys_name mgc"
+   set ispid [hedeby_mod_setup $master_host $admin_user $arguments error_text2]
+   set sequence {}
+
+   lappend sequence "/name=\"$spare_pool537\"\n"
+     
+   hedeby_mod_sequence $ispid $sequence error_text2
+   set output [hedeby_mod_cleanup $ispid error_text2 prg_exit_state 0]
+
+   if { [string first "Pattern not found: name=\"$spare_pool537\"" $output] == -1 } {
+        append error_text "Service $spare_pool537 was added to the system with unknown hostname"
+   }
+   
+   #step2
+   set arguments "-p $pref_type -s $sys_name ags -j rp_vm -s $geadapter537 -h $fakehost"
+   set ispid [hedeby_mod_setup $master_host $admin_user $arguments error_text3]
+   set sequence {}
+
+   lappend sequence "/root=\"\"\n"
+   lappend sequence "dd"
+   lappend sequence "i"
+   lappend sequence "root=\"${sge_root}\"\n"
+     
+   hedeby_mod_sequence $ispid $sequence error_text3
+   set output [hedeby_mod_cleanup $ispid error_text3 prg_exit_state 0]
+
+   if {$prg_exit_state != 2} {
+       append error_text "Executing command add ge adapter service didnt fail while adding service $geadapter537 on host $fakehost\n"
+   }
+   set params20(0) $geadapter537
+   set params20(1) $fakehost
+   set params21(0) $fakehost
+   set expected1 "WARNING: [create_bundle_string "Hostname.ex.nr" params21]"
+   set expected2 "Error: [create_bundle_string "AddGEServiceCliCommand.failed.host" params20]"
+   set parsed_output ""
+   set help [split $output "\n"]
+   set i 0
+   foreach line $help {
+        set line [string trim $line]
+        if {[string length $line] != 0} { 
+            append parsed_output "$line\n"
+        }
+        if {$expected1 == $line || $expected2 == $line} {
+            incr i
+        }
+   }
+
+   if {$i != 2} {
+        append error_text "There was not expected error message after adding service $geadapter537 to fake host\n"
+   }
+   
+   set arguments "-s $sys_name mgc"
+   set ispid [hedeby_mod_setup $master_host $admin_user $arguments error_text2]
+   set sequence {}
+
+   lappend sequence "/name=\"$geadapter537\"\n"
+     
+   hedeby_mod_sequence $ispid $sequence error_text2
+   set output [hedeby_mod_cleanup $ispid error_text2 prg_exit_state 0]
+
+   if { [string first "Pattern not found: name=\"$geadapter537\"" $output] == -1 } {
+        append error_text "Service $geadapter537 was added to the system with unknown hostname"
+   }
+
+   #step 3
+   set arguments "-p $pref_type -s $sys_name asps -j rp_vm -s $spare_pool537 -h localhost"
+   set out_put [sdmadm_command $master_host $admin_user $arguments prg_exit_state "" 0 table1]
+   if {$prg_exit_state != 0} {
+       append error_text "Executing command add spare pool service failed while adding service $spare_pool537 on the localhost"
+   }
+   set expected 0
+   if {$table1(jvm_name,0) != "rp_vm"} {
+        append error_text "Jvm name $table1(jvm_name,0) is different than expected rp_vm\n" 
+        set expected 1
+   }
+   if {$table1(service_name,0) != $spare_pool537} {
+        append error_text "Service name $table1(service_name,0) is different than expected $spare_pool537\n"
+        set expected 1
+   }
+   if {$table1(hostname,0) != $master_host} {
+        append error_text "Host name $table1(hostname,0) is different than expected $master_host\n"
+        set expected 1
+   }
+   if {$table1(message,0) != "ADDED"} {
+        append error_text "Message $table1(message,0) is different than expected ADDED\n"
+        set expected 1
+   }
+   if {$expected == 1} {
+        append error_text "There was not expected error message after adding service $spare_pool537 to localhost\n"
+   }
+   
+   set arguments "-s $sys_name mgc"
+   set ispid [hedeby_mod_setup $master_host $admin_user $arguments error_text2]
+   set sequence {}
+
+   lappend sequence "/name=\"localhost\"\n"
+     
+   hedeby_mod_sequence $ispid $sequence error_text2
+   set output [hedeby_mod_cleanup $ispid error_text2 prg_exit_state 0]
+
+   if { [string first "Pattern not found: name=\"localhost\"" $output] == -1 } {
+        append error_text "Service $spare_pool537 was added to the system with not resolved localhost name\n"
+   }
+   
+   set arguments "-p $pref_type -s $sys_name rs  -s $spare_pool537"
+   sdmadm_command $master_host $admin_user $arguments prg_exit_state
+   if {$prg_exit_state != 0} {
+       append error_text "Executing command remove spare pool service failed\n"
+   }
+   
+   #step 4
+   set arguments "-p $pref_type -s $sys_name ags -j rp_vm -s $geadapter537 -h localhost"
+   set ispid [hedeby_mod_setup $master_host $admin_user $arguments error_text3]
+   set sequence {}
+
+   lappend sequence "/root=\"\"\n"
+   lappend sequence "dd"
+   lappend sequence "i"
+   lappend sequence "root=\"${sge_root}\"\n"
+     
+   hedeby_mod_sequence $ispid $sequence error_text3
+   set output [hedeby_mod_cleanup $ispid error_text3 prg_exit_state 0]
+
+   if {$prg_exit_state != 0} {
+       append error_text "Executing command add ge adapter service failed while adding service $geadapter537 to localhost\n"
+   }
+   
+   set par4(0) $geadapter537 
+   set expected [create_bundle_string "AddGEServiceCliCommand.success" par4]
+
+   set help [split $output "\n"]
+   set i 0
+   foreach line $help {
+        set line [string trim $line]
+        if {$expected == $line} {
+            incr i
+        }
+   }
+
+   if {$i != 1} {
+        append error_text "There was not expected error message after adding service $geadapter537 to localhost\n"
+   }
+   
+   set arguments "-s $sys_name mgc"
+   set ispid [hedeby_mod_setup $master_host $admin_user $arguments error_text2]
+   set sequence {}
+
+   lappend sequence "/name=\"localhost\"\n"
+     
+   hedeby_mod_sequence $ispid $sequence error_text2
+   set output [hedeby_mod_cleanup $ispid error_text2 prg_exit_state 0]
+
+   if { [string first "Pattern not found: name=\"localhost\"" $output] == -1 } {
+        append error_text "Service $geadapter537 was added to the system with not resolved localhost name\n"
+   }
+
+   set arguments "-p $pref_type -s $sys_name rs  -s $geadapter537"
+   sdmadm_command $master_host $admin_user $arguments prg_exit_state
+   if {$prg_exit_state != 0} {
+       append error_text "Executing command remove spare pool service failed\n"
+   }
+   
+   # finally report one big error mail
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
