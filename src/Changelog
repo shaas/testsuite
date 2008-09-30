@@ -1,3 +1,7 @@
+RH-2008-09-26-0: Enhancem.:  o Hedeby: test for issue 571 added
+                             o Hedeby: new method set_execd_install_params
+                 Review:     MB 
+
 RD-2008-09-29-0: Bugfix:     fixed test for issue 1422
                  Review:     CR
 

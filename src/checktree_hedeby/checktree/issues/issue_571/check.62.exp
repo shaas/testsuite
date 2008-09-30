@@ -1,0 +1,478 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_571"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests that execd install/uninstall has no overlap"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue571_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue571_setup_level"
+set check_cleanup_level_function "hedeby_issue571_cleanup_level"
+
+lappend check_functions "hedeby_issue571_check"
+
+
+#****** issue_571/hedeby_issue571_init_level() ************************
+#  NAME
+#     hedeby_issue571_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue571_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue571_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue571/hedeby_issue571_setup_level() *********************************
+#  NAME
+#    hedeby_issue571_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue571_setup_level { } 
+#
+#  FUNCTION
+#
+#  This function store is the global variable hedeby_issue571_ctx the following information:
+#
+#    hedeby_issue571_ctx(install_template)   Path to the patched version of the execd install template
+#    hedeby_issue571_ctx(uninstall_template) Path to the patched version of the execd uninstall template
+#    hedeby_issue571_ctx(cleanup_actions)    is initialized as empty list
+#    hedeby_issue571_ctx(moving_host)        name of the resource which will be moved during the test
+#    hedeby_issue571_ctx(ge_service)         name of the GE service which will request the resource
+#    hedeby_issue571_ctx(master_host)        name of the master host of the GE service
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue571_setup_level {} {
+   global hedeby_issue571_ctx
+   global hedeby_config
+   
+   # get some global settings
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   get_hedeby_default_services service_names
+   
+   # define the patch to the patched execd install template
+   # The file is created the in check function
+   set hedeby_issue571_ctx(install_template) $hedeby_config(hedeby_product_root)/util/templates/ge-adapter/execd_install_571.sh
+   
+   # define the patch to the patched execd uninstall template
+   # The file is created in the check function
+   set hedeby_issue571_ctx(uninstall_template) $hedeby_config(hedeby_product_root)/util/templates/ge-adapter/execd_uninstall_571.sh
+   
+   # The cleanup_action contains the list of action which will be done in the cleanup method
+   set hedeby_issue571_ctx(cleanup_actions) {}
+   
+   # Choose a "randomly" resource which will be permanently requested by GE service
+   set moveable_resources [get_all_spare_pool_resources]
+
+   set index [expr [clock seconds] % [llength $moveable_resources]]
+
+   set hedeby_issue571_ctx(moving_host) [lindex $moveable_resources $index]
+   
+   set hedeby_issue571_ctx(ge_service)  [lindex $service_names(services) 0]
+   set hedeby_issue571_ctx(master_host)  $service_names(master_host,$hedeby_issue571_ctx(ge_service))
+   
+}
+
+#****** issue571/hedeby_issue571_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue571_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue571_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#
+#  The cleanup function uses the global variable hedeby_issue571_ctx to perform a proper cleanup
+#  if the test. The element hedeby_issue571_ctx(cleanup_actions) contains a list of actions name
+#  which must be executed for the cleanup. 
+#
+#  The following actions are defined:
+#
+#  reset_execd_install_params:  Resets the execd installation parameters of the GE service to the default
+#                               values
+#  reset_slos:                  Resets the SLO configuration of the GE service to the default values
+#  
+#  delete_install_template:     Deletes the patched version of the execd install template
+#  
+#  delete_uninstall_template:   Deletes the patched version of the execd uninstall template
+#
+#  reset:                       Performs a full hedeby reset
+#
+#  If an unexpected error happens during the cleanup a full hedeby_resource is performed
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue571_cleanup_level {} {
+   global hedeby_issue571_ctx
+   
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set admin_user [get_hedeby_admin_user]
+   
+   set do_reset 0
+
+   # Now can can reset the execd install params
+   if {[lsearch -exact $hedeby_issue571_ctx(cleanup_actions) "reset_execd_install_params"] >= 0} {
+      # The set_execd_install_params will set all default values for the hosts if nothing
+      # is specified
+      if {[set_execd_install_params $hedeby_issue571_ctx(ge_service) execd_params] != 0} {
+         set do_reset 1
+      }
+   }
+   
+   # First off all we should reset the slo setup to stop the constant movement of the tested
+   # resource
+   if {[lsearch -exact $hedeby_issue571_ctx(cleanup_actions) "reset_slos"] >= 0} {
+      if {[reset_default_slos "mod_config" $hedeby_issue571_ctx(ge_service)] != 0} {
+           set do_reset 1
+      }
+   }
+   
+   # The patched install template is not longer used, delete it
+   if {[lsearch -exact $hedeby_issue571_ctx(cleanup_actions) "delete_install_template"] >= 0} {
+      delete_file $hedeby_issue571_ctx(install_template)
+   }
+   
+   # The patched uninstall template is not longer used, delete it
+   if {[lsearch -exact $hedeby_issue571_ctx(cleanup_actions) "delete_uninstall_template"] >= 0} {
+      delete_file $hedeby_issue571_ctx(uninstall_template)
+   }
+   
+   if {[lsearch -exact $hedeby_issue571_ctx(cleanup_actions) "reset"] >= 0} {
+      # Somesthing unexpect happend during the test, trigger the reset
+      set do_reset 1
+   }
+   
+   # We must only the resources back to the default services if no reset has been triggered
+   if { $do_reset == 0 && [lsearch -exact $hedeby_issue571_ctx(cleanup_actions) "move_resource_to_default_service"] >= 0} {
+      if {[move_resources_to_default_services] != 0} {
+           set do_reset 1
+      }
+   }
+   
+   if {$do_reset == 1} {
+      # I don't know what to do, try a reset
+      reset_hedeby 1
+   }
+}
+
+#****** issue_5571/hedeby_issue571_check *****************************
+#  NAME
+#     hedeby_issue571_check() -- check the issue 571 does not longer occur
+#
+#  SYNOPSIS
+#     hedeby_issue571_check { } 
+#
+#  FUNCTION
+#
+#     Issue 571 describes the problem that GE Adapter sends a RESOURCE_REMOVE event before the installation
+#     is finished. This can lead to the problem that an new execd installation starts before
+#     the last execd uninstallation is finished. If this happens the last step of the uninstallation
+#     (remove the execd host from the admin host list) is executed after the first step of the
+#     installation (add execd host to the admin list). The execd will be not correctly installed.
+#
+#     One sympton for issue 571 is that the RESOURCE_REMOVED event is sent before the execd
+#     uninstallation is finished. The buggy GEAdapter version sent the RESOURCE_REMOVED after the
+#     EXECD_DEL event arrived from qmaster, even if the uninstall has not been finished.
+#     This test checks that this symption does not occur.
+#
+#     The same problem can occur during the installation of an exced. issue 571 does not describe this
+#     problem, however this test checks also that the RESOURCE_ADDED event is not sent before the installation
+#     process is finished.
+#
+#     This test extends artificial the time need for the execd (un)installation by creating a patched 
+#     execd (un)install script. The patched execd (un)install script has a sleep of 10 seconds before the exit. 
+#     We can be sure that qmaster sends the EXECD_DEL or EXECD_ADD event before the exec install script 
+#     is finished.
+#     
+#     The test constructs a SLO configuration for the first found GE service that constantly request
+#     a specify resource. However the SLO is so configured that the requested resource does not get
+#     usage from the SLO. The resource will constantly be assigned and unassigned from the GE service.
+#
+#     The test searches in the history (sdmadm show_history) for the RESOURCE_ADD, RESOURCE_ADDED,
+#     RESOURCE_REMOVE and RESOURCE_REMOVED notifications and calculates out of this the needed time
+#     for assigning and unassigning the resource and asserts that the time is longer than the 10
+#     seconds sleep time. If the calculated time for the (un)assigment is shorter than the 10 seconds
+#     we can assume we run into issue 571.
+#
+#     As issue 571 did not occur with every unassigment of a resource the check repeat the verfication
+#     of the assigment/unassigment time 3 times.
+#
+#     In detail the test performs the following steps:
+#
+#     Step 1: Create a patched version of the execd_install script which sleeps a defined
+#             time after the installation of the execd before exiting.
+#     Step 2: Create a patched version of the execd_uninstall script which sleeps a defined
+#             time after the uninstallation of the execd before exiting.
+#     Step 3: Modify the execd configuration for the GE service
+#             The moving host must use the patched version of the execd_(un)install templates
+#     Step 4: SLO setup
+#             o Define a MinResourceSLO which requests the moveable resource with a high urgency but
+#               does not assign usage to the resource
+#             o Define a FixedUsageSLO which give all other resources the usage 50, but not the 
+#               movable resource
+#              => The resource will constantly move from spare_pool to GE service and back
+#
+#     The steps 5.x are repeated 3 times in a loop:
+#
+#     Step 5.1: Search in the history for the RESOURCE_ADD, RESOURCE_ADDED, RESOURCE_REMOVE, 
+#               RESOURCE_REMOVED event
+#     Step 5.2: Calculate out of the events from the history the time needed for assigning
+#               and unassigning the moveable resource from the GE service
+#     Step 5.3: Assert that the assigment and unassigment time is longer than the defined sleep_time
+#               from the patched execd_install/execd_uninstall script templates.
+# 
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue571_check {} {
+   global hedeby_issue571_ctx
+   global hedeby_config
+   
+   set pref_type [get_hedeby_pref_type]
+   set sys_name [get_hedeby_system_name]
+   set user [get_hedeby_admin_user]
+   
+   # install and uninstall script will sleep 10 seconds after (un)installing the execd
+   set sleep_time 10
+   
+   # -----------------------------------------------------------------------------------------------
+   # Step 1: Create a patched version of the execd_install script which sleeps a defined
+   #         time after the installation of the execd before exiting.
+   # -----------------------------------------------------------------------------------------------
+   set patch_cmd "sed"
+   
+   set patch_args "'s/exit \\\$res/sleep $sleep_time\\; exit \\\$res/'"
+   append patch_args " $hedeby_config(hedeby_product_root)/util/templates/ge-adapter/install_execd.sh"
+   append patch_args " > $hedeby_issue571_ctx(install_template)"
+   
+   set output [start_remote_prog $hedeby_issue571_ctx(master_host) $user $patch_cmd $patch_args]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "Could not created patched version execd_install script:\n$output"
+      return
+   }
+   lappend hedeby_issue571_ctx(cleanup_actions) "delete_install_template"
+   
+   # -----------------------------------------------------------------------------------------------
+   # Step 2: Create a patched version of the execd_uninstall script which sleeps a defined
+   #         time after the uninstallation of the execd before exiting.
+   # -----------------------------------------------------------------------------------------------
+   set patch_args "'s/exit \\\$res/sleep $sleep_time\\; exit \\\$res/'"
+   append patch_args " $hedeby_config(hedeby_product_root)/util/templates/ge-adapter/uninstall_execd.sh"
+   append patch_args " > $hedeby_issue571_ctx(uninstall_template)"
+   
+   set output [start_remote_prog $hedeby_issue571_ctx(master_host) $user $patch_cmd $patch_args]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "Could not created patched version execd_uninstall script:\n$output"
+      return
+   }
+   lappend hedeby_issue571_ctx(cleanup_actions) "delete_uninstall_template"
+   
+   # -----------------------------------------------------------------------------------------------
+   # Step 3: Modify the execd configuration for the GE service
+   #         The moving host must use the patched version of the execd_(un)install templates
+   # -----------------------------------------------------------------------------------------------
+   set execd_params($hedeby_issue571_ctx(moving_host),install_template) $hedeby_issue571_ctx(install_template)
+   set execd_params($hedeby_issue571_ctx(moving_host),uninstall_template) $hedeby_issue571_ctx(uninstall_template)
+   if {[set_execd_install_params $hedeby_issue571_ctx(ge_service) execd_params] != 0} {
+      return
+   }
+   lappend hedeby_issue571_ctx(cleanup_actions) 0 "reset_execd_install_params"
+   
+   # -----------------------------------------------------------------------------------------------
+   # Step 4: SLO setup
+   #         o Define a MinResourceSLO which requests the moveable resource with a high urgency but
+   #           does not assign usage to the resource
+   #         o Define a FixedUsageSLO which give all other resource the urgency 50, but not the 
+   #           movable resource
+   #         => The resource will constantly move from spare_pool to GE service and back
+   # -----------------------------------------------------------------------------------------------
+   set SLO_name   "requestButDoNotUseSLO"
+   set SLO_urgency "99"
+   
+   # The SLO requests explicitly the one and only movable resources
+   set SLO_request    "<common:request>resourceHostname = '$hedeby_issue571_ctx(moving_host)'</common:request>"
+   
+   # For the resourceFilter we must define an filter that never returns true. The SLO will never
+   # give any resource a usage, it has alwyas a need
+   set SLO_resourceFilter "<common:resourceFilter>true = false</common:resourceFilter>"
+   set SLO_min 1
+   set SLO_update_unit "seconds"
+   set SLO_update_interval 4
+   
+   set slos {}
+   lappend slos [create_min_resource_slo $SLO_urgency $SLO_name $SLO_min $SLO_resourceFilter $SLO_request]
+   lappend slos [create_fixed_usage_slo 50 "fixed_usage" "resourceHostname != '$hedeby_issue571_ctx(moving_host)'"]
+   
+   set start_time [clock seconds]
+   
+   if {[set_service_slos "mod_config" $hedeby_issue571_ctx(ge_service) $slos 1 $SLO_update_unit $SLO_update_interval] != 0} {
+      return
+   }
+   lappend hedeby_issue571_ctx(cleanup_actions) 0 "reset_slos"
+   
+   # The SLO is now active, in the cleanup action we must move the resources back to it's
+   lappend hedeby_issue571_ctx(cleanup_actions) "move_resource_to_default_service"
+   
+   
+   # We expect the events RESOURCE_ADD, RESOURCE_ADDED, RESOURCE_REMOVE, RESOURCE_REMOVED is the history
+   set exp_hist(0,resource) $hedeby_issue571_ctx(moving_host)
+   set exp_hist(0,type)     "RESOURCE_ADD"
+   set exp_hist(0,service)  $hedeby_issue571_ctx(ge_service)
+   set exp_hist(count) 1
+   
+   set exp_hist(1,resource) $hedeby_issue571_ctx(moving_host)
+   set exp_hist(1,type)     "RESOURCE_ADDED"
+   set exp_hist(1,service)  $hedeby_issue571_ctx(ge_service)
+   
+   set exp_hist(2,resource) $hedeby_issue571_ctx(moving_host)
+   set exp_hist(2,type)     "RESOURCE_REMOVE"
+   set exp_hist(2,service)  $hedeby_issue571_ctx(ge_service)
+   
+   set exp_hist(3,resource) $hedeby_issue571_ctx(moving_host)
+   set exp_hist(3,type)     "RESOURCE_REMOVED"
+   set exp_hist(3,service)  $hedeby_issue571_ctx(ge_service)
+   
+   set exp_hist(count) 4
+   
+   # We can stop processing if the resource goes into error state
+   set error_hist(0,resource) $hedeby_issue571_ctx(moving_host)
+   set error_hist(0,type)     "RESOURCE_ERROR"
+   set error_hist(0,service)  $hedeby_issue571_ctx(ge_service)
+   set error_hist(count) 1
+   
+
+   # Define the number of assigment/unassigment cycles of the moveable resource are tested
+   # Each cycle will wait until the events RESOURCE_ADD, RESOURCE_ADDED, RESOURCE_REMOVE, RESOURCE_REMOVED
+   # has been receive.
+   set cycle_count 3
+   
+   # One cylce takes at least 2 * $sleep_time seconds
+   # It should be OK if give the system 2 * $sleep_time + 10 seconds
+   set wait_timeout [expr 2 * $sleep_time + 20]
+   
+   # search in the history for the assignment process of the moveable resource
+   for {set i 0} {$i < $cycle_count} {incr i} {
+      
+      # --------------------------------------------------------------------------------------------
+      # Step 5.1: Search in the history for the RESOURCE_ADD, RESOURCE_ADDED, RESOURCE_REMOVE, 
+      #           RESOURCE_REMOVED event
+      # --------------------------------------------------------------------------------------------
+      if {[wait_for_notification $start_time exp_hist error_hist $wait_timeout found_history] != 0} {
+         return
+      }
+      
+      # --------------------------------------------------------------------------------------------
+      # Step 5.2: Calculate out of the events from the history that the time needed for assigning
+      #           and unassigning the moveable resource from the GE service
+      # --------------------------------------------------------------------------------------------
+      set assignment_duration [expr ( $found_history(1,millis) - $found_history(0,millis) ) / 1000 ]
+      ts_log_fine "assignment:  $found_history(0,time) ($found_history(0,millis)) -> $found_history(1,time) ($found_history(1,millis)) = $assignment_duration seconds"
+      
+      set unassigment_duration [expr ( $found_history(3,millis) - $found_history(2,millis) ) / 1000 ]
+      ts_log_fine "unassignment:  $found_history(2,time) ($found_history(2,millis)) -> $found_history(3,time) ($found_history(3,millis)) = $assignment_duration seconds"
+
+      # --------------------------------------------------------------------------------------------
+      #     Step 5.3: Assert that the assigment and unassigment time is longer than the defined sleep_time
+      #               from the patched execd_install/execd_uninstall script templates.
+      # --------------------------------------------------------------------------------------------
+      if {$assignment_duration < $sleep_time || $unassigment_duration < $sleep_time} {
+         set error_text "We ran into issue 571 again!!!!!!!!\n"
+         append error_text "===================================\n"
+         append error_text "\n"
+         if {$assignment_duration < 10} {
+            append error_text "The service $hedeby_issue571_ctx(ge_service) used a execd install template with\n"
+            append error_text "a sleep of $sleep_time seconds after the execd install script. This means that the\n"
+            append error_text "assigment process should take at least $sleep_time seconds, no matter when the EXECD_ADD event\n"
+            append error_text "is received.\n"
+            append error_text "Unfortunatly a tested assigment process tooks only $assignment_duration seconds\n"
+         }
+         if {$unassigment_duration < 10} {
+            append error_text "The service $hedeby_issue571_ctx(ge_service) used a execd uninstall template with\n"
+            append error_text "a sleep of $sleep_time seconds after the execd uninstall script. This means that the\n"
+            append error_text "unassigment process should take at least $sleep_time seconds, no matter when the EXECD_DEL event\n"
+            append error_text "is received.\n"
+            append error_text "Unfortunatly a tested unassigment process tooks only $assignment_duration seconds\n"
+         }
+         ts_log_severe $error_text
+         return
+      }
+      
+      # With the next cylce we search in the history for the events for next assigment process
+      # => set the start_time
+      set start_time [expr $found_history(3,millis) / 1000 ]
+   }
+}

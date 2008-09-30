@@ -3539,6 +3539,7 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
       return 1
    }
    
+   
    # we expect the following table commands for ShowResourceStateCliCommand ...
    set exp_columns {}
    
@@ -3572,29 +3573,35 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
       # parse the time string into millis
       #           0    5    10   15   20
       #           +----+----+----+----+--
-      # format is dd/mm/yyyy HH:MM:SS.mmm
-      set time_str $table($time_col,$line)
-      if {[string length $time_str] != 22} {
+      # format is mm/dd/yyyy HH:MM:SS.mmm
+      
+      # The table output of the sdmadm command contains only lists, we need the first element
+      set time_str [lindex $table($time_col,$line) 0]
+      set time_str_len [string length $time_str]
+      if {$time_str_len < 21 || $time_str_len > 23} {
+         ts_log_warning "Could not parse time_str \"$time_str\" from history (invalid string length $time_str_len)"
          set millis -1
       } else {
          set clock_str [string range $time_str 0 18]
-         set ms_str   [string range $time_str 20 22]
+         set ms_str   [string range $time_str 20 $time_str_len]
          set seconds 0
          set catch_ret [catch {clock scan $clock_str} seconds]
          if {$catch_ret != 0} {
+            ts_log_warning "Could not parse time_str \"$time_str\" from history (clock_str=\"$clock_str\")"
             set millis -1
          } elseif {[string is digit $ms_str]} {
             set millis [expr $seconds * 1000 + $ms_str]
          } else {
+            ts_log_warning "Could not parse time_str \"$time_str\" from history (invalid ms_str \"$ms_str\")"
             set millis -1
          }
       }
-      set hist_info($line,time)     $table($time_col,$line)
+      set hist_info($line,time)     [lindex $table($time_col,$line) 0]
       set hist_info($line,millis)   $millis
-      set hist_info($line,type)     $table($type_col,$line)
-      set hist_info($line,service)  $table($service_col,$line)
-      set hist_info($line,resource) $table($res_col,$line)
-      set hist_info($line,desc)     $table($desc_col,$line)
+      set hist_info($line,type)     [lindex $table($type_col,$line) 0]
+      set hist_info($line,service)  [lindex $table($service_col,$line) 0]
+      set hist_info($line,resource) [lindex $table($res_col,$line) 0]
+      set hist_info($line,desc)     [lindex $table($desc_col,$line) 0]
    }
    return 0
 }
@@ -3625,7 +3632,17 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
 #
 #     error_history   - array with the unexpected events (has the same form as the 
 #                       exp_history 
-#     {atimeout 60}   - timeout in seconds 
+#     {atimeout 60}   - timeout in seconds
+#     {hist_lines}    - if this parameter is not "". The found history lines will be returned
+#                       into this array. The array will have the following elements
+#
+#        hist_lines(count)            -- number of found lines
+#        hist_lines(<index>,time)     -- timestamp of the history line
+#        hist_lines(<index>,type)     -- the type of the notification
+#        hist_lines(<index>,resource) -- the resource
+#        hist_lines(<index>,service)  -- the service
+#        hist_lines(<index>,desc)     -- the description of the notification
+#
 #     {raise_error 1} - raise error 
 #     {host ""}       - host where the sdmadm command will be executed 
 #     {user ""}       - user executing the sdmadm command 
@@ -3649,12 +3666,16 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
 #     wait_for_notification $start_time  hist err_hist 60
 # 
 #*******************************************************************************
-proc wait_for_notification {start_time exp_history error_history  {atimeout 60} {raise_error 1} {host ""} {user ""} } {
+proc wait_for_notification {start_time exp_history error_history  {atimeout 60} { hist_lines "" } {raise_error 1} {host ""} {user ""} } {
    
    global hedeby_config
    # setup arguments
    upvar $exp_history     exp_hist
    upvar $error_history   error_hist
+   
+   if {$hist_lines != ""} {
+      upvar $hist_lines hist_ret
+   }
    
    if {$host == ""} {
       set execute_host $hedeby_config(hedeby_master_host)
@@ -3796,8 +3817,14 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          } else {
             append filter_args "|"
          }
-         ts_log_fine "Adding resource '$resource' to filter"
-         append filter_args "resource = \"$resource\""
+         ts_log_finer "Adding resource '$resource' to filter"
+         
+         # TODO the following code can be removed once the hostname
+         # resolving problem in the fitler is solved (issue ???)
+         # quote all '.' in the hostname
+         set reg_exp [string map { . \\. } $resource]
+         append reg_exp ".*"
+         append filter_args "resource matches \"$reg_exp\""
       }
       append filter_args ")"
    }
@@ -3814,7 +3841,7 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          } else {
             append filter_args "|"
          }
-         ts_log_fine "Adding service '$service' to filter"
+         ts_log_finer "Adding service '$service' to filter"
          append filter_args " service = \"$service\""
       }
       append filter_args ")"
@@ -3832,7 +3859,7 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
          } else {
             append filter_args "|"
          }
-         ts_log_fine "Adding notification type '$type' to filter"
+         ts_log_finer "Adding notification type '$type' to filter"
          append filter_args "type = \"$type\""
       }
       append filter_args ")"
@@ -3841,7 +3868,7 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
    if {[string length $filter_args] > 0} {
       set filter_args "-f '$filter_args'"
    } else {
-      ts_log_fine "Have no additional filter arguments"
+      ts_log_finer "Have no additional filter arguments"
    }
 
    # format of -sd is : yyyy/MM/dd HH:mm:ss"
@@ -3849,7 +3876,9 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
    set cmd_args "-sd '$ts_str' $filter_args"
    ts_log_fine "Searching in history ($cmd_args)"
    
+   set values { "resource" "service" "type" }
    
+   set already_found_event_index 0
    while {1} {
       
       set msg "$header\n"
@@ -3864,75 +3893,161 @@ proc wait_for_notification {start_time exp_history error_history  {atimeout 60} 
 
       set exp_index 0
       set err_index 0
-      for {set line 0} {$line < $hist_info(lines)} {incr line} {
-         
-         for {set tmp_exp_index $exp_index} {$tmp_exp_index < $exp_hist(count)} {incr tmp_exp_index} {
-            set evt_matches 1
-            foreach val { "resource" "service" "type" } {
-               if {[info exists exp_hist($tmp_exp_index,$val)]} {
-                  set exp_value $exp_hist($tmp_exp_index,$val)
-                  if {[info exists hist_info($line,$val)]} {
-                     set hist_value $hist_info($line,$val)
-                  } else {
-                     set hist_value ""
-                  }
-                  if {$exp_value != $hist_value} {
-                     ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $tmp_exp_index ($val must be '$exp_value'"
-                     set evt_matches 0
-                     break
-                  }
-               }
-            }
-            if {$evt_matches} {
-               if {$tmp_exp_index > $exp_index} {
-                  for {set missing_index $exp_index} {$missing_index < $tmp_exp_index} {incr missing_index} {
-                     set prefix [format "Missing %d/%d" [expr $missing_index + 1]  $hist_info(lines)]
-                     set suffix ""
-                     foreach val $values {
-                        if {[info exists exp_hist($missing_index,$val)]} {
-                           if {$first} {
-                              set first 0
-                           } else {
-                              append suffix "|"
-                           }
-                           append suffix "$exp_hist($missing_index,$val)"
-                        }
-                     }
-                     append msg [format "%12s: %s\n" $prefix $suffix]
-                  }
-                  set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $hist_info(lines)]
-                  append msg [format "%-15s: %s\n" $prefix [history_entry_to_str hist_info $line]]
-                  ts_log_severe $msg $raise_error
-                  return -1
+      
+      set line 0
+      
+      # --------------------------------------------------------------------------------------------
+      # Search for the first matching event
+      # --------------------------------------------------------------------------------------------
+      while { $line < $hist_info(lines) } {
+         set evt_matches 1
+         foreach val $values {
+            if {[info exists exp_hist($exp_index,$val)]} {
+               set exp_value $exp_hist($exp_index,$val)
+               if {[info exists hist_info($line,$val)]} {
+                  set hist_value $hist_info($line,$val)
                } else {
-                  set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $hist_info(lines)]
-                  append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
-                  incr exp_index
-                  continue
+                  set hist_value ""
+               }
+               if {$exp_value != $hist_value} {
+                  ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $exp_index ($val must be '$exp_value'"
+                  set evt_matches 0
+                  break
                }
             }
          }
-         if {$err_index < $error_hist(count)} {
-            set evt_matches 1
-            foreach val { "resource" "service" "type" } {
-               if {[info exists error_hist($err_index,$val)]} {
-                  set exp_value $error_hist($err_index,$val)
-                  if {[info exists hist_info($line,$val)]} {
-                     set hist_value $hist_info($line,$val)
-                  } else {
-                     set hist_value ""
+         if {$evt_matches} {
+               set prefix [format "Event %d/%d" [expr $exp_index + 1] $exp_hist(count)]
+               append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
+               
+               set hist_ret($exp_index,time)    $hist_info($line,time)
+               set hist_ret($exp_index,millis)  $hist_info($line,millis)
+               set hist_ret($exp_index,type)    $hist_info($line,type)
+               set hist_ret($exp_index,service) $hist_info($line,resource)
+               set hist_ret($exp_index,desc)    $hist_info($line,desc)
+               
+               incr exp_index
+               
+               set hist_ret(count) $exp_index
+               break
+         } else {
+            for {set err_index 0} { $err_index < $error_hist(count) } { incr err_index } {
+               set evt_matches 1
+               foreach val $values {
+                  if {[info exists error_hist($err_index,$val)]} {
+                     set exp_value $error_hist($err_index,$val)
+                     if {[info exists hist_info($line,$val)]} {
+                        set hist_value $hist_info($line,$val)
+                     } else {
+                        set hist_value ""
+                     }
+                     if {$exp_value != $hist_value} {
+                        set evt_matches 0
+                        break
+                     }
                   }
-                  if {$exp_value != $hist_value} {
-                     set evt_matches 0
-                     break
+               }
+               if {$evt_matches} {
+                  append msg [format "%12s: %s\n" "Error"  [history_entry_to_str hist_info $line]]
+                  ts_log_severe "$msg" $raise_error
+                  return -1
+               }
+            }
+         }
+         incr line
+      }
+      
+      if {$exp_index == 1} {
+         # -----------------------------------------------------------------------------------------
+         # We have found the first expected event
+         # Check that the other events follows subsequently
+         # -----------------------------------------------------------------------------------------
+         while { $line < $hist_info(lines) } {
+            for {set tmp_exp_index $exp_index} {$tmp_exp_index < $exp_hist(count)} {incr tmp_exp_index} {
+               set evt_matches 1
+               foreach val $values {
+                  if {[info exists exp_hist($tmp_exp_index,$val)]} {
+                     set exp_value $exp_hist($tmp_exp_index,$val)
+                     if {[info exists hist_info($line,$val)]} {
+                        set hist_value $hist_info($line,$val)
+                     } else {
+                        set hist_value ""
+                     }
+                     if {$exp_value != $hist_value} {
+                        ts_log_finer "Event [history_entry_to_str hist_info $line] does not match against expected history $tmp_exp_index ($val must be '$exp_value'"
+                        set evt_matches 0
+                        break
+                     }
+                  }
+               }
+               if {$evt_matches} {
+                  if {$tmp_exp_index > $exp_index} {
+                     # It seems that we have missed an event
+                     # => Produces an error
+                     for {set missing_index $exp_index} {$missing_index < $tmp_exp_index} {incr missing_index} {
+                        set prefix [format "Missing %d/%d" [expr $missing_index + 1]  $hist_info(lines)]
+                        set suffix ""
+                        foreach val $values {
+                           if {[info exists exp_hist($missing_index,$val)]} {
+                              if {$first} {
+                                 set first 0
+                              } else {
+                                 append suffix "|"
+                              }
+                              append suffix "$exp_hist($missing_index,$val)"
+                           }
+                        }
+                        append msg [format "%12s: %s\n" $prefix $suffix]
+                     }
+                     set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $exp_hist(count)]
+                     append msg [format "%-15s: %s\n" $prefix [history_entry_to_str hist_info $line]]
+                     ts_log_severe $msg $raise_error
+                     return -1
+                  } else {
+                     # We found the next expected event
+                     # => Store it in the hist_ret array and continue
+                     set prefix [format "Event %d/%d" [expr $tmp_exp_index + 1] $exp_hist(count)]
+                     append msg [format "%12s: %s\n" $prefix [history_entry_to_str hist_info $line]]
+                     
+                     set hist_ret($exp_index,time)    $hist_info($line,time)
+                     set hist_ret($exp_index,millis)  $hist_info($line,millis)
+                     set hist_ret($exp_index,type)    $hist_info($line,type)
+                     set hist_ret($exp_index,service) $hist_info($line,resource)
+                     set hist_ret($exp_index,desc)    $hist_info($line,desc)
+                     
+                     incr exp_index
+                     set hist_ret(count) $exp_index
+                     continue
+                  }
+               } else {
+                  # The event does not match to any expected event
+                  # May be it is an error event
+                  for {set err_index 0} { $err_index < $error_hist(count) } { incr err_index } {
+                     set evt_matches 1
+                     foreach val $values {
+                        if {[info exists error_hist($err_index,$val)]} {
+                           set exp_value $error_hist($err_index,$val)
+                           if {[info exists hist_info($line,$val)]} {
+                              set hist_value $hist_info($line,$val)
+                           } else {
+                              set hist_value ""
+                           }
+                           if {$exp_value != $hist_value} {
+                              set evt_matches 0
+                              break
+                           }
+                        }
+                     }
+                     if {$evt_matches} {
+                        # It is an error event => report the error and stop working
+                        append msg [format "%12s: %s\n" "Error"  [history_entry_to_str hist_info $line]]
+                        ts_log_severe "$msg" $raise_error
+                        return -1
+                     }
                   }
                }
             }
-            if {$evt_matches} {
-               append msg [format "%12s: %s\n" "Error"  [history_entry_to_str hist_info $line]]
-               ts_log_severe "$msg" $raise_error
-               return -1
-            }
+            incr line
          }
       }
       
@@ -5983,6 +6098,7 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
 #  INPUTS
 #     {urgency 50 }          - urgency value
 #     { name "fixed_usage" } - name value
+#     { resource_filter "" } - resource filter for the slo
 #
 #  RESULT
 #     xml string
@@ -5992,8 +6108,13 @@ proc read_hedeby_jvm_pid_file { a_pid_info host user pid_file } {
 #     util/create_fixed_usage_slo()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
-   set slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\"></common:slo>"
+proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" } {resource_filter "" }} {
+   
+   set slo "<common:slo xsi:type=\"common:FixedUsageSLOConfig\" urgency=\"$urgency\" name=\"$name\">"
+   if {$resource_filter != ""} {
+      append slo "<common:resourceFilter>$resource_filter</common:resourceFilter>"
+   }   
+   append slo "</common:slo>"
    return $slo
 }
 
@@ -6014,6 +6135,7 @@ proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
 #     { min 2 }          - min value
 #     { resourceFilter ""} - optional: resource filter created with 
 #                            procedure create_resource_and_filter()
+#     { request  ""}       - optional: the request filter for the produced needs
 #
 #  RESULT
 #     xml string
@@ -6024,9 +6146,12 @@ proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" }} {
 #     util/create_resource_and_filter()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
-proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resourceFilter ""}} {
+proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resourceFilter ""} {request ""}} {
    set slo_text ""
    append slo_text "<common:slo xsi:type=\"common:MinResourceSLOConfig\" min=\"$min\" urgency=\"$urgency\" name=\"$name\">"
+   if {$request != ""} {
+      append slo_text $request
+   }
    if {$resourceFilter != ""} {
       append slo_text $resourceFilter
    }
@@ -7579,6 +7704,214 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
    }
 
    return 0
+}
+
+
+#****** util/set_execd_install_params() **************************************************
+#  NAME
+#    set_execd_install_params() -- set the parameters for the execd installation for a ge service
+#
+#  SYNOPSIS
+#    set_execd_install_params { service my_execd_install_params } 
+#
+#  FUNCTION
+#     This method modifies the execd install parameters for a GE service
+#
+#  INPUTS
+#    service -- name of the GE service
+#    my_execd_install_params -- array with the new execd install parameters. The can contain
+#        for each host the following parameters
+#
+#        spool_dir          defines the local spool dir for the execds on this host. If the spool dir
+#                            is not defined for a host the default execd spool dir is used.
+#
+#        install_template   defines the path to the execd install template
+#        uninstall_template defines the path to the execd uninstall template
+#
+#  RESULT
+#     The exit state of the "sdmadm mc"
+#
+#  EXAMPLE
+#
+#  NOTES
+#     ??? 
+#
+#  BUGS
+#     ??? 
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc set_execd_install_params { service my_execd_install_params } {
+   global hedeby_config
+   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
+   global install_current_cluster_config
+   global install_user
+
+   upvar $my_execd_install_params execd_install_params
+   
+   set managed_host_list [get_all_movable_resources]
+
+   set sequence {}
+   lappend sequence "[format "%c" 27]" ;# ESC
+   
+   set param_names { spool_dir install_template uninstall_template }
+   
+   set execd_params(count) 0
+   foreach host $managed_host_list {
+      foreach param_name $param_names {
+         if {[info exists execd_install_params($host,$param_name)]} {
+            set param_value($param_name) $execd_install_params($host,$param_name)
+         } else {
+            # no value for this parameter specified, use the default value
+            switch -- $param_name {
+               spool_dir {
+                  set param_value($param_name) [get_local_spool_dir $host "execd" 0]
+               }
+               default {
+                  set param_value($param_name) "default"
+               }
+            }
+         }
+      }
+      
+      # Search for a match execd_params set
+      set execd_params_index -1
+
+      for {set i 0} {$i < $execd_params(count)} {incr i} {
+         set matches 1
+         foreach param_name $param_names {
+            if {$param_value($param_name) != $execd_params($i,$param_name)} {
+               set matches 0
+               break
+            }
+         }
+         if {$matches == 1} {
+            lappend $execd_params($i,hosts) $host
+            set execd_params_index $i
+            break
+         }
+      }
+      
+      if { $execd_params_index == -1 } {
+         # did not find a matching param set, create a new one
+         set execd_params_index $execd_params(count)
+         incr execd_params(count) 1
+         foreach param_name $param_names {
+            set execd_params($execd_params_index,$param_name) $param_value($param_name)
+         }
+         set execd_params($execd_params_index,hosts) $host
+      }
+      unset param_value
+   }
+   
+   ts_log_fine "set execd params for  GE service \"$service\" ..."
+   
+   
+   set arguments "-s [get_hedeby_system_name] -p  [get_hedeby_pref_type] mc -c $service"
+   set ispid [hedeby_mod_setup $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $arguments error_text]
+
+   set sequence {}
+   lappend sequence "[format "%c" 27]" ;# ESC
+      
+   # Delete all available execd configurations
+   
+   ## goto the first line
+   lappend sequence "1G"
+   ## Search for the for execd install param
+   lappend sequence "/<ge_adapter:execd\n"
+   ## The xml schema guarantees that the execd install params
+   ## are the last entries in the xml file
+   ## => delete to EOF
+   lappend sequence dG
+   
+   # insert at the end of the config the new execd parameters
+   lappend sequence "GA"
+   set log_message ""
+   
+   lappend sequence "<!-- =========================================================\n"
+   lappend sequence "     Start of modifications with set_execd_install_params     \n"
+   lappend sequence "     =========================================================-->\n"
+   
+   for {set i 0} {$i < $execd_params(count)} {incr i} {
+      lappend sequence "<!-- =========================================================\n"
+      lappend sequence "     execd install params set number $i\n"
+      lappend sequence "     =========================================================-->\n"
+      lappend sequence "<ge_adapter:execd adminUsername=\"root\" defaultDomain=\"\" ignoreFQDN=\"true\" rcScript=\"false\" adminHost=\"true\"\n"
+      lappend sequence "submitHost=\"true\" cleanupDefault=\"false\">\n"
+      lappend sequence "<ge_adapter:filter>\n"
+      set isFirst 1
+      foreach host $execd_params($i,hosts) {
+         if { $isFirst == 0 } {
+            lappend sequence " | "
+         }
+         lappend sequence "resourceHostname = \"$host\"\n"
+         set isFirst 0
+      }
+      lappend sequence "</ge_adapter:filter>\n"
+      lappend sequence "<ge_adapter:localSpoolDir>$execd_params($i,spool_dir)</ge_adapter:localSpoolDir>\n"
+      
+      if {$execd_params($i,install_template) != "default"} {
+         lappend sequence "<ge_adapter:installTemplate>\n"
+         lappend sequence "<ge_adapter:script>$execd_params($i,install_template)</ge_adapter:script>\n"
+         lappend sequence "</ge_adapter:installTemplate\n>"
+      }
+      if { $execd_params($i,uninstall_template) != "default" } {
+         lappend sequence "<ge_adapter:uninstallTemplate>\n"
+         lappend sequence "<ge_adapter:script>$execd_params($i,uninstall_template)</ge_adapter:script>\n"
+         lappend sequence "</ge_adapter:uninstallTemplate>\n"
+      }
+      lappend sequence "</ge_adapter:execd>\n"
+      
+      append log_message "-------------------------------------------------------------\n"
+      append log_message "execd_params for hosts $execd_params($i,hosts)\n"
+      foreach param_name $param_names {
+         append log_message [format "%-20s:%s\n" $param_name $execd_params($i,$param_name)]
+      }
+   }
+   
+   ts_log_fine $log_message
+   
+   # add an execd install settings for simulated hosts
+   lappend sequence "<!-- =========================================================\n"
+   lappend sequence "     execd install params for simuated hosts\n"
+   lappend sequence "     =========================================================-->\n"
+   
+   lappend sequence "<ge_adapter:execd adminUsername=\"root\" defaultDomain=\"\" ignoreFQDN=\"true\" rcScript=\"false\" adminHost=\"false\"\n"
+   lappend sequence "submitHost=\"false\" cleanupDefault=\"false\">\n"
+   lappend sequence "<ge_adapter:filter>simhost=\"true\"\n"
+   lappend sequence "</ge_adapter:filter>\n"
+   lappend sequence "  <ge_adapter:installTemplate executeOn=\"qmaster_host\">"
+   lappend sequence "     <ge_adapter:script>$hedeby_config(hedeby_product_root)/util/templates/ge-adapter/install_execd_sim.sh</ge_adapter:script>"
+   lappend sequence "  </ge_adapter:installTemplate>"
+   lappend sequence "  <ge_adapter:uninstallTemplate executeOn=\"qmaster_host\">"
+   lappend sequence "     <ge_adapter:script>$hedeby_config(hedeby_product_root)/util/templates/ge-adapter/uninstall_execd_sim.sh</ge_adapter:script>"
+   lappend sequence "  </ge_adapter:uninstallTemplate>"
+   lappend sequence "</ge_adapter:execd>\n"
+   
+   lappend sequence "\n"
+
+   # We deleted from <ge_adapter:execd to EOF
+   # => the closing common:componentConfig is missing
+   lappend sequence "</common:componentConfig>\n"
+
+   lappend sequence "[format "%c" 27]" ;# ESC
+   lappend sequence ":w\n"
+   
+   #global CHECK_DEBUG_LEVEL
+   #set org_debug_level $CHECK_DEBUG_LEVEL
+   #set CHECK_DEBUG_LEVEL 2
+   hedeby_mod_sequence $ispid $sequence error_text
+   
+   #set CHECK_DEBUG_LEVEL $org_debug_level
+   #wait_for_enter
+   
+   set output [hedeby_mod_cleanup $ispid error_text]
+   ts_log_fine "exit_status: $prg_exit_state"
+   if {$prg_exit_state == 0} {
+      ts_log_finer "output: \n$output"
+   }
+   return $prg_exit_state
 }
 
 #****** util/get_resource_slo_info() *******************************************
