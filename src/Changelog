@@ -1,3 +1,6 @@
+RD-2008-09-30-0: Enhancem.:  added test for issue 2743
+                 Review:     CR
+
 CR-2008-09-30-0: Enhancem.:  o New testsuite test:
                                testsuite/host_test
                              o new ge_has_feature() feature:
