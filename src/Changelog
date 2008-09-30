@@ -50,7 +50,6 @@ AP-2008-09-29-0: Bugfix:     o qrsh test environment related fix
 MG-2008-09-29-1: Enhancem.:  Hedeby tests for MaxpendingJob slo
                  Review:     MB
 
->>>>>>> 1.681
 EB-2008-09-29-0: Enhancem.:  added tests for "Enforced Job Deletion" (Relaxed Accounting)
                  Review:     MD
 

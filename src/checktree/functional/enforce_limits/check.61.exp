@@ -62,15 +62,17 @@ set check_cleanup_function enforce_limits_cleanup
 
 # define test's procedure order
 set check_functions {}
-lappend check_functions "enforce_limits_tight_execd_limit_enforcement"
 lappend check_functions "enforce_limits_tight_execd_limit_enforcement_after_stop_start"
-lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_master"
 lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave"
-lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_slave_queue"
 lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_master_queue"
+lappend check_functions "enforce_limits_tight_qmaster_forced_all_queue"
+
+lappend check_functions "enforce_limits_tight_execd_limit_enforcement"
+lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_master"
+lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_slave_queue"
 lappend check_functions "enforce_limits_tight_qmaster_limit_enforcement_all_queue"
 lappend check_functions "enforce_limits_loose_qmaster_limit_enforcement_all_queue"
-lappend check_functions "enforce_limits_tight_qmaster_forced_all_queue"
+lappend check_functions "enforce_limits_batch_qmaster_limit_enforcement_all_queue"
 
 # constants
 set tight_slots 5
@@ -189,7 +191,8 @@ proc enforce_limits_setup {} {
 
    # change global config 
    get_config org_global_conf
-   set global_conf(load_report_time) "00:00:05"
+   set global_conf(load_report_time) "00:00:04"
+   set global_conf(max_unheard) "00:00:08"
    set global_conf(qmaster_params) "ENABLE_ENFORCE_MASTER_LIMIT=true,ENABLE_FORCED_QDEL_IF_UNKNOWN=true"
    set global_conf(reporting_params) "accounting_flush_time=00:00:00"
    set_config global_conf
@@ -511,7 +514,7 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
 
    if {$CHECK_ACT_LEVEL == 0} {
       # submit the pe job
-      set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
+      set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 90"
       set job_id [ submit_job "$qsub_params" ]
 
       wait_for_jobstart $job_id "qrexec.sh" 100
@@ -525,13 +528,13 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
       startup_execd $tight_master_node
 
       # wait for termination of job
-      wait_for_job_end $job_id 240 
+      wait_for_job_end $job_id 100 
       set end [clock seconds]
 
       # so we give it 70 seconds plus 15 seconds for the execd startup
       set start_end [expr $end - $start]
       if {$start_end > 85} {
-         ts_log_severe "runtime should be in the range of 35-70 but it is $start_end"
+         ts_log_severe "runtime should be in the range of 35-85 but it is $start_end"
       }
 
       # check accounting entry 
@@ -629,7 +632,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
 
    if {$CHECK_ACT_LEVEL == 0} {
       # submit the pe job
-      set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 180"
+      set qsub_params "-pe tight $tight_slots -masterq $tight_masterq $el_base_path/qrexec.sh 80"
       set job_id [ submit_job "$qsub_params" ]
 
       wait_for_jobstart $job_id "qrexec.sh" 100
@@ -645,7 +648,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
       set end_shutdown [clock seconds]
 
       # wait for termination of job
-      wait_for_job_end $job_id 240 
+      wait_for_job_end $job_id 80 
       set end [clock seconds]
 
       # startup all execds
@@ -711,6 +714,64 @@ proc enforce_limits_tight_qmaster_forced_all_queue {} {
       foreach host $all_exec_hosts {
          startup_execd $host
       }
+
+      # runtime limit for the job is 30 seconds
+      # DURATION_OFFSET is 5 seconds
+      # so the shutdown should be triggered after 35 seconds
+      # but we have to add the time till the job leaves the system until it can't be seen by by qstat -j
+      # so we give it 70 seconds (plus the time for shutting down the execds)
+      set start_shutdown [expr $end_shutdown - $start]
+      set start_end [expr $end - $start]
+      if {$start_end > [expr 70 + $start_shutdown]} {
+         ts_log_severe "runtime should be in the range of 35-70 but it is $start_end (start_shutdown = $start_shutdown)"
+      }
+
+      # check accounting entry  
+      if {[get_qacct $job_id] == 0} { 
+         set task [lindex $qacct_info(failed) 0]
+         set failed [lindex $task 0]
+
+         if {$failed != 37} {
+            ts_log_severe "job died trough limit exceeding executed by the master deamon. Therefore it should end with failed=37 but it failed with $failed"
+         }
+      }
+
+   }
+}
+
+# 50) submit a batch sleeper job
+# 51) Wait till job is running
+# 52) Terminate execd
+# 53) Wait till job is terminated
+# 54) Check that the job has been terminated before the normal runtime ended 
+proc enforce_limits_batch_qmaster_limit_enforcement_all_queue {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global tight_slots
+   global tight_masterq 
+   global tight_master_node
+   global tight_slaveq
+   global tight_slave_node
+   global el_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      # submit the pe job
+      set qsub_params "-q $tight_masterq $ts_config(product_root)/examples/jobs/sleeper.sh 180"
+      set job_id [ submit_job "$qsub_params" ]
+
+      wait_for_jobstart $job_id "Sleeper" 100
+      set start [clock seconds]
+
+      # shutdown all execds
+      shutdown_system_daemon $tight_master_node "execd" 
+      set end_shutdown [clock seconds]
+
+      # wait for termination of job
+      wait_for_job_end $job_id 240 
+      set end [clock seconds]
+
+      # startup all execds
+      startup_execd $tight_master_node
 
       # runtime limit for the job is 30 seconds
       # DURATION_OFFSET is 5 seconds
