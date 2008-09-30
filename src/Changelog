@@ -1,3 +1,8 @@
+EB-2008-09-30-0: Bugfix:    "Enforced Job Deletion" test sometimes failed, when
+                            shutdown of execd took to long on certain hosts.
+                            Added additional test for batch job.
+                 Review:    RD (TBD)
+
 TB-2008-09-30-0: Enhancem.:  Hedeby optional named argument passing
                              new procedures:
                              o sdmadm_command_opt()
@@ -45,6 +50,7 @@ AP-2008-09-29-0: Bugfix:     o qrsh test environment related fix
 MG-2008-09-29-1: Enhancem.:  Hedeby tests for MaxpendingJob slo
                  Review:     MB
 
+>>>>>>> 1.681
 EB-2008-09-29-0: Enhancem.:  added tests for "Enforced Job Deletion" (Relaxed Accounting)
                  Review:     MD
 
