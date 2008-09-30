@@ -1,3 +1,22 @@
+TB-2008-09-30-0: Enhancem.:  Hedeby optional named argument passing
+                             new procedures:
+                             o sdmadm_command_opt()
+                             o start_parallel_sdmadm_command_opt()
+                             o get_hedeby_proc_default_opt_args()
+                             o get_hedeby_proc_opt_args()
+                             o copy_hedeby_proc_opt_arg()
+                             o copy_hedeby_proc_opt_arg_exclude()
+                             o get_hedeby_resource_properties()
+                             o mod_hedeby_resource() [changed]
+                             o wait_for_resource_removal() [changed]
+                 Cleanup:    o adapted spare_pool_stop_and_free_resources
+                               test to optional named arg passing
+                             o fixed mod_hedeby_resource usage in tests:
+                               - usecases/SI
+                               - slo/maxPendingJobs/withRequestFilter
+                             o typoes in messages and comments
+                 Review:     RH
+
 RD-2008-09-30-0: Enhancem.:  added test for issue 2743
                  Review:     CR
 

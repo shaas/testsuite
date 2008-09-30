@@ -204,7 +204,7 @@ proc with_request_filter_check {} {
    set value "dummy_value$timesuffix"
    #add some dummy property to the resource 
    set dummy_res_prop(dummy_prop$timesuffix) $value
-   mod_hedeby_resource $master_host $admin_user $mov_resource dummy_res_prop
+   mod_hedeby_resource $mov_resource dummy_res_prop
 
    #move resource with dummy property to the spare_pool
    set arguments "-p $pref_type -s $sys_name mvr -r $mov_resource -s spare_pool"

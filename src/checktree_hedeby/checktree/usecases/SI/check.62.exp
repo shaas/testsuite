@@ -253,7 +253,7 @@ proc si_check {} {
          }
          foreach resource $service_names(moveable_execds,$adapter) {
             set owner_prop(owner) "$adapter"
-            mod_hedeby_resource $master_host $admin_user $resource owner_prop
+            mod_hedeby_resource $resource owner_prop
             set plainoutput [start_sge_bin "qhost" "-q -h $resource -xml | grep \"slots\'\" | sed -e \"s#<queuevalue qname='all.q' name='slots'>##g\" | sed -e \"s#</queuevalue>##g\"  | sed -e \"s# *##g\""]
             set slot_count [expr "$slot_count + $plainoutput"]
             lappend resource_list $resource
@@ -296,7 +296,7 @@ proc si_check {} {
             lappend list_own3 $resource
         }
         set owner_prop(owner) [lindex $adapters $j]
-        mod_hedeby_resource $master_host $admin_user $resource owner_prop
+        mod_hedeby_resource $resource owner_prop
         lappend resource_list $resource
         incr j
    }

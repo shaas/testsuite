@@ -1947,6 +1947,84 @@ proc start_parallel_sdmadm_command {host_list exec_user info {raise_error 1} {pa
    return $error_text
 }
 
+#****** util/start_parallel_sdmadm_command_opt() ***********************************
+#  NAME
+#     start_parallel_sdmadm_command_opt() -- start sdmadm_command parallel
+#
+#  SYNOPSIS
+#     start_parallel_sdmadm_command_opt {host_list task_info {opt ""}}
+#
+#  FUNCTION
+#     This procedure is the optional argument passing version of
+#     start_parallel_sdmadm_command(). For a description of the command, see
+#     there.
+#
+#  INPUTS
+#     host_list        - hosts where to start sdmadm command
+#     task_info        - name of array to store task information
+#
+#     opt              - optional named arguments, see get_hedeby_proc_default_opt_args()
+#     opt(parallel)    - if 0 run commands in a sequence (for debuging only)
+#                        default: 1
+#     opt(host)        - not used
+#     opt(system_name) - if "" then no -s parameter is added to the sdmadm commands
+#     opt(pref_type)   - if "" then no -p parameter is added to the sdmadm commands
+#
+#  RESULT
+#     string "" on success, string with error text on error
+#
+#  EXAMPLE
+#     # Initialize the task info array:
+#     foreach host $host_list {
+#        set task_info($host,expected_output) ""
+#        set task_info($host,sdmadm_command) "rs"      
+#     }
+#
+#     # Execute the sdmadm command parallel
+#     set opt(parallel) 0
+#     set error_text [start_parallel_sdmadm_command_opt host_list task_info opt]
+#
+#     # Examine the results
+#     foreach host $host_list {
+#        set exit_state $task_info($host,exit_status)
+#        set output $task_info($host,output)
+#        debug_puts "host: $host"
+#        debug_puts "exit status: $exit_state"
+#        debug_puts "output:\n$output"
+#     }
+#     if { $error_text != "" } {
+#        ts_log_sever "Error in remove_hedeby_preferences: $error_text"
+#     }
+#
+#  SEE ALSO
+#     util/start_parallel_sdmadm_command()
+#     util/get_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc start_parallel_sdmadm_command_opt {host_list task_info {opt ""}} {
+   set opts(parallel) 1
+   get_hedeby_proc_opt_arg $opt opts
+
+   upvar $host_list u_host_list
+   upvar $task_info u_task_info
+
+   # now alter u_task_info(*,sdmadm_command) to include pref_type and system_name
+   foreach key [list_grep ",sdmadm_command$" [array names u_task_info]] {
+      set args $u_task_info($key)
+
+      # add preference type and system name to command line when != ""
+      if { $opts(pref_type) != "" } {
+         set args "-p $opts(pref_type) $args"
+      }
+      if { $opts(system_name) != "" } {
+         set args "-s $opts(system_name) $args"
+      }
+
+      set u_task_info($key) $args
+   }
+
+   return [start_parallel_sdmadm_command u_host_list $opts(user) u_task_info $opts(raise_error) $opts(parallel)]
+}
+
 
 #****** util/startup_hedeby_hosts() *********************************************
 #  NAME
@@ -2531,6 +2609,7 @@ proc hedeby_check_default_services {} {
 #*******************************************************************************
 proc move_resources_to_default_services {} {
    global hedeby_config
+   ts_log_fine "Moving resources to default services ..."
    set ge_hosts [get_hedeby_default_services service_names]
    set expected_resource_list [get_all_default_hedeby_resources]
    set pref_type [get_hedeby_pref_type]
@@ -4213,7 +4292,7 @@ proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev 
 #     get_free_service { exclude_service_list {raise_error 1} } 
 #
 #  FUNCTION
-#     This procedure returns the next free service name with is not in the
+#     This procedure returns the next free service name which is not in the
 #     specified exclude service name list
 #
 #  INPUTS
@@ -4237,7 +4316,7 @@ proc get_free_service { exclude_service_list {raise_error 1} } {
       break
    }
    if { $free_service_name == "" } {
-      ts_log_severe "no matching service found!\nAvailable services: \"$service_names(services)\",\nexcluded services:  \"$exclude_service_list\"" $raise_error
+      ts_log_severe "no matching service found!\nAvailable services: \"$service_names(services)\",\nExcluded services:  \"$exclude_service_list\"" $raise_error
    }
    return $free_service_name
 }
@@ -5103,6 +5182,20 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
 #     to be specified. The sdmadm command is started with JAVA_HOME settings
 #     from testsuite host configuration.
 #
+#     If the interactive_tasks array is given, then the sdmadm command is
+#     executed interactively. When the entry RETURN_ISPID is set, then the
+#     internal spawn id is returned and all expect processing has to be done by
+#     the user of this function. Otherwise, the keys of the entries in
+#     interactive_tasks are searched for in the output of the sdmadm. When a
+#     key is found the corresponding value is sent to the sdmadm task.
+#
+#     There are some special cases with this handling of interactive_tasks:
+#     - value ROOTPW: sends instead of "ROOTPW" the return value of
+#       [get_root_passwd].
+#     - key STANDARD_IN: sends $interactive_tasks(STANDARD_IN) to the sdmadm
+#       command as stdin right away at the start and the "pipe" is closed
+#       afterwards.
+#
 #  INPUTS
 #     host                      - host where sdmadm should be started
 #     user                      - user account used for starting sdmadm
@@ -5139,7 +5232,7 @@ proc get_component_info { {host ""} {user ""} {ci component_info} {raise_error 1
 #     util/sdmadm_command()
 #*******************************************************************************
 proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive_tasks "" } {raise_error 1} {table_output ""} {own_env_array ""}} {
-      upvar $exit_var back_exit_state
+   upvar $exit_var back_exit_state
    
    # if no own_env_array is provided, the default hedeby environment will be loaded
    if { $own_env_array == "" } {
@@ -5196,29 +5289,25 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
    
         -i $sp_id -- "*\[ \n\]" {
            set token $expect_out(0,string)
-           if { [string match "*_exit_status_:(*" $token ] } {
-              debug_puts "script terminated!" 
-              set help $token
-              set st [string first "(" $help]
-              set ed [string first ")" $help]
-              incr st 1
-              incr ed -1
-              set back_exit_state [string range $help $st $ed]
+           if { [regexp -line "_exit_status_:\\((.*)\\)" $token whole_match back_exit_state] } {
               ts_log_fine "found exit status of client: ($back_exit_state)"
               set do_stop 1
               set found_end 1
            }
            if {  $found_start == 1 && $found_end == 0 } {
               append output "${token}"
-              set was_expected 0
               foreach name [array names tasks] {
-                if { [string match "*${name}*" $token] } {
-                    set was_expected 1
+                 if { $name == "STANDARD_IN" } {
+                    # STANDARD_IN is special and used only for direct piping into
+                    # sdmadm at the start of the command, see below
+                    continue
+                 }
+                 if { [string match "*${name}*" $token] } {
                     if { $tasks($name) != "ROOTPW" } {
                        ts_log_fine ".....found \"$name\", sending \"$tasks($name)\" ..."
                        ts_send $sp_id "$tasks($name)\n"
                     } else {
-                       ts_log_fine "waiting for a view seconds before sending root password ..."
+                       ts_log_fine "waiting for a few seconds before sending root password ..."
                        after 5000
                        log_user 0  ;# in any case before sending password
                        ts_send $sp_id "[get_root_passwd]\n" "" 1
@@ -5230,6 +5319,11 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
            }
            if {[string first "_start_mark_:" $token] >= 0} {
               set found_start 1
+              if { [info exists tasks(STANDARD_IN)] } {
+                 ts_log_fine "... at _start_mark_: piping STANDARD_IN into sdmadm"
+                 ts_send $sp_id $tasks(STANDARD_IN)
+                 ts_send $sp_id ""  ;# close pipe
+              }
            }
            if { $do_stop == 0 } {
               exp_continue
@@ -5246,6 +5340,87 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
       parse_table_output $output table "|"
       return $output
    }
+}
+
+#****** util/sdmadm_command_opt() **************************************************
+#  NAME
+#     sdmadm_command_opt() -- start sdmadm command
+#
+#  SYNOPSIS
+#     sdmadm_command_opt { arg_line {opt ""} } {
+#
+#  FUNCTION
+#     This procedure is the optional argument passing version of
+#     sdmadm_command(). For a description of the command, see there.
+#
+#     The global sdmadm parameter -s and -p are taken from opt(system_name) and
+#     opt(pref_type) and are automatically added to the arg_line.
+#
+#  INPUTS
+#     arg_line               - argument line for sdmadm command
+#
+#     opt                    - optional named arguments, see get_hedeby_proc_default_opt_args()
+#     opt(system_name)       - if "" then no -s parameter is added to the sdmadm arg_line
+#     opt(pref_type)         - if "" then no -p parameter is added to the sdmadm arg_line
+#     opt(exit_var)          = prg_exit_state
+#                              variable name where to save the exit state 
+#     opt(interactive_tasks) - variable name, see sdmadm_command()
+#     opt(table_output)      - variable name, see sdmadm_command()
+#     opt(own_env_array)     - variable name, see sdmadm_command()
+#
+#  RESULT
+#     The output of the sdmadm command
+#
+#  EXAMPLE
+#     # log output of show_resource command
+#     set opt(exit_var) exit_code
+#     set opt(raise_error) 0
+#     ts_log_fine [sdmadm_command_opt "show_resource -r $resource" opt]
+#     if { $exit_code != 0 } {
+#        ts_log_severe "Error in sdmadm command, exit_code = $exit_code"
+#     }
+#
+#  SEE ALSO
+#     util/sdmadm_command()
+#     util/get_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc sdmadm_command_opt { arg_line {opt ""} } {
+   set opts(exit_var) "prg_exit_state"
+   set opts(interactive_tasks) ""
+   set opts(table_output) ""
+   set opts(own_env_array) ""
+   get_hedeby_proc_opt_arg $opt opts
+
+   # prepare all arrays for upvar behavior
+   upvar $opts(exit_var) u_exit_var
+   if { $opts(own_env_array) != "" } {
+      upvar $opts(own_env_array) u_own_env_array
+      set own_env_name "u_own_env_array"
+   } else {
+      set own_env_name ""
+   }
+   if { $opts(interactive_tasks) != "" } {
+      upvar $opts(interactive_tasks) u_interactive_tasks
+      set interactive_tasks_name "u_interactive_tasks"
+   } else {
+      set interactive_tasks_name ""
+   }
+   if { $opts(table_output) != "" } {
+      upvar $opts(table_output) u_table_output
+      set table_output_name "u_table_output"
+   } else {
+      set table_output_name ""
+   }
+
+   # add preference type and system name to command line when != ""
+   if { $opts(pref_type) != "" } {
+      set arg_line "-p $opts(pref_type) $arg_line"
+   }
+   if { $opts(system_name) != "" } {
+      set arg_line "-s $opts(system_name) $arg_line"
+   }
+
+   return [sdmadm_command $opts(host) $opts(user) $arg_line u_exit_var $interactive_tasks_name $opts(raise_error) $table_output_name $own_env_name]
 }
 
 #****** util/hedeby_get_default_env() **************************************************
@@ -5714,7 +5889,7 @@ proc produce_error_resource { resource { method "soft" } } {
 
    set sCluster $service_names(ts_cluster_nr,$resource)
    set service $service_names(default_service,$resource)
- 
+
    set curCluster [get_current_cluster_config_nr]
    set_current_cluster_config_nr $sCluster
    set error_text ""
@@ -5737,7 +5912,7 @@ proc produce_error_resource { resource { method "soft" } } {
    ts_log_fine "resource \"$resource\" should go into error state now ..."
    set exp_res_info($resource,state) "ERROR"
    wait_for_resource_info exp_res_info 120 0 error_text
-   # Enanced timeout to 120 seconds because on some architecures (LX24) with
+   # Enhanced timeout to 120 seconds because on some architecures (LX24) with
    # old threading implementation it takes one minute till qmaster realize that
    # execd was killed:
 
@@ -5786,7 +5961,7 @@ proc reset_produced_error_resource { resource } {
    }
    set current_service $res_info($resource,service)
    ts_log_fine "resource \"$resource\" is assigned to service \"$current_service\""
-   
+
    
    # find out testsuite cluster nr of resource
    if {![info exists service_names(ts_cluster_nr,$current_service)]} {
@@ -6172,14 +6347,14 @@ proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resour
 #     definition. The specified resource properties are combined with AND.
 #
 #  INPUTS
-#     resProp - array which contains filter specification
+#     resProp     - array which contains filter specification
 #           
-#               The array must have following settings:
-#               resProp(PROP_NAME) {OPERATOR} {VALUE}
-#             
-#               PROP_NAME: name of property: e.g. operatingSystemName, state
-#               OPERATOR:  used property operator: e.g. "=", "!="
-#               VALUE:     match value: e.g. "Linux", "ASSIGNED", "ERROR"
+#                   The array must have following settings:
+#                   resProp(PROP_NAME) {OPERATOR} {VALUE}
+#                 
+#                   PROP_NAME: name of property: e.g. operatingSystemName, state
+#                   OPERATOR:  used property operator: e.g. "=", "!="
+#                   VALUE:     match value: e.g. "Linux", "ASSIGNED", "ERROR"
 #
 #  RESULT
 #     string in xml format
@@ -6463,7 +6638,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
       -i $sp_id  "_start_mark_*\n" {
       }
    }
-   ts_log_fine "got start mark"
+   ts_log_finer "got start mark"
 
    set timeout 60
    expect {
@@ -6473,7 +6648,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
       }
       -i $sp_id -- "$clear_sequence" {
          send -i $sp_id -- "G"
-         ts_log_fine "got screen clear sequence"
+         ts_log_finer "got screen clear sequence"
 
       }
       -i $sp_id -- {[A-Za-z]+} {
@@ -6501,7 +6676,7 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
          }
       }
    }
-   ts_log_fine "vi started"
+   ts_log_finer "vi started"
    return $ispid
 }
 
@@ -6604,7 +6779,7 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
    } else { 
       after 1000 ;# TODO: be sure to wait one second so that file timestamp has changed
                   # This might be done by have start timestamp and endtimestamp and only
-                  # wait if timetamp has not changed (to fast edit)
+                  # wait if timestamp has not changed (too fast edit)
       set sequence {}
       lappend sequence "[format "%c" 27]" ;# ESC
       lappend sequence ":wq\n"        ;# save and quit
@@ -6612,7 +6787,7 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
       set timeout 60
    }
 
-   ts_log_fine "waiting for vi termination ..."
+   ts_log_finer "waiting for vi termination ..."
   
    set sp_id [ lindex $ispid 1 ]
    set do_stop 0
@@ -6852,7 +7027,7 @@ proc set_hedeby_job_suspend_policy { service suspend_methods job_finish_timeout_
    hedeby_mod_sequence $ispid $sequence error_text
    set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
 
-   ts_log_fine "exit_status: $prg_exit_state"
+   ts_log_finer "exit_status: $prg_exit_state"
    if { $prg_exit_state == 0 } {
       ts_log_finer "output: \n$output"
    }
@@ -6944,7 +7119,7 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    hedeby_mod_sequence $ispid $sequence error_text
    set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
 
-   ts_log_fine "exit_status: $prg_exit_state"
+   ts_log_finer "exit_status: $prg_exit_state"
    if { $prg_exit_state == 0 } {
       ts_log_finer "output: \n$output"
    }
@@ -7323,13 +7498,13 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
 #     resource is moved back to its original service.
 #     After that the procedure also checks that the resource is in
 #     ASSIGNED state.
-#   
+#
 #  INPUTS
 #     resource           - name of the resource in unassigning state
 #     sleeper_job_id     - job id of a sleeper job
 #     service            - original service of the resource
 #     {move_interrupted} - if set to 0 (default) resource is expected in spare_pool
-#                          if set to != 0 resource is at his original service
+#                            if set to != 0 resource is at his original service
 #
 #
 #  RESULT
@@ -7475,6 +7650,8 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
 #*******************************************************************************
 proc reset_default_slos { method {services "all"} {raise_error 1} } {
    global hedeby_config
+
+   ts_log_fine "Resetting default SLOs for services '$services' ..."
 
    if { $method != "mod_config" && $method != "mod_slos" } {
       ts_log_severe "Method \"$method\" not supported. Use \"mod_config\" or \"mod_slos\""
@@ -8375,59 +8552,136 @@ proc get_show_resource_request_info {{host ""} {user ""} {rri res_req_info} {rai
    return 0
 }
 
+#****** util/get_hedeby_resource_properties() *******
+#  NAME
+#     get_hedeby_resource_properties() -- get the properties of a resource
+#
+#  SYNOPSIS
+#     get_hedeby_resource_properties { resource my_properties {opt ""} } {
+#
+#
+#  FUNCTION
+#     This procedure gets the properties of a resource. The properties are
+#     obtained by calling 'sdmadm sr -all', the 'static' property is included
+#     explicitly and the properties are returned as key => value pairs in the
+#     array properties.
+#
+#  INPUTS
+#     resource           - id of the resource
+#     properties         - name of the array in which the properties of
+#                          resource are returned
+#
+#     opt                - optional named arguments, see get_hedeby_proc_default_opt_args()
+#
+#  RESULT
+#     properties of the resource in array properties
+#
+#  SEE ALSO
+#     util/mod_hedeby_resource()
+#     util/get_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc get_hedeby_resource_properties { resource properties {opt ""} } {
+   upvar $properties props
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   # get the properties for the specified resource
+   # $table_output(additional,0) contains the resource properties
+   set opts(table_output) table_output
+   sdmadm_command_opt "sr -r $resource -all" opts 
+
+   # ... and save them in props array
+   foreach prop_line [split $table_output(additional,0) " "] {
+      set split_list [split $prop_line "="]
+      set prop_name  [lindex $split_list 0]
+      set prop_value [lindex $split_list 1]
+      set props($prop_name) $prop_value
+   }
+
+   # ... explicitly set static property in props array
+   if { [string first "S" $table_output(flags,0)] >= 0 } {
+      # static flag is set
+      set props(static) "true"
+   } else {
+      set props(static) "false"
+   }
+
+   ts_log_finest [format_array props]
+
+   return
+}
+      
+
 #****** util/mod_hedeby_resource() ******************************************
 #  NAME
 #     mod_hedeby_resource() -- modify a resource
 #
 #  SYNOPSIS
+#     mod_hedeby_resource { resource my_properties {opt ""} }
 #
 #
 #  FUNCTION
-#     This resource modifies the properties of a resource. This method can only
-#     does not delete the existing resource properties. It can only add or update
-#     resource properties
-#     TODO enable delete  resource properties
+#     This procedure modifies the properties of a resource. The properties are
+#     given in the TCL array my_properties.
+#
+#     TODO: at the moment only default value opt(delete_all) == 0
+#     Depending on the value of opt(delete_all) one of the following modifying
+#     strategies is chosen:
+#       opt(delete_all) == 0: [default] only add or update properties of the
+#                             resource
+#       opt(delete_all) == 1: delete all properties of the resource. Then set 
+#                             the properties to the ones defined in my_properties.
 #
 #  INPUTS
-#     host                             - host where to start command
-#     exec_user                        - user who starts command
-#     resource                         - id of the resource
-#     my_properties                    - array with the resource properties
-#     {raise_error 1}                  - if 1 report errors
+#     resource           - id of the resource
+#     my_properties      - array with the resource properties
+#
+#     opt                - optional named arguments, see get_hedeby_proc_default_opt_args()
+#     opt(delete_all)    - see above in FUNCTION (default = 0) TODO
 #
 #  RESULT
 #     0 on success, 1 on error
 #
+#  NOTES
+#     TODO : opt(delete_all) needs to be implemented
 #  SEE ALSO
+#     util/get_hedeby_resource_properties()
 #*******************************************************************************
-proc mod_hedeby_resource { host exec_user resource my_properties {raise_error 1} } {
-   global CHECK_DEBUG_LEVEL
-   ts_log_fine "modify resource \"$resource\" ..."
-   
+proc mod_hedeby_resource { resource my_properties {opt ""} } {
    upvar $my_properties properties
+
+   ts_log_fine "modify resource \"$resource\" ..."
+
+   set opts(delete_all) 0
+   get_hedeby_proc_opt_arg $opt opts
    
+   # mix existing and (new) properties into new_props
+   if { $opts(delete_all) == 1 } {
+      ts_log_severe "Option opt(delete_all) == 1 is not implemented yet!!"
+      return
+   }
+
    set sequence {}
-   
    lappend sequence "GA\n"
    
    foreach prop [array names properties] {
-      ts_log_fine "new property: $prop = $properties($prop)"
+      ts_log_finer "new property: $prop = $properties($prop)"
       lappend sequence "$prop = $properties($prop)\n"
    }
    lappend sequence "[format "%c" 27]" ;# ESC
    
-   set arguments "-s [get_hedeby_system_name] mr -r $resource"
+   set arguments "-s $opts(system_name) -p $opts(pref_type) mr -r $resource"
 
-   set ispid [hedeby_mod_setup $host $exec_user $arguments error_text]
+   set ispid [hedeby_mod_setup $opts(host) $opts(user) $arguments error_text]
 
    set sp_id [ lindex $ispid 1 ]
    
    set timeout 30
-    
-   hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
 
-   ts_log_fine "exit_status: $prg_exit_state"
+   hedeby_mod_sequence $ispid $sequence error_text
+   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $opts(raise_error)]
+
+   ts_log_finer "exit_status: $prg_exit_state"
    if { $prg_exit_state == 0 } {
       ts_log_finer "output: \n$output"
    }
@@ -8772,20 +9026,20 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
 #     wait_for_resource_removal() -- wait for removal of resource
 #
 #  SYNOPSIS
-#     wait_for_resource_removal { res_remove_list {atimeout 60} {raise_error 1} 
-#     {ev error_var} {host ""} {user ""} } 
+#     wait_for_resource_removal { res_remove_list {opt ""} }
 #
 #  FUNCTION
 #     This procedure calls get_resource_info() until the specified
 #     resource(s) is/are removed from the system, a timeout or error occurs.
 #
 #  INPUTS
-#     res_remove_list        - list of resources to be removed
-#     {atimeout 60}          - optional timeout specification in seconds 
-#     {raise_error 1}        - report testsuite errors if != 0
-#     {ev error_var }        - report error text into this tcl var
-#     {host ""}              - see get_resource_info() 
-#     {user ""}              - see get_resource_info() 
+#     res_remove_list    - list of resources to be removed
+#
+#     opt                - optional named arguments, see get_hedeby_proc_default_opt_args()
+#     opt(timeout)       - timeout specification in seconds (default 60 seconds)
+#     opt(error_text)    - report error text into this tcl var (default error_var)
+#     opt(system_name)   - not used
+#     opt(pref_type)     - not used
 #
 #  RESULT
 #     0 on success, 1 on error
@@ -8793,10 +9047,12 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
 #  EXAMPLE
 #     # step 1: set up resources to remove
 #     set resources { res1 res2 }
-#     sdmadm_command $host $user "-p $sysType -s $sysName rr -r $resources"
+#     sdmadm_command_opt "rr -r $resources"
 #
 #     # step 2: wait for expected resource informations
-#     set retval [wait_for_resource_removal $resources 60 0 remove_error]
+#     set opt(raise_error) 0
+#     set opt(error_text) remove_error
+#     set retval [wait_for_resource_removal $resources opt]
 #     
 #     # step 3: error handling
 #     if { $retval != 0} {
@@ -8804,33 +9060,34 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
 #        append error_text $remove_error
 #     }
 #
+#  NOTES
+#     TODO
+#     Create get_resource_info_opt procedure that does not use fixed values for
+#     system_name and pref_type, so that the values of the opt array can be
+#     used!
+#
 #  SEE ALSO
 #     util/get_resource_info()
 #     util/wait_for_resource_info()
+#     util/get_hedeby_proc_opt_arg()
 #*******************************************************************************
-proc wait_for_resource_removal { res_remove_list  {atimeout 60} {raise_error 1} {ev error_var } {host ""} {user ""} } {
-   global hedeby_config
-   # setup arguments
-   upvar $ev error_text
+proc wait_for_resource_removal { res_remove_list {opt ""} } {
+   # set function default values
+   set opts(timeout) 60
+   set opts(error_text) error_var
+   get_hedeby_proc_opt_arg $opt opts
 
-   if {$host == ""} {
-      set execute_host $hedeby_config(hedeby_master_host)
-   } else {
-      set execute_host $host
-   }
-   if {$user == ""} {
-      set execute_user [get_hedeby_admin_user]
-   } else {
-      set execute_user $user
-   }
+   # setup arguments
+   upvar $opts(error_text) error_text
+
    if {[info exists error_text] == 0} {
       set error_text ""
    }
    set my_endtime [timestamp]
-   incr my_endtime $atimeout
+   incr my_endtime $opts(timeout)
 
    while {1} {
-      set retval [get_resource_info $host $user resource_info resource_properties resource_list resource_ambiguous $raise_error sdmadm_output]
+      set retval [get_resource_info $opts(host) $opts(user) resource_info resource_properties resource_list resource_ambiguous $opts(raise_error) sdmadm_output]
       if {$retval != 0} {
          append error_text "break because of get_resource_info() returned \"$retval\"!\n$sdmadm_output\n"
          append error_text "expected resource info was:\n$expected_resource_info"
@@ -8853,7 +9110,7 @@ proc wait_for_resource_removal { res_remove_list  {atimeout 60} {raise_error 1} 
          ts_log_fine "The following resources are not yet removed: $not_removed\n"
       }
       if {[timestamp] >= $my_endtime} {
-         append error_text "==> TIMEOUT(=$atimeout sec) while waiting for resources to be removed!\n"
+         append error_text "==> TIMEOUT(=$opts(timeout) sec) while waiting for resources to be removed!\n"
          append error_text "==> The following resources were NOT removed:\n$not_removed\n"
          break
       }
@@ -8861,10 +9118,343 @@ proc wait_for_resource_removal { res_remove_list  {atimeout 60} {raise_error 1} 
    }
 
    if {$error_text != "" } {
-      ts_log_severe $error_text $raise_error
+      ts_log_severe $error_text $opts(raise_error)
       return 1
    }
    return 0
 }
 
 
+#****** util/get_hedeby_proc_default_opt_args() ******************************************
+#  NAME
+#     get_hedeby_proc_default_opt_args() -- gets the default optional arguments for a procedure
+#
+#  SYNOPSIS
+#     get_hedeby_proc_default_opt_args { opt }
+#
+#
+#  FUNCTION
+#     This procedure defines a standard set of optional arguments that should
+#     be used for all relevant hedeby procedures. Passing named arguments in
+#     the optional-arguments TCL array is preferable to having lots of
+#     positional parameters.
+#
+#     Normally, this procedure should not have to be called directly. It is
+#     used from get_hedeby_proc_opt_arg().
+#
+#     If any of the values are already set in the passed in opt array, then
+#     they are NOT overwritten with the default value. This behavior is useful
+#     because then the user of get_hedeby_proc_opt_arg() can preset some default
+#     values of his/her own before calling get_hedeby_proc_opt_arg() without them
+#     getting overwritten here.
+#
+#  INPUTS
+#     opt - name of the output array to store the default values in
+#
+#  RESULT
+#     opt array set with the following default values:
+#        opt(user)         - the user as whom to execute the command  (hedeby admin user)
+#        opt(host)         - the host on which to execute the command (hedeby master host)
+#        opt(system_name)  - name of the SDM system                   (TS hedeby system name)
+#        opt(pref_type)    - preference type of the SDM system        (TS hedeby preference type)
+#        opt(raise_error)  - report errors? 1 - yes, 0 - n            (1)
+#
+#  SEE ALSO
+#     util/get_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc get_hedeby_proc_default_opt_args { opt } {
+   global hedeby_config
+   upvar $opt opts
+
+   if { ![info exists opts(user)] } {
+      set opts(user) [get_hedeby_admin_user]
+   }
+   if { ![info exists opts(host)] } {
+      set opts(host) $hedeby_config(hedeby_master_host)
+   }
+   if { ![info exists opts(system_name)] } {
+      set opts(system_name) [get_hedeby_system_name]
+   }
+   if { ![info exists opts(pref_type)] } {
+      set opts(pref_type) [get_hedeby_pref_type]
+   }
+   if { ![info exists opts(raise_error)] } {
+      set opts(raise_error) 1
+   }
+
+   return
+}
+
+#****** util/get_hedeby_proc_opt_arg() ******************************************
+#  NAME
+#     get_hedeby_proc_opt_arg() -- mix user and default optional procedure arguments
+#
+#  SYNOPSIS
+#     get_hedeby_proc_opt_arg { user_opt opt } {
+#
+#  FUNCTION
+#     This procedure should be used in any hedeby function that uses optional
+#     arguments. It takes the user specified options in user_opt and returns in
+#     opt all options by mixing the user and default options.
+#
+#     An option given by a user overwrites any of the default options. The
+#     following paragraph shows the precedence rules in detail.
+#
+#     Precedence of options:
+#       1) User options in user_opt (highest)
+#       2) Function defaults (set by the calling function) handed in via opt
+#       3) Global defaults set via get_hedeby_proc_default_opt_args()
+#
+#     An error is logged with ts_log_severe if a user_opt tries to set an
+#     unkown option (not part of function or global defaults). This is done to
+#     catch typoes in option names.
+#
+#  INPUTS
+#     user_opt - name of the opts array given by user (2 levels up),
+#                this variable is only read and remains unchanged
+#
+#     opt      - name of the output array to store the default values in
+#
+#  RESULT
+#     opt array set with default values. Any options in user_opt OVERWRITE default values.
+#
+#     See get_hedeby_proc_default_opt_args() for default values.
+#
+#  EXAMPLE
+#     proc hedeby_procedure { req_opt1 req_opt2 {opt ""} } {
+#        
+#        # set function default values
+#        set opts(my_own_arg) "my_own_default_value"
+#        get_hedeby_proc_opt_arg $opt opts
+#
+#        # do something, using e.g. $opts(user) or $opts(host) or $opts(my_own_arg)
+#
+#        return
+#     }
+#
+#  NOTES
+#     General notes for the optional argument passing:
+#
+#     The idea is to have a mechanism (by convention) in TCL to use optional
+#     named arguments for procedures. This is useful for all procedures that
+#     use a standard set of default parameters (see get_hedeby_proc_default_opt_args())
+#     and/or have a big number of optional parameters.
+#
+#     The procedures can still have a number of required positional arguments,
+#     these should come first. The array with the optional named arguments is
+#     ALWAYS the last parameter.
+#
+#     The documentation must contain a description of all function-specific
+#     optional arguments. There should be a link to the default optional
+#     arguments description. Any speciality like a not (or differently) used
+#     default optional argument MUST be documented explicitly.
+#
+#     All function-specific optional arguments must have their default values
+#     set in the function before the call to get_hedeby_proc_opt_arg, see
+#     example above.
+#
+#     This mechanism is not introduced in a big bang change but gradually.
+#     Existing procedures that could benefit from optional argument passing are
+#     not changed directly. Instead a thin wrapper with the suffix _opt (to
+#     disambiguate) is created that calls the original procedure (see e.g.
+#     sdmadm_command and sdmadm_command_opt). New procedures can of course use
+#     the new convention directly and don't need two versions (nor the suffix).
+#
+#  SEE ALSO
+#     util/get_hedeby_proc_default_opt_args()
+#     util/copy_hedeby_proc_opt_arg()
+#     util/copy_hedeby_proc_opt_arg_exclude()
+#*******************************************************************************
+proc get_hedeby_proc_opt_arg { user_opt opt } {
+   global hedeby_config
+   upvar $opt opts
+   get_hedeby_proc_default_opt_args opts
+
+   if { $user_opt != "" } {
+      # go up 2 level as this function is called 
+      upvar 2 $user_opt user_opts
+   } else {
+      # no user opts, so return default values
+      return
+   }
+
+   foreach opt_name [array names user_opts] {
+      if { [info exists opts($opt_name)] } {
+         set opts($opt_name) $user_opts($opt_name)
+      } else {
+         ts_log_severe "Error in get_hedeby_proc_opt_arg:\
+               Unkown optional argument '$opt_name' with value '$user_opts($opt_name)' found.\
+               Maybe you mistyped an optional argument name?"
+      }
+   }
+
+   ts_log_finest [format_array opts]
+
+   return
+}
+
+#****** util/copy_hedeby_proc_opt_arg() ******************************************
+#  NAME
+#     copy_hedeby_proc_opt_arg() -- copy optional arguments
+#
+#  SYNOPSIS
+#     copy_hedeby_proc_opt_arg { old_opts new_opts { copy_what "all" } }
+#
+#  FUNCTION
+#     This is a helper function for optional named argument passing, see
+#     get_hedeby_proc_opt_arg().
+#
+#     Copy old_opts to new_opts (both TCL arrays).
+#
+#     The parameter copy_what controls which elements (key-value pairs) are
+#     copied. By default, all elements are copied. Single or multiple keys can
+#     be given as well, only the given keys will be copied. The key "default"
+#     has a special meaning, see below.
+#
+#     This function is useful when a function with optional named arguments is
+#     calling another function with optional named arguments - and some of the
+#     arguments should be reused in the call. It is NOT ALWAYS possible to
+#     simply hand through the options to the called function, as
+#     get_hedeby_proc_opt_arg() does not allow unused surplus options. Then a
+#     copy of the options can be created with this function.
+#
+#     The function copy_hedeby_proc_opt_arg_exclude() has similar
+#     functionality, see there.
+#
+#  INPUTS
+#     old_opts  - options to copy from (name of TCL array)
+#     new_opts  - options to copy to (name of TCL array) - contents are deleted first
+#     copy_what - which keys to copy from old_opts to new_opts (TCL list)
+#                 (default: all keys)
+#                 special value "default" is replaced by all the keys defined
+#                 by get_hedeby_proc_default_opt_args(). This can be used in
+#                 conjunction with other keys.
+#
+#  RESULT
+#     copy of old_opts is in array new_opts, no return value
+#
+#  EXAMPLE
+#     ## in a function using optional named argument passing:
+#     # set function default values
+#     set opts(key1) "val1"
+#     set opts(key2) "val2"
+#     get_hedeby_proc_opt_arg $opt opts
+#
+#     # opts now contains key1 and key2, plus the default keys: host, user, raise_error, system_name and pref_type
+#     copy_hedeby_proc_opt_arg opts new_opts                ;# new_opts is a 100% copy of opts
+#     copy_hedeby_proc_opt_arg opts new_opts "default"      ;# new_opts contains: host, user, raise_error, system_name, pref_type
+#     copy_hedeby_proc_opt_arg opts new_opts "default key2" ;# new_opts contains: key2, host, user, raise_error, system_name, pref_type
+#     copy_hedeby_proc_opt_arg opts new_opts "key2 default" ;# new_opts contains: key2, host, user, raise_error, system_name, pref_type (equivalent)
+#     copy_hedeby_proc_opt_arg opts new_opts "key1 user"    ;# new_opts contains: key1, user
+#
+#     # and call some other function with the new options
+#     some_other_function_opt $param1 $param2 new_opts
+#
+#  SEE ALSO
+#     util/get_hedeby_proc_opt_arg()
+#     util/get_hedeby_proc_default_opt_args()
+#     util/copy_hedeby_proc_opt_arg_exclude()
+#*******************************************************************************
+proc copy_hedeby_proc_opt_arg { old_opts new_opts { copy_what "all" } } {
+   upvar $old_opts old
+   upvar $new_opts new
+
+   # delete new options
+   unset -nocomplain new
+
+   # set up key_list according to copy_what
+   if { $copy_what == "all" } {
+      set key_list [array names old]
+   } elseif { [set idx [lsearch $copy_what "default"]] >= 0 } {
+      # replace default value with keys from get_hedeby_proc_default_opt_args()
+      get_hedeby_proc_default_opt_args def_opts
+      set key_list [lreplace $copy_what $idx $idx [array names def_opts]]
+      set key_list [join $key_list] ;# flatten list as the lreplace introduced a sub-list
+   } else {
+      set key_list $copy_what
+   }
+
+   foreach key $key_list {
+      set new($key) $old($key)
+   }
+
+   ts_log_finest [format_array new]
+   return
+}
+
+#****** util/copy_hedeby_proc_opt_arg_exclude() ******************************************
+#  NAME
+#     copy_hedeby_proc_opt_arg_exclude() -- copy optional arguments, excluding some keys
+#
+#  SYNOPSIS
+#     copy_hedeby_proc_opt_arg_exclude { old_opts new_opts { exclude_what "" } }
+#
+#  FUNCTION
+#     This is a helper function for optional named argument passing, see
+#     get_hedeby_proc_opt_arg().
+#
+#     Copy old_opts to new_opts (both TCL arrays), excluding some keys.
+#
+#     The parameter exclude_what controls which elements (key-value pairs) are
+#     NOT copied. By default, all elements are copied. Single or multiple keys can
+#     be given: these keys will be excluded, i.e. NOT copied.
+#
+#     This function is useful when a function with optional named arguments is
+#     calling another function with optional named arguments - and some of the
+#     arguments should be reused in the call. It is NOT ALWAYS possible to
+#     simply hand through the options to the called function, as
+#     get_hedeby_proc_opt_arg() does not allow unused surplus options. Then a
+#     copy of the options can be created with this function.
+#
+#     The function copy_hedeby_proc_opt_arg() has similar functionality, see
+#     there.
+#
+#  INPUTS
+#     old_opts     - options to copy from (name of TCL array)
+#     new_opts     - options to copy to (name of TCL array) - contents are deleted first
+#     exclude_what - which keys NOT to copy from old_opts to new_opts (TCL list)
+#                    (default: all keys)
+#
+#  RESULT
+#     copy of old_opts is in array new_opts, no return value
+#
+#  EXAMPLE
+#     ## in a function using optional named argument passing:
+#     # set function default values
+#     set opts(key1) "val1"
+#     set opts(key2) "val2"
+#     get_hedeby_proc_opt_arg $opt opts
+#
+#     # opts now contains key1 and key2, plus the default keys: host, user, raise_error, system_name and pref_type
+#     copy_hedeby_proc_opt_arg_exclude opts new_opts             ;# new_opts is a 100% copy of opts
+#     copy_hedeby_proc_opt_arg_exclude opts new_opts "key1"      ;# new_opts contains: key2, host, user, raise_error, system_name, pref_type
+#     copy_hedeby_proc_opt_arg_exclude opts new_opts "key2 host" ;# new_opts contains: key1, user, raise_error, system_name, pref_type
+#     copy_hedeby_proc_opt_arg_exclude opts new_opts "host key2" ;# new_opts contains: key1, user, raise_error, system_name, pref_type
+#
+#     # and call some other function with the new options
+#     some_other_function_opt $param1 $param2 new_opts
+#
+#  SEE ALSO
+#     util/get_hedeby_proc_opt_arg()
+#     util/get_hedeby_proc_default_opt_args()
+#     util/copy_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc copy_hedeby_proc_opt_arg_exclude { old_opts new_opts { exclude_what "" } } {
+   upvar $old_opts old
+   upvar $new_opts new
+
+   # delete new options
+   unset -nocomplain new
+
+   # copy all old keys ...
+   foreach key [array names old] {
+      if { [lsearch -exact $exclude_what $key] >= 0 } {
+         # ... excluding the keys in exclude_what
+         continue
+      }
+      set new($key) $old($key)
+   }
+
+   ts_log_finest [format_array new]
+   return
+}
