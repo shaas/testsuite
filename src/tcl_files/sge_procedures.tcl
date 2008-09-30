@@ -372,7 +372,8 @@ proc set_qmaster_spool_dir {spool_dir} {
 #
 #     "new-interactive-job-support": Examines if the current GE release has the
 #                                    new interactive job support enabled.
-#                      
+#     "scheduler-thread":            Returns true if current GE release has the
+#                                    scheduler implemented as thread in qmaster.
 #
 #  RESULT
 #     true or false if feature string is valid, "unsupported" on error
@@ -395,6 +396,14 @@ proc ge_has_feature { feature } {
          if {$ts_config(gridengine_version) < 62 ||
              [is_61AR]                           ||
              $CHECK_INTERACTIVE_TRANSPORT == "rtools" } {
+            set result false
+         } else {
+            set result true
+         }
+      }
+      "scheduler-thread" {
+         if {$ts_config(gridengine_version) < 62 ||
+             [is_61AR]                           } {
             set result false
          } else {
             set result true
@@ -6395,7 +6404,7 @@ proc are_master_and_scheduler_running { hostname qmaster_spool_dir } {
 proc shutdown_master_and_scheduler {hostname qmaster_spool_dir} {
    get_current_cluster_config_array ts_config
 
-   if {$ts_config(gridengine_version) < 62 || [is_61AR]} {
+   if {[ge_has_feature "scheduler-thread"] == false} {
       shutdown_scheduler $hostname $qmaster_spool_dir
    }
    shutdown_qmaster $hostname $qmaster_spool_dir

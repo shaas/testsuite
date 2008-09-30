@@ -2954,6 +2954,10 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
 #     file_procedures/wait_for_remote_file()
 #*******************************************************************************
 proc is_remote_file { hostname user path {be_quiet 0} } {
+   if {$path == ""} {
+      ts_log_severe "got no path parameter!"
+      return 0;
+   }
    set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0]
    if { $prg_exit_state == 0 } {
       if {$be_quiet == 0} {

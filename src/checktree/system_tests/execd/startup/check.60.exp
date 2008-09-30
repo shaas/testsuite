@@ -156,10 +156,10 @@ proc startup_execd_test1 {} {
          ts_log_severe "can't find \"$CL_RETVAL_BIND_SOCKET\" output in:\n$output"
       }
 
-      if { $run_time <= 35 } {
-         ts_log_fine "==> Starttime is below 35 seconds. OK."
+      if { $run_time <= 45 } {
+         ts_log_fine "==> Starttime is below 45 seconds. OK."
       } else {
-         ts_log_severe "Starting up execd took $run_time ( > 35 seconds)"
+         ts_log_severe "Starting up execd took $run_time ( > 45 seconds)"
       }
 
       if { $line_count <= 5 } {
@@ -225,7 +225,7 @@ proc startup_execd_test1 {} {
 
       shutdown_system_daemon $ts_config(master_host) "qmaster"
       shutdown_system_daemon $hostname "execd"
-      
+
       set start_time [timestamp]
       ts_log_fine "Starting execd on host $hostname (on SGE_EXECD_PORT=$execd_port) ..."
       set remote_arch [ resolve_arch $hostname ]

@@ -1,0 +1,247 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "host_test_init_level"
+
+# define test's name and run level descriptions
+set check_name            "host_test"
+set check_category        "TESTSUITE VERIFIED"
+set check_highest_level   0
+set check_description(0)  "test testsuite host configuration setup"
+
+
+# define test's dependencies
+set check_needs           "" 
+
+# setup and cleanup functions
+set check_setup_level_function host_test_level_setup
+set check_cleanup_level_function host_test_level_cleanup
+
+
+# define test's procedure order
+set check_functions "host_test_test"
+
+
+proc host_test_init_level {} {
+   global CHECK_ACT_LEVEL
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0
+      } 
+   } 
+   return -1  ;# no other level 
+}
+
+
+
+
+# -------- local test procedures: initialization------------------------------
+
+
+proc host_test_level_setup {} {
+   ts_log_fine "setup ..."
+}
+
+proc host_test_level_cleanup {} {
+   ts_log_fine "cleanup ..."
+}
+
+#****** testsuite/host_test_test() **********************************************
+#  NAME
+#     host_test_test() -- test TS host configuration values
+#
+#  SYNOPSIS
+#     host_test_test { } 
+#
+#  FUNCTION
+#     This procedure tests all used host for its configured ts_host_config
+#     settings.
+#
+#  INPUTS
+#
+#  NOTES
+#     Currently only expect and java14, java15 and java16 values are checked
+#
+#  BUGS
+#     TODO: Test other host parameters also
+#
+#*******************************************************************************
+proc host_test_test {} {
+   global ts_host_config
+   global ts_config
+   global CHECK_USER
+   ts_log_fine "host test ..."
+
+   set test_hosts [gethostname]
+   foreach host [get_all_hosts] {
+      if {[lsearch -exact $test_hosts $host] < 0} {
+         lappend test_hosts $host
+      }
+   }
+   if {[lsearch -exact $test_hosts $ts_config(mailx_host)] < 0} {
+      lappend test_hosts $ts_config(mailx_host)
+   }
+
+   #foreach host $ts_host_config(hostlist) {
+   #   ts_log_fine "testing host $host"
+   #}
+
+   # set test_hosts $ts_host_config(hostlist)
+
+   set not_checked_params {}
+   set checked_params {}
+   set error_text ""
+   set is_first true
+   set expect_version ""
+   foreach host $test_hosts {
+      ts_log_fine "testing host $host"
+      set params [host_config_get_host_parameters]
+      foreach param $params {
+         set is_checked false
+         ts_log_finer "parameter \"$param\" ..."
+         switch -exact $param {
+            "expect" {
+               set is_checked true
+               if {[is_remote_file $host $CHECK_USER $ts_host_config($host,$param)] == 0} {
+                  append error_text "host \"$host\" expect binary \"$ts_host_config($host,$param)\" not available!\n"
+               } else {
+                  ts_log_fine "found expect binary \"$ts_host_config($host,$param)\" on host \"$host\""
+                  set version [start_remote_prog $host $CHECK_USER $ts_host_config($host,$param) "-version"]
+                  set version [string trim $version]
+                  if {$prg_exit_state != 0} {
+                     append error_text "host \"$host\" \"$ts_host_config($host,$param) -version\" exit code not 0!\n"
+                  } else {
+                     ts_log_fine "Expect version: $version"
+                     if {$expect_version == ""} {
+                        set expect_version $version
+                     }
+                     if {$expect_version != $version} {
+                        ts_log_config "host \"$host\" \"$ts_host_config($host,$param) -version\" does not return version \"$expect_version\", but \"$version\"!"
+                     }
+                  }
+               }
+            }
+            "java14" {
+               set is_checked true
+               if {$ts_host_config($host,$param) != ""} {
+                  if {[is_remote_file $host $CHECK_USER $ts_host_config($host,$param)] == 0} {
+                     append error_text "host \"$host\" java14 binary \"$ts_host_config($host,$param)\" not available!\n"
+                  } else {
+                     ts_log_fine "found java14 binary \"$ts_host_config($host,$param)\" on host \"$host\""
+                     set version [start_remote_prog $host $CHECK_USER $ts_host_config($host,$param) "-version"]
+                     if {$prg_exit_state != 0} {
+                        append error_text "host \"$host\" \"$ts_host_config($host,$param) -version\" exit code not 0!\n"
+                     } else {
+                        ts_log_fine "java14 version: $version"
+                        if {![string match "*1.4*" $version]} {
+                           append error_text "host \"$host\" \"$ts_host_config($host,$param)\" seems not to be Java 1.4:\n$version\n"
+                        }
+                     }
+                  }
+               }
+            }
+            "java15" {
+               set is_checked true
+               if {$ts_host_config($host,$param) != ""} {
+                  if {[is_remote_file $host $CHECK_USER $ts_host_config($host,$param)] == 0} {
+                     append error_text "host \"$host\" java15 binary \"$ts_host_config($host,$param)\" not available!\n"
+                  } else {
+                     ts_log_fine "found java15 binary \"$ts_host_config($host,$param)\" on host \"$host\""
+                     set version [start_remote_prog $host $CHECK_USER $ts_host_config($host,$param) "-version"]
+                     if {$prg_exit_state != 0} {
+                        append error_text "host \"$host\" \"$ts_host_config($host,$param) -version\" exit code not 0!\n"
+                     } else {
+                        ts_log_fine "java15 version: $version"
+                        if {![string match "*1.5*" $version]} {
+                           append error_text "host \"$host\" \"$ts_host_config($host,$param)\" seems not to be Java 1.5:\n$version\n"
+                        }
+                     }
+                  }
+               }
+            }
+            "java16" {
+               set is_checked true
+               if {$ts_host_config($host,$param) != ""} {
+                  if {[is_remote_file $host $CHECK_USER $ts_host_config($host,$param)] == 0} {
+                     append error_text "host \"$host\" java16 binary \"$ts_host_config($host,$param)\" not available!\n"
+                  } else {
+                     ts_log_fine "found java16 binary \"$ts_host_config($host,$param)\" on host \"$host\""
+                     set version [start_remote_prog $host $CHECK_USER $ts_host_config($host,$param) "-version"]
+                     if {$prg_exit_state != 0} {
+                        append error_text "host \"$host\" \"$ts_host_config($host,$param) -version\" exit code not 0!\n"
+                     } else {
+                        ts_log_fine "java16 version: $version"
+                        if {![string match "*1.6*" $version]} {
+                           append error_text "host \"$host\" \"$ts_host_config($host,$param)\" seems not to be Java 1.6:\n$version\n"
+                        }
+                     }
+                  }
+               }
+            }
+            default {
+            }
+         }
+         if {$is_first == true} {
+            if {$is_checked == false} {
+               lappend not_checked_params $param
+            } else {
+               lappend checked_params $param
+            }
+         }
+      }
+      set is_first false
+   }
+   ts_log_fine "checked params: $checked_params"
+   ts_log_fine "not checked params: $not_checked_params"
+   if {$error_text != ""} {
+      ts_log_severe $error_text
+   }
+}
+
+
