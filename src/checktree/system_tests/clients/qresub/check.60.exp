@@ -53,7 +53,12 @@ set check_cleanup_function "qresub_cleanup"
 
 # define test's procedure order
 set check_functions ""
-lappend check_functions "qresub_issue_2726"   ;# functions to call (in order)
+lappend check_functions "qresub_minus_help_option"
+lappend check_functions "qresub_issue_2726" 
+lappend check_functions "qresub_minus_h_o_option"
+lappend check_functions "qresub_minus_h_u_option"
+lappend check_functions "qresub_minus_h_s_option"
+lappend check_functions "qresub_check_permissions"
 
 proc qresub_init_level {} {
    global CHECK_ACT_LEVEL
@@ -68,22 +73,340 @@ proc qresub_init_level {} {
 }
 
 proc qresub_setup {} {
+   global ts_user_config
    global qresub_host qresub_queue
+   global nonadmin_user 
+   global operator
 
    set qresub_host  [host_conf_get_suited_hosts]
    set qresub_queue [get_queue_instance "all.q" $qresub_host]
+
+   set nonadmin_user $ts_user_config(first_foreign_user)
+
+   # create an operator 
+   ts_log_fine "adding $ts_user_config(second_foreign_user) as operator"
+   if {[add_operator $ts_user_config(second_foreign_user)] != 0} {
+      ts_log_severe "Unable to add operator $ts_user_config(second_foreign_user)"
+   }
+
+   set operator $ts_user_config(second_foreign_user)
+
 }
 
 proc qresub_cleanup {} {
+   global operator   
+   global ts_user_config
+ 
    delete_all_jobs
    wait_for_end_of_all_jobs
+
+   # delete operator
+   if {[delete_operator $ts_user_config(second_foreign_user)] != 0} {
+      ts_log_severe "Unable to delete operator $ts_user_config(second_foreign_user)"
+   }
+
 }
+
+
+
+#****** check.60/qresub_minus_h_u_option() *************************************
+#  NAME
+#     qresub_minus_h_u_option() -- Checks -h u option. 
+#
+#  SYNOPSIS
+#     qresub_minus_h_u_option { } 
+#
+#  FUNCTION
+#     Checks -h u option. 
+#
+#*******************************************************************************
+proc qresub_minus_h_u_option { } {
+   global ts_config
+   global nonadmin_user
+   
+   # -h | -h {u|s|o|n|U|O|S}...
+
+   # `u'  denotes a user hold.
+
+   # submit job with a user hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host) $nonadmin_user]
+
+   # resubmit job with a user hold  
+   set ret [resubmit_job "-h u $job_id" 0 60 $ts_config(master_host) $nonadmin_user]
+
+   if {$ret != 3 && $ret != 1} {
+      ts_log_severe "resubmission of job $job_id with user hold (-h u) was not possible ($ret)!"
+      return 
+   }
+
+   # delete user hold 
+   set option "-h u"
+   ts_log_fine "release user hold as non admin user $nonadmin_user for job $job_id"
+   set qalterresult [start_sge_bin "qrls" "$option $job_id" $ts_config(master_host) $nonadmin_user]
+   if {$prg_exit_state != 0} {
+      ts_log_severe "qrls $option as non admin user failed:\n$qalterresult"
+      return
+   }
+   
+   delete_all_jobs
+}
+
+
+#****** check.60/qresub_minus_h_s_option() *************************************
+#  NAME
+#     qresub_minus_h_s_option() -- Checks qresub -h s option. 
+#
+#  SYNOPSIS
+#     qresub_minus_h_s_option { } 
+#
+#  FUNCTION
+#     Checks qresub -h s option. 
+#
+#*******************************************************************************
+proc qresub_minus_h_s_option { } {
+   global ts_config
+   global nonadmin_user
+   global operator
+
+   # `s'  denotes a system hold.
+
+   # ------------------------------------------------------------------
+   # resub with system hold should not be allowed for the nonadmin_user 
+   # ------------------------------------------------------------------
+
+   # submit job with a user hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host) $nonadmin_user]
+
+   # resubmit job with a system hold  
+   set ret [resubmit_job "-h s $job_id" 0 60 $ts_config(master_host) $nonadmin_user]
+
+   # expect that the resubmitting user has manager privileges 
+   if {$ret != -5} {
+      ts_log_severe "resubmission of job $job_id with system hold (-h s) was possible for non manager!"
+      return 
+   } else {
+      ts_log_fine "Ok! It is not allowed to set a system hold for non manager user!"
+   }
+
+   # --------------------------------------------------------------------------------------
+   # resub with system hold should be allowed for the default user, because he is a manager 
+   # --------------------------------------------------------------------------------------
+
+   # submit job with a user hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host)]
+
+   # resubmit job with a system hold  
+   set ret [resubmit_job "-h s $job_id" 0 60 $ts_config(master_host)]
+
+   # expect that the resubmitting user has manager privileges 
+   if {$ret != 1 && $ret != 3} {
+      ts_log_severe "resubmission of job $job_id with system hold (-h s) was not possible for manager ($ret)!"
+      return 
+   } else {
+      ts_log_fine "Ok! It is allowed to set a system hold for manager!"
+   }
+
+   # ---------------------------------------------------------------------------------
+   # resub with system hold should not be allowed for the operator, only for a manager 
+   # ---------------------------------------------------------------------------------
+
+   # submit job with a user hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host) $operator]
+
+   # resubmit job with a system hold  
+   set ret [resubmit_job "-h s $job_id" 0 60 $ts_config(master_host) $operator]
+
+   # expect that the resubmitting user has manager privileges 
+   if {$ret != -5} {
+      ts_log_severe "resubmission of job $job_id with system hold (-h s) was possible for operator ($ret)!"
+      return 
+   } else {
+      ts_log_fine "Ok! It is not allowed to set a system hold for an operator!"
+   }
+
+   delete_all_jobs
+}
+
+#****** check.60/qresub_minus_h_o_option() *************************************
+#  NAME
+#     qresub_minus_h_o_option() -- Checks qresub -h o option. 
+#
+#  SYNOPSIS
+#     qresub_minus_h_o_option { } 
+#
+#  FUNCTION
+#     Checks qresub -h o option.  
+#
+#*******************************************************************************
+proc qresub_minus_h_o_option { } {
+   global ts_config
+   global nonadmin_user
+   global operator
+
+   # `o'  denotes an operator hold.
+   # --------------------------------------------------------------------
+   # resub with operator hold should not be allowed for the nonadmin_user 
+   # --------------------------------------------------------------------
+
+   # submit job with an operator hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host) $nonadmin_user]
+
+   # resubmit job with an operator hold  
+   set ret [resubmit_job "-h o $job_id" 0 60 $ts_config(master_host) $nonadmin_user]
+
+   # expect that the resubmitting user has no operator privileges 
+   if {$ret != -4} {
+      ts_log_severe "resubmission of job $job_id with operator hold (-h o) was possible but user is not operator!"
+      return 
+   }
+
+   # ----------------------------------------------------------------------------------------
+   # resub with operator hold should be allowed for the default user, because he is a manager 
+   # ----------------------------------------------------------------------------------------
+
+   # submit job with a user hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host)]
+
+   # resubmit job with a operator hold  
+   set ret [resubmit_job "-h o $job_id" 0 60 $ts_config(master_host)]
+
+   # expect that the resubmitting user has manager privileges 
+   if {$ret != 1 && $ret != 3} {
+      ts_log_severe "resubmission of job $job_id with system hold (-h o) was not possible for manager ($ret)!"
+      return 
+   } else {
+      ts_log_fine "Ok! It is allowed to set a system hold for operator!"
+   }
+
+   # ----------------------------------------------------------------
+   # resub with operator hold should be allowed for the operator user 
+   # ----------------------------------------------------------------
+
+   # submit job with a user hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host) $operator]
+
+   # resubmit job with a operator hold  
+   set ret [resubmit_job "-h o $job_id" 0 60 $ts_config(master_host) $operator]
+
+   # expect that the resubmitting user has operator privileges 
+   if {$ret != 1 && $ret != 3} {
+      ts_log_severe "resubmission of job $job_id with system hold (-h o) was not possible for operator ($ret)!"
+      return 
+   } else {
+      ts_log_fine "Ok! It is allowed to set a system hold for operator!"
+   }
+
+   delete_all_jobs
+}
+
+#****** check.60/qresub_minus_help_option() ************************************
+#  NAME
+#     qresub_minus_help_option() -- ??? 
+#
+#  SYNOPSIS
+#     qresub_minus_help_option { } 
+#
+#  FUNCTION
+#     Checks if -help has return code 0 and qresub "with no option" has 
+#     return code 1. Checks if usage message is printed when submitting 
+#     with no option.
+#
+#*******************************************************************************
+proc qresub_minus_help_option { } {
+   global ts_config
+   global nonadmin_user
+   
+   set ret [resubmit_job "-help"]
+   if { $ret != 2 } {
+      ts_log_severe "Error code from qresub -help was: $ret"
+   }
+   
+   # check return code
+   set output [start_sge_bin "qresub" "-help" $ts_config(master_host) $nonadmin_user]
+   
+   if { $prg_exit_state != 0 } {
+      ts_log_severe "The return code of qresub -help was not 0 ($prg_exit_state)!"
+   }  
+   
+   # check return code
+   set output_no_option [start_sge_bin "qresub" "" $ts_config(master_host) $nonadmin_user]
+   
+   if { $prg_exit_state != 1 } {
+      ts_log_severe "The return code of qresub with no further option was not 1 ($prg_exit_state)!"
+   }  
+   
+   # check if qresub with no option print help output 
+   if { [string first $output $output_no_option] == -1 } {
+      ts_log_severe "qresub without option didn't return the same help message as qresub -help"
+   }
+   
+   delete_all_jobs
+}
+
+
+#****** check.60/qresub_check_permissions() ************************************
+#  NAME
+#     qresub_check_permissions() -- Checks if permissions are taken into account 
+#     when resubmitting user jobs. 
+#
+#  SYNOPSIS
+#     qresub_check_permissions { } 
+#
+#  FUNCTION
+#     Checks that only managers can resubmit user jobs.  
+#
+#*******************************************************************************
+proc qresub_check_permissions { } {
+   global ts_config
+   global ts_user_config
+   global nonadmin_user
+   global operator
+
+   # -----------------------------------------------
+   # submit as nonadmin_user and resubmit as manager  
+   # -----------------------------------------------
+   
+   # submit job with a user hold
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host) $nonadmin_user]
+
+   # resubmit job as current user (manager)  
+   set ret [resubmit_job "$job_id" 0 60 $ts_config(master_host)]
+
+   # expect that the resubmitting user has manager privileges 
+   if {$ret != 1 && $ret != 3} {
+      ts_log_severe "resubmission of job $job_id from user $nonadmin_user was not possible for manager/current user ($ret)!"
+      return 
+   } else {
+      ts_log_fine "Ok! It is allowed to resub a job from another as manager!"
+   }
+
+   # -------------------------------------------------------
+   # submit as nonadmin_user and resubmit as nonadmin_user_2  
+   # -> has to fail
+   # -------------------------------------------------------
+
+   # submit job with a user hold as current user
+   set job_id [submit_job "-o /dev/null -e /dev/null -h -b y sleep 2000" 1 60 $ts_config(master_host)]
+
+   # resubmit job as first_foreign_user 
+   set ret [resubmit_job "$job_id" 0 60 $ts_config(master_host) $ts_user_config(first_foreign_user)]
+
+   # expect that the resubmitting user has operator privileges 
+   if {$ret != 1 && $ret != 3} {
+      ts_log_fine "resubmission of own job $job_id was not possible for other normal user ($ret)!"
+      return 
+   } else {
+      ts_log_severe "resubmission of own job $job_id from another user was possible - this should not be allowed!"
+   }
+
+   delete_all_jobs
+}   
 
 #                                                             max. column:     |
 #****** qresub/qresub_issue_2726 ******
 # 
 #  NAME
-#     qresub_issue_2726 -- ??? 
+#     qresub_issue_2726 -- Check if DB_NOTFOUND is in output message.  
 #
 #  SYNOPSIS
 #     qresub_issue_2726 { } 
@@ -95,16 +418,17 @@ proc qresub_cleanup {} {
 proc qresub_issue_2726 { } {
    global ts_config
    global qresub_queue
+   global nonadmin_user
 
    # This jobs has to be long enough to survive the starting of the next jobs
-   set job_id [submit_job "-o /dev/null -e /dev/null -q $qresub_queue -b y sleep 2"]
+   set job_id [submit_job "-o /dev/null -e /dev/null -q $qresub_queue -b y sleep 2" 1 60 $ts_config(master_host) $nonadmin_user]
    if {$job_id < 0 } {
       ts_log_warning "Couldn't submit a binary sleeper job!"
       return
    }
    
    # Do a qresub 
-   set output [start_sge_bin "qresub" "$job_id"]
+   set output [start_sge_bin "qresub" "$job_id" $ts_config(master_host) $nonadmin_user]
    
    if {[string first "DB_NOTFOUND" $output] != -1} {
       # this is bug "qresub on -b y jobs raises wrong error condition"
@@ -116,6 +440,5 @@ proc qresub_issue_2726 { } {
    }
 
    delete_all_jobs
-   wait_for_end_of_all_jobs
 }
 

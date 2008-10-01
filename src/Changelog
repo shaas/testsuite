@@ -1,3 +1,7 @@
+DG-2008-10-01-0: Enhancem.: Qresub functional test added.
+                 Issue:     243
+                 Review:    CR
+
 CR-2008-10-01-0: Bugfix:    fixed get_home_dir_path()
                  Review:    JG
 

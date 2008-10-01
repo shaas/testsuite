@@ -4579,6 +4579,62 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    return $ret_code
 }
 
+
+#****** sge_procedures/resubmit_job() ******************************************
+#  NAME
+#     resubmit_job() -- Resubmit a job and scan the output for macros.
+#
+#  SYNOPSIS
+#     resubmit_job { args {raise_error 1} {submit_timeout 60} {host ""} 
+#     {user ""} {show_args 1} } 
+#
+#  FUNCTION
+#     ??? 
+#
+#  INPUTS
+#     args                - qresub arguments 
+#     {raise_error 1}     - see submit_job 
+#     {submit_timeout 60} - see submit_job 
+#     {host ""}           - see submit_job
+#     {user ""}           - see submit_job
+#     {show_args 1}       - see submit_job
+#
+#  RESULT
+#      1 - output message "job has been submitted" found
+#      2 - usage string (the help) in output found
+#      3 - job could successfully be submitted
+#      -1 - unknown hold list option 
+#      -2 - invalid job task id found
+#      -3 - job does not exist
+#      -4 - user must have operator privileges
+#      -5 - user must have manager privileges 
+#
+#  SEE ALSO
+#     sge_procedures/submit_job() 
+#*******************************************************************************
+proc resubmit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {show_args 1}} {
+   
+   # job was submitted  
+   add_message_to_container messages 1 [translate_macro MSG_QSUB_YOURJOBHASBEENSUBMITTED_SS "*" "*"]
+   add_message_to_container messages 2 [translate_macro MSG_GDI_USAGE_USAGESTRING "qresub"]
+   add_message_to_container messages 3 [translate_macro MSG_JOB_SUBMITJOB_US "*" "*"]
+
+   # modied hold 
+   add_message_to_container messages -1 [translate_macro MSG_PARSE_UNKNOWNHOLDLISTXSPECTOHOPTION_S "*"]
+   add_message_to_container messages -2 [translate_macro MSG_JOB_XISINVALIDJOBTASKID_S "*"]   
+   add_message_to_container messages -3 [translate_macro MSG_ERROR_JOBDOESNOTEXIST]
+
+   # when modification is not allowed because of needed manager/operator rights 
+   add_message_to_container messages -4 [translate_macro MSG_SGETEXT_MUST_BE_OPR_TO_SS "*" "*"]
+   add_message_to_container messages -5 [translate_macro MSG_SGETEXT_MUST_BE_MGR_TO_SS "*" "*"]
+ 
+   # process 
+   set output [start_sge_bin "qresub" $args $host $user prg_exit_state $submit_timeout]
+
+   return [handle_sge_errors "resubmit_job" "qresub $args" $output messages $raise_error]
+} 
+
+
 #****** sge_procedures/submit_job_parse_job_id() *******************************
 #  NAME
 #     submit_job_parse_job_id() -- parse job id from qsub output
