@@ -575,8 +575,12 @@ proc get_home_dir_path {user {host ""}} {
       set exec_host $host
    }
    ts_log_finest "getting home dir for user $user on host $exec_host ..."
-   set home_dir [start_remote_prog $exec_host $user "cd" " ; pwd" prg_exit_state 60 0 "" "" 1 0]
+   set home_dir [start_remote_prog $exec_host $user "echo" "\$HOME" prg_exit_state 60 0 "" "" 1 0]
    set home_dir [string trim $home_dir]
+   if {$home_dir == "" || $prg_exit_state != 0} {
+      set home_dir [start_remote_prog $exec_host $user "cd" " ; pwd" prg_exit_state 60 0 "" "" 1 0]
+      set home_dir [string trim $home_dir]
+   }
    ts_log_finest "home dir is \"$home_dir\""
    if {[is_remote_path $exec_host $user $home_dir]} {
       return $home_dir

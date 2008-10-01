@@ -1,3 +1,6 @@
+CR-2008-10-01-0: Bugfix:    fixed get_home_dir_path()
+                 Review:    JG
+
 EB-2008-09-30-0: Bugfix:    "Enforced Job Deletion" test sometimes failed, when
                             shutdown of execd took to long on certain hosts.
                             Added additional test for batch job.
