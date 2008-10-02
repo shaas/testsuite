@@ -1,3 +1,6 @@
+RD-2008-10-02-0: Bugfix:    fixed qmaster/spooling test
+                 Review:    CR
+
 DG-2008-10-01-0: Enhancem.: Qresub functional test added.
                  Issue:     243
                  Review:    CR
