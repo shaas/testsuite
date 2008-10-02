@@ -1,3 +1,6 @@
+MG-2008-10-02-0: Bugfix:    Hedeby test issue_551 fails.
+                 Review:    MB
+
 RD-2008-10-02-0: Bugfix:    fixed qmaster/spooling test
                  Review:    CR
 

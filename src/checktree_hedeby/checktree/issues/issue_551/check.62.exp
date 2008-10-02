@@ -191,11 +191,9 @@ proc hedeby_issue551_check {} {
    set host $service_names(master_host,$ge_adapter)
    
    #add MaxPendingJobs slo to the configuration of the ge adapter
-   set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" 1]
-   set fixed_usage_slo [create_fixed_usage_slo 50 "fixed_usage"]
+   set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" "" "" 1]
    set slos {}
    lappend slos $max_pending_jobs_slo
-   lappend slos $fixed_usage_slo
    if {[set_service_slos "mod_config" $service $slos 1 "minutes" 1] != 0} {
       append error_text "Setting slos for service \"$service\" failed!"
    }
