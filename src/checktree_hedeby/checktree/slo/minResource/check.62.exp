@@ -287,12 +287,12 @@ proc min_resource_check {} {
    if {[get_resource_info] == 0} {
       foreach res [get_all_default_hedeby_resources] {
          set osName   $res_prop($res,operatingSystemName)
-         set isStatic false
+         set isStatic "false"
          if {$res_info($res,flags) == "S"} {
-            set isStatic true
+            set isStatic "true"
          }
          ts_log_fine "resource \"$res\" has operatingSystemName=$osName (isStatic=$isStatic)"
-         if {$isStatic == false} {
+         if {$isStatic == "false"} {
             lappend movable_resource_list $res
             if {[info exists available_archs($osName)] == 0} {
                set available_archs($osName) {}
