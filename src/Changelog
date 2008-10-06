@@ -1,3 +1,8 @@
+JG-2008-10-06-0: Enhancem.: Do testsuite locking on the results directory
+                            instead of on the testsuite source directory.
+                            Some cleanup.
+                 Review:    CR
+
 JF-2008-10-06-0: Enhancem.:  New test for testsuite. SGE issue 2582.
                  Review:     LP
 

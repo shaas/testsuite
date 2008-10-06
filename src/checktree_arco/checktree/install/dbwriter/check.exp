@@ -1,8 +1,4 @@
 #!/vol2/TCL_TK/glinux/bin/expect
-# global variables ... (defined in main check routine, but you can use it)
-#
-# gloabl CHECK_ACTUAL_TEST_PATH  ;# this directory
-# global CHECK_USER              ;# user who start test
 #___INFO__MARK_BEGIN__
 ##########################################################################
 #

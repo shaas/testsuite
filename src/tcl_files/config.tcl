@@ -1787,7 +1787,6 @@ proc config_check_host_in_hostlist {hostlist { first_host ""} } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_testsuite_root_dir { only_check name config_array } {
-   global CHECK_TESTSUITE_LOCKFILE
    global CHECK_USER
    global CHECK_GROUP
    global env fast_setup
@@ -1812,7 +1811,6 @@ proc config_testsuite_root_dir { only_check name config_array } {
    }
 
    # set global variables to value
-   set CHECK_TESTSUITE_LOCKFILE "$value/testsuite_lockfile"
 
    if {[catch {set CHECK_USER [set env(USER)] }] != 0} {
       set CHECK_USER [file attributes $value/check.exp -owner]
@@ -2143,6 +2141,7 @@ proc config_additional_config { only_check name config_array } {
 #     check/verify_config()
 #*******************************************************************************
 proc config_results_dir { only_check name config_array } {
+   global CHECK_TESTSUITE_LOCKFILE
    global CHECK_MAIN_RESULTS_DIR
    global CHECK_PROTOCOL_DIR
    global CHECK_JOB_OUTPUT_DIR
@@ -2180,6 +2179,7 @@ proc config_results_dir { only_check name config_array } {
    set CHECK_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$local_host.completed"
    set CHECK_BAD_RESULT_DIR "$CHECK_MAIN_RESULTS_DIR/$local_host.uncompleted"
    set CHECK_REPORT_FILE "$CHECK_MAIN_RESULTS_DIR/$local_host.report"
+   set CHECK_TESTSUITE_LOCKFILE "$value/testsuite_lockfile"
  
    if {[file isdirectory "$CHECK_RESULT_DIR"] != 1} {
         file mkdir "$CHECK_RESULT_DIR"

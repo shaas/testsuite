@@ -67,7 +67,7 @@ proc migration_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 {
          return 0
       }
    }
@@ -76,8 +76,17 @@ proc migration_init_level {} {
 }
 
 proc migration_setup {} {
+   global ts_config CHECK_PROTOCOL_DIR
    global checkpoint_hosts checkpoint_host1 checkpoint_host2 q1 q2 q3 q4
    global migration_pe_name migration_ckpt_name checkpoint_job_id
+   global migration_dir
+
+   # setup a working directory for the test
+   set migration_dir "$CHECK_PROTOCOL_DIR/migration"
+   if {[remote_file_isdirectory $ts_config(master_host) $migration_dir]} {
+      remote_delete_directory $ts_config(master_host) $migration_dir
+   }
+   remote_file_mkdir $ts_config(master_host) $migration_dir
 
    set checkpoint_hosts [host_conf_get_suited_hosts 2]
    set checkpoint_host1 [lindex $checkpoint_hosts 0]
@@ -95,12 +104,20 @@ proc migration_setup {} {
 }
 
 proc migration_cleanup {} {
+   global ts_config
+   global migration_dir
+
    delete_all_jobs
    wait_for_end_of_all_jobs
 
    clean_up_checkpointing
    clean_up_pe
    clean_up_queues
+
+   # cleanup the working directory
+   if {[remote_file_isdirectory $ts_config(master_host) $migration_dir]} {
+      remote_delete_directory $ts_config(master_host) $migration_dir
+   }
 }
 proc calendardisable_queue { queue_list } {
    set return_value [mqattr "calendar" "always_disabled" "$queue_list"]
@@ -129,23 +146,24 @@ proc threshold_suspend_queue_clear { queue_list } {
 
 
 proc start_checkpoint_job {} {
-   global CHECK_ACTUAL_TEST_PATH checkpoint_job_id
+   global CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id migration_dir
    
    if {[check_test_dependencies] != 0} {
       return
    }
 
    # delete migratewascalled - file
-   file delete $CHECK_ACTUAL_TEST_PATH/migratewascalled
+   delete_file $migration_dir/migratewascalled 0
 
-   set jobargs "-pe ckpt_mig_pe 2 -cwd -ckpt ckpt_mig_ckptobj checkpt_job.sh"
-   set result [submit_job $jobargs 1 30 "" "" $CHECK_ACTUAL_TEST_PATH]
+   set jobargs "-pe ckpt_mig_pe 2 -cwd -ckpt ckpt_mig_ckptobj $CHECK_ACTUAL_TEST_PATH/checkpt_job.sh"
+   set result [submit_job $jobargs 1 30 "" "" $migration_dir]
    set checkpoint_job_id $result 
    set result [wait_for_jobstart $checkpoint_job_id "DEMO" 300]
 }
 
 proc check_slave_migration {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id migration_dir
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -162,13 +180,13 @@ proc check_slave_migration {} {
    suspend_queue $slave_queue
 
    # wait for migration command
-   wait_for_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled" 120
+   wait_for_file "$migration_dir/migratewascalled" 120
 
    # wait for job to get in pending state
    wait_for_jobpending $checkpoint_job_id "DEMO" 120
 
    # delete migratewascalled - file
-   delete_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled"
+   delete_file "$migration_dir/migratewascalled"
 
    # now unsuspend queue again
    unsuspend_queue $slave_queue
@@ -208,7 +226,7 @@ proc check_slave_migration {} {
 #     ???/???
 #*******************************
 proc check_calendardisable_migration_on_slavequeue_suspend {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH q1 q2
+   global checkpoint_job_id migration_dir q1 q2
    global all_queue_list ckpt_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -226,12 +244,12 @@ proc check_calendardisable_migration_on_slavequeue_suspend {} {
    # now suspend the slave queue
    suspend_queue $slave_queue
 
-   wait_for_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled" 300
+   wait_for_file "$migration_dir/migratewascalled" 300
 
    wait_for_jobpending $checkpoint_job_id "DEMO" 300
 
    # delete migratewascalled - file
-   delete_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled"
+   delete_file "$migration_dir/migratewascalled"
 
    # now unsuspend queue again
    unsuspend_queue $slave_queue
@@ -272,7 +290,7 @@ proc check_calendardisable_migration_on_slavequeue_suspend {} {
 #     ???/???
 #*******************************
 proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH q1 q2
+   global checkpoint_job_id migration_dir q1 q2
    global all_queue_list ckpt_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -293,12 +311,12 @@ proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
   
    # now threshold suspend the slave queue
    threshold_suspend_queue $slave_queue
-   wait_for_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled" 300
+   wait_for_file "$migration_dir/migratewascalled" 300
 
    wait_for_jobpending $checkpoint_job_id "DEMO" 300
 
    # delete migratewascalled - file
-   delete_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled"
+   delete_file "$migration_dir/migratewascalled"
 
    # now unsuspend queue again
    threshold_suspend_queue_clear $slave_queue
@@ -340,7 +358,7 @@ proc check_calendardisable_migration_on_slavequeue_threshold_suspend {} {
 #     ???/???
 #*******************************
 proc check_master_migration {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id migration_dir
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -357,13 +375,13 @@ proc check_master_migration {} {
    suspend_queue $master_queue
 
    # wait for migration command
-   wait_for_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled" 300
+   wait_for_file "$migration_dir/migratewascalled" 300
 
    # check if job is now pending
    set wasok [wait_for_jobpending $checkpoint_job_id "DEMO" 300] 
 
    # delete migratewascalled - file
-   delete_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled"
+   delete_file "$migration_dir/migratewascalled"
 
    # now unsuspend queue again
    unsuspend_queue $master_queue
@@ -403,7 +421,7 @@ proc check_master_migration {} {
 #     ???/???
 #*******************************
 proc check_calendarsuspend_master_migration {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id migration_dir
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -420,13 +438,13 @@ proc check_calendarsuspend_master_migration {} {
    calendarsuspend_queue $master_queue
    
    # wait for migration command
-   wait_for_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled" 300
+   wait_for_file "$migration_dir/migratewascalled" 300
 
    # check if job is now pending
    wait_for_jobpending $checkpoint_job_id "DEMO" 300
 
    # delete migratewascalled - file
-   delete_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled"
+   delete_file "$migration_dir/migratewascalled"
 
    # now calendar un-suspend the master queue
    calendarclear_queue $master_queue
@@ -466,7 +484,7 @@ proc check_calendarsuspend_master_migration {} {
 #     ???/???
 #*******************************
 proc check_calendarsuspend_slave_migration {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id migration_dir
    global all_queue_list
 
    if {[check_test_dependencies] != 0} {
@@ -484,13 +502,13 @@ proc check_calendarsuspend_slave_migration {} {
    calendarsuspend_queue $slave_queue
    
    # wait for migration command
-   wait_for_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled" 300
+   wait_for_file "$migration_dir/migratewascalled" 300
 
    # check if job is now pending
    wait_for_jobpending $checkpoint_job_id "DEMO" 300
 
    # delete migratewascalled - file
-   delete_file "$CHECK_ACTUAL_TEST_PATH/migratewascalled"
+   delete_file "$migration_dir/migratewascalled"
 
    # now calendar un-suspend the slave queue
    mqattr "calendar" "NONE" $slave_queue
@@ -531,7 +549,7 @@ proc check_calendarsuspend_slave_migration {} {
 #     ???/???
 #*******************************
 proc clean_up_checkpoint_job {} {
-   global checkpoint_job_id CHECK_ACTUAL_TEST_PATH
+   global checkpoint_job_id migration_dir
 
    if {[check_test_dependencies] != 0} {
       return
@@ -554,7 +572,7 @@ proc clean_up_checkpoint_job {} {
       return
    }
 
-   set files [glob -nocomplain $CHECK_ACTUAL_TEST_PATH/DEMO.*] 
+   set files [glob -nocomplain $migration_dir/DEMO.*] 
   
    foreach elem $files { 
       delete_file $elem

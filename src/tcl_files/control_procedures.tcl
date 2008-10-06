@@ -45,7 +45,7 @@ proc update_change_array { target_array change_array } {
    if [info exists chgar] {
       foreach elem [array names chgar] {
          set value [set chgar($elem)]
-         ts_log_fine "attribute \"$elem\" will be set to \"$value\""
+         ts_log_finer "attribute \"$elem\" will be set to \"$value\""
          set target($elem) $value
       }
    }
