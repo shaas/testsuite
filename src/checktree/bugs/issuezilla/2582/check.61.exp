@@ -1,0 +1,148 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name
+global check_category
+global check_description
+global check_needs
+global check_functions
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2582_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2582"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0
+set check_description(0)  "qmod does not follow admin host rules"
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system"
+
+# setup and cleanup functions
+set check_setup_function issue_2582_setup
+set check_cleanup_function issue_2582_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "issue_2582_test1"
+
+proc issue_2582_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc issue_2582_setup {} {
+   global cluster_host non_cluster_host
+
+   # test hosts
+   set cluster_host [host_conf_get_suited_hosts]
+   set non_cluster_host [host_conf_get_unused_host]
+}
+
+proc issue_2582_cleanup {} {
+   global cluster_host non_cluster_host
+
+   # unset our test's global variables
+   foreach var "cluster_host non_cluster_host" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+proc issue_2582_test1 {} {
+   global CHECK_ACT_LEVEL
+   global cluster_host non_cluster_host
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      ts_log_fine "this is the test for runlevel $CHECK_ACT_LEVEL"
+
+      # execution "qmod -d all.q@cluster_host_xy from non_cluster_host as a root"
+      ts_log_fine "executing qmod -d all.q@$cluster_host from $non_cluster_host as a root"
+      set result [start_sge_bin "qmod" "-d all.q@$cluster_host" "$non_cluster_host" "root"]
+      ts_log_fine "$result"
+      if {$prg_exit_state == 0} {
+         ts_log_severe "qmod should have failed"
+         start_sge_bin "qmod" "-e all.q@$cluster_host" "$non_cluster_host" "root"
+      } else {
+         ts_log_fine "qmod have failed as expected"
+      }
+
+      # execution "qmod -help -d all.q@cluster_host_xy from non_cluster_host as a root"
+      ts_log_fine "executing qmod -help -d all.q@$cluster_host from $non_cluster_host as a root"
+      set result [start_sge_bin "qmod" "-help -d all.q@$cluster_host" "$non_cluster_host" "root"]
+      if {$prg_exit_state == 0} {
+         ts_log_severe "qmod should have failed"
+         start_sge_bin "qmod" "-e all.q@$cluster_host" "$non_cluster_host" "root"
+      } else {
+         ts_log_fine "qmod have failed as expected"
+      }
+
+      # execution "qmod -help from non_cluster_host as a root"
+      ts_log_fine "executing qmod -help from $non_cluster_host as a root"
+      set result [start_sge_bin "qmod" "-help" "$non_cluster_host" "root"]
+      if {$prg_exit_state == 0} {
+         ts_log_fine "qmod was successful"
+      } else {
+         ts_log_severe "qmod have failed"
+      }
+
+      # execution "qmod -d all.q@cluster_host_xy from cluster_host as a root"
+      ts_log_fine "executing qmod -d all.q@$cluster_host from $cluster_host as a root"
+      set result [start_sge_bin "qmod" "-d all.q@$cluster_host" "$cluster_host" "root"]
+      ts_log_fine "$result"
+      if {$prg_exit_state == 0} {
+         ts_log_fine "qmod was successful"
+         start_sge_bin "qmod" "-e all.q@$cluster_host" "$cluster_host" "root"
+      } else {
+         ts_log_severe "qmod have failed"
+      }
+   }
+}
