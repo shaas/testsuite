@@ -1,3 +1,6 @@
+TB-2008-10-07-0: Enhancem.: o new helper function tcl_util/pick_random()
+                 Review:    CR
+
 JG-2008-10-06-0: Enhancem.: Do testsuite locking on the results directory
                             instead of on the testsuite source directory.
                             Some cleanup.

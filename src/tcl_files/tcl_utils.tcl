@@ -116,3 +116,62 @@ proc format_array { a { with_header 1 } } {
    return $ret
 }
 
+#****** tcl_utils/pick_random() ******************************************
+#  NAME
+#     pick_random() -- picks random elements from a list
+#
+#  SYNOPSIS
+#     pick_random { alist { how_many 1 } } {
+#
+#  FUNCTION
+#     This procedure selects one or more random elements from the alist TCL
+#     list. The parameter how_many determines how many elements are returned.
+#
+#     This procedure never returns the same element twice, so if how_many is
+#     equal to the size of alist then all elements of alist are returned
+#     (though the order of the elements may have changed).
+#
+#     In case how_many > [llength alist] an empty string is returned and an
+#     error is logged with ts_log_severe.
+#
+#  INPUTS
+#     alist          - TCL list from which to pick the random element(s)
+#     { how_many 1 } - how many elements to pick (default: 1)
+#
+#  RESULT
+#     A TCL list containing the random element(s).
+#
+#  EXAMPLE
+#     set mylist {host1 host2}
+#
+#     set random_element [pick_random $mylist]    ;# "host1"       or "host2" 
+#     set random_list    [pick_random $mylist 2]  ;# "host1 host2" or "host2 host1"
+#
+#  NOTE
+#     The chosen implementation is not the most performant solution. If you are
+#     planning to do calls like [pick_random alist 10000] then think about
+#     reimplementing this procedure!
+#*******************************************************************************
+proc pick_random { alist { how_many 1 } } {
+   set len [llength $alist]
+
+   if { $how_many > $len } {
+      ts_log_severe "Cannot pick $how_many elements. The list '$alist' only contains $len elements!"
+      return ""
+   }
+
+   set ret {}
+   unset -nocomplain picked ;# stores the indices of values that have been picked already
+
+   while { $how_many > 0 } {
+      set rnd [expr {int(rand()*$len)}]
+
+      if { ![info exists picked($rnd)] } {
+         set picked($rnd) 1
+         lappend ret [lindex $alist $rnd]
+         incr how_many -1
+      }
+   }
+
+   return $ret
+}
