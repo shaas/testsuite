@@ -6680,6 +6680,53 @@ proc hedeby_mod_setup { host execute_user sdmadm_arguments error_log } {
    return $ispid
 }
 
+#****** util/hedeby_mod_setup_opt() **************************************************
+#  NAME
+#     hedeby_mod_setup_opt() -- startup hedeby (vi) modification sdmadm command
+#
+#  SYNOPSIS
+#     hedeby_mod_setup_opt { sdmadm_arguments error_log {opt ""} } {
+#
+#  FUNCTION
+#     This procedure is the optional argument passing version of
+#     hedeby_mod_setup(). For a description of the command, see there.
+#
+#     The global sdmadm parameter -s and -p are taken from opt(system_name) and
+#     opt(pref_type) and are automatically added to the sdmadm_arguments.
+#
+#  INPUTS
+#     sdmadm_arguments   - argument line for sdmadm command
+#     error_log          - name of variable to store error messages
+#
+#     opt                - optional named arguments, see get_hedeby_proc_default_opt_args()
+#     opt(system_name)   - if "" then no -s parameter is added to the sdmadm_arguments
+#     opt(pref_type)     - if "" then no -p parameter is added to the sdmadm_arguments
+#
+#  RESULT
+#     internal spawn id array (returned from open_remote_spawn_process())
+#
+#  SEE ALSO
+#     util/hedeby_mod_setup()
+#     util/hedeby_mod_sequence()
+#     util/hedeby_mod_cleanup()
+#     util/get_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc hedeby_mod_setup_opt { sdmadm_arguments error_log {opt ""} } {
+   upvar $error_log error
+
+   get_hedeby_proc_opt_arg opt opts
+
+   # add preference type and system name to command line when != ""
+   if { $opts(pref_type) != "" } {
+      set sdmadm_arguments "-p $opts(pref_type) $sdmadm_arguments"
+   }
+   if { $opts(system_name) != "" } {
+      set sdmadm_arguments "-s $opts(system_name) $sdmadm_arguments"
+   }
+
+   return [hedeby_mod_setup $opts(host) $opts(user) $sdmadm_arguments error]
+}
+
 #****** util/hedeby_mod_sequence() *********************************************
 #  NAME
 #     hedeby_mod_sequence() -- send vi mod sequences to open vi
