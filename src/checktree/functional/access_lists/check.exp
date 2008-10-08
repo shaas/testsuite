@@ -68,12 +68,13 @@ lappend check_functions "access_lists_exec_host"
 lappend check_functions "access_lists_queue"
 lappend check_functions "access_lists_cluster_config"
 lappend check_functions "access_lists_pe"
+lappend check_functions "access_lists_qalter_prj"
 
 proc access_lists_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 {
          return 0
       }
    }
@@ -136,13 +137,46 @@ proc access_lists_setup  {} {
       }
    }
 
-   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15"  
+   # setup a project with acl
+   set prj(acl) "userA_name"
+   add_project "aclprj" prj
+
+   # run a test job
+   set jobargs "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15"
    set id [submit_job $jobargs]
    wait_for_jobstart $id "leeper" 60 1 1
    wait_for_jobend $id "leeper" 60 0
 
    if {[string first "unknown" $CHECK_GROUP] >= 0} {
       ts_log_severe "CHECK_GROUP set to unknown"
+   }
+}
+
+proc access_lists_cleanup {} {
+   global ts_config
+   global access_lists_queue
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   reset_schedd_config
+
+   # delete the test queue
+   del_queue $access_lists_queue "" 0 1
+
+   # delete the test project
+   del_project "aclprj"
+
+   # now remove lists
+   del_access_list "userA_group"
+   del_access_list "userB_group"
+   del_access_list "userA_name"
+   del_access_list "userB_name"
+
+   
+   # enable all.q
+   foreach host $ts_config(execd_nodes) {
+      enable_queue [get_queue_instance "all.q" $host]
    }
 }
 
@@ -930,30 +964,53 @@ proc access_lists_pe {} {
 }
 
 
-proc access_lists_cleanup {} {
+#****** check/access_lists_qalter_prj() ****************************************
+#  NAME
+#     access_lists_qalter_prj() -- check iz 2737
+#
+#  SYNOPSIS
+#     access_lists_qalter_prj { } 
+#
+#  FUNCTION
+#     Checks following scenario:
+#     A job is submitted with hold.
+#     qalter is then used to attach a project to the job,
+#     to which the job owner has no access.
+#     The qalter request has to be rejected, the job may not
+#     get the project attached.
+#     This is Issue 2737.
+#*******************************************************************************
+proc access_lists_qalter_prj {} {
    global ts_config
-   global access_lists_queue
+   global CHECK_SECOND_FOREIGN_SYSTEM_USER
 
-   delete_all_jobs
-   wait_for_end_of_all_jobs
-
-   reset_schedd_config
-
-   # delete the test queue
-   del_queue $access_lists_queue "" 0 1
-
-   #Now remove lists
-   del_access_list "userA_group"
-   del_access_list "userB_group"
-   del_access_list "userA_name"
-   del_access_list "userB_name"
-
-   
-   # enable all.q
-   foreach host $ts_config(execd_nodes) {
-      enable_queue [get_queue_instance "all.q" $host]
+   # submit a job in hold
+   set jobargs "-h -o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 15"
+   set job_id [submit_job $jobargs 1 60 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER]
+   if {$job_id <= 0} {
+      # error has been raised in submit_job
+      return
    }
+
+   # qalter it to access a project it doesn't have access to due to ACL
+   set output [start_sge_bin "qalter" "-P aclprj $job_id"]
+   # qalter should fail
+   if {$prg_exit_state == 0} {
+      ts_log_severe "qalter should have failed, but returned 0:\n$output"
+   } else {
+      set expected [translate_macro "MSG_SGETEXT_NO_ACCESS2PRJ4USER_SS" "aclprj" $CHECK_SECOND_FOREIGN_SYSTEM_USER]
+      if {[string first $expected $output] < 0} {
+         ts_log_severe "qalter should have reported\n$expected\nbut output was\n$output"
+      }
+   }
+
+   # job may not have a project
+   get_qstat_j_info $job_id
+   if {[info exists qstat_j_info(project)]} {
+      ts_log_severe "job shouldn't have a project, but qstat -j outputs as project:\n$qstat_j_info(project)"
+   }
+
+   # cleanup
+   delete_job $job_id 1 1
 }
-
-
 
