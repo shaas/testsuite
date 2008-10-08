@@ -4579,6 +4579,43 @@ proc submit_job {args {raise_error 1} {submit_timeout 60} {host ""} {user ""} {c
    return $ret_code
 }
 
+#****** sge_procedures/quick_submit_job() ******
+# 
+#  NAME
+#     quick_submit_job -- submit a job, quick version
+#
+#  SYNOPSIS
+#     quick_submit_job {args {host ""} {user ""}}
+#
+#  FUNCTION
+#     This procedure will submit a job.
+#     Minimal error handling (only checking return code of qsub)0
+#     makes it faster than submit_job.
+#
+#  INPUTS
+#     args                - a string of qsub arguments/parameters
+#     {host ""}           - host on which to execute qsub (default is to use
+#                           various hosts (see host_conf_get_suited_hosts))
+#     {user ""}           - user who shall submit job (default $CHECK_USER)
+#
+#  RESULT
+#     1: job submission succeeded
+#     0: job submission failed. An error will be created containing the
+#        qsub error output.
+#
+#  SEE ALSO
+#     sge_procedures/submit_job()
+#*******************************************************************************
+proc quick_submit_job {args {host ""} {user ""}} {
+   set output [start_sge_bin "qsub" $args $host $user]
+
+   if {$prg_exit_state != 0} {
+      ts_log_severe "qsub $args failed:\n$output"
+      return 0
+   }
+
+   return 1
+}
 
 #****** sge_procedures/resubmit_job() ******************************************
 #  NAME

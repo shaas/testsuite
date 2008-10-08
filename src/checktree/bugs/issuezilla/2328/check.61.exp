@@ -92,16 +92,18 @@ proc issue_2328_setup {} {
    set_complex tmp_complex
    
    # Modify the scheduler configuration.
-   # increase the scheduler interval to make it schedule
-   # "on demand" via qconf -tsm (trigger_scheduling)
+   # increase the scheduler interval to be able to monitor
+   # a specific scheduling run (the *first* one after enabling queues),
+   # without using qconf -tsm (which has a too high performance overhead
+   # by writing to schedd_runlog).
    set mysched_config(params) "PROFILE=true"
    set mysched_config(max_reservation) "1000"
-   set mysched_config(schedule_interval) "0:2:0"
+   set mysched_config(schedule_interval) "0:0:30"
    mod_schedd_config mysched_config
 
    # Modify the global cluster 
    set my_cluster_conf(complex_values) "F001=100,F002=100,F003=100,F004=100,F005=100,\
-                     F006=100,F007=100,F008=100,F009=100,F0010=100"
+                                        F006=100,F007=100,F008=100,F009=100,F0010=100"
    set_config my_cluster_conf "global"
 
    # Set up 80 queues for 5 hosts - 400 queues
@@ -151,12 +153,11 @@ proc issue_2328_cleanup {} {
    del_rqs "perf_rqs" 
 
    # Delete all the new queues we created earlier
-   # We do it here so as not to affect the rest of qsub tests.
    for {set queue_counter 1} {$queue_counter <= $max_queue_count} {incr queue_counter} {
       del_queue "qsub_ts$queue_counter.q" "" 1 1
    }
 
-   # Delete the  5 projects
+   # Delete the 5 projects
    for {set prj_counter 1} {$prj_counter <= 5} {incr prj_counter} {
       del_prj "Project$prj_counter"
    }
@@ -192,7 +193,7 @@ proc issue_2328_cleanup {} {
 #  
 #   1. qmod -d "*"
 #
-#   2.  Submit 1000 jobs like this
+#   2. Submit 1000 jobs like this
 # 
 #    for i=1-10
 #      for j=1-5
@@ -234,37 +235,48 @@ proc issue_2328 {} {
    }
 
    set i_max 10
+   set j_max 5
    set k_max 20
 
-   # Submit the jobs now: i to 10, j to 5, k to 20
+   # Submit the jobs now:
+   #    i to 10 (F001..F010),
+   #    j to 5 (Project1..Project5), 
+   #    k to 20 (20 similar jobs each)
    # do submission on the master host and hope it is fastest there
+   ts_log_fine "submitting [expr $i_max * $j_max * $k_max] jobs"
+   set common_args "-R y -o /dev/null -j y -b y /bin/sleep 5"
    for {set i 1} { $i <= $i_max} {incr i} {
-      for {set j 1} { $j <= 5} {incr j} {
+      for {set j 1} { $j <= $j_max} {incr j} {
          for {set k 1} { $k <= $k_max} {incr k} {
-            submit_job "-R y -P Project$j -l F00$i=1 -b y /bin/sleep 5" 1 30 $ts_config(master_host)
+            if {![quick_submit_job "-P Project$j -l F00$i=1 $common_args" $ts_config(master_host)]} {
+               # error has been raised in quick_submit_job
+               # no point in continuing with not all jobs submitted
+               return
+            }
          }
       }
    }
-  
-   # trigger scheduling now to start a new scheduling interval
-   # and thus preventing scheduling before we tail -f on its
-   # messages file 
-   trigger_scheduling
+
+   # tail -f schedd messages file
+   set pattern_scheduled_in "scheduled in"
+   set pattern_schedd_run_took "schedd run took"
+   init_logfile_wait $ts_config(master_host) $sched_messg_file
+
+   # wait for the end of a scheduling run,
+   # then we have 30 seconds time to enable the queues
+   # until the next schedd run starts
+   set result [logfile_wait $pattern_schedd_run_took 60 0]
 
    # Enable all queues now
    ts_log_fine "enable queues now ..."
    set qmod_result [start_sge_bin "qmod" "-e '*'"]
    if {$prg_exit_state != 0} {
       ts_log_severe "enabling all queues failed:\n$qmod_result"
+      return
    }
 
-   # tail -f schedd reporting file
-   set pattern "job dispatching"
-   init_logfile_wait $ts_config(master_host) $sched_messg_file
-
-   # trigger scheduling and wait for dispatching time
-   trigger_scheduling
-   set result [logfile_wait $pattern 200 0]
+   # wait for the next scheduling run and for the scheduling time
+   set result [logfile_wait $pattern_scheduled_in 230 0]
 
    # shutdown tail -f
    close_logfile_wait
@@ -272,8 +284,8 @@ proc issue_2328 {} {
    # find dispatching time in output
    set dispatching_time -1
    foreach line [split $result "\n"] {
-      if {[string first $pattern $line] >= 0} {
-         set dispatching_time [lindex $line 5]
+      if {[string first $pattern_scheduled_in $line] >= 0} {
+         set dispatching_time [lindex $line 4]
          break
       }
    }
