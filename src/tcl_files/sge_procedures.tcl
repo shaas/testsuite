@@ -388,7 +388,7 @@ proc set_qmaster_spool_dir {spool_dir} {
 #  SEE ALSO
 #     sge_procedures/ge_has_feature()
 #*******************************************************************************
-proc ge_has_feature { feature } {
+proc ge_has_feature {feature {quiet 0}} {
    global CHECK_INTERACTIVE_TRANSPORT
    get_current_cluster_config_array ts_config
    switch -exact $feature {
@@ -415,14 +415,16 @@ proc ge_has_feature { feature } {
       }
    }
 
-   ts_log_fine "**********************************************************************"
-   ts_log_fine "* Test depends on availability of a feature!"   
-   if {$result == false} {
-      ts_log_fine "* Feature \"$feature\" is NOT supported!"
-   } else {
-      ts_log_fine "* Feature \"$feature\" is supported!"
+   if {!$quiet} {
+      ts_log_fine "**********************************************************************"
+      ts_log_fine "* Test depends on availability of a feature!"   
+      if {$result == false} {
+         ts_log_fine "* Feature \"$feature\" is NOT supported!"
+      } else {
+         ts_log_fine "* Feature \"$feature\" is supported!"
+      }
+      ts_log_fine "**********************************************************************"
    }
-   ts_log_fine "**********************************************************************"
    return $result
 }
 

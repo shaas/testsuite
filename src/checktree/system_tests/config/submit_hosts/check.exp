@@ -68,48 +68,58 @@ lappend check_functions "submit_hosts_test"
 global submit_hosts_use_local_conf
 
 proc submit_hosts_init_level {} {
-  global CHECK_ACT_LEVEL
-  global submit_hosts_use_local_conf
+   global CHECK_ACT_LEVEL
+   global submit_hosts_use_local_conf
 
-  switch -- $CHECK_ACT_LEVEL {
-     "0" { set submit_hosts_use_local_conf 0 ; return 0  } 
-     "1" { set submit_hosts_use_local_conf 1 ; return 0  }
-  } 
-  return -1  ;# no other level else
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         set submit_hosts_use_local_conf 0
+         return 0
+      }
+      1 {
+         if {![ge_has_feature "new-interactive-job-support" 1]} {
+            set submit_hosts_use_local_conf 1
+            return 0
+         }
+      }
+   }
+
+   return -1  ;# no other level else
 }
 
 # -------- local test procedures -----------------------------------------------
-
-
 
 proc submit_hosts_setup {} {
    global ts_config
    global CHECK_JOB_OUTPUT_DIR
    global submit_hosts_use_local_conf
 
-   if { $ts_config(submit_only_hosts) != "none" } {
-      foreach submit_host $ts_config(submit_only_hosts) { 
+   # foreach submit host
+   # - remove submit host property
+   # - runlevel 0: delete the global config
+   # - runlevel 1: set a rsh wrapper script in local config
+   #   this does not work with the new interactive job support!
+   if {$ts_config(submit_only_hosts) != "none"} {
+      foreach submit_host $ts_config(submit_only_hosts) {
          set result [start_sge_bin "qconf" "-ds $submit_host"]
-         ts_log_fine "$result"
+         ts_log_fine $result
 
-         if { $submit_hosts_use_local_conf != 0 } {
+         if {$submit_hosts_use_local_conf != 0} {
             set used_arch [resolve_arch $submit_host]
             ts_log_fine "generating submit script for host $submit_host"
             create_shell_script $CHECK_JOB_OUTPUT_DIR/rsh_${submit_host}.sh $submit_host "echo" "WRAPPER_SCRIPT ; $ts_config(product_root)/utilbin/$used_arch/rsh \$\*"
             ts_log_fine "generating local cluster configuration for host $submit_host"
             set new_conf(rsh_command) "$CHECK_JOB_OUTPUT_DIR/rsh_${submit_host}.sh"
             set_config new_conf $submit_host 1
-            ts_log_fine "setup done"
          } else {
             ts_log_fine "removing local cluster configuration for host $submit_host"
             set result [start_sge_bin "qconf" "-dconf $submit_host"]
-            ts_log_fine "$result"
+            ts_log_fine $result
          }
       }
    } else {
       ts_log_fine "no submithosts defined!"
    }
-   ts_log_fine "done"
 }
 
 proc submit_hosts_cleanup {} {
@@ -120,13 +130,17 @@ proc submit_hosts_cleanup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
-   if { $ts_config(submit_only_hosts) != "none" } {
+   # foreach submit host:
+   # - remove submit host property
+   # - remove local config, cleanup wrapper script
+   if {$ts_config(submit_only_hosts) != "none"} {
       foreach submit_host $ts_config(submit_only_hosts) {
          set result [start_sge_bin "qconf" "-ds $submit_host"]
-         ts_log_fine "$result"
+         ts_log_fine $result
+
          ts_log_fine "removing local cluster configuration for host $submit_host"
          set result [start_sge_bin "qconf" "-dconf $submit_host"]
-         ts_log_fine "$result"
+         ts_log_fine $result
          file delete $CHECK_JOB_OUTPUT_DIR/rsh_${submit_host}.sh
       }
    } else {
@@ -134,7 +148,40 @@ proc submit_hosts_cleanup {} {
    }
 }
 
+proc submit_hosts_permission_check {scenario host prg_exit_state output} {
+   global ts_config
 
+   # these are the error messages we expect
+   # we use host*, in case a host resolves itself with long name, and we expect the short name
+   set NO_ADMIN_HOST [translate_macro MSG_SGETEXT_NOADMINHOST_S "$host*"]
+   set NOR_SUBMIT_OR_ADMIN_HOST [translate_macro MSG_SGETEXT_NOSUBMITORADMINHOST_S "$host*"]
+
+   # for qstat and qrsh, we expect message "no submit or admin host"
+   # for qconf "no admin host"
+   # with SGE 6.0, qconf exit code is incorrect (0) - known issue
+   switch -exact $scenario {
+      "qrsh" -
+      "qstat" {
+         set check_exit_state 1
+         set expected $NOR_SUBMIT_OR_ADMIN_HOST
+      }
+      "qconf" {
+         set expected $NO_ADMIN_HOST
+         if {$ts_config(gridengine_version) <= 60} {
+            set check_exit_state 0
+         } else {
+            set check_exit_state 1
+         }
+      }
+   }
+
+   if {($check_exit_state && $prg_exit_state == 0) || ![string match "*$expected*" $output] < 0} {
+      ts_log_severe "$scenario on host $host should have failed with error message\n$expected\nbut exit code was $prg_exit_state\nand program output was\n$output"
+      return 0
+   }
+
+   return 1
+}
 
 proc submit_hosts_test {} {
    global ts_config
@@ -147,114 +194,112 @@ proc submit_hosts_test {} {
       return
    }
 
-   set actual_id [ submit_job "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 1" ]
-   wait_for_jobend $actual_id "leeper" 30 0
- 
-   foreach submit_host $ts_config(submit_only_hosts) { 
-      ts_log_fine "testing host $submit_host"
+   # run a test job
+   set job_id [submit_job "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 1"]
+   if {[wait_for_jobend $job_id "leeper" 30 0] != 0} {
+      ts_log_severe "running a test job failed - no point in continuing"
+      return
+   }
 
-      ts_log_fine "*** step 1 on $submit_host ***"
+   # we do all following tests for each configured submit host
+   foreach submit_host $ts_config(submit_only_hosts) { 
+      ts_log_fine "testing submit host $submit_host"
+
+      ts_log_fine "*** step 1 on $submit_host: qsub ***"
       set arguments "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 20"
-      set output [ start_remote_prog $submit_host $CHECK_USER "qsub" $arguments ]
-      ts_log_fine $output
-      ts_log_fine "qsub exit state: $prg_exit_state"
-      if { $prg_exit_state == 0 } {
-         ts_log_severe "submitting on host $submit_host should not work here"
+      set job_id [submit_job $arguments 0 60 $submit_host $CHECK_USER]
+      if {$job_id != -202} {
+         ts_log_severe "submitting on host $submit_host didn't fail with expected error message."
       } 
  
-      ts_log_fine "*** step 2 on $submit_host ***"
-      set output [ start_remote_prog $submit_host $CHECK_USER "qstat" "-f" ]
-      ts_log_fine $output
-      ts_log_fine "qstat exit state: $prg_exit_state"
-      if { $prg_exit_state == 0 } {
-         ts_log_severe "qstat -f on host $submit_host should not work here"
-      }
+      ts_log_fine "*** step 2 on $submit_host: qstat ***"
+      set output [start_sge_bin "qstat" "-f" $submit_host $CHECK_USER]
+      submit_hosts_permission_check "qstat" $submit_host $prg_exit_state $output
 
-      ts_log_fine "*** step 3 on $submit_host ***"
-      set output [ start_remote_prog $submit_host $CHECK_USER "qrsh" "uname -n" ]
-      ts_log_fine $output
-      ts_log_fine "qrsh exit state: $prg_exit_state"
-      if { $prg_exit_state == 0 } {
-         ts_log_severe "qrsh on host $submit_host should not work here"
-      }
+      ts_log_fine "*** step 3 on $submit_host: qrsh ***"
+      set output [start_sge_bin "qrsh" "uname -n" $submit_host $CHECK_USER]
+      submit_hosts_permission_check "qrsh" $submit_host $prg_exit_state $output
 
-      ts_log_fine "*** step 4 on $submit_host ***"
-      set output [ start_remote_prog $submit_host $CHECK_USER "qconf" "-mconf" ]
-      ts_log_fine $output
-      ts_log_fine "qconf exit state: $prg_exit_state"
-      set NOR_SUBMIT_OR_ADMIN_HOST [ translate $ts_config(master_host) 1 0 0 [sge_macro MSG_SGETEXT_NOSUBMITORADMINHOST_S] $submit_host] 
-      if { [ string first "neither submit nor admin host" $output ] < 0 && [ string first $NOR_SUBMIT_OR_ADMIN_HOST $output ] < 0 } {
-         ts_log_severe "qconf -mconf on host $submit_host should not work here"
+      ts_log_fine "*** step 4 on $submit_host: qconf ***"
+      set output [start_sge_bin "qconf" "-am anewmanager" $submit_host $CHECK_USER]
+      if {![submit_hosts_permission_check "qconf" $submit_host $prg_exit_state $output]} {
+         start_sge_bin "qconf" "-dm anewmanager"
       }
-   } 
-  
+   }
+
+   # make sure everything is still OK - run a test job
    wait_for_end_of_all_jobs 120
-   set actual_id [ submit_job "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 1" ]
-   wait_for_jobend $actual_id "leeper" 30 0
+   set job_id [submit_job "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 1"]
+   wait_for_jobend $job_id "leeper" 30 0
 
-
+   # give all our submit only hosts submit privileges
    foreach submit_host $ts_config(submit_only_hosts) { 
-      set result [start_sge_bin "qconf" "-as $submit_host"]
-      ts_log_fine "$result"
+      set output [start_sge_bin "qconf" "-as $submit_host"]
+      if {$prg_exit_state != 0} {
+         ts_log_severe "qconf -as $submit_host failed:\n$output"
+         # no point in continuing
+         return
+      }
    }
+
+   # now test again
+   set job_ids {}
    foreach submit_host $ts_config(submit_only_hosts) { 
-      ts_log_fine "testing host $submit_host"
+      ts_log_fine "testing submit host host $submit_host"
+
+      # submit a job from each submit host
       set arguments "-o /dev/null -e /dev/null $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
-      set output [ start_remote_prog $submit_host $CHECK_USER "qsub" $arguments ]
-      ts_log_fine $output
-      ts_log_fine "qsub exit state: $prg_exit_state"
-      if { $prg_exit_state != 0 } {
-         ts_log_severe "submitting on host $submit_host doesn't work"
-      } 
+      set job_id [submit_job $arguments 1 60 $submit_host $CHECK_USER]
+      # if job submission succeeded, remember job_id for later use
+      # if submission failed, submit_job raised an error
+      if {$job_id > 0} {
+         lappend job_ids $job_id
+      }
    }
 
-
-   foreach submit_host $ts_config(submit_only_hosts) { 
-      set actual_id [ expr ( $actual_id + 1 ) ]
-      wait_for_jobstart $actual_id "leeper" 60
-      wait_for_end_of_transfer $actual_id 60
-      delete_job $actual_id
+   # once we have submitted all jobs, make sure they start running
+   foreach job_id $job_ids {
+      wait_for_jobstart $job_id "leeper" 60
+      wait_for_end_of_transfer $job_id 60
+      delete_job $job_id
    }
+
+   # test qstat, qrsh and qconf
    foreach submit_host $ts_config(submit_only_hosts) { 
       ts_log_fine "testing host $submit_host"
 
-      set output [ start_remote_prog $submit_host $CHECK_USER "qstat" "-f" ]
-      ts_log_fine $output
-      ts_log_fine "qstat exit state: $prg_exit_state"
-      if { $prg_exit_state != 0 } {
-         ts_log_severe "qstat -f on host $submit_host doesn't work"
-      } 
+      set output [start_sge_bin "qstat" "-f" $submit_host $CHECK_USER]
+      if {$prg_exit_state != 0} {
+         ts_log_severe "qstat -f on host $submit_host doesn't work:\n$output"
+      }
 
+      # qrsh to a host of every architecture
       foreach host $ts_config(unique_arch_nodes) {
-         set command_args "qrsh -l h=${host} uname -n"
-         set output [ start_remote_prog $submit_host $CHECK_USER "qrsh" "-l h=${host} uname -n" ]
-         ts_log_fine $output
-         ts_log_fine "qrsh exit state: $prg_exit_state"
-         if { $prg_exit_state != 0 } {
-            ts_log_severe "${command_args} on host $submit_host doesn't work\n$output"
+         set command_args "-l h=${host} uname -n"
+         set output [start_sge_bin "qrsh" $command_args $submit_host $CHECK_USER]
+         if {$prg_exit_state != 0} {
+            ts_log_severe "qrsh ${command_args} on host $submit_host doesn't work\n$output"
          }
-         if { $submit_hosts_use_local_conf != 0 } {
-            if { [ string first "WRAPPER_SCRIPT" $output] < 0 } {
-               ts_log_severe "${command_args} on host $submit_host did not use local configuration\n$output"
+         if {[string first $host $output] < 0} {
+            ts_log_severe "qrsh ${command_args} on host $submit_host did no \"rsh uname -n\" on host \"${host}\"\n$output"
+         }
+         if {$submit_hosts_use_local_conf} {
+            if {[string first "WRAPPER_SCRIPT" $output] < 0 } {
+               ts_log_severe "qrsh ${command_args} on host $submit_host did not use local configuration\n$output"
             }
          } else {
-            if { [ string first "WRAPPER_SCRIPT" $output] >= 0 } {
-               ts_log_severe "${command_args} on host $submit_host should not use local configuration\n$output"
+            if {[string first "WRAPPER_SCRIPT" $output] >= 0} {
+               ts_log_severe "qrsh ${command_args} on host $submit_host should not use local configuration\n$output"
             }
          }
-         if { [ string first $host $output] < 0 } {
-            ts_log_severe "${command_args} on host $submit_host did no \"rsh uname -n\" on host \"${host}\"\n$output"
-         }
       }
 
-      set output [ start_remote_prog $submit_host $CHECK_USER "qconf" "-mconf" ]
-      ts_log_fine $output
-      ts_log_fine "qconf exit state: $prg_exit_state"
-      if { $prg_exit_state == 0 } {
-         ts_log_severe "qconf -mconf on host $submit_host should only work on admin host"
+      set output [start_sge_bin "qconf" "-am anewmanager" $submit_host $CHECK_USER]
+      if {![submit_hosts_permission_check "qconf" $submit_host $prg_exit_state $output]} {
+         start_sge_bin "qconf" "-dm anewmanager"
       }
-
    }
+
    wait_for_end_of_all_jobs 120
 }
 

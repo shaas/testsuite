@@ -1,3 +1,7 @@
+JG-2008-10-10-0: Enhancem.: Cleanup and partly rewrite of
+                            system_tests/config/submit_hosts.
+                 Review:    DG
+
 JG-2008-10-08-0: Enhancem.: New check for IZ 2737 in functional/access_lists.
                  Review:    CR
 
