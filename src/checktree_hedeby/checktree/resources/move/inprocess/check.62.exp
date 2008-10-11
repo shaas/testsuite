@@ -112,9 +112,10 @@ proc inprocess_resource_assignment_check {} {
       }
       set output_message [lindex $table([lindex $table(table_columns) 1],0) 0]
       ts_log_fine "output message is: \"$output_message\""
-      set xyz(0) "$res*"
-      set xyz(1) "UNASSIGNING"
-      set expected_output [create_bundle_string "rm.mr.res_bad_state" xyz]
+      set xyz(0) "$asrv"
+      set xyz(1) "$res*"
+      set xyz(2) "UNASSIGNING"
+      set expected_output [create_bundle_string "scp.rr.ir.bs" xyz]
       ts_log_fine "expected output: \"$expected_output\""
       if {[string match "$expected_output" $output_message]} {
          ts_log_fine "output is matching!"

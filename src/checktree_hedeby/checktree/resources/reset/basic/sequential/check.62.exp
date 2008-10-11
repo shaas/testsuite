@@ -283,7 +283,7 @@ proc basic_resource_reset_sequential_check {} {
                 set exp_resource_info($resource,service) "$service_names(default_service,$resource)" 
                 set exp_resource_info($resource,state) "ASSIGNED"
                 # step 2: wait for expected resource informations
-                set retval [wait_for_resource_info exp_resource_info 60 0 rst_error]
+                set retval [wait_for_resource_info exp_resource_info 120 0 rst_error]
 
                 if { $retval != 0 } {
                   append error_text "Checking that resource was succesfully reset has failed :\n"

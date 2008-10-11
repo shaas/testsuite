@@ -42,7 +42,7 @@ global check_use_installed_system check_init_level_procedure
 set check_root_access_needs    "yes"
 set check_name                 "ca_restart_test"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
-set check_description(0)       "cs restart test"
+set check_description(0)       "ca restart test"
 set check_needs                "hedeby_install"                  
 set check_init_level_procedure "ca_restart_test_init_level"
 set check_functions            {}   
