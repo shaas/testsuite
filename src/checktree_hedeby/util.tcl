@@ -7956,21 +7956,12 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
 #     The exit state of the "sdmadm mc"
 #
 #  EXAMPLE
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
-#  SEE ALSO
-#     ???/???
+#     set execd_params(hostA,spool_dir) "/tmp/myspooldir/hostA"
+#     set execd_params(hostB,spool_dir) "/tmp/myspooldir/hostB"
+#     set_execd_install_params "ge-service1" execd_params
 #*******************************************************************************
 proc set_execd_install_params { service my_execd_install_params } {
    global hedeby_config
-   global CHECK_OUTPUT CHECK_DEBUG_LEVEL
-   global install_current_cluster_config
-   global install_user
 
    upvar $my_execd_install_params execd_install_params
    
@@ -7981,6 +7972,10 @@ proc set_execd_install_params { service my_execd_install_params } {
    
    set param_names { spool_dir install_template uninstall_template }
    
+   # store in execd_params the DIFFERENT configurations:
+   # for each host: first gather parameters, then check if the exact same
+   # parameter set already exists for a different host => simply append the
+   # host, otherwise make a new parameter set
    set execd_params(count) 0
    foreach host $managed_host_list {
       foreach param_name $param_names {
@@ -8011,7 +8006,7 @@ proc set_execd_install_params { service my_execd_install_params } {
             }
          }
          if {$matches == 1} {
-            lappend $execd_params($i,hosts) $host
+            lappend execd_params($i,hosts) $host
             set execd_params_index $i
             break
          }
@@ -8098,7 +8093,7 @@ proc set_execd_install_params { service my_execd_install_params } {
    
    # add an execd install settings for simulated hosts
    lappend sequence "<!-- =========================================================\n"
-   lappend sequence "     execd install params for simuated hosts\n"
+   lappend sequence "     execd install params for simulated hosts\n"
    lappend sequence "     =========================================================-->\n"
    
    lappend sequence "<ge_adapter:execd adminUsername=\"root\" defaultDomain=\"\" ignoreFQDN=\"true\" rcScript=\"false\" adminHost=\"false\"\n"
@@ -8122,13 +8117,7 @@ proc set_execd_install_params { service my_execd_install_params } {
    lappend sequence "[format "%c" 27]" ;# ESC
    lappend sequence ":w\n"
    
-   #global CHECK_DEBUG_LEVEL
-   #set org_debug_level $CHECK_DEBUG_LEVEL
-   #set CHECK_DEBUG_LEVEL 2
    hedeby_mod_sequence $ispid $sequence error_text
-   
-   #set CHECK_DEBUG_LEVEL $org_debug_level
-   #wait_for_enter
    
    set output [hedeby_mod_cleanup $ispid error_text]
    ts_log_fine "exit_status: $prg_exit_state"

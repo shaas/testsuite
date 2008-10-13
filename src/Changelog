@@ -1,3 +1,8 @@
+TB-2008-10-13-0: Bugfix:    Fixed bug in set_execd_install_params() used in
+                            test for hedeby issue 571
+                 Cleanup:   o hedeby issue_571: introduced context variable alias
+                 Review:    RH
+
 MB-2008-10-11-0: Bugfix:    Updated hedeby tests (because of fix of issue 544)
                  Review:    RH,AF,TB
 
