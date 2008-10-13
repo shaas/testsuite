@@ -224,7 +224,7 @@ proc with_request_filter_check {} {
 
    #prepare a request filter which will ask for a resource with dummy property
    set prop(dummy_prop$timesuffix) "{=} {dummy_value$timesuffix}"
-   set requestFilter [create_request_and_filter prop]
+   set requestFilter [create_request_filter prop]
 
    #add MaxPendingJobs slo to the configuration of the ge adapter with the request filter for dummy property
    set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" $requestFilter "" 1]

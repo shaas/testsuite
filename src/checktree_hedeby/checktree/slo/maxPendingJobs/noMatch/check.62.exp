@@ -212,7 +212,7 @@ proc no_match_check {} {
 
    #prepare a job filter which will ask for a resource with given architecture
    set prop(arch) "{=} {$job_arch}"
-   set jobFilter [create_job_and_filter prop]
+   set jobFilter [create_job_filter prop]
 
    #add MaxPendingJobs slo to the configuration of the ge adapter with the job filter for specific architecture
    set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" "" $jobFilter 1]

@@ -223,12 +223,12 @@ proc with_job_filter_check {} {
 
    #prepare a job filter that will consider only jobs that match architecture property for SLO calculation.
    set prop(arch) "{=} {$job_arch}"
-   set jobFilter [create_job_and_filter prop]
+   set jobFilter [create_job_filter prop]
 
    #now we will prepare a request filter that will match only given system name and cpu architecture
    set prop2(operatingSystemName) "{=} {$op_prop}"
    set prop2(hardwareCpuArchitecture) "{=} {$cpu_prop}"
-   set requestFilter [create_request_and_filter prop2]
+   set requestFilter [create_request_filter prop2]
 
    #add MaxPendingJobs slo to the configuration of the ge adapter with the job filter for specific architecture and request filter with given os and arch properties
    set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" $requestFilter $jobFilter 1]

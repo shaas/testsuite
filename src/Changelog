@@ -1,3 +1,11 @@
+TB-2008-10-13-1: Bugfix:     o fixed hedeby test minResource
+                             o fixed produce_/reset_* hedeby util
+                               functions
+                 Enhancem.:  o added hedeby util function
+                               get_hedeby_current_services()
+                 Cleanup:    o refactored hedeby create_XXX_and_filter() functions
+                 Review:     RH
+
 TB-2008-10-13-0: Bugfix:    Fixed bug in set_execd_install_params() used in
                             test for hedeby issue 571
                  Cleanup:   o hedeby issue_571: introduced context variable alias

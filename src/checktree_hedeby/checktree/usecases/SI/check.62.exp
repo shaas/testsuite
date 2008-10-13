@@ -304,8 +304,8 @@ proc si_check {} {
    #we will create resource and request filter and set slos for each ge adapter
    foreach service $adapters {
        set prop(owner) "{=} {$service}"
-       set requestFilter [create_request_and_filter prop]
-       set resourceFilter [create_resource_and_filter prop]
+       set requestFilter [create_request_filter prop]
+       set resourceFilter [create_resource_filter prop]
        set max_pending_jobs_slo1 [create_max_pending_jobs_slo 3 "MaxPendingJobsSLO_1" $resourceFilter $requestFilter "" 1 2]
        set max_pending_jobs_slo2 [create_max_pending_jobs_slo 2 "MaxPendingJobsSLO_2" "" "" "" 1 2]
        set slos {}

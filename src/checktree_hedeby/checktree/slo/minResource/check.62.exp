@@ -43,11 +43,12 @@ set check_root_access_needs    "yes"
 set check_name                 "min_resource"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_description(0)       "min resource slo test with modify component commands"
-set check_description(1)       "min resource slo test with modify slo commands"
+set check_description(1)       "min resource slo STRESS test with modify component commands"
+set check_description(2)       "min resource slo test with modify slo commands"
 set check_needs                "hedeby_install"                  
 set check_init_level_procedure "min_resource_init_level"
 set check_functions            {}   
-set check_highest_level        1
+set check_highest_level        2
 
 set check_setup_level_function "min_resource_setup"
 set check_cleanup_level_function "min_resource_cleanup"
@@ -57,7 +58,6 @@ lappend check_functions "min_resource_check"
 # ---------------------------------------------------------------------------------
 # here the tests begin ....
 global min_resource_current_cluster_config
-global min_resource_reset_necessary
 
 #****** slo/minResource/min_resource_init_level() ************************
 #  NAME
@@ -67,14 +67,15 @@ global min_resource_reset_necessary
 #     min_resource_init_level { } 
 #
 #  FUNCTION
-#     Return the supported runlevel of this test. Currently only level 0
-#     is supported.
+#     Return the supported runlevel of this test. Currently only level 0 and 1
+#     are supported.
 #
 #  INPUTS
 #
 #  RESULT
 #     0 for CHECK_ACT_LEVEL 0 (fixed usage slo test with modify component commands)
-#     0 for CHECK_ACT_LEVEL 1 (fixed usage slo test with modify slo commands)
+#     0 for CHECK_ACT_LEVEL 1 (fixed usage slo STRESS test with modify component commands)
+#    -1 for CHECK_ACT_LEVEL 2 (fixed usage slo test with modify slo commands)
 #    -1 for all other levels
 #
 #*******************************************************************************
@@ -86,8 +87,13 @@ proc min_resource_init_level {} {
      return 0
   }
 
-  # This is runlevel 1 (min resource slo test with modify slo commands)
+  # This is runlevel 1 (min resource slo stress test: only resourceFilter is set, no request filter)
   if { $CHECK_ACT_LEVEL == 1 } {
+     return 0
+  }
+
+  # This is runlevel 2 (min resource slo test with modify slo commands)
+  if { $CHECK_ACT_LEVEL == 2 } {
      # TODO: enable this runlevel if mod/add/del/set slo commands are implemented
      return -1
   }
@@ -112,9 +118,7 @@ proc min_resource_init_level {} {
 #*******************************************************************************
 proc min_resource_setup {} {
    global min_resource_current_cluster_config
-   global min_resource_reset_necessary
 
-   set min_resource_reset_necessary 1
    set min_resource_current_cluster_config [get_current_cluster_config_nr]
 }
 
@@ -126,8 +130,7 @@ proc min_resource_setup {} {
 #     min_resource_cleanup { } 
 #
 #  FUNCTION
-#     1) if global variable "min_resource_reset_necessary" is still set to "1"
-#        reset slos and move resources back to original service
+#     1) reset slos and move resources back to original service
 #     2) restore original cluster config nr
 #
 #  SEE ALSO
@@ -135,14 +138,11 @@ proc min_resource_setup {} {
 #*******************************************************************************
 proc min_resource_cleanup {} {
    global min_resource_current_cluster_config
-   global min_resource_reset_necessary
 
-   # reset if not done yet
-   if {$min_resource_reset_necessary != 0} {
-      reset_default_slos "mod_config"
-      if {[move_resources_to_default_services] != 0} {
-         reset_hedeby 1
-      }
+   # reset SLOs and move resources back to default locations
+   reset_default_slos "mod_config"
+   if {[move_resources_to_default_services] != 0} {
+      reset_hedeby 1
    }
 
    # reset saved active cluster configuration nr
@@ -157,10 +157,19 @@ proc min_resource_cleanup {} {
 #     min_resource_check { } 
 #
 #  FUNCTION
-#     Test has two runlevels which use different way in setting up the slos
-#     for a service. Currently only runlevel 0 is supported which is using
+#     Test has three runlevels which use different way in setting up the slos
+#     for a service. Currently only runlevel 0 and 1 are supported which are using
 #     modify component command and resource update command after modifing 
 #     slos for a service.
+#
+#     The test on run level 1 is a STRESS test that does not define a request
+#     filter, only a resource filter, for the slo. That means that any kind of
+#     resources are requested by the slo but then only the resources with
+#     matching resource filter criteria are assigned a usage. In consequence,
+#     resources with the wrong criteria are assigned and unassigned (because
+#     they have 0 usage) quickly to and from the service => STRESS test.
+#     Eventually, all correct resources will end up at the service and the
+#     assigning/unassigning will stop because the slo creates no more needs. 
 #
 #     The test is using slo update interval of 5 seconds
 #
@@ -170,8 +179,8 @@ proc min_resource_cleanup {} {
 #        - set slo update interval of service A and B to 5 seconds
 #        - examine available services and operating systems
 #        - test needs 3 services and at least 1 OS (2 would be nice)
-#        - if service A or B already has all resources assigned the resources
-#          are removed to service C
+#        - if service A or B already has all resources assigned, one resource
+#          is pre-moved to service C so that the slo has some work
 #     2) setup SLOS
 #        - setup 1 or 2 (depends on number of operating systems) minResource
 #          SLO(s) for service A (and B)
@@ -242,10 +251,8 @@ proc min_resource_cleanup {} {
 #     slo/maxPendingJobs/max_pending_jobs_check()
 #*******************************************************************************
 proc min_resource_check {} {
-   global hedeby_config
    global check_description
    global CHECK_ACT_LEVEL
-   global min_resource_reset_necessary
    global STOP_ON_ERROR
 
    set STOP_ON_ERROR 0   ;# TODO: This might be an interresting global testsuite option
@@ -253,19 +260,15 @@ proc min_resource_check {} {
    ts_log_fine "==> starting \"$check_description($CHECK_ACT_LEVEL)\" ..."
 
    # setup modify slo method depending on runlevel
-   if {$CHECK_ACT_LEVEL == 0} {
+   if {$CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 1} {
       set mod_method "mod_config"
    }
-   if {$CHECK_ACT_LEVEL == 1} {
+   if {$CHECK_ACT_LEVEL == 2} {
       set mod_method "mod_slos"
    }
 
    # get some global settings
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
    get_hedeby_default_services service_names
-   set exec_host $hedeby_config(hedeby_master_host)
    
 
    # init text array for reporting errors
@@ -309,19 +312,22 @@ proc min_resource_check {} {
       foreach arch $arch_list {
          ts_log_fine "operatingSystemName \"$arch\" is available [llength $available_archs($arch)] times on resources: $os_hosts($arch)"
       }
-      ts_log_fine "following static hosts are ingored: $static_resource_list"
+      ts_log_fine "The following static hosts are ignored: $static_resource_list"
    }
 
    # step 2: examine OS names and availabe services
-   if {[info exists available_archs]} {
+   if {![info exists available_archs]} {
+      append error_text "skip this test because no operatingSystemName properties are detected!\n"
+   } else {
       set nr_of_archs [llength $arch_list]
       set nr_of_services [llength $service_names(services)]
       ts_log_fine "nr. of different os names: $nr_of_archs"
       ts_log_fine "nr. of available services: $nr_of_services"
 
-
       # we need min 3 services
-      if { $nr_of_services >= 2 } {
+      if { $nr_of_services < 3 } {
+         append error_text "expected to have at least 3 GE services(examine OS names and availabe services)\n"
+      } else {
          set serviceA [lindex $service_names(services) 0]
          set serviceB [lindex $service_names(services) 1]
          set serviceC [lindex $service_names(services) 2]
@@ -355,8 +361,6 @@ proc min_resource_check {} {
          ts_log_fine "current moveable resources of service A ($serviceA): $service_names(moveable_execds,$serviceA)"
          ts_log_fine "current moveable resources of service B ($serviceB): $service_names(moveable_execds,$serviceB)"
 
-         # move some already correct resources to service C
-         # (If one service have nothing to request)
          # Find out which resources are already at correct service
          set alreadyAtA {}
          foreach res $expected_resources_A {
@@ -372,40 +376,39 @@ proc min_resource_check {} {
          }
          ts_log_fine "resources already at service A($serviceA): $alreadyAtA"
          ts_log_fine "resources already at service B($serviceB): $alreadyAtB"
-         set services_premove_to_C {}
-         # check if service already have all resources
+
+         # If service A or B already have all their expected resources, move
+         # one of the resources to service C so that SLO has some work to do
+         # later
+         set premove_res_to_C {}
          if {[llength $expected_resources_A] == [llength $alreadyAtA]} {
-            lappend services_premove_to_C [lindex $alreadyAtA 0]
+            lappend premove_res_to_C [lindex $alreadyAtA 0]
          }
          if {[llength $expected_resources_B] == [llength $alreadyAtB] && [llength $expected_resources_B] > 0} {
-            lappend services_premove_to_C [lindex $alreadyAtB 0]
+            lappend premove_res_to_C [lindex $alreadyAtB 0]
          }
 
-         # If we have some resources to move, move them ...
-         if {[llength $services_premove_to_C] > 0} {
-            # move resources to service C (if one service have nothing to request)
-            ts_log_fine "moving resources to $serviceC: $services_premove_to_C"
-            foreach res $services_premove_to_C {
+         # If necessary: Move resources to service C and check that they arrive
+         if {[llength $premove_res_to_C] > 0} {
+            ts_log_fine "pre-moving resources to $serviceC: $premove_res_to_C"
+            foreach res $premove_res_to_C {
                set task_info($res,expected_output) ""
-               set task_info($res,sdmadm_command) "-p $pref_type -s $sys_name mvr -r $res -s $serviceC"
+               set task_info($res,sdmadm_command) "mvr -r $res -s $serviceC"
+               set exp_premove_res_result($res,service) $serviceC
+               set exp_premove_res_result($res,flags) "{}"
+               set exp_premove_res_result($res,state) "ASSIGNED"
             }
-            set par_error [start_parallel_sdmadm_command services_premove_to_C $admin_user task_info]
+            set par_error [start_parallel_sdmadm_command_opt premove_res_to_C task_info]
             if {$par_error != ""} {
                append error_text "$par_error (step 2)\n"
             }
-            foreach res $services_premove_to_C {
-               set exp_move_resource_result($res,service) $serviceC
-               set exp_move_resource_result($res,flags) "{}"
-               set exp_move_resource_result($res,state) "ASSIGNED"
-            }
-            set retval [wait_for_resource_info exp_move_resource_result 60 0 mvr_error]
+            set retval [wait_for_resource_info exp_premove_res_result 60 0 mvr_error]
             if { $retval != 0} {
                append error_text "moving resources to service C($serviceC) failed (step 2):\n$mvr_error\n"
             }
          }
 
-
-         # Now we have prepared the cluster for testing min resource slo
+         # Now we have prepared the resources of the cluster for testing min resource slo
          set static_A_res $service_names(master_host,$serviceA)
          set static_B_res $service_names(master_host,$serviceB)
          set static_arch_A $res_prop($static_A_res,operatingSystemName)
@@ -413,9 +416,12 @@ proc min_resource_check {} {
          ts_log_fine "arch of static host \"$static_A_res\" of service A \"$serviceA\": $static_arch_A"
          ts_log_fine "arch of static host \"$static_B_res\" of service B \"$serviceB\": $static_arch_B"
 
+         # how many resources does each service need?
          set needs_A [llength $expected_resources_A]
          set needs_B [llength $expected_resources_B]
         
+         # ... if the static resource of a service has, by chance, the same OS as the "service OS"
+         #     then we have to increase the need of the service by 1
          if {[lsearch -exact $sSetup($serviceA) $static_arch_A] >= 0} {
             ts_log_fine "static host \"$static_A_res\" of service A \"$serviceA\" has also os \"$static_arch_A\", increase needs"
             incr needs_A 1
@@ -427,10 +433,15 @@ proc min_resource_check {} {
          ts_log_fine "slo needs for service A ($serviceA): $needs_A"
          ts_log_fine "slo needs for service B ($serviceB): $needs_B"
 
-         # create min resource slos
+         # create min resource slos with resource and request filter
          set propA(operatingSystemName) "{=} {$sSetup($serviceA)}"
-         # <common:resourceFilter> state != "ERROR" </common:resourceFilter>
-         set filterA [create_resource_and_filter propA]
+         if { $CHECK_ACT_LEVEL == 1 } {
+            # no request filter for the stress test
+            set filterA ""
+         } else {
+            set filterA [create_request_filter propA]
+         }
+         append filterA [create_resource_filter propA]
          set sloNameA "minResource$sSetup($serviceA)$needs_A"
          set sloA [create_min_resource_slo $SLO_arch_A_urgency $sloNameA $needs_A $filterA]
          ts_log_fine "Service A Slo: $sloA"
@@ -438,7 +449,13 @@ proc min_resource_check {} {
 
          if { $needs_B > 0 } {
             set propB(operatingSystemName) "{=} {$sSetup($serviceB)}"
-            set filterB [create_resource_and_filter propB]
+            if { $CHECK_ACT_LEVEL == 1 } {
+               # no request filter for the stress test
+               set filterB ""
+            } else {
+               set filterB [create_request_filter propB]
+            }
+            append filterB [create_resource_filter propB]
             set sloNameB "minResource$sSetup($serviceB)$needs_B"
             set sloB [create_min_resource_slo $SLO_arch_B_urgency $sloNameB $needs_B $filterB]
             ts_log_fine "Service B Slo: $sloB"
@@ -468,7 +485,7 @@ proc min_resource_check {} {
          #     
          # 4) Check timeout
          #    o Test loop will fail with timeout if no changes are done and timeout time is reached
-         #    o Test loop timeout will reset to full timeout time when changes are dedected. This
+         #    o Test loop timeout will reset to full timeout time when changes are detected. This
          #      is necessary to run this test in large clusters. Test will fail with timeout if no
          #      changes occurs in the sdmadm command output. 
          #    o If the services (A and B) report no needs, but there are still requests pending
@@ -484,7 +501,10 @@ proc min_resource_check {} {
          while { $doStop != 1 } {
             # do sdmadm srr -all checking ...
             set ret [get_show_resource_request_info]
-            if { $ret == 0 } {
+            if { $ret != 0 } {
+               append error_text "skip, because of get_show_resource_request_info() error!\n"
+               break
+            } else {
                # default is to stop with next loop, but if there are requests doStop is set to 0
                set doStop 1
                # examine res_req_info
@@ -509,7 +529,7 @@ proc min_resource_check {} {
                      ts_log_fine "RP quantity service A changed (no pending requests)!"
                   }
                }
-               # check quantity & urgency for service A requests
+               # check quantity & urgency for service B requests
                if { [info exists sloNameB] } {
                   if {[info exists res_req_info($serviceB,$sloNameB,quantity)]} {
                      if {$old_value(RP_B) != $res_req_info($serviceB,$sloNameB,quantity)} {
@@ -548,9 +568,6 @@ proc min_resource_check {} {
                if {$res_req_info(spare_pool,PermanentRequestSLO,urgency) != 1} {
                   append error_text "PermanentRequestSLO of spare_pool should have urgency=1, but is set to $res_req_info(spare_pool,PermanentRequestSLO,urgency)!\n"
                }
-            } else {
-               append error_text "skip, because of get_show_resource_request_info() error!\n"
-               break
             }
 
             # check services slo reports
@@ -639,9 +656,9 @@ proc min_resource_check {} {
                         }
                         # reset resource
                         ts_log_fine "reset resource \"$res\" ..."
-                        set sdmadm_command_line "-p $pref_type -s $sys_name rsr -r $res"
-                        set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
-                        append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+                        set sdmadm_command_line "rsr -r $res"
+                        set output [sdmadm_command_opt $sdmadm_command_line]
+                        append error_text "sdmadm $sdmadm_command_line\n$output\n"
 
                         if {$old_value($res,nr_of_resets) > 5} {
                            ts_log_fine "testsuite will not update last change time for resetting resource \"$res\" anymore!"
@@ -671,16 +688,16 @@ proc min_resource_check {} {
                if {$old_value(GA_A) == 0 && $old_value(GA_B) == 0} {
                   ts_log_fine "still pending requests at resource provider, ts will reset resource provider ..."
                   append error_text "no service requests resources, but rp has pending request - ts will reset RP  (main test loop):\n"
-                  set sdmadm_command_line "-p $pref_type -s $sys_name sslo"
-                  set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
-                  append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
-                  set sdmadm_command_line "-p $pref_type -s $sys_name srr -all"
-                  set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
-                  append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+                  set sdmadm_command_line "sslo"
+                  set output [sdmadm_command_opt $sdmadm_command_line]
+                  append error_text "sdmadm $sdmadm_command_line\n$output\n"
+                  set sdmadm_command_line "srr -all"
+                  set output [sdmadm_command_opt $sdmadm_command_line]
+                  append error_text "sdmadm $sdmadm_command_line\n$output\n"
                   # reset RP
-                  set sdmadm_command_line "-p $pref_type -s $sys_name uc -c resource_provider"
-                  set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
-                  append error_text "${exec_host}($admin_user)> sdmadm $sdmadm_command_line\n$output\n"
+                  set sdmadm_command_line "uc -c resource_provider"
+                  set output [sdmadm_command_opt $sdmadm_command_line]
+                  append error_text "sdmadm $sdmadm_command_line\n$output\n"
                }
                break
             } else {
@@ -694,7 +711,6 @@ proc min_resource_check {} {
          }
 
          # After main loop the resource information of all resources is checked
-         # here we check the resource info
          foreach res $static_resource_list {
             set exp_resource_info($res,service) $service_names(default_service,$res)
             set exp_resource_info($res,flags) "S"
@@ -741,7 +757,9 @@ proc min_resource_check {} {
          # Check usage of resources at service A and B with get_resource_slo_info() (sdmadm sslo -u)
          ts_log_fine "checking resource usage ..."
          set ret [get_resource_slo_info]
-         if {$ret == 0} {
+         if {$ret != 0} {
+            append error_text "skip resource usage check, get_resource_slo_info() returned errors! (after main test loop)\n"
+         } else {
             foreach res $expected_resources_A {
                if {[info exists res_slo_info($res,$sloNameA,usage)]} {
                   ts_log_fine "SLO \"$sloNameA\" for resource \"$res\" at service \"$serviceA\" set to $res_slo_info($res,$sloNameA,usage)!"
@@ -764,25 +782,25 @@ proc min_resource_check {} {
                   append error_text "SLO usage info for resource $res (SLO=$sloNameB) is missing (after main test loop)\n"
                }
             }
-         } else {
-            append error_text "skip resource usage check, get_resource_slo_info() returned errors! (after main test loop)\n"
          }
 
          # case 2 reduce min number of resources check that free resource go back to spare_pool (check number)
-         set expected_resources_in_spare_pool 0
-         if {[get_resource_info] == 0} {
+         set nr_exp_res_in_spare_pool 0
+         if {[get_resource_info] != 0} {
+            append error_text "skip further min number res test, get_resource_info() returned error! (reduced min number of resources check - case 2)\n"
+         } else {
             set A_reduced 0
             set B_reduced 0
 
             # step 1: Find out how many resources are currently in spare_pool
             foreach res $res_list {
                if {$res_info($res,service) == "spare_pool"} {
-                  incr expected_resources_in_spare_pool 1
+                  incr nr_exp_res_in_spare_pool 1
                }
                ts_log_fine "resource \"$res\" (id=\"$res_info($res,id)\") is assinged to \"$res_info($res,service)\""
             }
-            ts_log_fine "spare_pool has currently $expected_resources_in_spare_pool resources."
-            set start_spare_pool_nr_of_services $expected_resources_in_spare_pool
+            ts_log_fine "spare_pool has currently $nr_exp_res_in_spare_pool resources."
+            set start_nr_exp_res_in_spare_pool $nr_exp_res_in_spare_pool
 
             # step 2: If service A has more than one resource, calculate new reduced need
             #         and set new slo config
@@ -790,7 +808,7 @@ proc min_resource_check {} {
                set A_reduced 1
                set new_needs_A $needs_A
                incr new_needs_A -1
-               incr expected_resources_in_spare_pool 1
+               incr nr_exp_res_in_spare_pool 1
                ts_log_fine "reducing needs of service A ($serviceA) from \"$needs_A\" to \"$new_needs_A\" ..."
                set sloA [create_min_resource_slo $SLO_arch_A_urgency $sloNameA $new_needs_A $filterA]
                ts_log_fine "Service A Slo: $sloA"
@@ -802,7 +820,7 @@ proc min_resource_check {} {
                set B_reduced 1
                set new_needs_B $needs_B
                incr new_needs_B -1
-               incr expected_resources_in_spare_pool 1
+               incr nr_exp_res_in_spare_pool 1
                ts_log_fine "reducing needs of service B ($serviceB) from \"$needs_B\" to \"$new_needs_B\" ..."
                set sloB [create_min_resource_slo $SLO_arch_B_urgency $sloNameB $new_needs_B $filterB]
                ts_log_fine "Service B Slo: $sloB"
@@ -810,8 +828,8 @@ proc min_resource_check {} {
             }
 
             # step 4: Wait that spare_pool gets the released resources ...
-            if {$start_spare_pool_nr_of_services == $expected_resources_in_spare_pool} {
-               append error_text "cannot do further tests, cluster has to less resources! (reduced min number of resources check - case 2)\n"
+            if {$start_nr_exp_res_in_spare_pool == $nr_exp_res_in_spare_pool} {
+               append error_text "cannot do further tests, cluster has too few resources! (reduced min number of resources check - case 2)\n"
             } else {
                set my_timeout [timestamp]
                incr my_timeout 60
@@ -826,11 +844,11 @@ proc min_resource_check {} {
 
                         # find out resource candidates for test case 4 
                         # (resources which can be set in error state)
-                        ts_log_fine "resource \"$res\" (id=\"$res_info($res,id)\") is assinged to \"$res_info($res,service)\""
+                        ts_log_finer "resource \"$res\" (id=\"$res_info($res,id)\") is assinged to service \"$res_info($res,service)\""
                         set expected_arch $sSetup($serviceA)
-                        ts_log_fine "expected arch is $expected_arch"
+                        ts_log_finer "expected arch is $expected_arch"
                         set osName   $res_prop($res,operatingSystemName)
-                        ts_log_fine "resource $res has arch $osName"
+                        ts_log_finer "resource $res has arch $osName"
                         if {$osName == $expected_arch} {
                            set stayed_res_at_serv($res_info($res,service)) $res
                            ts_log_fine "resource $res ($osName) is a candidate for service \"$res_info($res,service)\" for creating an error resource!"
@@ -840,15 +858,15 @@ proc min_resource_check {} {
 
                   ts_log_fine "spare_pool has currently $nr_res_in_spare_pool resources."
 
-                  if {$nr_res_in_spare_pool == $expected_resources_in_spare_pool} {
-                     ts_log_fine "spare_pool got 2 more resources - fine"
+                  if {$nr_res_in_spare_pool == $nr_exp_res_in_spare_pool} {
+                     ts_log_fine "spare_pool got all needed resources - fine"
                      break
                   }
 
                   set cur_time [timestamp]
                   if { $cur_time > $my_timeout } {
                      ts_log_fine "timeout!"
-                     append error_text "Timeout while waiting for spare_pool getting $expected_resources_in_spare_pool resources (reduced min number of resources check - case 2)\n"
+                     append error_text "Timeout while waiting for spare_pool getting $nr_exp_res_in_spare_pool resources (reduced min number of resources check - case 2)\n"
                      break
                   } else {
                      ts_log_fine "waiting for resources in spare_pool ... (timeout in [expr ( $my_timeout - $cur_time )] seconds)"
@@ -856,15 +874,22 @@ proc min_resource_check {} {
                   after 5000
                }
 
-               # case 4: 1) modify resource filter of Service A to ignore resources in error state
+               # case 4: 1) modify resource filter of Service A to ignore resources in error state,
+               #            the request filter continues to just filter for OS
                #         2) kill execd (produce error state) on an assigned resource of service A
                #         3) check that the resource released in the step before goes back to
                #            service A, because it has one resource missing (That one which is in ERROR state) 
                if {$A_reduced == 1} {
                   ts_log_fine "modify filter of serviceA ($serviceA) to ingore resources in ERROR state ..."
                   set propA(operatingSystemName) "{=} {$sSetup($serviceA)}"
+                  if { $CHECK_ACT_LEVEL == 1 } {
+                     # no request filter for stress test
+                     set filterA ""
+                  } else {
+                     set filterA [create_request_filter propA]
+                  }
                   set propA(state) "{!=} {ERROR}"
-                  set filterA [create_resource_and_filter propA]
+                  append filterA [create_resource_filter propA]
                   set sloA [create_min_resource_slo $SLO_arch_A_urgency $sloNameA $new_needs_A $filterA]
                   ts_log_fine "Service A Slo: $sloA"
                   set_service_slos $mod_method $serviceA $sloA 1 $SLO_update_unit $SLO_update_interval
@@ -899,29 +924,9 @@ proc min_resource_check {} {
                   reset_produced_error_resource $stayed_res_at_serv($serviceA)
                }
             }
-         } else {
-            append error_text "skip further min number res test, get_resource_info() returned error! (reduced min number of resources check - case 2)\n"
          }
-      } else {
-         append error_text "expected to have at least 3 GE services(examine OS names and availabe services)\n"
       }
-   } else {
-      append error_text "skip this test because no operatingSystemName properties are detected!\n"
    }
-  
-
-   # Do cleanup so that level test procedure don't have to do any cleanup!
-   # The cleanup procedures will not set test to error, but it is useful
-   # also to check the correct behaviour of the reset procedures ...
-   reset_default_slos $mod_method 
-   if {[move_resources_to_default_services] != 0} {
-      reset_hedeby 1
-   }
-
-   # since we run the reset procedures it is not necessary to run them
-   # again in cleanup procedure. Therefore "min_resource_reset_necessary"
-   # is set to 0 
-   set min_resource_reset_necessary 0
 
    # finally report one big error mail
    if {$error_text != ""} {

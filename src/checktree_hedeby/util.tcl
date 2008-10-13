@@ -1353,7 +1353,7 @@ proc get_all_default_hedeby_resources {} {
 #         service_names(ts_cluster_nr,$service)  | testsuite cluster nr of service
 #         service_names(ts_cluster_nr,$host)     | testsuite cluster nr of host
 #         service_names(default_service,$host)   | default service of $host
-#         service_names(service,$host)           | list of all services on $host
+#         service_names(service,$host)           | ge-service of $host (not spare_pool)
 #
 #*******************************************************************************
 proc get_hedeby_default_services { service_names } {
@@ -1366,12 +1366,6 @@ proc get_hedeby_default_services { service_names } {
    while { [set_current_cluster_config_nr $cluster] == 0 } {
       get_current_cluster_config_array ts_config
       lappend ge_master_hosts $ts_config(master_host)
-      if { [info exists ret(service,$ts_config(master_host))] } {
-         set old_val $ret(service,$ts_config(master_host))
-         set ret(service,$ts_config(master_host)) "$old_val $ts_config(cluster_name)"
-      } else {
-         set ret(service,$ts_config(master_host)) "$ts_config(cluster_name)"
-      }
       set ret(execd_hosts,$ts_config(cluster_name)) $ts_config(execd_nodes)
       set ret(master_host,$ts_config(cluster_name)) $ts_config(master_host)
       set ret(ts_cluster_nr,$ts_config(master_host)) $cluster
@@ -1381,6 +1375,7 @@ proc get_hedeby_default_services { service_names } {
       set ret(moveable_execds,$ts_config(cluster_name)) {}
       foreach exh $ts_config(execd_nodes) {
          set ret(default_service,$exh) $ts_config(cluster_name)
+         set ret(service,$exh)         $ts_config(cluster_name)
          if {$exh != $ts_config(master_host)} {
             lappend ret(moveable_execds,$ts_config(cluster_name)) $exh
             set ret(ts_cluster_nr,$exh) $cluster
@@ -1401,6 +1396,121 @@ proc get_hedeby_default_services { service_names } {
    return $ge_master_hosts
 }
 
+#****** util/get_hedeby_current_services() *************************************
+#  NAME
+#     get_hedeby_current_services() -- get current information about ge services
+#
+#  SYNOPSIS
+#     get_hedeby_current_services { service_names } 
+#
+#  FUNCTION
+#     This procedure is used to get information about grid engine services
+#     but unlike get_hedeby_default_services() this information is current,
+#     i.e. the current distribution of resources is taken into account
+#
+#  INPUTS
+#     service_names - name of a array where to store service information
+#
+#  RESULT
+#     1) returns list of qmaster hosts where ge services are running
+#     2) informations in service_names:
+#
+#         array name                             | value
+#         ================================================================
+#         service_names(services)                | list of all services
+#         service_names(execd_hosts,$service)    | list of all execds of $service
+#         service_names(master_host,$service)    | name of master of $service
+#         service_names(moveable_execds,$service)| list of all not static resources of $service
+#         service_names(ts_cluster_nr,$service)  | testsuite cluster nr of service
+#         service_names(ts_cluster_nr,$host)     | testsuite cluster nr of host
+#         service_names(default_service,$host)   | see get_hedeby_default_services
+#         service_names(service,$host)           | service to which a host belongs, only
+#                                                | works for hosts belonging to ge-adapters
+#
+#  NOTES
+#     This method works under a couple of assumptions:
+#     1) all grid engine services have the service names of the default
+#        configuration, none of the names were changed
+#     2) all static resources represent a master_host
+#     3) the state (ASSIGNED, ERROR, etc.) of the resources is irrelevant
+#     4) A service NEVER has the same name as a resource
+#     5) Ambiguous resoures are ignored
+#     6) Services that do not have any resource, not even a static one, will not show up.
+#
+#  SEE ALSO
+#     util/get_hedeby_default_services()
+#*******************************************************************************
+proc get_hedeby_current_services { service_names } {
+   global hedeby_config
+   upvar $service_names ret
+   set ge_master_hosts {}
+
+   # get the default configuration
+   set def_ge_master_hosts [get_hedeby_default_services def_service_names]
+
+   # just copy the default_service entries from def_service_names
+   foreach n [list_grep "^default_service," [array names def_service_names]] {
+      set ret($n) $def_service_names($n)
+   }
+
+   # loop over all resources currently in the system and filter out the
+   # uninteresting resources
+   get_resource_info
+   set filtered_res_list {}
+   foreach res $res_list {
+      set s $res_info($res,service)
+      set type $res_info($res,type)
+      # TODO: write a helper function is_flag_set for these cases and use it everywhere!
+      if { [string first "A" $res_info($res,flags)] >= 0 } {
+         # resource is ambiguous
+         ts_log_fine "Skipping ambiguous resource $res with service $s (type=\"$type\")"
+         continue
+      }
+      if { [lsearch -exact $def_service_names(services) $s] < 0 || $type != "host" } {
+         # we are only interested in host resources belonging to grid engine
+         # services, see also assumption 1)
+         ts_log_fine "Skipping resource $res with service $s (type=\"$type\")"
+         continue
+      }
+      ts_log_fine "Accepting resource $res with service $s"
+      lappend filtered_res_list $res
+   }
+
+   # build up the ret structure
+   foreach res $filtered_res_list {
+      set s $res_info($res,service)
+      set all_serv($s) 1
+
+      set ret(service,$res) $s
+      lappend ret(execd_hosts,$s) $res
+
+      if { $res_info($res,flags) == "S" } {
+         # this is a master host (assumption 2)
+         set ret(master_host,$s) $res
+         lappend ge_master_hosts $res
+      } else {
+         # it is an execd
+         lappend ret(moveable_execds,$s) $res
+      }
+   }
+
+   set ret(services) [array names all_serv]
+
+   # copy ts_cluster_nr from def_service_names
+   foreach res $filtered_res_list {
+      # the cluster number for each resource is the cluster number of the
+      # service this resource belongs to
+      set s $res_info($res,service)
+      set cluster_nr $def_service_names(ts_cluster_nr,$s)
+      set ret(ts_cluster_nr,$s)   $cluster_nr 
+      set ret(ts_cluster_nr,$res) $cluster_nr
+   }
+
+   ts_log_finer [format_array ret]
+   ts_log_finer "current ge master hosts: $ge_master_hosts"
+
+   return $ge_master_hosts
+}
 
 #****** util/is_hedeby_process_running() ***************************************
 #  NAME
@@ -4625,7 +4735,7 @@ proc produce_inprocess_resource { ares asrv } {
    set sys_name [get_hedeby_system_name]
    set admin_user [get_hedeby_admin_user]
    set exec_host $hedeby_config(hedeby_master_host)
-   set ge_hosts [get_hedeby_default_services service_names]
+   set ge_hosts [get_hedeby_current_services service_names]
 
    if {$last_produce_inprocess_resource_state != "undefined"} {
       ts_log_severe "There was already a call of produce_inprocess_resource() - calling reset_produced_inprocess_resource() first ..."
@@ -4731,7 +4841,6 @@ proc reset_produced_inprocess_resource { } {
    global last_produce_inprocess_resource_state
    global hedeby_config
 
-   set error_text ""
    if {$last_produce_inprocess_resource_state == "undefined"} {
       ts_log_severe "There was no previous call of produce_inprocess_resource()!"
       return 1
@@ -4752,18 +4861,18 @@ proc reset_produced_inprocess_resource { } {
    set sys_name [get_hedeby_system_name]
    set admin_user [get_hedeby_admin_user]
    set exec_host $hedeby_config(hedeby_master_host)
-   set ge_hosts [get_hedeby_default_services service_names]
+   set ge_hosts [get_hedeby_current_services service_names]
 
    # get cluster of resource and switch
    set sCluster $service_names(ts_cluster_nr,$resource)
-   set curCluster [get_current_cluster_config_nr]
+   set oldCluster [get_current_cluster_config_nr]
    set_current_cluster_config_nr $sCluster
 
    # delete the job
    delete_job $job_id
 
    # switch back to orig. cluster
-   set_current_cluster_config_nr $curCluster
+   set_current_cluster_config_nr $oldCluster
 
 
    # Move resource back to orig. service
@@ -4773,7 +4882,7 @@ proc reset_produced_inprocess_resource { } {
    wait_for_resource_info exp_res_info 90 0 error_text
 
    # Move resource back to orig. service
-   ts_log_fine "Moving resource \"$resource\" back to service \"$service\" ..."
+   ts_log_finer "Moving resource \"$resource\" back to service \"$service\" ..."
    set sdmadm_command_line "-p $pref_type -s $sys_name mvr -r $resource -s $service" 
    set output [sdmadm_command $exec_host $admin_user $sdmadm_command_line]
    if { $prg_exit_state != 0} {
@@ -5819,7 +5928,7 @@ proc produce_unknown_resource { type } {
            # prepare sdmadm command ...
            set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -r $unknown_name"
            set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
-           ts_log_fine "output is: $output"
+           ts_log_finer "output is: $output"
            if {[string match "$expected_output" "$output"]} {
                break
            } else {        
@@ -5843,7 +5952,7 @@ proc produce_unknown_resource { type } {
           set unknown_name $hedeby_config(hedeby_master_host)
        }
     }
-    ts_log_fine "produced unknown \"$type\" resource name \"$unknown_name\""       
+    ts_log_fine "produced unknown resource \"$unknown_name\" of type \"$type\" "       
     return $unknown_name
 }
 
@@ -5874,8 +5983,7 @@ proc produce_unknown_resource { type } {
 #     util/reset_produced_error_resource()
 #*******************************************************************************
 proc produce_error_resource { resource { method "soft" } } {
-
-   set ge_hosts [get_hedeby_default_services service_names]
+   set ge_hosts [get_hedeby_current_services service_names]
 
    if { $method != "soft" && $method != "hard" } {
       ts_log_severe "method \"$method\" not supported!"
@@ -5887,11 +5995,10 @@ proc produce_error_resource { resource { method "soft" } } {
       return 1
    }
 
-   set sCluster $service_names(ts_cluster_nr,$resource)
-   set service $service_names(default_service,$resource)
+   # remember current cluster
+   set oldCluster [get_current_cluster_config_nr]
 
-   set curCluster [get_current_cluster_config_nr]
-   set_current_cluster_config_nr $sCluster
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$resource)
    set error_text ""
    if { $method == "soft" } {
       ts_log_fine "doing soft execd shutdown by \"qconf -ke $resource\" ..."
@@ -5906,7 +6013,7 @@ proc produce_error_resource { resource { method "soft" } } {
          append error_text "\"shutdown_system_daemon $resource \"execd\"\" returned: $ret\n"
       }
    }
-   set_current_cluster_config_nr $curCluster
+   set_current_cluster_config_nr $oldCluster
 
    # wait for resource go to error state
    ts_log_fine "resource \"$resource\" should go into error state now ..."
@@ -5945,7 +6052,7 @@ proc produce_error_resource { resource { method "soft" } } {
 #     util/produce_error_resource()
 #*******************************************************************************
 proc reset_produced_error_resource { resource } {
-   set ge_hosts [get_hedeby_default_services service_names]
+   set ge_hosts [get_hedeby_current_services service_names]
 
    set error_text ""
    if { ![info exists service_names(ts_cluster_nr,$resource)] } {
@@ -5953,26 +6060,11 @@ proc reset_produced_error_resource { resource } {
       return 1
    }
 
-   # find out to which service the resource is currently assigned
-   get_resource_info
-   if {![info exists res_info($resource,service)]} {
-      ts_log_severe "resource $resource is not assigned to a service!"
-      return 1
-   }
-   set current_service $res_info($resource,service)
-   ts_log_fine "resource \"$resource\" is assigned to service \"$current_service\""
-
-   
-   # find out testsuite cluster nr of resource
-   if {![info exists service_names(ts_cluster_nr,$current_service)]} {
-      ts_log_severe "The internal TS cluster nr of resource $resource cannot be found!"
-      return 1
-   }
-   set sCluster $service_names(ts_cluster_nr,$current_service)
-   ts_log_fine "service \"$current_service\" has TS cluster nr $sCluster"
+   set sCluster $service_names(ts_cluster_nr,$resource)
+   ts_log_finer "Resource \"$resource\" has TS cluster nr $sCluster"
 
    # saving current cluster nr and switch to ts cluster
-   set curCluster [get_current_cluster_config_nr]
+   set oldCluster [get_current_cluster_config_nr]
    set_current_cluster_config_nr $sCluster
 
    # startup the execd
@@ -5982,7 +6074,7 @@ proc reset_produced_error_resource { resource } {
    }
    
    # switch back to stored cluster nr
-   set_current_cluster_config_nr $curCluster
+   set_current_cluster_config_nr $oldCluster
 
    # wait for resource error state to disappear
    ts_log_fine "resource \"$resource\" should go into assigned state now ..."
@@ -6309,7 +6401,7 @@ proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" } {resource_filt
 #     { name "min_res" } - name value
 #     { min 2 }          - min value
 #     { resourceFilter ""} - optional: resource filter created with 
-#                            procedure create_resource_and_filter()
+#                            procedure create_resource_filter()
 #     { request  ""}       - optional: the request filter for the produced needs
 #
 #  RESULT
@@ -6318,7 +6410,7 @@ proc create_fixed_usage_slo {{urgency 50 } { name "fixed_usage" } {resource_filt
 #  SEE ALSO
 #     util/create_min_resource_slo()
 #     util/create_fixed_usage_slo()
-#     util/create_resource_and_filter()
+#     util/create_resource_filter()
 #     util/set_hedeby_slos_config()
 #*******************************************************************************
 proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resourceFilter ""} {request ""}} {
@@ -6334,19 +6426,21 @@ proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resour
    return $slo_text
 }
 
-
-#****** util/create_resource_and_filter() **************************************
+#****** util/create_filter() **************************************
 #  NAME
-#     create_resource_and_filter() -- create resource filter for slo definitions
+#     create_filter() -- create filter for slo definitions
 #
 #  SYNOPSIS
-#     create_resource_and_filter { resProp } 
+#     create_filter { filter_name resProp op } {
 #
 #  FUNCTION
-#     This procedure is used to create xml string for a resource filter
-#     definition. The specified resource properties are combined with AND.
+#     This procedure is used to create an xml string for a filter
+#     definition. It is a helper function to create concrete resource or
+#     request filters.
 #
 #  INPUTS
+#     filter_name - name of the start/end-tag for the xml structure, e.g.
+#                   common:resourceFilter
 #     resProp     - array which contains filter specification
 #           
 #                   The array must have following settings:
@@ -6356,50 +6450,56 @@ proc create_min_resource_slo {{urgency 50 } { name "min_res" } { min 2 } {resour
 #                   OPERATOR:  used property operator: e.g. "=", "!="
 #                   VALUE:     match value: e.g. "Linux", "ASSIGNED", "ERROR"
 #
-#  RESULT
-#     string in xml format
+#     op          - string with which to combine the separate filters, beware
+#                   that that string is used directly in the xml, so take care
+#                   to escape properly ("&amp;" for "&", etc.)
 #
-#  EXAMPLE
-#     set propA(operatingSystemName) "{=} {Linux}"
-#     set propA(state)               "{!=} {ERROR}"
-#     set filterA [create_resource_and_filter propA]
+#  RESULT
+#     filter string in xml format
 #
 #  SEE ALSO
-#     util/create_min_resource_slo()
+#     util/create_resource_filter()
+#     util/create_request_filter()
 #*******************************************************************************
-proc create_resource_and_filter { resProp } {
+proc create_filter { filter_name resProp op } {
    upvar $resProp resProps
    set filter ""
    set pnames [array names resProps]
    if {[llength $pnames] > 0} {
-      append filter "<common:resourceFilter>"
+      append filter "<$filter_name>"
       set is_first 1
       foreach pname $pnames {
          if {$is_first == 1} {
             set is_first 0
          } else {
-            append filter " &amp; "
+            append filter " $op "
          }
          append filter "$pname"
          append filter "[lindex $resProps($pname) 0]"    
          append filter "\"[lindex $resProps($pname) 1]\""
       }
-      append filter "</common:resourceFilter>"
+      append filter "</$filter_name>"
    }
-   ts_log_fine "created filter:\n$filter\n"
+   ts_log_finer "created filter $filter_name:\n$filter\n"
    return $filter
 }
 
-#****** util/create_request_and_filter() **************************************
+
+#****** util/create_resource_filter() **************************************
 #  NAME
-#     create_request_and_filter() -- create request filter for slo definitions
+#     create_resource_filter() -- create resource filter for slo definitions
 #
 #  SYNOPSIS
-#     create_request_and_filter { resProp } 
+#     create_resource_filter { resProp op } 
 #
 #  FUNCTION
-#     This procedure is used to create xml string for a request filter
-#     definition. The specified resource properties are combined with AND.
+#     This procedure is used to create xml string for a resource filter
+#     definition. The specified resource properties are by default combined
+#     with AND.
+#
+#     A resource filter filters the resources that are considered during SLO
+#     calculation.  It is NOT a filter on the need that is created by the SLO
+#     (for this, see create_request_filter).
 #
 #  INPUTS
 #     resProp - array which contains filter specification
@@ -6411,50 +6511,42 @@ proc create_resource_and_filter { resProp } {
 #               OPERATOR:  used property operator: e.g. "=", "!="
 #               VALUE:     match value: e.g. "Linux", "ASSIGNED", "ERROR"
 #
+#     {op "&amp;"} - string with which to combine the separate filters,
+#                    by default this is AND = & = &amp;
+#
 #  RESULT
 #     string in xml format
 #
 #  EXAMPLE
 #     set propA(operatingSystemName) "{=} {Linux}"
 #     set propA(state)               "{!=} {ERROR}"
-#     set filterA [create_request_and_filter propA]
+#     set filterA [create_resource_filter propA]
 #
 #  SEE ALSO
-#     util/create_min_resource_slo()
+#     util/create_filter()
 #*******************************************************************************
-proc create_request_and_filter { resProp } {
+proc create_resource_filter { resProp {op "&amp;"} } {
    upvar $resProp resProps
-   set filter ""
-   set pnames [array names resProps]
-   if {[llength $pnames] > 0} {
-      append filter "<common:request>"
-      set is_first 1
-      foreach pname $pnames {
-         if {$is_first == 1} {
-            set is_first 0
-         } else {
-            append filter " &amp; "
-         }
-         append filter "$pname"
-         append filter "[lindex $resProps($pname) 0]"    
-         append filter "\"[lindex $resProps($pname) 1]\""
-      }
-      append filter "</common:request>"
-   }
-   ts_log_fine "created filter:\n$filter\n"
+   set filter [create_filter "common:resourceFilter" resProps $op]
    return $filter
 }
 
-#****** util/create_job_and_filter() **************************************
+
+#****** util/create_request_filter() **************************************
 #  NAME
-#     create_job_and_filter() -- create job filter for slo definitions
+#     create_request_filter() -- create request filter for slo definitions
 #
 #  SYNOPSIS
-#     create_job_and_filter { resProp } 
+#     create_request_filter { resProp op } 
 #
 #  FUNCTION
-#     This procedure is used to create xml string for a job filter
-#     definition. The specified resource properties are combined with AND.
+#     This procedure is used to create an xml string for a request filter
+#     definition. The specified resource properties are by default combined
+#     with AND.
+#
+#     A request filter is attached to the need that is created by an SLO. It
+#     does NOT influence the resources that are considered during SLO
+#     calculation (for this, see create_resource_filter).
 #
 #  INPUTS
 #     resProp - array which contains filter specification
@@ -6462,41 +6554,69 @@ proc create_request_and_filter { resProp } {
 #               The array must have following settings:
 #               resProp(PROP_NAME) {OPERATOR} {VALUE}
 #             
-#               PROP_NAME: name of property: e.g. arch
+#               PROP_NAME: name of property: e.g. operatingSystemName, state
 #               OPERATOR:  used property operator: e.g. "=", "!="
-#               VALUE:     match value: e.g. "sol-sparc64"
+#               VALUE:     match value: e.g. "Linux", "ASSIGNED", "ERROR"
+#
+#     {op "&amp;"} - string with which to combine the separate filters,
+#                    by default this is AND = & = &amp;
 #
 #  RESULT
 #     string in xml format
 #
 #  EXAMPLE
 #     set propA(operatingSystemName) "{=} {Linux}"
-#     set propA(state)               "{!=} {ERROR}"
-#     set filterA [create_job_and_filter propA]
+#     set propA(type)                "{=} {host}"
+#     set filterA [create_request_filter propA]
 #
 #  SEE ALSO
-#     util/create_min_resource_slo()
+#     util/create_filter()
 #*******************************************************************************
-proc create_job_and_filter { resProp } {
+proc create_request_filter { resProp {op "&amp;"} } {
    upvar $resProp resProps
-   set filter ""
-   set pnames [array names resProps]
-   if {[llength $pnames] > 0} {
-      append filter "<ge_adapter:jobFilter>"
-      set is_first 1
-      foreach pname $pnames {
-         if {$is_first == 1} {
-            set is_first 0
-         } else {
-            append filter " &amp; "
-         }
-         append filter "$pname"
-         append filter "[lindex $resProps($pname) 0]"    
-         append filter "\"[lindex $resProps($pname) 1]\""
-      }
-      append filter "</ge_adapter:jobFilter>"
-   }
-   ts_log_fine "created filter:\n$filter\n"
+   set filter [create_filter "common:request" resProps $op]
+   return $filter
+}
+
+
+#****** util/create_job_filter() **************************************
+#  NAME
+#     create_job_filter() -- create job filter for slo definitions
+#
+#  SYNOPSIS
+#     create_job_filter { resProp op } 
+#
+#  FUNCTION
+#     This procedure is used to create an xml string for a job filter
+#     definition. The specified resource properties are by default combined
+#     with AND.
+#
+#  INPUTS
+#     resProp - array which contains filter specification
+#           
+#               The array must have following settings:
+#               resProp(PROP_NAME) {OPERATOR} {VALUE}
+#             
+#               PROP_NAME: name of property: e.g. arch, state
+#               OPERATOR:  used property operator: e.g. "=", "!="
+#               VALUE:     match value: e.g. "sol-sparc64"
+#
+#     {op "&amp;"} - string with which to combine the separate filters,
+#                    by default this is AND = & = &amp;
+#
+#  RESULT
+#     string in xml format
+#
+#  EXAMPLE
+#     set propA(arch) "{=} {sol-sparc64}"
+#     set filterA [create_job_filter propA]
+#
+#  SEE ALSO
+#     util/create_filter()
+#*******************************************************************************
+proc create_job_filter { resProp {op "&amp;"} } {
+   upvar $resProp resProps
+   set filter [create_filter "ge_adapter:jobFilter" resProps $op]
    return $filter
 }
 
@@ -6548,11 +6668,11 @@ proc create_permanent_request_slo {{urgency 1 } { name "PermanentRequestSLO" } {
 #     { name "MaxPendingJobsSLO" }   - name value
 #     { max 1 }                      - maximun number of pending jobs for this host.
 #     {resourceFilter ""}            - optional: resource filter created with 
-#                                      procedure create_resource_and_filter()
+#                                      procedure create_resource_filter()
 #     {requestFilter ""}             - optional: request filter created with 
-#                                      procedure create_request_and_filter()
+#                                      procedure create_request_filter()
 #     {jobFilter ""}                 - optional: job filter created with 
-#                                      procedure create_job_and_filter()
+#                                      procedure create_job_filter()
 #     {averagesph 10}                - optional: average slots per host value.
 #
 #     {maxWaitTimeForJobs 2}         - optional: wait time for job to start
@@ -6612,7 +6732,6 @@ proc create_max_pending_jobs_slo {{ urgency 1 } { name "MaxPendingJobsSLO" } { r
 #     internal spawn id array (returned from open_remote_spawn_process())
 #
 #  SEE ALSO
-#     util/hedeby_mod_setup()
 #     util/hedeby_mod_sequence()
 #     util/hedeby_mod_cleanup()
 #*******************************************************************************
@@ -6885,9 +7004,7 @@ proc hedeby_mod_cleanup {ispid error_log {exit_var prg_exit_state} {raise_error 
          append errors "exit value of command: $exit_value\n"
          append errors "output of command:\n$output\n"
       }
-      if { $errors != ""} {
-         ts_log_severe "error calling \"sdmadm $current_hedeby_mod_arguments\":\n$errors\nexit_value: $exit_value" $raise_error 
-      }
+      ts_log_severe "error calling \"sdmadm $current_hedeby_mod_arguments\":\n$errors\nexit_value: $exit_value" $raise_error 
    }
    return $output
 }
@@ -7468,7 +7585,7 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
    set exec_host $hedeby_config(hedeby_master_host)
    get_current_cluster_config_array ts_config
 
-   set ge_hosts [get_hedeby_default_services service_names]
+   set ge_hosts [get_hedeby_current_services service_names]
    
    upvar $sji job_id
    if {[info exists job_id]} {
@@ -7486,16 +7603,10 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
    }
 
    set sCluster $service_names(ts_cluster_nr,$resource)
-   set service $service_names(default_service,$resource)
+   set service $service_names(service,$resource)
 
-   if {[string match "$service" "spare_pool"]} {
-        ts_log_severe "spare_pool's resource can not be used for producing UNASSIGNING resource, aborting ..."
-        return 1
-   }
- 
-   set curCluster [get_current_cluster_config_nr]
+   set oldCluster [get_current_cluster_config_nr]
    set_current_cluster_config_nr $sCluster
-   set error_text ""
 
    # set sleep timeout to reasonable big value, e.g. one day (in sec) = 24*3600
    set sleeptimeout 86400
@@ -7505,21 +7616,21 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
    set job_id [submit_job "$remote_host_arg $output_argument $job_argument" 1 60 "" [get_hedeby_admin_user]]
    # wait until job gets out of pending list and will be running
    wait_for_jobstart $job_id "leeper" 30 1 1           
-   set_current_cluster_config_nr $curCluster
+   set_current_cluster_config_nr $oldCluster
 
    # trigger move of resource to spare_pool, that should bring resource to UNASSIGNING state
    set sdmadm_command_line "-p [get_hedeby_pref_type] -s [get_hedeby_system_name] mvr -r $resource -s spare_pool"
    set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
-   ts_log_fine "output is: $output"
+   ts_log_finer "output is: $output"
    if { $prg_exit_state != 0 } {
-       ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
+       ts_log_severe "Resource move was not triggered: exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\""
        return 1
    } else {
-       ts_log_fine "Move of resource $resource was triggered"        
+       ts_log_finer "Move of resource $resource was triggered"        
    }    
 
-   # wait for resource go to unassigning state
-   ts_log_fine "resource \"$resource\" should go into unassigning state now ..."
+   # wait for resource to go into unassigning state
+   ts_log_fine "Resource \"$resource\" should go into unassigning state now ..."
    set exp_res_info($resource,state) "UNASSIGNING"
    wait_for_resource_info exp_res_info 60 0 error_text
 
@@ -7546,11 +7657,13 @@ proc produce_unassigning_resource { resource { sji sleeper_job_id } { svc ge_ser
 #     After that the procedure also checks that the resource is in
 #     ASSIGNED state.
 #
+#     If an error occured during the procedure a reset_hedeby will be performed.
+#   
 #  INPUTS
 #     resource           - name of the resource in unassigning state
 #     sleeper_job_id     - job id of a sleeper job
 #     service            - original service of the resource
-#     {move_interrupted} - if set to 0 (default) resource is expected in spare_pool
+#     {move_interrupted 0} - if set to 0 resource is expected in spare_pool
 #                            if set to != 0 resource is at his original service
 #
 #
@@ -7564,7 +7677,7 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
    global hedeby_config
    set exec_host $hedeby_config(hedeby_master_host)
 
-   set ge_hosts [get_hedeby_default_services service_names]
+   set ge_hosts [get_hedeby_current_services service_names]
       
    if { ![info exists service_names(ts_cluster_nr,$resource)] } {
       ts_log_severe "resource $resource not found!"
@@ -7572,15 +7685,14 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
    }
 
    set sCluster $service_names(ts_cluster_nr,$resource)
-   set service $service_names(default_service,$resource)
  
-   set curCluster [get_current_cluster_config_nr]
+   set oldCluster [get_current_cluster_config_nr]
    set_current_cluster_config_nr $sCluster
    set error_text ""
 
    # delete sleeper job, do not wait for job end!
    set result [delete_job $sleeper_job_id]
-   set_current_cluster_config_nr $curCluster
+   set_current_cluster_config_nr $oldCluster
 
    if { $result != 0} {
       ts_log_fine "error has occured while deleting sleeper job, resource can not be reset."
@@ -7593,13 +7705,14 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
       append error_text "wait_for_resource_info failed:\n$tmp_error\n"
    }
 
+   set current_service $resource_info($resource,service)
    if {$move_interrupted != 0} {
-      if { $resource_info($resource,service) != $service } {
-         append error_text "resource $resource is at service \"$resource_info($resource,service)\", should be \"$service\"\n"
+      if { $current_service != $service } {
+         append error_text "resource $resource is at service \"$current_service\", should be \"$service\"\n"
       }
    } else {
-      if { $resource_info($resource,service) != "spare_pool" } {
-         append error_text "resource $resource is at service \"$resource_info($resource,service)\", should be \"spare_pool\"\n"
+      if { $current_service != "spare_pool" } {
+         append error_text "resource $resource is at service \"$current_service\", should be \"spare_pool\"\n"
       }
    }
 
@@ -7607,18 +7720,18 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
    set is_moved 0
    set is_ok 0
    if {$resource_info($resource,state) == "ASSIGNED"} {
-      ts_log_fine "$resource is in \"ASSIGNED\" state - good" 
-      if {$resource_info($resource,service) == "spare_pool"} {
+      ts_log_finer "$resource is in \"ASSIGNED\" state - good" 
+      if {$current_service == "spare_pool"} {
          ts_log_fine "$resource has been moved to spare_pool"
          set is_moved 1
          set is_ok 1
       }
-      if {$resource_info($resource,service) == $service} {
-         ts_log_fine "$resource is at his original service"
+      if {$current_service == $service} {
+         ts_log_fine "$resource is at original service"
          set is_ok 1
       } 
       if { $is_ok == 0 } {
-         append error_text "resource $resource is at service $resource_info($resource,service) which is not expected\n"
+         append error_text "resource $resource is at service $current_service which is not expected\n"
       }
    } 
    
@@ -7629,10 +7742,10 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
       set output [string trim [sdmadm_command $exec_host [get_hedeby_admin_user] $sdmadm_command_line prg_exit_state "" 0 table]]
       ts_log_fine "output is: $output"
       if { $prg_exit_state != 0 } {
-         ts_log_fine "The exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\", resource move was not triggered\n"
-         return 1
+         ts_log_severe "Resource move was not triggered: exit state \"$prg_exit_state\" doesn't match the expected exit state \"0\""
+         return [reset_hedeby 1]
       } else {
-         ts_log_fine "Move of resource $resource was triggered"            
+         ts_log_finer "Move of resource $resource was triggered"
       }
         
       ts_log_fine "resource \"$resource\" should appear in \"$service\" in assigned state ..."
@@ -7649,10 +7762,9 @@ proc reset_produced_unassigning_resource { resource sleeper_job_id service {move
       append error_text "\nreset hedeby now ..."
       ts_log_severe $error_text
       return [reset_hedeby 1]
-   } else {
-      ts_log_fine "Resource $resource is back in $service"
-      return 0
    }
+   ts_log_fine "Resource $resource is back in service $service"
+   return 0
 }
 
 #****** util/reset_default_slos() **********************************************
@@ -8690,7 +8802,7 @@ proc mod_hedeby_resource { resource my_properties {opt ""} } {
 
    set opts(delete_all) 0
    get_hedeby_proc_opt_arg $opt opts
-   
+
    # mix existing and (new) properties into new_props
    if { $opts(delete_all) == 1 } {
       ts_log_severe "Option opt(delete_all) == 1 is not implemented yet!!"
@@ -8705,7 +8817,7 @@ proc mod_hedeby_resource { resource my_properties {opt ""} } {
       lappend sequence "$prop = $properties($prop)\n"
    }
    lappend sequence "[format "%c" 27]" ;# ESC
-   
+
    set arguments "-s $opts(system_name) -p $opts(pref_type) mr -r $resource"
 
    set ispid [hedeby_mod_setup $opts(host) $opts(user) $arguments error_text]
