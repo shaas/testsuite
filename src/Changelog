@@ -1,3 +1,7 @@
+RH-2008-10-14-0: Bugfix:     Hedeby: fix of issue 539 required adjustments in ca_reload test
+                 Cleanup:    Hedeby: ge unassigne_resource test uses "opt" methods
+                 Review:     TB
+
 TB-2008-10-13-1: Bugfix:     o fixed hedeby test minResource
                              o fixed produce_/reset_* hedeby util
                                functions

@@ -1,4 +1,4 @@
-#!/vol2/TCL_TK/glinux/bin/expect
+#/vol2/TCL_TK/glinux/bin/expect
 # ___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -78,100 +78,115 @@ proc ge_unassign_resources_init_level {} {
 }
 
 proc ge_unassign_resources_setup {} {
-   global hedeby_config
-   global ge_unassign_resources_ctx
+   upvar #0 ge_unassign_resources_ctx this
    
    # get some global settings
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
    get_hedeby_default_services service_names
    
    set service_name [lindex $service_names(services) 0]
    
-   set ge_unassign_resources_ctx(service_name)   $service_name
-   set ge_unassign_resources_ctx(master_host)   $service_names(master_host,$service_name)
-   set ge_unassign_resources_ctx(host_name)      [lindex $service_names(moveable_execds,$service_name) 0]
-   set ge_unassign_resources_ctx(cluster_nr)     $service_names(ts_cluster_nr,$service_name)
-   set ge_unassign_resources_ctx(org_cluster_nr) [get_current_cluster_config_nr]
-   set ge_unassign_resources_ctx(sdmadm_prefix)  "-p $pref_type -s $sys_name"
-   set ge_unassign_resources_ctx(rerun_queue)    "rerun.q"
-   set ge_unassign_resources_ctx(run_once_queue) "run_once_queue.q"
-   set ge_unassign_resources_ctx(job_run_time)   3600
-   set ge_unassign_resources_ctx(job_wait_time)  0
+   set this(service_name)   $service_name
+   set this(master_host)   $service_names(master_host,$service_name)
+   set this(host_name)      [lindex $service_names(moveable_execds,$service_name) 0]
+   set this(cluster_nr)     $service_names(ts_cluster_nr,$service_name)
+   set this(org_cluster_nr) [get_current_cluster_config_nr]
+   set this(rerun_queue)    "rerun.q"
+   set this(run_once_queue) "run_once_queue.q"
+   set this(job_run_time)   3600
+   set this(job_wait_time)  0
    
-   set_current_cluster_config_nr $ge_unassign_resources_ctx(cluster_nr) 
+   set_current_cluster_config_nr $this(cluster_nr) 
    
    # add a queue allowing restartable flags
    get_current_cluster_config_array ts_config
 
    set change_array(rerun) "TRUE"
    set change_array(ckpt_list) "testcheckpointobject"
-   if {[add_queue $ge_unassign_resources_ctx(rerun_queue) "@allhosts" change_array] != 0} {
+   if {[add_queue $this(rerun_queue) "@allhosts" change_array] != 0} {
       return -1;
    }
    unset change_array
    
    set change_array(rerun) "FALSE"
    set change_array(ckpt_list) "testcheckpointobject"
-   if {[add_queue $ge_unassign_resources_ctx(run_once_queue) "@allhosts" change_array] != 0} {
+   if {[add_queue $this(run_once_queue) "@allhosts" change_array] != 0} {
       return -1;
    }
    unset change_array
-   
 }
 
 proc ge_unassign_resources_cleanup {} {
-   global ge_unassign_resources_ctx
-   
+   upvar #0 ge_unassign_resources_ctx this
    set ignore_hostlist 1
    set del_cqueue 1
    set host_list ""
-   del_queue $ge_unassign_resources_ctx(rerun_queue) $ignore_hostlist $del_cqueue
-   del_queue $ge_unassign_resources_ctx(run_once_queue) $ignore_hostlist $del_cqueue
+   del_queue $this(rerun_queue) $ignore_hostlist $del_cqueue
+   del_queue $this(run_once_queue) $ignore_hostlist $del_cqueue
    
-   set_current_cluster_config_nr $ge_unassign_resources_ctx(org_cluster_nr)
+   set_current_cluster_config_nr $this(org_cluster_nr)
    
-   set_hedeby_default_job_suspend_policy $ge_unassign_resources_ctx(service_name)
-   reload_hedeby_component $ge_unassign_resources_ctx(service_name) $ge_unassign_resources_ctx(master_host)
+   set_hedeby_default_job_suspend_policy $this(service_name)
+   reload_hedeby_component $this(service_name) $this(master_host)
+   unset this
 }
 
+#****** check.62/ge_unassign_resources_level_cleanup() *************************
+#  NAME
+#     ge_unassign_resources_level_cleanup() -- run level cleanup function
+#
+#  SYNOPSIS
+#     ge_unassign_resources_level_cleanup { } 
+#
+#  FUNCTION
+#     
+#     This level cleanup method deletes all running jobs in the GE cluster and checks 
+#     that the moved resource is going back to its original service. 
+#
+#  INPUTS
+#
+#*******************************************************************************
 proc ge_unassign_resources_level_cleanup {} {
-   global hedeby_config
-   global ge_unassign_resources_ctx
-   
+   upvar #0 ge_unassign_resources_ctx this
    delete_all_jobs
    
    if {[get_resource_info] == 0} {
-      if {$res_info($ge_unassign_resources_ctx(host_name),service) != $ge_unassign_resources_ctx(service_name)} {
-         set admin_user [get_hedeby_admin_user]
+      if {$res_info($this(host_name),service) != $this(service_name)} {
          # Move the resource back to the original service
-         set cmd_args "$ge_unassign_resources_ctx(sdmadm_prefix)"
-         append cmd_args " move_resource "
-         append cmd_args " -r $ge_unassign_resources_ctx(host_name) -s $ge_unassign_resources_ctx(service_name) "
-         
-         sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "$cmd_args"
+         sdmadm_command_opt "move_resource -r $this(host_name) -s $this(service_name) "
          if {$prg_exit_state == 0} {
             wait_for_resource_state "ASSIGNED" 0 15
          }
       }
    }
-   
 }
 
 
+#****** check.62/ge_unassign_resources_check() *********************************
+#  NAME
+#     ge_unassign_resources_check() -- performs the unassign resoruces check 
+#
+#  SYNOPSIS
+#     ge_unassign_resources_check { } 
+#
+#  FUNCTION
+#
+#    This test tries to move a resource from a GE service to the spare_pool. Depending
+#    on the run level the resource must move or must stay at the GEservice.
+#
+#    The check tests all jobs suspend policies of the GEAdapter.
+#
+#*******************************************************************************
 proc ge_unassign_resources_check {} {
-   global hedeby_config
-   global ge_unassign_resources_ctx
+   upvar #0 ge_unassign_resources_ctx this
    global CHECK_ACT_LEVEL
    
    switch -- $CHECK_ACT_LEVEL {
       0 {
          ts_log_fine "---------------------------------------------------------"
          ts_log_fine "Test moving a resource with a non migratable job"
-         ts_log_fine "-> jobs all suspend methods enabled"
+         ts_log_fine "-> all job suspend methods enabled"
          ts_log_fine "---------------------------------------------------------"
-         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)'"
+         set job_args "-q '$this(run_once_queue)@$this(host_name)'"
          set suspend_methods { "reschedule_jobs_in_rerun_queue" "reschedule_restartable_jobs" "suspend_jobs_with_checkpoint" }
          set mode "stay"
       }
@@ -182,7 +197,7 @@ proc ge_unassign_resources_check {} {
          ts_log_fine "-> jobs suspend method 'reschedule_restartable_jobs' enabled"
          ts_log_fine "---------------------------------------------------------"
          # Positive test of the reschedule_restartable_jobs method
-         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -r y"
+         set job_args "-q '$this(run_once_queue)@$this(host_name)' -r y"
          set suspend_methods { "reschedule_restartable_jobs" }
          set mode "move"
       } 
@@ -192,7 +207,7 @@ proc ge_unassign_resources_check {} {
          ts_log_fine "Test moving a resource with a restartable job"
          ts_log_fine "-> jobs suspend method 'reschedule_restartable_jobs' disabled"
          ts_log_fine "---------------------------------------------------------"
-         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -r y"
+         set job_args "-q '$this(run_once_queue)@$this(host_name)' -r y"
          set suspend_methods {}
          set mode "stay"
       } 
@@ -202,7 +217,7 @@ proc ge_unassign_resources_check {} {
          ts_log_fine "Test moving a resource with jobs in a rerun queue"
          ts_log_fine "-> jobs suspend method 'reschedule_jobs_in_rerun_queue' enabled"
          ts_log_fine "---------------------------------------------------------"
-         set job_args "-q '$ge_unassign_resources_ctx(rerun_queue)@$ge_unassign_resources_ctx(host_name)'"
+         set job_args "-q '$this(rerun_queue)@$this(host_name)'"
          set suspend_methods { "reschedule_jobs_in_rerun_queue" }
          set mode "move"
       }
@@ -212,7 +227,7 @@ proc ge_unassign_resources_check {} {
          ts_log_fine "Test moving a resource with jobs in a rerun queue"
          ts_log_fine "-> jobs suspend method 'reschedule_jobs_in_rerun_queue' disabled"
          ts_log_fine "---------------------------------------------------------"
-         set job_args "-q '$ge_unassign_resources_ctx(rerun_queue)@$ge_unassign_resources_ctx(host_name)'"
+         set job_args "-q '$this(rerun_queue)@$this(host_name)'"
          set suspend_methods { }
          set mode "stay"
       }
@@ -222,7 +237,7 @@ proc ge_unassign_resources_check {} {
          ts_log_fine "Test moving a resource with checkpointing jobs"
          ts_log_fine "-> jobs suspend method 'suspend_jobs_with_checkpoint' enabled"
          ts_log_fine "---------------------------------------------------------"
-         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -ckpt testcheckpointobject"
+         set job_args "-q '$this(run_once_queue)@$this(host_name)' -ckpt testcheckpointobject"
          set suspend_methods { "suspend_jobs_with_checkpoint" }
          set mode "move"
       }
@@ -232,7 +247,7 @@ proc ge_unassign_resources_check {} {
          ts_log_fine "Test moving a resource with checkpointing jobs"
          ts_log_fine "-> jobs suspend method 'suspend_jobs_with_checkpoint' disabled"
          ts_log_fine "---------------------------------------------------------"
-         set job_args "-q '$ge_unassign_resources_ctx(run_once_queue)@$ge_unassign_resources_ctx(host_name)' -ckpt testcheckpointobject"
+         set job_args "-q '$this(run_once_queue)@$this(host_name)' -ckpt testcheckpointobject"
          set suspend_methods { }
          set mode "stay"
       }
@@ -243,24 +258,23 @@ proc ge_unassign_resources_check {} {
    }
    
    get_current_cluster_config_array ts_config
-   set admin_user [get_hedeby_admin_user]
 
    # Reconfigure the job suspend policy of the ge service
-   set res [set_hedeby_job_suspend_policy $ge_unassign_resources_ctx(service_name) $suspend_methods $ge_unassign_resources_ctx(job_wait_time) "seconds"]
+   set res [set_hedeby_job_suspend_policy $this(service_name) $suspend_methods $this(job_wait_time) "seconds"]
    if { $res != 0} {
       ts_log_severe "skipping test, got errors setting suspend policy!"
       return 
    }
    
    # reload the service config 
-   if {[reload_hedeby_component $ge_unassign_resources_ctx(service_name) $ge_unassign_resources_ctx(master_host)] != 0} {
+   if {[reload_hedeby_component $this(service_name) $this(master_host)] != 0} {
       ts_log_severe "skipping test, cannot reload hedeby component!"
       return
    }
    
-   set job_id [submit_job "$job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $ge_unassign_resources_ctx(job_run_time)"]
+   set job_id [submit_job "$job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $this(job_run_time)"]
    if {$job_id < 0 } {
-      ts_log_severe "Error submitting job: $job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $ge_unassign_resources_ctx(job_run_time)"
+      ts_log_severe "Error submitting job: $job_args -N a_job -o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh $this(job_run_time)"
       return
    }
    if {[wait_for_jobstart $job_id "a_job" 60] != 0} {
@@ -272,42 +286,42 @@ proc ge_unassign_resources_check {} {
    }
    
    set move_time [clock seconds]
-   sdmadm_command $hedeby_config(hedeby_master_host) $admin_user "$ge_unassign_resources_ctx(sdmadm_prefix) move_resource -r $ge_unassign_resources_ctx(host_name) -s spare_pool"
+   sdmadm_command_opt "move_resource -r $this(host_name) -s spare_pool"
    if {$prg_exit_state == 0} {
       switch -- $mode {
          "move" {
-            set hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(0,resource) $this(host_name)
             set hist(0,type)     "RESOURCE_REMOVE"
-            set hist(0,service)  $ge_unassign_resources_ctx(service_name)
+            set hist(0,service)  $this(service_name)
             
-            set hist(1,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(1,resource) $this(host_name)
             set hist(1,type)     "RESOURCE_REMOVED"
-            set hist(1,service)  $ge_unassign_resources_ctx(service_name)
+            set hist(1,service)  $this(service_name)
             set hist(count) 2
             
-            set err_hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set err_hist(0,resource) $this(host_name)
             set err_hist(0,type)     "RESOURCE_ADD"
-            set err_hist(0,service)  $ge_unassign_resources_ctx(service_name)
-            set err_hist(1,resource) $ge_unassign_resources_ctx(host_name)
+            set err_hist(0,service)  $this(service_name)
+            set err_hist(1,resource) $this(host_name)
             set err_hist(1,type)     "RESOURCE_ADDED"
-            set err_hist(1,service)  $ge_unassign_resources_ctx(service_name)
+            set err_hist(1,service)  $this(service_name)
             set err_hist(count) 2
          }
          "stay" {   
-            set hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(0,resource) $this(host_name)
             set hist(0,type)     "RESOURCE_REMOVE"
-            set hist(0,service)  $ge_unassign_resources_ctx(service_name)
+            set hist(0,service)  $this(service_name)
             
-            set hist(1,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(1,resource) $this(host_name)
             set hist(1,type)     "RESOURCE_ADD"
-            set hist(1,service)  $ge_unassign_resources_ctx(service_name)
+            set hist(1,service)  $this(service_name)
             
-            set hist(2,resource) $ge_unassign_resources_ctx(host_name)
+            set hist(2,resource) $this(host_name)
             set hist(2,type)     "RESOURCE_ADDED"
-            set hist(2,service)  $ge_unassign_resources_ctx(service_name)
+            set hist(2,service)  $this(service_name)
             set hist(count) 3
             
-            set err_hist(0,resource) $ge_unassign_resources_ctx(host_name)
+            set err_hist(0,resource) $this(host_name)
             set err_hist(0,type)     "RESOURCE_REMOVED"
             set err_hist(count) 1
          }

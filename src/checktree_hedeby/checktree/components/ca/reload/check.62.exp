@@ -65,7 +65,7 @@ set check_needs                "hedeby_install"
 
 # The name of the init level procedure for this test. The procedure is defined
 # in the test file.
-set check_init_level_procedure "ca_reload_init_level"
+set check_init_level_procedure "hedeby_ca_reload_init_level"
 
 # define tests setup and cleanup function. The functions are called for each
 # runlevel. Before testsuite is starting with calling all check_functions
@@ -74,8 +74,8 @@ set check_init_level_procedure "ca_reload_init_level"
 #
 # The aim of the setup/cleanup functions is that the test should restore
 # all modifications, even when the test failes completely.
-set check_setup_function "ca_reload_setup"
-set check_cleanup_function "ca_reload_cleanup"
+set check_setup_function ""
+set check_cleanup_function "hedeby_ca_reload_cleanup"
 
 
 # The check_functions array tells the testsuite which check functions should
@@ -83,21 +83,23 @@ set check_cleanup_function "ca_reload_cleanup"
 # All check_functions should be defined at least in a file (*.tcl) in the
 # check directory.
 set check_functions            ""
-lappend check_functions "ca_reload_check"
+lappend check_functions "hedeby_ca_reload_check"
 
+global hedeby_ca_reload_ctx
 
 # ---END OF TEST INFO SECTION-------------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------------
-# here the tests begin ....
-# (the init level procedure defines which runlevels are supported)
-# short  (0 min - 15 min / run level   0 -  99)"
-# medium (16 min -  1 h   / run level 100 - 199)"
-# long   (1 h   -  4 h   / run level 200 - 299)"
-# day    (> 4 h   - 24 h   / run level 300 - 399)"
-# week   (>24 h            / run level 400 - 499)"
-proc ca_reload_init_level {} {
+#****** check.62/hedeby_ca_reload_init_level() *********************************
+#  NAME
+#     hedeby_ca_reload_init_level() -- init level method 
+#
+#  SYNOPSIS
+#     hedeby_ca_reload_init_level { } 
+#
+#*******************************************************************************
+proc hedeby_ca_reload_init_level {} {
   global CHECK_ACT_LEVEL
 
   # this test currently supports only runlevel "0"
@@ -107,127 +109,113 @@ proc ca_reload_init_level {} {
   return -1
 }
 
-#****** check/ca_reload_setup() ******************************************
+#****** check/hedeby_ca_reload_cleanup() ****************************************
 #  NAME
-#    ca_reload_setup() -- setup the ca_reload test
+#    hedeby_ca_reload_cleanup() -- cleanup the ca_reload test
 #
 #  SYNOPSIS
-#    ca_reload_setup { } 
+#    hedeby_ca_reload_cleanup { } 
 #
 #  FUNCTION
+#    Resets the 
 #
 #*******************************************************************************
-proc ca_reload_setup {} {
-}
-
-
-#****** check/ca_reload_cleanup() ****************************************
-#  NAME
-#    ca_reload_cleanup() -- cleanup the ca_reload test
-#
-#  SYNOPSIS
-#    ca_reload_cleanup { } 
-#
-#  FUNCTION
-#    Reset the keepFiles flag in the executor
-#
-#*******************************************************************************
-proc ca_reload_cleanup {} {
-   global ca_reload_host
+proc hedeby_ca_reload_cleanup {} {
+   upvar #0 hedeby_ca_reload_ctx this
    
-   ts_log_fine "doing cleanup ..."
-   get_current_cluster_config_array ts_config
-
-   set sge_root $ts_config(product_root)
-   
-   if { [ca_reload_set_ca_script $sge_root/util/sgeCA/sge_ca] != 0 } {
-      return 1
+   if {[info exists this(do_reset)]} {
+      reset_hedeby 1
+   }
+   if {[info exists this]} {
+      unset this
    }
 }
 
 
  
-#****** check/ca_reload_check() ******************************************
+#****** check/hedeby_ca_reload_check() ******************************************
 #  NAME
-#    ca_reload_check() -- perform the ca_reload check
+#    hedeby_ca_reload_check() -- perform the ca_reload check
 #
 #  SYNOPSIS
-#    ca_reload_check { } 
+#    hedeby_ca_reload_check { } 
 #
 #  FUNCTION
 #
 #  This test checks reconfiguring the ca component. It detail
 #  it performs the following steps:
 #
-#   - make path to ca script invalid
-#   - reload ca
-#   - check that renew of certificate does not work
-#   - check ca component state
-#   - cleanup
-#
+#   - change the configuration of the ca_script to /bin/false. The reload
+#     must fail, because the juti.jar can not be found (path to juti.jar is
+#     derived from the path of the ca_script).
+#   - change the path of the ca_script to a valid value and reload the component
+#     => the component must go into STARTED state
 #
 #*******************************************************************************
-proc ca_reload_check {} {
-   global CHECK_USER hedeby_config
-   global ca_reload_host
+proc hedeby_ca_reload_check {} {
+   global ts_config
+   upvar #0 hedeby_ca_reload_ctx this
    
-   set host $hedeby_config(hedeby_master_host)
-   set admin_user [get_hedeby_admin_user]
-   set system_name [get_hedeby_system_name]
-   set pref_type [get_hedeby_pref_type]
-   
-   get_current_cluster_config_array ts_config
    set sge_root $ts_config(product_root)
    
    ts_log_fine "Peform ca_reload test"
    
    # set the path to the sge_ca script to /bin/false
-   # Any call of the script will return 1 and the CA component will
-   # report an error
-   if { [ca_reload_set_ca_script /bin/false] != 0 } {
-      # error message has already been reported
-      return 1
-   }
-   
-   # renew of the certificate of the admin user must fail
-   set output [sdmadm_command $host $admin_user "-s $system_name -p $pref_type renew_cert -days 100 -t user -n $admin_user" prg_exit_state "" 0]
-   if { $prg_exit_state == 0 } {
-      set em "It seems that the modification of the CA configuration did not take effect\n"
-      append em "Renewing certificate with /bin/false worked\n"
-      append em "Output of 'sdmadm renew_cert -days 100 -t user -n $admin_user' was :\n"
-      append em $output
-      ts_log_severe  $em
-      return 1
+   # => Component will go into STOPPED state because juti.jar can not be found
+   if {[hedeby_ca_reload_set_ca_script "/bin/false" "STOPPED"] != 0} {
+      set this(do_reset) "true"
+   }      
+
+   # set the correct path to the sge_ca script
+   # => Component will go into STARTED state
+   if { [hedeby_ca_reload_set_ca_script "${sge_root}/util/sgeCA/sge_ca" "STARTED"] != 0 } {
+      set this(do_reset) "true"
    }
 }
 
 
-proc ca_reload_set_ca_script { ca_script } {
+#****** check/hedeby_ca_reload_set_ca_script() ****************************************************
+#  NAME
+#    hedeby_ca_reload_set_ca_script() -- set path to the ca_script in the ca configuration
+#
+#  SYNOPSIS
+#    hedeby_ca_reload_set_ca_script { } 
+#
+#  FUNCTION
+#
+#  INPUTS
+#    admin_user -- the new value for the attribute adminUser 
+#
+#  RESULT
+#    0 --  Success
+#      else error, error message has been reported with ts_log function
+#
+#***************************************************************************************************
+proc hedeby_ca_reload_set_ca_script { ca_script expected_component_state } {
+
    global hedeby_config
-   set system_name [get_hedeby_system_name]
+
    set host $hedeby_config(hedeby_master_host)
-   set admin_user [get_hedeby_admin_user]
-   set pref_type [get_hedeby_pref_type]
-   
+
    set error_text ""
-   set arguments "-s $system_name -p $pref_type mc -c ca"
-   set ispid [hedeby_mod_setup $host $admin_user $arguments error_text]
+   set ispid [hedeby_mod_setup_opt "mc -c ca" error_text]
    
    set sequence {}
    lappend sequence "[format "%c" 27]" ;# ESC
    lappend sequence ":%s#<security:sgeCaScript>.*</security:sgeCaScript>#<security:sgeCaScript>$ca_script</security:sgeCaScript>#\n"
    
    hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text]
+   hedeby_mod_cleanup $ispid error_text
    if { $prg_exit_state != 0 } {
       return $prg_exit_state
    }
    
-   set output [sdmadm_command $host $admin_user "-s $system_name -p $pref_type uc -c ca -h $host"]
+   set opt(raise_error) 0
+   sdmadm_command_opt "uc -c ca -h $host" opt
    if { $prg_exit_state != 0 } {
       return $prg_exit_state
    }
-   set exp_comp_info(ca,$host,state) "STARTED"
+   set exp_comp_info(ca,$host,state) $expected_component_state
    return [wait_for_component_info exp_comp_info 30]
 }
 
