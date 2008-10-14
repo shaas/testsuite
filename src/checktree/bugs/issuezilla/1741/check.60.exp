@@ -38,8 +38,6 @@ global check_root_access_needs
 global stree tmp_name
 
 # setup and cleanup functions
-set check_cleanup_function issue_1741_cleanup
-
 set check_init_level_procedure "issue_1741_init_level"
 
 set check_category            "COMPATIBILITY SYSTEM VERIFIED"
@@ -55,8 +53,40 @@ set check_cleanup_function "issue_1741_cleanup"
 
 # define test's procedure order
 set check_functions           ""
-lappend check_functions       "issue_1741_run"   ;# functions to call (in order)
+lappend check_functions       "issue_1741_run"   
+lappend check_functions       "issue_use_different_names" 
+lappend check_functions       "issue_check_unsuspended_queue" ;# functions  
 
+proc issue_1741_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   # setup levels
+   switch -- $CHECK_ACT_LEVEL {
+      "0" {
+         return 0
+      }
+   }
+   return -1  ;# no other level else
+}
+
+proc issue_1741_setup  {} {
+   global ts_config
+   global check_host
+
+   set check_host [host_conf_get_suited_hosts]   
+}
+
+proc issue_1741_cleanup {} {
+   global check_host
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   # delete queues (if not) in different order (a b) or (b a)   
+   del_queue "a.q" $check_host  0 1 "" "" 0
+   del_queue "b.q" $check_host  0 1 "" "" 0
+   del_queue "a.q" $check_host  0 1 "" "" 0
+}
 
 #
 # Scenario:
@@ -78,24 +108,10 @@ lappend check_functions       "issue_1741_run"   ;# functions to call (in order)
 #        delete all jobs
 #        delete a.q
 #        delete b.q
-#
 
-proc issue_1741_init_level {} {
-   global CHECK_ACT_LEVEL
-
-   # setup levels
-   switch -- $CHECK_ACT_LEVEL {
-      "0" {
-         return 0
-      }
-   }
-   return -1  ;# no other level else
-}
-
-proc issue_1741_setup  {} {
+proc issue_1741_run {} {
    global ts_config
-   global check_host
-
+   
    set check_host [host_conf_get_suited_hosts]
 
    set queue_settings(slots) 1
@@ -106,23 +122,7 @@ proc issue_1741_setup  {} {
    set queue_settings(load_thresholds) "np_load_avg=11.75"
    set queue_settings(subordinate_list) "b.q=1"
    add_queue "a.q" $check_host queue_settings
-}
-
-proc issue_1741_cleanup  {} {
-   global ts_config
-   global check_host
-
-   delete_all_jobs
-   wait_for_end_of_all_jobs
-
-   del_queue "a.q" $check_host  0 1
-   del_queue "b.q" $check_host  0 1
-}
-
-proc issue_1741_run  {} {
-   global ts_config
-   global check_host
-
+  
    set aq [get_queue_instance "a.q" $check_host]
    set bq [get_queue_instance "b.q" $check_host]
 
@@ -136,4 +136,138 @@ proc issue_1741_run  {} {
    shutdown_and_restart_qmaster
 
    wait_for_queue_state $bq "S" 60
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "a.q" $check_host  0 1
+   del_queue "b.q" $check_host  0 1
 }
+
+#****** check.60/issue_use_different_names() ***********************************
+#  NAME
+#     issue_use_different_names() -- Test if queue is in "S" state after restart. 
+#
+#  SYNOPSIS
+#     issue_use_different_names { } 
+#
+#  FUNCTION
+#     The test is the same like issue_1741_run with the expection that queues are 
+#     renamed. Because that BDB order when reading spooled queue instances is different to  
+#     classic spooling order. This caused the error that queue is not in "S" state  
+#     after restart. With this test we can make shure that when reading in spooled 
+#     queue instances in alphabetical order is performed (for some reason) both 
+#     orders are tested. 
+#
+#*******************************************************************************
+proc issue_use_different_names {} {
+   global ts_config
+   global check_host
+   
+   # same test as "issue_1741_run" but queues 
+   # has another alphabetical order: 
+   # different names may have an impact in spooling order 
+   #   while reading in an error occurs when reading first a 
+   #   higher level queue and then the subordinate. The amount 
+   #   of slots of the subordinate can not be found. The result is 
+   #   a critical error in the messages file: 
+   #   C missing "slots" entry in consumable actual list of queue "a.q@donau"
+
+   # this is just a test to see quickly if the alphabetic order 
+   # of the queues have an impact 
+
+   set queue_settings(slots) 1
+   set queue_settings(load_thresholds) "np_load_avg=11.75"
+   add_queue "a.q" $check_host queue_settings
+
+   set queue_settings(slots) 1
+   set queue_settings(load_thresholds) "np_load_avg=11.75"
+   set queue_settings(subordinate_list) "a.q=1"
+   add_queue "b.q" $check_host queue_settings
+
+   set aq [get_queue_instance "a.q" $check_host]
+   set bq [get_queue_instance "b.q" $check_host]
+
+   set job_id1 [submit_job "-o /dev/null -j y -q $aq $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   wait_for_jobstart $job_id1 "Sleeper" 20 1 1
+   set job_id2 [submit_job "-o /dev/null -j y -q $bq $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   wait_for_jobstart $job_id2 "Sleeper" 30 1 1
+
+   wait_for_queue_state $aq "S" 60
+
+   shutdown_and_restart_qmaster
+
+   wait_for_queue_state $aq "S" 60
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "b.q" $check_host  0 1
+   del_queue "a.q" $check_host  0 1
+}
+
+
+#****** check.60/issue_check_unsuspended_queue() *******************************
+#  NAME
+#     issue_check_unsuspended_queue() -- Checks if subordinate queue does not 
+#                                        change state to "S". 
+#
+#  SYNOPSIS
+#     issue_check_unsuspended_queue { } 
+#
+#  FUNCTION
+#      Checks if subordinate queue does not change state to "S" after qmaster 
+#      shutdown when there is no reason for. This test is inteded to check the 
+#      case that after restarting the subordinate queues are suspended by default
+#      which lets the above tests succeed. 
+#
+#*******************************************************************************
+proc issue_check_unsuspended_queue {} {
+   global ts_config
+   global check_host
+
+   # this test checks if subordinate queue remains in 
+   # unsuspended state
+
+   # - start job in subordinate queue
+   # - start job in superior queue 
+   # - wait for state "S" from subordinate queue 
+   # - shutdown and restart cluster 
+   # - expect: job in superior queue will finish
+   # -         and will release suspended job in subordinate queue 
+   # - wait until job from subordinate queue is finished
+
+   set queue_settings(slots) 1 
+   set queue_settings(load_thresholds) "np_load_avg=11.25" 
+   add_queue "b.q" $check_host queue_settings 
+
+   set queue_settings(slots) 1 
+   set queue_settings(load_thresholds) "np_load_avg=11.25"
+   set queue_settings(subordinate_list) "b.q=1"
+   add_queue "a.q" $check_host queue_settings 
+
+   set aq [get_queue_instance "a.q" $check_host]
+   set bq [get_queue_instance "b.q" $check_host]
+
+   # start a job in subordinate b.q 
+   set job_id [submit_job "-o /dev/null -j y -q $bq $ts_config(product_root)/examples/jobs/sleeper.sh 240"]
+   wait_for_jobstart $job_id "Sleeper" 20 1 1
+   
+   shutdown_and_restart_qmaster 
+   
+   # now job in a.q is expected to run/finish after qmaster restart
+   wait_for_load_from_all_queues 60
+
+   # check queue state of b.q 
+   set state [get_queue_state $bq]
+   if {$state != ""} {
+      ts_log_severe "Queue b.q is not in state running, it is in state $state" 
+   }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "a.q" $check_host  0 1
+   del_queue "b.q" $check_host  0 1
+}
+

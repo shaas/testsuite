@@ -294,7 +294,7 @@ proc del_queue { q_name hostlist {ignore_hostlist 0} {del_cqueue 0} {on_host ""}
       foreach host $hostlist {
          set result [start_sge_bin "qconf" "-dattr queue hostlist $host $q_name"]
          if { $prg_exit_state != 0 } {
-            ts_log_severe "could not delete queue instance or queue domain: $result"
+            ts_log_severe "could not delete queue instance or queue domain: $result" $raise_error 
          }
       }
    }
