@@ -95,8 +95,17 @@ proc hedeby_issue551_init_level {} {
 #     no return values
 #*******************************************************************************
 proc hedeby_issue551_setup_level {} {
-    global max_pending_jobs_current_cluster_config
-    set max_pending_jobs_current_cluster_config [get_current_cluster_config_nr]
+   upvar #0 hedeby_issue551_ctx ctx
+
+   get_hedeby_default_services service_names
+
+   # randomly pick a ge_adapter
+   set ctx(ge_adapter) [pick_random $service_names(services)]
+   set ctx(master_host) $service_names(master_host,$ctx(ge_adapter))
+
+   # save old and set current cluster nr to nr of ge_adapter
+   set ctx(curr_cluster_nr) [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$ctx(ge_adapter))
 }
 
 #****** issue551/hedeby_issue551_cleanup_level() *******************************
@@ -113,24 +122,22 @@ proc hedeby_issue551_setup_level {} {
 #     no return values
 #*******************************************************************************
 proc hedeby_issue551_cleanup_level {} {
-    global max_pending_jobs_current_cluster_config
-    global ge_adapter
-    global service_names
+   upvar #0 hedeby_issue551_ctx ctx
 
-    reset_default_slos "mod_config" $ge_adapter
-    if {[move_resources_to_default_services] != 0} {
-         reset_hedeby 1
-    }
-    #enable queues of ge adapater service and delete all jobs in queues 
-    foreach host $service_names(execd_hosts,$ge_adapter) {
-      ts_log_fine "enabling queue on resource $host"
-      enable_queue [get_queue_instance all.q $host]
-    }
-    delete_all_jobs
-    wait_for_end_of_all_jobs 60
-    
-    #reset saved active cluster configuration nr
-    set_current_cluster_config_nr $max_pending_jobs_current_cluster_config
+   reset_default_slos "mod_config" $ctx(ge_adapter)
+   if {[move_resources_to_default_services] != 0} {
+      reset_hedeby 1
+   }
+
+   #enable queues of ge adapater service and delete all jobs in queues 
+   enable_queue {\\*}
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   #reset saved active cluster configuration nr
+   set_current_cluster_config_nr $ctx(curr_cluster_nr)
+
+   unset ctx
 }
 
 
@@ -165,59 +172,41 @@ proc hedeby_issue551_cleanup_level {} {
 #
 #*******************************************************************************
 proc hedeby_issue551_check {} {
-   global hedeby_config
-   global ge_adapter
-   global admin_user
-   global service_names 
+   global check_name
+   upvar #0 hedeby_issue551_ctx ctx
+
+   ts_log_fine "Running test '$check_name' with ge-adapter '$ctx(ge_adapter)' ..."
 
    set error_text ""
-   get_hedeby_default_services service_names
-   set ge_adapter ""
-   set pref_type [get_hedeby_pref_type]
-   set sys_name [get_hedeby_system_name]
-   set admin_user [get_hedeby_admin_user]
-   set master_host $hedeby_config(hedeby_master_host)
    get_current_cluster_config_array ts_config
    set sge_root $ts_config(product_root)
 
-   #get the first found ge adapter
-   foreach service $service_names(services) {
-      set ge_adapter $service
-      break
-   }
-   if {$ge_adapter == ""} {
-      append error_text "There is no GE Adapters components in the system."
-   }
-   set host $service_names(master_host,$ge_adapter)
-   
    #add MaxPendingJobs slo to the configuration of the ge adapter
-   set max_pending_jobs_slo [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" "" "" 1]
-   set slos {}
-   lappend slos $max_pending_jobs_slo
-   if {[set_service_slos "mod_config" $service $slos 1 "minutes" 1] != 0} {
-      append error_text "Setting slos for service \"$service\" failed!"
+   #sloUpdateInterval is set to 10 seconds
+   set slos [create_max_pending_jobs_slo 65 "MaxPendingJobsSLO" "" "" "" 1]
+   if {[set_service_slos "mod_config" $ctx(ge_adapter) $slos 1 "seconds" 10] != 0} {
+      append error_text "Setting slos for service \"$ctx(ge_adapter)\" failed!"
    }
 
-   #lets disable all queues of our ge_adapter service 
-   foreach host $service_names(execd_hosts,$ge_adapter) {
-      ts_log_fine "disabling queue on resource $host"
-      if {[disable_queue [get_queue_instance all.q $host]] != 0} {
-          append error_text "Disabling of queues of service $ge_adapter on resource $host failed!"
-      }
-    }
+   #disable all queues of our ge_adapter service 
+   ts_log_fine "disabling queues on qmaster $ctx(master_host)"
+   if {[disable_queue {\\*}] != 0} {
+      append error_text "Disabling of queues of service $ctx(ge_adapter) on resource $ctx(master_host) failed!"
+   }
 
-   #lets submit sleeper jobs, job should wait cause all queues are disabled
+   #submit sleeper jobs, job should wait cause all queues are disabled
    set tries 3
+   set sleep_time 10
    for {set i 0} {$i < $tries} {incr i} {
       set my_outputs "-o /dev/null -e /dev/null"
-      set arguments "$my_outputs $sge_root/examples/jobs/sleeper.sh 10"
+      set arguments "$my_outputs $sge_root/examples/jobs/sleeper.sh $sleep_time"
       submit_job $arguments
    }
    
    #now we are waiting for need to be send and for additional resource on which job could be executed
-   set time [expr "150 + $tries * 100"]
+   set time [expr "30 + $tries * $sleep_time"] ;# in seconds
    if {[wait_for_end_of_all_jobs $time] != 0} {
-      append error_text "Service $ge_adapter did not get additional resources to finish submitted jobs"
+      append error_text "Service $ctx(ge_adapter) did not get additional resources to finish submitted jobs"
    }
    
    # finally report one big error mail
