@@ -55,6 +55,8 @@ set check_cleanup_function "issue_1741_cleanup"
 set check_functions           ""
 lappend check_functions       "issue_1741_run"   
 lappend check_functions       "issue_use_different_names" 
+lappend check_functions       "issue_use_different_order"
+lappend check_functions       "issue_check_unsuspended_queue_with_more_slots"
 lappend check_functions       "issue_check_unsuspended_queue" ;# functions  
 
 proc issue_1741_init_level {} {
@@ -206,6 +208,59 @@ proc issue_use_different_names {} {
    del_queue "a.q" $check_host  0 1
 }
 
+#****** check.60/issue_use_different_order() ***********************************
+#  NAME
+#     issue_use_different_order() -- Same test as issue_1741_run but with different 
+#                                    creation order of queues. 
+#
+#  SYNOPSIS
+#     issue_use_different_order { } 
+#
+#  FUNCTION
+#    Generates the queues in the opposite order than test "issue_1741". 
+#
+#*******************************************************************************
+proc issue_use_different_order {} {
+   global ts_config
+   global check_host
+   
+   # same test as "issue_1741_run" but queues 
+   # has another creation order of queues  
+
+   set queue_settings(slots) 1
+   set queue_settings(load_thresholds) "np_load_avg=11.75"
+   add_queue "a.q" $check_host queue_settings
+
+   set queue_settings(slots) 1
+   set queue_settings(load_thresholds) "np_load_avg=11.75"
+   add_queue "b.q" $check_host queue_settings
+
+   # modify a.q 
+   set queue_settings(subordinate_list)  "b.q=1"
+   mod_queue "a.q" "" queue_settings
+
+   set aq [get_queue_instance "a.q" $check_host]
+   set bq [get_queue_instance "b.q" $check_host]
+
+   set job_id1 [submit_job "-o /dev/null -j y -q $bq $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   wait_for_jobstart $job_id1 "Sleeper" 20 1 1
+   set job_id2 [submit_job "-o /dev/null -j y -q $aq $ts_config(product_root)/examples/jobs/sleeper.sh 100"]
+   wait_for_jobstart $job_id2 "Sleeper" 30 1 1
+
+   wait_for_queue_state $bq "S" 60
+
+   shutdown_and_restart_qmaster
+
+   wait_for_queue_state $bq "S" 60
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "a.q" $check_host  0 1
+   del_queue "b.q" $check_host  0 1
+}
+
+
 
 #****** check.60/issue_check_unsuspended_queue() *******************************
 #  NAME
@@ -230,12 +285,9 @@ proc issue_check_unsuspended_queue {} {
    # unsuspended state
 
    # - start job in subordinate queue
-   # - start job in superior queue 
-   # - wait for state "S" from subordinate queue 
-   # - shutdown and restart cluster 
-   # - expect: job in superior queue will finish
-   # -         and will release suspended job in subordinate queue 
-   # - wait until job from subordinate queue is finished
+   # - shutdown and restart cluster
+   # - expect that job in subordinate queue is running and 
+   #   state of queue is not suspended 
 
    set queue_settings(slots) 1 
    set queue_settings(load_thresholds) "np_load_avg=11.25" 
@@ -264,10 +316,93 @@ proc issue_check_unsuspended_queue {} {
       ts_log_severe "Queue b.q is not in state running, it is in state $state" 
    }
 
+   # check state state of job 
+   set job_state [get_job_state $job_id]
+   if {[string compare $job_state "r"] != 0} {
+      ts_log_severe "Job in b.q. is not running! State is $job_state"
+   }
+
    delete_all_jobs
    wait_for_end_of_all_jobs
 
    del_queue "a.q" $check_host  0 1
    del_queue "b.q" $check_host  0 1
 }
+
+
+#****** check.60/issue_check_unsuspended_queue_with_more_slots() ***************
+#  NAME
+#     issue_check_unsuspended_queue_with_more_slots() -- ??? 
+#
+#  SYNOPSIS
+#     issue_check_unsuspended_queue_with_more_slots { } 
+#
+#  FUNCTION 
+#     Checks if the queue state and the job state is restored 
+#     correctly as "running" after restarting the qmaster. 
+#
+#*******************************************************************************
+proc issue_check_unsuspended_queue_with_more_slots {} {
+   global ts_config
+   global check_host
+
+   # this test checks if subordinate queue remains in 
+   # unsuspended state
+
+   set queue_settings(slots) 1 
+   set queue_settings(load_thresholds) "np_load_avg=11.25" 
+   add_queue "b.q" $check_host queue_settings 
+
+   set queue_settings(slots) 2 
+   set queue_settings(load_thresholds) "np_load_avg=11.25"
+   set queue_settings(subordinate_list) "b.q=2"
+   add_queue "a.q" $check_host queue_settings 
+
+   set aq [get_queue_instance "a.q" $check_host]
+   set bq [get_queue_instance "b.q" $check_host]
+
+   # start a job in subordinate b.q 
+   set job_id [submit_job "-o /dev/null -j y -q $bq $ts_config(product_root)/examples/jobs/sleeper.sh 240"]
+   wait_for_jobstart $job_id "Sleeper" 20 1 1
+   set job_id_2 [submit_job "-o /dev/null -j y -q $aq $ts_config(product_root)/examples/jobs/sleeper.sh 240"]
+   wait_for_jobstart $job_id "Sleeper" 20 1 1
+   
+   shutdown_and_restart_qmaster 
+
+   # expect that both jobs are running and no queue is in state 
+   # other than running   
+
+   # now job in a.q is expected to run/finish after qmaster restart
+   wait_for_load_from_all_queues 60
+
+   # check queue state of b.q 
+   set state [get_queue_state $bq]
+   if {$state != ""} {
+      ts_log_severe "Queue b.q is not in state running, it is in state $state" 
+   }
+
+   # check queue state of a.q 
+   set state [get_queue_state $aq]
+   if {$state != ""} {
+      ts_log_severe "Queue a.q is not in state running, it is in state $state" 
+   }
+
+   # check if both jobs are running 
+   set job_state [get_job_state $job_id]
+   if {[string compare $job_state "r"] != 0} {
+      ts_log_severe "Job in b.q. is not running! State is $job_state"
+   }
+   # check if both jobs are running 
+   set job_state [get_job_state $job_id_2]
+   if {[string compare $job_state "r"] != 0} {
+      ts_log_severe "Job in a.q. is not running! State is $job_state"
+   }
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+
+   del_queue "a.q" $check_host  0 1
+   del_queue "b.q" $check_host  0 1
+}
+
 

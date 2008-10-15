@@ -1,9 +1,12 @@
-TB-2008-10-15-0: Bugfix:    Fixed failing hedeby test for issue 551
-                 Enhancem.: o same test: changed to use a ctx variable
-                            o same test: improved to pick a random ge_adapter
-                 Review:    RH
+DG-2008-10-15-0: Enhancem.:  Added test scenario to issue_1741. 
+                 Review:     EB
 
-DG-2008-10-14:0: Bugfix:     Added complementary tests for issue_1741. 
+TB-2008-10-15-0: Bugfix:     Fixed failing hedeby test for issue 551
+                 Enhancem.:  o same test: changed to use a ctx variable
+                             o same test: improved to pick a random ge_adapter
+                 Review:     RH
+
+DG-2008-10-14-0: Bugfix:     Added complementary tests for issue_1741. 
                              Fix for del_queue function (didn't propagate 
                              raise_error variable).
                  Review:     CR
