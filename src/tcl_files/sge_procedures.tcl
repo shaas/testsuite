@@ -841,7 +841,11 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
       set user $CHECK_USER
    }
 
-   set USE_CLIENT [string match "*USE_CLI*" $check_category]
+   if { [info exists check_category] == 1 } { 
+      set USE_CLIENT [string match "*USE_CLI*" $check_category]
+   } else {
+      set USE_CLIENT 0 
+   }
    
    #We allow only qconf and qstat and exlude broken options that cause critical failures
    #LP disabled qstat due to crashing issues
@@ -8062,7 +8066,7 @@ proc copy_certificates { host } {
 #*******************************
 #
 
-proc is_daemon_running { hostname daemon } {
+proc is_daemon_running { hostname daemon {disable_daemon_count_check 0} } {
    get_current_cluster_config_array ts_config
 
    set found_p [ ps_grep $ts_config(product_root) $hostname ]
@@ -8081,7 +8085,12 @@ proc is_daemon_running { hostname daemon } {
       foreach elem $found_p {
          append err_text "$ps_info(string,$elem)\n"
       }
-      ts_log_severe $err_text
+      append err_text "TODO: This function will not work on threaded daemons running on linux 24 kernel\n"
+      if {$disable_daemon_count_check != 0} {
+         ts_log_info "$err_text"
+      } else {
+         ts_log_severe $err_text
+      }
 
    }
    return $daemon_count

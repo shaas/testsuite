@@ -102,7 +102,7 @@ proc LSB_lockfile_test {} {
          lx2* {
                 set output [start_remote_prog $exec_host $CHECK_USER "ls" "-la /var/lock | grep subsys" "exit_val" $my_timeout ]
                 if {$output != ""} {
-                   set execd_found [is_daemon_running $exec_host "sge_execd"]
+                   set execd_found [is_daemon_running $exec_host "sge_execd" 1]
                    if {$execd_found == 0} {
                       continue
                    } 
@@ -148,6 +148,7 @@ proc LSB_lockfile_test {} {
                       ts_log_severe "failed - rc-script runs into any error, tried to start as user $CHECK_USER on host $exec_host" 
                       return
                    }
+                   wait_for_load_from_all_queues 60
                    ts_log_fine "ok"
                    ts_log_fine "checking /var/lock/subsys/sgeexecd file ..."
                    set output [start_remote_prog $exec_host $CHECK_USER "ls" "-la /var/lock/subsys | grep sgeexecd" "exit_val" $my_timeout]

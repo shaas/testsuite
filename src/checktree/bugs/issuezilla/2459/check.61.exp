@@ -311,7 +311,7 @@ proc issue_2459_parse_autobackup {} {
    }
 }
 
-
+#creating corrupt configuration
 proc issue_2459_write_autoinst_config {filename host {do_cleanup 1}} {
    global CHECK_USER local_execd_spool_set
    global ts_config
@@ -439,7 +439,7 @@ proc init_found_install_entries {} {
    set found_install_entries(EXECD_SPOOL_DIR_LOCAL) 0  
    set found_install_entries(HOSTNAME_RESOLVING) 0  
    set found_install_entries(SHELL_NAME) 0  
-   set found_install_entries(COPY_COMMAND) 0  
+   set found_install_entries(COPY_COMMAND) 1 ;#cannot be tested with this test scenario  
    set found_install_entries(DEFAULT_DOMAIN) 0  
    set found_install_entries(ADMIN_MAIL) 0  
    set found_install_entries(ADD_TO_RC) 0  

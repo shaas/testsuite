@@ -1,3 +1,7 @@
+MD-2008-10-16-0: Enhancem:    added IZ 2753 issue test
+                 Bugfix:      fixed IZ test 1823 and 2459
+                 Review:      JG, CR
+
 JF-2008-10-16-0: Enhancem.:  Fixed changelog JF-2008-09-03-0
 
 DG-2008-10-15-0: Enhancem.:  Added test scenario to issue_1741. 

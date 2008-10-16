@@ -135,6 +135,12 @@ proc install_qmaster {} {
       set do_log_output  1 ;# 1
    }
 
+   # Wait for NFS availability of the settings file on each host 
+   foreach host [get_all_hosts] {
+      wait_for_remote_file $host $CHECK_USER $ts_config(product_root)/$ts_config(cell)/common/settings.sh
+   }
+
+
    if {$exit_val == 0} {
       lappend CORE_INSTALLED $ts_config(master_host)
       write_install_list
