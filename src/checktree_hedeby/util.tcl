@@ -3142,7 +3142,8 @@ proc parse_table_output { output array_name delemitter } {
 #
 #  SYNOPSIS
 #     get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} 
-#     {rl res_list} {da res_list_not_uniq} {report_error 1} } 
+#     {rl res_list} {da res_list_not_uniq} {raise_error 1}
+#     {sdmout sdmadm_output} {system_name ""} {pref_type ""} } 
 #
 #  FUNCTION
 #     This procedure starts an sdmadm sr command and parses the output.
@@ -3163,6 +3164,11 @@ proc parse_table_output { output array_name delemitter } {
 #     {raise_error 1}        - report errors
 #                                 (default: 1)
 #     {sdmout sdmadm_output} - variable to store sdmadm output 
+#                                 (default: sdmadm_output)
+#     {system_name ""}       - name of the hedeby system
+#                                 (default: [get_hedeby_system_name])
+#     {preference_type ""}   - preference type of the hedeby system
+#                                 (default: [get_hedeby_pref_type])
 #
 #  RESULT
 #     Return value: "0" on success, "1" on error 
@@ -3202,7 +3208,7 @@ proc parse_table_output { output array_name delemitter } {
 #     util/wait_for_resource_info()
 #     util/get_service_info()
 #*******************************************************************************
-proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output}} {
+proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res_list} {da res_list_not_uniq} {raise_error 1} {sdmout sdmadm_output} {system_name ""} {preference_type ""}} {
    global hedeby_config
 
    # setup arguments
@@ -3221,6 +3227,16 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    } else {
       set execute_user $user
    }
+   if {$system_name == ""} {
+      set sys_name [get_hedeby_system_name]
+   } else {
+      set sys_name $system_name
+   }
+   if {$preference_type == ""} {
+      set pref_type [get_hedeby_pref_type]
+   } else {
+      set pref_type $preference_type
+   }
 
    # first we delete possible existing info arrays
    if { [info exists resource_info] } {
@@ -3236,7 +3252,7 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
 
 
    # now we start sdmadm sr command ...
-   set sdmadm_command "-d -p [get_hedeby_pref_type] -s [get_hedeby_system_name] sr -all"
+   set sdmadm_command "-d -p $pref_type -s $sys_name sr -all"
    set output [sdmadm_command $execute_host $execute_user $sdmadm_command prg_exit_state "" $raise_error table]
    if { $prg_exit_state != 0} {
       ts_log_severe "exit state of sdmadm $sdmadm_command was $prg_exit_state - aborting\noutput:\n$output" $raise_error
@@ -3358,6 +3374,55 @@ proc get_resource_info { {host ""} {user ""} {ri res_info} {rp res_prop} {rl res
    ts_log_finer "resource list: $resource_list"
    set resource_ambiguous $double_assigned_resource_list
    return 0
+}
+
+#****** util/get_resource_info_opt() **************************************************
+#  NAME
+#     get_resource_info_opt() -- get resource information (via sdmadm sr)
+#
+#  SYNOPSIS
+#     get_resource_info_opt { arg_line {opt ""} } {
+#
+#  FUNCTION
+#     This procedure is the optional argument passing version of
+#     get_resource_info(). For a description of the command, see there.
+#
+#  INPUTS
+#     {ri res_info}          - name of array for resource informations
+#                                 (default: res_info)
+#
+#     opt                    - optional named arguments, see get_hedeby_proc_default_opt_args()
+#     opt(res_prop)          - variable name, see get_resource_info() (default: res_prop)
+#     opt(res_list)          - variable name, see get_resource_info() (default: res_list)
+#     opt(res_list_not_uniq) - variable name, see get_resource_info() (default: res_list_not_uniq)
+#     opt(sdmadm_output)     - variable name, see get_resource_info() (default: sdmadm_output)
+#
+#  RESULT
+#     Return value: "0" on success, "1" on error 
+#
+#  SEE ALSO
+#     util/get_resource_info_opt()
+#     util/get_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc get_resource_info_opt { {ri res_info} {opt ""} } {
+   upvar $ri u_ri
+
+   # set function default optional arguments
+   set opts(res_prop) "res_prop"
+   set opts(res_list) "res_list"
+   set opts(res_list_not_uniq) "res_list_not_uniq"
+   set opts(sdmadm_output) "sdmadm_output"
+   get_hedeby_proc_opt_arg $opt opts
+
+   upvar $opts(res_prop) u_res_prop
+   upvar $opts(res_list) u_res_list
+   upvar $opts(res_list_not_uniq) u_res_list_not_uniq
+   upvar $opts(sdmadm_output) u_sdmadm_output
+
+   return [ get_resource_info $opts(host) $opts(user) \
+               u_ri u_res_prop u_res_list u_res_list_not_uniq \
+               $opts(raise_error) u_sdmadm_output \
+               $opts(system_name) $opts(pref_type) ]
 }
 
 #****** util/wait_for_resource_info() ******************************************
@@ -5401,10 +5466,12 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
    
         -i $sp_id -- "*\[ \n\]" {
            set token $expect_out(0,string)
-           if { [regexp -line "_exit_status_:\\((.*)\\)" $token whole_match back_exit_state] } {
+           if { [regexp "(.*)_exit_status_:\\((\[^\n\]*)\\)" $token whole_match rest_of_output back_exit_state] } {
               ts_log_fine "found exit status of client: ($back_exit_state)"
               set do_stop 1
               set found_end 1
+              # maybe token contains still some output before exit_status
+              append output $rest_of_output
            }
            if {  $found_start == 1 && $found_end == 0 } {
               append output "${token}"
@@ -5447,7 +5514,7 @@ proc sdmadm_command { host user arg_line {exit_var prg_exit_state} { interactive
          ts_log_severe "interacitve errors:\n$error_text\noutput:\n$output\nexit state: $back_exit_state" $raise_error
       }
       if { $back_exit_state != 0 } {
-         ts_log_severe "${host}(${user}): sdmadm $arg_line failed:\n$output" $raise_error
+         ts_log_severe "${host}(${user}): sdmadm $arg_line failed with exit state '$back_exit_state':\n$output" $raise_error
       }
       parse_table_output $output table "|"
       return $output
@@ -8713,9 +8780,8 @@ proc get_show_resource_request_info {{host ""} {user ""} {rri res_req_info} {rai
 #
 #  FUNCTION
 #     This procedure gets the properties of a resource. The properties are
-#     obtained by calling 'sdmadm sr -all', the 'static' property is included
-#     explicitly and the properties are returned as key => value pairs in the
-#     array properties.
+#     obtained by calling 'sdmadm sr -all' and the properties are returned as
+#     key => value pairs in the array properties.
 #
 #  INPUTS
 #     resource           - id of the resource
@@ -8739,7 +8805,8 @@ proc get_hedeby_resource_properties { resource properties {opt ""} } {
    # get the properties for the specified resource
    # $table_output(additional,0) contains the resource properties
    set opts(table_output) table_output
-   sdmadm_command_opt "sr -r $resource -all" opts 
+   # try to work around issue 550 by not using -r $resource but -rf ...
+   sdmadm_command_opt "show_resource -rf 'resourceHostname=\"$resource\"' -all" opts 
 
    # ... and save them in props array
    foreach prop_line [split $table_output(additional,0) " "] {
@@ -8747,14 +8814,6 @@ proc get_hedeby_resource_properties { resource properties {opt ""} } {
       set prop_name  [lindex $split_list 0]
       set prop_value [lindex $split_list 1]
       set props($prop_name) $prop_value
-   }
-
-   # ... explicitly set static property in props array
-   if { [string first "S" $table_output(flags,0)] >= 0 } {
-      # static flag is set
-      set props(static) "true"
-   } else {
-      set props(static) "false"
    }
 
    ts_log_finest [format_array props]
@@ -8775,7 +8834,6 @@ proc get_hedeby_resource_properties { resource properties {opt ""} } {
 #     This procedure modifies the properties of a resource. The properties are
 #     given in the TCL array my_properties.
 #
-#     TODO: at the moment only default value opt(delete_all) == 0
 #     Depending on the value of opt(delete_all) one of the following modifying
 #     strategies is chosen:
 #       opt(delete_all) == 0: [default] only add or update properties of the
@@ -8788,13 +8846,11 @@ proc get_hedeby_resource_properties { resource properties {opt ""} } {
 #     my_properties      - array with the resource properties
 #
 #     opt                - optional named arguments, see get_hedeby_proc_default_opt_args()
-#     opt(delete_all)    - see above in FUNCTION (default = 0) TODO
+#     opt(delete_all)    - see above in FUNCTION (default = 0)
 #
 #  RESULT
 #     0 on success, 1 on error
 #
-#  NOTES
-#     TODO : opt(delete_all) needs to be implemented
 #  SEE ALSO
 #     util/get_hedeby_resource_properties()
 #*******************************************************************************
@@ -8806,40 +8862,32 @@ proc mod_hedeby_resource { resource my_properties {opt ""} } {
    set opts(delete_all) 0
    get_hedeby_proc_opt_arg $opt opts
 
+   # get_hedeby_resource_properties only needs the default set of arguments
+   copy_hedeby_proc_opt_arg opts new_opts "default"
+   
    # mix existing and (new) properties into new_props
-   if { $opts(delete_all) == 1 } {
-      ts_log_severe "Option opt(delete_all) == 1 is not implemented yet!!"
-      return
+   if { $opts(delete_all) == 0 } {
+      get_hedeby_resource_properties $resource new_props new_opts
+   }
+   foreach prop_name [array names properties] {
+      set new_props($prop_name) $properties($prop_name)
    }
 
-   set sequence {}
-   lappend sequence "GA\n"
-   
-   foreach prop [array names properties] {
-      ts_log_finer "new property: $prop = $properties($prop)"
-      lappend sequence "$prop = $properties($prop)\n"
+   ts_log_finest [format_array new_props]
+
+   # set new_props via stdin piping to 'sdmadm mr -f -'
+   set tasks(STANDARD_IN) ""
+   foreach prop_name [array names new_props] {
+      append tasks(STANDARD_IN) "$prop_name=$new_props($prop_name)\n"
    }
-   lappend sequence "[format "%c" 27]" ;# ESC
+   set new_opts(interactive_tasks) tasks
+   set output [ sdmadm_command_opt "mr -r $resource -f -" new_opts ]
 
-   set arguments "-s $opts(system_name) -p $opts(pref_type) mr -r $resource"
-
-   set ispid [hedeby_mod_setup $opts(host) $opts(user) $arguments error_text]
-
-   set sp_id [ lindex $ispid 1 ]
-   
-   set timeout 30
-
-   hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $opts(raise_error)]
-
-   ts_log_finer "exit_status: $prg_exit_state"
-   if { $prg_exit_state == 0 } {
-      ts_log_finer "output: \n$output"
-   }
-
-   if {$error_text != ""} {
+   if { $prg_exit_state != 0 } {
+      ts_log_fine "mod_hedeby_resource: sdmadm_command exit_state=$prg_exit_state, output=$output"
       return 1
    }
+
    return 0
 }
 

@@ -1,0 +1,404 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_547"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "mod_resource should work like add_resource"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue547_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue547_setup_level"
+set check_cleanup_level_function "hedeby_issue547_cleanup_level"
+
+lappend check_functions "hedeby_issue547_check"
+
+#****** issue_547/hedeby_issue547_init_level() ************************
+#  NAME
+#     hedeby_issue547_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue547_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue547_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_547/hedeby_issue547_setup_level() *********************************
+#  NAME
+#    hedeby_issue547_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue547_setup_level { } 
+#
+#  FUNCTION
+#    sets up the hedeby_issue547_ctx and hedeby_issue547_default_properties
+#
+#  INPUTS
+#    no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue547_setup_level {} {
+   # alias the global variables hedeby_issue547_ctx and
+   # hedeby_issue547_default_properties to ctx and def_props respectively
+   upvar #0 hedeby_issue547_ctx ctx
+   upvar #0 hedeby_issue547_default_properties def_props
+
+   # use a random resource in the spare_pool
+   set ctx(resource) [pick_random [get_all_spare_pool_resources]]
+   # get default properties for this resource
+   get_hedeby_resource_properties $ctx(resource) def_props
+}
+
+#****** issue547/hedeby_issue547_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue547_cleanup_level() -- cleanup level function
+#
+#  SYNOPSIS
+#    hedeby_issue547_cleanup_level { } 
+#
+#  FUNCTION
+#     Only do cleanup if hedeby_issue547_ctx(cleanup_done) is not set
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue547_cleanup_level {} {
+   # alias the global variables hedeby_issue547_ctx and
+   # hedeby_issue547_default_properties to ctx and def_props respectively
+   upvar #0 hedeby_issue547_ctx ctx
+   upvar #0 hedeby_issue547_default_properties def_props
+
+   ts_log_fine "Cleaning up tests for issue 547"
+
+   if { [info exists ctx(cleanup_done)] } {
+      ts_log_fine "No cleanup neccessary."
+   } else {
+      # in order to get the original properties on the used $ctx(resource),
+      # remove $ctx(resource) and add it again
+      ts_log_fine "Removing spare_pool resource \"$ctx(resource)\" ..."
+      sdmadm_command_opt "rr -r $ctx(resource) -force"
+      if {[wait_for_resource_removal $ctx(resource)] == 0} {
+         # resource is removed, so re-add with correct properties
+         ts_log_fine "Re-add spare_pool resource \"$ctx(resource)\" ..."
+         if {[add_host_resources $ctx(resource)] == 0} {
+            # Cleanup successful
+            set ctx(cleanup_done) 1
+         }
+      }
+   }
+
+   if { ![info exists ctx(cleanup_done)] } {
+      reset_hedeby 1
+   }
+   
+   unset ctx
+   unset def_props
+}
+
+
+#****** issue_547/hedeby_issue547_check *****************************
+#  NAME
+#     hedeby_issue547_check() -- check that add_resource and mod_resource are consistent
+#
+#  SYNOPSIS
+#     hedeby_issue547_check { } 
+#
+#  FUNCTION
+#     This function tests hedeby issue 547: 
+#       The CLI commands add_resource and mod_resource should behave in the
+#       same way for the following aspects:
+#       1) parameter -f should always accept '-' as a filename meaning to read
+#          from STDIN
+#       2) Given an empty file, both should exit with a reasonable error message
+#       3) Both commands should accept a file with only one line
+#          'resourceHostname=hostname'
+#       4) Leaving out a mandatory property with default value (e.g. property
+#          "static") for the mod_resource command should not lead to an
+#          error. Instead the property should be set to the default value (for
+#          "static" this is false).
+#          In addition, the output of 'sdmadm show_resource -rf 'resourceHostname="$ctx(resource)"' -all'
+#          should contain a line 'static=true/false'.
+#
+#     These aspects are tested here in this order using the free resource
+#     $hedeby_issue547_ctx(resource) (in the spare pool).
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue547_check {} {
+   # alias the global variables hedeby_issue547_ctx and
+   # hedeby_issue547_default_properties to ctx and def_props respectively
+   upvar #0 hedeby_issue547_ctx ctx
+   upvar #0 hedeby_issue547_default_properties def_props
+
+   ts_log_fine "Starting test for issue 547 using resource=$ctx(resource)"
+   
+   ##########################################################################
+   # 1) parameter -f should always accept '-' as a filename meaning to read
+   #    from STDIN
+   ts_log_fine "Step 1: Checking read from stdin via -f"
+
+   # ... set an additional property
+   set def_props(my_property) "my_value"
+   set tasks(STANDARD_IN) ""
+   foreach prop_name [array names def_props] {
+      append tasks(STANDARD_IN) "$prop_name=$def_props($prop_name)\n"
+   }
+
+   # ... and modify resource
+   set opt(interactive_tasks) tasks
+   sdmadm_command_opt "mr -r $ctx(resource) -f -" opt
+   # ... check that the resource properties where changed
+   get_hedeby_resource_properties $ctx(resource) new_properties
+
+   if { ![hedeby_issue547_properties_equal def_props new_properties] } {
+      ts_log_severe "Step 1: properties differ after mod_resource:\
+                     \n[format_array new_properties]\
+                     \n[format_array def_props]"
+      return
+   }
+   
+   # ... now remove the resource and add it with properties from STDIN
+   sdmadm_command_opt "rr -r $ctx(resource)"
+   wait_for_resource_removal $ctx(resource)
+   sdmadm_command_opt "ar -s spare_pool -f -" opt
+
+   unset new_properties
+   # ... check that the resource properties where changed
+   get_hedeby_resource_properties $ctx(resource) new_properties
+
+   if { ![hedeby_issue547_properties_equal def_props new_properties] } {
+      ts_log_severe "Step 1: properties differ after add_resource:\
+                     \n[format_array new_properties]\
+                     \n[format_array def_props]"
+      return
+   }
+
+   # ... reset additional property in def_props
+   unset def_props(my_property)
+
+
+   ############################################################################
+   # 2) Given an empty file, both should exit with a reasonable error message
+   ts_log_fine "Step 2: Checking read from empty file"
+
+   set err_msg [create_bundle_string "AbstractResourceCliCommand.ex.noResFound"]
+   unset opt
+   set opt(raise_error) 0
+   set opt(interactive_tasks) tasks
+   set opt(exit_var) prg_exit_state
+   set tasks(STANDARD_IN) "\n"
+
+   # ... check mod_resource command
+   set output [sdmadm_command_opt "mr -r $ctx(resource) -f -" opt]
+   if { ( [string first $err_msg $output] == -1 ) || ( $prg_exit_state != 2 ) } {
+      ts_log_severe "Step 2: wrong error message or exit code after mod_resource with empty file:\
+                     \ngot: exit_code=$prg_exit_state, output=$output \
+                     \nexpected: exit_code=2, error message=$err_msg"
+      return
+   }
+
+   # ... check add_resource command
+   set output [sdmadm_command_opt "ar -f -" opt]
+   if { ( [string first $err_msg $output] == -1 ) || ( $prg_exit_state != 2 ) } {
+      ts_log_severe "Step 2: wrong error message or exit code after add_resource with empty file:\
+                     \ngot: exit_code=$prg_exit_state, output=$output \
+                     \nexpected: exit_code=2, error message=$err_msg"
+      return
+   }
+
+
+   ############################################################################
+   # 3) Both commands should accept a file with only one line
+   #    'resourceHostname=hostname'
+   ts_log_fine "Step 3: Checking minimal resource file"
+
+   # ... check mod_resource command
+   unset opt
+   set opt(interactive_tasks) tasks
+   set tasks(STANDARD_IN) "resourceHostname=$ctx(resource)\n"
+   sdmadm_command_opt "mr -r $ctx(resource) -f -" opt
+
+   # ... now remove the resource and check add_resource
+   sdmadm_command_opt "rr -r $ctx(resource)"
+   wait_for_resource_removal $ctx(resource)
+   sdmadm_command_opt "ar -s spare_pool -f -" opt
+
+   # ... and reset properties to default properties
+   set tasks(STANDARD_IN) ""
+   foreach prop_name [array names def_props] {
+      append tasks(STANDARD_IN) "$prop_name=$def_props($prop_name)\n"
+   }
+   sdmadm_command_opt "mr -r $ctx(resource) -f -" opt
+
+   ############################################################################
+   # 4) Leaving out a mandatory property with default value (e.g. property
+   #    "static") for the mod_resource command should not lead to an
+   #    error. Instead the property should be set to the default value (for
+   #    "static" this is false).
+   #    In addition, the output of 'sdmadm show_resource -rf 'resourceHostname="$ctx(resource)"' -all'
+   #    should always contain a line 'static=true/false'.
+   #    The usage of a -rf filter here tries to work around issue 550: the
+   #    show_resource command does not do any host name resolving.
+   ts_log_fine "Step 4: Checking left out mandatory property"
+
+   # ... set resource to static
+   unset opt
+   set opt(interactive_tasks) tasks
+   set def_props(static) "true"
+   set tasks(STANDARD_IN) ""
+   foreach prop_name [array names def_props] {
+      append tasks(STANDARD_IN) "$prop_name=$def_props($prop_name)\n"
+   }
+   sdmadm_command_opt "mr -r $ctx(resource) -f -" opt
+
+   # ... check that the $ctx(resource) is static
+   get_resource_info_opt res_info
+   if { [string first "S" $res_info($ctx(resource),flags)] == -1 } {
+      ts_log_severe "Step 4: resource '$ctx(resource)' should be static:\n[format_array res_info]"
+      return
+   }
+   # ... and check that show_resource output contains static=true line
+   set output [sdmadm_command_opt "show_resource -rf 'resourceHostname=\"$ctx(resource)\"' -all"]
+   if { ![string match "*static=true*" $output] } {
+      ts_log_severe "Step 4: output of 'show_resource -rf 'resourceHostname=\"$ctx(resource)\"' -all' does NOT contain 'static=true' line:\n$output"
+      return
+   }
+
+
+   # ... remove the property key static and modify $ctx(resource)
+   unset def_props(static)
+   set tasks(STANDARD_IN) ""
+   foreach prop_name [array names def_props] {
+      append tasks(STANDARD_IN) "$prop_name=$def_props($prop_name)\n"
+   }
+   sdmadm_command_opt "mr -r $ctx(resource) -f -" opt
+
+   # ... and check that the $ctx(resource) is no longer static
+   get_resource_info_opt res_info
+   if { [string first "S" $res_info($ctx(resource),flags)] >= 0 } {
+      ts_log_severe "Step 4: resource '$ctx(resource)' should not be static:\n[format_array res_info]"
+      return
+   }
+   # ... and check that show_resource output does NOT contain static=false line
+   set output [sdmadm_command_opt "show_resource -rf 'resourceHostname=\"$ctx(resource)\"' -all"]
+   if { ![string match "*static=false*" $output] } {
+      ts_log_severe "Step 4: output of 'show_resource -rf 'resourceHostname=\"$ctx(resource)\"' -all' does NOT contain 'static=false' line:\n$output"
+      return
+   }
+
+   # tests ran fine till here so we are in a clean state again
+   set ctx(cleanup_done) 1
+
+   return
+}
+
+
+#****** issue_547/hedeby_issue547_properties_equal *****************************
+#  NAME
+#     hedeby_issue547_properties_equal() -- check that properties are equal
+#
+#  SYNOPSIS
+#     hedeby_issue547_properties_equal { prop_array1 prop_array2 } 
+#
+#  FUNCTION
+#     Tests if the property arrays prop_array1 and prop_array2 are equal.
+#
+#     To circumvent problems with hostname resolving, this test does NOT
+#     compare the resourceHostname property.
+#
+#  RESULT
+#     1 if both property arrays are equal, 0 otherwise
+#
+#*******************************************************************************
+proc hedeby_issue547_properties_equal { prop_array1 prop_array2 } {
+   upvar $prop_array1 ar1
+   upvar $prop_array2 ar2
+
+   # both arrays must contain the same keys
+   set keys_ar1 [lsort [array names ar1]]
+   set keys_ar2 [lsort [array names ar2]]
+   if { $keys_ar1 != $keys_ar2 } {
+      return 0
+   }
+
+   # the keys in both arrays are the same
+   # => compare the contents
+   foreach k $keys_ar1 {
+      if { $k == "resourceHostname" } {
+         continue
+      }
+      if { $ar1($k) != $ar2($k) } {
+         return 0
+      }
+   }
+
+   # arrays are the same
+   return 1
+}

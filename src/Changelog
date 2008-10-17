@@ -1,3 +1,14 @@
+TB-2008-10-17-1: Enhancem.:  o Added test for hedeby issue 547:
+                               checktree_hedeby/checktree/issues/issue_547/check.62.exp
+                             o new procedure get_resource_info_opt
+                             o additional parameters for get_resource_info:
+                               system_name and pref_type
+                             o optional parameter delete_all now works for
+                               mod_hedeby_resource
+                 Cleanup:    o typoes and changed log level of some output from
+                               fine to finer
+                 Review:     MB, RH
+
 TB-2008-10-17-0: Bugfix:    Fixed bug in test for hedeby issue 571:
                             int overflow in millisecond time calculation on
                             some machines
