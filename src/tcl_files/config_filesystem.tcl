@@ -188,7 +188,7 @@ proc fs_config_filesystemlist_show_filesystems { array_name } {
    set index 0
    foreach fs $config(fsname_list) {
       incr index 1 
-      puts "($index) $fs     (Server: $config($fs,fsserver), Type: $config($fs,fstype), Root2Nobody: $config($fs,fssuwrite), Root login: $config($fs,fssulogin))"
+      puts "($index) $fs     (Server: $config($fs,fsserver), Type: $config($fs,fstype), Root writeperm: $config($fs,fssuwrite), Root login: $config($fs,fssulogin))"
    }
    return $config(fsname_list)
 }
@@ -311,7 +311,7 @@ proc fs_config_filesystemlist_add_filesystem { array_name { have_filesystem "" }
                set input_ok 0
                while {$input_ok != 1} {
                   puts "\n"
-                  puts -nonewline "Filesystem Root2Nobody mount (y/n):"
+                  puts -nonewline "Has root write permission  (y/n):"
                   set new_fssuwrite [wait_for_enter 1]
                   if {[string compare $new_fssuwrite "y"] == 0 || [string compare $new_fssuwrite "n"] == 0} {
                      set input_ok 1
@@ -470,7 +470,7 @@ proc fs_config_filesystemlist_edit_filesystem { array_name { have_filesystem "" 
          set input_ok 0
          while {$input_ok != 1} {
             puts "\n"
-            puts -nonewline "Filesystem Root2Nobody mount (y/n):"
+            puts -nonewline "Has root write permission (y/n):"
             set new_fssuwrite [wait_for_enter 1]
             if {[string compare $new_fssuwrite "y"] == 0 || [string compare $new_fssuwrite "n"] == 0} {
                set input_ok 1
