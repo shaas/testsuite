@@ -444,7 +444,7 @@ proc fs_config_filesystemlist_edit_filesystem { array_name { have_filesystem "" 
                set input_ok 1
             }
          }
-         set config($new_filesystem,$fsserver)      "$new_servername"
+         set config($filesystem,fsserver)      "$new_servername"
          continue
       }
 
@@ -476,7 +476,7 @@ proc fs_config_filesystemlist_edit_filesystem { array_name { have_filesystem "" 
                set input_ok 1
             }
          }
-         set config($new_filesystem,fssuwrite)      "$new_fssuwrite"
+         set config($filesystem,fssuwrite)      "$new_fssuwrite"
          continue
       }
 
@@ -490,7 +490,7 @@ proc fs_config_filesystemlist_edit_filesystem { array_name { have_filesystem "" 
                set input_ok 1
             }
          }
-         set config($new_filesystem,fssulogin)      "$new_fssulogin"
+         set config($filesystem,fssulogin)      "$new_fssulogin"
          continue
       }
    }
