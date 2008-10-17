@@ -3779,7 +3779,10 @@ proc get_history { filter_args {hi history_info} {raise_error 1} {ev error_var }
             ts_log_warning "Could not parse time_str \"$time_str\" from history (clock_str=\"$clock_str\")"
             set millis -1
          } elseif {[string is digit $ms_str]} {
-            set millis [expr $seconds * 1000 + $ms_str]
+            # explicitly cast the $seconds to wide (=at least 64bit) so that
+            # millis is also at least a 64bit integer => otherwise there would
+            # be a int overflow with 32 bit TCL binaries
+            set millis [expr wide($seconds) * 1000 + $ms_str]
          } else {
             ts_log_warning "Could not parse time_str \"$time_str\" from history (invalid ms_str \"$ms_str\")"
             set millis -1

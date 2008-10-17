@@ -1,3 +1,8 @@
+TB-2008-10-17-0: Bugfix:    Fixed bug in test for hedeby issue 571:
+                            int overflow in millisecond time calculation on
+                            some machines
+                 Review:    RH
+
 JG-2008-10-17-0: Bugfix:    bugs/issuezilla/2459 failed on host without
                             SMF support 
                  Review:    MD
