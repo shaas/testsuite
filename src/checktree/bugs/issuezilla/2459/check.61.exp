@@ -31,33 +31,6 @@
 ##########################################################################
 #___INFO__MARK_END__
 
-
-
-# Template for testsuite check
-# 
-# 1) replace the following symbols by your test specific names
-#    o __TESTSUITE_TEST_NAME   name of your test (e.g. consumable_test)
-#      (vi: 21s)
-#
-# 2) set check_root_access_needs to "yes" or "no" (if you need root access)
-#
-# 3) set check_category
-#
-# 4) set check_highest_level ( e.g.: runlevel "short" has reserved values from 0 to 99 ) 
-#
-# 5) set check_needs (e.g.: "init_core_system" this means that this test is not 
-#    started without succesfull run of "init_core_system" test
-# 6) implement the default functions (e.g.: __TESTSUITE_TEST_NAME_init_level)
-#
-# 7) you can add any function name to check_functions (all function (no paramters allowed) are started 
-#    within each runlevel number
-#    PLEASE use add_proc_error() to submit errors
-#    add_proc_error() is used in many testsuite standard functions, so not every 
-#    function call must check the return state.
-# 
-
-
-
 # define global variable in this namespace
 global check_name 
 global check_category 
@@ -76,9 +49,8 @@ set check_init_level_procedure "issue_2459_init_level"
 # define test's name and run level descriptions
 set check_name            "issue_2459"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level  0 
+set check_highest_level   0 
 set check_description(0)  "Testing the autoinstall and autobackup configfile checking "
-set check_description(1)  ""
 
 # define test's dependencies
 #set check_needs           "init_core_system" 
@@ -96,7 +68,7 @@ proc issue_2459_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0" {
+      0 {
          return 0
       }
    }
@@ -107,7 +79,9 @@ proc issue_2459_init_level {} {
 # -------- local test procedures: initialization------------------------------
 
 proc issue_2459_setup {} {
-   global ts_config found_backup_entries found_install_entries
+   global ts_config
+   global found_backup_entries found_install_entries
+
    init_found_install_entries
    init_found_backup_entries
    create_auto_config
@@ -126,188 +100,180 @@ proc issue_2459_cleanup {} {
 proc issue_2459_parse_autoinstall {} {
    global ts_config CHECK_USER
    global issue_2459_hosts
-   global CHECK_ACT_LEVEL found_install_entries
+   global found_install_entries
 
-   if {$CHECK_ACT_LEVEL == 0} {
-      ts_log_fine "This test is for runlevel $CHECK_ACT_LEVEL"
+   set my_timeout 500
+   set exit_val 0
 
-      set my_timeout 500
-      set exit_val 0
+   ts_log_fine "inst_sge -m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
 
-      ts_log_fine "inst_sge -m -x -csp -auto $ts_config(product_root)/autoinst_config.conf"
-      set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER  "./inst_sge" "-m -x -csp -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
-
-      set lines [split $output "\n"]
-      foreach line $lines {
-         switch -glob $line { 
-            "*SGE_ROOT*" {
-                  set found_install_entries(SGE_ROOT) 1  
-            }
-            "*CELL_NAME*" {
-                  set found_install_entries(CELL_NAME) 1  
-            }
-            "*SGE_QMASTER_PORT*" {
-                  set found_install_entries(SGE_QMASTER_PORT) 1  
-            } 
-            "*SGE_EXECD_PORT*" {
-                  set found_install_entries(SGE_EXECD_PORT) 1  
-            }
-            "*QMASTER_SPOOL_DIR*" {
-                  set found_install_entries(QMASTER_SPOOL_DIR) 1  
-            }
-            "*EXECD_SPOOL_DIR_LOCAL*" {
-                  set found_install_entries(EXECD_SPOOL_DIR) 1  
-            }
-            "*GID_RANGE*" {
-                  set found_install_entries(GID_RANGE) 1  
-            }
-            "*SPOOLING_METHOD*" {
-                  set found_install_entries(SPOOLING_METHOD) 1  
-            }
-            "*PAR_EXECD_INST_COUNT*" {
-                  set found_install_entries(PAR_EXECD_INST_COUNT) 1  
-            }
-            "*EXEC_HOST_LIST*" {
-                  set found_install_entries(EXEC_HOST_LIST) 1  
-            }
-            "*EXECD_SPOOL_DIR*" {
-                  set found_install_entries(EXECD_SPOOL_DIR_LOCAL) 1  
-            }
-            "*HOSTNAME_RESOLVING*" {
-                  set found_install_entries(HOSTNAME_RESOLVING) 1  
-            }
-            "*SHELL_NAME*" {
-                  set found_install_entries(SHELL_NAME) 1  
-            }
-            "*COPY_COMMAND*" {
-                  set found_install_entries(COPY_COMMAND) 1  
-            }
-            "*DEFAULT_DOMAIN*" {
-                  set found_install_entries(DEFAULT_DOMAIN) 1  
-            }
-            "*ADMIN_MAIL*" {
-                  set found_install_entries(ADMIN_MAIL) 1  
-            }
-            "*ADD_TO_RC*" {
-                  set found_install_entries(ADD_TO_RC) 1  
-            }
-            "*SET_FILE_PERMS*" {
-                  set found_install_entries(SET_FILE_PERMS) 1  
-            }
-            "*SCHEDD_CONF*" {
-                  set found_install_entries(SCHEDD_CONF) 1  
-            }
-            "*WINDOWS_SUPPORT*" {
-                  set found_install_entries(WINDOWS_SUPPORT) 1  
-            }
-            "*WIN_ADMIN_NAME*" {
-                  set found_install_entries(WIN_ADMIN_NAME) 1  
-            }
-            "*CSP_RECREATE*" {
-                  set found_install_entries(CSP_RECREATE) 1  
-            }
-            "*CSP_COPY_CERTS*" {
-                  set found_install_entries(CSP_COPY_CERTS) 1  
-            }
-            "*CSP_COUNTRY_CODE*" {
-                  set found_install_entries(CSP_COUNTRY_CODE) 1  
-            }
-            "*SERVICE_TAGS*" {
-                  set found_install_entries(SERVICE_TAGS) 1  
-            }
-            "*SGE_ENABLE_SMF*" {
-                  set found_install_entries(SGE_ENABLE_SMF) 1  
-            }
-            "*SGE_CLUSTER_NAME*" {
-                  set found_install_entries(SGE_CLUSTER_NAME) 1  
-            }
-            "*SGE_ENABLE_JMX*" {
-                  set found_install_entries(SGE_ENABLE_JMX) 1  
-            }
-            "*SGE_JMX_PORT*" {
-                  set found_install_entries(SGE_JMX_PORT) 1  
-            }
-            "*SGE_JVM_LIB_PATH*" {
-                  set found_install_entries(SGE_JVM_LIB_PATH) 1  
-            }
+   set lines [split $output "\n"]
+   foreach line $lines {
+      switch -glob $line { 
+         "*SGE_ROOT*" {
+               set found_install_entries(SGE_ROOT) 1  
+         }
+         "*CELL_NAME*" {
+               set found_install_entries(CELL_NAME) 1  
+         }
+         "*SGE_QMASTER_PORT*" {
+               set found_install_entries(SGE_QMASTER_PORT) 1  
+         } 
+         "*SGE_EXECD_PORT*" {
+               set found_install_entries(SGE_EXECD_PORT) 1  
+         }
+         "*QMASTER_SPOOL_DIR*" {
+               set found_install_entries(QMASTER_SPOOL_DIR) 1  
+         }
+         "*EXECD_SPOOL_DIR_LOCAL*" {
+               set found_install_entries(EXECD_SPOOL_DIR) 1  
+         }
+         "*GID_RANGE*" {
+               set found_install_entries(GID_RANGE) 1  
+         }
+         "*SPOOLING_METHOD*" {
+               set found_install_entries(SPOOLING_METHOD) 1  
+         }
+         "*PAR_EXECD_INST_COUNT*" {
+               set found_install_entries(PAR_EXECD_INST_COUNT) 1  
+         }
+         "*EXEC_HOST_LIST*" {
+               set found_install_entries(EXEC_HOST_LIST) 1  
+         }
+         "*EXECD_SPOOL_DIR*" {
+               set found_install_entries(EXECD_SPOOL_DIR_LOCAL) 1  
+         }
+         "*HOSTNAME_RESOLVING*" {
+               set found_install_entries(HOSTNAME_RESOLVING) 1  
+         }
+         "*SHELL_NAME*" {
+               set found_install_entries(SHELL_NAME) 1  
+         }
+         "*COPY_COMMAND*" {
+               set found_install_entries(COPY_COMMAND) 1  
+         }
+         "*DEFAULT_DOMAIN*" {
+               set found_install_entries(DEFAULT_DOMAIN) 1  
+         }
+         "*ADMIN_MAIL*" {
+               set found_install_entries(ADMIN_MAIL) 1  
+         }
+         "*ADD_TO_RC*" {
+               set found_install_entries(ADD_TO_RC) 1  
+         }
+         "*SET_FILE_PERMS*" {
+               set found_install_entries(SET_FILE_PERMS) 1  
+         }
+         "*SCHEDD_CONF*" {
+               set found_install_entries(SCHEDD_CONF) 1  
+         }
+         "*WINDOWS_SUPPORT*" {
+               set found_install_entries(WINDOWS_SUPPORT) 1  
+         }
+         "*WIN_ADMIN_NAME*" {
+               set found_install_entries(WIN_ADMIN_NAME) 1  
+         }
+         "*CSP_RECREATE*" {
+               set found_install_entries(CSP_RECREATE) 1  
+         }
+         "*CSP_COPY_CERTS*" {
+               set found_install_entries(CSP_COPY_CERTS) 1  
+         }
+         "*CSP_COUNTRY_CODE*" {
+               set found_install_entries(CSP_COUNTRY_CODE) 1  
+         }
+         "*SERVICE_TAGS*" {
+               set found_install_entries(SERVICE_TAGS) 1  
+         }
+         "*SGE_ENABLE_SMF*" {
+               set found_install_entries(SGE_ENABLE_SMF) 1  
+         }
+         "*SGE_CLUSTER_NAME*" {
+               set found_install_entries(SGE_CLUSTER_NAME) 1  
+         }
+         "*SGE_ENABLE_JMX*" {
+               set found_install_entries(SGE_ENABLE_JMX) 1  
+         }
+         "*SGE_JMX_PORT*" {
+               set found_install_entries(SGE_JMX_PORT) 1  
+         }
+         "*SGE_JVM_LIB_PATH*" {
+               set found_install_entries(SGE_JVM_LIB_PATH) 1  
          }
       }
-      if {$exit_val == 2} {
-         set test_ok 1
-         foreach index [array names found_install_entries] {
-            if {$found_install_entries($index) == 0} {
-               ts_log_fine "No error received for configuration entry: $index"
-               set test_ok 0 
-            }
-         }
-         if {$test_ok == 1} {
-            ts_log_fine $output
-            ts_log_fine "test is ok!"
-         } else {
-            ts_log_warning "autoinstall configfile check failed:\n$output"
-         }
-         return
-      } else { 
-         ts_log_fine "test failed, scripts exit code was != 2"
-         ts_log_warning "inst_sge" "-2" "autoinstall configfile check failed:\n$output"
-         return
-      }
+   }
 
+   if {$exit_val == 2} {
+      set test_ok 1
+      foreach index [array names found_install_entries] {
+         if {$found_install_entries($index) == 0} {
+            ts_log_fine "No error received for configuration entry: $index"
+            set test_ok 0 
+         }
+      }
+      if {$test_ok == 1} {
+         ts_log_fine $output
+         ts_log_fine "test is ok!"
+      } else {
+         ts_log_warning "autoinstall configfile check failed:\n$output"
+      }
+      return
+   } else { 
+      ts_log_fine "test failed, scripts exit code was != 2"
+      ts_log_warning "inst_sge" "-2" "autoinstall configfile check failed:\n$output"
+      return
    }
 }
 
 proc issue_2459_parse_autobackup {} {
    global ts_config CHECK_USER
    global issue_2459_hosts
-   global CHECK_ACT_LEVEL found_backup_entries
+   global found_backup_entries
 
-   if {$CHECK_ACT_LEVEL == 0} {
-      ts_log_fine "this is the test for runlevel $CHECK_ACT_LEVEL"
+   set my_timeout 500
+   set exit_val 0
 
-      set my_timeout 500
-      set exit_val 0
+   ts_log_fine "inst_sge -bup -auto $ts_config(product_root)/autobackup_config.conf"
+   set output [start_remote_prog $ts_config(master_host) $CHECK_USER  "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
 
-      ts_log_fine "inst_sge -bup -auto $ts_config(product_root)/autobackup_config.conf"
-      set output [start_remote_prog "$ts_config(master_host)" $CHECK_USER  "./inst_sge" "-bup -auto $ts_config(product_root)/autobackup_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
-
-      set lines [split $output "\n"]
-      foreach line $lines {
-         switch -glob $line { 
-            "*SGE_ROOT*" {
-                  set found_backup_entries(SGE_ROOT) 1  
-            }
-            "*SGE_CELL*" {
-                  set found_backup_entries(SGE_CELL) 1  
-            }
-            "*BACKUP_DIR*" {
-                  set found_backup_entries(BACKUP_DIR) 1  
-            }
-            "*BACKUP_FILE*" {
-                  set found_backup_entries(BACKUP_FILE) 1  
-            }
-         }   
-      }      
-
-      if {$exit_val == 2} {
-         set test_ok 1
-         foreach index [array names found_backup_entries] {
-            if {$found_backup_entries($index) == 0} {
-               ts_log_fine "No error received for configuration entry: $index"
-               set test_ok 0 
-            }
+   set lines [split $output "\n"]
+   foreach line $lines {
+      switch -glob $line { 
+         "*SGE_ROOT*" {
+               set found_backup_entries(SGE_ROOT) 1  
          }
-         if {$test_ok == 1} {
-            ts_log_fine $output
-            ts_log_fine "test is ok!"
-         } else {
-            ts_log_warning "autobackup configfile check failed:\n$output"
+         "*SGE_CELL*" {
+               set found_backup_entries(SGE_CELL) 1  
          }
-         return
-      } else { 
-         ts_log_fine "test failed, scripts exit code was != 2"
-         ts_log_warning "inst_sge" "-2" "autobackup configfile check failed:\n$output"
-         return
+         "*BACKUP_DIR*" {
+               set found_backup_entries(BACKUP_DIR) 1  
+         }
+         "*BACKUP_FILE*" {
+               set found_backup_entries(BACKUP_FILE) 1  
+         }
+      }   
+   }      
+
+   if {$exit_val == 2} {
+      set test_ok 1
+      foreach index [array names found_backup_entries] {
+         if {$found_backup_entries($index) == 0} {
+            ts_log_fine "No error received for configuration entry: $index"
+            set test_ok 0 
+         }
       }
+      if {$test_ok == 1} {
+         ts_log_fine $output
+         ts_log_fine "test is ok!"
+      } else {
+         ts_log_warning "autobackup configfile check failed:\n$output"
+      }
+      return
+   } else { 
+      ts_log_fine "test failed, scripts exit code was != 2"
+      ts_log_warning "inst_sge" "-2" "autobackup configfile check failed:\n$output"
+      return
    }
 }
 
@@ -321,7 +287,7 @@ proc issue_2459_write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "SGE_ROOT=\"\""
    puts $fdo "SGE_QMASTER_PORT=\"huhu\""
    puts $fdo "SGE_EXECD_PORT=\"wrong\""
-   if {$ts_config(gridengine_version) > "61"} {
+   if {$ts_config(gridengine_version) > 61} {
       puts $fdo "SGE_ENABLE_SMF=\"fale\""
       puts $fdo "SGE_CLUSTER_NAME=\"1234\""
       if {$ts_config(jmx_port) > 0} {
@@ -363,7 +329,7 @@ proc issue_2459_write_autoinst_config {filename host {do_cleanup 1}} {
    puts $fdo "SHADOW_HOST=\"\""
    puts $fdo "PAR_EXECD_INST_COUNT=\"nonumber\""
    puts $fdo "WINDOWS_SUPPORT=\"fase\""
-   if {$ts_config(gridengine_version) > "61"} {
+   if {$ts_config(gridengine_version) > 61} {
       puts $fdo "SERVICE_TAGS=\"ele\""
    }
    puts $fdo "CSP_COPY_CERTS=\"fae\""
@@ -393,9 +359,6 @@ proc issue_2459_write_autobackup_config {filename host {do_cleanup 1}} {
    close $fdo
    wait_for_remote_file $host $CHECK_USER $filename
 }
-
-
-
 
 proc create_auto_config {} {
    global CHECK_USER
@@ -449,10 +412,14 @@ proc init_found_install_entries {} {
    set found_install_entries(CSP_RECREATE) 0  
    set found_install_entries(CSP_COPY_CERTS) 0  
    set found_install_entries(CSP_COUNTRY_CODE) 0
-   if {$ts_config(gridengine_version) > "61"} {  
+   if {$ts_config(gridengine_version) > 61} {  
       set found_install_entries(SERVICE_TAGS) 0  
-      set found_install_entries(SGE_ENABLE_SMF) 0  
-      set found_install_entries(SGE_CLUSTER_NAME) 0  
+      if {[is_smf_host $ts_config(master_host)]} {
+         set found_install_entries(SGE_ENABLE_SMF) 0
+      } else {
+         set found_install_entries(SGE_ENABLE_SMF) 1
+      }
+      set found_install_entries(SGE_CLUSTER_NAME) 0 
       set found_install_entries(SGE_ENABLE_JMX) 0  
       set found_install_entries(SGE_JMX_PORT) 0  
       set found_install_entries(SGE_JVM_LIB_PATH) 1
@@ -464,7 +431,6 @@ proc init_found_install_entries {} {
       set found_install_entries(SGE_JMX_PORT) 1  
       set found_install_entries(SGE_JVM_LIB_PATH) 1
    }
-
 }
 
 
