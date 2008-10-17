@@ -1,3 +1,7 @@
+MD-2008-10-17-0: Bugfix:     o change some logging messages in IZ2753
+                 Enhancem.:  o IZ 77, RFE for introducing a filesystem config
+                 Review:     CR
+
 TB-2008-10-17-1: Enhancem.:  o Added test for hedeby issue 547:
                                checktree_hedeby/checktree/issues/issue_547/check.62.exp
                              o new procedure get_resource_info_opt

@@ -116,18 +116,18 @@ proc issue_2753_test1 {} {
    global issue_2753_hosts
    global CHECK_ACT_LEVEL
 
-   ts_log_info "renaming boostrap file" ;#I'm doing it here and not in the setup function, because ts needs the qconf command for any reason, which is not working with a renamed bootstrap file.
+   ts_log_info "renaming boostrap file" 0 "" 1 1 0 ;#I'm doing it here and not in the setup function, because ts needs the qconf command for any reason, which is not working with a renamed bootstrap file.
    start_remote_prog $ts_config(master_host) "root" "mv" "$ts_config(product_root)/$ts_config(cell)/common/bootstrap $ts_config(product_root)/$ts_config(cell)/common/bootstrap_save" prg_exit_state 60 0 "" "" 1 0 0 1 1
 
-   ts_log_info "starting spooldefaults binary"
+   ts_log_info "starting spooldefaults binary" 0 "" 1 1 0
    set output [start_sge_utilbin "spooldefaults" "" $ts_config(master_host) "root" prg_exit_state 60 ""]
 
    set ret [handle_sge_errors "issue_2753_test1" "spooldefault" $output messages 0 $prg_exit_state]
 
-   ts_log_info "renaming boostrap file back to old name";#I'm doing it here and not in the setup function, because ts needs the qconf command for any reason, which is not working with a renamed bootstrap file.
+   ts_log_info "renaming boostrap file back to old name" 0 "" 1 1 0;#I'm doing it here and not in the setup function, because ts needs the qconf command for any reason, which is not working with a renamed bootstrap file.
    start_remote_prog $ts_config(master_host) "root" "mv" "$ts_config(product_root)/$ts_config(cell)/common/bootstrap_save $ts_config(product_root)/$ts_config(cell)/common/bootstrap" prg_exit_state 60 0 "" "" 1 0 0 1 1
 
-  ts_log_info "Test ok, spooldefaults binary prints a adequate error message"
+  ts_log_info "Test ok, spooldefaults binary prints a adequate error message" 0 "" 1 1 0
    
 }
 

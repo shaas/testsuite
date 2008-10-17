@@ -34,7 +34,6 @@
 
 global file_procedure_logfile_wait_sp_id
 global last_file_extention
-
 #                                                             max. column:     |
 #****** file_procedures/test_file() ******
 # 
@@ -3819,18 +3818,24 @@ proc get_bdb_spooldir {{host ""} {only_local 0}} {
 #  RESULT
 #     The filesystem type (e.g. "nfs, nfs4, tmpfs, ufs), or
 #     "unknown" in case of errors.
+#
+# TODO: do not use this function, new fs_config functions should be used, this 
+# get_fstype will be removed soon.
 #*******************************************************************************
-proc get_fstype {path {host ""}} {
+proc get_fstype {path {host ""} {raise_error 1}} {
    set ret "unknown"
 
    # use the SGE utilbin fstype
    set output [start_sge_utilbin "fstype" $path $host]
-   if {$prg_exit_state != 0} {
+   if {$prg_exit_state != 0 && $raise_error == 1} {
       ts_log_severe "$path failed:\n$output"
    } else {
-      set ret [string trim $output]
+      if {$prg_exit_state != 0 && $raise_error == 0} {
+         ts_log_warning "$path failed:\n$output"
+      } else {
+         set ret [string trim $output]
+      }
    }
-
    return $ret
 }
 
@@ -3917,4 +3922,25 @@ proc get_additional_config_file_path {project_name {filename ""}} {
     }
     ts_log_finest "Using configuration file for $project_name: $ret"
     return $ret
+}
+
+
+proc have_dirs_same_base_dir {dir_name1 dir_name2} {
+
+   set tmp_dir1 $dir_name1
+   set tmp_dir2 $dir_name2
+   set ret 0
+
+   while {[file dirname $tmp_dir1] != "/"} {
+      set tmp_dir1 [file dirname $tmp_dir1]
+   }
+
+   while {[file dirname $tmp_dir2] != "/"} {
+      set tmp_dir2 [file dirname $tmp_dir2]
+   }
+
+   if {[string compare $tmp_dir1 $tmp_dir2] == 0} {
+      set ret 1
+   }
+   return $ret
 }

@@ -1868,6 +1868,48 @@ proc save_db_configuration { file } {
    return 0
 }
 
+
+#****** check/save_fs_configuration() ******************************************
+#  NAME
+#     save_fs_configuration() -- save filesystem configuration file
+#
+#  SYNOPSIS
+#     save_fs_configuration { file } 
+#
+#  FUNCTION
+#     This procedure will save the actual filesystem configuration to the given
+#     file. (ts_fs_config array)
+#
+#  INPUTS
+#     file - filesystem configuration file
+#
+#  SEE ALSO
+#     check/save_configuration()
+#
+#*******************************************************************************
+proc save_fs_configuration { file } {
+   global ts_fs_config
+
+   if { [ info exists ts_fs_config(version) ] == 0 } {
+      ts_log_severe "no version specified - abort saving"
+      wait_for_enter
+      return -1
+   }
+
+   set conf_name "testsuite filesystem configuration"
+   # first get old configuration
+   read_array_from_file  $file $conf_name old_fs_config
+   # save old configuration 
+   spool_array_to_file $file "$conf_name.old" old_fs_config
+   spool_array_to_file $file $conf_name ts_fs_config  
+   
+   puts "new filesystem configuration saved"
+   wait_for_enter
+
+   return 0
+}
+
+
 #****** check/save_configuration() *********************************************
 #  NAME
 #     save_configuration() -- save testsuite configuration
@@ -2189,6 +2231,13 @@ proc update_ts_config_version {} {
    if {[string compare $ts_config(version) "1.16"] == 0} {
       puts "\ntestsuite configuration update from 1.16 to 1.17 ..."
       config_build_ts_config_1_17
+      show_config ts_config
+      wait_for_enter
+   }
+
+   if {[string compare $ts_config(version) "1.17"] == 0} {
+      puts "\ntestsuite configuration update from 1.17 to 1.18 ..."
+      config_build_ts_config_1_18
       show_config ts_config
       wait_for_enter
       return 0
@@ -7599,6 +7648,7 @@ proc source_tcl_files {} {
    ts_source $libdir/config_user
    ts_source $libdir/config_host
    ts_source $libdir/config_database
+   ts_source $libdir/config_filesystem
 
    ts_source $libdir/compile
    ts_source $libdir/file_procedures

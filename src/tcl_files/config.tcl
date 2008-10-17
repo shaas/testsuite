@@ -476,7 +476,7 @@ proc show_config { conf_array {short 1} { output "not_set" } } {
 #     check/setup2()
 #*******************************************************************************
 proc modify_setup2 {} {
-   global ts_checktree ts_config ts_host_config ts_user_config ts_db_config 
+   global ts_checktree ts_config ts_host_config ts_user_config ts_db_config ts_fs_config
    global CHECK_ACT_LEVEL CHECK_PACKAGE_DIRECTORY check_name
    global CHECK_CUR_CONFIG_FILE CHECK_DEFAULTS_FILE
 
@@ -509,17 +509,23 @@ proc modify_setup2 {} {
    set setup_hook(3,verify_func)  "verify_user_config"
    set setup_hook(3,save_func)    "save_user_configuration"
    set setup_hook(3,filename)     "$ts_config(user_config_file)"
+
+   set setup_hook(4,name) "Filesystem file config."
+   set setup_hook(4,config_array) "ts_fs_config"
+   set setup_hook(4,verify_func)  "verify_fs_config"
+   set setup_hook(4,save_func)    "save_fs_configuration"
+   set setup_hook(4,filename)     "$ts_config(fs_config_file)"
    
    if { [info exists ts_config(db_config_file)] && [ string compare $ts_config(db_config_file) "none" ] != 0 } {
-   set setup_hook(4,name) "Database file configuration"
-   set setup_hook(4,config_array) "ts_db_config"
-   set setup_hook(4,verify_func)  "verify_db_config"
-   set setup_hook(4,save_func)    "save_db_configuration"
-   set setup_hook(4,filename)     "$ts_config(db_config_file)"
+   set setup_hook(5,name) "Database file configuration"
+   set setup_hook(5,config_array) "ts_db_config"
+   set setup_hook(5,verify_func)  "verify_db_config"
+   set setup_hook(5,save_func)    "save_db_configuration"
+   set setup_hook(5,filename)     "$ts_config(db_config_file)"
 
-   set numSetups 4
+   set numSetups 5
    } else {
-      set numSetups 3
+      set numSetups 4
    }
    
    for {set i 0} { $i < $ts_checktree(act_nr)} {incr i 1 } {
@@ -2514,6 +2520,50 @@ proc config_user_config_file { only_check name config_array } {
    return $value
 }
 
+#****** config/config_fs_config_file() ***************************************
+#  NAME
+#     config_fs_config_file() -- filesystem configuration file setup
+#
+#  SYNOPSIS
+#     config_fs_config_file { only_check name config_array } 
+#
+#  FUNCTION
+#     Testsuite configuration setup - called from verify_config()
+#
+#  INPUTS
+#     only_check   - 0: expect user input
+#                    1: just verify user input
+#     name         - option name (in ts_config array)
+#     config_array - config array name (ts_config)
+#
+#  SEE ALSO
+#     check/setup2()
+#     check/verify_config()
+#*******************************************************************************
+proc config_fs_config_file { only_check name config_array } {
+
+   upvar $config_array config
+   
+   set help_text { "Enter the full pathname of the filesystem configuration file,"
+                   "or press >RETURN< to use the default value."
+                   "The filesystem configuration file is used to provide"
+                   "different types of filesystems needed by the testsuite."
+                   "eg. nfs4 mounted fs or root2nobody mounted fs" }
+   
+   while {1} {
+      set value [config_generic $only_check $name config $help_text "filename+" 0]
+
+      if { $value != -1 } {
+         setup_fs_config $value
+         break
+      } elseif { $only_check } {
+         break 
+      }
+      clear_screen
+   }
+   return $value
+}
+
 #****** config/config_db_config_file() *****************************************
 #  NAME
 #     config_db_config_file() -- database configuration file setup
@@ -3945,6 +3995,7 @@ proc config_testsuite_bdb_server { only_check name config_array } {
 #*******************************************************************************
 proc config_testsuite_bdb_dir { only_check name config_array } {
 
+   global check_do_not_use_spool_config_entries CHECK_USER
    upvar $config_array config
 
    set help_text { "Specify the database directory for spooling"
@@ -3959,13 +4010,57 @@ proc config_testsuite_bdb_dir { only_check name config_array } {
                    "Press >RETURN< to use the default value."  }
 
    set value [config_generic $only_check $name config $help_text "string"]
+   set master_host [config_generic 1 "master_host" config $help_text "string"]
+   if { $master_host == -1 } {
+      set master_host [config_generic $only_check "master_host" config $help_text "string"]
+   }
+
+   set spooling_method [config_generic 1 "spooling_method" config $help_text "string"]
+   if { $spooling_method == -1 } {
+      set spooling_method [config_generic $only_check "spooling_method" config $help_text "string"]
+   }
+
+   set bdb_server [config_generic 1 "bdb_server" config $help_text "string"]
+   if { $bdb_server == -1 } {
+      set bdb_server [config_generic $only_check "bdb_server" config $help_text "string"]
+   }
 
    if { $value != "none" } {
-         if { [tail_directory_name $value] != $value } {
+      if { [tail_directory_name $value] != $value } {
          puts "\nPath \"$value\" is not a valid directory name, try \"[tail_directory_name $value]\""
-            return -1
+         return -1
+      }
+   }
+
+   if {$check_do_not_use_spool_config_entries == 1} {
+      if {$value == "none"} {
+         ts_log_severe "You are using the \"no_local_spool\" option, this needs a configured bdb_dir"
+         return -1
+      }
+
+      set spool_dir_ok 0
+      if {$spooling_method == "classic"} {
+         set spool_dir_ok 1
+      } else {
+         if {$spooling_method == "berkeleydb"} {
+            if {$bdb_server != "none"} {
+               set spool_dir_ok 1
+            } else {
+               set tmp_dir $value
+               while {[is_remote_path $master_host $CHECK_USER $tmp_dir] != 1} {
+                  set tmp_dir [file dirname $tmp_dir]
+               }  
+               set fstype [fs_config_get_filesystem_type $tmp_dir]
+               if {$fstype == "nfs4"} {
+                  set spool_dir_ok 1
+               }
+            }
          }
       }
+      if {$spool_dir_ok == 0} {
+         set value -1
+      }
+   }
    return $value
 }
 
@@ -4935,15 +5030,42 @@ proc config_build_ts_config_1_17 {} {
 
    # now we have a configuration version 1.17
    set ts_config(version) "1.17"
-      }
+}
         
-     
+
+proc config_build_ts_config_1_18 {} {
+   global ts_config CHECK_CURRENT_WORKING_DIR
+
+   # we add a new parameter: fs_config_file 
+   # after user_config_file
+   set insert_pos $ts_config(user_config_file,pos)
+   incr insert_pos 1
+
+   # move positions of following parameters
+   set names [array names ts_config "*,pos"]
+   foreach name $names {
+      if {$ts_config($name) >= $insert_pos} {
+         set ts_config($name) [expr $ts_config($name) + 1]
+      }
+   }
+
+   set parameter "fs_config_file"
+   set ts_config($parameter)            ""
+   set ts_config($parameter,desc)       "Testsuite's global filesystem configuration file"
+   set ts_config($parameter,default)    "$CHECK_CURRENT_WORKING_DIR/testsuite_fs.conf"
+   set ts_config($parameter,setup_func) "config_$parameter"
+   set ts_config($parameter,onchange)   ""
+   set ts_config($parameter,pos)        $insert_pos
+
+   # now we have a configuration version 1.18
+   set ts_config(version) "1.18"
+}     
 ################################################################################
 #  MAIN                                                                        #
 ################################################################################
 
 global actual_ts_config_version      ;# actual config version number
-set actual_ts_config_version "1.17"
+set actual_ts_config_version "1.18"
 
 # first source of config.tcl: create ts_config
 if {![info exists ts_config]} {
@@ -4966,4 +5088,5 @@ if {![info exists ts_config]} {
    config_build_ts_config_1_15
    config_build_ts_config_1_16
    config_build_ts_config_1_17
+   config_build_ts_config_1_18
 }

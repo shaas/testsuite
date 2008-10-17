@@ -510,20 +510,11 @@ proc check_shadowd_settings { shadowd_host } {
                set spooling_ok 1
             } else {
                set bdb_spooldir [get_bdb_spooldir]
-               set fstype [get_fstype $bdb_spooldir $ts_config(master_host)]
+               set fstype [fs_config_get_filesystem_type $bdb_spooldir]
                if {$fstype == "nfs4"} {
                   ts_log_fine "We have \"berkeleydb\" spooling on NFS v4" 
                   set spooling_ok 1
 
-                  # check that the spooldir is NFS v4 on all shadow hosts
-                  foreach host $ts_config(shadowd_hosts) {
-                     set fstype [get_fstype $bdb_spooldir $host]
-                     if {$fstype != "nfs4"} {
-                        ts_log_fine "berkeley spool directory $bdb_spooldir is not nfsv4 mounted on shadow host $host"
-                        set spooling_ok 0
-                        break
-                     }
-                  }
                }
             }
          }

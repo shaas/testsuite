@@ -68,7 +68,11 @@ proc install_shadowd {} {
    global CHECK_MAIN_RESULTS_DIR
    global ts_config
 
-   set CORE_INSTALLED "" 
+   set CORE_INSTALLED ""
+
+   foreach shadow_host $CHECK_CORE_SHADOWD {
+      is_remote_file $shadow_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/settings.sh"
+   }
    read_install_list
 
    if {!$check_use_installed_system} {
@@ -111,9 +115,8 @@ proc install_shadowd {} {
 
       set shadow_host [lindex $CHECK_CORE_SHADOWD 0]
       puts $CHECK_OUTPUT "installing shadowd on hosts: $CHECK_CORE_SHADOWD ($ts_config(product_type) system)..."
-      set remote_arch [resolve_arch $shadow_host]    
       set my_timeout 500
-      puts $CHECK_OUTPUT "inst_sge -sm"
+      puts $CHECK_OUTPUT "inst_sge -sm -auto $ts_config(product_root)/autoinst_config.conf"
       if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
          set output [start_remote_prog "$shadow_host" "root"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
       } else {
