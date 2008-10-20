@@ -1,3 +1,8 @@
+TB-2008-10-20-0: Enhancem.:  Introduced environment variable TS_SKIP_COLLECT_LOG
+                             for Hedeby testing. If set to 1, no log files are
+                             collected after a failed test run.
+                 Review:     CR
+
 RH-2008-10-20-0: Bugfix:     Hedeby: test for issue 540
                  Enhancem.:  o new method wait_for_component_info_opt
                              o new method add_hedeby_ge_service
