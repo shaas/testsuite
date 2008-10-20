@@ -1,3 +1,11 @@
+RH-2008-10-20-0: Bugfix:     Hedeby: test for issue 540
+                 Enhancem.:  o new method wait_for_component_info_opt
+                             o new method add_hedeby_ge_service
+                               (is also used by hedeby_install)
+                             o new method get_jvm_info
+                             o new method wait_for_jvm_info
+                 Review:     TB (check-in done by TB because RH on leave)
+
 MD-2008-10-20-0: Enhancem.:  o added test for IZ 2754 
                  Review:     JG 
 
