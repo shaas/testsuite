@@ -4462,6 +4462,333 @@ proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev 
    return 0
 }
 
+
+#****** util/wait_for_component_info_opt() *************************************
+#  NAME
+#     wait_for_component_info_opt() -- wait for a expected component info is reached 
+#
+#  SYNOPSIS
+#     wait_for_component_info_opt { exp_comp_info { opt "" } } 
+#
+#  FUNCTION
+#
+#     This procedure calls get_component_info() until the specified component
+#     information or a timeout occurs.
+#
+#     This method is the optional argument passing version of wait_for_component_info.
+#
+#  INPUTS
+#     exp_comp_info - see wait_for_component_info
+#     { opt "" }    - options for this command. Besides the standard options
+#                     this command supports the following options:
+#
+#       opt(timeout)        - timeout in seconds (default is 60)
+#       opt(component_info) - name of the tcl array (upvar) where the found
+#                             component info is stored
+#       opt(error_var)      - name of the upvar variable where error messages will 
+#                             be appended
+#
+#  RESULT
+#
+#     the result of wait_for_component_info
+#
+#  EXAMPLE
+#
+#    # The following example waits until component 'reporter' on host 'foo.bar' reaches
+#    # the state 'STOPPED'
+#
+#    set opts(timeout) 30
+#    set opts(component_info) ci
+#
+#    set exp_component_info(reporter,foo.bar,state) "STOPPED"
+#    wait_for_component_info exp_component_info opts
+#
+#  SEE ALSO
+#     util/wait_for_component_info
+#     util/get_hedeby_proc_opt_arg
+#*******************************************************************************
+proc wait_for_component_info_opt { exp_comp_info { opt "" } } {
+
+   upvar $exp_comp_info exp_info
+   set opts(timeout) 60
+   set opts(component_info) ""
+   set opts(error_var)  ""
+   get_hedeby_proc_opt_arg $opt opts
+
+   if { $opts(error_var) != "" } {
+      upvar $opts(error_var) error_var
+   }
+
+   if { $opts(component_info) != "" } {
+      upvar $opts(component_info) component_info
+   }
+
+   return [wait_for_component_info exp_info $opts(timeout) $opts(raise_error) \
+                  error_var $opts(host) $opts(user) component_info]
+}
+
+#****** util/get_jvm_info() ****************************************************
+#  NAME
+#     get_jvm_info() -- get the information about running jvms 
+#
+#  SYNOPSIS
+#     get_jvm_info { ji {opt ""} } 
+#
+#  FUNCTION
+#     This command invokes a 'sdmadm sj' command, parses the output of the command
+#     and returns the result in a tcl array.
+#
+#  INPUTS
+#     ji       - name of the tcl array where the result of the 'sdmadm sj' command
+#                is stored. This tcl array will contain the following entries:
+#
+#       ji(jvm_list)                   - list of all reported jvms
+#       ji(<jvm_name>,hosts)           - list of hosts where the jvm <jvm_name> is running
+#       jj(<jvm_name>,<host>,state)    - state of the jvm <jvm_name> running on host <host>
+#       ji(<jvm_name>,<host>,used_mem) - current heap size of the jvm <jvm_name> on host <host>
+#       ji(<jvm_name>,<host>,max_mem)  - max. heap size of the jvm <jvm_name> on host <host>
+#       ji(<jvm_name>,<host>,message)  - the message for jvm <jvm_name> on host <host>
+#        
+#     {opt ""} - Beside the standard command options (see get_hedeby_proc_opt_arg)
+#                this command supports the following options:
+#
+#        opt(jvm_name) - name of the jvm (-j parameter for the 'sdmadm sj' command)
+#        opt(jvm_host) - hostname of the jvm (-h parameter for the 'sdmadm sj' command)
+#
+#
+#  RESULT
+#     -1  if the parsing of the table output failed
+#     >0  the exit status of 'sdmadm sj' if the command failed
+#     0   success
+#
+#  EXAMPLE
+#
+#   set opts(jvm_name) "rp_vm"
+#   get_jvm_info ji opts
+#
+#   foreach jvm $ji(jvm_list) {
+#       foreach host $ji($jvm,hosts) {
+#          puts "jvm $jvm host $host is in state $ji($jvm,$host,state)"
+#       }
+#   }
+#
+#  SEE ALSO
+#     util/get_hedeby_proc_opt_arg
+#*******************************************************************************
+proc get_jvm_info { ji {opt ""} } {
+
+   # set the default values for opt
+   set opts(jvm_name) ""
+   set opts(jvm_host) ""
+   get_hedeby_proc_opt_arg $opt opts
+
+   # setup arguments
+   upvar $ji jinfo
+
+   # first we delete possible existing info arrays
+   unset -nocomplain jinfo
+
+   # now we start sdmadm sc command ...
+   set sj_cmd "sj"
+   if { $opts(jvm_name) != "" } {
+      append sj_cmd " -j \"$opts(jvm_name)\""
+   }
+   if { $opts(jvm_host) != "" } {
+      append sj_cmd " -h \"$opts(jvm_host)\""
+   }
+
+   copy_hedeby_proc_opt_arg opts sj_opts "default"
+   set sj_opts(table_output) table
+   set output [sdmadm_command_opt $sj_cmd sj_opts]
+   if { $prg_exit_state != 0 } {
+      return $prg_exit_state
+   }
+
+   # we expect the following table columns for ShowJvmCliCommand ...
+   set exp_columns(jvm)      [create_bundle_string "ShowJvmCliCommand.col.name"]
+   set exp_columns(host)     [create_bundle_string "ShowJvmCliCommand.col.host"]
+   set exp_columns(state)    [create_bundle_string "ShowJvmCliCommand.col.state"]
+   set exp_columns(used_mem) [create_bundle_string "ShowJvmCliCommand.col.usedMem"]
+   set exp_columns(max_mem)  [create_bundle_string "ShowJvmCliCommand.col.maxMem"]
+   set exp_columns(message)  [create_bundle_string "ShowJvmCliCommand.col.message"]
+
+   foreach col [array names exp_columns] {
+      set col_name $exp_columns($col)
+      set pos [lsearch -exact $table(table_columns) $col_name]
+      if {$pos < 0} {
+         ts_log_severe "cannot find expected column name \"$col_name\"" $opts(raise_error)
+         return -1
+      }
+      ts_log_finer "found expected col \"$col_name\" on position $pos"
+   }
+   
+   # now we fill up the arrays ... 
+   for {set line 0} {$line < $table(table_lines)} {incr line 1} {
+      set jvm  $table($exp_columns(jvm),$line)
+      set host [resolve_host $table($exp_columns(host),$line)]
+      
+      set jvm_exists($jvm) 1
+      lappend jinfo($jvm,hosts) $host
+
+      foreach param { state used_mem max_mem message } {
+         set jinfo($jvm,$host,$param)    $table($exp_columns($param),$line)
+      }
+   }
+   set jinfo(jvm_list) [array names jvm_exists]
+ 
+   ts_log_fine "jvm list: $jinfo(jvm_list)"
+   ts_log_finer [format_array jinfo]
+
+   return 0
+}
+
+
+#****** util/wait_for_jvm_info() *******************************************
+#  NAME
+#     wait_for_jvm_info() -- wait for expected jvm state information
+#
+#  SYNOPSIS
+#     wait_for_jvm_info { exp_jvm_info {opt ""}  } {
+#
+#  FUNCTION
+#     This procedure calls get_jvm_info() until the specified jvm
+#     information is found. A timeout or an encountered error condition
+#     stops the waiting as well.
+#
+#  INPUTS
+#     exp_jvm_info      - expected component info (same structure like
+#                         get_jvm_info() is returning).
+#
+#     {opt ""} - Beside the standard command options (see get_hedeby_proc_opt_arg)
+#                this command supports the following options:
+#
+#        opt(timeout)        - maximal waiting time for expected information in seconds (default: 60s)
+#        opt(poll_interval)  - wait XXX milliseconds between calls to 'sdmadm sj'       (default: 1000ms)
+#        opt(jvm_name)       - name of the jvm (-j parameter for the 'sdmadm sj' command)
+#        opt(jvm_host)       - hostname of the jvm (-h parameter for the 'sdmadm sj' command)
+#        opt(error_jvm_info) - name of tcl array to specify 'error conditions' for the waiting
+#                              This array has the same structure as the exp_jvm_info array, but when one of
+#                              the states in error_jvm_info is reached, the waiting also stops and an error
+#                              is returned.
+#                              A JVM in STOPPED state in error_jvm_info criterium is met, when the JVM does
+#                              not appear in the output of 'sdmadm sj'.
+#
+#  RESULT
+#     0 on success, 1 on error
+#     setting of tcl array like in get_jvm_info()
+#
+#  EXAMPLE
+#     # after executing a 'sdmadm suj' command, the jvm is in state "STARTING"
+#     # => wait for complete startup
+#     set exp_ji(rp_vm,$this(master_host),state) "STARTED" 
+#     set err_ji(rp_vm,$this(master_host),state) "STOPPED"
+#     set err_ji(rp_vm,$this(master_host),state) "STOPPING"
+#     set ji_opts(error_jvm_info) err_ji
+#     set ji_opts(timeout) 30
+#     set ji_opts(poll_interval) 5000
+#     set ji_opts(jvm_name) "rp_vm"
+#     set ji_opts(jvm_host) $this(master_host)
+#
+#     wait_for_jvm_info exp_ji ji_opts
+#
+#  SEE ALSO
+#     util/get_jvm_info()
+#*******************************************************************************
+proc wait_for_jvm_info { exp_jvm_info {opt ""}  } {
+
+   # set the default values for opt
+   set opts(timeout) 60
+   set opts(poll_interval) 1000
+   set opts(jvm_name) ""
+   set opts(jvm_host) ""
+   set opts(error_jvm_info) ""
+   get_hedeby_proc_opt_arg $opt opts
+
+   # setup arguments
+   upvar $exp_jvm_info exp_info
+
+   ts_log_fine "expected jvm infos:\n[format_array exp_info]"
+
+   if { $opts(error_jvm_info) != "" } {
+      upvar $opts(error_jvm_info) err_info
+      ts_log_fine "stop processing if the following jvm infos are found:\n [format_array err_info]"
+   }
+
+   set my_timeout [timestamp]
+   incr my_timeout $opts(timeout)
+
+
+   copy_hedeby_proc_opt_arg_exclude opts jvm_info_opts "timeout poll_interval error_jvm_info"
+
+   while {1} {
+      set retval [get_jvm_info jinfo jvm_info_opts]
+      if {$retval != 0} {
+         ts_log_severe "Give up waiting for the expected jvm info, because 'sdmadm sj' exited with status '$retval'" $opts(raise_error)
+         return 1               
+      }
+
+      set not_matching ""
+      foreach val [array names exp_info] {
+         if {[info exists jinfo($val)]} {
+            if { $jinfo($val) == $exp_info($val)} {
+               ts_log_fine "jvm info '$val' matches expected info '$exp_info($val)'"
+            } else {
+               append not_matching "jvm info '$val' is set to '$jinfo($val)' should be '$exp_info($val)'\n"
+            }
+         } else {
+            # If the exp_info contains a condition for jvms in STOPPED state the exp_info
+            # also matches if the jvms has not been found in the output of 'sdmadm sj'.
+            # We assume in this case that the jvm is STOPPED
+            if {[regexp ",state$" $val] && $exp_info(val) == "STOPPED"} {
+               ts_log_fine "jvm info '$val' matches to not existing jvm in output"
+            } else {
+               append not_matching "jvm info '$val' not available\n"
+            }
+         }
+      }
+
+      if {$not_matching == ""} {
+         ts_log_fine "all specified jvm info is matching"
+         return 0
+      }
+
+      # ------------------------------------------------------------------------------
+      # Did any jvm reached an exit state
+      # ------------------------------------------------------------------------------
+      if {[info exists err_info]} {
+         foreach val [array names err_info] {
+            if {[info exists jinfo($val)]} {
+               if { $jinfo($val) == $err_info($val)} {
+                  ts_log_severe "Found exit criteria '$jinfo($val)'" $opts(raise_error)
+                  return 1
+               }
+            } elseif {[regexp ",state$" $val] && $err_info($val) == "STOPPED"} {
+               # The err_info contains a condition for jvms in STOPPED state
+               # and the jvm has not been found in the output (jinfo($val) does not exist)
+               # => stop the processing, we assume in this case that the jvm is STOPPED
+               set values [split $val ","]
+               ts_log_severe "JVM '[lindex $values 1]' on host '[lindex $values 1]' not found in output of 'sdmadm sj'" $opts(raise_error)
+               return 1
+            }
+         }
+      }
+
+      if {[timestamp] >= $my_timeout} {
+         set msg "TIMEOUT(=$opts(timeout) sec) while waiting for expected component states!\n"
+         append msg "NOT matching values:\n$not_matching"
+         ts_log_severe $msg $opts(raise_error)
+         return 1               
+      }
+
+      ts_log_fine "still waiting for specified jvm settings ..."
+      ts_log_fine "still not matching jvm info:\n$not_matching"
+
+      after $opts(poll_interval)
+   }
+   return 0
+}
+
+
 #****** util/get_free_service() ************************************************
 #  NAME
 #     get_free_service() -- get a service name which is free to use
@@ -8126,7 +8453,7 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
 #  INPUTS
 #    service -- name of the GE service
 #    my_execd_install_params -- array with the new execd install parameters. The can contain
-#        for each host the following parameters
+#                               for each host the following parameters
 #
 #        spool_dir          defines the local spool dir for the execds on this host. If the spool dir
 #                            is not defined for a host the default execd spool dir is used.
@@ -8141,17 +8468,66 @@ proc set_service_slos { method service slos {raise_error 1} {update_interval_uni
 #     set execd_params(hostA,spool_dir) "/tmp/myspooldir/hostA"
 #     set execd_params(hostB,spool_dir) "/tmp/myspooldir/hostB"
 #     set_execd_install_params "ge-service1" execd_params
+#
+#  SEE ALSO
+#     util/get_hedeby_execd_install_params_sequence()
 #*******************************************************************************
 proc set_execd_install_params { service my_execd_install_params } {
+   upvar $my_execd_install_params execd_install_params
+   
+   ts_log_fine "set execd params for GE service '$service' ..."
+   
+   set arguments "mc -c $service"
+   set ispid [hedeby_mod_setup_opt $arguments error_text]
+
+   if { $error_text != "" } {
+      # TODO we need a better error reporting for hedeby_mod_setup
+      ts_log_severe "'sdmadm $arguments' did not startup:\n$error_text"
+      return -1
+   }
+
+   set sequence [get_hedeby_execd_install_params_sequence execd_install_params]
+   
+   hedeby_mod_sequence $ispid $sequence error_text
+   hedeby_mod_cleanup $ispid error_text
+
+   return $prg_exit_state
+}
+
+#****** util/get_hedeby_execd_install_params_sequence() ************************
+#  NAME
+#     get_hedeby_execd_install_params_sequence() -- get the execd install params vi sequence 
+#
+#  SYNOPSIS
+#     get_hedeby_execd_install_params_sequence { my_execd_install_params } 
+#
+#  FUNCTION
+#      
+#     build the vi sequence for modifying the execd install parameters of a GE service.
+#
+#  INPUTS
+#    my_execd_install_params -- array with the new execd install parameters. The can contain
+#                               for each host the following parameters
+#
+#        spool_dir          defines the local spool dir for the execds on this host. If the spool dir
+#                            is not defined for a host the default execd spool dir is used.
+#
+#        install_template   defines the path to the execd install template
+#        uninstall_template defines the path to the execd uninstall template
+#
+#  RESULT
+#     a tcl list for the vi sequence for modifying the execd install params 
+#
+#  SEE ALSO
+#     util/set_execd_install_params
+#*******************************************************************************
+proc get_hedeby_execd_install_params_sequence { my_execd_install_params } {
    global hedeby_config
 
    upvar $my_execd_install_params execd_install_params
    
    set managed_host_list [get_all_movable_resources]
 
-   set sequence {}
-   lappend sequence "[format "%c" 27]" ;# ESC
-   
    set param_names { spool_dir install_template uninstall_template }
    
    # store in execd_params the DIFFERENT configurations:
@@ -8206,13 +8582,8 @@ proc set_execd_install_params { service my_execd_install_params } {
       unset param_value
    }
    
-   ts_log_fine "set execd params for  GE service \"$service\" ..."
-   
-   
-   set arguments "-s [get_hedeby_system_name] -p  [get_hedeby_pref_type] mc -c $service"
-   set ispid [hedeby_mod_setup $hedeby_config(hedeby_master_host) [get_hedeby_admin_user] $arguments error_text]
-
-   set sequence {}
+   set log_message ""
+   set sequence {}   
    lappend sequence "[format "%c" 27]" ;# ESC
       
    # Delete all available execd configurations
@@ -8228,7 +8599,6 @@ proc set_execd_install_params { service my_execd_install_params } {
    
    # insert at the end of the config the new execd parameters
    lappend sequence "GA"
-   set log_message ""
    
    lappend sequence "<!-- =========================================================\n"
    lappend sequence "     Start of modifications with set_execd_install_params     \n"
@@ -8298,15 +8668,8 @@ proc set_execd_install_params { service my_execd_install_params } {
 
    lappend sequence "[format "%c" 27]" ;# ESC
    lappend sequence ":w\n"
-   
-   hedeby_mod_sequence $ispid $sequence error_text
-   
-   set output [hedeby_mod_cleanup $ispid error_text]
-   ts_log_fine "exit_status: $prg_exit_state"
-   if {$prg_exit_state == 0} {
-      ts_log_finer "output: \n$output"
-   }
-   return $prg_exit_state
+
+   return $sequence
 }
 
 #****** util/get_resource_slo_info() *******************************************
@@ -9510,6 +9873,8 @@ proc get_hedeby_proc_opt_arg { user_opt opt } {
 #     be given as well, only the given keys will be copied. The key "default"
 #     has a special meaning, see below.
 #
+#     Unknown keys specified in copy_what are silently ignored.
+#
 #     This function is useful when a function with optional named arguments is
 #     calling another function with optional named arguments - and some of the
 #     arguments should be reused in the call. It is NOT ALWAYS possible to
@@ -9574,7 +9939,9 @@ proc copy_hedeby_proc_opt_arg { old_opts new_opts { copy_what "all" } } {
    }
 
    foreach key $key_list {
-      set new($key) $old($key)
+      if {[info exists old($key)]} {
+         set new($key) $old($key)
+      }
    }
 
    ts_log_finest [format_array new]
@@ -9657,3 +10024,247 @@ proc copy_hedeby_proc_opt_arg_exclude { old_opts new_opts { exclude_what "" } } 
    ts_log_finest [format_array new]
    return
 }
+
+#****** util/add_hedeby_ge_service_for_cluster() *******************************
+#  NAME
+#     add_hedeby_ge_service_for_cluster() -- add a GE service for a cluster 
+#
+#  SYNOPSIS
+#     add_hedeby_ge_service_for_cluster { cluster_config_number opts } 
+#
+#  FUNCTION
+#     Add a GE service for a cluster to the Hedeby system. The configuration for
+#     the GE service is constructed out of the settings of the cluster config 
+#
+#  INPUTS
+#     cluster_config_number - number of the cluster config 
+#     opt                   - optional args for the sdmadm commands
+#
+#  RESULT
+# 
+#     -1 if cluster configuration has not been found 
+#     else the exit code of the "sdmadm ags" command 
+#     
+#
+#  SEE ALSO
+#    util/add_hedeby_ge_service
+#    cluster_procedures/set_current_cluster_config_nr
+#*******************************************************************************
+proc add_hedeby_ge_service_for_cluster { cluster_config_number {opt ""} } {
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   set org_ccn [get_current_cluster_config_nr]
+
+   if {[set_current_cluster_config_nr $cluster_config_number] != 0} {
+      ts_log_severe "Cluster configure with number '$cluster_config_number' not found" $opts(raise_error)
+      return -1
+   }
+  
+   get_current_cluster_config_array ts_config
+   
+   set sopts(service_name) $ts_config(cluster_name) 
+   set sopts(host)         $ts_config(master_host)
+   set sopts(master_port)  $ts_config(commd_port)
+   set sopts(execd_port)   [expr $ts_config(commd_port) + 1]
+   set sopts(sge_root)     $ts_config(product_root)
+   set sopts(cell)         $ts_config(cell)
+   set sopts(jmx_port)     $ts_config(jmx_port)
+   set sopts(cluster_name) $ts_config(cluster_name) 
+   set sopts(user)         [get_hedeby_admin_user]
+
+   if {$ts_config(jmx_ssl) == "true"} {
+      set sopts(use_ssl) "true"
+      set sopts(keystore_file)  "/var/sgeCA/port$sopts(master_port)/$sopts(cell)/userkeys/$sopts(user)/keystore"
+      set sopts(keystore_pw) $ts_config(jmx_ssl_keystore_pw)
+   } else {
+      set msg "JMX server of the qmaster of cluster '$ts_config(cluster_name)' is not running in ssl mode\n"
+      append msg "Authentication with a keystore will not work. User name/password authentication can not be used\n"
+      append msg "because TS does not know the password of user '$sopts(user)'\n"
+      append msg "=> The connection from  GE service to qmaster will fail"
+      ts_log_warning $msg $opts(raise_error)
+      # Use a dummy password
+      set sopts(password) "password"
+   }
+
+   set_current_cluster_config_nr $org_ccn
+
+   return [add_hedeby_ge_service sopts opts]
+}
+
+#****** util/add_hedeby_ge_service() *******************************************
+#  NAME
+#     add_hedeby_ge_service() -- add a GE service to the Hedeby system 
+#
+#  SYNOPSIS
+#     add_hedeby_ge_service { service_opts { opt "" } } 
+#
+#  FUNCTION
+#     
+#     This function adds a GE service to Hedeby system by calling "sdmadm ags".
+#     The configuration for the GE service is defined in the tcl array
+#     service_opts parameters.
+#
+#  INPUTS
+#     service_opts - tcl array with the options for the GE service
+#       service_opts(service_name)  - defines the name of the service (mandatory)
+#       service_opts(host)          - host where the GE service should run (mandatory)
+#       service_opts(master_port)   - qmaster port (mandatory)
+#       service_opts(execd_port)    - execd port (mandatory)
+#       service_opts(sge_root)      - path to sge_root (mandatory)
+#       service_opts(cell)          - name of the Grid Engine cell (mandatory)
+#       service_opts(jmx_port)      - port of qmaster jmx service (mandatory)
+#       service_opts(cluster_name)  - name of the Grid Engine cluster (mandatory)
+#       service_opts(user)          - user name used for connecting to qmaster
+#       service_opts(use_ssl)       - if set to true GE service will use a ssl protected
+#                                     connection to qmaster (optional, default is true)
+#       service_opts(keystore_file) - path to the keystore file. This keystore file contains
+#                                     the private key and the certificate of the user
+#                                     (mandatory for ssl mode)
+#       service_opts(keystore_pw)   - password for the keystore file (mandatory for ssl mode)
+#       service_opts(password)      - password of the user (mandatory for non ssl mode)
+# 
+#     { opt "" } - general purpose options for sdmadm command (see get_hedeby_proc_default_opt_args)
+#
+#  RESULT
+#
+#     the exit code of the 'sdmadm ags' command
+#
+#  EXAMPLE
+#
+#   set sopts(service_name) "foo_service"
+#   set sopts(host)         "foo.bar"
+#   set sopts(master_port)  "8015"
+#   set sopts(execd_port)   "8016"
+#   set sopts(sge_root)     "/opt/sge"
+#   set sopts(cell)         "default"
+#   set sopts(jmx_port)     "8017"
+#   set sopts(cluster_name) "foo"
+#   set sopts(user)         "sge_admin"
+#   set sopts(use_ssl)      "true"
+#   set sopts(keystore_file)"/var/sgeCA/port8015/default/userkeys/sge_admin/keystore"
+#   set sopts(keystore_pw)  ""
+#
+#   set opt(host)  "foo.bar" ;# execute the 'sdmadm ags' command on host foo.bar
+#   add_hedeby_ge_service sopts opt
+#
+#
+#  SEE ALSO
+#     util/get_hedeby_proc_default_opt_arg
+#     util/sdmadm_command_opt
+#*******************************************************************************
+proc add_hedeby_ge_service { service_opts { opt "" } } {
+
+   upvar $service_opts sopts
+
+   get_hedeby_proc_opt_arg $opt opts
+
+   set errors {}
+
+   # ---------------------------------------------------------------------------
+   # check the sopts array
+   # ---------------------------------------------------------------------------
+   foreach param { service_name host master_port execd_port sge_root cell jmx_port cluster_name user } {
+      if {![info exists sopts($param)]} {
+         lappend errors "Mandatory service options sopts($param) is missing"
+      }
+   }
+
+   if {![info exists sopts(use_ssl)]} {
+      set sopts(use_ssl) "true"
+   }
+
+   if { $sopts(use_ssl) == "true" } {
+     if {![info exists sopts(keystore_file)]} {
+        lappend errors "Service options keystore_file is mandatory for ssl mode"
+     }
+     if {![info exists sopts(keystore_pw)]} {
+        lappend errors "Service options keystore_pw is mandatory for ssl mode"
+     }
+   } else {
+      if {![info exists sopts(password)]} {
+         lappend errors "parameter password is mandatory for non ssl mode"
+      }
+   }
+
+   if {[llength $errors] != 0 } {
+      set msg "Found errors in the sopts option array:\n\n"
+      foreach error $errors {
+         append msg "  o $error\n"
+      }
+      append msg "\n"
+      ts_log_severe $error $opts(raise_error)
+   }
+
+   # ---------------------------------------------------------------------------
+   # Start the sdmadm ags command
+   # ---------------------------------------------------------------------------
+   ts_log_fine "adding GE service \"$sopts(service_name)\" for cluster on host \"$sopts(host)\" ..."
+   set ispid [hedeby_mod_setup_opt "ags -h $sopts(host) -j rp_vm -s $sopts(service_name)" error_text opts]
+
+   set sequence {}
+   lappend sequence "[format "%c" 27]" ;# ESC
+
+
+   # ---------------------------------------------------------------------------
+   # Define the connection settings
+   # ---------------------------------------------------------------------------
+   if {$sopts(use_ssl) == "true"} {
+      ts_log_fine "using keystore file: \"$sopts(keystore_file)\""
+      lappend sequence ":%s#keystore=\"\"#keystore=\"$sopts(keystore_file)\"#\n"
+      lappend sequence ":%s/password=\"\"/password=\"$sopts(keystore_pw)\"/\n"
+   } else {
+      lappend sequence ":%s/password=\"\"/password=\"$sopts(password)\"/\n"
+      ts_log_config "installing GE adapter without jmx_ssl not supported!"
+   }
+   lappend sequence ":%s/username=\"username\"/username=\"$sopts(user)\"/\n"
+   lappend sequence ":%s/jmxPort=\"0\"/jmxPort=\"$sopts(jmx_port)\"/\n"
+   lappend sequence ":%s/execdPort=\"0\"/execdPort=\"$sopts(execd_port)\"/\n"
+   lappend sequence ":%s/masterPort=\"0\"/masterPort=\"$sopts(master_port)\"/\n"
+   lappend sequence ":%s/cell=\"default\"/cell=\"$sopts(cell)\"/\n"
+   set path [split $sopts(sge_root) {/}]
+   set sge_root_val [join $path {\/}]
+   lappend sequence ":%s/root=\"\"/root=\"$sge_root_val\"/\n"
+   lappend sequence ":%s/clusterName=\"sge\"/clusterName=\"$sopts(cluster_name)\"/\n"
+
+   
+   lappend sequence "[format "%c" 27]" ;# ESC
+
+   # ---------------------------------------------------------------------------
+   # Define the default SLOs
+   # ---------------------------------------------------------------------------
+   # delete <slos>...</slos>
+   lappend sequence "/<common:slos>\n"
+   lappend sequence "ma/<\\/common:slos>\n:'a,.d\n"
+   lappend sequence "i"
+   lappend sequence "<common:slos>\n"
+   lappend sequence [create_fixed_usage_slo 50 "fixed_usage"] 
+   lappend sequence "\n"
+   lappend sequence "</common:slos>\n"
+
+   lappend sequence "[format "%c" 27]" ;# ESC
+
+   # ---------------------------------------------------------------------------
+   # Define the execd installation parameters
+   # ---------------------------------------------------------------------------
+   if {[info exists sopts(execd_install_params)] } {
+      # use the provided execd_install_params
+      upvar $sopts(execd_install_params) execd_install_params
+   } else {
+      # if the execd_install_params has no entries get_hedeby_execd_install_params_sequence
+      # will use the default values
+      set execd_install_params(count) 0
+   }
+
+   foreach line [get_hedeby_execd_install_params_sequence execd_install_params] {
+      lappend sequence $line
+   }
+
+   lappend sequence "[format "%c" 27]" ;# ESC
+
+   hedeby_mod_sequence $ispid $sequence error_text
+   hedeby_mod_cleanup $ispid error_text
+
+   return $prg_exit_state
+}
+

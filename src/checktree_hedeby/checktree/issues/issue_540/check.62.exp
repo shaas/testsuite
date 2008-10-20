@@ -1,0 +1,354 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_540"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests startup of a JVM with a GE service having an invalid SGE_ROOT"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue540_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue540_setup_level"
+set check_cleanup_level_function "hedeby_issue540_cleanup_level"
+
+lappend check_functions "hedeby_issue540_check"
+
+
+#****** issue_540/hedeby_issue540_init_level() ************************
+#  NAME
+#     hedeby_issue540_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue540_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue540_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue540/hedeby_issue540_setup_level() *********************************
+#  NAME
+#    hedeby_issue540_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue540_setup_level { } 
+#
+#  FUNCTION
+#
+#    Stores in the global variable hedeby_issue540_ctx the following values:
+#
+#    hedeby_issue540_ctx(service_name)   -  name of the used GE service (randomly selected)
+#    hedeby_issue540_ctx(master_host)    -  master host of the GE service
+#    hedeby_issue540_ctx(sge_root)       -  correct sge_root directory of the GE service
+#    hedeby_issue540_ctx(cleanup_action) -  empty list, the check will added the different
+#                                           cleanup actions to this list
+#    
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue540_setup_level {} {
+   upvar #0 hedeby_issue540_ctx this
+
+   # initialize the cleanup actions
+   set this(cleanup_actions) {}
+   
+   get_hedeby_default_services service_names
+
+   set this(service_name)  [pick_random $service_names(services)]
+   set this(master_host)  $service_names(master_host,$this(service_name))
+
+   # get sge_root dir: store and reset current cluster for this
+   set org_cluster_nr [get_current_cluster_config_nr]
+   set_current_cluster_config_nr $service_names(ts_cluster_nr,$this(service_name))
+   get_current_cluster_config_array ts_config
+   set_current_cluster_config_nr $org_cluster_nr
+   set this(sge_root) $ts_config(product_root)
+}
+
+#****** issue540/hedeby_issue540_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue540_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue540_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#
+#     Performs the cleanup if the test depening on the action defined in
+#     global variable hedeby_issue540_ctx(cleanup_actions).
+#
+#     The following cleanup actions are supported:
+#
+#     shutdown_jvm  -  shutdown the jvm before resetting the configuration
+#     reset_config  -  reset the configuration of the GE service
+#     startup_jvm   -  startup the jvm which has been stopped with the test
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue540_cleanup_level {} {
+   upvar #0 hedeby_issue540_ctx this
+
+   set doReset 0
+
+   if {[lsearch -exact $this(cleanup_actions) "shutdown_jvm"] >= 0} {
+      sdmadm_command_opt "sdj -j rp_vm -h $this(master_host)"
+      if {$prg_exit_state != 0} {
+         set doReset 1
+      }
+   }
+
+   if {$doReset == 0 && [lsearch -exact $this(cleanup_actions) "reset_config"] >= 0} {
+      set seq {}
+      lappend seq ":%s#root=\".*\"#root=\"$this(sge_root)\"#\n"
+      if {[hedeby_issue540_mod_service $seq] != 0} {
+         set doReset 1
+      }
+   }
+
+   if {$doReset == 0 && [lsearch -exact $this(cleanup_actions) "startup_jvm"] >= 0} {
+      set suj_opts(host) $this(master_host)
+      sdmadm_command_opt "suj -j rp_vm"
+      if {$prg_exit_state != 0} {
+         set doReset 1
+      }
+   }
+
+   if {$doReset == 0 && [lsearch -exact $this(cleanup_actions) "startup_component"] >= 0} {
+      sdmadm_command_opt "suc -c $this(service_name)"
+      if {$prg_exit_state != 0} {
+         set doReset 1
+      }
+   }
+
+   if {$doReset == 1} {
+      reset_hedeby 1
+   }
+
+   unset this
+}
+
+#****** issue_5540/hedeby_issue540_check *****************************
+#  NAME
+#     hedeby_issue540_check() -- check the issue 540 does not longer occur
+#
+#  SYNOPSIS
+#     hedeby_issue540_check { } 
+#
+#  FUNCTION
+#
+#  Checks for issue 540: Error in GE adapter lifecycle when wrong sge_root name
+#
+#  The following steps are performed:
+#
+#    Step 1: Shutdown the jvm where the ge service is running
+#    Step 2: Configure an invalid sge_root for the ge_service
+#    Step 3: Startup the jvm where the ge service should run
+#    Step 4: Check that the jvm has been started
+#    Step 5: Check that the component state of the GE service is STOPPED
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue540_check {} {
+   upvar #0 hedeby_issue540_ctx this
+
+   # --------------------------------------------------------------------------
+   # Step 1: Shutdown the jvm where the ge service is running
+   # --------------------------------------------------------------------------
+   sdmadm_command_opt "sdj -j rp_vm -h $this(master_host)"
+   if {$prg_exit_state != 0} {
+      # error is already reported
+      return
+   }
+   lappend this(cleanup_actions) "startup_jvm"
+
+   # --------------------------------------------------------------------------
+   # Step 2: Configure an invalid sge_root for the ge_service
+   # --------------------------------------------------------------------------
+   set fake_sge_root "/tmp"
+   set seq {}
+   lappend seq ":%s#root=\".*\"#root=\"$fake_sge_root\"#\n"
+
+   if {[hedeby_issue540_mod_service $seq] != 0} {
+      # error is already reported
+      return
+   }
+   lappend this(cleanup_actions) "reset_config"
+
+   # --------------------------------------------------------------------------
+   # Step 3: Startup the jvm where the ge service should run
+   # --------------------------------------------------------------------------
+   set suj_opt(host) $this(master_host) ;# execute command on ge service master host
+   sdmadm_command_opt "suj -j rp_vm" suj_opt
+   if { $prg_exit_state != 0 } {
+      # error is already reported
+      return
+   }
+   
+   # --------------------------------------------------------------------------
+   # Step 4: Check that the jvm has been started
+   # --------------------------------------------------------------------------
+   set exp_ji(rp_vm,$this(master_host),state) "STARTED" 
+   set err_ji(rp_vm,$this(master_host),state) "STOPPED"
+   set err_ji(rp_vm,$this(master_host),state) "STOPPING"
+   set ji_opts(jvm_name) "rp_vm"
+   set ji_opts(jvm_host) $this(master_host)
+   set ji_opts(error_jvm_info) err_ji
+
+   if {[wait_for_jvm_info exp_ji ji_opts] != 0} {
+      set msg    "It seems that we run again into issue 540!!!!\n"
+      append msg "=============================================\n\n"
+      
+      append msg "Check issue_540 stopped the jvm of GE service '$this(service_name)',\n"
+      append msg "set the sge_root parameter in the service config to '$fake_sge_root'\n"
+      append msg "and restarted the jvm.\n\n"
+
+      append msg "I expected that the jvm starts correctly,\n"
+      append msg "however jvm 'rp_vm' on host '$this(master_host)' did not startup\n"
+      ts_log_severe $msg
+      return 
+   }
+
+   # We can remove the startup_jvm action (first element in cleanup actions)
+   set this(cleanup_actions) [lreplace $this(cleanup_actions) 0 0]
+
+   # --------------------------------------------------------------------------
+   # Step 5: Check that the component state of the GE service is STOPPED
+   # --------------------------------------------------------------------------
+
+   set exp_ci($this(service_name),$this(master_host),state) "STOPPED"
+   set ci_opts(component_info) ci ;# return component info in ci TCL array
+   # We can use a very short timeout here because the wait_for_jvm_info waited
+   # already long enough for the jvm startup
+   set ci_opts(timeout) 10
+
+   if {[wait_for_component_info_opt exp_ci ci_opts] != 0} {
+
+      set msg    "It seems that we run again into issue 540!!!!\n"
+      append msg "=============================================\n\n"
+    
+      append msg "Check issue_540 stopped the jvm of GE service '$this(service_name)',\n"
+      append msg "set the sge_root parameter in the service config to '$fake_sge_root'\n"
+      append msg "and restarted the jvm.\n\n"
+
+      append msg "I expected that a GE service with an invalid SGE_ROOT goes after\n"
+      append msg "startup of the jvm into STOPPED state.\n"
+
+      if {[info exists ci($this(service_name),$this(master_host),state)]} {
+         set new_state $ci($this(service_name),$this(master_host),state)
+         append msg "However component '$this(service_name)' is in state '$new_state' after jvm startup"
+      } else {
+         append msg "However component '$this(service_name)' has not been found"
+         
+         # The component is not availaible in the jvm
+         # => we must restart the jvm to bring the component back
+      }
+      ts_log_severe $msg
+      lappend this(cleanup_actions) "shutdown_jvm"
+   } else {
+      # The component is in the expected STOPPED state
+      # => the cleanup method must start the component 
+      lappend this(cleanup_actions) "startup_component"
+   }
+}
+
+#****** check.62/hedeby_issue540_mod_service() *********************************
+#  NAME
+#     hedeby_issue540_mod_service() -- modify the configuration of the GE service 
+#
+#  SYNOPSIS
+#     hedeby_issue540_mod_service { mod_sequence } 
+#
+#  FUNCTION
+#
+#     Modifies the configuration of the GE service used by this test (with 'sdmadm mc')
+#
+#  INPUTS
+#     mod_sequence - the vi sequence for modifing the configuration (a TCL list)
+#
+#  RESULT
+#
+#     -1  if hedeby_mod_setup_opt failed
+#     else exit status of the 'sdmadm mc' command
+#
+#*******************************************************************************
+proc hedeby_issue540_mod_service { mod_sequence } {
+   upvar #0 hedeby_issue540_ctx this
+
+   set ispid [hedeby_mod_setup_opt "mc -c $this(service_name)" error_text opts]
+   if { $error_text != "" } {
+      ts_log_severe "Could not start sdmadm mc: $error_text"
+      return -1
+   }
+   ts_log_finer "Modify config of component $this(service_name) with: '$mod_sequence'"
+  
+   hedeby_mod_sequence $ispid $mod_sequence error_text
+   hedeby_mod_cleanup $ispid error_text
+   return $prg_exit_state
+}
