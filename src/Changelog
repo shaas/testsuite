@@ -1,3 +1,5 @@
+MG-2008-10-20-0: Enhancem.:  o Added test for hedeby issue 577:
+                              checktree_hedeby/checktree/issues/issue_577/check.62.exp
 MD-2008-10-17-2: Bugfix:     o removed copy paste error 
 MD-2008-10-17-1: Bugfix:     o changed unclear message
 

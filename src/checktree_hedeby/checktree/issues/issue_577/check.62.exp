@@ -1,0 +1,200 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_577"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "check if ge_adapter component cant stop with -force flag and start without putting service in ERROR state"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue577_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue577_setup_level"
+set check_cleanup_level_function "hedeby_issue577_cleanup_level"
+
+lappend check_functions "hedeby_issue577_check"
+
+
+#****** issue_577/hedeby_issue577_init_level() ************************
+#  NAME
+#     hedeby_issue577_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue577_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue577_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue577/hedeby_issue577_setup_level() *********************************
+#  NAME
+#     hedeby_issue577_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#     hedeby_issue577_setup_level { } 
+#
+#  FUNCTION
+#     set up hedeby_issue577_ctx variable
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue577_setup_level {} {
+   upvar #0 hedeby_issue577_ctx ctx
+   get_hedeby_default_services service_names
+   set ctx(reset) 1
+   #get the first found ge adapter
+   foreach service $service_names(services) {
+      set ctx(geadapter) $service
+      break
+   }
+   return
+}
+
+#****** issue577/hedeby_issue577_cleanup_level() *******************************
+#  NAME
+#     hedeby_issue577_cleanup_level() -- clean up level function
+#
+#  SYNOPSIS
+#     hedeby_issue577_cleanup_level { } 
+#
+#  FUNCTION
+#     remove created services and clean up hedeby_issue577_ctx variable
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue577_cleanup_level {} {
+   upvar #0 hedeby_issue577_ctx ctx
+   
+   if {$ctx(reset)} {
+      reset_hedeby 1
+   }
+
+   unset ctx
+
+   return
+}
+
+
+# ------------------------------------------------------------------------------
+# here the tests begin ....
+
+#****** issue_577/hedeby_issue577_check *****************************
+#  NAME
+#     hedeby_issue577_check() -- check if the ge_adapter component and service 
+#                                will behave in a expected way after stopping
+#                                ge_adapter component with -force flag.
+#
+#  SYNOPSIS
+#     hedeby_issue577_check { } 
+#
+#  FUNCTION
+#     this steps test hedeby issue 577:
+#     1. We will stop first found ge_adapter component with -force flag
+#     2. We will check that component is in STOPPED state and service in UNKNOWN state
+#     3. We will start up ge_adapter component again
+#     4. We will check that component is in STARTED state and service in RUNNING state
+#   
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#*******************************************************************************
+proc hedeby_issue577_check {} {   
+   upvar #0 hedeby_issue577_ctx ctx
+
+   # we need $opt(host) later for comparison, so get default values here
+   get_hedeby_proc_default_opt_args opt
+   
+   #step1
+   set arguments "sdc -c $ctx(geadapter) -force -all"
+   sdmadm_command_opt $arguments opt
+   if {$prg_exit_state != 0} {
+        ts_log_severe "Cannot stop the the $ctx(geadapter) component"
+        return
+   }
+
+   #step2
+   set exp_service_info($ctx(geadapter),cstate) "STOPPED"
+   set exp_service_info($ctx(geadapter),sstate) "UNKNOWN"
+   wait_for_service_info exp_service_info
+
+   #step3
+   set arguments "suc -c $ctx(geadapter)"
+   sdmadm_command_opt $arguments opt
+   if {$prg_exit_state != 0} {
+        ts_log_severe "Cannot start the the $ctx(geadapter) component"
+        return
+   }
+
+   #step4
+   set exp_service_info($ctx(geadapter),cstate) "STARTED"
+   set exp_service_info($ctx(geadapter),sstate) "RUNNING"
+   wait_for_service_info exp_service_info
+   
+   set ctx(reset) 0
+}
