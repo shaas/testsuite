@@ -1,3 +1,9 @@
+TB-2008-10-21-1: Bugfix:     o Fixed Hedeby test basic_resource_assignment:
+                               Fixed qacct related partial test
+                             o Fixed Hedeby test unassign_resources
+                               Fixed problem with time differences between hosts
+                 Review:     AF
+
 TB-2008-10-21-0: Bugfix:     Fixed Hedeby test for Issue 571:
                              Wrong timeout calculation for event detection
                  Review:     AF

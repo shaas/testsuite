@@ -343,7 +343,7 @@ proc basic_resource_assignment_check {} {
          ts_log_fine "All resource moved to service \"$service\", now starting jobs for the new resources ..."
 
          # switch the actual cluster and get configuration
-         set job_list {}
+         unset -nocomplain job_host
          set_current_cluster_config_nr $service_names(ts_cluster_nr,$service)
          get_current_cluster_config_array ts_tmp_config
 
@@ -352,36 +352,34 @@ proc basic_resource_assignment_check {} {
             set job_arguments "-o /dev/null -e /dev/null -l h=$host $ts_tmp_config(product_root)/examples/jobs/sleeper.sh 5"
             set job_id [submit_job $job_arguments 1 60 $service_names(master_host,$service)]
             set job_host($job_id) $host
-            lappend job_list $job_id
          }
 
-         # wait for last submitted job to start ...
-         wait_for_jobstart $job_id "leeper" 60 1 1
-         # wait for last submitted job to finish ...
-         wait_for_jobend $job_id "leeper" 60 0 1
+         wait_for_end_of_all_jobs
 
          # now check job accounting information ...
-         foreach job $job_list {
+         foreach job_id [array names job_host] {
             # get accouting for job and store reported exit_status and hostname
-            get_qacct $job qacct_info $service_names(master_host,$service)
+            if {[get_qacct $job_id qacct_info $service_names(master_host,$service)] != 0} {
+               # error is already reported
+               continue
+            }
             set job_exit_state $qacct_info(exit_status)
             set job_hostname $qacct_info(hostname)
-            ts_log_fine "job \"$job\" at service \"$service\" on host \"$service_names(master_host,$service)\" reported:"
+            ts_log_fine "job \"$job_id\" at service \"$service\" on host \"$service_names(master_host,$service)\" reported:"
             ts_log_fine "Exit state: $job_exit_state"
             ts_log_fine "Hostname:   $job_hostname"
 
             # check exit status (should be 0)
             if {$job_exit_state != 0} {
-               append error_text "Job \"$job\" at service \"$service\" on host \"$service_names(master_host,$service)\" has\n"
+               append error_text "Job \"$job_id\" at service \"$service\" on host \"$service_names(master_host,$service)\" has\n"
                append error_text "exit state \"$job_exit_state\"\n"
             }
             # check hostname where the job was executed (should be the name of the resource)
-            if {[resolve_host $job_hostname] != $job_host($job)} {
-               append error_text "Job \"$job\" at service \"$service\" on host \"$service_names(master_host,$service)\" was\n"
-               append error_text "not running on host \"$job_host($job)\", reported host was \"$job_hostname\"\n"
+            if {[resolve_host $job_hostname] != $job_host($job_id)} {
+               append error_text "Job \"$job_id\" at service \"$service\" on host \"$service_names(master_host,$service)\" was\n"
+               append error_text "not running on host \"$job_host($job_id)\", reported host was \"$job_hostname\"\n"
             }
          }
-         wait_for_end_of_all_jobs
       }
    }
 

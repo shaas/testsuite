@@ -285,7 +285,10 @@ proc ge_unassign_resources_check {} {
       return
    }
    
-   set move_time [clock seconds]
+   # get time on host on which the following sdmadm commands are executed to avoid problems with time differences between hosts
+   get_hedeby_proc_default_opt_args default_opts
+   set move_time [get_remote_time $default_opts(host)]
+
    sdmadm_command_opt "move_resource -r $this(host_name) -s spare_pool"
    if {$prg_exit_state == 0} {
       switch -- $mode {
