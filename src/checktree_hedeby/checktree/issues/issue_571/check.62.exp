@@ -410,8 +410,10 @@ proc hedeby_issue571_check {} {
    set cycle_count 3
    
    # One cylce takes at least 2 * $sleep_time seconds
-   # It should be OK if give the system 2 * $sleep_time + 10 seconds
-   set wait_timeout [expr 2 * $sleep_time + 20]
+   # It should be OK if give the system 2 * $sleep_time + 20 seconds
+   # As it may happen that we start observing the system just after a RESOURCE_ADD event occured
+   # the wait_for_notification command may have to wait another full cycle ==> double the timeout!
+   set wait_timeout [expr (2 * $sleep_time + 20) * 2]
    
    # search in the history for the assignment process of the moveable resource
    for {set i 0} {$i < $cycle_count} {incr i} {
