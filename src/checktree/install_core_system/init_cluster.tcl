@@ -951,29 +951,30 @@ proc setup_schedconf {} {
    global CHECK_OUTPUT
 
    global ts_config
+   
+   if { $ts_config(gridengine_version) < 60 } {
+      # Only SGE 5.3 had the qconf -scl switch 
+      # always create global complex list if not existing
+      set result [start_sge_bin "qconf" "-scl"]
 
-  # always create global complex list if not existing
-  set result [start_sge_bin "qconf" "-scl"]
+      puts $CHECK_OUTPUT "result: $result"
 
-  puts $CHECK_OUTPUT "result: $result"
-
-  if { [string first "Usage" $result] >= 0 } {
-     puts $CHECK_OUTPUT "No complex setup to do for this version !!!"
-  } else {
-     if { [string first "global" $result] >= 0 } {
-        puts $CHECK_OUTPUT "complex list global already exists"
-     } else {
-        if { [get_complex_version] == 0 } {
-           puts $CHECK_OUTPUT "creating global complex list"
-           set host_complex(complex1) "c1 DOUBLE 55.55 <= yes yes 0"
-           set_complex host_complex global 1
-           set host_complex(complex1) ""
-           set_complex host_complex global
+      if { [string first "Usage" $result] >= 0 } {
+        puts $CHECK_OUTPUT "No complex setup to do for this version !!!"
+      } else {
+        if { [string first "global" $result] >= 0 } {
+           puts $CHECK_OUTPUT "complex list global already exists"
+        } else {
+           if { [get_complex_version] == 0 } {
+              puts $CHECK_OUTPUT "creating global complex list"
+              set host_complex(complex1) "c1 DOUBLE 55.55 <= yes yes 0"
+              set_complex host_complex global 1
+              set host_complex(complex1) ""
+              set_complex host_complex global
+           }
         }
-     }
-
-  }
-
+      } 
+   }
 
   # reset_schedd_config has global error reporting
   get_schedd_config old_config
