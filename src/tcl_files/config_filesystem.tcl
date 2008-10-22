@@ -983,8 +983,7 @@ proc fs_config_has_root_login_perm_on_nfs_server {filesystem_name} {
 #
 #  SEE ALSO
 #*******************************************************************************
-proc fs_config_get_filesystem_type {filesystem_name} {
-
+proc fs_config_get_filesystem_type {filesystem_name {raise_error 1}} {
    global ts_fs_config
 
    set ret ""
@@ -996,7 +995,7 @@ proc fs_config_get_filesystem_type {filesystem_name} {
          break
       } 
    }
-   if {$filesystem_found == 0} {
+   if {!$filesystem_found && $raise_error} {
       ts_log_severe "Filesystem $filesystem_name not found in filesystem configuration!!!"
    }
    return $ret
@@ -1025,7 +1024,7 @@ proc fs_config_get_filesystem_type {filesystem_name} {
 #
 #  SEE ALSO
 #*******************************************************************************
-proc fs_config_get_filesystem_server {filesystem_name} {
+proc fs_config_get_filesystem_server {filesystem_name {raise_error 1}} {
 
    global ts_fs_config
 
@@ -1038,7 +1037,7 @@ proc fs_config_get_filesystem_server {filesystem_name} {
          break
       } 
    }
-   if {$filesystem_found == 0} {
+   if {!$filesystem_found && $raise_error} {
       ts_log_severe "Filesystem $filesystem_name not found in filesystem configuration!!!"
    }
    return $ret
@@ -1120,4 +1119,83 @@ proc fs_config_get_supported_filesystem_list { } {
    lappend supported_fs_types "zfs"
 
    return $supported_fs_types
+}
+
+#****** config_filesystem/fs_config_get_filesystem_for_path() ******************
+#  NAME
+#     fs_config_get_filesystem_for_path() -- get filesystem for an absolute path
+#
+#  SYNOPSIS
+#     fs_config_get_filesystem_for_path {path {raise_error 1}} 
+#
+#  FUNCTION
+#     Returns the filesystem name for a given absolute path.
+#     On error (no absolute path given, or root filesystem), returns "".
+#
+#  INPUTS
+#     path            - path
+#     {raise_error 1} - raise error on error
+#
+#  RESULT
+#     "" on error or name of the filesystem
+#
+#  EXAMPLE
+#     fs_config_get_filesystem_for_path "/usr/local/test" returns "/usr"
+#     fs_config_get_filesystem_for_path "usr/local" returns "" + error
+#     fs_config_get_filesystem_for_path "/" returns "" + error
+#*******************************************************************************
+proc fs_config_get_filesystem_for_path {path {raise_error 1}} {
+   set ret ""
+
+   # we need an absolute path to find out the filesystem
+   if {[file pathtype $path] != "absolute"} {
+      if {$raise_error} {
+         ts_log_severe "need absolute path, but got \"$path\""
+      }
+   } else {
+      set fs_split [file split $path]
+      # we don't operate on the root filesystem (/)
+      if {[llength $fs_split] < 2} {
+         if {$raise_error} {
+            ts_log_severe "no server for root filesystem \"$path\""
+         }
+      } else {
+         set ret [file join [lindex $fs_split 0] [lindex $fs_split 1]]
+      }
+   }
+
+   return $ret
+}
+
+#****** config_filesystem/fs_config_get_server_for_path() **********************
+#  NAME
+#     fs_config_get_server_for_path() -- return file server for a path
+#
+#  SYNOPSIS
+#     fs_config_get_server_for_path { path {raise_error 1} } 
+#
+#  FUNCTION
+#     Returns the fileserver for a given path,
+#     or "" if it's a local filesystem or the fileserver is not configured.
+#
+#  INPUTS
+#     path            - path
+#     {raise_error 1} - raise error when fs is not configured
+#
+#  RESULT
+#     file server name or "" on error
+#
+#  SEE ALSO
+#     config_filesystem/fs_config_get_filesystem_for_path()
+#     config_filesystem/fs_config_get_filesystem_server()
+#*******************************************************************************
+proc fs_config_get_server_for_path {path {raise_error 1}} {
+   set server ""
+
+   set fs [fs_config_get_filesystem_for_path $path $raise_error]
+   if {$fs != ""} {
+      set server [fs_config_get_filesystem_server $fs $raise_error]
+   }
+
+   return $server
 }

@@ -1,3 +1,7 @@
+JG-2008-10-22-0: Bugfix:     Fixed shadowd installation (error about missing
+                             filesystem config)
+                 Review:     DG
+
 DG-2008-10-21-0: Cleanup:    Old tcl code produced output error since qconf -scl is 
                              not a valid command. 
                  Review:     JG

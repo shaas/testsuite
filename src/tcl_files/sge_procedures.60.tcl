@@ -510,7 +510,7 @@ proc check_shadowd_settings { shadowd_host } {
                set spooling_ok 1
             } else {
                set bdb_spooldir [get_bdb_spooldir]
-               set fstype [fs_config_get_filesystem_type $bdb_spooldir]
+               set fstype [fs_config_get_filesystem_type $bdb_spooldir 0]
                if {$fstype == "nfs4"} {
                   ts_log_fine "We have \"berkeleydb\" spooling on NFS v4" 
                   set spooling_ok 1
