@@ -1,0 +1,426 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global check_sge_version
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "bigdecimal_init_level"
+
+# define test's name and run level descriptions
+set check_name            "bigdecimal"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   1
+set check_description(0)  "Test the insertion of larger id numbers to the database"
+
+# define test's dependencies
+set check_needs "init_core_system arco_database_install arco_dbwriter_install"
+
+# setup and cleanup functions
+set check_setup_function bigdecimal_setup
+set check_cleanup_function bigdecimal_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "bigdecimal_test"
+
+proc bigdecimal_init_level {} {
+   global CHECK_ACT_LEVEL
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 {
+         return 0
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+proc bigdecimal_setup {} {
+   global ts_config sqlutil_id sqlutil_sp_id bigdecimal_backup
+   global Num_Jobs Big_Number AR_Name
+   global Prj_Name1 Prj_Name2
+   global Queue_Name1 Queue_Name2
+   global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   set sqlutil_id ""
+   set sqlutil_sp_id ""
+
+   set Big_Number 1000000000000000000000000000000000
+   set Num_Jobs 5
+   set Prj_Name1 "arco"
+   set Prj_Name2 "hedeby"
+   set Queue_Name1 "et.q"
+   set Queue_Name2 "sust.q"
+   if { $ts_config(gridengine_version) > 61 || [is_61AR] } {
+      set AR_Name "sge_ar"
+   } else {
+      if {[info exists AR_Name]} {
+         unset AR_Name
+      }
+   }
+
+   if {[info exists bigdecimal_backup]} {
+      unset bigdecimal_backup
+   }
+   # we want to modify the global config - make a backup
+   get_config bigdecimal_backup
+
+   # setup reporting params (enable job_log)
+   set config(reporting_params) "accounting=true reporting=true flush_time=00:00:10 joblog=true sharelog=00:10:00"
+   if {[set_config config] != 0} {
+      ts_log_config "Can not set reporting_params"
+      return -1
+   }
+
+   # start up dbwriter
+   if { [get_dbwriter_status 0] != 0 } {
+      if {[startup_dbwriter] != 0 } {
+         ts_log_config "Can not start dbwriter"
+         return -1
+      }
+   }
+
+   ts_log_fine "Create sqlutil as $CHECK_USER"
+   set sqlutil_id [sqlutil_create $CHECK_USER]
+   if { $sqlutil_id == "-1" } {
+      ts_log_config "Can not create sqlutil"
+      set sqlutil_id ""
+      return -1
+   }
+   set sqlutil_sp_id [ lindex $sqlutil_id 1 ]
+
+   if { [ sqlutil_connect $sqlutil_sp_id] != 0 } {
+      ts_log_config "Can not connect to database"
+      close_spawn_process $sqlutil_id
+      set sqlutil_id ""
+      return -2
+   }
+
+   ts_log_fine "sqlutil created ($sqlutil_id)"
+
+}
+
+proc bigdecimal_cleanup {} {
+   global ts_config sqlutil_id sqlutil_sp_id bigdecimal_backup
+   global Prj_Name1 Prj_Name2 AR_Name
+   global Queue_Name1 Queue_Name2
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+
+   delete_all_jobs
+   wait_for_end_of_all_jobs
+   if {[info exists AR_Name]} {
+      delete_all_ars
+   }
+
+   if { $sqlutil_id != "" } {
+      close_spawn_process $sqlutil_id
+   }
+   set sqlutil_id ""
+   set sqlutil_sp_id ""
+
+   # restore config
+   set_config bigdecimal_backup
+
+   del_queue $Queue_Name1 "" 1 1
+   del_queue $Queue_Name2 "" 1 1
+   del_user $CHECK_FIRST_FOREIGN_SYSTEM_USER
+   del_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
+   del_project $Prj_Name1
+   del_project $Prj_Name2
+
+   if { [get_dbwriter_status 0] == 0 } {
+      if { [shutdown_dbwriter] != 0 } {
+         ts_log_severe "Can not stop dbwriter"
+         return -1
+      }
+   }
+
+   # clean data from arco database
+   arco_clean_database
+}
+
+#************ bigdecimal/bigdecimal_test() *************************************
+#
+#  NAME
+#     bigdecimal_test() - tests the insertion of larger id numbers to the database
+#
+#  SYNOPSIS
+#    bigdecimal_test {}
+#
+#  FUNCTION
+#     Tests the insertion of larger id numbers to the database.
+#     Step by step:
+#        o add objects and duplicate records in relevant ARCo table with a large
+#          number in primary key
+#        o run a job and duplicate it's entry with a large id
+#        o restart dbwriter (after restart next id will be ($Big_Number + 1)
+#        o add objects again and check the existence of records
+#        o run few jobs to make sure reporting data with higher id number
+#          are written to the database
+#        o check the dbwriter log file
+#
+#  BUGS
+#     CR 6717825 - fixed in 6.2u1 and 6.1u6 releases
+#
+#*******************************************************************************
+proc bigdecimal_test {} {
+   global ts_config sqlutil_id sqlutil_sp_id 
+   global Num_Jobs Big_Number AR_Name
+   global Prj_Name1 Prj_Name2
+   global Queue_Name1 Queue_Name2
+   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
+   global CHECK_SECOND_FOREIGN_SYSTEM_GROUP
+   global CHECK_ACT_LEVEL
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      ts_log_fine "this is the test for runlevel $CHECK_ACT_LEVEL"
+   }
+
+   # add project
+   add_project $Prj_Name1
+   # duplicate project record with big id
+   if { [bigdecimal_duplicate_record "sge_project" "p_id"] != 0 } {
+      return -1
+   }
+
+   # add user
+   set chgar(default_project) $Prj_Name1
+   add_user $CHECK_FIRST_FOREIGN_SYSTEM_USER chgar
+   array unset chgar
+   # duplicate user record with big id
+   if { [bigdecimal_duplicate_record "sge_user" "u_id"] != 0 } {
+      return -1
+   }
+   # duplicate group record with big id
+   if { [bigdecimal_duplicate_record "sge_group" "g_id"] != 0 } {
+      return -1
+   }
+
+   # add queue
+   set chgar(slots) "10"
+   add_queue $Queue_Name1 "@allhosts" chgar
+   # duplicate queue record with big id
+   if { [bigdecimal_duplicate_record "sge_queue" "q_id"] != 0 } {
+      return -1
+   }
+   array unset chgar
+
+   if {[info exists AR_Name]} {
+      # submit advance reservation
+      set ar_id [submit_ar "-N $AR_Name -d 3600"]
+      # duplicate AR record with big id
+      if { [bigdecimal_duplicate_record "sge_ar" "ar_id"] != 0 } {
+         return -1
+      }
+      set ar_opts "-ar $ar_id"
+   } else {
+      set ar_opts ""
+   }
+   # run job
+   array set job { }
+   set job(j_job_name) "simple"
+   set job(args) "-P $Prj_Name1 $ar_opts $ts_config(product_root)/examples/jobs/sleeper.sh 5"
+
+   if { [arco_job_run job] != 0 } {
+      return -1
+   }
+
+   if { [arco_query_job $sqlutil_sp_id job] != 1 } {
+      return -1
+   }
+
+   # duplicate job record with big id
+   if { [bigdecimal_duplicate_record "sge_job" "j_id" "WHERE j_job_number = '$job(j_job_number)'"] != 0 } {
+      return -1
+   }
+   array unset job
+
+   # restart dbwriter, so that it reads the last id as the maximum
+   if { [shutdown_dbwriter] != 0 } {
+      ts_log_severe "Can not stop dbwriter"
+      return -1
+   }
+   if {[startup_dbwriter] != 0 } {
+      ts_log_severe "Can not start dbwriter"
+      return -1
+   }
+
+   # add project
+   add_project $Prj_Name2
+   # add user
+   add_user $CHECK_SECOND_FOREIGN_SYSTEM_USER
+   #add queue
+   set chgar(slots) "10"
+   add_queue $Queue_Name2 "@allhosts" chgar
+   array unset chgar
+
+   if {[info exists AR_Name]} {
+      # submit ar
+      set ar_id [submit_ar "-N $AR_Name -q $Queue_Name2 -d 3600"]
+      set ar_opts "-ar $ar_id"
+   }
+
+   array set job { }
+   set job(j_job_name) "simple"
+   set job(args) "-P $Prj_Name2 -q $Queue_Name2 $ar_opts $ts_config(product_root)/examples/jobs/sleeper.sh 5"
+
+   # start a few jobs to make sure reporting data with higher id number are written to the database
+   for {set i 0} {$i < $Num_Jobs} {incr i 1} {
+      if { [arco_job_run job 10 120 "" $CHECK_SECOND_FOREIGN_SYSTEM_USER] != 0 } {
+         return -1
+      }
+
+      if { [arco_query_job $sqlutil_sp_id job] != 1 } {
+         return -1
+      }
+   }
+
+   # check the record in sge_project
+   bigdecimal_record_exists "sge_project" "WHERE p_project='$Prj_Name2'"
+   # check the record in sge_user
+   bigdecimal_record_exists "sge_user" "WHERE u_user='$CHECK_SECOND_FOREIGN_SYSTEM_USER'"
+   # check the record in sge_group
+   bigdecimal_record_exists "sge_group" "WHERE g_group='$CHECK_SECOND_FOREIGN_SYSTEM_GROUP'"
+   if {[info exists AR_Name]} {
+      # check the record in sge_ar
+      bigdecimal_record_exists "sge_ar" "WHERE ar_number='$ar_id'"
+   }
+
+   # check the dbwriter.log file content for errors
+   check_dbwriter_log
+
+}
+
+#************ bigdecimal/bigdecimal_record_exists() ****************************
+#
+#  NAME
+#     bigdecimal_record_exists() - check if the record exists in the table
+#
+#  SYNOPSIS
+#    bigdecimal_record_exists { table_name where_clause }
+#
+#  FUNCTION
+#     Checks if the record exists in the table by executing sql query
+#     SELECT * FROM $table_name $where_clause
+#
+#  INPUTS
+#     table_name   - the name of ARCo table
+#     where_clause - where clause in select statement
+#
+#  RESULT
+#     0 - record exists
+#    -1 - record not found
+#
+#*******************************************************************************
+proc bigdecimal_record_exists { table_name where_clause } {
+   global sqlutil_id sqlutil_sp_id
+
+   set sql "SELECT * FROM $table_name $where_clause"
+   ts_log_finest "Execute sql statement: $sql"
+   set result [sqlutil_query $sqlutil_sp_id "$sql" result_array column_names]
+   if { $result < 0} {
+      ts_log_severe "Can't execute statement: $sql"
+      return -1
+   } elseif { $result == 0 } {
+      ts_log_severe "Record not found: $sql"
+      return -1
+   }
+   return 0
+
+}
+
+#************ bigdecimal/bigdecimal_duplicate_record() *************************
+#
+#  NAME
+#     bigdecimal_duplicate_record() - duplicate a record in the given table
+#
+#  SYNOPSIS
+#    bigdecimal_duplicate_record { table_name id_name {where_clause ""} }
+#
+#  FUNCTION
+#   Duplicate a record in the table $table_name and replace the primary key number
+#   by $Big_Number. If only one other column than id is in the table, it will
+#   also put a different column value.
+#
+#  INPUTS
+#     table_name        - the name of ARCo table
+#     id_name           - the name of primary key in the table
+#     {where_clause ""} - where clause in select statement
+#
+#  RESULT
+#     0 - OK
+#    -1 - error occurs
+#
+#*******************************************************************************
+proc bigdecimal_duplicate_record { table_name id_name {where_clause ""} } {
+   global sqlutil_id sqlutil_sp_id
+   global Big_Number
+
+   # get the column names
+   set columns ""
+   set sql_select "SELECT * FROM $table_name"
+   ts_log_finest "Execute sql statement: $sql_select"
+   if {[sqlutil_query $sqlutil_sp_id "$sql_select" result_array column_names] < 0} {
+      ts_log_severe "Can't execute statement: $sql_select"
+      return -1
+   }
+   set columns [join [replace_string $column_names "$id_name" ""] ", "]
+
+   # compose the sql statement for duplicating of the record
+   set sql "INSERT INTO $table_name ($id_name, $columns) "
+   if { [llength $columns] > 1} {
+      append sql "SELECT $Big_Number, $columns FROM $table_name $where_clause"
+   } else {
+      append sql "VALUES ($Big_Number, '${table_name}_name')"
+   }
+   ts_log_finest "Execute sql statement: $sql"
+   # run the sql statement
+   if {[sqlutil_exec $sqlutil_sp_id "$sql"] != 0} {
+      ts_log_severe "Can't execute statement: $sql"
+      return -1
+   }
+   return 0
+}

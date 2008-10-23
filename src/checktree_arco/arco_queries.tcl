@@ -71,20 +71,23 @@ proc arco_job_to_string { job_object } {
    return $job_str
 }
 
-#****** arco_queries/arco_job_submit() **************************************************
+#****** arco_queries/arco_job_run() ********************************************
 #  NAME
-#    arco_job_submit() -- submit a job 
+#    arco_job_run() -- submit a job
 #
 #  SYNOPSIS
-#    arco_job_submit { job_object { start_timeout 10 } { end_timeout 120 } }
+#    arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } 
+#                   {on_host ""} {as_user ""} }
 #
 #  FUNCTION
 #    Submit a job which is specifed by a job object
 #
 #  INPUTS
 #    job_object    --  the job object (elements j_job_name and args must be set)
-#    start_timeout --  Max. waiting time in seconds for job start
-#    end_timeout   --  Max. waiting time in seconds for job end
+#    {start_timeout 10} --  Max. waiting time in seconds for job start
+#    {end_timeout 100}  --  Max. waiting time in seconds for job end
+#    {on_host ""} -- host which the command will be called from
+#    {as_user ""} -- user who will call the command
 #
 #  RESULT
 #     0 --   job successfully ran (j_job_number stored in job_jobject)
@@ -97,7 +100,7 @@ proc arco_job_to_string { job_object } {
 #
 #   set res [arco_job_run job 10 20]
 #*******************************************************************************
-proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } } {
+proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } {on_host ""} {as_user ""} } {
    
    upvar $job_object job
    
@@ -109,8 +112,8 @@ proc arco_job_run { job_object { start_timeout 10 } { end_timeout 120 } } {
       ts_log_severe "Missing element args in job object"
       return -1
    }
-   
-   set res [submit_job "-N $job(j_job_name) $job(args)"]
+
+   set res [submit_job "-N $job(j_job_name) $job(args)" 1 60 $on_host $as_user]
    
    if { $res < 0 } {
       ts_log_severe "submission of job [arco_job_to_string job] failed"

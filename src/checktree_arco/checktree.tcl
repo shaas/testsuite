@@ -1138,3 +1138,44 @@ proc get_java_web_console_version { version_array { swc_host "" } } {
       }
    }
 }
+
+#****** checktree/check_dbwriter_log() *****************************************
+#  NAME
+#    check_dbwriter_log() -- checks the dbwriter log file
+#
+#  SYNOPSIS
+#    check_dbwriter_log {}
+#
+#  FUNCTION
+#     Reads the dbwriter log file and checks if any error occurs. It looks for
+#     occurance of "|E|" in the log output file.
+#
+#  RESULT
+#      0    --   if no error occurs
+#     -1    --   if any error occurs
+#
+#*******************************************************************************
+proc check_dbwriter_log { } {
+   global ts_config CHECK_USER
+
+   set dbwriter_log_file "$ts_config(product_root)\/$ts_config(cell)\/spool\/dbwriter\/dbwriter.log"
+
+   set return_value ""
+
+   get_file_content $ts_config(master_host) $CHECK_USER $dbwriter_log_file
+   for { set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+       set line $file_array($i)
+         if { [string first "|E|" $line] >= 0 } {
+            append return_value "line $i: $line\n"
+         }
+   }
+
+   if { $return_value != ""} {
+      ts_log_severe "Reading $dbwriter_log_file: some errors found."
+      return -1
+   } else {
+      ts_log_finest "Reading $dbwriter_log_file: no errors found."
+      return 0
+   }
+
+}

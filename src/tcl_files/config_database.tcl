@@ -32,7 +32,7 @@
 
 global ts_db_config                       ;# new testsuite database config array
 global actual_ts_db_config_version      ;# actual database config version number
-set    actual_ts_db_config_version "1.0"
+set    actual_ts_db_config_version "1.1"
 
 if {![info exists ts_db_config]} {
    # ts_db_config defaults
@@ -76,7 +76,7 @@ if {![info exists ts_db_config]} {
 #  INPUTS
 #     only_check   - 0: expect user input
 #                    1: just verify user input
-#     name         - option name (in ts_user_config array)
+#     name         - option name (in ts_db_config array)
 #     config_array - config array name (ts_db_config)
 #
 #  SEE ALSO
@@ -494,7 +494,7 @@ proc db_config_dbtypelist_delete_dbtype { array_name { have_dbtype "" } } {
 #  INPUTS
 #     only_check   - 0: expect user input
 #                    1: just verify user input
-#     name         - option name (in ts_user_config array)
+#     name         - option name (in ts_db_config array)
 #     config_array - config array name (ts_db_config)
 #
 #  SEE ALSO
@@ -613,6 +613,7 @@ proc db_config_get_database_parameters { } {
    lappend params username
    lappend params password
    lappend params driverpath
+   lappend params foreign_key_suffix
 
    return $params
 }
@@ -763,6 +764,7 @@ proc db_config_databaselist_edit_database { array_name { have_database "" } } {
          "username"     { set extra 5 }
          "password"     { set extra 6 }
          "driverpath"   { set extra 7 }
+         "foreign_key_suffix" { set extra 8 }
       }
 
       if { $extra == 0 } {
@@ -839,6 +841,15 @@ proc db_config_databaselist_edit_database { array_name { have_database "" } } {
       if { $extra == 7 } {
          set help_text {  "Enter the path to jdbc driver:" }
          set value [config_generic 0 "$database,$input" config $help_text "filename" 0]
+         if { $value != -1 } {
+            set config($database,$input) $value
+         } else { wait_for_enter }
+         continue
+      }
+
+      if { $extra == 8 } {
+         set help_text {  "Enter the foreign key suffix:" }
+         set value [config_generic 0 "$database,$input" config $help_text "string" 1]
          if { $value != -1 } {
             set config($database,$input) $value
          } else { wait_for_enter }
@@ -1153,7 +1164,9 @@ proc setup_db_config { file { force_params "" }} {
    if { [read_array_from_file $file "testsuite database configuration" ts_db_config ] == 0 } {
       if { $ts_db_config(version) != $actual_ts_db_config_version } {
          ts_log_fine "unknown database configuration file version: $ts_db_config(version)"
-         exit -1
+         while { [update_ts_db_config_version $file] != 0 } {
+            wait_for_enter
+         }
       }
 
       # got config
@@ -1242,4 +1255,29 @@ proc db_config_get_databaselist { config_array result_array } {
       set db_list($db) "($config($db,dbtype) at $config($db,dbhost))"
    }
    return [array names db_list]
+}
+
+proc update_ts_db_config_version { filename } {
+   global actual_ts_db_config_version
+   global ts_db_config
+
+   if { $ts_db_config(version) == "1.0" } {
+      puts "\ntestsuite database configuration update from 1.0 to 1.1 ..."
+
+      foreach db $ts_db_config(databaselist) {
+         set ts_db_config($db,foreign_key_suffix) "none"
+      }
+      set ts_db_config(version) "1.1"
+
+      show_config ts_db_config
+      wait_for_enter
+      if { [ save_db_configuration $filename] != 0} {
+         puts "Could not save database configuration"
+         wait_for_enter
+         return
+      }
+      return 0
+   }
+   puts "\nunexpected version"
+   return -1
 }

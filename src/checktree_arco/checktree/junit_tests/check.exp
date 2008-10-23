@@ -101,7 +101,8 @@ proc arco_junit_check {} {
    set jdbc_url            [get_jdbc_url $db_name]
    set db_def              database/$identifier/dbdefinition.xml
    set db_schema           [get_database_schema]
-   
+   set foreign_key_suffix  [get_foreign_key_suffix]
+
    append cmd_args " -e 's%@@IDENTIFIER@@%${identifier}%g'"
    append cmd_args " -e 's%@@JDBC_DRIVER@@%${jdbc_driver}%g'"
    append cmd_args " -e 's%@@DB_NAME@@%${db_name}%g'"
@@ -116,7 +117,8 @@ proc arco_junit_check {} {
    append cmd_args " -e 's%@@TABLESPACE@@%${db_tablespace}%g'"
    append cmd_args " -e 's%@@TABLESPACE_INDEX@@%${db_index_tablespace}%g'"
    append cmd_args " -e 's%@@DB_DEFINITION_FILE@@%${db_def}%g'"
-   
+   append cmd_args " -e 's%@@FOREIGN_KEY_SUFFIX@@%${foreign_key_suffix}%g'"
+
    append cmd_args " $arco_config(arco_source_dir)/dbwriter/test/DBWriterTestConfig.properties.template"
    append cmd_args " > $file_name"
 

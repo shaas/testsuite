@@ -1,5 +1,5 @@
 #!/vol2/TCL_TK/glinux/bin/tclsh
-# expect script 
+# expect script
 #___INFO__MARK_BEGIN__
 ##########################################################################
 #
@@ -92,11 +92,11 @@ proc send_to_spawn_id { sp_id input { no_nl 0 } } {
 
 proc get_sqlutil_classpath {} {
    global ts_config arco_config
-   
+
    set jar_list { arco_common.jar jax-qname.jar jaxb-impl.jar xsdlib.jar
                   jaxb-api.jar jaxb-libs.jar namespace.jar relaxngDatatype.jar }
    set ret ""
-   
+
    set jdbc_driver_path [get_jdbc_driver_path]
    if { $jdbc_driver_path != "NONE" } {
       if { ! [file exists $jdbc_driver_path] } {
@@ -105,10 +105,10 @@ proc get_sqlutil_classpath {} {
       }
       append ret $jdbc_driver_path
    }
-   
+
    foreach jar $jar_list {
       set file_name $ts_config(product_root)/dbwriter/lib/$jar
-      
+
       if { ! [file exists $file_name] } {
          ts_log_config "Required jar file $file_name for sql_util does not exist"
       }
@@ -118,7 +118,7 @@ proc get_sqlutil_classpath {} {
          set ret "$file_name"
       }
    }
-   
+
    return $ret
 }
 
@@ -128,10 +128,10 @@ proc get_sqlutil_classpath {} {
 #    sqlutil_create() -- create a sqlutil
 #
 #  SYNOPSIS
-#    sqlutil_create { } 
+#    sqlutil_create { }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #
@@ -143,9 +143,9 @@ proc get_sqlutil_classpath {} {
 #   if { $id == "-1" } {
 #      ts_log_severe "Can not create sqlutil"
 #      return 0
-#   }   
+#   }
 #   set sp_id [ lindex $id 1 ]
-#   
+#
 #   if { [ sqlutil_connect $sp_id] != 0 } {
 #      ts_log_severe "Can not connect to database"
 #      close_spawn_process $id;
@@ -155,10 +155,10 @@ proc get_sqlutil_classpath {} {
 #   ...
 #   close_spawn_process $id;
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
@@ -166,28 +166,28 @@ proc get_sqlutil_classpath {} {
 proc sqlutil_create { { user "" } } {
    global ts_host_config arco_config CHECK_DEBUG_LEVEL
    global CHECK_USER
-   
+
    if { $user == "" } {
       set user $CHECK_USER
    }
    set java_build_host [host_conf_get_java_compile_host]
    ts_log_finest "java build host is \"$java_build_host\""
-   
-# TODO - change the method for getting java   
+
+# TODO - change the method for getting java
    set cmd [get_binary_path $java_build_host "java15"]
    set args "com.sun.grid.util.SQLUtil"
 
    set sql_utilenv(CLASSPATH) [get_sqlutil_classpath]
-   
+
    log_user 0
    if { $CHECK_DEBUG_LEVEL > 0 } {
       ts_log_fine "CLASSPATH for sqlUtil: $sql_utilenv(CLASSPATH)"
       log_user 1
    }
-   
+
    set id [open_remote_spawn_process $java_build_host $user "$cmd" "$args" 0 "" sql_utilenv]
    set sp_id [ lindex $id 1 ]
-   
+
    set error_count 0
    set timeout 60
    expect {
@@ -195,8 +195,8 @@ proc sqlutil_create { { user "" } } {
       -i $sp_id full_buffer {
          ts_log_severe "sqlutil_create - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          set res -1
-      }   
-      -i $sp_id eof { 
+      }
+      -i $sp_id eof {
          ts_log_severe "sqlutil_create - unexpected eof";
          set res -1
       }
@@ -204,7 +204,7 @@ proc sqlutil_create { { user "" } } {
          ts_log_severe "sqlutil_create - coredump";
          set res -1
       }
-      -i $sp_id timeout { 
+      -i $sp_id timeout {
          ts_log_severe "sqlutil_create - timeout while waiting for output";
          set res -1
       }
@@ -224,16 +224,16 @@ proc sqlutil_create { { user "" } } {
          exp_continue
       }
    }
-   
+
    if { $res != 0 } {
       close_spawn_process $id;
       return $res
    }
-   
+
    # turn the exit on error mechanism off
    set cmd "exitonerror off"
    set res [sqlutil_exec $sp_id "$cmd"]
-   if { $res == 0 } {   
+   if { $res == 0 } {
       return $id
    } else {
       close_spawn_process $id;
@@ -246,7 +246,7 @@ proc sqlutil_create { { user "" } } {
 #    sqlutil_connect() -- connect to the arco database via the sql util
 #
 #  SYNOPSIS
-#    sqlutil_connect { sp_id { use_admin_db 0 }  } 
+#    sqlutil_connect { sp_id { use_admin_db 0 }  }
 #
 #  FUNCTION
 #
@@ -271,22 +271,22 @@ proc sqlutil_create { { user "" } } {
 #  SEE ALSO
 #*******************************************************************************
 proc sqlutil_connect { sp_id { use_admin_db 0 } } {
-   
-   global arco_config CHECK_DEBUG_LEVEL ts_config   
+
+   global arco_config CHECK_DEBUG_LEVEL ts_config
 
    set db_name [get_database_name $use_admin_db]
 
    set jdbc_driver [get_jdbc_driver]
    set jdbc_url [get_jdbc_url $db_name]
-   
+
    ts_log_finest "jdbc_url = $jdbc_url"
    set db_user [get_arco_write_user $use_admin_db]
    set db_pw [get_arco_user_pwd $use_admin_db]
-   
+
    set cmd "connect $jdbc_driver $jdbc_url $db_user $db_pw"
 
    ts_log_fine "Connect to $jdbc_url as user $db_user"
-   
+
    return [ sqlutil_exec $sp_id "$cmd"]
 
 }
@@ -299,7 +299,7 @@ proc sqlutil_connect { sp_id { use_admin_db 0 } } {
 #    sqlutil_exec { sp_id cmd { a_timeout 30 } }
 #
 #  FUNCTION
-#     execute a command with the sql util 
+#     execute a command with the sql util
 #
 #  INPUTS
 #    sp_id         --  spawn id of the sql util
@@ -312,38 +312,50 @@ proc sqlutil_connect { sp_id { use_admin_db 0 } } {
 #     else -- return code of the command
 #
 #  EXAMPLE
-#     ??? 
+#     ???
 #
 #  NOTES
-#     ??? 
+#     ???
 #
 #  BUGS
-#     ??? 
+#     ???
 #
 #  SEE ALSO
 #     ???/???
 #*******************************************************************************
 proc sqlutil_exec { sp_id cmd { a_timeout 30 } } {
-   
+
    global CHECK_DEBUG_LEVEL sqlutil_errors
-   
-   send_to_spawn_id $sp_id "$cmd"
-   
+
+   # split the command into more lines, if the command is too long
+   set commd $cmd
+   while { 1 } {
+      if {[string length $commd] > 250} {
+         set pos [string last " " [string range $commd 0 250]]
+         send_to_spawn_id $sp_id "[string range $cmd 0 $pos]\\"
+         incr pos 1
+         set commd [string range $commd $pos end]
+      } else {
+         send_to_spawn_id $sp_id "$commd"
+         break
+      }
+   }
+
    set timeout $a_timeout
    if { $CHECK_DEBUG_LEVEL > 0 } {
      log_user 1
    } else {
      log_user 0
    }
-   
+
    expect {
-       
+
       flush stdout
       -i $sp_id full_buffer {
          ts_log_severe "sqlutil_exec - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          return -1
-      }   
-      -i $sp_id eof { 
+      }
+      -i $sp_id eof {
          ts_log_severe "sqlutil_exec - unexpected eof";
          return -1
       }
@@ -351,8 +363,8 @@ proc sqlutil_exec { sp_id cmd { a_timeout 30 } } {
          ts_log_severe "sqlutil_exec - coredump";
          return -1
       }
-      -i $sp_id timeout { 
-         ts_log_severe "sqlutil_exec - timeout while waiting for output"; 
+      -i $sp_id timeout {
+         ts_log_severe "sqlutil_exec - timeout while waiting for output";
          return -1
       }
       -i $sp_id -re {^(__exit).+?\n} {
@@ -394,14 +406,14 @@ proc sqlutil_exec { sp_id cmd { a_timeout 30 } } {
 #    sqlutil_query { sp_id cmd a_result_array a_column_names { a_timeout 30 } }
 #
 #  FUNCTION
-#     ??? 
+#     ???
 #
 #  INPUTS
 #    sp_id          --  spawn id of the sql util
 #    cmd            --  the sql query
 #    a_result_array -- array where the query result is stored
 #    a_column_names -- list with the returned columns names
-#    a_timeout      -- timeout for the query 
+#    a_timeout      -- timeout for the query
 #
 #  RESULT
 #     < 0 -  error
@@ -416,47 +428,47 @@ proc sqlutil_exec { sp_id cmd { a_timeout 30 } } {
 #  SEE ALSO
 #*******************************************************************************
 proc sqlutil_query { sp_id cmd a_result_array a_column_names { a_timeout 30 } } {
-   
+
    global CHECK_DEBUG_LEVEL sql_util_errors
-   
+
    upvar $a_result_array result_array
    upvar $a_column_names column_names
 
    array unset result_array
    set column_names {}
-   
+
    if {[sqlutil_exec $sp_id "set print_header true"] != 0} {
       return -1
    }
    # send the sql query to the sql util
-   
+
    if {$CHECK_DEBUG_LEVEL > 0} {
-      ts_log_frame 
+      ts_log_frame
       ts_log_fine "sqlutil_query -- Execute Query"
       ts_log_fine $cmd
       ts_log_frame
    }
    send_to_spawn_id $sp_id "$cmd"
-   
+
    set line_nr 0
    set first_line 1
-   
+
    set timeout $a_timeout
-   
+
    if { $CHECK_DEBUG_LEVEL > 0 } {
      log_user 1
    } else {
      log_user 0
    }
-   
-   
+
+
    expect {
       flush stdout
       -i $sp_id full_buffer {
          ts_log_severe "sqlutil_query - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          return -1
-      }   
-      -i $sp_id eof { 
+      }
+      -i $sp_id eof {
          ts_log_severe "sqlutil_query - unexpected eof";
          return -1
       }
@@ -464,8 +476,8 @@ proc sqlutil_query { sp_id cmd a_result_array a_column_names { a_timeout 30 } } 
          ts_log_severe "sqlutil_query - coredump";
          return -1
       }
-      -i $sp_id timeout { 
-         ts_log_severe "sqlutil_query - timeout while waiting for output"; 
+      -i $sp_id timeout {
+         ts_log_severe "sqlutil_query - timeout while waiting for output";
          return -1
       }
        -i $sp_id -re {^(SEVERE:).+?\n} {
@@ -477,7 +489,7 @@ proc sqlutil_query { sp_id cmd a_result_array a_column_names { a_timeout 30 } } 
          if { [info exists exit_status] != 1 } {
             ts_log_severe "sqlutil_query - Got no exit status for query"
             set exit_status -1
-         }            
+         }
          if { $exit_status != 0 } {
             ts_log_severe "sqlutil_query - query '$cmd' failed"
             return -1;
@@ -532,7 +544,7 @@ proc sqlutil_query { sp_id cmd a_result_array a_column_names { a_timeout 30 } } 
 #    sql_util_print_result() -- print the result of a sql query
 #
 #  SYNOPSIS
-#    sql_util_print_result { result_array columns } 
+#    sql_util_print_result { result_array columns }
 #
 #  FUNCTION
 #     The function prints the result of a sql query
@@ -557,16 +569,16 @@ proc sqlutil_query { sp_id cmd a_result_array a_column_names { a_timeout 30 } } 
 #     sql_util/sqlutil_query
 #*******************************************************************************
 proc sql_util_print_result { result_array columns } {
-   
+
    upvar $result_array result
-   
+
    set col_count [llength $columns]
    set col 0
    foreach column $columns {
       set col_width($col) [string length $column]
       incr col
    }
-   
+
    set row_count 0
    for { set row 0 } { [info exists result($row,0)] } { incr row } {
       for { set col 0 } { $col < $col_count } { incr col } {
@@ -577,7 +589,7 @@ proc sql_util_print_result { result_array columns } {
       }
       incr row_count
    }
-   
+
    set col_del " | "
    set col 0
    set line_delimiter ""
@@ -589,7 +601,7 @@ proc sql_util_print_result { result_array columns } {
          puts -nonewline "| "
          append line_delimiter "|-"
       }
-      set format($col) "% $col_width($col)s"         
+      set format($col) "% $col_width($col)s"
       puts -nonewline [format $format($col) $column]
       for { set i 0 } { $i < $col_width($col) } { incr i } {
          append line_delimiter "-"
@@ -597,10 +609,10 @@ proc sql_util_print_result { result_array columns } {
       incr col
    }
    append line_delimiter "-|"
-   
+
    puts " |"
    puts $line_delimiter
-   
+
    for { set row 0 } { [info exists result($row,0)] } { incr row } {
       puts -nonewline "| "
       for { set col 0 } { $col < $col_count } { incr col } {
@@ -617,14 +629,14 @@ proc sql_util_print_result { result_array columns } {
    } else {
       puts "$row_count rows"
    }
-   
+
 }
 
 # deprecated
 proc add_sql_error { procname error_code msg } {
-   
+
    global sqlutil_errors
-   
+
    foreach error_msg $sqlutil_errors {
       append msg "\n   $error_msg"
    }

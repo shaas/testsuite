@@ -1093,3 +1093,8 @@ proc get_database_schema { } {
    }
    return $db_schema
 }
+
+proc get_foreign_key_suffix {} {
+   global arco_config ts_db_config
+   return $ts_db_config($arco_config(database),foreign_key_suffix)
+}
