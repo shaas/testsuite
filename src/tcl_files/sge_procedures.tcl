@@ -3198,12 +3198,15 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
    get_current_cluster_config_array ts_config
    set time [timestamp]
 
+
+   ts_log_fine "wait_for_unknown_load - waiting for queues \"$queue_array\" to get unknown load state (timeout=${seconds}s) ..."
+
    set master_arch [resolve_arch $ts_config(master_host)]
    if { [ file isfile $ts_config(product_root)/bin/$master_arch/qstat ] != 1} {
+      ts_log_severe "qstat file not found!!!"
       return -1      
    }
 
-   ts_log_fine "wait_for_unknown_load - waiting for queues\n\"$queue_array\"\nto get unknown load state ..."
    while {1} {
       after 1000
       ts_log_progress
@@ -3276,7 +3279,7 @@ proc wait_for_unknown_load { seconds queue_array { do_error_check 1 } } {
       set runtime [expr [timestamp] - $time]
       if {$runtime >= $seconds} {
           if {$do_error_check == 1} {
-             ts_log_severe "timeout waiting for load values >= 99"
+             ts_log_severe "timeout waiting for load values >= 99 (timeout was $seconds)"
           }
           return -1
       }
@@ -8069,7 +8072,7 @@ proc copy_certificates { host } {
 proc is_daemon_running { hostname daemon {disable_daemon_count_check 0} } {
    get_current_cluster_config_array ts_config
 
-   set found_p [ ps_grep $ts_config(product_root) $hostname ]
+   set found_p [ ps_grep "$ts_config(product_root)/" $hostname ]
    set daemon_count 0
 
    foreach elem $found_p {

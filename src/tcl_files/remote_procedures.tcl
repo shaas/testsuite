@@ -2471,34 +2471,46 @@ proc del_open_spawn_rlogin_session {spawn_id} {
 
       if {$remove_from_index != 0} {
          # remove session from search index
-         set hostname       $rlogin_spawn_session_buffer($spawn_id,hostname)
-         set user           $rlogin_spawn_session_buffer($spawn_id,user)
-         set win_local_user $rlogin_spawn_session_buffer($spawn_id,win_local_user)
-         if {[info exists rlogin_spawn_session_idx($hostname,$user,$win_local_user)]} {
-            unset rlogin_spawn_session_idx($hostname,$user,$win_local_user)
+         if {[info exists rlogin_spawn_session_buffer($spawn_id,hostname)]} {
+               set hostname       $rlogin_spawn_session_buffer($spawn_id,hostname)
+               set user           $rlogin_spawn_session_buffer($spawn_id,user)
+               set win_local_user $rlogin_spawn_session_buffer($spawn_id,win_local_user)
+            if {[info exists rlogin_spawn_session_idx($hostname,$user,$win_local_user)]} {
+               unset rlogin_spawn_session_idx($hostname,$user,$win_local_user)
+            } else {
+               ts_log_severe "spawn session index rlogin_spawn_session_idx($hostname,$user,$win_local_user) not found"
+            }
          } else {
-            ts_log_severe "spawn session index rlogin_spawn_session_idx($hostname,$user,$win_local_user) not found"
+            ts_log_severe "spawn session index rlogin_spawn_session_buffer($spawn_id,hostname) not found"
          }
       }
 
       # remove session from array index
       set pos [lsearch -exact $rlogin_spawn_session_buffer(index) $spawn_id]
-      set rlogin_spawn_session_buffer(index) [lreplace $rlogin_spawn_session_buffer(index) $pos $pos]
+      if {$pos != -1} {
+         set rlogin_spawn_session_buffer(index) [lreplace $rlogin_spawn_session_buffer(index) $pos $pos]
+      } else {
+         ts_log_severe "position of $spawn_id in rlogin_spawn_session_buffer(index) not found"
+      }
 
       # remove session data
-      unset rlogin_spawn_session_buffer($spawn_id,pid)
-      unset rlogin_spawn_session_buffer($spawn_id,hostname)
-      unset rlogin_spawn_session_buffer($spawn_id,user)
-      unset rlogin_spawn_session_buffer($spawn_id,real_user)
-      unset rlogin_spawn_session_buffer($spawn_id,win_local_user)
-      unset rlogin_spawn_session_buffer($spawn_id,ltime)
-      unset rlogin_spawn_session_buffer($spawn_id,nr_shells)
-      unset rlogin_spawn_session_buffer($spawn_id,in_use)
-      unset rlogin_spawn_session_buffer($spawn_id,command_script)
-      unset rlogin_spawn_session_buffer($spawn_id,command_name)
-      unset rlogin_spawn_session_buffer($spawn_id,command_args)
-      unset rlogin_spawn_session_buffer($spawn_id,alternate_sessions)
-      unset rlogin_spawn_session_buffer($spawn_id,is_alternate_of)
+      if {[info exists rlogin_spawn_session_buffer($spawn_id,pid)]} {
+         unset rlogin_spawn_session_buffer($spawn_id,pid)
+         unset rlogin_spawn_session_buffer($spawn_id,hostname)
+         unset rlogin_spawn_session_buffer($spawn_id,user)
+         unset rlogin_spawn_session_buffer($spawn_id,real_user)
+         unset rlogin_spawn_session_buffer($spawn_id,win_local_user)
+         unset rlogin_spawn_session_buffer($spawn_id,ltime)
+         unset rlogin_spawn_session_buffer($spawn_id,nr_shells)
+         unset rlogin_spawn_session_buffer($spawn_id,in_use)
+         unset rlogin_spawn_session_buffer($spawn_id,command_script)
+         unset rlogin_spawn_session_buffer($spawn_id,command_name)
+         unset rlogin_spawn_session_buffer($spawn_id,command_args)
+         unset rlogin_spawn_session_buffer($spawn_id,alternate_sessions)
+         unset rlogin_spawn_session_buffer($spawn_id,is_alternate_of)
+      } else {
+         ts_log_severe "spawn session index rlogin_spawn_session_buffer($spawn_id,pid) not found"
+      }
    } else {
       ts_log_fine "session buffer not found"
    }

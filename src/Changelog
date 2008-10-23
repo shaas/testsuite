@@ -1,3 +1,11 @@
+CR-2008-10-23-0: Enhancem.:  o Added test for IZ 2747
+                             o Fixed problem in is_daemon_running procedure
+                             o Added some additional loggings
+                             o Added some additional "info exists" calls and
+                               logging if expected arrays are not existing
+                             o Enhanced message output of test 2735
+                 Review:     MD
+
 AP-2008-10-23-0: Enhancem.:  o Added test for IZ 2626
                              o Added foreign_key_suffix parameter to database config
                              o Added check_dbwriter_log procedure

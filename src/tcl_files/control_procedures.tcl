@@ -1337,6 +1337,9 @@ proc ps_grep { forwhat { host "local" } { variable ps_info } } {
 
    upvar $variable psinfo
 
+   if {[info exists psinfo]} {
+      unset psinfo
+   }
    get_ps_info 0 $host psinfo
 
    set index_list ""
@@ -1452,17 +1455,17 @@ proc ps_grep { forwhat { host "local" } { variable ps_info } } {
 #  SEE ALSO
 #     control_procedures/ps_grep
 #*******************************
-proc get_ps_info { { pid 0 } { host "local"} { variable ps_info } {additional_run 0} } {
+proc get_ps_info { { pid 0 } { host "local"} { info_array ps_info } {additional_run 0} } {
    global CHECK_USER
-   upvar $variable psinfo
+   upvar $info_array psinfo
 
    if { [string compare $host "local" ] == 0 } {
       set host [gethostname]
    } 
 
-   set psinfo($pid,error) -1
-
-   unset psinfo
+   if {[info exists psinfo]} {
+      unset psinfo
+   }
 
    set psinfo($pid,error) -1
    set psinfo(proc_count) 0

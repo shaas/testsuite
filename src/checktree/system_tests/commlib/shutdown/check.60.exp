@@ -1,0 +1,378 @@
+#!/vol2/TCL_TK/glinux/bin/expect --
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# Define the global veriables to give them back
+global check_name check_description check_needs check_functions check_highest_level
+global check_init_level_procedure check_category
+global check_root_access_needs
+
+set check_init_level_procedure "commlib_shutdown_init_level"
+
+set check_category            "COMPATIBILITY SYSTEM VERIFIED"
+set check_name                "commlib_shutdown"
+set check_description(0)      "check commlib issue test module (client and server multi threaded)"
+set check_description(1)      "check commlib issue test module (client and server single threaded)"
+set check_description(2)      "check commlib issue test module (client multi threaded and server single threaded)"
+set check_description(3)      "check commlib issue test module (client single threaded and server multi threaded)"
+set check_needs               ""      ;# dependencies of this check (name of other check)
+set check_root_access_needs   "yes"
+set check_need_running_system "no"
+
+# setup and cleanup functions
+set check_setup_function "commlib_shutdown_setup"
+set check_cleanup_function "commlib_shutdown_cleanup"
+
+# define test's procedure order
+set check_functions           ""
+lappend check_functions       "commlib_shutdown_run"
+set check_highest_level       3
+
+proc commlib_shutdown_init_level {} {
+   global CHECK_ACT_LEVEL ts_config
+
+   # setup levels 
+   switch -- $CHECK_ACT_LEVEL {
+      "0"  { 
+         return 0  ;# client and server multi threaded
+      }
+      "1"  { 
+         return 0  ;# client and server single threaded
+      }
+      "2"  { 
+         return 0 ;# client multi threaded and server single threaded
+      }
+      "3"  { 
+         return 0 ;# client single threaded and server multi threaded
+      }
+      # TODO: run this test in CSP mode
+   }
+
+   return -1
+}
+
+proc commlib_shutdown_setup {} {
+   shutdown_core_system
+}
+
+#****** check.60/commlib_shutdown_run() ****************************************
+#  NAME
+#     commlib_shutdown_run() -- test correct shutdown of commlib
+#
+#  SYNOPSIS
+#     commlib_shutdown_run { } 
+#
+#  FUNCTION
+#     Scenario:
+#     1) Startup test_cl_issue_2747_server
+#     2) startup qping with interval 1 to server
+#     3) startup qping -dump to get the commlib protocol message flow
+#     4) when qping -dump reports messages, start client
+#     5) client will send some messages to server which are replied by server
+#     6) after first reply the client sends some more messages and performs
+#        commlib shutdown. This results in some lost messages which server
+#        wants to send to client which is not availabe anymore.
+#     7) if server blocks (here for more than 30 seconds) the issue IZ 2747
+#        occured
+#     8) The blocking server only happens when there is a bin messages send
+#        between the ccm (connection close message) and the ccrm (connection
+#        close response message).
+#     9) If there was no bin message between ccm and ccrm to the client the
+#        test will rerun (max. reruns are 15)
+#
+#*******************************************************************************
+proc commlib_shutdown_run {} {
+   global ts_config
+   global CHECK_USER
+   global CHECK_ACT_LEVEL
+   
+   set run_counter 0
+   while { 1 } {
+      set error_text ""
+      set host_list [host_conf_get_suited_hosts 2]
+      set server_host [lindex $host_list 0]
+      set qping_dump_host $server_host
+      set client_host [lindex $host_list 1]
+      set qping_info_host $client_host
+      ts_log_fine "using server host $server_host"
+      ts_log_fine "using client host $client_host"
+
+      set client_up_arch [resolve_build_arch $client_host]
+      set server_up_arch [resolve_build_arch $server_host]
+
+      set server_binary      $ts_config(source_dir)/$server_up_arch/test_cl_issue_2747_server
+      set client_binary      $ts_config(source_dir)/$client_up_arch/test_cl_issue_2747_client
+      set qping_dump_binary  $ts_config(source_dir)/$server_up_arch/qping
+      set qping_info_binary  $ts_config(source_dir)/$client_up_arch/qping
+
+      set server_args ""
+      set client_args     "$server_host $ts_config(commd_port)"
+      set qping_dump_args "-noalias -tcp -dump $server_host $ts_config(commd_port) server 1"
+      set qping_info_args "-noalias -tcp -i 1  $server_host $ts_config(commd_port) server 1"
+
+      switch -- $CHECK_ACT_LEVEL {
+         "0"  { ;# client and server multi threaded
+            set server_env(CL_THREADS) "true"
+            set client_env(CL_THREADS) "true"
+         }
+         "1"  { ;# client and server single threaded
+            set server_env(CL_THREADS) "false"
+            set client_env(CL_THREADS) "false"
+         }
+         "2"  { ;# client multi threaded and server single threaded
+            set server_env(CL_THREADS) "false"
+            set client_env(CL_THREADS) "true"
+         }
+         "3"  { ;# client single threaded and server multi threaded
+            set server_env(CL_THREADS) "true"
+            set client_env(CL_THREADS) "false"
+         }
+      }
+
+      set server_env(CL_PORT) $ts_config(commd_port)
+      set client_env(CL_PORT) [expr ( $ts_config(commd_port) + 1) ]
+
+      set server_sid     [open_remote_spawn_process $server_host     $CHECK_USER $server_binary     $server_args     0 "" server_env]
+      set qping_dump_sid [open_remote_spawn_process $qping_dump_host "root"      $qping_dump_binary $qping_dump_args]
+      set qping_info_sid [open_remote_spawn_process $qping_info_host $CHECK_USER $qping_info_binary $qping_info_args]
+
+      set server_id [lindex $server_sid 1]
+      set qping_dump_id [lindex $qping_dump_sid 1]
+      set qping_info_id [lindex $qping_info_sid 1]
+      set client_id ""
+
+      set all_list "$server_id $qping_dump_id $qping_info_id"
+
+      set in_loop 1
+      set server_exit_state -10
+      set client_exit_state -10
+      set client_output ""
+      set server_output ""
+      set qping_dump_output ""
+      set qping_info_output ""
+
+      set client_server_finished 0
+      set found_ccrm 0
+      while { $in_loop } {
+         set timeout 30
+         expect {
+            -i $all_list full_buffer {
+               ts_log_severe "expect full_buffer error"
+               close_spawn_process $server_sid
+               if {[info exists client_sid]} {
+                  close_spawn_process $client_sid
+               }
+               close_spawn_process $qping_dump_sid
+               close_spawn_process $qping_info_sid
+               return -1
+            }
+            -i $all_list timeout {
+               ts_log_fine "---->>>>>>>>> got timeout"
+               append error_text "got timeout\nThis will happen if server is blocking\nThis is issue IZ 2747!\n"
+               set in_loop 0   
+            }
+            -i $all_list eof {
+               set spawn_id $expect_out(spawn_id)
+               ts_log_fine "got eof for spawn_id $spawn_id"
+               append error_text "got eof for spawn_id $spawn_id\nserver id is $server_id, client id is $client_id, qping dump is $qping_dump_id, qping info is $qping_info_id"
+               set in_loop 0   
+            }
+            -i $server_id -- "*\n" {
+               set output $expect_out(0,string) 
+               set output [ split $output "\n" ]
+               foreach line $output {
+                  set help [string trim $line]
+                  if {$help == ""} {
+                     continue
+                  }
+                  ts_log_finer "server: $help"
+                  append server_output "$help\n"
+                  if { [string match "*_exit_status_:(*)*" $help] } {
+                     set st [string first "(" $help]
+                     set ed [string first ")" $help]
+                     incr st 1
+                     incr ed -1
+                     set server_exit_state [string range $help $st $ed]
+                     ts_log_fine "found exit status of server: ($server_exit_state)"
+                     incr client_server_finished 1
+                     if {$client_server_finished >= 2 && $found_ccrm} {
+                        set in_loop 0
+                     }
+                  }
+                  if {[string match "*server running*" $help]} {
+                     ts_log_fine "TS: server started!"
+                  }
+               }
+            }
+            -i $client_id -- "*\n" {
+               set output $expect_out(0,string) 
+               set output [ split $output "\n" ]
+               foreach line $output {
+                  set help [string trim $line]
+                  if {$help == ""} {
+                     continue
+                  }
+                  ts_log_finer "client: $help"
+                  append client_output "$help\n"
+                  if { [string match "*_exit_status_:(*)*" $help] } {
+                     set st [string first "(" $help]
+                     set ed [string first ")" $help]
+                     incr st 1
+                     incr ed -1
+                     set client_exit_state [string range $help $st $ed]
+                     ts_log_fine "found exit status of client: ($client_exit_state)"
+                     incr client_server_finished 1
+                     if {$client_server_finished >= 2 && $found_ccrm} {
+                        set in_loop 0
+                     }
+                  }
+               }
+            }
+            -i $qping_dump_id -- "*\n" {
+               set output $expect_out(0,string) 
+               set output [ split $output "\n" ]
+               foreach line $output {
+                  set help [string trim $line]
+                  if {$help == ""} {
+                     continue
+                  }
+                  ts_log_fine "qping dump: $help"
+                  append qping_dump_output "$help\n"
+                  if {[string match "*qping*sirm*" $help]} {
+                     if {$client_id == ""} {
+                        ts_log_fine "TS: starting client ..."
+                        set client_sid [open_remote_spawn_process $client_host $CHECK_USER $client_binary $client_args 0 "" client_env]
+                        set client_id [lindex $client_sid 1]
+                        lappend all_list "$client_id"
+                     }
+                  }
+                  if { [string match "*_exit_status_:(*)*" $help] } {
+                     set st [string first "(" $help]
+                     set ed [string first ")" $help]
+                     incr st 1
+                     incr ed -1
+                     set qping_dump_exit_state [string range $help $st $ed]
+                     ts_log_fine "found exit status of qping dump: ($qping_dump_exit_state)"
+                  }
+                  if { [string match "*client*ccrm*" $help] } {
+                     set found_ccrm 1
+                     ts_log_fine "found ccrm message to client in qping -dump output"
+                     if {$client_server_finished >= 2} {
+                        set in_loop 0
+                     }
+                  }
+                  if {$client_server_finished >= 2 && $found_ccrm == 0} {
+                     if { [string match "*open connection*" $help] } {
+                        ts_log_fine "There is no qping output availabe!!!!"
+                        set found_ccrm 2 ;# qping not connected (happens when server is going down very fast, because stream client will not be flushed here!!!)
+                        set in_loop 0
+                     }
+                  }
+               }
+            }
+            -i $qping_info_id -- "*\n" {
+               set output $expect_out(0,string) 
+               set output [ split $output "\n" ]
+               foreach line $output {
+                  set help [string trim $line]
+                  if {$help == ""} {
+                     continue
+                  }
+                  ts_log_finer "qping info: $help"
+                  append qping_info_output "$help\n"
+                  if { [string match "*_exit_status_:(*)*" $help] } {
+                     set st [string first "(" $help]
+                     set ed [string first ")" $help]
+                     incr st 1
+                     incr ed -1
+                     set qping_info_exit_state [string range $help $st $ed]
+                     ts_log_fine "found exit status of qping info: ($qping_info_exit_state)"
+                  }
+               }
+            }
+
+         }
+      }
+      close_spawn_process $server_sid
+      if {[info exists client_sid]} {
+         close_spawn_process $client_sid
+      }
+      close_spawn_process $qping_dump_sid
+      close_spawn_process $qping_info_sid
+
+      incr run_counter 1
+
+      if {$error_text != ""} {
+         break
+      }
+
+      if {[string match "*client*ccm*client*bin*client*ccrm*" $qping_dump_output]} {
+         ts_log_fine "there was a bin message between ccm and ccrm of client - good"
+         break
+      } else {
+         if {$run_counter >= 15} {
+            append error_text "max. retry count reached\n"
+            break
+         } else {
+            ts_log_fine "===> rerun test error case did not occur! This was run $run_counter!"
+         }
+      }
+   }
+   
+   if {$server_exit_state != 0} {
+      append error_text "server exit state is $server_exit_state\n"
+   }
+   if {$client_exit_state != 0} {
+      append error_text "client exit state is $client_exit_state\n"
+   }
+   if {$error_text != ""} {
+      append error_text "client output:\n$client_output\n"
+      append error_text "server output:\n$server_output\n"
+      append error_text "qping -dump output:\n$qping_dump_output\n" 
+      append error_text "qping -info output:\n$qping_info_output\n" 
+      ts_log_severe $error_text
+   }
+}
+
+proc commlib_shutdown_cleanup {} {
+   startup_core_system
+   wait_for_load_from_all_queues 60
+}
+
+
+
+
+
+
+
+
+
