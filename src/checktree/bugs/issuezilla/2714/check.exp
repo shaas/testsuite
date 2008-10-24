@@ -1,0 +1,331 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2001 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category
+global check_description 
+global check_needs
+global check_functions 
+global check_errno 
+global check_errstr 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+global env
+
+set check_root_access_needs "yes"
+
+
+# define a level initialization procedure:
+set check_init_level_procedure "issue_2714_init_level"
+
+# define test's name and run level descriptions
+set check_name            "issue_2714"
+set check_category        "COMPATIBILITY SYSTEM L10N VERIFIED"
+set check_highest_level   0
+set check_description(0)  "PVM start/stop scripts failure should not put queue in Error state"
+
+# define test's dependencies
+set check_needs "init_core_system" 
+
+
+# setup and cleanup functions
+set check_setup_function "issue_2714_setup"
+set check_cleanup_function "issue_2714_cleanup"
+
+# define test's procedure order
+set check_functions ""
+lappend check_functions "issue_2714_check"
+
+proc issue_2714_init_level {} {
+   global CHECK_ACT_LEVEL 
+
+   switch -- $CHECK_ACT_LEVEL {
+      "0" { 
+         return 0    
+      } 
+   }
+
+   return -1  ;# no other level else
+}
+
+proc issue_2714_setup {} {
+   global CHECK_USER
+   global ts_config
+   global tmpdir
+   global tmp_ex_file
+   global tmp_pvm_start_file
+   global tmp_pvm_stop_file
+   global pvm_start_file
+   global pvm_stop_file
+   global test_pe
+   global test_queue_name
+   global qmaster_host
+   global exec_host_list
+   #
+   #
+   #
+   set qmaster_host $ts_config(master_host)
+   #
+   # Make up file names.
+   #
+   set tmpdir [ get_tmp_directory_name $ts_config(master_host) "iz2714" "tmp" 1 ]
+   set tmp_ex_file "$tmpdir/iz2714.tmp"
+   set tmp_pvm_start_file "$tmpdir/pvm_start.tmp"
+   set tmp_pvm_stop_file "$tmpdir/pvm_stop.tmp"
+   set pvm_start_file "$ts_config(product_root)/pvm/startpvm.sh"
+   set pvm_stop_file "$ts_config(product_root)/pvm/stoppvm.sh"
+   set test_pe "my_pe"
+   set test_queue_name "test.q"
+   #
+   #
+   #
+   delete_all_jobs
+   wait_for_end_of_all_jobs 10
+   #
+   remote_file_mkdir $qmaster_host $tmpdir
+   #
+   # We prefer to work with a copy of the original file to avoid confusion
+   # in case of partial cleanup.
+   #
+   # PVM start script.
+   #
+   start_remote_prog $qmaster_host $CHECK_USER "cp" "$pvm_start_file $tmp_pvm_start_file"
+   #
+   # PVM stop script.
+   #
+   start_remote_prog $qmaster_host $CHECK_USER "cp" "$pvm_stop_file $tmp_pvm_stop_file"
+   #
+   # Create parallel environment.
+   #
+   set this_pe(slots) 100 
+   set this_pe(start_proc_args) $tmp_pvm_start_file
+   set this_pe(stop_proc_args) $tmp_pvm_stop_file
+   add_pe $test_pe this_pe
+   #
+   # Create test queue
+   #
+   set exec_host_list [ list [ lindex $ts_config(execd_nodes) 0 ] ]
+   set testq(slots) 1000
+   set testq(pe_list) $test_pe
+   add_queue test.q $exec_host_list testq 1 
+
+   return 0
+}
+# -------- local test procedures -----------------------------------------------
+
+#
+# The test plan:
+# ==============
+#
+# o make working copies of the installed PVM start/stop scripts
+# o create test queue and test PE using the test private scripts
+# o submit job requesting the test PE
+# o check queue state: should be ERROR
+# o delete job and wait for termination
+# o clear error state
+# o edit start/stop scripts and change exit code to 100
+# o submit job requesting the test PE
+# o check queue state: should be clear
+# o delete job and wait for termination
+# o .... cleanup
+#
+# This is it!
+#
+proc issue_2714_check {} {
+   global CHECK_USER
+   global ts_config
+   global testq
+   global pvm_start_file
+   global pvm_stop_file
+   global tmp_pvm_start_file
+   global tmp_pvm_stop_file
+   global tmp_ex_file
+   global test_pe
+   global test_queue_name
+   global qmaster_host
+   #
+   # Prepare dummy jobs.
+   #
+   set job_options "-pe $test_pe 1-10"
+   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 25"
+   set job_id [ submit_and_wait_for_dummy_jobs $job_script $job_options Sleeper ]
+   if { $job_id == 0 } {
+      ts_log_severe "issue_2714_check: can't create dummy job 1"
+      ts_log_severe "issue_2714_check: test FAILED"
+      return
+   }
+   #
+   #
+   #
+   #
+   set result [ check_for_result "E" ]
+   if { $result != 0 } {
+      ts_log_severe "issue_2714_check: test queue in unexpected state $result; expected E"
+      ts_log_severe "issue_2714_check: test FAILED"
+      return
+   }
+   delete_job $job_id
+   #
+   # Clear error state of test queue and check.
+   #
+   set result [start_sge_bin "qmod" "-c $test_queue_name" ]
+   set result [ check_for_result "" ]
+   if { $result != 0 } {
+      ts_log_severe "issue_2714_check: test queue in unexpected state $result; expected clear state"
+      ts_log_severe "issue_2714_check: test FAILED"
+      return
+   }
+   #
+   # At this point in time we've demonstrated that the standard PVM start/stop scripts
+   # are causing problems by setting the affected queues to error state. Change all exit
+   # codes from "1" to "100" and see how to works.
+   #
+   set data(0) 2
+   set data(1) "1,\$ s/exit 1/exit 100/g"
+   set data(2) "wq"
+   write_remote_file $ts_config(master_host) $CHECK_USER $tmp_ex_file data
+   #
+   # Apply the changes.
+   #
+   start_remote_prog $qmaster_host $CHECK_USER "ex" "$tmp_pvm_start_file < $tmp_ex_file"
+   start_remote_prog $qmaster_host $CHECK_USER "ex" "$tmp_pvm_stop_file < $tmp_ex_file"
+   #
+   # re-run test with modified PVM scripts and check for queue state.
+   #
+   set job_id [ submit_and_wait_for_dummy_jobs $job_script $job_options Sleeper ]
+   if { $job_id == 0 } {
+      ts_log_severe "issue_2714_check: can't create dummy job 2"
+      ts_log_severe "issue_2714_check: test FAILED"
+      return
+   }
+   delete_job $job_id
+   set result [ check_for_result "" ]
+   if { $result != 0 } {
+      ts_log_severe "issue_2714_check: test queue in unexpected state $result; expected clear state"
+      ts_log_severe "issue_2714_check: test FAILED"
+      return
+   }
+   #
+   wait_for_jobend $job_id Sleeper 30 0 1
+   #
+   # Paranoia 1st degree.....
+   #
+   wait_for_end_of_all_jobs 100
+   infrastructure_file_cleanup 
+
+   ts_log_fine "issue_2714_check: test SUCCEEDED"
+   return
+}
+
+proc issue_2714_cleanup  {} {
+   global tmpfile
+   global testq
+   global test_pe
+   global test_queue_name
+   #
+   # Paranoia 2nd degree. We may still have open references
+   # to the PE at this point....
+   #
+   delete_all_jobs
+   wait_for_end_of_all_jobs 100
+   test_queue_cleanup
+}
+proc infrastructure_file_cleanup {} {
+
+   global CHECK_USER
+   global tmp_pvm_start_file
+   global tmp_pvm_stop_file
+   global tmp_ex_file
+   global qmaster_host
+   global tmpdir
+
+   #
+   # Clean up temp files possibly left over from
+   # previous (failed) tests.
+   #
+   delete_remote_file $qmaster_host $CHECK_USER $tmp_pvm_start_file
+   delete_remote_file $qmaster_host $CHECK_USER $tmp_pvm_stop_file
+   delete_remote_file $qmaster_host $CHECK_USER $tmp_ex_file
+   remote_delete_directory $qmaster_host $tmpdir
+}
+
+proc test_queue_cleanup {} {
+
+   global CHECK_ARCH
+   global ts_config
+   global test_pe
+   global test_queue_name
+   global exec_host_list
+
+   #
+   # Delete test queue and test PE. Note that we re-check for lingering jobs.
+   #
+   wait_for_end_of_all_jobs 100
+   #
+   # Ignore errors raised since this queue does not exist in most cases.
+   # We do this just for paranoia.
+   #
+   del_pe $test_pe 
+   del_queue $test_queue_name $exec_host_list 1
+}
+proc submit_and_wait_for_dummy_jobs { job_script job_options job_name} {
+
+
+   set args ""
+   append args $job_options " " $job_script
+   set job_id [ submit_job $args ]
+   ts_log_fine "SUBMIT OK $job_id "
+
+   wait_for_jobpending $job_id $job_name 30
+   return $job_id
+}
+
+proc check_for_result { expected_queue_state } {
+   global CHECK_ARCH
+   global ts_config
+   global test_queue_name
+   global exec_host_list
+
+   set queue_name [ get_queue_instance $test_queue_name $exec_host_list ]
+   set queue_state [ get_queue_state $queue_name ]
+   if { $queue_state == $expected_queue_state } {
+      ts_log_fine "Test queue $queue_name is in state ($queue_state) as expected"
+      return 0 
+   } else {
+      ts_log_fine "Test queue $queue_name is in unexpected state ($queue_state)"
+      return $queue_state 
+   }
+   return 1
+}
