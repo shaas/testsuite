@@ -4381,29 +4381,29 @@ proc delete_temp_script_files { } {
 }
 
 #****** check/execute_setup_cleanup_function() *********************************
-#  name
+#  NAME
 #     execute_setup_cleanup_function() -- execute a setup/cleanup function
 #
-#  synopsis
+#  SYNOPSIS
 #     execute_setup_cleanup_function { func_name type } 
 #
-#  function
+#  FUNCTION
 #     execute_setup_cleanup_function is used to execute a setup/cleanup
 #     function for a check and/or a check level.
 #
-#  inputs
+#  INPUTS
 #     func_name - name of the procedure to execute
 #     type      - descriptive text (e.g. "setup_level", or "cleanup")
 #
-#  result
+#  RESULT
 #     0 - failure
 #     1 - ok
 #     2 - empty function name
 #
 #*******************************************************************************
 proc execute_setup_cleanup_function {func_name type} {
-   global check_act_level
-   global check_cur_proc_name check_category
+   global CHECK_ACT_LEVEL
+   global CHECK_CUR_PROC_NAME check_category
 
    set ret 1
 
@@ -4414,7 +4414,7 @@ proc execute_setup_cleanup_function {func_name type} {
 
    if {$ret == 1} {
       # register the function for error handling
-      set check_cur_proc_name $func_name
+      set CHECK_CUR_PROC_NAME $func_name
    
       # check, if the function exists
       if { [info procs $func_name] != $func_name } {
@@ -4425,14 +4425,14 @@ proc execute_setup_cleanup_function {func_name type} {
 
    # execute the setup/cleanup function
    if {$ret == 1} {
-      #setup/cleanup are never executed over jgdi
+      #setup/cleanup are never executed over JGDI
       set old_category $check_category
-      lappend check_category "use_cli"
+      lappend check_category "USE_CLI"
 
       ts_log_fine "starting $type function $func_name"
-      set check_cur_proc_name $func_name
+      set CHECK_CUR_PROC_NAME $func_name
 
-      set act_level_value $check_act_level
+      set act_level_value $CHECK_ACT_LEVEL
 
       if { $type == "setup" || $type == "cleanup" } {
          set act_level_value $CHECK_ACT_LEVEL

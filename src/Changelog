@@ -1,3 +1,8 @@
+JG-2008-10-24-1: Bugfix:     Fixed some messed up code in checkin
+                             JG-2008-10-24-0.
+                             Fixed scale_timeout.
+                 Review:     TBD
+
 JG-2008-10-24-0: Enhancem.:  Use new filesystem config for file_procedures
                              (delete_directory), delete temp files on the 
                              fileserver, more to come ...
