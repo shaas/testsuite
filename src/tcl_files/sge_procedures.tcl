@@ -7966,7 +7966,7 @@ proc copy_certificates { host } {
       ts_log_finest $result
 
       if {$prg_exit_state != 0} {
-         ts_log_warning "could not tar Certificate Authority (CA) directory into \"$TAR_FILE\""
+         ts_log_warning "could not tar Certificate Authority (CA) directory into \"$TAR_FILE\":\n$result"
       } else {
          ts_log_finest "copy tar file \"$TAR_FILE\"\nto \"$ts_config(results_dir)/port${ts_config(commd_port)}.tar\" ..."
          set result [start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "cp" "$TAR_FILE $ts_config(results_dir)/port${ts_config(commd_port)}.tar" prg_exit_state 300]
@@ -7990,7 +7990,7 @@ proc copy_certificates { host } {
          set result [start_remote_prog "$host" "root" $tar_bin "$UNTAR_OPTS $TAR_FILE" prg_exit_state 300 0 $CA_ROOT_DIR]
          ts_log_finest $result
          if {$prg_exit_state != 0} {
-            ts_log_warning "could not untar \"$TAR_FILE\" on host $host;\ntar-bin:$tar_bin"
+            ts_log_warning "could not untar \"$TAR_FILE\" on host $host\n$result"
          } 
 
          ts_log_finest "removing tar file \"$TAR_FILE\" on host $host ..."

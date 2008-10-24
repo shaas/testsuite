@@ -4365,50 +4365,45 @@ proc check_root_access {path} {
 }
 
 proc delete_temp_script_files { } {
-  global ts_config
+   global ts_config CHECK_USER
 
-  ts_log_fine "deleting temporary used files ..."
-  set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
-  if { [ file isfile $del_file_name ] == 1 } {
-     set del_file [ open $del_file_name "r" ]
-     while { [gets $del_file line] >= 0 } {
-        set line [string trim $line]
-        if { [ file isfile $line ] == 1 } {
-           file delete $line
-           ts_log_progress
-        }
-     }
-     close $del_file
-     file delete $del_file_name
-     ts_log_progress
-  } 
-  ts_log_fine "done"
+   ts_log_fine "deleting temporary used files ..."
+
+   set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
+
+   # try to delete the temp files on the fileserver
+   set host [fs_config_get_server_for_path $del_file_name 0]
+   if {$host == ""} {
+      set host [gethostname]
+   }
+   set result [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/delete_temp_files.sh" $del_file_name]
+   ts_log_fine $result
 }
 
 #****** check/execute_setup_cleanup_function() *********************************
-#  NAME
+#  name
 #     execute_setup_cleanup_function() -- execute a setup/cleanup function
 #
-#  SYNOPSIS
+#  synopsis
 #     execute_setup_cleanup_function { func_name type } 
 #
-#  FUNCTION
+#  function
 #     execute_setup_cleanup_function is used to execute a setup/cleanup
 #     function for a check and/or a check level.
 #
-#  INPUTS
+#  inputs
 #     func_name - name of the procedure to execute
 #     type      - descriptive text (e.g. "setup_level", or "cleanup")
 #
-#  RESULT
+#  result
 #     0 - failure
 #     1 - ok
 #     2 - empty function name
 #
 #*******************************************************************************
 proc execute_setup_cleanup_function {func_name type} {
-   global CHECK_ACT_LEVEL
-   global CHECK_CUR_PROC_NAME check_category
+   global check_act_level
+   global check_cur_proc_name check_category
 
    set ret 1
 
@@ -4419,7 +4414,7 @@ proc execute_setup_cleanup_function {func_name type} {
 
    if {$ret == 1} {
       # register the function for error handling
-      set CHECK_CUR_PROC_NAME $func_name
+      set check_cur_proc_name $func_name
    
       # check, if the function exists
       if { [info procs $func_name] != $func_name } {
@@ -4430,14 +4425,14 @@ proc execute_setup_cleanup_function {func_name type} {
 
    # execute the setup/cleanup function
    if {$ret == 1} {
-      #Setup/Cleanup are never executed over JGDI
+      #setup/cleanup are never executed over jgdi
       set old_category $check_category
-      lappend check_category "USE_CLI"
+      lappend check_category "use_cli"
 
       ts_log_fine "starting $type function $func_name"
-      set CHECK_CUR_PROC_NAME $func_name
+      set check_cur_proc_name $func_name
 
-      set act_level_value $CHECK_ACT_LEVEL
+      set act_level_value $check_act_level
 
       if { $type == "setup" || $type == "cleanup" } {
          set act_level_value $CHECK_ACT_LEVEL
@@ -6565,80 +6560,57 @@ proc build_distribution { arch_list } {
    }
 }
 
-proc install_binaries { arch_list a_report } {
+proc install_binaries {arch_list a_report} {
    global CHECK_PRODUCT_TYPE
    global CHECK_JOB_OUTPUT_DIR
    global CHECK_USER ts_config
    upvar $a_report report
 
-   set local_host [gethostname]
-   set was_error 0
-
-   set task_nr [ report_create_task report "install_binaries" $local_host ]
-   
-   # install to ts_config(product_root)
-   if { $ts_config(gridengine_version) == 53 } {
-      if {[string compare $CHECK_PRODUCT_TYPE "sgeee"] == 0 } {
-         set link_name "myinst"
-         set sgeee_param "-sgeee"
-      } else {
-         set link_name "myinst"
-         set sgeee_param ""
-      }
+   # try to do the installations on the file server for SGE_ROOT
+   set install_host [fs_config_get_server_for_path $ts_config(product_root) 0]
+   if {$install_host == ""} {
+      set install_host [gethostname]
    }
 
+   set was_error 0
+
+   set task_nr [report_create_task report "install_binaries" $install_host]
+   
    # copy pos. host_aliases file to trash_
-   if { [ file isfile "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"] == 1 } {
+   if {[is_remote_file $install_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"]} {
       report_task_add_message report $task_nr "saving host_aliases file ..."
-      catch { exec "cp" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" "$CHECK_JOB_OUTPUT_DIR/host_aliases"  } result
-      puts $result
+      set result [start_remote_prog $install_host $CHECK_USER "cp" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases $CHECK_JOB_OUTPUT_DIR/host_aliases"]
+      ts_log_fine $result
       report_task_add_message report $task_nr $result
    } 
 
    # now delete install directory
    report_task_add_message report $task_nr "deleting directory \"$ts_config(product_root)\""
-   if { [delete_directory "$ts_config(product_root)"] != 0 } {
+   if {[delete_directory "$ts_config(product_root)"] != 0} {
       ts_log_warning "could not delete $ts_config(product_root) directory, critical error - stop"
       report_task_add_message report $task_nr "could not delete $ts_config(product_root) directory, critical error - stop"
       report_finish_task report $task_nr -1
       return -1
    }
  
-   # wait for nfs updates
-   ts_log_fine "waiting for nfs ..."
-   after 5000
    ts_log_fine "starting installation ..."
-   
-
-   catch { exec "mkdir" "$ts_config(product_root)"  } result
+   set result [remote_file_mkdir $install_host $ts_config(product_root)]
    report_task_add_message report $task_nr $result
-   catch { exec "touch" "$ts_config(product_root)"  } result
+   set result [start_remote_prog $install_host $CHECK_USER "chmod" "755 $ts_config(product_root)"]
    report_task_add_message report $task_nr $result
-   catch { exec "chmod" "755" "$ts_config(product_root)"  } result
-   report_task_add_message report $task_nr $result
- 
-   if { $ts_config(gridengine_version) == 53 } {
-      report_task_add_message report $task_nr "\ncreating link \"$link_name\""
-      set return_state [ catch { eval exec ln -s $ts_config(source_dir)/scripts/distinst $ts_config(source_dir)/$link_name } output ]
-   }
-
  
    report_task_add_message report $task_nr "\ninstalling product binaries"
   
    set inst_env(SGE_ROOT) $ts_config(product_root)
 
-   if { [ string compare "none" $ts_config(dist_install_options) ] == 0  } {
+   if {[string compare "none" $ts_config(dist_install_options)] == 0} {
       set dist_inst_options ""
    } else {
       set dist_inst_options $ts_config(dist_install_options)
    }
 
-   if { $ts_config(gridengine_version) == 53 } {
-      set open_spawn [open_remote_spawn_process $local_host $CHECK_USER "./$link_name" "$sgeee_param $dist_inst_options $arch_list" 0 $ts_config(source_dir) inst_env]
-   } else {
-      set open_spawn [open_remote_spawn_process $local_host $CHECK_USER "./scripts/distinst" "-local -noexit $dist_inst_options $arch_list" 0 $ts_config(source_dir) inst_env]
-   }
-   set sp_id [ lindex $open_spawn 1 ]
+   set open_spawn [open_remote_spawn_process $install_host $CHECK_USER "./scripts/distinst" "-local -noexit $dist_inst_options $arch_list" 0 $ts_config(source_dir) inst_env]
+   set sp_id [lindex $open_spawn 1]
    set timeout -1
    set done 0
    ts_log_fine "installing ... "
@@ -6670,8 +6642,8 @@ proc install_binaries { arch_list a_report } {
    ts_log_newline
 
    foreach elem $ts_config(execd_hosts) {
-      set host_arch [ resolve_arch $elem 1]
-      if { ([string compare $host_arch ""] != 0) && ([string compare $host_arch "unknown" ] != 0) } {
+      set host_arch [resolve_arch $elem 1]
+      if {[string compare $host_arch ""] != 0 && [string compare $host_arch "unknown"] != 0} {
          report_task_add_message report $task_nr " arch on host $elem is $host_arch - successfully installed binaries"
       } else {
          report_task_add_message report $task_nr " error installing binaries for host $elem"
@@ -6679,16 +6651,15 @@ proc install_binaries { arch_list a_report } {
       }
    }
 
-   catch { file mkdir "$ts_config(product_root)/man" } 
-   catch { file mkdir "$ts_config(product_root)/catman" } 
-   catch { file mkdir "$ts_config(product_root)/$ts_config(cell)" } 
-   catch { file mkdir "$ts_config(product_root)/$ts_config(cell)/common" } 
-
+   remote_file_mkdir $install_host "$ts_config(product_root)/man"
+   remote_file_mkdir $install_host "$ts_config(product_root)/catman"
+   remote_file_mkdir $install_host "$ts_config(product_root)/$ts_config(cell)"
+   remote_file_mkdir $install_host "$ts_config(product_root)/$ts_config(cell)/common"
   
    # copy pos. host_aliases file to new product root /$SGE_CELL/common
-   if { [ file isfile "$CHECK_JOB_OUTPUT_DIR/host_aliases"] == 1 } {
+   if {[is_remote_file $install_host $CHECK_USER "$CHECK_JOB_OUTPUT_DIR/host_aliases"]} {
         report_task_add_message report $task_nr "restoring host_aliases file ..."
-        catch { exec "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases" } result
+        set result [start_remote_prog $install_host $CHECK_USER "cp" "$CHECK_JOB_OUTPUT_DIR/host_aliases $ts_config(product_root)/$ts_config(cell)/common/host_aliases"]
         report_task_add_message report $task_nr $result
    }
   
@@ -6698,10 +6669,10 @@ proc install_binaries { arch_list a_report } {
    set arch_script_src "$ts_config(source_dir)/dist/util/arch"
    set arch_script_dst "$ts_config(product_root)/util/arch"
    report_task_add_message report $task_nr "installing $arch_script_src ..."
-   catch { exec cp $arch_script_src $arch_script_dst} result
+   start_remote_prog $install_host $CHECK_USER "cp" "$arch_script_src $arch_script_dst"
  
    # done - final error handling
-   if { $was_error } {
+   if {$was_error} {
       report_finish_task report $task_nr -1
    } else {
       report_finish_task report $task_nr 0

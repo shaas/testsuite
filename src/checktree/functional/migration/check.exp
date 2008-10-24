@@ -84,7 +84,7 @@ proc migration_setup {} {
    # setup a working directory for the test
    set migration_dir "$CHECK_PROTOCOL_DIR/migration"
    if {[remote_file_isdirectory $ts_config(master_host) $migration_dir]} {
-      remote_delete_directory $ts_config(master_host) $migration_dir
+      delete_directory $migration_dir
    }
    remote_file_mkdir $ts_config(master_host) $migration_dir
 
@@ -116,7 +116,7 @@ proc migration_cleanup {} {
 
    # cleanup the working directory
    if {[remote_file_isdirectory $ts_config(master_host) $migration_dir]} {
-      remote_delete_directory $ts_config(master_host) $migration_dir
+      delete_directory $migration_dir
    }
 }
 proc calendardisable_queue { queue_list } {

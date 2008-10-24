@@ -91,7 +91,7 @@ global check_init_level_procedure
 global check_root_access_needs
 global env
 
-set check_root_access_needs "no"
+set check_root_access_needs "yes"
 
 
 # define a level initialization procedure:

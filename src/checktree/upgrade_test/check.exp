@@ -190,10 +190,10 @@ proc upgrade_test_init_cluster {} {
 
    # shutdown the core system
    shutdown_core_system
-   if { $ts_config(bdb_server) != "none" } {
+   if {$ts_config(bdb_server) != "none"} {
       # start the bdb server
-      delete_directory $ts_config(bdb_dir)
-      file mkdir $ts_config(bdb_dir)
+      remote_delete_directory $ts_config(bdb_server) $ts_config(bdb_dir)
+      remote_file_mkdir $ts_config(bdb_server) $ts_config(bdb_dir)
       startup_bdb_rpc $ts_config(bdb_server)
    }
 
@@ -260,11 +260,10 @@ proc upgrade_test_upgrade_additional_cluster {} {
 
       delete_file $ts_config(product_root)/$ts_config(cell)/common/bootstrap
 
-      if { $ts_config(bdb_server) != "none" } {
+      if {$ts_config(bdb_server) != "none"} {
          # start the bdb server
-
-         delete_directory $ts_config(bdb_dir)
-         file mkdir $ts_config(bdb_dir)
+         remote_delete_directory $ts_config(bdb_server) $ts_config(bdb_dir)
+         remote_file_mkdir $ts_config(bdb_server) $ts_config(bdb_dir)
          startup_bdb_rpc $ts_config(bdb_server)
       }
 

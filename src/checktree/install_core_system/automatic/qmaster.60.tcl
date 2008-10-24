@@ -182,8 +182,8 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
       # deleting berkeley db spool dir. autoinstall will stop, if
       # bdb spooldir exists.
       if {$do_cleanup} {
-         if {[file isdirectory "$db_dir"] == 1} {
-            delete_directory "$db_dir"
+         if {[file isdirectory $db_dir]} {
+            remote_delete_directory $ts_config(master_host) $db_dir
          }
       }
    } else {
