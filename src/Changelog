@@ -1,3 +1,10 @@
+GH-2008-10-27-0: Bugfix:     o Fixed race condition between queue status and
+                               job status query in test: bugs/issuezilla/2714
+			     o bind test queue to qmaster to avoid problems 
+			       with local tmp files in test: bugs/issuezilla/2714
+		 Belongs To: GH-2008-10-24-0
+                 Review:     CR
+
 RD-2008-10-27-0: Enhancem.:  - Added test for IZ 2762
                              - switched worker.sh to sleeper.sh in enforce_limits test
                  Review:     CR

@@ -92,7 +92,7 @@ proc issue_2714_setup {} {
    global test_pe
    global test_queue_name
    global qmaster_host
-   global exec_host_list
+   global host_list
    #
    #
    #
@@ -134,12 +134,13 @@ proc issue_2714_setup {} {
    set this_pe(stop_proc_args) $tmp_pvm_stop_file
    add_pe $test_pe this_pe
    #
-   # Create test queue
+   # Create test queue. Bind queue to qmaster since tmp pvm start/stop
+   # scripts are not globally available.
    #
-   set exec_host_list [ list [ lindex $ts_config(execd_nodes) 0 ] ]
+   set host_list [ list $ts_config(master_host) ]
    set testq(slots) 1000
    set testq(pe_list) $test_pe
-   add_queue test.q $exec_host_list testq 1 
+   add_queue test.q $host_list testq 1 
 
    return 0
 }
@@ -176,27 +177,41 @@ proc issue_2714_check {} {
    global test_queue_name
    global qmaster_host
    #
-   # Prepare dummy jobs.
+   # Prepare dummy job.
    #
-   set job_options "-pe $test_pe 1-10"
-   set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh 25"
-   set job_id [ submit_and_wait_for_dummy_jobs $job_script $job_options Sleeper ]
+   set args "-pe $test_pe 1-10 $ts_config(product_root)/examples/jobs/sleeper.sh 25"
+   set job_id [ submit_job $args ]
    if { $job_id == 0 } {
       ts_log_severe "issue_2714_check: can't create dummy job 1"
       ts_log_severe "issue_2714_check: test FAILED"
       return
    }
    #
+   # Poll the queue state for Error state regardless of job state since this is subject
+   # to race conditions.
    #
-   #
-   #
-   set result [ check_for_result "E" ]
-   if { $result != 0 } {
+   set exit_on_error 0
+   set retries 0
+   while {1} {
+      set result [ check_for_result "E" ]
+      if { $result == 0 } {
+         set exit_on_error 0
+         break 
+      } else {
+         incr retries 1
+         if { $retries == 10 } {
+            set exit_on_error 1
+            break
+         }
+         after 2000
+      }
+   }
+   if { $exit_on_error == 1 } {
       ts_log_severe "issue_2714_check: test queue in unexpected state $result; expected E"
       ts_log_severe "issue_2714_check: test FAILED"
       return
    }
-   delete_job $job_id
+   delete_job $job_id 1
    #
    # Clear error state of test queue and check.
    #
@@ -222,23 +237,31 @@ proc issue_2714_check {} {
    start_remote_prog $qmaster_host $CHECK_USER "ex" "$tmp_pvm_start_file < $tmp_ex_file"
    start_remote_prog $qmaster_host $CHECK_USER "ex" "$tmp_pvm_stop_file < $tmp_ex_file"
    #
-   # re-run test with modified PVM scripts and check for queue state.
+   # re-run test with modified PVM scripts and check for queue state. We need to
+   # we wait until the job has reached the final state (Eqw) prior queue state
+   # checking. Otherwise we run into race conditions resulting in ghost test
+   # failures.
    #
-   set job_id [ submit_and_wait_for_dummy_jobs $job_script $job_options Sleeper ]
+   set args "-pe $test_pe 1-10 $ts_config(product_root)/examples/jobs/sleeper.sh 25"
+   set job_id [ submit_job $args ]
    if { $job_id == 0 } {
       ts_log_severe "issue_2714_check: can't create dummy job 2"
       ts_log_severe "issue_2714_check: test FAILED"
       return
    }
-   delete_job $job_id
+   set result [ wait_for_job_state  $job_id Eqw 30 ]
+   if { $result == -1 } {
+      ts_log_severe "issue_2714_check: job did not enter state Eqw as expected"
+      ts_log_severe "issue_2714_check: test FAILED"
+      return
+   }
    set result [ check_for_result "" ]
    if { $result != 0 } {
       ts_log_severe "issue_2714_check: test queue in unexpected state $result; expected clear state"
       ts_log_severe "issue_2714_check: test FAILED"
       return
    }
-   #
-   wait_for_jobend $job_id Sleeper 30 0 1
+   delete_job $job_id 1
    #
    # Paranoia 1st degree.....
    #
@@ -287,7 +310,7 @@ proc test_queue_cleanup {} {
    global ts_config
    global test_pe
    global test_queue_name
-   global exec_host_list
+   global host_list
 
    #
    # Delete test queue and test PE. Note that we re-check for lingering jobs.
@@ -298,27 +321,16 @@ proc test_queue_cleanup {} {
    # We do this just for paranoia.
    #
    del_pe $test_pe 
-   del_queue $test_queue_name $exec_host_list 1
-}
-proc submit_and_wait_for_dummy_jobs { job_script job_options job_name} {
-
-
-   set args ""
-   append args $job_options " " $job_script
-   set job_id [ submit_job $args ]
-   ts_log_fine "SUBMIT OK $job_id "
-
-   wait_for_jobpending $job_id $job_name 30
-   return $job_id
+   del_queue $test_queue_name $host_list 1
 }
 
 proc check_for_result { expected_queue_state } {
    global CHECK_ARCH
    global ts_config
    global test_queue_name
-   global exec_host_list
+   global host_list
 
-   set queue_name [ get_queue_instance $test_queue_name $exec_host_list ]
+   set queue_name [ get_queue_instance $test_queue_name $host_list ]
    set queue_state [ get_queue_state $queue_name ]
    if { $queue_state == $expected_queue_state } {
       ts_log_fine "Test queue $queue_name is in state ($queue_state) as expected"
