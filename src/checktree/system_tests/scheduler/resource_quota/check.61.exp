@@ -63,8 +63,9 @@ set check_cleanup_function resource_quota_cleanup
 # define test's procedure order
 set check_functions ""
 lappend check_functions "resource_quota_dynamic_limit"
-lappend check_functions "issue_2250"
+lappend check_functions "resource_quota_issue_2250"
 lappend check_functions "resource_quota_redebitation"
+lappend check_functions "resource_quota_issue_2762"
 
 global resource_quota_test_host
 global resource_quota_test_qname
@@ -154,12 +155,12 @@ proc resource_quota_dynamic_limit {} {
    del_rqs $rqs_name
 }
 
-proc issue_2250 {} {
+proc resource_quota_issue_2250 {} {
    global ts_config resource_quota_test_host resource_quota_test_qname
 
    set job_options "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 10000"
 
-   set rqs_name "issue_xxx"
+   set rqs_name "resource_quota_issue_2250"
    set rules ""
    lappend rules "queues $resource_quota_test_qname hosts $resource_quota_test_host to slots=1"
    # Append two additional rules to cover Issue 2250
@@ -227,6 +228,29 @@ proc resource_quota_redebitation {} {
 
    delete_all_jobs
    wait_for_end_of_all_jobs 20
+
+   del_rqs $rqs_name
+}
+
+proc resource_quota_issue_2762 {} {
+   global ts_config
+
+   set job_options "-w v -pe mytestpe 1 -o /dev/null -j y -b y /bin/sleep 1000"
+
+   set rqs_name "resource_quota_issue_2762"
+   set rules ""
+   lappend rules "to arch=bla"
+
+   # Add resource quota sets 
+   set rqs_charray($rqs_name,limit) "$rules"
+   set rqs_charray($rqs_name,enabled) "true"
+   set result [add_rqs rqs_charray]
+
+   set job_id [submit_job "$job_options" 0]
+   if {[is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]] == 0} {
+      ts_log_severe "Issue 2762 exisits, qmaster crashed"
+      startup_qmaster 0
+   }
 
    del_rqs $rqs_name
 }

@@ -1,3 +1,7 @@
+RD-2008-10-27-0: Enhancem.:  - Added test for IZ 2762
+                             - switched worker.sh to sleeper.sh in enforce_limits test
+                 Review:     CR
+
 GH-2008-10-24-0: Enhancem.:  Added test for IZ 2714 
                  Review:     CR, AP
 
