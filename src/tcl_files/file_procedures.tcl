@@ -1786,9 +1786,6 @@ proc create_shell_script { scriptfile
    # script header
    append script_content "#!${script_path}\n"
    append script_content "# Automatic generated script from Grid Engine Testsuite\n"
-   append script_content "# The script will execute a special command with arguments\n"
-   append script_content "# and it should be deleted after use. So if this file exists, please delete it\n"
-
    if {$no_setup == 0} {
       # script command
       append script_content "trap 'echo \"_exit_status_:(1) script: $script_tail_name\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"

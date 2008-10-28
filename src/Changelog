@@ -1,3 +1,9 @@
+CR-2008-10-28-0: Bugfix:     o Fixed NFS problem when deleting TS generated
+                               script files.
+                 Enhancem.:  o Enhanced testsuite execution performance by
+                               removing double called identity check.
+                 Review:     TB
+
 MD-2008-10-28-0: Bugfix:     o issue 2754 test was no able to deal with license
                                agreement message and more command.
                  Review:     CR

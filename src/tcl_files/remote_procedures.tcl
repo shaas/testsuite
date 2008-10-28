@@ -1390,23 +1390,25 @@ proc open_remote_spawn_process { hostname
    # we check for a combination of all parameters
    set spawn_command_arguments "$hostname$user$exec_command$exec_arguments$background$cd_dir$env_string$source_settings_file$set_shared_lib_path$win_local_user$without_start_output$without_sge_single_line"
    if {[info exists open_remote_spawn_script_cache($spawn_command_arguments)]} {
-      if {[file isfile $open_remote_spawn_script_cache($spawn_command_arguments)]} {
+      set cached_script_file_name $open_remote_spawn_script_cache($spawn_command_arguments)
+      if {[file isfile $cached_script_file_name]} {
+         set script_name $cached_script_file_name
+         ts_log_finest "re-using script $script_name"
          set re_use_script 1
       } else {
          # script file does not exist anymore - remove from cache
          unset open_remote_spawn_script_cache($spawn_command_arguments)
+         unset open_remote_spawn_script_cache($cached_script_file_name)
       }
    }
 
    # either use the previous script, or create a new one
-   if {$re_use_script} {
-      set script_name $open_remote_spawn_script_cache($spawn_command_arguments)
-      ts_log_finest "re-using script $script_name"
-   } else {
+   if {$re_use_script == 0} {
       set command_name [file tail $exec_command]
       set script_name [get_tmp_file_name $hostname $command_name "sh"]
       # add script name to cache
       set open_remote_spawn_script_cache($spawn_command_arguments) $script_name
+      set open_remote_spawn_script_cache($script_name) $spawn_command_arguments
       create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line
       ts_log_finest "created $script_name"
    }
@@ -1995,6 +1997,36 @@ proc open_remote_spawn_process { hostname
    return $back
 }
 
+#****** remote_procedures/remove_from_remote_spawn_script_cache() **************
+#  NAME
+#     remove_from_remote_spawn_script_cache() -- delete file entry from script cache
+#
+#  SYNOPSIS
+#     remove_from_remote_spawn_script_cache { file_path } 
+#
+#  FUNCTION
+#     Removes the entry for the file from the internal script cache. The
+#     internal script cache variable is global open_remote_spawn_script_cache.
+#
+#  INPUTS
+#     file_path - path to a TS generated script file (will be trimmed)
+#
+#*******************************************************************************
+proc remove_from_remote_spawn_script_cache { file_path } {
+   global open_remote_spawn_script_cache
+  
+   set path [string trim $file_path]
+   
+   if {[info exists open_remote_spawn_script_cache($path)]} {
+      set command_args $open_remote_spawn_script_cache($path)
+      unset open_remote_spawn_script_cache($path)
+      unset open_remote_spawn_script_cache($command_args)
+      ts_log_finest "removed script \"$path\" from remote spawn script cache!"
+   } else {
+      ts_log_fine "script \"$path\" not in spawn script cache!"
+   }
+}
+
 #                                                             max. column:     |
 #****** remote_procedures/open_spawn_process() ******
 # 
@@ -2274,7 +2306,8 @@ proc add_open_spawn_rlogin_session {hostname user win_local_user spawn_id \
    set rlogin_spawn_session_buffer($spawn_id,command_args)        $command_args
    set rlogin_spawn_session_buffer($spawn_id,alternate_sessions)  ""
    set rlogin_spawn_session_buffer($spawn_id,is_alternate_of)     ""
-  
+   set rlogin_spawn_session_buffer($spawn_id,id_check_needed)     "true"
+
 
    # add session to index
    lappend rlogin_spawn_session_buffer(index) $spawn_id
@@ -2336,6 +2369,44 @@ proc remove_oldest_spawn_rlogin_session {} {
       set pid $rlogin_spawn_session_buffer($remove_spawn_id,pid)
       set nr_shells $rlogin_spawn_session_buffer($remove_spawn_id,nr_shells)
       close_spawn_process "$pid $remove_spawn_id $nr_shells" 1 0
+   }
+}
+
+#****** remote_procedures/set_open_spawn_rlogin_session_check_id_flag() ********
+#  NAME
+#     set_open_spawn_rlogin_session_check_id_flag() -- set flag for session buffer
+#
+#  SYNOPSIS
+#     set_open_spawn_rlogin_session_check_id_flag { spawn_id value } 
+#
+#  FUNCTION
+#     The testsuite remote spawn session buffer can be modified with this setter
+#     procedure. It is possible to set the id_check_needed flag for the specified
+#     spawn id to "true" or "false".
+#
+#     If a connection is reused the id_check_needed flag is consulted. If it is
+#     set to "true" a check_identity script is executed when the connection
+#     should start a remote script. This identity check is also done by a call
+#     to close_spawn_id(). The close_spawn_id() will set the flag to "false"
+#     when its identity check was successful in order to skip the check when
+#     the session is reused. The open_remote_spawn_process() procdure will
+#     reset the flag back to "true" after it has skipped the identity check.
+#
+#  INPUTS
+#     spawn_id - spawn id from open_remote_spawn_process()
+#     value    - "true" or "false"
+#
+#  SEE ALSO
+#     remote_procedures/open_remote_spawn_process()
+#     remote_procedures/close_spawn_id()
+#*******************************************************************************
+proc set_open_spawn_rlogin_session_check_id_flag { spawn_id value } {
+   global rlogin_spawn_session_buffer
+   if {$value != "true" && $value != "false"} {
+      ts_log_severe "wrong parameter value ($value), expected true or false!"
+   }
+   if {[info exists rlogin_spawn_session_buffer($spawn_id,id_check_needed)]} {
+      set rlogin_spawn_session_buffer($spawn_id,id_check_needed) $value
    }
 }
 
@@ -2508,6 +2579,7 @@ proc del_open_spawn_rlogin_session {spawn_id} {
          unset rlogin_spawn_session_buffer($spawn_id,command_args)
          unset rlogin_spawn_session_buffer($spawn_id,alternate_sessions)
          unset rlogin_spawn_session_buffer($spawn_id,is_alternate_of)
+         unset rlogin_spawn_session_buffer($spawn_id,id_check_needed)
       } else {
          ts_log_severe "spawn session index rlogin_spawn_session_buffer($spawn_id,pid) not found"
       }
@@ -2594,7 +2666,7 @@ proc clear_open_spawn_rlogin_session {back_var} {
    set back(command_args)       ""
    set back(alternate_sessions) ""
    set back(is_alternate_of)    ""
-
+   set back(id_check_needed)    ""
 }
 
 #****** remote_procedures/get_spawn_id_rlogin_session() ************************
@@ -2687,20 +2759,22 @@ proc fill_session_info_array { spawn_id array_name } {
    set back(command_args)       $rlogin_spawn_session_buffer($spawn_id,command_args)
    set back(alternate_sessions) $rlogin_spawn_session_buffer($spawn_id,alternate_sessions)
    set back(is_alternate_of)    $rlogin_spawn_session_buffer($spawn_id,is_alternate_of)
+   set back(id_check_needed)    $rlogin_spawn_session_buffer($spawn_id,id_check_needed)
 
-   ts_log_finest "spawn_id  :         $back(spawn_id)"
-   ts_log_finest "pid       :         $back(pid)"
-   ts_log_finest "hostname  :         $back(hostname)"
-   ts_log_finest "user      :         $back(user)"
-   ts_log_finest "real_user :         $back(real_user)"
-   ts_log_finest "win_local_user :    $back(win_local_user)"
-   ts_log_finest "ltime     :         $back(ltime)"
-   ts_log_finest "nr_shells :         $back(nr_shells)"
-   ts_log_finest "command_script:     $back(command_script)"
-   ts_log_finest "command_name:       $back(command_name)"
-   ts_log_finest "command_args:       $back(command_args)"
-   ts_log_finest "alternate_sessions: $back(alternate_sessions)"
-   ts_log_finest "is_alternate_of:    $back(is_alternate_of)"
+#   ts_log_finest "spawn_id  :         $back(spawn_id)"
+#   ts_log_finest "pid       :         $back(pid)"
+#   ts_log_finest "hostname  :         $back(hostname)"
+#   ts_log_finest "user      :         $back(user)"
+#   ts_log_finest "real_user :         $back(real_user)"
+#   ts_log_finest "win_local_user :    $back(win_local_user)"
+#   ts_log_finest "ltime     :         $back(ltime)"
+#   ts_log_finest "nr_shells :         $back(nr_shells)"
+#   ts_log_finest "command_script:     $back(command_script)"
+#   ts_log_finest "command_name:       $back(command_name)"
+#   ts_log_finest "command_args:       $back(command_args)"
+#   ts_log_finest "alternate_sessions: $back(alternate_sessions)"
+#   ts_log_finest "is_alternate_of:    $back(is_alternate_of)"
+#   ts_log_finest "id_check_needed:    $back(id_check_needed)"
 }
 
 #****** remote_procedures/get_spawn_id_hostname() ******************************
@@ -2841,7 +2915,7 @@ proc close_outdated_rlogin_sessions { } {
 #     remote_procedures/check_rlogin_session
 #*******************************************************************************
 proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 0} {raise_error 1}} {
-   global CHECK_USER
+   global CHECK_USER 
    get_current_cluster_config_array ts_config
 
    ts_log_finest "check_rlogin_session: $spawn_id $pid $hostname $user $nr_of_shells $only_check"
@@ -2860,37 +2934,45 @@ proc check_rlogin_session { spawn_id pid hostname user nr_of_shells {only_check 
    # - wait for correct output
    # - expect that sends may fail, pass raise_error = 0 to ts_send
    set connection_ok 0
-   set catch_return [catch {
-      ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
-      set num_tries 30
-      set timeout 1
-      expect {
-         -i $spawn_id full_buffer {
-            ts_log_info "buffer overflow" $raise_error
-         }
-         -i $spawn_id eof {
-            ts_log_info "unexpected eof" $raise_error
-         }
-         -i $spawn_id timeout {
-            incr num_tries -1
-            if {$num_tries > 0} {
-               if {$num_tries < 12} {
-                  ts_log_progress
+   if {$con_data(id_check_needed) == "false"} {
+      ts_log_finest "skipping identity test, last check was ok!"
+      set_open_spawn_rlogin_session_check_id_flag $spawn_id "true"
+      set connection_ok 1
+   } else {
+      # Normally this branch should not be executed, as the id_check_needed is set to true in close_spawn_id()
+      ts_log_fine "Doing identity check. Might be related to forgotten close_spawn_id() call!"
+      set catch_return [catch {
+         ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
+         set num_tries 30
+         set timeout 1
+         expect {
+            -i $spawn_id full_buffer {
+               ts_log_info "buffer overflow" $raise_error
+            }
+            -i $spawn_id eof {
+               ts_log_info "unexpected eof" $raise_error
+            }
+            -i $spawn_id timeout {
+               incr num_tries -1
+               if {$num_tries > 0} {
+                  if {$num_tries < 12} {
+                     ts_log_progress
+                  }
+                  ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
+                  increase_timeout
+                  exp_continue
+               } else {
+                  ts_log_info "timeout waiting for shell response" $raise_error
                }
-               ts_send $spawn_id "$ts_config(testsuite_root_dir)/scripts/check_identity.sh\n" $con_data(hostname) 0 0
-               increase_timeout
-               exp_continue
-            } else {
-               ts_log_info "timeout waiting for shell response" $raise_error
+            }
+            -i $spawn_id -- "TS_ID: ->*${real_user}*\n" {
+               set connection_ok 1
             }
          }
-         -i $spawn_id -- "TS_ID: ->*${real_user}*\n" {
-            set connection_ok 1
-         }
+      } catch_error_message]
+      if { $catch_return == 1 } {
+         ts_log_info "$catch_error_message" $raise_error
       }
-   } catch_error_message]
-   if { $catch_return == 1 } {
-      ts_log_info "$catch_error_message" $raise_error
    }
 
    # are we done?
@@ -3124,6 +3206,7 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
             }
             -i $spawn_id -- "TS_ID: ->*${con_data(real_user)}*\n" {
                ts_log_finest "logged in as ${con_data(real_user)} - fine"
+               set_open_spawn_rlogin_session_check_id_flag $spawn_id "false"
                set do_return -1
             }
          }

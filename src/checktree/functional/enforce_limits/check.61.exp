@@ -521,6 +521,8 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
       set start [clock seconds]
 
       # shutdown master execds
+      # TODO: Test runs not for 62_BRANCH, and shutdown_system daemon does not shutdown execd fast enough
+      #       AND execd reconnect might take up to 60 seconds. The wait_for_unknown_load 15 call is not guaranteed
       shutdown_system_daemon $tight_master_node "execd" 
       wait_for_unknown_load 15 $tight_masterq
 

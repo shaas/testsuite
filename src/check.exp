@@ -2428,7 +2428,7 @@ proc setup2 { } {
          puts "\nstarting setup ... ok"
       }
       enhanced_setup
-      
+
       if { $CHECK_DO_SETUP == 1 } {
          modify_setup2
       }
@@ -3377,7 +3377,9 @@ proc print_results {ckpath where} {
       lappend test_name [get_check_name $elem]
    }
 
+   set is_stdout 0
    if {[string compare $where "stdout" ] == 0 } {
+      set is_stdout 1
       set tmp_name ""
       foreach testelem $test_name {
          foreach elem $filenames {         
@@ -3395,9 +3397,9 @@ proc print_results {ckpath where} {
    }
    set catch_return [ catch {
       foreach elem $filenames {
-         clear_screen         
-         
-         puts "file: $elem"
+         if {$is_stdout == 1} {
+            clear_screen
+         }
          set data [get_test_result "$ckpath/$elem"]
    
          if {![catch {
@@ -4376,6 +4378,14 @@ proc delete_temp_script_files { } {
    if {$host == ""} {
       set host [gethostname]
    }
+ 
+   # The files might be removed on an different server we
+   # have to remove them from the remote spawn script cache
+   get_file_content $host $CHECK_USER $del_file_name del_files
+   for { set i 1} { $i <= $del_files(0) } { incr i 1 } {
+      remove_from_remote_spawn_script_cache $del_files($i)
+   }
+
    set result [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/delete_temp_files.sh" $del_file_name]
    ts_log_fine $result
 }
@@ -5854,8 +5864,17 @@ proc wait_for_enter {{no_text 0} {atimeout 0} {hide_output 0}} {
 #     This means that it has to be checked if procedures are available or not.
 #     This can be archieved by using info procs call ...
 #*******************************************************************************
+
+global next_testsuite_background_tasks_run
+set next_testsuite_background_tasks_run 0
 proc testsuite_background_tasks {} {
    global CHECK_DEBUG_LEVEL ts_log_washing_machine_enabled
+   global next_testsuite_background_tasks_run
+
+   # only do this check every 30 seconds 
+   if { [timestamp] < $next_testsuite_background_tasks_run} {
+      return
+   }
    
    set washing_machine_value 0
    set have_logging 0
@@ -5889,6 +5908,8 @@ proc testsuite_background_tasks {} {
       ts_log_fine "background tasks finished!"
    }
 
+   # calculate next background task execution time
+   set next_testsuite_background_tasks_run [ expr ( [timestamp] + 30 ) ]
 }
 
 #                                                             max. column:     |
@@ -7125,7 +7146,7 @@ proc menu {} {
   set local_host [gethostname]
   delete_temp_script_files
 
-   while {1} {
+  while {1} {
 
   print_menu_header
  
