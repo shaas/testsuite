@@ -2023,7 +2023,7 @@ proc remove_from_remote_spawn_script_cache { file_path } {
       unset open_remote_spawn_script_cache($command_args)
       ts_log_finest "removed script \"$path\" from remote spawn script cache!"
    } else {
-      ts_log_fine "script \"$path\" not in spawn script cache!"
+      ts_log_finer "script \"$path\" not in spawn script cache!"
    }
 }
 
