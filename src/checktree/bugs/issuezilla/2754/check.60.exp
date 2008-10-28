@@ -37,7 +37,7 @@
 set check_init_level_procedure "issue2754_init_level"
 
 # define test's name and run level descriptions
-set check_name            "Issue 2754 test"
+set check_name            "issue2754_test"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
 set check_highest_level   0
 set check_description(0)  "Tests, if user enters the same port for master and execd, which is not allowed"
@@ -77,6 +77,43 @@ proc issue2754_test {} {
    while {1} {
       set timeout 30
       expect {
+         # This is for More license output on proper UNIX
+         -i $sp_id "More" {
+            ts_log_fine "--> testsuite: sending >space<<"
+            ts_send $sp_id " "
+            continue
+         }
+         # Agree license, sending "y"
+         -i $sp_id "Do you agree with that license?*" {
+            ts_log_fine "--> testsuite: sending y<"
+            ts_send $sp_id "y\n"
+            continue
+         }
+         #  This is for More license output on darwin
+         -i $sp_id "LICENSE ??%" {
+          set found_darwin_more 1
+          puts $CHECK_OUTPUT "\n -->testsuite: sending >space< (darwin)"
+          if {$do_log_output == 1} {
+               puts "press RETURN"
+               gets stdin anykey
+          }
+
+          ts_send $sp_id " "
+          continue
+         }
+
+         # Also for darwin: First "more" will print file name, second only percentage of file
+         -i $sp_id "\[0-9\]%" {
+          if { $found_darwin_more } {
+             puts $CHECK_OUTPUT "\n -->testsuite: sending >space< (darwin)"
+             if {$do_log_output == 1} {
+                  puts "press RETURN"
+                  gets stdin anykey
+             }
+             ts_send $sp_id " "
+          }
+          continue
+         }
          -i $sp_id "Hit <RETURN> to continue >> " {
             ts_log_fine "--> testsuite: sending >RETURN<"
             ts_send $sp_id "\n"

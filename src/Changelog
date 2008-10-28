@@ -1,3 +1,7 @@
+MD-2008-10-28-0: Bugfix:     o issue 2754 test was no able to deal with license
+                               agreement message and more command.
+                 Review:     CR
+
 GH-2008-10-27-0: Bugfix:     o Fixed race condition between queue status and
                                job status query in test: bugs/issuezilla/2714
 			     o bind test queue to qmaster to avoid problems 
