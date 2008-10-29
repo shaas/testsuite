@@ -160,7 +160,7 @@ proc issue2754_test {} {
          }
          # Errors
          -i $sp_id timeout {
-            ts_log_severe "$expect_out(0,string)"
+            ts_log_severe "Timeout occurred! (Timeout was 30 seconds)"
             close_spawn_process $id;
             return
          }
