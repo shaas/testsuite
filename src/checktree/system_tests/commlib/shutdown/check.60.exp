@@ -115,6 +115,11 @@ proc commlib_shutdown_run {} {
    global CHECK_USER
    global CHECK_ACT_LEVEL
    
+   set cs_user $CHECK_USER
+   if {$ts_config(commd_port) < 1024} {
+      set cs_user "root"
+   }
+
    set run_counter 0
    while { 1 } {
       set error_text ""
@@ -161,7 +166,7 @@ proc commlib_shutdown_run {} {
       set server_env(CL_PORT) $ts_config(commd_port)
       set client_env(CL_PORT) [expr ( $ts_config(commd_port) + 1) ]
 
-      set server_sid     [open_remote_spawn_process $server_host     $CHECK_USER $server_binary     $server_args     0 "" server_env]
+      set server_sid     [open_remote_spawn_process $server_host     $cs_user $server_binary     $server_args     0 "" server_env]
       set qping_dump_sid [open_remote_spawn_process $qping_dump_host "root"      $qping_dump_binary $qping_dump_args]
       set qping_info_sid [open_remote_spawn_process $qping_info_host $CHECK_USER $qping_info_binary $qping_info_args]
 
@@ -270,7 +275,7 @@ proc commlib_shutdown_run {} {
                   if {[string match "*qping*sirm*" $help]} {
                      if {$client_id == ""} {
                         ts_log_fine "TS: starting client ..."
-                        set client_sid [open_remote_spawn_process $client_host $CHECK_USER $client_binary $client_args 0 "" client_env]
+                        set client_sid [open_remote_spawn_process $client_host $cs_user $client_binary $client_args 0 "" client_env]
                         set client_id [lindex $client_sid 1]
                         lappend all_list "$client_id"
                      }
@@ -320,6 +325,12 @@ proc commlib_shutdown_run {} {
                }
             }
 
+         }
+         if {$server_exit_state != -10 && $server_exit_state != 0} {
+            break
+         }
+         if {$client_exit_state != -10 && $client_exit_state != 0} {
+            break
          }
       }
       close_spawn_process $server_sid
