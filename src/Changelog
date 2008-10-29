@@ -1,3 +1,12 @@
+TB-2008-10-29-0: Bugfix:     Fixed Hedeby test 'usecase SI'
+                 Cleanup:    o Hedeby test 'usecase SI':
+                               - introduced "this" context
+                               - additional logging output
+                             o Hedeby util.tcl
+                               - changed remove_resource_property() to optional
+                                 named argument passing and adjusted usages
+                 Review:     MG
+
 DG-2008-10-29-0: Bugfix:     An expect timeout does not define $expect_out(0,string)
                              because nothing has matched. 
                  Review:     CR

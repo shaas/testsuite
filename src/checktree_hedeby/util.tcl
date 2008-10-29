@@ -7691,21 +7691,49 @@ proc set_hedeby_slos_config { host exec_user service slos {raise_error 1} {updat
    return 0
 }
 
-proc remove_resource_property { host exec_user resource properties {raise_error 1} } {
-   set arguments "-s [get_hedeby_system_name] mr -r $resource"
-    
-   set ispid [hedeby_mod_setup $host $exec_user $arguments error_text]
-   # remove properties from resource
+#****** util/remove_resource_property() ******************************************
+#  NAME
+#     remove_resource_property() -- used to set slo config for a hedeby service
+#
+#  SYNOPSIS
+#     remove_resource_property { resource prop_list {opt ""} } {
+#
+#  FUNCTION
+#     This procedure is used to delete certain properties of a resource. The
+#     names of the properties to delete are handed in as a tcl list in the
+#     prop_list parameter.
+#
+#     The resource modification is done with 'sdmadm mr' and a vi sequence
+#     handed to hedeby_mod_setup().
+#
+#  INPUTS
+#     resource   - resource to change
+#     prop_list  - names of properties to delete (tcl list)
+#     opt        - optional named arguments, see get_hedeby_proc_default_opt_args()
+#
+#  RESULT
+#     0 on success, 1 on error
+#
+#  SEE ALSO
+#     util/get_hedeby_resource_properties()
+#     util/mod_hedeby_resource()
+#     util/hedeby_mod_setup_opt()
+#     util/get_hedeby_proc_opt_arg()
+#*******************************************************************************
+proc remove_resource_property { resource prop_list {opt ""} } {
+   get_hedeby_proc_opt_arg opt opts
+
+   set ispid [hedeby_mod_setup_opt "mr -r $resource" error_text opts]
+
    set sequence {}
-   foreach prop $properties {
-       lappend sequence "/${prop} =\n"
-       lappend sequence "dd"
+   foreach prop $prop_list {
+       lappend sequence ":g/^${prop} =/delete\n"
    }
      
    hedeby_mod_sequence $ispid $sequence error_text
-   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $raise_error]
+   set output [hedeby_mod_cleanup $ispid error_text prg_exit_state $opts(raise_error)]
 
-   ts_log_fine "exit_status: $prg_exit_state"
+   ts_log_fine "finished removing properties '$prop_list' from resource '$resource', exit_status: $prg_exit_state"
    if { $prg_exit_state == 0 } {
       ts_log_finer "output: \n$output"
    }
@@ -9621,12 +9649,6 @@ proc get_all_log_files { user tar_file_path {test_name ""} {log_start_time 0} {l
 #        # append removal error to error output
 #        append error_text $remove_error
 #     }
-#
-#  NOTES
-#     TODO
-#     Create get_resource_info_opt procedure that does not use fixed values for
-#     system_name and pref_type, so that the values of the opt array can be
-#     used!
 #
 #  SEE ALSO
 #     util/get_resource_info()

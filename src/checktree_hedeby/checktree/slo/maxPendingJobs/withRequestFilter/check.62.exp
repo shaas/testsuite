@@ -120,9 +120,7 @@ proc with_request_filter_cleanup_level {} {
     global timesuffix
     
     #clean up resource property
-    set value "dummy_prop$timesuffix"
-    set list {$value}
-    remove_resource_property $service_names(master_host,$ge_adapter) [get_hedeby_admin_user] $mov_resource $list 
+    remove_resource_property $mov_resource "dummy_prop$timesuffix"
 
     reset_default_slos "mod_config" $ge_adapter
     if {[move_resources_to_default_services] != 0} {
