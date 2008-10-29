@@ -1,3 +1,8 @@
+GH-2008-10-29-0: Bugfix:     o Removed obsolete code from test; no need to
+                               simulate the bug fix.
+		 Belongs To: GH-2008-10-24-0
+                 Review:     CR
+
 CR-2008-10-28-0: Bugfix:     o Fixed NFS problem when deleting TS generated
                                script files.
                  Enhancem.:  o Enhanced testsuite execution performance by

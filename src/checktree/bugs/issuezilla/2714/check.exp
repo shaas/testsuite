@@ -83,10 +83,6 @@ proc issue_2714_init_level {} {
 proc issue_2714_setup {} {
    global CHECK_USER
    global ts_config
-   global tmpdir
-   global tmp_ex_file
-   global tmp_pvm_start_file
-   global tmp_pvm_stop_file
    global pvm_start_file
    global pvm_stop_file
    global test_pe
@@ -100,10 +96,6 @@ proc issue_2714_setup {} {
    #
    # Make up file names.
    #
-   set tmpdir [ get_tmp_directory_name $ts_config(master_host) "iz2714" "tmp" 1 ]
-   set tmp_ex_file "$tmpdir/iz2714.tmp"
-   set tmp_pvm_start_file "$tmpdir/pvm_start.tmp"
-   set tmp_pvm_stop_file "$tmpdir/pvm_stop.tmp"
    set pvm_start_file "$ts_config(product_root)/pvm/startpvm.sh"
    set pvm_stop_file "$ts_config(product_root)/pvm/stoppvm.sh"
    set test_pe "my_pe"
@@ -114,28 +106,15 @@ proc issue_2714_setup {} {
    delete_all_jobs
    wait_for_end_of_all_jobs 10
    #
-   remote_file_mkdir $qmaster_host $tmpdir
-   #
-   # We prefer to work with a copy of the original file to avoid confusion
-   # in case of partial cleanup.
-   #
-   # PVM start script.
-   #
-   start_remote_prog $qmaster_host $CHECK_USER "cp" "$pvm_start_file $tmp_pvm_start_file"
-   #
-   # PVM stop script.
-   #
-   start_remote_prog $qmaster_host $CHECK_USER "cp" "$pvm_stop_file $tmp_pvm_stop_file"
    #
    # Create parallel environment.
    #
    set this_pe(slots) 100 
-   set this_pe(start_proc_args) $tmp_pvm_start_file
-   set this_pe(stop_proc_args) $tmp_pvm_stop_file
+   set this_pe(start_proc_args) $pvm_start_file
+   set this_pe(stop_proc_args) $pvm_stop_file
    add_pe $test_pe this_pe
    #
-   # Create test queue. Bind queue to qmaster since tmp pvm start/stop
-   # scripts are not globally available.
+   # Create test queue. 
    #
    set host_list [ list $ts_config(master_host) ]
    set testq(slots) 1000
@@ -150,15 +129,10 @@ proc issue_2714_setup {} {
 # The test plan:
 # ==============
 #
-# o make working copies of the installed PVM start/stop scripts
-# o create test queue and test PE using the test private scripts
+# o create test queue and test PE using the installed scripts
 # o submit job requesting the test PE
-# o check queue state: should be ERROR
-# o delete job and wait for termination
-# o clear error state
-# o edit start/stop scripts and change exit code to 100
-# o submit job requesting the test PE
-# o check queue state: should be clear
+# o check job state: should be Eqw
+# o check queue state: should be CLEAR
 # o delete job and wait for termination
 # o .... cleanup
 #
@@ -170,9 +144,6 @@ proc issue_2714_check {} {
    global testq
    global pvm_start_file
    global pvm_stop_file
-   global tmp_pvm_start_file
-   global tmp_pvm_stop_file
-   global tmp_ex_file
    global test_pe
    global test_queue_name
    global qmaster_host
@@ -183,69 +154,6 @@ proc issue_2714_check {} {
    set job_id [ submit_job $args ]
    if { $job_id == 0 } {
       ts_log_severe "issue_2714_check: can't create dummy job 1"
-      ts_log_severe "issue_2714_check: test FAILED"
-      return
-   }
-   #
-   # Poll the queue state for Error state regardless of job state since this is subject
-   # to race conditions.
-   #
-   set exit_on_error 0
-   set retries 0
-   while {1} {
-      set result [ check_for_result "E" ]
-      if { $result == 0 } {
-         set exit_on_error 0
-         break 
-      } else {
-         incr retries 1
-         if { $retries == 10 } {
-            set exit_on_error 1
-            break
-         }
-         after 2000
-      }
-   }
-   if { $exit_on_error == 1 } {
-      ts_log_severe "issue_2714_check: test queue in unexpected state $result; expected E"
-      ts_log_severe "issue_2714_check: test FAILED"
-      return
-   }
-   delete_job $job_id 1
-   #
-   # Clear error state of test queue and check.
-   #
-   set result [start_sge_bin "qmod" "-c $test_queue_name" ]
-   set result [ check_for_result "" ]
-   if { $result != 0 } {
-      ts_log_severe "issue_2714_check: test queue in unexpected state $result; expected clear state"
-      ts_log_severe "issue_2714_check: test FAILED"
-      return
-   }
-   #
-   # At this point in time we've demonstrated that the standard PVM start/stop scripts
-   # are causing problems by setting the affected queues to error state. Change all exit
-   # codes from "1" to "100" and see how to works.
-   #
-   set data(0) 2
-   set data(1) "1,\$ s/exit 1/exit 100/g"
-   set data(2) "wq"
-   write_remote_file $ts_config(master_host) $CHECK_USER $tmp_ex_file data
-   #
-   # Apply the changes.
-   #
-   start_remote_prog $qmaster_host $CHECK_USER "ex" "$tmp_pvm_start_file < $tmp_ex_file"
-   start_remote_prog $qmaster_host $CHECK_USER "ex" "$tmp_pvm_stop_file < $tmp_ex_file"
-   #
-   # re-run test with modified PVM scripts and check for queue state. We need to
-   # we wait until the job has reached the final state (Eqw) prior queue state
-   # checking. Otherwise we run into race conditions resulting in ghost test
-   # failures.
-   #
-   set args "-pe $test_pe 1-10 $ts_config(product_root)/examples/jobs/sleeper.sh 25"
-   set job_id [ submit_job $args ]
-   if { $job_id == 0 } {
-      ts_log_severe "issue_2714_check: can't create dummy job 2"
       ts_log_severe "issue_2714_check: test FAILED"
       return
    }
@@ -266,17 +174,16 @@ proc issue_2714_check {} {
    # Paranoia 1st degree.....
    #
    wait_for_end_of_all_jobs 100
-   infrastructure_file_cleanup 
 
    ts_log_fine "issue_2714_check: test SUCCEEDED"
    return
 }
 
 proc issue_2714_cleanup  {} {
-   global tmpfile
    global testq
    global test_pe
    global test_queue_name
+   global host_list
    #
    # Paranoia 2nd degree. We may still have open references
    # to the PE at this point....
@@ -285,29 +192,9 @@ proc issue_2714_cleanup  {} {
    wait_for_end_of_all_jobs 100
    test_queue_cleanup
 }
-proc infrastructure_file_cleanup {} {
-
-   global CHECK_USER
-   global tmp_pvm_start_file
-   global tmp_pvm_stop_file
-   global tmp_ex_file
-   global qmaster_host
-   global tmpdir
-
-   #
-   # Clean up temp files possibly left over from
-   # previous (failed) tests.
-   #
-   delete_remote_file $qmaster_host $CHECK_USER $tmp_pvm_start_file
-   delete_remote_file $qmaster_host $CHECK_USER $tmp_pvm_stop_file
-   delete_remote_file $qmaster_host $CHECK_USER $tmp_ex_file
-   remote_delete_directory $qmaster_host $tmpdir
-}
 
 proc test_queue_cleanup {} {
 
-   global CHECK_ARCH
-   global ts_config
    global test_pe
    global test_queue_name
    global host_list
@@ -325,8 +212,6 @@ proc test_queue_cleanup {} {
 }
 
 proc check_for_result { expected_queue_state } {
-   global CHECK_ARCH
-   global ts_config
    global test_queue_name
    global host_list
 
