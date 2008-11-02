@@ -1,0 +1,982 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "jsv_script_init_level"
+
+# define test's name and run level descriptions
+set check_name            "jsv_script"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0 
+set check_description(0)  ""
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function jsv_script_setup
+set check_cleanup_function jsv_script_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "jsv_script_enter"
+lappend check_functions "jsv_script_quit"
+lappend check_functions "jsv_script_start_quit"
+lappend check_functions "jsv_script_start_begin_param_accept_quit"
+lappend check_functions "jsv_script_start_begin_param_reject_quit"
+lappend check_functions "jsv_script_start_begin_param_rejectwait_quit"
+lappend check_functions "jsv_script_start_begin_param_add_mod_del_accept_quit"
+
+# global variables for this test. all of them are initiaized in the setup procedure
+set jsv_script_list {}
+set jsv_name_list {} 
+set jsv_id_list {}
+set jsv_expect_timeout 0
+set jsv_enter "\r\n"
+
+proc jsv_script_init_level {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         }
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+# start different JSV shells and initialize variables the test expect
+proc jsv_script_setup {} {
+   global ts_config
+   global CHECK_ACT_LEVEL
+   global CHECK_USER
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   # initialize module global variables 
+   set jsv_script_list {}
+   set jsv_name_list {}
+   set jsv_id_list {}
+
+   # 3 seconds should be enough to get a response from JSV scripts.
+   # if we find a host where this is to small we might increase it.
+   # in general we should keep this timeout small so that the tests
+   # do not take to long
+   set jsv_expect_timeout 3
+
+   # on mac os each returned response string ends with "\r\n"
+   # EB: TODO: I assume that UNIX and Interix will need "\n" here
+   set jsv_enter "\r\n"
+
+   # scripts to be tested for each run and corresponding names for messages
+   lappend jsv_script_list "$ts_config(product_root)/util/resources/jsv/jsv.sh"
+   lappend jsv_name_list "bourne shell"
+
+   # EB: TODO: test Perl JSV template
+   #lappend jsv_script_list "$ts_config(product_root)/util/resources/jsv/jsv.pl"
+   #lappend jsv_name_list "Perl"
+
+   # EB: TODO: test TCL JSV template
+   #lappend jsv_script_list "$ts_config(product_root)/util/resources/jsv/jsv.tcl"
+   #lappend jsv_name_list "TCL"
+
+   # spawn processes and store id's so that the can be terminated later 
+   foreach jsv_script $jsv_script_list {
+      set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $jsv_script {}]
+      set jsv_spawn_id [lindex $id 1]
+
+      lappend jsv_id_list $id
+   }
+}
+
+# stop all running JSV scripts 
+proc jsv_script_cleanup {} {
+   global ts_config
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+
+   # terminate spawned process
+   foreach id $jsv_id_list {
+      close_spawn_process $id
+   }
+   set jsv_id_list {}
+
+   # unset our test's global variables
+   foreach var "jsv_script_list jsv_name_list jsv_id_list jsv_expect_timeout jsv_enter" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+# Scenario:
+#     send a "\n" to each started JSV script
+#     as response we should get nothing 
+proc jsv_script_enter {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0; 
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+
+               # send only a "\n"
+               ts_send $spawn_id "\n" 
+               exp_continue
+            }
+            -i $spawn_id eof {
+               ts_log_finest "got eof"
+            }
+            -i $spawn_id default {
+               ts_log_finest "got expected timeout"
+            }
+            -i $spawn_id -re "$jsv_enter" {
+               # skip empty lines
+               exp_continue
+            }
+            -i $spawn_id -re ".*$jsv_enter" {
+               if {$use_output == 1} {
+                  ts_log_info "$name: got something unexpected as response: \"$expect_out(buffer)\""
+                  set got_something 1
+               }
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+      
+         # if we got something then report an error
+         if {$got_something} {
+            ts_log_severe "$name script send response to \\n. Nothing should be sent."
+         } 
+      
+         incr i
+      }
+   }
+}
+
+# Scenario:
+#  -  start the script
+#  -> send "QUIT"
+#  -  script terminates
+proc jsv_script_quit {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0
+         set sequence_list {}
+
+         # and wait for the response. 
+         # nothing is expected
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+               lappend sequence_list 0
+               ts_send $spawn_id "QUIT\n" 
+               exp_continue 
+            }
+            -i $spawn_id "_exit_status_:(*)" {
+               lappend sequence_list 1
+               exp_continue 
+            }
+            -i $spawn_id eof {
+               lappend sequence_list 2
+               exp_continue 
+            }
+            -i $spawn_id default {
+               lappend sequence_list 3
+            }
+            -i $spawn_id -re "^$jsv_enter" {
+               # simply ignor empty lines.
+               exp_continue 
+            }
+            -i $spawn_id -re "^QUIT$jsv_enter" {
+               lappend sequence_list 5
+               exp_continue 
+            }
+            -i $spawn_id -re "^.*$jsv_enter" {
+               if {$use_output == 1} {
+                  lappend sequence_list 6
+                  ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
+               } 
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+
+         set expected_sequence_list [list 0 5 1 3]
+         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} {
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         } 
+   
+         incr i
+      }
+   }
+}
+
+# Scenario:
+#  -  start the script
+#  -> send "START"
+#  <- receive "SEND ENV" 
+#  <- receive "STARTED"
+#  -> send "QUIT"
+#  -  script terminates
+proc jsv_script_start_quit {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0
+         set sequence_list {}
+
+         # and wait for the response. 
+         # nothing is expected
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+               lappend sequence_list 0
+               ts_send $spawn_id "START\n" 
+               exp_continue 
+            }
+            -i $spawn_id "_exit_status_:(*)" {
+               lappend sequence_list 1
+               exp_continue 
+            }
+            -i $spawn_id eof {
+               lappend sequence_list 2
+               exp_continue 
+            }
+            -i $spawn_id default {
+               lappend sequence_list 3
+            }
+            -i $spawn_id -re "^$jsv_enter" {
+               # simply ignor empty lines.
+               exp_continue 
+            }
+            -i $spawn_id -re "^START$jsv_enter" {
+               lappend sequence_list 4
+               exp_continue 
+            }
+            -i $spawn_id -re "^QUIT$jsv_enter" {
+               lappend sequence_list 5
+               exp_continue 
+            }
+            -i $spawn_id -re "^STARTED$jsv_enter" {
+               ts_send $spawn_id "QUIT\n"
+               lappend sequence_list 6
+               exp_continue 
+            }
+            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+               lappend sequence_list 7
+               exp_continue 
+            }
+            -i $spawn_id -re "^.*$jsv_enter" {
+               if {$use_output == 1} {
+                  lappend sequence_list 8
+                  ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
+               } 
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+
+         set expected_sequence_list0 [list 0 4 7 6 5 1 3]
+         set expected_sequence_list1 [list 0 4 6 5 1 3]
+         if {[string compare "$expected_sequence_list0" "$sequence_list"] != 0 && 
+             [string compare "$expected_sequence_list1" "$sequence_list"] != 0} {
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list0 or $expected_sequence_list1"
+         } 
+   
+         incr i
+      }
+   }
+}
+
+# Scenario:
+#  -  start the script
+#  -> send "START"
+#  <- receive "SEND ENV" 
+#  <- receive "STARTED"
+#  -> send "BEGIN"
+#  <- receive "RESULT STATE ACCEPT" 
+#  -> send "QUIT"
+#  -  script terminates
+proc jsv_script_start_begin_param_accept_quit {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0
+         set sequence_list {}
+
+         # and wait for the response. 
+         # nothing is expected
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+               lappend sequence_list 0
+               ts_send $spawn_id "START\n" 
+               exp_continue 
+            }
+            -i $spawn_id "_exit_status_:(*)" {
+               lappend sequence_list 1
+               exp_continue 
+            }
+            -i $spawn_id eof {
+               lappend sequence_list 2
+               exp_continue 
+            }
+            -i $spawn_id default {
+               lappend sequence_list 3
+            }
+            -i $spawn_id -re "^$jsv_enter" {
+               # simply ignor empty lines.
+               exp_continue 
+            }
+            -i $spawn_id -re "^BEGIN$jsv_enter" {
+               lappend sequence_list 4
+               exp_continue 
+            }
+            -i $spawn_id -re "^START$jsv_enter" {
+               lappend sequence_list 5
+               exp_continue 
+            }
+            -i $spawn_id -re "^QUIT$jsv_enter" {
+               lappend sequence_list 6
+               exp_continue 
+            }
+            -i $spawn_id -re "^RESULT STATE ACCEPT .*$jsv_enter" {
+               ts_send $spawn_id "QUIT\n"
+               lappend sequence_list 7
+               exp_continue 
+            }
+            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+               lappend sequence_list 8
+               exp_continue 
+            }
+            -i $spawn_id -re "^STARTED$jsv_enter" {
+               ts_send $spawn_id "BEGIN\n"
+               lappend sequence_list 9
+               exp_continue 
+            }
+            -i $spawn_id -re "^.*$jsv_enter" {
+               if {$use_output == 1} {
+                  lappend sequence_list 10 
+                  ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
+               } 
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+
+         set expected_sequence_list [list 0 5 8 9 4 7 6 1 3]
+         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} { 
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         } 
+   
+         incr i
+      }
+   }
+}
+
+# Scenario:
+#  -  start the script
+#  -> send "START"
+#  <- receive "SEND ENV"
+#  <- receive "STARTED"
+#  -> send "PARAM b y"
+#  -> send "BEGIN"
+#  <- receive "RESULT STATE REJECT <message>" 
+#  -> send "QUIT"
+#  -  script terminates
+proc jsv_script_start_begin_param_reject_quit {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0
+         set sequence_list {}
+
+         # and wait for the response. 
+         # nothing is expected
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+               lappend sequence_list 0
+               ts_send $spawn_id "START\n" 
+               exp_continue 
+            }
+            -i $spawn_id "_exit_status_:(*)" {
+               lappend sequence_list 1
+               exp_continue 
+            }
+            -i $spawn_id eof {
+               lappend sequence_list 2
+               exp_continue 
+            }
+            -i $spawn_id default {
+               lappend sequence_list 3
+            }
+            -i $spawn_id -re "^$jsv_enter" {
+               # simply ignor empty lines.
+               exp_continue 
+            }
+            -i $spawn_id -re "^BEGIN$jsv_enter" {
+               lappend sequence_list 4
+               exp_continue 
+            }
+            -i $spawn_id -re "^START$jsv_enter" {
+               lappend sequence_list 5
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM b y$jsv_enter" {
+               ts_send $spawn_id "BEGIN\n"
+               lappend sequence_list 6
+               exp_continue 
+            }
+            -i $spawn_id -re "^QUIT$jsv_enter" {
+               lappend sequence_list 7
+               exp_continue 
+            }
+            -i $spawn_id -re "^RESULT STATE REJECT \(.*\)$jsv_enter" {
+               #ts_log_info "Reject message is \"$expect_out(1,string)\""
+               ts_send $spawn_id "QUIT\n"
+               lappend sequence_list 8
+               exp_continue 
+            }
+            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+               lappend sequence_list 9
+               exp_continue 
+            }
+            -i $spawn_id -re "^STARTED$jsv_enter" {
+               ts_send $spawn_id "PARAM b y\n"
+               lappend sequence_list 10 
+               exp_continue 
+            }
+            -i $spawn_id -re "^.*$jsv_enter" {
+               if {$use_output == 1} {
+                  lappend sequence_list 11 
+                  ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
+               } 
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+
+         set expected_sequence_list [list 0 5 9 10 6 4 8 7 1 3]
+         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} { 
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         } 
+   
+         incr i
+      }
+   }
+}
+
+# Scenario:
+#  -  start the script
+#  -> send "START"
+#  <- receive "SEND ENV"
+#  <- receive "STARTED"
+#  -> send "PARAM l_hard h_vmem=5G,a=true,b"
+#  -> send "BEGIN"
+#  <- receive "PARAM l_hard a=true,b"
+#  <- receive "RESULT STATE REJECT_WAIT <message>" 
+#  -> send "QUIT"
+#  -  script terminates
+proc jsv_script_start_begin_param_rejectwait_quit {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0
+         set sequence_list {}
+
+         # and wait for the response. 
+         # nothing is expected
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+               lappend sequence_list 0
+               ts_send $spawn_id "START\n" 
+               exp_continue 
+            }
+            -i $spawn_id "_exit_status_:(*)" {
+               lappend sequence_list 1
+               exp_continue 
+            }
+            -i $spawn_id eof {
+               lappend sequence_list 2
+               exp_continue 
+            }
+            -i $spawn_id default {
+               lappend sequence_list 3
+            }
+            -i $spawn_id -re "^$jsv_enter" {
+               # simply ignor empty lines.
+               exp_continue 
+            }
+            -i $spawn_id -re "^BEGIN$jsv_enter" {
+               lappend sequence_list 4
+               exp_continue 
+            }
+            -i $spawn_id -re "^START$jsv_enter" {
+               lappend sequence_list 5
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM l_hard h_vmem=5G,a=true,b$jsv_enter" {
+               ts_send $spawn_id "BEGIN\n"
+               lappend sequence_list 6
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM l_hard a=true,b$jsv_enter" {
+               lappend sequence_list 7
+               exp_continue 
+            }
+            -i $spawn_id -re "^QUIT$jsv_enter" {
+               lappend sequence_list 8
+               exp_continue 
+            }
+            -i $spawn_id -re "^RESULT STATE REJECT_WAIT \(.*\)$jsv_enter" {
+               #ts_log_info "Reject message is \"$expect_out(1,string)\""
+               ts_send $spawn_id "QUIT\n"
+               lappend sequence_list 9
+               exp_continue 
+            }
+            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+               lappend sequence_list 10 
+               exp_continue 
+            }
+            -i $spawn_id -re "^STARTED$jsv_enter" {
+               ts_send $spawn_id "PARAM l_hard h_vmem=5G,a=true,b\n"
+               lappend sequence_list 11 
+               exp_continue 
+            }
+            -i $spawn_id -re "^.*$jsv_enter" {
+               if {$use_output == 1} {
+                  lappend sequence_list 12 
+                  ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
+               } 
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+
+         set expected_sequence_list [list 0 5 10 11 6 4 7 9 8 1 3]
+         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} { 
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         } 
+   
+         incr i
+      }
+   }
+}
+
+# Scenario:
+#  -  start the script
+#  -> send "START"
+#  <- receive "SEND ENV" 
+#  <- receive "STARTED"
+#  -> send "PARAM l_hard h_data=5G,a=true,b"
+#  -> send "BEGIN"
+#  <- receive "PARAM l_hard a=true,b"
+#  <- receive "RESULT STATE CORRECT <message>" 
+#  -> send "QUIT"
+#  -  script terminates
+proc jsv_script_start_begin_param_correct_quit {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0
+         set sequence_list {}
+
+         # and wait for the response. 
+         # nothing is expected
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+               lappend sequence_list 0
+               ts_send $spawn_id "START\n" 
+               exp_continue 
+            }
+            -i $spawn_id "_exit_status_:(*)" {
+               lappend sequence_list 1
+               exp_continue 
+            }
+            -i $spawn_id eof {
+               lappend sequence_list 2
+               exp_continue 
+            }
+            -i $spawn_id default {
+               lappend sequence_list 3
+            }
+            -i $spawn_id -re "^$jsv_enter" {
+               # simply ignor empty lines.
+               exp_continue 
+            }
+            -i $spawn_id -re "^BEGIN$jsv_enter" {
+               lappend sequence_list 4
+               exp_continue 
+            }
+            -i $spawn_id -re "^START$jsv_enter" {
+               lappend sequence_list 5
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM l_hard h_data=5G,a=true,b$jsv_enter" {
+               ts_send $spawn_id "BEGIN\n"
+               lappend sequence_list 6
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM l_hard a=true,b$jsv_enter" {
+               lappend sequence_list 7
+               exp_continue 
+            }
+            -i $spawn_id -re "^QUIT$jsv_enter" {
+               lappend sequence_list 8
+               exp_continue 
+            }
+            -i $spawn_id -re "^RESULT STATE CORRECT \(.*\)$jsv_enter" {
+               #ts_log_info "Reject message is \"$expect_out(1,string)\""
+               ts_send $spawn_id "QUIT\n"
+               lappend sequence_list 9
+               exp_continue 
+            }
+            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+               lappend sequence_list 10 
+               exp_continue 
+            }
+            -i $spawn_id -re "^STARTED$jsv_enter" {
+               ts_send $spawn_id "PARAM l_hard h_data=5G,a=true,b\n"
+               lappend sequence_list 11 
+               exp_continue 
+            }
+            -i $spawn_id -re "^.*$jsv_enter" {
+               if {$use_output == 1} {
+                  lappend sequence_list 12 
+                  ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
+               } 
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+
+         set expected_sequence_list [list 0 5 10 11 6 4 7 9 8 1 3]
+         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} { 
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         } 
+   
+         incr i
+      }
+   }
+}
+
+# Scenario:
+#  -  start the script
+#  -> send "START"
+#  <- receive "SEND ENV" 
+#  <- receive "STARTED"
+#  -> send "PARAM c a=1,b=2"
+#  -> send "BEGIN"
+#  <- receive "PARAM c a=2,b=2"
+#  <- receive "PARAM c a=2"
+#  <- receive "PARAM c a=2,c"
+#  <- receive "RESULT STATE ACCEPT <message>" 
+#  -> send "QUIT"
+#  -  script terminates
+proc jsv_script_start_begin_param_add_mod_del_accept_quit {} {
+   global ts_config CHECK_USER
+   global CHECK_ACT_LEVEL
+   global jsv_script_list
+   global jsv_name_list
+   global jsv_id_list
+   global jsv_expect_timeout
+   global jsv_enter
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      set i 0
+      foreach id $jsv_id_list {
+         set spawn_id [lindex $id 1]
+         set name [lindex $jsv_name_list $i]
+         set script [lindex $jsv_script_list $i]
+
+         set timeout $jsv_expect_timeout 
+         set got_something 0
+         set use_output 0
+         set sequence_list {}
+
+         # and wait for the response. 
+         # nothing is expected
+         expect {
+            -i $spawn_id "_start_mark_:(0)" {
+               set use_output 1 
+               lappend sequence_list 0
+               ts_send $spawn_id "START\n" 
+               exp_continue 
+            }
+            -i $spawn_id "_exit_status_:(*)" {
+               lappend sequence_list 1
+               exp_continue 
+            }
+            -i $spawn_id eof {
+               lappend sequence_list 2
+               exp_continue 
+            }
+            -i $spawn_id default {
+               lappend sequence_list 3
+            }
+            -i $spawn_id -re "^$jsv_enter" {
+               # simply ignor empty lines.
+               exp_continue 
+            }
+            -i $spawn_id -re "^BEGIN$jsv_enter" {
+               lappend sequence_list 4
+               exp_continue 
+            }
+            -i $spawn_id -re "^START$jsv_enter" {
+               lappend sequence_list 5
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM c a=1,b=2$jsv_enter" {
+               ts_send $spawn_id "BEGIN\n"
+               lappend sequence_list 6
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM c a=2,b=2$jsv_enter" {
+               lappend sequence_list 7
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM c a=2$jsv_enter" {
+               lappend sequence_list 8
+               exp_continue 
+            }
+            -i $spawn_id -re "^PARAM c a=2,c$jsv_enter" {
+               lappend sequence_list 9
+               exp_continue 
+            }
+            -i $spawn_id -re "^QUIT$jsv_enter" {
+               lappend sequence_list 10 
+               exp_continue 
+            }
+            -i $spawn_id -re "^RESULT STATE ACCEPT \(.*\)$jsv_enter" {
+               #ts_log_info "Reject message is \"$expect_out(1,string)\""
+               ts_send $spawn_id "QUIT\n"
+               lappend sequence_list 11 
+               exp_continue 
+            }
+            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+               lappend sequence_list 12 
+               exp_continue 
+            }
+            -i $spawn_id -re "^STARTED$jsv_enter" {
+               ts_send $spawn_id "PARAM c a=1,b=2\n"
+               lappend sequence_list 13 
+               exp_continue 
+            }
+            -i $spawn_id -re "^.*$jsv_enter" {
+               if {$use_output == 1} {
+                  lappend sequence_list 14 
+                  ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
+               } 
+               exp_continue
+            }
+         }
+
+         # independent if the test was successfull or not
+         # restart the JSV scripts so that internal states  
+         # of those scripts are reinitialized
+         jsv_script_cleanup
+         jsv_script_setup
+
+         set expected_sequence_list [list 0 5 12 13 6 4 7 8 9 11 10 1 3]
+         if {[string compare "$expected_sequence_list" "$sequence_list"] != 0} { 
+            ts_log_severe "$name: output sequence is $sequence_list instead of $expected_sequence_list"
+         } 
+   
+         incr i
+      }
+   }
+}
