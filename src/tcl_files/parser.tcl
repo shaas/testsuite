@@ -2607,7 +2607,6 @@ proc qstat_f_plain_parse { output {param ""} } {
 #  SEE ALSO
 #     parser/parse_qstat
 #*******************************
-
 proc qstat_g_c_plain_parse { output  } {
    upvar $output qstat_output
    get_current_cluster_config_array ts_config
@@ -2618,13 +2617,12 @@ proc qstat_g_c_plain_parse { output  } {
    set result [start_sge_bin "qstat" "-g c"]
    parse_multiline_list result parsed_out
 
-    
    set index 0
    set parsed_out_length [llength $parsed_out]
    set final_parsed_out ""
 
    # Also construct the new, saved list... Use lappend
-   while { $index <= $parsed_out_length } {
+   while {$index <= $parsed_out_length} {
       if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
          lappend final_parsed_out [lindex $parsed_out $index]
       }
@@ -2647,9 +2645,9 @@ proc qstat_g_c_plain_parse { output  } {
       set delta 0
       set qstat_output($cqueue,cqload) [lindex $single_white_space_string [expr 1 + $delta]]
       set qstat_output($cqueue,used) [lindex $single_white_space_string [expr 2 + $delta]]
-      if { $ts_config(gridengine_version) == 62 } {
+      if {$ts_config(gridengine_version) >= 62} {
          set qstat_output($cqueue,resv) [lindex $single_white_space_string [expr 3 + $delta]]
-         set delta [expr $delta + 1]
+         incr delta 1
       }
       set qstat_output($cqueue,avail) [lindex $single_white_space_string [expr 3 + $delta]]
       set qstat_output($cqueue,total) [lindex $single_white_space_string [expr 4 + $delta]]
@@ -2977,80 +2975,6 @@ proc qstat_F_plain_parse {  output {params ""} } {
      }
 
   }
-}
-
-
- 
- 
-#                                                             max. column:     |
-#****** parser/qstat_g_c_plain_parse() ******
-#
-#  NAME
-#     qstat_g_c_plain_parse -- Parse qstat -g c output into assoc. array
-#
-#  SYNOPSIS
-#     qstat_g_c_plain_parse { output }
-#
-#  FUNCTION
-#     Give out assoc. array with entries for: clusterqueue, cqload, used,
-#     avail, total, aoACDS, cdsuE. We also
-#     accumuluate the queues in output(queue_list).
-#
-#  INPUTS
-#     None
-#
-#  RESULT
-#     assoc array output() with entries listed above
-#
-#
-#  SEE ALSO
-#     parser/parse_qstat
-#*******************************
-
-proc qstat_g_c_plain_parse { output  } {
-   upvar $output qstat_output
-
-   set qstat_output(queue_list) ""
-   
-   # Run usual command
-   set result [start_sge_bin "qstat" "-g c"]
-   parse_multiline_list result parsed_out
-
-    
-   set index 0
-   set parsed_out_length [llength $parsed_out]
-   set final_parsed_out ""
-
-   # Also construct the new, saved list... Use lappend
-   while { $index <= $parsed_out_length } {
-      if {[regexp "\[0-9\]" [lindex $parsed_out $index]] } {
-         lappend final_parsed_out [lindex $parsed_out $index]
-      }
-      incr index 1
-   }
-
-   #Now create the qstat_output array
-   
-   set final_index 0
-   set final_parsed_out_length [llength $final_parsed_out]
-   for { set index 0} { $index < $final_parsed_out_length }  {incr index 1} {
-
-      set old_string  [lindex $final_parsed_out $index]
-      set single_white_space_string [qstat_special_parse $old_string ]
-
-      set cqueue [lindex $single_white_space_string 0]
-      set qstat_output($cqueue,clusterqueue) $cqueue
-      lappend qstat_output(queue_list) $cqueue
-
-      set qstat_output($cqueue,cqload) [lindex $single_white_space_string 1]
-      set qstat_output($cqueue,used) [lindex $single_white_space_string 2]
-      set qstat_output($cqueue,avail) [lindex $single_white_space_string 3]
-      set qstat_output($cqueue,total) [lindex $single_white_space_string 4]
-      set qstat_output($cqueue,aoACDS) [lindex $single_white_space_string 5]
-      set qstat_output($cqueue,cdsuE) [lindex $single_white_space_string 6]
-                    
-         
-   }
 }
 
 proc parse_rqs_record {input_var output_var} {

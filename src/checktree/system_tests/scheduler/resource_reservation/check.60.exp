@@ -182,6 +182,7 @@ proc resource_reservation_setup {} {
    set tmp_complex(license2)  "lic2       double   <=    YES         YES        0       100"   
    set tmp_complex(h_vmem)    "h_vmem     MEMORY   <=    YES         YES        100M    0.0000001"
    set tmp_complex(myslots)   "ms         INT      <=    YES         YES        0       100"
+   set tmp_complex(jobs)      "j          INT      <=    YES         JOB        0       0"
 
    set result [ set_complex tmp_complex ]
 
@@ -195,11 +196,11 @@ proc resource_reservation_setup {} {
 #-----  
   
    # set global variable  
-   set my_host_config(complex_values) "license=5,license2=5"
+   set my_host_config(complex_values) "license=10,license2=10"
    set_exechost my_host_config "global"
 
    # set host variable 
-   set my_host_config(complex_values) "h_vmem=5G"
+   set my_host_config(complex_values) "h_vmem=10G"
    set_exechost my_host_config $rr_host
 
    set binary_arch "[resolve_arch $rr_host]"
@@ -220,23 +221,23 @@ proc resource_reservation_level_setup {} {
 
    if {$CHECK_ACT_LEVEL == 0 || $CHECK_ACT_LEVEL == 2 || $CHECK_ACT_LEVEL == 4} {
       # setup needed pe
-      set pe(slots)             "5"
+      set pe(slots)             "10"
       set pe(allocation_rule)   "\$round_robin"
       add_pe "round_robin" pe
 
-      set pe(slots)             "5"
+      set pe(slots)             "10"
       set pe(allocation_rule)   "\$fill_up"
       add_pe "fill_up" pe
 
-      set pe(slots)             "5"
+      set pe(slots)             "10"
       set pe(allocation_rule)   "\$pe_slots"
       add_pe "pe_slots" pe
 
       # setup the rr test queue
-      set queue_conf(slots)            "5"
+      set queue_conf(slots)            "100"
       set queue_conf(load_thresholds)  "NONE"
       set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
-      set queue_conf(complex_values)   "myslots=5"
+      set queue_conf(complex_values)   "myslots=10,jobs=2"
 
       if {$CHECK_ACT_LEVEL == 4} {
 
@@ -279,18 +280,18 @@ proc resource_reservation_level_setup {} {
       set queue_conf(slots)            "100"
       set queue_conf(load_thresholds)  "NONE"
       set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
-      set queue_conf(complex_values)   "myslots=100"
+      set queue_conf(complex_values)   "myslots=100,jobs=100"
      
       # setup needed resource quota sets
       set rqs_name              "no_pe"
       set rules                  ""
-      lappend rules                  "pes !* to myslots=5"
+      lappend rules                  "pes !* to myslots=10,jobs=2"
       set rqs_charray($rqs_name,limit)   "$rules"
       set rqs_charray($rqs_name,enabled) "true"
 
       set rqs_name              "pe"
       set rules                  ""
-      lappend rules              "pes * to slots=5"
+      lappend rules              "pes * to slots=10,jobs=2"
       set rqs_charray($rqs_name,limit)   "$rules"
       set rqs_charray($rqs_name,enabled) "true"
  
@@ -299,15 +300,15 @@ proc resource_reservation_level_setup {} {
 
    if {$CHECK_ACT_LEVEL == 5} {
       # setup needed pe
-      set pe(slots)             "5"
+      set pe(slots)             "10"
       set pe(allocation_rule)   "\$round_robin"
       add_pe "round_robin" pe
 
-      set pe(slots)             "5"
+      set pe(slots)             "10"
       set pe(allocation_rule)   "\$fill_up"
       add_pe "fill_up" pe
 
-      set pe(slots)             "5"
+      set pe(slots)             "10"
       set pe(allocation_rule)   "\$pe_slots"
       add_pe "pe_slots" pe
 
@@ -315,7 +316,7 @@ proc resource_reservation_level_setup {} {
       set queue_conf(slots)            "100"
       set queue_conf(load_thresholds)  "NONE"
       set queue_conf(pe_list)          "make round_robin fill_up pe_slots"
-      set queue_conf(complex_values)   "myslots=100"
+      set queue_conf(complex_values)   "myslots=100,jobs=100"
    }
 
    ts_log_fine "Add queue $rr_queue_name"
@@ -350,6 +351,7 @@ proc resource_reservation_cleanup {  } {
    set tmp_complex(license2)  ""
    set tmp_complex(h_vmem)   $rr_h_vmem_complex
    set tmp_complex(myslots)   ""
+   set tmp_complex(jobs)   ""
    ts_log_fine "result from set_comples: [set_complex tmp_complex]"
 
    # enable queues
@@ -404,8 +406,8 @@ proc get_job_descriptions { test1 test2 {ar_id 0} } {
    global job_desc
    global ts_config
 
-   set runtime_def "15"
-   set runtime_long "25" 
+   set runtime_def "10"
+   set runtime_long "20" 
 
    set job_script "$ts_config(product_root)/examples/jobs/sleeper.sh"
    set drmaa_mode "ST_RESERVATION_FINISH_ORDER"
@@ -424,39 +426,59 @@ proc get_job_descriptions { test1 test2 {ar_id 0} } {
 
    switch -exact $test1 { 
       "license" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=4"
-         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,license=5"
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,license=1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=8"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,license=10"
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,license=2"
       }
       "array" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=4"
-         set job_desc2 "$args -t 1-2 -N L5_BF -p 0 -l h_rt=$runtime_def,license=2.5"
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,license=1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,license=8"
+         set job_desc2 "$args -t 1-2 -N L5_BF -p 0 -l h_rt=$runtime_def,license=5"
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,license=2"
       }
       "memory" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,h_vmem=4G"
-         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,h_vmem=5G" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,h_vmem=1G"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,h_vmem=8G"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,h_vmem=10G" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,h_vmem=2G"
       }
       "myslots" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,myslots=4"
-         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,myslots=5" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,myslots=1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,myslots=8"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def,myslots=10" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,myslots=2"
       }
       "round_robin" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe round_robin 4"
-         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe round_robin 5" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe round_robin 1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe round_robin 8"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe round_robin 10" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe round_robin 2"
       }
       "fill_up" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe fill_up 4"
-         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe fill_up 5" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe fill_up 1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe fill_up 8"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe fill_up 10" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe fill_up 2"
       }
       "pe_slots" {
-         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe pe_slots 4"
-         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe pe_slots 5" 
-         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe pe_slots 1"
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def -pe pe_slots 8"
+         set job_desc2 "$args -N L5_BF -p 0 -l h_rt=$runtime_def -pe pe_slots 10" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long -pe pe_slots 2"
+      }
+      "jobs" {
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1"
+         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1"
+      }
+      "rr_jobs" {
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe round_robin 2"
+         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe round_robin 2" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe round_robin 2"
+      }
+      "fu_jobs" {
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe fill_up 2"
+         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe fill_up 2" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe fill_up 2"
+      }
+      "ps_jobs" {
+         set job_desc1 "$args -N L4_BF -p 100 -l h_rt=$runtime_def,jobs=1 -pe pe_slots 2"
+         set job_desc2 "$args -N L5_BF -p 10 -l h_rt=$runtime_def,jobs=2 -pe pe_slots 2" 
+         set job_desc3 "$args -N L1_BF -p 0 -l h_rt=$runtime_long,jobs=1 -pe pe_slots 2"
       }
    }
    
@@ -513,9 +535,9 @@ proc resource_reservation_basic { } {
       delete_all_ars
 
       set qname [get_queue_instance $rr_queue_name $rr_host]
-      set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G -d 360000"
+      set ar_args "-q $qname -l myslots=1,license=1,license2=1,h_vmem=1G,jobs=2 -d 360000"
 
-      set ar_id [submit_ar "$ar_args -pe round_robin 5"]
+      set ar_id [submit_ar "$ar_args -pe round_robin 10"]
       if { $ar_id <= 0} {
          ts_log_severe "couldn't submit required advance reservation"
          return
@@ -527,11 +549,15 @@ proc resource_reservation_basic { } {
    drmaa_test "" $job_desc
    get_job_descriptions "myslots" "backfill" $ar_id
    drmaa_test "" $job_desc 
+   get_job_descriptions "jobs" "backfill" $ar_id
+   drmaa_test "" $job_desc 
    get_job_descriptions "round_robin" "backfill" $ar_id
+   drmaa_test "" $job_desc 
+   get_job_descriptions "rr_jobs" "backfill" $ar_id
    drmaa_test "" $job_desc 
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
-      set ar_id [submit_ar "$ar_args -pe fill_up 5"]
+      set ar_id [submit_ar "$ar_args -pe fill_up 10"]
       if { $ar_id <= 0} {
          ts_log_severe "couldn't submit required advance reservation"
          return
@@ -539,9 +565,11 @@ proc resource_reservation_basic { } {
    }
    get_job_descriptions "fill_up" "backfill" $ar_id
    drmaa_test "" $job_desc 
+   get_job_descriptions "fu_jobs" "backfill" $ar_id
+   drmaa_test "" $job_desc 
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
-      set ar_id [submit_ar "$ar_args -pe pe_slots 5"]
+      set ar_id [submit_ar "$ar_args -pe pe_slots 10"]
       if { $ar_id <= 0} {
          ts_log_severe "couldn't submit required advance reservation"
          return
@@ -549,6 +577,8 @@ proc resource_reservation_basic { } {
    }
 
    get_job_descriptions "pe_slots" "backfill" $ar_id
+   drmaa_test "" $job_desc 
+   get_job_descriptions "ps_jobs" "backfill" $ar_id
    drmaa_test "" $job_desc 
    get_job_descriptions "array" "backfill" $ar_id
    drmaa_test "" $job_desc 
@@ -560,9 +590,11 @@ proc resource_reservation_basic { } {
    drmaa_test "" $job_desc 
    get_job_descriptions "myslots" "reservation" $ar_id
    drmaa_test "" $job_desc 
+   get_job_descriptions "jobs" "reservation" $ar_id
+   drmaa_test "" $job_desc 
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
-      set ar_id [submit_ar "$ar_args -pe round_robin 5"]
+      set ar_id [submit_ar "$ar_args -pe round_robin 10"]
       if { $ar_id <= 0} {
          ts_log_severe "couldn't submit required advance reservation"
          return
@@ -570,10 +602,12 @@ proc resource_reservation_basic { } {
    }
    get_job_descriptions "round_robin" "reservation" $ar_id
    drmaa_test "" $job_desc 
+   get_job_descriptions "rr_jobs" "reservation" $ar_id
+   drmaa_test "" $job_desc 
 
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
-      set ar_id [submit_ar "$ar_args -pe fill_up 5"]
+      set ar_id [submit_ar "$ar_args -pe fill_up 10"]
       if { $ar_id <= 0} {
          ts_log_severe "couldn't submit required advance reservation"
          return
@@ -581,15 +615,19 @@ proc resource_reservation_basic { } {
    }
    get_job_descriptions "fill_up" "reservation" $ar_id
    drmaa_test "" $job_desc 
+   get_job_descriptions "fu_jobs" "reservation" $ar_id
+   drmaa_test "" $job_desc 
    if {$CHECK_ACT_LEVEL == 5} {
       delete_ar $ar_id 1
-      set ar_id [submit_ar "$ar_args -pe pe_slots 5"]
+      set ar_id [submit_ar "$ar_args -pe pe_slots 10"]
       if { $ar_id <= 0} {
          ts_log_severe "couldn't submit required advance reservation"
          return
       }
    }
    get_job_descriptions "pe_slots" "reservation" $ar_id
+   drmaa_test "" $job_desc 
+   get_job_descriptions "ps_jobs" "reservation" $ar_id
    drmaa_test "" $job_desc 
    get_job_descriptions "array" "reservation" $ar_id
    drmaa_test "" $job_desc 

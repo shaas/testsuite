@@ -119,6 +119,8 @@ proc issue_2378_setup {} {
    set schedconf(params)                     "MONITOR=true"
    set result [set_schedd_config schedconf]
 
+   disable_queue "all.q"
+
    # ensure schedule file exists
    trigger_scheduling
 }
@@ -147,6 +149,8 @@ proc issue_2378_cleanup {  } {
 
    del_pe        "round_robin"
    del_pe        "fill_up"
+
+   enable_queue "all.q"
 }
 
 

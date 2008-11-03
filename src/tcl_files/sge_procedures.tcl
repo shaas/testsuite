@@ -2597,7 +2597,6 @@ proc add_exechost {change_array {fast_add 1}} {
      # add queue from file!
      set default_array(hostname)          "template"
      set default_array(load_scaling)      "NONE"
-     set default_array(complex_list)      "NONE"
      set default_array(complex_values)    "NONE"
      set default_array(user_lists)        "NONE"
      set default_array(xuser_lists)       "NONE"
@@ -2606,7 +2605,7 @@ proc add_exechost {change_array {fast_add 1}} {
        set default_array(projects)                    "NONE"
        set default_array(xprojects)                   "NONE"
        set default_array(usage_scaling)               "NONE"
-       set default_array(resource_capability_factor)  "0.000000"
+       set default_array(report_variables)            "NONE"
      }
   
      foreach elem $values {
@@ -2627,7 +2626,7 @@ proc add_exechost {change_array {fast_add 1}} {
      set result [start_sge_bin "qconf" "-Ae ${tmpfile}"]
      ts_log_finest $result
 
-     set ADDED [translate_macro MSG_EXEC_ADDEDHOSTXTOEXECHOSTLIST_S "*"]
+     set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS "*" "*" "*" "*"]
 
      if {[string match "*$ADDED*" $result] == 0} {
         ts_log_severe "qconf -Ae $tmpfile failed:\n$result"
@@ -2639,7 +2638,7 @@ proc add_exechost {change_array {fast_add 1}} {
   set vi_commands [build_vi_command chgar]
 
   set ALREADY_EXISTS [translate_macro MSG_SGETEXT_ALREADYEXISTS_SS "*" "*"]
-  set ADDED [translate_macro MSG_EXEC_ADDEDHOSTXTOEXECHOSTLIST_S "*"]
+  set ADDED [translate_macro MSG_SGETEXT_ADDEDTOLIST_SSSS "*" "*" "*" "*"]
 
   set master_arch [resolve_arch $ts_config(master_host)]
   set result [handle_vi_edit "$ts_config(product_root)/bin/$master_arch/qconf" "-ae" $vi_commands $ADDED $ALREADY_EXISTS]

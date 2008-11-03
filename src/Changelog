@@ -1,3 +1,8 @@
+RD-2008-11-03-0: Enhancem.:  - added new test per_job_consumables
+                             - enhanced resource_reservation to cover per job
+                               consumables
+                 Review:     CR
+
 RH-2008-11-03-0: Enhancem.:  o Hedeby: test for issue 585 and 586 added
                              o logging: New util method ts_log_heading added.
                                This method can be used to log logical execution

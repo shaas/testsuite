@@ -52,7 +52,7 @@
 #  RESULT
 #     This procedure returns:
 #     
-#     ar_id   of array or ar_id if submit was successfull (value > 1)
+#     ar_id   of array or ar_id if submit was successfull (value >= 1)
 #        -1   general error
 #        -2   if usage was printed on -help or commandfile argument
 #        -3   if usage was printed NOT on -help or commandfile argument
