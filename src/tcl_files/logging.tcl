@@ -676,6 +676,39 @@ proc ts_log_newline {{level FINE}} {
    }
 }
 
+
+#****** logging/ts_log_heading() **************************************************
+#  NAME
+#     ts_log_heading() --  log a heading
+#
+#  SYNOPSIS
+#     ts_log_heading { msg {level FINE} } 
+#
+#  FUNCTION
+#
+#     This method writes a log message formated as heading.
+#
+#     The log message is written in the format:
+#
+#     =====> $msg <=====
+#
+#     A new line is prepended.
+#
+#  INPUTS
+#     msg          - the log message 
+#     {level FINE} - the log level (default is FINE)
+#
+#  RESULT
+#     no result
+#
+#  EXAMPLE
+#     ts_log_heading "Executing step 1"
+#
+#*******************************************************************************
+proc ts_log_heading { msg {level FINE} } {
+   ts_private_do_log $level "\n=====> $msg <====="
+}
+
 # ================================================================================
 # private functions
 # ================================================================================

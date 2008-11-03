@@ -1,0 +1,284 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_585"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests the static flag behavior of resources assigned to GE service"
+set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue585_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue585_setup_level"
+set check_cleanup_level_function "hedeby_issue585_cleanup_level"
+
+lappend check_functions "hedeby_issue585_check"
+
+
+#****** issue_585/hedeby_issue585_init_level() ************************
+#  NAME
+#     hedeby_issue585_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue585_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue585_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_585/hedeby_issue585_setup_level() *********************************
+#  NAME
+#    hedeby_issue585_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue585_setup_level { } 
+#
+#  FUNCTION
+#
+#  This function stores in the global variable hedeby_issue585_ctx (always
+#  aliased to variable this) the following information:
+#
+#      hedeby_issue585_ctx(service)  name of the used GE service
+#      hedeby_issue585_ctx(resource) name of the used resource
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue585_setup_level {} {
+   upvar #0 hedeby_issue585_ctx this
+   global hedeby_config
+   
+   # get some global settings
+   get_hedeby_default_services service_names
+  
+   set this(service)  [pick_random $service_names(services)]
+   set this(resource) [pick_random $service_names(moveable_execds,$this(service))]
+
+   # For debugging purpose uncomment the following lines
+   # => test will use the first service and the first movable execd
+   #set this(resource) [lindex $service_names(moveable_execds,$this(service)) 0]
+   #set this(service)  [lindex $service_names(services) 0]
+
+   ts_log_heading "Setup for issue585"
+   ts_log_fine    [format_array this 0]
+}
+
+#****** issue_585/hedeby_issue585_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue585_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue585_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#   
+#    Removes the global context variable of this test (hedeby_issue585_ctx)
+#
+#    If the test runs into issue 585 or 586 only deleting the spooled
+#    information about the resource would help for a proper cleanup. However
+#    these issues are fixed and normally such a cleanup should not be
+#    necessary. Hence this tests relies on the reset_hedeby method.
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue585_cleanup_level {} {
+   upvar #0 hedeby_issue585_ctx this
+   
+   unset this
+}
+
+#****** issue_585/hedeby_issue585_check *****************************
+#  NAME
+#     hedeby_issue585_check() -- check that issue 585 and 586 is fixed
+#
+#  SYNOPSIS
+#     hedeby_issue585_check { } 
+#
+#  FUNCTION
+#
+#    Issue 585 describes the problem that after setting the static
+#    property of a resource owned by a GE service the restart of the
+#    service sets the service into ERROR state.
+#
+#    Issue 586 describes the problem that a GE service clears the static flag
+#    after a restart even if this flag has been set with 'sdmadm mr'.
+# 
+#    This test checks that both bugs are fixed. It performs the following
+#    steps:
+#
+#    o Step 1: Set the static flag of a movable resource
+#    o Step 2: Shutdown the owning service
+#    o Step 3: Startup the owning service
+#    o Step 4: Check that the service becomes active (issue 585)
+#    o Step 5: Check that the static flag of the resource is still set (issue 586)
+#    o Step 6: Clear the static flag of the resource
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#**********************************************************************
+proc hedeby_issue585_check {} {
+   upvar #0 hedeby_issue585_ctx this
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 1: Set the static flag of a moveable resource"
+   # ------------------------------------------------------------------ 
+   set props(static) "true" 
+   if {[mod_hedeby_resource $this(resource) props] != 0} {
+      set    msg "Setting the static property of resource '$this(resource)'\n"
+      append msg "did not work\n"
+      append msg "I really don't know what's the problem\n"
+      ts_log_severe $msg
+      return
+   }
+   ts_log_fine "Resource '$this(resource)' is now static"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 2: Shutdown the owning service"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "sds -s $this(service)"] 
+   if {$prg_exit_state != 0} {
+      set    msg "After setting the static flag of resource '$this(resource)'\n"
+      append msg "Stopping the owning service '$this(service)' did not work\n"
+      append msg "I really don't know what's the problem\n"
+      append msg "Output of 'sdmadm sds -s $this(service)' was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+
+   set si($this(service),cstate) "STARTED"
+   set si($this(service),sstate) "STOPPED"
+   if {[wait_for_service_info si] != 0} {
+      set    msg "After setting the static flag of resource '$this(resource)'\n"
+      append msg "the owning service '$this(service)' could not be stopped\n"
+      append msg "I really don't know what's the problem\n"
+      ts_log_severe $msg
+      return
+   }
+   ts_log_fine "Service '$this(service)' is now in state STOPPED"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 3: Startup the owning service"
+   # ------------------------------------------------------------------ 
+   set output [sdmadm_command_opt "sus -s $this(service)"] 
+   if {$prg_exit_state != 0} {
+      set    msg "Could not start GE service '$this(service)'\n"
+      append msg "after setting manually the static property of a resource\n"
+      append msg "I really don't know what's the problem\n"
+      append msg "Output of 'sdmadm sus -s $this(service)' was\n"
+      append msg $output
+      ts_log_severe $msg
+      return
+   }
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 4: Check that the service becomes active"
+   # ------------------------------------------------------------------ 
+   set si($this(service),cstate) "STARTED"
+   set si($this(service),sstate) "RUNNING"
+   if {[wait_for_service_info si] != 0} {
+      set msg    "It seems that we ran into issue 585 again!!!\n\n" 
+      append msg "GE service '$this(service)' did not startup correctly\n"
+      append msg "after setting manually the static property of a resource\n"
+      append msg "Restarting the JVM does not help, the service will still be\n"
+      append msg "ERROR state\n"
+      ts_log_severe $msg
+      return
+   }
+   ts_log_fine "Service '$this(service)' is now in state RUNNING"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 5: Check that the static flag of the resource is still set"
+   # ------------------------------------------------------------------ 
+   set ri($this(resource),flags)   "S"
+   set ri($this(resource),service) "$this(service)"
+   set ri($this(resource),state)   "ASSIGNED"
+   if {[wait_for_resource_info ri] != 0} {
+      set    msg "It seems that we ran into issue 586 again!!!\n\n" 
+      append msg "After restarting service '$this(service)' the static flag\n"
+      append msg "of resource '$this(resource)' disappeared\n"
+      ts_log_severe $msg
+      return
+   }
+   ts_log_fine "Resource '$this(resource)' is still static"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 6: Clear the static flag of the resource"
+   # ------------------------------------------------------------------ 
+   set props(static) "false"
+   if {[mod_hedeby_resource $this(resource) props] != 0} {
+      set    msg "Clearing the static property of resource '$this(resource)'\n"
+      append msg "did not work\n"
+      append msg "I really don't know what's the problem\n"
+      append msg "=> cleanup will reset the system.\n"
+      ts_log_severe $msg
+      return
+   }
+   ts_log_fine "        Resource '$this(resource)' is no longer static"
+}
