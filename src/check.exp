@@ -4371,7 +4371,7 @@ proc delete_temp_script_files { } {
 
    ts_log_fine "deleting temporary used files ..."
 
-   set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
+   set del_file_name [get_testsuite_delete_filename]
 
    # try to delete the temp files on the fileserver
    set host [fs_config_get_server_for_path $del_file_name 0]

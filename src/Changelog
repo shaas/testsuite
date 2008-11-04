@@ -1,3 +1,10 @@
+TB-2008-11-04-0: Bugfix:     - operated add. clusters can no longer delete
+                               files for the main TS -> one .testsuite_delete
+                               file for each TS cluster
+                 Enhancem.:  - a TS generated script returns now
+                               _exit_status_:(91) in case of a trapped error
+                 Review:     CR
+ 
 MD-2008-11-04-0: Bugfix:     - checkin MD-2008-10-28-0 introduced a copy/paste 
                                tcl error.
  

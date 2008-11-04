@@ -1788,7 +1788,7 @@ proc create_shell_script { scriptfile
    append script_content "# Automatic generated script from Grid Engine Testsuite\n"
    if {$no_setup == 0} {
       # script command
-      append script_content "trap 'echo \"_exit_status_:(1) script: $script_tail_name\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
+      append script_content "trap 'echo \"_exit_status_:(91) script: $script_tail_name\" ; echo \"script done. (_END_OF_FILE_)\"' 0\n"
       append script_content "umask 022\n"
 
       if {$set_shared_lib_path == 1} {
@@ -2539,38 +2539,29 @@ proc remote_delete_directory {hostname path {win_local_user 0}} {
 #****** file_procedures/delete_file_at_startup() ******
 # 
 #  NAME
-#     delete_file_at_startup -- delete old temp files 
+#     delete_file_at_startup -- remember file for later deletion
 #
 #  SYNOPSIS
 #     delete_file_at_startup { filename } 
 #
 #  FUNCTION
-#     This procedure will delete every file added to the file 
-#     $ts_config(testsuite_root_dir)/.testsuite_delete on the startup of a testrun 
+#     This procedure adds the file $filename to the "testsuite delete file".
+#     All files that are listed in the "testsuite delete file" are deleted at
+#     the start of a testrun. 
 #
 #  INPUTS
-#     filename - full path file name of file to add to 
-#                $CHECK_TESTSOUTE_ROOT/.testsuite_delete file 
+#     filename - (full path) file name of file to delete later
 #
 #  RESULT
 #     no results 
 #
-#  EXAMPLE
-#     ??? 
-#
-#  NOTES
-#     ??? 
-#
-#  BUGS
-#     ??? 
-#
 #  SEE ALSO
-#     file_procedures/delete_directory
+#     file_procedures/get_testsuite_delete_filename
 #*******************************
 proc delete_file_at_startup {filename} {
    get_current_cluster_config_array ts_config
 
-   set del_file_name "$ts_config(testsuite_root_dir)/.testsuite_delete"
+   set del_file_name [get_testsuite_delete_filename]
    if {![file isfile $del_file_name]} {
        set del_file [open $del_file_name "w"]
    } else {
@@ -3920,4 +3911,39 @@ proc have_dirs_same_base_dir {dir_name1 dir_name2} {
       set ret 1
    }
    return $ret
+}
+
+#****** file_procedures/get_testsuite_delete_filename() ************************
+#  NAME
+#     get_testsuite_delete_filename() -- get filename of TS delete file
+#
+#  SYNOPSIS
+#     get_testsuite_delete_filename { } 
+#
+#  FUNCTION
+#     Returns the (full path) filename for the "testsuite delete file".
+#
+#     The "testsuite delete file" saves for each TS configuration the names of
+#     the files that will be deleted at the start of the next test.  Each TS
+#     configuration needs its own file so that additional TS clusters (started
+#     from the current TS) don't influence the current TS.
+#
+#  INPUTS
+#     none
+#
+#  RESULT
+#     the full path to the "testsuite delete file" for the current
+#     configuration
+#
+#  SEE ALSO
+#     file_procedures/delete_file_at_startup()
+#     check.exp/delete_temp_script_file()
+#*******************************************************************************
+proc get_testsuite_delete_filename {} {
+   global ts_config
+   global CHECK_DEFAULTS_FILE
+
+   set ts_config_name [file rootname [file tail $CHECK_DEFAULTS_FILE]]
+
+   return "$ts_config(testsuite_root_dir)/.testsuite_delete.$ts_config_name"
 }
