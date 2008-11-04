@@ -74,6 +74,7 @@ proc issue2754_test {} {
 
    log_user 1
    set msg_hit 0
+   set found_darwin_more 1
    while {1} {
       set timeout 30
       expect {
@@ -91,25 +92,16 @@ proc issue2754_test {} {
          }
          #  This is for More license output on darwin
          -i $sp_id "LICENSE ??%" {
-          set found_darwin_more 1
-          puts $CHECK_OUTPUT "\n -->testsuite: sending >space< (darwin)"
-          if {$do_log_output == 1} {
-               puts "press RETURN"
-               gets stdin anykey
-          }
-
-          ts_send $sp_id " "
-          continue
+            set found_darwin_more 1
+            ts_log_fine "\n -->testsuite: sending >space< (darwin)"
+            ts_send $sp_id " "
+            continue
          }
 
          # Also for darwin: First "more" will print file name, second only percentage of file
          -i $sp_id "\[0-9\]%" {
           if { $found_darwin_more } {
-             puts $CHECK_OUTPUT "\n -->testsuite: sending >space< (darwin)"
-             if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  gets stdin anykey
-             }
+             ts_log_fine "\n -->testsuite: sending >space< (darwin)"
              ts_send $sp_id " "
           }
           continue
