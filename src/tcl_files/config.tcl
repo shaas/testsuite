@@ -4032,7 +4032,9 @@ proc config_testsuite_bdb_dir { only_check name config_array } {
       }
    }
 
-   if {$check_do_not_use_spool_config_entries == 1} {
+   # when we have no_local_spool option set, berkeley db spooling only works on a local disk
+   # except for the BDB server - it works on any filesystem
+   if {$check_do_not_use_spool_config_entries == 1 && $spooling_method == "berkeleydb" && $bdb_server == "none"} {
       if {$value == "none"} {
          ts_log_severe "You are using the \"no_local_spool\" option, this needs a configured bdb_dir"
          return -1

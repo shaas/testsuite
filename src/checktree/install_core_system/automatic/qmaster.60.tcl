@@ -62,13 +62,13 @@
 #*******************************
 proc install_qmaster {} {
    global CHECK_USER
-   global CORE_INSTALLED CHECK_OUTPUT 
+   global CORE_INSTALLED
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
    global ts_config
 
-   puts $CHECK_OUTPUT "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
+   ts_log_fine "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
 
    if {$check_use_installed_system != 0} {
       puts "no need to install qmaster on host $ts_config(master_host), noinst parameter is set"
@@ -118,13 +118,15 @@ proc install_qmaster {} {
    set my_timeout 500
    set exit_val 0
 
-   puts $CHECK_OUTPUT "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
+   ts_log_fine "install_qmaster $CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf"
    if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
       set output [start_remote_prog "$ts_config(master_host)" "root"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
    } else {
-      puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
+      ts_log_finer "--> install as user $CHECK_USER <--" 
       set output [start_remote_prog "$ts_config(master_host)" "$CHECK_USER"  "./install_qmaster" "$CHECK_QMASTER_INSTALL_OPTIONS $feature_install_options -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root) env_list]
    }
+
+   ts_log_fine "installation output:\n$output"
 
    log_user 1
 
@@ -169,7 +171,7 @@ proc install_qmaster {} {
 #                            to vanish / reappear?
 #*******************************************************************************
 proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {exechost 0}} {
-   global CHECK_USER CHECK_OUTPUT local_execd_spool_set
+   global CHECK_USER local_execd_spool_set
    global ts_config
 
    set execd_port [expr $ts_config(commd_port) + 1]
@@ -191,10 +193,10 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
       # by rpc server install procedure
       set db_dir [get_bdb_spooldir $bdb_server 1]
    }
-   puts $CHECK_OUTPUT "db_dir is $db_dir"
+   ts_log_finer "db_dir is $db_dir"
 
    if {$file_delete_wait} {
-      puts $CHECK_OUTPUT "delete file $filename ..."
+      ts_log_finer "delete file $filename ..."
       delete_remote_file $host $CHECK_USER $filename
    }
 
@@ -324,7 +326,7 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
 #*******************************
 proc create_autoinst_config {} {
    global CHECK_USER
-   global CORE_INSTALLED CHECK_OUTPUT 
+   global CORE_INSTALLED
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
@@ -336,7 +338,7 @@ proc create_autoinst_config {} {
       file delete -force $config_file
    }
 
-   puts $CHECK_OUTPUT "creating automatic install config file ..."
+   ts_log_finer "creating automatic install config file ..."
    write_autoinst_config $config_file $ts_config(master_host) 1
-   puts $CHECK_OUTPUT "automatic install config file successfully created ..."
+   ts_log_finer "automatic install config file successfully created ..."
 }

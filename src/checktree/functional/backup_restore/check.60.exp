@@ -145,7 +145,7 @@ proc backup_restore_setup {} {
             close_spawn_process $id;
             return;
          }
-        -i $sp_id "No such file or directory*\n" {
+         -i $sp_id "No such file or directory*\n" {
             ts_log_severe "$expect_out(0,string)"
             close_spawn_process $id;
             return;
@@ -176,16 +176,16 @@ proc backup_restore_setup {} {
    # move cell and spool directory
    if {$spooling_method == "berkeleydb"} {
       ts_log_fine "mv $spool_dir $ts_config(product_root)/spooling_backup"
-      ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "mv" "$spool_dir $ts_config(product_root)/spooling_backup"]
+      ts_log_fine [start_remote_prog $remote_host $CHECK_USER "mv" "$spool_dir $ts_config(product_root)/spooling_backup"]
    }
    ts_log_fine "mv $master_spool_dir $ts_config(product_root)/master_spooling_backup"
-   ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "mv" "$master_spool_dir $ts_config(product_root)/master_spooling_backup"]
+   ts_log_fine [start_remote_prog $remote_host $CHECK_USER "mv" "$master_spool_dir $ts_config(product_root)/master_spooling_backup"]
 
    ts_log_fine "mv $ts_config(product_root)/$ts_config(cell) $ts_config(product_root)/$ts_config(cell)_backup"
-   ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "mv" "$ts_config(product_root)/$ts_config(cell) $ts_config(product_root)/$ts_config(cell)_backup"]
+   ts_log_fine [start_remote_prog $remote_host $CHECK_USER "mv" "$ts_config(product_root)/$ts_config(cell) $ts_config(product_root)/$ts_config(cell)_backup"]
 
    # restore from backup 
-   set id [open_remote_spawn_process "$remote_host" "$CHECK_USER" "./inst_sge" "-rst" 0 $ts_config(product_root)]
+   set id [open_remote_spawn_process $remote_host $CHECK_USER "./inst_sge" "-rst" 0 $ts_config(product_root)]
    set sp_id [lindex $id 1]
    log_user 1
    while {1} {
@@ -297,16 +297,16 @@ proc backup_restore_cleanup {} {
    set spooling_method $ts_config(spooling_method)
    set master_spool_dir [get_spool_dir $ts_config(master_host) qmaster]
    if {$spooling_method == "berkeleydb" && $ts_config(bdb_server) != "none"} {
-      ts_log_fine "\nberkeleydb rpc spooling detected"
-      set remote_host "$ts_config(bdb_server)"
-      set spool_dir "$ts_config(bdb_dir)"
+      ts_log_fine "berkeleydb rpc spooling detected"
+      set remote_host $ts_config(bdb_server)
+      set spool_dir $ts_config(bdb_dir)
    } else {
-      set remote_host "$ts_config(master_host)"
+      set remote_host $ts_config(master_host)
       set spool_dir [get_spool_dir $ts_config(master_host) spooldb]
       if {$spooling_method == "classic"} {
-         ts_log_fine "\n classic spooling detected"
+         ts_log_fine "classic spooling detected"
       } else {
-         ts_log_fine "\n berkeleydb local spooling detected"
+         ts_log_fine "berkeleydb local spooling detected"
       }
    }
 
@@ -315,14 +315,14 @@ proc backup_restore_cleanup {} {
    if {$result != 0} {
        set master_spool_dir [get_spool_dir $ts_config(master_host) qmaster]
        shutdown_core_system
-       ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $ts_config(product_root)/$ts_config(cell)"]
-       ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "mv" "$ts_config(product_root)/$ts_config(cell)_backup $ts_config(product_root)/$ts_config(cell)"]
-       ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $master_spool_dir"]
-       ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "mv" "$ts_config(product_root)/master_spooling_backup $master_spool_dir"]
+       ts_log_fine [start_remote_prog $remote_host $CHECK_USER "rm" "-rf $ts_config(product_root)/$ts_config(cell)"]
+       ts_log_fine [start_remote_prog $remote_host $CHECK_USER "mv" "$ts_config(product_root)/$ts_config(cell)_backup $ts_config(product_root)/$ts_config(cell)"]
+       ts_log_fine [start_remote_prog $remote_host $CHECK_USER "rm" "-rf $master_spool_dir"]
+       ts_log_fine [start_remote_prog $remote_host $CHECK_USER "mv" "$ts_config(product_root)/master_spooling_backup $master_spool_dir"]
 
        if {$spooling_method == "berkeleydb"} {
-         ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $spool_dir"]
-         ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "mv" "$ts_config(product_root)/spooling_backup $spool_dir"]
+         ts_log_fine [start_remote_prog $remote_host $CHECK_USER "rm" "-rf $spool_dir"]
+         ts_log_fine [start_remote_prog $remote_host $CHECK_USER "mv" "$ts_config(product_root)/spooling_backup $spool_dir"]
        }
 
        startup_core_system
@@ -330,12 +330,13 @@ proc backup_restore_cleanup {} {
       ts_log_fine "no need to restore the backup - load values from all execds available"
       ts_log_fine "removing $ts_config(product_root)/$ts_config(cell)_backup and other moved directories"
       ts_log_fine "rm -rf $ts_config(product_root)/$ts_config(cell)_backup"
-      ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $ts_config(product_root)/$ts_config(cell)_backup"]
+      ts_log_fine [start_remote_prog $remote_host $CHECK_USER "rm" "-rf $ts_config(product_root)/$ts_config(cell)_backup"]
       ts_log_fine "rm -rf -rf $ts_config(product_root)/master_spooling_backup"
-      ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $ts_config(product_root)/master_spooling_backup"]
+      ts_log_fine [start_remote_prog $remote_host $CHECK_USER "rm" "-rf $ts_config(product_root)/master_spooling_backup"]
       if { $spooling_method == "berkeleydb"} { 
          ts_log_fine "rm -rf -rf $ts_config(product_root)/spooling_backup"
-         ts_log_fine [start_remote_prog "$remote_host" "$CHECK_USER" "rm" "-rf $ts_config(product_root)/spooling_backup"]
+         ts_log_fine [start_remote_prog $remote_host $CHECK_USER "rm" "-rf $ts_config(product_root)/spooling_backup"]
        }
    }
 }
+

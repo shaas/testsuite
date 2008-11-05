@@ -95,7 +95,6 @@ proc install_bdb_rpc {} {
 
    set remote_arch [resolve_arch $bdb_host]    
 
-
    set ANSWER_YES                   [translate $bdb_host 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
    set ANSWER_NO                    [translate $bdb_host 0 1 0 [sge_macro DISTINST_ANSWER_NO] ]
    set RPC_HIT_RETURN_TO_CONTINUE   [translate $bdb_host 0 1 0 [sge_macro DISTINST_RPC_HIT_RETURN_TO_CONTINUE] ]
@@ -122,9 +121,10 @@ proc install_bdb_rpc {} {
 
    set prod_type_var "SGE_ROOT"
 
-   set spooldir [get_bdb_spooldir $ts_config(bdb_server) 1]
+   # bdb server can spool on any filesystem, no need to request a local one
+   set spooldir [get_bdb_spooldir $ts_config(bdb_server) 0]
    if {$spooldir == ""} {
-      add_proc_error "install_bdb_rpc" -1 "no bdb_dir and no local spooldir for host $bdb_host configured"
+      add_proc_error "install_bdb_rpc" -1 "no spooldir for host $bdb_host found"
       return
    }
 
@@ -330,8 +330,8 @@ proc install_bdb_rpc {} {
          -i $sp_id $RPC_DIRECTORY_EXISTS { 
             puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(12)"
             if {$do_log_output == 1} {
-                 puts "press RETURN"
-                 set anykey [wait_for_enter 1]
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
             }
   
             ts_send $sp_id "$ANSWER_YES\n"

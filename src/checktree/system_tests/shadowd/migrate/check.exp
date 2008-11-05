@@ -121,11 +121,12 @@ proc shadowd_migrate_test {} {
    global CHECK_USER file_procedure_logfile_wait_sp_id
 
    set nr_shadowds [llength $ts_config(shadowd_hosts)]
-   if { $nr_shadowds < 2 && $CHECK_ACT_LEVEL > 0 } {
-      ts_log_config "Need 2 configured shadowd hosts. Can't run this test in level 1-9."
+   if {$nr_shadowds < 2 && $CHECK_ACT_LEVEL > 0} {
+      ts_log_severe "Need 2 configured shadowd hosts. Can't run this test in level 1-9."
+      return
    }
 
-   if { $nr_shadowds >= 2 && $CHECK_ACT_LEVEL > 0 } {
+   if {$nr_shadowds >= 2 && $CHECK_ACT_LEVEL > 0} {
       set heartbeat_file [get_qmaster_spool_dir]/heartbeat
       set qmaster_lock_file [get_qmaster_spool_dir]/lock
       set qmaster_messages_file [get_qmaster_spool_dir]/messages
@@ -294,7 +295,7 @@ proc shadowd_migrate_test {} {
 
             if { [timestamp] > $my_timeout } {
                ts_log_severe "old qmaster doesn't stop!"
-               break;
+               break
             }
             set output [logfile_wait $CONTROLED_SHUTDOWN 1 0 0]
             if { $logfile_wait_error == 0 } {

@@ -1,3 +1,9 @@
+JG-2008-11-05-0: Bugfix:     Fixed a number of issues in testsuite setup with
+                             BDB RPC server spooling.
+                             Make shadowd_migrate test fail, if less than 2
+                             shadow hosts are configured.
+                 Review:     MD
+
 TB-2008-11-04-0: Bugfix:     - operated add. clusters can no longer delete
                                files for the main TS -> one .testsuite_delete
                                file for each TS cluster
@@ -66,6 +72,11 @@ RD-2008-10-27-0: Enhancem.:  - Added test for IZ 2762
 
 GH-2008-10-24-0: Enhancem.:  Added test for IZ 2714 
                  Review:     CR, AP
+
+JG-2008-10-24-1: Bugfix:     Fixed some messed up code in checkin
+                             JG-2008-10-24-0.
+                             Fixed scale_timeout.
+                 Review:     TBD
 
 JG-2008-10-24-0: Enhancem.:  Use new filesystem config for file_procedures
                              (delete_directory), delete temp files on the 

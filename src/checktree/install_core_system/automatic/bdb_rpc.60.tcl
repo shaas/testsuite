@@ -113,12 +113,15 @@ proc install_bdb_rpc {} {
    set HIT_RETURN_TO_CONTINUE       [translate $bdb_host 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
    set INSTALL_SCRIPT               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
    set DNS_DOMAIN_QUESTION          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DNS_DOMAIN_QUESTION] ]
+   set HIT_RETURN_TO_CONTINUE_BDB_RPC [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE_BDB_RPC] ]
+   set UNIQUE_CLUSTER_NAME          [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_UNIQUE_CLUSTER_NAME] ]
 
    set prod_type_var "SGE_ROOT"
 
-   set spooldir [get_bdb_spooldir $ts_config(bdb_server) 1]
+   # bdb server can spool on any filesystem, no need to request a local one
+   set spooldir [get_bdb_spooldir $ts_config(bdb_server) 0]
    if {$spooldir == ""} {
-      add_proc_error "install_bdb_rpc" -1 "no bdb_dir and no local spooldir for host $bdb_host configured"
+      add_proc_error "install_bdb_rpc" -1 "no spooldir for host $bdb_host found"
       return
    }
 
@@ -333,6 +336,16 @@ proc install_bdb_rpc {} {
             continue
          }
 
+         -i $sp_id -- $UNIQUE_CLUSTER_NAME {
+            puts $CHECK_OUTPUT "\n -->testsuite: sending cluster_name >$ts_config(cluster_name)<"
+            if {$do_log_output == 1} {
+               puts "press RETURN"
+               set anykey [wait_for_enter 1]
+            }
+            ts_send $sp_id "$ts_config(cluster_name)\n"
+            continue
+         }
+
          -i $sp_id "Error:" {
             add_proc_error "install_bdb_rpc" "-1" "$expect_out(0,string)"
             close_spawn_process $id; 
@@ -366,6 +379,17 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $HIT_RETURN_TO_CONTINUE { 
+            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            if {$do_log_output == 1} {
+                 puts "press RETURN"
+                 set anykey [wait_for_enter 1]
+            }
+  
+            ts_send $sp_id "\n"
+            continue
+         }
+
+         -i $sp_id $HIT_RETURN_TO_CONTINUE_BDB_RPC { 
             puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
