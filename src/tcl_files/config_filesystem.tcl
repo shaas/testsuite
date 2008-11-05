@@ -995,8 +995,16 @@ proc fs_config_get_filesystem_type {filesystem_name {raise_error 1}} {
          break
       } 
    }
+   if {!$filesystem_found} {
+      set ret [get_fstype $filesystem_name]
+      if {$ret != "unknown"} {
+         set filesystem_found 1
+      }
+   }
+
    if {!$filesystem_found && $raise_error} {
-      ts_log_severe "Filesystem $filesystem_name not found in filesystem configuration!!!"
+      ts_log_severe "Filesystem $filesystem_name not found in filesystem configuration!"
+      ts_log_severe "fs_type binary not able to determine filesystem type!"
    }
    return $ret
 }

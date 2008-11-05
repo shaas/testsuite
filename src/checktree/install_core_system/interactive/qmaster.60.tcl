@@ -161,7 +161,7 @@ proc install_qmaster {} {
  set WE_CONFIGURE_WITH_X_SETTINGS [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_WE_CONFIGURE_WITH_X_SETTINGS] "*" ]
 
 # dynamic spooling
- set CHOOSE_SPOOLING_METHOD [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD]]
+ set CHOOSE_SPOOLING_METHOD [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD] "*"]
 
 # berkeley db
  set DATABASE_LOCAL_SPOOLING     [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DATABASE_LOCAL_SPOOLING]]

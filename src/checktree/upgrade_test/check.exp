@@ -532,7 +532,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    set INSTALL_SCRIPT               [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
 
    # spooling
-   set CHOOSE_SPOOLING_METHOD       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD]]
+   set CHOOSE_SPOOLING_METHOD       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CHOOSE_SPOOLING_METHOD] "*"]
    set OTHER_SPOOL_DIR              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_OTHER_SPOOL_DIR] ]
    set ENTER_SPOOL_DIR              [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_ENTER_SPOOL_DIR] "*"]
    set DATABASE_LOCAL_SPOOLING      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DATABASE_LOCAL_SPOOLING]]
@@ -593,7 +593,7 @@ proc upgrade_test_upgrade_run_script { bckp_dir } {
    set IJS_SELECTION                [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINT_UPGRADE_IJS_SELECTION]]
    set NEXT_RANK_NUMBER             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINCT_UPGRADE_NEXT_RANK_NUMBER]]
    set USE_EXISTING_JMX             [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINCT_UPGRADE_USE_EXISTING_JMX]]
-   set USE_EXISTING_SPOOLING        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINCT_UPGRADE_USE_EXISTING_SPOOLING]]
+   set USE_EXISTING_SPOOLING        [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINCT_UPGRADE_USE_EXISTING_SPOOLING]"*"]
 
    set id [open_remote_spawn_process "$ts_config(master_host)" "root"  "./inst_sge" "-upd $feature_install_options" 0 "$ts_config(product_root)"]
    set sp_id [ lindex $id 1 ]

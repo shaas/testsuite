@@ -1,3 +1,6 @@
+MD-2008-11-05-0: Bugfix:     - fixed upgrade test
+                 Review:     JG
+
 JG-2008-11-05-0: Bugfix:     Fixed a number of issues in testsuite setup with
                              BDB RPC server spooling.
                              Make shadowd_migrate test fail, if less than 2
