@@ -43,11 +43,11 @@ set check_root_access_needs    "yes"
 set check_name                 "si"
 set check_category             "COMPATIBILITY SYSTEM L10N VERIFIED"
 set check_description(0)       "test that checks the si usecase"
-set check_description(1)       "test that checks the si usecase"
+set check_description(400)     "all week running test that checks the si usecase"
 set check_needs                "hedeby_install"                  
 set check_init_level_procedure "si_init_level"
 set check_functions            {}   
-set check_highest_level        1
+set check_highest_level        400
 
 set check_setup_level_function "si_setup"
 set check_cleanup_level_function "si_cleanup"
@@ -74,10 +74,17 @@ lappend check_functions "si_check"
 #*******************************************************************************
 proc si_init_level {} {
   global CHECK_ACT_LEVEL
+  upvar #0 hedeby_si_ctx this
+  set this(check_level) $CHECK_ACT_LEVEL
 
-  if {$CHECK_ACT_LEVEL == 0} {
+  if {$this(check_level) == 0} {
      return 0
   }
+
+  if {$this(check_level) == 400} {
+     return 0
+  }
+
   return -1
 }
 
@@ -101,6 +108,17 @@ proc si_setup {} {
    upvar #0 hedeby_si_ctx this
    global ts_config
    global hedeby_config
+   set run_time 604800
+
+   # we sets the end time of test according to run level 
+   if {$this(check_level) == 400} {
+      ts_log_fine "This is a week long run of SI usecase test"
+      set this(end_time) [expr [timestamp] + $run_time]
+
+   } else {
+      set this(end_time) [timestamp]
+   }
+   set this(is_end) false  
 
    set this(master_host) $hedeby_config(hedeby_master_host)
 
@@ -164,8 +182,10 @@ proc si_cleanup {} {
    
    #reset saved active cluster configuration nr
    set_current_cluster_config_nr $this(current_cluster_config_nr)
-
-   unset this
+   
+   if {$this(is_end) == true} {
+      unset this
+   }
 }
 
 #****** usecases/SI/si_check() *************************************
@@ -205,215 +225,223 @@ proc si_cleanup {} {
 #*******************************************************************************
 proc si_check {} {
    upvar #0 hedeby_si_ctx this
+   while {true} {
+       set error_text ""
+       set slot_count 0
 
-   set error_text ""
-   set slot_count 0
+       ############################################################################################################
+       ts_log_fine "Starting SI use case check function ..."
+       ts_log_fine "Step 1: Determining number of overall slots and setting owner properties ..."
 
-   ############################################################################################################
-   ts_log_fine "Starting SI use case check function ..."
-   ts_log_fine "Step 1: Determining number of overall slots and setting owner properties ..."
+       #move all resources from spare pool to first (any) gridengine adapter to get number of slots value
+       set spare_pool_res [get_all_spare_pool_resources]
+       set cur_adapter [lindex $this(adapters) 0]
+       unset -nocomplain exp_res_info
+       foreach resource $spare_pool_res {
+          sdmadm_command_opt "mvr -r $resource -s $cur_adapter"
+          if {$prg_exit_state != 0} {
+             append error_text "Step 1: Executing command resource move failed while moving resource '$resource' to '$cur_adapter'"
+          }
+          set exp_res_info($resource,service) $cur_adapter
+          set exp_res_info($resource,flags) "{}"
+          set exp_res_info($resource,state) "ASSIGNED"
+       }
+       set retval [wait_for_resource_info exp_res_info 120 0 mvr_error]
+       if {$retval != 0} {
+          append error_text "Step 1: Moving resource $resource to '$cur_adapter' service failed with following error message: $mvr_error"
+       }
 
-   #move all resources from spare pool to first (any) gridengine adapter to get number of slots value
-   set spare_pool_res [get_all_spare_pool_resources]
-   set cur_adapter [lindex $this(adapters) 0]
-   unset -nocomplain exp_res_info
-   foreach resource $spare_pool_res {
-      sdmadm_command_opt "mvr -r $resource -s $cur_adapter"
-      if {$prg_exit_state != 0} {
-         append error_text "Step 1: Executing command resource move failed while moving resource '$resource' to '$cur_adapter'"
-      }
-      set exp_res_info($resource,service) $cur_adapter
-      set exp_res_info($resource,flags) "{}"
-      set exp_res_info($resource,state) "ASSIGNED"
-   }
-   set retval [wait_for_resource_info exp_res_info 120 0 mvr_error]
-   if {$retval != 0} {
-      append error_text "Step 1: Moving resource $resource to '$cur_adapter' service failed with following error message: $mvr_error"
-   }
+       set slot_count_cmd "-q -h %s -xml | grep \"slots\'\" | sed -e \"s#<queuevalue qname='all.q' name='slots'>##g\" | sed -e \"s#</queuevalue>##g\"  | sed -e \"s# *##g\""
+
+       # add owner property to spare pool resources
+       #    the spare pool resources are distributed evenly among the owner groups
+       set i 0
+       foreach resource $spare_pool_res {
+          set plainoutput [start_sge_bin "qhost" [format $slot_count_cmd $resource]]
+          set slot_count [expr "$slot_count + $plainoutput"]
+
+          set adapter [lindex $this(adapters) [expr $i%3]]
+          incr i
+          set owner_prop(owner) $adapter
+          mod_hedeby_resource $resource owner_prop
+          lappend res_for_adapter($adapter) $resource
+          lappend this(resource_list) $resource
+       }
+
+       # move spare pool resources back
+       if {[move_resources_to_default_services] != 0} {
+          reset_hedeby 1
+       }
+
+       # add owner property to moveable_execds resources
+       ts_log_fine "Step 2: Disabling of queues on master hosts (static) ..."
+       foreach adapter $this(adapters) {
+          #lets disable all queues of our static ge_adapter service execd
+          set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
+          set host $this(master_host,$adapter)
+          if {[disable_queue [get_queue_instance all.q $host]] != 0} {
+             append error_text "Step 2: Disabling of queues of service $adapter on resource $host failed!"
+          }
+          foreach resource $this(moveable_execds,$adapter) {
+             set plainoutput [start_sge_bin "qhost" [format $slot_count_cmd $resource]]
+             set slot_count [expr "$slot_count + $plainoutput"]
+
+             set owner_prop(owner) "$adapter"
+             mod_hedeby_resource $resource owner_prop
+             lappend res_for_adapter($adapter) $resource
+             lappend this(resource_list) $resource
+          }
+       }
+
+       ############################################################################################################
+       # output some overall information about the test setup
+       set msg    "#################################################\n"
+       foreach adapter $this(adapters) {
+          append msg "# $adapter has hosts: $res_for_adapter($adapter)\n"
+       }
+       append msg "#\n"
+       append msg "# Overall number of slots: $slot_count\n"
+       append msg "#################################################"
+       ts_log_fine $msg
+
+
+       ############################################################################################################
+       ts_log_fine "Step 3: Setting up max pending jobs SLOs ..."
+       # Step 3: create resource and request filter and set slos for each ge adapter
+       foreach adapter $this(adapters) {
+          set prop(owner) "{=} {$adapter}"
+          set requestFilter [create_request_filter prop]
+          set resourceFilter [create_resource_filter prop]
+          set max_pending_jobs_slo1 [create_max_pending_jobs_slo 3 "MaxPendingJobsSLO_1" $resourceFilter $requestFilter "" 1 2]
+          set max_pending_jobs_slo2 [create_max_pending_jobs_slo 2 "MaxPendingJobsSLO_2" "" "" "" 1 2]
+          set slos {}
+          lappend slos $max_pending_jobs_slo1
+          lappend slos $max_pending_jobs_slo2
+          if {[set_service_slos "mod_config" $adapter $slos 1 "seconds" 20] != 0} {
+             append error_text "Step 3: Setting slos for service \"$adapter\" failed!"
+          }
+       }
+
+
+       ############################################################################################################
+       # Step 4: submit all slots sleeper jobs and all resources should go to first service
+       set tries $slot_count
+       set cur_adapter [lindex $this(adapters) 0]
+       set_current_cluster_config_nr $this(ts_cluster_nr,$cur_adapter)
+       ts_log_fine "Step 4: Submitting $tries sleeper jobs to adapter '$cur_adapter' ..."
+       for {set i 0} {$i < $tries} {incr i} {
+          submit_job "$this(sleeper_with_no_output) 150"
+       }
+
+       #check if resource was moved to first service
+       unset -nocomplain exp_res_info
+       foreach resource $this(resource_list) {
+          set exp_res_info($resource,service) $cur_adapter
+          set exp_res_info($resource,flags) "{}"
+          set exp_res_info($resource,state) "ASSIGNED"
+       }
+       set retval [wait_for_resource_info exp_res_info 120 1 mvr_error]
+       if {$retval != 0} {
+          append error_text "Step 4: Moving all resources to service '$cur_adapter' failed with following error message: $mvr_error"
+       }
+
+       ############################################################################################################
+       # Step 5: submit all slots sleeper jobs to the second cluster, all resources with the property owner=<second_cluster> should go to second cluster
+       set tries $slot_count
+       set cur_adapter [lindex $this(adapters) 1]
+       set_current_cluster_config_nr $this(ts_cluster_nr,$cur_adapter)
+       ts_log_fine "Step 5: Submitting $tries sleeper jobs to adapter '$cur_adapter' ..."
+       for {set i 0} {$i < $tries} {incr i} {
+          submit_job "$this(sleeper_with_no_output) 150"
+       }
+       unset -nocomplain exp_res_info
+       foreach res $res_for_adapter($cur_adapter) {
+          set exp_res_info($res,service) $cur_adapter
+          set exp_res_info($res,flags) "{}"
+          set exp_res_info($res,state) "ASSIGNED"           
+       }
+
+       set additional [expr ($slot_count > 40) ? $slot_count-40 : 0]
+       set retval [wait_for_resource_info exp_res_info [expr 600 + 15 * $additional] 1 mvr_error]
+       if {$retval != 0} {
+          append error_text "Step 5: Moving all resources to service $cur_adapter failed with following error message: $mvr_error"
+       }
+
+       ############################################################################################################
+       ts_log_fine "Step 6: Waiting for all resources to go back to spare pool ..."
+       # Step 6: delete all remaining jobs in cluster
+       # => this is just to speed things up a bit, we don't have to wait here. When
+       #    all jobs are done (or deleted), then all resources should go back to the spare pool.
+       foreach adapter $this(adapters) {
+          set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
+          delete_all_jobs
+       }
+       # wait for resources
+       unset -nocomplain exp_res_info
+       foreach res $this(resource_list) {
+          set exp_res_info($res,service) "spare_pool"
+          set exp_res_info($res,flags) "{}"
+          set exp_res_info($res,state) "ASSIGNED"           
+       }
+       set retval [wait_for_resource_info exp_res_info [expr 600 + 15 * $additional] 1 mvr_error]
+       if {$retval != 0} {
+          append error_text "Step 6: Moving all resources to service spare_pool failed with following error message: $mvr_error"
+       }
+
+       ############################################################################################################
+       # Step 7: submit 2 * all slots resource jobs to all of our clusters and we
+       #         should check that first get all owner = first, second
+       #         owner=second, third = third
+       set tries [expr 2 * $slot_count]
+       unset -nocomplain exp_res_info
+       foreach adapter $this(adapters) {
+          set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
+          ts_log_fine "Step 7: Submitting $tries sleeper jobs to adapter '$adapter' ..."
+          for {set i 0} {$i < $tries} {incr i} {
+             submit_job "$this(sleeper_with_no_output) 200"
+          }
+          foreach resource $res_for_adapter($adapter) {
+             set exp_res_info($resource,service) "$adapter"
+             set exp_res_info($resource,flags) "{}"
+             set exp_res_info($resource,state) "ASSIGNED"
+          }
+       }
+       set retval [wait_for_resource_info exp_res_info [expr 1600 + 15 * $additional] 1 mvr_error]
+       if {$retval != 0} {
+          append error_text "Step 7: Moving all resources to different owner services failed with following error message: $mvr_error"
+       }
+
+       ############################################################################################################
+       ts_log_fine "Step 8: Waiting for all resources to go back to spare pool again ..."
+       # Step 8: delete all remaining jobs in cluster
+       # => this is just to speed things up a bit, we don't have to wait here. When
+       #    all jobs are done (or deleted), then all resources should go back to the spare pool.
+       foreach adapter $this(adapters) {
+          set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
+          delete_all_jobs
+       }
+       # wait for resources
+       unset -nocomplain exp_res_info
+       foreach res $this(resource_list) {
+          set exp_res_info($res,service) "spare_pool"
+          set exp_res_info($res,flags) "{}"
+          set exp_res_info($res,state) "ASSIGNED"           
+       }
+       set retval [wait_for_resource_info exp_res_info [expr 1900 + 20 * $additional] 1 mvr_error]
+       if {$retval != 0} {
+            append error_text "Step 8: Moving all resources to service spare_pool failed with following error message: $mvr_error"
+       }
+
+       # finally report one big error mail
+       if {$error_text != ""} {
+          ts_log_severe $error_text
+       }
    
-   set slot_count_cmd "-q -h %s -xml | grep \"slots\'\" | sed -e \"s#<queuevalue qname='all.q' name='slots'>##g\" | sed -e \"s#</queuevalue>##g\"  | sed -e \"s# *##g\""
-
-   # add owner property to spare pool resources
-   #    the spare pool resources are distributed evenly among the owner groups
-   set i 0
-   foreach resource $spare_pool_res {
-      set plainoutput [start_sge_bin "qhost" [format $slot_count_cmd $resource]]
-      set slot_count [expr "$slot_count + $plainoutput"]
-
-      set adapter [lindex $this(adapters) [expr $i%3]]
-      incr i
-      set owner_prop(owner) $adapter
-      mod_hedeby_resource $resource owner_prop
-      lappend res_for_adapter($adapter) $resource
-      lappend this(resource_list) $resource
-   }
-   
-   # move spare pool resources back
-   if {[move_resources_to_default_services] != 0} {
-      reset_hedeby 1
-   }
-
-   # add owner property to moveable_execds resources
-   ts_log_fine "Step 2: Disabling of queues on master hosts (static) ..."
-   foreach adapter $this(adapters) {
-      #lets disable all queues of our static ge_adapter service execd
-      set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
-      set host $this(master_host,$adapter)
-      if {[disable_queue [get_queue_instance all.q $host]] != 0} {
-         append error_text "Step 2: Disabling of queues of service $adapter on resource $host failed!"
-      }
-      foreach resource $this(moveable_execds,$adapter) {
-         set plainoutput [start_sge_bin "qhost" [format $slot_count_cmd $resource]]
-         set slot_count [expr "$slot_count + $plainoutput"]
-
-         set owner_prop(owner) "$adapter"
-         mod_hedeby_resource $resource owner_prop
-         lappend res_for_adapter($adapter) $resource
-         lappend this(resource_list) $resource
-      }
-   }
-
-   ############################################################################################################
-   # output some overall information about the test setup
-   set msg    "#################################################\n"
-   foreach adapter $this(adapters) {
-      append msg "# $adapter has hosts: $res_for_adapter($adapter)\n"
-   }
-   append msg "#\n"
-   append msg "# Overall number of slots: $slot_count\n"
-   append msg "#################################################"
-   ts_log_fine $msg
-
-
-   ############################################################################################################
-   ts_log_fine "Step 3: Setting up max pending jobs SLOs ..."
-   # Step 3: create resource and request filter and set slos for each ge adapter
-   foreach adapter $this(adapters) {
-      set prop(owner) "{=} {$adapter}"
-      set requestFilter [create_request_filter prop]
-      set resourceFilter [create_resource_filter prop]
-      set max_pending_jobs_slo1 [create_max_pending_jobs_slo 3 "MaxPendingJobsSLO_1" $resourceFilter $requestFilter "" 1 2]
-      set max_pending_jobs_slo2 [create_max_pending_jobs_slo 2 "MaxPendingJobsSLO_2" "" "" "" 1 2]
-      set slos {}
-      lappend slos $max_pending_jobs_slo1
-      lappend slos $max_pending_jobs_slo2
-      if {[set_service_slos "mod_config" $adapter $slos 1 "seconds" 20] != 0} {
-         append error_text "Step 3: Setting slos for service \"$adapter\" failed!"
-      }
-   }
-
-   
-   ############################################################################################################
-   # Step 4: submit all slots sleeper jobs and all resources should go to first service
-   set tries $slot_count
-   set cur_adapter [lindex $this(adapters) 0]
-   set_current_cluster_config_nr $this(ts_cluster_nr,$cur_adapter)
-   ts_log_fine "Step 4: Submitting $tries sleeper jobs to adapter '$cur_adapter' ..."
-   for {set i 0} {$i < $tries} {incr i} {
-      submit_job "$this(sleeper_with_no_output) 150"
-   }
-
-   #check if resource was moved to first service
-   unset -nocomplain exp_res_info
-   foreach resource $this(resource_list) {
-      set exp_res_info($resource,service) $cur_adapter
-      set exp_res_info($resource,flags) "{}"
-      set exp_res_info($resource,state) "ASSIGNED"
-   }
-   set retval [wait_for_resource_info exp_res_info 120 1 mvr_error]
-   if {$retval != 0} {
-      append error_text "Step 4: Moving all resources to service '$cur_adapter' failed with following error message: $mvr_error"
-   }
-
-   ############################################################################################################
-   # Step 5: submit all slots sleeper jobs to the second cluster, all resources with the property owner=<second_cluster> should go to second cluster
-   set tries $slot_count
-   set cur_adapter [lindex $this(adapters) 1]
-   set_current_cluster_config_nr $this(ts_cluster_nr,$cur_adapter)
-   ts_log_fine "Step 5: Submitting $tries sleeper jobs to adapter '$cur_adapter' ..."
-   for {set i 0} {$i < $tries} {incr i} {
-      submit_job "$this(sleeper_with_no_output) 150"
-   }
-   unset -nocomplain exp_res_info
-   foreach res $res_for_adapter($cur_adapter) {
-      set exp_res_info($res,service) $cur_adapter
-      set exp_res_info($res,flags) "{}"
-      set exp_res_info($res,state) "ASSIGNED"           
-   }
-
-   set additional [expr ($slot_count > 40) ? $slot_count-40 : 0]
-   set retval [wait_for_resource_info exp_res_info [expr 600 + 15 * $additional] 1 mvr_error]
-   if {$retval != 0} {
-      append error_text "Step 5: Moving all resources to service $cur_adapter failed with following error message: $mvr_error"
-   }
-
-   ############################################################################################################
-   ts_log_fine "Step 6: Waiting for all resources to go back to spare pool ..."
-   # Step 6: delete all remaining jobs in cluster
-   # => this is just to speed things up a bit, we don't have to wait here. When
-   #    all jobs are done (or deleted), then all resources should go back to the spare pool.
-   foreach adapter $this(adapters) {
-      set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
-      delete_all_jobs
-   }
-   # wait for resources
-   unset -nocomplain exp_res_info
-   foreach res $this(resource_list) {
-      set exp_res_info($res,service) "spare_pool"
-      set exp_res_info($res,flags) "{}"
-      set exp_res_info($res,state) "ASSIGNED"           
-   }
-   set retval [wait_for_resource_info exp_res_info [expr 600 + 15 * $additional] 1 mvr_error]
-   if {$retval != 0} {
-      append error_text "Step 6: Moving all resources to service spare_pool failed with following error message: $mvr_error"
-   }
-
-   ############################################################################################################
-   # Step 7: submit 2 * all slots resource jobs to all of our clusters and we
-   #         should check that first get all owner = first, second
-   #         owner=second, third = third
-   set tries [expr 2 * $slot_count]
-   unset -nocomplain exp_res_info
-   foreach adapter $this(adapters) {
-      set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
-      ts_log_fine "Step 7: Submitting $tries sleeper jobs to adapter '$adapter' ..."
-      for {set i 0} {$i < $tries} {incr i} {
-         submit_job "$this(sleeper_with_no_output) 200"
-      }
-      foreach resource $res_for_adapter($adapter) {
-         set exp_res_info($resource,service) "$adapter"
-         set exp_res_info($resource,flags) "{}"
-         set exp_res_info($resource,state) "ASSIGNED"
-      }
-   }
-   set retval [wait_for_resource_info exp_res_info [expr 1600 + 15 * $additional] 1 mvr_error]
-   if {$retval != 0} {
-      append error_text "Step 7: Moving all resources to different owner services failed with following error message: $mvr_error"
-   }
-
-   ############################################################################################################
-   ts_log_fine "Step 8: Waiting for all resources to go back to spare pool again ..."
-   # Step 8: delete all remaining jobs in cluster
-   # => this is just to speed things up a bit, we don't have to wait here. When
-   #    all jobs are done (or deleted), then all resources should go back to the spare pool.
-   foreach adapter $this(adapters) {
-      set_current_cluster_config_nr $this(ts_cluster_nr,$adapter)
-      delete_all_jobs
-   }
-   # wait for resources
-   unset -nocomplain exp_res_info
-   foreach res $this(resource_list) {
-      set exp_res_info($res,service) "spare_pool"
-      set exp_res_info($res,flags) "{}"
-      set exp_res_info($res,state) "ASSIGNED"           
-   }
-   set retval [wait_for_resource_info exp_res_info [expr 1900 + 20 * $additional] 1 mvr_error]
-   if {$retval != 0} {
-        append error_text "Step 8: Moving all resources to service spare_pool failed with following error message: $mvr_error"
-   }
-
-   # finally report one big error mail
-   if {$error_text != ""} {
-      ts_log_severe $error_text
-   }   
+       if {[timestamp] > $this(end_time)} {
+          set this(is_end) true
+          break
+       } else {
+          si_cleanup
+       }
+   } 
 }
