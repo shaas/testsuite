@@ -332,7 +332,7 @@ global CHECK_MAX_ERROR_MAILS              ;# max mails on run all test
 set CHECK_MAX_ERROR_MAILS 400
 
 global CHECK_EXPECT_MATCH_MAX_BUFFER   ;# read buffer for expect
-set CHECK_EXPECT_MATCH_MAX_BUFFER 640000
+set CHECK_EXPECT_MATCH_MAX_BUFFER 1280000
 
 global CHECK_COVERAGE
 set CHECK_COVERAGE {} ;# list of code coverage methods (tcov, insure, or emma)
@@ -4366,12 +4366,26 @@ proc check_root_access {path} {
   return -1
 }
 
+#****** check/delete_temp_script_files() ***************************************
+#  NAME
+#     delete_temp_script_files() -- delete temp. generated testsuite files
+#
+#  SYNOPSIS
+#     delete_temp_script_files { } 
+#
+#  FUNCTION
+#     This procedure deletes all temp. generated testsuite files stored in the
+#     file returned by get_testsuite_delete_filename(). The files are also
+#     removed from the internal script cache used in open_remote_spawn_process()
+#
+#*******************************************************************************
 proc delete_temp_script_files { } {
    global ts_config CHECK_USER
 
    ts_log_fine "deleting temporary used files ..."
 
    set del_file_name [get_testsuite_delete_filename]
+   set temp_del_file_name "${del_file_name}.old"
 
    # try to delete the temp files on the fileserver
    set host [fs_config_get_server_for_path $del_file_name 0]
@@ -4381,12 +4395,32 @@ proc delete_temp_script_files { } {
  
    # The files might be removed on an different server we
    # have to remove them from the remote spawn script cache
+   # Here we get the file content (part 1/2)
    get_file_content $host $CHECK_USER $del_file_name del_files
+
+   # Move the del_file_name file at the local (NFS) host
+   if {[file isfile $del_file_name]} {
+      file rename -force $del_file_name $temp_del_file_name
+   } else {
+      ts_log_fine "no generated files to delete"
+      return
+   }
+   
+   # Check that renamed file is available on NFS server
+   # This call makes 2 new entries in new del_file_name 
+   if {[wait_for_remote_file $host $CHECK_USER $temp_del_file_name] != 0} {
+      ts_log_severe "moving file $del_file_name to $temp_del_file_name failed"
+      return
+   } 
+
+   # Here we remove the file from internal script cache
+   # part (2/2)
    for { set i 1} { $i <= $del_files(0) } { incr i 1 } {
       remove_from_remote_spawn_script_cache $del_files($i)
    }
 
-   set result [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/delete_temp_files.sh" $del_file_name]
+   # This call makes a 3rd entry in new del_file_name and deletes the renamed file
+   set result [start_remote_prog $host $CHECK_USER "$ts_config(testsuite_root_dir)/scripts/delete_temp_files.sh" $temp_del_file_name]
    ts_log_fine $result
 }
 

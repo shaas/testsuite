@@ -14,20 +14,14 @@ if [ ! -f $orig ]; then
    exit 0
 fi
 
-# we move it away - to prevent conflicts
-temp=${orig}.tmp
-mv $orig $temp
-
-# the last entry is the open_remote_spawn_process calling us - do not delete it!
-last_entry=`tail -1 $temp`
-echo $last_entry >> $orig
-
 # delete the files
-for file in `cat $temp | grep -v -- "$last_entry"`; do
-   rm -f $file
+for file in `cat $orig`; do
+   if [ -f "$file" ]; then
+      rm -f $file
+   fi
 done
 
 # cleanup
-rm $temp
+rm $orig
 
 exit 0

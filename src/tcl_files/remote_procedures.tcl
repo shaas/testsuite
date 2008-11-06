@@ -1490,7 +1490,7 @@ proc open_remote_spawn_process { hostname
          }
          if {$tmp_help || $ts_config(connection_type) == "ssh_with_password"} {
             set ssh_binary [get_binary_path $ts_config(master_host) ssh]
-            set pid [spawn $ssh_binary "-l" $connect_full_user $hostname]
+            set pid [spawn $ssh_binary "-l" $connect_full_user $hostname] 
          } else {
             set pid [spawn "rlogin" $hostname "-l" $connect_full_user]
          }
@@ -3239,17 +3239,21 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          
          # wait for CTRL-C to take effect
          set timeout 5
+         set send_exit 1
          expect {
             -i $spawn_id full_buffer {
                ts_log_warning "buffer overflow"
+               set send_exit 0
             }
             -i $spawn_id eof {
                # do not raise an error here - we use this code to close broken connections
                ts_log_finest "eof while waiting for shell prompt after CTRL-C"
+               set send_exit 0
             }
             -i $spawn_id timeout {
                # do not raise an error here - we use this code to close broken connections
                ts_log_finest "timeout while waiting for shell prompt after CTRL-C"
+               set send_exit 0
             }
             -i $spawn_id -re $CHECK_SHELL_PROMPT {
                ts_log_finest "got shell prompt after CTRL-C"
@@ -3257,34 +3261,36 @@ proc close_spawn_process {id {check_exit_state 0} {keep_open 1}} {
          }
 
          # now we try to close the shells with "exit"
-         ts_send $spawn_id "exit\n" "" 0 0
-         expect {
-            -i $spawn_id full_buffer {
-               ts_log_warning "buffer overflow"
-            }
-            -i $spawn_id eof {
-               # do not raise an error here - we use this code to close broken connections
-               set do_close_connection 0
-               ts_log_finest "eof after exit - ok"
-            }
-            -i $spawn_id timeout {
-               # do not raise an error here - we use this code to close broken connections
-               ts_log_finest "timeout while waiting for shell prompt after exit"
-            }
-            -i $spawn_id -re $CHECK_SHELL_PROMPT {
-               ts_log_finest "got shell prompt after exit"
-               # if we get a shell prompt, the exit succeeded, one shell exited
-               incr nr_of_shells -1
-
-               # if we still have open shells, send "exit"
-               if {$nr_of_shells > 0} {
-                  ts_log_finest "sending exit to shell (nr of shells=$nr_of_shells)..."
-                  ts_send $spawn_id "exit\n" "" 0 0
-               } else {
-                  ts_log_finest "all shells exited - wait for EOF ..."
+         if {$send_exit} {
+            ts_send $spawn_id "exit\n" "" 0 0
+            expect {
+               -i $spawn_id full_buffer {
+                  ts_log_warning "buffer overflow"
                }
-               # we wait for eof, so we continue ...
-               exp_continue 
+               -i $spawn_id eof {
+                  # do not raise an error here - we use this code to close broken connections
+                  set do_close_connection 0
+                  ts_log_finest "eof after exit - ok"
+               }
+               -i $spawn_id timeout {
+                  # do not raise an error here - we use this code to close broken connections
+                  ts_log_finest "timeout while waiting for shell prompt after exit"
+               }
+               -i $spawn_id -re $CHECK_SHELL_PROMPT {
+                  ts_log_finest "got shell prompt after exit"
+                  # if we get a shell prompt, the exit succeeded, one shell exited
+                  incr nr_of_shells -1
+
+                  # if we still have open shells, send "exit"
+                  if {$nr_of_shells > 0} {
+                     ts_log_finest "sending exit to shell (nr of shells=$nr_of_shells)..."
+                     ts_send $spawn_id "exit\n" "" 0 0
+                  } else {
+                     ts_log_finest "all shells exited - wait for EOF ..."
+                  }
+                  # we wait for eof, so we continue ...
+                  exp_continue 
+               }
             }
          }
       } catch_error_message]

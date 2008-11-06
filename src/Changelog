@@ -1,3 +1,10 @@
+CR-2008-11-06-0: Bugfix:     - do not send a "exit\n" when a connection is
+                               not responding anymore
+                             - enhanced CHECK_EXPECT_MATCH_MAX_BUFFER size
+                             - reworked delete_temp_script_files() procedure
+                             - reworked wait_for_remote_file() procedure
+                 Review:     MD
+
 MG-2008-11-06-0: Enhancem.:  - SI usecase can now run in run level week
                  Review:     RH
 
