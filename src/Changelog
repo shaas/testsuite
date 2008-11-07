@@ -1,3 +1,6 @@
+MG-2008-11-07-0: Enhancem.:  - SI usecase can now run in run level week - REAL CHANGES
+                 Review:     RH
+
 CR-2008-11-06-0: Bugfix:     - do not send a "exit\n" when a connection is
                                not responding anymore
                              - enhanced CHECK_EXPECT_MATCH_MAX_BUFFER size
