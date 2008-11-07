@@ -305,7 +305,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_all_queue {} {
       # shutdown all execds
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
-         shutdown_system_daemon $host "execd" 
+         soft_execd_shutdown $host  
       }
       set end_shutdown [clock seconds]
 
@@ -360,7 +360,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_master_queue {} {
       set start [clock seconds]
 
       # shutdown master execds
-      shutdown_system_daemon $tight_master_node "execd" 
+      soft_execd_shutdown $tight_master_node 
       set end_shutdown [clock seconds]
 
       # wait for termination of job
@@ -411,7 +411,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_slave_queue {} {
       set start [clock seconds]
 
       # shutdown master execds
-      shutdown_system_daemon $tight_slave_node "execd" 
+      soft_execd_shutdown $tight_slave_node 
       set end_shutdown [clock seconds]
 
       # wait for termination of job
@@ -464,7 +464,7 @@ proc enforce_limits_loose_qmaster_limit_enforcement_all_queue {} {
       # shutdown all execds
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
-         shutdown_system_daemon $host "execd" 
+         soft_execd_shutdown $host
       }
       set end_shutdown [clock seconds]
 
@@ -523,7 +523,7 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
       # shutdown master execds
       # TODO: Test runs not for 62_BRANCH, and shutdown_system daemon does not shutdown execd fast enough
       #       AND execd reconnect might take up to 60 seconds. The wait_for_unknown_load 15 call is not guaranteed
-      shutdown_system_daemon $tight_master_node "execd" 
+      soft_execd_shutdown $tight_master_node 
       wait_for_unknown_load 15 $tight_masterq
 
       # startup master 
@@ -545,7 +545,7 @@ proc enforce_limits_tight_execd_limit_enforcement_after_stop_start {} {
          set failed [lindex $task 0]
 
          if {$failed != 100} {
-            ts_log_severe "job died trough limit exceeding executed by the execution deamon. Therefore it should end with failed=100 but it failed with $failed"
+            ts_log_severe "job $job_id died trough limit exceeding executed by the execution deamon. Therefore it should end with failed=100 but it failed with $failed"
          }
       }
    }
@@ -582,7 +582,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_master {} {
       # shutdown all execds and startup one again
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
-         shutdown_system_daemon $host "execd" 
+         soft_execd_shutdown $host 
       }
       wait_for_unknown_load 15 $tight_masterq
       startup_execd $tight_master_node
@@ -593,7 +593,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_master {} {
       set end [clock seconds]
 
       # startup all execds
-      shutdown_system_daemon $tight_master_node "execd"
+      soft_execd_shutdown $tight_master_node 
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
          startup_execd $host
@@ -643,7 +643,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
       # shutdown all execds and startup one again
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
-         shutdown_system_daemon $host "execd" 
+         soft_execd_shutdown $host
       }
       wait_for_unknown_load 15 $tight_slaveq
       startup_execd $tight_slave_node
@@ -654,7 +654,7 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
       set end [clock seconds]
 
       # startup all execds
-      shutdown_system_daemon $tight_slave_node "execd"
+      soft_execd_shutdown $tight_slave_node 
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
          startup_execd $host
@@ -663,7 +663,8 @@ proc enforce_limits_tight_qmaster_limit_enforcement_after_stop_start_slave {} {
       # runtime limit for the job is 30 seconds
       # DURATION_OFFSET is 5 seconds
       # so the shutdown should be triggered after 35 seconds
-      # but we have to add the time till the job leaves the system until it can't be seen by by qstat -j
+      # but we have to add the time till the job leaves the system 
+      # until it can't be seen by by qstat -j
       # so we give it 70 seconds (plus the time for shutting down the execds)
       set start_shutdown [expr $end_shutdown - $start]
       set start_end [expr $end - $start]
@@ -703,7 +704,7 @@ proc enforce_limits_tight_qmaster_forced_all_queue {} {
       # shutdown all execds
       set all_exec_hosts $ts_config(execd_nodes)
       foreach host $all_exec_hosts {
-         shutdown_system_daemon $host "execd" 
+         soft_execd_shutdown $host
       }
       set end_shutdown [clock seconds]
 
@@ -765,7 +766,7 @@ proc enforce_limits_batch_qmaster_limit_enforcement_all_queue {} {
       set start [clock seconds]
 
       # shutdown all execds
-      shutdown_system_daemon $tight_master_node "execd" 
+      soft_execd_shutdown $tight_master_node
       set end_shutdown [clock seconds]
 
       # wait for termination of job

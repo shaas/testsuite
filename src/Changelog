@@ -1,3 +1,10 @@
+EB-2008-11-07-0: Bugfix:     - duration of job start and shutdown behaviour
+                               influence enforce_limits test. To improve
+                               this I replaced shutdown_system_daemon by
+                               soft_execd_shutdown call to get u state during
+                               shutdown earlier. 
+                 Review:       CR
+
 MG-2008-11-07-0: Enhancem.:  - SI usecase can now run in run level week - REAL CHANGES
                  Review:     RH
 
