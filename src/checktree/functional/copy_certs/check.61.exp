@@ -57,7 +57,7 @@ proc copy_certs_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0"  { 
+      0  {
          return 0
       }
    }
@@ -68,6 +68,16 @@ proc copy_certs_init_level {} {
 proc copy_certs_setup {} {
    global ts_config
    global CHECK_USER
+
+   # inst_sge -copycerts does only make sense when we have either CSP mode,
+   # or we have windows hosts in the cluster (requires having certificates).
+   # inst_sge -copycerts currently doesn't output an error in this case, 
+   # once this is fixed, we can handle getting the correct error message here,
+   # see Issue xyz
+   if {[lsearch -exact $ts_config(product_feature) "csp"] < 0 && ![host_conf_have_windows]} {
+      ts_log_fine "inst_sge -copycerts does not work without CSP mode or Windows host in the cluster"
+      return
+   }
 
    set HIT_RETURN_TO_CONTINUE       [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
    set CURRENT_GRID_ROOT_DIRECTORY  [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_CURRENT_GRID_ROOT_DIRECTORY] "*" "*" ]
