@@ -262,13 +262,26 @@ proc qmod_issue_1131 {} {
 
    set queue_name "@$test_host"
    set output [start_sge_bin "qmod" "-d $queue_name"]
-   if {$prg_exit_state != 0} {
-      ts_log_severe "exit state of \"qmod -e $queue_name\" is not 0"
+   
+   # negative test: qmod -d @HOST should report exit state != 0
+   if {$ts_config(gridengine_version) >= 61} {
+      if {$prg_exit_state == 0} {
+         ts_log_severe "exit state of \"qmod -e $queue_name\" is 0\noutput:\n$output"
+      }
+   } else {
+      # this exit state are only fixed for versions >= 61
+      if {$prg_exit_state == 0} {
+         ts_log_info "exit state of \"qmod -e $queue_name\" is 0\noutput:\n$output"
+      }
    }
 
    set INVALID_QUEUE_NAME [translate_macro MSG_QUEUE_INVALIDQ_S $queue_name]
    if {[string match "*$INVALID_QUEUE_NAME*" $output] == 0} {
-      ts_log_warning "issue 1131 still exists, qmod -e \"@<host>\" crashes qmaster"
+      ts_log_severe "issue 1131 still exists (1), qmod -e \"@<host>\" crashes qmaster"
+   }
+
+   if {![is_qmaster_alive $ts_config(master_host) [get_qmaster_spool_dir]]} {
+      ts_log_severe "issue 1131 still exists (2), qmod -e \"@<host>\" crashes qmaster"
    }
 }
 
