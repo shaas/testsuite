@@ -75,7 +75,8 @@ set jsv_script_list {}
 set jsv_name_list {} 
 set jsv_id_list {}
 set jsv_expect_timeout 0
-set jsv_enter "\r\n"
+set jsv_enter_list {}
+set jsv_enter2_list {}
 
 proc jsv_script_init_level {} {
    global CHECK_ACT_LEVEL
@@ -104,39 +105,44 @@ proc jsv_script_setup {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
+   global jsv_enter2_list
 
    # initialize module global variables 
    set jsv_script_list {}
    set jsv_name_list {}
    set jsv_id_list {}
+   set jsv_enter_list {}
+   set jsv_enter2_list {}
 
    # 3 seconds should be enough to get a response from JSV scripts.
    # if we find a host where this is to small we might increase it.
    # in general we should keep this timeout small so that the tests
    # do not take to long
    set jsv_expect_timeout 3
-
-   # on mac os each returned response string ends with "\r\n"
-   # EB: TODO: I assume that UNIX and Interix will need "\n" here
-   set jsv_enter "\r\n"
+   #set jsv_base_path "$ts_config(product_root)/util/resources/jsv"
+   set jsv_base_path "$ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_script"
 
    # scripts to be tested for each run and corresponding names for messages
-   lappend jsv_script_list "$ts_config(product_root)/util/resources/jsv/jsv.sh"
+   lappend jsv_script_list "$jsv_base_path/jsv.sh"
    lappend jsv_name_list "bourne shell"
+   lappend jsv_enter_list "\r\n"
+   lappend jsv_enter2_list "\r\n"
+
+   # test TCL JSV template
+   lappend jsv_script_list "$jsv_base_path/jsv.tcl"
+   lappend jsv_name_list "TCL"
+   lappend jsv_enter_list "\r\n"
+   lappend jsv_enter2_list "\r\r\n"
 
    # EB: TODO: test Perl JSV template
    #lappend jsv_script_list "$ts_config(product_root)/util/resources/jsv/jsv.pl"
    #lappend jsv_name_list "Perl"
 
-   # EB: TODO: test TCL JSV template
-   #lappend jsv_script_list "$ts_config(product_root)/util/resources/jsv/jsv.tcl"
-   #lappend jsv_name_list "TCL"
 
    # spawn processes and store id's so that the can be terminated later 
    foreach jsv_script $jsv_script_list {
-      set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $jsv_script {}]
-      set jsv_spawn_id [lindex $id 1]
+      set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER $jsv_script ""]
 
       lappend jsv_id_list $id
    }
@@ -149,15 +155,19 @@ proc jsv_script_cleanup {} {
    global jsv_script_list
    global jsv_name_list
    global jsv_id_list
+   global jsv_enter_list
+   global jsv_enter2_list
 
    # terminate spawned process
    foreach id $jsv_id_list {
+      set spawn_id [lindex $id 1]
+      ts_send $spawn_id "\003\n"
       close_spawn_process $id
    }
    set jsv_id_list {}
 
    # unset our test's global variables
-   foreach var "jsv_script_list jsv_name_list jsv_id_list jsv_expect_timeout jsv_enter" {
+   foreach var "jsv_script_list jsv_name_list jsv_id_list jsv_expect_timeout jsv_enter_list jsv_enter2_list" {
       if {[info exists $var]} {
          unset $var
       }
@@ -174,7 +184,7 @@ proc jsv_script_enter {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -182,12 +192,13 @@ proc jsv_script_enter {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
          set use_output 0; 
          expect {
-            -i $spawn_id "_start_mark_:(0)" {
+            -i $spawn_id "_start_mark_:(0)*\n" {
                set use_output 1 
 
                # send only a "\n"
@@ -240,7 +251,7 @@ proc jsv_script_quit {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -248,6 +259,7 @@ proc jsv_script_quit {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
@@ -321,7 +333,8 @@ proc jsv_script_start_quit {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
+   global jsv_enter2_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -329,6 +342,8 @@ proc jsv_script_start_quit {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
+         set jsv_enter2 [lindex $jsv_enter2_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
@@ -367,12 +382,12 @@ proc jsv_script_start_quit {} {
                lappend sequence_list 5
                exp_continue 
             }
-            -i $spawn_id -re "^STARTED$jsv_enter" {
+            -i $spawn_id -re "^STARTED$jsv_enter2" {
                ts_send $spawn_id "QUIT\n"
                lappend sequence_list 6
                exp_continue 
             }
-            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+            -i $spawn_id -re "^SEND ENV$jsv_enter2" {
                lappend sequence_list 7
                exp_continue 
             }
@@ -419,7 +434,8 @@ proc jsv_script_start_begin_param_accept_quit {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
+   global jsv_enter2_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -427,6 +443,8 @@ proc jsv_script_start_begin_param_accept_quit {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
+         set jsv_enter2 [lindex $jsv_enter2_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
@@ -474,11 +492,11 @@ proc jsv_script_start_begin_param_accept_quit {} {
                lappend sequence_list 7
                exp_continue 
             }
-            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+            -i $spawn_id -re "^SEND ENV$jsv_enter2" {
                lappend sequence_list 8
                exp_continue 
             }
-            -i $spawn_id -re "^STARTED$jsv_enter" {
+            -i $spawn_id -re "^STARTED$jsv_enter2" {
                ts_send $spawn_id "BEGIN\n"
                lappend sequence_list 9
                exp_continue 
@@ -486,6 +504,18 @@ proc jsv_script_start_begin_param_accept_quit {} {
             -i $spawn_id -re "^.*$jsv_enter" {
                if {$use_output == 1} {
                   lappend sequence_list 10 
+
+                  set i 0
+                  while {$i < [string length $expect_out(buffer)]} {
+                     set char [string index $expect_out(buffer) $i]
+                     set int 0
+
+                     scan $char "%c" int
+                     puts [format "%s(%d) " $char $int]
+                     incr i
+                  }
+                  puts ""
+
                   ts_log_info "$name: got something unexpected as response \"$expect_out(buffer)\""
                } 
                exp_continue
@@ -525,7 +555,8 @@ proc jsv_script_start_begin_param_reject_quit {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
+   global jsv_enter2_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -533,6 +564,8 @@ proc jsv_script_start_begin_param_reject_quit {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
+         set jsv_enter2 [lindex $jsv_enter2_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
@@ -586,11 +619,11 @@ proc jsv_script_start_begin_param_reject_quit {} {
                lappend sequence_list 8
                exp_continue 
             }
-            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+            -i $spawn_id -re "^SEND ENV$jsv_enter2" {
                lappend sequence_list 9
                exp_continue 
             }
-            -i $spawn_id -re "^STARTED$jsv_enter" {
+            -i $spawn_id -re "^STARTED$jsv_enter2" {
                ts_send $spawn_id "PARAM b y\n"
                lappend sequence_list 10 
                exp_continue 
@@ -638,7 +671,8 @@ proc jsv_script_start_begin_param_rejectwait_quit {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
+   global jsv_enter2_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -646,6 +680,8 @@ proc jsv_script_start_begin_param_rejectwait_quit {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
+         set jsv_enter2 [lindex $jsv_enter2_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
@@ -689,7 +725,7 @@ proc jsv_script_start_begin_param_rejectwait_quit {} {
                lappend sequence_list 6
                exp_continue 
             }
-            -i $spawn_id -re "^PARAM l_hard a=true,b$jsv_enter" {
+            -i $spawn_id -re "^PARAM l_hard a=true,b$jsv_enter2" {
                lappend sequence_list 7
                exp_continue 
             }
@@ -703,11 +739,11 @@ proc jsv_script_start_begin_param_rejectwait_quit {} {
                lappend sequence_list 9
                exp_continue 
             }
-            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+            -i $spawn_id -re "^SEND ENV$jsv_enter2" {
                lappend sequence_list 10 
                exp_continue 
             }
-            -i $spawn_id -re "^STARTED$jsv_enter" {
+            -i $spawn_id -re "^STARTED$jsv_enter2" {
                ts_send $spawn_id "PARAM l_hard h_vmem=5G,a=true,b\n"
                lappend sequence_list 11 
                exp_continue 
@@ -755,7 +791,7 @@ proc jsv_script_start_begin_param_correct_quit {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -763,6 +799,7 @@ proc jsv_script_start_begin_param_correct_quit {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
@@ -874,7 +911,8 @@ proc jsv_script_start_begin_param_add_mod_del_accept_quit {} {
    global jsv_name_list
    global jsv_id_list
    global jsv_expect_timeout
-   global jsv_enter
+   global jsv_enter_list
+   global jsv_enter2_list
 
    if {$CHECK_ACT_LEVEL == 0} {
       set i 0
@@ -882,6 +920,8 @@ proc jsv_script_start_begin_param_add_mod_del_accept_quit {} {
          set spawn_id [lindex $id 1]
          set name [lindex $jsv_name_list $i]
          set script [lindex $jsv_script_list $i]
+         set jsv_enter [lindex $jsv_enter_list $i]
+         set jsv_enter2 [lindex $jsv_enter2_list $i]
 
          set timeout $jsv_expect_timeout 
          set got_something 0
@@ -925,15 +965,15 @@ proc jsv_script_start_begin_param_add_mod_del_accept_quit {} {
                lappend sequence_list 6
                exp_continue 
             }
-            -i $spawn_id -re "^PARAM c a=2,b=2$jsv_enter" {
+            -i $spawn_id -re "^PARAM c a=2,b=2$jsv_enter2" {
                lappend sequence_list 7
                exp_continue 
             }
-            -i $spawn_id -re "^PARAM c a=2$jsv_enter" {
+            -i $spawn_id -re "^PARAM c a=2$jsv_enter2" {
                lappend sequence_list 8
                exp_continue 
             }
-            -i $spawn_id -re "^PARAM c a=2,c$jsv_enter" {
+            -i $spawn_id -re "^PARAM c a=2,c$jsv_enter2" {
                lappend sequence_list 9
                exp_continue 
             }
@@ -947,11 +987,11 @@ proc jsv_script_start_begin_param_add_mod_del_accept_quit {} {
                lappend sequence_list 11 
                exp_continue 
             }
-            -i $spawn_id -re "^SEND ENV$jsv_enter" {
+            -i $spawn_id -re "^SEND ENV$jsv_enter2" {
                lappend sequence_list 12 
                exp_continue 
             }
-            -i $spawn_id -re "^STARTED$jsv_enter" {
+            -i $spawn_id -re "^STARTED$jsv_enter2" {
                ts_send $spawn_id "PARAM c a=1,b=2\n"
                lappend sequence_list 13 
                exp_continue 

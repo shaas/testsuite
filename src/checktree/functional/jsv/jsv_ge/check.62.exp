@@ -1,0 +1,173 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+#___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc.
+#
+#  All Rights Reserved.
+#
+##########################################################################
+#___INFO__MARK_END__
+
+# define global variable in this namespace
+global check_name 
+global check_category 
+global check_description 
+global check_needs
+global check_functions 
+global check_highest_level
+global check_init_level_procedure
+global check_root_access_needs
+
+set check_root_access_needs "yes"
+
+# define a level initialization procedure:
+set check_init_level_procedure "jsv_ge_init_level"
+
+# define test's name and run level descriptions
+set check_name            "jsv_ge"
+set check_category        "COMPATIBILITY SYSTEM VERIFIED"
+set check_highest_level   0 
+set check_description(0)  ""
+set check_description(1)  ""
+
+# define test's dependencies
+set check_needs           "init_core_system" 
+
+# setup and cleanup functions
+set check_setup_function jsv_ge_setup
+set check_cleanup_function jsv_ge_cleanup
+
+# define test's procedure order
+set check_functions {}
+lappend check_functions "jsv_ge_parsing_in_client_or_master"
+
+# global variables for this test. all of them are initiaized in the setup procedure
+set jsv_org_sched_conf {}
+set jsv_org_global_conf {}
+set jsv_base_path ""
+
+proc jsv_ge_init_level {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+
+   switch -- $CHECK_ACT_LEVEL {
+      0 -
+      1 {
+         if {$ts_config(gridengine_version) >= 62} {
+            return 0
+         }
+      }
+   }
+
+   return -1  ;# no other level
+}
+
+# -------- local test procedures: initialization------------------------------
+
+# start different JSV shells and initialize variables the test expect
+proc jsv_ge_setup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_org_sched_conf
+   global jsv_base_path
+
+   set jsv_base_path $ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_ge
+
+   # change global config 
+   get_config jsv_org_global_conf
+   set global_conf(load_report_time) "00:00:04"
+   set global_conf(max_unheard) "00:00:15"
+   set_config global_conf
+
+   # change schedd config
+   get_schedd_config jsv_org_sched_conf
+   set sched_conf(flush_submit_sec) "1"
+   set sched_conf(flush_finish_sec) "1"
+   set_schedd_config sched_conf
+}
+
+# stop all running JSV scripts 
+proc jsv_ge_cleanup {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_org_global_conf
+   global jsv_org_sched_conf
+ 
+   # trigger and wait for job termination
+   delete_all_jobs
+   wait_for_end_of_all_jobs 60
+
+   # reset configurations
+   set_config jsv_org_global_conf
+   set_schedd_config jsv_org_sched_conf
+
+   # unset our test's global variables
+   foreach var "org_global_conf org_sched_conf" {
+      if {[info exists $var]} {
+         unset $var
+      }
+   }
+}
+
+# This test will verify the parsing functionality which is used in qmaster
+# when client and server JSV's try to modify a job specification.
+# 
+# Scenario:
+#     A special JSV script is used to send valid and also invalid
+#     modification requests to the client. 
+#     As part of the modification requests a special pseudo parameter
+#     named "__JSV_TEST_RESULT" will be sent by the JSV script. The
+#     value of this variable contains a sequence of "0" and "1"
+#     characters. There is one character for each modification
+#     request. Each character represents the error state (1 => success,
+#     0 => error) which the masters parsing code has to have
+#     when a corresponding modification request is processed.
+#     The first character describes the state for the first
+#     modification the second one for the sencond modification request
+#     and so on ...
+#     If the "__JSV_TEST_RESULT" is modified with JSV then special
+#     test code will be executed in the JSV's counterpart (client,
+#     qmaster) In this case the expected results will be compared with
+#     the real results of the parsing code. If they match then 
+#     expected results then the job will be accepted (with
+#     its initial specification) independent of the JSV's RESULT 
+#     state. If the results do not fit then the job is rejected.
+#
+proc jsv_ge_parsing_in_client_or_master {} {
+   global CHECK_ACT_LEVEL
+   global ts_config
+   global jsv_base_path
+
+   if {$CHECK_ACT_LEVEL == 0} {
+      append submit_args "-jsv script:${jsv_base_path}/jsv_test_modify.tcl "
+      append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
+      set job_id [submit_job "$submit_args"]
+
+      wait_for_job_end $job_id 20
+   }
+}
+
