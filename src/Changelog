@@ -1,3 +1,8 @@
+MD-2008-11-10-0: Bugfix:     - shadow_migrate test failed on shadow host, where
+                               the nfsv4 shared volume is local (changed 
+                               get_fstype to fs_config_get_filesystem_type)
+                 Review:     JG
+  
 EB-2008-11-10-0: Enhancem.:  - added new test for JSV script
                              - added new test for JSV parsing code in master
                  Review:     MD
