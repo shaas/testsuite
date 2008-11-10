@@ -1202,6 +1202,10 @@ proc map_special_users {hostname user win_local_user} {
       } else {
          set connect_full_user   $real_user
       }
+      ts_log_finer "map_special_users: $user on windows host $hostname"
+      ts_log_finer "   real_user:         $real_user"
+      ts_log_finer "   connect_user:      $connect_user"
+      ts_log_finer "   connect_full_user: $connect_full_user"
    } else {
       # on unixes, we connect
       # with rlogin always as CHECK_USER (and su later, if necessary)
@@ -1222,12 +1226,11 @@ proc map_special_users {hostname user win_local_user} {
          set connect_user $CHECK_USER
          set connect_full_user $CHECK_USER
       }
+      ts_log_finest "map_special_users: $user on host $hostname"
+      ts_log_finest "   real_user:         $real_user"
+      ts_log_finest "   connect_user:      $connect_user"
+      ts_log_finest "   connect_full_user: $connect_full_user"
    }
-
-   ts_log_finest "map_special_users: $user on host $hostname"
-   ts_log_finest "   real_user:         $real_user"
-   ts_log_finest "   connect_user:      $connect_user"
-   ts_log_finest "   connect_full_user: $connect_full_user"
 }
 
 #****** remote_procedures/open_remote_spawn_process() **************************

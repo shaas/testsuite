@@ -909,12 +909,24 @@ proc set_passwd {user root_host win_host} {
    global CHECK_ADMIN_USER_SYSTEM
    global stored_passwd
 
+
+   if {$root_host == ""} {
+      ts_log_severe "No unix password host specified!"
+      return
+   }
+
+   
    # repeat passwd question, until success, or 
    # user explicitly requested other options
    set error 1
    while {$error} {
       # enter passwd
-      puts "\nhost access with password needed for user $user"
+      if {$win_host != ""} {
+         set password_host $win_host
+      } else {
+         set password_host $root_host
+      }
+      puts "\nhost access with password needed for user $user on host $password_host"
       if {$user == "root"} {
          puts "please enter the password, or \"noroot\" to start testsuite without root access"
       } else {
@@ -942,16 +954,14 @@ proc set_passwd {user root_host win_host} {
                # temporarily set password database (for connection test)
                set stored_passwd($user) $passwd
 
-               # choose host on which to test user's passwd
-               if {$user == "root"} {
-                  set host $root_host
-               } else {
-                  set host $win_host
-               }
+
+               # first check the unix access
+               set host $root_host
+               ts_log_fine "checking unix access to host $host ..."
 
                # try to connect to host and execute "id"
                ts_log_fine "--> testing $user access to host $host ..."
-               set result [start_remote_prog $host $user "id" "" prg_exit_state 60 0 "" "" 1 1 0 0]
+               set result [start_remote_prog $host $user "id" "" prg_exit_state 20 0 "" "" 1 1 0 0]
                ts_log_fine "--> id as $user output:\n$result"
 
                # on error: allow reentering of passwd, or
@@ -960,8 +970,56 @@ proc set_passwd {user root_host win_host} {
                if {[string first $user $result] >= 0} {
                   set error 0
                } else {
-                  puts "--> no $user access"
+                  puts "--> NO ACCESS for user $user on host $host"
                   set passwd ""
+                  set error 1
+               }
+               
+               # now check (only for windows host) if local user also works
+               if { $win_host != "" && $error == 0} {
+                  set host $win_host
+                  ts_log_fine "checking windows local access to host $host ..."
+                  # handle special user ids
+                  map_special_users $host $user 1
+
+                  # try to connect to host and execute "id"
+                  ts_log_fine "--> testing $connect_full_user access to host $host ..."
+                  set result [start_remote_prog $host $user "id" "" prg_exit_state 20 0 "" "" 1 1 0 0 1]
+                  set result [string tolower $result]
+                  ts_log_fine "--> id as $connect_full_user output:\n$result"
+
+                  # on error: allow reentering of passwd, or
+                  # switch to admin user system, or
+                  # do not reenter passwd and risk errors later on (windows non root users)
+                  if {[string first [string tolower $connect_full_user] $result] >= 0} {
+                     set error 0
+                  } else {
+                     puts "--> NO ACCESS for user $connect_full_user on host $host"
+                     set passwd ""
+                     set error 1
+                  }
+
+                  if {$error == 0 && $user != "root"} {
+                     # handle special user ids
+                     map_special_users $host $user 0
+
+                     # try to connect to host and execute "id"
+                     ts_log_fine "--> testing $connect_full_user local access to host $host ..."
+                     set result [start_remote_prog $host $user "id" "" prg_exit_state 20 0 "" "" 1 1 0 0 0]
+                     set result [string tolower $result]
+                     ts_log_fine "--> id as $connect_full_user output:\n$result"
+
+                     # on error: allow reentering of passwd, or
+                     # switch to admin user system, or
+                     # do not reenter passwd and risk errors later on (windows non root users)
+                     if {[string first [string tolower $connect_full_user] $result] >= 0} {
+                        set error 0
+                     } else {
+                        puts "--> NO ACCESS for user $connect_full_user on host $host"
+                        set passwd ""
+                        set error 1
+                     }
+                  }
                }
             } ;# passwd check
          } ;# passwd or none has been entered

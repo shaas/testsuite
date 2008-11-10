@@ -1,3 +1,10 @@
+CR-2008-11-10-0: Bugfix:     - set_passwd() did not re-ask for password if
+                               the connection could not be established
+                             - The unix connection is always checked now
+                             - for windows hosts now local and domain connection
+                               is checked
+                 Review:     HP
+
 JG-2008-11-10-0: Bugfix:     copy_certs test failed in clusters without csp and
                              without windows hosts
                  Review:     CR
