@@ -1,3 +1,6 @@
+EB-2008-11-11-0: Bugfix:     - fixed bugs in jsv_script test 
+                 Review:     MD 
+
 CR-2008-11-10-1: Bugfix:     Fixed qmod_general test
                  Review:     JG
 
