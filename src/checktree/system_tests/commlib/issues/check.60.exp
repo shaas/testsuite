@@ -135,6 +135,9 @@ proc commlib_issues_run  {} {
             foreach line $output {
                set help [string trim $line]
                ts_log_fine "server: $help"
+               if { [string match "*issue 1400 error found*" $help] } {
+                  ts_log_severe "found issue #1400 in server binary"
+               }
             }
          }
          -i $client_id -- "*\n" {
@@ -146,6 +149,10 @@ proc commlib_issues_run  {} {
                if { [string match "*malloc() error*" $help] } {
                   set found_malloc_error 1
                }
+               if { [string match "*skip malloc() more than 1GB*" $help] } {
+                  set found_malloc_error 2
+               }
+
                if { [string match "*_exit_status_:(*)*" $help] } {
                  
                   set st [string first "(" $help]
@@ -156,11 +163,16 @@ proc commlib_issues_run  {} {
                   ts_log_fine "found exit status of client: ($exit_state)"
                   if { $exit_state != 0 } {
                      set known_exit_state 0
+ 
+                     if { $exit_state == 1 && $found_malloc_error == 2 } {
+                        ts_log_config "can't test issue #1389 because machines are to fast!"
+                        set known_exit_state 1
+                     }
                      if { $exit_state == 1 && $found_malloc_error == 0 } {
-                        ts_log_severe "issue #1389 is present\nNotice this test may fail on hosts which have to less memory or are not fast enough!\n$expect_out(0,string)"
+                        ts_log_severe "issue #1389 is present\n$expect_out(0,string)"
                         set known_exit_state 1
                      } 
-                     if { $exit_state == 1 && $found_malloc_error != 0 } {
+                     if { $exit_state == 1 && $found_malloc_error == 1 } {
                         ts_log_config "can't test issue #1389 because of malloc error on host $client_host"
                         set known_exit_state 1
                      } 
