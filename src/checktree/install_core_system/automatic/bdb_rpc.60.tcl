@@ -60,7 +60,7 @@
 #     ???/???
 #*******************************
 proc install_bdb_rpc {} {
-   global CHECK_OUTPUT check_use_installed_system
+   global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL
    global CHECK_MAIN_RESULTS_DIR 
@@ -71,25 +71,25 @@ proc install_bdb_rpc {} {
    read_install_list
 
    if { $ts_config(bdb_server) == "none" } {
-      puts $CHECK_OUTPUT "there is no rpc server configured - returning"
+      ts_log_fine "there is no rpc server configured - returning"
       return
    }
 
    set bdb_host $ts_config(bdb_server)
-   puts $CHECK_OUTPUT "installing BDB RPC Server on host $bdb_host ($ts_config(product_type) system) ..."
+   ts_log_fine "installing BDB RPC Server on host $bdb_host ($ts_config(product_type) system) ..."
    if { $check_use_installed_system != 0 } {
       puts "no need to install BDB RPC Server on hosts \"$ts_config(bdb_server)\", noinst parameter is set"
       if {[startup_bdb_rpc $bdb_host] == 0} {
          lappend CORE_INSTALLED $bdb_host
          write_install_list
       } else {
-         add_proc_error "install_bdb_rpc" -2 "could not startup BDB RPC Server on host $bdb_host"
+         ts_log_warning "could not startup BDB RPC Server on host $bdb_host"
       }
       return
    }
 
    if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-      add_proc_error "install_bdb_rpc" "-1" "inst_sge file not found"
+      ts_log_severe "inst_sge file not found"
       return
    }
 
@@ -121,12 +121,12 @@ proc install_bdb_rpc {} {
    # bdb server can spool on any filesystem, no need to request a local one
    set spooldir [get_bdb_spooldir $ts_config(bdb_server) 0]
    if {$spooldir == ""} {
-      add_proc_error "install_bdb_rpc" -1 "no spooldir for host $bdb_host found"
+      ts_log_severe "no spooldir for host $bdb_host found"
       return
    }
 
    if {[file isfile "$ts_config(product_root)/$ts_config(cell)/common/sgebdb"] == 1} {
-      puts $CHECK_OUTPUT "--> shutting down BDB RPC Server <--"
+      ts_log_fine "--> shutting down BDB RPC Server <--"
       start_remote_prog "$bdb_host" "root" "$ts_config(product_root)/$ts_config(cell)/common/sgebdb" "stop" prg_exit_state 60 0 "" "" 1 0 0 1 1
    }
 
@@ -135,12 +135,12 @@ proc install_bdb_rpc {} {
       set inst_user "root"
    } else {
       set inst_user $CHECK_USER
-      puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
+      ts_log_fine "--> install as user $CHECK_USER <--" 
    }
    set id [open_remote_spawn_process $bdb_host $inst_user "cd $$prod_type_var;./inst_sge" "-db" 0 "" "" 0 15 0 1 1]
 
    log_user 1
-   puts $CHECK_OUTPUT "cd $$prod_type_var;./inst_sge -db"
+   ts_log_fine "cd $$prod_type_var;./inst_sge -db"
 
    set sp_id [ lindex $id 1 ] 
 
@@ -156,7 +156,6 @@ proc install_bdb_rpc {} {
    set do_stop 0
    while {$do_stop == 0} {
       flush stdout
-      flush $CHECK_OUTPUT
       if {$do_log_output == 1} {
           puts "press RETURN"
           set anykey [wait_for_enter 1]
@@ -166,31 +165,31 @@ proc install_bdb_rpc {} {
       log_user 1 
       expect {
          -i $sp_id full_buffer {
-            add_proc_error "install_bdb_rpc" "-1" "inst_sge -db - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+            ts_log_severe "inst_sge -db - buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
             close_spawn_process $id; 
             return;
          }
 
          -i $sp_id eof {
-            add_proc_error "install_bdb_rpc" "-1" "inst_sge -db - unexpeced eof";
+            ts_log_severe "inst_sge -db - unexpeced eof";
             set do_stop 1
             continue
          }
 
          -i $sp_id "coredump" {
-            add_proc_error "install_bdb_rpc" "-2" "inst_sge -db - coredump on host $bdb_host";
+            ts_log_severe "inst_sge -db - coredump on host $bdb_host";
             set do_stop 1
             continue
          }
 
          -i $sp_id timeout { 
-            add_proc_error "install_bdb_rpc" "-1" "inst_sge -db - timeout while waiting for output"; 
+            ts_log_severe "inst_sge -db - timeout while waiting for output"; 
             set do_stop 1
             continue
          }
 
          -i $sp_id $RPC_HIT_RETURN_TO_CONTINUE { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -201,7 +200,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_WELCOME { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -212,7 +211,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_INSTALL_AS_ADMIN { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -223,7 +222,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_SGE_ROOT {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(product_root)"
+            ts_log_fine "\n -->testsuite: sending $ts_config(product_root)"
             set input "$ts_config(product_root)\n"
 
             if {$do_log_output == 1} {
@@ -235,7 +234,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_SGE_CELL {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
+            ts_log_fine "\n -->testsuite: sending $ts_config(cell)"
             set input "$ts_config(cell)\n"
 
             if {$do_log_output == 1} {
@@ -247,7 +246,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_SERVER {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(bdb_server)"
+            ts_log_fine "\n -->testsuite: sending $ts_config(bdb_server)"
             set input "$ts_config(bdb_server)\n"
 
             if {$do_log_output == 1} {
@@ -259,7 +258,7 @@ proc install_bdb_rpc {} {
          } 
 
          -i $sp_id $DNS_DOMAIN_QUESTION { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(4)"
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<(4)"
             if {$do_log_output == 1} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
@@ -269,7 +268,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_DIRECTORY {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending $spooldir"
+            ts_log_fine "\n -->testsuite: sending $spooldir"
 
             if {$do_log_output == 1} {
                puts "-->testsuite: press RETURN"
@@ -281,7 +280,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_DIRECTORY_EXISTS { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(12)"
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_YES<(12)"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -293,7 +292,7 @@ proc install_bdb_rpc {} {
 
 
          -i $sp_id $RPC_START_SERVER { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -304,7 +303,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_SERVER_STARTED { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -315,7 +314,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $RPC_INSTALL_RC_SCRIPT { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(12)"
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<(12)"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -326,7 +325,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $INSTALL_SCRIPT { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(12)"
+            ts_log_fine "\n -->testsuite: sending >$ANSWER_NO<(12)"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -337,7 +336,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id -- $UNIQUE_CLUSTER_NAME {
-            puts $CHECK_OUTPUT "\n -->testsuite: sending cluster_name >$ts_config(cluster_name)<"
+            ts_log_fine "\n -->testsuite: sending cluster_name >$ts_config(cluster_name)<"
             if {$do_log_output == 1} {
                puts "press RETURN"
                set anykey [wait_for_enter 1]
@@ -347,18 +346,18 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id "Error:" {
-            add_proc_error "install_bdb_rpc" "-1" "$expect_out(0,string)"
+            ts_log_severe "$expect_out(0,string)"
             close_spawn_process $id; 
             return
          }
          -i $sp_id "can't resolve hostname*\n" {
-            add_proc_error "install_bdb_rpc" "-1" "$expect_out(0,string)"
+            ts_log_severe "$expect_out(0,string)"
             close_spawn_process $id; 
             return
          }            
 
          -i $sp_id "error:\n" {
-            add_proc_error "install_bdb_rpc" "-1" "$expect_out(0,string)"
+            ts_log_severe "$expect_out(0,string)"
             close_spawn_process $id; 
             return
          }
@@ -379,7 +378,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $HIT_RETURN_TO_CONTINUE { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -390,7 +389,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id $HIT_RETURN_TO_CONTINUE_BDB_RPC { 
-            puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
+            ts_log_fine "\n -->testsuite: sending >RETURN<"
             if {$do_log_output == 1} {
                  puts "press RETURN"
                  set anykey [wait_for_enter 1]
@@ -401,7 +400,7 @@ proc install_bdb_rpc {} {
          }
 
          -i $sp_id default {
-            add_proc_error "install_bdb_rpc" "-1" "inst_sge -db - undefined behaviour: $expect_out(buffer)"
+            ts_log_severe "inst_sge -db - undefined behaviour: $expect_out(buffer)"
             close_spawn_process $id; 
             return
          }

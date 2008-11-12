@@ -45,37 +45,7 @@ proc kill_running_system {} {
    shutdown_core_system
 
    if { $check_use_installed_system == 0 } { 
-      # if this is master remove default dir (but not the licence file)
-   
-         set moved [timestamp]
-   
-         catch { exec "mv" "$ts_config(product_root)/$ts_config(cell)" "$ts_config(product_root)/$ts_config(cell).$moved"  } result
-         puts $result
-   
-         puts "current default directory ($ts_config(product_root)/$ts_config(cell)) was moved to default.$moved"
-   
-         sleep 2
-   
-         catch { exec "mkdir" "$ts_config(product_root)/$ts_config(cell)"  } result
-         puts $result
-         catch { exec "chmod" "755" "$ts_config(product_root)/$ts_config(cell)"  } result
-         puts $result
-
-   
-         sleep 2
-   
-         catch { exec "mkdir" "$ts_config(product_root)/$ts_config(cell)/common"  } result
-         puts $result
-
-         catch { exec "chmod" "755" "$ts_config(product_root)/$ts_config(cell)/common"  } result
-         puts $result
-   
-         catch { exec "cp" "$ts_config(product_root)/$ts_config(cell).$moved/common/host_aliases" "$ts_config(product_root)/$ts_config(cell)/common/host_aliases"  } result
-         puts $result
-  
-         if { [file exists "$ts_config(product_root)/$ts_config(cell).$moved"] } {
-            delete_directory "$ts_config(product_root)/$ts_config(cell).$moved"
-         }
+      delete_directory "$ts_config(product_root)/$ts_config(cell)"
    }
 }
 
