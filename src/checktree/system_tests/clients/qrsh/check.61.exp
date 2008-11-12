@@ -33,7 +33,7 @@
 
 
 lappend check_functions "qrsh_wd"                    ;# test the -wd <dir>/-cwd options
-
+lappend check_functions "qrsh_w_v_test"
 #                                                             max. column:     |
 #****** qrsh/replace_automount_prefix() ***************************************
 #
@@ -166,5 +166,59 @@ proc qrsh_wd {} {
    }
 
    delete_all_jobs
+   wait_for_end_of_all_jobs
+}
+
+#****** qrsh/qrsh_w_v_test() ******
+#
+#  NAME
+#     qrsh_w_v_test
+#
+#  SYNOPSIS
+#     qrsh_w_v_test { }
+#
+#  FUNCTION
+#     Tests if qrsh -w v verifies and sends user notification about job verification
+#
+#  SEE ALSO
+#     
+#*******************************
+proc qrsh_w_v_test {} {
+   global ts_config CHECK_USER
+   global qrsh_hostlist qrsh_submithost
+
+   ts_log_fine "qrsh -w v verification test"
+   set arch [resolve_arch $qrsh_submithost]
+   
+   #submit qrsh -w v hostname job
+   set qrsh_id [open_remote_spawn_process $qrsh_submithost $CHECK_USER $ts_config(product_root)/bin/$arch/qrsh "-w v hostname"]
+   set sp_id [lindex $qrsh_id 1]
+   set exitStatus 1
+   #check for correct user notification
+   set Job_Verify [translate_macro MSG_JOB_VERIFYFOUNDQ]
+   set timeout 60
+   expect {
+      -i $sp_id full_buffer {
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+      }
+      -i $sp_id "$Job_Verify" {
+         ts_log_fine "qrsh successfully verified"
+         exp_continue 
+      }
+      -i $sp_id "_exit_status_:(*)*\n" {
+         set exitStatus [string index [string trimleft $expect_out(buffer)] 15]
+      }
+      -i $sp_id default {
+         ts_log_severe "qrsh to host $host failed"
+      }
+   }
+
+   close_spawn_process $qrsh_id
+   
+   #if the exit status of qrsh is anyting but 0 an error occurred
+   if { $exitStatus != 0 } {
+      ts_log_severe "Expected return value of 0 was not found. Return value was $prg_exit_state"
+   }
+
    wait_for_end_of_all_jobs
 }
