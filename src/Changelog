@@ -1,3 +1,7 @@
+CR-2008-11-13-0: Enhancem.:  Enhanced test "client_setup" to run not only
+                             on master host node.
+                 Review:     RD
+
 CR-2008-11-12-0: Bugfix:     fixed system_tests/commlib/issues test
                  Review:     AA
 

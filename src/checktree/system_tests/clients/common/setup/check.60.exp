@@ -127,32 +127,60 @@ proc client_setup_do_test {scenario expected_error} {
       set commands(qquota,args) ""
    }
 
+   set error_text ""
    foreach command $commands(index) {
-      set output [start_sge_bin $command $commands($command,args) $ts_config(master_host)]
+      set output [start_sge_bin $command $commands($command,args)]
       set messages(index) ""
       set ret [handle_sge_errors "client_setup_do_test" "$command $commands($command,args)" $output messages 0 $prg_exit_state]
 
       if {$ret != $expected_error} {
-         ts_log_severe "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output"
+         append error_text "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output\n\n"
+         ts_log_fine "scenario \"$scenario\", ran $command $commands($command,args)\nexpected error code $expected_error, but got $ret. Output from client was:\n$output"
+         if {$scenario == "qmaster down"} {
+            set note "INFO: This might be caused because of issue #2786"
+            append error_text "$note\n"
+            ts_log_fine $note
+         }
       }
+   }
+   if {$error_text != ""} {
+      ts_log_severe $error_text
    }
 }
 
 proc client_setup_test {} {
    global ts_config
    global did_shutdown
+   global CHECK_USER
 
    # test clients with non existing bootstrap file
    set config_file "$ts_config(product_root)/$ts_config(cell)/common/bootstrap"
    file rename $config_file "$config_file.bak"
+   # wait for NFS ...
+   foreach host $ts_config(execd_nodes) {
+      wait_for_remote_file $host $CHECK_USER $config_file 60 1 1
+   }
    client_setup_do_test "no bootstrap file" -300
    file rename "$config_file.bak" $config_file
 
    # test clients with non existing act_qmaster file
-   set config_file "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
-   file rename $config_file "$config_file.bak"
+   set config_file_2 "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster"
+   file rename $config_file_2 "$config_file_2.bak"
+
+   # wait for NFS ...
+   foreach host $ts_config(execd_nodes) {
+      wait_for_remote_file $host $CHECK_USER $config_file 60 1 0
+   }
+   foreach host $ts_config(execd_nodes) {
+      wait_for_remote_file $host $CHECK_USER $config_file_2 60 1 1
+   }
    client_setup_do_test "no act_qmaster file" -301
-   file rename "$config_file.bak" $config_file
+   file rename "$config_file_2.bak" $config_file_2
+    
+   # wait for NFS ...
+   foreach host $ts_config(execd_nodes) {
+      wait_for_remote_file $host $CHECK_USER $config_file_2 60 1 0
+   }
 
    # test clients with qmaster down
    shutdown_qmaster $ts_config(master_host) [get_qmaster_spool_dir]
