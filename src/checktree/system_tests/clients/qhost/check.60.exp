@@ -70,6 +70,7 @@ lappend check_functions "test_issue132_j"
 lappend check_functions "test_issue132_u"
 lappend check_functions "test_issue132_l"
 lappend check_functions "test_issue132_F"
+lappend check_functions "qhost_l_with_multiple_attributes"
 
 global ts_config
 if {$ts_config(gridengine_version) >= "61"} {
@@ -541,4 +542,75 @@ proc test_issue245 {} {
 
    ts_log_fine "qhost -l h=hostname test ok!"
    return
+}
+
+
+#****** display_test/qhost_l_with_multiple_attributes() ******
+# 
+#  NAME
+#     qhost_l_with_multiple_attributes 
+#
+#  SYNOPSIS
+#    This function will randomly choose one host name and one architecture
+#    from the list of exection hosts and run qhost -l h=host arch=arch using
+#    those two values.
+#
+#  FUNCTION
+#     The function of this procedure is to test whether using the qhost -l with 
+#     h=host can still be used with other attribute/value pairs afterwards.
+#
+#  EXAMPLE
+#     qhost -l h=oin arch=aix51
+#*******************************
+proc qhost_l_with_multiple_attributes {} {
+   global ts_config CHECK_USER
+
+   # get a list of all exection hosts
+   set exec_hosts $ts_config(execd_nodes)
+
+   # randomly choose a host name
+   set host [host_conf_get_suited_hosts]
+   set arch ""
+   
+   # randomly choose an arch for a host other than our chosen host
+   foreach exec $exec_hosts {
+      if {[string compare $host $exec] != 0} {
+         set arch [host_conf_get_arch $exec]
+         break
+      }       
+   }
+   
+   # set our qhost arguments and submit the request
+   set args "-l h=$host arch=$arch"
+   ts_log_fine "submitting qhost $args"
+   set results [qhost_parse plain job $args]
+
+   # loop through the output from qhost and make sure that both the host and arch
+   # we selected above are listed in the output
+   set foundHost 0
+   set foundArch 0
+   for {set ind 0} {$ind < $job} {incr ind 1} {
+      if {[string compare [string trim $plain(host$ind,name)] $host] == 0} {
+         set foundHost 1
+      }
+
+      if {[string compare [string trim $plain(host$ind,arch_string)] $arch] == 0} {
+         set foundArch 1
+      }
+   }
+
+   # if not found give error as to why
+   if {$foundHost != 1} {
+      ts_log_severe "Expected to see host $host is qhost output, but it did not appear"
+      return
+   }
+
+   if {$foundArch != 1} {
+      ts_log_severe "Expected to see a host with arch $arch is qhost output, but it did not appear"     
+      return
+   }
+   
+   ts_log_fine "qhost -l h=hostname arch=arch test ok!"
+   return
+
 }

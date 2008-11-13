@@ -1,3 +1,6 @@
+MP-2008-11-13-0: Enhancem.:  added new test for qhost -l with multiple attributes
+                 Review:     CR
+
 RD-2008-11-13-0: Bugfix:     fixed test 1473. get_fstype was executed on wrong host
                  Review:     MD
 
