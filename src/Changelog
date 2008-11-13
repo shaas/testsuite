@@ -1,3 +1,6 @@
+RD-2008-11-13-0: Bugfix:     fixed test 1473. get_fstype was executed on wrong host
+                 Review:     MD
+
 CR-2008-11-13-0: Enhancem.:  Enhanced test "client_setup" to run not only
                              on master host node.
                  Review:     RD

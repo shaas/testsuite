@@ -983,7 +983,7 @@ proc fs_config_has_root_login_perm_on_nfs_server {filesystem_name} {
 #
 #  SEE ALSO
 #*******************************************************************************
-proc fs_config_get_filesystem_type {filesystem_name {raise_error 1}} {
+proc fs_config_get_filesystem_type {filesystem_name {host ""} {raise_error 1}} {
    global ts_fs_config
 
    set ret ""
@@ -996,7 +996,7 @@ proc fs_config_get_filesystem_type {filesystem_name {raise_error 1}} {
       } 
    }
    if {!$filesystem_found} {
-      set ret [get_fstype $filesystem_name]
+      set ret [get_fstype $filesystem_name $host]
       if {$ret != "unknown"} {
          set filesystem_found 1
       }

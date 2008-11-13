@@ -4052,7 +4052,7 @@ proc config_testsuite_bdb_dir { only_check name config_array } {
                while {[is_remote_path $master_host $CHECK_USER $tmp_dir] != 1} {
                   set tmp_dir [file dirname $tmp_dir]
                }  
-               set fstype [fs_config_get_filesystem_type $tmp_dir]
+               set fstype [fs_config_get_filesystem_type $tmp_dir $master_host]
                if {$fstype == "nfs4"} {
                   set spool_dir_ok 1
                }
