@@ -48,11 +48,13 @@ set check_root_access_needs "yes"
 set check_needs           "init_core_system"
 
 # setup and cleanup functions
+set check_setup_function "backup_restore_setup"
 set check_cleanup_function "backup_restore_cleanup"
 
 # define test's procedure order
 set check_fuctions ""
-lappend check_functions "backup_restore_setup"
+lappend check_functions "backup_restore_do_backup_restore"
+lappend check_functions "backup_restore_check_cluster"
 set check_highest_level 0
 
 proc backup_restore_init_level {} {
@@ -60,7 +62,7 @@ proc backup_restore_init_level {} {
    global CHECK_ACT_LEVEL
 
    switch -- $CHECK_ACT_LEVEL {
-      "0"  {
+      0  {
          return 0
       }
    }
@@ -69,6 +71,24 @@ proc backup_restore_init_level {} {
 }
 
 proc backup_restore_setup {} {
+   global ts_config CHECK_USER
+   global test_ar
+
+   # create a rqs
+   if {$ts_config(gridengine_version) >= 61} {
+      set rules ""
+      lappend rules "to slots=10"
+      set rqs(test,limit) $rules
+      add_rqs rqs
+   }
+
+   # create an advance reservation
+   if {$ts_config(gridengine_version) >= 62} {
+      set test_ar [submit_ar "-N TEST_AR -d 3600"]
+   }
+}
+
+proc backup_restore_do_backup_restore {} {
    global ts_config CHECK_USER
 
    set spooling_method $ts_config(spooling_method)
@@ -291,8 +311,38 @@ proc backup_restore_setup {} {
    }
 }
 
+proc backup_restore_check_cluster {} {
+   global ts_config
+   global test_ar
+
+   # run a test job
+   set job_id [submit_job "-o /dev/null -j y $ts_config(product_root)/examples/jobs/sleeper.sh 15"]
+   if {$job_id > 0} {
+      wait_for_jobstart $job_id "" 60
+      wait_for_job_end $job_id
+      get_qacct $job_id
+   }
+
+   # >= 6.1: check if rqs exists
+   if {$ts_config(gridengine_version) >= 61} {
+      get_rqs_list
+      if {[lsearch $result "test"] < 0} {
+         ts_log_severe "resource quota set \"test\" has not been restored"
+      }
+   }
+
+   # >= 6.2: check if ar exists
+   if {$ts_config(gridengine_version) >= 62} {
+      parse_qrstat $test_ar
+      if {![info exists qrstat_info(name)] || $qrstat_info(name) != "TEST_AR"} {
+         ts_log_severe "advance reservation $test_ar has not been properly restored"
+      }
+   }
+}
+
 proc backup_restore_cleanup {} {
    global CHECK_USER ts_config
+   global test_ar
 
    set spooling_method $ts_config(spooling_method)
    set master_spool_dir [get_spool_dir $ts_config(master_host) qmaster]
@@ -338,5 +388,9 @@ proc backup_restore_cleanup {} {
          ts_log_fine [start_remote_prog $remote_host $CHECK_USER "rm" "-rf $ts_config(product_root)/spooling_backup"]
        }
    }
+
+   # cleanup our test objects
+   del_rqs test
+   delete_ar $test_ar
 }
 

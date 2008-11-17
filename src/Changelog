@@ -1,3 +1,11 @@
+JG-2008-11-17-0: Enhancem.:  added test for IZ 2789
+                 Bugfix:     minor fixes for installation,
+                             qalter/qhold/qconf -help tests,
+                             cleanup in qhost test,
+                             reactivated commented out check_functions in
+                             qrsh test
+                 Review:     MD
+
 MP-2008-11-13-0: Enhancem.:  added new test for qhost -l with multiple attributes
                  Review:     CR
 

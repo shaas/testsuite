@@ -44,8 +44,10 @@ proc kill_running_system {} {
 
    shutdown_core_system
 
-   if { $check_use_installed_system == 0 } { 
-      delete_directory "$ts_config(product_root)/$ts_config(cell)"
+   if {$check_use_installed_system == 0} {
+      if {[remote_file_isdirectory $ts_config(master_host) "$ts_config(product_root)/$ts_config(cell)"]} {
+         delete_directory "$ts_config(product_root)/$ts_config(cell)"
+      }
    }
 }
 

@@ -5178,10 +5178,13 @@ proc get_extended_job_info {jobid {variable job_info} {do_replace_NA 1} {do_grou
       parse_qstat result jobinfo $jobid $ext $do_replace_NA
       if {$jobid != ""} {
          if {![info exists jobinfo(id)] || $jobinfo(id) != $jobid} {
+            ts_log_fine "didn't find job $jobid in qstat output"
             return 0
          }
       }
       return 1
+   } else {
+      ts_log_severe "qstat $all_qstat_options failed:\n$result"
    }
   
    return 0
@@ -7565,16 +7568,17 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
 
    exec_shutdown_hooks
 
-   if { $only_hooks != 0 } {
+   if {$only_hooks != 0} {
       ts_log_fine "skip shutdown core system, I am in only hooks mode"
       return
    }
-   
+
+   # shutdown the shadow daemons
    foreach sh_host $ts_config(shadowd_hosts) {
       shutdown_all_shadowd $sh_host
    }
-   ts_log_fine "killing scheduler and all execds in the cluster ..."
 
+   ts_log_fine "killing scheduler and all execds in the cluster ..."
    set result ""
    set do_ps_kill 0
    if {$ts_config(gridengine_version) <= 61} {
@@ -7584,36 +7588,34 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
    }
    set result [start_sge_bin "qconf" $qconf_option]
    ts_log_finest "qconf $qconf_option returned $prg_exit_state"
-   if { $prg_exit_state == 0 } {
+   if { $prg_exit_state == 0} {
       ts_log_finest $result
    } else {
       set do_ps_kill 1
       ts_log_finer "shutdown_core_system - qconf $qconf_option failed:\n$result"
    }
 
-#   sleep 15 ;# give the schedd and execd's some time to shutdown
+   # give the schedd and execd's some time to shutdown
    wait_for_unknown_load 120 all.q 0
 
-
    ts_log_fine "killing qmaster ..."
-
    set result ""
    set do_ps_kill 0
    set result [start_sge_bin "qconf" "-km"]
 
    ts_log_finest "qconf -km returned $prg_exit_state"
-   if { $prg_exit_state == 0 } {
+   if {$prg_exit_state == 0} {
       ts_log_finest $result
    } else {
       set do_ps_kill 1
       ts_log_finer "shutdown_core_system - qconf -km failed:\n$result"
    }
 
-   if { [wait_till_qmaster_is_down $ts_config(master_host)] != 0 } {
+   if {[wait_till_qmaster_is_down $ts_config(master_host)] != 0} {
       shutdown_system_daemon $ts_config(master_host) "qmaster"
    }
 
-   if { $ts_config(gridengine_version) == 53 } {
+   if {$ts_config(gridengine_version) == 53} {
       ts_log_fine "killing all commds in the cluster ..." 
      
       set do_it_as_root 0
@@ -7653,16 +7655,26 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       shutdown_system_daemon $ts_config(master_host) "execd qmaster"
    }
 
-   if { $do_compile == 0} {
-      if { $do_ps_kill == 1 } {
+   if {$do_compile == 0} {
+      if {$do_ps_kill == 1} {
          ts_log_fine "perhaps master is not running, trying to shutdown cluster with ps information"
       }
+      # check for processes on
+      # - master host
       set hosts_to_check $ts_config(master_host)
+      # - execd hosts
       foreach elem $ts_config(execd_nodes) {
-         if { [ string first $elem $hosts_to_check ] < 0 } {
+         if {[lsearch -exact $hosts_to_check $elem] < 0} {
             lappend hosts_to_check $elem
          }
       }
+      # - shadowd hosts (we might have a qmaster running there!)
+      foreach elem $ts_config(shadowd_hosts) {
+         if {[lsearch -exact $hosts_to_check $elem] < 0} {
+            lappend hosts_to_check $elem
+         }
+      }
+
       if {$ts_config(gridengine_version) < 62} {
          set proccess_names "sched"
       } else {
@@ -7675,7 +7687,7 @@ proc shutdown_core_system {{only_hooks 0} {with_additional_clusters 0}} {
       }
 
       foreach host $hosts_to_check { 
-            shutdown_system_daemon $host $proccess_names
+         shutdown_system_daemon $host $proccess_names
       }
    }
 
@@ -8751,3 +8763,47 @@ if {[info procs lassign] == ""} {
         lrange $values [llength $args] end
     }
 }
+
+
+#****** sge_procedures/test_help_and_usage ******
+#
+#  NAME
+#     test_help_and_usage -- Tests the -help option and no option for a given command
+#
+#  SYNOPSIS
+#     test_help_and_usage {cmd}
+#
+#  FUNCTION
+#     Checks if the help text is presented if no option is given.
+#     Checks the return codes of cmd -help and cmd with no option.
+#
+#  INPUTS
+#     cmd -- name of command
+#*******************************
+proc test_help_and_usage {cmd} {
+   # do the qconf calls on the same host
+   # otherwise we might get different output
+   set host [host_conf_get_suited_hosts]
+
+   # check return code of cmd -help
+   set output_help [start_sge_bin $cmd "-help" $host "" prg_exit_state]
+
+   if {$prg_exit_state != 0} {
+      ts_log_severe "The return code of $cmd -help was not 0 (it was $prg_exit_state), output was \n$output_help"
+   }
+
+   # check if cmd is mapped to cmd -help but with error code and
+   # return code 1
+   set output [start_sge_bin $cmd "" $host "" prg_exit_state]
+
+   if {$prg_exit_state != 1} {
+      ts_log_severe "The return code of $cmd with no option was not 1 (it was $prg_exit_state), output was\n$output"
+   }
+
+   # compare output: output_help must be a subset of output
+   # because output has to contain an error message
+   if {[string first $output_help $output] == -1} {
+      ts_log_severe "$cmd with no option does not return the text shown by -help:\n$output\n---- expected ----\n$output_help"
+   }
+}
+

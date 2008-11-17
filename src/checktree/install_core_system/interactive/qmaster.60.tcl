@@ -1105,8 +1105,12 @@ proc install_qmaster {} {
 
 
       -i $sp_id $ENTER_DATABASE_SERVER_DIRECTORY {
-         set spooldir [get_bdb_spooldir $ts_config(bdb_server) 1]
-         if { $spooldir == "" } {
+         if {$ts_config(bdb_server) != "none"} {
+            set spooldir [get_bdb_spooldir $ts_config(bdb_server) 0]
+         } else {
+            set spooldir [get_bdb_spooldir $ts_config(bdb_server) 1]
+         }
+         if {$spooldir == ""} {
             puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(11)"
          } else {
             puts $CHECK_OUTPUT "\n -->testsuite: sending $spooldir"

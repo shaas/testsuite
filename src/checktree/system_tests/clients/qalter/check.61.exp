@@ -140,7 +140,7 @@ proc qalter_iz_2575 {} {
 #     ???/???
 #*******************************
 proc qalter_help {} {
-   test_help "qalter" 
+   test_help_and_usage "qalter" 
 }
 
 #                                                             max. column:     |
@@ -172,7 +172,7 @@ proc qalter_help {} {
 #*******************************
 
 proc qhold_help {} {
-   test_help "qhold" 
+   test_help_and_usage "qhold" 
 }
 
 #                                                             max. column:     |
@@ -203,49 +203,7 @@ proc qhold_help {} {
 #     ???/???
 #*******************************
 proc qrls_help {} {
-   test_help "qrls"
+   test_help_and_usage "qrls"
 }
 
-
-#                                                             max. column:     |
-#****** qalter/test_help() ******
-# 
-#  NAME
-#     test_help -- Tests the -help option and no option for a given command. 
-#
-#  SYNOPSIS
-#     test_help { } 
-#
-#  FUNCTION
-#     Checks if the help text is presented if no option is given.
-#     Checks the return codes of cmd -help and cmd with no option. 
-#
-#  INPUTS
-#     cmd -- name of command 
-#
-#*******************************
-proc test_help { cmd } {
-   
-   # check return code of qalter -help
-   set output_help [start_sge_bin "$cmd" "-help" "" "" prg_exit_state]
-   
-   if { $prg_exit_state != 0 } {
-      ts_log_severe "The return code of $cmd -help was not 0 (it was $prg_exit_state)!"
-   }  
-   
-   # check if cmd is mapped to cmd -help but with error code and 
-   # return code 1
-   set output [start_sge_bin "$cmd" "" "" "" prg_exit_state]
-   
-   if { $prg_exit_state != 1 } {
-      ts_log_severe "The return code of $cmd with no option was not 1 (it was $prg_exit_state)!"
-   }  
-
-   # compare output: output_help must be a subset of output 
-   # because output has to contain an error message
-   if { [string first $output_help $output] == -1 } {
-      ts_log_severe "$cmd with no option does not return the text showed by -help"
-   } 
-   
-}
 

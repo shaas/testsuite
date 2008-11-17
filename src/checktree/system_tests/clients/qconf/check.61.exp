@@ -437,34 +437,12 @@ proc qconf_rqs_rattr_qmaster_dump {} {
 #      Performs a qconf -help and checks if the return value is 0. 
 #      Saves the help text and checks if the help text is contained 
 #      in "qconf with no option" output. This can additionally contain 
-#      An error message and it is written on stderr (but this is not 
+#      an error message and it is written on stderr (but this is not 
 #      checked). 
 #
 #*******************************************************************************
 proc qconf_help {} {
-   
-   # check return code of qconf -help
-   set output_help [start_sge_bin "qconf" "-help" "" "" prg_exit_state]
-   
-   if { $prg_exit_state != 0 } {
-      ts_log_severe "The return code of qconf -help was not 0 (it was $prg_exit_state)!"
-   }  
-   
-   # check if qconf is mapped to qconf -help but with error code and 
-   # return code 1
-   set output [start_sge_bin "qconf" "" "" "" prg_exit_state]
-   
-   if { $prg_exit_state != 1 } {
-      ts_log_severe "The return code of qconf with no option was not 1 (it was $prg_exit_state)!"
-   }  
-
-   # compare output: output_help must be a subset of output 
-   # because output has to contain additionally an error message
-
-   if { [string first $output_help $output] == -1 } {
-      ts_log_severe "qconf with no option does not return the text showed by -help"
-   } 
-   
+   test_help_and_usage "qconf"
 }
 
 

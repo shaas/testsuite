@@ -3639,12 +3639,9 @@ proc test_issue123 {} {
    # for each job test that the xml and plain outputs are the same
    for {set ind 0} {$ind < 5} {incr ind 1} {
       foreach elem $var_array {
-         if {[ string compare [string trim $xml(job$ind,$elem)] \
+         if {[string compare [string trim $xml(job$ind,$elem)] \
             [string trim $plain(job$ind,$elem)]] != 0} {
-            ts_log_severe "outputs do not match from \
-            plain and xml for $elem."
-            ts_log_severe "xml output: [string trim $xml($elem)] \
-            plain output: [string trim $plain($elem)]"
+            ts_log_severe "outputs do not match from plain and xml for $elem.\nxml output: [string trim $xml($elem)]\nplain output: [string trim $plain($elem)]"
             return
          }
       }           
@@ -3671,14 +3668,10 @@ proc test_issue123 {} {
       if {[ string compare [string trim $xml($elem)] \
          [string trim $plain($elem)]] != 0} {
          ts_log_fine "xml = [string trim $xml($elem)] , plain = [string trim $plain($elem)]"
-         ts_log_severe "outputs do not match from \
-         plain and xml for $elem."
-         ts_log_severe "xml output: [string trim $xml($elem)] \
-         plain output: [string trim $plain($elem)]"
+         ts_log_severe "outputs do not match from plain and xml for $elem.\nxml output: [string trim $xml($elem)]\nplain output: [string trim $plain($elem)]"
          return
       }
    }   
    delete_all_jobs
-   
 }
 
