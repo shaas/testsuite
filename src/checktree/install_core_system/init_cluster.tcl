@@ -1035,50 +1035,54 @@ proc setup_default_calendars {} {
   }
 }
 
+proc setup_check_message_file_line {line} {
+   if {[string first "|C|" $line] >= 0 || \
+       [string first "|E|" $line] >= 0 || \
+       [string first "|W|" $line] >= 0} {
+      ts_log_fine $line
+   }
+   ts_log_finest $line
+}
+
 proc setup_check_messages_files {} {
-   global CHECK_OUTPUT
-   global CHECK_USER
+   global ts_config CHECK_USER
    global check_use_installed_system 
-   global ts_config ts_log_config
 
    if {$check_use_installed_system} {
       return
    }
 
    if {$ts_config(gridengine_version) < 62} {
-      puts $CHECK_OUTPUT "scheduler ..."
+      ts_log_fine "scheduler ..."
       set messages [get_schedd_messages_file]
       get_file_content $ts_config(master_host) $CHECK_USER $messages 
-      if { $file_array(0) < 1 } {
-         add_proc_error "setup_check_messages_files" -1 "no scheduler messages file:\n$messages"
+      if {$file_array(0) < 1} {
+         ts_log_severe "no scheduler messages file:\n$messages"
       }
-      set i [expr $file_array(0) - [min 20 $file_array(0)]]
-      for {} { $i <= $file_array(0) } { incr i 1 } {
-         puts $CHECK_OUTPUT $file_array($i)
+      for {set i 1} {$i <= $file_array(0)} {incr i} {
+         setup_check_message_file_line $file_array($i)
       }
    }
 
-   puts $CHECK_OUTPUT "qmaster ..."
+   ts_log_fine "qmaster ..."
    set messages [get_qmaster_messages_file]
    get_file_content $ts_config(master_host) $CHECK_USER $messages 
-   if { $file_array(0) < 1 } {
-      add_proc_error "setup_check_messages_files" -1 "no qmaster messages file:\n$messages"
+   if {$file_array(0) < 1} {
+      ts_log_severe "no qmaster messages file:\n$messages"
    }
-   set i [expr $file_array(0) - [min 20 $file_array(0)]]
-   for {} { $i <= $file_array(0) } { incr i 1 } {
-      puts $CHECK_OUTPUT $file_array($i)
+   for {set i 1} {$i <= $file_array(0)} {incr i} {
+      setup_check_message_file_line $file_array($i)
    }
 
    foreach execd $ts_config(execd_nodes) {
-      puts $CHECK_OUTPUT "execd $execd ..."
-      set messages [ get_execd_messages_file $execd ]
+      ts_log_fine "execd $execd ..."
+      set messages [get_execd_messages_file $execd]
       get_file_content $execd $CHECK_USER $messages 
-      if { $file_array(0) < 1 } {
+      if {$file_array(0) < 1} {
          add_proc_error "setup_check_messages_files" -1 "no execd(host=$execd) messages file:\n$messages"
       }
-      set i [expr $file_array(0) - [min 20 $file_array(0)]]
-      for {} { $i <= $file_array(0) } { incr i 1 } {
-         puts $CHECK_OUTPUT $file_array($i)
+      for {set i 1} {$i <= $file_array(0)} {incr i} {
+         setup_check_message_file_line $file_array($i)
       }
    }
 }

@@ -1,3 +1,7 @@
+JG-2008-11-18-0: Enhancem.:  cleanup and optimization of performance/throughput
+                             test, cleanup of messages file check after install
+                 Review:     RD
+
 HP-2008-11-18-0: Bugfix:     o IZ 1768 DRMAA test was executed for win32-x86 
                              o IZ 1892 DRMAA test was executed for win32-x86
                              o qmod reschedule test didn't test on win32-x86

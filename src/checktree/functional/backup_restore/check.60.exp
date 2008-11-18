@@ -390,7 +390,12 @@ proc backup_restore_cleanup {} {
    }
 
    # cleanup our test objects
-   del_rqs test
-   delete_ar $test_ar
+   if {$ts_config(gridengine_version) >= 61} {
+      del_rqs test
+   }
+
+   if {$ts_config(gridengine_version) >= 62} {
+      delete_ar $test_ar
+   }
 }
 
