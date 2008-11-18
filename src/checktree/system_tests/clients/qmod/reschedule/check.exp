@@ -128,7 +128,16 @@ proc reschedule_setup {} {
    # we'll do qrsh without command, and qsh
    # these are known not to work on some architectures
    # select only working platforms
-   set hosts [host_conf_get_suited_hosts 2 {} {} {hp11 hp11-64 win32-x86}]
+   if {$ts_config(gridengine_version) >= 6.2} {
+      # from SGE 6.2 on, this test should work on all platforms
+      set hosts [host_conf_get_suited_hosts 2]
+   } else {
+      set hosts [host_conf_get_suited_hosts 2 {} {} {hp11 hp11-64 win32-x86}]
+   }
+   if {[llength $hosts] < 2} {
+      ts_log_severe "Not enough suited hosts to perform this test!"
+   }
+
    set rerun_host    [lindex $hosts 0]
    set no_rerun_host [lindex $hosts 1]
 

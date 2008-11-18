@@ -1,3 +1,33 @@
+HP-2008-11-18-0: Bugfix:     o IZ 1768 DRMAA test was executed for win32-x86 
+                             o IZ 1892 DRMAA test was executed for win32-x86
+                             o qmod reschedule test didn't test on win32-x86
+                               for SGE 6.2 and higher
+                             o qstat test expected 640 slots on host donau
+                               (64 CPU host), but testsuite doesn't install
+                               more than 100 slots per queue instance.
+                             o qsub -S /bin/sh test used hard coded pathes for
+                               win32-x86
+                             o path_alias test doesn't work at all - removed
+                               it from list of tests, filed testsuite IZ.
+                             o fixed bug in handling of output retrieved from
+                               win32-x86 - line breaks consist of \r\n there.
+                 Enhancem.:  o Added procedure remote_procedures/get_remote_env_value
+                               to retrieve the value of an environment variable
+                               in the $CHECK_USER's environment on a remote host.
+                             o Added procedures to tcl_utils.tcl:
+                               + double_backslashes() doubles the backslashes
+                                 in Windows path, so the shell doesn't interpret
+                                 them as escape characters.
+                               + min() and max(), as they do not exist in the
+                                 expr command of our currently used tcl/expect.
+                             o init_cluster test doesn't print the whole
+                               "messages" files of qmaster, execd and schedd
+                               any more, which filled the whole xterm buffer
+                               and made it impossible to see errors printed
+                               earlier. Instead it prints just the last 20
+                               lines.
+                 Review:     MD
+
 JG-2008-11-17-0: Enhancem.:  added test for IZ 2789
                  Bugfix:     minor fixes for installation,
                              qalter/qhold/qconf -help tests,

@@ -334,8 +334,12 @@ proc check_core_queues {} {
 
   set queue_name [get_queue_instance "all.q" [resolve_host $check_host 1]]
   set reported_slots [lindex $slots [lsearch $qnames $queue_name]]
-  if {$reported_slots != [expr $numofproc * 10]} {
-     ts_log_severe "queue $queue_name should have [expr $numofproc * 10] slots) (cpu count * 10)\nqstat reported $reported_slots"
+
+  # Testsuite sets up 10 slots per CPU, but not more than 100 slots per queue instance,
+  # so we don't expect more.
+  set expected_slots [min [expr $numofproc * 10] 100]
+  if {$reported_slots != $expected_slots} {
+     ts_log_severe "queue $queue_name should have $expected_slots slots (min(cpu count * 10, 100))\nqstat reported $reported_slots"
      return
   }
 

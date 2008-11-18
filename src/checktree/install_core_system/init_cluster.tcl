@@ -1039,7 +1039,7 @@ proc setup_check_messages_files {} {
    global CHECK_OUTPUT
    global CHECK_USER
    global check_use_installed_system 
-   global ts_config
+   global ts_config ts_log_config
 
    if {$check_use_installed_system} {
       return
@@ -1052,7 +1052,8 @@ proc setup_check_messages_files {} {
       if { $file_array(0) < 1 } {
          add_proc_error "setup_check_messages_files" -1 "no scheduler messages file:\n$messages"
       }
-      for {set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+      set i [expr $file_array(0) - [min 20 $file_array(0)]]
+      for {} { $i <= $file_array(0) } { incr i 1 } {
          puts $CHECK_OUTPUT $file_array($i)
       }
    }
@@ -1063,7 +1064,8 @@ proc setup_check_messages_files {} {
    if { $file_array(0) < 1 } {
       add_proc_error "setup_check_messages_files" -1 "no qmaster messages file:\n$messages"
    }
-   for {set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+   set i [expr $file_array(0) - [min 20 $file_array(0)]]
+   for {} { $i <= $file_array(0) } { incr i 1 } {
       puts $CHECK_OUTPUT $file_array($i)
    }
 
@@ -1074,7 +1076,8 @@ proc setup_check_messages_files {} {
       if { $file_array(0) < 1 } {
          add_proc_error "setup_check_messages_files" -1 "no execd(host=$execd) messages file:\n$messages"
       }
-      for {set i 1 } { $i <= $file_array(0) } { incr i 1 } {
+      set i [expr $file_array(0) - [min 20 $file_array(0)]]
+      for {} { $i <= $file_array(0) } { incr i 1 } {
          puts $CHECK_OUTPUT $file_array($i)
       }
    }

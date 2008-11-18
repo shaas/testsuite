@@ -175,3 +175,116 @@ proc pick_random { alist { how_many 1 } } {
 
    return $ret
 }
+
+#****** tcl_utils/double_backslashes() ***********************************
+#  NAME
+#     double_backslashes() -- doubles all backslashes in a string
+#
+#  SYNOPSIS
+#     double_backslashes {original_string}
+#
+#  FUNCTION
+#     This procedure doubles all backslashes that occur in a string. A use
+#     case is handling Windows pathes - as TCL and sh interpret single
+#     backslashes as escape sequence, it's necessary to double the
+#     backslashes in order to get it interpreted right.
+#
+#  INPUTS
+#     original_string - the string whose backslashes shall be doubled.
+#
+#  RESULT
+#     The string with doubled backslashes. 
+#
+#  EXAMPLE
+#     set doubled_path [double_backslashes "C:\Windows\system32\cmd.exe"]
+#     puts $doubled_path
+#
+#     C:\\Windows\\system32\\cmd.exe
+#*******************************************************************************
+proc double_backslashes {original_string} {
+   set doubled_string ""
+
+   # Split the given string at existing backslashes and combine the resulting
+   # list of words to a new string with double backslashes in between.
+   set splitted [split $original_string "\\"]
+   set token [llength $splitted]
+   set backslashes $token
+   incr backslashes -1
+
+   for {set i 0} {$i<$token} {incr i} {
+      set word [lindex $splitted $i]
+      set doubled_string "$doubled_string$word"
+      if {$i<$backslashes} {
+         set doubled_string "$doubled_string\\\\"
+      }
+   }
+   return $doubled_string
+}
+
+#****** tcl_utils/min() **************************************************
+#  NAME
+#     min() -- return the lesser of two operands
+#
+#  SYNOPSIS
+#     min {arg1 arg2}
+#
+#  FUNCTION
+#     This procedure returns the lesser of the two operands.
+#
+#  INPUTS
+#     arg1 - operand 1
+#     arg2 - operand 2
+#
+#  RESULT
+#     The lesser of the two operands
+#
+#  EXAMPLE
+#     set value [min 3 17]
+#     puts $value
+#
+#     3
+#*******************************************************************************
+proc min {arg1 arg2} {
+   set ret 0
+
+   if {$arg1 < $arg2} {
+      set ret $arg1
+   } else {
+      set ret $arg2
+   }
+   return $ret
+}
+
+#****** tcl_utils/max() **************************************************
+#  NAME
+#     max() -- return the greater of two operands
+#
+#  SYNOPSIS
+#     max {arg1 arg2}
+#
+#  FUNCTION
+#     This procedure returns the greater of the two operands.
+#
+#  INPUTS
+#     arg1 - operand 1
+#     arg2 - operand 2
+#
+#  RESULT
+#     The greater of the two operands
+#
+#  EXAMPLE
+#     set value [max 3 17]
+#     puts $value
+#
+#     17
+#*******************************************************************************
+proc max {arg1 arg2} {
+   set ret 0
+
+   if {$arg1 > $arg2} {
+      set ret $arg1
+   } else {
+      set ret $arg2
+   }
+   return $ret
+}

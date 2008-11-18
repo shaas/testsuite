@@ -4182,10 +4182,6 @@ proc run_test_level {path runcompleted level {do_save 1}} {
 
    set CHECK_ACT_LEVEL $level
    ts_log_fine "starting test functions (runlevel is $CHECK_ACT_LEVEL)..."
- 
-
-
-   
 
    # call all check functions 
    clear_all_check_errors $check_name

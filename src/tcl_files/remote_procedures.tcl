@@ -659,6 +659,8 @@ proc start_remote_prog { hostname
       upvar $envlist users_env
    }
 
+   set exec_command [string trimright $exec_command "\r\n"]
+
    set back_exit_state -1
    set tmp_exit_status_string ""
    if {[llength $exec_command] != 1} {
@@ -3439,4 +3441,49 @@ proc ping_daemon {host port name {max_tries 10}} {
 
    ts_log_fine "ping_daemon: result is $prg_exit_state with $tries try(s)"
    return $prg_exit_state
+}
+
+#****** remote_procedures/get_remote_env_value() *************************
+#  NAME
+#     get_remote_env_value() -- gets one env value from a remote host
+#
+#  SYNOPSIS
+#     get_remote_env_value {remote_host env_variable}
+#
+#  FUNCTION
+#     This procedure gets one environment value from the environment of
+#     the $CHECK_USER on a remote host. Internally it does a rlogin,
+#     so all login scripts of this user run and are sourced to set the
+#     environment.
+#
+#  INPUTS
+#     remote_host  - the host to connect to.
+#     env_variable - the name of the environment variable whose value is
+#                    to be retrieved.
+#
+#  RESULT
+#     The value of the environment variable. If the environment variable
+#     can't be found, it's an empty string.
+#
+#  EXAMPLE
+#     set term [get_remote_env_value $remote_host "TERM"]
+#     puts $term
+#
+#     xterm
+#*******************************************************************************
+proc get_remote_env_value {remote_host env_variable} {
+   global CHECK_USER
+   set value ""
+
+   # Retrieve value of environment variable from remote host, read the whole
+   # environment, seek for the variable, cut out and return it's value.
+   set remote_env [start_remote_prog $remote_host $CHECK_USER "env" "" prg_exit_status 60 0 "" "" 1 1 1 1 1]
+   foreach line [split $remote_env "\n\r"] {
+      if {[string first $env_variable $line] > -1} {
+         set splitted_line [split $line "="]
+         set value [lindex $splitted_line 1]
+         break
+      }
+   }
+   return $value
 }

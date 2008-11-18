@@ -275,6 +275,7 @@ proc qsub_submit_check {jobargs expect_submit_error {user ""} {host ""} {output_
    # cleanup
    delete_job $job_id
    del_job_files $job_id $job_output_dir 2
+   return 0
 }
  
 #                                                             max. column:     |
@@ -2121,7 +2122,7 @@ proc check_option_soft {} {
 #     ???/???
 #*******************************
 proc check_option_S {} {
-   global ts_config CHECK_USER
+   global ts_config CHECK_USER CHECK_ACTUAL_TEST_PATH
    global default_args job_output_dir
 
    # first clean up output directory:
@@ -2129,27 +2130,52 @@ proc check_option_S {} {
 
    set option "-S /bin/sh"
    set jobargs "$option $default_args"
-   qsub_submit_check $jobargs 0
+   if {[qsub_submit_check $jobargs 0] == 0} {
+      ts_log_severe "Job with option -S /bin/sh failed!"
+      return 1
+   }
 
+   # Special handling for Windows hosts, the shell can either be the Interix
+   # shell (e.g. /bin/sh) or the Windows command processor
+   # (e.g. C:\Windows\system32\cmd.exe).
+   # The Interix shell is already tested with the general Unix test above, 
+   # the Windows command processor is tested here:
    set windows_host ""
    if {[host_conf_have_windows]} {
       set windows_host [host_conf_get_windows_host]
-      #ToDo: Use get_system32_dir function
-      set shell_option "-S /dev/fs/C/WINDOWS/system32/cmd.exe"
-      set host_option "-l h=$windows_host"
 
-      set result [start_remote_prog $windows_host $CHECK_USER "ls" "/net/es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe" prg_exit_state 60 0 "" "" 1 1 1 1 1]
+      # The command processor is defined in the "COMSPEC" environment variable
+      # on the Windows host. Read the value of the variable and convert the path
+      # to Unix format, as qsub will only accept Unix style pathes for the
+      # "-S" option.
+      set windows_comspec_path [get_remote_env_value $windows_host "COMSPEC"]
+      set windows_comspec_path [double_backslashes $windows_comspec_path]
 
-      if {$prg_exit_state == 1} {
-       ts_log_fine "The binary submission test is currently not working in environments outside of SUN.\n RFE 77 will fix this issue. Try again later, please!!!"
-      } else {
-         set bin_option "-b y"
-         set job_script "-o $job_output_dir -e $job_output_dir \"//es-ergb01-01/export/share00$ts_config(product_root)/examples/jobs/worker.exe\" \"5\""
-         set jobargs "$bin_option $shell_option $host_option $job_script"
-         qsub_submit_check $jobargs 0
+      set unix_comspec_path [start_remote_prog $windows_host $CHECK_USER \
+         "/bin/winpath2unix" "$windows_comspec_path" prg_exit_status 60 0 "" "" 1 1 1 1 1]
+      set unix_comspec_path [string trimright $unix_comspec_path "\n\r"]
+
+      # Check if retrieving and converting succeeded.
+      if {$prg_exit_status != 0} {
+         ts_log_severe "Can't convert Windows path of command processor (cmd.exe) to Unix format!\nCan't execute -S option test on Windows."
+         return 1
+      }
+      if {[string length $unix_comspec_path] < 7} {
+         ts_log_severe "Can't find Windows command processor (cmd.exe)\nCan't execute -S option test on Windows."
+         return 1
       }
 
-      set job_script "-o $job_output_dir -e $job_output_dir $ts_config(product_root)/examples/jobs/hello.bat"
+      set shell_option "-S $unix_comspec_path"
+      set host_option "-l h=$windows_host"
+
+      # First try to run a native Windows binary job with the given shell (cmd.exe) 
+      set bin_option "-b y"
+      set job_script "-o $job_output_dir -e $job_output_dir $CHECK_ACTUAL_TEST_PATH/worker.exe 5"
+      set jobargs "$bin_option $shell_option $host_option $job_script"
+      qsub_submit_check $jobargs 0
+
+      # Then try to run a shell script with the given shell (cmd.exe) 
+      set job_script "-o $job_output_dir -e $job_output_dir $CHECK_ACTUAL_TEST_PATH/hello.bat"
       set jobargs "$shell_option $host_option $job_script"
       qsub_submit_check $jobargs 0
    }

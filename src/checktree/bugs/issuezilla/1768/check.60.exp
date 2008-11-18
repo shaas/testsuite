@@ -85,10 +85,14 @@ proc issue_1768_run  {} {
    # Run test binary on all architectures
    ts_log_fine "running drmaa test binary on all architectures"
    foreach host $ts_config(unique_arch_nodes) {
-      set output [start_source_bin "test_drmaa_issue1768" "/bin/date issue1768" $host]
-      # If we segfault on any architecture, the bug still exists.
-      if {$prg_exit_state != 0} {
-         ts_log_severe "test binary test_drmaa_issue1768 failed on host $host:\n$output"
+      if {[resolve_arch $host] == "win32-x86"} {
+         ts_log_warning "DRMAA not supported on win32-x86"
+      } else {
+         set output [start_source_bin "test_drmaa_issue1768" "/bin/date issue1768" $host]
+         # If we segfault on any architecture, the bug still exists.
+         if {$prg_exit_state != 0} {
+            ts_log_severe "test binary test_drmaa_issue1768 failed on host $host:\n$output"
+         }
       }
    }
 }
