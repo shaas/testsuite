@@ -3495,7 +3495,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    global hedeby_config
    # setup arguments
    upvar $exp_resinfo exp_res_info
-   upvar $ev error_text
+   upvar $ev error_text_up
    upvar $ri resource_info
    upvar $rp resource_properties
    upvar $da resource_ambiguous
@@ -3512,9 +3512,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    }
 
    # init error and timeout
-   if {[info exists error_text] == 0} {
-      set error_text ""
-   }
+   set error_text ""
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -3603,6 +3601,7 @@ proc wait_for_resource_info { exp_resinfo  {atimeout 60} {raise_error 1} {ev err
    }
 
    if {$error_text != "" } {
+      append error_text_up $error_text
       ts_log_severe $error_text $raise_error
       return 1
    }
@@ -3649,7 +3648,7 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
    global hedeby_config
    # setup arguments
    upvar $exp_serv_info exp_srv_info
-   upvar $ev error_text
+   upvar $ev error_text_up
    upvar $si service_info
    if {$host == ""} {
       set execute_host $hedeby_config(hedeby_master_host)
@@ -3663,9 +3662,7 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
    }
 
    # init error and timeout
-   if {![info exists error_text]} {
-      set error_text ""
-   }
+   set error_text ""
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -3715,6 +3712,7 @@ proc wait_for_service_info { exp_serv_info  {atimeout 60} {raise_error 1} {ev er
    }
 
    if {$error_text != "" } {
+      append error_text_up $error_text
       if {$raise_error != 0} {
          ts_log_severe $error_text
       }
@@ -4390,7 +4388,7 @@ proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev 
    global hedeby_config
    # setup arguments
    upvar $exp_comp_info exp_cmp_info
-   upvar $ev error_text
+   upvar $ev error_text_up
    upvar $ci component_info
    if {$host == ""} {
       set execute_host $hedeby_config(hedeby_master_host)
@@ -4404,9 +4402,7 @@ proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev 
    }
 
    # init error and timeout
-   if {![info exists error_text]} {
-      set error_text ""
-   }
+   set error_text ""
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -4456,6 +4452,7 @@ proc wait_for_component_info { exp_comp_info  {atimeout 60} {raise_error 1} {ev 
    }
 
    if {$error_text != "" } {
+      append error_text_up $error_text
       ts_log_severe $error_text $raise_error
       return 1
    }
@@ -8970,7 +8967,7 @@ proc wait_for_service_slo_info { exp_sloinfo  {atimeout 60} {raise_error 1} {ev 
    global hedeby_config
    # setup arguments
    upvar $exp_sloinfo exp_slo_info
-   upvar $ev error_text
+   upvar $ev error_text_up
    upvar $ssi service_slo_info
 
    if {$host == ""} {
@@ -8985,9 +8982,7 @@ proc wait_for_service_slo_info { exp_sloinfo  {atimeout 60} {raise_error 1} {ev 
    }
 
    # init error and timeout
-   if {[info exists error_text] == 0} {
-      set error_text ""
-   }
+   set error_text ""
    set my_timeout [timestamp]
    incr my_timeout $atimeout
 
@@ -9040,6 +9035,7 @@ proc wait_for_service_slo_info { exp_sloinfo  {atimeout 60} {raise_error 1} {ev 
    }
 
    if {$error_text != "" } {
+      append error_text_up $error_text
       ts_log_severe $error_text $raise_error
       return 1
    }
@@ -9662,11 +9658,8 @@ proc wait_for_resource_removal { res_remove_list {opt ""} } {
    get_hedeby_proc_opt_arg $opt opts
 
    # setup arguments
-   upvar $opts(error_text) error_text
-
-   if {[info exists error_text] == 0} {
-      set error_text ""
-   }
+   upvar $opts(error_text) error_text_up
+   set error_text ""
    set my_endtime [timestamp]
    incr my_endtime $opts(timeout)
 
@@ -9702,6 +9695,7 @@ proc wait_for_resource_removal { res_remove_list {opt ""} } {
    }
 
    if {$error_text != "" } {
+      append error_text_up $error_text
       ts_log_severe $error_text $opts(raise_error)
       return 1
    }

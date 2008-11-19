@@ -1,3 +1,8 @@
+TB-2008-11-19-0: Bugfix:     o Some Hedeby functions reported an error if the
+                               error_val variable was non-empty, even if no error
+                               occured in the function itself
+                 Review:     CR
+
 CR-2008-11-19-0: Bugfix:     - fixed jsv_ge and jsv_script test
                              - added new feature "job_submission_verify" for
                                ge_has_feature() procedure
