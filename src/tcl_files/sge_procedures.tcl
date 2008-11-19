@@ -409,6 +409,21 @@ proc ge_has_feature {feature {quiet 0}} {
             set result true
          }
       }
+      "job_submission_verify" {
+         if {[get_config global_config] == 0} {
+            # check if there is a jsv_url in configuration
+            set result false
+            foreach param [array names global_config] {
+               if {$param == "jsv_url"} {
+                  set result true
+                  break
+               }
+            }
+         } else {
+            # no we don't have jsv!
+            set result false
+         }
+      }
       default {
          ts_log_severe "unsupported feature string \"$feature\""
          return "unsupported"

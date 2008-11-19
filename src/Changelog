@@ -1,3 +1,9 @@
+CR-2008-11-19-0: Bugfix:     - fixed jsv_ge and jsv_script test
+                             - added new feature "job_submission_verify" for
+                               ge_has_feature() procedure
+                 Issue:      261
+                 Review:     EB
+
 JG-2008-11-18-0: Enhancem.:  cleanup and optimization of performance/throughput
                              test, cleanup of messages file check after install
                  Review:     RD

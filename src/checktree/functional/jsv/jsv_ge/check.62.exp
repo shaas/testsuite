@@ -65,8 +65,10 @@ set check_functions {}
 lappend check_functions "jsv_ge_parsing_in_client_or_master"
 
 # global variables for this test. all of them are initiaized in the setup procedure
-set jsv_org_sched_conf {}
-set jsv_org_global_conf {}
+global jsv_org_global_conf
+global jsv_base_path
+global jsv_enabled
+set jsv_enabled ""
 set jsv_base_path ""
 
 proc jsv_ge_init_level {} {
@@ -92,9 +94,24 @@ proc jsv_ge_setup {} {
    global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
-   global jsv_org_sched_conf
    global jsv_base_path
+   global jsv_enabled
 
+
+   # check if jsv is available
+   if {$jsv_enabled == ""} {
+      set jsv_enabled [ge_has_feature "job_submission_verify"]
+      if {$jsv_enabled == false} {
+         ts_log_config "Cannot run this test, jsv is not available for this GE version!"
+      }
+   }
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      # nothing to setup, jsv not available
+      return 
+   }     
+
+   # get base path of scripts
    set jsv_base_path $ts_config(testsuite_root_dir)/checktree/functional/jsv/jsv_ge
 
    # change global config 
@@ -104,7 +121,6 @@ proc jsv_ge_setup {} {
    set_config global_conf
 
    # change schedd config
-   get_schedd_config jsv_org_sched_conf
    set sched_conf(flush_submit_sec) "1"
    set sched_conf(flush_finish_sec) "1"
    set_schedd_config sched_conf
@@ -115,18 +131,25 @@ proc jsv_ge_cleanup {} {
    global CHECK_ACT_LEVEL
    global ts_config
    global jsv_org_global_conf
-   global jsv_org_sched_conf
+   global jsv_enabled
  
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      # nothing to setup, jsv not available
+      return 
+   }     
+
+
    # trigger and wait for job termination
    delete_all_jobs
    wait_for_end_of_all_jobs 60
 
    # reset configurations
    set_config jsv_org_global_conf
-   set_schedd_config jsv_org_sched_conf
+   reset_schedd_config
 
    # unset our test's global variables
-   foreach var "org_global_conf org_sched_conf" {
+   foreach var "org_global_conf jsv_enabled jsv_base_path" {
       if {[info exists $var]} {
          unset $var
       }
@@ -161,6 +184,13 @@ proc jsv_ge_parsing_in_client_or_master {} {
    global CHECK_ACT_LEVEL
    global ts_config
    global jsv_base_path
+   global jsv_enabled
+
+   # if jsv is not available return
+   if {$jsv_enabled == false} {
+      # nothing to setup, jsv not available
+      return 
+   }     
 
    if {$CHECK_ACT_LEVEL == 0} {
       append submit_args "-jsv script:${jsv_base_path}/jsv_test_modify.tcl "
