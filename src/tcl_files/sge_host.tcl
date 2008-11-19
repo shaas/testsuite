@@ -117,7 +117,7 @@ proc get_exechost {output_var {host global} {on_host ""} {as_user ""} {raise_err
 
    set ret 0
    set result [start_sge_bin "qconf" "-se $host" $on_host $as_user]
-
+   set result [string trim $result]
    # parse output or raise error
    if {$prg_exit_state == 0} {
       parse_simple_record result out

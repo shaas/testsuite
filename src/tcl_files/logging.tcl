@@ -670,7 +670,7 @@ proc ts_log_newline {{level FINE}} {
   
    set level [ts_log_get_level_number $level]
    if {$ts_log_config(output) >= $level} {
-      puts "\n"
+      puts ""
    } else {
       ts_log_washing_machine
    }
@@ -1230,6 +1230,7 @@ proc ts_private_log_send_mail {level message raise_error function} {
    global CHECK_ACT_LEVEL
    global CHECK_SEND_ERROR_MAILS
    global DISABLE_ADD_PROC_ERROR
+   global CHECK_CUR_PREPARATION_PROCEDURE
    global ts_private_do_log_recursive
 
    # shall we send mail at all, and for this level?
@@ -1266,6 +1267,11 @@ proc ts_private_log_send_mail {level message raise_error function} {
    append mail_body "Date            : [clock format [clock seconds]]\n"
    append mail_body "check_name      : $check_name\n"
    append mail_body "category        : $category\n"
+   if {$CHECK_CUR_PREPARATION_PROCEDURE != ""} {
+      append mail_body "preparation func: $CHECK_CUR_PREPARATION_PROCEDURE\n"
+   } else {
+      append mail_body "preparation func: n.a.\n"
+   }
    append mail_body "runlevel        : [get_run_level_name $CHECK_ACT_LEVEL] (level: $CHECK_ACT_LEVEL)\n"
    append mail_body "check host      : $ts_config(master_host)\n"
    append mail_body "product version : [get_version_info]\n"

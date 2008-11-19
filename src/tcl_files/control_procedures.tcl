@@ -235,10 +235,33 @@ proc check_correct_testsuite_setup_user { error_text } {
 
 
 
-# take a name/value array and build a vi command to set new values
-proc build_vi_command { change_array {current_array no_current_array_has_been_passed}} {
+#****** control_procedures/build_vi_command() **********************************
+#  NAME
+#     build_vi_command() -- build a vi command to set new values
+#
+#  SYNOPSIS
+#     build_vi_command { change_array 
+#     {current_array no_current_array_has_been_passed} } 
+#
+#  FUNCTION
+#     take a name/value array and build a vi command to set new values
+#
+#  INPUTS
+#     change_array       - array with new values
+#     {current_array ""} - array with current (old) values
+#
+#  RESULT
+#     vi command sequence string
+#
+#  SEE ALSO
+#     ???/???
+#*******************************************************************************
+proc build_vi_command { change_array {current_array ""}} {
    upvar $change_array  chgar
-   upvar $current_array curar
+
+   if {$current_array != ""} {
+      upvar $current_array curar
+   }
 
    if {![info exists chgar]} {
       return ""

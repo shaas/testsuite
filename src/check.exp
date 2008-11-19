@@ -278,6 +278,8 @@ global CHECK_COMMD_PORT            ;# commd port
 global CHECK_USER                  ;# user who start test
 global CHECK_GROUP                 ;# group of user who start test
 global CHECK_ACT_LEVEL             ;# actual check level ( value from 0 up to xxx )
+global CHECK_CUR_PREPARATION_PROCEDURE
+set CHECK_CUR_PREPARATION_PROCEDURE ""
 global CHECK_SPOOL_DIR_CONFIG_FILE ;# file for local spooldirs in $CHECK_CONFIG_DIR path
 set CHECK_SPOOL_DIR_CONFIG_FILE "local-spool.conf"
 global CHECK_LOCAL_BINARY_DIR_CONFIG_FILE ;# file for local spooldirs in $CHECK_CONFIG_DIR path
@@ -4133,7 +4135,7 @@ proc unlock_testsuite {} {
 #     run_test_level -- ??? 
 #
 #  SYNOPSIS
-#     run_test_level { path runcompleted level {do_save 1} } 
+#     run_test_level { path runcompleted level {do_save 1} {warnings 0}} 
 #
 #  FUNCTION
 #     ??? 
@@ -4143,6 +4145,7 @@ proc unlock_testsuite {} {
 #     runcompleted - ??? 
 #     level        - ??? 
 #     {do_save 1}  - ??? 
+#     {warnings 0}  - warnings count of setup function
 #
 #  RESULT
 #     ??? 
@@ -4158,12 +4161,12 @@ proc unlock_testsuite {} {
 #
 #  SEE ALSO
 #*******************************
-proc run_test_level {path runcompleted level {do_save 1}} {
+proc run_test_level {path runcompleted level {do_save 1} {warnings 0}} {
    global check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
    global check_errstr check_description check_functions check_errno 
    global CHECK_CUR_PROC_NAME
    global CHECK_CURRENT_WORKING_DIR check_init_level_procedure CHECK_ACT_LEVEL
-   global errorInfo
+   global errorInfo check_need_running_system
    global check_setup_level_function check_cleanup_level_function
    global ts_config CHECK_JGDI_ENABLED check_category
    global CHECK_INTERRUPT
@@ -4193,7 +4196,8 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    set do_run_hook 0
 
    if {[string compare $check_name "init_core_system"] != 0 &&
-       [string compare $check_needs "" ] != 0} {
+       [string compare $check_needs "" ]               != 0 && 
+       $check_need_running_system == "yes"} {
 
       # If master not available skip scheduler tests ...
       set master_ping_result [ping_daemon $ts_config(master_host) $ts_config(commd_port) "qmaster" 1]
@@ -4253,7 +4257,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    #           specified runlevel
    if {[info exists check_init_level_procedure]} {
       if {[string compare $check_init_level_procedure "--"] != 0} {
-         ts_log_fine "\ncalling init level function \"$check_init_level_procedure\" ..."
+         ts_log_fine ">>> C A L L I N G   >init level< function \"$check_init_level_procedure\" ..."
          $check_init_level_procedure
       }
    }
@@ -4268,7 +4272,9 @@ proc run_test_level {path runcompleted level {do_save 1}} {
    } else {
       # If we have a level specific setup function: execute it
       if { [info exists check_setup_level_function] }  {
-         set setup_ret [execute_setup_cleanup_function $check_setup_level_function "setup_level"]
+         set setup_ret [execute_test_preparation_procedure $check_setup_level_function "setup_level"]
+      } else {
+         set setup_ret 1
       }
       # if we had a setup error, don't execute the test,
       # but continue with the cleanup function
@@ -4276,9 +4282,10 @@ proc run_test_level {path runcompleted level {do_save 1}} {
          foreach elem $check_functions {
             # running all check_functions can be interrupted by pressing CTRL-C
             if {$CHECK_INTERRUPT >= 3} {
+               ts_log_warning "test aborted by user!"
                break
             }
-            ts_log_info ">>> running \"$check_name\": \"$elem\", runlevel $level ([get_run_level_name $level])" 0 "" 1 1 0
+            ts_log_info ">>> R U N N I N G \"$check_name\": \"$elem\", runlevel $level ([get_run_level_name $level])" 0 "" 1 1 0
 
             # set public procedure error state to "no error"
             set check_cur_proc_result "0"
@@ -4302,7 +4309,7 @@ proc run_test_level {path runcompleted level {do_save 1}} {
 
       # if we have a level specific cleanup function: execute it
       if { [info exists check_cleanup_level_function] }  {
-         execute_setup_cleanup_function $check_cleanup_level_function "cleanup_level"
+         execute_test_preparation_procedure $check_cleanup_level_function "cleanup_level"
       }
    
       if {$do_run_hook == 1} { 
@@ -4317,8 +4324,8 @@ proc run_test_level {path runcompleted level {do_save 1}} {
 
    # examine public procedure error states
    set was_error 0
-   set was_unsupported 0
    private_check_error_run_test_level was_error was_unsupported
+   incr was_unsupported $warnings
 
    set end_time [clock seconds]
    set duration [expr $end_time - $start_time]
@@ -4437,7 +4444,6 @@ proc delete_temp_script_files { } {
    global ts_config CHECK_USER
 
    ts_log_fine "deleting temporary used files ..."
-
    set del_file_name [get_testsuite_delete_filename]
    set temp_del_file_name "${del_file_name}.old"
 
@@ -4478,20 +4484,21 @@ proc delete_temp_script_files { } {
    ts_log_fine $result
 }
 
-#****** check/execute_setup_cleanup_function() *********************************
+#****** check/execute_test_preparation_procedure() *********************************
 #  NAME
-#     execute_setup_cleanup_function() -- execute a setup/cleanup function
+#     execute_test_preparation_procedure() -- execute a setup/cleanup function
 #
 #  SYNOPSIS
-#     execute_setup_cleanup_function { func_name type } 
+#     execute_test_preparation_procedure { func_name type {warning_counter} } 
 #
 #  FUNCTION
-#     execute_setup_cleanup_function is used to execute a setup/cleanup
+#     execute_test_preparation_procedure is used to execute a setup/cleanup
 #     function for a check and/or a check level.
 #
 #  INPUTS
 #     func_name - name of the procedure to execute
 #     type      - descriptive text (e.g. "setup_level", or "cleanup")
+#     warning_counter - upvared variable to count the nr of warnings happended
 #
 #  RESULT
 #     0 - failure
@@ -4499,11 +4506,21 @@ proc delete_temp_script_files { } {
 #     2 - empty function name
 #
 #*******************************************************************************
-proc execute_setup_cleanup_function {func_name type} {
+proc execute_test_preparation_procedure {func_name type {warning_counter "ts_warnings_counter_var"}} {
    global CHECK_ACT_LEVEL
-   global CHECK_CUR_PROC_NAME check_category
+   global CHECK_CUR_PROC_NAME 
+   global check_category
+   global check_errno
+   global CHECK_CUR_PREPARATION_PROCEDURE
 
+   upvar $warning_counter warnings
    set ret 1
+   set CHECK_CUR_PREPARATION_PROCEDURE ""
+
+   if {$type != "setup" && $type != "cleanup" && $type != "cleanup_level" && $type != "setup_level"} {
+      ts_log_severe "supported type arguments are \"setup\", \"cleanup\", \"cleanup_level\" and \"setup_level\""
+      return 0
+   }
 
    # if no setup/cleanup function is set, func_name will be ""
    if { $func_name == "" } {
@@ -4527,18 +4544,11 @@ proc execute_setup_cleanup_function {func_name type} {
       set old_category $check_category
       lappend check_category "USE_CLI"
 
-      ts_log_fine "starting $type function $func_name"
+      ts_log_fine ">>> C A L L I N G  test >$type< praparation function \"$func_name\""
       set CHECK_CUR_PROC_NAME $func_name
 
-      set act_level_value $CHECK_ACT_LEVEL
-
-      if { $type == "setup" || $type == "cleanup" } {
-         set act_level_value $CHECK_ACT_LEVEL
-         set CHECK_ACT_LEVEL "global $type procedure \"$func_name\""
-      }
+      set CHECK_CUR_PREPARATION_PROCEDURE "Test >$type< preparation procedure \"$func_name\""
       set catch_return [ catch { $func_name } catch_message ]
-
-      set CHECK_ACT_LEVEL $act_level_value
 
       # catch returnes an error - may be a TCL error
       if {$catch_return != 0} {
@@ -4546,6 +4556,7 @@ proc execute_setup_cleanup_function {func_name type} {
          set ret 0
       }
       #We restore original category
+      set CHECK_CUR_PREPARATION_PROCEDURE ""
       set check_category $old_category
    }
 
@@ -4555,14 +4566,16 @@ proc execute_setup_cleanup_function {func_name type} {
       # search for entries != 0, if found, treat as error
       if {[info exists check_errno($func_name)]} {
          foreach elem $check_errno($func_name) {
-            if {$elem != 0} {
+            if {$elem == -3} {
+               incr warnings 1
+            } elseif {$elem != 0} {
                set ret 0
                break
             }
          }
       }
    }
-
+   ts_log_finer "test function \"$func_name\" of type \"$type\" returning: $ret"
    return $ret
 }
 
@@ -4602,7 +4615,7 @@ proc execute_setup_cleanup_function {func_name type} {
 proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } } {
    global CHECK_INFORMATION_FILE CHECK_INFORMATION_EXT check_needs CHECK_RESULT_DIR check_name CHECK_ACTUAL_TEST_PATH
    global check_errstr check_description check_functions check_errno 
-   global CHECK_CUR_PROC_NAME check_root_access_needs
+   global CHECK_CUR_PROC_NAME check_root_access_needs check_need_running_system
    global CHECK_CURRENT_WORKING_DIR check_highest_level check_init_level_procedure CHECK_ACT_LEVEL
    global CHECK_PRODUCT_TYPE CHECK_PRODUCT_VERSION_NUMBER
    global check_category CHECK_GROUP DISABLE_ADD_PROC_ERROR
@@ -4637,6 +4650,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    set check_highest_level 0
    set check_init_level_procedure "--"
    set check_root_access_needs   "no" 
+   set check_need_running_system "yes"
 
    ts_source $path/$CHECK_INFORMATION_FILE $CHECK_INFORMATION_EXT
    #Disable JGDI for SGE < 6.2
@@ -4716,8 +4730,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       return -2  ;# dependencies not fulfilled
    }
 
-   ts_log_fine "entering check \"$check_name\"" 0 "" 1 1 0
-
+   ts_log_fine "S T A R T I N G  test  \"$check_name\""
    set nr_errors 0
    set nr_warnings 0
    set nr_already_done 0
@@ -4780,6 +4793,10 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
       return 2
    }
 
+
+   
+   clear_all_check_errors $check_name
+
    # check the number of busy rlogin sessions
    # it should be 0
    set num_busy_sessions_before_check [get_busy_spawn_rlogin_sessions]
@@ -4789,15 +4806,33 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    }
 
    # start a setup function for this check - should it exist
-   set setup_ret [execute_setup_cleanup_function $check_setup_function "setup"]
+   set CHECK_ACT_LEVEL 0
+   set setup_ret [execute_test_preparation_procedure $check_setup_function "setup" nr_warnings]
    if {!$setup_ret} {
       set immediate_return -1
+      ts_log_fine "******************************************************************"
+      ts_log_fine "* Setup function returned error. Setting test state to failed!   *"
+      ts_log_fine "******************************************************************"
+      incr nr_errors 1
+      for {set i 0} {$i <= $check_highest_level} {incr i 1} {
+         if {[string compare $check_init_level_procedure "--"] != 0} {
+            set CHECK_ACT_LEVEL $i
+            set DISABLE_ADD_PROC_ERROR 1
+            if {[$check_init_level_procedure] == 0} {
+               delete_result $path 0 $i
+            }
+            set DISABLE_ADD_PROC_ERROR 0
+         } else {
+            delete_result $path 0 $i
+         }
+      }
    }
-
+   set was_check_abort 0
    if {$immediate_return == 0} {
       for {set level 0} {$level <= $check_highest_level} {incr level 1} {
          # check for interrupt
          if {$CHECK_INTERRUPT >= 2} {
+            set was_check_abort 1
             break
          }
 
@@ -4815,11 +4850,11 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
          ts_log_fine "-> enter check level $level"
 
          if {$do_only_one_test == 0} {
-            set back [run_test_level $path $runcompleted $level]
+            set back [run_test_level $path $runcompleted $level 1 $nr_warnings]
             ts_log_finest "level $level return value: $back"
             incr no_level_calls 1
          } else {
-            set back [run_test_level $path $runcompleted $level 0]
+            set back [run_test_level $path $runcompleted $level 0 $nr_warnings]
             ts_log_finest "level $level return value of test $run_single_test: $back"
             incr no_level_calls 1
          }
@@ -4867,11 +4902,46 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
    }
 
    # if we have a specific cleanup function: execute it
-   set cleanup_ret [execute_setup_cleanup_function $check_cleanup_function "cleanup"]
-   if {!$cleanup_ret} {
+   set cleanup_ret [execute_test_preparation_procedure $check_cleanup_function "cleanup" nr_warnings]
+   if {$cleanup_ret == 0} {
+      ts_log_fine "******************************************************************"
+      ts_log_fine "* Cleanup function returned error. Setting test state to failed! *"
+      ts_log_fine "******************************************************************"
       set immediate_return -1
+      incr nr_errors 1
+      for {set i 0} {$i <= $check_highest_level} {incr i 1} {
+         if {[string compare $check_init_level_procedure "--"] != 0} {
+            set CHECK_ACT_LEVEL $i
+            set DISABLE_ADD_PROC_ERROR 1
+            if {[$check_init_level_procedure] == 0} {
+               delete_result $path 0 $i
+            }
+            set DISABLE_ADD_PROC_ERROR 0
+         } else {
+            delete_result $path 0 $i
+         }
+      }
    }
 
+   if {$was_check_abort} {
+      ts_log_fine "******************************************************************"
+      ts_log_fine "* Testsuite user abort. Setting test state to failed!            *"
+      ts_log_fine "******************************************************************"
+      set immediate_return -1
+      incr nr_errors 1
+      for {set i 0} {$i <= $check_highest_level} {incr i 1} {
+         if {[string compare $check_init_level_procedure "--"] != 0} {
+            set CHECK_ACT_LEVEL $i
+            set DISABLE_ADD_PROC_ERROR 1
+            if {[$check_init_level_procedure] == 0} {
+               delete_result $path 0 $i
+            }
+            set DISABLE_ADD_PROC_ERROR 0
+         } else {
+            delete_result $path 0 $i
+         }
+      }
+   }
    # check the number of busy rlogin sessions
    # it should be 0, or at least not higher than before starting test
    set num_busy_sessions_after_check [get_busy_spawn_rlogin_sessions]
@@ -4898,6 +4968,7 @@ proc run_test {path runcompleted {run_single_test "all"} { send_mail_report 1 } 
 
    # when the tests succeeded, we usually send a mail
    if {$nr_errors == 0 && $nr_warnings == 0} {
+      ts_log_fine "test successfully executed!"
       if {$do_send_mail == 1} {
          set mail_body "Successfully performed check $check_name in directory\n$path\n"
          append mail_body "Date: [ exec date ]\n\n"
@@ -5620,27 +5691,28 @@ proc change_dir { input } {
 #     ???/???
 #*******************************
 proc get_run_level_name { level } {
-  
-  if { $level >= 400 } {
-     return "week"
-  }
+  if {[string is integer $level]} {
+     if { $level >= 400 } {
+        return "week"
+     }
 
-  if { $level >= 300 } {
-     return "day"
-  }
+     if { $level >= 300 } {
+        return "day"
+     }
 
-  if { $level >= 200 } {
-     return "long"
-  }
+     if { $level >= 200 } {
+        return "long"
+     }
 
-  if { $level >= 100 } {
-     return "medium"
-  }
+     if { $level >= 100 } {
+        return "medium"
+     }
 
-  if { $level >= 00 } {
-     return "short"
+     if { $level >= 0 } {
+        return "short"
+     }
   }
-  return ""
+  return "n.a."
 }
 # time in minutes
 proc get_run_level_time { level } {
@@ -8205,7 +8277,11 @@ for {set i 0} {$i < $argc} {incr i} {
       puts ""
       puts "compile               checkout source code and recompile"
       puts ""
-      puts "no_update             do not update source when compile option is used"
+      puts "no_update             do not update source when compile option is used."
+      puts "                      ATTENTION: "
+      puts "                         Compiling is done without aimk clean option!"
+      puts "                         Use compile_clean option to trigger a aimk clean at"
+      puts "                         compile time!"
       puts ""
       puts "all RUNLEVEL          run every test automatically up to runlevel RUNLEVEL"
       puts "                      (RUNLEVEL is a value from 0=short tests, up to 4=week tests)"
@@ -8243,7 +8319,7 @@ for {set i 0} {$i < $argc} {incr i} {
       puts "                      rtools (use rsh/rlogin/telnet, default for < 6.2)"
       puts "                      ssh (use ssh as transport)"
       puts ""
-      puts "compile_clean         force aimk clean when no_update option is set at compile time"
+      puts "compile_clean         force aimk clean when no_update option is set at compile time."
       puts ""
       puts "mfile FILE            write all mails into file FILE (when mail is enabled)"
       puts ""
@@ -8901,6 +8977,7 @@ proc ctrlc {} {
    }
 
    # offer a menu to let user decide what to do
+   puts "Press enter to continue or ..."
    puts "(1) exit immediately"
    if {$CHECK_TEST_RUNNING} {
       puts "(2) stop after current check_function"

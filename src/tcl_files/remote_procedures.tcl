@@ -748,28 +748,28 @@ proc start_remote_prog { hostname
    }
 
 
+   set info_message_text ""
    if { $find_out_more == 1 } {
-      set info_message_text ""
       append info_message_text "timeout error(1):\n"
       append info_message_text "maybe the shell is expecting an interactive answer from user?\n"
       append info_message_text "exec commando was: \"$exec_command $exec_arguments\"\n"
       append info_message_text "expect_out(buffer):\n>$expect_out(buffer)<\n"
       append info_message_text "more information in next error message in 5 seconds!!!\n"
       append info_message_text ""
-      ts_log_severe "$info_message_text" $raise_error
+      ts_log_fine "$info_message_text"
       set timeout 5
       expect {
          -i $myspawn_id full_buffer {
-            ts_log_severe "buffer overflow! Increment CHECK_EXPECT_MATCH_MAX_BUFFER value" $raise_error
+            append info_message_text "buffer overflow! Increment CHECK_EXPECT_MATCH_MAX_BUFFER value\n"
          }
          -i $myspawn_id timeout {
-            ts_log_severe "no more output available" $raise_error
+            append info_message_text "no more output available\n"
          }
          -i $myspawn_id "*" {
-            ts_log_severe "expect buffer:\n$expect_out(buffer)" $raise_error
+            append info_message_text "expect buffer:\n$expect_out(buffer)\n"
          }
          -i $myspawn_id default {
-            ts_log_severe "default - no more output available" $raise_error
+            append info_message_text "default - no more output available\n"
          }
       }
    }
@@ -804,7 +804,11 @@ proc start_remote_prog { hostname
 
    ts_log_finest "E X I T   S T A T E   of remote prog: $exit_status"
    close_spawn_process $id
-    
+
+   if {$info_message_text != ""} {
+      ts_log_severe "$info_message_text" $raise_error
+   }
+
    if { $CHECK_DEBUG_LEVEL == 2 } {
       wait_for_enter
    }
@@ -1281,6 +1285,9 @@ proc map_special_users {hostname user win_local_user} {
 #                                  if not 0:       don't print out start/end marks
 #     { without_sge_single_line 0} - if 0 (default): set SGE_SINGLE_LINE=1 and export it 
 #                                    if not 0:       unset SGE_SINGLE_LINE
+#     {disable_stty_echo 0}      - if 0 (default): no action
+#                                  if not 0: disalbe stty echo before executing command,
+#                                            enable again after command
 #
 #
 #  RESULT
@@ -1335,6 +1342,7 @@ proc open_remote_spawn_process { hostname
                                  {without_start_output 0}
                                  {without_sge_single_line 0}
                                  {shell_script_name_var shell_script_name}
+                                 {disable_stty_echo 0}
                                } {
 
    global CHECK_USER
@@ -1414,7 +1422,7 @@ proc open_remote_spawn_process { hostname
       # add script name to cache
       set open_remote_spawn_script_cache($spawn_command_arguments) $script_name
       set open_remote_spawn_script_cache($script_name) $spawn_command_arguments
-      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line
+      create_shell_script "$script_name" $hostname "$exec_command" "$exec_arguments" $cd_dir users_env "/bin/sh" 0 $source_settings_file $set_shared_lib_path $without_start_output $without_sge_single_line $disable_stty_echo
       ts_log_finest "created $script_name"
    }
    set used_script_name $script_name

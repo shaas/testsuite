@@ -30,7 +30,7 @@
 proc kill_running_system {} {
    global CHECK_OUTPUT CORE_INSTALLED
    global check_use_installed_system
-   global ts_config
+   global ts_config CHECK_USER
  
    set result [check_all_system_times]
    puts $CHECK_OUTPUT "check_all_system_times returned $result"
@@ -47,6 +47,9 @@ proc kill_running_system {} {
    if {$check_use_installed_system == 0} {
       if {[remote_file_isdirectory $ts_config(master_host) "$ts_config(product_root)/$ts_config(cell)"]} {
          delete_directory "$ts_config(product_root)/$ts_config(cell)"
+      }
+      foreach host [get_all_hosts] {
+         wait_for_remote_dir $host $CHECK_USER $ts_config(product_root)/$ts_config(cell) 60 1 1
       }
    }
 }

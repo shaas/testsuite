@@ -53,19 +53,11 @@ lappend check_functions "smf_test_host_supported"
 lappend check_functions "smf_test_qmaster"
 lappend check_functions "smf_test_shadowd"
 lappend check_functions "smf_test_execd"
-global ts_config
-#Add BDB test only if BDB server used
-if {[info exists ts_config(bdb_server)] == 1} {
-   lappend check_functions "smf_test_bdb"
-}
-#Add Dbwriter test only if arco checktree setuped
-if {[info exists ts_config(additional_checktree_dirs)] == 1 && [lsearch -glob $ts_config(additional_checktree_dirs) "*checktree_arco"] != -1} {
-   lappend check_functions "smf_test_dbwriter"
-}
+lappend check_functions "smf_test_bdb"
+lappend check_functions "smf_test_dbwriter"
 
 set check_setup_function "smf_setup"
 set check_cleanup_function "smf_cleanup"
-set check_highest_level       0
 
 proc smf_init_level {} {
    global CHECK_ACT_LEVEL
@@ -88,9 +80,8 @@ proc smf_setup {} {
 
 proc smf_cleanup {} {
    remove_smf_from_cluster
+   wait_for_load_from_all_queues 60
    shutdown_whole_cluster
-   #enable_smf_in_cluster
-   #smf_startup_cluster
    startup_cluster
 }
 
@@ -124,10 +115,14 @@ proc smf_test_qmaster {} {
 
    set host $ts_config(master_host)
    if {[is_smf_host $host] == 1} {
-      smf_generic_test $host "qmaster" 60 0
+      if {[smf_generic_test $host "qmaster" 60 0] != 0} {
+         shutdown_system_daemon $host "qmaster"
+         startup_daemon $host "qmaster"
+      }
    } else {
       ts_log_config "Qmaster host $host does not support SMF" 
    }
+   wait_for_load_from_all_queues 60
 }
 
 proc smf_test_shadowd {} {
@@ -142,16 +137,15 @@ proc smf_test_shadowd {} {
    set smf_hosts ""
    foreach host $ts_config(shadowd_hosts) {
       if {[is_smf_host $host] == 1} {
-	 lappend smf_hosts $host
+	      lappend smf_hosts $host
          smf_generic_test $host "shadowd" 30 0
-	 incr counter 1
+         incr counter 1
       }
    }
+   wait_for_load_from_all_queues 60
 
-   
    if {$counter == 0 } {
       ts_log_config "No smf capable shadow hosts in your configuration"
-      return 
    }
 }
 
@@ -167,37 +161,46 @@ proc smf_test_execd {} {
    set smf_hosts ""
    foreach host $ts_config(execd_nodes) {
       if {[is_smf_host $host] == 1} {
-	 lappend smf_hosts $host
+         lappend smf_hosts $host
          smf_generic_test $host "execd" 30 0
-	 incr counter 1
+         incr counter 1
       }
    }
-   
+   wait_for_load_from_all_queues 60
+
    if {$counter == 0} {
       ts_log_config "No smf capable execd hosts in your configuration"
-      return 
    }
 }
 
 proc smf_test_bdb {} {
    global ts_config
-
    if {[llength $ts_config(bdb_server)] == 0} {
+      ts_log_config "bdb server host list has length 0"
+      return
+   }
+   set host $ts_config(bdb_server)
+   if {$host == "none"} {
       ts_log_config "No bdb server host in your configuration"
       return
    }
-   
-   set host $ts_config(bdb_server)
    if {[is_smf_host $host] == 1} {
       smf_generic_test  $host "bdb"
    } else {
       ts_log_config "BDB server host $host does not support SMF"  
    }
+   wait_for_load_from_all_queues 60
 }
 
 proc smf_test_dbwriter {} {
-   global ts_config arco_config
-   
+   global ts_config
+   global arco_config
+
+   if {[lsearch -glob $ts_config(additional_checktree_dirs) "*checktree_arco"] == -1} {
+      ts_log_config "No arco checktree configuration found in additional_checktree_dirs!"
+      return
+   }
+
    if {![info exists arco_config(dbwriter_host)]} {
       ts_log_config "No dbwriter host in your configuration"
       return
@@ -209,4 +212,5 @@ proc smf_test_dbwriter {} {
    } else {
       ts_log_config "Dbwriter host $host does not support SMF"
    }
+   wait_for_load_from_all_queues 60
 }

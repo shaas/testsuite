@@ -1,3 +1,34 @@
+CR-2008-11-19-1: Bugfix:     - new test param: "check_need_running_system"
+                             - setup/cleanup() procedures now influence the
+                               test result when reporting an error
+                             - cleanup of testsuite output
+                             - when setup function fails the test is skipped
+                             - minor framework code cleanup
+                             - user abort now results in failed test
+                             - added note for no_update help output
+                             - open_remote_spawn_process(): new opt. param.:
+                               disable_stty_echo
+                             - ts_log_newline(): printed out two newlines
+                             - log mail now contains information about
+                               setup/cleanup/setup_level/cleanup_level function
+                               if error was logged by preparation procedure
+                             - create_shell_script(): 
+                               o new opt. param.: disable_stty_echo
+                               o always do "unset LS_COLORS"
+                             - wait_for_remote_dir():
+                               no need to source the settings file for this
+                               procedure
+                             - install_core_system test:
+                               wait for vanish of cell directory when deleted
+                               on master host before installing
+                             - fixed problems in smf_procedures.tcl and 
+                               functional/smf test
+                             - fixed commlib shutdown test 
+                             - enabled path_alias test again
+                             - enhanced execd startup test to choose 
+                               host != qmaster
+                 Review:     RD
+
 TB-2008-11-19-0: Bugfix:     o Some Hedeby functions reported an error if the
                                error_val variable was non-empty, even if no error
                                occured in the function itself

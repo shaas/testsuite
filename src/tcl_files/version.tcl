@@ -148,7 +148,7 @@ proc get_version_info {} {
    set master_arch [resolve_arch $ts_config(master_host)]  
    if { [file isfile "$ts_config(product_root)/bin/$master_arch/qconf"] } {
       # We don't use start_sge_bin since we don't want to call this over JGDI
-      set result [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "qconf" "-sh"]
+      set result [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "qconf" "-sh" prg_exit_state 10 0 "" "" 1 1 0 0]
       set qmaster_running $prg_exit_state
       set result [start_remote_prog [host_conf_get_suited_hosts] $CHECK_USER "qconf" "-help"]
       set help [ split $result "\n" ] 

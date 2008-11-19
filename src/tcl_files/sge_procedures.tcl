@@ -894,7 +894,7 @@ proc start_sge_bin {bin args {host ""} {user ""} {exit_var prg_exit_state} {time
       ts_log_finest "executing $binary $args\nas user $user on host $host"
       # Add " around $args if there are more the 1 args....
       set result [start_remote_prog $host $user $binary "$args" exit_state $timeout 0 $cd_dir]
-      ts_log_finest $result
+      ts_log_finer "result:\n\"$result\""
    }
    
    if {[info exists line_buf]} {
@@ -6977,7 +6977,7 @@ proc shutdown_qmaster {hostname qmaster_spool_dir} {
       if { [ is_pid_with_name_existing $hostname $qmaster_pid "sge_qmaster" ] == 0 } { 
          ts_log_finest "killing qmaster with pid $qmaster_pid on host $hostname"
          ts_log_finest "do a qconf -km ..."
-         set result [start_sge_bin "qconf" "-km"]
+         set result [start_sge_bin "qconf" "-km" "" "" prg_exit_state 15]
          ts_log_finest $result
          wait_till_qmaster_is_down $hostname
          shutdown_system_daemon $hostname qmaster
@@ -8449,7 +8449,7 @@ proc get_qconf_object {procedure option output_var msg_var {list 0} {on_host ""}
    # parse output or raise error
    if {$prg_exit_state == 0} {
       set ret 0
-
+      set result [string trim $result]
       # BUG: project, user - for non-existing objectname doesn't return correct error code
       if {[string first $messages(-1) $result] >= 0} {
          set ret [handle_sge_errors "$procedure" "qconf $option" $result messages $raise_error]

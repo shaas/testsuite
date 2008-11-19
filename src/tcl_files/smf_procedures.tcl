@@ -527,7 +527,8 @@ proc smf_start_svcadm {host service action {flags ""} {wait_for_new_process 0} {
    
    if {$wait_for_new_process == 0} {
       if {$prg_exit_state != 0} {
-	 return -1
+         ts_log_severe "/usr/sbin/svcadm $args exit code is: $prg_exit_state"
+         return -1
       }
       return 0
    }
@@ -590,7 +591,7 @@ proc smf_generic_test {host service {timeout 30} {kill_restarts 1}} {
    #Advaced restart tests
    set ret [smf_advanced_restart_test $host $service $timeout $kill_restarts]
    if {$ret != 0} {
-      ts_log_fine "Aborting current test iteration..."
+      ts_log_severe "Aborting current test iteration..."
       return -1
    }
 
@@ -823,6 +824,7 @@ proc startup_cluster {} {
    foreach host $ts_config(execd_nodes) {
       startup_daemon $host "execd"
    }
+   wait_for_load_from_all_queues 60
 }
 
 proc shutdown_whole_cluster {} {
@@ -831,17 +833,23 @@ proc shutdown_whole_cluster {} {
    set host ""
    #shadowds
    foreach host $ts_config(shadowd_hosts) {
-      shutdown_daemon $host "shadowd"
+      if {$host != "none"} {
+         shutdown_daemon $host "shadowd"
+      }
    }
    
    #execds
    foreach host $ts_config(execd_nodes) {
-      shutdown_daemon $host "execd"
+      if {$host != "none"} {
+         shutdown_daemon $host "execd"
+      }
    }
    #dbwriter
    if {[info exists arco_config(dbwriter_host)] == 1} {
       set host $arco_config(dbwriter_host)
-      shutdown_daemon $host "dbwriter"
+      if {$host != "none"} {
+         shutdown_daemon $host "dbwriter"
+      }
    }
    #qmaster
    set host $ts_config(master_host)
@@ -850,7 +858,9 @@ proc shutdown_whole_cluster {} {
    #bdb
    if {[llength $ts_config(bdb_server)] != 0} {
       set host $ts_config(bdb_server)
-      shutdown_daemon $host "bdb"
+      if {$host != "none"} {
+         shutdown_daemon $host "bdb" 
+      }
    }
 }
 

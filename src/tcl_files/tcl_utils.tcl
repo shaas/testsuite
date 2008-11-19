@@ -111,7 +111,7 @@ proc format_array { a { with_header 1 } } {
       set ret ""
    }
    foreach n [lsort [array names ar]] {
-      append ret "   $n => $ar($n)\n"
+      append ret "   \"$n\" => \"$ar($n)\"\n"
    }
    return $ret
 }

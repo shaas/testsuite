@@ -55,7 +55,8 @@
 #    ts_log_severe() is used in many testsuite standard functions, so not every 
 #    function call must check the return state.
 # 
-
+# 8) set check_need_running_system != "yes" if you shutdown the qmaster in the setup(level)
+#    procedures. This will skip the qmaster alive test before starting test procedures.
 
 
 # define global variable in this namespace
@@ -67,8 +68,10 @@ global check_functions
 global check_highest_level
 global check_init_level_procedure
 global check_root_access_needs
+global check_need_running_system
 
 #set check_root_access_needs "yes"
+#set check_need_running_system "no"
 
 # define a level initialization procedure:
 set check_init_level_procedure "__TESTSUITE_TEST_NAME_init_level"

@@ -1738,6 +1738,9 @@ proc del_job_files {jobid job_output_directory expected_file_count} {
 #                                  if not 0:       don't print out start/end marks
 #     { without_sge_single_line 0} - if 0 (default): set SGE_SINGLE_LINE=1 and export it 
 #                                    if not 0:       unset SGE_SINGLE_LINE
+#     {disable_stty_echo 0}      - if 0 (default): no action
+#                                  if not 0: disalbe stty echo before executing command,
+#                                            enable again after command
 #
 #
 #  EXAMPLE
@@ -1760,6 +1763,7 @@ proc create_shell_script { scriptfile
                            {set_shared_lib_path 0}
                            {without_start_output 0}
                            {without_sge_single_line 0}
+                           {disable_stty_echo 0}
                          } {
    global CHECK_PRODUCT_TYPE
    global CHECK_DEBUG_LEVEL 
@@ -1852,7 +1856,7 @@ proc create_shell_script { scriptfile
          append script_content "unset SGE_SINGLE_LINE\n"
       }
 #      TODO (CR): check out if LS_COLORS settings may disable qtcsh or qrsh on linux
-#      append script_content "unset LS_COLORS\n" 
+       append script_content "unset LS_COLORS\n" 
 #      do not enable this without rework of qstat parsing routines
 #      append script_content "SGE_LONG_QNAMES=40\n"
 #      append script_content "export SGE_LONG_QNAMES\n"
@@ -1899,7 +1903,11 @@ proc create_shell_script { scriptfile
       # add the set of defined env variables
       append script_content $set_env_skript
       
-
+      # do a stty -echo ?
+      if {$disable_stty_echo != 0} {
+         append script_content "stty -echo\n"
+      }
+      
       if {$without_start_output == 0} {
          append script_content "echo \"_start_mark_:(\$?)\"\n"
       }
@@ -1913,6 +1921,10 @@ proc create_shell_script { scriptfile
 
    if {$no_setup == 0} { 
       append script_content "exit_val=\"\$?\"\n"
+      # do a stty -echo ?
+      if {$disable_stty_echo != 0} {
+         append script_content "stty echo\n"
+      }
       append script_content "trap 0\n"
       if {$without_start_output == 0} {
          append script_content "echo \"_exit_status_:(\$exit_val) script: $script_tail_name\"\n"
@@ -2768,13 +2780,13 @@ proc wait_for_file {path_to_file seconds {to_go_away 0} {do_error_check 1}} {
 #*******************************************************************************
 proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to_go_away 0}} {
    if {$to_go_away == 0} {
-      ts_log_fine [format "looking for file \"%s\" to appear on host $hostname" $path]
+      ts_log_fine "looking for file \"$path\" to appear on host $hostname"
    } else {
-      ts_log_fine [format "looking for file \"%s\" to vanish on host $hostname" $path]
+      ts_log_fine "looking for file \"$path\" to vanish on host $hostname"
    }
    set is_ok 0
    set my_mytimeout [expr [timestamp] + $mytimeout] 
-
+   set have_logged_a_dot 0
    while {$is_ok == 0} {
       set output [start_remote_prog $hostname $user "test" "-f $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
@@ -2789,10 +2801,14 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
          } 
       }
       ts_log_progress
+      set have_logged_a_dot 1
       if {[timestamp] > $my_mytimeout} {
          break
       }
       after 500
+   }
+   if {$have_logged_a_dot} {
+      ts_log_newline
    }
    if {$is_ok == 1} {
       if {$to_go_away == 0} {
@@ -2804,9 +2820,13 @@ proc wait_for_remote_file {hostname user path {mytimeout 60} {raise_error 1} {to
                break
             }
             after 500
+            ts_log_newline
          }
          if {$prg_exit_state != 0} {
             ts_log_severe "$hostname: output of cat $path (on a file which was tested with test -f): \n$output"
+         }
+         if {$have_logged_a_dot} {
+            ts_log_newline
          }
       } else {
          ts_log_finer "ok - file does not exist anymore on host $hostname"
@@ -2860,7 +2880,7 @@ proc wait_for_remote_dir { hostname user path { mytimeout 60 } {raise_error 1} {
    set my_mytimeout [expr [timestamp] + $mytimeout] 
 
    while {$is_ok == 0} {
-      set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0]
+      set output [start_remote_prog $hostname $user "test" "-d $path" prg_exit_state 60 0 "" "" 0 0]
       if {$to_go_away == 0} {
          if {$prg_exit_state == 0} {
             set is_ok 1

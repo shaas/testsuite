@@ -143,7 +143,9 @@ proc get_calendar {calendar {output_var result}  {on_host ""} {as_user ""} {rais
    upvar $output_var out
 
    ts_log_fine "Get calendar $calendar ..."
-
+   if {[info exists out]} {
+      unset out
+   }
    get_calendar_messages messages "get" "$calendar" $on_host $as_user
 
    return [get_qconf_object "get_calendar" "-scal $calendar" out messages 0 $on_host $as_user $raise_error]

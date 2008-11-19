@@ -52,8 +52,10 @@ set check_init_level_procedure "connection_test_init_level"
 # define test's name and run level descriptions
 set check_name            "connection_test"
 set check_category        "COMPATIBILITY SYSTEM VERIFIED"
-set check_highest_level   0
-set check_description(0)  "dummy test"
+set check_highest_level   2
+set check_description(0)  "testsuite connection test to all hosts"
+set check_description(1)  "dummy test"
+set check_description(2)  "dummy test"
 
 
 # define test's dependencies
@@ -87,8 +89,14 @@ proc connection_test_init_level {} {
       "0" { 
          return 0
       } 
-   } 
+      "1" {
+         return 0
+      }
+      "2" {
+         return 0
+      }
 
+   } 
    return -1  ;# no other level 
 }
 
@@ -133,7 +141,7 @@ proc connection_test_cleanup2  {} {
    global CHECK_ACT_LEVEL CHECK_ACT_LEVEL 
    global ts_config connection_test_dummy_act_level_counter
    if { $CHECK_ACT_LEVEL != $connection_test_dummy_act_level_counter } {
-      ts_log_fine "CHECK_ACT_LEVEL is not set correctly"
+      ts_log_severe "CHECK_ACT_LEVEL is not set correctly"
    }
    incr connection_test_dummy_act_level_counter 1
    ts_log_fine "this is a dummy level cleanup function"
@@ -146,43 +154,44 @@ proc connection_test_test {} {
    global ts_user_config
 
    ts_log_fine $check_description($CHECK_ACT_LEVEL)
-
-   set host_list_short [get_all_hosts]
-   set java_compile_host [host_conf_get_java_compile_host]
-   if { [lsearch $host_list_short $java_compile_host] } {
-      ts_log_fine "java compile host \"$java_compile_host\" is already in host list"
-   } else {
-      ts_log_fine "adding java compile host \"$java_compile_host\""
-      lappend host_list_short $java_compile_host
-   }
-
-   set host_list {}
-   foreach host $host_list_short {
-      lappend host_list "$host.$ts_config(dns_domain)"
-      lappend host_list $host
-   }
-
-   set user_list [user_conf_get_cluster_users]
-   set sessions  [get_open_rlogin_sessions]
-   # examine all open sessions
-   foreach session $sessions {
-      # get detailed session information
-      get_spawn_id_rlogin_session $session connection
-      lappend host_list $connection(hostname)
-      if { [lsearch $user_list $connection(user)] < 0 } {
-         lappend user_list $connection(user)
+   if { $CHECK_ACT_LEVEL == 0} {
+      set host_list_short [get_all_hosts]
+      set java_compile_host [host_conf_get_java_compile_host]
+      if { [lsearch $host_list_short $java_compile_host] } {
+         ts_log_fine "java compile host \"$java_compile_host\" is already in host list"
+      } else {
+         ts_log_fine "adding java compile host \"$java_compile_host\""
+         lappend host_list_short $java_compile_host
       }
-   }
 
-   ts_log_newline
-   ts_log_fine "starting remote echo calls ..."
-   foreach user $user_list {
-      foreach host $host_list {
-         ts_log_fine "Testing login from host \"[gethostname]\" to host \"$host\" as user \"$user\" ..."
-         set result [start_remote_prog $host $user "echo" "hallo"]
+      set host_list {}
+      foreach host $host_list_short {
+         lappend host_list "$host.$ts_config(dns_domain)"
+         lappend host_list $host
       }
+
+      set user_list [user_conf_get_cluster_users]
+      set sessions  [get_open_rlogin_sessions]
+      # examine all open sessions
+      foreach session $sessions {
+         # get detailed session information
+         get_spawn_id_rlogin_session $session connection
+         lappend host_list $connection(hostname)
+         if { [lsearch $user_list $connection(user)] < 0 } {
+            lappend user_list $connection(user)
+         }
+      }
+
+      ts_log_newline
+      ts_log_fine "starting remote echo calls ..."
+      foreach user $user_list {
+         foreach host $host_list {
+            ts_log_fine "Testing login from host \"[gethostname]\" to host \"$host\" as user \"$user\" ..."
+            set result [start_remote_prog $host $user "echo" "hallo"]
+         }
+      }
+      dump_spawn_rlogin_sessions
    }
-   dump_spawn_rlogin_sessions
 }
 
 

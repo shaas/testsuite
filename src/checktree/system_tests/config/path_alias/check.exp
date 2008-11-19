@@ -66,9 +66,7 @@ set check_cleanup_level_function "path_alias_cleanup"
 
 # define test's procedure order
 set check_functions ""
-# Don't append this test to the check_functions, it's not working,
-# see testsuite issue 264.
-# lappend check_functions "path_alias_main"
+lappend check_functions "path_alias_main"
 
 global PATH_ALIAS_OUTPUT1
 global PATH_ALIAS_OUTPUT2

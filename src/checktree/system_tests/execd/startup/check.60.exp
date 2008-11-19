@@ -119,6 +119,12 @@ proc startup_execd_test1 {} {
    incr execd_port 1
    
    set hostname [host_conf_get_suited_hosts]
+   set retries 5
+   while {$hostname == $ts_config(master_host) && $retries > 0} {
+      set hostname [host_conf_get_suited_hosts]
+      incr retries -1
+   }
+   
    ts_log_frame
    ts_log_fine $check_description($CHECK_ACT_LEVEL)
    ts_log_frame
@@ -221,8 +227,8 @@ proc startup_execd_test1 {} {
 
    if { $CHECK_ACT_LEVEL == 2 } {
 
-      set CL_RETVAL_CONNECT_ERROR [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_CL_RETVAL_CONNECT_ERROR]]
-
+      set CL_RETVAL_CONNECT_ERROR        [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_CL_RETVAL_CONNECT_ERROR]]
+      set CL_RETVAL_CONNECTION_NOT_FOUND [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_CL_RETVAL_CONNECTION_NOT_FOUND]]
       shutdown_system_daemon $ts_config(master_host) "qmaster"
       shutdown_system_daemon $hostname "execd"
 
@@ -246,10 +252,12 @@ proc startup_execd_test1 {} {
       ts_log_fine "startup took $run_time seconds."
       ts_log_fine "output has $line_count lines."
 
-      if { [string match "*$CL_RETVAL_CONNECT_ERROR*" $output ] } {
+      if {[string match "*$CL_RETVAL_CONNECT_ERROR*" $output ]} {
          ts_log_fine "==> Found \"$CL_RETVAL_CONNECT_ERROR\" in output. OK."
+      } elseif {[string match "*$CL_RETVAL_CONNECTION_NOT_FOUND*" $output ]} { 
+         ts_log_fine "==> Found \"$CL_RETVAL_CONNECTION_NOT_FOUND\" in output. OK."
       } else {
-         ts_log_severe "can't find \"$CL_RETVAL_CONNECT_ERROR\" output in:\n$output"
+         ts_log_severe "can't find \"$CL_RETVAL_CONNECT_ERROR\" or \"$CL_RETVAL_CONNECTION_NOT_FOUND\" output in:\n$output"
       }
 
       if { $run_time <= 25 } {
@@ -265,8 +273,7 @@ proc startup_execd_test1 {} {
       }
 
       startup_qmaster 0
-
-      wait_for_load_from_all_queues 60
+      wait_for_load_from_all_queues 120
    }
 
    if { $CHECK_ACT_LEVEL == 3 } {
