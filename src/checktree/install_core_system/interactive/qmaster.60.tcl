@@ -380,10 +380,10 @@ proc install_qmaster {} {
          }
 
          -i $sp_id $JMX_SSL_CLIENT_QUESTION {
-            if { $ts_config(jmx_ssl_client) == "true" } {
-               install_send_answer $ANSWER_YES "jmx ssl client"
+            if {$ts_config(jmx_ssl_client) == "true"} {
+               install_send_answer $sp_id $ANSWER_YES "jmx ssl client"
             } else {
-               install_send_answer $ANSWER_NO "jmx ssl client"
+               install_send_answer $sp_id $ANSWER_NO "jmx ssl client"
             }
             continue
          }

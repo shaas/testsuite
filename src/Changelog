@@ -1,3 +1,7 @@
+JG-2008-11-20-1: Bugfix:     installation with qmaster jmx server broken
+                             by JG-2008-11-20-0
+                 Review:     CR
+
 TB-2008-11-20-0: Bugfix:     o some calling code of the wait_for_XXX hedeby
                                functions relied on their silent initialization
                                of the error_text variable
