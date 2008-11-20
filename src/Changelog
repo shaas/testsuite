@@ -1,3 +1,7 @@
+DG-2008-11-20-0: Cleanup:    Typo fix in execd installation made testsuite 
+                             update neccessary.   
+                 Review:     JG
+
 JG-2008-11-20-1: Bugfix:     installation with qmaster jmx server broken
                              by JG-2008-11-20-0
                  Review:     CR
