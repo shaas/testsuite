@@ -61,12 +61,12 @@
 #     ???/???
 #*******************************
 proc install_qmaster {} {
+   global ts_config
    global CHECK_USER
    global CORE_INSTALLED
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
-   global ts_config
 
    ts_log_fine "install qmaster ($ts_config(product_type) system) on host $ts_config(master_host) ..."
 
@@ -84,7 +84,7 @@ proc install_qmaster {} {
    write_install_list
 
    if {![file isfile "$ts_config(product_root)/inst_sge"]} {
-      add_proc_error "install_qmaster" "-1" "inst_sge - inst_sge file not found"
+      ts_log_severe "inst_sge - inst_sge file not found"
       return
    }
 
@@ -108,7 +108,7 @@ proc install_qmaster {} {
       # For the JMX MBean Server we need java 1.5
       set java_home [get_java_home_for_host $ts_config(master_host) "1.5"]
       if {$java_home == ""} {
-         add_proc_error "install_qmaster" "-1" "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
+         ts_log_severe "Cannot install qmaster with JMX MBean Server on host $ts_config(master_host). java15 is not defined in host configuration"
          return                                       
       }
       set env_list(JAVA_HOME) $java_home
@@ -148,7 +148,7 @@ proc install_qmaster {} {
       write_install_list
       return
    } else { 
-      add_proc_error "install_qmaster" "-2" "install failed:\n$output"
+      ts_log_warning "install failed:\n$output"
       return
    }
 }
@@ -169,8 +169,11 @@ proc install_qmaster {} {
 #     {do_cleanup 1}       - clean spool directories?
 #     {file_delete_wait 1} - delete the file before writing it, and wait for it
 #                            to vanish / reappear?
+#     {exechost 0}         - is this a config for an exechost installation?
+#     {set_file_perms 0}   - shall the file permissions be checked 
+#                            during (qmaster) installation?
 #*******************************************************************************
-proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {exechost 0}} {
+proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {exechost 0} {set_file_perms 0}} {
    global CHECK_USER local_execd_spool_set
    global ts_config
 
@@ -272,7 +275,11 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
    puts $fdo "DEFAULT_DOMAIN=\"none\""
    puts $fdo "ADMIN_MAIL=\"$ts_config(report_mail_to)\""
    puts $fdo "ADD_TO_RC=\"false\""
-   puts $fdo "SET_FILE_PERMS=\"true\""
+   if {$set_file_perms} {
+      puts $fdo "SET_FILE_PERMS=\"true\""
+   } else {
+      puts $fdo "SET_FILE_PERMS=\"false\""
+   }
    puts $fdo "RESCHEDULE_JOBS=\"wait\""
    puts $fdo "SCHEDD_CONF=\"1\""
    puts $fdo "SHADOW_HOST=\"$ts_config(shadowd_hosts)\""
@@ -325,12 +332,12 @@ proc write_autoinst_config {filename host {do_cleanup 1} {file_delete_wait 1} {e
 #     ???/???
 #*******************************
 proc create_autoinst_config {} {
+   global ts_config
    global CHECK_USER
    global CORE_INSTALLED
    global check_use_installed_system CHECK_ADMIN_USER_SYSTEM
    global CHECK_DEBUG_LEVEL CHECK_QMASTER_INSTALL_OPTIONS 
    global CHECK_PROTOCOL_DIR
-   global ts_config
 
    set config_file "$ts_config(product_root)/autoinst_config.conf"
 
@@ -338,7 +345,27 @@ proc create_autoinst_config {} {
       file delete -force $config_file
    }
 
+   # do setting of the file permissions only if we use tar.gz packages,
+   # and try to do it on the file server
+   set set_file_perm 0
+   if {$ts_config(package_type) == "tar" || $ts_config(package_type) == "create_tar"} {
+      set fileserver [fs_config_get_server_for_path $ts_config(product_root) 0]
+      if {$fileserver != ""} {
+         ts_log_fine "starting setfileperm.sh on fileserver $fileserver"
+         set output [start_remote_prog $fileserver "root" "$ts_config(product_root)/util/setfileperm.sh" "-auto $ts_config(product_root)" prg_exit_state 120 0 $ts_config(product_root)]
+         if {$prg_exit_state != 0} {
+            ts_log_warning "setfileperm.sh on host $fileserver failed:\n$output"
+         } else {
+            ts_log_fine "done"
+         }
+      } else {
+         # if we don't know the file server,
+         # try to set the file permissions during installation on the master host
+         set set_file_perm 1
+      }
+   }
+
    ts_log_finer "creating automatic install config file ..."
-   write_autoinst_config $config_file $ts_config(master_host) 1
+   write_autoinst_config $config_file $ts_config(master_host) 1 1 0 $set_file_perm
    ts_log_finer "automatic install config file successfully created ..."
 }

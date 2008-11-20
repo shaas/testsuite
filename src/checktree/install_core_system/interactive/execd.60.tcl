@@ -60,13 +60,13 @@
 #     ???/???
 #*******************************
 proc install_execd {} {
-   global CHECK_OUTPUT CORE_INSTALLED
+   global ts_config
+   global CORE_INSTALLED
    global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
    global CHECK_COMMD_PORT
    global CHECK_MAIN_RESULTS_DIR
-   global ts_config
 
    set CORE_INSTALLED ""
    set INST_VERSION 0 
@@ -84,27 +84,27 @@ proc install_execd {} {
    if {$catch_result == 0} {
       set INST_VERSION $script_version
    }
-   puts $CHECK_OUTPUT "inst_sge version: $INST_VERSION"
+   ts_log_fine "inst_sge version: $INST_VERSION"
 
    if {!$check_use_installed_system} {
       set feature_install_options ""
-      if { $ts_config(submit_only_hosts) != "none" } {
+      if {$ts_config(submit_only_hosts) != "none"} {
          foreach elem $ts_config(submit_only_hosts) {
-            puts $CHECK_OUTPUT "do a qconf -as $elem ..."
+            ts_log_fine "do a qconf -as $elem ..."
             set result [start_sge_bin "qconf" "-as $elem" $ts_config(master_host)]
-            puts $CHECK_OUTPUT $result
+            ts_log_fine $result
          }
       }
       if {$ts_config(product_feature) == "csp" || $have_windows_host} {
          set feature_install_options "-csp"
          set my_csp_host_list $ts_config(execd_nodes)
-         if { $ts_config(submit_only_hosts) != "none" } {
+         if {$ts_config(submit_only_hosts) != "none"} {
             foreach elem $ts_config(submit_only_hosts) {
               lappend my_csp_host_list $elem
             }
          }
          foreach exec_host $my_csp_host_list {
-            if { $exec_host == $ts_config(master_host) } {
+            if {$exec_host == $ts_config(master_host)} {
                continue
             }
             copy_certificates $exec_host
@@ -113,49 +113,45 @@ proc install_execd {} {
    }
  
    foreach exec_host $ts_config(execd_nodes) {
-
-      puts $CHECK_OUTPUT "installing execd on host $exec_host ($ts_config(product_type) system) ..."
-      if {[lsearch $ts_config(execd_nodes) $exec_host] == -1 } {
-         add_proc_error "install_execd" "-1" "host $exec_host is not in execd list"
+      ts_log_fine "installing execd on host $exec_host ($ts_config(product_type) system) ..."
+      if {[lsearch $ts_config(execd_nodes) $exec_host] == -1} {
+         ts_log_severe "host $exec_host is not in execd list"
          return 
       }
-      if { $check_use_installed_system != 0 } {
+      if {$check_use_installed_system != 0} {
          puts "no need to install execd on hosts \"$ts_config(execd_nodes)\", noinst parameter is set"
-         if {[startup_execd $exec_host] == 0 } {
+         if {[startup_execd $exec_host] == 0} {
             lappend CORE_INSTALLED $exec_host
             write_install_list
             continue
          } else {
-            add_proc_error "install_execd" -2 "could not startup execd on host $exec_host"
+            ts_log_warning "could not startup execd on host $exec_host"
             return
          }
       }
 
       if {[file isfile "$ts_config(product_root)/install_execd"] != 1} {
-         add_proc_error "install_execd" "-1" "install_execd file not found"
+         ts_log_severe "install_execd file not found"
          return
       }
 
       set remote_arch [resolve_arch $exec_host]    
-      set sensor_file [ get_loadsensor_path $exec_host ]
-      if { [string compare $sensor_file ""] != 0  } {
-         puts $CHECK_OUTPUT "installing load sensor:"
-         puts $CHECK_OUTPUT "======================="
-         puts $CHECK_OUTPUT "architecture: $remote_arch"
-         puts $CHECK_OUTPUT "sensor file:  $sensor_file"
-         puts $CHECK_OUTPUT "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-         if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-            set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
-            set result [start_remote_prog $ts_config(master_host) "root" "cp" "$arguments" prg_exit_state 60 0 "" "" 1 0 0 1 1] 
-            puts $CHECK_OUTPUT "result: $result"
-            puts $CHECK_OUTPUT "copy exit state: $prg_exit_state" 
+      set sensor_file [get_loadsensor_path $exec_host]
+      if {[string compare $sensor_file ""] != 0} {
+         ts_log_fine "installing load sensor:"
+         ts_log_fine "======================="
+         ts_log_fine "architecture: $remote_arch"
+         ts_log_fine "sensor file:  $sensor_file"
+         ts_log_fine "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
+         if {$CHECK_ADMIN_USER_SYSTEM == 0} {
+            set copy_user "root"
          } else {
-            puts $CHECK_OUTPUT "can not copy this file as user $CHECK_USER"
-            puts $CHECK_OUTPUT "please copy this file manually!!"
-            puts $CHECK_OUTPUT "if not, you will get no load values from this host (=$exec_host)"
-            puts $CHECK_OUTPUT "installation will continue in 15 seconds!!"
-            sleep 15
+            set copy_user $CHECK_USER
          }
+         set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
+         set result [start_remote_prog $ts_config(master_host) $copy_user "cp" "$arguments" prg_exit_state 60 0 "" "" 1 0 0 1 1] 
+         ts_log_fine "result: $result"
+         ts_log_fine "copy exit state: $prg_exit_state" 
       }
 
       set HIT_RETURN_TO_CONTINUE       [translate $exec_host 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
@@ -189,14 +185,14 @@ proc install_execd {} {
       # windows
       set WINDOWS_HELPER_SERVICE       [translate_macro DISTINST_EXECD_WINDOWS_HELPER_SERVICE]
       
-      puts $CHECK_OUTPUT "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options"
+      ts_log_fine "install_execd $CHECK_EXECD_INSTALL_OPTIONS $feature_install_options"
 
       if {$CHECK_ADMIN_USER_SYSTEM == 0} {
          # wait for act qmaster file
          wait_for_remote_file $exec_host "root" "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster" 90
          set id [open_remote_spawn_process "$exec_host" "root"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
       } else {
-         puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
+         ts_log_fine "--> install as user $CHECK_USER <--" 
          wait_for_remote_file $exec_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/act_qmaster" 90
          set id [open_remote_spawn_process "$exec_host" "$CHECK_USER"  "./install_execd" "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options" 0 $ts_config(product_root) "" 0 15 0 1 1]
       }
@@ -207,16 +203,10 @@ proc install_execd {} {
 
       set timeout 300
      
-      set do_log_output 0 ;# 1 _LOG
-      if { $CHECK_DEBUG_LEVEL == 2 } {
-         set do_log_output 1
-      }
-
       set do_stop 0
       while {$do_stop == 0} {
          flush stdout
-         flush $CHECK_OUTPUT
-         if {$do_log_output == 1} {
+         if {$CHECK_DEBUG_LEVEL == 2} {
              puts "-->testsuite: press RETURN (main) or enter \"break\" to stop"
              set anykey [wait_for_enter 1]
              if { [string match "*break*" $anykey] } {
@@ -228,48 +218,43 @@ proc install_execd {} {
          log_user 1 
          expect {
             -i $sp_id full_buffer {
-               add_proc_error "install_execd" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_warning "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                close_spawn_process $id
                return
             }
 
             -i $sp_id eof {
-               add_proc_error "install_execd" "-1" "unexpeced eof"
+               ts_log_severe "unexpeced eof"
                set do_stop 1
                continue
             }
 
             -i $sp_id "coredump" {
-               add_proc_error "install_execd" "-2" "coredump on host $exec_host"
+               ts_log_warning "coredump on host $exec_host"
                set do_stop 1
                continue
             }
 
             -i $sp_id timeout { 
-               add_proc_error "install_execd" "-1" "timeout while waiting for output"
+               ts_log_severe "timeout while waiting for output"
                set do_stop 1
                continue
             }
 
             -i $sp_id "orry" { 
-               add_proc_error "install_execd" "-1" "wrong root password"
+               ts_log_warning "wrong root password"
                close_spawn_process $id
                return
             }
 
             -i $sp_id "The installation of the execution daemon will abort now" {
-               add_proc_error "install_execd" "-1" "installation error"
+               ts_log_warning "installation error"
                close_spawn_process $id
                return
             }
 
             -i $sp_id $USE_CONFIGURATION_PARAMS { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(10)"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES
                continue
             }
 
@@ -281,284 +266,157 @@ proc install_execd {} {
                # To thest the correct error handling, we send yes here and later on
                # (ENTER_LOCAL_EXECD_SPOOL_DIR_ENTER) we send \"\" as spooldir.
                # inst_sge has to detect the incorrect input and repeat this question.
-               if { $INST_VERSION >= 4 && $LOCAL_ALREADY_CHECKED == 0 } {
-                  puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(11.1)"
-                  if {$do_log_output == 1} {
-                     puts "press RETURN"
-                     set anykey [wait_for_enter 1]
-                  }
-                  ts_send $sp_id "$ANSWER_YES\n"
+               if {$INST_VERSION >= 4 && $LOCAL_ALREADY_CHECKED == 0} {
+                  install_send_answer $sp_id $ANSWER_YES "11.1"
                } else {
                   set spooldir [get_local_spool_dir $exec_host execd]
-                  if { $spooldir == "" } {
-                     puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(11.2)"
-                     if {$do_log_output == 1} {
-                          puts "press RETURN"
-                          set anykey [wait_for_enter 1]
-                     }
-                     ts_send $sp_id "$ANSWER_NO\n"
+                  if {$spooldir == ""} {
+                     install_send_answer $sp_id $ANSWER_NO "11.2"
                   } else {
-                     puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(11.3)"
-                     if {$do_log_output == 1} {
-                          puts "press RETURN"
-                          set anykey [wait_for_enter 1]
-                     }
-                     ts_send $sp_id "$ANSWER_YES\n"
+                     install_send_answer $sp_id $ANSWER_YES "11.3"
                   }
                }
                continue
-            }   
+            }
 
             -i $sp_id $ENTER_LOCAL_EXECD_SPOOL_DIR_ENTER {
-               puts $CHECK_OUTPUT "\n -->testsuite: send local spool directory\n"
-
                # Second part of inst_sge error handling test (ENTER_LOCAL_EXECD_SPOOL_DIR_ASK):
                # Sending \"\" as spooldir
-               if { $INST_VERSION >= 4 && $LOCAL_ALREADY_CHECKED == 0 } {
+               if {$INST_VERSION >= 4 && $LOCAL_ALREADY_CHECKED == 0} {
                   set LOCAL_ALREADY_CHECKED 1
                   set spooldir ""
-                  puts $CHECK_OUTPUT "checking inst_sge error handling, sending \"\" as local spooldir"
+                  ts_log_fine "checking inst_sge error handling, sending \"\" as local spooldir"
                } else {
                   set spooldir [get_local_spool_dir $exec_host execd 0]
-                  puts $CHECK_OUTPUT "spooldir on host $exec_host is $spooldir"
+                  ts_log_fine "spooldir on host $exec_host is $spooldir"
                }
 
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-
-               ts_send $sp_id "$spooldir\n"
+               install_send_answer $sp_id $spooldir "local spool directory"
                log_user 1
                continue
             }
 
             -i $sp_id $CELL_NAME_FOR_EXECD {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
-               set input "$ts_config(cell)\n"
-
-               if {$do_log_output == 1} {
-                  puts "-->testsuite: press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id $input
+               install_send_answer $sp_id $ts_config(cell)
                continue
             } 
 
             -i $sp_id $CELL_NAME_FOR_EXECD_2 {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
-               set input "$ts_config(cell)\n"
-
-               if {$do_log_output == 1} {
-                  puts "-->testsuite: press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id $input
+               install_send_answer $sp_id $ts_config(cell)
                continue
             }
 
              -i $sp_id $GET_COMM_SETTINGS {
-                puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(19a)"
-                if {$do_log_output == 1} {
-                     puts "-->testsuite: press RETURN (GET_COMM_SETTINGS)"
-                     set anykey [wait_for_enter 1]
-                }
-                ts_send $sp_id "\n"
+                install_send_answer $sp_id "" "19a"
                 continue
              }
 
             -i $sp_id $CHANGE_PORT_QUESTION {
-                puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(19b)"
-                if {$do_log_output == 1} {
-                     puts "-->testsuite: press RETURN (CHANGE_PORT_QUESTION)"
-                     set anykey [wait_for_enter 1]
-                }
-                ts_send $sp_id "\n"
+                install_send_config $sp_id "" "19b"
                 continue
              }
 
             -i $sp_id -- $DETECT_CHOOSE_NEW_NAME {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_YES<"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES
                continue
             }
 
-            #Delete detected services for chosen cluster_name
+            # Delete detected services for chosen cluster_name
             -i $sp_id -- $DETECT_REMOVE_OLD_CLUSTER {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_NO<"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "$ANSWER_NO\n"
+               install_send_answer $sp_id $ANSWER_NO
                continue
             }
 
-            #Remove conflicting RC files/SMF service
+            # Remove conflicting RC files/SMF service
             -i $sp_id -- $REMOVE_OLD_RC_SCRIPT  {
-               flush $CHECK_OUTPUT
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES
                continue
             }
 
             -i $sp_id $MESSAGES_LOGGING {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                   puts "press RETURN"
-                   set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "\n"
+               install_send_answer $sp_id ""
                continue
             }
 
-
-
             -i $sp_id -- $IF_NOT_OK_STOP_INSTALLATION {
-               if { $CHECK_ADMIN_USER_SYSTEM != 0 } {
-                  puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-                  if {$do_log_output == 1} {
-                       puts "press RETURN"
-                       set anykey [wait_for_enter 1]
-                  }
-                  ts_send $sp_id "\n"
+               if {$CHECK_ADMIN_USER_SYSTEM != 0} {
+                  install_send_answer $sp_id ""
                   continue
                } else {
-                  add_proc_error "install_execd" "-1" "host $exec_host: tried to install not as root"
+                  ts_log_warning "host $exec_host: tried to install not as root"
                   close_spawn_process $id
                   return
                }
             }
 
             -i $sp_id $INSTALL_SCRIPT { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(12)"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "$ANSWER_NO\n"
+               install_send_answer $sp_id $ANSWER_NO
                continue
             }
 
             -i $sp_id $INSTALL_STARTUP_SCRIPT { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(12)"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "$ANSWER_NO\n"
+               install_send_answer $sp_id $ANSWER_NO "12"
                continue
             }
 
             -i $sp_id $ADD_DEFAULT_QUEUE_INSTANCE { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(13)"
-               if {$do_log_output == 1} {
-                    puts "(5)press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES "13"
                continue
             }
 
-            #SMF startup is always disabled in testsuite
+            # SMF startup is always disabled in testsuite
             -i $sp_id -- $SMF_IMPORT_SERVICE  {
-               flush $CHECK_OUTPUT
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(10)"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-
-               ts_send $sp_id "$ANSWER_NO\n"
+               install_send_answer $sp_id $ANSWER_NO "10"
                continue
             }
 
             -i $sp_id $CHECK_ADMINUSER_ACCOUNT_ANSWER { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(13)"
-               if {$do_log_output == 1} {
-                    puts "(5)press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES "13"
                continue
             }
 
 
             -i $sp_id "This host is unknown on the qmaster host" {
-               puts $CHECK_OUTPUT "\nHostname resolving problem"
-               puts $CHECK_OUTPUT "*********************************************************************"
-               puts $CHECK_OUTPUT "Hostname resolving problem - use a host alias file for host $exec_host" 
-               puts $CHECK_OUTPUT "**********************************************************************"
-               puts $CHECK_OUTPUT "installation will continue in 15 seconds ..."
-               sleep 15
-               continue
-            }
-
-            -i $sp_id "There is still no service for" {
-               add_proc_error "install_execd" "-1" "no TCP/IP service available"
+               ts_log_severe "Hostname resolving problem - use a host alias file for host $exec_host"
                set do_stop 1
                continue
             }
 
-            -i $sp_id "Check again" { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >n<(13)"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "n\n"
+            -i $sp_id "There is still no service for" {
+               ts_log_severe "no TCP/IP service available"
+               set do_stop 1
                continue
             }
 
-            -i $sp_id $PREVIOUS_SCREEN { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(14)"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "$ANSWER_NO\n"
+            -i $sp_id "Check again" {
+               install_send_answer $sp_id "n" "13"
+               continue
+            }
+
+            -i $sp_id $PREVIOUS_SCREEN {
+               install_send_answer $sp_id $ANSWER_NO "14"
                continue
             }
 
             -i $sp_id "Error:" {
-               add_proc_error "install_execd" "-1" "$expect_out(0,string)"
+               ts_log_warning "$expect_out(0,string)"
                close_spawn_process $id
                return
             }
             -i $sp_id "can't resolve hostname*\n" {
-               add_proc_error "install_execd" "-1" "$expect_out(0,string)"
+               ts_log_warning "$expect_out(0,string)"
                close_spawn_process $id
                return
-            }            
-  
+            }
+
             -i $sp_id "error:\n" {
-               add_proc_error "install_execd" "-1" "$expect_out(0,string)"
+               ts_log_warning "$expect_out(0,string)"
                close_spawn_process $id
                return
             }
 
             -i $sp_id $CURRENT_GRID_ROOT_DIRECTORY {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                    puts "-->testsuite: press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "\n"
+               install_send_answer $sp_id ""
                continue
             }
 
@@ -567,7 +425,7 @@ proc install_execd {} {
                lappend CORE_INSTALLED $exec_host
                write_install_list
                set do_stop 1
-               # If we compiled with code coverage, we have to 
+               # If we compiled with code coverage, we have to
                # wait a little bit before closing the connection.
                # Otherwise the last command executed (infotext)
                # will leave a lockfile lying around.
@@ -577,53 +435,34 @@ proc install_execd {} {
                continue
             }
 
-            -i $sp_id $HIT_RETURN_TO_CONTINUE { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "\n"
+            -i $sp_id $HIT_RETURN_TO_CONTINUE {
+               install_send_answer $sp_id ""
                continue
             }
-            -i $sp_id $HOSTNAME_KNOWN_AT_MASTER { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "\n"
+            -i $sp_id $HOSTNAME_KNOWN_AT_MASTER {
+               install_send_answer $sp_id ""
                continue
             }
 
             -i $sp_id $WINDOWS_HELPER_SERVICE {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<(4)"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "\n"
+               install_send_answer $sp_id "" "4"
                continue
             }
 
             -i $sp_id default {
-               add_proc_error "install_execd" "-1" "undefined behaviour: $expect_out(buffer)"
+               ts_log_warning "undefined behaviour: $expect_out(buffer)"
                close_spawn_process $id
                return
             }
-         }
-      }  ;# while 1
+         } ;# expect
+      } ;# while 1
 
       # close the connection to inst_sge
       close_spawn_process $id
 
       # CR: 6609754
       ts_log_fine "Check execd deamon startup on host $exec_host and port $execd_port ..."
-
       set result [ping_daemon $exec_host $execd_port "execd"]
-
       if {$result == 0} {
          ts_log_fine "Startup of execd was successful!"
       } else {
@@ -631,3 +470,4 @@ proc install_execd {} {
       }
    }
 }
+

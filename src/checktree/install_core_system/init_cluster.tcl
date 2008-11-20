@@ -28,14 +28,14 @@
 #     ???/???
 #*******************************
 proc kill_running_system {} {
-   global CHECK_OUTPUT CORE_INSTALLED
+   global ts_config
+   global CHECK_USER CORE_INSTALLED
    global check_use_installed_system
-   global ts_config CHECK_USER
  
    set result [check_all_system_times]
-   puts $CHECK_OUTPUT "check_all_system_times returned $result"
-   if { $result != 0 } {
-      add_proc_error "kill_running_system" -2 "skipping install_core_system"
+   ts_log_fine "check_all_system_times returned $result"
+   if {$result != 0} {
+      ts_log_warning "skipping install_core_system"
       return
    }
 
@@ -46,10 +46,12 @@ proc kill_running_system {} {
 
    if {$check_use_installed_system == 0} {
       if {[remote_file_isdirectory $ts_config(master_host) "$ts_config(product_root)/$ts_config(cell)"]} {
+         # if the $SGE_ROOT/$SGE_CELL exists, delete it
          delete_directory "$ts_config(product_root)/$ts_config(cell)"
       }
+      # wait for the directory to vanish on all cluster hosts - otherwise installation might fail
       foreach host [get_all_hosts] {
-         wait_for_remote_dir $host $CHECK_USER $ts_config(product_root)/$ts_config(cell) 60 1 1
+         wait_for_remote_dir $host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)" 60 1 1
       }
    }
 }
@@ -63,7 +65,7 @@ proc reread_bootstrap {} {
 # generating all testsuite cluster user keys and certificates
 proc make_user_cert {} {
    global check_use_installed_system
-  global CHECK_OUTPUT CHECK_MAIN_RESULTS_DIR
+  global CHECK_MAIN_RESULTS_DIR
   global CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER CHECK_REPORT_EMAIL_TO
   global CHECK_USER CHECK_DEBUG_LEVEL
   global ts_config
@@ -71,11 +73,11 @@ proc make_user_cert {} {
    if { !$check_use_installed_system } {
       # create testsuite user certificates for csp mode
        if {$ts_config(product_feature) == "csp"} {
-          puts $CHECK_OUTPUT "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
+          ts_log_fine "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
           set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$CHECK_MAIN_RESULTS_DIR/user_file.txt" ]
-          puts $CHECK_OUTPUT $result
+          ts_log_fine $result
      
-          puts $CHECK_OUTPUT "creating file \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
+          ts_log_fine "creating file \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
           set script [ open "$CHECK_MAIN_RESULTS_DIR/user_file.txt" "w" ]
           puts $script "$CHECK_FIRST_FOREIGN_SYSTEM_USER:first_testsuite_user:$CHECK_REPORT_EMAIL_TO"
           puts $script "$CHECK_SECOND_FOREIGN_SYSTEM_USER:second_testsuite_user:$CHECK_REPORT_EMAIL_TO"
@@ -83,13 +85,13 @@ proc make_user_cert {} {
           close $script
          
           set result [ start_remote_prog "$ts_config(master_host)" "root" "util/sgeCA/sge_ca" "-usercert $CHECK_MAIN_RESULTS_DIR/user_file.txt" prg_exit_state 60 0 $ts_config(product_root)]
-          puts $CHECK_OUTPUT $result
+          ts_log_fine $result
        
-          puts $CHECK_OUTPUT "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
+          ts_log_fine "removing poss. existing user_file.txt \"$CHECK_MAIN_RESULTS_DIR/user_file.txt\" ..."
           set result [ start_remote_prog "$ts_config(master_host)" "$CHECK_USER" "rm" "$CHECK_MAIN_RESULTS_DIR/user_file.txt" ]
-          puts $CHECK_OUTPUT $result
+          ts_log_fine $result
       } else {
-         puts $CHECK_OUTPUT "no csp feature enabled"
+         ts_log_fine "no csp feature enabled"
       }
 
       # support jmx ssl testsuite keystore and certificate creation
@@ -125,7 +127,7 @@ proc make_user_cert {} {
 
 proc cleanup_system {} {
    global env
-   global check_use_installed_system CHECK_OUTPUT CHECK_USER
+   global check_use_installed_system CHECK_USER
    global ts_config
 
 #puts "press RETURN"
@@ -133,11 +135,12 @@ proc cleanup_system {} {
    # check if the system is running and qmaster accessable
    set result [start_sge_bin "qstat" ""]
    if { $prg_exit_state != 0 } {
-      add_proc_error "cleanup_system" -2 "error connecting qmaster: $result"
+      ts_log_warning "error connecting qmaster: $result"
       return
    }
-    
-   puts $CHECK_OUTPUT "\ncleaning up system"
+   
+   ts_log_newline
+   ts_log_fine "cleaning up system"
 
    # delete all jobs
    delete_all_jobs
@@ -147,7 +150,7 @@ proc cleanup_system {} {
    while { [timestamp]< $my_time } {
       set my_jobs [ get_standard_job_info 1 0 1 ]
       foreach job_elem $my_jobs {
-         puts $CHECK_OUTPUT $job_elem
+         ts_log_fine $job_elem
       }
       if { [llength $my_jobs] <= 2 } {
          break
@@ -161,60 +164,64 @@ proc cleanup_system {} {
    }
 
    # remove all checkpoint environments
-  puts $CHECK_OUTPUT "\nremoving ckpt objects ..."
-  set NO_CKPT_INTERFACE_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "ckpt interface definition"]
+   ts_log_newline
+   ts_log_fine "removing ckpt objects ..."
+   set NO_CKPT_INTERFACE_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "ckpt interface definition"]
    
-  set result [start_sge_bin "qconf" "-sckptl"]
+   set result [start_sge_bin "qconf" "-sckptl"]
 
-  if { [string first $NO_CKPT_INTERFACE_DEFINED $result] >= 0 } {
-     puts $CHECK_OUTPUT "no ckpt interface definition defined"
-  } else {
-     foreach elem $result {
-        puts $CHECK_OUTPUT "removing ckpt interface $elem."
-        del_checkpointobj $elem 
-     }
-  }
+   if { [string first $NO_CKPT_INTERFACE_DEFINED $result] >= 0 } {
+      ts_log_fine "no ckpt interface definition defined"
+   } else {
+      foreach elem $result {
+         ts_log_fine "removing ckpt interface $elem."
+         del_checkpointobj $elem 
+      }
+   }
 
    # remove all parallel environments
-  puts $CHECK_OUTPUT "\nremoving PE objects ..."
+   ts_log_newline
+  ts_log_fine "removing PE objects ..."
   set NO_PARALLEL_ENVIRONMENT_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "parallel environment"]
   set result [start_sge_bin "qconf" "-spl"]
 
   if { [string first $NO_PARALLEL_ENVIRONMENT_DEFINED $result] >= 0 } {
-     puts $CHECK_OUTPUT "no parallel environment defined"
+     ts_log_fine "no parallel environment defined"
   } else {
      foreach elem $result {
-        puts $CHECK_OUTPUT "removing PE $elem."
+        ts_log_fine "removing PE $elem."
         del_pe $elem 
      }
   }
  
    # remove all calendars
-  puts $CHECK_OUTPUT "\nremoving calendars ..."
+   ts_log_newline
+  ts_log_fine "removing calendars ..."
   # JG: TODO: calendars can be referenced in queues - first remove all references!
   set NO_CALENDAR_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "calendar"]
   set result [start_sge_bin "qconf" "-scall"]
 
   if { [string first $NO_CALENDAR_DEFINED $result] >= 0 } {
-     puts $CHECK_OUTPUT "no calendar defined"
+     ts_log_fine "no calendar defined"
   } else {
      foreach elem $result {
-        puts $CHECK_OUTPUT "removing calendar $elem."
+        ts_log_fine "removing calendar $elem."
         del_calendar $elem 
      }
   }
 
    # remove all projects 
   if { [ string compare $ts_config(product_type) "sgeee" ] == 0 } {
-     puts $CHECK_OUTPUT "\nremoving project objects ..."
+      ts_log_newline
+     ts_log_fine "removing project objects ..."
      set NO_PROJECT_LIST_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "project list"]
      set result [start_sge_bin "qconf" "-sprjl"]
 
      if { [string first $NO_PROJECT_LIST_DEFINED $result] >= 0 } {
-        puts $CHECK_OUTPUT "no project list defined"
+        ts_log_fine "no project list defined"
      } else {
         foreach elem $result {
-           puts $CHECK_OUTPUT "removing project $elem."
+           ts_log_fine "removing project $elem."
            del_prj $elem 
         }
      }
@@ -225,28 +232,30 @@ proc cleanup_system {} {
    # remove all access lists
    # JG: TODO: accesslists are referenced in a variety of objects - first delete them
    #           there!
-  puts $CHECK_OUTPUT "\nremoving access lists ..."
+   ts_log_newline
+  ts_log_fine "removing access lists ..."
   set NO_ACCESS_LIST_DEFINED [translate $ts_config(master_host) 1 0 0 [sge_macro MSG_QCONF_NOXDEFINED_S] "userset list"]
   set result [start_sge_bin "qconf" "-sul"]
 
   if { [string first $NO_ACCESS_LIST_DEFINED $result] >= 0 } {
-     puts $CHECK_OUTPUT "no userset list defined"
+     ts_log_fine "no userset list defined"
   } else {
      foreach elem $result {
         if { [ string compare $elem defaultdepartment ] == 0 } {
-           puts $CHECK_OUTPUT "skipping \"defaultdepartment\" ..."
+           ts_log_fine "skipping \"defaultdepartment\" ..."
            continue
         }
-        puts $CHECK_OUTPUT "removing userset list $elem."
+        ts_log_fine "removing userset list $elem."
         del_access_list $elem
      }
   }
 
    # remove all queues
-   puts $CHECK_OUTPUT "\nremoving queues ..."
+   ts_log_newline
+   ts_log_fine "removing queues ..."
    get_queue_list queue_list
    foreach elem $queue_list {
-      puts $CHECK_OUTPUT "removing queue $elem."
+      ts_log_fine "removing queue $elem."
       del_queue $elem "" 1 1
    }
 
@@ -254,13 +263,14 @@ proc cleanup_system {} {
    cleanup_tmpdirs 
 
    # add new testsuite queues
-  puts $CHECK_OUTPUT "\nadding testsuite queues ..."
+   ts_log_newline
+  ts_log_fine "adding testsuite queues ..."
   add_queue "all.q" "@allhosts" q_param 1
   
   
   # execute the clean hooks of all checktrees
   if { [ exec_checktree_clean_hooks ] != 0 } {
-     add_proc_error "cleanup_system" -3 "exec_checktree_clean_hooks reported an error"
+     ts_log_config "exec_checktree_clean_hooks reported an error"
   }
 }
 
@@ -296,13 +306,13 @@ proc cleanup_system {} {
 #*******************************
 proc setup_queues {} {
    global env
-   global check_use_installed_system CHECK_OUTPUT CHECK_USER
+   global check_use_installed_system CHECK_USER
    global ts_config
 
    # check if qmaster can be accessed
    set result [start_sge_bin "qstat" ""]
    if { $prg_exit_state != 0 } {
-      add_proc_error "setup_queues" -2 "error connecting qmaster: $result"
+      ts_log_warning "error connecting qmaster: $result"
       return
    }
 
@@ -313,10 +323,10 @@ proc setup_queues {} {
    set result [mod_queue "all.q" "" new_values]
    switch -- $result { 
       -1 {
-         add_proc_error "setup_queues" -1 "modify queue ${hostname}.q - got timeout"
+         ts_log_severe "modify queue ${hostname}.q - got timeout"
       }
       -100 {
-         add_proc_error "setup_queues" -1 "could not modify queue"
+         ts_log_severe "could not modify queue"
       } 
    }
 
@@ -328,7 +338,7 @@ proc setup_queues {} {
          set slots_tmp [node_get_processors $hostname]
 
          if {$slots_tmp <= 0} {
-            add_proc_error "setup_queues" -2 "no slots for execd $hostname"
+            ts_log_warning "no slots for execd $hostname"
             return
          }
 
@@ -344,10 +354,10 @@ proc setup_queues {} {
          set result [mod_queue "all.q" $hostname new_values]
          switch -- $result { 
             -1 {
-               add_proc_error "setup_queues" -1 "modify queue ${hostname}.q - got timeout"
+               ts_log_severe "modify queue ${hostname}.q - got timeout"
             }
             -100 {
-               add_proc_error "setup_queues" -1 "could not modify queue"
+               ts_log_severe "could not modify queue"
             } 
          }
       }
@@ -524,22 +534,22 @@ proc setup_conf {} {
           if { [ string compare $param "max_unheard" ] == 0 } { continue }
           if { [ string compare $param "reporting_params" ] == 0 } { continue }
 
-          add_proc_error "setup_conf" -3 "config parameter $param:\ndefault setup: $old, after testsuite reset: $new" 
+          ts_log_config "config parameter $param:\ndefault setup: $old, after testsuite reset: $new" 
        }
     }
   } else {
       foreach elem $arrays_old {
          if { [string first $elem $arrays_new] < 0 } {
-            add_proc_error "setup_conf" -1 "paramter $elem not in new configuration"
+            ts_log_severe "paramter $elem not in new configuration"
          }
       }
       foreach elem $arrays_new { 
          if { [string first $elem $arrays_old] < 0 } {
-           add_proc_error "setup_conf" -1 "paramter $elem not in old configuration"
+           ts_log_severe "paramter $elem not in old configuration"
          }
       }
 
-     add_proc_error "setup_conf" -1 "config parameter count new/old configuration error"
+     ts_log_severe "config parameter count new/old configuration error"
   }
 }
 
@@ -804,12 +814,11 @@ proc setup_execd_conf_ssh {conf_name node} {
 #     ???/???
 #*******************************
 proc setup_mytestproject {} {
-   global CHECK_OUTPUT
   global check_arch env
   global ts_config
 
   if { [ string compare $ts_config(product_type) "sge" ] == 0 } {
-      puts $CHECK_OUTPUT "not supported on sge systems"
+      ts_log_fine "not supported on sge systems"
      return
   }
 
@@ -923,7 +932,6 @@ proc setup_deadlineuser {} {
 #*******************************
 proc setup_schedconf {} {
    global env CHECK_USER
-   global CHECK_OUTPUT
 
    global ts_config
    
@@ -932,16 +940,16 @@ proc setup_schedconf {} {
       # always create global complex list if not existing
       set result [start_sge_bin "qconf" "-scl"]
 
-      puts $CHECK_OUTPUT "result: $result"
+      ts_log_fine "result: $result"
 
       if { [string first "Usage" $result] >= 0 } {
-        puts $CHECK_OUTPUT "No complex setup to do for this version !!!"
+        ts_log_fine "No complex setup to do for this version !!!"
       } else {
         if { [string first "global" $result] >= 0 } {
-           puts $CHECK_OUTPUT "complex list global already exists"
+           ts_log_fine "complex list global already exists"
         } else {
            if { [get_complex_version] == 0 } {
-              puts $CHECK_OUTPUT "creating global complex list"
+              ts_log_fine "creating global complex list"
               set host_complex(complex1) "c1 DOUBLE 55.55 <= yes yes 0"
               set_complex host_complex global 1
               set host_complex(complex1) ""
@@ -973,11 +981,11 @@ proc setup_schedconf {} {
           if { [ string compare $param "weight_tickets_deadline" ] == 0 } { continue }
           if { [ string compare $param "job_load_adjustments" ] == 0 } { continue }
           if { [ string compare $param "schedule_interval" ] == 0 } { continue }
-          add_proc_error "setup_schedconf" -3 "scheduler parameter $param:\ndefault setup: $old, after testsuite reset: $new" 
+          ts_log_config "scheduler parameter $param:\ndefault setup: $old, after testsuite reset: $new" 
        }
     }
   } else {
-     add_proc_error "setup_schedconf" -1 "parameter count new/old scheduler configuration error"
+     ts_log_severe "parameter count new/old scheduler configuration error"
   }
 }
 
@@ -1023,7 +1031,7 @@ proc setup_default_calendars {} {
 
   set result [ add_calendar "always_suspend" calendar_param ]
   if { $result != 0 } {
-     add_proc_error "setup_default_calendars" -1 "result of add_default_calendars: $result"
+     ts_log_severe "result of add_default_calendars: $result"
      return
   }
 
@@ -1033,7 +1041,7 @@ proc setup_default_calendars {} {
 
   set result [add_calendar "always_disabled" calendar_param]
   if { $result != 0 } {
-     add_proc_error "setup_default_calendars" -1 "result of add_calendar: $result"
+     ts_log_severe "result of add_calendar: $result"
      return
   }
 }
@@ -1082,7 +1090,7 @@ proc setup_check_messages_files {} {
       set messages [get_execd_messages_file $execd]
       get_file_content $execd $CHECK_USER $messages 
       if {$file_array(0) < 1} {
-         add_proc_error "setup_check_messages_files" -1 "no execd(host=$execd) messages file:\n$messages"
+         ts_log_severe "no execd(host=$execd) messages file:\n$messages"
       }
       for {set i 1} {$i <= $file_array(0)} {incr i} {
          setup_check_message_file_line $file_array($i)
@@ -1121,12 +1129,11 @@ proc setup_check_messages_files {} {
 #*******************************
 proc setup_inhouse_cluster {} {
    global env CHECK_USER
-   global CHECK_OUTPUT
    global ts_config
 
    # reset_schedd_config has global error reporting
    if {[lsearch -exact [info procs] "inhouse_cluster_post_install"] != -1} {
-      puts $CHECK_OUTPUT "executing postinstall procedure for inhouse cluster"
+      ts_log_fine "executing postinstall procedure for inhouse cluster"
       inhouse_cluster_post_install
    }
 }
@@ -1152,7 +1159,6 @@ proc setup_inhouse_cluster {} {
 #     init_cluster/setup_win_user()
 #*******************************************************************************
 proc setup_win_users {} {
-   global CHECK_OUTPUT
    global CHECK_USER CHECK_FIRST_FOREIGN_SYSTEM_USER CHECK_SECOND_FOREIGN_SYSTEM_USER
    global ts_config
 
@@ -1186,11 +1192,10 @@ proc setup_win_users {} {
 #     check/set_root_passwd()
 #*******************************************************************************
 proc setup_win_user_passwd {user} {
-   global CHECK_OUTPUT
    global CHECK_USER CHECK_DEBUG_LEVEL
    global ts_config
 
-   puts -nonewline $CHECK_OUTPUT "setting sgepasswd of user $user ..."
+   ts_log_fine "setting sgepasswd of user $user ..."
    
    set id [open_remote_spawn_process $ts_config(master_host) $CHECK_USER "sgepasswd" $user]
    set sp_id [lindex $id 1]
@@ -1199,26 +1204,25 @@ proc setup_win_user_passwd {user} {
    log_user 0
    if {$CHECK_DEBUG_LEVEL != 0} {
       log_user 1
-      puts $CHECK_OUTPUT ""
    }
 
    # wait for and answer passwd questions
    set timeout 60
    expect {
       -i $sp_id full_buffer {
-         add_proc_error "setup_win_user_passwd" -1 "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+         ts_log_severe "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
          close_spawn_process $id
          return
       }   
 
       -i $sp_id eof { 
-         add_proc_error "setup_win_user_passwd" "-1" "unexpected eof"
+         ts_log_severe "unexpected eof"
          close_spawn_process $id
          return
       }
 
       -i $sp_id timeout { 
-         add_proc_error "setup_win_user_passwd" "-1" "timeout while waiting for password question"
+         ts_log_severe "timeout while waiting for password question"
          close_spawn_process $id;
          return
       }
@@ -1232,11 +1236,11 @@ proc setup_win_user_passwd {user} {
          exp_continue
       }
       -i $sp_id "Password changed" {
-         puts -nonewline $CHECK_OUTPUT " + "
+         ts_log_progress
          exp_continue
       }
       -i $sp_id "_exit_status_:" {
-         puts $CHECK_OUTPUT "done"
+         ts_log_fine "done"
       }
    }
 
@@ -1245,7 +1249,6 @@ proc setup_win_user_passwd {user} {
 }
 
 proc cleanup_tmpdirs {} {
-   global CHECK_OUTPUT
    global CHECK_ADMIN_USER_SYSTEM CHECK_USER
 
    global ts_config
@@ -1263,7 +1266,7 @@ proc cleanup_tmpdirs {} {
    }
 
    foreach node $ts_config(execd_nodes) {
-      puts $CHECK_OUTPUT "cleaning tmpdir ($tmpdir) on node $node"
+      ts_log_fine "cleaning tmpdir ($tmpdir) on node $node"
       start_remote_prog $node $clean_user "rm" "-rf $tmpdir"
    }
 }
@@ -1340,3 +1343,18 @@ proc setup_sge_aliases_file {} {
    ts_log_fine "Done setting up sge_aliases file"
 }
 
+proc install_send_answer {sp_id answer {scenario ""}} {
+   global CHECK_DEBUG_LEVEL
+
+   if {$scenario == ""} {
+      ts_log_newline FINER ; ts_log_finer "--> testsuite: sending >$answer<"
+   } else {
+      ts_log_newline FINER ; ts_log_finer "--> testsuite ($scenario): sending >$answer<"
+   }
+
+   if {$CHECK_DEBUG_LEVEL == 2} {
+      wait_for_enter
+   }
+
+   ts_send $sp_id "$answer\n"
+}

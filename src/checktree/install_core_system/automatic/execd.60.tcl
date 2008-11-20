@@ -36,12 +36,13 @@ proc autoinst_statistics {} {
       if {$now > $monitor_time} {
          set monitor_time $now
          clear_screen
-         puts $CHECK_OUTPUT "Autoinstall of execution hosts ($parallel_install in parallel)"
-         puts $CHECK_OUTPUT "=========================================================================="
-         puts $CHECK_OUTPUT "Pending:         [llength $pending_install]"
-         puts $CHECK_OUTPUT "Running:         $running_install"
-         puts $CHECK_OUTPUT "Finished:        $finished_install"
-         puts $CHECK_OUTPUT ""
+         # we do not use the logging framework here - it's screen only output
+         puts  "Autoinstall of execution hosts ($parallel_install in parallel)"
+         puts  "=========================================================================="
+         puts  "Pending:         [llength $pending_install]"
+         puts  "Running:         $running_install"
+         puts  "Finished:        $finished_install"
+         puts  ""
       }
    }
 }
@@ -75,7 +76,7 @@ proc autoinst_statistics {} {
 #     ???/???
 #*******************************
 proc install_execd {} {
-   global CHECK_OUTPUT CORE_INSTALLED
+   global CORE_INSTALLED
    global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
@@ -90,15 +91,15 @@ proc install_execd {} {
    read_install_list
 
    set catch_result [catch {eval exec "cat $ts_config(product_root)/inst_sge | grep \"SCRIPT_VERSION\" | cut -d\" -f2"} INST_VERSION]
-   puts $CHECK_OUTPUT "inst_sge version: $INST_VERSION"
+   ts_log_fine "inst_sge version: $INST_VERSION"
 
    if {!$check_use_installed_system} {
       set feature_install_options ""
       if { $ts_config(submit_only_hosts) != "none" } {
          foreach elem $ts_config(submit_only_hosts) {
-            puts $CHECK_OUTPUT "do a qconf -as $elem ..."
+            ts_log_fine "do a qconf -as $elem ..."
             set result [start_sge_bin "qconf" "-as $elem"]
-            puts $CHECK_OUTPUT $result
+            ts_log_fine $result
          }
       }
       if {$ts_config(product_feature) == "csp"} {
@@ -127,7 +128,7 @@ proc install_execd {} {
             write_install_list
             continue
          } else {
-            add_proc_error "install_execd" -2 "could not startup execd on host $exec_host"
+            ts_log_warning "could not startup execd on host $exec_host"
             return
          }
       }
@@ -137,7 +138,7 @@ proc install_execd {} {
 
    # install script available?
    if {[file isfile "$ts_config(product_root)/install_execd"] != 1} {
-      add_proc_error "install_execd" "-1" "install_execd file not found"
+      ts_log_severe "install_execd file not found"
       return
    }
 
@@ -146,22 +147,21 @@ proc install_execd {} {
       set remote_arch [resolve_arch $exec_host]
       set sensor_file [get_loadsensor_path $exec_host]
       if {[string compare $sensor_file ""] != 0} {
-         puts $CHECK_OUTPUT "installing load sensor:"
-         puts $CHECK_OUTPUT "======================="
-         puts $CHECK_OUTPUT "architecture: $remote_arch"
-         puts $CHECK_OUTPUT "sensor file:  $sensor_file"
-         puts $CHECK_OUTPUT "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
+         ts_log_fine "installing load sensor:"
+         ts_log_fine "======================="
+         ts_log_fine "architecture: $remote_arch"
+         ts_log_fine "sensor file:  $sensor_file"
+         ts_log_fine "target:       $ts_config(product_root)/bin/$remote_arch/qloadsensor"
          if {$CHECK_ADMIN_USER_SYSTEM == 0} {
             set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
             set result [start_remote_prog $ts_config(master_host) "root" "cp" "$arguments"]
-            puts $CHECK_OUTPUT "result: $result"
-            puts $CHECK_OUTPUT "copy exit state: $prg_exit_state"
+            ts_log_fine "result: $result"
+            ts_log_fine "copy exit state: $prg_exit_state"
          } else {
-            puts $CHECK_OUTPUT "can not copy this file as user $CHECK_USER"
-            puts $CHECK_OUTPUT "please copy this file manually!!"
-            puts $CHECK_OUTPUT "if not, you will get no load values from this host (=$exec_host)"
-            puts $CHECK_OUTPUT "installation will continue in 15 seconds!!"
-            sleep 15
+            set arguments "$sensor_file $ts_config(product_root)/bin/$remote_arch/qloadsensor"
+            set result [start_remote_prog $ts_config(master_host) $CHECK_USER "cp" "$arguments"]
+            ts_log_fine "result: $result"
+            ts_log_fine "copy exit state: $prg_exit_state"
          }
       }
    }
@@ -212,7 +212,7 @@ proc install_execd {} {
    } else {
       set install_user "root"
    }
-   puts $CHECK_OUTPUT "starting the installation as user $install_user"
+   ts_log_fine "starting the installation as user $install_user"
    set error 0
    set monitor_time 0
    while {!$error && $finished_install < [llength $ts_config(execd_nodes)]} {
@@ -229,7 +229,7 @@ proc install_execd {} {
          # select host to install
          set exec_host [lindex $pending_install 0]
          set pending_install [lrange $pending_install 1 end]
-         puts $CHECK_OUTPUT "installing execd on host $exec_host ($ts_config(product_type) system) ..."
+         ts_log_fine "installing execd on host $exec_host ($ts_config(product_type) system) ..."
 
          # start auto install for this host 
          set install_options "$CHECK_EXECD_INSTALL_OPTIONS $feature_install_options -auto $autoconfig_files($exec_host) -noremote"
@@ -248,7 +248,7 @@ proc install_execd {} {
       expect {
          -i $spawn_list full_buffer {
             set error 1
-            add_proc_error "install_execd" -1 "expect full_buffer error (1)"
+            ts_log_severe "expect full_buffer error (1)"
          }
          -i $spawn_list timeout {
             # we just looked for further messages, this is *not* an error
@@ -257,7 +257,7 @@ proc install_execd {} {
                set timeout 300
             } else {
                set error 1
-               add_proc_error "install_execd" -1 "timeout while waiting for remote shell"
+               ts_log_severe "timeout while waiting for remote shell"
             }
          }
          -i $spawn_list "_exit_status_:(*)" {
@@ -280,10 +280,10 @@ proc install_execd {} {
             set exit_status [get_string_value_between "_exit_status_:(" ")" [string trim $expect_out(0,string)]]
             set host_name $spawn_host_map($spawn_id)
             if {$exit_status != 0} {
-               add_proc_error "install_exec" -1 "execd_installation failed on host $host_name with $exit_status\n$expect_out(0,string)"
+               ts_log_severe "execd_installation failed on host $host_name with $exit_status\n$expect_out(0,string)"
                set error 1
             } else {
-               puts $CHECK_OUTPUT "finished installation on host $host_name"
+               ts_log_fine "finished installation on host $host_name"
                lappend CORE_INSTALLED $exec_host
                write_install_list
                # stay in expect loop shortly to cleanup further finished installations
@@ -297,7 +297,7 @@ proc install_execd {} {
             set spawn_id $expect_out(spawn_id)
             set host_name $spawn_host_map($spawn_id)
             set error 1
-            add_proc_error "install_execd" -1 "got eof from host $host_name\n$expect_out(0,string)"
+            ts_log_severe "got eof from host $host_name\n$expect_out(0,string)"
          }
       }
    }

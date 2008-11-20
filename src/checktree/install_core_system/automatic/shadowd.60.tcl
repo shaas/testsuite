@@ -60,7 +60,7 @@
 #     ???/???
 #*******************************
 proc install_shadowd {} {
-   global CHECK_OUTPUT CHECK_CORE_SHADOWD CORE_INSTALLED
+   global CHECK_CORE_SHADOWD CORE_INSTALLED
    global check_use_installed_system
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
@@ -92,10 +92,10 @@ proc install_shadowd {} {
 
    if {$check_use_installed_system} {
       foreach shadow_host $CHECK_CORE_SHADOWD {
-         puts $CHECK_OUTPUT "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
+         ts_log_fine "no need to install shadowd on host \"$shadow_host\", noinst parameter is set"
          set info [check_shadowd_settings $shadow_host]
          if {$info != ""} {
-            add_proc_error "install_shadowd" -3 "skipping shadowd installation for host $shadow_host:\n$info"
+            ts_log_config "skipping shadowd installation for host $shadow_host:\n$info"
             continue
          }
          if {[startup_shadowd $shadow_host] == 0} {
@@ -103,44 +103,44 @@ proc install_shadowd {} {
             write_install_list
             continue
          } else {
-            add_proc_error "install_shadowd" -2 "could not startup shadowd on host $shadow_host"
+            ts_log_warning "could not startup shadowd on host $shadow_host"
             return
          }
       }
    } else {
       if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-         add_proc_error "install_shadowd" "-1" "inst_sge file not found"
+         ts_log_severe "inst_sge file not found"
          return
       }
 
       set shadow_host [lindex $CHECK_CORE_SHADOWD 0]
-      puts $CHECK_OUTPUT "installing shadowd on hosts: $CHECK_CORE_SHADOWD ($ts_config(product_type) system)..."
+      ts_log_fine "installing shadowd on hosts: $CHECK_CORE_SHADOWD ($ts_config(product_type) system)..."
       set my_timeout 500
-      puts $CHECK_OUTPUT "inst_sge -sm -auto $ts_config(product_root)/autoinst_config.conf"
+      ts_log_fine "inst_sge -sm -auto $ts_config(product_root)/autoinst_config.conf"
       if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
          set output [start_remote_prog "$shadow_host" "root"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
       } else {
-         puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
+         ts_log_fine "--> install as user $CHECK_USER <--" 
          set output [start_remote_prog "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm -auto $ts_config(product_root)/autoinst_config.conf" exit_val $my_timeout 0 $ts_config(product_root)]
       }
       if {$exit_val == 0} {
          foreach shadow_host $CHECK_CORE_SHADOWD {
-            puts $CHECK_OUTPUT "testing shadowd settings for host $shadow_host ..."
+            ts_log_fine "testing shadowd settings for host $shadow_host ..."
             set info [check_shadowd_settings $shadow_host]
             if {$info != ""} {
-               add_proc_error "install_shadowd" -3 "skipping shadowd installation for host $shadow_host:\n$info"
+               ts_log_config "skipping shadowd installation for host $shadow_host:\n$info"
                continue
             }
-            puts $CHECK_OUTPUT "checking shadowd on host $shadow_host ($ts_config(product_type) system) ..."
+            ts_log_fine "checking shadowd on host $shadow_host ($ts_config(product_type) system) ..."
             if { [is_daemon_running $shadow_host "sge_shadowd"] == 1 } {
                lappend CORE_INSTALLED $shadow_host
                write_install_list
             } else {
-               add_proc_error "install_shadowd" "-2" "install shadowd on host $shadow_host failed\noutput of inst_sge -sm -auto:\n$output"
+               ts_log_warning "install shadowd on host $shadow_host failed\noutput of inst_sge -sm -auto:\n$output"
             }
          }
       } else {
-         add_proc_error "install_shadowd" "-2" "install shadowd hosts failed\noutput of inst_sge -sm -auto:\n$output"
+         ts_log_warning "install shadowd hosts failed\noutput of inst_sge -sm -auto:\n$output"
       }
    }
 }

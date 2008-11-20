@@ -1,3 +1,7 @@
+JG-2008-11-20-0: Enhancem.:  - installation: call setfileperm.sh on fileserver
+                             - cleanup of installation modules
+                 Review:     CR
+
 EB-2008-11-20-0: Enhancem.:  - integrated perl script into jsv_script test
                              - fixed wrong job parameter name
                  Review:     MD

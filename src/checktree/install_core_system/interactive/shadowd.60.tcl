@@ -60,14 +60,14 @@
 #     ???/???
 #*******************************
 proc install_shadowd {} {
-   global CHECK_OUTPUT CHECK_CORE_SHADOWD CORE_INSTALLED
+   global ts_config
+   global CHECK_CORE_SHADOWD CORE_INSTALLED
    global check_use_installed_system 
    global CHECK_COMMD_PORT CHECK_ADMIN_USER_SYSTEM CHECK_USER
    global CHECK_DEBUG_LEVEL CHECK_EXECD_INSTALL_OPTIONS
    global CHECK_COMMD_PORT
    global CHECK_MAIN_RESULTS_DIR
 
-   global ts_config
    set CORE_INSTALLED "" 
    read_install_list
 
@@ -87,38 +87,35 @@ proc install_shadowd {} {
    }
  
    foreach shadow_host $CHECK_CORE_SHADOWD {
-
-      puts $CHECK_OUTPUT "testing shadowd settings for host $shadow_host ..."
+      ts_log_fine "testing shadowd settings for host $shadow_host ..."
       set info [check_shadowd_settings $shadow_host]
-      if { $info != "" } {
-         add_proc_error "install_shadowd" -3 "skipping shadowd installation for host $shadow_host:\n$info"
+      if {$info != ""} {
+         ts_log_config "skipping shadowd installation for host $shadow_host:\n$info"
          continue
       }
 
-      puts $CHECK_OUTPUT "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
-#      wait_for_remote_file $shadow_host $CHECK_USER "$ts_config(product_root)/$ts_config(cell)/common/configuration"
-      if { $check_use_installed_system != 0 } {
+      ts_log_fine "installing shadowd on host $shadow_host ($ts_config(product_type) system) ..."
+      if {$check_use_installed_system != 0} {
          puts "no need to install shadowd on hosts \"$CHECK_CORE_SHADOWD\", noinst parameter is set"
-         if {[startup_shadowd $shadow_host] == 0 } {
+         if {[startup_shadowd $shadow_host] == 0} {
             lappend CORE_INSTALLED $shadow_host
             write_install_list
             continue
          } else {
-            add_proc_error "install_shadowd" -2 "could not startup shadowd on host $shadow_host"
+            ts_log_warning "could not startup shadowd on host $shadow_host"
             return
          }
       }
 
       if {[file isfile "$ts_config(product_root)/inst_sge"] != 1} {
-         add_proc_error "install_shadowd" "-1" "inst_sge file not found"
+         ts_log_severe "inst_sge file not found"
          return
       }
 
       set remote_arch [resolve_arch $shadow_host]    
- 
 
       set HIT_RETURN_TO_CONTINUE       [translate $shadow_host 0 1 0 [sge_macro DISTINST_HIT_RETURN_TO_CONTINUE] ]
-      set SHADOWD_INSTALL_COMPLETE       [translate $shadow_host 0 1 0 [sge_macro DISTINST_SHADOWD_INSTALL_COMPLETE] ]
+      set SHADOWD_INSTALL_COMPLETE     [translate $shadow_host 0 1 0 [sge_macro DISTINST_SHADOWD_INSTALL_COMPLETE] ]
       set ANSWER_YES                   [translate $shadow_host 0 1 0 [sge_macro DISTINST_ANSWER_YES] ]
       set ANSWER_NO                    [translate $shadow_host 0 1 0 [sge_macro DISTINST_ANSWER_NO] ]
       set INSTALL_SCRIPT               [translate $shadow_host 0 1 0 [sge_macro DISTINST_INSTALL_SCRIPT] "*" ]
@@ -139,214 +136,134 @@ proc install_shadowd {} {
       set DO_YOU_WANT_TO_CONTINUE      [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_DO_YOU_WANT_TO_CONTINUE] ]
       set REMOVE_OLD_RC_SCRIPT         [translate $ts_config(master_host) 0 1 0 [sge_macro DISTINST_REMOVE_OLD_RC_SCRIPT] ]
 
-      puts $CHECK_OUTPUT "inst_sge -sm"
+      ts_log_fine "inst_sge -sm"
 
-      if { $CHECK_ADMIN_USER_SYSTEM == 0 } { 
-         set id [open_remote_spawn_process "$shadow_host" "root"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 0 1 1]
+      if {$CHECK_ADMIN_USER_SYSTEM == 0} { 
+         set user "root"
       } else {
-         puts $CHECK_OUTPUT "--> install as user $CHECK_USER <--" 
-         set id [open_remote_spawn_process "$shadow_host" "$CHECK_USER"  "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 0 1 1]
+         set user $CHECK_USER
+         ts_log_fine "--> install as user $CHECK_USER <--" 
       }
-
-
-      log_user 1
-
+      set id [open_remote_spawn_process $shadow_host $user "./inst_sge" "-sm" 0 $ts_config(product_root) "" 1 15 0 1 1]
       set sp_id [ lindex $id 1 ] 
-
-
-      set timeout 30
      
-      set do_log_output 0 ;# 1 _LOG
-      if { $CHECK_DEBUG_LEVEL == 2 } {
-         set do_log_output 1
-      }
-
-
       set do_stop 0
       while {$do_stop == 0} {
-         flush $CHECK_OUTPUT
-         if {$do_log_output == 1} {
-             puts "press RETURN"
-             set anykey [wait_for_enter 1]
+         flush stdout
+         if {$CHECK_DEBUG_LEVEL == 2} {
+            puts "press RETURN"
+            set anykey [wait_for_enter 1]
          }
      
          set timeout 300
          log_user 1 
          expect {
             -i $sp_id full_buffer {
-               add_proc_error "install_shadowd" "-1" "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
+               ts_log_warning "buffer overflow please increment CHECK_EXPECT_MATCH_MAX_BUFFER value"
                close_spawn_process $id
                return
             }
 
             -i $sp_id eof {
-               add_proc_error "install_shadowd" "-1" "unexpeced eof"
+               ts_log_severe "unexpeced eof"
                set do_stop 1
                continue
             }
 
             -i $sp_id "coredump" {
-               add_proc_error "install_shadowd" "-2" "coredump on host $shadow_host"
+               ts_log_warning "coredump on host $shadow_host"
                set do_stop 1
                continue
             }
 
             -i $sp_id timeout { 
-               add_proc_error "install_shadowd" "-1" "timeout while waiting for output" 
+               ts_log_severe "timeout while waiting for output" 
                set do_stop 1
                continue
             }
 
-
             -i $sp_id $SHADOW_CELL {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending $ts_config(cell)"
-               set input "$ts_config(cell)\n"
-
-               if {$do_log_output == 1} {
-                  puts "-->testsuite: press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id $input
+               install_send_answer $sp_id $ts_config(cell)
                continue
             }
 
             -i $sp_id -- $DETECT_CHOOSE_NEW_NAME {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_YES<"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES
                continue
             }
 
-            #Delete detected services for chosen cluster_name
+            # Delete detected services for chosen cluster_name
             -i $sp_id -- $DETECT_REMOVE_OLD_CLUSTER {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending  >$ANSWER_NO<"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "$ANSWER_NO\n"
+               install_send_answer $sp_id $ANSWER_NO
                continue
             }
 
-            #Remove conflicting RC files/SMF service
+            # Remove conflicting RC files/SMF service
             -i $sp_id -- $REMOVE_OLD_RC_SCRIPT  {
-               flush $CHECK_OUTPUT
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES
                continue
             }
 
             -i $sp_id $HOSTNAME_KNOWN_AT_MASTER { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "\n"
+               install_send_answer $sp_id ""
                continue
             }
 
-             -i $sp_id $INSTALL_AS_ADMIN_USER { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_YES<(5)"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-
-               ts_send $sp_id "$ANSWER_YES\n"
+            -i $sp_id $INSTALL_AS_ADMIN_USER { 
+               install_send_answer $sp_id $ANSWER_YES
                continue
             }
-
 
             -i $sp_id $MESSAGES_LOGGING {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                   puts "press RETURN"
-                   set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "\n"
+               install_send_answer $sp_id ""
                continue
             }
 
-
             -i $sp_id -- $IF_NOT_OK_STOP_INSTALLATION {
-               if { $CHECK_ADMIN_USER_SYSTEM != 0 } {
-                  puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-                  if {$do_log_output == 1} {
-                       puts "press RETURN"
-                       set anykey [wait_for_enter 1]
-                  }
-                  ts_send $sp_id "\n"
+               if {$CHECK_ADMIN_USER_SYSTEM != 0} {
+                  install_send_answer $sp_id ""
                   continue
                } else {
-                  add_proc_error "install_shadowd" "-1" "host $shadow_host: tried to install not as root"
-                  close_spawn_process $id 
+                  ts_log_warning "host $shadow_host: tried to install not as root"
+                  close_spawn_process $id
                   return
                }
             }
 
             -i $sp_id $INSTALL_SCRIPT { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(12)"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "$ANSWER_NO\n"
+               install_send_answer $sp_id $ANSWER_NO
                continue
             }
 
-            #SMF startup is always disabled in testsuite
+            # SMF startup is always disabled in testsuite
             -i $sp_id -- $SMF_IMPORT_SERVICE {
-               flush $CHECK_OUTPUT
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >$ANSWER_NO<(10)"
-               if {$do_log_output == 1} {
-                  puts "press RETURN"
-                  set anykey [wait_for_enter 1]
-               }
-
-               ts_send $sp_id "$ANSWER_NO\n"
+               install_send_answer $sp_id $ANSWER_NO
                continue
             }
 
             -i $sp_id -- $DO_YOU_WANT_TO_CONTINUE {
-               ts_send $sp_id "$ANSWER_YES\n"
+               install_send_answer $sp_id $ANSWER_YES
                continue
             }
 
             -i $sp_id "Error:" {
-               add_proc_error "install_shadowd" "-1" "$expect_out(0,string)"
-               close_spawn_process $id 
+               ts_log_warning "$expect_out(0,string)"
+               close_spawn_process $id
                return
             }
             -i $sp_id "can't resolve hostname*\n" {
-               add_proc_error "install_shadowd" "-1" "$expect_out(0,string)"
-               close_spawn_process $id 
+               ts_log_warning "$expect_out(0,string)"
+               close_spawn_process $id
                return
-            }            
-  
+            }
             -i $sp_id "error:\n" {
-               add_proc_error "install_shadowd" "-1" "$expect_out(0,string)"
-               close_spawn_process $id 
+               ts_log_warning "$expect_out(0,string)"
+               close_spawn_process $id
                return
             }
 
             -i $sp_id $CURRENT_GRID_ROOT_DIRECTORY {
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                    puts "-->testsuite: press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-               ts_send $sp_id "\n"
+               install_send_answer $sp_id ""
                continue
             }
 
@@ -365,25 +282,13 @@ proc install_shadowd {} {
                continue
             }
 
-            -i $sp_id $HIT_RETURN_TO_CONTINUE { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "\n"
+            -i $sp_id $HIT_RETURN_TO_CONTINUE {
+               install_send_answer $sp_id ""
                continue
             }
 
-            -i $sp_id $SHADOW_ROOT { 
-               puts $CHECK_OUTPUT "\n -->testsuite: sending >RETURN<"
-               if {$do_log_output == 1} {
-                    puts "press RETURN"
-                    set anykey [wait_for_enter 1]
-               }
-     
-               ts_send $sp_id "\n"
+            -i $sp_id $SHADOW_ROOT {
+               install_send_answer $sp_id ""
                continue
             }
 
@@ -395,19 +300,19 @@ proc install_shadowd {} {
             }
 
             -i $sp_id default {
-               add_proc_error "install_shadowd" "-1" "undefined behaiviour: $expect_out(buffer)"
-               close_spawn_process $id 
+               ts_log_warning "undefined behaviour: $expect_out(buffer)"
+               close_spawn_process $id
                return
             }
-         }
-      }
+         } ;# expect
+      } ;# while
 
       # close connection to inst_sge
       close_spawn_process $id
-      if { [is_daemon_running $shadow_host "sge_shadowd"] != 1 } {
-         add_proc_error "install_shadowd" "-1" "shadowd on host $shadow_host is not running"
+
+      if {[is_daemon_running $shadow_host "sge_shadowd"] != 1} {
+         ts_log_severe "shadowd on host $shadow_host is not running"
       }
    }
 }
-
 
