@@ -1,3 +1,17 @@
+TB-2008-11-20-0: Bugfix:     o some calling code of the wait_for_XXX hedeby
+                               functions relied on their silent initialization
+                               of the error_text variable
+                 Belongs to: TB-2008-11-19-0
+                 Cleanup:    Used sdmadm_command_opt in:
+                             o util/produce_inprocess_resource()
+                             o util/produce_ambiguous_resource()
+                             o util/produce_unassigning_resource()
+                             o util/reset_produced_inprocess_resource()
+                             o util/reset_produced_ambiguous_resource()
+                             o util/reset_produced_unassigning_resource()
+                             o util/hedeby_executor_cleanup()
+                 Review:     CR
+
 JG-2008-11-20-0: Enhancem.:  - installation: call setfileperm.sh on fileserver
                              - cleanup of installation modules
                  Review:     CR
