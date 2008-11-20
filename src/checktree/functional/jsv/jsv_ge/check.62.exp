@@ -193,7 +193,7 @@ proc jsv_ge_parsing_in_client_or_master {} {
    }     
 
    if {$CHECK_ACT_LEVEL == 0} {
-      append submit_args "-jsv script:${jsv_base_path}/jsv_test_modify.tcl "
+      append submit_args "-jsv ${jsv_base_path}/jsv_test_modify.tcl "
       append submit_args "$ts_config(product_root)/examples/jobs/sleeper.sh 3"
       set job_id [submit_job "$submit_args"]
 
