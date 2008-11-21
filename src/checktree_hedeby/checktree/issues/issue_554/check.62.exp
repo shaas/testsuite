@@ -1,0 +1,320 @@
+#!/vol2/TCL_TK/glinux/bin/expect
+# ___INFO__MARK_BEGIN__
+##########################################################################
+#
+#  The Contents of this file are made available subject to the terms of
+#  the Sun Industry Standards Source License Version 1.2
+#
+#  Sun Microsystems Inc., March, 2001
+#
+#
+#  Sun Industry Standards Source License Version 1.2
+#  =================================================
+#  The contents of this file are subject to the Sun Industry Standards
+#  Source License Version 1.2 (the "License"); You may not use this file
+#  except in compliance with the License. You may obtain a copy of the
+#  License at http://gridengine.sunsource.net/Gridengine_SISSL_license.html
+#
+#  Software provided under this License is provided on an "AS IS" basis,
+#  WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+#  WITHOUT LIMITATION, WARRANTIES THAT THE SOFTWARE IS FREE OF DEFECTS,
+#  MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE, OR NON-INFRINGING.
+#  See the License for the specific provisions governing your rights and
+#  obligations concerning the Software.
+#
+#  The Initial Developer of the Original Code is: Sun Microsystems, Inc.
+#
+#  Copyright: 2008 by Sun Microsystems, Inc
+#
+#  All Rights Reserved.
+#
+##########################################################################
+# ___INFO__MARK_END__
+
+
+# source version dependent parts of the installation
+global CHECK_ACTUAL_TEST_PATH CHECK_TESTSUITE_INSTALL_MODE
+global check_name check_description check_needs check_functions
+global check_root_access_needs check_category      
+global check_use_installed_system check_init_level_procedure
+
+# This file shows some check specific things
+set check_root_access_needs    "yes"
+set check_name                 "hedeby_issue_554"
+set check_category             "COMPATIBILITY SYSTEM VERIFIED"
+set check_description(0)       "Tests the stoping services with -fr flag"
+#set check_needs                "hedeby_install"                  
+set check_init_level_procedure "hedeby_issue554_init_level"
+set check_functions            {}   
+set check_highest_level        0
+
+set check_setup_level_function "hedeby_issue554_setup_level"
+set check_cleanup_level_function "hedeby_issue554_cleanup_level"
+
+lappend check_functions "hedeby_issue554_check"
+
+
+#****** issue_554/hedeby_issue554_init_level() ************************
+#  NAME
+#     hedeby_issue554_init_level() -- init level procedure for test
+#
+#  SYNOPSIS
+#     hedeby_issue554_init_level { } 
+#
+#  FUNCTION
+#     Return the supported runlevel of this test. Currently only level 0
+#     is supported.
+#
+#  INPUTS
+#
+#  RESULT
+#     0 for CHECK_ACT_LEVEL 0
+#    -1 for all other levels
+#
+#*******************************************************************************
+proc hedeby_issue554_init_level {} {
+  global CHECK_ACT_LEVEL
+
+  if {$CHECK_ACT_LEVEL == 0} {
+     return 0
+  }
+  return -1
+}
+
+#****** issue_554/hedeby_issue554_setup_level() *********************************
+#  NAME
+#    hedeby_issue554_setup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue554_setup_level { } 
+#
+#  FUNCTION
+#    in this setup we will set the expected resources states and services
+#    to where they should be assigned
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue554_setup_level {} {
+   ts_log_heading "Setup for issue554"
+   upvar #0 hedeby_issue554_ctx this
+   global hedeby_config
+   
+   # get some global settings
+   get_hedeby_default_services service_names
+   # get the services info
+   set this(services) $service_names(services)
+   foreach service $this(services) {
+        set this(moveable_execds,$service) $service_names(moveable_execds,$service)
+   }
+   
+   # list of all resources that are movable and used in this test
+   set this(resources) {} 
+   set this(startup) "true"
+}
+
+#****** issue_554/hedeby_issue554_cleanup_level() *******************************
+#  NAME
+#    hedeby_issue554_cleanup_level() -- setup level function
+#
+#  SYNOPSIS
+#    hedeby_issue554_cleanup_level { } 
+#
+#  INPUTS
+#     no input parameters
+#
+#  FUNCTION
+#   
+#    Removes the global context variable of this test (hedeby_issue554_ctx)
+#
+#  RESULT
+#     no return values
+#*******************************************************************************
+proc hedeby_issue554_cleanup_level {} {
+   upvar #0 hedeby_issue554_ctx this
+
+   if {$this(startup) == "true"} {
+        foreach service $this(services) {
+            sdmadm_command_opt "sus -s $service"
+            set si($service,cstate) "STARTED"
+            set si($service,sstate) "RUNNING"
+        }
+        sdmadm_command_opt "sus -s spare_pool"
+        set si(spare_pool,cstate) "STARTED"
+        set si(spare_pool,sstate) "RUNNING"
+        # check if startup really happen
+        if {[wait_for_service_info si 60 0 error_var] != 0} {
+            ts_log_severe "Cleanup: Startup of the services failed with following error message:\n $error_var"
+        }
+   }
+   
+   if {[move_resources_to_default_services] != 0} {
+      if {[reset_hedeby 1] != 0} {
+        ts_log_severe "Cleanup error: Cannot reset hedeby"
+      }
+   }
+   unset this
+}
+
+#****** issue_554/hedeby_issue554_check *****************************
+#  NAME
+#     hedeby_issue554_check() -- check that issue 554 is fixed
+#
+#  SYNOPSIS
+#     hedeby_issue554_check { } 
+#
+#  FUNCTION
+#
+#   This function will check the proper behaviour of shutdown service command
+#   with -fr (free resources) flag set. It will check that after such action 
+#   service resources will go to resource provider and become "temp-type" resources.
+#   After another startup of all services, resources should go back to owning services.
+#
+#    o Step 1: Gathering the resources and services information
+#    o Step 2: Shutdown of all services in the system with -fr flag
+#    o Step 3: Check that all resources went to resource provider
+#    o Step 4: Startup the shutdown services
+#    o Step 5: Check that the all services have their owned resources back
+#
+#  INPUTS
+#     no input parameters
+#
+#  RESULT
+#     no return values
+#
+#**********************************************************************
+proc hedeby_issue554_check {} {
+   upvar #0 hedeby_issue554_ctx this
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 1: Gathering the resources and services information"
+   # ------------------------------------------------------------------ 
+   # we will get the current resources assignment and states from ge adapters
+   foreach service $this(services) {
+        foreach resource $this(moveable_execds,$service) {
+            set sr($resource,service) $service
+            set sr($resource,flags) "{}"
+            set sr($resource,state) "ASSIGNED"
+            lappend this(resources) "$resource"
+        }
+   }
+   #and now we will do it for spare pool
+   foreach resource [get_all_spare_pool_resources] {
+       set sr($resource,service) "spare_pool"
+       set sr($resource,flags) "{}"
+       set sr($resource,state) "ASSIGNED"
+       lappend this(resources) "$resource"
+   }
+   ts_log_fine "Step 1 finished"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 2: Shutdown of all services in the system with -fr flag"
+   # ------------------------------------------------------------------ 
+   # shutdown of all ge adapters
+   foreach service $this(services) {
+       set output [sdmadm_command_opt "sds -s $service -fr"]
+       if {$prg_exit_state != 0} {
+           ts_log_severe "Step 2: Executing command shutdown service for service '$service' failed with the error message:\n $output"
+           return
+       }
+       set si($service,cstate) "STARTED"
+       set si($service,sstate) "STOPPED"
+   }
+   # do the same for spare pool service
+   set output [sdmadm_command_opt "sds -s spare_pool -fr"]
+   if {$prg_exit_state != 0} {
+       ts_log_severe "Step 2: Executing command shutdown service for service spare_pool failed with the error message:\n $output"
+       return
+   }
+   set si(spare_pool,cstate) "STARTED"
+   set si(spare_pool,sstate) "STOPPED"
+   
+   # check if shutdown really happen
+   if {[wait_for_service_info si 60 0 error_var] != 0} {
+       ts_log_severe "Step 2: Shutdown of the services failed with following error message:\n $error_var"
+       return
+   }
+   unset si
+   ts_log_fine "Step 2 finished"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 3: Check that all resources went to resource provider"
+   # ------------------------------------------------------------------ 
+   foreach resource $this(resources) {
+       set exp_res_info($resource,service) "resource_provider"
+       set exp_res_info($resource,flags) "{}"
+       set exp_res_info($resource,state) "UNASSIGNED"
+       set exp_res_info($resource,type) "temp"
+   }
+   set retval [wait_for_resource_info exp_res_info 120 0 mvr_error]
+   if {$retval != 0} {
+       ts_log_severe "Step 3: Moving resources to resource provider failed with following error message: $mvr_error"
+       return
+   }
+   ts_log_fine "Step 3 finished"
+
+   # ------------------------------------------------------------------ 
+   ts_log_heading "Step 4: Startup the stopped spare_pool"
+   # ------------------------------------------------------------------    
+   # startup spare pool service
+   set output [sdmadm_command_opt "sus -s spare_pool"]
+   if {$prg_exit_state != 0} {
+       ts_log_severe "Step 4: Executing command startup service for service spare_pool failed with the error message:\n $output"
+       return
+   }
+   set si(spare_pool,cstate) "STARTED"
+   set si(spare_pool,sstate) "RUNNING"
+   
+   # check if startup really happened
+   if {[wait_for_service_info si 60 0 error_var] != 0} {
+       ts_log_severe "Step 4: Startup of the services failed with following error message:\n $error_var"
+       return
+   }
+   unset si
+   set this(startup) "false"
+   ts_log_fine "Step 4 finished"
+
+   # ------------------------------------------------------------------
+   ts_log_heading "Step 5: Check that the spare pool got all resources from resource provider"
+   # ------------------------------------------------------------------
+   foreach resource $this(resources) {
+       set exp_res_info($resource,service) "spare_pool"
+       set exp_res_info($resource,flags) "{}"
+       set exp_res_info($resource,state) "ASSIGNED"
+       set exp_res_info($resource,type) "host"
+   }
+   set retval [wait_for_resource_info exp_res_info 120 0 mvr_error]
+   if {$retval != 0} {
+       ts_log_severe "Step 5: Moving resources from resource provider failed with following error message: $mvr_error"
+       return
+   }
+   ts_log_fine "Step 5 finished"
+
+   # ------------------------------------------------------------------
+   ts_log_heading "Step 6: Startup the stopped ge_adapters"
+   # ------------------------------------------------------------------
+   # startup of all ge adapters
+   foreach service $this(services) {
+       set output [sdmadm_command_opt "sus -s $service"]
+       if {$prg_exit_state != 0} {
+           ts_log_severe "Step 6: Executing command startup service for service '$service' failed with the error message:\n $output"
+           return
+       }
+       set si($service,cstate) "STARTED"
+       set si($service,sstate) "RUNNING"
+   }
+   ts_log_fine "Step 6 finished"
+
+   # ------------------------------------------------------------------
+   ts_log_heading "Step 7: Cleanup "
+   # ------------------------------------------------------------------
+   # cleanup
+   if {[move_resources_to_default_services] != 0} {
+        ts_log_severe "Cleanup error: Cannot move resource to original services"
+   }
+   ts_log_fine "Step 7 finished"
+   
+}
