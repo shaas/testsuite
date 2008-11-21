@@ -1,3 +1,9 @@
+HP-2008-11-21-0: Bugfix:     Now the worker.exe for the qsub test on Windows
+                             loads one CPU with at least 95% and works for the 
+                             requested time +30 ms/-0 ms.
+                 Changed:    checktree/system_tests/clients/qsub/worker.exe
+                 Review:     MD
+
 CR-2008-11-21-0: Cleanup:    o Fixed minor TS framework issues
                              o Performance enhancements for remote calls
                              o Simplified scripts/file_check.sh
